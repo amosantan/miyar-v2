@@ -1,0 +1,1 @@
+ALTER TABLE `report_instances` ADD `content` json;

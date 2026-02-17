@@ -1,5 +1,27 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1771355386727,
+      "tag": "0000_tiresome_crusher_hogan",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1771355560249,
+      "tag": "0001_abnormal_switch",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1771356757625,
+      "tag": "0002_aspiring_master_mold",
+      "breakpoints": true
+    }
+  ]
 }
