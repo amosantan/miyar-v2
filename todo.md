@@ -113,15 +113,15 @@
 - [x] Seed Project 1: Mid-market residential tower (Al Wasl Residences) with all inputs pre-filled
 - [x] Seed Project 2: Premium branded residential (One Palm Residences) with all inputs pre-filled
 - [x] Both projects auto-evaluated with full scoring pipeline on seed
-- [ ] Both projects have scenario comparisons (user can create via Decision Lab)
-- [ ] Both projects generate full PDF packs (user can generate via Reports page)
+- [x] Both projects have scenario comparisons (user can create via Decision Lab)
+- [x] Both projects generate full PDF packs (user can generate via Reports page)
 
 ### Build Reality Report
-- [ ] Implementation status table (done/partial/stub for every feature)
-- [ ] Database schema documentation with relationships
-- [ ] Benchmark dataset documentation with example values
-- [ ] Decision engine documentation (variable registry, weights, pipeline, explainability)
-- [ ] User workflow screenshots (login, create, intake, evaluate, scenarios, dashboard, PDFs)
-- [ ] Admin capabilities documentation
-- [ ] Sample PDF screenshots
-- [ ] Known limitations and prioritized backlog
+- [x] Implementation status table (done/partial/stub for every feature)
+- [x] Database schema documentation with relationships
+- [x] Benchmark dataset documentation with example values
+- [x] Decision engine documentation (variable registry, weights, pipeline, explainability)
+- [x] User workflow screenshots (login, create, intake, evaluate, scenarios, dashboard, PDFs)
+- [x] Admin capabilities documentation
+- [x] Sample PDF screenshots
+- [x] Known limitations and prioritized backlog
