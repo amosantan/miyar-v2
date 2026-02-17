@@ -72,4 +72,56 @@
 - [x] Vitest tests for penalty system
 - [x] Vitest tests for project CRUD
 - [x] End-to-end verification
-- [ ] Save checkpoint and deliver (in progress)
+- [x] Save checkpoint and deliver
+
+## Correction Sprint (v1.1)
+
+### Gap 1: Rich Benchmark Data + Health Check
+- [x] Expand benchmark_data schema: add differentiation_index, complexity_multiplier, timeline_risk_multiplier, buyer_preference_weights, room_type, source_note columns
+- [x] Seed 50+ realistic synthetic UAE/Dubai benchmark rows across all tiers/segments/room types
+- [x] Benchmark Health Check admin page: missing values, outlier detection, coverage by tier/segment, version status
+- [x] Ensure scoring engine uses benchmark data to produce different believable scores across tiers
+
+### Gap 2: Full PDF Report Pack (End-to-End)
+- [x] Server-side HTML report generation engine (pdf-report.ts) with professional styling
+- [x] Validation Summary report: executive summary, scores, risk, sensitivity, conditional actions, input summary
+- [x] Design Brief report: all above + variable contributions per dimension
+- [x] Full Report: all above + ROI economic impact analysis
+- [x] Upload reports to S3 via storagePut with unique file keys
+- [x] Reports page: iframe preview, external view, download, cloud badge
+- [x] Each report includes: cover page, metric grid, dimension table, risk flags, penalties, audit footer
+
+### Gap 3: Explainability ("Why This Score?")
+- [x] Contribution waterfall chart (top positive/negative drivers per dimension)
+- [x] Sensitivity toggles (change 1-2 assumptions inline, show delta)
+- [x] Confidence index explanation panel
+- [x] Explainability visible in dashboard AND included in PDF reports
+
+### Gap 4: Decision-Lab Scenario Builder
+- [x] Clean scenario builder UI: baseline + 2-3 scenarios
+- [x] Each scenario changes: material tier, complexity, positioning, budget band, differentiation
+- [x] Comparison table output with all dimensions side-by-side
+- [x] Recommended scenario with reasoning narrative
+- [x] Trade-off narrative generation
+
+### Gap 5: Remove Fake Completeness
+- [x] Hide advanced module screens (Blueprints 18-35) behind admin feature flags (none were built as separate pages)
+- [x] Remove generic dashboard screens — Dashboard now uses listWithScores for real data only
+- [x] Mark any remaining scaffolds clearly as "Scaffold/Interface only" — all pages show real DB data
+
+### Product Proof Flows
+- [x] Seed Project 1: Mid-market residential tower (Al Wasl Residences) with all inputs pre-filled
+- [x] Seed Project 2: Premium branded residential (One Palm Residences) with all inputs pre-filled
+- [x] Both projects auto-evaluated with full scoring pipeline on seed
+- [ ] Both projects have scenario comparisons (user can create via Decision Lab)
+- [ ] Both projects generate full PDF packs (user can generate via Reports page)
+
+### Build Reality Report
+- [ ] Implementation status table (done/partial/stub for every feature)
+- [ ] Database schema documentation with relationships
+- [ ] Benchmark dataset documentation with example values
+- [ ] Decision engine documentation (variable registry, weights, pipeline, explainability)
+- [ ] User workflow screenshots (login, create, intake, evaluate, scenarios, dashboard, PDFs)
+- [ ] Admin capabilities documentation
+- [ ] Sample PDF screenshots
+- [ ] Known limitations and prioritized backlog

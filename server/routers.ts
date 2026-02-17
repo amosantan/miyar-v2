@@ -5,6 +5,7 @@ import { publicProcedure, router } from "./_core/trpc";
 import { projectRouter } from "./routers/project";
 import { scenarioRouter } from "./routers/scenario";
 import { adminRouter } from "./routers/admin";
+import { seedRouter } from "./routers/seed";
 
 export const appRouter = router({
   system: systemRouter,
@@ -19,6 +20,7 @@ export const appRouter = router({
   project: projectRouter,
   scenario: scenarioRouter,
   admin: adminRouter,
+  seed: seedRouter,
 });
 
 export type AppRouter = typeof appRouter;

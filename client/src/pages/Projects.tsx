@@ -6,15 +6,35 @@ import {
   PlusCircle,
   FolderKanban,
   BarChart3,
-  CheckCircle2,
   Clock,
   Trash2,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+function decisionBadge(decision: string | null | undefined) {
+  if (!decision) return null;
+  const colors: Record<string, string> = {
+    validated: "bg-miyar-teal/15 text-miyar-teal border-miyar-teal/30",
+    conditional: "bg-miyar-gold/15 text-miyar-gold border-miyar-gold/30",
+    not_validated: "bg-miyar-red/15 text-miyar-red border-miyar-red/30",
+  };
+  const labels: Record<string, string> = {
+    validated: "Validated",
+    conditional: "Conditional",
+    not_validated: "Not Validated",
+  };
+  return (
+    <span
+      className={`text-xs px-2 py-0.5 rounded-full border ${colors[decision] ?? "bg-muted text-muted-foreground"}`}
+    >
+      {labels[decision] ?? decision}
+    </span>
+  );
+}
+
 function ProjectsContent() {
-  const { data: projects, isLoading } = trpc.project.list.useQuery();
+  const { data: projects, isLoading } = trpc.project.listWithScores.useQuery();
   const deleteProject = trpc.project.delete.useMutation();
   const utils = trpc.useUtils();
   const [, setLocation] = useLocation();
@@ -23,6 +43,7 @@ function ProjectsContent() {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
     try {
       await deleteProject.mutateAsync({ id });
+      utils.project.listWithScores.invalidate();
       utils.project.list.invalidate();
       toast.success("Project deleted");
     } catch (e: any) {
@@ -89,10 +110,13 @@ function ProjectsContent() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {p.status === "evaluated" ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-miyar-teal/15 text-miyar-teal border border-miyar-teal/30">
-                        Evaluated
-                      </span>
+                    {p.latestScore ? (
+                      <>
+                        <span className="text-xs font-mono text-muted-foreground">
+                          Score: {p.latestScore.compositeScore.toFixed(1)}
+                        </span>
+                        {decisionBadge(p.latestScore.decisionStatus)}
+                      </>
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
                         Draft

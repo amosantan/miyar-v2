@@ -34,6 +34,7 @@ import {
   Database,
   Shield,
   ClipboardList,
+  HeartPulse,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -57,6 +58,7 @@ const adminItems = [
   { icon: Settings, label: "Model Versions", path: "/admin/models" },
   { icon: ClipboardList, label: "Audit Logs", path: "/admin/audit" },
   { icon: Shield, label: "Overrides", path: "/admin/overrides" },
+  { icon: HeartPulse, label: "Benchmark Health", path: "/admin/benchmark-health" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

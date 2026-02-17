@@ -30,7 +30,7 @@ export type InsertUser = typeof users.$inferInsert;
 export const modelVersions = mysqlTable("model_versions", {
   id: int("id").autoincrement().primaryKey(),
   versionTag: varchar("versionTag", { length: 32 }).notNull().unique(),
-  dimensionWeights: json("dimensionWeights").notNull(), // { sa, ff, mp, ds, er }
+  dimensionWeights: json("dimensionWeights").notNull(),
   variableWeights: json("variableWeights").notNull(),
   penaltyConfig: json("penaltyConfig").notNull(),
   isActive: boolean("isActive").default(false).notNull(),
@@ -143,7 +143,6 @@ export const directionCandidates = mysqlTable("direction_candidates", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   isPrimary: boolean("isPrimary").default(false),
-  // Override variables (null = use project defaults)
   des01Style: mysqlEnum("des01Style", [
     "Modern",
     "Contemporary",
@@ -168,13 +167,11 @@ export const scoreMatrices = mysqlTable("score_matrices", {
   projectId: int("projectId").notNull(),
   directionId: int("directionId"),
   modelVersionId: int("modelVersionId").notNull(),
-  // Dimension scores (0-100)
   saScore: decimal("saScore", { precision: 6, scale: 2 }).notNull(),
   ffScore: decimal("ffScore", { precision: 6, scale: 2 }).notNull(),
   mpScore: decimal("mpScore", { precision: 6, scale: 2 }).notNull(),
   dsScore: decimal("dsScore", { precision: 6, scale: 2 }).notNull(),
   erScore: decimal("erScore", { precision: 6, scale: 2 }).notNull(),
-  // Composite
   compositeScore: decimal("compositeScore", {
     precision: 6,
     scale: 2,
@@ -185,15 +182,13 @@ export const scoreMatrices = mysqlTable("score_matrices", {
     precision: 6,
     scale: 2,
   }).notNull(),
-  // Decision
   decisionStatus: mysqlEnum("decisionStatus", [
     "validated",
     "conditional",
     "not_validated",
   ]).notNull(),
-  // JSON fields
-  penalties: json("penalties"), // array of penalty objects
-  riskFlags: json("riskFlags"), // string array
+  penalties: json("penalties"),
+  riskFlags: json("riskFlags"),
   dimensionWeights: json("dimensionWeights").notNull(),
   variableContributions: json("variableContributions").notNull(),
   conditionalActions: json("conditionalActions"),
@@ -210,7 +205,7 @@ export const scenarios = mysqlTable("scenarios", {
   projectId: int("projectId").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  variableOverrides: json("variableOverrides"), // sparse: only changed variables
+  variableOverrides: json("variableOverrides"),
   scoreMatrixId: int("scoreMatrixId"),
   rasScore: decimal("rasScore", { precision: 6, scale: 2 }),
   isDominant: boolean("isDominant").default(false),
@@ -221,24 +216,35 @@ export const scenarios = mysqlTable("scenarios", {
 export type Scenario = typeof scenarios.$inferSelect;
 export type InsertScenario = typeof scenarios.$inferInsert;
 
-// ─── Benchmark Data ──────────────────────────────────────────────────────────
+// ─── Benchmark Data (Expanded) ──────────────────────────────────────────────
 export const benchmarkData = mysqlTable("benchmark_data", {
   id: int("id").autoincrement().primaryKey(),
   typology: varchar("typology", { length: 64 }).notNull(),
   location: varchar("location", { length: 64 }).notNull(),
   marketTier: varchar("marketTier", { length: 64 }).notNull(),
   materialLevel: int("materialLevel").notNull(),
+  roomType: varchar("roomType", { length: 64 }).default("General"),
+  // Cost benchmarks
   costPerSqftLow: decimal("costPerSqftLow", { precision: 10, scale: 2 }),
   costPerSqftMid: decimal("costPerSqftMid", { precision: 10, scale: 2 }),
   costPerSqftHigh: decimal("costPerSqftHigh", { precision: 10, scale: 2 }),
   avgSellingPrice: decimal("avgSellingPrice", { precision: 10, scale: 2 }),
+  // Market benchmarks
   absorptionRate: decimal("absorptionRate", { precision: 6, scale: 4 }),
   competitiveDensity: int("competitiveDensity"),
+  differentiationIndex: decimal("differentiationIndex", { precision: 6, scale: 4 }),
+  // Risk multipliers
+  complexityMultiplier: decimal("complexityMultiplier", { precision: 6, scale: 4 }),
+  timelineRiskMultiplier: decimal("timelineRiskMultiplier", { precision: 6, scale: 4 }),
+  // Buyer preferences
+  buyerPreferenceWeights: json("buyerPreferenceWeights"),
+  // Provenance
   sourceType: mysqlEnum("sourceType", [
     "synthetic",
     "client_provided",
     "curated",
   ]).default("synthetic"),
+  sourceNote: text("sourceNote"),
   dataYear: int("dataYear"),
   region: varchar("region", { length: 64 }).default("UAE"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -254,6 +260,9 @@ export const reportInstances = mysqlTable("report_instances", {
   projectId: int("projectId").notNull(),
   scoreMatrixId: int("scoreMatrixId").notNull(),
   reportType: mysqlEnum("reportType", [
+    "executive_decision_pack",
+    "design_brief_rfq",
+    "marketing_starter",
     "validation_summary",
     "design_brief",
     "rfq_pack",

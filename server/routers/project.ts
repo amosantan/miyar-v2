@@ -4,6 +4,9 @@ import * as db from "../db";
 import { evaluate, computeROI, type EvaluationConfig } from "../engines/scoring";
 import { runSensitivityAnalysis } from "../engines/sensitivity";
 import { generateValidationSummary, generateDesignBrief, generateFullReport } from "../engines/report";
+import { generateReportHTML, type PDFReportInput } from "../engines/pdf-report";
+import { storagePut } from "../storage";
+import { nanoid } from "nanoid";
 import type { ProjectInputs } from "../../shared/miyar-types";
 
 const projectInputSchema = z.object({
@@ -73,6 +76,29 @@ function projectToInputs(p: any): ProjectInputs {
 export const projectRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     return db.getProjectsByUser(ctx.user.id);
+  }),
+
+  listWithScores: protectedProcedure.query(async ({ ctx }) => {
+    const projectList = await db.getProjectsByUser(ctx.user.id);
+    const result = await Promise.all(
+      projectList.map(async (p) => {
+        const scores = await db.getScoreMatricesByProject(p.id);
+        const latest = scores.length > 0 ? scores[0] : null;
+        return {
+          ...p,
+          latestScore: latest
+            ? {
+                compositeScore: Number(latest.compositeScore),
+                rasScore: Number(latest.rasScore),
+                confidenceScore: Number(latest.confidenceScore),
+                decisionStatus: latest.decisionStatus,
+                computedAt: latest.computedAt,
+              }
+            : null,
+        };
+      })
+    );
+    return result;
   }),
 
   get: protectedProcedure
@@ -323,21 +349,48 @@ export const projectRouter = router({
 
       const sensitivity = runSensitivityAnalysis(inputs, config);
 
+      // Build ROI if full report
+      const roi = input.reportType === "full_report"
+        ? computeROI(inputs, scoreResult.compositeScore, 150000)
+        : undefined;
+
+      // Generate structured report data
       let reportData;
       if (input.reportType === "validation_summary") {
         reportData = generateValidationSummary(project.name, project.id, inputs, scoreResult, sensitivity);
       } else if (input.reportType === "design_brief") {
         reportData = generateDesignBrief(project.name, project.id, inputs, scoreResult, sensitivity);
       } else {
-        const roi = computeROI(inputs, scoreResult.compositeScore, 150000);
-        reportData = generateFullReport(project.name, project.id, inputs, scoreResult, sensitivity, roi);
+        reportData = generateFullReport(project.name, project.id, inputs, scoreResult, sensitivity, roi!);
       }
 
-      // Save report instance
+      // Generate HTML report for PDF-like viewing
+      const pdfInput: PDFReportInput = {
+        projectName: project.name,
+        projectId: project.id,
+        inputs,
+        scoreResult,
+        sensitivity,
+        roi,
+      };
+      const html = generateReportHTML(input.reportType, pdfInput);
+
+      // Upload HTML report to S3
+      let fileUrl: string | null = null;
+      try {
+        const fileKey = `reports/${project.id}/${input.reportType}-${nanoid(8)}.html`;
+        const result = await storagePut(fileKey, html, "text/html");
+        fileUrl = result.url;
+      } catch (e) {
+        console.warn("[Report] S3 upload failed, storing content only:", e);
+      }
+
+      // Save report instance with file URL
       await db.createReportInstance({
         projectId: input.projectId,
         scoreMatrixId: latest.id,
         reportType: input.reportType as any,
+        fileUrl,
         content: reportData,
         generatedBy: ctx.user.id,
       });
@@ -347,10 +400,10 @@ export const projectRouter = router({
         action: "report.generate",
         entityType: "report",
         entityId: input.projectId,
-        details: { reportType: input.reportType },
+        details: { reportType: input.reportType, fileUrl },
       });
 
-      return reportData;
+      return { ...reportData, fileUrl };
     }),
 
   listReports: protectedProcedure

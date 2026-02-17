@@ -10,19 +10,22 @@ import {
   AlertTriangle,
   XCircle,
   ArrowRight,
+  Clock,
+  Database,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useLocation } from "wouter";
 
 function statusIcon(status: string) {
   if (status === "evaluated")
-    return <CheckCircle2 className="h-4 w-4 text-miyar-teal" />;
+    return <BarChart3 className="h-4 w-4 text-miyar-teal" />;
   if (status === "locked")
-    return <BarChart3 className="h-4 w-4 text-miyar-gold" />;
-  return <FolderKanban className="h-4 w-4 text-muted-foreground" />;
+    return <CheckCircle2 className="h-4 w-4 text-miyar-gold" />;
+  return <Clock className="h-4 w-4 text-muted-foreground" />;
 }
 
-function decisionBadge(decision: string | null) {
-  if (!decision) return null;
+function decisionBadge(decision: string | null | undefined) {
+  if (!decision) return <span className="text-xs text-muted-foreground italic">Not evaluated</span>;
   const colors: Record<string, string> = {
     validated: "bg-miyar-teal/15 text-miyar-teal border-miyar-teal/30",
     conditional: "bg-miyar-gold/15 text-miyar-gold border-miyar-gold/30",
@@ -43,11 +46,23 @@ function decisionBadge(decision: string | null) {
 }
 
 function DashboardContent() {
-  const { data: projects, isLoading } = trpc.project.list.useQuery();
+  const { data: projects, isLoading } = trpc.project.listWithScores.useQuery();
   const [, setLocation] = useLocation();
+
+  const seedMutation = trpc.seed.seedProjects.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Seeded ${data.seeded} sample project(s)`);
+      utils.project.listWithScores.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const utils = trpc.useUtils();
 
   const evaluated = projects?.filter((p) => p.status === "evaluated") ?? [];
   const drafts = projects?.filter((p) => p.status === "draft") ?? [];
+  const validatedCount = projects?.filter((p) => p.latestScore?.decisionStatus === "validated").length ?? 0;
+  const conditionalCount = projects?.filter((p) => p.latestScore?.decisionStatus === "conditional").length ?? 0;
+  const notValidatedCount = projects?.filter((p) => p.latestScore?.decisionStatus === "not_validated").length ?? 0;
 
   return (
     <div className="space-y-8">
@@ -65,20 +80,18 @@ function DashboardContent() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           {
             label: "Total Projects",
             value: projects?.length ?? 0,
             icon: FolderKanban,
+            color: "text-primary",
           },
-          { label: "Evaluated", value: evaluated.length, icon: BarChart3 },
-          { label: "Drafts", value: drafts.length, icon: AlertTriangle },
-          {
-            label: "Validated",
-            value: evaluated.filter((p) => p.status === "evaluated").length,
-            icon: CheckCircle2,
-          },
+          { label: "Evaluated", value: evaluated.length, icon: BarChart3, color: "text-miyar-teal" },
+          { label: "Validated", value: validatedCount, icon: CheckCircle2, color: "text-miyar-teal" },
+          { label: "Conditional", value: conditionalCount, icon: AlertTriangle, color: "text-miyar-gold" },
+          { label: "Not Validated", value: notValidatedCount, icon: XCircle, color: "text-miyar-red" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="pt-5 pb-4 px-5">
@@ -92,7 +105,7 @@ function DashboardContent() {
                   </p>
                 </div>
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <s.icon className="h-5 w-5 text-primary" />
+                  <s.icon className={`h-5 w-5 ${s.color}`} />
                 </div>
               </div>
             </CardContent>
@@ -129,16 +142,26 @@ function DashboardContent() {
             <div className="text-center py-12">
               <FolderKanban className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">
-                No projects yet. Create your first project to get started.
+                No projects yet. Create your first project or seed sample data.
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => setLocation("/projects/new")}
-              >
-                <PlusCircle className="h-4 w-4 mr-2" /> Create Project
-              </Button>
+              <div className="flex gap-3 mt-4 justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/projects/new")}
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" /> Create Project
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => seedMutation.mutate()}
+                  disabled={seedMutation.isPending}
+                >
+                  <Database className="h-4 w-4 mr-2" />
+                  {seedMutation.isPending ? "Seeding..." : "Seed Sample Projects"}
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
@@ -160,7 +183,16 @@ function DashboardContent() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {p.status === "evaluated" && decisionBadge("validated")}
+                    {p.latestScore ? (
+                      <>
+                        <span className="text-xs font-mono text-muted-foreground">
+                          {p.latestScore.compositeScore.toFixed(1)}
+                        </span>
+                        {decisionBadge(p.latestScore.decisionStatus)}
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">Draft</span>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {new Date(p.updatedAt).toLocaleDateString()}
                     </span>
@@ -171,6 +203,42 @@ function DashboardContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Drafts needing attention */}
+      {drafts.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+              Drafts Awaiting Evaluation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {drafts.slice(0, 5).map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between rounded-lg border border-dashed border-border px-4 py-3 hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => setLocation(`/projects/${p.id}`)}
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.ctx01Typology} · {p.mkt01Tier}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" className="text-xs">
+                    Evaluate <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

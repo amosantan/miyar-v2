@@ -16,6 +16,7 @@ import Benchmarks from "./pages/admin/Benchmarks";
 import ModelVersions from "./pages/admin/ModelVersions";
 import AuditLogs from "./pages/admin/AuditLogs";
 import Overrides from "./pages/admin/Overrides";
+import BenchmarkHealth from "./pages/admin/BenchmarkHealth";
 
 function Router() {
   return (
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/admin/models" component={ModelVersions} />
       <Route path="/admin/audit" component={AuditLogs} />
       <Route path="/admin/overrides" component={Overrides} />
+      <Route path="/admin/benchmark-health" component={BenchmarkHealth} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
