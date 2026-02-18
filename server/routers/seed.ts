@@ -2,6 +2,8 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import * as db from "../db";
 import { evaluate, type EvaluationConfig } from "../engines/scoring";
+import { generateDesignBrief } from "../engines/design-brief";
+import { recommendMaterials } from "../engines/board-composer";
 import type { ProjectInputs } from "../../shared/miyar-types";
 
 function projectToInputs(p: any): ProjectInputs {
@@ -191,6 +193,72 @@ export const seedRouter = router({
         status: "evaluated",
         modelVersionId: modelVersion.id,
       });
+
+      // ─── V2.8 Design Enablement Seed Data ───────────────────────────────
+      try {
+        // 1. Generate Design Brief
+        const briefData = generateDesignBrief(
+          { name: project.name, description: project.description },
+          inputs,
+          {
+            compositeScore: scoreResult.compositeScore,
+            decisionStatus: scoreResult.decisionStatus,
+            dimensions: { ...scoreResult.dimensions },
+          },
+        );
+
+        await db.createDesignBrief({
+          projectId,
+          version: 1,
+          projectIdentity: briefData.projectIdentity,
+          positioningStatement: briefData.positioningStatement,
+          styleMood: briefData.styleMood,
+          materialGuidance: briefData.materialGuidance,
+          budgetGuardrails: briefData.budgetGuardrails,
+          procurementConstraints: briefData.procurementConstraints,
+          deliverablesChecklist: briefData.deliverablesChecklist,
+          createdBy: ctx.user.id,
+        });
+
+        // 2. Create Material Board with recommended materials
+        const catalog = await db.getAllMaterials();
+        const recommended = recommendMaterials(catalog as any, inputs.mkt01Tier || "Upper-mid", 8);
+
+        if (recommended.length > 0) {
+          const boardResult = await db.createMaterialBoard({
+            projectId,
+            boardName: `${sample.name.split("—")[0].trim()} — Primary Board`,
+            boardJson: recommended,
+            createdBy: ctx.user.id,
+          });
+
+          // Link materials to board
+          for (const mat of recommended) {
+            await db.addMaterialToBoard({
+              boardId: boardResult.id,
+              materialId: mat.materialId,
+            });
+          }
+        }
+
+        // 3. Add seed comments
+        await db.createComment({
+          projectId,
+          entityType: "general",
+          userId: ctx.user.id,
+          content: `Project evaluated with composite score ${scoreResult.compositeScore.toFixed(1)} (${scoreResult.decisionStatus}). Design brief V1 generated. Material board created with ${recommended.length} recommended materials.`,
+        });
+
+        await db.createComment({
+          projectId,
+          entityType: "design_brief",
+          userId: ctx.user.id,
+          content: `Design brief generated based on ${inputs.des01Style} style direction for ${inputs.mkt01Tier} tier. Positioning statement and material guidance aligned with evaluation results.`,
+        });
+      } catch (e) {
+        // V2.8 seed data is non-critical — log but don't fail
+        console.error("V2.8 seed data error:", e);
+      }
 
       // Audit
       await db.createAuditLog({

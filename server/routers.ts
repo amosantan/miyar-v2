@@ -6,6 +6,7 @@ import { projectRouter } from "./routers/project";
 import { scenarioRouter } from "./routers/scenario";
 import { adminRouter } from "./routers/admin";
 import { seedRouter } from "./routers/seed";
+import { designRouter } from "./routers/design";
 
 export const appRouter = router({
   system: systemRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   scenario: scenarioRouter,
   admin: adminRouter,
   seed: seedRouter,
+  design: designRouter,
 });
 
 export type AppRouter = typeof appRouter;

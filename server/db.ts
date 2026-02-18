@@ -17,6 +17,15 @@ import {
   webhookConfigs,
   auditLogs,
   overrideRecords,
+  projectAssets,
+  assetLinks,
+  designBriefs,
+  generatedVisuals,
+  materialBoards,
+  materialsCatalog,
+  materialsToBoards,
+  promptTemplates,
+  comments,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -493,4 +502,286 @@ export async function getOverridesByProject(projectId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(overrideRecords).where(eq(overrideRecords.projectId, projectId)).orderBy(desc(overrideRecords.createdAt));
+}
+
+// ─── Project Assets (V2.8 — Evidence Vault) ─────────────────────────────────
+
+export async function createProjectAsset(data: typeof projectAssets.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(projectAssets).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getProjectAssets(projectId: number, category?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(projectAssets.projectId, projectId)];
+  if (category) conditions.push(eq(projectAssets.category, category as any));
+  return db.select().from(projectAssets).where(and(...conditions)).orderBy(desc(projectAssets.uploadedAt));
+}
+
+export async function getProjectAssetById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(projectAssets).where(eq(projectAssets.id, id));
+  return result[0];
+}
+
+export async function deleteProjectAsset(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(projectAssets).where(eq(projectAssets.id, id));
+}
+
+export async function updateProjectAsset(id: number, data: Partial<typeof projectAssets.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(projectAssets).set(data).where(eq(projectAssets.id, id));
+}
+
+// ─── Asset Links (V2.8) ─────────────────────────────────────────────────────
+
+export async function createAssetLink(data: typeof assetLinks.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(assetLinks).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getAssetLinksByAsset(assetId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(assetLinks).where(eq(assetLinks.assetId, assetId));
+}
+
+export async function getAssetLinksByEntity(linkType: string, linkId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(assetLinks).where(
+    and(eq(assetLinks.linkType, linkType as any), eq(assetLinks.linkId, linkId))
+  );
+}
+
+// ─── Design Briefs (V2.8) ───────────────────────────────────────────────────
+
+export async function createDesignBrief(data: typeof designBriefs.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(designBriefs).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getDesignBriefsByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(designBriefs).where(eq(designBriefs.projectId, projectId)).orderBy(desc(designBriefs.createdAt));
+}
+
+export async function getDesignBriefById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(designBriefs).where(eq(designBriefs.id, id));
+  return result[0];
+}
+
+export async function getLatestDesignBrief(projectId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(designBriefs)
+    .where(eq(designBriefs.projectId, projectId))
+    .orderBy(desc(designBriefs.version))
+    .limit(1);
+  return result[0];
+}
+
+// ─── Generated Visuals (V2.8) ───────────────────────────────────────────────
+
+export async function createGeneratedVisual(data: typeof generatedVisuals.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(generatedVisuals).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getGeneratedVisualsByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(generatedVisuals).where(eq(generatedVisuals.projectId, projectId)).orderBy(desc(generatedVisuals.createdAt));
+}
+
+export async function updateGeneratedVisual(id: number, data: Partial<typeof generatedVisuals.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(generatedVisuals).set(data).where(eq(generatedVisuals.id, id));
+}
+
+export async function getGeneratedVisualById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(generatedVisuals).where(eq(generatedVisuals.id, id));
+  return result[0];
+}
+
+// ─── Material Boards (V2.8) ─────────────────────────────────────────────────
+
+export async function createMaterialBoard(data: typeof materialBoards.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(materialBoards).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getMaterialBoardsByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(materialBoards).where(eq(materialBoards.projectId, projectId)).orderBy(desc(materialBoards.createdAt));
+}
+
+export async function getMaterialBoardById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(materialBoards).where(eq(materialBoards.id, id));
+  return result[0];
+}
+
+export async function updateMaterialBoard(id: number, data: Partial<typeof materialBoards.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(materialBoards).set(data).where(eq(materialBoards.id, id));
+}
+
+export async function deleteMaterialBoard(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
+  await db.delete(materialBoards).where(eq(materialBoards.id, id));
+}
+
+// ─── Materials Catalog (V2.8) ───────────────────────────────────────────────
+
+export async function getAllMaterials(category?: string, tier?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(materialsCatalog.isActive, true)];
+  if (category) conditions.push(eq(materialsCatalog.category, category as any));
+  if (tier) conditions.push(eq(materialsCatalog.tier, tier as any));
+  return db.select().from(materialsCatalog).where(and(...conditions)).orderBy(materialsCatalog.name);
+}
+
+export async function getMaterialById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(materialsCatalog).where(eq(materialsCatalog.id, id));
+  return result[0];
+}
+
+export async function createMaterial(data: typeof materialsCatalog.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(materialsCatalog).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateMaterial(id: number, data: Partial<typeof materialsCatalog.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(materialsCatalog).set(data).where(eq(materialsCatalog.id, id));
+}
+
+export async function deleteMaterial(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(materialsCatalog).set({ isActive: false }).where(eq(materialsCatalog.id, id));
+}
+
+// ─── Materials to Boards (V2.8) ─────────────────────────────────────────────
+
+export async function addMaterialToBoard(data: typeof materialsToBoards.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(materialsToBoards).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getMaterialsByBoard(boardId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(materialsToBoards).where(eq(materialsToBoards.boardId, boardId));
+}
+
+export async function removeMaterialFromBoard(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(materialsToBoards).where(eq(materialsToBoards.id, id));
+}
+
+// ─── Prompt Templates (V2.8) ────────────────────────────────────────────────
+
+export async function getAllPromptTemplates(type?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (type) conditions.push(eq(promptTemplates.type, type as any));
+  let query = db.select().from(promptTemplates);
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as any;
+  }
+  return query.orderBy(desc(promptTemplates.createdAt));
+}
+
+export async function getActivePromptTemplate(type: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(promptTemplates)
+    .where(and(eq(promptTemplates.type, type as any), eq(promptTemplates.isActive, true)))
+    .limit(1);
+  return result[0];
+}
+
+export async function createPromptTemplate(data: typeof promptTemplates.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(promptTemplates).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updatePromptTemplate(id: number, data: Partial<typeof promptTemplates.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(promptTemplates).set(data).where(eq(promptTemplates.id, id));
+}
+
+// ─── Comments (V2.8 — Collaboration) ────────────────────────────────────────
+
+export async function createComment(data: typeof comments.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(comments).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getCommentsByEntity(projectId: number, entityType: string, entityId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    eq(comments.projectId, projectId),
+    eq(comments.entityType, entityType as any),
+  ];
+  if (entityId !== undefined) conditions.push(eq(comments.entityId, entityId));
+  return db.select().from(comments).where(and(...conditions)).orderBy(desc(comments.createdAt));
+}
+
+export async function getCommentsByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(comments).where(eq(comments.projectId, projectId)).orderBy(desc(comments.createdAt));
+}
+
+// ─── Approval State (V2.8) ──────────────────────────────────────────────────
+
+export async function updateProjectApprovalState(projectId: number, approvalState: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(projects).set({ approvalState: approvalState as any }).where(eq(projects.id, projectId));
 }

@@ -42,6 +42,12 @@ import {
   Webhook,
   PieChart,
   FileSpreadsheet,
+  FolderOpen,
+  Palette,
+  Camera,
+  Package,
+  MessageSquare,
+  Sparkles,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -61,6 +67,14 @@ const analysisItems = [
   { icon: FileText, label: "Reports", path: "/reports" },
 ];
 
+const designItems = [
+  { icon: FolderOpen, label: "Evidence Vault", path: "/projects/:id/evidence", dynamic: true },
+  { icon: Palette, label: "Design Brief", path: "/projects/:id/brief", dynamic: true },
+  { icon: Camera, label: "Visual Studio", path: "/projects/:id/visuals", dynamic: true },
+  { icon: Package, label: "Board Composer", path: "/projects/:id/boards", dynamic: true },
+  { icon: MessageSquare, label: "Collaboration", path: "/projects/:id/collaboration", dynamic: true },
+];
+
 const adminItems = [
   { icon: Database, label: "Benchmarks", path: "/admin/benchmarks" },
   { icon: GitBranch, label: "Benchmark Versions", path: "/admin/benchmark-versions" },
@@ -73,6 +87,8 @@ const adminItems = [
   { icon: Shield, label: "Overrides", path: "/admin/overrides" },
   { icon: FileSpreadsheet, label: "CSV Import", path: "/admin/csv-import" },
   { icon: HeartPulse, label: "Benchmark Health", path: "/admin/benchmark-health" },
+  { icon: Sparkles, label: "Materials Library", path: "/admin/materials" },
+  { icon: Wand2, label: "Prompt Templates", path: "/admin/prompt-templates" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -276,6 +292,45 @@ function DashboardLayoutContent({
                 );
               })}
             </SidebarMenu>
+
+            {/* Design Enablement Section — shows when on a project page */}
+            {(() => {
+              const projectMatch = location.match(/\/projects\/(\d+)/);
+              if (!projectMatch) return null;
+              const pid = projectMatch[1];
+              return (
+                <>
+                  {!isCollapsed && (
+                    <div className="px-4 pt-4 pb-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                        Design Enablement
+                      </span>
+                    </div>
+                  )}
+                  <SidebarMenu className="px-2 py-1">
+                    {designItems.map((item) => {
+                      const resolvedPath = item.path.replace(":id", pid);
+                      const isActive = location === resolvedPath;
+                      return (
+                        <SidebarMenuItem key={item.path}>
+                          <SidebarMenuButton
+                            isActive={isActive}
+                            onClick={() => setLocation(resolvedPath)}
+                            tooltip={item.label}
+                            className="h-10 transition-all font-normal"
+                          >
+                            <item.icon
+                              className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                            />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                </>
+              );
+            })()}
 
             {/* Admin Section */}
             {isAdmin && (

@@ -13,6 +13,11 @@ import Results from "./pages/Results";
 import Scenarios from "./pages/Scenarios";
 import ScenarioTemplates from "./pages/ScenarioTemplates";
 import Reports from "./pages/Reports";
+import EvidenceVault from "./pages/EvidenceVault";
+import DesignBrief from "./pages/DesignBrief";
+import VisualStudio from "./pages/VisualStudio";
+import BoardComposer from "./pages/BoardComposer";
+import Collaboration from "./pages/Collaboration";
 import Benchmarks from "./pages/admin/Benchmarks";
 import BenchmarkVersions from "./pages/admin/BenchmarkVersions";
 import BenchmarkCategories from "./pages/admin/BenchmarkCategories";
@@ -24,6 +29,8 @@ import Portfolio from "./pages/admin/Portfolio";
 import RoiConfig from "./pages/admin/RoiConfig";
 import Webhooks from "./pages/admin/Webhooks";
 import CsvImport from "./pages/admin/CsvImport";
+import MaterialsLibrary from "./pages/admin/MaterialsLibrary";
+import PromptTemplates from "./pages/admin/PromptTemplates";
 
 function Router() {
   return (
@@ -33,6 +40,11 @@ function Router() {
       <Route path="/projects" component={Projects} />
       <Route path="/projects/new" component={ProjectNew} />
       <Route path="/projects/:id" component={ProjectDetail} />
+      <Route path="/projects/:id/evidence" component={EvidenceVault} />
+      <Route path="/projects/:id/brief" component={DesignBrief} />
+      <Route path="/projects/:id/visuals" component={VisualStudio} />
+      <Route path="/projects/:id/boards" component={BoardComposer} />
+      <Route path="/projects/:id/collaboration" component={Collaboration} />
       <Route path="/results" component={Results} />
       <Route path="/scenarios" component={Scenarios} />
       <Route path="/scenarios/templates" component={ScenarioTemplates} />
@@ -48,6 +60,8 @@ function Router() {
       <Route path="/admin/roi-config" component={RoiConfig} />
       <Route path="/admin/webhooks" component={Webhooks} />
       <Route path="/admin/csv-import" component={CsvImport} />
+      <Route path="/admin/materials" component={MaterialsLibrary} />
+      <Route path="/admin/prompt-templates" component={PromptTemplates} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

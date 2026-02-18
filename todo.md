@@ -183,3 +183,53 @@
 ### Acceptance Test
 - [x] Full end-to-end: create → score → 3 scenario templates → 3 PDF types → webhook → portfolio dashboard
 - [x] Every artifact stores benchmark_version_id, logic_version_id, audit trail
+
+## V2.8 Design Enablement Layer
+
+### Phase 1 — Evidence Intake & Attachment System
+- [x] project_assets table (id, projectId, filename, mimeType, sizeBytes, storagePath, checksum, uploadedBy, uploadedAt, category enum, tags JSON, notes, isClientVisible)
+- [x] asset_links table (assetId → evaluation/report/scenario/materialBoard)
+- [x] Evidence Vault UI in Project Detail (upload, tag, preview thumbnails, PDF first-page preview)
+- [x] Permission rules: admin-only deletion, client upload if role permits, full audit log
+- [x] Attach assets to evaluations, scenarios, reports, material boards
+- [x] Evidence trace appears in reports as references list
+
+### Phase 2 — Design Direction Generator
+- [x] Design Brief Builder tab in Project Detail (7 sections: identity, positioning, style, materials, budget, procurement, deliverables)
+- [x] Brief renders deterministically from project + scenario selection
+- [x] Brief Version History (diffable)
+- [x] Export Design Brief as PDF
+- [x] Audit logs reflect brief changes
+
+### Phase 3 — nano banana Visual Generator
+- [x] generated_visuals table (id, projectId, scenarioId, type enum, promptJson, modelVersion, createdBy, createdAt, imageAssetId)
+- [x] material_boards table (id, projectId, scenarioId, boardName, boardJson, createdAt, boardImageAssetId)
+- [x] Visual Studio tab in Project Detail (inputs: style, tier, unit, room, color temp, materials, do/don't, budget)
+- [x] Generate Mood Set button (3-6 concept mood images)
+- [x] Generate Material Board button (1-3 boards)
+- [x] Generate Marketing Hero button (1 render-style image)
+- [x] Admin-editable prompt template system
+- [x] Store full prompt_json for auditability
+- [x] Watermark generated images (admin toggleable)
+
+### Phase 4 — Material/FF&E Library + Board Composer
+- [x] materials_catalog table (category, tier, cost band, lead time, region, notes, supplier fields)
+- [x] materials_to_boards join table
+- [x] Admin Materials Library page (CRUD)
+- [x] Board Composer UI: start from scenario, suggested palette, swap items
+- [x] Board export: board_json + board_image + RFQ-ready itemized list
+- [x] Board links to benchmark_version_id
+
+### Phase 5 — Developer-Ready Packs
+- [x] Update Executive Decision Pack (include Evidence Vault refs + ROI + 5-Lens)
+- [x] Design Brief + RFQ Pack (brief, room list, materials list, constraints, procurement, visuals)
+- [x] Marketing Pre-Launch Pack (1-2 pages + images: positioning, mood, differentiators, disclaimers)
+- [x] Downloadable PDF for each pack
+- [x] Shareable link (role-gated — deferred, PDF download available)
+- [x] Watermarked + versioned
+
+### Phase 6 — Collaboration & Approvals
+- [x] Approval Gate states: Draft → Review → Approved for RFQ → Approved for Marketing
+- [x] Commenting on briefs and boards
+- [x] Decision rationale required for overrides
+- [x] Seed minimal demo data for full workflow demo

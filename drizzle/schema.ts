@@ -83,9 +83,7 @@ export const benchmarkCategories = mysqlTable("benchmark_categories", {
   confidenceLevel: mysqlEnum("confidenceLevel", ["high", "medium", "low"]).default("medium"),
   sourceType: mysqlEnum("sourceType", ["manual", "admin", "imported", "curated"]).default("admin"),
   benchmarkVersionId: int("benchmarkVersionId"),
-  // Data payload (flexible JSON for category-specific fields)
   data: json("data").notNull(),
-  // Metadata
   versionTag: varchar("versionTag", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -110,6 +108,14 @@ export const projects = mysqlTable("projects", {
   ])
     .default("draft")
     .notNull(),
+
+  // Approval gate (V2.8)
+  approvalState: mysqlEnum("approvalState", [
+    "draft",
+    "review",
+    "approved_rfq",
+    "approved_marketing",
+  ]).default("draft"),
 
   // Context variables
   ctx01Typology: mysqlEnum("ctx01Typology", [
@@ -281,21 +287,16 @@ export const benchmarkData = mysqlTable("benchmark_data", {
   marketTier: varchar("marketTier", { length: 64 }).notNull(),
   materialLevel: int("materialLevel").notNull(),
   roomType: varchar("roomType", { length: 64 }).default("General"),
-  // Cost benchmarks
   costPerSqftLow: decimal("costPerSqftLow", { precision: 10, scale: 2 }),
   costPerSqftMid: decimal("costPerSqftMid", { precision: 10, scale: 2 }),
   costPerSqftHigh: decimal("costPerSqftHigh", { precision: 10, scale: 2 }),
   avgSellingPrice: decimal("avgSellingPrice", { precision: 10, scale: 2 }),
-  // Market benchmarks
   absorptionRate: decimal("absorptionRate", { precision: 6, scale: 4 }),
   competitiveDensity: int("competitiveDensity"),
   differentiationIndex: decimal("differentiationIndex", { precision: 6, scale: 4 }),
-  // Risk multipliers
   complexityMultiplier: decimal("complexityMultiplier", { precision: 6, scale: 4 }),
   timelineRiskMultiplier: decimal("timelineRiskMultiplier", { precision: 6, scale: 4 }),
-  // Buyer preferences
   buyerPreferenceWeights: json("buyerPreferenceWeights"),
-  // Provenance
   sourceType: mysqlEnum("sourceType", [
     "synthetic",
     "client_provided",
@@ -319,17 +320,14 @@ export const projectIntelligence = mysqlTable("project_intelligence", {
   scoreMatrixId: int("scoreMatrixId").notNull(),
   benchmarkVersionId: int("benchmarkVersionId"),
   modelVersionId: int("modelVersionId"),
-  // Derived features
   costDeltaVsBenchmark: decimal("costDeltaVsBenchmark", { precision: 10, scale: 2 }),
   uniquenessIndex: decimal("uniquenessIndex", { precision: 6, scale: 4 }),
   feasibilityFlags: json("feasibilityFlags"),
   reworkRiskIndex: decimal("reworkRiskIndex", { precision: 6, scale: 4 }),
   procurementComplexity: decimal("procurementComplexity", { precision: 6, scale: 4 }),
-  // Portfolio analytics
   tierPercentile: decimal("tierPercentile", { precision: 6, scale: 4 }),
   styleFamily: varchar("styleFamily", { length: 64 }),
   costBand: varchar("costBand", { length: 32 }),
-  // Snapshot
   inputSnapshot: json("inputSnapshot"),
   scoreSnapshot: json("scoreSnapshot"),
   computedAt: timestamp("computedAt").defaultNow().notNull(),
@@ -354,6 +352,7 @@ export const reportInstances = mysqlTable("report_instances", {
     "design_brief",
     "rfq_pack",
     "full_report",
+    "marketing_prelaunch",
   ]).notNull(),
   fileUrl: text("fileUrl"),
   bundleUrl: text("bundleUrl"),
@@ -372,14 +371,12 @@ export const roiConfigs = mysqlTable("roi_configs", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 128 }).notNull(),
   isActive: boolean("isActive").default(false).notNull(),
-  // Coefficients
   hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("350").notNull(),
   reworkCostPct: decimal("reworkCostPct", { precision: 6, scale: 4 }).default("0.12").notNull(),
   tenderIterationCost: decimal("tenderIterationCost", { precision: 10, scale: 2 }).default("25000").notNull(),
   designCycleCost: decimal("designCycleCost", { precision: 10, scale: 2 }).default("45000").notNull(),
   budgetVarianceMultiplier: decimal("budgetVarianceMultiplier", { precision: 6, scale: 4 }).default("0.08").notNull(),
   timeAccelerationWeeks: int("timeAccelerationWeeks").default(6),
-  // Scenario multipliers
   conservativeMultiplier: decimal("conservativeMultiplier", { precision: 6, scale: 4 }).default("0.60").notNull(),
   aggressiveMultiplier: decimal("aggressiveMultiplier", { precision: 6, scale: 4 }).default("1.40").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -395,8 +392,8 @@ export const webhookConfigs = mysqlTable("webhook_configs", {
   name: varchar("name", { length: 255 }).notNull(),
   url: text("url").notNull(),
   secret: varchar("secret", { length: 255 }),
-  events: json("events").notNull(), // e.g., ["project.evaluated", "report.generated"]
-  fieldMapping: json("fieldMapping"), // maps MIYAR fields to CRM fields
+  events: json("events").notNull(),
+  fieldMapping: json("fieldMapping"),
   isActive: boolean("isActive").default(true).notNull(),
   lastTriggeredAt: timestamp("lastTriggeredAt"),
   lastStatus: int("lastStatus"),
@@ -406,6 +403,207 @@ export const webhookConfigs = mysqlTable("webhook_configs", {
 
 export type WebhookConfig = typeof webhookConfigs.$inferSelect;
 export type InsertWebhookConfig = typeof webhookConfigs.$inferInsert;
+
+// ─── Project Assets (V2.8 — Evidence Vault) ────────────────────────────────
+export const projectAssets = mysqlTable("project_assets", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  filename: varchar("filename", { length: 512 }).notNull(),
+  mimeType: varchar("mimeType", { length: 128 }).notNull(),
+  sizeBytes: int("sizeBytes").notNull(),
+  storagePath: text("storagePath").notNull(),
+  storageUrl: text("storageUrl"),
+  checksum: varchar("checksum", { length: 128 }),
+  uploadedBy: int("uploadedBy").notNull(),
+  category: mysqlEnum("category", [
+    "brief",
+    "brand",
+    "budget",
+    "competitor",
+    "inspiration",
+    "material",
+    "sales",
+    "legal",
+    "mood_image",
+    "material_board",
+    "marketing_hero",
+    "generated",
+    "other",
+  ]).default("other").notNull(),
+  tags: json("tags"), // string[]
+  notes: text("notes"),
+  isClientVisible: boolean("isClientVisible").default(true).notNull(),
+  uploadedAt: timestamp("uploadedAt").defaultNow().notNull(),
+});
+
+export type ProjectAsset = typeof projectAssets.$inferSelect;
+export type InsertProjectAsset = typeof projectAssets.$inferInsert;
+
+// ─── Asset Links (V2.8 — Evidence Traceability) ────────────────────────────
+export const assetLinks = mysqlTable("asset_links", {
+  id: int("id").autoincrement().primaryKey(),
+  assetId: int("assetId").notNull(),
+  linkType: mysqlEnum("linkType", [
+    "evaluation",
+    "report",
+    "scenario",
+    "material_board",
+    "design_brief",
+    "visual",
+  ]).notNull(),
+  linkId: int("linkId").notNull(), // ID of the linked entity
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AssetLink = typeof assetLinks.$inferSelect;
+export type InsertAssetLink = typeof assetLinks.$inferInsert;
+
+// ─── Design Briefs (V2.8 — Design Direction Generator) ─────────────────────
+export const designBriefs = mysqlTable("design_briefs", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  scenarioId: int("scenarioId"), // optional: brief for a specific scenario
+  version: int("version").default(1).notNull(),
+  // 7 sections as JSON
+  projectIdentity: json("projectIdentity").notNull(),
+  positioningStatement: text("positioningStatement").notNull(),
+  styleMood: json("styleMood").notNull(),
+  materialGuidance: json("materialGuidance").notNull(),
+  budgetGuardrails: json("budgetGuardrails").notNull(),
+  procurementConstraints: json("procurementConstraints").notNull(),
+  deliverablesChecklist: json("deliverablesChecklist").notNull(),
+  // Metadata
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DesignBrief = typeof designBriefs.$inferSelect;
+export type InsertDesignBrief = typeof designBriefs.$inferInsert;
+
+// ─── Generated Visuals (V2.8 — nano banana) ────────────────────────────────
+export const generatedVisuals = mysqlTable("generated_visuals", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  scenarioId: int("scenarioId"),
+  type: mysqlEnum("type", ["mood", "material_board", "hero"]).notNull(),
+  promptJson: json("promptJson").notNull(),
+  modelVersion: varchar("modelVersion", { length: 64 }).default("nano-banana-v1"),
+  imageAssetId: int("imageAssetId"), // FK to project_assets
+  status: mysqlEnum("status", ["pending", "generating", "completed", "failed"]).default("pending").notNull(),
+  errorMessage: text("errorMessage"),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type GeneratedVisual = typeof generatedVisuals.$inferSelect;
+export type InsertGeneratedVisual = typeof generatedVisuals.$inferInsert;
+
+// ─── Material Boards (V2.8 — Board Composer) ────────────────────────────────
+export const materialBoards = mysqlTable("material_boards", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  scenarioId: int("scenarioId"),
+  boardName: varchar("boardName", { length: 255 }).notNull(),
+  boardJson: json("boardJson").notNull(), // materials/finishes/ff&e items
+  boardImageAssetId: int("boardImageAssetId"), // FK to project_assets
+  benchmarkVersionId: int("benchmarkVersionId"),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MaterialBoard = typeof materialBoards.$inferSelect;
+export type InsertMaterialBoard = typeof materialBoards.$inferInsert;
+
+// ─── Materials Catalog (V2.8 — FF&E Library) ────────────────────────────────
+export const materialsCatalog = mysqlTable("materials_catalog", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  category: mysqlEnum("category", [
+    "tile",
+    "stone",
+    "wood",
+    "metal",
+    "fabric",
+    "glass",
+    "paint",
+    "wallpaper",
+    "lighting",
+    "furniture",
+    "fixture",
+    "accessory",
+    "other",
+  ]).notNull(),
+  tier: mysqlEnum("tier", ["economy", "mid", "premium", "luxury", "ultra_luxury"]).notNull(),
+  typicalCostLow: decimal("typicalCostLow", { precision: 10, scale: 2 }),
+  typicalCostHigh: decimal("typicalCostHigh", { precision: 10, scale: 2 }),
+  costUnit: varchar("costUnit", { length: 32 }).default("AED/sqm"),
+  leadTimeDays: int("leadTimeDays"),
+  leadTimeBand: mysqlEnum("leadTimeBand", ["short", "medium", "long", "critical"]).default("medium"),
+  regionAvailability: json("regionAvailability"), // string[]
+  supplierName: varchar("supplierName", { length: 255 }),
+  supplierContact: varchar("supplierContact", { length: 255 }),
+  supplierUrl: text("supplierUrl"),
+  imageUrl: text("imageUrl"),
+  notes: text("notes"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MaterialCatalogItem = typeof materialsCatalog.$inferSelect;
+export type InsertMaterialCatalogItem = typeof materialsCatalog.$inferInsert;
+
+// ─── Materials to Boards (V2.8 — Join Table) ────────────────────────────────
+export const materialsToBoards = mysqlTable("materials_to_boards", {
+  id: int("id").autoincrement().primaryKey(),
+  boardId: int("boardId").notNull(),
+  materialId: int("materialId").notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }),
+  unitOfMeasure: varchar("unitOfMeasure", { length: 32 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MaterialToBoard = typeof materialsToBoards.$inferSelect;
+export type InsertMaterialToBoard = typeof materialsToBoards.$inferInsert;
+
+// ─── Prompt Templates (V2.8 — Admin-editable nano banana prompts) ───────────
+export const promptTemplates = mysqlTable("prompt_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: mysqlEnum("type", ["mood", "material_board", "hero"]).notNull(),
+  templateText: text("templateText").notNull(),
+  variables: json("variables").notNull(), // string[] of variable names
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PromptTemplate = typeof promptTemplates.$inferSelect;
+export type InsertPromptTemplate = typeof promptTemplates.$inferInsert;
+
+// ─── Comments (V2.8 — Collaboration) ────────────────────────────────────────
+export const comments = mysqlTable("comments", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  entityType: mysqlEnum("entityType", [
+    "design_brief",
+    "material_board",
+    "visual",
+    "general",
+  ]).notNull(),
+  entityId: int("entityId"),
+  userId: int("userId").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Comment = typeof comments.$inferSelect;
+export type InsertComment = typeof comments.$inferInsert;
 
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
 export const auditLogs = mysqlTable("audit_logs", {
