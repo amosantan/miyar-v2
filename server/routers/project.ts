@@ -8,6 +8,11 @@ import { generateReportHTML, type PDFReportInput } from "../engines/pdf-report";
 import { storagePut } from "../storage";
 import { nanoid } from "nanoid";
 import type { ProjectInputs } from "../../shared/miyar-types";
+import { computeRoi, type RoiInputs } from "../engines/roi";
+import { computeFiveLens } from "../engines/five-lens";
+import { computeDerivedFeatures } from "../engines/intelligence";
+import { SCENARIO_TEMPLATES, getScenarioTemplate, solveConstraints, type Constraint } from "../engines/scenario-templates";
+import { dispatchWebhook } from "../engines/webhook";
 
 const projectInputSchema = z.object({
   name: z.string().min(1).max(255),
@@ -125,6 +130,8 @@ export const projectRouter = router({
         entityType: "project",
         entityId: result.id,
       });
+      // Dispatch webhook
+      dispatchWebhook("project.created", { projectId: result.id, name: input.name, tier: input.mkt01Tier }).catch(() => {});
       return result;
     }),
 
@@ -178,20 +185,17 @@ export const projectRouter = router({
         throw new Error("Project not found");
       }
 
-      // Get active model version
       const modelVersion = await db.getActiveModelVersion();
       if (!modelVersion) throw new Error("No active model version found");
 
       const inputs = projectToInputs(project);
 
-      // Get expected cost from benchmarks
       const expectedCost = await db.getExpectedCost(
         inputs.ctx01Typology,
         inputs.ctx04Location,
         inputs.mkt01Tier
       );
 
-      // Get benchmark count for confidence
       const benchmarks = await db.getBenchmarks(
         inputs.ctx01Typology,
         inputs.ctx04Location,
@@ -207,13 +211,15 @@ export const projectRouter = router({
         overrideRate: 0,
       };
 
-      // Run evaluation
       const scoreResult = evaluate(inputs, config);
 
-      // Save score matrix
+      // Get active benchmark version for tracking
+      const activeBV = await db.getActiveBenchmarkVersion();
+
       const matrixResult = await db.createScoreMatrix({
         projectId: input.id,
         modelVersionId: modelVersion.id,
+        benchmarkVersionId: activeBV?.id ?? null,
         saScore: String(scoreResult.dimensions.sa) as any,
         ffScore: String(scoreResult.dimensions.ff) as any,
         mpScore: String(scoreResult.dimensions.mp) as any,
@@ -232,20 +238,54 @@ export const projectRouter = router({
         inputSnapshot: scoreResult.inputSnapshot,
       });
 
-      // Update project status
+      // Compute and store project intelligence
+      try {
+        const allBenchmarks = await db.getAllBenchmarkData();
+        const allScores = await db.getAllScoreMatrices();
+        const latestMatrix = await db.getScoreMatrixById(matrixResult.id);
+        if (latestMatrix) {
+          const derived = computeDerivedFeatures(project as any, latestMatrix as any, allBenchmarks as any, allScores as any);
+          await db.createProjectIntelligence({
+            projectId: input.id,
+            scoreMatrixId: matrixResult.id,
+            benchmarkVersionId: activeBV?.id ?? null,
+            costDeltaVsBenchmark: String(derived.costDeltaVsBenchmark) as any,
+            uniquenessIndex: String(derived.uniquenessIndex) as any,
+            feasibilityFlags: derived.feasibilityFlags,
+            reworkRiskIndex: String(derived.reworkRiskIndex) as any,
+            procurementComplexity: String(derived.procurementComplexity) as any,
+            tierPercentile: String(derived.tierPercentile) as any,
+            styleFamily: derived.styleFamily,
+            costBand: derived.costBand,
+          });
+        }
+      } catch (e) {
+        console.warn("[Intelligence] Failed to compute derived features:", e);
+      }
+
       await db.updateProject(input.id, {
         status: "evaluated",
         modelVersionId: modelVersion.id,
+        benchmarkVersionId: activeBV?.id ?? null,
       });
 
-      // Audit
       await db.createAuditLog({
         userId: ctx.user.id,
         action: "project.evaluate",
         entityType: "score_matrix",
         entityId: matrixResult.id,
         details: { compositeScore: scoreResult.compositeScore, decisionStatus: scoreResult.decisionStatus },
+        benchmarkVersionId: activeBV?.id,
       });
+
+      // Dispatch webhook
+      dispatchWebhook("project.evaluated", {
+        projectId: input.id,
+        name: project.name,
+        compositeScore: scoreResult.compositeScore,
+        decisionStatus: scoreResult.decisionStatus,
+        riskScore: scoreResult.riskScore,
+      }).catch(() => {});
 
       return { scoreMatrixId: matrixResult.id, ...scoreResult };
     }),
@@ -283,8 +323,9 @@ export const projectRouter = router({
       return runSensitivityAnalysis(inputs, config);
     }),
 
+  // ─── V2: ROI Narrative Engine ──────────────────────────────────────
   roi: protectedProcedure
-    .input(z.object({ projectId: z.number(), fee: z.number().default(150000) }))
+    .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
       const project = await db.getProjectById(input.projectId);
       if (!project || project.userId !== ctx.user.id) return null;
@@ -293,10 +334,137 @@ export const projectRouter = router({
       if (scores.length === 0) return null;
       const latest = scores[0];
 
-      const inputs = projectToInputs(project);
-      return computeROI(inputs, Number(latest.compositeScore), input.fee);
+      // Get active ROI config
+      const roiConfig = await db.getActiveRoiConfig();
+      const coefficients = roiConfig ? {
+        hourlyRate: Number(roiConfig.hourlyRate),
+        reworkCostPct: Number(roiConfig.reworkCostPct),
+        tenderIterationCost: Number(roiConfig.tenderIterationCost),
+        designCycleCost: Number(roiConfig.designCycleCost),
+        budgetVarianceMultiplier: Number(roiConfig.budgetVarianceMultiplier),
+        timeAccelerationWeeks: roiConfig.timeAccelerationWeeks ?? 6,
+        conservativeMultiplier: Number(roiConfig.conservativeMultiplier),
+        aggressiveMultiplier: Number(roiConfig.aggressiveMultiplier),
+      } : undefined;
+
+      const roiInputs: RoiInputs = {
+        compositeScore: Number(latest.compositeScore),
+        riskScore: Number(latest.riskScore),
+        confidenceScore: Number(latest.confidenceScore),
+        budgetCap: Number(project.fin01BudgetCap || 0),
+        gfa: Number(project.ctx03Gfa || 0),
+        complexity: project.des03Complexity || 3,
+        materialLevel: project.des02MaterialLevel || 3,
+        tier: project.mkt01Tier || "Upper-mid",
+        horizon: project.ctx05Horizon || "12-24m",
+      };
+
+      return computeRoi(roiInputs, coefficients);
     }),
 
+  // ─── V2: 5-Lens Validation Framework ──────────────────────────────
+  fiveLens: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || project.userId !== ctx.user.id) return null;
+
+      const scores = await db.getScoreMatricesByProject(input.projectId);
+      if (scores.length === 0) return null;
+      const latest = scores[0];
+
+      const benchmarks = await db.getAllBenchmarkData();
+      return computeFiveLens(project as any, latest as any, benchmarks as any);
+    }),
+
+  // ─── V2: Project Intelligence ─────────────────────────────────────
+  intelligence: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || project.userId !== ctx.user.id) return null;
+
+      const intel = await db.getProjectIntelligenceByProject(input.projectId);
+      return intel.length > 0 ? intel[0] : null;
+    }),
+
+  // ─── V2: Scenario Templates ───────────────────────────────────────
+  scenarioTemplates: protectedProcedure.query(async () => {
+    return SCENARIO_TEMPLATES;
+  }),
+
+  applyScenarioTemplate: protectedProcedure
+    .input(z.object({
+      projectId: z.number(),
+      templateKey: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || project.userId !== ctx.user.id) throw new Error("Project not found");
+
+      const template = getScenarioTemplate(input.templateKey);
+      if (!template) throw new Error("Template not found");
+
+      // Create scenario with template overrides
+      const baseInputs = projectToInputs(project);
+      const scenarioInputs = { ...baseInputs, ...template.overrides };
+
+      const modelVersion = await db.getActiveModelVersion();
+      if (!modelVersion) throw new Error("No active model version");
+
+      const expectedCost = await db.getExpectedCost(scenarioInputs.ctx01Typology, scenarioInputs.ctx04Location, scenarioInputs.mkt01Tier);
+      const benchmarks = await db.getBenchmarks(scenarioInputs.ctx01Typology, scenarioInputs.ctx04Location, scenarioInputs.mkt01Tier);
+
+      const config: EvaluationConfig = {
+        dimensionWeights: modelVersion.dimensionWeights as any,
+        variableWeights: modelVersion.variableWeights as any,
+        penaltyConfig: modelVersion.penaltyConfig as any,
+        expectedCost,
+        benchmarkCount: benchmarks.length,
+        overrideRate: 0,
+      };
+
+      const scoreResult = evaluate(scenarioInputs as ProjectInputs, config);
+
+      const result = await db.createScenarioRecord({
+        projectId: input.projectId,
+        name: template.name,
+        description: template.description,
+        variableOverrides: template.overrides,
+        isTemplate: true,
+        templateKey: input.templateKey,
+      });
+
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "scenario.template_applied",
+        entityType: "scenario",
+        entityId: result.id,
+        details: { templateKey: input.templateKey, score: scoreResult.compositeScore },
+      });
+
+      return { id: result.id, ...scoreResult, tradeoffs: template.tradeoffs };
+    }),
+
+  // ─── V2: Constraint Solver ────────────────────────────────────────
+  solveConstraints: protectedProcedure
+    .input(z.object({
+      projectId: z.number(),
+      constraints: z.array(z.object({
+        variable: z.string(),
+        operator: z.enum(["eq", "gte", "lte", "in"]),
+        value: z.union([z.number(), z.string(), z.array(z.union([z.number(), z.string()]))]),
+      })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || project.userId !== ctx.user.id) throw new Error("Project not found");
+
+      const baseProject = projectToInputs(project) as Record<string, any>;
+      return solveConstraints(baseProject, input.constraints as Constraint[]);
+    }),
+
+  // ─── V2: Enhanced Report Generation ───────────────────────────────
   generateReport: protectedProcedure
     .input(z.object({
       projectId: z.number(),
@@ -349,12 +517,40 @@ export const projectRouter = router({
 
       const sensitivity = runSensitivityAnalysis(inputs, config);
 
-      // Build ROI if full report
+      // V2: Compute 5-lens and ROI for full reports
+      const allBenchmarks = await db.getAllBenchmarkData();
+      const fiveLens = computeFiveLens(project as any, latest as any, allBenchmarks as any);
+
+      const roiConfig = await db.getActiveRoiConfig();
+      const coefficients = roiConfig ? {
+        hourlyRate: Number(roiConfig.hourlyRate),
+        reworkCostPct: Number(roiConfig.reworkCostPct),
+        tenderIterationCost: Number(roiConfig.tenderIterationCost),
+        designCycleCost: Number(roiConfig.designCycleCost),
+        budgetVarianceMultiplier: Number(roiConfig.budgetVarianceMultiplier),
+        timeAccelerationWeeks: roiConfig.timeAccelerationWeeks ?? 6,
+        conservativeMultiplier: Number(roiConfig.conservativeMultiplier),
+        aggressiveMultiplier: Number(roiConfig.aggressiveMultiplier),
+      } : undefined;
+
+      const roiInputs: RoiInputs = {
+        compositeScore: Number(latest.compositeScore),
+        riskScore: Number(latest.riskScore),
+        confidenceScore: Number(latest.confidenceScore),
+        budgetCap: Number(project.fin01BudgetCap || 0),
+        gfa: Number(project.ctx03Gfa || 0),
+        complexity: project.des03Complexity || 3,
+        materialLevel: project.des02MaterialLevel || 3,
+        tier: project.mkt01Tier || "Upper-mid",
+        horizon: project.ctx05Horizon || "12-24m",
+      };
+      const roiResult = computeRoi(roiInputs, coefficients);
+
+      // Build ROI for legacy report format
       const roi = input.reportType === "full_report"
         ? computeROI(inputs, scoreResult.compositeScore, 150000)
         : undefined;
 
-      // Generate structured report data
       let reportData;
       if (input.reportType === "validation_summary") {
         reportData = generateValidationSummary(project.name, project.id, inputs, scoreResult, sensitivity);
@@ -364,7 +560,10 @@ export const projectRouter = router({
         reportData = generateFullReport(project.name, project.id, inputs, scoreResult, sensitivity, roi!);
       }
 
-      // Generate HTML report for PDF-like viewing
+      // Get active benchmark version for tracking
+      const activeBV = await db.getActiveBenchmarkVersion();
+      const benchmarkVersionTag = activeBV?.versionTag || "v1.0-baseline";
+
       const pdfInput: PDFReportInput = {
         projectName: project.name,
         projectId: project.id,
@@ -372,10 +571,12 @@ export const projectRouter = router({
         scoreResult,
         sensitivity,
         roi,
+        fiveLens,
+        roiNarrative: roiResult,
+        benchmarkVersion: benchmarkVersionTag,
       };
       const html = generateReportHTML(input.reportType, pdfInput);
 
-      // Upload HTML report to S3
       let fileUrl: string | null = null;
       try {
         const fileKey = `reports/${project.id}/${input.reportType}-${nanoid(8)}.html`;
@@ -385,7 +586,6 @@ export const projectRouter = router({
         console.warn("[Report] S3 upload failed, storing content only:", e);
       }
 
-      // Save report instance with file URL
       await db.createReportInstance({
         projectId: input.projectId,
         scoreMatrixId: latest.id,
@@ -393,6 +593,7 @@ export const projectRouter = router({
         fileUrl,
         content: reportData,
         generatedBy: ctx.user.id,
+        benchmarkVersionId: activeBV?.id ?? null,
       });
 
       await db.createAuditLog({
@@ -401,9 +602,24 @@ export const projectRouter = router({
         entityType: "report",
         entityId: input.projectId,
         details: { reportType: input.reportType, fileUrl },
+        benchmarkVersionId: activeBV?.id,
       });
 
-      return { ...reportData, fileUrl };
+      // Dispatch webhook for report generation
+      dispatchWebhook("report.generated", {
+        projectId: input.projectId,
+        name: project.name,
+        reportType: input.reportType,
+        fileUrl,
+        compositeScore: scoreResult.compositeScore,
+      }).catch(() => {});
+
+      return {
+        ...reportData,
+        fileUrl,
+        fiveLens: input.reportType === "full_report" ? fiveLens : undefined,
+        roiNarrative: input.reportType === "full_report" ? roiResult : undefined,
+      };
     }),
 
   listReports: protectedProcedure

@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import {
   FolderKanban,
@@ -12,9 +13,16 @@ import {
   ArrowRight,
   Clock,
   Database,
+  DollarSign,
+  Shield,
+  TrendingUp,
+  GitBranch,
+  Layers,
+  Activity,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { useMemo } from "react";
 
 function statusIcon(status: string) {
   if (status === "evaluated")
@@ -58,20 +66,39 @@ function DashboardContent() {
   });
   const utils = trpc.useUtils();
 
-  const evaluated = projects?.filter((p) => p.status === "evaluated") ?? [];
-  const drafts = projects?.filter((p) => p.status === "draft") ?? [];
-  const validatedCount = projects?.filter((p) => p.latestScore?.decisionStatus === "validated").length ?? 0;
-  const conditionalCount = projects?.filter((p) => p.latestScore?.decisionStatus === "conditional").length ?? 0;
-  const notValidatedCount = projects?.filter((p) => p.latestScore?.decisionStatus === "not_validated").length ?? 0;
+  const evaluated = useMemo(() => projects?.filter((p) => p.status === "evaluated") ?? [], [projects]);
+  const drafts = useMemo(() => projects?.filter((p) => p.status === "draft") ?? [], [projects]);
+  const validatedCount = useMemo(() => projects?.filter((p) => p.latestScore?.decisionStatus === "validated").length ?? 0, [projects]);
+  const conditionalCount = useMemo(() => projects?.filter((p) => p.latestScore?.decisionStatus === "conditional").length ?? 0, [projects]);
+  const notValidatedCount = useMemo(() => projects?.filter((p) => p.latestScore?.decisionStatus === "not_validated").length ?? 0, [projects]);
+
+  // V2 Intelligence metrics
+  const avgComposite = useMemo(() => {
+    if (!evaluated.length) return 0;
+    const sum = evaluated.reduce((s, p) => s + (p.latestScore?.compositeScore ?? 0), 0);
+    return sum / evaluated.length;
+  }, [evaluated]);
+
+  const avgRisk = useMemo(() => {
+    if (!evaluated.length) return 0;
+    const sum = evaluated.reduce((s, p) => s + (p.latestScore?.rasScore ?? 0), 0);
+    return sum / evaluated.length;
+  }, [evaluated]);
+
+  const avgConfidence = useMemo(() => {
+    if (!evaluated.length) return 0;
+    const sum = evaluated.reduce((s, p) => s + (p.latestScore?.confidenceScore ?? 0), 0);
+    return sum / evaluated.length;
+  }, [evaluated]);
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Intelligence Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Overview of your MIYAR projects and evaluations
+            MIYAR Decision Intelligence Platform — Portfolio Overview
           </p>
         </div>
         <Button onClick={() => setLocation("/projects/new")} className="gap-2">
@@ -79,15 +106,10 @@ function DashboardContent() {
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* Primary Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          {
-            label: "Total Projects",
-            value: projects?.length ?? 0,
-            icon: FolderKanban,
-            color: "text-primary",
-          },
+          { label: "Total Projects", value: projects?.length ?? 0, icon: FolderKanban, color: "text-primary" },
           { label: "Evaluated", value: evaluated.length, icon: BarChart3, color: "text-miyar-teal" },
           { label: "Validated", value: validatedCount, icon: CheckCircle2, color: "text-miyar-teal" },
           { label: "Conditional", value: conditionalCount, icon: AlertTriangle, color: "text-miyar-gold" },
@@ -97,17 +119,93 @@ function DashboardContent() {
             <CardContent className="pt-5 pb-4 px-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                    {s.label}
-                  </p>
-                  <p className="text-2xl font-bold text-foreground mt-1">
-                    {isLoading ? "—" : s.value}
-                  </p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{s.label}</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">{isLoading ? "—" : s.value}</p>
                 </div>
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <s.icon className={`h-5 w-5 ${s.color}`} />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* V2 Intelligence Metrics Row */}
+      {evaluated.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="border-miyar-teal/20">
+            <CardContent className="pt-5 pb-4 px-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Avg Composite Score</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">{avgComposite.toFixed(1)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    across {evaluated.length} evaluated project{evaluated.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-miyar-teal/10 flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-miyar-teal" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-miyar-gold/20">
+            <CardContent className="pt-5 pb-4 px-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Avg Risk Score</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">{avgRisk.toFixed(1)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {avgRisk < 30 ? "Low portfolio risk" : avgRisk < 50 ? "Moderate portfolio risk" : "Elevated portfolio risk"}
+                  </p>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-miyar-gold/10 flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-miyar-gold" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/20">
+            <CardContent className="pt-5 pb-4 px-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Avg Confidence</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">{avgConfidence.toFixed(1)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {avgConfidence >= 70 ? "High data confidence" : avgConfidence >= 50 ? "Moderate data confidence" : "Low data confidence"}
+                  </p>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Activity className="h-5 w-5 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* V2 Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "Portfolio Analytics", path: "/admin/portfolio", icon: Layers, desc: "Cross-project intelligence" },
+          { label: "ROI Configuration", path: "/admin/roi-config", icon: DollarSign, desc: "Adjust ROI coefficients" },
+          { label: "Benchmark Versions", path: "/admin/benchmark-versions", icon: GitBranch, desc: "Manage data versions" },
+          { label: "Scenario Templates", path: "/scenarios/templates", icon: Activity, desc: "Pre-built what-if scenarios" },
+        ].map((action) => (
+          <Card
+            key={action.path}
+            className="cursor-pointer hover:border-primary/30 transition-colors"
+            onClick={() => setLocation(action.path)}
+          >
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-center gap-2 mb-1">
+                <action.icon className="h-4 w-4 text-primary" />
+                <p className="text-sm font-medium text-foreground">{action.label}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">{action.desc}</p>
             </CardContent>
           </Card>
         ))}
@@ -132,10 +230,7 @@ function DashboardContent() {
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-14 rounded-lg bg-muted/50 animate-pulse"
-                />
+                <div key={i} className="h-14 rounded-lg bg-muted/50 animate-pulse" />
               ))}
             </div>
           ) : !projects || projects.length === 0 ? (
@@ -145,11 +240,7 @@ function DashboardContent() {
                 No projects yet. Create your first project or seed sample data.
               </p>
               <div className="flex gap-3 mt-4 justify-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLocation("/projects/new")}
-                >
+                <Button variant="outline" size="sm" onClick={() => setLocation("/projects/new")}>
                   <PlusCircle className="h-4 w-4 mr-2" /> Create Project
                 </Button>
                 <Button
@@ -174,9 +265,7 @@ function DashboardContent() {
                   <div className="flex items-center gap-3">
                     {statusIcon(p.status ?? "draft")}
                     <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {p.name}
-                      </p>
+                      <p className="text-sm font-medium text-foreground">{p.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {p.ctx01Typology} · {p.mkt01Tier} · {p.ctx04Location}
                       </p>

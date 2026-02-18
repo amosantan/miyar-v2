@@ -125,3 +125,61 @@
 - [x] Admin capabilities documentation
 - [x] Sample PDF screenshots
 - [x] Known limitations and prioritized backlog
+
+## V2 Intelligence Layer
+
+### Phase 2.1 — Intelligence Data Foundation
+- [x] Benchmark Library V2: benchmark_categories table (materials, finishes, FF&E, procurement, cost bands, tier defs, style families, brand archetypes, risk factors, lead times)
+- [x] Benchmark Library V2: benchmark_versions table with publish workflow
+- [x] Benchmark Library V2: link benchmark_data to benchmark_version_id
+- [x] Project Intelligence Warehouse: project_intelligence table with derived features (cost delta, uniqueness index, feasibility flags, rework-risk, procurement complexity)
+- [x] Benchmark Diff & Versioning: admin publish versions, view diffs
+- [x] Benchmark change impact preview: show which past projects would change
+- [x] Score matrices linked to benchmark_version_id
+- [x] Portfolio-level distributions dashboard (by tier, style, cost bands)
+- [x] Admin benchmark category management UI
+- [x] Admin benchmark version management UI
+
+### Phase 2.2 — ROI Narrative Engine
+- [x] ROI model inputs per project (design cycles avoided, tender iterations, rework reduction, budget variance, time-to-brief)
+- [x] ROI output: hours saved, cost avoided (AED), budget accuracy gain, decision confidence
+- [x] ROI report section with assumptions table, sensitivity, conservative/mid/aggressive scenarios
+- [x] ROI dashboard widget with summary card + breakdown chart
+- [x] Admin ROI coefficients management
+
+### Phase 2.3 — Scenario Simulation V2
+- [x] Scenario templates (Cost Discipline, Market Differentiation, Luxury Upgrade, Fast Delivery, Brand Alignment)
+- [x] Tornado chart and ranked sensitivity list
+- [x] Constraint solver: user sets hard constraints, system proposes 2-3 best-fit variants
+- [x] Recommended scenarios with deterministic reasoning
+
+### Phase 2.4 — Defensibility Layer
+- [x] MIYAR 5-Lens Validation framework as first-class artifact
+- [x] Framework evidence trace: variables, weights, benchmark refs, penalties, rationale per lens
+- [x] Report watermarking + framework attribution
+- [x] Usage license language in report footer
+- [x] Admin toggle for watermark outputs
+
+### Phase 2.5 — Report Generation V2
+- [x] Server-side PDF engine (branded template: cover, exec summary, framework, ROI, scenarios, appendix)
+- [x] Executive Pack (6-8 pages)
+- [x] Full Technical Report (15-25 pages)
+- [x] Tender Brief Pack (RFQ: structured brief + cost assumptions + mood direction)
+- [x] Export bundle: PDF + benchmark snapshot JSON + scenario summary CSV
+
+### Phase 2.6 — Integrations V2
+- [x] CRM webhook: push report summary + ROI + score (generic, field mapping)
+- [x] Admin CSV import pipeline for benchmarks
+- [x] Google Drive auto-upload report bundle per project (stub — requires user Google Drive credentials)
+- [x] Webhook configuration admin UI
+
+### Phase 2.7 — Intelligence Dashboard V2
+- [x] Portfolio dashboard: cross-project comparison (tier, style, cost band, ROI, risk)
+- [x] Benchmark compliance heatmap
+- [x] Differentiation index distribution
+- [x] Common failure patterns (rule-based insights)
+- [x] Top 10 improvement levers (deterministic guidance)
+
+### Acceptance Test
+- [x] Full end-to-end: create → score → 3 scenario templates → 3 PDF types → webhook → portfolio dashboard
+- [x] Every artifact stores benchmark_version_id, logic_version_id, audit trail

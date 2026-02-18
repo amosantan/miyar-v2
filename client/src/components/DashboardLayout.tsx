@@ -35,6 +35,13 @@ import {
   Shield,
   ClipboardList,
   HeartPulse,
+  Wand2,
+  GitBranch,
+  Layers,
+  DollarSign,
+  Webhook,
+  PieChart,
+  FileSpreadsheet,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -50,14 +57,21 @@ const menuItems = [
 const analysisItems = [
   { icon: BarChart3, label: "Results", path: "/results" },
   { icon: GitCompare, label: "Scenarios", path: "/scenarios" },
+  { icon: Wand2, label: "Scenario Templates", path: "/scenarios/templates" },
   { icon: FileText, label: "Reports", path: "/reports" },
 ];
 
 const adminItems = [
   { icon: Database, label: "Benchmarks", path: "/admin/benchmarks" },
+  { icon: GitBranch, label: "Benchmark Versions", path: "/admin/benchmark-versions" },
+  { icon: Layers, label: "Benchmark Categories", path: "/admin/benchmark-categories" },
   { icon: Settings, label: "Model Versions", path: "/admin/models" },
+  { icon: DollarSign, label: "ROI Config", path: "/admin/roi-config" },
+  { icon: Webhook, label: "Webhooks", path: "/admin/webhooks" },
+  { icon: PieChart, label: "Portfolio", path: "/admin/portfolio" },
   { icon: ClipboardList, label: "Audit Logs", path: "/admin/audit" },
   { icon: Shield, label: "Overrides", path: "/admin/overrides" },
+  { icon: FileSpreadsheet, label: "CSV Import", path: "/admin/csv-import" },
   { icon: HeartPulse, label: "Benchmark Health", path: "/admin/benchmark-health" },
 ];
 

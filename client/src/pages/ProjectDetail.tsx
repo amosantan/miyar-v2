@@ -376,7 +376,9 @@ function ProjectDetailContent() {
   const { data: project, isLoading } = trpc.project.get.useQuery({ id: projectId });
   const { data: scores } = trpc.project.getScores.useQuery({ projectId });
   const { data: sensitivityData } = trpc.project.sensitivity.useQuery({ id: projectId });
-  const { data: roiData } = trpc.project.roi.useQuery({ projectId, fee: 150000 });
+  const { data: roiData } = trpc.project.roi.useQuery({ projectId });
+  const { data: fiveLensData } = trpc.project.fiveLens.useQuery({ projectId });
+  const { data: intelligenceData } = trpc.project.intelligence.useQuery({ projectId });
   const { data: benchmarks } = trpc.admin.benchmarks.list.useQuery();
 
   const evaluateMutation = trpc.project.evaluate.useMutation({
@@ -386,6 +388,8 @@ function ProjectDetailContent() {
       utils.project.getScores.invalidate({ projectId });
       utils.project.sensitivity.invalidate({ id: projectId });
       utils.project.roi.invalidate({ projectId });
+      utils.project.fiveLens.invalidate({ projectId });
+      utils.project.intelligence.invalidate({ projectId });
     },
     onError: (err) => toast.error(err.message),
   });
@@ -472,11 +476,13 @@ function ProjectDetailContent() {
 
       {hasScores ? (
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="bg-secondary/50">
+          <TabsList className="bg-secondary/50 flex-wrap">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="explainability">Why This Score?</TabsTrigger>
             <TabsTrigger value="risk">Risk & Actions</TabsTrigger>
+            <TabsTrigger value="five-lens">5-Lens</TabsTrigger>
             <TabsTrigger value="roi">ROI Impact</TabsTrigger>
+            <TabsTrigger value="intelligence">Intelligence</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
@@ -661,66 +667,118 @@ function ProjectDetailContent() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card>
                     <CardContent className="pt-4 pb-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Total Value Created</p>
+                      <p className="text-xs text-muted-foreground mb-1">Total Cost Avoided (Mid)</p>
                       <p className="text-2xl font-bold text-miyar-emerald">
-                        {(roiData.totalValue / 1000000).toFixed(1)}M
+                        {(roiData.totalCostAvoided.mid / 1000).toFixed(0)}K
                       </p>
                       <p className="text-[10px] text-muted-foreground">AED</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="pt-4 pb-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">ROI Multiple</p>
+                      <p className="text-xs text-muted-foreground mb-1">Hours Saved (Mid)</p>
                       <p className="text-2xl font-bold text-miyar-gold">
-                        {roiData.roiMultiple.toFixed(1)}x
+                        {roiData.totalHoursSaved.mid.toLocaleString()}
                       </p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="pt-4 pb-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Net ROI</p>
+                      <p className="text-xs text-muted-foreground mb-1">Budget Accuracy</p>
                       <p className="text-2xl font-bold text-miyar-teal">
-                        {(roiData.netROI * 100).toFixed(0)}%
+                        ±{roiData.budgetAccuracyGain.toPct}%
                       </p>
+                      <p className="text-[10px] text-muted-foreground">from ±{roiData.budgetAccuracyGain.fromPct}%</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="pt-4 pb-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">MIYAR Fee</p>
+                      <p className="text-xs text-muted-foreground mb-1">Decision Confidence</p>
                       <p className="text-2xl font-bold text-foreground">
-                        {(roiData.fee / 1000).toFixed(0)}K
+                        {roiData.decisionConfidenceIndex}%
                       </p>
-                      <p className="text-[10px] text-muted-foreground">AED</p>
                     </CardContent>
                   </Card>
                 </div>
 
+                {/* Three-scenario range */}
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Value Breakdown</CardTitle>
+                    <CardTitle className="text-base">Cost Avoided — Three Scenarios</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Conservative</p>
+                        <p className="text-lg font-semibold text-muted-foreground">{(roiData.totalCostAvoided.conservative / 1000).toFixed(0)}K AED</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Mid Estimate</p>
+                        <p className="text-lg font-semibold text-miyar-emerald">{(roiData.totalCostAvoided.mid / 1000).toFixed(0)}K AED</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Aggressive</p>
+                        <p className="text-lg font-semibold text-miyar-gold">{(roiData.totalCostAvoided.aggressive / 1000).toFixed(0)}K AED</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Driver breakdown */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">ROI Drivers</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={240}>
-                      <BarChart data={[
-                        { name: "Rework Avoided", value: roiData.reworkAvoided },
-                        { name: "Procurement Savings", value: roiData.procurementSavings },
-                        { name: "Time Value", value: roiData.timeValueGain },
-                        { name: "Spec Efficiency", value: roiData.specEfficiency },
-                        { name: "Positioning Premium", value: roiData.positioningPremium },
-                      ]} margin={{ left: 20, right: 20 }}>
+                      <BarChart data={roiData.drivers.map(d => ({
+                        name: d.name.replace(/ /g, '\n'),
+                        value: d.costAvoided.mid,
+                      }))} margin={{ left: 20, right: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} />
-                        <YAxis tick={{ fill: "#9ca3af", fontSize: 10 }} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
+                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 9 }} interval={0} />
+                        <YAxis tick={{ fill: "#9ca3af", fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
                         <RechartsTooltip
                           contentStyle={{ backgroundColor: "#1a1f3a", border: "1px solid #2d3354", borderRadius: 8 }}
-                          formatter={(value: number) => [`${(value / 1000000).toFixed(2)}M AED`, "Value"]}
+                          formatter={(value: number) => [`${(value / 1000).toFixed(0)}K AED`, "Cost Avoided"]}
                         />
                         <Bar dataKey="value" fill="#4ecdc4" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
-                    <p className="text-[10px] text-muted-foreground/50 mt-2 text-center">
-                      Assumptions: GFA={project.ctx03Gfa ? Number(project.ctx03Gfa).toLocaleString() : "500,000"} sqft, Budget={project.fin01BudgetCap ? Number(project.fin01BudgetCap) : 400} AED/sqft, Fee=150,000 AED
-                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Driver details */}
+                <div className="space-y-3">
+                  {roiData.drivers.map((driver, i) => (
+                    <Card key={i}>
+                      <CardContent className="pt-4 pb-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-medium text-foreground">{driver.name}</h4>
+                          <span className="text-sm font-bold text-miyar-emerald">{(driver.costAvoided.mid / 1000).toFixed(0)}K AED</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{driver.description}</p>
+                        <div className="flex gap-4 text-[10px] text-muted-foreground/70">
+                          {driver.assumptions.map((a, j) => (
+                            <span key={j}>{a}</span>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Assumptions */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Model Assumptions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {roiData.assumptions.map((a, i) => (
+                        <span key={i} className="text-[10px] px-2 py-1 rounded bg-muted text-muted-foreground">{a}</span>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </>
@@ -732,9 +790,219 @@ function ProjectDetailContent() {
               </Card>
             )}
           </TabsContent>
+          {/* ─── 5-Lens Tab ──────────────────────────────────────────────── */}
+          <TabsContent value="five-lens" className="space-y-4">
+            {fiveLensData ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">5-Lens Validation Framework</h3>
+                    <p className="text-xs text-muted-foreground">{fiveLensData.frameworkVersion} • Overall: {fiveLensData.overallGrade}</p>
+                  </div>
+                  <Badge variant={fiveLensData.overallScore >= 70 ? "default" : fiveLensData.overallScore >= 50 ? "secondary" : "destructive"}>
+                    {fiveLensData.overallScore.toFixed(1)}/100
+                  </Badge>
+                </div>
 
-          {/* ─── Reports Tab ───────────────────────────────────────────── */}
-          <TabsContent value="reports" className="space-y-4">
+                <div className="grid gap-4">
+                  {fiveLensData.lenses.map((lens) => (
+                    <Card key={lens.lensId}>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-sm font-bold ${
+                              lens.grade === "A" ? "bg-emerald-500/20 text-emerald-400" :
+                              lens.grade === "B" ? "bg-blue-500/20 text-blue-400" :
+                              lens.grade === "C" ? "bg-amber-500/20 text-amber-400" :
+                              "bg-red-500/20 text-red-400"
+                            }`}>
+                              {lens.grade}
+                            </div>
+                            <div>
+                              <CardTitle className="text-sm">{lens.lensName}</CardTitle>
+                              <p className="text-xs text-muted-foreground">{lens.score.toFixed(1)} / {lens.maxScore}</p>
+                            </div>
+                          </div>
+                          <div className="w-24 h-2 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                lens.score >= 70 ? "bg-emerald-500" : lens.score >= 50 ? "bg-amber-500" : "bg-red-500"
+                              }`}
+                              style={{ width: `${lens.score}%` }}
+                            />
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <p className="text-xs text-muted-foreground leading-relaxed">{lens.rationale}</p>
+
+                        {/* Evidence table */}
+                        <div className="rounded-lg border border-border overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="bg-muted/30">
+                                <th className="text-left p-2 font-medium text-muted-foreground">Variable</th>
+                                <th className="text-center p-2 font-medium text-muted-foreground">Value</th>
+                                <th className="text-center p-2 font-medium text-muted-foreground">Weight</th>
+                                <th className="text-center p-2 font-medium text-muted-foreground">Contribution</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {lens.evidence.map((ev, i) => (
+                                <tr key={i} className="border-t border-border/50">
+                                  <td className="p-2 text-foreground">{ev.label}</td>
+                                  <td className="p-2 text-center text-foreground">{ev.value}</td>
+                                  <td className="p-2 text-center text-muted-foreground">{(ev.weight * 100).toFixed(0)}%</td>
+                                  <td className="p-2 text-center">
+                                    <span className={ev.contribution >= 0.5 ? "text-emerald-400" : ev.contribution >= 0.3 ? "text-amber-400" : "text-red-400"}>
+                                      {ev.contribution.toFixed(2)}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {lens.penalties.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {lens.penalties.map((p, i) => (
+                              <Badge key={i} variant="destructive" className="text-[10px]">{p}</Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        {lens.evidence.some(e => e.benchmarkRef) && (
+                          <p className="text-[10px] text-muted-foreground/60">
+                            {lens.evidence.find(e => e.benchmarkRef)?.benchmarkRef}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <p className="text-[10px] text-muted-foreground/50 leading-relaxed">
+                      {fiveLensData.attribution}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/30 mt-1">{fiveLensData.watermark}</p>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  Run evaluation first to see 5-Lens analysis.
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* ─── Intelligence Tab ───────────────────────────────────────── */}
+          <TabsContent value="intelligence" className="space-y-4">
+            {intelligenceData ? (
+              <>
+                <h3 className="text-lg font-semibold text-foreground">Project Intelligence</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Card>
+                    <CardContent className="pt-4 pb-3 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Cost Delta vs Benchmark</p>
+                      <p className={`text-2xl font-bold ${Number(intelligenceData.costDeltaVsBenchmark) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                        {Number(intelligenceData.costDeltaVsBenchmark) > 0 ? "+" : ""}{Number(intelligenceData.costDeltaVsBenchmark).toFixed(1)}%
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-3 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Uniqueness Index</p>
+                      <p className="text-2xl font-bold text-miyar-gold">
+                        {(Number(intelligenceData.uniquenessIndex) * 100).toFixed(0)}%
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-3 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Rework Risk</p>
+                      <p className={`text-2xl font-bold ${Number(intelligenceData.reworkRiskIndex) > 0.5 ? "text-red-400" : "text-emerald-400"}`}>
+                        {(Number(intelligenceData.reworkRiskIndex) * 100).toFixed(0)}%
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-3 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Procurement Complexity</p>
+                      <p className={`text-2xl font-bold ${Number(intelligenceData.procurementComplexity) > 0.6 ? "text-amber-400" : "text-emerald-400"}`}>
+                        {(Number(intelligenceData.procurementComplexity) * 100).toFixed(0)}%
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Classification</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Style Family</span>
+                        <Badge variant="outline">{intelligenceData.styleFamily}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Cost Band</span>
+                        <Badge variant="outline">{intelligenceData.costBand}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Tier Percentile</span>
+                        <span className="text-sm font-medium text-foreground">
+                          {(Number(intelligenceData.tierPercentile) * 100).toFixed(0)}th
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Feasibility Flags</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {Array.isArray(intelligenceData.feasibilityFlags) && intelligenceData.feasibilityFlags.length > 0 ? (
+                        <div className="space-y-2">
+                          {(intelligenceData.feasibilityFlags as any[]).map((flag: any, i: number) => (
+                            <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30">
+                              {flag.severity === "critical" ? (
+                                <XCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+                              ) : flag.severity === "warning" ? (
+                                <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                              ) : (
+                                <Info className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
+                              )}
+                              <div>
+                                <p className="text-xs font-medium text-foreground">{flag.flag.replace(/_/g, " ")}</p>
+                                <p className="text-[10px] text-muted-foreground">{flag.description}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground text-center py-4">No feasibility flags detected.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  Run evaluation first to see project intelligence.
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* ─── Reports Tab ─────────────────────────────────────────────── */}          <TabsContent value="reports" className="space-y-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Generate Report Pack</CardTitle>

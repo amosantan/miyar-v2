@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, project_id, cost_delta_vs_benchmark, uniqueness_index, feasibility_flags, rework_risk_index, procurement_complexity, tier_percentile, style_family, cost_band FROM project_intelligence ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3qjjvhuo9AvMUPD.984bcc8a4c01 --database Qjy3c67dUhuYfoZUKPnMuR --execute SELECT id, project_id, cost_delta_vs_benchmark, uniqueness_index, feasibility_flags, rework_risk_index, procurement_complexity, tier_percentile, style_family, cost_band FROM project_intelligence ORDER BY id DESC LIMIT 5;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'project_id' in 'field list'"
+  ]
+}

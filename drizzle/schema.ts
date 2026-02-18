@@ -42,6 +42,59 @@ export const modelVersions = mysqlTable("model_versions", {
 export type ModelVersion = typeof modelVersions.$inferSelect;
 export type InsertModelVersion = typeof modelVersions.$inferInsert;
 
+// ─── Benchmark Versions (V2) ───────────────────────────────────────────────
+export const benchmarkVersions = mysqlTable("benchmark_versions", {
+  id: int("id").autoincrement().primaryKey(),
+  versionTag: varchar("versionTag", { length: 64 }).notNull().unique(),
+  description: text("description"),
+  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  publishedAt: timestamp("publishedAt"),
+  publishedBy: int("publishedBy"),
+  recordCount: int("recordCount").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdBy: int("createdBy"),
+});
+
+export type BenchmarkVersion = typeof benchmarkVersions.$inferSelect;
+export type InsertBenchmarkVersion = typeof benchmarkVersions.$inferInsert;
+
+// ─── Benchmark Categories (V2) ─────────────────────────────────────────────
+export const benchmarkCategories = mysqlTable("benchmark_categories", {
+  id: int("id").autoincrement().primaryKey(),
+  category: mysqlEnum("category", [
+    "materials",
+    "finishes",
+    "ffe",
+    "procurement",
+    "cost_bands",
+    "tier_definitions",
+    "style_families",
+    "brand_archetypes",
+    "risk_factors",
+    "lead_times",
+  ]).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  market: varchar("market", { length: 64 }).default("UAE").notNull(),
+  submarket: varchar("submarket", { length: 64 }).default("Dubai"),
+  projectClass: mysqlEnum("projectClass", ["mid", "upper", "luxury", "ultra_luxury"]).notNull(),
+  validFrom: timestamp("validFrom"),
+  validTo: timestamp("validTo"),
+  confidenceLevel: mysqlEnum("confidenceLevel", ["high", "medium", "low"]).default("medium"),
+  sourceType: mysqlEnum("sourceType", ["manual", "admin", "imported", "curated"]).default("admin"),
+  benchmarkVersionId: int("benchmarkVersionId"),
+  // Data payload (flexible JSON for category-specific fields)
+  data: json("data").notNull(),
+  // Metadata
+  versionTag: varchar("versionTag", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  createdBy: int("createdBy"),
+});
+
+export type BenchmarkCategory = typeof benchmarkCategories.$inferSelect;
+export type InsertBenchmarkCategory = typeof benchmarkCategories.$inferInsert;
+
 // ─── Projects ────────────────────────────────────────────────────────────────
 export const projects = mysqlTable("projects", {
   id: int("id").autoincrement().primaryKey(),
@@ -128,6 +181,7 @@ export const projects = mysqlTable("projects", {
   add03DashboardExport: boolean("add03DashboardExport").default(true),
 
   modelVersionId: int("modelVersionId"),
+  benchmarkVersionId: int("benchmarkVersionId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lockedAt: timestamp("lockedAt"),
@@ -167,6 +221,7 @@ export const scoreMatrices = mysqlTable("score_matrices", {
   projectId: int("projectId").notNull(),
   directionId: int("directionId"),
   modelVersionId: int("modelVersionId").notNull(),
+  benchmarkVersionId: int("benchmarkVersionId"),
   saScore: decimal("saScore", { precision: 6, scale: 2 }).notNull(),
   ffScore: decimal("ffScore", { precision: 6, scale: 2 }).notNull(),
   mpScore: decimal("mpScore", { precision: 6, scale: 2 }).notNull(),
@@ -206,6 +261,8 @@ export const scenarios = mysqlTable("scenarios", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   variableOverrides: json("variableOverrides"),
+  isTemplate: boolean("isTemplate").default(false),
+  templateKey: varchar("templateKey", { length: 64 }),
   scoreMatrixId: int("scoreMatrixId"),
   rasScore: decimal("rasScore", { precision: 6, scale: 2 }),
   isDominant: boolean("isDominant").default(false),
@@ -247,6 +304,7 @@ export const benchmarkData = mysqlTable("benchmark_data", {
   sourceNote: text("sourceNote"),
   dataYear: int("dataYear"),
   region: varchar("region", { length: 64 }).default("UAE"),
+  benchmarkVersionId: int("benchmarkVersionId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -254,12 +312,41 @@ export const benchmarkData = mysqlTable("benchmark_data", {
 export type BenchmarkData = typeof benchmarkData.$inferSelect;
 export type InsertBenchmarkData = typeof benchmarkData.$inferInsert;
 
+// ─── Project Intelligence Warehouse (V2) ───────────────────────────────────
+export const projectIntelligence = mysqlTable("project_intelligence", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  scoreMatrixId: int("scoreMatrixId").notNull(),
+  benchmarkVersionId: int("benchmarkVersionId"),
+  modelVersionId: int("modelVersionId"),
+  // Derived features
+  costDeltaVsBenchmark: decimal("costDeltaVsBenchmark", { precision: 10, scale: 2 }),
+  uniquenessIndex: decimal("uniquenessIndex", { precision: 6, scale: 4 }),
+  feasibilityFlags: json("feasibilityFlags"),
+  reworkRiskIndex: decimal("reworkRiskIndex", { precision: 6, scale: 4 }),
+  procurementComplexity: decimal("procurementComplexity", { precision: 6, scale: 4 }),
+  // Portfolio analytics
+  tierPercentile: decimal("tierPercentile", { precision: 6, scale: 4 }),
+  styleFamily: varchar("styleFamily", { length: 64 }),
+  costBand: varchar("costBand", { length: 32 }),
+  // Snapshot
+  inputSnapshot: json("inputSnapshot"),
+  scoreSnapshot: json("scoreSnapshot"),
+  computedAt: timestamp("computedAt").defaultNow().notNull(),
+});
+
+export type ProjectIntelligence = typeof projectIntelligence.$inferSelect;
+export type InsertProjectIntelligence = typeof projectIntelligence.$inferInsert;
+
 // ─── Report Instances ────────────────────────────────────────────────────────
 export const reportInstances = mysqlTable("report_instances", {
   id: int("id").autoincrement().primaryKey(),
   projectId: int("projectId").notNull(),
   scoreMatrixId: int("scoreMatrixId").notNull(),
   reportType: mysqlEnum("reportType", [
+    "executive_pack",
+    "full_technical",
+    "tender_brief",
     "executive_decision_pack",
     "design_brief_rfq",
     "marketing_starter",
@@ -269,13 +356,56 @@ export const reportInstances = mysqlTable("report_instances", {
     "full_report",
   ]).notNull(),
   fileUrl: text("fileUrl"),
+  bundleUrl: text("bundleUrl"),
   content: json("content"),
+  benchmarkVersionId: int("benchmarkVersionId"),
+  modelVersionId: int("modelVersionId"),
   generatedAt: timestamp("generatedAt").defaultNow().notNull(),
   generatedBy: int("generatedBy"),
 });
 
 export type ReportInstance = typeof reportInstances.$inferSelect;
 export type InsertReportInstance = typeof reportInstances.$inferInsert;
+
+// ─── ROI Configurations (V2) ───────────────────────────────────────────────
+export const roiConfigs = mysqlTable("roi_configs", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  isActive: boolean("isActive").default(false).notNull(),
+  // Coefficients
+  hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("350").notNull(),
+  reworkCostPct: decimal("reworkCostPct", { precision: 6, scale: 4 }).default("0.12").notNull(),
+  tenderIterationCost: decimal("tenderIterationCost", { precision: 10, scale: 2 }).default("25000").notNull(),
+  designCycleCost: decimal("designCycleCost", { precision: 10, scale: 2 }).default("45000").notNull(),
+  budgetVarianceMultiplier: decimal("budgetVarianceMultiplier", { precision: 6, scale: 4 }).default("0.08").notNull(),
+  timeAccelerationWeeks: int("timeAccelerationWeeks").default(6),
+  // Scenario multipliers
+  conservativeMultiplier: decimal("conservativeMultiplier", { precision: 6, scale: 4 }).default("0.60").notNull(),
+  aggressiveMultiplier: decimal("aggressiveMultiplier", { precision: 6, scale: 4 }).default("1.40").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdBy: int("createdBy"),
+});
+
+export type RoiConfig = typeof roiConfigs.$inferSelect;
+export type InsertRoiConfig = typeof roiConfigs.$inferInsert;
+
+// ─── Webhook Configurations (V2) ───────────────────────────────────────────
+export const webhookConfigs = mysqlTable("webhook_configs", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  url: text("url").notNull(),
+  secret: varchar("secret", { length: 255 }),
+  events: json("events").notNull(), // e.g., ["project.evaluated", "report.generated"]
+  fieldMapping: json("fieldMapping"), // maps MIYAR fields to CRM fields
+  isActive: boolean("isActive").default(true).notNull(),
+  lastTriggeredAt: timestamp("lastTriggeredAt"),
+  lastStatus: int("lastStatus"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdBy: int("createdBy"),
+});
+
+export type WebhookConfig = typeof webhookConfigs.$inferSelect;
+export type InsertWebhookConfig = typeof webhookConfigs.$inferInsert;
 
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
 export const auditLogs = mysqlTable("audit_logs", {
@@ -285,6 +415,8 @@ export const auditLogs = mysqlTable("audit_logs", {
   entityType: varchar("entityType", { length: 64 }).notNull(),
   entityId: int("entityId"),
   details: json("details"),
+  benchmarkVersionId: int("benchmarkVersionId"),
+  modelVersionId: int("modelVersionId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   ipAddress: varchar("ipAddress", { length: 64 }),
 });

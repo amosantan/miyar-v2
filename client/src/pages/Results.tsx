@@ -205,24 +205,24 @@ function ResultsContent() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   {[
                     {
-                      label: "Total Value Created",
-                      value: `AED ${roi.totalValue.toLocaleString()}`,
-                      sub: `${roi.roiMultiple}x return`,
+                      label: "Total Cost Avoided",
+                      value: `AED ${roi.totalCostAvoided.mid.toLocaleString()}`,
+                      sub: `${roi.totalHoursSaved.mid} hours saved`,
                     },
                     {
-                      label: "Rework Avoided",
-                      value: `AED ${roi.reworkAvoided.toLocaleString()}`,
-                      sub: "Design alignment savings",
+                      label: "Budget Accuracy",
+                      value: `±${roi.budgetAccuracyGain.toPct}%`,
+                      sub: `from ±${roi.budgetAccuracyGain.fromPct}%`,
                     },
                     {
-                      label: "Procurement Savings",
-                      value: `AED ${roi.procurementSavings.toLocaleString()}`,
-                      sub: "Optimized specifications",
+                      label: "Decision Confidence",
+                      value: `${roi.decisionConfidenceIndex}%`,
+                      sub: "Confidence index",
                     },
                     {
-                      label: "Positioning Premium",
-                      value: `AED ${roi.positioningPremium.toLocaleString()}`,
-                      sub: "Market value uplift",
+                      label: "Top Driver",
+                      value: roi.drivers[0]?.name ?? "N/A",
+                      sub: roi.drivers[0] ? `AED ${roi.drivers[0].costAvoided.mid.toLocaleString()}` : "",
                     },
                   ].map((item) => (
                     <div key={item.label}>

@@ -11,12 +11,19 @@ import ProjectNew from "./pages/ProjectNew";
 import ProjectDetail from "./pages/ProjectDetail";
 import Results from "./pages/Results";
 import Scenarios from "./pages/Scenarios";
+import ScenarioTemplates from "./pages/ScenarioTemplates";
 import Reports from "./pages/Reports";
 import Benchmarks from "./pages/admin/Benchmarks";
+import BenchmarkVersions from "./pages/admin/BenchmarkVersions";
+import BenchmarkCategories from "./pages/admin/BenchmarkCategories";
 import ModelVersions from "./pages/admin/ModelVersions";
 import AuditLogs from "./pages/admin/AuditLogs";
 import Overrides from "./pages/admin/Overrides";
 import BenchmarkHealth from "./pages/admin/BenchmarkHealth";
+import Portfolio from "./pages/admin/Portfolio";
+import RoiConfig from "./pages/admin/RoiConfig";
+import Webhooks from "./pages/admin/Webhooks";
+import CsvImport from "./pages/admin/CsvImport";
 
 function Router() {
   return (
@@ -28,12 +35,19 @@ function Router() {
       <Route path="/projects/:id" component={ProjectDetail} />
       <Route path="/results" component={Results} />
       <Route path="/scenarios" component={Scenarios} />
+      <Route path="/scenarios/templates" component={ScenarioTemplates} />
       <Route path="/reports" component={Reports} />
       <Route path="/admin/benchmarks" component={Benchmarks} />
+      <Route path="/admin/benchmark-versions" component={BenchmarkVersions} />
+      <Route path="/admin/benchmark-categories" component={BenchmarkCategories} />
       <Route path="/admin/models" component={ModelVersions} />
       <Route path="/admin/audit" component={AuditLogs} />
       <Route path="/admin/overrides" component={Overrides} />
       <Route path="/admin/benchmark-health" component={BenchmarkHealth} />
+      <Route path="/admin/portfolio" component={Portfolio} />
+      <Route path="/admin/roi-config" component={RoiConfig} />
+      <Route path="/admin/webhooks" component={Webhooks} />
+      <Route path="/admin/csv-import" component={CsvImport} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

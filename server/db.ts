@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -9,7 +9,12 @@ import {
   scenarios,
   modelVersions,
   benchmarkData,
+  benchmarkVersions,
+  benchmarkCategories,
+  projectIntelligence,
   reportInstances,
+  roiConfigs,
+  webhookConfigs,
   auditLogs,
   overrideRecords,
 } from "../drizzle/schema";
@@ -85,6 +90,12 @@ export async function getProjectsByUser(userId: number) {
   return db.select().from(projects).where(eq(projects.userId, userId)).orderBy(desc(projects.updatedAt));
 }
 
+export async function getAllProjects() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projects).orderBy(desc(projects.updatedAt));
+}
+
 export async function getProjectById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
@@ -147,6 +158,12 @@ export async function getScoreMatrixById(id: number) {
   return result[0];
 }
 
+export async function getAllScoreMatrices() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(scoreMatrices).orderBy(desc(scoreMatrices.computedAt));
+}
+
 // ─── Scenarios ───────────────────────────────────────────────────────────────
 
 export async function createScenarioRecord(data: typeof scenarios.$inferInsert) {
@@ -186,7 +203,6 @@ export async function getAllModelVersions() {
 export async function createModelVersion(data: typeof modelVersions.$inferInsert) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Deactivate all existing
   await db.update(modelVersions).set({ isActive: false }).where(eq(modelVersions.isActive, true));
   const result = await db.insert(modelVersions).values({ ...data, isActive: true });
   return { id: Number(result[0].insertId) };
@@ -210,7 +226,7 @@ export async function getBenchmarks(typology?: string, location?: string, market
 
 export async function getExpectedCost(typology: string, location: string, marketTier: string): Promise<number> {
   const benchmarks = await getBenchmarks(typology, location, marketTier);
-  if (benchmarks.length === 0) return 400; // default fallback
+  if (benchmarks.length === 0) return 400;
   const avg = benchmarks.reduce((sum, b) => sum + Number(b.costPerSqftMid ?? 400), 0) / benchmarks.length;
   return avg;
 }
@@ -228,6 +244,207 @@ export async function deleteBenchmark(id: number) {
   await db.delete(benchmarkData).where(eq(benchmarkData.id, id));
 }
 
+export async function getAllBenchmarkData() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(benchmarkData).orderBy(desc(benchmarkData.updatedAt));
+}
+
+// ─── Benchmark Versions (V2) ────────────────────────────────────────────────
+
+export async function getAllBenchmarkVersions() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(benchmarkVersions).orderBy(desc(benchmarkVersions.createdAt));
+}
+
+export async function getActiveBenchmarkVersion() {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(benchmarkVersions)
+    .where(eq(benchmarkVersions.status, "published"))
+    .orderBy(desc(benchmarkVersions.publishedAt))
+    .limit(1);
+  return result[0];
+}
+
+export async function getBenchmarkVersionById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(benchmarkVersions).where(eq(benchmarkVersions.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createBenchmarkVersion(data: typeof benchmarkVersions.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(benchmarkVersions).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function publishBenchmarkVersion(id: number, publishedBy: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Archive all currently published
+  await db.update(benchmarkVersions).set({ status: "archived" }).where(eq(benchmarkVersions.status, "published"));
+  // Publish this one
+  const count = await db.select({ count: sql<number>`COUNT(*)` }).from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, id));
+  await db.update(benchmarkVersions).set({
+    status: "published",
+    publishedAt: new Date(),
+    publishedBy,
+    recordCount: count[0]?.count ?? 0,
+  }).where(eq(benchmarkVersions.id, id));
+}
+
+export async function getBenchmarkDiff(oldVersionId: number, newVersionId: number) {
+  const db = await getDb();
+  if (!db) return { added: 0, removed: 0, changed: 0 };
+  const oldData = await db.select().from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, oldVersionId));
+  const newData = await db.select().from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, newVersionId));
+  const oldKeys = new Set(oldData.map(d => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`));
+  const newKeys = new Set(newData.map(d => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`));
+  let added = 0, removed = 0, changed = 0;
+  newKeys.forEach(k => { if (!oldKeys.has(k)) added++; });
+  oldKeys.forEach(k => { if (!newKeys.has(k)) removed++; });
+  // For shared keys, compare cost mid values
+  const oldMap = new Map(oldData.map(d => [`${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`, d]));
+  const newMap = new Map(newData.map(d => [`${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`, d]));
+  oldKeys.forEach(k => {
+    if (newKeys.has(k)) {
+      const o = oldMap.get(k);
+      const n = newMap.get(k);
+      if (o && n && Number(o.costPerSqftMid) !== Number(n.costPerSqftMid)) changed++;
+    }
+  });
+  return { added, removed, changed };
+}
+
+// ─── Benchmark Categories (V2) ──────────────────────────────────────────────
+
+export async function getAllBenchmarkCategories(category?: string, projectClass?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (category) conditions.push(eq(benchmarkCategories.category, category as any));
+  if (projectClass) conditions.push(eq(benchmarkCategories.projectClass, projectClass as any));
+  let query = db.select().from(benchmarkCategories);
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as any;
+  }
+  return query.orderBy(desc(benchmarkCategories.createdAt));
+}
+
+export async function createBenchmarkCategory(data: typeof benchmarkCategories.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(benchmarkCategories).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateBenchmarkCategory(id: number, data: Partial<typeof benchmarkCategories.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(benchmarkCategories).set(data).where(eq(benchmarkCategories.id, id));
+}
+
+export async function deleteBenchmarkCategory(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(benchmarkCategories).where(eq(benchmarkCategories.id, id));
+}
+
+// ─── Project Intelligence Warehouse (V2) ────────────────────────────────────
+
+export async function createProjectIntelligence(data: typeof projectIntelligence.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(projectIntelligence).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getProjectIntelligenceByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projectIntelligence)
+    .where(eq(projectIntelligence.projectId, projectId))
+    .orderBy(desc(projectIntelligence.computedAt));
+}
+
+export async function getAllProjectIntelligence() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projectIntelligence).orderBy(desc(projectIntelligence.computedAt));
+}
+
+// ─── ROI Configurations (V2) ────────────────────────────────────────────────
+
+export async function getActiveRoiConfig() {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(roiConfigs).where(eq(roiConfigs.isActive, true)).limit(1);
+  return result[0];
+}
+
+export async function getAllRoiConfigs() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(roiConfigs).orderBy(desc(roiConfigs.createdAt));
+}
+
+export async function createRoiConfig(data: typeof roiConfigs.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Deactivate all existing
+  await db.update(roiConfigs).set({ isActive: false }).where(eq(roiConfigs.isActive, true));
+  const result = await db.insert(roiConfigs).values({ ...data, isActive: true });
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateRoiConfig(id: number, data: Partial<typeof roiConfigs.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(roiConfigs).set(data).where(eq(roiConfigs.id, id));
+}
+
+// ─── Webhook Configurations (V2) ────────────────────────────────────────────
+
+export async function getAllWebhookConfigs() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(webhookConfigs).orderBy(desc(webhookConfigs.createdAt));
+}
+
+export async function getActiveWebhookConfigs(event?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const all = await db.select().from(webhookConfigs).where(eq(webhookConfigs.isActive, true));
+  if (!event) return all;
+  return all.filter(w => {
+    const events = w.events as string[];
+    return events && events.includes(event);
+  });
+}
+
+export async function createWebhookConfig(data: typeof webhookConfigs.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(webhookConfigs).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateWebhookConfig(id: number, data: Partial<typeof webhookConfigs.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(webhookConfigs).set(data).where(eq(webhookConfigs.id, id));
+}
+
+export async function deleteWebhookConfig(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(webhookConfigs).where(eq(webhookConfigs.id, id));
+}
+
 // ─── Report Instances ────────────────────────────────────────────────────────
 
 export async function createReportInstance(data: typeof reportInstances.$inferInsert) {
@@ -241,6 +458,12 @@ export async function getReportsByProject(projectId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(reportInstances).where(eq(reportInstances.projectId, projectId)).orderBy(desc(reportInstances.generatedAt));
+}
+
+export async function getAllReports() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(reportInstances).orderBy(desc(reportInstances.generatedAt));
 }
 
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
