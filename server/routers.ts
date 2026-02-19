@@ -8,6 +8,7 @@ import { adminRouter } from "./routers/admin";
 import { seedRouter } from "./routers/seed";
 import { designRouter } from "./routers/design";
 import { intelligenceRouter } from "./routers/intelligence";
+import { marketIntelligenceRouter } from "./routers/market-intelligence";
 
 export const appRouter = router({
   system: systemRouter,
@@ -25,6 +26,7 @@ export const appRouter = router({
   seed: seedRouter,
   design: designRouter,
   intelligence: intelligenceRouter,
+  marketIntel: marketIntelligenceRouter,
 });
 
 export type AppRouter = typeof appRouter;

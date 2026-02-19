@@ -307,3 +307,63 @@
 
 ### Deliverable
 - [ ] Build Reality Report V2.1-V2.4 with all 7 required sections
+
+## Stage 1 — Market Intelligence Layer V1
+
+### 1. Evidence Vault Upgrades
+- [x] evidence_records table (record_id, projectId, category, item_name, price_min/max/typical, unit, currency, source_url, publisher, capture_date, reliability_grade, confidence_score, extracted_snippet, spec_class, notes)
+- [x] source_registry table (id, name, url, type enum, reliability_default, whitelisted, notes, addedBy, addedAt)
+- [x] Default curated source list (12 UAE sources: manufacturers, suppliers, developers, reports)
+- [x] Evidence ingestion tRPC procedures (create, list, get, bulkImport, delete, stats)
+- [x] Source registry CRUD procedures (list, get, create, update, delete, seedDefaults)
+
+### 2. Benchmark Proposal Workflow
+- [x] benchmark_proposals table (id, benchmark_key, current_value, proposed_p25/p50/p75, weighted_mean, delta_pct, evidence_count, source_diversity, reliability_dist, recency_dist, confidence_score, impact_notes, recommendation, rejection_reason, status, reviewer_notes, reviewed_by, reviewed_at, created_at)
+- [x] benchmark_snapshots table (id, version_id, snapshot_json, created_at, created_by)
+- [x] Proposal generation procedure (from evidence records with statistical analysis)
+- [x] Admin review: approve/reject with notes
+- [x] Versioned benchmark snapshots on approval
+
+### 3. Competitor Intelligence
+- [x] competitor_entities table (id, name, headquarters, segment_focus, website, notes, created_at)
+- [x] competitor_projects table (id, competitor_id, project_name, location, segment, asset_type, positioning_keywords, interior_style_signals, material_cues, amenity_list, unit_mix, price_indicators, sales_messaging, differentiation_claims, completion_status, launch_date, total_units, architect, interior_designer, source_url, capture_date, evidence_citations, completeness_score, created_at)
+- [x] Competitor CRUD procedures (entities + projects, create/update/delete/list/bulkImport)
+- [x] Competitor comparison view (positioning + amenities + style signals)
+
+### 4. Trend Tagging (Lightweight)
+- [x] trend_tags table (id, name, category enum, description, created_by, created_at)
+- [x] entity_tags join table (tag_id, entity_type, entity_id)
+- [x] Controlled vocabulary tag CRUD (create, list, delete by category)
+- [x] Attach tags to competitors and MIYAR scenarios as market signals (entity_tags attach/detach)
+
+### 5. Audit Logging for All Runs
+- [x] intelligence_audit_log table (id, run_type, run_id, actor, input_summary, output_summary, sources_processed, records_extracted, errors, started_at, completed_at)
+- [x] All intelligence operations log to audit table (manual_entry, price_extraction, benchmark_proposal, competitor_extraction)
+
+### 6. Frontend — Evidence Vault UI
+- [x] Evidence Records list page with filters (category, reliability, date range)
+- [x] Evidence Record detail view (inline in table with expandable snippets)
+- [x] Source Registry management page (whitelist, add, edit, deactivate, seed defaults)
+- [x] Evidence import form (manual entry via dialog)
+
+### 7. Frontend — Benchmark Proposals Admin
+- [x] Proposals list page with status filters (pending, approved, rejected)
+- [x] Proposal detail view with evidence summary + impact assessment
+- [x] Approve/reject buttons with notes field
+- [x] Benchmark snapshot history viewer
+
+### 8. Frontend — Competitor Intelligence
+- [x] Competitors list page (entities tab + projects tab)
+- [x] Competitor detail page (entity + projects with full detail dialog)
+- [x] Competitor comparison view (side-by-side positioning, amenities, style, overlap analysis)
+- [x] Add/edit competitor forms
+
+### 9. Frontend — Trend Tags
+- [x] Tag management page (controlled vocabulary, grouped by category)
+- [x] Tag attachment UI (entity_tags attach/detach via server procedures)
+- [x] Tag filter on tag management view by category
+
+### 10. Integration & Validation
+- [x] Tests for evidence CRUD, proposal workflow, competitor CRUD, tag operations (22 new tests, 133 total passing)
+- [ ] Validation with 3 example cost source URLs + 2 competitor project URLs (deferred to live integration)
+- [x] Stage 1 Phase Reality Report

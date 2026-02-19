@@ -54,6 +54,12 @@ import {
   Search,
   Target,
   Scale,
+  Globe,
+  FileCheck,
+  Building2,
+  Tags,
+  ScrollText,
+  BookOpen,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -82,6 +88,15 @@ const designItems = [
   { icon: MessageSquare, label: "Collaboration", path: "/projects/:id/collaboration", dynamic: true },
   { icon: Search, label: "Explainability", path: "/projects/:id/explainability", dynamic: true },
   { icon: Target, label: "Outcomes", path: "/projects/:id/outcomes", dynamic: true },
+];
+
+const marketIntelItems = [
+  { icon: Globe, label: "Evidence Vault", path: "/market-intel/evidence" },
+  { icon: BookOpen, label: "Source Registry", path: "/market-intel/sources" },
+  { icon: FileCheck, label: "Benchmark Proposals", path: "/market-intel/proposals" },
+  { icon: Building2, label: "Competitors", path: "/market-intel/competitors" },
+  { icon: Tags, label: "Trend Tags", path: "/market-intel/tags" },
+  { icon: ScrollText, label: "Intel Audit Log", path: "/market-intel/audit" },
 ];
 
 const adminItems = [
@@ -343,6 +358,39 @@ function DashboardLayoutContent({
                 </>
               );
             })()}
+
+            {/* Market Intelligence Section */}
+            {isAdmin && (
+              <>
+                {!isCollapsed && (
+                  <div className="px-4 pt-4 pb-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                      Market Intelligence
+                    </span>
+                  </div>
+                )}
+                <SidebarMenu className="px-2 py-1">
+                  {marketIntelItems.map((item) => {
+                    const isActive = location.startsWith(item.path);
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          onClick={() => setLocation(item.path)}
+                          tooltip={item.label}
+                          className="h-10 transition-all font-normal"
+                        >
+                          <item.icon
+                            className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                          />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </>
+            )}
 
             {/* Admin Section */}
             {isAdmin && (

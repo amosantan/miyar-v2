@@ -766,3 +766,264 @@ export const benchmarkSuggestions = mysqlTable("benchmark_suggestions", {
 
 export type BenchmarkSuggestion = typeof benchmarkSuggestions.$inferSelect;
 export type InsertBenchmarkSuggestion = typeof benchmarkSuggestions.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Stage 1 — Market Intelligence Layer V1
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Source Registry (Stage 1) ──────────────────────────────────────────────
+export const sourceRegistry = mysqlTable("source_registry", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  url: text("url").notNull(),
+  sourceType: mysqlEnum("sourceType", [
+    "supplier_catalog",
+    "manufacturer_catalog",
+    "developer_brochure",
+    "industry_report",
+    "government_tender",
+    "procurement_portal",
+    "trade_publication",
+    "retailer_listing",
+    "aggregator",
+    "other",
+  ]).notNull(),
+  reliabilityDefault: mysqlEnum("reliabilityDefault", ["A", "B", "C"]).default("B").notNull(),
+  isWhitelisted: boolean("isWhitelisted").default(true).notNull(),
+  region: varchar("region", { length: 64 }).default("UAE"),
+  notes: text("notes"),
+  addedBy: int("addedBy"),
+  addedAt: timestamp("addedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SourceRegistryEntry = typeof sourceRegistry.$inferSelect;
+export type InsertSourceRegistryEntry = typeof sourceRegistry.$inferInsert;
+
+// ─── Evidence Records (Stage 1) ─────────────────────────────────────────────
+export const evidenceRecords = mysqlTable("evidence_records", {
+  id: int("id").autoincrement().primaryKey(),
+  recordId: varchar("recordId", { length: 64 }).notNull().unique(), // MYR-PE-XXXX
+  projectId: int("projectId"), // optional: can be global evidence
+  sourceRegistryId: int("sourceRegistryId"), // FK to source_registry
+  category: mysqlEnum("category", [
+    "floors",
+    "walls",
+    "ceilings",
+    "joinery",
+    "lighting",
+    "sanitary",
+    "kitchen",
+    "hardware",
+    "ffe",
+    "other",
+  ]).notNull(),
+  itemName: varchar("itemName", { length: 255 }).notNull(),
+  specClass: varchar("specClass", { length: 128 }),
+  priceMin: decimal("priceMin", { precision: 12, scale: 2 }),
+  priceTypical: decimal("priceTypical", { precision: 12, scale: 2 }),
+  priceMax: decimal("priceMax", { precision: 12, scale: 2 }),
+  unit: varchar("unit", { length: 32 }).notNull(), // sqm, lm, set, piece, etc.
+  currencyOriginal: varchar("currencyOriginal", { length: 8 }).default("AED"),
+  currencyAed: decimal("currencyAed", { precision: 12, scale: 2 }), // normalized to AED
+  fxRate: decimal("fxRate", { precision: 10, scale: 6 }),
+  fxSource: text("fxSource"),
+  sourceUrl: text("sourceUrl").notNull(),
+  publisher: varchar("publisher", { length: 255 }),
+  captureDate: timestamp("captureDate").notNull(),
+  reliabilityGrade: mysqlEnum("reliabilityGrade", ["A", "B", "C"]).notNull(),
+  confidenceScore: int("confidenceScore").notNull(), // 0-100
+  extractedSnippet: text("extractedSnippet"),
+  notes: text("notes"),
+  runId: varchar("runId", { length: 64 }), // links to intelligence_audit_log
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EvidenceRecord = typeof evidenceRecords.$inferSelect;
+export type InsertEvidenceRecord = typeof evidenceRecords.$inferInsert;
+
+// ─── Benchmark Proposals (Stage 1) ──────────────────────────────────────────
+export const benchmarkProposals = mysqlTable("benchmark_proposals", {
+  id: int("id").autoincrement().primaryKey(),
+  benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(), // category:tier:unit
+  currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
+  currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
+  currentMax: decimal("currentMax", { precision: 12, scale: 2 }),
+  proposedP25: decimal("proposedP25", { precision: 12, scale: 2 }).notNull(),
+  proposedP50: decimal("proposedP50", { precision: 12, scale: 2 }).notNull(),
+  proposedP75: decimal("proposedP75", { precision: 12, scale: 2 }).notNull(),
+  weightedMean: decimal("weightedMean", { precision: 12, scale: 2 }).notNull(),
+  deltaPct: decimal("deltaPct", { precision: 8, scale: 2 }), // % change from current
+  evidenceCount: int("evidenceCount").notNull(),
+  sourceDiversity: int("sourceDiversity").notNull(),
+  reliabilityDist: json("reliabilityDist").notNull(), // { A: n, B: n, C: n }
+  recencyDist: json("recencyDist").notNull(), // { recent: n, mid: n, old: n }
+  confidenceScore: int("confidenceScore").notNull(), // 0-100
+  impactNotes: text("impactNotes"),
+  recommendation: mysqlEnum("recommendation", ["publish", "reject"]).notNull(),
+  rejectionReason: text("rejectionReason"),
+  // Review workflow
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  reviewerNotes: text("reviewerNotes"),
+  reviewedBy: int("reviewedBy"),
+  reviewedAt: timestamp("reviewedAt"),
+  // Snapshot linking
+  benchmarkSnapshotId: int("benchmarkSnapshotId"),
+  runId: varchar("runId", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type BenchmarkProposal = typeof benchmarkProposals.$inferSelect;
+export type InsertBenchmarkProposal = typeof benchmarkProposals.$inferInsert;
+
+// ─── Benchmark Snapshots (Stage 1) ──────────────────────────────────────────
+export const benchmarkSnapshots = mysqlTable("benchmark_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  benchmarkVersionId: int("benchmarkVersionId"),
+  snapshotJson: json("snapshotJson").notNull(), // full benchmark state at time of snapshot
+  description: text("description"),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type BenchmarkSnapshot = typeof benchmarkSnapshots.$inferSelect;
+export type InsertBenchmarkSnapshot = typeof benchmarkSnapshots.$inferInsert;
+
+// ─── Competitor Entities (Stage 1) ──────────────────────────────────────────
+export const competitorEntities = mysqlTable("competitor_entities", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  headquarters: varchar("headquarters", { length: 255 }),
+  segmentFocus: mysqlEnum("segmentFocus", [
+    "affordable",
+    "mid",
+    "premium",
+    "luxury",
+    "ultra_luxury",
+    "mixed",
+  ]).default("mixed"),
+  website: text("website"),
+  logoUrl: text("logoUrl"),
+  notes: text("notes"),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CompetitorEntity = typeof competitorEntities.$inferSelect;
+export type InsertCompetitorEntity = typeof competitorEntities.$inferInsert;
+
+// ─── Competitor Projects (Stage 1) ──────────────────────────────────────────
+export const competitorProjects = mysqlTable("competitor_projects", {
+  id: int("id").autoincrement().primaryKey(),
+  competitorId: int("competitorId").notNull(), // FK to competitor_entities
+  projectName: varchar("projectName", { length: 255 }).notNull(),
+  location: varchar("location", { length: 255 }),
+  segment: mysqlEnum("segment", [
+    "affordable",
+    "mid",
+    "premium",
+    "luxury",
+    "ultra_luxury",
+  ]),
+  assetType: mysqlEnum("assetType", [
+    "residential",
+    "commercial",
+    "hospitality",
+    "mixed_use",
+  ]).default("residential"),
+  positioningKeywords: json("positioningKeywords"), // string[]
+  interiorStyleSignals: json("interiorStyleSignals"), // string[]
+  materialCues: json("materialCues"), // string[]
+  amenityList: json("amenityList"), // string[]
+  unitMix: text("unitMix"),
+  priceIndicators: json("priceIndicators"), // { currency, min, max, per_unit }
+  salesMessaging: json("salesMessaging"), // string[]
+  differentiationClaims: json("differentiationClaims"), // string[]
+  completionStatus: mysqlEnum("completionStatus", [
+    "announced",
+    "under_construction",
+    "completed",
+    "sold_out",
+  ]),
+  launchDate: varchar("launchDate", { length: 32 }),
+  totalUnits: int("totalUnits"),
+  architect: varchar("architect", { length: 255 }),
+  interiorDesigner: varchar("interiorDesigner", { length: 255 }),
+  sourceUrl: text("sourceUrl"),
+  captureDate: timestamp("captureDate"),
+  evidenceCitations: json("evidenceCitations"), // array of { field, snippet, source_url, capture_date }
+  completenessScore: int("completenessScore"), // 0-100
+  runId: varchar("runId", { length: 64 }),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CompetitorProject = typeof competitorProjects.$inferSelect;
+export type InsertCompetitorProject = typeof competitorProjects.$inferInsert;
+
+// ─── Trend Tags (Stage 1) ───────────────────────────────────────────────────
+export const trendTags = mysqlTable("trend_tags", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull().unique(),
+  category: mysqlEnum("category", [
+    "material_trend",
+    "design_trend",
+    "market_trend",
+    "buyer_preference",
+    "sustainability",
+    "technology",
+    "pricing",
+    "other",
+  ]).notNull(),
+  description: text("description"),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TrendTag = typeof trendTags.$inferSelect;
+export type InsertTrendTag = typeof trendTags.$inferInsert;
+
+// ─── Entity Tags (Stage 1 — Join Table) ─────────────────────────────────────
+export const entityTags = mysqlTable("entity_tags", {
+  id: int("id").autoincrement().primaryKey(),
+  tagId: int("tagId").notNull(), // FK to trend_tags
+  entityType: mysqlEnum("entityType", [
+    "competitor_project",
+    "scenario",
+    "evidence_record",
+    "project",
+  ]).notNull(),
+  entityId: int("entityId").notNull(),
+  addedBy: int("addedBy"),
+  addedAt: timestamp("addedAt").defaultNow().notNull(),
+});
+
+export type EntityTag = typeof entityTags.$inferSelect;
+export type InsertEntityTag = typeof entityTags.$inferInsert;
+
+// ─── Intelligence Audit Log (Stage 1) ───────────────────────────────────────
+export const intelligenceAuditLog = mysqlTable("intelligence_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  runType: mysqlEnum("runType", [
+    "price_extraction",
+    "competitor_extraction",
+    "benchmark_proposal",
+    "manual_entry",
+  ]).notNull(),
+  runId: varchar("runId", { length: 64 }).notNull().unique(),
+  actor: int("actor"), // userId who triggered
+  inputSummary: json("inputSummary"), // config/params used
+  outputSummary: json("outputSummary"), // counts, coverage, errors
+  sourcesProcessed: int("sourcesProcessed").default(0),
+  recordsExtracted: int("recordsExtracted").default(0),
+  errors: int("errors").default(0),
+  errorDetails: json("errorDetails"),
+  startedAt: timestamp("startedAt").notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export type IntelligenceAuditLogEntry = typeof intelligenceAuditLog.$inferSelect;
+export type InsertIntelligenceAuditLogEntry = typeof intelligenceAuditLog.$inferInsert;

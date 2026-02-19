@@ -35,6 +35,15 @@ import {
   scenarioComparisons,
   projectOutcomes,
   benchmarkSuggestions,
+  sourceRegistry,
+  evidenceRecords,
+  benchmarkProposals,
+  benchmarkSnapshots,
+  competitorEntities,
+  competitorProjects,
+  trendTags,
+  entityTags,
+  intelligenceAuditLog,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1085,4 +1094,334 @@ export async function reviewBenchmarkSuggestion(
     .update(benchmarkSuggestions)
     .set({ ...data, reviewedAt: new Date() })
     .where(eq(benchmarkSuggestions.id, id));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Stage 1 — Market Intelligence Layer V1
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Source Registry ────────────────────────────────────────────────────────
+
+export async function listSourceRegistry() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(sourceRegistry).orderBy(desc(sourceRegistry.addedAt));
+}
+
+export async function getSourceRegistryById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(sourceRegistry).where(eq(sourceRegistry.id, id));
+  return rows[0];
+}
+
+export async function createSourceRegistryEntry(data: typeof sourceRegistry.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(sourceRegistry).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function updateSourceRegistryEntry(id: number, data: Partial<typeof sourceRegistry.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(sourceRegistry).set(data).where(eq(sourceRegistry.id, id));
+}
+
+export async function deleteSourceRegistryEntry(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(sourceRegistry).where(eq(sourceRegistry.id, id));
+}
+
+// ─── Evidence Records ───────────────────────────────────────────────────────
+
+export async function listEvidenceRecords(filters?: {
+  projectId?: number;
+  category?: string;
+  reliabilityGrade?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.projectId) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+  if (filters?.category) conditions.push(eq(evidenceRecords.category, filters.category as any));
+  if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade as any));
+  let query = db.select().from(evidenceRecords);
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as any;
+  }
+  return (query as any).orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
+}
+
+export async function getEvidenceRecordById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(evidenceRecords).where(eq(evidenceRecords.id, id));
+  return rows[0];
+}
+
+export async function createEvidenceRecord(data: typeof evidenceRecords.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(evidenceRecords).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function deleteEvidenceRecord(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(evidenceRecords).where(eq(evidenceRecords.id, id));
+}
+
+export async function getEvidenceStats() {
+  const db = await getDb();
+  if (!db) return { total: 0, byCategory: {}, byGrade: {}, avgConfidence: 0 };
+  const all = await db.select().from(evidenceRecords);
+  const byCategory: Record<string, number> = {};
+  const byGrade: Record<string, number> = {};
+  let totalConfidence = 0;
+  for (const rec of all) {
+    byCategory[rec.category] = (byCategory[rec.category] ?? 0) + 1;
+    byGrade[rec.reliabilityGrade] = (byGrade[rec.reliabilityGrade] ?? 0) + 1;
+    totalConfidence += rec.confidenceScore;
+  }
+  return {
+    total: all.length,
+    byCategory,
+    byGrade,
+    avgConfidence: all.length > 0 ? Math.round(totalConfidence / all.length) : 0,
+  };
+}
+
+// ─── Benchmark Proposals ────────────────────────────────────────────────────
+
+export async function listBenchmarkProposals(status?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  if (status) {
+    return db.select().from(benchmarkProposals)
+      .where(eq(benchmarkProposals.status, status as any))
+      .orderBy(desc(benchmarkProposals.createdAt));
+  }
+  return db.select().from(benchmarkProposals).orderBy(desc(benchmarkProposals.createdAt));
+}
+
+export async function getBenchmarkProposalById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(benchmarkProposals).where(eq(benchmarkProposals.id, id));
+  return rows[0];
+}
+
+export async function createBenchmarkProposal(data: typeof benchmarkProposals.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(benchmarkProposals).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function reviewBenchmarkProposal(
+  id: number,
+  data: { status: "approved" | "rejected"; reviewerNotes?: string; reviewedBy: number }
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(benchmarkProposals)
+    .set({ ...data, reviewedAt: new Date() })
+    .where(eq(benchmarkProposals.id, id));
+}
+
+// ─── Benchmark Snapshots ────────────────────────────────────────────────────
+
+export async function listBenchmarkSnapshots() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(benchmarkSnapshots).orderBy(desc(benchmarkSnapshots.createdAt));
+}
+
+export async function getBenchmarkSnapshotById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(benchmarkSnapshots).where(eq(benchmarkSnapshots.id, id));
+  return rows[0];
+}
+
+export async function createBenchmarkSnapshot(data: typeof benchmarkSnapshots.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(benchmarkSnapshots).values(data);
+  return { id: Number(result.insertId) };
+}
+
+// ─── Competitor Entities ────────────────────────────────────────────────────
+
+export async function listCompetitorEntities() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(competitorEntities).orderBy(desc(competitorEntities.createdAt));
+}
+
+export async function getCompetitorEntityById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(competitorEntities).where(eq(competitorEntities.id, id));
+  return rows[0];
+}
+
+export async function createCompetitorEntity(data: typeof competitorEntities.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(competitorEntities).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function updateCompetitorEntity(id: number, data: Partial<typeof competitorEntities.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(competitorEntities).set(data).where(eq(competitorEntities.id, id));
+}
+
+export async function deleteCompetitorEntity(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Delete associated projects first
+  await db.delete(competitorProjects).where(eq(competitorProjects.competitorId, id));
+  await db.delete(competitorEntities).where(eq(competitorEntities.id, id));
+}
+
+// ─── Competitor Projects ────────────────────────────────────────────────────
+
+export async function listCompetitorProjects(competitorId?: number, segment?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (competitorId) conditions.push(eq(competitorProjects.competitorId, competitorId));
+  if (segment) conditions.push(eq(competitorProjects.segment, segment as any));
+  let query = db.select().from(competitorProjects);
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as any;
+  }
+  return (query as any).orderBy(desc(competitorProjects.createdAt));
+}
+
+export async function getCompetitorProjectById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(competitorProjects).where(eq(competitorProjects.id, id));
+  return rows[0];
+}
+
+export async function createCompetitorProject(data: typeof competitorProjects.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(competitorProjects).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function updateCompetitorProject(id: number, data: Partial<typeof competitorProjects.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(competitorProjects).set(data).where(eq(competitorProjects.id, id));
+}
+
+export async function deleteCompetitorProject(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(competitorProjects).where(eq(competitorProjects.id, id));
+}
+
+// ─── Trend Tags ─────────────────────────────────────────────────────────────
+
+export async function listTrendTags(category?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  if (category) {
+    return db.select().from(trendTags)
+      .where(eq(trendTags.category, category as any))
+      .orderBy(trendTags.name);
+  }
+  return db.select().from(trendTags).orderBy(trendTags.name);
+}
+
+export async function createTrendTag(data: typeof trendTags.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(trendTags).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function deleteTrendTag(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Delete associated entity tags first
+  await db.delete(entityTags).where(eq(entityTags.tagId, id));
+  await db.delete(trendTags).where(eq(trendTags.id, id));
+}
+
+// ─── Entity Tags ────────────────────────────────────────────────────────────
+
+export async function createEntityTag(data: typeof entityTags.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(entityTags).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function deleteEntityTag(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(entityTags).where(eq(entityTags.id, id));
+}
+
+export async function getEntityTags(entityType: string, entityId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const tags = await db.select().from(entityTags)
+    .where(and(eq(entityTags.entityType, entityType as any), eq(entityTags.entityId, entityId)));
+  // Join with trend_tags to get names
+  if (tags.length === 0) return [];
+  const tagIds = tags.map(t => t.tagId);
+  const tagDetails = await db.select().from(trendTags).where(inArray(trendTags.id, tagIds));
+  const tagMap = new Map(tagDetails.map(t => [t.id, t]));
+  return tags.map(t => ({
+    ...t,
+    tag: tagMap.get(t.tagId),
+  }));
+}
+
+export async function getTaggedEntities(tagId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(entityTags).where(eq(entityTags.tagId, tagId));
+}
+
+// ─── Intelligence Audit Log ─────────────────────────────────────────────────
+
+export async function createIntelligenceAuditEntry(data: typeof intelligenceAuditLog.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(intelligenceAuditLog).values(data);
+}
+
+export async function listIntelligenceAuditLog(runType?: string, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  if (runType) {
+    return db.select().from(intelligenceAuditLog)
+      .where(eq(intelligenceAuditLog.runType, runType as any))
+      .orderBy(desc(intelligenceAuditLog.startedAt))
+      .limit(limit);
+  }
+  return db.select().from(intelligenceAuditLog)
+    .orderBy(desc(intelligenceAuditLog.startedAt))
+    .limit(limit);
+}
+
+export async function getIntelligenceAuditEntryById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(intelligenceAuditLog).where(eq(intelligenceAuditLog.id, id));
+  return rows[0];
 }

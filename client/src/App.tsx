@@ -37,6 +37,12 @@ import BenchmarkLearning from "./pages/admin/BenchmarkLearning";
 import Explainability from "./pages/Explainability";
 import ScenarioComparison from "./pages/ScenarioComparison";
 import Outcomes from "./pages/Outcomes";
+import EvidenceVaultMI from "./pages/market-intel/EvidenceVaultMI";
+import SourceRegistry from "./pages/market-intel/SourceRegistry";
+import BenchmarkProposals from "./pages/market-intel/BenchmarkProposals";
+import CompetitorsMI from "./pages/market-intel/Competitors";
+import TrendTags from "./pages/market-intel/TrendTags";
+import IntelAuditLog from "./pages/market-intel/IntelAuditLog";
 
 function Router() {
   return (
@@ -74,6 +80,12 @@ function Router() {
       <Route path="/projects/:id/explainability" component={Explainability} />
       <Route path="/projects/:id/outcomes" component={Outcomes} />
       <Route path="/scenarios/compare" component={ScenarioComparison} />
+      <Route path="/market-intel/evidence" component={EvidenceVaultMI} />
+      <Route path="/market-intel/sources" component={SourceRegistry} />
+      <Route path="/market-intel/proposals" component={BenchmarkProposals} />
+      <Route path="/market-intel/competitors" component={CompetitorsMI} />
+      <Route path="/market-intel/tags" component={TrendTags} />
+      <Route path="/market-intel/audit" component={IntelAuditLog} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
