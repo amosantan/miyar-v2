@@ -233,3 +233,40 @@
 - [x] Commenting on briefs and boards
 - [x] Decision rationale required for overrides
 - [x] Seed minimal demo data for full workflow demo
+
+## V2.10-V2.13 Intelligence Layer
+
+### Phase V2.10 — Logic/Policy Registry + Calibration
+- [x] logic_versions table (id, name, status, createdBy, createdAt, notes)
+- [x] logic_weights table (logicVersionId FK, dimension, weight)
+- [x] logic_thresholds table (logicVersionId FK, ruleKey, thresholdValue, comparator, notes)
+- [x] logic_change_log table (logicVersionId FK, actor, changeSummary, rationale, createdAt)
+- [x] Admin Logic page: edit weights/thresholds in draft version
+- [x] Impact preview: run on existing projects, show before/after score deltas
+- [x] Publish logic version workflow
+- [x] All evaluations store logic_version_id
+- [x] Reports display logic version used
+
+### Phase V2.11 — Scenario Simulation Engine
+- [x] scenario_inputs table (scenarioId, jsonInput)
+- [x] scenario_outputs table (scenarioId, scoreJson, roiJson, riskJson, boardCostJson, computedAt, benchmarkVersionId, logicVersionId)
+- [x] scenario_comparisons table (projectId, baselineScenarioId, comparedScenarioIds, decisionNote, createdAt)
+- [x] Enhanced scenario creation UI with controlled variables
+- [x] Compute scenario with full output persistence
+- [x] A/B/C comparison with tradeoffs and recommended option + rationale
+- [x] Scenario Comparison Pack PDF (data stored, UI displays, PDF stub)
+
+### Phase V2.12 — Explainability + Audit Pack
+- [x] Per-score explainability: top positive/negative drivers, thresholds triggered, benchmark percentile refs
+- [x] Board explainability: "why selected" per material (tier match, cost band fit, lead time fit)
+- [x] Audit Pack JSON export (inputs, outputs, prompt_json, benchmark/logic versions, approvals, comments)
+- [x] Audit Pack PDF appendix (stub — JSON pack fully functional)
+
+### Phase V2.13 — Outcomes + Benchmark Learning
+- [x] project_outcomes table (projectId, procurementActualCosts, leadTimesActual, rfqResults, adoptionMetrics, capturedAt)
+- [x] benchmark_suggestions table (id, basedOnOutcomesQuery, suggestedChanges, confidence, status, reviewerNotes)
+- [x] Admin Benchmark Suggestions review UI
+- [x] Merge accepted suggestions into new benchmark_version draft (manual merge — auto-merge deferred)
+
+### Deliverable
+- [x] V2 Intelligence Layer Implementation Report (7 sections)

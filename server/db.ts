@@ -26,6 +26,15 @@ import {
   materialsToBoards,
   promptTemplates,
   comments,
+  logicVersions,
+  logicWeights,
+  logicThresholds,
+  logicChangeLog,
+  scenarioInputs,
+  scenarioOutputs,
+  scenarioComparisons,
+  projectOutcomes,
+  benchmarkSuggestions,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -784,4 +793,296 @@ export async function updateProjectApprovalState(projectId: number, approvalStat
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(projects).set({ approvalState: approvalState as any }).where(eq(projects.id, projectId));
+}
+
+// ─── Logic Versions (V2.10) ──────────────────────────────────────────────────
+
+export async function getPublishedLogicVersion() {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(logicVersions)
+    .where(eq(logicVersions.status, "published"))
+    .orderBy(desc(logicVersions.publishedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function listLogicVersions() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(logicVersions).orderBy(desc(logicVersions.createdAt));
+}
+
+export async function getLogicVersionById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(logicVersions).where(eq(logicVersions.id, id));
+  return rows[0] ?? null;
+}
+
+export async function createLogicVersion(data: { name: string; notes?: string; createdBy?: number }) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.insert(logicVersions).values(data);
+  return result.insertId;
+}
+
+export async function publishLogicVersion(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  // Archive all currently published
+  await db
+    .update(logicVersions)
+    .set({ status: "archived" })
+    .where(eq(logicVersions.status, "published"));
+  // Publish this one
+  await db
+    .update(logicVersions)
+    .set({ status: "published", publishedAt: new Date() })
+    .where(eq(logicVersions.id, id));
+}
+
+export async function archiveLogicVersion(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(logicVersions)
+    .set({ status: "archived" })
+    .where(eq(logicVersions.id, id));
+}
+
+// ─── Logic Weights (V2.10) ──────────────────────────────────────────────────
+
+export async function getLogicWeights(logicVersionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(logicWeights)
+    .where(eq(logicWeights.logicVersionId, logicVersionId));
+}
+
+export async function setLogicWeights(logicVersionId: number, weights: { dimension: string; weight: string }[]) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(logicWeights).where(eq(logicWeights.logicVersionId, logicVersionId));
+  if (weights.length > 0) {
+    await db.insert(logicWeights).values(
+      weights.map((w) => ({ logicVersionId, dimension: w.dimension, weight: w.weight }))
+    );
+  }
+}
+
+// ─── Logic Thresholds (V2.10) ───────────────────────────────────────────────
+
+export async function getLogicThresholds(logicVersionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(logicThresholds)
+    .where(eq(logicThresholds.logicVersionId, logicVersionId));
+}
+
+export async function setLogicThresholds(
+  logicVersionId: number,
+  thresholds: { ruleKey: string; thresholdValue: string; comparator: "gt" | "gte" | "lt" | "lte" | "eq" | "neq"; notes?: string }[]
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(logicThresholds).where(eq(logicThresholds.logicVersionId, logicVersionId));
+  if (thresholds.length > 0) {
+    await db.insert(logicThresholds).values(
+      thresholds.map((t) => ({ logicVersionId, ...t }))
+    );
+  }
+}
+
+// ─── Logic Change Log (V2.10) ───────────────────────────────────────────────
+
+export async function getLogicChangeLog(logicVersionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(logicChangeLog)
+    .where(eq(logicChangeLog.logicVersionId, logicVersionId))
+    .orderBy(desc(logicChangeLog.createdAt));
+}
+
+export async function addLogicChangeLogEntry(data: {
+  logicVersionId: number;
+  actor: number;
+  changeSummary: string;
+  rationale: string;
+}) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.insert(logicChangeLog).values(data);
+  return result.insertId;
+}
+
+// ─── Scenario Inputs (V2.11) ────────────────────────────────────────────────
+
+export async function createScenarioInput(data: { scenarioId: number; jsonInput: unknown }) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.insert(scenarioInputs).values({
+    scenarioId: data.scenarioId,
+    jsonInput: data.jsonInput,
+  });
+  return result.insertId;
+}
+
+export async function getScenarioInput(scenarioId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(scenarioInputs)
+    .where(eq(scenarioInputs.scenarioId, scenarioId))
+    .orderBy(desc(scenarioInputs.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+// ─── Scenario Outputs (V2.11) ───────────────────────────────────────────────
+
+export async function createScenarioOutput(data: {
+  scenarioId: number;
+  scoreJson: unknown;
+  roiJson?: unknown;
+  riskJson?: unknown;
+  boardCostJson?: unknown;
+  benchmarkVersionId?: number;
+  logicVersionId?: number;
+}) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.insert(scenarioOutputs).values(data);
+  return result.insertId;
+}
+
+export async function getScenarioOutput(scenarioId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(scenarioOutputs)
+    .where(eq(scenarioOutputs.scenarioId, scenarioId))
+    .orderBy(desc(scenarioOutputs.computedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function listScenarioOutputs(scenarioIds: number[]) {
+  if (scenarioIds.length === 0) return [];
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scenarioOutputs)
+    .where(inArray(scenarioOutputs.scenarioId, scenarioIds))
+    .orderBy(desc(scenarioOutputs.computedAt));
+}
+
+// ─── Scenario Comparisons (V2.11) ───────────────────────────────────────────
+
+export async function createScenarioComparison(data: {
+  projectId: number;
+  baselineScenarioId: number;
+  comparedScenarioIds: number[];
+  decisionNote?: string;
+  comparisonResult?: unknown;
+  createdBy?: number;
+}) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.insert(scenarioComparisons).values(data);
+  return result.insertId;
+}
+
+export async function listScenarioComparisons(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scenarioComparisons)
+    .where(eq(scenarioComparisons.projectId, projectId))
+    .orderBy(desc(scenarioComparisons.createdAt));
+}
+
+export async function getScenarioComparisonById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(scenarioComparisons).where(eq(scenarioComparisons.id, id));
+  return rows[0] ?? null;
+}
+
+// ─── Project Outcomes (V2.13) ───────────────────────────────────────────────
+
+export async function createProjectOutcome(data: {
+  projectId: number;
+  procurementActualCosts?: unknown;
+  leadTimesActual?: unknown;
+  rfqResults?: unknown;
+  adoptionMetrics?: unknown;
+  capturedBy?: number;
+}) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.insert(projectOutcomes).values(data);
+  return result.insertId;
+}
+
+export async function getProjectOutcomes(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(projectOutcomes)
+    .where(eq(projectOutcomes.projectId, projectId))
+    .orderBy(desc(projectOutcomes.capturedAt));
+}
+
+export async function listAllOutcomes() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projectOutcomes).orderBy(desc(projectOutcomes.capturedAt));
+}
+
+// ─── Benchmark Suggestions (V2.13) ──────────────────────────────────────────
+
+export async function createBenchmarkSuggestion(data: {
+  basedOnOutcomesQuery?: string;
+  suggestedChanges: unknown;
+  confidence?: string;
+}) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.insert(benchmarkSuggestions).values(data);
+  return result.insertId;
+}
+
+export async function listBenchmarkSuggestions() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(benchmarkSuggestions)
+    .orderBy(desc(benchmarkSuggestions.createdAt));
+}
+
+export async function reviewBenchmarkSuggestion(
+  id: number,
+  data: { status: "accepted" | "rejected"; reviewerNotes?: string; reviewedBy: number }
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(benchmarkSuggestions)
+    .set({ ...data, reviewedAt: new Date() })
+    .where(eq(benchmarkSuggestions.id, id));
 }

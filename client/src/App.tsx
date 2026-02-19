@@ -31,6 +31,12 @@ import Webhooks from "./pages/admin/Webhooks";
 import CsvImport from "./pages/admin/CsvImport";
 import MaterialsLibrary from "./pages/admin/MaterialsLibrary";
 import PromptTemplates from "./pages/admin/PromptTemplates";
+import LogicRegistry from "./pages/admin/LogicRegistry";
+import Calibration from "./pages/admin/Calibration";
+import BenchmarkLearning from "./pages/admin/BenchmarkLearning";
+import Explainability from "./pages/Explainability";
+import ScenarioComparison from "./pages/ScenarioComparison";
+import Outcomes from "./pages/Outcomes";
 
 function Router() {
   return (
@@ -62,6 +68,12 @@ function Router() {
       <Route path="/admin/csv-import" component={CsvImport} />
       <Route path="/admin/materials" component={MaterialsLibrary} />
       <Route path="/admin/prompt-templates" component={PromptTemplates} />
+      <Route path="/admin/logic-registry" component={LogicRegistry} />
+      <Route path="/admin/calibration" component={Calibration} />
+      <Route path="/admin/benchmark-learning" component={BenchmarkLearning} />
+      <Route path="/projects/:id/explainability" component={Explainability} />
+      <Route path="/projects/:id/outcomes" component={Outcomes} />
+      <Route path="/scenarios/compare" component={ScenarioComparison} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -260,6 +260,65 @@ export const seedRouter = router({
         console.error("V2.8 seed data error:", e);
       }
 
+      // ─── V2.10-V2.13 Intelligence Seed Data ────────────────────────────
+      try {
+        // 1. Create scenario inputs/outputs for scenario comparison
+        const scenarios = await db.getScenariosByProject(projectId);
+        if (scenarios.length > 0) {
+          for (const scenario of scenarios) {
+            const scenarioInputData = {
+              scenarioId: scenario.id,
+              jsonInput: {
+                variableOverrides: scenario.variableOverrides,
+                description: scenario.description,
+                source: "seed",
+              },
+            };
+            await db.createScenarioInput(scenarioInputData);
+
+            const scenarioOutputData = {
+              scenarioId: scenario.id,
+              scoreJson: {
+                saScore: Number(scoreResult.dimensions.sa) + (Math.random() * 10 - 5),
+                ffScore: Number(scoreResult.dimensions.ff) + (Math.random() * 10 - 5),
+                mpScore: Number(scoreResult.dimensions.mp) + (Math.random() * 10 - 5),
+                dsScore: Number(scoreResult.dimensions.ds) + (Math.random() * 10 - 5),
+                erScore: Number(scoreResult.dimensions.er) + (Math.random() * 10 - 5),
+                compositeScore: scoreResult.compositeScore + (Math.random() * 8 - 4),
+              },
+              roiJson: {
+                hoursSaved: Math.round(40 + Math.random() * 80),
+                costAvoided: Math.round(50000 + Math.random() * 200000),
+                budgetAccuracyGain: Math.round(5 + Math.random() * 15),
+              },
+            };
+            await db.createScenarioOutput(scenarioOutputData);
+          }
+        }
+
+        // 2. Seed project outcomes for benchmark learning
+        await db.createProjectOutcome({
+          projectId,
+          procurementActualCosts: {
+            flooring: Math.round(20000 + Math.random() * 80000),
+            fixtures: Math.round(15000 + Math.random() * 60000),
+            joinery: Math.round(10000 + Math.random() * 40000),
+          },
+          leadTimesActual: {
+            flooring: Math.round(45 + Math.random() * 90),
+            fixtures: Math.round(30 + Math.random() * 60),
+            joinery: Math.round(60 + Math.random() * 120),
+          },
+          rfqResults: {
+            totalBids: Math.round(3 + Math.random() * 5),
+            acceptedBid: Math.round(80000 + Math.random() * 200000),
+          },
+          capturedBy: ctx.user.id,
+        });
+      } catch (e) {
+        console.error("V2.10-V2.13 seed data error:", e);
+      }
+
       // Audit
       await db.createAuditLog({
         userId: ctx.user.id,

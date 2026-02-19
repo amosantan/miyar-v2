@@ -642,3 +642,127 @@ export const overrideRecords = mysqlTable("override_records", {
 
 export type OverrideRecord = typeof overrideRecords.$inferSelect;
 export type InsertOverrideRecord = typeof overrideRecords.$inferInsert;
+
+// ─── Logic Versions (V2.10 — Logic/Policy Registry) ──────────────────────────
+export const logicVersions = mysqlTable("logic_versions", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  publishedAt: timestamp("publishedAt"),
+  notes: text("notes"),
+});
+
+export type LogicVersion = typeof logicVersions.$inferSelect;
+export type InsertLogicVersion = typeof logicVersions.$inferInsert;
+
+// ─── Logic Weights (V2.10) ───────────────────────────────────────────────────
+export const logicWeights = mysqlTable("logic_weights", {
+  id: int("id").autoincrement().primaryKey(),
+  logicVersionId: int("logicVersionId").notNull(),
+  dimension: varchar("dimension", { length: 32 }).notNull(), // sa, ff, mp, ds, er
+  weight: decimal("weight", { precision: 6, scale: 4 }).notNull(),
+});
+
+export type LogicWeight = typeof logicWeights.$inferSelect;
+export type InsertLogicWeight = typeof logicWeights.$inferInsert;
+
+// ─── Logic Thresholds (V2.10) ────────────────────────────────────────────────
+export const logicThresholds = mysqlTable("logic_thresholds", {
+  id: int("id").autoincrement().primaryKey(),
+  logicVersionId: int("logicVersionId").notNull(),
+  ruleKey: varchar("ruleKey", { length: 128 }).notNull(),
+  thresholdValue: decimal("thresholdValue", { precision: 10, scale: 4 }).notNull(),
+  comparator: mysqlEnum("comparator", ["gt", "gte", "lt", "lte", "eq", "neq"]).notNull(),
+  notes: text("notes"),
+});
+
+export type LogicThreshold = typeof logicThresholds.$inferSelect;
+export type InsertLogicThreshold = typeof logicThresholds.$inferInsert;
+
+// ─── Logic Change Log (V2.10) ────────────────────────────────────────────────
+export const logicChangeLog = mysqlTable("logic_change_log", {
+  id: int("id").autoincrement().primaryKey(),
+  logicVersionId: int("logicVersionId").notNull(),
+  actor: int("actor").notNull(),
+  changeSummary: text("changeSummary").notNull(),
+  rationale: text("rationale").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type LogicChangeLogEntry = typeof logicChangeLog.$inferSelect;
+export type InsertLogicChangeLogEntry = typeof logicChangeLog.$inferInsert;
+
+// ─── Scenario Inputs (V2.11) ─────────────────────────────────────────────────
+export const scenarioInputs = mysqlTable("scenario_inputs", {
+  id: int("id").autoincrement().primaryKey(),
+  scenarioId: int("scenarioId").notNull(),
+  jsonInput: json("jsonInput").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ScenarioInput = typeof scenarioInputs.$inferSelect;
+export type InsertScenarioInput = typeof scenarioInputs.$inferInsert;
+
+// ─── Scenario Outputs (V2.11) ────────────────────────────────────────────────
+export const scenarioOutputs = mysqlTable("scenario_outputs", {
+  id: int("id").autoincrement().primaryKey(),
+  scenarioId: int("scenarioId").notNull(),
+  scoreJson: json("scoreJson").notNull(),
+  roiJson: json("roiJson"),
+  riskJson: json("riskJson"),
+  boardCostJson: json("boardCostJson"),
+  benchmarkVersionId: int("benchmarkVersionId"),
+  logicVersionId: int("logicVersionId"),
+  computedAt: timestamp("computedAt").defaultNow().notNull(),
+});
+
+export type ScenarioOutput = typeof scenarioOutputs.$inferSelect;
+export type InsertScenarioOutput = typeof scenarioOutputs.$inferInsert;
+
+// ─── Scenario Comparisons (V2.11) ────────────────────────────────────────────
+export const scenarioComparisons = mysqlTable("scenario_comparisons", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  baselineScenarioId: int("baselineScenarioId").notNull(),
+  comparedScenarioIds: json("comparedScenarioIds").notNull(), // number[]
+  decisionNote: text("decisionNote"),
+  comparisonResult: json("comparisonResult"), // computed tradeoffs
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ScenarioComparison = typeof scenarioComparisons.$inferSelect;
+export type InsertScenarioComparison = typeof scenarioComparisons.$inferInsert;
+
+// ─── Project Outcomes (V2.13) ────────────────────────────────────────────────
+export const projectOutcomes = mysqlTable("project_outcomes", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  procurementActualCosts: json("procurementActualCosts"),
+  leadTimesActual: json("leadTimesActual"),
+  rfqResults: json("rfqResults"),
+  adoptionMetrics: json("adoptionMetrics"),
+  capturedAt: timestamp("capturedAt").defaultNow().notNull(),
+  capturedBy: int("capturedBy"),
+});
+
+export type ProjectOutcome = typeof projectOutcomes.$inferSelect;
+export type InsertProjectOutcome = typeof projectOutcomes.$inferInsert;
+
+// ─── Benchmark Suggestions (V2.13) ──────────────────────────────────────────
+export const benchmarkSuggestions = mysqlTable("benchmark_suggestions", {
+  id: int("id").autoincrement().primaryKey(),
+  basedOnOutcomesQuery: text("basedOnOutcomesQuery"),
+  suggestedChanges: json("suggestedChanges").notNull(),
+  confidence: decimal("confidence", { precision: 6, scale: 4 }),
+  status: mysqlEnum("status", ["pending", "accepted", "rejected"]).default("pending").notNull(),
+  reviewerNotes: text("reviewerNotes"),
+  reviewedBy: int("reviewedBy"),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type BenchmarkSuggestion = typeof benchmarkSuggestions.$inferSelect;
+export type InsertBenchmarkSuggestion = typeof benchmarkSuggestions.$inferInsert;

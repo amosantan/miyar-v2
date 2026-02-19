@@ -48,6 +48,12 @@ import {
   Package,
   MessageSquare,
   Sparkles,
+  Brain,
+  Sliders,
+  Lightbulb,
+  Search,
+  Target,
+  Scale,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -64,6 +70,7 @@ const analysisItems = [
   { icon: BarChart3, label: "Results", path: "/results" },
   { icon: GitCompare, label: "Scenarios", path: "/scenarios" },
   { icon: Wand2, label: "Scenario Templates", path: "/scenarios/templates" },
+  { icon: Scale, label: "Scenario Comparison", path: "/scenarios/compare" },
   { icon: FileText, label: "Reports", path: "/reports" },
 ];
 
@@ -73,6 +80,8 @@ const designItems = [
   { icon: Camera, label: "Visual Studio", path: "/projects/:id/visuals", dynamic: true },
   { icon: Package, label: "Board Composer", path: "/projects/:id/boards", dynamic: true },
   { icon: MessageSquare, label: "Collaboration", path: "/projects/:id/collaboration", dynamic: true },
+  { icon: Search, label: "Explainability", path: "/projects/:id/explainability", dynamic: true },
+  { icon: Target, label: "Outcomes", path: "/projects/:id/outcomes", dynamic: true },
 ];
 
 const adminItems = [
@@ -89,6 +98,9 @@ const adminItems = [
   { icon: HeartPulse, label: "Benchmark Health", path: "/admin/benchmark-health" },
   { icon: Sparkles, label: "Materials Library", path: "/admin/materials" },
   { icon: Wand2, label: "Prompt Templates", path: "/admin/prompt-templates" },
+  { icon: Brain, label: "Logic Registry", path: "/admin/logic-registry" },
+  { icon: Sliders, label: "Calibration", path: "/admin/calibration" },
+  { icon: Lightbulb, label: "Benchmark Learning", path: "/admin/benchmark-learning" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
