@@ -6,6 +6,36 @@ import { generateDesignBrief } from "../engines/design-brief";
 import { recommendMaterials } from "../engines/board-composer";
 import type { ProjectInputs } from "../../shared/miyar-types";
 
+async function buildEvalConfigForSeed(
+  modelVersion: NonNullable<Awaited<ReturnType<typeof db.getActiveModelVersion>>>,
+  expectedCost: number,
+  benchmarkCount: number
+): Promise<import("../engines/scoring").EvaluationConfig> {
+  const baseWeights = modelVersion.dimensionWeights as Record<string, number>;
+  const publishedLogic = await db.getPublishedLogicVersion();
+  let dimensionWeights = baseWeights;
+  if (publishedLogic) {
+    const logicWeightRows = await db.getLogicWeights(publishedLogic.id);
+    if (logicWeightRows.length > 0) {
+      const logicWeightsMap: Record<string, number> = {};
+      for (const w of logicWeightRows) {
+        logicWeightsMap[w.dimension] = parseFloat(w.weight);
+      }
+      if (Object.keys(logicWeightsMap).length >= 5) {
+        dimensionWeights = logicWeightsMap;
+      }
+    }
+  }
+  return {
+    dimensionWeights: dimensionWeights as any,
+    variableWeights: modelVersion.variableWeights as any,
+    penaltyConfig: modelVersion.penaltyConfig as any,
+    expectedCost,
+    benchmarkCount,
+    overrideRate: 0,
+  };
+}
+
 function projectToInputs(p: any): ProjectInputs {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
@@ -154,14 +184,7 @@ export const seedRouter = router({
         inputs.mkt01Tier
       );
 
-      const config: EvaluationConfig = {
-        dimensionWeights: modelVersion.dimensionWeights as any,
-        variableWeights: modelVersion.variableWeights as any,
-        penaltyConfig: modelVersion.penaltyConfig as any,
-        expectedCost,
-        benchmarkCount: benchmarks.length,
-        overrideRate: 0,
-      };
+      const config = await buildEvalConfigForSeed(modelVersion, expectedCost, benchmarks.length);
 
       // Evaluate
       const scoreResult = evaluate(inputs, config);

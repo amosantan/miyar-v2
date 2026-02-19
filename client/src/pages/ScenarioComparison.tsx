@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { GitCompare, ArrowUpDown, TrendingUp, TrendingDown, Minus, FileText } from "lucide-react";
+import { GitCompare, ArrowUpDown, TrendingUp, TrendingDown, Minus, FileText, Download } from "lucide-react";
 
 export default function ScenarioComparison() {
   const [, params] = useRoute("/projects/:id/scenario-compare");
@@ -30,6 +30,18 @@ export default function ScenarioComparison() {
       setDecisionNote("");
     },
     onError: () => toast.error("Failed to generate comparison"),
+  });
+
+  const exportPDFMut = trpc.intelligence.scenarios.exportComparisonPDF.useMutation({
+    onSuccess: (data) => {
+      if (data.url) {
+        window.open(data.url, "_blank");
+        toast.success("Comparison Pack exported successfully");
+      } else {
+        toast.error("Export succeeded but no URL returned");
+      }
+    },
+    onError: () => toast.error("Failed to export Comparison Pack"),
   });
 
   const scenarioList = scenarios.data ?? [];
@@ -173,9 +185,20 @@ export default function ScenarioComparison() {
                           <p className="text-sm text-muted-foreground mt-1">{comp.decisionNote}</p>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(comp.createdAt).toLocaleString()}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => exportPDFMut.mutate({ comparisonId: comp.id })}
+                          disabled={exportPDFMut.isPending}
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          {exportPDFMut.isPending ? "Exporting..." : "Export Pack"}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(comp.createdAt).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
 
                     {result?.compared && result.compared.length > 0 && (

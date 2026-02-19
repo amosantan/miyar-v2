@@ -14,6 +14,47 @@ import { computeDerivedFeatures } from "../engines/intelligence";
 import { SCENARIO_TEMPLATES, getScenarioTemplate, solveConstraints, type Constraint } from "../engines/scenario-templates";
 import { dispatchWebhook } from "../engines/webhook";
 
+/**
+ * Build evaluation config that respects the Logic Registry.
+ * If a published logic version exists, its dimension weights override the model version defaults.
+ * This ensures the scoring engine uses the weights configured in the Logic Registry admin UI.
+ */
+async function buildEvalConfig(
+  modelVersion: NonNullable<Awaited<ReturnType<typeof db.getActiveModelVersion>>>,
+  expectedCost: number,
+  benchmarkCount: number,
+  overrideRate = 0
+): Promise<EvaluationConfig> {
+  const baseWeights = modelVersion.dimensionWeights as Record<string, number>;
+
+  // Check if a published logic version exists with custom weights
+  const publishedLogic = await db.getPublishedLogicVersion();
+  let dimensionWeights = baseWeights;
+
+  if (publishedLogic) {
+    const logicWeightRows = await db.getLogicWeights(publishedLogic.id);
+    if (logicWeightRows.length > 0) {
+      const logicWeightsMap: Record<string, number> = {};
+      for (const w of logicWeightRows) {
+        logicWeightsMap[w.dimension] = parseFloat(w.weight);
+      }
+      // Only override if we have all 5 dimensions
+      if (Object.keys(logicWeightsMap).length >= 5) {
+        dimensionWeights = logicWeightsMap;
+      }
+    }
+  }
+
+  return {
+    dimensionWeights: dimensionWeights as any,
+    variableWeights: modelVersion.variableWeights as any,
+    penaltyConfig: modelVersion.penaltyConfig as any,
+    expectedCost,
+    benchmarkCount,
+    overrideRate,
+  };
+}
+
 const projectInputSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
@@ -202,14 +243,7 @@ export const projectRouter = router({
         inputs.mkt01Tier
       );
 
-      const config: EvaluationConfig = {
-        dimensionWeights: modelVersion.dimensionWeights as any,
-        variableWeights: modelVersion.variableWeights as any,
-        penaltyConfig: modelVersion.penaltyConfig as any,
-        expectedCost,
-        benchmarkCount: benchmarks.length,
-        overrideRate: 0,
-      };
+      const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
 
       const scoreResult = evaluate(inputs, config);
 
@@ -311,14 +345,7 @@ export const projectRouter = router({
       const expectedCost = await db.getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
       const benchmarks = await db.getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
 
-      const config: EvaluationConfig = {
-        dimensionWeights: modelVersion.dimensionWeights as any,
-        variableWeights: modelVersion.variableWeights as any,
-        penaltyConfig: modelVersion.penaltyConfig as any,
-        expectedCost,
-        benchmarkCount: benchmarks.length,
-        overrideRate: 0,
-      };
+      const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
 
       return runSensitivityAnalysis(inputs, config);
     }),
@@ -415,14 +442,7 @@ export const projectRouter = router({
       const expectedCost = await db.getExpectedCost(scenarioInputs.ctx01Typology, scenarioInputs.ctx04Location, scenarioInputs.mkt01Tier);
       const benchmarks = await db.getBenchmarks(scenarioInputs.ctx01Typology, scenarioInputs.ctx04Location, scenarioInputs.mkt01Tier);
 
-      const config: EvaluationConfig = {
-        dimensionWeights: modelVersion.dimensionWeights as any,
-        variableWeights: modelVersion.variableWeights as any,
-        penaltyConfig: modelVersion.penaltyConfig as any,
-        expectedCost,
-        benchmarkCount: benchmarks.length,
-        overrideRate: 0,
-      };
+      const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
 
       const scoreResult = evaluate(scenarioInputs as ProjectInputs, config);
 
@@ -485,14 +505,7 @@ export const projectRouter = router({
       const expectedCost = await db.getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
       const benchmarks = await db.getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
 
-      const config: EvaluationConfig = {
-        dimensionWeights: modelVersion.dimensionWeights as any,
-        variableWeights: modelVersion.variableWeights as any,
-        penaltyConfig: modelVersion.penaltyConfig as any,
-        expectedCost,
-        benchmarkCount: benchmarks.length,
-        overrideRate: 0,
-      };
+      const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
 
       const scoreResult = {
         dimensions: {

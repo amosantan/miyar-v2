@@ -41,6 +41,8 @@ import { generateLearningReport, suggestBenchmarkAdjustments, compareOutcomes } 
 import { computeRoi } from "../engines/roi";
 import { computeFiveLens } from "../engines/five-lens";
 import { storagePut } from "../storage";
+import { generateScenarioComparisonHTML, type ScenarioComparisonPDFInput } from "../engines/pdf-report";
+import { nanoid } from "nanoid";
 
 export const intelligenceRouter = router({
   // ─── V2.10: Logic Registry ──────────────────────────────────────────────────
@@ -290,6 +292,57 @@ export const intelligenceRouter = router({
       .query(async ({ input }) => {
         return getScenarioComparisonById(input.id);
       }),
+
+    exportComparisonPDF: protectedProcedure
+      .input(z.object({ comparisonId: z.number() }))
+      .mutation(async ({ input }) => {
+        const comparison = await getScenarioComparisonById(input.comparisonId);
+        if (!comparison) throw new Error("Comparison not found");
+
+        const project = await getProjectById(comparison.projectId);
+        if (!project) throw new Error("Project not found");
+
+        // Get scenario names
+        const allScenarios = await getScenariosByProject(comparison.projectId);
+        const scenarioMap = new Map(allScenarios.map((s) => [s.id, s.name]));
+
+        const compResult = (comparison.comparisonResult ?? {}) as Record<string, unknown>;
+        const baseline = (compResult.baseline ?? {}) as Record<string, unknown>;
+        const compared = ((compResult.compared ?? []) as Array<Record<string, unknown>>);
+
+        const benchmarkVersion = await getActiveBenchmarkVersion();
+        const logicVersion = await getPublishedLogicVersion();
+
+        const pdfInput: ScenarioComparisonPDFInput = {
+          projectName: project.name,
+          projectId: comparison.projectId,
+          baselineScenario: {
+            id: comparison.baselineScenarioId,
+            name: scenarioMap.get(comparison.baselineScenarioId) ?? `Scenario #${comparison.baselineScenarioId}`,
+            scores: (baseline.scores ?? null) as Record<string, number> | null,
+            roi: (baseline.roi ?? null) as Record<string, number> | null,
+          },
+          comparedScenarios: compared.map((c) => {
+            const sid = c.scenarioId as number;
+            return {
+              id: sid,
+              name: scenarioMap.get(sid) ?? `Scenario #${sid}`,
+              scores: (c.scores ?? null) as Record<string, number> | null,
+              roi: (c.roi ?? null) as Record<string, number> | null,
+              deltas: (c.deltas ?? null) as Record<string, number> | null,
+            };
+          }),
+          decisionNote: comparison.decisionNote ?? undefined,
+          benchmarkVersion: benchmarkVersion?.versionTag ?? "v1.0-baseline",
+          logicVersion: logicVersion?.name ?? "Default",
+        };
+
+        const html = generateScenarioComparisonHTML(pdfInput);
+        const fileKey = `reports/${comparison.projectId}/scenario-comparison-${nanoid(8)}.html`;
+        const { url } = await storagePut(fileKey, html, "text/html");
+
+        return { url, html };
+      }),
   }),
 
   // ─── V2.12: Explainability ─────────────────────────────────────────────────
@@ -322,7 +375,9 @@ export const intelligenceRouter = router({
           dimensionWeights.er = 0.2;
         }
 
-        const inputSnapshot = ((project as Record<string, unknown>).inputSnapshot as Record<string, unknown>) ?? {};
+        // Read inputSnapshot from score_matrices (where it's reliably stored after evaluation)
+        const inputSnapshot = (latestScore.inputSnapshot as Record<string, unknown>) ?? 
+          ((project as Record<string, unknown>).inputSnapshot as Record<string, unknown>) ?? {};
         const variableContributions = (latestScore.variableContributions as Record<string, number>) ?? {};
         const penalties = (latestScore.penalties as Array<{ rule: string; points: number; reason: string }>) ?? [];
         const riskFlags = (latestScore.riskFlags as Array<{ flag: string; severity: string; detail: string }>) ?? [];
@@ -365,7 +420,9 @@ export const intelligenceRouter = router({
         const thresholds = logicVersion ? await getLogicThresholds(logicVersion.id) : [];
         const benchmarkVersion = await getActiveBenchmarkVersion();
 
-        const inputSnapshot = ((project as Record<string, unknown>).inputSnapshot as Record<string, unknown>) ?? {};
+        // Read inputSnapshot from score_matrices (where it's reliably stored after evaluation)
+        const inputSnapshot = (latestScore.inputSnapshot as Record<string, unknown>) ?? 
+          ((project as Record<string, unknown>).inputSnapshot as Record<string, unknown>) ?? {};
         const dimensionWeights: Record<string, number> = {};
         for (const w of weights) {
           dimensionWeights[w.dimension] = parseFloat(w.weight);

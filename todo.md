@@ -270,3 +270,40 @@
 
 ### Deliverable
 - [x] V2 Intelligence Layer Implementation Report (7 sections)
+
+## V2.1-V2.4 Credibility Gap Closure & Pack Upgrades
+
+### Phase V2.1 — Close Credibility Gaps
+- [ ] Fix 1: Explainability "undefined" variable values — store resolved variable inputs in stable JSON, show raw value + normalized + contribution + directionality in UI
+- [ ] Fix 1: Add unit tests covering missing/optional fields in explainability
+- [x] Fix 2: Wire Scenario Comparison Pack PDF — real PDF with per-dimension deltas, tradeoffs, composite deltas, recommendation, decision notes, evidence refs
+- [x] Fix 2: Store Scenario Comparison Pack as artifact with benchmark_version_id + logic_version_id + timestamps
+- [x] Fix 3: Wire Logic Registry weights to scoring engine — buildEvalConfig reads published logic version weights and overrides model version defaults
+- [x] Fix 3: All evaluate() call sites in project.ts and seed.ts now use buildEvalConfig
+- [x] Fix 4: Design Brief DOCX export — server-side DOCX generation engine (docx-brief.ts) with 7 sections, tables, bullets, watermark
+- [x] Fix 4: Export DOCX button in DesignBrief.tsx UI, uploads to S3
+- [x] Credibility fix tests: 15 new tests covering PDF generation, weight wiring, DOCX export
+
+### Phase V2.2 — Evidence Vault Upgrades
+- [ ] Evidence Vault metadata: title, category (brief/competitor/material/cost/brand), tags, phase, author, date, confidentiality flag
+- [ ] Storage: object store with signed URLs
+- [ ] Evidence references: link evidence items to scenarios, decision notes, explainability drivers, pack sections
+- [ ] Packs must list evidence references with inline citations
+
+### Phase V2.3 — Nano Banana Visual Studio + Material Board Upgrades
+- [ ] Visual Studio: prompt templates resolved from project/scenario context
+- [ ] Visual Studio: store generated_visuals with prompt_json (immutable), scenario_id/board_id, createdBy, status, image_url
+- [ ] Visual Studio UI: generate image, view history, attach to pack
+- [ ] Material Board Composer: board entity with tiles (material/finish/supplier/cost band/lead time/spec)
+- [ ] Board Composer: attach visuals to boards, export PDF board sheet
+- [ ] Boards referenced inside Design Brief + RFQ Pack
+
+### Phase V2.4 — Strengthen Developer-Ready Packs
+- [ ] Executive Decision Pack: logic_version_id, benchmark_version_id, timestamp, evidence refs, scenario context, procurement constraints, annex with visuals + boards
+- [x] Scenario Comparison Pack: real PDF with all required sections
+- [ ] Design Brief + RFQ Pack: upgraded with evidence refs, inline citations, procurement constraints, annex
+- [ ] All packs: disclaimers ("concept only — subject to detailed design")
+- [ ] All packs: reproducible given stored inputs, logic version, benchmark version
+
+### Deliverable
+- [ ] Build Reality Report V2.1-V2.4 with all 7 required sections

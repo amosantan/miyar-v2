@@ -148,20 +148,38 @@ export default function Explainability() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Variable</TableHead>
-                      <TableHead>Value</TableHead>
-                      <TableHead>Direction</TableHead>
+                      <TableHead className="text-center">Raw Value</TableHead>
+                      <TableHead className="text-center">Normalized</TableHead>
+                      <TableHead className="text-center">Contribution</TableHead>
+                      <TableHead className="text-center">Direction</TableHead>
                       <TableHead>Explanation</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dim.drivers.map((driver) => (
-                      <TableRow key={driver.variable}>
-                        <TableCell className="font-medium">{driver.label}</TableCell>
-                        <TableCell>{String(driver.value)}</TableCell>
-                        <TableCell>{directionIcon(driver.direction)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-md">{driver.explanation}</TableCell>
-                      </TableRow>
-                    ))}
+                    {dim.drivers.map((driver) => {
+                      const rawVal = driver.value;
+                      const numVal = typeof rawVal === "number" ? rawVal : (typeof rawVal === "string" ? parseFloat(rawVal) || 0 : 0);
+                      const normalized = numVal ? ((numVal / 5) * 100).toFixed(0) : "—";
+                      return (
+                        <TableRow key={driver.variable}>
+                          <TableCell className="font-medium">{driver.label}</TableCell>
+                          <TableCell className="text-center font-mono">
+                            {rawVal !== undefined && rawVal !== null ? String(rawVal) : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell className="text-center font-mono">{normalized}%</TableCell>
+                          <TableCell className="text-center font-mono">
+                            {driver.contribution !== undefined ? driver.contribution.toFixed(2) : "0.00"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              {directionIcon(driver.direction)}
+                              <span className="text-xs capitalize">{driver.direction}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-sm">{driver.explanation}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>

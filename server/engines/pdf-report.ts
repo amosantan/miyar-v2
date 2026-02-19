@@ -599,6 +599,159 @@ export function generateFullReportHTML(data: PDFReportInput): string {
   return sections.join("\n");
 }
 
+// ─── Scenario Comparison Pack PDF ───────────────────────────────────────────
+
+export interface ScenarioComparisonPDFInput {
+  projectName: string;
+  projectId: number;
+  baselineScenario: { id: number; name: string; scores: Record<string, number> | null; roi: Record<string, number> | null };
+  comparedScenarios: Array<{
+    id: number;
+    name: string;
+    scores: Record<string, number> | null;
+    roi: Record<string, number> | null;
+    deltas: Record<string, number> | null;
+  }>;
+  decisionNote?: string;
+  benchmarkVersion?: string;
+  logicVersion?: string;
+}
+
+function renderScenarioComparisonTable(data: ScenarioComparisonPDFInput): string {
+  const dims = ["sa", "ff", "mp", "ds", "er"] as const;
+  const baseScores = (data.baselineScenario.scores ?? {}) as Record<string, number>;
+  
+  // Header row: Dimension | Baseline | Scenario A | Scenario B | ...
+  const headerCols = [
+    `<th>Dimension</th>`,
+    `<th style="text-align:center;">Baseline<br><span style="font-size:8px;font-weight:400;">${data.baselineScenario.name}</span></th>`,
+    ...data.comparedScenarios.map((s, i) => 
+      `<th style="text-align:center;">Scenario ${String.fromCharCode(65 + i)}<br><span style="font-size:8px;font-weight:400;">${s.name}</span></th>`
+    ),
+  ].join("");
+
+  const rows = dims.map((d) => {
+    const baseVal = baseScores[`${d}Score`] ?? baseScores[d] ?? 0;
+    const cells = data.comparedScenarios.map((s) => {
+      const sScores = (s.scores ?? {}) as Record<string, number>;
+      const val = sScores[`${d}Score`] ?? sScores[d] ?? 0;
+      const delta = val - baseVal;
+      const color = delta > 0 ? "#2e7d32" : delta < 0 ? "#c62828" : "#666";
+      const arrow = delta > 0 ? "\u25B2" : delta < 0 ? "\u25BC" : "\u2014";
+      return `<td style="text-align:center;">${val.toFixed(1)} <span style="color:${color};font-size:9px;">${arrow} ${delta !== 0 ? Math.abs(delta).toFixed(1) : ""}</span></td>`;
+    }).join("");
+    return `<tr><td>${DIMENSION_LABELS[d]}</td><td style="text-align:center;font-weight:700;">${baseVal.toFixed(1)}</td>${cells}</tr>`;
+  }).join("");
+
+  // Composite row
+  const baseComposite = baseScores.compositeScore ?? baseScores.composite ?? 0;
+  const compositeCells = data.comparedScenarios.map((s) => {
+    const sScores = (s.scores ?? {}) as Record<string, number>;
+    const val = sScores.compositeScore ?? sScores.composite ?? 0;
+    const delta = val - baseComposite;
+    const color = delta > 0 ? "#2e7d32" : delta < 0 ? "#c62828" : "#666";
+    const arrow = delta > 0 ? "\u25B2" : delta < 0 ? "\u25BC" : "\u2014";
+    return `<td style="text-align:center;font-weight:700;">${val.toFixed(1)} <span style="color:${color};font-size:9px;">${arrow} ${delta !== 0 ? Math.abs(delta).toFixed(1) : ""}</span></td>`;
+  }).join("");
+
+  return `
+<div class="section">
+  <h2>Scenario Score Comparison</h2>
+  <table>
+    <tr>${headerCols}</tr>
+    ${rows}
+    <tr style="font-weight:700; background:#f0f4f8;">
+      <td>Composite Score</td>
+      <td style="text-align:center;">${baseComposite.toFixed(1)}</td>
+      ${compositeCells}
+    </tr>
+  </table>
+</div>
+`;
+}
+
+function renderROIComparison(data: ScenarioComparisonPDFInput): string {
+  const baseRoi = (data.baselineScenario.roi ?? {}) as Record<string, number>;
+  if (!baseRoi.totalValue && data.comparedScenarios.every(s => !s.roi)) return "";
+
+  const metrics = ["totalValue", "reworkAvoided", "procurementSavings", "timeValueGain"];
+  const metricLabels: Record<string, string> = {
+    totalValue: "Total Value Created",
+    reworkAvoided: "Rework Avoided",
+    procurementSavings: "Procurement Savings",
+    timeValueGain: "Time-Value Gain",
+  };
+
+  const headerCols = [
+    `<th>ROI Metric</th>`,
+    `<th style="text-align:right;">Baseline</th>`,
+    ...data.comparedScenarios.map((s, i) => 
+      `<th style="text-align:right;">Scenario ${String.fromCharCode(65 + i)}</th>`
+    ),
+  ].join("");
+
+  const rows = metrics.map((m) => {
+    const baseVal = baseRoi[m] ?? 0;
+    const cells = data.comparedScenarios.map((s) => {
+      const sRoi = (s.roi ?? {}) as Record<string, number>;
+      const val = sRoi[m] ?? 0;
+      return `<td style="text-align:right;">AED ${val.toLocaleString()}</td>`;
+    }).join("");
+    return `<tr><td>${metricLabels[m] ?? m}</td><td style="text-align:right;">AED ${baseVal.toLocaleString()}</td>${cells}</tr>`;
+  }).join("");
+
+  return `
+<div class="section">
+  <h2>ROI Comparison</h2>
+  <table>
+    <tr>${headerCols}</tr>
+    ${rows}
+  </table>
+</div>
+`;
+}
+
+function renderTradeoffAnalysis(data: ScenarioComparisonPDFInput): string {
+  const analyses = data.comparedScenarios.map((s, i) => {
+    const deltas = (s.deltas ?? {}) as Record<string, number>;
+    const positives = Object.entries(deltas).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    const negatives = Object.entries(deltas).filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1]);
+
+    const posItems = positives.slice(0, 3).map(([k, v]) => 
+      `<div class="action-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: +${v.toFixed(1)} points</div>`
+    ).join("");
+    const negItems = negatives.slice(0, 3).map(([k, v]) => 
+      `<div class="penalty-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: ${v.toFixed(1)} points</div>`
+    ).join("");
+
+    return `
+    <h3>Scenario ${String.fromCharCode(65 + i)}: ${s.name}</h3>
+    ${positives.length > 0 ? `<p><strong>Improvements vs Baseline:</strong></p>${posItems}` : "<p>No improvements over baseline.</p>"}
+    ${negatives.length > 0 ? `<p><strong>Trade-offs vs Baseline:</strong></p>${negItems}` : "<p>No trade-offs identified.</p>"}
+    `;
+  }).join("");
+
+  return `
+<div class="section">
+  <h2>Trade-off Analysis</h2>
+  ${analyses}
+  ${data.decisionNote ? `<h3>Decision Note</h3><p>${data.decisionNote}</p>` : ""}
+</div>
+`;
+}
+
+export function generateScenarioComparisonHTML(data: ScenarioComparisonPDFInput): string {
+  const watermark = generateWatermark(data.projectId, "scenario_comparison");
+  return [
+    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, watermark),
+    renderScenarioComparisonTable(data),
+    renderROIComparison(data),
+    renderTradeoffAnalysis(data),
+    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion),
+    htmlFooter(data.projectId, "scenario_comparison", watermark, data.benchmarkVersion),
+  ].join("\n");
+}
+
 export function generateReportHTML(reportType: ReportType, data: PDFReportInput): string {
   switch (reportType) {
     case "validation_summary":

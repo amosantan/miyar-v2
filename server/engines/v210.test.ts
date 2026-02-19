@@ -115,6 +115,59 @@ describe("Explainability Engine", () => {
     expect(explanations[2].riskFactors.length).toBeGreaterThan(0);
   });
 
+  it("handles missing/undefined variable values gracefully", () => {
+    const sparseInput: Record<string, unknown> = {
+      str01BrandClarity: 4,
+      // str02Differentiation is missing
+      str03BuyerMaturity: undefined,
+      fin01BudgetCap: null,
+      fin02Flexibility: "",
+      fin03ShockTolerance: 2,
+      // rest missing
+    };
+    const report = generateExplainabilityReport(1, sparseInput, sampleScoreData, "v1.0", "v1.0");
+    expect(report.dimensions).toHaveLength(5);
+    // SA dimension should still have 3 drivers even with missing values
+    const saDim = report.dimensions.find((d) => d.dimension === "sa")!;
+    expect(saDim.drivers).toHaveLength(3);
+    // Brand Clarity should have value 4
+    expect(saDim.drivers[0].value).toBe(4);
+    // Missing values should default to 3 (neutral) in the engine
+    const diffDriver = saDim.drivers.find((d) => d.variable === "str02Differentiation")!;
+    expect(diffDriver.direction).toBe("neutral"); // defaults to 3 → neutral
+    // All dimensions should have summaries
+    for (const dim of report.dimensions) {
+      expect(dim.summary).toBeTruthy();
+      expect(dim.label).toBeTruthy();
+    }
+  });
+
+  it("handles empty inputSnapshot without crashing", () => {
+    const report = generateExplainabilityReport(1, {}, sampleScoreData, "v1.0", "v1.0");
+    expect(report.dimensions).toHaveLength(5);
+    // All drivers should default to neutral (value 3)
+    for (const dim of report.dimensions) {
+      for (const driver of dim.drivers) {
+        expect(driver.direction).toBe("neutral");
+        expect(driver.explanation).toBeTruthy();
+      }
+    }
+  });
+
+  it("shows correct raw value, normalized, contribution, and direction for each driver", () => {
+    const report = generateExplainabilityReport(1, sampleInput, sampleScoreData, "v1.0", "v1.0");
+    const saDim = report.dimensions.find((d) => d.dimension === "sa")!;
+    const brandClarity = saDim.drivers.find((d) => d.variable === "str01BrandClarity")!;
+    // Raw value should be 4 (from sampleInput)
+    expect(brandClarity.value).toBe(4);
+    // Contribution should be 3.2 (from sampleScoreData.variableContributions)
+    expect(brandClarity.contribution).toBe(3.2);
+    // Direction should be positive (value >= 4)
+    expect(brandClarity.direction).toBe("positive");
+    // Weight should be 0.2
+    expect(brandClarity.weight).toBe(0.2);
+  });
+
   it("builds a complete audit pack JSON", () => {
     const report = generateExplainabilityReport(1, sampleInput, sampleScoreData, "v1.0", "v1.0");
     const pack = buildAuditPack(

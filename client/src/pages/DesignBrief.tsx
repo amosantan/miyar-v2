@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Palette, Package, DollarSign, Truck, CheckSquare, RefreshCw, History, ChevronRight } from "lucide-react";
+import { FileText, Palette, Package, DollarSign, Truck, CheckSquare, RefreshCw, History, ChevronRight, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export default function DesignBrief() {
@@ -23,6 +23,16 @@ export default function DesignBrief() {
       allBriefs.refetch();
     },
     onError: (err) => toast.error("Generation failed", { description: err.message }),
+  });
+
+  const exportDocxMut = trpc.design.exportBriefDocx.useMutation({
+    onSuccess: (data) => {
+      if (data.url) {
+        window.open(data.url, "_blank");
+        toast.success("DOCX exported successfully");
+      }
+    },
+    onError: () => toast.error("Failed to export DOCX"),
   });
 
   const brief = latestBrief.data;
@@ -45,6 +55,16 @@ export default function DesignBrief() {
         <div className="flex gap-2">
           {allBriefs.data && allBriefs.data.length > 1 && (
             <Badge variant="outline"><History className="mr-1 h-3 w-3" /> {allBriefs.data.length} versions</Badge>
+          )}
+          {brief && (
+            <Button
+              variant="outline"
+              onClick={() => exportDocxMut.mutate({ briefId: brief.id })}
+              disabled={exportDocxMut.isPending}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {exportDocxMut.isPending ? "Exporting..." : "Export DOCX"}
+            </Button>
           )}
           <Button onClick={() => generateMutation.mutate({ projectId })} disabled={generateMutation.isPending}>
             <RefreshCw className={`mr-2 h-4 w-4 ${generateMutation.isPending ? "animate-spin" : ""}`} />

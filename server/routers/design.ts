@@ -12,6 +12,8 @@ import { buildPromptContext, interpolateTemplate, generateDefaultPrompt, validat
 import { computeBoardSummary, generateRfqLines, recommendMaterials } from "../engines/board-composer";
 import { generateImage } from "../_core/imageGeneration";
 import type { ProjectInputs } from "../../shared/miyar-types";
+import { generateDesignBriefDocx } from "../engines/docx-brief";
+import { nanoid } from "nanoid";
 
 function projectToInputs(p: any): ProjectInputs {
   return {
@@ -218,6 +220,32 @@ export const designRouter = router({
     .input(z.object({ projectId: z.number() }))
     .query(async ({ input }) => {
       return db.getLatestDesignBrief(input.projectId);
+    }),
+
+  exportBriefDocx: protectedProcedure
+    .input(z.object({ briefId: z.number() }))
+    .mutation(async ({ input }) => {
+      const brief = await db.getDesignBriefById(input.briefId);
+      if (!brief) throw new Error("Design brief not found");
+
+      const project = await db.getProjectById(brief.projectId);
+
+      const docxBuffer = await generateDesignBriefDocx({
+        projectIdentity: brief.projectIdentity,
+        positioningStatement: brief.positioningStatement ?? "",
+        styleMood: brief.styleMood,
+        materialGuidance: brief.materialGuidance,
+        budgetGuardrails: brief.budgetGuardrails,
+        procurementConstraints: brief.procurementConstraints,
+        deliverablesChecklist: brief.deliverablesChecklist,
+        version: brief.version,
+        projectName: project?.name,
+      });
+
+      const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid(8)}.docx`;
+      const { url } = await storagePut(fileKey, docxBuffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+
+      return { url };
     }),
 
   // ─── Visual Generation (nano banana) ────────────────────────────────────────
