@@ -793,6 +793,8 @@ export const sourceRegistry = mysqlTable("source_registry", {
   region: varchar("region", { length: 64 }).default("UAE"),
   notes: text("notes"),
   addedBy: int("addedBy"),
+  isActive: boolean("isActive").default(true).notNull(),
+  lastSuccessfulFetch: timestamp("lastSuccessfulFetch"),
   addedAt: timestamp("addedAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -1088,3 +1090,79 @@ export const ingestionRuns = mysqlTable("ingestion_runs", {
 
 export type IngestionRun = typeof ingestionRuns.$inferSelect;
 export type InsertIngestionRun = typeof ingestionRuns.$inferInsert;
+
+// ─── Connector Health (V3 — Source Health Monitoring) ───────────────────────────
+export const connectorHealth = mysqlTable("connector_health", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: varchar("runId", { length: 64 }).notNull(), // FK to ingestion_runs.runId
+  sourceId: varchar("sourceId", { length: 64 }).notNull(),
+  sourceName: varchar("sourceName", { length: 255 }).notNull(),
+  status: mysqlEnum("healthStatus", ["success", "partial", "failed"]).notNull(),
+  httpStatusCode: int("httpStatusCode"),
+  responseTimeMs: int("responseTimeMs"),
+  recordsExtracted: int("recordsExtracted").default(0).notNull(),
+  recordsInserted: int("recordsInserted").default(0).notNull(),
+  duplicatesSkipped: int("duplicatesSkipped").default(0).notNull(),
+  errorMessage: text("errorMessage"),
+  errorType: varchar("errorType", { length: 64 }), // "dns_failure", "timeout", "http_error", "parse_error", "llm_error"
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ConnectorHealth = typeof connectorHealth.$inferSelect;
+export type InsertConnectorHealth = typeof connectorHealth.$inferInsert;
+
+// ─── Trend Snapshots (V3 — Analytical Intelligence) ──────────────────────────
+export const trendSnapshots = mysqlTable("trend_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  metric: varchar("metric", { length: 255 }).notNull(),
+  category: varchar("category", { length: 128 }).notNull(),
+  geography: varchar("geography", { length: 128 }).notNull(),
+  dataPointCount: int("dataPointCount").default(0).notNull(),
+  gradeACount: int("gradeACount").default(0).notNull(),
+  gradeBCount: int("gradeBCount").default(0).notNull(),
+  gradeCCount: int("gradeCCount").default(0).notNull(),
+  uniqueSources: int("uniqueSources").default(0).notNull(),
+  dateRangeStart: timestamp("dateRangeStart"),
+  dateRangeEnd: timestamp("dateRangeEnd"),
+  currentMA: decimal("currentMA", { precision: 14, scale: 4 }),
+  previousMA: decimal("previousMA", { precision: 14, scale: 4 }),
+  percentChange: decimal("percentChange", { precision: 10, scale: 6 }),
+  direction: mysqlEnum("direction", ["rising", "falling", "stable", "insufficient_data"]).notNull(),
+  anomalyCount: int("anomalyCount").default(0).notNull(),
+  anomalyDetails: json("anomalyDetails"), // AnomalyFlag[]
+  confidence: mysqlEnum("trendConfidence", ["high", "medium", "low", "insufficient"]).notNull(),
+  narrative: text("narrative"),
+  movingAverages: json("movingAverages"), // MovingAveragePoint[]
+  ingestionRunId: varchar("ingestionRunId", { length: 64 }), // FK to ingestion_runs.runId
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TrendSnapshot = typeof trendSnapshots.$inferSelect;
+export type InsertTrendSnapshot = typeof trendSnapshots.$inferInsert;
+
+// ─── Project Insights (V3 — Analytical Intelligence) ─────────────────────────
+export const projectInsights = mysqlTable("project_insights", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId"), // nullable for system-wide insights
+  insightType: mysqlEnum("insightType", [
+    "cost_pressure",
+    "market_opportunity",
+    "competitor_alert",
+    "trend_signal",
+    "positioning_gap",
+  ]).notNull(),
+  severity: mysqlEnum("insightSeverity", ["critical", "warning", "info"]).notNull(),
+  title: varchar("title", { length: 512 }).notNull(),
+  body: text("body"),
+  actionableRecommendation: text("actionableRecommendation"),
+  confidenceScore: decimal("confidenceScore", { precision: 5, scale: 4 }),
+  triggerCondition: text("triggerCondition"),
+  dataPoints: json("dataPoints"),
+  status: mysqlEnum("insightStatus", ["active", "acknowledged", "dismissed", "resolved"]).default("active").notNull(),
+  acknowledgedBy: int("acknowledgedBy"),
+  acknowledgedAt: timestamp("acknowledgedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ProjectInsight = typeof projectInsights.$inferSelect;
+export type InsertProjectInsight = typeof projectInsights.$inferInsert;

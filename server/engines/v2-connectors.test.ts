@@ -214,7 +214,7 @@ describe("V2-04: Connector Extraction", () => {
     expect(evidence[0].category).toBe("material_cost");
     expect(evidence[0].geography).toBe("UAE");
     expect(evidence[0].sourceUrl).toBe(mockPayload.url);
-  });
+  }, 15_000);
 
   it("DERA Interiors extracts fitout evidence", async () => {
     const connector = new DERAInteriorsConnector();

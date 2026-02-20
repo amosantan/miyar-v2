@@ -21,6 +21,9 @@ import { z } from "zod";
 export interface SourceConnector {
   sourceId: string;
   sourceName: string;
+  sourceUrl: string;
+  /** Optional: set by orchestrator before fetch to enable incremental ingestion */
+  lastSuccessfulFetch?: Date;
   fetch(): Promise<RawSourcePayload>;
   extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
   normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
@@ -158,6 +161,8 @@ export abstract class BaseSourceConnector implements SourceConnector {
   abstract sourceId: string;
   abstract sourceName: string;
   abstract sourceUrl: string;
+  /** Set by orchestrator before fetch to enable incremental ingestion */
+  lastSuccessfulFetch?: Date;
 
   /**
    * Shared fetch with timeout (15s) and exponential backoff retry (max 3 attempts).

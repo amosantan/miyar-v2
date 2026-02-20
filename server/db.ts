@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -45,6 +45,10 @@ import {
   entityTags,
   intelligenceAuditLog,
   evidenceReferences,
+  ingestionRuns,
+  connectorHealth,
+  trendSnapshots,
+  projectInsights,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1478,4 +1482,161 @@ export async function getEvidenceForTarget(targetType: string, targetId: number)
     reference: ref,
     evidence: recordMap.get(ref.evidenceRecordId),
   }));
+}
+
+// ─── Connector Health (V3) ──────────────────────────────────────────────────
+
+export async function insertConnectorHealth(data: typeof connectorHealth.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(connectorHealth).values(data);
+}
+
+export async function getConnectorHealthByRun(runId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(connectorHealth)
+    .where(eq(connectorHealth.runId, runId))
+    .orderBy(connectorHealth.sourceId);
+}
+
+export async function getConnectorHealthHistory(sourceId: string, limit = 30) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(connectorHealth)
+    .where(eq(connectorHealth.sourceId, sourceId))
+    .orderBy(desc(connectorHealth.createdAt))
+    .limit(limit);
+}
+
+export async function getConnectorHealthSummary() {
+  const db = await getDb();
+  if (!db) return [];
+  // Get the latest health record for each sourceId
+  // Using a subquery approach: get all records from the last 30 days, group by sourceId
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  return db.select().from(connectorHealth)
+    .where(gte(connectorHealth.createdAt, thirtyDaysAgo))
+    .orderBy(desc(connectorHealth.createdAt));
+}
+
+// ─── Ingestion Runs (V3 helpers) ────────────────────────────────────────────
+
+export async function getIngestionRunById(runId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(ingestionRuns)
+    .where(eq(ingestionRuns.runId, runId));
+  return rows[0];
+}
+
+export async function getIngestionRunHistory(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(ingestionRuns)
+    .orderBy(desc(ingestionRuns.startedAt))
+    .limit(limit);
+}
+
+// ─── Trend Snapshots (V3 — Analytical Intelligence) ────────────────────────
+
+export async function insertTrendSnapshot(data: typeof trendSnapshots.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  const result = await db.insert(trendSnapshots).values(data);
+  return result;
+}
+
+export async function getTrendSnapshots(filters?: {
+  category?: string;
+  geography?: string;
+  direction?: string;
+  confidence?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+  if (filters?.category) conditions.push(eq(trendSnapshots.category, filters.category));
+  if (filters?.geography) conditions.push(eq(trendSnapshots.geography, filters.geography));
+  if (filters?.direction) conditions.push(eq(trendSnapshots.direction, filters.direction as any));
+  if (filters?.confidence) conditions.push(eq(trendSnapshots.confidence, filters.confidence as any));
+
+  const query = db.select().from(trendSnapshots);
+  if (conditions.length > 0) {
+    return query.where(and(...conditions))
+      .orderBy(desc(trendSnapshots.createdAt))
+      .limit(filters?.limit ?? 50);
+  }
+  return query.orderBy(desc(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
+}
+
+export async function getTrendHistory(metric: string, geography: string, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(trendSnapshots)
+    .where(and(
+      eq(trendSnapshots.metric, metric),
+      eq(trendSnapshots.geography, geography)
+    ))
+    .orderBy(desc(trendSnapshots.createdAt))
+    .limit(limit);
+}
+
+export async function getAnomalies(limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(trendSnapshots)
+    .where(sql`${trendSnapshots.anomalyCount} > 0`)
+    .orderBy(desc(trendSnapshots.createdAt))
+    .limit(limit);
+}
+
+// ─── Project Insights (V3 — Analytical Intelligence) ───────────────────────
+
+export async function insertProjectInsight(data: typeof projectInsights.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  return db.insert(projectInsights).values(data);
+}
+
+export async function getProjectInsights(filters?: {
+  projectId?: number;
+  insightType?: string;
+  severity?: string;
+  status?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+  if (filters?.projectId) conditions.push(eq(projectInsights.projectId, filters.projectId));
+  if (filters?.insightType) conditions.push(eq(projectInsights.insightType, filters.insightType as any));
+  if (filters?.severity) conditions.push(eq(projectInsights.severity, filters.severity as any));
+  if (filters?.status) conditions.push(eq(projectInsights.status, filters.status as any));
+
+  const query = db.select().from(projectInsights);
+  if (conditions.length > 0) {
+    return query.where(and(...conditions))
+      .orderBy(desc(projectInsights.createdAt))
+      .limit(filters?.limit ?? 50);
+  }
+  return query.orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
+}
+
+export async function updateInsightStatus(
+  insightId: number,
+  status: "active" | "acknowledged" | "dismissed" | "resolved",
+  userId?: number
+) {
+  const db = await getDb();
+  if (!db) return;
+  const updates: any = { status };
+  if (status === "acknowledged" && userId) {
+    updates.acknowledgedBy = userId;
+    updates.acknowledgedAt = new Date();
+  }
+  return db.update(projectInsights).set(updates).where(eq(projectInsights.id, insightId));
 }

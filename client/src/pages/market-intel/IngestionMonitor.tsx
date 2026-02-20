@@ -22,6 +22,10 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  Activity,
+  Heart,
+  HeartOff,
+  TrendingUp,
 } from "lucide-react";
 
 export default function IngestionMonitor() {
@@ -32,6 +36,7 @@ export default function IngestionMonitor() {
   const { data: status, refetch: refetchStatus } = trpc.ingestion.getStatus.useQuery();
   const { data: history, refetch: refetchHistory } = trpc.ingestion.getHistory.useQuery({ limit: 20, offset: 0 });
   const { data: sources } = trpc.ingestion.getAvailableSources.useQuery();
+  const { data: healthSummary, refetch: refetchHealth } = trpc.ingestion.getHealthSummary.useQuery();
   const { data: runDetail } = trpc.ingestion.getRunDetail.useQuery(
     { runId: detailRunId! },
     { enabled: !!detailRunId }
@@ -171,7 +176,7 @@ export default function IngestionMonitor() {
             </p>
           </div>
           <Button
-            onClick={() => { refetchStatus(); refetchHistory(); }}
+            onClick={() => { refetchStatus(); refetchHistory(); refetchHealth(); }}
             variant="outline"
             size="sm"
           >
@@ -423,6 +428,89 @@ export default function IngestionMonitor() {
                           >
                             <Eye className="w-3 h-3" />
                           </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* V3-02: Source Health Dashboard */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-cyan-400" />
+              Source Health Dashboard
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(!healthSummary || healthSummary.length === 0) ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Heart className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No health data yet. Run an ingestion to populate source health metrics.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border/50 text-muted-foreground">
+                      <th className="text-left py-2 px-3 font-medium">Source</th>
+                      <th className="text-center py-2 px-3 font-medium">Status</th>
+                      <th className="text-right py-2 px-3 font-medium">Success Rate</th>
+                      <th className="text-right py-2 px-3 font-medium">Runs</th>
+                      <th className="text-right py-2 px-3 font-medium">Extracted</th>
+                      <th className="text-right py-2 px-3 font-medium">Inserted</th>
+                      <th className="text-left py-2 px-3 font-medium">Last Run</th>
+                      <th className="text-left py-2 px-3 font-medium">Last Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {healthSummary.map((s: any) => (
+                      <tr key={s.sourceId} className="border-b border-border/30 hover:bg-muted/30">
+                        <td className="py-2 px-3">
+                          <div className="flex items-center gap-2">
+                            {s.lastStatus === "success" ? (
+                              <Heart className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : s.lastStatus === "partial" ? (
+                              <Heart className="w-3.5 h-3.5 text-amber-400" />
+                            ) : (
+                              <HeartOff className="w-3.5 h-3.5 text-red-400" />
+                            )}
+                            <span className="font-medium">{s.sourceName}</span>
+                          </div>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <Badge className={
+                            s.lastStatus === "success" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                            s.lastStatus === "partial" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                            "bg-red-500/10 text-red-400 border-red-500/20"
+                          }>
+                            {s.lastStatus}
+                          </Badge>
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${
+                                  s.successRate >= 80 ? "bg-emerald-400" :
+                                  s.successRate >= 50 ? "bg-amber-400" : "bg-red-400"
+                                }`}
+                                style={{ width: `${s.successRate}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-mono w-10 text-right">{s.successRate}%</span>
+                          </div>
+                        </td>
+                        <td className="py-2 px-3 text-right">{s.totalRuns}</td>
+                        <td className="py-2 px-3 text-right">{s.totalExtracted}</td>
+                        <td className="py-2 px-3 text-right font-medium text-emerald-400">{s.totalInserted}</td>
+                        <td className="py-2 px-3 text-xs">{s.lastRunAt ? formatDate(s.lastRunAt) : "—"}</td>
+                        <td className="py-2 px-3 text-xs text-red-400 max-w-[200px] truncate" title={s.lastError || ""}>
+                          {s.lastError || "—"}
                         </td>
                       </tr>
                     ))}

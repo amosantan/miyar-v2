@@ -497,3 +497,99 @@
 
 ### Deliverable
 - [x] V2 Phase Reality Report (7 sections)
+
+## V3 — Analytical Intelligence Engine
+
+### Priority 1 — Live Scraping Upgrade
+- [x] V3-01: SOURCE_URLS registry object at top of connectors/index.ts
+- [x] V3-01: All 12 connectors make real HTTP GET requests via BaseSourceConnector.fetch()
+- [x] V3-01: HTML connectors use shared LLM extraction prompt template
+- [x] V3-01: JSON/RSS connectors parse directly without LLM (all 12 are HTML-based, LLM extraction used)
+- [x] V3-01: Unreachable sources fail gracefully (no throw, error logged)
+- [x] V3-01: Successful connectors return ≥1 real ExtractedEvidence with non-null metric/value
+- [x] V3-01: Full orchestrator run with all 12 live connectors completes without crashing
+- [x] V3-01: Existing tests updated to mock HTTP calls — 277 tests still passing
+
+### Priority 1 — Source Health Monitoring
+- [x] V3-02: connectorHealth table added to schema (45 tables total)
+- [x] V3-02: Migration generated and applied
+- [x] V3-02: Orchestrator writes one connectorHealth row per connector per run
+- [x] V3-02: Source Health Dashboard card in Ingestion Monitor UI
+- [x] V3-02: Success rate and response time computed from connectorHealth records
+- [ ] V3-02: "Disable Source" toggle (deferred — requires sourceRegistry isActive column)
+
+### Priority 1 — Incremental Ingestion
+- [x] V3-03: lastSuccessfulFetch column added to sourceRegistry (+ isActive column)
+- [x] V3-03: Connector fetch() accepts and uses lastSuccessfulFetch
+- [x] V3-03: LLM extraction prompt filters by lastSuccessfulFetch for HTML sources
+- [x] V3-03: lastSuccessfulFetch updates after successful connector run
+- [x] V3-03: Second run produces fewer new records (evidenceSkipped increases via duplicate detection + LLM date filter)
+
+### Priority 2 — Trend Detection Engine
+- [x] V3-04: detectTrends() implemented in server/engines/analytics/trend-detection.ts
+- [x] V3-04: computeMovingAverage() with configurable window (default 30 days)
+- [x] V3-04: detectDirectionChange() — 30-day MA crosses prior 30-day MA by >5%
+- [x] V3-04: flagAnomalies() — >2 std deviations from moving average
+- [x] V3-04: Confidence rules: high (≥15 pts + ≥2 Grade A), medium (8-14), low (5-7), insufficient (<5)
+- [x] V3-04: LLM narrative (3 sentences) from structured fields only
+- [x] V3-04: Unit tests: stable/rising/anomaly scenarios (covered in V3-11)
+
+### Priority 2 — Trend Detection Endpoints
+- [x] V3-05: trendSnapshots table added (46 tables total)
+- [x] V3-05: analytics.getTrends query endpoint
+- [x] V3-05: analytics.getTrendHistory query endpoint
+- [x] V3-05: analytics.getAnomalies query endpoint
+- [x] V3-05: Auto-generate trend snapshots after each orchestrator run
+
+### Priority 3 — Market Positioning Analytics
+- [x] V3-06: computeMarketPosition() in server/engines/analytics/market-positioning.ts
+- [x] V3-06: Tier boundaries from P25/P50/P75/P90 of fitout_rate evidence
+- [x] V3-06: Percentile calculation correct (650 AED/sqm test case — tests in V3-11)
+- [x] V3-06: analytics.getMarketPosition tRPC endpoint
+- [x] V3-06: Unit tests for all 4 tier assignments (covered in V3-11)
+
+### Priority 3 — Competitor Intelligence
+- [x] V3-07: analyseCompetitorLandscape() in server/engines/analytics/competitor-intelligence.ts
+- [x] V3-07: Herfindahl index computation (fragmented <0.15, moderate 0.15-0.25, concentrated >0.25)
+- [x] V3-07: Developer market share + threat level + gap opportunities
+- [x] V3-07: analytics.getCompetitorLandscape tRPC endpoint
+- [x] V3-07: Unit tests for all 3 concentration levels (covered in V3-11)
+
+### Priority 4 — Insight Generation
+- [x] V3-08: generateInsights() in server/engines/analytics/insight-generator.ts
+- [x] V3-08: 5 insight types: cost_pressure, market_opportunity, competitor_alert, trend_signal, positioning_gap
+- [x] V3-08: Each insight triggers only on deterministic condition
+- [x] V3-08: Insight confidenceScore = weighted avg of contributing evidence confidence
+- [x] V3-08: LLM for body + actionableRecommendation only
+- [x] V3-08: projectInsights table (47 tables total)
+- [x] V3-08: analytics.getProjectInsights + generateProjectInsights + updateInsightStatus tRPC endpoints
+- [x] V3-08: Unit tests for all 5 trigger types + no-trigger cases (covered in V3-11)
+
+### Priority 4 — Insight Integration
+- [x] V3-09: generateInsights() called at end of project.evaluate mutation
+- [x] V3-09: Insights stored in projectInsights table linked to project
+- [x] V3-09: "Market Intelligence" tab → Analytics Intelligence dashboard page
+- [x] V3-09: Insight cards with severity badge, title, body, recommendation in Insight Feed
+- [x] V3-09: Empty state messages for all 4 panels when no data available
+- [x] V3-09: Insight generation does not block evaluate mutation (try/catch non-blocking)
+
+### Priority 5 — Analytics Dashboard
+- [x] V3-10: Analytics dashboard accessible from main navigation
+- [x] V3-10: Market Trends Panel (category cards with direction/magnitude)
+- [x] V3-10: Market Position Map (tier visualization with budget input + percentile bar)
+- [x] V3-10: Competitor Landscape panel (HHI, developer shares, threat levels)
+- [x] V3-10: Insight Feed (filterable by type/severity, acknowledge/dismiss actions)
+- [x] V3-10: Dashboard loads with proper loading/empty states, no undefined values
+
+### Priority 5 — V3 Test Suite
+- [x] V3-11: detectTrends() unit tests (all direction outcomes)
+- [x] V3-11: computeMarketPosition() unit tests (all 4 tiers)
+- [x] V3-11: analyseCompetitorLandscape() unit tests (all 3 concentration levels)
+- [x] V3-11: generateInsights() unit tests (all 5 triggers + no-trigger)
+- [x] V3-11: Integration test: ingestion → trend → positioning → competitor → insights
+- [ ] V3-11: Resilience test: empty evidence vault → graceful insufficient_data
+- [x] V3-11: Total tests = 357 passing (target was ≥ 350)
+- [x] V3-11: 0 TypeScript errors, 47 tables confirmed
+
+### Deliverable
+- [x] V3 Phase Reality Report (9 sections)

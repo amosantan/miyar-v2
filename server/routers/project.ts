@@ -13,6 +13,8 @@ import { computeFiveLens } from "../engines/five-lens";
 import { computeDerivedFeatures } from "../engines/intelligence";
 import { SCENARIO_TEMPLATES, getScenarioTemplate, solveConstraints, type Constraint } from "../engines/scenario-templates";
 import { dispatchWebhook } from "../engines/webhook";
+import { generateInsights, type InsightInput } from "../engines/analytics/insight-generator";
+import { getTrendSnapshots } from "../db";
 
 /**
  * Build evaluation config that respects the Logic Registry.
@@ -320,6 +322,51 @@ export const projectRouter = router({
         decisionStatus: scoreResult.decisionStatus,
         riskScore: scoreResult.riskScore,
       }).catch(() => {});
+
+      // V3-09: Generate project insights after evaluation
+      try {
+        const trendSnaps = await getTrendSnapshots({ limit: 50 });
+        const trends = trendSnaps.map((s) => ({
+          metric: s.metric,
+          category: s.category,
+          direction: s.direction || "stable",
+          percentChange: s.percentChange ? parseFloat(String(s.percentChange)) : null,
+          confidence: s.confidence || "low",
+          currentMA: s.currentMA ? parseFloat(String(s.currentMA)) : null,
+          previousMA: s.previousMA ? parseFloat(String(s.previousMA)) : null,
+          anomalyCount: s.anomalyCount || 0,
+        }));
+
+        const insightInput: InsightInput = {
+          trends,
+          projectContext: {
+            projectId: input.id,
+            projectName: project.name || `Project #${input.id}`,
+            segment: (project as any).segment,
+            geography: (project as any).location,
+          },
+        };
+
+        const insights = await generateInsights(insightInput, { enrichWithLLM: true });
+
+        for (const insight of insights) {
+          await db.insertProjectInsight({
+            projectId: input.id,
+            insightType: insight.type,
+            severity: insight.severity,
+            title: insight.title,
+            body: insight.body,
+            actionableRecommendation: insight.actionableRecommendation,
+            confidenceScore: String(insight.confidenceScore),
+            triggerCondition: insight.triggerCondition,
+            dataPoints: insight.dataPoints,
+          });
+        }
+
+        console.log(`[V3-09] Generated ${insights.length} insights for project ${input.id}`);
+      } catch (e) {
+        console.warn("[V3-09] Insight generation failed (non-blocking):", e);
+      }
 
       return { scoreMatrixId: matrixResult.id, ...scoreResult };
     }),

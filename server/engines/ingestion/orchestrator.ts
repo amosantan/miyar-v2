@@ -20,10 +20,13 @@ import {
 import {
   createEvidenceRecord,
   createIntelligenceAuditEntry,
+  insertConnectorHealth,
+  insertTrendSnapshot,
   getDb,
 } from "../../db";
 import { generateBenchmarkProposals } from "./proposal-generator";
-import { evidenceRecords, ingestionRuns } from "../../../drizzle/schema";
+import { detectTrends, type DataPoint } from "../analytics/trend-detection";
+import { evidenceRecords, ingestionRuns, sourceRegistry } from "../../../drizzle/schema";
 import { and, eq, sql } from "drizzle-orm";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -164,6 +167,24 @@ export async function runIngestion(
   const startedAt = new Date();
 
   const connectorResults: ConnectorResult[] = [];
+
+  // V3-03: Load lastSuccessfulFetch from sourceRegistry for each connector
+  try {
+    const db = await getDb();
+    if (db) {
+      for (const connector of connectors) {
+        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch })
+          .from(sourceRegistry)
+          .where(eq(sourceRegistry.name, connector.sourceId))
+          .limit(1);
+        if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
+          connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[Ingestion] Failed to load lastSuccessfulFetch:", err);
+  }
 
   // Build tasks for parallel execution
   const tasks = connectors.map((connector) => async (): Promise<ConnectorResult> => {
@@ -322,6 +343,65 @@ export async function runIngestion(
   const results = await runWithConcurrencyLimit(tasks, MAX_CONCURRENT);
   connectorResults.push(...results);
 
+  // V3-02: Record connector health for each connector
+  for (const result of connectorResults) {
+    try {
+      const healthStatus = result.status === "success"
+        ? (result.evidenceCreated > 0 ? "success" : "partial")
+        : "failed";
+
+      let errorType: string | null = null;
+      if (result.error) {
+        if (result.error.includes("ENOTFOUND") || result.error.includes("DNS") || result.error.includes("resolve")) {
+          errorType = "dns_failure";
+        } else if (result.error.includes("timeout") || result.error.includes("ETIMEDOUT")) {
+          errorType = "timeout";
+        } else if (result.error.includes("HTTP")) {
+          errorType = "http_error";
+        } else if (result.error.includes("Extract") || result.error.includes("parse")) {
+          errorType = "parse_error";
+        } else if (result.error.includes("LLM") || result.error.includes("invokeLLM")) {
+          errorType = "llm_error";
+        } else {
+          errorType = "unknown";
+        }
+      }
+
+      await insertConnectorHealth({
+        runId,
+        sourceId: result.sourceId,
+        sourceName: result.sourceName,
+        status: healthStatus as any,
+        httpStatusCode: null,
+        responseTimeMs: null,
+        recordsExtracted: result.evidenceExtracted,
+        recordsInserted: result.evidenceCreated,
+        duplicatesSkipped: result.evidenceSkipped,
+        errorMessage: result.error || null,
+        errorType,
+      });
+    } catch (err) {
+      console.error(`[Ingestion] Failed to record health for ${result.sourceId}:`, err);
+    }
+  }
+
+  // V3-03: Update lastSuccessfulFetch for successful connectors
+  try {
+    const db = await getDb();
+    if (db) {
+      const successfulIds = connectorResults
+        .filter((r) => r.status === "success")
+        .map((r) => r.sourceId);
+      for (const sid of successfulIds) {
+        await db.update(sourceRegistry)
+          .set({ lastSuccessfulFetch: new Date() })
+          .where(eq(sourceRegistry.name, sid));
+      }
+    }
+  } catch (err) {
+    console.warn("[Ingestion] Failed to update lastSuccessfulFetch:", err);
+  }
+
   const completedAt = new Date();
   const durationMs = completedAt.getTime() - startedAt.getTime();
 
@@ -414,6 +494,72 @@ export async function runIngestion(
       );
     } catch (err) {
       console.error("[Ingestion] Post-run proposal generation failed:", err);
+    }
+  }
+
+  // V3-05: Auto-generate trend snapshots after ingestion
+  if (totalCreated > 0) {
+    try {
+      const db = await getDb();
+      if (db) {
+        // Get distinct category/geography combos from recent evidence
+        const recentEvidence = await db.select().from(evidenceRecords)
+          .orderBy(sql`${evidenceRecords.createdAt} DESC`)
+          .limit(500);
+
+        // Group by category
+        const categoryGroups = new Map<string, DataPoint[]>();
+        for (const record of recentEvidence) {
+          const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
+          if (value === null || isNaN(value)) continue;
+          const date = record.captureDate || record.createdAt;
+          if (!date) continue;
+          const category = record.category || "other";
+          const grade = (record.reliabilityGrade as "A" | "B" | "C") || "C";
+          if (!categoryGroups.has(category)) categoryGroups.set(category, []);
+          categoryGroups.get(category)!.push({
+            date: new Date(date),
+            value,
+            grade,
+            sourceId: record.sourceRegistryId ? String(record.sourceRegistryId) : "unknown",
+            recordId: record.id,
+          });
+        }
+
+        let trendsGenerated = 0;
+        for (const [category, points] of Array.from(categoryGroups.entries())) {
+          if (points.length < 2) continue;
+          const trend = await detectTrends(category, category, "UAE", points, {
+            generateNarrative: points.length >= 5,
+          });
+          await insertTrendSnapshot({
+            metric: trend.metric,
+            category: trend.category,
+            geography: trend.geography,
+            dataPointCount: trend.dataPointCount,
+            gradeACount: trend.gradeACount,
+            gradeBCount: trend.gradeBCount,
+            gradeCCount: trend.gradeCCount,
+            uniqueSources: trend.uniqueSources,
+            dateRangeStart: trend.dateRange?.start || null,
+            dateRangeEnd: trend.dateRange?.end || null,
+            currentMA: trend.currentMA !== null ? String(trend.currentMA) : null,
+            previousMA: trend.previousMA !== null ? String(trend.previousMA) : null,
+            percentChange: trend.percentChange !== null ? String(trend.percentChange) : null,
+            direction: trend.direction,
+            anomalyCount: trend.anomalies.length,
+            anomalyDetails: trend.anomalies.length > 0 ? trend.anomalies : null,
+            confidence: trend.confidence,
+            narrative: trend.narrative,
+            movingAverages: trend.movingAverages.length > 0 ? trend.movingAverages : null,
+            ingestionRunId: runId,
+          });
+          trendsGenerated++;
+        }
+        console.log(`[Ingestion] Post-run trend detection: ${trendsGenerated} trend snapshots created`);
+      }
+    } catch (err) {
+      console.error("[Ingestion] Post-run trend detection failed:", err);
     }
   }
 

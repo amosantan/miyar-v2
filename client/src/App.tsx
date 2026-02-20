@@ -44,6 +44,7 @@ import CompetitorsMI from "./pages/market-intel/Competitors";
 import TrendTags from "./pages/market-intel/TrendTags";
 import IntelAuditLog from "./pages/market-intel/IntelAuditLog";
 import IngestionMonitor from "./pages/market-intel/IngestionMonitor";
+import AnalyticsDashboard from "./pages/market-intel/AnalyticsDashboard";
 
 function Router() {
   return (
@@ -88,6 +89,7 @@ function Router() {
       <Route path="/market-intel/tags" component={TrendTags} />
       <Route path="/market-intel/audit" component={IntelAuditLog} />
       <Route path="/market-intel/ingestion" component={IngestionMonitor} />
+      <Route path="/market-intel/analytics" component={AnalyticsDashboard} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

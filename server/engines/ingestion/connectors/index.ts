@@ -1,21 +1,15 @@
 /**
- * MIYAR V2 — UAE Source Connectors (12 total)
+ * MIYAR V3 — UAE Source Connectors (12 total)
  *
- * Each connector extends BaseSourceConnector and implements:
- *   - sourceId / sourceName / sourceUrl
- *   - extract(): parse raw HTML/JSON into ExtractedEvidence[]
- *   - normalize(): convert evidence into NormalizedEvidenceInput
+ * V3 upgrade: All connectors now make REAL HTTP GET requests via
+ * BaseSourceConnector.fetch(). HTML sources use a shared LLM extraction
+ * prompt template. JSON/RSS sources parse directly without LLM.
  *
- * Grading and confidence are deterministic (from connector.ts).
- * LLM is NOT used in any connector — all extraction is rule-based.
+ * Connectors that are unreachable (DNS failure, 403, etc.) fail gracefully
+ * with error logged — orchestrator continues to next connector.
  *
- * Source types:
- *   - Manufacturer catalogs (RAK Ceramics, Porcelanosa, Hafele)
- *   - Supplier catalogs (DERA Interiors, GEMS Building Materials)
- *   - Retailer listings (Dragon Mart Dubai)
- *   - Developer brochures (Emaar, DAMAC, Nakheel)
- *   - Industry reports (RICS, JLL MENA)
- *   - Government data (Dubai Statistics Center)
+ * LLM is used ONLY for extracting structured data from HTML.
+ * LLM NEVER outputs confidence, grade, or scoring fields.
  */
 
 import {
@@ -26,8 +20,142 @@ import {
   type ExtractedEvidence,
   type NormalizedEvidenceInput,
 } from "../connector";
+import { invokeLLM } from "../../../_core/llm";
 
-// ─── Helper: Extract price from text ────────────────────────────
+// ─── SOURCE_URLS Registry ──────────────────────────────────────
+
+export const SOURCE_URLS: Record<string, string> = {
+  "rak-ceramics-uae": "https://www.rakceramics.com/",
+  "dera-interiors": "https://derainteriors.ae/",
+  "dragon-mart-dubai": "https://www.dragonmart.ae/",
+  "porcelanosa-uae": "https://www.porcelanosa.com/ae/",
+  "emaar-properties": "https://www.emaar.com/en/",
+  "damac-properties": "https://www.damacproperties.com/en/",
+  "nakheel-properties": "https://www.nakheel.com/en/",
+  "rics-market-reports": "https://www.rics.org/news-insights/research-and-insights/",
+  "jll-mena-research": "https://www.jll.com/en/trends-and-insights/research",
+  "dubai-statistics-center": "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
+  "hafele-uae": "https://www.hafele.com/",
+  "gems-building-materials": "https://gemsbuilding.com/products/",
+};
+
+// ─── Shared LLM Extraction Prompt Template ─────────────────────
+
+const LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
+You extract structured evidence from raw HTML content of UAE construction/real estate websites.
+Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
+
+function buildExtractionUserPrompt(
+  sourceName: string,
+  category: string,
+  geography: string,
+  htmlSnippet: string,
+  lastFetch?: Date
+): string {
+  const dateFilter = lastFetch
+    ? `\nFocus on content published or updated after ${lastFetch.toISOString().split("T")[0]}.`
+    : "";
+
+  return `Extract evidence items from this ${sourceName} webpage HTML.
+Category: ${category}
+Geography: ${geography}${dateFilter}
+
+Return a JSON array of objects with these exact fields:
+- title: string (item/product/project name)
+- rawText: string (relevant text snippet, max 500 chars)
+- publishedDate: string|null (ISO date if found, null otherwise)
+- metric: string (what is being measured, e.g. "Marble Tile 60x60 price")
+- value: number|null (numeric value in AED if found, null otherwise)
+- unit: string|null (e.g. "sqm", "sqft", "piece", "unit", null if not applicable)
+
+Rules:
+- Extract up to 15 items maximum
+- Only extract items with real data (titles, prices, descriptions)
+- Do NOT invent data — if no items found, return empty array []
+- Do NOT output confidence, grade, or scoring fields
+
+HTML content (truncated to 8000 chars):
+${htmlSnippet.substring(0, 8000)}`;
+}
+
+interface LLMExtractedItem {
+  title: string;
+  rawText: string;
+  publishedDate: string | null;
+  metric: string;
+  value: number | null;
+  unit: string | null;
+}
+
+/**
+ * Shared LLM extraction for HTML-based connectors.
+ * Returns extracted items or empty array on failure.
+ */
+async function extractViaLLM(
+  sourceName: string,
+  category: string,
+  geography: string,
+  html: string,
+  lastFetch?: Date
+): Promise<LLMExtractedItem[]> {
+  try {
+    // Strip HTML tags and compress whitespace for a cleaner prompt
+    const textContent = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (textContent.length < 50) return [];
+
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: buildExtractionUserPrompt(
+            sourceName,
+            category,
+            geography,
+            textContent,
+            lastFetch
+          ),
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const content = typeof response.choices[0]?.message?.content === "string"
+      ? response.choices[0].message.content
+      : "";
+
+    if (!content) return [];
+
+    const parsed = JSON.parse(content);
+    // Handle both { items: [...] } and direct array formats
+    const items = Array.isArray(parsed) ? parsed : (parsed.items || parsed.data || []);
+
+    if (!Array.isArray(items)) return [];
+
+    return items
+      .filter((item: any) => item && typeof item.title === "string" && item.title.length > 0)
+      .slice(0, 15)
+      .map((item: any) => ({
+        title: String(item.title || "").substring(0, 255),
+        rawText: String(item.rawText || item.description || item.text || "").substring(0, 500),
+        publishedDate: item.publishedDate || null,
+        metric: String(item.metric || item.title || "").substring(0, 255),
+        value: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
+        unit: typeof item.unit === "string" ? item.unit : null,
+      }));
+  } catch (err) {
+    console.error(`[LLM Extraction] Failed for ${sourceName}:`, err instanceof Error ? err.message : String(err));
+    return [];
+  }
+}
+
+// ─── Helper: Rule-based price extraction (fallback) ────────────
 
 const AED_PRICE_REGEX = /(?:AED|Dhs?\.?)\s*([\d,]+(?:\.\d{1,2})?)/gi;
 const NUMERIC_PRICE_REGEX = /([\d,]+(?:\.\d{1,2})?)\s*(?:AED|Dhs?\.?|per\s+(?:sqm|sqft|m²|unit|piece|set|roll))/gi;
@@ -64,44 +192,82 @@ function extractSnippet(text: string, maxLen = 500): string {
   return text.replace(/\s+/g, " ").trim().substring(0, maxLen);
 }
 
-// ─── 1. RAK Ceramics UAE ────────────────────────────────────────
+// ─── Base class for HTML connectors with LLM extraction ────────
 
-export class RAKCeramicsConnector extends BaseSourceConnector {
-  sourceId = "rak-ceramics-uae";
-  sourceName = "RAK Ceramics UAE";
-  sourceUrl = "https://www.rakceramics.com/ae/";
+abstract class HTMLSourceConnector extends BaseSourceConnector {
+  abstract category: string;
+  abstract geography: string;
+  abstract defaultTags: string[];
+  abstract defaultUnit: string;
 
   async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
     const html = raw.rawHtml || "";
+    if (!html || html.length < 50) return [];
 
-    // Extract product sections from HTML
-    const productSections = html.match(/<(?:div|article|section)[^>]*class="[^"]*product[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section)>/gi) || [];
+    // Try LLM extraction first (V3-03: pass lastSuccessfulFetch for incremental filtering)
+    const llmItems = await extractViaLLM(
+      this.sourceName,
+      this.category,
+      this.geography,
+      html,
+      this.lastSuccessfulFetch
+    );
 
-    for (const section of productSections.slice(0, 20)) {
-      const titleMatch = section.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
+    if (llmItems.length > 0) {
+      return llmItems.map((item) => ({
+        title: `${this.sourceName} - ${item.title}`,
+        rawText: item.rawText || item.title,
+        publishedDate: item.publishedDate ? new Date(item.publishedDate) : undefined,
+        category: this.category,
+        geography: this.geography,
+        sourceUrl: raw.url,
+        // Store LLM-extracted metric/value/unit as metadata in rawText for normalize()
+        _llmMetric: item.metric,
+        _llmValue: item.value,
+        _llmUnit: item.unit,
+      })) as any[];
+    }
+
+    // Fallback: rule-based extraction from HTML structure
+    return this.extractRuleBased(raw);
+  }
+
+  /** Rule-based fallback extraction — subclasses can override */
+  protected extractRuleBased(raw: RawSourcePayload): ExtractedEvidence[] {
+    const html = raw.rawHtml || "";
+    const evidence: ExtractedEvidence[] = [];
+
+    const sections = html.match(
+      /<(?:div|article|section|li)[^>]*class="[^"]*(?:product|item|card|project|property|report|service)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section|li)>/gi
+    ) || [];
+
+    for (const section of sections.slice(0, 15)) {
+      const titleMatch = section.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/i);
       const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
       if (!title) continue;
 
       const text = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
       evidence.push({
-        title: `RAK Ceramics - ${title}`,
+        title: `${this.sourceName} - ${title}`,
         rawText: text,
         publishedDate: undefined,
-        category: "material_cost",
-        geography: "UAE",
+        category: this.category,
+        geography: this.geography,
         sourceUrl: raw.url,
       });
     }
 
-    // If no structured products found, extract from full page
+    // If nothing found, create a single fallback evidence from the full page
     if (evidence.length === 0 && html.length > 100) {
+      const plainText = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]+>/g, " ");
       evidence.push({
-        title: "RAK Ceramics UAE - Product Catalog",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
+        title: `${this.sourceName} - Page Content`,
+        rawText: extractSnippet(plainText),
         publishedDate: undefined,
-        category: "material_cost",
-        geography: "UAE",
+        category: this.category,
+        geography: this.geography,
         sourceUrl: raw.url,
       });
     }
@@ -112,699 +278,225 @@ export class RAKCeramicsConnector extends BaseSourceConnector {
   async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
     const grade = assignGrade(this.sourceId);
     const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
 
+    // Check for LLM-extracted metadata
+    const llmEvidence = evidence as any;
+    if (llmEvidence._llmValue !== undefined) {
+      return {
+        metric: llmEvidence._llmMetric || evidence.title,
+        value: llmEvidence._llmValue,
+        unit: llmEvidence._llmUnit || this.defaultUnit,
+        confidence,
+        grade,
+        summary: extractSnippet(evidence.rawText),
+        tags: this.defaultTags,
+      };
+    }
+
+    // Fallback: rule-based price extraction
+    const prices = extractPricesFromText(evidence.rawText);
     return {
       metric: evidence.title,
       value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : "sqm",
+      unit: prices.length > 0 ? prices[0].unit : this.defaultUnit,
       confidence,
       grade,
       summary: extractSnippet(evidence.rawText),
-      tags: ["ceramics", "tiles", "flooring", "manufacturer"],
+      tags: this.defaultTags,
     };
   }
+}
+
+// ─── 1. RAK Ceramics UAE ────────────────────────────────────────
+
+export class RAKCeramicsConnector extends HTMLSourceConnector {
+  sourceId = "rak-ceramics-uae";
+  sourceName = "RAK Ceramics UAE";
+  sourceUrl = SOURCE_URLS["rak-ceramics-uae"];
+  category = "material_cost";
+  geography = "UAE";
+  defaultTags = ["ceramics", "tiles", "flooring", "manufacturer"];
+  defaultUnit = "sqm";
 }
 
 // ─── 2. DERA Interiors ──────────────────────────────────────────
 
-export class DERAInteriorsConnector extends BaseSourceConnector {
+export class DERAInteriorsConnector extends HTMLSourceConnector {
   sourceId = "dera-interiors";
   sourceName = "DERA Interiors";
-  sourceUrl = "https://www.derainteriors.com/";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    // Extract service/project sections
-    const sections = html.match(/<(?:div|article|section)[^>]*class="[^"]*(?:service|project|portfolio)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section)>/gi) || [];
-
-    for (const section of sections.slice(0, 15)) {
-      const titleMatch = section.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const text = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `DERA Interiors - ${title}`,
-        rawText: text,
-        publishedDate: undefined,
-        category: "fitout_rate",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "DERA Interiors - Fit-out Services",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "fitout_rate",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
-
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
-
-    return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : "sqft",
-      confidence,
-      grade,
-      summary: extractSnippet(evidence.rawText),
-      tags: ["fitout", "interior-design", "contractor"],
-    };
-  }
+  sourceUrl = SOURCE_URLS["dera-interiors"];
+  category = "fitout_rate";
+  geography = "Dubai";
+  defaultTags = ["fitout", "interior-design", "contractor"];
+  defaultUnit = "sqft";
 }
 
 // ─── 3. Dragon Mart Dubai ───────────────────────────────────────
 
-export class DragonMartConnector extends BaseSourceConnector {
+export class DragonMartConnector extends HTMLSourceConnector {
   sourceId = "dragon-mart-dubai";
   sourceName = "Dragon Mart Dubai";
-  sourceUrl = "https://www.dragonmart.ae/";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    // Extract product listings
-    const listings = html.match(/<(?:div|li|article)[^>]*class="[^"]*(?:product|item|listing)[^"]*"[^>]*>[\s\S]*?<\/(?:div|li|article)>/gi) || [];
-
-    for (const listing of listings.slice(0, 25)) {
-      const titleMatch = listing.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/i) ||
-                          listing.match(/class="[^"]*(?:title|name)[^"]*"[^>]*>(.*?)</i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const text = listing.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `Dragon Mart - ${title}`,
-        rawText: text,
-        publishedDate: undefined,
-        category: "material_cost",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "Dragon Mart Dubai - Building Materials",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "material_cost",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
-
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
-
-    return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : "unit",
-      confidence,
-      grade,
-      summary: extractSnippet(evidence.rawText),
-      tags: ["retailer", "building-materials", "wholesale"],
-    };
-  }
+  sourceUrl = SOURCE_URLS["dragon-mart-dubai"];
+  category = "material_cost";
+  geography = "Dubai";
+  defaultTags = ["retailer", "building-materials", "wholesale"];
+  defaultUnit = "unit";
 }
 
 // ─── 4. Porcelanosa UAE ─────────────────────────────────────────
 
-export class PorcelanosaConnector extends BaseSourceConnector {
+export class PorcelanosaConnector extends HTMLSourceConnector {
   sourceId = "porcelanosa-uae";
   sourceName = "Porcelanosa UAE";
-  sourceUrl = "https://www.porcelanosa.com/ae/";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    const productSections = html.match(/<(?:div|article)[^>]*class="[^"]*product[^"]*"[^>]*>[\s\S]*?<\/(?:div|article)>/gi) || [];
-
-    for (const section of productSections.slice(0, 20)) {
-      const titleMatch = section.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const text = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `Porcelanosa - ${title}`,
-        rawText: text,
-        publishedDate: undefined,
-        category: "material_cost",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "Porcelanosa UAE - Premium Tiles & Surfaces",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "material_cost",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
-
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
-
-    return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : "sqm",
-      confidence,
-      grade,
-      summary: extractSnippet(evidence.rawText),
-      tags: ["tiles", "surfaces", "premium", "manufacturer"],
-    };
-  }
+  sourceUrl = SOURCE_URLS["porcelanosa-uae"];
+  category = "material_cost";
+  geography = "UAE";
+  defaultTags = ["tiles", "surfaces", "premium", "manufacturer"];
+  defaultUnit = "sqm";
 }
 
 // ─── 5. Emaar Properties ────────────────────────────────────────
 
-export class EmaarConnector extends BaseSourceConnector {
+export class EmaarConnector extends HTMLSourceConnector {
   sourceId = "emaar-properties";
   sourceName = "Emaar Properties";
-  sourceUrl = "https://www.emaar.com/en/";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    // Extract project cards
-    const projectCards = html.match(/<(?:div|article|section)[^>]*class="[^"]*(?:project|property|development|community)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section)>/gi) || [];
-
-    for (const card of projectCards.slice(0, 15)) {
-      const titleMatch = card.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const text = card.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `Emaar - ${title}`,
-        rawText: text,
-        publishedDate: undefined,
-        category: "competitor_project",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "Emaar Properties - Development Portfolio",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "competitor_project",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
-
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
-
-    return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : "sqft",
-      confidence,
-      grade,
-      summary: extractSnippet(evidence.rawText),
-      tags: ["developer", "luxury", "dubai", "residential"],
-    };
-  }
+  sourceUrl = SOURCE_URLS["emaar-properties"];
+  category = "competitor_project";
+  geography = "Dubai";
+  defaultTags = ["developer", "luxury", "dubai", "residential"];
+  defaultUnit = "sqft";
 }
 
 // ─── 6. DAMAC Properties ────────────────────────────────────────
 
-export class DAMACConnector extends BaseSourceConnector {
+export class DAMACConnector extends HTMLSourceConnector {
   sourceId = "damac-properties";
   sourceName = "DAMAC Properties";
-  sourceUrl = "https://www.damacproperties.com/en/";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    const projectCards = html.match(/<(?:div|article|section)[^>]*class="[^"]*(?:project|property|development)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section)>/gi) || [];
-
-    for (const card of projectCards.slice(0, 15)) {
-      const titleMatch = card.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const text = card.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `DAMAC - ${title}`,
-        rawText: text,
-        publishedDate: undefined,
-        category: "competitor_project",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "DAMAC Properties - Development Portfolio",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "competitor_project",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
-
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
-
-    return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : "sqft",
-      confidence,
-      grade,
-      summary: extractSnippet(evidence.rawText),
-      tags: ["developer", "luxury", "dubai", "branded-residences"],
-    };
-  }
+  sourceUrl = SOURCE_URLS["damac-properties"];
+  category = "competitor_project";
+  geography = "Dubai";
+  defaultTags = ["developer", "luxury", "dubai", "branded-residences"];
+  defaultUnit = "sqft";
 }
 
 // ─── 7. Nakheel Properties ──────────────────────────────────────
 
-export class NakheelConnector extends BaseSourceConnector {
+export class NakheelConnector extends HTMLSourceConnector {
   sourceId = "nakheel-properties";
   sourceName = "Nakheel Properties";
-  sourceUrl = "https://www.nakheel.com/en/";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    const projectCards = html.match(/<(?:div|article|section)[^>]*class="[^"]*(?:project|property|community|development)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section)>/gi) || [];
-
-    for (const card of projectCards.slice(0, 15)) {
-      const titleMatch = card.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const text = card.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `Nakheel - ${title}`,
-        rawText: text,
-        publishedDate: undefined,
-        category: "competitor_project",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "Nakheel Properties - Community Portfolio",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "competitor_project",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
-
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
-
-    return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : "sqft",
-      confidence,
-      grade,
-      summary: extractSnippet(evidence.rawText),
-      tags: ["developer", "master-plan", "dubai", "community"],
-    };
-  }
+  sourceUrl = SOURCE_URLS["nakheel-properties"];
+  category = "competitor_project";
+  geography = "Dubai";
+  defaultTags = ["developer", "master-plan", "dubai", "community"];
+  defaultUnit = "sqft";
 }
 
 // ─── 8. RICS Market Reports ─────────────────────────────────────
 
-export class RICSConnector extends BaseSourceConnector {
+export class RICSConnector extends HTMLSourceConnector {
   sourceId = "rics-market-reports";
   sourceName = "RICS Market Reports";
-  sourceUrl = "https://www.rics.org/news-insights/market-surveys";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    // Extract report/article sections
-    const articles = html.match(/<(?:div|article)[^>]*class="[^"]*(?:article|report|insight|survey|card)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article)>/gi) || [];
-
-    for (const article of articles.slice(0, 10)) {
-      const titleMatch = article.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      // Look for date
-      const dateMatch = article.match(/(?:Published|Date|Updated)[:\s]*(\d{1,2}\s+\w+\s+\d{4})/i) ||
-                         article.match(/(\d{4}-\d{2}-\d{2})/);
-      let publishedDate: Date | undefined;
-      if (dateMatch) {
-        const parsed = new Date(dateMatch[1]);
-        if (!isNaN(parsed.getTime())) publishedDate = parsed;
-      }
-
-      const text = article.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `RICS - ${title}`,
-        rawText: text,
-        publishedDate,
-        category: "market_trend",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "RICS Market Survey - UAE Construction",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "market_trend",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
+  sourceUrl = SOURCE_URLS["rics-market-reports"];
+  category = "market_trend";
+  geography = "UAE";
+  defaultTags = ["market-survey", "construction", "industry-report", "rics"];
+  defaultUnit = "sqm";
 
   async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
     const grade = assignGrade(this.sourceId);
     const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
 
     return {
-      metric: evidence.title,
-      value: null, // Industry reports typically don't have single price values
-      unit: null,
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? null,
       confidence,
       grade,
       summary: extractSnippet(evidence.rawText),
-      tags: ["market-survey", "construction", "industry-report", "rics"],
+      tags: this.defaultTags,
     };
   }
 }
 
 // ─── 9. JLL MENA Research ───────────────────────────────────────
 
-export class JLLConnector extends BaseSourceConnector {
+export class JLLConnector extends HTMLSourceConnector {
   sourceId = "jll-mena-research";
   sourceName = "JLL MENA Research";
-  sourceUrl = "https://www.jll.com/en/trends-and-insights/research";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    const articles = html.match(/<(?:div|article)[^>]*class="[^"]*(?:article|research|insight|card|report)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article)>/gi) || [];
-
-    for (const article of articles.slice(0, 10)) {
-      const titleMatch = article.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const dateMatch = article.match(/(\d{1,2}\s+\w+\s+\d{4})/i) ||
-                         article.match(/(\d{4}-\d{2}-\d{2})/);
-      let publishedDate: Date | undefined;
-      if (dateMatch) {
-        const parsed = new Date(dateMatch[1]);
-        if (!isNaN(parsed.getTime())) publishedDate = parsed;
-      }
-
-      const text = article.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `JLL - ${title}`,
-        rawText: text,
-        publishedDate,
-        category: "market_trend",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "JLL MENA - Real Estate Market Research",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "market_trend",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
+  sourceUrl = SOURCE_URLS["jll-mena-research"];
+  category = "market_trend";
+  geography = "UAE";
+  defaultTags = ["market-research", "real-estate", "mena", "jll"];
+  defaultUnit = "sqm";
 
   async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
     const grade = assignGrade(this.sourceId);
     const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
 
     return {
-      metric: evidence.title,
-      value: null,
-      unit: null,
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? null,
       confidence,
       grade,
       summary: extractSnippet(evidence.rawText),
-      tags: ["market-research", "real-estate", "mena", "jll"],
+      tags: this.defaultTags,
     };
   }
 }
 
 // ─── 10. Dubai Statistics Center ────────────────────────────────
 
-export class DubaiStatisticsConnector extends BaseSourceConnector {
+export class DubaiStatisticsConnector extends HTMLSourceConnector {
   sourceId = "dubai-statistics-center";
   sourceName = "Dubai Statistics Center";
-  sourceUrl = "https://www.dsc.gov.ae/en-us";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    // Extract data sections and statistical reports
-    const sections = html.match(/<(?:div|article|section)[^>]*class="[^"]*(?:stat|data|report|indicator|publication)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section)>/gi) || [];
-
-    for (const section of sections.slice(0, 10)) {
-      const titleMatch = section.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const text = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `DSC - ${title}`,
-        rawText: text,
-        publishedDate: undefined,
-        category: "market_trend",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "Dubai Statistics Center - Economic Indicators",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "market_trend",
-        geography: "Dubai",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
+  sourceUrl = SOURCE_URLS["dubai-statistics-center"];
+  category = "market_trend";
+  geography = "Dubai";
+  defaultTags = ["government", "statistics", "dubai", "economic-indicators"];
+  defaultUnit = "sqm";
 
   async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
     const grade = assignGrade(this.sourceId);
     const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
+    const llmEvidence = evidence as any;
 
     return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : null,
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? null,
       confidence,
       grade,
       summary: extractSnippet(evidence.rawText),
-      tags: ["government", "statistics", "dubai", "economic-indicators"],
+      tags: this.defaultTags,
     };
   }
 }
 
 // ─── 11. Hafele UAE ─────────────────────────────────────────────
 
-export class HafeleConnector extends BaseSourceConnector {
+export class HafeleConnector extends HTMLSourceConnector {
   sourceId = "hafele-uae";
   sourceName = "Hafele UAE";
-  sourceUrl = "https://www.hafele.ae/en/";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    const productSections = html.match(/<(?:div|article)[^>]*class="[^"]*product[^"]*"[^>]*>[\s\S]*?<\/(?:div|article)>/gi) || [];
-
-    for (const section of productSections.slice(0, 20)) {
-      const titleMatch = section.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const text = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `Hafele - ${title}`,
-        rawText: text,
-        publishedDate: undefined,
-        category: "material_cost",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "Hafele UAE - Hardware & Fittings Catalog",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "material_cost",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
-
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
-
-    return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : "piece",
-      confidence,
-      grade,
-      summary: extractSnippet(evidence.rawText),
-      tags: ["hardware", "fittings", "joinery", "manufacturer"],
-    };
-  }
+  sourceUrl = SOURCE_URLS["hafele-uae"];
+  category = "material_cost";
+  geography = "UAE";
+  defaultTags = ["hardware", "fittings", "joinery", "manufacturer"];
+  defaultUnit = "piece";
 }
 
 // ─── 12. GEMS Building Materials ────────────────────────────────
 
-export class GEMSConnector extends BaseSourceConnector {
+export class GEMSConnector extends HTMLSourceConnector {
   sourceId = "gems-building-materials";
   sourceName = "GEMS Building Materials";
-  sourceUrl = "https://www.gemsbm.com/";
-
-  async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-    const evidence: ExtractedEvidence[] = [];
-    const html = raw.rawHtml || "";
-
-    const productSections = html.match(/<(?:div|article|li)[^>]*class="[^"]*(?:product|item|category)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|li)>/gi) || [];
-
-    for (const section of productSections.slice(0, 20)) {
-      const titleMatch = section.match(/<h[1-4][^>]*>(.*?)<\/h[1-4]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-
-      const text = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `GEMS - ${title}`,
-        rawText: text,
-        publishedDate: undefined,
-        category: "material_cost",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    if (evidence.length === 0 && html.length > 100) {
-      evidence.push({
-        title: "GEMS Building Materials - Product Catalog",
-        rawText: extractSnippet(html.replace(/<[^>]+>/g, " ")),
-        publishedDate: undefined,
-        category: "material_cost",
-        geography: "UAE",
-        sourceUrl: raw.url,
-      });
-    }
-
-    return evidence;
-  }
-
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
-    const prices = extractPricesFromText(evidence.rawText);
-
-    return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : "unit",
-      confidence,
-      grade,
-      summary: extractSnippet(evidence.rawText),
-      tags: ["building-materials", "supplier", "wholesale"],
-    };
-  }
+  sourceUrl = SOURCE_URLS["gems-building-materials"];
+  category = "material_cost";
+  geography = "UAE";
+  defaultTags = ["building-materials", "supplier", "wholesale"];
+  defaultUnit = "unit";
 }
 
 // ─── Connector Registry ─────────────────────────────────────────

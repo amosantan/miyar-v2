@@ -18,8 +18,8 @@ import {
   getConnectorById,
   ALL_CONNECTORS,
 } from "../engines/ingestion/connectors/index";
-import { getDb } from "../db";
-import { ingestionRuns } from "../../drizzle/schema";
+import { getDb, getConnectorHealthByRun, getConnectorHealthHistory, getConnectorHealthSummary } from "../db";
+import { ingestionRuns, connectorHealth } from "../../drizzle/schema";
 import { desc, eq } from "drizzle-orm";
 import { getSchedulerStatus } from "../engines/ingestion/scheduler";
 
@@ -169,6 +169,101 @@ export const ingestionRouter = router({
         sourceId: c.sourceId,
         sourceName: c.sourceName,
         sourceUrl: c.sourceUrl,
+      }));
+    }),
+
+  // ─── V3-02: Connector Health Endpoints ─────────────────────────
+
+  /**
+   * Get connector health records for a specific ingestion run.
+   */
+  getRunHealth: protectedProcedure
+    .input(z.object({ runId: z.string() }))
+    .query(async ({ input }) => {
+      return getConnectorHealthByRun(input.runId);
+    }),
+
+  /**
+   * Get health history for a specific connector (last 30 records).
+   */
+  getSourceHealth: protectedProcedure
+    .input(z.object({
+      sourceId: z.string(),
+      limit: z.number().min(1).max(100).default(30),
+    }))
+    .query(async ({ input }) => {
+      return getConnectorHealthHistory(input.sourceId, input.limit);
+    }),
+
+  /**
+   * Get health summary across all connectors (last 30 days).
+   * Returns aggregated success rates and response times.
+   */
+  getHealthSummary: protectedProcedure
+    .query(async () => {
+      const records = await getConnectorHealthSummary();
+
+      // Aggregate by sourceId
+      const bySource = new Map<string, {
+        sourceId: string;
+        sourceName: string;
+        totalRuns: number;
+        successes: number;
+        partials: number;
+        failures: number;
+        avgResponseMs: number | null;
+        totalExtracted: number;
+        totalInserted: number;
+        lastStatus: string;
+        lastRunAt: Date | null;
+        lastError: string | null;
+      }>();
+
+      for (const r of records) {
+        const existing = bySource.get(r.sourceId) || {
+          sourceId: r.sourceId,
+          sourceName: r.sourceName,
+          totalRuns: 0,
+          successes: 0,
+          partials: 0,
+          failures: 0,
+          avgResponseMs: null,
+          totalExtracted: 0,
+          totalInserted: 0,
+          lastStatus: r.status,
+          lastRunAt: r.createdAt,
+          lastError: null,
+        };
+
+        existing.totalRuns++;
+        if (r.status === "success") existing.successes++;
+        else if (r.status === "partial") existing.partials++;
+        else existing.failures++;
+
+        existing.totalExtracted += r.recordsExtracted;
+        existing.totalInserted += r.recordsInserted;
+
+        if (r.responseTimeMs) {
+          existing.avgResponseMs = existing.avgResponseMs
+            ? Math.round((existing.avgResponseMs + r.responseTimeMs) / 2)
+            : r.responseTimeMs;
+        }
+
+        // Track latest status and error
+        if (!existing.lastRunAt || r.createdAt > existing.lastRunAt) {
+          existing.lastStatus = r.status;
+          existing.lastRunAt = r.createdAt;
+          existing.lastError = r.errorMessage;
+        }
+
+        bySource.set(r.sourceId, existing);
+      }
+
+      return Array.from(bySource.values()).map((s) => ({
+        ...s,
+        successRate: s.totalRuns > 0
+          ? Math.round(((s.successes + s.partials) / s.totalRuns) * 100)
+          : 0,
       }));
     }),
 });
