@@ -593,3 +593,9 @@
 
 ### Deliverable
 - [x] V3 Phase Reality Report (9 sections)
+
+## Verification Audit (Pre-V4)
+- [ ] Discrepancy 1: Fix costVolatility bug in normalization.ts
+- [ ] Discrepancy 2: Verify and reconcile actual table count
+- [ ] Discrepancy 3: Push all V2+V3 code to GitHub
+- [ ] Discrepancy 4: Confirm actual test count with verbose output
