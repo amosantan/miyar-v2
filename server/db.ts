@@ -730,13 +730,36 @@ export async function addMaterialToBoard(data: typeof materialsToBoards.$inferIn
 export async function getMaterialsByBoard(boardId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(materialsToBoards).where(eq(materialsToBoards.boardId, boardId));
+  return db.select().from(materialsToBoards).where(eq(materialsToBoards.boardId, boardId)).orderBy(materialsToBoards.sortOrder);
 }
 
 export async function removeMaterialFromBoard(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(materialsToBoards).where(eq(materialsToBoards.id, id));
+}
+
+export async function updateBoardTile(id: number, data: { specNotes?: string | null; costBandOverride?: string | null; quantity?: string | null; unitOfMeasure?: string | null; notes?: string | null; sortOrder?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updates: any = {};
+  if (data.specNotes !== undefined) updates.specNotes = data.specNotes;
+  if (data.costBandOverride !== undefined) updates.costBandOverride = data.costBandOverride;
+  if (data.quantity !== undefined) updates.quantity = data.quantity;
+  if (data.unitOfMeasure !== undefined) updates.unitOfMeasure = data.unitOfMeasure;
+  if (data.notes !== undefined) updates.notes = data.notes;
+  if (data.sortOrder !== undefined) updates.sortOrder = data.sortOrder;
+  if (Object.keys(updates).length > 0) {
+    await db.update(materialsToBoards).set(updates).where(eq(materialsToBoards.id, id));
+  }
+}
+
+export async function reorderBoardTiles(boardId: number, orderedIds: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db.update(materialsToBoards).set({ sortOrder: i }).where(eq(materialsToBoards.id, orderedIds[i]));
+  }
 }
 
 // ─── Prompt Templates (V2.8) ────────────────────────────────────────────────
@@ -1145,6 +1168,9 @@ export async function listEvidenceRecords(filters?: {
   projectId?: number;
   category?: string;
   reliabilityGrade?: string;
+  evidencePhase?: string;
+  confidentiality?: string;
+  excludeConfidential?: boolean;
   limit?: number;
 }) {
   const db = await getDb();
@@ -1153,6 +1179,11 @@ export async function listEvidenceRecords(filters?: {
   if (filters?.projectId) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
   if (filters?.category) conditions.push(eq(evidenceRecords.category, filters.category as any));
   if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade as any));
+  if (filters?.evidencePhase) conditions.push(eq(evidenceRecords.evidencePhase, filters.evidencePhase as any));
+  if (filters?.confidentiality) conditions.push(eq(evidenceRecords.confidentiality, filters.confidentiality as any));
+  if (filters?.excludeConfidential) {
+    conditions.push(sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`);
+  }
   let query = db.select().from(evidenceRecords);
   if (conditions.length > 0) {
     query = query.where(and(...conditions)) as any;

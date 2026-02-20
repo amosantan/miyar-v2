@@ -35,7 +35,8 @@ export default function IngestionMonitor() {
 
   const { data: status, refetch: refetchStatus } = trpc.ingestion.getStatus.useQuery();
   const { data: history, refetch: refetchHistory } = trpc.ingestion.getHistory.useQuery({ limit: 20, offset: 0 });
-  const { data: sources } = trpc.ingestion.getAvailableSources.useQuery();
+  const { data: sources, refetch: refetchSources } = trpc.ingestion.getAvailableSources.useQuery();
+  const { data: registrySources } = trpc.marketIntel.sources.list.useQuery();
   const { data: healthSummary, refetch: refetchHealth } = trpc.ingestion.getHealthSummary.useQuery();
   const { data: runDetail } = trpc.ingestion.getRunDetail.useQuery(
     { runId: detailRunId! },
@@ -160,6 +161,14 @@ export default function IngestionMonitor() {
       </div>
     );
   };
+
+  const toggleMutation = trpc.marketIntel.sources.toggleActive.useMutation({
+    onSuccess: () => {
+      toast.success("Source status updated");
+      refetchSources();
+    },
+    onError: () => toast.error("Failed to update source"),
+  });
 
   return (
     <DashboardLayout>
@@ -532,18 +541,7 @@ export default function IngestionMonitor() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {sources?.map((s) => (
-                <div
-                  key={s.sourceId}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border/30 bg-muted/20"
-                >
-                  <div className="p-1.5 rounded bg-blue-500/10">
-                    <Globe className="w-4 h-4 text-blue-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{s.sourceName}</p>
-                    <p className="text-xs text-muted-foreground font-mono truncate">{s.sourceId}</p>
-                  </div>
-                </div>
+                <SourceCard key={s.sourceId} source={s} registrySources={registrySources} refetchSources={refetchSources} />
               ))}
             </div>
           </CardContent>
@@ -603,5 +601,42 @@ export default function IngestionMonitor() {
         </Dialog>
       </div>
     </DashboardLayout>
+  );
+}
+
+function SourceCard({ source, registrySources, refetchSources }: { source: any; registrySources: any; refetchSources: () => void }) {
+  const regEntry = registrySources?.find((r: any) => r.name === source.sourceName || r.url === source.sourceUrl);
+  const isActive = regEntry?.isActive !== false;
+
+  const toggleMutation = trpc.marketIntel.sources.toggleActive.useMutation({
+    onSuccess: () => {
+      toast.success(isActive ? "Source disabled" : "Source enabled");
+      refetchSources();
+    },
+    onError: () => toast.error("Failed to toggle source"),
+  });
+
+  return (
+    <div className={`flex items-center gap-3 p-3 rounded-lg border border-border/30 ${isActive ? "bg-muted/20" : "bg-muted/5 opacity-60"}`}>
+      <div className={`p-1.5 rounded ${isActive ? "bg-blue-500/10" : "bg-gray-500/10"}`}>
+        <Globe className={`w-4 h-4 ${isActive ? "text-blue-400" : "text-gray-400"}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{source.sourceName}</p>
+        <p className="text-xs text-muted-foreground font-mono truncate">{source.sourceId}</p>
+      </div>
+      {regEntry && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          title={isActive ? "Disable source" : "Enable source"}
+          onClick={() => toggleMutation.mutate({ id: regEntry.id, isActive: !isActive })}
+          disabled={toggleMutation.isPending}
+        >
+          {isActive ? <Heart className="w-3.5 h-3.5 text-emerald-400" /> : <HeartOff className="w-3.5 h-3.5 text-red-400" />}
+        </Button>
+      )}
+    </div>
   );
 }

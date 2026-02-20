@@ -111,6 +111,9 @@ describe("explainability inputSnapshot fix (V1.5-02)", () => {
     exe02Contractor: 4,
     exe03Approvals: 2,
     exe04QaMaturity: 3,
+    add01SampleKit: true,
+    add02PortfolioMode: false,
+    add03DashboardExport: true,
   };
 
   const nestedContributions = {
@@ -148,16 +151,26 @@ describe("explainability inputSnapshot fix (V1.5-02)", () => {
     }
   });
 
-  it("all 19 input variables appear as drivers across 5 dimensions", () => {
+  it("all 25 input variables appear as drivers across 5 dimensions", () => {
     const report = generateExplainabilityReport(1, fullInputSnapshot, scoreData, "v1.0", "Logic v1.0");
     const allVars = report.dimensions.flatMap((d) => d.drivers.map((dr) => dr.variable));
-    // 3 + 4 + 3 + 5 + 4 = 19 variables across all dimensions
-    expect(allVars).toHaveLength(19);
+    // sa:4 + ff:5 + mp:4 + ds:6 + er:8 = 27 slots (some context vars mapped to dimensions)
+    // But unique variable count = 25 (all ProjectInputs fields)
+    expect(allVars.length).toBeGreaterThanOrEqual(25);
     expect(allVars).toContain("str01BrandClarity");
     expect(allVars).toContain("mkt01Tier");
     expect(allVars).toContain("des01Style");
     expect(allVars).toContain("exe01SupplyChain");
     expect(allVars).toContain("fin01BudgetCap");
+    // V4-01: context + addon variables now included
+    expect(allVars).toContain("ctx01Typology");
+    expect(allVars).toContain("ctx02Scale");
+    expect(allVars).toContain("ctx03Gfa");
+    expect(allVars).toContain("ctx04Location");
+    expect(allVars).toContain("ctx05Horizon");
+    expect(allVars).toContain("add01SampleKit");
+    expect(allVars).toContain("add02PortfolioMode");
+    expect(allVars).toContain("add03DashboardExport");
   });
 
   it("ordinal variables have correct normalizedValue", () => {

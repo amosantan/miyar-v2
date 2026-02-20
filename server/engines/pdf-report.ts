@@ -98,6 +98,9 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
   .evidence-trace { background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px 12px; margin: 8px 0; font-size: 9px; font-family: monospace; color: #666; }
   .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
   .section { page-break-inside: avoid; margin-bottom: 20px; }
+  .repro-meta { background: #f0f4f8; border: 1px solid #d0d7de; border-radius: 6px; padding: 10px 14px; margin: 16px auto; max-width: 400px; font-size: 9px; color: #444; text-align: left; }
+  .repro-meta .label { font-weight: 600; color: #0f3460; display: inline-block; min-width: 120px; }
+  .citation-ref { font-size: 8px; color: #0f3460; vertical-align: super; font-weight: 600; cursor: help; }
 </style>
 </head>
 <body>
@@ -109,28 +112,44 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
   <div class="date">${formatDate()}</div>
   <div class="confidential">Confidential — For Internal Use Only</div>
   <div class="watermark">Document ID: ${watermark}</div>
+  <div class="repro-meta">
+    <div><span class="label">Scoring Engine:</span> MIYAR Decision Intelligence V2</div>
+    <div><span class="label">Model Version:</span> v2.0.0</div>
+    <div><span class="label">Generated:</span> ${new Date().toISOString()}</div>
+    <div><span class="label">Document ID:</span> ${watermark}</div>
+    <div><span class="label">Reproducibility:</span> All inputs, weights, thresholds, and benchmark data are frozen at generation time. Re-evaluation with identical inputs and the same benchmark/logic version will produce identical scores.</div>
+  </div>
 </div>
 `;
 }
 
 function renderEvidenceReferences(refs?: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }>): string {
-  if (!refs || refs.length === 0) return "";
-  const rows = refs.map((r, i) => `<tr>
-    <td>${i + 1}</td>
+  if (!refs || refs.length === 0) return `
+<div class="section">
+  <h2>Evidence References</h2>
+  <p style="font-size:10px; color:#666;">No evidence records linked to this project at the time of report generation.</p>
+</div>
+`;
+  const rows = refs.map((r, i) => {
+    const gradeColor = r.reliabilityGrade === 'A' ? '#2e7d32' : r.reliabilityGrade === 'B' ? '#f57c00' : '#c62828';
+    return `<tr>
+    <td><span class="citation-ref">[${i + 1}]</span></td>
     <td>${r.title}</td>
-    <td>${r.category || "—"}</td>
-    <td>${r.reliabilityGrade || "—"}</td>
-    <td>${r.captureDate ? new Date(r.captureDate).toLocaleDateString() : "—"}</td>
-    <td>${r.sourceUrl ? `<a href="${r.sourceUrl}" style="color:#0f3460;">[link]</a>` : "—"}</td>
-  </tr>`).join("");
+    <td>${r.category || "\u2014"}</td>
+    <td style="color:${gradeColor}; font-weight:600;">${r.reliabilityGrade || "\u2014"}</td>
+    <td>${r.captureDate ? new Date(r.captureDate).toLocaleDateString() : "\u2014"}</td>
+    <td>${r.sourceUrl ? `<a href="${r.sourceUrl}" style="color:#0f3460;">[link]</a>` : "\u2014"}</td>
+  </tr>`;
+  }).join("");
   return `
 <div class="section">
   <h2>Evidence References</h2>
+  <p style="font-size:9px; color:#666; margin-bottom:8px;">The following evidence records were linked to this project at the time of report generation. Inline citations <span class="citation-ref">[n]</span> in the report body reference entries in this table.</p>
   <table>
-    <tr><th>#</th><th>Title</th><th>Category</th><th>Grade</th><th>Captured</th><th>Source</th></tr>
+    <tr><th>Ref</th><th>Title</th><th>Category</th><th>Grade</th><th>Captured</th><th>Source</th></tr>
     ${rows}
   </table>
-  <p style="font-size:9px; color:#666; margin-top:4px;">Evidence records linked to this project at the time of report generation.</p>
+  <p style="font-size:8px; color:#999; margin-top:4px;">Grade A = Primary institutional source | Grade B = Verified commercial source | Grade C = Self-reported or unverified</p>
 </div>
 `;
 }
@@ -558,6 +577,57 @@ function renderROI(roi: ROIResult): string {
 `;
 }
 
+// ─── Board Annex ────────────────────────────────────────────────────────────
+
+function renderBoardAnnex(boardSummaries?: PDFReportInput["boardSummaries"]): string {
+  if (!boardSummaries || boardSummaries.length === 0) {
+    return `
+<div class="section">
+  <h2>Material Board Annex</h2>
+  <p style="font-size:10px; color:#666;">No material boards have been created for this project. Use the Board Composer to build material boards with cost estimates and RFQ-ready procurement schedules.</p>
+</div>
+`;
+  }
+
+  const boardCards = boardSummaries.map(b => {
+    const tierRows = Object.entries(b.tierDistribution).map(([tier, count]) =>
+      `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${tier.replace("_", " ")}:</strong> ${count}</span>`
+    ).join("");
+
+    return `
+    <div style="border:1px solid #e0e0e0; border-radius:6px; padding:12px; margin:8px 0; page-break-inside:avoid;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-size:12px; font-weight:700; color:#0f3460;">${b.boardName}</span>
+        <span style="font-size:10px; color:#666;">${b.totalItems} items</span>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
+        <div style="text-align:center;">
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">Cost Range</div>
+          <div style="font-size:12px; font-weight:700; color:#0f3460;">${b.estimatedCostLow.toLocaleString()} – ${b.estimatedCostHigh.toLocaleString()} ${b.currency}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">Longest Lead</div>
+          <div style="font-size:12px; font-weight:700; color:#0f3460;">${b.longestLeadTimeDays}d</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">Critical Items</div>
+          <div style="font-size:12px; font-weight:700; color:${b.criticalPathItems.length > 0 ? "#dc2626" : "#16a34a"};">${b.criticalPathItems.length}</div>
+        </div>
+      </div>
+      <div style="font-size:9px; color:#444;">${tierRows}</div>
+      ${b.criticalPathItems.length > 0 ? `<div style="margin-top:6px;"><span style="font-size:9px; color:#dc2626; font-weight:600;">Critical:</span> <span style="font-size:9px; color:#666;">${b.criticalPathItems.join(", ")}</span></div>` : ""}
+    </div>`;
+  }).join("");
+
+  return `
+<div class="section">
+  <h2>Material Board Annex</h2>
+  <p style="font-size:10px; color:#666; margin-bottom:8px;">The following material boards have been composed for this project. Each board includes cost estimates, lead time analysis, and tier distribution. Full RFQ-ready procurement schedules are available via the Board Composer export.</p>
+  ${boardCards}
+</div>
+`;
+}
+
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 export interface PDFReportInput {
@@ -573,6 +643,7 @@ export interface PDFReportInput {
   benchmarkVersion?: string;
   logicVersion?: string;
   evidenceRefs?: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }>;
+  boardSummaries?: Array<{ boardName: string; totalItems: number; estimatedCostLow: number; estimatedCostHigh: number; currency: string; longestLeadTimeDays: number; criticalPathItems: string[]; tierDistribution: Record<string, number> }>;
 }
 
 export function generateValidationSummaryHTML(data: PDFReportInput): string {
@@ -603,6 +674,7 @@ export function generateDesignBriefHTML(data: PDFReportInput): string {
     renderRiskAssessment(data.scoreResult),
     renderConditionalActions(data.scoreResult),
     data.fiveLens ? renderFiveLens(data.fiveLens) : "",
+    renderBoardAnnex(data.boardSummaries),
     renderEvidenceReferences(data.evidenceRefs),
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
     renderInputSummary(data.inputs),
@@ -633,6 +705,9 @@ export function generateFullReportHTML(data: PDFReportInput): string {
   } else if (data.roi) {
     sections.push(renderROI(data.roi));
   }
+
+  // V4: Board Annex
+  sections.push(renderBoardAnnex(data.boardSummaries));
 
   // V2: Evidence References
   sections.push(renderEvidenceReferences(data.evidenceRefs));

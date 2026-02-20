@@ -1,5 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
+import { EvidenceReferencesPanel } from "@/components/EvidenceReferencesPanel";
+import PredictivePanel from "@/components/PredictivePanel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -483,6 +485,8 @@ function ProjectDetailContent() {
             <TabsTrigger value="five-lens">5-Lens</TabsTrigger>
             <TabsTrigger value="roi">ROI Impact</TabsTrigger>
             <TabsTrigger value="intelligence">Intelligence</TabsTrigger>
+            <TabsTrigger value="evidence">Evidence</TabsTrigger>
+            <TabsTrigger value="predictive">Predictive</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
@@ -1000,6 +1004,16 @@ function ProjectDetailContent() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          {/* ─── Evidence Tab ────────────────────────────────────────────── */}
+          <TabsContent value="evidence" className="space-y-4">
+            <EvidenceReferencesPanel projectId={projectId} />
+          </TabsContent>
+
+          {/* ─── Predictive Tab ──────────────────────────────────────────── */}
+          <TabsContent value="predictive" className="space-y-4">
+            <PredictivePanel projectId={projectId} />
           </TabsContent>
 
           {/* ─── Reports Tab ─────────────────────────────────────────────── */}          <TabsContent value="reports" className="space-y-4">

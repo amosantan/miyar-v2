@@ -66,25 +66,40 @@ const DIMENSION_LABELS: Record<string, string> = {
 };
 
 const VARIABLE_LABELS: Record<string, string> = {
+  // Context (6 variables)
+  ctx01Typology: "Project Typology",
+  ctx02Scale: "Project Scale",
+  ctx03Gfa: "Gross Floor Area (sqm)",
+  ctx04Location: "Location Category",
+  ctx05Horizon: "Delivery Horizon",
+  // Strategy (3 variables)
   str01BrandClarity: "Brand Clarity",
   str02Differentiation: "Differentiation Strategy",
   str03BuyerMaturity: "Buyer Maturity Understanding",
-  fin01BudgetCap: "Budget Cap",
+  // Financial (4 variables)
+  fin01BudgetCap: "Budget Cap (AED/sqm)",
   fin02Flexibility: "Budget Flexibility",
   fin03ShockTolerance: "Shock Tolerance",
   fin04SalesPremium: "Sales Premium Potential",
+  // Market (3 variables)
   mkt01Tier: "Market Tier",
   mkt02Competitor: "Competitive Awareness",
   mkt03Trend: "Trend Alignment",
+  // Design (5 variables)
   des01Style: "Design Style",
   des02MaterialLevel: "Material Level",
   des03Complexity: "Design Complexity",
   des04Experience: "Experience Ambition",
   des05Sustainability: "Sustainability Commitment",
+  // Execution (4 variables)
   exe01SupplyChain: "Supply Chain Readiness",
   exe02Contractor: "Contractor Capability",
   exe03Approvals: "Approval Complexity",
   exe04QaMaturity: "QA Maturity",
+  // Add-ons (3 variables)
+  add01SampleKit: "Sample Kit Requested",
+  add02PortfolioMode: "Portfolio Mode",
+  add03DashboardExport: "Dashboard Export",
 };
 
 /**
@@ -126,7 +141,53 @@ const VARIABLE_TO_CONTRIBUTION_KEY: Record<string, Record<string, string>> = {
 };
 
 /** Variables that are string enums (not ordinal 1-5) */
-const STRING_ENUM_VARS = new Set(["mkt01Tier", "des01Style", "ctx01Typology", "ctx02Scale", "ctx04Location"]);
+const STRING_ENUM_VARS = new Set(["mkt01Tier", "des01Style", "ctx01Typology", "ctx02Scale", "ctx04Location", "ctx05Horizon"]);
+
+/** Variables that are boolean flags */
+const BOOLEAN_VARS = new Set(["add01SampleKit", "add02PortfolioMode", "add03DashboardExport"]);
+
+/** Variables that are numeric but not ordinal 1-5 (raw display, no normalization) */
+const RAW_NUMERIC_VARS = new Set(["fin01BudgetCap", "ctx03Gfa"]);
+
+/** Display label mapping for string enum variables */
+const ENUM_DISPLAY_LABELS: Record<string, Record<string, string>> = {
+  mkt01Tier: {
+    Mid: "Mid-Market",
+    "Upper-mid": "Upper Mid-Market",
+    Luxury: "Luxury",
+    "Ultra-luxury": "Ultra-Luxury",
+  },
+  des01Style: {
+    Modern: "Modern",
+    Contemporary: "Contemporary",
+    Minimal: "Minimal",
+    Classic: "Classic",
+    Fusion: "Fusion",
+    Other: "Other",
+  },
+  ctx01Typology: {
+    Residential: "Residential",
+    "Mixed-use": "Mixed-Use",
+    Hospitality: "Hospitality",
+    Office: "Office",
+  },
+  ctx02Scale: {
+    Small: "Small (<10,000 sqm)",
+    Medium: "Medium (10,000–50,000 sqm)",
+    Large: "Large (>50,000 sqm)",
+  },
+  ctx04Location: {
+    Prime: "Prime Location",
+    Secondary: "Secondary Location",
+    Emerging: "Emerging Location",
+  },
+  ctx05Horizon: {
+    "0-12m": "0–12 Months",
+    "12-24m": "12–24 Months",
+    "24-36m": "24–36 Months",
+    "36m+": "36+ Months",
+  },
+};
 
 /** Map string enum values to a quality/tier signal for direction assessment */
 const ENUM_QUALITY_MAP: Record<string, Record<string, "positive" | "negative" | "neutral">> = {
@@ -185,12 +246,15 @@ export function generateExplainabilityReport(
   }
 
   // Build per-dimension explainability
+  // All 25 ProjectInputs variables mapped to their primary scoring dimension.
+  // Context variables (ctx*) are placed in the dimension they most influence.
+  // Add-on booleans are placed in er (execution readiness).
   const dimensionVarMap: Record<string, string[]> = {
-    sa: ["str01BrandClarity", "str02Differentiation", "str03BuyerMaturity"],
-    ff: ["fin01BudgetCap", "fin02Flexibility", "fin03ShockTolerance", "fin04SalesPremium"],
-    mp: ["mkt01Tier", "mkt02Competitor", "mkt03Trend"],
-    ds: ["des01Style", "des02MaterialLevel", "des03Complexity", "des04Experience", "des05Sustainability"],
-    er: ["exe01SupplyChain", "exe02Contractor", "exe03Approvals", "exe04QaMaturity"],
+    sa: ["str01BrandClarity", "str02Differentiation", "str03BuyerMaturity", "ctx01Typology"],
+    ff: ["fin01BudgetCap", "fin02Flexibility", "fin03ShockTolerance", "fin04SalesPremium", "ctx03Gfa"],
+    mp: ["mkt01Tier", "mkt02Competitor", "mkt03Trend", "ctx04Location"],
+    ds: ["des01Style", "des02MaterialLevel", "des03Complexity", "des04Experience", "des05Sustainability", "ctx02Scale"],
+    er: ["exe01SupplyChain", "exe02Contractor", "exe03Approvals", "exe04QaMaturity", "ctx05Horizon", "add01SampleKit", "add02PortfolioMode", "add03DashboardExport"],
   };
 
   const allDrivers: ScoreDriver[] = [];
@@ -201,22 +265,27 @@ export function generateExplainabilityReport(
     const dimContribs = flatContributions[dim] ?? {};
 
     const drivers: ScoreDriver[] = vars.map((v) => {
-      // Get raw value — guaranteed to exist in inputSnapshot
+      // Get raw value from inputSnapshot
       const rawVal = inputSnapshot[v];
       const isStringEnum = STRING_ENUM_VARS.has(v);
+      const isBooleanVar = BOOLEAN_VARS.has(v);
+      const isRawNumeric = RAW_NUMERIC_VARS.has(v);
 
-      // Compute numeric value for ordinal variables
+      // Compute numeric value for ordinal variables (1-5 scale)
       let numVal: number | null = null;
       let normalizedValue: number | null = null;
-      if (!isStringEnum && typeof rawVal === "number") {
+      if (!isStringEnum && !isBooleanVar && !isRawNumeric && typeof rawVal === "number") {
         numVal = rawVal;
         normalizedValue = Math.max(0, Math.min(1, (rawVal - 1) / 4)); // ordinal normalization
-      } else if (!isStringEnum && typeof rawVal === "string") {
+      } else if (!isStringEnum && !isBooleanVar && !isRawNumeric && typeof rawVal === "string") {
         const parsed = parseFloat(rawVal);
         if (!isNaN(parsed)) {
           numVal = parsed;
           normalizedValue = Math.max(0, Math.min(1, (parsed - 1) / 4));
         }
+      } else if (isRawNumeric && typeof rawVal === "number") {
+        numVal = rawVal;
+        normalizedValue = null; // raw numerics don't normalize to 0-1
       }
 
       // Look up contribution from the nested structure
@@ -228,18 +297,34 @@ export function generateExplainabilityReport(
       if (isStringEnum) {
         const enumMap = ENUM_QUALITY_MAP[v];
         direction = enumMap?.[String(rawVal)] ?? "neutral";
+      } else if (isBooleanVar) {
+        direction = rawVal === true ? "positive" : "neutral";
+      } else if (isRawNumeric) {
+        // Budget cap and GFA are contextual — always neutral in direction
+        direction = "neutral";
       } else if (numVal !== null) {
         direction = numVal >= 4 ? "positive" : numVal <= 2 ? "negative" : "neutral";
       } else {
         direction = "neutral";
       }
 
-      // Safe display value — never undefined
-      const displayValue: number | string = rawVal !== undefined && rawVal !== null
-        ? (typeof rawVal === "number" || typeof rawVal === "string" ? rawVal : String(rawVal))
-        : "N/A";
+      // Safe display value — NEVER undefined
+      let displayValue: number | string;
+      if (rawVal === undefined || rawVal === null) {
+        displayValue = "N/A";
+      } else if (isBooleanVar) {
+        displayValue = rawVal ? "Yes" : "No";
+      } else if (isStringEnum) {
+        // Use display label if available, otherwise raw string
+        const labelMap = ENUM_DISPLAY_LABELS[v];
+        displayValue = labelMap?.[String(rawVal)] ?? String(rawVal);
+      } else if (typeof rawVal === "number" || typeof rawVal === "string") {
+        displayValue = rawVal;
+      } else {
+        displayValue = String(rawVal);
+      }
 
-      const explanation = buildVariableExplanation(v, displayValue, numVal, direction, isStringEnum);
+      const explanation = buildVariableExplanation(v, displayValue, numVal, direction, isStringEnum || isBooleanVar);
 
       const driver: ScoreDriver = {
         variable: v,

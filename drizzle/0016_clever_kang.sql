@@ -1,0 +1,1 @@
+ALTER TABLE `score_matrices` ADD `budgetFitMethod` varchar(32);

@@ -152,13 +152,110 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Version History */}
+      <div className="border-t border-border">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <h2 className="text-2xl md:text-3xl font-semibold text-foreground text-center mb-12">
+            Platform Evolution
+          </h2>
+          <div className="space-y-6">
+            {[
+              {
+                version: "V4",
+                title: "Evidence & Predictive Intelligence",
+                current: true,
+                features: [
+                  "Predictive Cost Range Engine (P15/P50/P85/P95 with trend adjustment)",
+                  "Design Outcome Prediction with comparable project analysis",
+                  "Scenario Cost Projection with compounding formula",
+                  "Evidence Vault with references and inline citations",
+                  "Material Board Composer V2 with tiles, spec notes, cost bands, PDF export",
+                  "Visual Studio with AI image generation and prompt templates",
+                  "Executive Decision Pack with evidence annexes",
+                  "Cost Forecasting panel on Analytics Dashboard",
+                  "Budget Feasibility Score (evidence-backed vs benchmark-static)",
+                  "476 automated tests, 48 database tables, 0 TypeScript errors",
+                ],
+              },
+              {
+                version: "V3",
+                title: "Market Intelligence & Analytics",
+                features: [
+                  "Market intelligence ingestion pipeline with 5 connector types",
+                  "Trend analysis engine with moving averages and anomaly detection",
+                  "Competitor landscape analysis with HHI concentration index",
+                  "Analytics Intelligence Dashboard with 4 panels",
+                  "Webhook system for external integrations",
+                  "Admin panel with benchmark management and model versioning",
+                ],
+              },
+              {
+                version: "V2",
+                title: "Scoring Engine & Explainability",
+                features: [
+                  "5-dimension scoring model (SA, FF, MP, DS, ER)",
+                  "Sensitivity analysis with variable override simulation",
+                  "ROI impact estimation engine",
+                  "5-Lens strategic analysis",
+                  "PDF report generation (Design Brief, RFQ Pack, Validation Summary)",
+                  "Scenario management with side-by-side comparison",
+                ],
+              },
+              {
+                version: "V1",
+                title: "Foundation",
+                features: [
+                  "Project creation with 20+ input variables",
+                  "Deterministic evaluation with composite scoring",
+                  "Risk assessment with penalty flags",
+                  "Decision classification (validated/conditional/not-validated)",
+                ],
+              },
+            ].map((v) => (
+              <div
+                key={v.version}
+                className={`rounded-xl border p-6 ${
+                  v.current
+                    ? "border-primary/40 bg-primary/5"
+                    : "border-border bg-card"
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <span
+                    className={`text-sm font-bold px-2.5 py-0.5 rounded ${
+                      v.current
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {v.version}
+                  </span>
+                  <h3 className="font-semibold text-foreground">{v.title}</h3>
+                  {v.current && (
+                    <span className="text-xs text-primary font-medium">Current</span>
+                  )}
+                </div>
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
+                  {v.features.map((f, i) => (
+                    <p key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary/50 mt-0.5 shrink-0" />
+                      {f}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Footer */}
       <div className="border-t border-border">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="font-bold text-primary">MIYAR</span>
             <span className="text-xs text-muted-foreground">
-              Decision Intelligence Platform
+              Decision Intelligence Platform — V4
             </span>
           </div>
           <p className="text-xs text-muted-foreground">

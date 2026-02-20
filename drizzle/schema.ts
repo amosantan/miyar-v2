@@ -254,6 +254,7 @@ export const scoreMatrices = mysqlTable("score_matrices", {
   variableContributions: json("variableContributions").notNull(),
   conditionalActions: json("conditionalActions"),
   inputSnapshot: json("inputSnapshot").notNull(),
+  budgetFitMethod: varchar("budgetFitMethod", { length: 32 }),
   computedAt: timestamp("computedAt").defaultNow().notNull(),
 });
 
@@ -564,6 +565,9 @@ export const materialsToBoards = mysqlTable("materials_to_boards", {
   quantity: decimal("quantity", { precision: 10, scale: 2 }),
   unitOfMeasure: varchar("unitOfMeasure", { length: 32 }),
   notes: text("notes"),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  specNotes: text("specNotes"),
+  costBandOverride: varchar("costBandOverride", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

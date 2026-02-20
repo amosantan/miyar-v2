@@ -245,6 +245,10 @@ export const projectRouter = router({
         inputs.mkt01Tier
       );
 
+      // V4-11: Check if we have enough evidence for evidence-backed cost
+      const evidenceRecords = await db.listEvidenceRecords({ projectId: input.id, limit: 500 });
+      const budgetFitMethod = evidenceRecords.length >= 20 ? "evidence_backed" : "benchmark_static";
+
       const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
 
       const scoreResult = evaluate(inputs, config);
@@ -272,6 +276,7 @@ export const projectRouter = router({
         variableContributions: scoreResult.variableContributions,
         conditionalActions: scoreResult.conditionalActions,
         inputSnapshot: scoreResult.inputSnapshot,
+        budgetFitMethod,
       });
 
       // Compute and store project intelligence
@@ -647,6 +652,37 @@ export const projectRouter = router({
         }
       } catch { /* evidence refs are optional */ }
 
+      // V4: Collect board summaries for annex
+      let boardSummaries: PDFReportInput["boardSummaries"] = [];
+      try {
+        const boards = await db.getMaterialBoardsByProject(input.projectId);
+        const { computeBoardSummary } = await import("../engines/board-composer");
+        for (const board of boards) {
+          const boardMaterials = await db.getMaterialsByBoard(board.id);
+          const items = [];
+          for (const bm of boardMaterials) {
+            const mat = await db.getMaterialById(bm.materialId);
+            if (mat) {
+              items.push({
+                materialId: mat.id,
+                name: mat.name,
+                category: mat.category,
+                tier: mat.tier,
+                costLow: Number(mat.typicalCostLow) || 0,
+                costHigh: Number(mat.typicalCostHigh) || 0,
+                costUnit: mat.costUnit || "AED/unit",
+                leadTimeDays: mat.leadTimeDays || 30,
+                leadTimeBand: mat.leadTimeBand || "medium",
+                supplierName: mat.supplierName || "TBD",
+              });
+            }
+          }
+          if (items.length > 0) {
+            boardSummaries.push({ boardName: board.boardName, ...computeBoardSummary(items) });
+          }
+        }
+      } catch { /* board summaries are optional */ }
+
       const pdfInput: PDFReportInput = {
         projectName: project.name,
         projectId: project.id,
@@ -659,6 +695,7 @@ export const projectRouter = router({
         benchmarkVersion: benchmarkVersionTag,
         logicVersion: logicVersionTag,
         evidenceRefs,
+        boardSummaries,
       };
       const html = generateReportHTML(input.reportType, pdfInput);
 

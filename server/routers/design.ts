@@ -262,7 +262,19 @@ export const designRouter = router({
       const project = await db.getProjectById(input.projectId);
       if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
 
-      const inputs = projectToInputs(project);
+      let inputs = projectToInputs(project);
+
+      // V4-05: When scenarioId is provided, overlay scenario overrides onto project inputs
+      if (input.scenarioId) {
+        const scenarioInput = await db.getScenarioInput(input.scenarioId);
+        if (scenarioInput?.jsonInput) {
+          const overrides = typeof scenarioInput.jsonInput === 'string'
+            ? JSON.parse(scenarioInput.jsonInput)
+            : scenarioInput.jsonInput;
+          inputs = { ...inputs, ...overrides };
+        }
+      }
+
       const context = buildPromptContext(inputs);
 
       // Build prompt
@@ -351,6 +363,37 @@ export const designRouter = router({
       return enriched;
     }),
 
+  // V4-05: Attach a completed visual's asset to a report/pack as an evidence reference
+  attachVisualToPack: protectedProcedure
+    .input(z.object({
+      visualId: z.number(),
+      targetType: z.enum(["report", "design_brief", "material_board", "pack_section"]),
+      targetId: z.number(),
+      sectionLabel: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const visual = await db.getGeneratedVisualById(input.visualId);
+      if (!visual || !visual.imageAssetId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Visual not found or has no image" });
+      }
+      // Create an evidence reference linking the visual's asset to the target
+      await db.createEvidenceReference({
+        evidenceRecordId: visual.imageAssetId, // asset ID as evidence
+        targetType: input.targetType,
+        targetId: input.targetId,
+        sectionLabel: input.sectionLabel || `Visual #${visual.id}`,
+        citationText: `AI-generated ${visual.type} visual (prompt: ${((visual.promptJson as any)?.prompt || "").slice(0, 100)}...)`,
+      });
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "visual.attach_to_pack",
+        entityType: "generated_visual",
+        entityId: visual.id,
+        details: { targetType: input.targetType, targetId: input.targetId },
+      });
+      return { success: true };
+    }),
+
   // ─── Material Board Composer ────────────────────────────────────────────────
 
   createBoard: protectedProcedure
@@ -412,7 +455,7 @@ export const designRouter = router({
       const materialDetails = [];
       for (const bm of boardMaterials) {
         const mat = await db.getMaterialById(bm.materialId);
-        if (mat) materialDetails.push({ ...mat, boardJoinId: bm.id, quantity: bm.quantity, unitOfMeasure: bm.unitOfMeasure, boardNotes: bm.notes });
+        if (mat) materialDetails.push({ ...mat, boardJoinId: bm.id, quantity: bm.quantity, unitOfMeasure: bm.unitOfMeasure, boardNotes: bm.notes, sortOrder: bm.sortOrder, specNotes: bm.specNotes, costBandOverride: bm.costBandOverride });
       }
       return { board, materials: materialDetails };
     }),
@@ -453,6 +496,101 @@ export const designRouter = router({
         entityId: input.boardId,
       });
       return { success: true };
+    }),
+
+  updateBoardTile: protectedProcedure
+    .input(z.object({
+      joinId: z.number(),
+      specNotes: z.string().nullish(),
+      costBandOverride: z.string().nullish(),
+      quantity: z.number().nullish(),
+      unitOfMeasure: z.string().nullish(),
+      notes: z.string().nullish(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { joinId, ...rest } = input;
+      await db.updateBoardTile(joinId, {
+        specNotes: rest.specNotes ?? undefined,
+        costBandOverride: rest.costBandOverride ?? undefined,
+        quantity: rest.quantity !== undefined && rest.quantity !== null ? String(rest.quantity) : undefined,
+        unitOfMeasure: rest.unitOfMeasure ?? undefined,
+        notes: rest.notes ?? undefined,
+      });
+      return { success: true };
+    }),
+
+  reorderBoardTiles: protectedProcedure
+    .input(z.object({
+      boardId: z.number(),
+      orderedJoinIds: z.array(z.number()),
+    }))
+    .mutation(async ({ input }) => {
+      await db.reorderBoardTiles(input.boardId, input.orderedJoinIds);
+      return { success: true };
+    }),
+
+  exportBoardPdf: protectedProcedure
+    .input(z.object({ boardId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const board = await db.getMaterialBoardById(input.boardId);
+      if (!board) throw new TRPCError({ code: "NOT_FOUND" });
+      const project = await db.getProjectById(board.projectId);
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const boardMaterials = await db.getMaterialsByBoard(input.boardId);
+      const items: Array<{ materialId: number; name: string; category: string; tier: string; costLow: number; costHigh: number; costUnit: string; leadTimeDays: number; leadTimeBand: string; supplierName: string; specNotes?: string; costBandOverride?: string; quantity?: string; unitOfMeasure?: string; notes?: string }> = [];
+      for (const bm of boardMaterials) {
+        const mat = await db.getMaterialById(bm.materialId);
+        if (mat) {
+          items.push({
+            materialId: mat.id,
+            name: mat.name,
+            category: mat.category,
+            tier: mat.tier,
+            costLow: Number(mat.typicalCostLow) || 0,
+            costHigh: Number(mat.typicalCostHigh) || 0,
+            costUnit: mat.costUnit || "AED/unit",
+            leadTimeDays: mat.leadTimeDays || 30,
+            leadTimeBand: mat.leadTimeBand || "medium",
+            supplierName: mat.supplierName || "TBD",
+            specNotes: bm.specNotes || undefined,
+            costBandOverride: bm.costBandOverride || undefined,
+            quantity: bm.quantity ? String(bm.quantity) : undefined,
+            unitOfMeasure: bm.unitOfMeasure || undefined,
+            notes: bm.notes || undefined,
+          });
+        }
+      }
+
+      const { generateBoardPdfHtml } = await import("../engines/board-pdf");
+      const summary = computeBoardSummary(items as any);
+      const rfqLines = generateRfqLines(items as any);
+      const html = generateBoardPdfHtml({
+        boardName: board.boardName,
+        projectName: project.name,
+        items,
+        summary,
+        rfqLines,
+      });
+
+      let fileUrl: string | null = null;
+      try {
+        const fileKey = `boards/${board.projectId}/${board.id}-${nanoid(8)}.html`;
+        const result = await storagePut(fileKey, html, "text/html");
+        fileUrl = result.url;
+      } catch (e) {
+        console.warn("[Board PDF] S3 upload failed:", e);
+      }
+
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "board.export_pdf",
+        entityType: "material_board",
+        entityId: input.boardId,
+        details: { fileUrl, itemCount: items.length },
+      });
+
+      return { fileUrl, html };
     }),
 
   boardSummary: protectedProcedure

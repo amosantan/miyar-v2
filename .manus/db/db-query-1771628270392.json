@@ -1,0 +1,154 @@
+{
+  "query": "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' ORDER BY table_name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3qjjvhuo9AvMUPD.984bcc8a4c01 --database Qjy3c67dUhuYfoZUKPnMuR --execute SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' ORDER BY table_name;",
+  "rows": [
+    {
+      "table_name": "__drizzle_migrations"
+    },
+    {
+      "table_name": "asset_links"
+    },
+    {
+      "table_name": "audit_logs"
+    },
+    {
+      "table_name": "benchmark_categories"
+    },
+    {
+      "table_name": "benchmark_data"
+    },
+    {
+      "table_name": "benchmark_proposals"
+    },
+    {
+      "table_name": "benchmark_snapshots"
+    },
+    {
+      "table_name": "benchmark_suggestions"
+    },
+    {
+      "table_name": "benchmark_versions"
+    },
+    {
+      "table_name": "comments"
+    },
+    {
+      "table_name": "competitor_entities"
+    },
+    {
+      "table_name": "competitor_projects"
+    },
+    {
+      "table_name": "connector_health"
+    },
+    {
+      "table_name": "design_briefs"
+    },
+    {
+      "table_name": "direction_candidates"
+    },
+    {
+      "table_name": "entity_tags"
+    },
+    {
+      "table_name": "evidence_records"
+    },
+    {
+      "table_name": "evidence_references"
+    },
+    {
+      "table_name": "generated_visuals"
+    },
+    {
+      "table_name": "ingestion_runs"
+    },
+    {
+      "table_name": "intelligence_audit_log"
+    },
+    {
+      "table_name": "logic_change_log"
+    },
+    {
+      "table_name": "logic_thresholds"
+    },
+    {
+      "table_name": "logic_versions"
+    },
+    {
+      "table_name": "logic_weights"
+    },
+    {
+      "table_name": "material_boards"
+    },
+    {
+      "table_name": "materials_catalog"
+    },
+    {
+      "table_name": "materials_to_boards"
+    },
+    {
+      "table_name": "model_versions"
+    },
+    {
+      "table_name": "override_records"
+    },
+    {
+      "table_name": "project_assets"
+    },
+    {
+      "table_name": "project_insights"
+    },
+    {
+      "table_name": "project_intelligence"
+    },
+    {
+      "table_name": "project_outcomes"
+    },
+    {
+      "table_name": "projects"
+    },
+    {
+      "table_name": "prompt_templates"
+    },
+    {
+      "table_name": "report_instances"
+    },
+    {
+      "table_name": "roi_configs"
+    },
+    {
+      "table_name": "scenario_comparisons"
+    },
+    {
+      "table_name": "scenario_inputs"
+    },
+    {
+      "table_name": "scenario_outputs"
+    },
+    {
+      "table_name": "scenarios"
+    },
+    {
+      "table_name": "score_matrices"
+    },
+    {
+      "table_name": "source_registry"
+    },
+    {
+      "table_name": "trend_snapshots"
+    },
+    {
+      "table_name": "trend_tags"
+    },
+    {
+      "table_name": "users"
+    },
+    {
+      "table_name": "webhook_configs"
+    }
+  ],
+  "messages": [],
+  "stdout": "table_name\n__drizzle_migrations\nasset_links\naudit_logs\nbenchmark_categories\nbenchmark_data\nbenchmark_proposals\nbenchmark_snapshots\nbenchmark_suggestions\nbenchmark_versions\ncomments\ncompetitor_entities\ncompetitor_projects\nconnector_health\ndesign_briefs\ndirection_candidates\nentity_tags\nevidence_records\nevidence_references\ngenerated_visuals\ningestion_runs\nintelligence_audit_log\nlogic_change_log\nlogic_thresholds\nlogic_versions\nlogic_weights\nmaterial_boards\nmaterials_catalog\nmaterials_to_boards\nmodel_versions\noverride_records\nproject_assets\nproject_insights\nproject_intelligence\nproject_outcomes\nprojects\nprompt_templates\nreport_instances\nroi_configs\nscenario_comparisons\nscenario_inputs\nscenario_outputs\nscenarios\nscore_matrices\nsource_registry\ntrend_snapshots\ntrend_tags\nusers\nwebhook_configs\n",
+  "stderr": "",
+  "execution_time_ms": 1514
+}

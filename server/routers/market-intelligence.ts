@@ -116,6 +116,7 @@ export const marketIntelligenceRouter = router({
         isWhitelisted: z.boolean().optional(),
         region: z.string().optional(),
         notes: z.string().optional(),
+        isActive: z.boolean().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
@@ -125,6 +126,20 @@ export const marketIntelligenceRouter = router({
           action: "source_registry.update",
           entityType: "source_registry",
           entityId: id,
+          details: data.isActive !== undefined ? { isActive: data.isActive } : undefined,
+        });
+        return { success: true };
+      }),
+
+    toggleActive: adminProcedure
+      .input(z.object({ id: z.number(), isActive: z.boolean() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.updateSourceRegistryEntry(input.id, { isActive: input.isActive });
+        await db.createAuditLog({
+          userId: ctx.user.id,
+          action: input.isActive ? "source_registry.enable" : "source_registry.disable",
+          entityType: "source_registry",
+          entityId: input.id,
         });
         return { success: true };
       }),
@@ -167,6 +182,8 @@ export const marketIntelligenceRouter = router({
         projectId: z.number().optional(),
         category: z.string().optional(),
         reliabilityGrade: z.string().optional(),
+        evidencePhase: z.string().optional(),
+        confidentiality: z.string().optional(),
         limit: z.number().default(100),
       }).optional())
       .query(async ({ input }) => {
@@ -174,6 +191,8 @@ export const marketIntelligenceRouter = router({
           projectId: input?.projectId,
           category: input?.category,
           reliabilityGrade: input?.reliabilityGrade,
+          evidencePhase: input?.evidencePhase,
+          confidentiality: input?.confidentiality,
           limit: input?.limit ?? 100,
         });
       }),

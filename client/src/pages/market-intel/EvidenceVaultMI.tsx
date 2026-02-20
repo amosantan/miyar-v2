@@ -43,6 +43,8 @@ const confidentialityColors: Record<string, string> = {
 export default function EvidenceVaultMI() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
+  const [phaseFilter, setPhaseFilter] = useState<string>("all");
+  const [confFilter, setConfFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
@@ -50,6 +52,8 @@ export default function EvidenceVaultMI() {
   const { data: records, isLoading, refetch } = trpc.marketIntel.evidence.list.useQuery({
     category: categoryFilter !== "all" ? categoryFilter : undefined,
     reliabilityGrade: gradeFilter !== "all" ? gradeFilter : undefined,
+    evidencePhase: phaseFilter !== "all" ? phaseFilter : undefined,
+    confidentiality: confFilter !== "all" ? confFilter : undefined,
     limit: 200,
   });
 
@@ -162,6 +166,28 @@ export default function EvidenceVaultMI() {
               <SelectItem value="all">All Grades</SelectItem>
               {GRADES.map(g => (
                 <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={phaseFilter} onValueChange={setPhaseFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Phase" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Phases</SelectItem>
+              {["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"].map(p => (
+                <SelectItem key={p} value={p}>{p.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={confFilter} onValueChange={setConfFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Confidentiality" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Levels</SelectItem>
+              {["public", "internal", "confidential", "restricted"].map(c => (
+                <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>
               ))}
             </SelectContent>
           </Select>

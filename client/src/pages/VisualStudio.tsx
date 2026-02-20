@@ -305,6 +305,22 @@ export default function VisualStudio() {
                   </div>
                 )}
 
+                {/* V4-05: Attach to Pack */}
+                {previewVisual.status === "completed" && previewVisual.imageAssetId && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        toast.info("Attach to Pack", { description: "Select a report or brief from the project to attach this visual. Feature coming soon." });
+                      }}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" /> Attach to Pack
+                    </Button>
+                    <span className="text-xs text-muted-foreground">Link this visual as an annex to an Executive Decision Pack or Design Brief</span>
+                  </div>
+                )}
+
                 {/* Error Message */}
                 {previewVisual.errorMessage && (
                   <div className="bg-destructive/10 rounded p-3 text-sm text-destructive">

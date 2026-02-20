@@ -125,11 +125,12 @@ describe("Explainability Engine", () => {
     };
     const report = generateExplainabilityReport(1, sparseInput, sampleScoreData, "v1.0", "v1.0");
     expect(report.dimensions).toHaveLength(5);
-    // SA dimension should still have 3 drivers even with missing values
+    // SA dimension now has 4 drivers (str01, str02, str03, ctx01Typology) with V4-01 expansion
     const saDim = report.dimensions.find((d) => d.dimension === "sa")!;
-    expect(saDim.drivers).toHaveLength(3);
+    expect(saDim.drivers).toHaveLength(4);
     // Brand Clarity should have rawValue 4
-    expect(saDim.drivers[0].rawValue).toBe(4);
+    const brandDriver = saDim.drivers.find((d) => d.variable === "str01BrandClarity")!;
+    expect(brandDriver.rawValue).toBe(4);
     // Missing values should show as N/A with neutral direction
     const diffDriver = saDim.drivers.find((d) => d.variable === "str02Differentiation")!;
     expect(diffDriver.direction).toBe("neutral");

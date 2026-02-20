@@ -33,6 +33,7 @@ import {
   Activity,
 } from "lucide-react";
 import { toast } from "sonner";
+import CostForecastingPanel from "@/components/CostForecastingPanel";
 
 // ─── Market Trends Panel ─────────────────────────────────────────
 
@@ -611,6 +612,10 @@ export default function AnalyticsDashboard() {
             <Lightbulb className="h-4 w-4 mr-2" />
             Insights
           </TabsTrigger>
+          <TabsTrigger value="cost-forecast">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Cost Forecast
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -634,6 +639,10 @@ export default function AnalyticsDashboard() {
 
         <TabsContent value="insights">
           <InsightFeedPanel />
+        </TabsContent>
+
+        <TabsContent value="cost-forecast">
+          <CostForecastingPanel />
         </TabsContent>
       </Tabs>
     </div>
