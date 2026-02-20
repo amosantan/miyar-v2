@@ -426,3 +426,74 @@
 
 ### Deliverable
 - [x] V1.5 Phase Reality Report (7 sections)
+
+## V2 — Live Market Ingestion Engine
+
+### Priority 1 — Ingestion Architecture Foundation
+- [x] V2-01: SourceConnector interface in server/engines/ingestion/connector.ts
+- [x] V2-01: RawSourcePayload, ExtractedEvidence, NormalizedEvidenceInput types with Zod schemas
+- [x] V2-01: BaseSourceConnector abstract class with shared fetch (timeout 15s, retry 3x exponential backoff)
+- [x] V2-01: npx tsc --noEmit passes
+- [x] V2-02: Ingestion Orchestrator in server/engines/ingestion/orchestrator.ts
+- [x] V2-02: Parallel execution max 3 concurrent connectors
+- [x] V2-02: Failure isolation — one connector failure does not stop the run
+- [x] V2-02: Duplicate detection (sourceUrl + itemName + captureDate composite key)
+- [x] V2-02: IngestionRunReport returned with accurate counts
+- [x] V2-02: All events logged to intelligenceAuditLog
+- [x] V2-03: ingestionRuns table added to drizzle/schema.ts
+- [x] V2-03: Migration generated and applied (44 tables total)
+- [x] V2-03: Orchestrator persists one ingestionRun record per execution
+
+### Priority 2 — UAE Source Connectors
+- [x] V2-04: RAK Ceramics connector (material_cost, Grade B)
+- [x] V2-04: DERA Interiors connector (fitout_rate, Grade C)
+- [x] V2-04: Dragon Mart connector (material_cost, Grade B)
+- [x] V2-04: Porcelanosa connector (material_cost, Grade B)
+- [x] V2-04: Emaar connector (competitor_project, Grade A)
+- [x] V2-04: DAMAC connector (competitor_project, Grade A)
+- [x] V2-04: Nakheel connector (competitor_project, Grade A)
+- [x] V2-04: RICS connector (market_trend, Grade A)
+- [x] V2-04: JLL MENA connector (market_trend, Grade A)
+- [x] V2-04: Dubai Statistics Center connector (market_trend, Grade A)
+- [x] V2-04: Hafele connector (material_cost, Grade B)
+- [x] V2-04: GEMS Building Materials connector (material_cost, Grade B)
+- [x] V2-04: Deterministic grade assignment (A/B/C rules)
+- [x] V2-04: Deterministic confidence rules (base + recency bonus/penalty, cap 1.0, floor 0.20)
+- [x] V2-04: All 12 registered in orchestrator default connector list
+
+### Priority 3 — Ingestion API & Triggers
+- [x] V2-05: ingestion.runAll mutation
+- [x] V2-05: ingestion.runSource mutation (single connector by sourceId)
+- [x] V2-05: ingestion.getHistory query (last N runs, paginated)
+- [x] V2-05: ingestion.getStatus query (last run + next scheduled)
+- [x] V2-06: Ingestion Control UI panel in Market Intelligence section
+- [x] V2-06: "Run All Sources Now" button with live progress
+- [x] V2-06: "Run Single Source" dropdown
+- [x] V2-06: Ingestion History table
+- [x] V2-06: Last run summary card
+- [x] V2-07: node-cron scheduler (default Monday 06:00 UTC)
+- [x] V2-07: INGESTION_CRON_SCHEDULE env var override
+- [x] V2-07: ingestion.getStatus returns next scheduled run time
+- [x] V2-07: Server does not crash on scheduled run failure
+
+### Priority 4 — Intelligence Layer Wiring
+- [x] V2-08: Wire ingested evidence into benchmark proposals (no source filtering)
+- [x] V2-08: P25/P50/P75 updates after new ingestion run
+- [x] V2-08: Source diversity reflects ingested A/B/C grade mix
+- [x] V2-09: Freshness status computed field (fresh/aging/stale)
+- [x] V2-09: Freshness badge in Evidence Vault UI (green/amber/red)
+- [x] V2-09: Freshness weight multiplier in proposals.generate (fresh=1.0, aging=0.75, stale=0.50)
+- [x] V2-09: Freshness multiplier documented as named constant
+
+### Priority 5 — V2 Hardening & Validation
+- [x] V2-10: Test — connector HTTP 404 → orchestrator continues
+- [x] V2-10: Test — connector timeout 15s → orchestrator continues
+- [x] V2-10: Test — LLM malformed JSON → safe fallback
+- [x] V2-10: Test — duplicate detection on double run
+- [x] V2-11: Unit tests for fetch/retry, duplicate detection, grade rules, confidence rules, freshness multiplier
+- [x] V2-11: Integration test — full orchestrator with mock connectors
+- [x] V2-11: Total tests = 277 passing (target was ≥ 220)
+- [x] V2-11: 0 TypeScript errors confirmed
+
+### Deliverable
+- [x] V2 Phase Reality Report (7 sections)

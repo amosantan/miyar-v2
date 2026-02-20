@@ -1059,3 +1059,32 @@ export const evidenceReferences = mysqlTable("evidence_references", {
 
 export type EvidenceReference = typeof evidenceReferences.$inferSelect;
 export type InsertEvidenceReference = typeof evidenceReferences.$inferInsert;
+
+// ─── Ingestion Runs (V2 — Live Market Ingestion) ──────────────────────────────
+export const ingestionRuns = mysqlTable("ingestion_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: varchar("runId", { length: 64 }).notNull().unique(),
+  trigger: mysqlEnum("trigger", ["manual", "scheduled", "api"]).notNull(),
+  triggeredBy: int("triggeredBy"), // userId or null for scheduled
+  status: mysqlEnum("status", ["running", "completed", "failed"]).default("running").notNull(),
+  // Counts
+  totalSources: int("totalSources").default(0).notNull(),
+  sourcesSucceeded: int("sourcesSucceeded").default(0).notNull(),
+  sourcesFailed: int("sourcesFailed").default(0).notNull(),
+  recordsExtracted: int("recordsExtracted").default(0).notNull(),
+  recordsInserted: int("recordsInserted").default(0).notNull(),
+  duplicatesSkipped: int("duplicatesSkipped").default(0).notNull(),
+  // Detail
+  sourceBreakdown: json("sourceBreakdown"), // per-source { sourceId, name, status, extracted, inserted, duplicates, errors }
+  errorSummary: json("errorSummary"), // [{ sourceId, error }]
+  // Timing
+  startedAt: timestamp("startedAt").notNull(),
+  completedAt: timestamp("completedAt"),
+  durationMs: int("durationMs"),
+  // Metadata
+  cronExpression: varchar("cronExpression", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type IngestionRun = typeof ingestionRuns.$inferSelect;
+export type InsertIngestionRun = typeof ingestionRuns.$inferInsert;

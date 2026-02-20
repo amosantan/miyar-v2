@@ -1,0 +1,22 @@
+CREATE TABLE `ingestion_runs` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`runId` varchar(64) NOT NULL,
+	`trigger` enum('manual','scheduled','api') NOT NULL,
+	`triggeredBy` int,
+	`status` enum('running','completed','failed') NOT NULL DEFAULT 'running',
+	`totalSources` int NOT NULL DEFAULT 0,
+	`sourcesSucceeded` int NOT NULL DEFAULT 0,
+	`sourcesFailed` int NOT NULL DEFAULT 0,
+	`recordsExtracted` int NOT NULL DEFAULT 0,
+	`recordsInserted` int NOT NULL DEFAULT 0,
+	`duplicatesSkipped` int NOT NULL DEFAULT 0,
+	`sourceBreakdown` json,
+	`errorSummary` json,
+	`startedAt` timestamp NOT NULL,
+	`completedAt` timestamp,
+	`durationMs` int,
+	`cronExpression` varchar(64),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `ingestion_runs_id` PRIMARY KEY(`id`),
+	CONSTRAINT `ingestion_runs_runId_unique` UNIQUE(`runId`)
+);

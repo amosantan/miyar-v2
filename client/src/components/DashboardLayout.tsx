@@ -60,6 +60,7 @@ import {
   Tags,
   ScrollText,
   BookOpen,
+  Zap,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -97,6 +98,7 @@ const marketIntelItems = [
   { icon: Building2, label: "Competitors", path: "/market-intel/competitors" },
   { icon: Tags, label: "Trend Tags", path: "/market-intel/tags" },
   { icon: ScrollText, label: "Intel Audit Log", path: "/market-intel/audit" },
+  { icon: Zap, label: "Ingestion Monitor", path: "/market-intel/ingestion" },
 ];
 
 const adminItems = [

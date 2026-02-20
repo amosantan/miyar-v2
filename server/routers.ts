@@ -9,6 +9,7 @@ import { seedRouter } from "./routers/seed";
 import { designRouter } from "./routers/design";
 import { intelligenceRouter } from "./routers/intelligence";
 import { marketIntelligenceRouter } from "./routers/market-intelligence";
+import { ingestionRouter } from "./routers/ingestion";
 
 export const appRouter = router({
   system: systemRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   design: designRouter,
   intelligence: intelligenceRouter,
   marketIntel: marketIntelligenceRouter,
+  ingestion: ingestionRouter,
 });
 
 export type AppRouter = typeof appRouter;

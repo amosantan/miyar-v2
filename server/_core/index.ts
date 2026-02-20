@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { startIngestionScheduler } from "../engines/ingestion/scheduler";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -59,6 +60,13 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+
+    // Start ingestion scheduler (V2-07)
+    try {
+      startIngestionScheduler();
+    } catch (e) {
+      console.error("[Ingestion Scheduler] Failed to start:", e);
+    }
   });
 }
 

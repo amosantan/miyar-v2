@@ -248,7 +248,15 @@ export default function EvidenceVaultMI() {
                             </a>
                           </td>
                           <td className="p-3 text-xs text-muted-foreground">
-                            {new Date(rec.captureDate).toLocaleDateString()}
+                            <div className="flex items-center gap-1.5">
+                              {new Date(rec.captureDate).toLocaleDateString()}
+                              {(() => {
+                                const ageDays = Math.floor((Date.now() - new Date(rec.captureDate).getTime()) / (24 * 60 * 60 * 1000));
+                                if (ageDays <= 90) return <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" title="Fresh (≤3 months)" />;
+                                if (ageDays <= 365) return <span className="inline-block w-2 h-2 rounded-full bg-amber-400" title="Aging (3-12 months)" />;
+                                return <span className="inline-block w-2 h-2 rounded-full bg-red-400" title="Stale (>12 months)" />;
+                              })()}
+                            </div>
                           </td>
                           <td className="p-3 text-right">
                             <Button
