@@ -577,6 +577,29 @@ export const projectRouter = router({
       const activeBV = await db.getActiveBenchmarkVersion();
       const benchmarkVersionTag = activeBV?.versionTag || "v1.0-baseline";
 
+      // Get published logic version for evidence trace
+      const publishedLV = await db.getPublishedLogicVersion();
+      const logicVersionTag = publishedLV?.name || "v1.0-default";
+
+      // Get evidence references linked to this project
+      let evidenceRefs: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }> = [];
+      try {
+        const refs = await db.getEvidenceForTarget("project", input.projectId);
+        if (refs.length > 0) {
+          const evidenceIds = refs.map((r: any) => r.evidenceRecordId);
+          const allEvidence = await db.listEvidenceRecords({ projectId: input.projectId });
+          evidenceRefs = allEvidence
+            .filter((e: any) => evidenceIds.includes(e.id))
+            .map((e: any) => ({
+              title: e.title || e.itemName,
+              sourceUrl: e.sourceUrl || undefined,
+              category: e.category || undefined,
+              reliabilityGrade: e.reliabilityGrade || undefined,
+              captureDate: e.captureDate ? String(e.captureDate) : undefined,
+            }));
+        }
+      } catch { /* evidence refs are optional */ }
+
       const pdfInput: PDFReportInput = {
         projectName: project.name,
         projectId: project.id,
@@ -587,6 +610,8 @@ export const projectRouter = router({
         fiveLens,
         roiNarrative: roiResult,
         benchmarkVersion: benchmarkVersionTag,
+        logicVersion: logicVersionTag,
+        evidenceRefs,
       };
       const html = generateReportHTML(input.reportType, pdfInput);
 

@@ -48,13 +48,11 @@ describe("Explainability Engine", () => {
     decisionStatus: "Validated",
     dimensionWeights: { sa: 0.2, ff: 0.2, mp: 0.2, ds: 0.2, er: 0.2 },
     variableContributions: {
-      str01BrandClarity: 3.2,
-      str02Differentiation: 4.0,
-      str03BuyerMaturity: 2.4,
-      fin01BudgetCap: 1.6,
-      fin02Flexibility: 2.4,
-      fin03ShockTolerance: 1.6,
-      fin04SalesPremium: 3.2,
+      sa: { str01_n: 0.263, str03_n: 0.125, compatVisionMarket: 0.15, compatVisionDesign: 0.15 },
+      ff: { budgetFit: 0.36, fin02_n: 0.10, executionResilience: 0.15, costStability: 0.075 },
+      mp: { marketFit: 0.28, differentiationPressure: 0.188, des04_n: 0.15, trendFit: 0.14 },
+      ds: { str02_n: 0.30, competitorInverse: 0.063, des04_n: 0.15, des02_n: 0.15 },
+      er: { executionResilience: 0.263, supplyChainInverse: 0.063, complexityInverse: 0.10, approvalsInverse: 0.15 },
     },
     penalties: [{ rule: "low_ff", points: 5, reason: "Financial feasibility below threshold" }],
     riskFlags: [{ flag: "budget_risk", severity: "medium", detail: "Budget cap is tight" }],
@@ -130,11 +128,11 @@ describe("Explainability Engine", () => {
     // SA dimension should still have 3 drivers even with missing values
     const saDim = report.dimensions.find((d) => d.dimension === "sa")!;
     expect(saDim.drivers).toHaveLength(3);
-    // Brand Clarity should have value 4
-    expect(saDim.drivers[0].value).toBe(4);
-    // Missing values should default to 3 (neutral) in the engine
+    // Brand Clarity should have rawValue 4
+    expect(saDim.drivers[0].rawValue).toBe(4);
+    // Missing values should show as N/A with neutral direction
     const diffDriver = saDim.drivers.find((d) => d.variable === "str02Differentiation")!;
-    expect(diffDriver.direction).toBe("neutral"); // defaults to 3 → neutral
+    expect(diffDriver.direction).toBe("neutral");
     // All dimensions should have summaries
     for (const dim of report.dimensions) {
       expect(dim.summary).toBeTruthy();
@@ -145,9 +143,10 @@ describe("Explainability Engine", () => {
   it("handles empty inputSnapshot without crashing", () => {
     const report = generateExplainabilityReport(1, {}, sampleScoreData, "v1.0", "v1.0");
     expect(report.dimensions).toHaveLength(5);
-    // All drivers should default to neutral (value 3)
+    // All drivers should have N/A rawValue and neutral direction
     for (const dim of report.dimensions) {
       for (const driver of dim.drivers) {
+        expect(driver.rawValue).toBe("N/A");
         expect(driver.direction).toBe("neutral");
         expect(driver.explanation).toBeTruthy();
       }
@@ -159,13 +158,15 @@ describe("Explainability Engine", () => {
     const saDim = report.dimensions.find((d) => d.dimension === "sa")!;
     const brandClarity = saDim.drivers.find((d) => d.variable === "str01BrandClarity")!;
     // Raw value should be 4 (from sampleInput)
-    expect(brandClarity.value).toBe(4);
-    // Contribution should be 3.2 (from sampleScoreData.variableContributions)
-    expect(brandClarity.contribution).toBe(3.2);
+    expect(brandClarity.rawValue).toBe(4);
+    // Contribution should come from sa.str01_n = 0.263
+    expect(brandClarity.contribution).toBeCloseTo(0.263, 2);
     // Direction should be positive (value >= 4)
     expect(brandClarity.direction).toBe("positive");
     // Weight should be 0.2
     expect(brandClarity.weight).toBe(0.2);
+    // normalizedValue should be (4-1)/4 = 0.75
+    expect(brandClarity.normalizedValue).toBeCloseTo(0.75, 2);
   });
 
   it("builds a complete audit pack JSON", () => {

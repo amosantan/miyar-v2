@@ -140,7 +140,7 @@ export function normalizeInputs(
   const executionResilience = (exe02_n + exe04_n) / 2;
   const differentiationPressure = (mkt02_n + str02_n) / 2;
   const budgetFit = computeBudgetFit(inputs.fin01BudgetCap, expectedCost);
-  const costVolatility = (exe01_n * 0.5 + (1 - fin03_n) * 0.5);
+  const costVolatility = ((1 - exe01_n) * 0.5 + (1 - fin03_n) * 0.5);
 
   return {
     str01_n,

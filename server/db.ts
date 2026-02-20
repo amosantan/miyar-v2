@@ -44,6 +44,7 @@ import {
   trendTags,
   entityTags,
   intelligenceAuditLog,
+  evidenceReferences,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1424,4 +1425,57 @@ export async function getIntelligenceAuditEntryById(id: number) {
   if (!db) return undefined;
   const rows = await db.select().from(intelligenceAuditLog).where(eq(intelligenceAuditLog.id, id));
   return rows[0];
+}
+
+// ─── Evidence References (V2.2) ─────────────────────────────────────────────
+
+export async function listEvidenceReferences(filters?: {
+  evidenceRecordId?: number;
+  targetType?: string;
+  targetId?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.evidenceRecordId) conditions.push(eq(evidenceReferences.evidenceRecordId, filters.evidenceRecordId));
+  if (filters?.targetType) conditions.push(eq(evidenceReferences.targetType, filters.targetType as any));
+  if (filters?.targetId) conditions.push(eq(evidenceReferences.targetId, filters.targetId));
+  let query = db.select().from(evidenceReferences);
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as any;
+  }
+  return (query as any).orderBy(desc(evidenceReferences.addedAt));
+}
+
+export async function createEvidenceReference(data: typeof evidenceReferences.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(evidenceReferences).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function deleteEvidenceReference(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(evidenceReferences).where(eq(evidenceReferences.id, id));
+}
+
+export async function getEvidenceForTarget(targetType: string, targetId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  // Get all references for this target
+  const refs = await db.select().from(evidenceReferences)
+    .where(and(
+      eq(evidenceReferences.targetType, targetType as any),
+      eq(evidenceReferences.targetId, targetId),
+    ));
+  if (refs.length === 0) return [];
+  // Join with evidence_records to get full evidence data
+  const recordIds = refs.map(r => r.evidenceRecordId);
+  const records = await db.select().from(evidenceRecords).where(inArray(evidenceRecords.id, recordIds));
+  const recordMap = new Map(records.map(r => [r.id, r]));
+  return refs.map(ref => ({
+    reference: ref,
+    evidence: recordMap.get(ref.evidenceRecordId),
+  }));
 }

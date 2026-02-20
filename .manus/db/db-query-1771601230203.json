@@ -1,0 +1,25 @@
+{
+  "query": "SELECT id, JSON_TYPE(inputSnapshot) as type, LEFT(CAST(inputSnapshot AS CHAR), 300) as preview FROM score_matrices ORDER BY id DESC LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3qjjvhuo9AvMUPD.984bcc8a4c01 --database Qjy3c67dUhuYfoZUKPnMuR --execute SELECT id, JSON_TYPE(inputSnapshot) as type, LEFT(CAST(inputSnapshot AS CHAR), 300) as preview FROM score_matrices ORDER BY id DESC LIMIT 3;",
+  "rows": [
+    {
+      "id": "60001",
+      "type": "OBJECT",
+      "preview": "{\"add01SampleKit\": true, \"add02PortfolioMode\": false, \"add03DashboardExport\": true, \"ctx01Typology\": \"Residential\", \"ctx02Scale\": \"Medium\", \"ctx03Gfa\": 180000, \"ctx04Location\": \"Prime\", \"ctx05Horizon\": \"24-36m\", \"des01Style\": \"Contemporary\", \"des02MaterialLevel\": 5, \"des03Complexity\": 4, \"des04Exper"
+    },
+    {
+      "id": "30002",
+      "type": "OBJECT",
+      "preview": "{\"add01SampleKit\": true, \"add02PortfolioMode\": false, \"add03DashboardExport\": true, \"ctx01Typology\": \"Residential\", \"ctx02Scale\": \"Medium\", \"ctx03Gfa\": 180000, \"ctx04Location\": \"Prime\", \"ctx05Horizon\": \"24-36m\", \"des01Style\": \"Contemporary\", \"des02MaterialLevel\": 5, \"des03Complexity\": 4, \"des04Exper"
+    },
+    {
+      "id": "30001",
+      "type": "OBJECT",
+      "preview": "{\"add01SampleKit\": false, \"add02PortfolioMode\": false, \"add03DashboardExport\": true, \"ctx01Typology\": \"Residential\", \"ctx02Scale\": \"Large\", \"ctx03Gfa\": 450000, \"ctx04Location\": \"Secondary\", \"ctx05Horizon\": \"12-24m\", \"des01Style\": \"Modern\", \"des02MaterialLevel\": 2, \"des03Complexity\": 2, \"des04Experie"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttype\tpreview\n60001\tOBJECT\t{\"add01SampleKit\": true, \"add02PortfolioMode\": false, \"add03DashboardExport\": true, \"ctx01Typology\": \"Residential\", \"ctx02Scale\": \"Medium\", \"ctx03Gfa\": 180000, \"ctx04Location\": \"Prime\", \"ctx05Horizon\": \"24-36m\", \"des01Style\": \"Contemporary\", \"des02MaterialLevel\": 5, \"des03Complexity\": 4, \"des04Exper\n30002\tOBJECT\t{\"add01SampleKit\": true, \"add02PortfolioMode\": false, \"add03DashboardExport\": true, \"ctx01Typology\": \"Residential\", \"ctx02Scale\": \"Medium\", \"ctx03Gfa\": 180000, \"ctx04Location\": \"Prime\", \"ctx05Horizon\": \"24-36m\", \"des01Style\": \"Contemporary\", \"des02MaterialLevel\": 5, \"des03Complexity\": 4, \"des04Exper\n30001\tOBJECT\t{\"add01SampleKit\": false, \"add02PortfolioMode\": false, \"add03DashboardExport\": true, \"ctx01Typology\": \"Residential\", \"ctx02Scale\": \"Large\", \"ctx03Gfa\": 450000, \"ctx04Location\": \"Secondary\", \"ctx05Horizon\": \"12-24m\", \"des01Style\": \"Modern\", \"des02MaterialLevel\": 2, \"des03Complexity\": 2, \"des04Experie\n",
+  "stderr": "",
+  "execution_time_ms": 1698
+}

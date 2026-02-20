@@ -34,6 +34,15 @@ const evidenceRecordSchema = z.object({
   confidenceScore: z.number().min(0).max(100),
   extractedSnippet: z.string().optional(),
   notes: z.string().optional(),
+  // V2.2 metadata fields
+  title: z.string().optional(),
+  evidencePhase: z.enum(["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]).optional(),
+  author: z.string().optional(),
+  confidentiality: z.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
+  tags: z.array(z.string()).optional(),
+  fileUrl: z.string().optional(),
+  fileKey: z.string().optional(),
+  fileMimeType: z.string().optional(),
 });
 
 const sourceRegistrySchema = z.object({
@@ -273,6 +282,62 @@ export const marketIntelligenceRouter = router({
     stats: protectedProcedure.query(async () => {
       return db.getEvidenceStats();
     }),
+
+    // V2.2 — Evidence References
+    listReferences: protectedProcedure
+      .input(z.object({
+        evidenceRecordId: z.number().optional(),
+        targetType: z.string().optional(),
+        targetId: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        return db.listEvidenceReferences(input);
+      }),
+
+    addReference: adminProcedure
+      .input(z.object({
+        evidenceRecordId: z.number(),
+        targetType: z.enum([
+          "scenario", "decision_note", "explainability_driver",
+          "design_brief", "report", "material_board", "pack_section",
+        ]),
+        targetId: z.number(),
+        sectionLabel: z.string().optional(),
+        citationText: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await db.createEvidenceReference({ ...input, addedBy: ctx.user.id });
+        await db.createAuditLog({
+          userId: ctx.user.id,
+          action: "evidence_reference.create",
+          entityType: "evidence_reference",
+          entityId: result.id,
+        });
+        return result;
+      }),
+
+    removeReference: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.deleteEvidenceReference(input.id);
+        await db.createAuditLog({
+          userId: ctx.user.id,
+          action: "evidence_reference.delete",
+          entityType: "evidence_reference",
+          entityId: input.id,
+        });
+        return { success: true };
+      }),
+
+    // Get evidence records linked to a specific target (e.g., scenario, design_brief)
+    getForTarget: protectedProcedure
+      .input(z.object({
+        targetType: z.string(),
+        targetId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        return db.getEvidenceForTarget(input.targetType, input.targetId);
+      }),
   }),
 
   // ─── Benchmark Proposals ──────────────────────────────────────────────────

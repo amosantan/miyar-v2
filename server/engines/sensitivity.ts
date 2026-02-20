@@ -43,7 +43,7 @@ export function runSensitivityAnalysis(
     const upVal = field.type === "ordinal"
       ? Math.min(5, (currentVal as number) + field.step)
       : (currentVal as number) + field.step;
-    (upInputs as any)[field.key] = upVal;
+    (upInputs as Record<string, unknown>)[field.key] = upVal;
     const upResult = evaluate(upInputs, config);
 
     // Perturb down
@@ -51,7 +51,7 @@ export function runSensitivityAnalysis(
     const downVal = field.type === "ordinal"
       ? Math.max(1, (currentVal as number) - field.step)
       : Math.max(0, (currentVal as number) - field.step);
-    (downInputs as any)[field.key] = downVal;
+    (downInputs as Record<string, unknown>)[field.key] = downVal;
     const downResult = evaluate(downInputs, config);
 
     const sensitivity = Math.abs(upResult.compositeScore - downResult.compositeScore);

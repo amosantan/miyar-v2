@@ -231,13 +231,13 @@ export const designRouter = router({
       const project = await db.getProjectById(brief.projectId);
 
       const docxBuffer = await generateDesignBriefDocx({
-        projectIdentity: brief.projectIdentity,
+        projectIdentity: (brief.projectIdentity ?? {}) as Record<string, unknown>,
         positioningStatement: brief.positioningStatement ?? "",
-        styleMood: brief.styleMood,
-        materialGuidance: brief.materialGuidance,
-        budgetGuardrails: brief.budgetGuardrails,
-        procurementConstraints: brief.procurementConstraints,
-        deliverablesChecklist: brief.deliverablesChecklist,
+        styleMood: (brief.styleMood ?? {}) as Record<string, unknown>,
+        materialGuidance: (brief.materialGuidance ?? {}) as Record<string, unknown>,
+        budgetGuardrails: (brief.budgetGuardrails ?? {}) as Record<string, unknown>,
+        procurementConstraints: (brief.procurementConstraints ?? {}) as Record<string, unknown>,
+        deliverablesChecklist: (brief.deliverablesChecklist ?? {}) as Record<string, unknown>,
         version: brief.version,
         projectName: project?.name,
       });
@@ -338,7 +338,17 @@ export const designRouter = router({
   listVisuals: protectedProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ input }) => {
-      return db.getGeneratedVisualsByProject(input.projectId);
+      const visuals = await db.getGeneratedVisualsByProject(input.projectId);
+      // Join with project_assets to get image URLs
+      const enriched = await Promise.all(visuals.map(async (v) => {
+        let imageUrl: string | null = null;
+        if (v.imageAssetId) {
+          const asset = await db.getProjectAssetById(v.imageAssetId);
+          imageUrl = asset?.storageUrl ?? null;
+        }
+        return { ...v, imageUrl };
+      }));
+      return enriched;
     }),
 
   // ─── Material Board Composer ────────────────────────────────────────────────

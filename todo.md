@@ -367,3 +367,62 @@
 - [x] Tests for evidence CRUD, proposal workflow, competitor CRUD, tag operations (22 new tests, 133 total passing)
 - [ ] Validation with 3 example cost source URLs + 2 competitor project URLs (deferred to live integration)
 - [x] Stage 1 Phase Reality Report
+
+## V1.5 — Production Readiness Phase (Authorized 2026-02-20)
+
+### Priority 1 — Critical Bug Fixes
+- [x] V1.5-01: Fix costVolatility normalization bug — change exe01_n to (1-exe01_n) in normalization.ts
+- [x] V1.5-01: Unit test — exe01=5, fin03=5 → costVolatility=0.0
+- [x] V1.5-01: Unit test — exe01=1, fin03=1 → costVolatility=1.0
+- [x] V1.5-01: Confirm no other derived composites reference old formula (scoring.ts correctly uses (1-exe01_n))
+- [x] V1.5-01: Confirm scoreMatrix recalculates correctly after fix (7 tests passing)
+- [x] V1.5-02: Fix explainability inputSnapshot undefined bug
+- [x] V1.5-02: Ensure inputSnapshot contains ALL 25 raw input variable values
+- [x] V1.5-02: Confirm ScoreDriver.rawValue and DimensionExplainability display actual values
+- [x] V1.5-02: End-to-end test — zero undefined values in explainability panel (8 new tests)
+- [x] V1.5-02: Confirm project.ts router passes correct snapshot object
+
+### Priority 2 — Open V2.1-V2.4 Tasks
+- [x] V1.5-03: V2.2 Evidence Metadata Completion — metadata fields (title, author, phase, confidentiality, tags, fileUrl), evidence_references table, reference CRUD, updated UI with expandable detail panels
+- [x] V1.5-04: V2.3 Visual Studio Upgrades — image URL from project_assets join, visual detail dialog with prompt/context/model version, hover preview, error display
+- [x] V1.5-05: V2.4 Developer-Ready Pack Upgrades — logic_version_id + benchmark_version_id in evidence trace, evidence references table in all packs, disclaimers in PDF + DOCX
+
+### Priority 3 — Logic Registry Validation
+- [x] V1.5-06: Confirmed exactly one published Logic Version in DB (id=1, "MIYAR Logic v1.0 — Baseline", SA=0.25/FF=0.20/MP=0.20/DS=0.20/ER=0.15)
+- [x] V1.5-06: Confirmed buildEvalConfig() reads published version at runtime (wired in all 5 evaluate() call sites)
+- [x] V1.5-06: Confirmed published weights total 1.0 (0.25+0.20+0.20+0.20+0.15=1.00)
+- [x] V1.5-06: Decision thresholds confirmed (validated>=70, conditional>=50, not_validated<50 in scoring.ts)
+- [x] V1.5-06: scoreMatrix stores logicVersionId FK (verified in evaluate procedure)
+- [x] V1.5-07: Validated 12 UAE default sources (3 manufacturers, 2 suppliers, 1 retailer, 3 developers, 2 industry reports, 1 government) — all whitelisted, UAE region, idempotent seed
+
+### Priority 4 — End-to-End Flow Validation
+- [x] V1.5-08: Full evaluation pipeline E2E test (20 tests) — composite=66.08, SA=75, FF=74.38, MP=72.50, DS=61.25, ER=38.75, decision=conditional
+- [x] V1.5-08: All outputs verified: costVolatility=0.375, ROI=334173 AED (22.28x), sensitivity runs, explainability zero undefined values
+- [x] V1.5-09: Benchmark proposal pipeline test (15 tests) — P25=120, P50=150, P75=180, weightedMean=140 (A=3x/B=2x/C=1x), diversity=3, confidence=50
+
+### Priority 5 — Production Hardening
+- [x] V1.5-10: Environment configuration audit — PASS
+  - All env vars via ENV object in server/_core/env.ts (DATABASE_URL, JWT_SECRET, OAUTH_SERVER_URL, FORGE_API_URL/KEY, OWNER_OPEN_ID, VITE_APP_ID)
+  - No hardcoded credentials found (grep for sk_live/pk_live/AKIA/AIza = zero results)
+  - .env files excluded via .gitignore
+  - DB connection via drizzle(process.env.DATABASE_URL) singleton pattern
+  - S3 storage via Manus Forge proxy (BUILT_IN_FORGE_API_URL/KEY) — no direct AWS keys needed
+  - Webhook secrets stored in DB, not hardcoded
+- [x] V1.5-11: API security audit — PASS
+  - 132 .input() calls with Zod validation across all routers
+  - 16 ordinal variables have z.number().min(1).max(5) bounds
+  - 5 enum variables have z.enum() constraints
+  - No procedures accept raw unvalidated input
+  - No hardcoded credentials (grep zero results)
+  - Webhook secrets stored in DB, not code
+  - All admin operations gated behind adminProcedure
+- [x] V1.5-12: Codebase consistency — PASS
+  - Zero tsc errors (confirmed)
+  - 14 remaining `any` casts in engines (all for dynamic JSON from DB — pdf-report, five-lens, portfolio, intelligence, webhook — acceptable for dynamic data)
+  - Reduced from 20+ `any` types: fixed docx-brief.ts (7 interfaces → Record<string, unknown>), sensitivity.ts (2 casts → Record<string, unknown>)
+  - NormalizedInputs type shared between normalization.ts (export) and scoring.ts (9 usages)
+  - 43 tables confirmed in drizzle/schema.ts
+  - 183 tests passing across 10 test files
+
+### Deliverable
+- [x] V1.5 Phase Reality Report (7 sections)

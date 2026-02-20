@@ -1,13 +1,21 @@
 /**
- * Explainability Engine (V2.12)
+ * Explainability Engine (V2.12 — fixed V1.5)
  * Per-output drivers: why each score, why each material, why each risk flag.
  * Produces structured evidence traces for audit packs.
+ *
+ * V1.5 fixes:
+ * - variableContributions is nested Record<dim, Record<varKey, number>>;
+ *   we now map raw input variable names → contribution keys per dimension.
+ * - String enum variables (mkt01Tier, des01Style) are handled correctly
+ *   instead of being force-parsed as numbers.
+ * - driver.value is guaranteed to never be undefined.
  */
 
 export interface ScoreDriver {
   variable: string;
   label: string;
-  value: number | string;
+  rawValue: number | string;       // actual raw input value (never undefined)
+  normalizedValue: number | null;   // 0-1 normalized form (null for non-ordinal)
   weight: number;
   contribution: number; // weighted contribution to dimension
   direction: "positive" | "negative" | "neutral";
@@ -79,6 +87,65 @@ const VARIABLE_LABELS: Record<string, string> = {
   exe04QaMaturity: "QA Maturity",
 };
 
+/**
+ * Map from raw input variable name → the contribution key used in
+ * computeVariableContributions() for each dimension.
+ * Some raw variables map to derived composites (e.g. str01BrandClarity → str01_n).
+ * Some variables contribute to multiple dimensions via different derived keys.
+ */
+const VARIABLE_TO_CONTRIBUTION_KEY: Record<string, Record<string, string>> = {
+  sa: {
+    str01BrandClarity: "str01_n",
+    str02Differentiation: "compatVisionDesign",  // str02 feeds into compatVisionDesign
+    str03BuyerMaturity: "str03_n",
+  },
+  ff: {
+    fin01BudgetCap: "budgetFit",           // fin01 feeds into budgetFit composite
+    fin02Flexibility: "fin02_n",
+    fin03ShockTolerance: "costStability",   // fin03 feeds into costStability = (1 - costVolatility)
+    fin04SalesPremium: "executionResilience", // closest proxy in ff dimension
+  },
+  mp: {
+    mkt01Tier: "marketFit",                // mkt01 feeds into marketFit composite
+    mkt02Competitor: "differentiationPressure",
+    mkt03Trend: "trendFit",
+  },
+  ds: {
+    des01Style: "str02_n",                 // style feeds through differentiation in ds
+    des02MaterialLevel: "des02_n",
+    des03Complexity: "des04_n",            // complexity is in ds via des04 weight
+    des04Experience: "des04_n",
+    des05Sustainability: "competitorInverse", // closest proxy
+  },
+  er: {
+    exe01SupplyChain: "supplyChainInverse",
+    exe02Contractor: "executionResilience",
+    exe03Approvals: "approvalsInverse",
+    exe04QaMaturity: "executionResilience",
+  },
+};
+
+/** Variables that are string enums (not ordinal 1-5) */
+const STRING_ENUM_VARS = new Set(["mkt01Tier", "des01Style", "ctx01Typology", "ctx02Scale", "ctx04Location"]);
+
+/** Map string enum values to a quality/tier signal for direction assessment */
+const ENUM_QUALITY_MAP: Record<string, Record<string, "positive" | "negative" | "neutral">> = {
+  mkt01Tier: {
+    "Ultra-luxury": "positive",
+    Luxury: "positive",
+    "Upper-mid": "neutral",
+    Mid: "negative",
+  },
+  des01Style: {
+    Modern: "neutral",
+    Contemporary: "positive",
+    Minimal: "neutral",
+    Classic: "neutral",
+    Fusion: "positive",
+    Other: "negative",
+  },
+};
+
 export function generateExplainabilityReport(
   projectId: number,
   inputSnapshot: Record<string, unknown>,
@@ -93,7 +160,7 @@ export function generateExplainabilityReport(
     confidenceScore: number;
     decisionStatus: string;
     dimensionWeights: Record<string, number>;
-    variableContributions: Record<string, number>;
+    variableContributions: Record<string, number | Record<string, number>>;
     penalties: Array<{ rule: string; points: number; reason: string }>;
     riskFlags: Array<{ flag: string; severity: string; detail: string }>;
   },
@@ -107,6 +174,15 @@ export function generateExplainabilityReport(
     ds: scoreData.dsScore,
     er: scoreData.erScore,
   };
+
+  // Flatten nested variableContributions for lookup
+  // Structure: { sa: { str01_n: 0.35, ... }, ff: { budgetFit: 0.45, ... } }
+  const flatContributions: Record<string, Record<string, number>> = {};
+  for (const [dim, val] of Object.entries(scoreData.variableContributions)) {
+    if (typeof val === "object" && val !== null) {
+      flatContributions[dim] = val as Record<string, number>;
+    }
+  }
 
   // Build per-dimension explainability
   const dimensionVarMap: Record<string, string[]> = {
@@ -122,17 +198,54 @@ export function generateExplainabilityReport(
   const dimensions: DimensionExplainability[] = Object.entries(dimScores).map(([dim, score]) => {
     const weight = scoreData.dimensionWeights[dim] ?? 0.2;
     const vars = dimensionVarMap[dim] ?? [];
+    const dimContribs = flatContributions[dim] ?? {};
+
     const drivers: ScoreDriver[] = vars.map((v) => {
+      // Get raw value — guaranteed to exist in inputSnapshot
       const rawVal = inputSnapshot[v];
-      const numVal = typeof rawVal === "number" ? rawVal : (typeof rawVal === "string" ? parseFloat(rawVal) || 3 : 3);
-      const contribution = scoreData.variableContributions[v] ?? 0;
-      const direction: "positive" | "negative" | "neutral" =
-        numVal >= 4 ? "positive" : numVal <= 2 ? "negative" : "neutral";
-      const explanation = buildVariableExplanation(v, numVal, direction);
+      const isStringEnum = STRING_ENUM_VARS.has(v);
+
+      // Compute numeric value for ordinal variables
+      let numVal: number | null = null;
+      let normalizedValue: number | null = null;
+      if (!isStringEnum && typeof rawVal === "number") {
+        numVal = rawVal;
+        normalizedValue = Math.max(0, Math.min(1, (rawVal - 1) / 4)); // ordinal normalization
+      } else if (!isStringEnum && typeof rawVal === "string") {
+        const parsed = parseFloat(rawVal);
+        if (!isNaN(parsed)) {
+          numVal = parsed;
+          normalizedValue = Math.max(0, Math.min(1, (parsed - 1) / 4));
+        }
+      }
+
+      // Look up contribution from the nested structure
+      const contribKey = VARIABLE_TO_CONTRIBUTION_KEY[dim]?.[v];
+      const contribution = contribKey ? (dimContribs[contribKey] ?? 0) : 0;
+
+      // Determine direction
+      let direction: "positive" | "negative" | "neutral";
+      if (isStringEnum) {
+        const enumMap = ENUM_QUALITY_MAP[v];
+        direction = enumMap?.[String(rawVal)] ?? "neutral";
+      } else if (numVal !== null) {
+        direction = numVal >= 4 ? "positive" : numVal <= 2 ? "negative" : "neutral";
+      } else {
+        direction = "neutral";
+      }
+
+      // Safe display value — never undefined
+      const displayValue: number | string = rawVal !== undefined && rawVal !== null
+        ? (typeof rawVal === "number" || typeof rawVal === "string" ? rawVal : String(rawVal))
+        : "N/A";
+
+      const explanation = buildVariableExplanation(v, displayValue, numVal, direction, isStringEnum);
+
       const driver: ScoreDriver = {
         variable: v,
         label: VARIABLE_LABELS[v] ?? v,
-        value: rawVal as number | string,
+        rawValue: displayValue,
+        normalizedValue,
         weight,
         contribution,
         direction,
@@ -196,14 +309,26 @@ export function generateExplainabilityReport(
   };
 }
 
-function buildVariableExplanation(variable: string, value: number, direction: string): string {
+function buildVariableExplanation(
+  variable: string,
+  displayValue: number | string,
+  numVal: number | null,
+  direction: string,
+  isStringEnum: boolean
+): string {
   const label = VARIABLE_LABELS[variable] ?? variable;
-  if (direction === "positive") {
-    return `${label} scored ${value}/5, indicating strong positioning in this area. This contributes positively to the overall evaluation.`;
-  } else if (direction === "negative") {
-    return `${label} scored ${value}/5, indicating a gap that may require attention. This creates downward pressure on the dimension score.`;
+  if (isStringEnum) {
+    return `${label} is set to "${displayValue}". This ${direction === "positive" ? "strengthens" : direction === "negative" ? "weakens" : "has a neutral effect on"} the dimension evaluation.`;
   }
-  return `${label} scored ${value}/5, representing a neutral baseline position.`;
+  if (numVal !== null) {
+    if (direction === "positive") {
+      return `${label} scored ${numVal}/5, indicating strong positioning in this area. This contributes positively to the overall evaluation.`;
+    } else if (direction === "negative") {
+      return `${label} scored ${numVal}/5, indicating a gap that may require attention. This creates downward pressure on the dimension score.`;
+    }
+    return `${label} scored ${numVal}/5, representing a neutral baseline position.`;
+  }
+  return `${label} is set to ${displayValue}.`;
 }
 
 function buildDimensionSummary(

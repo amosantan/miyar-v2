@@ -156,19 +156,23 @@ export default function Explainability() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dim.drivers.map((driver) => {
-                      const rawVal = driver.value;
-                      const numVal = typeof rawVal === "number" ? rawVal : (typeof rawVal === "string" ? parseFloat(rawVal) || 0 : 0);
-                      const normalized = numVal ? ((numVal / 5) * 100).toFixed(0) : "—";
+                    {dim.drivers.map((driver: any) => {
+                      const rawVal = driver.rawValue ?? driver.value;
+                      const normVal = driver.normalizedValue;
+                      const normalizedDisplay = normVal !== null && normVal !== undefined
+                        ? (normVal * 100).toFixed(0) + "%"
+                        : "—";
                       return (
                         <TableRow key={driver.variable}>
                           <TableCell className="font-medium">{driver.label}</TableCell>
                           <TableCell className="text-center font-mono">
-                            {rawVal !== undefined && rawVal !== null ? String(rawVal) : <span className="text-muted-foreground">—</span>}
+                            {rawVal !== undefined && rawVal !== null && rawVal !== "N/A"
+                              ? String(rawVal)
+                              : <span className="text-muted-foreground">—</span>}
                           </TableCell>
-                          <TableCell className="text-center font-mono">{normalized}%</TableCell>
+                          <TableCell className="text-center font-mono">{normalizedDisplay}</TableCell>
                           <TableCell className="text-center font-mono">
-                            {driver.contribution !== undefined ? driver.contribution.toFixed(2) : "0.00"}
+                            {driver.contribution !== undefined ? driver.contribution.toFixed(3) : "0.000"}
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">

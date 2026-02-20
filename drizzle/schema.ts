@@ -835,6 +835,15 @@ export const evidenceRecords = mysqlTable("evidence_records", {
   confidenceScore: int("confidenceScore").notNull(), // 0-100
   extractedSnippet: text("extractedSnippet"),
   notes: text("notes"),
+  // V2.2 metadata fields
+  title: varchar("title", { length: 512 }),
+  evidencePhase: mysqlEnum("evidencePhase", ["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]),
+  author: varchar("author", { length: 255 }),
+  confidentiality: mysqlEnum("confidentiality", ["public", "internal", "confidential", "restricted"]).default("internal"),
+  tags: json("tags"), // string[]
+  fileUrl: text("fileUrl"), // S3 signed URL for attached evidence file
+  fileKey: varchar("fileKey", { length: 512 }), // S3 key for the file
+  fileMimeType: varchar("fileMimeType", { length: 128 }),
   runId: varchar("runId", { length: 64 }), // links to intelligence_audit_log
   createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -1027,3 +1036,26 @@ export const intelligenceAuditLog = mysqlTable("intelligence_audit_log", {
 
 export type IntelligenceAuditLogEntry = typeof intelligenceAuditLog.$inferSelect;
 export type InsertIntelligenceAuditLogEntry = typeof intelligenceAuditLog.$inferInsert;
+
+// ─── Evidence References (V2.2 — Evidence Traceability) ─────────────────────
+export const evidenceReferences = mysqlTable("evidence_references", {
+  id: int("id").autoincrement().primaryKey(),
+  evidenceRecordId: int("evidenceRecordId").notNull(), // FK to evidence_records
+  targetType: mysqlEnum("targetType", [
+    "scenario",
+    "decision_note",
+    "explainability_driver",
+    "design_brief",
+    "report",
+    "material_board",
+    "pack_section",
+  ]).notNull(),
+  targetId: int("targetId").notNull(), // ID of the linked entity
+  sectionLabel: varchar("sectionLabel", { length: 255 }), // e.g. "Materials Specification", "Cost Assumptions"
+  citationText: text("citationText"), // inline citation snippet
+  addedBy: int("addedBy"),
+  addedAt: timestamp("addedAt").defaultNow().notNull(),
+});
+
+export type EvidenceReference = typeof evidenceReferences.$inferSelect;
+export type InsertEvidenceReference = typeof evidenceReferences.$inferInsert;
