@@ -3,6 +3,7 @@ import * as db from "../db";
 import { sdk } from "../_core/sdk";
 import { publicProcedure, router } from "../_core/trpc";
 import crypto from "crypto";
+import bcryptjs from "bcryptjs";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { TRPCError } from "@trpc/server";
@@ -29,12 +30,20 @@ export const authRouter = router({
             }
 
             if (user.password) {
-                const hash = crypto.createHash("sha256").update(input.password).digest("hex");
-                if (hash !== user.password) {
-                    throw new TRPCError({
-                        code: "UNAUTHORIZED",
-                        message: "User not found or incorrect credentials",
-                    });
+                const isValid = await bcryptjs.compare(input.password, user.password);
+                if (!isValid) {
+                    // One-time auto-upgrade from legacy SHA256 hashes
+                    const legacyHash = crypto.createHash("sha256").update(input.password).digest("hex");
+                    if (legacyHash === user.password) {
+                        console.log(`[Auth] Upgrading legacy SHA256 hash to bcrypt for user ${user.id}`);
+                        const newBcryptHash = await bcryptjs.hash(input.password, 12);
+                        await db.upsertUser({ ...user, password: newBcryptHash });
+                    } else {
+                        throw new TRPCError({
+                            code: "UNAUTHORIZED",
+                            message: "User not found or incorrect credentials",
+                        });
+                    }
                 }
             } else {
                 // They have no password (legacy OAuth login), let them set one by logging in or reject
@@ -65,7 +74,7 @@ export const authRouter = router({
                 });
             }
 
-            const hash = crypto.createHash("sha256").update(input.password).digest("hex");
+            const hash = await bcryptjs.hash(input.password, 12);
             const openId = crypto.randomUUID();
 
             await db.upsertUser({
