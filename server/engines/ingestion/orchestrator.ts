@@ -26,6 +26,7 @@ import {
   getEvidenceRecordById
 } from "../../db";
 import { generateBenchmarkProposals } from "./proposal-generator";
+import { triggerAlertEngine } from "../autonomous/alert-engine";
 import { detectPriceChange } from "./change-detector";
 import { detectTrends, type DataPoint } from "../analytics/trend-detection";
 import { evidenceRecords, ingestionRuns, sourceRegistry } from "../../../drizzle/schema";
@@ -585,6 +586,14 @@ export async function runIngestion(
     } catch (err) {
       console.error("[Ingestion] Post-run trend detection failed:", err);
     }
+  }
+
+  // V6: Autonomous Alert Generation
+  try {
+    const alerts = await triggerAlertEngine();
+    console.log(`[Ingestion] Post-run alert generation: ${alerts.length} new alerts created`);
+  } catch (err) {
+    console.error("[Ingestion] Post-run alert generation failed:", err);
   }
 
   const report: IngestionRunReport = {

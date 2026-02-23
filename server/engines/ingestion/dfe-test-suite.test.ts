@@ -19,14 +19,11 @@ vi.mock('../../db', () => ({
 describe('Data Freshness Engine (DFE) Test Suite', () => {
 
     describe('CSV Pipeline (DFE-03 & DFE-04)', () => {
-        it('generates a valid CSV template buffer', () => {
+        it('generates a valid XLSX upload template buffer', () => {
             const buffer = generateCsvTemplate();
             expect(Buffer.isBuffer(buffer)).toBe(true);
-            const content = buffer.toString('utf-8');
-            expect(content).toContain('Source ID');
-            expect(content).toContain('Category');
-            expect(content).toContain('Item Name');
-            expect(content).toContain('Value');
+            expect(buffer.length).toBeGreaterThan(100);
+            expect(buffer.toString('ascii', 0, 2)).toBe('PK');
         });
 
         it('parses correct CSV content and rejects bad rows', async () => {
@@ -35,10 +32,9 @@ describe('Data Freshness Engine (DFE) Test Suite', () => {
                 values: vi.fn().mockReturnThis(),
             } as any);
 
-            const csvStr = `Source ID,Category,Item Name,Value,Unit,Published Date,Tags (comma separated),Notes
-1,material_cost,Premium Marble Tile,150.50,sqm,2024-05-01,"marble,premium",Test note
-1,market_trend,,,piece,,,,
-`;
+            const csvStr = `Item Name,Category,Region,Metric,Value,Unit,Date (YYYY-MM-DD),Tags,Notes
+Premium Marble Tile,material_cost,Dubai,Price per SQM,150.50,sqm,2024-05-01,"marble,premium",Test note
+,,,invalid value,,,,,`;
             const buffer = Buffer.from(csvStr, 'utf-8');
             const result = await processCsvUpload(buffer, 1, 999);
 
@@ -52,8 +48,8 @@ describe('Data Freshness Engine (DFE) Test Suite', () => {
                     insert: vi.fn().mockReturnThis(),
                     values: vi.fn().mockReturnThis(),
                 } as any);
-                const csvStr = `Source ID,Category,Item Name,Value,Unit
-1,material_cost,MockItem${i},${10 + i},sqm`;
+                const csvStr = `Item Name,Category,Region,Metric,Value,Unit
+MockItem${i},material_cost,Dubai,Price,${10 + i},sqm`;
                 const buffer = Buffer.from(csvStr, 'utf-8');
                 const result = await processCsvUpload(buffer, 1, 999);
                 expect(result.successCount).toBe(1);

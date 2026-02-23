@@ -48,6 +48,7 @@ import IntelAuditLog from "./pages/market-intel/IntelAuditLog";
 import IngestionMonitor from "./pages/market-intel/IngestionMonitor";
 import AnalyticsDashboard from "./pages/market-intel/AnalyticsDashboard";
 import DataHealth from "./pages/market-intel/DataHealth";
+import Alerts from "./pages/Alerts";
 
 function Router() {
   return (
@@ -96,6 +97,7 @@ function Router() {
       <Route path="/market-intel/data-health" component={DataHealth} />
       <Route path="/market-intel/ingestion" component={IngestionMonitor} />
       <Route path="/market-intel/analytics" component={AnalyticsDashboard} />
+      <Route path="/alerts" component={Alerts} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

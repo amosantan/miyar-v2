@@ -2,13 +2,65 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
-import { Loader2, TrendingUp, AlertTriangle, Target, Lightbulb } from "lucide-react";
+import { Loader2, TrendingUp, AlertTriangle, Target, Lightbulb, Sparkles } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
+import { Streamdown } from "streamdown";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+
+function PortfolioInsightsAI() {
+  const [enabled, setEnabled] = useState(false);
+  const { data, isLoading, error } = trpc.autonomous.portfolioInsights.useQuery(undefined, {
+    enabled,
+    refetchOnWindowFocus: false,
+  });
+
+  return (
+    <Card className="border-blue-500/20 bg-blue-500/5">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center justify-between">
+          <div className="flex items-center gap-2 text-blue-500">
+            <Sparkles className="h-4 w-4" />
+            Autonomous Portfolio Intelligence
+          </div>
+          {!enabled && !data && (
+            <Button size="sm" variant="outline" className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10" onClick={() => setEnabled(true)}>
+              Generate Executive Briefing
+            </Button>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading && (
+          <div className="flex items-center gap-3 text-sm text-blue-500/70 p-4">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Synthesizing macro-trends & systemic risks across portfolio...
+          </div>
+        )}
+        {error && (
+          <div className="text-sm text-red-500 p-4 bg-red-500/10 rounded-md">
+            Failed to generate insights: {error.message}
+          </div>
+        )}
+        {data?.markdown && (
+          <div className="prose prose-sm prose-invert max-w-none text-muted-foreground prose-headings:text-foreground prose-strong:text-foreground">
+            <Streamdown>{data.markdown}</Streamdown>
+          </div>
+        )}
+        {!enabled && !data && !isLoading && !error && (
+          <p className="text-sm text-muted-foreground">
+            Activate the AI Engine to analyze cross-project patterns, score distributions, and improvement levers for executive directives.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Portfolio() {
   const { data, isLoading } = trpc.admin.portfolio.overview.useQuery();
@@ -79,6 +131,9 @@ export default function Portfolio() {
           </Card>
         </div>
 
+        {/* AI Intelligence Block */}
+        <PortfolioInsightsAI />
+
         {/* Distributions */}
         <div className="grid md:grid-cols-2 gap-4">
           {data.distributions.map((dist) => (
@@ -141,11 +196,10 @@ export default function Portfolio() {
                           if (!cell) return <td key={dim} className="p-2 text-center text-muted-foreground">—</td>;
                           return (
                             <td key={dim} className="p-2 text-center">
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                                cell.status === "compliant" ? "bg-emerald-500/20 text-emerald-400" :
+                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${cell.status === "compliant" ? "bg-emerald-500/20 text-emerald-400" :
                                 cell.status === "warning" ? "bg-amber-500/20 text-amber-400" :
-                                "bg-red-500/20 text-red-400"
-                              }`}>
+                                  "bg-red-500/20 text-red-400"
+                                }`}>
                                 {cell.score.toFixed(1)}
                               </span>
                             </td>

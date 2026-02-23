@@ -177,6 +177,7 @@ const normalizeMessage = (message: Message) => {
 
 type GeminiPart =
   | { text: string }
+  | { inlineData: { mimeType: string; data: string } }
   | { functionCall: { name: string; args: Record<string, unknown> } }
   | { functionResponse: { name: string; response: Record<string, unknown> } };
 
@@ -199,37 +200,49 @@ const mapRoleToGemini = (role: Role): "user" | "model" => {
   return "user";
 };
 
-const normalizeContentToGeminiParts = (
+const normalizeContentToGeminiParts = async (
   content: MessageContent | MessageContent[]
-): GeminiPart[] => {
+): Promise<GeminiPart[]> => {
   const parts = ensureArray(content).map(normalizeContentPart);
-  return parts.map((part) => {
+  return await Promise.all(parts.map(async (part) => {
     if (part.type === "text") return { text: part.text };
     if (part.type === "image_url") {
-      // NOTE: Gemini API expects base64 inlineData or uploaded fileUri for images.
-      // If we only have a URL, we'd theoretically need to fetch it first. 
-      // For this handover, we assume the pipeline passes texts or we mock image support.
-      return { text: `[Image reference: ${part.image_url.url}]` };
+      try {
+        const response = await fetch(part.image_url.url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const mimeType = response.headers.get("content-type") || "image/jpeg";
+        return {
+          inlineData: {
+            mimeType,
+            data: buffer.toString("base64")
+          }
+        };
+      } catch (err: any) {
+        console.error("Failed to fetch image for Gemini inlineData:", err.message);
+        return { text: `[Image reference: ${part.image_url.url}]` };
+      }
     }
     if (part.type === "file_url") {
       return { text: `[File reference: ${part.file_url.url}]` };
     }
     return { text: "" };
-  });
+  }));
 };
 
-const convertMessagesToGemini = (
+const convertMessagesToGemini = async (
   messages: Message[]
-): {
+): Promise<{
   systemInstruction?: { parts: { text: string }[] };
   contents: GeminiContent[];
-} => {
+}> => {
   let systemInstruction: { parts: { text: string }[] } | undefined;
   const contents: GeminiContent[] = [];
 
   for (const msg of messages) {
     if (msg.role === "system") {
-      const parts = normalizeContentToGeminiParts(msg.content);
+      const parts = await normalizeContentToGeminiParts(msg.content);
       if (!systemInstruction) systemInstruction = { parts: [] };
       systemInstruction.parts.push(...(parts as { text: string }[]));
       continue;
@@ -261,7 +274,7 @@ const convertMessagesToGemini = (
     }
 
     const role = mapRoleToGemini(msg.role);
-    const parts = normalizeContentToGeminiParts(msg.content);
+    const parts = await normalizeContentToGeminiParts(msg.content);
 
     // If there were tool_calls in an assistant message, they become functionCall parts
     if (msg.role === "assistant" && (msg as any).tool_calls?.length > 0) {
@@ -311,7 +324,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     response_format,
   } = params;
 
-  const { systemInstruction, contents } = convertMessagesToGemini(messages);
+  const { systemInstruction, contents } = await convertMessagesToGemini(messages);
 
   const payload: Record<string, unknown> = {
     contents,

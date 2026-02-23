@@ -644,6 +644,51 @@ export interface PDFReportInput {
   logicVersion?: string;
   evidenceRefs?: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }>;
   boardSummaries?: Array<{ boardName: string; totalItems: number; estimatedCostLow: number; estimatedCostHigh: number; currency: string; longestLeadTimeDays: number; criticalPathItems: string[]; tierDistribution: Record<string, number> }>;
+  autonomousContent?: string;
+}
+
+function parseMarkdownToHTML(markdown: string): string {
+  let html = markdown || "";
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  const lines = html.split('\\n');
+  const parsedLines: string[] = [];
+  let inList = false;
+
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('### ')) {
+      if (inList) { parsedLines.push('</ul>'); inList = false; }
+      parsedLines.push(`<h3>${trimmed.slice(4)}</h3>`);
+    } else if (trimmed.startsWith('## ')) {
+      if (inList) { parsedLines.push('</ul>'); inList = false; }
+      parsedLines.push(`<h2>${trimmed.slice(3)}</h2>`);
+    } else if (trimmed.startsWith('# ')) {
+      if (inList) { parsedLines.push('</ul>'); inList = false; }
+      parsedLines.push(`<h2>${trimmed.slice(2)}</h2>`);
+    } else if (trimmed.match(/^[\\-\\*]\\s+/)) {
+      if (!inList) { parsedLines.push('<ul style="margin-left: 20px; margin-bottom: 8px;">'); inList = true; }
+      parsedLines.push(`<li style="margin-bottom: 4px;">${trimmed.replace(/^[\\-\\*]\\s+/, '')}</li>`);
+    } else if (trimmed !== '') {
+      if (inList) { parsedLines.push('</ul>'); inList = false; }
+      parsedLines.push(`<p>${trimmed}</p>`);
+    }
+  }
+  if (inList) parsedLines.push('</ul>');
+
+  return `<div class="section markdown-body">${parsedLines.join('\\n')}</div>`;
+}
+
+export function generateAutonomousBriefHTML(data: PDFReportInput): string {
+  const watermark = generateWatermark(data.projectId, "autonomous_design_brief");
+  const contentHtml = parseMarkdownToHTML(data.autonomousContent || "No content generated.");
+  return [
+    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, watermark),
+    contentHtml,
+    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
+    htmlFooter(data.projectId, "autonomous_design_brief", watermark, data.benchmarkVersion, data.logicVersion),
+  ].join("\\n");
 }
 
 export function generateValidationSummaryHTML(data: PDFReportInput): string {
@@ -742,12 +787,12 @@ export interface ScenarioComparisonPDFInput {
 function renderScenarioComparisonTable(data: ScenarioComparisonPDFInput): string {
   const dims = ["sa", "ff", "mp", "ds", "er"] as const;
   const baseScores = (data.baselineScenario.scores ?? {}) as Record<string, number>;
-  
+
   // Header row: Dimension | Baseline | Scenario A | Scenario B | ...
   const headerCols = [
     `<th>Dimension</th>`,
     `<th style="text-align:center;">Baseline<br><span style="font-size:8px;font-weight:400;">${data.baselineScenario.name}</span></th>`,
-    ...data.comparedScenarios.map((s, i) => 
+    ...data.comparedScenarios.map((s, i) =>
       `<th style="text-align:center;">Scenario ${String.fromCharCode(65 + i)}<br><span style="font-size:8px;font-weight:400;">${s.name}</span></th>`
     ),
   ].join("");
@@ -807,7 +852,7 @@ function renderROIComparison(data: ScenarioComparisonPDFInput): string {
   const headerCols = [
     `<th>ROI Metric</th>`,
     `<th style="text-align:right;">Baseline</th>`,
-    ...data.comparedScenarios.map((s, i) => 
+    ...data.comparedScenarios.map((s, i) =>
       `<th style="text-align:right;">Scenario ${String.fromCharCode(65 + i)}</th>`
     ),
   ].join("");
@@ -839,10 +884,10 @@ function renderTradeoffAnalysis(data: ScenarioComparisonPDFInput): string {
     const positives = Object.entries(deltas).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
     const negatives = Object.entries(deltas).filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1]);
 
-    const posItems = positives.slice(0, 3).map(([k, v]) => 
+    const posItems = positives.slice(0, 3).map(([k, v]) =>
       `<div class="action-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: +${v.toFixed(1)} points</div>`
     ).join("");
-    const negItems = negatives.slice(0, 3).map(([k, v]) => 
+    const negItems = negatives.slice(0, 3).map(([k, v]) =>
       `<div class="penalty-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: ${v.toFixed(1)} points</div>`
     ).join("");
 
@@ -882,6 +927,8 @@ export function generateReportHTML(reportType: ReportType, data: PDFReportInput)
       return generateDesignBriefHTML(data);
     case "full_report":
       return generateFullReportHTML(data);
+    case "autonomous_design_brief":
+      return generateAutonomousBriefHTML(data);
     default:
       return generateValidationSummaryHTML(data);
   }

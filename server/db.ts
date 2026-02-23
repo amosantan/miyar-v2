@@ -51,6 +51,7 @@ import {
   trendSnapshots,
   projectInsights,
   priceChangeEvents,
+  platformAlerts,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 

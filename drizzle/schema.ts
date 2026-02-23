@@ -1315,3 +1315,31 @@ export const priceChangeEvents = mysqlTable("price_change_events", {
 
 export type PriceChangeEvent = typeof priceChangeEvents.$inferSelect;
 export type InsertPriceChangeEvent = typeof priceChangeEvents.$inferInsert;
+
+// ─── Platform Alerts (V6 — Autonomous Intelligence) ─────────────────────────
+export const platformAlerts = mysqlTable("platform_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  alertType: mysqlEnum("alertType", [
+    "price_shock",
+    "project_at_risk",
+    "accuracy_degraded",
+    "pattern_warning",
+    "benchmark_drift",
+    "market_opportunity"
+  ]).notNull(),
+  severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  affectedProjectIds: json("affectedProjectIds"),
+  affectedCategories: json("affectedCategories"),
+  triggerData: json("triggerData"),
+  suggestedAction: text("suggestedAction").notNull(),
+  status: mysqlEnum("status", ["active", "acknowledged", "resolved", "expired"]).default("active").notNull(),
+  acknowledgedBy: int("acknowledgedBy"),
+  acknowledgedAt: timestamp("acknowledgedAt"),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PlatformAlert = typeof platformAlerts.$inferSelect;
+export type InsertPlatformAlert = typeof platformAlerts.$inferInsert;

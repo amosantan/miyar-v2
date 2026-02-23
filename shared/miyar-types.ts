@@ -9,7 +9,7 @@ export type DesignStyle = "Modern" | "Contemporary" | "Minimal" | "Classic" | "F
 export type ProjectStatus = "draft" | "ready" | "processing" | "evaluated" | "locked";
 export type DecisionStatus = "validated" | "conditional" | "not_validated";
 export type OverrideType = "strategic" | "market_insight" | "risk_adjustment" | "experimental";
-export type ReportType = "validation_summary" | "design_brief" | "rfq_pack" | "full_report";
+export type ReportType = "validation_summary" | "design_brief" | "rfq_pack" | "full_report" | "autonomous_design_brief";
 export type BenchmarkSourceType = "synthetic" | "client_provided" | "curated";
 
 export interface ProjectInputs {

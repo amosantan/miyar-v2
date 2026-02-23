@@ -180,11 +180,10 @@ function SensitivityToggles({ sensitivityData, baseScore }: {
             <button
               key={entry.variable}
               onClick={() => setSelectedVar(selectedVar === entry.variable ? null : entry.variable)}
-              className={`p-2.5 rounded-lg border text-left transition-all text-xs ${
-                selectedVar === entry.variable
+              className={`p-2.5 rounded-lg border text-left transition-all text-xs ${selectedVar === entry.variable
                   ? "border-primary bg-primary/10"
                   : "border-border hover:border-primary/40 bg-card"
-              }`}
+                }`}
             >
               <p className="font-medium text-foreground truncate">
                 {VARIABLE_LABELS[entry.variable] || entry.variable.replace(/([A-Z])/g, " $1").replace(/^\w/, (c: string) => c.toUpperCase())}
@@ -305,8 +304,8 @@ function ConfidenceExplanation({ confidenceScore, benchmarkCount }: {
               {confidenceScore >= 75
                 ? "Sufficient data and stable model. Scores are reliable for decision-making."
                 : confidenceScore >= 50
-                ? "Some data gaps or limited benchmarks. Consider adding more project-specific benchmarks."
-                : "Significant data gaps. Scores should be treated as directional only."}
+                  ? "Some data gaps or limited benchmarks. Consider adding more project-specific benchmarks."
+                  : "Significant data gaps. Scores should be treated as directional only."}
             </p>
           </div>
         </div>
@@ -382,6 +381,14 @@ function ProjectDetailContent() {
   const { data: fiveLensData } = trpc.project.fiveLens.useQuery({ projectId });
   const { data: intelligenceData } = trpc.project.intelligence.useQuery({ projectId });
   const { data: benchmarks } = trpc.admin.benchmarks.list.useQuery();
+  const { data: activeAlerts = [] } = trpc.autonomous.getAlerts.useQuery({ status: "active" });
+
+  const projectAlerts = activeAlerts.filter((a: any) =>
+    a.affectedProjectIds &&
+    Array.isArray(a.affectedProjectIds) &&
+    a.affectedProjectIds.includes(projectId) &&
+    (a.severity === "critical" || a.severity === "high")
+  );
 
   const evaluateMutation = trpc.project.evaluate.useMutation({
     onSuccess: () => {
@@ -476,6 +483,36 @@ function ProjectDetailContent() {
         </div>
       </div>
 
+      {projectAlerts.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {projectAlerts.map((alert: any) => (
+            <div
+              key={alert.id}
+              className={`rounded-lg border p-4 flex items-start gap-4 ${alert.severity === 'critical' ? 'bg-destructive/10 border-destructive/20' : 'bg-orange-500/10 border-orange-500/20'
+                }`}
+            >
+              <AlertTriangle className={`h-5 w-5 mt-0.5 ${alert.severity === 'critical' ? 'text-destructive' : 'text-orange-500'
+                }`} />
+              <div className="flex-1">
+                <h3 className={`text-sm font-semibold mb-1 ${alert.severity === 'critical' ? 'text-destructive' : 'text-orange-500'
+                  }`}>
+                  {alert.title}
+                </h3>
+                <p className="text-sm text-foreground/90 whitespace-pre-wrap">{alert.message}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/alerts")}
+                className="shrink-0"
+              >
+                View Details
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {hasScores ? (
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="bg-secondary/50 flex-wrap">
@@ -562,10 +599,10 @@ function ProjectDetailContent() {
                     <div className="flex gap-1 flex-wrap justify-end">
                       {(latestScore.riskFlags as string[])?.length > 0
                         ? (latestScore.riskFlags as string[]).map((f: string) => (
-                            <Badge key={f} variant="outline" className="text-[10px] text-miyar-red border-miyar-red/30">
-                              {String(f)}
-                            </Badge>
-                          ))
+                          <Badge key={f} variant="outline" className="text-[10px] text-miyar-red border-miyar-red/30">
+                            {String(f)}
+                          </Badge>
+                        ))
                         : <span className="text-xs text-miyar-emerald">None</span>}
                     </div>
                   </div>
@@ -814,12 +851,11 @@ function ProjectDetailContent() {
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                              lens.grade === "A" ? "bg-emerald-500/20 text-emerald-400" :
-                              lens.grade === "B" ? "bg-blue-500/20 text-blue-400" :
-                              lens.grade === "C" ? "bg-amber-500/20 text-amber-400" :
-                              "bg-red-500/20 text-red-400"
-                            }`}>
+                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-sm font-bold ${lens.grade === "A" ? "bg-emerald-500/20 text-emerald-400" :
+                                lens.grade === "B" ? "bg-blue-500/20 text-blue-400" :
+                                  lens.grade === "C" ? "bg-amber-500/20 text-amber-400" :
+                                    "bg-red-500/20 text-red-400"
+                              }`}>
                               {lens.grade}
                             </div>
                             <div>
@@ -829,9 +865,8 @@ function ProjectDetailContent() {
                           </div>
                           <div className="w-24 h-2 rounded-full bg-muted overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all ${
-                                lens.score >= 70 ? "bg-emerald-500" : lens.score >= 50 ? "bg-amber-500" : "bg-red-500"
-                              }`}
+                              className={`h-full rounded-full transition-all ${lens.score >= 70 ? "bg-emerald-500" : lens.score >= 50 ? "bg-amber-500" : "bg-red-500"
+                                }`}
                               style={{ width: `${lens.score}%` }}
                             />
                           </div>

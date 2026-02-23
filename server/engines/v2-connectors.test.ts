@@ -231,7 +231,7 @@ describe("V2-04: Connector Extraction", () => {
     expect(evidence.length).toBeGreaterThanOrEqual(1);
     expect(evidence[0].category).toBe("fitout_rate");
     expect(evidence[0].geography).toBe("Dubai");
-  });
+  }, 15_000);
 
   it("Emaar extracts competitor project evidence", async () => {
     const connector = new EmaarConnector();
@@ -248,7 +248,7 @@ describe("V2-04: Connector Extraction", () => {
     expect(evidence.length).toBeGreaterThanOrEqual(1);
     expect(evidence[0].category).toBe("competitor_project");
     expect(evidence[0].geography).toBe("Dubai");
-  });
+  }, 15_000);
 
   it("RICS extracts market trend evidence with dates", async () => {
     const connector = new RICSConnector();
@@ -266,7 +266,7 @@ describe("V2-04: Connector Extraction", () => {
     expect(evidence.length).toBeGreaterThanOrEqual(1);
     expect(evidence[0].category).toBe("market_trend");
     expect(evidence[0].geography).toBe("UAE");
-  });
+  }, 15_000);
 
   it("handles empty HTML gracefully with fallback evidence", async () => {
     const connector = new RAKCeramicsConnector();

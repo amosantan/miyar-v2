@@ -14,6 +14,7 @@ import { ingestionRouter } from "./routers/ingestion";
 import { analyticsRouter } from "./routers/analytics";
 import { predictiveRouter } from "./routers/predictive";
 import { learningRouter } from "./routers/learning";
+import { autonomousRouter } from "./routers/autonomous";
 
 export const appRouter = router({
   system: systemRouter,
@@ -29,6 +30,7 @@ export const appRouter = router({
   analytics: analyticsRouter,
   predictive: predictiveRouter,
   learning: learningRouter,
+  autonomous: autonomousRouter,
 });
 
 export type AppRouter = typeof appRouter;

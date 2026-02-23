@@ -52,6 +52,14 @@ const REPORT_TYPES = [
     badge: "Complete",
     badgeColor: "bg-miyar-gold/20 text-miyar-gold",
   },
+  {
+    value: "autonomous_design_brief",
+    label: "Autonomous Design Brief (AI)",
+    icon: FileText,
+    desc: "AI-Generated Comprehensive Brief synthesizing project data with 5-Lens Evaluation and Logic Matrix",
+    badge: "AI-Powered",
+    badgeColor: "bg-blue-500/20 text-blue-500",
+  }
 ];
 
 function ReportsContent() {
@@ -156,19 +164,17 @@ function ReportsContent() {
                   <button
                     key={rt.value}
                     onClick={() => setReportType(rt.value)}
-                    className={`text-left p-4 rounded-lg border transition-all ${
-                      reportType === rt.value
+                    className={`text-left p-4 rounded-lg border transition-all ${reportType === rt.value
                         ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                         : "border-border hover:border-primary/30"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <rt.icon
-                        className={`h-5 w-5 ${
-                          reportType === rt.value
+                        className={`h-5 w-5 ${reportType === rt.value
                             ? "text-primary"
                             : "text-muted-foreground"
-                        }`}
+                          }`}
                       />
                       <Badge className={`text-[10px] ${rt.badgeColor} border-0`}>
                         {rt.badge}

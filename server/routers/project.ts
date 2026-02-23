@@ -15,6 +15,8 @@ import { SCENARIO_TEMPLATES, getScenarioTemplate, solveConstraints, type Constra
 import { dispatchWebhook } from "../engines/webhook";
 import { generateInsights, type InsightInput } from "../engines/analytics/insight-generator";
 import { getTrendSnapshots } from "../db";
+import { triggerAlertEngine } from "../engines/autonomous/alert-engine";
+import { generateAutonomousDesignBrief } from "../engines/autonomous/document-generator";
 
 /**
  * Build evaluation config that respects the Logic Registry.
@@ -129,19 +131,19 @@ export const projectRouter = router({
   listWithScores: protectedProcedure.query(async ({ ctx }) => {
     const projectList = await db.getProjectsByUser(ctx.user.id);
     const result = await Promise.all(
-      projectList.map(async (p) => {
+      projectList.map(async (p: any) => {
         const scores = await db.getScoreMatricesByProject(p.id);
         const latest = scores.length > 0 ? scores[0] : null;
         return {
           ...p,
           latestScore: latest
             ? {
-                compositeScore: Number(latest.compositeScore),
-                rasScore: Number(latest.rasScore),
-                confidenceScore: Number(latest.confidenceScore),
-                decisionStatus: latest.decisionStatus,
-                computedAt: latest.computedAt,
-              }
+              compositeScore: Number(latest.compositeScore),
+              rasScore: Number(latest.rasScore),
+              confidenceScore: Number(latest.confidenceScore),
+              decisionStatus: latest.decisionStatus,
+              computedAt: latest.computedAt,
+            }
             : null,
         };
       })
@@ -174,7 +176,7 @@ export const projectRouter = router({
         entityId: result.id,
       });
       // Dispatch webhook
-      dispatchWebhook("project.created", { projectId: result.id, name: input.name, tier: input.mkt01Tier }).catch(() => {});
+      dispatchWebhook("project.created", { projectId: result.id, name: input.name, tier: input.mkt01Tier }).catch(() => { });
       return result;
     }),
 
@@ -326,12 +328,12 @@ export const projectRouter = router({
         compositeScore: scoreResult.compositeScore,
         decisionStatus: scoreResult.decisionStatus,
         riskScore: scoreResult.riskScore,
-      }).catch(() => {});
+      }).catch(() => { });
 
       // V3-09: Generate project insights after evaluation
       try {
         const trendSnaps = await getTrendSnapshots({ limit: 50 });
-        const trends = trendSnaps.map((s) => ({
+        const trends = trendSnaps.map((s: any) => ({
           metric: s.metric,
           category: s.category,
           direction: s.direction || "stable",
@@ -371,6 +373,14 @@ export const projectRouter = router({
         console.log(`[V3-09] Generated ${insights.length} insights for project ${input.id}`);
       } catch (e) {
         console.warn("[V3-09] Insight generation failed (non-blocking):", e);
+      }
+
+      // V6: Autonomous Alert Generation
+      try {
+        const alerts = await triggerAlertEngine();
+        console.log(`[Project] Post-evaluation alert generation: ${alerts.length} new alerts created`);
+      } catch (err) {
+        console.error("[Project] Post-evaluation alert generation failed:", err);
       }
 
       return { scoreMatrixId: matrixResult.id, ...scoreResult };
@@ -540,7 +550,7 @@ export const projectRouter = router({
   generateReport: protectedProcedure
     .input(z.object({
       projectId: z.number(),
-      reportType: z.enum(["validation_summary", "design_brief", "full_report"]),
+      reportType: z.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"]),
     }))
     .mutation(async ({ ctx, input }) => {
       const project = await db.getProjectById(input.projectId);
@@ -621,6 +631,15 @@ export const projectRouter = router({
         reportData = generateValidationSummary(project.name, project.id, inputs, scoreResult, sensitivity);
       } else if (input.reportType === "design_brief") {
         reportData = generateDesignBrief(project.name, project.id, inputs, scoreResult, sensitivity);
+      } else if (input.reportType === "autonomous_design_brief") {
+        const mdContent = await generateAutonomousDesignBrief(project.id);
+        reportData = {
+          reportType: "autonomous_design_brief",
+          generatedAt: new Date().toISOString(),
+          projectName: project.name,
+          projectId: project.id,
+          content: mdContent
+        };
       } else {
         reportData = generateFullReport(project.name, project.id, inputs, scoreResult, sensitivity, roi!);
       }
@@ -696,6 +715,7 @@ export const projectRouter = router({
         logicVersion: logicVersionTag,
         evidenceRefs,
         boardSummaries,
+        autonomousContent: input.reportType === "autonomous_design_brief" ? (reportData as any).content : undefined
       };
       const html = generateReportHTML(input.reportType, pdfInput);
 
@@ -734,7 +754,7 @@ export const projectRouter = router({
         reportType: input.reportType,
         fileUrl,
         compositeScore: scoreResult.compositeScore,
-      }).catch(() => {});
+      }).catch(() => { });
 
       return {
         ...reportData,
