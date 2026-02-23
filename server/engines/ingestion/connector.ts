@@ -15,6 +15,51 @@
  */
 
 import { z } from "zod";
+// @ts-ignore
+import robotsParser from "robots-parser";
+
+// ─── Constants & Resilience Data ─────────────────────────────────
+
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+];
+
+const CAPTCHA_INDICATORS = ["cf-browser-verification", "g-recaptcha", "px-captcha", "Please verify you are a human"];
+const PAYWALL_INDICATORS = ["subscribe to read", "premium content", "paywall"];
+
+function getRandomUserAgent() {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+const robotsCache = new Map<string, ReturnType<typeof robotsParser>>();
+
+async function checkRobotsTxt(targetUrl: string, userAgent: string): Promise<boolean> {
+  try {
+    const urlObj = new URL(targetUrl);
+    const origin = urlObj.origin;
+    let robots = robotsCache.get(origin);
+
+    if (!robots) {
+      const robotsUrl = `${origin}/robots.txt`;
+      const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
+      if (res.ok) {
+        const text = await res.text();
+        robots = robotsParser(robotsUrl, text);
+      } else {
+        robots = robotsParser(robotsUrl, "");
+      }
+      robotsCache.set(origin, robots);
+    }
+
+    return robots.isAllowed(targetUrl, userAgent) !== false;
+  } catch (err) {
+    return true; // fail open
+  }
+}
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -24,6 +69,8 @@ export interface SourceConnector {
   sourceUrl: string;
   /** Optional: set by orchestrator before fetch to enable incremental ingestion */
   lastSuccessfulFetch?: Date;
+  /** Optional: artificial delay applied before the specific request fires */
+  requestDelayMs?: number;
   fetch(): Promise<RawSourcePayload>;
   extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
   normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
@@ -163,6 +210,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
   abstract sourceUrl: string;
   /** Set by orchestrator before fetch to enable incremental ingestion */
   lastSuccessfulFetch?: Date;
+  requestDelayMs?: number;
 
   /**
    * Shared fetch with timeout (15s) and exponential backoff retry (max 3 attempts).
@@ -170,6 +218,21 @@ export abstract class BaseSourceConnector implements SourceConnector {
    */
   async fetch(): Promise<RawSourcePayload> {
     let lastError: string | undefined;
+    const userAgent = getRandomUserAgent();
+
+    const isAllowed = await checkRobotsTxt(this.sourceUrl, userAgent);
+    if (!isAllowed) {
+      return {
+        url: this.sourceUrl,
+        fetchedAt: new Date(),
+        statusCode: 403,
+        error: "Blocked by origin robots.txt",
+      };
+    }
+
+    if (this.requestDelayMs && this.requestDelayMs > 0) {
+      await new Promise(r => setTimeout(r, this.requestDelayMs));
+    }
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -179,7 +242,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
         const response = await globalThis.fetch(this.sourceUrl, {
           signal: controller.signal,
           headers: {
-            "User-Agent": "MIYAR-Intelligence-Engine/2.0",
+            "User-Agent": userAgent,
             "Accept": "text/html,application/json,application/xml;q=0.9,*/*;q=0.8",
           },
         });
@@ -194,6 +257,14 @@ export abstract class BaseSourceConnector implements SourceConnector {
           rawJson = await response.json() as object;
         } else {
           rawHtml = await response.text();
+
+          if (CAPTCHA_INDICATORS.some(ind => rawHtml!.includes(ind))) {
+            throw new Error("CAPTCHA challenge detected on page");
+          }
+          if (PAYWALL_INDICATORS.some(ind => rawHtml!.toLowerCase().includes(ind))) {
+            throw new Error("Paywall detected on page content");
+          }
+
           // Try to parse as JSON if it looks like JSON
           if (rawHtml.trim().startsWith("{") || rawHtml.trim().startsWith("[")) {
             try {

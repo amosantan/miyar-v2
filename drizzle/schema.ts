@@ -693,11 +693,40 @@ export const logicChangeLog = mysqlTable("logic_change_log", {
   actor: int("actor").notNull(),
   changeSummary: text("changeSummary").notNull(),
   rationale: text("rationale").notNull(),
+  status: mysqlEnum("status", ["applied", "proposed", "rejected"]).default("applied").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type LogicChangeLogEntry = typeof logicChangeLog.$inferSelect;
 export type InsertLogicChangeLogEntry = typeof logicChangeLog.$inferInsert;
+
+// ─── Pattern Library (V5-07) ──────────────────────────────────────────────────
+export const decisionPatterns = mysqlTable("decision_patterns", {
+  id: int("id").autoincrement().primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  category: mysqlEnum("category", ["risk_indicator", "success_driver", "cost_anomaly"]).notNull(),
+  conditions: json("conditions").notNull(), // array of logic defining the pattern
+  matchCount: int("matchCount").default(0).notNull(), // times it appeared
+  reliabilityScore: decimal("reliabilityScore", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DecisionPattern = typeof decisionPatterns.$inferSelect;
+export type InsertDecisionPattern = typeof decisionPatterns.$inferInsert;
+
+export const projectPatternMatches = mysqlTable("project_pattern_matches", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  patternId: int("patternId").notNull(),
+  matchedAt: timestamp("matchedAt").defaultNow().notNull(),
+  confidence: decimal("confidence", { precision: 5, scale: 2 }).default("1.00").notNull(),
+  contextSnapshot: json("contextSnapshot"), // snapshot of scores during match
+});
+
+export type ProjectPatternMatch = typeof projectPatternMatches.$inferSelect;
+export type InsertProjectPatternMatch = typeof projectPatternMatches.$inferInsert;
+
 
 // ─── Scenario Inputs (V2.11) ─────────────────────────────────────────────────
 export const scenarioInputs = mysqlTable("scenario_inputs", {
@@ -749,12 +778,90 @@ export const projectOutcomes = mysqlTable("project_outcomes", {
   leadTimesActual: json("leadTimesActual"),
   rfqResults: json("rfqResults"),
   adoptionMetrics: json("adoptionMetrics"),
+
+  // V5 Fields
+  actualFitoutCostPerSqm: decimal("actualFitoutCostPerSqm", { precision: 10, scale: 2 }),
+  actualTotalCost: decimal("actualTotalCost", { precision: 15, scale: 2 }),
+  projectDeliveredOnTime: boolean("projectDeliveredOnTime"),
+  reworkOccurred: boolean("reworkOccurred"),
+  reworkCostAed: decimal("reworkCostAed", { precision: 15, scale: 2 }),
+  clientSatisfactionScore: int("clientSatisfactionScore"),
+  tenderIterations: int("tenderIterations"),
+  keyLessonsLearned: text("keyLessonsLearned"),
+
   capturedAt: timestamp("capturedAt").defaultNow().notNull(),
   capturedBy: int("capturedBy"),
 });
 
 export type ProjectOutcome = typeof projectOutcomes.$inferSelect;
 export type InsertProjectOutcome = typeof projectOutcomes.$inferInsert;
+
+export const outcomeComparisons = mysqlTable("outcome_comparisons", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  comparedAt: timestamp("comparedAt").defaultNow().notNull(),
+
+  // Cost accuracy
+  predictedCostMid: decimal("predictedCostMid", { precision: 15, scale: 2 }),
+  actualCost: decimal("actualCost", { precision: 15, scale: 2 }),
+  costDeltaPct: decimal("costDeltaPct", { precision: 10, scale: 4 }),
+  costAccuracyBand: mysqlEnum("costAccuracyBand", ["within_10pct", "within_20pct", "outside_20pct", "no_prediction"]).notNull(),
+
+  // Score accuracy
+  predictedComposite: decimal("predictedComposite", { precision: 5, scale: 4 }).notNull(),
+  predictedDecision: varchar("predictedDecision", { length: 64 }).notNull(),
+  actualOutcomeSuccess: boolean("actualOutcomeSuccess").notNull(),
+  scorePredictionCorrect: boolean("scorePredictionCorrect").notNull(),
+
+  // Risk accuracy
+  predictedRisk: decimal("predictedRisk", { precision: 5, scale: 4 }).notNull(),
+  actualReworkOccurred: boolean("actualReworkOccurred").notNull(),
+  riskPredictionCorrect: boolean("riskPredictionCorrect").notNull(),
+
+  // Delta summary
+  overallAccuracyGrade: mysqlEnum("overallAccuracyGrade", ["A", "B", "C", "insufficient_data"]).notNull(),
+  learningSignals: json("learningSignals"),
+  rawComparison: json("rawComparison"),
+});
+
+export type OutcomeComparison = typeof outcomeComparisons.$inferSelect;
+export type InsertOutcomeComparison = typeof outcomeComparisons.$inferInsert;
+
+export const accuracySnapshots = mysqlTable("accuracy_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  snapshotDate: timestamp("snapshotDate").defaultNow().notNull(),
+
+  totalComparisons: int("totalComparisons").notNull(),
+  withCostPrediction: int("withCostPrediction").notNull(),
+  withOutcomePrediction: int("withOutcomePrediction").notNull(),
+
+  // Cost accuracy
+  costWithin10Pct: int("costWithin10Pct").notNull(),
+  costWithin20Pct: int("costWithin20Pct").notNull(),
+  costOutside20Pct: int("costOutside20Pct").notNull(),
+  costMaePct: decimal("costMaePct", { precision: 8, scale: 4 }),
+  costTrend: mysqlEnum("costTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+
+  // Score accuracy
+  scoreCorrectPredictions: int("scoreCorrectPredictions").notNull(),
+  scoreIncorrectPredictions: int("scoreIncorrectPredictions").notNull(),
+  scoreAccuracyRate: decimal("scoreAccuracyRate", { precision: 8, scale: 4 }).notNull(),
+  scoreTrend: mysqlEnum("scoreTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+
+  // Risk accuracy
+  riskCorrectPredictions: int("riskCorrectPredictions").notNull(),
+  riskIncorrectPredictions: int("riskIncorrectPredictions").notNull(),
+  riskAccuracyRate: decimal("riskAccuracyRate", { precision: 8, scale: 4 }).notNull(),
+  riskTrend: mysqlEnum("riskTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+
+  overallPlatformAccuracy: decimal("overallPlatformAccuracy", { precision: 8, scale: 4 }).notNull(),
+  gradeA: int("gradeA").notNull(),
+  gradeB: int("gradeB").notNull(),
+  gradeC: int("gradeC").notNull(),
+});
+
+export type AccuracySnapshot = typeof accuracySnapshots.$inferSelect;
+export type InsertAccuracySnapshot = typeof accuracySnapshots.$inferInsert;
 
 // ─── Benchmark Suggestions (V2.13) ──────────────────────────────────────────
 export const benchmarkSuggestions = mysqlTable("benchmark_suggestions", {
@@ -800,6 +907,27 @@ export const sourceRegistry = mysqlTable("source_registry", {
   addedBy: int("addedBy"),
   isActive: boolean("isActive").default(true).notNull(),
   lastSuccessfulFetch: timestamp("lastSuccessfulFetch"),
+
+  // DFE Fields
+  scrapeConfig: json("scrapeConfig"),
+  scrapeSchedule: varchar("scrapeSchedule", { length: 64 }),
+  scrapeMethod: mysqlEnum("scrapeMethod", [
+    "html_llm",
+    "html_rules",
+    "json_api",
+    "rss_feed",
+    "csv_upload",
+    "email_forward",
+  ]).default("html_llm").notNull(),
+  scrapeHeaders: json("scrapeHeaders"),
+  extractionHints: text("extractionHints"),
+  priceFieldMapping: json("priceFieldMapping"),
+  lastScrapedAt: timestamp("lastScrapedAt"),
+  lastScrapedStatus: mysqlEnum("lastScrapedStatus", ["success", "partial", "failed", "never"]).default("never").notNull(),
+  lastRecordCount: int("lastRecordCount").default(0).notNull(),
+  consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
+  requestDelayMs: int("requestDelayMs").default(2000).notNull(),
+
   addedAt: timestamp("addedAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -1171,3 +1299,19 @@ export const projectInsights = mysqlTable("project_insights", {
 
 export type ProjectInsight = typeof projectInsights.$inferSelect;
 export type InsertProjectInsight = typeof projectInsights.$inferInsert;
+
+export const priceChangeEvents = mysqlTable("price_change_events", {
+  id: int("id").autoincrement().primaryKey(),
+  itemName: varchar("itemName", { length: 255 }).notNull(),
+  category: varchar("category", { length: 255 }).notNull(),
+  sourceId: int("sourceId").notNull(),
+  previousPrice: decimal("previousPrice", { precision: 12, scale: 2 }).notNull(),
+  newPrice: decimal("newPrice", { precision: 12, scale: 2 }).notNull(),
+  changePct: decimal("changePct", { precision: 10, scale: 6 }).notNull(),
+  changeDirection: mysqlEnum("changeDirection", ["increased", "decreased"]).notNull(),
+  severity: mysqlEnum("severity", ["significant", "notable", "minor", "none"]).notNull(),
+  detectedAt: timestamp("detectedAt").defaultNow().notNull(),
+});
+
+export type PriceChangeEvent = typeof priceChangeEvents.$inferSelect;
+export type InsertPriceChangeEvent = typeof priceChangeEvents.$inferInsert;

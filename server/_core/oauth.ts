@@ -10,5 +10,5 @@ function getQueryParam(req: Request, key: string): string | undefined {
 }
 
 export function registerOAuthRoutes(app: Express) {
-  // OAuth routes removed in favor of local Auth routes.
+  // OAuth routes removed — authentication handled by local auth routes in routers/auth.ts
 }

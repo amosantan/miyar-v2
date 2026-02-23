@@ -7,6 +7,8 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { predictCostRange, predictOutcome, projectScenarioCost } from "../engines/predictive";
+import { matchScoreMatrixToPatterns } from "../engines/learning/pattern-extractor";
+import { decisionPatterns } from "../../drizzle/schema";
 import type { EvidenceDataPoint, TrendDataPoint, ComparableOutcome } from "../engines/predictive";
 
 export const predictiveRouter = router({
@@ -99,10 +101,37 @@ export const predictiveRouter = router({
       }
 
       return predictOutcome(compositeScore, outcomes, variableContributions, {
-          typology: project.ctx01Typology || "Residential",
-          tier: project.mkt01Tier || "Mid",
-          geography: project.ctx04Location || undefined,
+        typology: project.ctx01Typology || "Residential",
+        tier: project.mkt01Tier || "Mid",
+        geography: project.ctx04Location || undefined,
       });
+    }),
+
+  /**
+   * V5-08: Get matched learning patterns for a project
+   */
+  getProjectPatterns: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const matrices = await db.getScoreMatricesByProject(input.projectId);
+      const latest = matrices[0];
+      if (!latest) return [];
+
+      const ormDb = await db.getDb();
+      const activePatterns = await ormDb.select().from(decisionPatterns);
+
+      const scores = {
+        SA: Number(latest.saScore) || 0,
+        FF: Number(latest.ffScore) || 0,
+        MP: Number(latest.mpScore) || 0,
+        DS: Number(latest.dsScore) || 0,
+        ER: Number(latest.erScore) || 0,
+      };
+
+      return matchScoreMatrixToPatterns(scores, activePatterns);
     }),
 
   /**

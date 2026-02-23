@@ -7,6 +7,9 @@ import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
 import * as db from "../db";
 import { nanoid } from "nanoid";
+import { DynamicConnector } from "../engines/ingestion/connectors/dynamic";
+import { runSingleConnector, testScrape } from "../engines/ingestion/orchestrator";
+import { generateCsvTemplate, processCsvUpload } from "../engines/ingestion/csv-pipeline";
 
 // ─── Shared Schemas ─────────────────────────────────────────────────────────
 
@@ -57,6 +60,18 @@ const sourceRegistrySchema = z.object({
   isWhitelisted: z.boolean().default(true),
   region: z.string().default("UAE"),
   notes: z.string().optional(),
+  // DFE Fields
+  scrapeConfig: z.any().optional(),
+  scrapeSchedule: z.string().optional(),
+  scrapeMethod: z.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+  scrapeHeaders: z.any().optional(),
+  extractionHints: z.string().optional(),
+  priceFieldMapping: z.any().optional(),
+  lastScrapedAt: z.string().optional(),
+  lastScrapedStatus: z.enum(["success", "partial", "failed", "never"]).default("never"),
+  lastRecordCount: z.number().default(0),
+  consecutiveFailures: z.number().default(0),
+  requestDelayMs: z.number().default(2000),
 });
 
 // ─── Helper: generate evidence record ID ────────────────────────────────────
@@ -92,7 +107,12 @@ export const marketIntelligenceRouter = router({
     create: adminProcedure
       .input(sourceRegistrySchema)
       .mutation(async ({ input, ctx }) => {
-        const result = await db.createSourceRegistryEntry({ ...input, addedBy: ctx.user.id });
+        const { lastScrapedAt, ...rest } = input;
+        const result = await db.createSourceRegistryEntry({
+          ...rest,
+          lastScrapedAt: lastScrapedAt ? new Date(lastScrapedAt) : undefined,
+          addedBy: ctx.user.id
+        });
         await db.createAuditLog({
           userId: ctx.user.id,
           action: "source_registry.create",
@@ -117,10 +137,25 @@ export const marketIntelligenceRouter = router({
         region: z.string().optional(),
         notes: z.string().optional(),
         isActive: z.boolean().optional(),
+        // DFE Fields
+        scrapeConfig: z.any().optional(),
+        scrapeSchedule: z.string().optional(),
+        scrapeMethod: z.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).optional(),
+        scrapeHeaders: z.any().optional(),
+        extractionHints: z.string().optional(),
+        priceFieldMapping: z.any().optional(),
+        lastScrapedAt: z.string().optional(),
+        lastScrapedStatus: z.enum(["success", "partial", "failed", "never"]).optional(),
+        lastRecordCount: z.number().optional(),
+        consecutiveFailures: z.number().optional(),
+        requestDelayMs: z.number().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const { id, ...data } = input;
-        await db.updateSourceRegistryEntry(id, data);
+        const { id, lastScrapedAt, ...data } = input;
+        await db.updateSourceRegistryEntry(id, {
+          ...data,
+          lastScrapedAt: lastScrapedAt ? new Date(lastScrapedAt) : undefined
+        });
         await db.createAuditLog({
           userId: ctx.user.id,
           action: "source_registry.update",
@@ -172,6 +207,65 @@ export const marketIntelligenceRouter = router({
       });
       return { created };
     }),
+
+    testScrape: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const source = await db.getSourceRegistryById(input.id);
+        if (!source) throw new Error("Source not found");
+        const connector = new DynamicConnector(source);
+        return await testScrape(connector);
+      }),
+
+    scrapeNow: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const source = await db.getSourceRegistryById(input.id);
+        if (!source) throw new Error("Source not found");
+
+        // Reset failures on manual run intent
+        await db.updateSourceRegistryEntry(source.id, { consecutiveFailures: 0 });
+
+        const connector = new DynamicConnector(source);
+        const report = await runSingleConnector(connector, "manual", ctx.user.id);
+
+        // Update registry with latest results
+        const isSuccess = report.sourcesSucceeded > 0;
+        await db.updateSourceRegistryEntry(source.id, {
+          lastScrapedAt: new Date(),
+          lastScrapedStatus: isSuccess ? "success" : "failed",
+          lastRecordCount: report.evidenceCreated,
+          consecutiveFailures: isSuccess ? 0 : (source.consecutiveFailures || 0) + 1,
+        });
+
+        return report;
+      }),
+
+    downloadCsvTemplate: adminProcedure.mutation(async () => {
+      const buffer = generateCsvTemplate();
+      return { base64: buffer.toString("base64") };
+    }),
+
+    uploadCsv: adminProcedure
+      .input(z.object({
+        sourceId: z.number(),
+        base64File: z.string()
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const buffer = Buffer.from(input.base64File, "base64");
+        const report = await processCsvUpload(buffer, input.sourceId, ctx.user.id);
+
+        // Update registry metrics for the upload
+        const isSuccess = report.successCount > 0;
+        await db.updateSourceRegistryEntry(input.sourceId, {
+          lastScrapedAt: new Date(),
+          lastScrapedStatus: isSuccess ? "success" : "failed",
+          lastRecordCount: report.successCount,
+          consecutiveFailures: isSuccess ? 0 : 1
+        });
+
+        return report;
+      }),
   }),
 
   // ─── Evidence Records ──────────────────────────────────────────────────────
@@ -541,7 +635,7 @@ export const marketIntelligenceRouter = router({
             await db.createBenchmarkSnapshot({
               benchmarkVersionId: activeBV?.id,
               snapshotJson: {
-                beforeApproval: currentBenchmarks.map(b => ({
+                beforeApproval: currentBenchmarks.map((b: any) => ({
                   id: b.id,
                   typology: b.typology,
                   location: b.location,
@@ -931,6 +1025,10 @@ export const marketIntelligenceRouter = router({
       .query(async ({ input }) => {
         return db.getIntelligenceAuditEntryById(input.id);
       }),
+  }),
+
+  dataHealth: protectedProcedure.query(async () => {
+    return await db.getDataHealthStats();
   }),
 });
 

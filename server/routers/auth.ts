@@ -17,8 +17,9 @@ export const authRouter = router({
     login: publicProcedure
         .input(z.object({ email: z.string().email(), password: z.string() }))
         .mutation(async ({ input, ctx }) => {
-            const dbUsers = await db.getAllUsers();
-            const user = dbUsers.find((u) => u.email === input.email);
+            console.log("[Auth] Login attempt for:", input.email);
+            const user = await db.getUserByEmail(input.email);
+            console.log("[Auth] getUserByEmail result:", user ? `found (id=${user.id}, email=${user.email})` : "NOT FOUND");
 
             if (!user) {
                 throw new TRPCError({
@@ -28,7 +29,6 @@ export const authRouter = router({
             }
 
             if (user.password) {
-                // Very basic simple hash checking for drop-in demo
                 const hash = crypto.createHash("sha256").update(input.password).digest("hex");
                 if (hash !== user.password) {
                     throw new TRPCError({
@@ -37,7 +37,7 @@ export const authRouter = router({
                     });
                 }
             } else {
-                // They have no password (legacy manus login), let them set one by logging in or reject
+                // They have no password (legacy OAuth login), let them set one by logging in or reject
                 throw new TRPCError({
                     code: "UNAUTHORIZED",
                     message: "Please reset your password or sign in with your old method",
@@ -57,8 +57,8 @@ export const authRouter = router({
     register: publicProcedure
         .input(z.object({ email: z.string().email(), password: z.string() }))
         .mutation(async ({ input, ctx }) => {
-            const dbUsers = await db.getAllUsers();
-            if (dbUsers.some((u) => u.email === input.email)) {
+            const exists = await db.emailExists(input.email);
+            if (exists) {
                 throw new TRPCError({
                     code: "CONFLICT",
                     message: "Email already exists",
@@ -74,7 +74,6 @@ export const authRouter = router({
                 email: input.email,
                 loginMethod: "local",
                 lastSignedIn: new Date(),
-                // @ts-expect-error - added via schema but types may not reflect yet
                 password: hash,
             });
 

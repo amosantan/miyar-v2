@@ -42,6 +42,19 @@ function MarketTrendsPanel() {
     limit: 20,
   });
 
+  const trends = data?.trends || [];
+
+  // Group by category — must be called before any early return
+  const categories = useMemo(() => {
+    const catMap = new Map<string, (typeof trends)>();
+    for (const t of trends) {
+      const cat = t.category || "other";
+      if (!catMap.has(cat)) catMap.set(cat, []);
+      catMap.get(cat)!.push(t);
+    }
+    return Array.from(catMap.entries());
+  }, [trends]);
+
   if (isLoading) {
     return (
       <Card>
@@ -61,19 +74,6 @@ function MarketTrendsPanel() {
       </Card>
     );
   }
-
-  const trends = data?.trends || [];
-
-  // Group by category
-  const categories = useMemo(() => {
-    const catMap = new Map<string, (typeof trends)>();
-    for (const t of trends) {
-      const cat = t.category || "other";
-      if (!catMap.has(cat)) catMap.set(cat, []);
-      catMap.get(cat)!.push(t);
-    }
-    return Array.from(catMap.entries());
-  }, [trends]);
 
   const directionIcon = (dir: string | null) => {
     if (dir === "rising") return <TrendingUp className="h-4 w-4 text-red-500" />;

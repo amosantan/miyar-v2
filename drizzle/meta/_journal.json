@@ -120,6 +120,27 @@
       "when": 1771627505071,
       "tag": "0016_clever_kang",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1771871882221,
+      "tag": "0017_magenta_landau",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1771873252152,
+      "tag": "0018_chief_crystal",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1771875119624,
+      "tag": "0019_pretty_black_queen",
+      "breakpoints": true
     }
   ]
 }

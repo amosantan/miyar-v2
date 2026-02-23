@@ -1,5 +1,6 @@
 import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2";
 import {
   InsertUser,
   users,
@@ -49,30 +50,47 @@ import {
   connectorHealth,
   trendSnapshots,
   projectInsights,
+  priceChangeEvents,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _db: any = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const url = new URL(process.env.DATABASE_URL);
+      console.log("[Database] Connecting to:", url.hostname, "database:", url.pathname.slice(1));
+      const pool = mysql.createPool({
+        host: url.hostname,
+        port: url.port ? parseInt(url.port) : 3306,
+        user: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
+        database: url.pathname.slice(1),
+        ssl: { rejectUnauthorized: true },
+        waitForConnections: true,
+        connectionLimit: 5,
+      });
+      _db = drizzle(pool);
+      console.log("[Database] Connected successfully");
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.error("[Database] Failed to connect:", error);
       _db = null;
     }
+  }
+  if (!_db) {
+    console.warn("[Database] getDb() returning null. DATABASE_URL set:", !!process.env.DATABASE_URL);
   }
   return _db;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 
-export async function upsertUser(user: InsertUser): Promise<void> {
+export async function upsertUser(user: InsertUser & { password?: string }): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
   if (!db) return;
-  const values: InsertUser = { openId: user.openId };
+  const values: Record<string, unknown> = { openId: user.openId };
   const updateSet: Record<string, unknown> = {};
   const textFields = ["name", "email", "loginMethod"] as const;
   type TextField = (typeof textFields)[number];
@@ -84,6 +102,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     updateSet[field] = normalized;
   };
   textFields.forEach(assignNullable);
+  if (user.password !== undefined) {
+    values.password = user.password;
+    updateSet.password = user.password;
+  }
   if (user.lastSignedIn !== undefined) {
     values.lastSignedIn = user.lastSignedIn;
     updateSet.lastSignedIn = user.lastSignedIn;
@@ -97,7 +119,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
   if (!values.lastSignedIn) values.lastSignedIn = new Date();
   if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  await db.insert(users).values(values as any).onDuplicateKeyUpdate({ set: updateSet });
 }
 
 export async function getUserByOpenId(openId: string) {
@@ -105,6 +127,22 @@ export async function getUserByOpenId(openId: string) {
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  console.log("[Database] getUserByEmail called, db available:", !!db, "email:", email);
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  console.log("[Database] getUserByEmail query result count:", result.length);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function emailExists(email: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db.select({ count: sql<number>`COUNT(*)` }).from(users).where(eq(users.email, email));
+  return (result[0]?.count ?? 0) > 0;
 }
 
 // ─── Projects ────────────────────────────────────────────────────────────────
@@ -259,7 +297,7 @@ export async function getBenchmarks(typology?: string, location?: string, market
 export async function getExpectedCost(typology: string, location: string, marketTier: string): Promise<number> {
   const benchmarks = await getBenchmarks(typology, location, marketTier);
   if (benchmarks.length === 0) return 400;
-  const avg = benchmarks.reduce((sum, b) => sum + Number(b.costPerSqftMid ?? 400), 0) / benchmarks.length;
+  const avg = benchmarks.reduce((sum: number, b: any) => sum + Number(b.costPerSqftMid ?? 400), 0) / benchmarks.length;
   return avg;
 }
 
@@ -334,18 +372,18 @@ export async function getBenchmarkDiff(oldVersionId: number, newVersionId: numbe
   if (!db) return { added: 0, removed: 0, changed: 0 };
   const oldData = await db.select().from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, oldVersionId));
   const newData = await db.select().from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, newVersionId));
-  const oldKeys = new Set(oldData.map(d => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`));
-  const newKeys = new Set(newData.map(d => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`));
+  const oldKeys = new Set(oldData.map((d: any) => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`));
+  const newKeys = new Set(newData.map((d: any) => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`));
   let added = 0, removed = 0, changed = 0;
   newKeys.forEach(k => { if (!oldKeys.has(k)) added++; });
   oldKeys.forEach(k => { if (!newKeys.has(k)) removed++; });
   // For shared keys, compare cost mid values
-  const oldMap = new Map(oldData.map(d => [`${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`, d]));
-  const newMap = new Map(newData.map(d => [`${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`, d]));
+  const oldMap = new Map<string, any>(oldData.map((d: any) => [`${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`, d]));
+  const newMap = new Map<string, any>(newData.map((d: any) => [`${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`, d]));
   oldKeys.forEach(k => {
     if (newKeys.has(k)) {
-      const o = oldMap.get(k);
-      const n = newMap.get(k);
+      const o: any = oldMap.get(k as string);
+      const n: any = newMap.get(k as string);
       if (o && n && Number(o.costPerSqftMid) !== Number(n.costPerSqftMid)) changed++;
     }
   });
@@ -452,7 +490,7 @@ export async function getActiveWebhookConfigs(event?: string) {
   if (!db) return [];
   const all = await db.select().from(webhookConfigs).where(eq(webhookConfigs.isActive, true));
   if (!event) return all;
-  return all.filter(w => {
+  return all.filter((w: any) => {
     const events = w.events as string[];
     return events && events.includes(event);
   });
@@ -1211,6 +1249,33 @@ export async function deleteEvidenceRecord(id: number) {
   await db.delete(evidenceRecords).where(eq(evidenceRecords.id, id));
 }
 
+export async function getPreviousEvidenceRecord(itemName: string, sourceRegistryId: number, beforeDate: Date) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const query = db.select()
+    .from(evidenceRecords)
+    .where(
+      and(
+        eq(evidenceRecords.itemName, itemName),
+        eq(evidenceRecords.sourceRegistryId, sourceRegistryId),
+        sql`${evidenceRecords.captureDate} < ${beforeDate}`
+      )
+    )
+    .orderBy(desc(evidenceRecords.captureDate))
+    .limit(1);
+
+  const rows = await query;
+  return rows[0];
+}
+
+export async function createPriceChangeEvent(data: typeof priceChangeEvents.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(priceChangeEvents).values(data);
+  return { id: Number(result.insertId) };
+}
+
 export async function getEvidenceStats() {
   const db = await getDb();
   if (!db) return { total: 0, byCategory: {}, byGrade: {}, avgConfidence: 0 };
@@ -1228,6 +1293,71 @@ export async function getEvidenceStats() {
     byCategory,
     byGrade,
     avgConfidence: all.length > 0 ? Math.round(totalConfidence / all.length) : 0,
+  };
+}
+
+export async function getDataHealthStats() {
+  const db = await getDb();
+  if (!db) return null;
+
+  // 1. Source Health
+  const allSources = await db.select().from(sourceRegistry);
+  const activeSources = allSources.filter((s: any) => s.isActive);
+  const failingSources = activeSources.filter((s: any) => s.consecutiveFailures > 0);
+  const disabledSources = activeSources.filter((s: any) => s.consecutiveFailures >= 5);
+
+  const sourceHealth = {
+    total: allSources.length,
+    active: activeSources.length,
+    failing: failingSources.length,
+    disabled: disabledSources.length,
+  };
+
+  // 2. Category Freshness & Coverage Gaps
+  const allEvidence = await db.select().from(evidenceRecords);
+  const categoryStats: Record<string, { count: number, latestCapture: Date | null, avgAgeDays: number }> = {};
+
+  const now = new Date().getTime();
+
+  for (const rec of allEvidence as any[]) {
+    if (!categoryStats[rec.category]) {
+      categoryStats[rec.category] = { count: 0, latestCapture: null, avgAgeDays: 0 };
+    }
+    const stat = categoryStats[rec.category];
+    stat.count++;
+
+    if (rec.captureDate) {
+      if (!stat.latestCapture || rec.captureDate > stat.latestCapture) {
+        stat.latestCapture = rec.captureDate;
+      }
+      const ageDays = (now - rec.captureDate.getTime()) / (1000 * 60 * 60 * 24);
+      stat.avgAgeDays += ageDays;
+    }
+  }
+
+  const coverageGaps = [];
+  for (const cat of Object.keys(categoryStats)) {
+    const stat = categoryStats[cat];
+    if (stat.count > 0) stat.avgAgeDays /= stat.count;
+
+    // Gap criteria: < 10 records OR avg age > 30 days
+    if (stat.count < 10 || stat.avgAgeDays > 30) {
+      coverageGaps.push({
+        category: cat,
+        count: stat.count,
+        avgAgeDays: Math.round(stat.avgAgeDays),
+      });
+    }
+  }
+
+  // 3. Price Change Feed
+  const recentPriceChanges = await db.select().from(priceChangeEvents).orderBy(desc(priceChangeEvents.detectedAt)).limit(20);
+
+  return {
+    sourceHealth,
+    categoryStats,
+    coverageGaps,
+    recentPriceChanges,
   };
 }
 
@@ -1418,10 +1548,10 @@ export async function getEntityTags(entityType: string, entityId: number) {
     .where(and(eq(entityTags.entityType, entityType as any), eq(entityTags.entityId, entityId)));
   // Join with trend_tags to get names
   if (tags.length === 0) return [];
-  const tagIds = tags.map(t => t.tagId);
+  const tagIds = tags.map((t: any) => t.tagId);
   const tagDetails = await db.select().from(trendTags).where(inArray(trendTags.id, tagIds));
-  const tagMap = new Map(tagDetails.map(t => [t.id, t]));
-  return tags.map(t => ({
+  const tagMap = new Map(tagDetails.map((t: any) => [t.id, t]));
+  return tags.map((t: any) => ({
     ...t,
     tag: tagMap.get(t.tagId),
   }));
@@ -1506,10 +1636,10 @@ export async function getEvidenceForTarget(targetType: string, targetId: number)
     ));
   if (refs.length === 0) return [];
   // Join with evidence_records to get full evidence data
-  const recordIds = refs.map(r => r.evidenceRecordId);
+  const recordIds = refs.map((r: any) => r.evidenceRecordId);
   const records = await db.select().from(evidenceRecords).where(inArray(evidenceRecords.id, recordIds));
-  const recordMap = new Map(records.map(r => [r.id, r]));
-  return refs.map(ref => ({
+  const recordMap = new Map(records.map((r: any) => [r.id, r]));
+  return refs.map((ref: any) => ({
     reference: ref,
     evidence: recordMap.get(ref.evidenceRecordId),
   }));

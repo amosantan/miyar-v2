@@ -1,0 +1,38 @@
+
+ RUN  v2.1.9 /Users/amrosaleh/Maiyar/miyar-v2
+
+ ❯ server/market-intelligence.test.ts (22 tests | 14 failed) 15ms
+   × marketIntel.sources > seedDefaults creates default UAE sources 6ms
+     → DB not available
+   × marketIntel.sources > create adds a new source with correct fields 1ms
+     → DB not available
+   × marketIntel.evidence > create adds an evidence record with reliability grading 2ms
+     → DB not available
+   × marketIntel.evidence > bulkImport creates multiple records at once 2ms
+     → expected +0 to be 2 // Object.is equality
+   × marketIntel.competitors > createEntity adds a competitor developer 0ms
+     → DB not available
+   × marketIntel.competitors > listEntities returns all competitor entities 0ms
+     → DB not available
+   × marketIntel.competitors > createProject adds a competitor project with positioning data 0ms
+     → DB not available
+   × marketIntel.competitors > compare returns side-by-side comparison with overlap analysis 0ms
+     → DB not available
+   × marketIntel.tags > create adds a trend tag with controlled vocabulary 0ms
+     → DB not available
+   × marketIntel.tags > list returns tags filtered by category 0ms
+     → DB not available
+   × marketIntel.tags > attach links a tag to an entity 0ms
+     → DB not available
+   × marketIntel.auditLog > list returns audit entries from intelligence operations 0ms
+     → expected 0 to be greater than 0
+   × marketIntel.snapshots > createManual creates a manual benchmark snapshot 0ms
+     → DB not available
+   × marketIntel.snapshots > list returns all benchmark snapshots 0ms
+     → DB not available
+
+ Test Files  1 failed (1)
+      Tests  14 failed | 8 passed (22)
+   Start at  23:09:16
+   Duration  843ms (transform 212ms, setup 0ms, collect 623ms, tests 15ms, environment 0ms, prepare 34ms)
+

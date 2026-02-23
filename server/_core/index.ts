@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { startIngestionScheduler } from "../engines/ingestion/scheduler";
+import { startLearningScheduler } from "../engines/learning/scheduler";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -63,9 +64,18 @@ async function startServer() {
 
     // Start ingestion scheduler (V2-07)
     try {
-      startIngestionScheduler();
+      startIngestionScheduler().catch(e => {
+        console.error("[Ingestion Scheduler] Async start failed:", e);
+      });
     } catch (e) {
       console.error("[Ingestion Scheduler] Failed to start:", e);
+    }
+
+    // Start learning accuracy scheduler (V5-02)
+    try {
+      startLearningScheduler();
+    } catch (e) {
+      console.error("[Learning Scheduler] Failed to start:", e);
     }
   });
 }

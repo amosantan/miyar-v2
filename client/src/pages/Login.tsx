@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { api } from "@/_core/trpc";
-import { useToast } from "@/components/ui/use-toast";
+import { trpc as api } from "@/lib/trpc";
+import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 export default function Login() {
@@ -13,7 +13,7 @@ export default function Login() {
     const [password, setPassword] = useState("");
     const [isRegister, setIsRegister] = useState(false);
     const [, setLocation] = useLocation();
-    const { toast } = useToast();
+
 
     const loginMutation = api.auth.login.useMutation({
         onSuccess: () => {
@@ -21,29 +21,18 @@ export default function Login() {
             window.location.reload();
         },
         onError: (error) => {
-            toast({
-                title: "Error",
-                description: error.message,
-                variant: "destructive",
-            });
+            toast.error("Login failed", { description: error.message });
         },
     });
 
     const registerMutation = api.auth.register.useMutation({
         onSuccess: () => {
-            toast({
-                title: "Success",
-                description: "Account created successfully. You are now logged in.",
-            });
+            toast.success("Account created", { description: "You are now logged in." });
             setLocation("/");
             window.location.reload();
         },
         onError: (error) => {
-            toast({
-                title: "Error",
-                description: error.message,
-                variant: "destructive",
-            });
+            toast.error("Registration failed", { description: error.message });
         },
     });
 

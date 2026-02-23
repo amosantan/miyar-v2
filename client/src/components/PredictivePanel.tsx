@@ -378,9 +378,43 @@ function CardSkeleton({ title }: { title: string }) {
   );
 }
 
+function ProjectPatternsCard({ projectId }: { projectId: number }) {
+  const { data, isLoading } = trpc.predictive.getProjectPatterns.useQuery({ projectId });
+
+  if (isLoading) return <CardSkeleton title="Learning Patterns Detected" />;
+  if (!data || data.length === 0) return null; // Only show if patterns are detected
+
+  return (
+    <Card className="border-amber-500/30 bg-amber-500/5">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-500" />
+          Active Intelligence Patterns
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {data.map((pattern: any) => (
+            <div key={pattern.id} className="p-3 rounded bg-background/50 border border-border/50">
+              <div className="flex items-center gap-2 mb-1">
+                <Badge variant={pattern.category === "risk_indicator" || pattern.category === "cost_anomaly" ? "destructive" : "default"} className="text-[10px]">
+                  {pattern.category.replace("_", " ").toUpperCase()}
+                </Badge>
+                <span className="text-sm font-semibold">{pattern.name}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{pattern.description}</p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PredictivePanel({ projectId }: PredictivePanelProps) {
   return (
     <div className="space-y-4">
+      <ProjectPatternsCard projectId={projectId} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <CostRangeCard projectId={projectId} />
         <OutcomePredictionCard projectId={projectId} />

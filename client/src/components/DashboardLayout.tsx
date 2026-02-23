@@ -10,6 +10,9 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -99,6 +102,7 @@ const marketIntelItems = [
   { icon: Building2, label: "Competitors", path: "/market-intel/competitors" },
   { icon: Tags, label: "Trend Tags", path: "/market-intel/tags" },
   { icon: ScrollText, label: "Intel Audit Log", path: "/market-intel/audit" },
+  { icon: HeartPulse, label: "Data Health", path: "/market-intel/data-health" },
   { icon: Zap, label: "Ingestion Monitor", path: "/market-intel/ingestion" },
   { icon: TrendingUp, label: "Analytics Intelligence", path: "/market-intel/analytics" },
 ];
@@ -120,6 +124,7 @@ const adminItems = [
   { icon: Brain, label: "Logic Registry", path: "/admin/logic-registry" },
   { icon: Sliders, label: "Calibration", path: "/admin/calibration" },
   { icon: Lightbulb, label: "Benchmark Learning", path: "/admin/benchmark-learning" },
+  { icon: BarChart3, label: "Learning Dashboard", path: "/admin/learning-dashboard" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -272,57 +277,57 @@ function DashboardLayoutContent({
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0">
+          <SidebarContent>
             {/* Main Navigation */}
-            <SidebarMenu className="px-2 py-1">
-              {menuItems.map((item) => {
-                const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      onClick={() => setLocation(item.path)}
-                      tooltip={item.label}
-                      className="h-10 transition-all font-normal"
-                    >
-                      <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                      />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {menuItems.map((item) => {
+                    const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          onClick={() => setLocation(item.path)}
+                          tooltip={item.label}
+                        >
+                          <item.icon
+                            className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                          />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
 
             {/* Analysis Section */}
-            {!isCollapsed && (
-              <div className="px-4 pt-4 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                  Analysis
-                </span>
-              </div>
-            )}
-            <SidebarMenu className="px-2 py-1">
-              {analysisItems.map((item) => {
-                const isActive = location.startsWith(item.path);
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      onClick={() => setLocation(item.path)}
-                      tooltip={item.label}
-                      className="h-10 transition-all font-normal"
-                    >
-                      <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                      />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            <SidebarGroup>
+              <SidebarGroupLabel>Analysis</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {analysisItems.map((item) => {
+                    const isActive = location.startsWith(item.path);
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          onClick={() => setLocation(item.path)}
+                          tooltip={item.label}
+                        >
+                          <item.icon
+                            className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                          />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
 
             {/* Design Enablement Section — shows when on a project page */}
             {(() => {
@@ -330,25 +335,48 @@ function DashboardLayoutContent({
               if (!projectMatch) return null;
               const pid = projectMatch[1];
               return (
-                <>
-                  {!isCollapsed && (
-                    <div className="px-4 pt-4 pb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                        Design Enablement
-                      </span>
-                    </div>
-                  )}
-                  <SidebarMenu className="px-2 py-1">
-                    {designItems.map((item) => {
-                      const resolvedPath = item.path.replace(":id", pid);
-                      const isActive = location === resolvedPath;
+                <SidebarGroup>
+                  <SidebarGroupLabel>Design Enablement</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {designItems.map((item) => {
+                        const resolvedPath = item.path.replace(":id", pid);
+                        const isActive = location === resolvedPath;
+                        return (
+                          <SidebarMenuItem key={item.path}>
+                            <SidebarMenuButton
+                              isActive={isActive}
+                              onClick={() => setLocation(resolvedPath)}
+                              tooltip={item.label}
+                            >
+                              <item.icon
+                                className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                              />
+                              <span>{item.label}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              );
+            })()}
+
+            {/* Market Intelligence Section */}
+            {isAdmin && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Market Intelligence</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {marketIntelItems.map((item) => {
+                      const isActive = location.startsWith(item.path);
                       return (
                         <SidebarMenuItem key={item.path}>
                           <SidebarMenuButton
                             isActive={isActive}
-                            onClick={() => setLocation(resolvedPath)}
+                            onClick={() => setLocation(item.path)}
                             tooltip={item.label}
-                            className="h-10 transition-all font-normal"
                           >
                             <item.icon
                               className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
@@ -359,74 +387,36 @@ function DashboardLayoutContent({
                       );
                     })}
                   </SidebarMenu>
-                </>
-              );
-            })()}
-
-            {/* Market Intelligence Section */}
-            {isAdmin && (
-              <>
-                {!isCollapsed && (
-                  <div className="px-4 pt-4 pb-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Market Intelligence
-                    </span>
-                  </div>
-                )}
-                <SidebarMenu className="px-2 py-1">
-                  {marketIntelItems.map((item) => {
-                    const isActive = location.startsWith(item.path);
-                    return (
-                      <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          isActive={isActive}
-                          onClick={() => setLocation(item.path)}
-                          tooltip={item.label}
-                          className="h-10 transition-all font-normal"
-                        >
-                          <item.icon
-                            className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                          />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </>
+                </SidebarGroupContent>
+              </SidebarGroup>
             )}
 
             {/* Admin Section */}
             {isAdmin && (
-              <>
-                {!isCollapsed && (
-                  <div className="px-4 pt-4 pb-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                      Administration
-                    </span>
-                  </div>
-                )}
-                <SidebarMenu className="px-2 py-1">
-                  {adminItems.map((item) => {
-                    const isActive = location.startsWith(item.path);
-                    return (
-                      <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          isActive={isActive}
-                          onClick={() => setLocation(item.path)}
-                          tooltip={item.label}
-                          className="h-10 transition-all font-normal"
-                        >
-                          <item.icon
-                            className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                          />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </>
+              <SidebarGroup>
+                <SidebarGroupLabel>Administration</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {adminItems.map((item) => {
+                      const isActive = location.startsWith(item.path);
+                      return (
+                        <SidebarMenuItem key={item.path}>
+                          <SidebarMenuButton
+                            isActive={isActive}
+                            onClick={() => setLocation(item.path)}
+                            tooltip={item.label}
+                          >
+                            <item.icon
+                              className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                            />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
             )}
           </SidebarContent>
 

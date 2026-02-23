@@ -376,7 +376,7 @@ export const intelligenceRouter = router({
         }
 
         // Read inputSnapshot from score_matrices (where it's reliably stored after evaluation)
-        const inputSnapshot = (latestScore.inputSnapshot as Record<string, unknown>) ?? 
+        const inputSnapshot = (latestScore.inputSnapshot as Record<string, unknown>) ??
           ((project as Record<string, unknown>).inputSnapshot as Record<string, unknown>) ?? {};
         const variableContributions = (latestScore.variableContributions as Record<string, number>) ?? {};
         const penalties = (latestScore.penalties as Array<{ rule: string; points: number; reason: string }>) ?? [];
@@ -421,7 +421,7 @@ export const intelligenceRouter = router({
         const benchmarkVersion = await getActiveBenchmarkVersion();
 
         // Read inputSnapshot from score_matrices (where it's reliably stored after evaluation)
-        const inputSnapshot = (latestScore.inputSnapshot as Record<string, unknown>) ?? 
+        const inputSnapshot = (latestScore.inputSnapshot as Record<string, unknown>) ??
           ((project as Record<string, unknown>).inputSnapshot as Record<string, unknown>) ?? {};
         const dimensionWeights: Record<string, number> = {};
         for (const w of weights) {
@@ -492,6 +492,11 @@ export const intelligenceRouter = router({
           leadTimesActual: z.record(z.string(), z.number()).optional(),
           rfqResults: z.record(z.string(), z.number()).optional(),
           adoptionMetrics: z.record(z.string(), z.unknown()).optional(),
+          // V5 Fields
+          actualFitoutCostPerSqm: z.number().optional(),
+          reworkOccurred: z.boolean().optional(),
+          clientSatisfactionScore: z.number().min(1).max(5).optional(),
+          projectDeliveredOnTime: z.boolean().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {

@@ -1,9 +1,0 @@
-{
-  "query": "INSERT INTO benchmark_versions (versionTag, description, status, publishedAt, recordCount)\nVALUES ('BV-1.0.0', 'Initial UAE/Dubai synthetic benchmark dataset', 'published', NOW(), 0);\n\nSET @bv_id = LAST_INSERT_ID();\n\nUPDATE benchmark_data SET benchmarkVersionId = @bv_id;\n\nUPDATE benchmark_versions SET recordCount = (SELECT COUNT(*) FROM benchmark_data WHERE benchmarkVersionId = @bv_id) WHERE id = @bv_id;\n\nUPDATE score_matrices SET benchmarkVersionId = @bv_id;\n\nINSERT INTO roi_configs (name, isActive, hourlyRate, reworkCostPct, tenderIterationCost, designCycleCost, budgetVarianceMultiplier, timeAccelerationWeeks, conservativeMultiplier, aggressiveMultiplier)\nVALUES ('Default ROI Configuration', true, 350.00, 0.1200, 25000.00, 45000.00, 0.0800, 6, 0.6000, 1.4000);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3qjjvhuo9AvMUPD.984bcc8a4c01 --database Qjy3c67dUhuYfoZUKPnMuR --execute INSERT INTO benchmark_versions (versionTag, description, status, publishedAt, recordCount)\nVALUES ('BV-1.0.0', 'Initial UAE/Dubai synthetic benchmark dataset', 'published', NOW(), 0);\n\nSET @bv_id = LAST_INSERT_ID();\n\nUPDATE benchmark_data SET benchmarkVersionId = @bv_id;\n\nUPDATE benchmark_versions SET recordCount = (SELECT COUNT(*) FROM benchmark_data WHERE benchmarkVersionId = @bv_id) WHERE id = @bv_id;\n\nUPDATE score_matrices SET benchmarkVersionId = @bv_id;\n\nINSERT INTO roi_configs (name, isActive, hourlyRate, reworkCostPct, tenderIterationCost, designCycleCost, budgetVarianceMultiplier, timeAccelerationWeeks, conservativeMultiplier, aggressiveMultiplier)\nVALUES ('Default ROI Configuration', true, 350.00, 0.1200, 25000.00, 45000.00, 0.0800, 6, 0.6000, 1.4000);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 2610
-}

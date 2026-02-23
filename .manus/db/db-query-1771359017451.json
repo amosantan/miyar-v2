@@ -1,9 +1,0 @@
-{
-  "query": "ALTER TABLE `report_instances` MODIFY COLUMN `reportType` enum('executive_decision_pack','design_brief_rfq','marketing_starter','validation_summary','design_brief','rfq_pack','full_report') NOT NULL;\nALTER TABLE `benchmark_data` ADD `roomType` varchar(64) DEFAULT 'General';\nALTER TABLE `benchmark_data` ADD `differentiationIndex` decimal(6,4);\nALTER TABLE `benchmark_data` ADD `complexityMultiplier` decimal(6,4);\nALTER TABLE `benchmark_data` ADD `timelineRiskMultiplier` decimal(6,4);\nALTER TABLE `benchmark_data` ADD `buyerPreferenceWeights` json;\nALTER TABLE `benchmark_data` ADD `sourceNote` text;",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3qjjvhuo9AvMUPD.984bcc8a4c01 --database Qjy3c67dUhuYfoZUKPnMuR --execute ALTER TABLE `report_instances` MODIFY COLUMN `reportType` enum('executive_decision_pack','design_brief_rfq','marketing_starter','validation_summary','design_brief','rfq_pack','full_report') NOT NULL;\nALTER TABLE `benchmark_data` ADD `roomType` varchar(64) DEFAULT 'General';\nALTER TABLE `benchmark_data` ADD `differentiationIndex` decimal(6,4);\nALTER TABLE `benchmark_data` ADD `complexityMultiplier` decimal(6,4);\nALTER TABLE `benchmark_data` ADD `timelineRiskMultiplier` decimal(6,4);\nALTER TABLE `benchmark_data` ADD `buyerPreferenceWeights` json;\nALTER TABLE `benchmark_data` ADD `sourceNote` text;",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 7758
-}

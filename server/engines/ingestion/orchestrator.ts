@@ -23,8 +23,10 @@ import {
   insertConnectorHealth,
   insertTrendSnapshot,
   getDb,
+  getEvidenceRecordById
 } from "../../db";
 import { generateBenchmarkProposals } from "./proposal-generator";
+import { detectPriceChange } from "./change-detector";
 import { detectTrends, type DataPoint } from "../analytics/trend-detection";
 import { evidenceRecords, ingestionRuns, sourceRegistry } from "../../../drizzle/schema";
 import { and, eq, sql } from "drizzle-orm";
@@ -291,8 +293,9 @@ export async function runIngestion(
           }
 
           // Persist to evidence_records
-          await createEvidenceRecord({
+          const { id: newRecordId } = await createEvidenceRecord({
             recordId: generateRecordId(),
+            sourceRegistryId: typeof connector.sourceId === 'number' ? connector.sourceId : (parseInt(connector.sourceId) || undefined),
             sourceUrl: evidence.sourceUrl,
             category: mapCategory(evidence.category) as any,
             itemName: normalized.metric,
@@ -309,6 +312,12 @@ export async function runIngestion(
             notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine`,
             runId: runId,
           });
+
+          // Hand off to the intelligent change detector to log significant fluctuations
+          const insertedRecord = await getEvidenceRecordById(newRecordId);
+          if (insertedRecord) {
+            await detectPriceChange(insertedRecord);
+          }
 
           created++;
         } catch (err) {
@@ -385,21 +394,36 @@ export async function runIngestion(
     }
   }
 
-  // V3-03: Update lastSuccessfulFetch for successful connectors
+  // V3-03: Update lastSuccessfulFetch and DFE health metrics for all connectors
   try {
     const db = await getDb();
     if (db) {
-      const successfulIds = connectorResults
-        .filter((r) => r.status === "success")
-        .map((r) => r.sourceId);
-      for (const sid of successfulIds) {
+      for (const result of connectorResults) {
+        // Get current consecutive failures to increment
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures })
+          .from(sourceRegistry).where(eq(sourceRegistry.name, result.sourceId)).limit(1);
+
+        const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
+        const isSuccess = result.status === "success";
+        const statusEnum = isSuccess ? (result.evidenceExtracted > 0 ? "success" : "partial") : "failed";
+
+        const updates: any = {
+          lastScrapedAt: new Date(),
+          lastScrapedStatus: statusEnum,
+          lastRecordCount: result.evidenceCreated,
+          consecutiveFailures: isSuccess ? 0 : currentFailures + 1,
+        };
+        if (isSuccess) {
+          updates.lastSuccessfulFetch = new Date();
+        }
+
         await db.update(sourceRegistry)
-          .set({ lastSuccessfulFetch: new Date() })
-          .where(eq(sourceRegistry.name, sid));
+          .set(updates)
+          .where(eq(sourceRegistry.name, result.sourceId));
       }
     }
   } catch (err) {
-    console.warn("[Ingestion] Failed to update lastSuccessfulFetch:", err);
+    console.warn("[Ingestion] Failed to update sourceRegistry metrics:", err);
   }
 
   const completedAt = new Date();
@@ -590,4 +614,40 @@ export async function runSingleConnector(
   actorId?: number
 ): Promise<IngestionRunReport> {
   return runIngestion([connector], triggeredBy, actorId);
+}
+
+/**
+ * Run a connector for testing purposes only. Does not save to the database.
+ * Returns the raw payload size and up to 5 extracted valid records.
+ */
+export async function testScrape(connector: SourceConnector) {
+  const startedAt = new Date();
+
+  const raw = await connector.fetch();
+  if (raw.error) {
+    return { success: false, error: raw.error, statusCode: raw.statusCode };
+  }
+
+  const extracted = await connector.extract(raw);
+  const normalizedRecords = [];
+
+  for (const evidence of extracted) {
+    if (!extractedEvidenceSchema.safeParse(evidence).success) continue;
+    try {
+      const normalized = await connector.normalize(evidence);
+      if (normalizedEvidenceInputSchema.safeParse(normalized).success) {
+        normalizedRecords.push(normalized);
+      }
+    } catch { }
+  }
+
+  return {
+    success: true,
+    statusCode: raw.statusCode,
+    rawPayloadSize: (raw.rawHtml?.length || 0) + JSON.stringify(raw.rawJson || {}).length,
+    extractedCount: extracted.length,
+    validNormalizedCount: normalizedRecords.length,
+    previewRecords: normalizedRecords.slice(0, 5),
+    durationMs: new Date().getTime() - startedAt.getTime()
+  };
 }

@@ -165,10 +165,7 @@
     padding-right: 1rem;
   }
 
-  .flex {
-    min-height: 0;
-    min-width: 0;
-  }
+
 
   @media (min-width: 640px) {
     .container {

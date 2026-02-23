@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Target, Plus, BarChart3, BookOpen, Lightbulb } from "lucide-react";
 
 export default function Outcomes() {
@@ -24,6 +26,12 @@ export default function Outcomes() {
   const [rfqKey, setRfqKey] = useState("");
   const [rfqVal, setRfqVal] = useState("");
   const [rfqEntries, setRfqEntries] = useState<Record<string, number>>({});
+
+  // V5 Learning Metrics State
+  const [actualFitoutCostPerSqm, setActualFitoutCostPerSqm] = useState("");
+  const [reworkOccurred, setReworkOccurred] = useState(false);
+  const [clientSatisfactionScore, setClientSatisfactionScore] = useState(5);
+  const [projectDeliveredOnTime, setProjectDeliveredOnTime] = useState(true);
 
   const outcomes = trpc.intelligence.outcomes.list.useQuery({ projectId }, { enabled: !!projectId });
   const utils = trpc.useUtils();
@@ -149,18 +157,71 @@ export default function Outcomes() {
               )}
             </div>
 
+            {/* V5: Project Outcome Baseline Metrics */}
+            <div className="bg-muted/30 p-4 rounded-md border border-border space-y-4">
+              <h3 className="text-sm font-semibold">V5 Platform Learning Metrics</h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Actual Fit-out Cost per Sqm (AED)</Label>
+                  <Input
+                    type="number"
+                    placeholder="e.g. 1500"
+                    value={actualFitoutCostPerSqm}
+                    onChange={(e) => setActualFitoutCostPerSqm(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Client Satisfaction Score (1-5)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={5}
+                    value={clientSatisfactionScore}
+                    onChange={(e) => setClientSatisfactionScore(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6 pt-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="rework"
+                    checked={reworkOccurred}
+                    onCheckedChange={setReworkOccurred}
+                  />
+                  <Label htmlFor="rework" className="cursor-pointer">Significant Rework Occurred</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="ontime"
+                    checked={projectDeliveredOnTime}
+                    onCheckedChange={setProjectDeliveredOnTime}
+                  />
+                  <Label htmlFor="ontime" className="cursor-pointer">Project Delivered On-Time</Label>
+                </div>
+              </div>
+            </div>
+
             <Button
+              className="w-full"
               onClick={() =>
                 captureMut.mutate({
                   projectId,
                   procurementActualCosts: Object.keys(costEntries).length > 0 ? costEntries : undefined,
                   leadTimesActual: Object.keys(leadEntries).length > 0 ? leadEntries : undefined,
                   rfqResults: Object.keys(rfqEntries).length > 0 ? rfqEntries : undefined,
+                  actualFitoutCostPerSqm: actualFitoutCostPerSqm ? parseFloat(actualFitoutCostPerSqm) : undefined,
+                  reworkOccurred,
+                  clientSatisfactionScore,
+                  projectDeliveredOnTime
                 })
               }
-              disabled={captureMut.isPending || (Object.keys(costEntries).length === 0 && Object.keys(leadEntries).length === 0 && Object.keys(rfqEntries).length === 0)}
+              disabled={captureMut.isPending}
             >
-              Save Outcome
+              Save Outcome & Trigger Learning Loop
             </Button>
           </CardContent>
         </Card>
@@ -186,11 +247,12 @@ export default function Outcomes() {
                   <TableHead>Procurement Costs</TableHead>
                   <TableHead>Lead Times</TableHead>
                   <TableHead>RFQ Results</TableHead>
+                  <TableHead>V5 Metrics</TableHead>
                   <TableHead>Captured</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {outcomeList.map((o) => {
+                {outcomeList.map((o: any) => {
                   const costs = (o.procurementActualCosts as Record<string, number>) ?? {};
                   const leads = (o.leadTimesActual as Record<string, number>) ?? {};
                   const rfqs = (o.rfqResults as Record<string, number>) ?? {};
@@ -223,6 +285,15 @@ export default function Outcomes() {
                             ))}
                           </div>
                         ) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1 text-xs">
+                          {o.actualFitoutCostPerSqm ? <p>Cost/Sqm: {Number(o.actualFitoutCostPerSqm).toLocaleString()} AED</p> : null}
+                          {o.clientSatisfactionScore ? <p>Client Sat: {o.clientSatisfactionScore}/5</p> : null}
+                          {o.projectDeliveredOnTime !== undefined ? <p>On-Time: {o.projectDeliveredOnTime ? "Yes" : "No"}</p> : null}
+                          {o.reworkOccurred !== undefined ? <p>Rework: {o.reworkOccurred ? "Yes" : "No"}</p> : null}
+                          {(!o.actualFitoutCostPerSqm && !o.clientSatisfactionScore && o.projectDeliveredOnTime === undefined && o.reworkOccurred === undefined) && "—"}
+                        </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {new Date(o.capturedAt).toLocaleDateString()}

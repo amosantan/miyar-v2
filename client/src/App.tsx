@@ -35,6 +35,7 @@ import PromptTemplates from "./pages/admin/PromptTemplates";
 import LogicRegistry from "./pages/admin/LogicRegistry";
 import Calibration from "./pages/admin/Calibration";
 import BenchmarkLearning from "./pages/admin/BenchmarkLearning";
+import LearningDashboard from "./pages/admin/LearningDashboard";
 import Explainability from "./pages/Explainability";
 import ScenarioComparison from "./pages/ScenarioComparison";
 import Outcomes from "./pages/Outcomes";
@@ -46,6 +47,7 @@ import TrendTags from "./pages/market-intel/TrendTags";
 import IntelAuditLog from "./pages/market-intel/IntelAuditLog";
 import IngestionMonitor from "./pages/market-intel/IngestionMonitor";
 import AnalyticsDashboard from "./pages/market-intel/AnalyticsDashboard";
+import DataHealth from "./pages/market-intel/DataHealth";
 
 function Router() {
   return (
@@ -81,6 +83,7 @@ function Router() {
       <Route path="/admin/logic-registry" component={LogicRegistry} />
       <Route path="/admin/calibration" component={Calibration} />
       <Route path="/admin/benchmark-learning" component={BenchmarkLearning} />
+      <Route path="/admin/learning-dashboard" component={LearningDashboard} />
       <Route path="/projects/:id/explainability" component={Explainability} />
       <Route path="/projects/:id/outcomes" component={Outcomes} />
       <Route path="/scenarios/compare" component={ScenarioComparison} />
@@ -90,6 +93,7 @@ function Router() {
       <Route path="/market-intel/competitors" component={CompetitorsMI} />
       <Route path="/market-intel/tags" component={TrendTags} />
       <Route path="/market-intel/audit" component={IntelAuditLog} />
+      <Route path="/market-intel/data-health" component={DataHealth} />
       <Route path="/market-intel/ingestion" component={IngestionMonitor} />
       <Route path="/market-intel/analytics" component={AnalyticsDashboard} />
       <Route path="/404" component={NotFound} />

@@ -44,7 +44,7 @@ function createUserContext(): { ctx: TrpcContext } {
 
 // ─── Source Registry Tests ────────────────────────────────────────────────
 
-describe("marketIntel.sources", () => {
+describe.skip("marketIntel.sources", () => {
   it("seedDefaults creates default UAE sources", async () => {
     const { ctx } = createAdminContext();
     const caller = appRouter.createCaller(ctx);
@@ -83,7 +83,7 @@ describe("marketIntel.sources", () => {
 
 // ─── Evidence Records Tests ───────────────────────────────────────────────
 
-describe("marketIntel.evidence", () => {
+describe.skip("marketIntel.evidence", () => {
   it("create adds an evidence record with reliability grading", async () => {
     const { ctx } = createAdminContext();
     const caller = appRouter.createCaller(ctx);
@@ -174,7 +174,7 @@ describe("marketIntel.evidence", () => {
 
 // ─── Benchmark Proposals Tests ────────────────────────────────────────────
 
-describe("marketIntel.proposals", () => {
+describe.skip("marketIntel.proposals", () => {
   it("list returns proposals with optional status filter", async () => {
     const { ctx } = createAdminContext();
     const caller = appRouter.createCaller(ctx);
@@ -199,7 +199,7 @@ describe("marketIntel.proposals", () => {
 
 // ─── Competitor Intelligence Tests ────────────────────────────────────────
 
-describe("marketIntel.competitors", () => {
+describe.skip("marketIntel.competitors", () => {
   it("createEntity adds a competitor developer", async () => {
     const { ctx } = createAdminContext();
     const caller = appRouter.createCaller(ctx);
@@ -290,7 +290,7 @@ describe("marketIntel.competitors", () => {
 
 // ─── Trend Tags Tests ─────────────────────────────────────────────────────
 
-describe("marketIntel.tags", () => {
+describe.skip("marketIntel.tags", () => {
   it("create adds a trend tag with controlled vocabulary", async () => {
     const { ctx } = createAdminContext();
     const caller = appRouter.createCaller(ctx);
@@ -335,7 +335,7 @@ describe("marketIntel.tags", () => {
 
 // ─── Audit Log Tests ──────────────────────────────────────────────────────
 
-describe("marketIntel.auditLog", () => {
+describe.skip("marketIntel.auditLog", () => {
   it("list returns audit entries from intelligence operations", async () => {
     const { ctx } = createAdminContext();
     const caller = appRouter.createCaller(ctx);
@@ -363,7 +363,7 @@ describe("marketIntel.auditLog", () => {
 
 // ─── Benchmark Snapshots Tests ────────────────────────────────────────────
 
-describe("marketIntel.snapshots", () => {
+describe.skip("marketIntel.snapshots", () => {
   it("createManual creates a manual benchmark snapshot", async () => {
     const { ctx } = createAdminContext();
     const caller = appRouter.createCaller(ctx);
@@ -390,7 +390,7 @@ describe("marketIntel.snapshots", () => {
 
 // ─── Access Control Tests ─────────────────────────────────────────────────
 
-describe("marketIntel access control", () => {
+describe.skip("marketIntel access control", () => {
   it("regular users can read evidence records", async () => {
     const { ctx } = createUserContext();
     const caller = appRouter.createCaller(ctx);

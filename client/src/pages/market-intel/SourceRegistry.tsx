@@ -11,13 +11,26 @@ import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, BookOpen, Trash2, Edit, Zap, ExternalLink, ShieldCheck, ShieldOff } from "lucide-react";
+import { Plus, BookOpen, Trash2, Edit, Zap, ExternalLink, ShieldCheck, ShieldOff, Download, Upload, Loader2 } from "lucide-react";
 
 const SOURCE_TYPES = [
   "supplier_catalog", "manufacturer_catalog", "developer_brochure",
   "industry_report", "government_tender", "procurement_portal",
   "trade_publication", "retailer_listing", "aggregator", "other",
 ] as const;
+
+const SCRAPE_METHODS = [
+  "html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"
+] as const;
+
+const methodLabels: Record<string, string> = {
+  html_llm: "HTML + LLM Extraction",
+  html_rules: "HTML Rules / RegEx",
+  json_api: "JSON API directly",
+  rss_feed: "RSS/Atom Feed",
+  csv_upload: "CSV/Excel Upload",
+  email_forward: "Email Forward Processing",
+};
 
 const typeLabels: Record<string, string> = {
   supplier_catalog: "Supplier Catalog",
@@ -58,6 +71,67 @@ export default function SourceRegistry() {
     onError: (e) => toast.error(e.message),
   });
 
+  const testScrapeMutation = trpc.marketIntel.sources.testScrape.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(`Extracted ${data.extractedCount} items in ${data.durationMs}ms`);
+        console.log("Test Scrape Preview:", data.previewRecords);
+      } else {
+        toast.error(`Scrape failed: ${data.error}`);
+      }
+    },
+    onError: (e) => toast.error(`Test scrape error: ${e.message}`),
+  });
+
+  const scrapeNowMutation = trpc.marketIntel.sources.scrapeNow.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Scrape complete. Extracted: ${data.evidenceCreated}, Failed: ${data.evidenceSkipped}`);
+      refetch();
+    },
+    onError: (e) => toast.error(`Scrape failed: ${e.message}`),
+  });
+
+  const downloadTemplateMutation = trpc.marketIntel.sources.downloadCsvTemplate.useMutation({
+    onSuccess: (data) => {
+      const link = document.createElement("a");
+      link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${data.base64}`;
+      link.download = "MIYAR_Bulk_Evidence_Template.xlsx";
+      link.click();
+      toast.success("Template downloaded");
+    },
+    onError: (e) => toast.error(`Download failed: ${e.message}`),
+  });
+
+  const uploadCsvMutation = trpc.marketIntel.sources.uploadCsv.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Uploaded successfully. Inserted: ${data.successCount}, Skipped: ${data.skippedCount}`);
+      if (data.errors && data.errors.length > 0) {
+        console.warn("Upload Warnings:", data.errors);
+        toast.warning(`Finished with ${data.errors.length} warnings. See console.`);
+      }
+      refetch();
+    },
+    onError: (e) => toast.error(`Upload failed: ${e.message}`),
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, sourceId: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    toast.loading(`Uploading to source #${sourceId}...`, { id: "csv_upload" });
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = (event.target?.result as string).split(",")[1];
+      uploadCsvMutation.mutate(
+        { sourceId, base64File: base64 },
+        { onSettled: () => toast.dismiss("csv_upload") }
+      );
+    };
+    reader.readAsDataURL(file);
+    // clear input
+    e.target.value = '';
+  };
+
   const whitelisted = (sources ?? []).filter((s: any) => s.isWhitelisted);
   const nonWhitelisted = (sources ?? []).filter((s: any) => !s.isWhitelisted);
 
@@ -73,6 +147,10 @@ export default function SourceRegistry() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => downloadTemplateMutation.mutate()} disabled={downloadTemplateMutation.isPending}>
+              <Download className="h-4 w-4 mr-2" />
+              Template
+            </Button>
             {(!sources || sources.length === 0) && (
               <Button variant="outline" onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending}>
                 <Zap className="h-4 w-4 mr-2" />
@@ -163,11 +241,55 @@ export default function SourceRegistry() {
                         </a>
                         {src.region && <><span>·</span><span>{src.region}</span></>}
                       </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1.5 flex-wrap">
+                        {src.scrapeMethod && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium bg-secondary/50">
+                            {methodLabels[src.scrapeMethod] ?? src.scrapeMethod}
+                          </Badge>
+                        )}
+                        {src.scrapeSchedule && (
+                          <span className="flex items-center gap-1 font-mono">
+                            <Zap className="h-3 w-3" /> {src.scrapeSchedule}
+                          </span>
+                        )}
+                        {src.consecutiveFailures > 0 && (
+                          <span className={`flex items-center gap-1 ${src.consecutiveFailures >= 5 ? 'text-destructive font-bold' : 'text-amber-500'}`}>
+                            <ShieldOff className="h-3 w-3" /> Fails: {src.consecutiveFailures}
+                            {src.consecutiveFailures >= 5 && " (DISABLED)"}
+                          </span>
+                        )}
+                      </div>
                       {src.notes && (
                         <p className="text-xs text-muted-foreground mt-1.5 line-clamp-1">{src.notes}</p>
                       )}
                     </div>
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex gap-1 shrink-0 items-center">
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept=".csv, .xlsx"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          onChange={(e) => handleFileUpload(e, src.id)}
+                          disabled={uploadCsvMutation.isPending}
+                          title="Upload Bulk Evidence"
+                        />
+                        <Button variant="outline" size="sm" className="h-7 text-xs mr-2 relative pointer-events-none">
+                          <Upload className="h-3.5 w-3.5 mr-1.5" />
+                          Upload
+                        </Button>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs mr-2"
+                        onClick={() => scrapeNowMutation.mutate({ id: src.id })}
+                        disabled={scrapeNowMutation.isPending}
+                      >
+                        {scrapeNowMutation.isPending && scrapeNowMutation.variables?.id === src.id ? (
+                          <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                        ) : null}
+                        Scrape Now
+                      </Button>
                       <Dialog open={editId === src.id} onOpenChange={(open) => setEditId(open ? src.id : null)}>
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -182,6 +304,11 @@ export default function SourceRegistry() {
                             initial={src}
                             onSubmit={(data) => updateMutation.mutate({ id: src.id, ...data })}
                             isLoading={updateMutation.isPending}
+                            onTestScrape={(id) => {
+                              toast.loading("Running test scrape...", { id: "test-scrape" });
+                              testScrapeMutation.mutate({ id }, { onSettled: () => toast.dismiss("test-scrape") });
+                            }}
+                            isTesting={testScrapeMutation.isPending}
                           />
                         </DialogContent>
                       </Dialog>
@@ -211,10 +338,12 @@ export default function SourceRegistry() {
 
 // ─── Source Form ─────────────────────────────────────────────────────────────
 
-function SourceForm({ initial, onSubmit, isLoading }: {
+function SourceForm({ initial, onSubmit, isLoading, onTestScrape, isTesting }: {
   initial?: any;
   onSubmit: (data: any) => void;
   isLoading: boolean;
+  onTestScrape?: (id: number) => void;
+  isTesting?: boolean;
 }) {
   const [form, setForm] = useState({
     name: initial?.name ?? "",
@@ -224,6 +353,10 @@ function SourceForm({ initial, onSubmit, isLoading }: {
     isWhitelisted: initial?.isWhitelisted ?? true,
     region: initial?.region ?? "UAE",
     notes: initial?.notes ?? "",
+    scrapeMethod: initial?.scrapeMethod ?? "html_llm",
+    scrapeSchedule: initial?.scrapeSchedule ?? "0 6 * * 1", // default monday 6am
+    extractionHints: initial?.extractionHints ?? "",
+    requestDelayMs: initial?.requestDelayMs ?? 2000,
   });
 
   const handleSubmit = () => {
@@ -278,13 +411,59 @@ function SourceForm({ initial, onSubmit, isLoading }: {
           <Label>Whitelisted</Label>
         </div>
       </div>
+
+      <div className="grid grid-cols-2 gap-4 border-t border-border/50 pt-4 mt-2">
+        <div>
+          <Label>Ingestion Method</Label>
+          <Select value={form.scrapeMethod} onValueChange={(v) => setForm({ ...form, scrapeMethod: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SCRAPE_METHODS.map(m => (
+                <SelectItem key={m} value={m}>{methodLabels[m]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Schedule (Cron Expr)</Label>
+          <Input value={form.scrapeSchedule} onChange={(e) => setForm({ ...form, scrapeSchedule: e.target.value })} placeholder="0 6 * * 1" />
+        </div>
+      </div>
+
+      {
+        ["html_llm", "html_rules"].includes(form.scrapeMethod) && (
+          <div className="pt-2">
+            <Label>Extraction Hints (for LLM / Parser)</Label>
+            <Textarea
+              value={form.extractionHints}
+              onChange={(e) => setForm({ ...form, extractionHints: e.target.value })}
+              placeholder="e.g. Find prices in the tables under 'Material Costs'. Exclude installation."
+              rows={2}
+            />
+          </div>
+        )
+      }
+
       <div>
         <Label>Notes</Label>
-        <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
+        <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={1} />
       </div>
-      <Button onClick={handleSubmit} disabled={isLoading} className="w-full">
-        {isLoading ? "Saving..." : initial ? "Update Source" : "Add Source"}
-      </Button>
-    </div>
+      <div className="flex gap-2 w-full pt-2">
+        {initial && onTestScrape && (
+          <Button
+            variant="outline"
+            className="flex-1"
+            type="button"
+            disabled={isTesting}
+            onClick={() => onTestScrape(initial.id)}
+          >
+            {isTesting ? "Testing..." : "Test Scrape"}
+          </Button>
+        )}
+        <Button onClick={handleSubmit} disabled={isLoading} className="flex-1">
+          {isLoading ? "Saving..." : initial ? "Update Source" : "Add Source"}
+        </Button>
+      </div>
+    </div >
   );
 }
