@@ -26,6 +26,8 @@
  * ```
  */
 import { ENV } from "./env";
+import { Buffer } from "buffer";
+import process from "process";
 
 export type TranscribeOptions = {
   audioUrl: string; // URL to the audio file (e.g., S3 URL)
@@ -75,18 +77,11 @@ export async function transcribeAudio(
 ): Promise<TranscriptionResponse | TranscriptionError> {
   try {
     // Step 1: Validate environment configuration
-    if (!ENV.forgeApiUrl) {
-      return {
-        error: "Voice transcription service is not configured",
-        code: "SERVICE_ERROR",
-        details: "BUILT_IN_FORGE_API_URL is not set"
-      };
-    }
-    if (!ENV.forgeApiKey) {
+    if (!process.env.OPENAI_API_KEY) {
       return {
         error: "Voice transcription service authentication is missing",
         code: "SERVICE_ERROR",
-        details: "BUILT_IN_FORGE_API_KEY is not set"
+        details: "OPENAI_API_KEY is not set"
       };
     }
 
@@ -102,10 +97,10 @@ export async function transcribeAudio(
           details: `HTTP ${response.status}: ${response.statusText}`
         };
       }
-      
+
       audioBuffer = Buffer.from(await response.arrayBuffer());
       mimeType = response.headers.get('content-type') || 'audio/mpeg';
-      
+
       // Check file size (16MB limit)
       const sizeMB = audioBuffer.length / (1024 * 1024);
       if (sizeMB > 16) {
@@ -125,38 +120,30 @@ export async function transcribeAudio(
 
     // Step 3: Create FormData for multipart upload to Whisper API
     const formData = new FormData();
-    
+
     // Create a Blob from the buffer and append to form
     const filename = `audio.${getFileExtension(mimeType)}`;
     const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
     formData.append("file", audioBlob, filename);
-    
+
     formData.append("model", "whisper-1");
     formData.append("response_format", "verbose_json");
-    
+
     // Add prompt - use custom prompt if provided, otherwise generate based on language
     const prompt = options.prompt || (
-      options.language 
+      options.language
         ? `Transcribe the user's voice to text, the user's working language is ${getLanguageName(options.language)}`
         : "Transcribe the user's voice to text"
     );
     formData.append("prompt", prompt);
 
     // Step 4: Call the transcription service
-    const baseUrl = ENV.forgeApiUrl.endsWith("/")
-      ? ENV.forgeApiUrl
-      : `${ENV.forgeApiUrl}/`;
-    
-    const fullUrl = new URL(
-      "v1/audio/transcriptions",
-      baseUrl
-    ).toString();
+    const fullUrl = "https://api.openai.com/v1/audio/transcriptions";
 
     const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${ENV.forgeApiKey}`,
-        "Accept-Encoding": "identity",
+        authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: formData,
     });
@@ -172,7 +159,7 @@ export async function transcribeAudio(
 
     // Step 5: Parse and return the transcription result
     const whisperResponse = await response.json() as WhisperResponse;
-    
+
     // Validate response structure
     if (!whisperResponse.text || typeof whisperResponse.text !== 'string') {
       return {
@@ -208,7 +195,7 @@ function getFileExtension(mimeType: string): string {
     'audio/m4a': 'm4a',
     'audio/mp4': 'm4a',
   };
-  
+
   return mimeToExt[mimeType] || 'audio';
 }
 
@@ -237,7 +224,7 @@ function getLanguageName(langCode: string): string {
     'no': 'Norwegian',
     'fi': 'Finnish',
   };
-  
+
   return langMap[langCode] || langCode;
 }
 
