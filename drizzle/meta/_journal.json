@@ -183,6 +183,13 @@
       "when": 1771914617041,
       "tag": "0025_wealthy_reptil",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1771927953394,
+      "tag": "0026_normal_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

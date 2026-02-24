@@ -1,7 +1,7 @@
-import { Project } from "../../db";
+
 import { DesignVocabulary } from "./vocabulary";
 import { paletteSeeds } from "./palette-seeds";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM } from "../../_core/llm";
 
 export async function buildColorPalette(
     project: any,

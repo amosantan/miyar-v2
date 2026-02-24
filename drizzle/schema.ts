@@ -1507,3 +1507,49 @@ export const dmComplianceChecklists = mysqlTable(
 export type DmComplianceChecklist = typeof dmComplianceChecklists.$inferSelect;
 export type InsertDmComplianceChecklist = typeof dmComplianceChecklists.$inferInsert;
 
+// ─── V9 - Strategic Risk & Economic Modeling ────────────────────────────────
+
+export const projectRoiModels = mysqlTable("project_roi_models", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  scenarioId: int("scenario_id"),
+  reworkCostAvoided: decimal("rework_cost_avoided", { precision: 14, scale: 2 }).notNull(),
+  programmeAccelerationValue: decimal("programme_acceleration_value", { precision: 14, scale: 2 }).notNull(),
+  totalValueCreated: decimal("total_value_created", { precision: 14, scale: 2 }).notNull(),
+  netRoiPercent: decimal("net_roi_percent", { precision: 8, scale: 2 }).notNull(),
+  confidenceMultiplier: decimal("confidence_multiplier", { precision: 5, scale: 4 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ProjectRoiModel = typeof projectRoiModels.$inferSelect;
+export type InsertProjectRoiModel = typeof projectRoiModels.$inferInsert;
+
+export const scenarioStressTests = mysqlTable("scenario_stress_tests", {
+  id: int("id").primaryKey().autoincrement(),
+  scenarioId: int("scenario_id").notNull(),
+  stressCondition: varchar("stress_condition", { length: 100 }).notNull(),
+  impactMagnitudePercent: decimal("impact_magnitude_percent", { precision: 6, scale: 2 }).notNull(),
+  resilienceScore: int("resilience_score").notNull(), // 1-100
+  failurePoints: json("failure_points").notNull(), // JSON array of components that fail
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ScenarioStressTest = typeof scenarioStressTests.$inferSelect;
+export type InsertScenarioStressTest = typeof scenarioStressTests.$inferInsert;
+
+export const riskSurfaceMaps = mysqlTable("risk_surface_maps", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  domain: varchar("domain", { length: 100 }).notNull(),
+  probability: int("probability").notNull(), // 0-100
+  impact: int("impact").notNull(), // 0-100
+  vulnerability: int("vulnerability").notNull(), // 0-100
+  controlStrength: int("control_strength").notNull(), // 1-100
+  compositeRiskScore: int("composite_risk_score").notNull(), // Calculated via R = (P * I * V) / C
+  riskBand: mysqlEnum("risk_band", ["Minimal", "Controlled", "Elevated", "Critical", "Systemic"]).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type RiskSurfaceMap = typeof riskSurfaceMaps.$inferSelect;
+export type InsertRiskSurfaceMap = typeof riskSurfaceMaps.$inferInsert;
+
