@@ -67,20 +67,26 @@ async function checkRobotsTxt(targetUrl: string, userAgent: string): Promise<boo
 // ─── Firecrawl Client (lazy-loaded) ─────────────────────────────
 
 let _firecrawlClient: any = null;
+let _firecrawlInitPromise: Promise<any> | null = null;
 
-function getFirecrawlClient(): any | null {
+async function getFirecrawlClient(): Promise<any | null> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
   if (!apiKey) return null;
 
-  if (!_firecrawlClient) {
-    try {
-      const FirecrawlApp = require("@mendable/firecrawl-js").default;
-      _firecrawlClient = new FirecrawlApp({ apiKey });
-    } catch (err) {
-      console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
-      return null;
-    }
+  if (!_firecrawlClient && !_firecrawlInitPromise) {
+    _firecrawlInitPromise = (async () => {
+      try {
+        const mod = await import("@mendable/firecrawl-js");
+        const FirecrawlApp = mod.default;
+        _firecrawlClient = new FirecrawlApp({ apiKey });
+      } catch (err) {
+        console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
+      }
+      return _firecrawlClient;
+    })();
   }
+
+  if (_firecrawlInitPromise) await _firecrawlInitPromise;
   return _firecrawlClient;
 }
 
@@ -238,7 +244,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
    */
   async fetchWithFirecrawl(url?: string): Promise<RawSourcePayload> {
     const targetUrl = url || this.sourceUrl;
-    const client = getFirecrawlClient();
+    const client = await getFirecrawlClient();
 
     if (!client) {
       return this.fetchBasic(targetUrl);
@@ -246,19 +252,18 @@ export abstract class BaseSourceConnector implements SourceConnector {
 
     try {
       console.log(`[Connector] 🔥 Firecrawl scraping: ${targetUrl}`);
-      const result = await client.scrapeUrl(targetUrl, {
+      // v4 SDK: scrape() returns Document directly (no success wrapper)
+      const doc: any = await client.scrape(targetUrl, {
         formats: ["markdown", "html"],
-        waitFor: 3000,
-        timeout: 30000,
       });
 
-      if (!result.success) {
-        console.warn(`[Connector] Firecrawl failed for ${targetUrl}: ${result.error || "unknown"}, falling back to basic fetch`);
+      const markdown = doc?.markdown || "";
+      const html = doc?.html || "";
+
+      if (markdown.length < 50 && html.length < 50) {
+        console.warn(`[Connector] Firecrawl returned too little content for ${targetUrl}, falling back`);
         return this.fetchBasic(targetUrl);
       }
-
-      const markdown = result.markdown || "";
-      const html = result.html || "";
 
       console.log(`[Connector] 🔥 Firecrawl success: ${targetUrl} (${markdown.length} chars md, ${html.length} chars html)`);
 
@@ -267,7 +272,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
         fetchedAt: new Date(),
         rawHtml: html,
         markdown,
-        statusCode: result.metadata?.statusCode || 200,
+        statusCode: doc?.metadata?.statusCode || 200,
       };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);

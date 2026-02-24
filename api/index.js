@@ -1,11 +1,5 @@
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
-});
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -11426,18 +11420,23 @@ async function checkRobotsTxt(targetUrl, userAgent) {
   }
 }
 var _firecrawlClient = null;
-function getFirecrawlClient() {
+var _firecrawlInitPromise = null;
+async function getFirecrawlClient() {
   const apiKey = process.env.FIRECRAWL_API_KEY;
   if (!apiKey) return null;
-  if (!_firecrawlClient) {
-    try {
-      const FirecrawlApp = __require("@mendable/firecrawl-js").default;
-      _firecrawlClient = new FirecrawlApp({ apiKey });
-    } catch (err) {
-      console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
-      return null;
-    }
+  if (!_firecrawlClient && !_firecrawlInitPromise) {
+    _firecrawlInitPromise = (async () => {
+      try {
+        const mod = await import("@mendable/firecrawl-js");
+        const FirecrawlApp = mod.default;
+        _firecrawlClient = new FirecrawlApp({ apiKey });
+      } catch (err) {
+        console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
+      }
+      return _firecrawlClient;
+    })();
   }
+  if (_firecrawlInitPromise) await _firecrawlInitPromise;
   return _firecrawlClient;
 }
 function isFirecrawlAvailable() {
@@ -11532,30 +11531,28 @@ var BaseSourceConnector = class {
    */
   async fetchWithFirecrawl(url) {
     const targetUrl = url || this.sourceUrl;
-    const client = getFirecrawlClient();
+    const client = await getFirecrawlClient();
     if (!client) {
       return this.fetchBasic(targetUrl);
     }
     try {
       console.log(`[Connector] \u{1F525} Firecrawl scraping: ${targetUrl}`);
-      const result = await client.scrapeUrl(targetUrl, {
-        formats: ["markdown", "html"],
-        waitFor: 3e3,
-        timeout: 3e4
+      const doc = await client.scrape(targetUrl, {
+        formats: ["markdown", "html"]
       });
-      if (!result.success) {
-        console.warn(`[Connector] Firecrawl failed for ${targetUrl}: ${result.error || "unknown"}, falling back to basic fetch`);
+      const markdown = doc?.markdown || "";
+      const html = doc?.html || "";
+      if (markdown.length < 50 && html.length < 50) {
+        console.warn(`[Connector] Firecrawl returned too little content for ${targetUrl}, falling back`);
         return this.fetchBasic(targetUrl);
       }
-      const markdown = result.markdown || "";
-      const html = result.html || "";
       console.log(`[Connector] \u{1F525} Firecrawl success: ${targetUrl} (${markdown.length} chars md, ${html.length} chars html)`);
       return {
         url: targetUrl,
         fetchedAt: /* @__PURE__ */ new Date(),
         rawHtml: html,
         markdown,
-        statusCode: result.metadata?.statusCode || 200
+        statusCode: doc?.metadata?.statusCode || 200
       };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
