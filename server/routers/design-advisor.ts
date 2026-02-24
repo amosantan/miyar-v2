@@ -220,7 +220,7 @@ export const designAdvisorRouter = router({
                 type: input.type as any,
                 promptJson: { prompt: result.prompt, roomId: input.roomId, visualType: input.type },
                 status: "completed",
-                createdBy: ctx.userId,
+                createdBy: ctx.user.id,
                 imageAssetId: null,
             });
 
@@ -241,7 +241,7 @@ export const designAdvisorRouter = router({
                 type: "hero" as any,
                 promptJson: { prompt: result.prompt, visualType: "hero_image" },
                 status: "completed",
-                createdBy: ctx.userId,
+                createdBy: ctx.user.id,
                 imageAssetId: null,
             });
 
@@ -251,6 +251,6 @@ export const designAdvisorRouter = router({
     getVisuals: orgProcedure
         .input(z.object({ projectId: z.number() }))
         .query(async ({ ctx, input }) => {
-            return db.getProjectVisuals(input.projectId);
+            return db.getGeneratedVisualsByProject(input.projectId);
         }),
 });

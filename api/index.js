@@ -235,6 +235,441 @@ var init_llm = __esm({
   }
 });
 
+// server/engines/bias/bias-types.ts
+var TIER_BUDGET_BENCHMARKS, BIAS_LABELS;
+var init_bias_types = __esm({
+  "server/engines/bias/bias-types.ts"() {
+    "use strict";
+    TIER_BUDGET_BENCHMARKS = {
+      "Mid": { median: 800, low: 500, high: 1200 },
+      "Upper-mid": { median: 1500, low: 1e3, high: 2200 },
+      "Luxury": { median: 3e3, low: 2e3, high: 5e3 },
+      "Ultra-luxury": { median: 6e3, low: 4e3, high: 12e3 }
+    };
+    BIAS_LABELS = {
+      optimism_bias: "Optimism Bias",
+      anchoring_bias: "Anchoring Bias",
+      confirmation_bias: "Confirmation Bias",
+      overconfidence: "Overconfidence",
+      scope_creep: "Scope Creep Risk",
+      sunk_cost: "Sunk Cost Fallacy",
+      clustering_illusion: "Clustering Illusion"
+    };
+  }
+});
+
+// server/engines/bias/bias-detector.ts
+var bias_detector_exports = {};
+__export(bias_detector_exports, {
+  BIAS_LABELS: () => BIAS_LABELS,
+  detectBiases: () => detectBiases
+});
+function severity(confidence) {
+  if (confidence >= 85) return "critical";
+  if (confidence >= 70) return "high";
+  if (confidence >= 50) return "medium";
+  return "low";
+}
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+function detectOptimismBias(inputs, scoreResult) {
+  const tier = inputs.mkt01Tier;
+  if (tier !== "Luxury" && tier !== "Ultra-luxury") return null;
+  const benchmark = TIER_BUDGET_BENCHMARKS[tier];
+  if (!benchmark) return null;
+  const gfa = inputs.ctx03Gfa || 500;
+  const budget = inputs.fin01BudgetCap || 0;
+  const expectedBudget = benchmark.median * gfa;
+  const budgetRatio = expectedBudget > 0 ? budget / expectedBudget : 1;
+  const evidence = [];
+  let rawConfidence = 0;
+  if (budget > 0 && budgetRatio < 0.7) {
+    const shortfall = ((1 - budgetRatio) * 100).toFixed(0);
+    rawConfidence += 40 + (1 - budgetRatio) * 40;
+    evidence.push({
+      variable: "fin01BudgetCap",
+      label: "Budget Cap",
+      value: `AED ${budget.toLocaleString()}`,
+      expected: `AED ${expectedBudget.toLocaleString()} (median for ${tier})`,
+      deviation: `${shortfall}% below ${tier} market median`
+    });
+  }
+  if (inputs.fin02Flexibility <= 2) {
+    rawConfidence += 20;
+    evidence.push({
+      variable: "fin02Flexibility",
+      label: "Budget Flexibility",
+      value: inputs.fin02Flexibility,
+      expected: "\u2265 3 for high-tier projects",
+      deviation: "Rigid budget with premium ambitions"
+    });
+  }
+  if (inputs.fin03ShockTolerance <= 2) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "fin03ShockTolerance",
+      label: "Shock Tolerance",
+      value: inputs.fin03ShockTolerance,
+      expected: "\u2265 3 for luxury market exposure",
+      deviation: "Low resilience to cost overruns in premium segment"
+    });
+  }
+  if (inputs.des03Complexity >= 4 && (inputs.ctx05Horizon === "0-12m" || inputs.ctx05Horizon === "12-24m")) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "des03Complexity",
+      label: "Design Complexity",
+      value: inputs.des03Complexity,
+      expected: "Lower complexity or longer horizon for Complexity \u2265 4"
+    });
+  }
+  if (evidence.length === 0) return null;
+  const confidence = clamp(rawConfidence, 20, 98);
+  return {
+    biasType: "optimism_bias",
+    severity: severity(confidence),
+    confidence,
+    title: "Optimism Bias Detected",
+    description: `This ${tier} project has ${evidence.length} indicator(s) suggesting unrealistic expectations. The selected tier implies market-rate costs that significantly exceed the configured budget and flexibility parameters.`,
+    intervention: `Review budget allocation against ${tier} benchmarks. Consider either increasing the budget cap to at least AED ${(TIER_BUDGET_BENCHMARKS[tier].low * (inputs.ctx03Gfa || 500)).toLocaleString()} or adjusting the market tier downward.`,
+    evidencePoints: evidence,
+    mathExplanation: `Budget ratio = actual / (${tier} median \xD7 GFA) = ${budgetRatio.toFixed(2)}. Threshold: < 0.70 triggers flag. Flexibility: ${inputs.fin02Flexibility}/5, ShockTolerance: ${inputs.fin03ShockTolerance}/5.`
+  };
+}
+function detectAnchoringBias(inputs, scoreResult, ctx) {
+  if (ctx.evaluationCount < 3) return null;
+  if (ctx.previousBudgets.length < 3) return null;
+  const currentBudget = inputs.fin01BudgetCap || 0;
+  if (currentBudget <= 0) return null;
+  const budgetVariance = ctx.previousBudgets.map(
+    (b) => Math.abs(b - currentBudget) / currentBudget
+  );
+  const maxVariance = Math.max(...budgetVariance);
+  const avgVariance = budgetVariance.reduce((a, b) => a + b, 0) / budgetVariance.length;
+  if (maxVariance > 0.05) return null;
+  const hasFinancialPenalties = scoreResult.penalties.some(
+    (p) => p.id.includes("budget") || p.id.includes("fin") || p.trigger.toLowerCase().includes("budget")
+  );
+  const evidence = [
+    {
+      variable: "fin01BudgetCap",
+      label: "Budget Cap (History)",
+      value: `AED ${currentBudget.toLocaleString()}`,
+      expected: "Adjustment based on evaluation feedback",
+      deviation: `Budget unchanged (\xB1${(maxVariance * 100).toFixed(1)}%) across ${ctx.evaluationCount} evaluations`
+    }
+  ];
+  if (hasFinancialPenalties) {
+    evidence.push({
+      variable: "penalties",
+      label: "Active Financial Penalties",
+      value: scoreResult.penalties.filter(
+        (p) => p.id.includes("budget") || p.id.includes("fin")
+      ).length,
+      deviation: "Budget-related penalties persist but budget unchanged"
+    });
+  }
+  let rawConfidence = 50 + (ctx.evaluationCount - 3) * 10 + (avgVariance < 0.02 ? 15 : 0);
+  if (hasFinancialPenalties) rawConfidence += 20;
+  const confidence = clamp(rawConfidence, 40, 95);
+  return {
+    biasType: "anchoring_bias",
+    severity: severity(confidence),
+    confidence,
+    title: "Anchoring Bias \u2014 Budget Fixed Despite Feedback",
+    description: `The budget has remained at AED ${currentBudget.toLocaleString()} (\xB1${(maxVariance * 100).toFixed(1)}%) across ${ctx.evaluationCount} evaluations. The system has flagged financial penalties, but the budget has not been adjusted.`,
+    intervention: `Consider whether the initial budget was set based on objective data or an arbitrary anchor. Re-evaluate using the market benchmarks and sensitivity analysis to determine the optimal budget range.`,
+    evidencePoints: evidence,
+    mathExplanation: `Max budget variance = ${(maxVariance * 100).toFixed(2)}% (threshold: 5%). Evaluations: ${ctx.evaluationCount}. Financial penalties active: ${hasFinancialPenalties}.`
+  };
+}
+function detectConfirmationBias(inputs, scoreResult, ctx) {
+  if (ctx.overrideCount < 2) return null;
+  if (ctx.overrideNetEffect <= 0) return null;
+  if (scoreResult.compositeScore >= 65) return null;
+  const evidence = [
+    {
+      variable: "overrideCount",
+      label: "Manual Overrides",
+      value: ctx.overrideCount,
+      expected: "Balanced overrides (both up and down)",
+      deviation: `${ctx.overrideCount} overrides applied, all increasing scores by net +${ctx.overrideNetEffect.toFixed(1)}`
+    },
+    {
+      variable: "compositeScore",
+      label: "Composite Score",
+      value: scoreResult.compositeScore.toFixed(1),
+      expected: "\u2265 65 for a validated project",
+      deviation: `Score remains ${scoreResult.compositeScore.toFixed(1)} despite positive overrides`
+    }
+  ];
+  let rawConfidence = 45 + ctx.overrideCount * 10 + (65 - scoreResult.compositeScore);
+  const confidence = clamp(rawConfidence, 40, 95);
+  return {
+    biasType: "confirmation_bias",
+    severity: severity(confidence),
+    confidence,
+    title: "Confirmation Bias \u2014 Cherry-Picking Overrides",
+    description: `${ctx.overrideCount} manual overrides have been applied, all increasing the score by a net +${ctx.overrideNetEffect.toFixed(1)} points. Despite this, the composite score remains at ${scoreResult.compositeScore.toFixed(1)}, below the validation threshold.`,
+    intervention: `Review each override for objective justification. Consider whether the project fundamentals support the desired direction, or whether the overrides are being used to validate a predetermined conclusion.`,
+    evidencePoints: evidence,
+    mathExplanation: `Overrides: ${ctx.overrideCount}, net effect: +${ctx.overrideNetEffect.toFixed(1)}. Post-override composite: ${scoreResult.compositeScore.toFixed(1)} (threshold: 65). All overrides positive \u2192 confirmation bias pattern.`
+  };
+}
+function detectOverconfidence(inputs, scoreResult) {
+  const evidence = [];
+  let rawConfidence = 0;
+  if (inputs.str01BrandClarity >= 5 && inputs.str02Differentiation >= 5) {
+    rawConfidence += 40;
+    evidence.push({
+      variable: "str01BrandClarity + str02Differentiation",
+      label: "Self-Assessed Brand + Differentiation",
+      value: "5/5 + 5/5",
+      expected: "Rare to have perfect scores in both",
+      deviation: "Maximum self-assessment on both strategic dimensions"
+    });
+  } else if (inputs.str01BrandClarity >= 4 && inputs.str02Differentiation >= 4) {
+    rawConfidence += 20;
+  } else {
+    return null;
+  }
+  if (inputs.mkt02Competitor <= 2) {
+    rawConfidence += 30;
+    evidence.push({
+      variable: "mkt02Competitor",
+      label: "Competitive Awareness",
+      value: inputs.mkt02Competitor,
+      expected: "\u2265 3 in active UAE real estate market",
+      deviation: "Low competitor rating despite high brand confidence"
+    });
+  }
+  if (inputs.str03BuyerMaturity >= 5) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "str03BuyerMaturity",
+      label: "Buyer Maturity",
+      value: inputs.str03BuyerMaturity,
+      expected: "Evidence-based assessment",
+      deviation: "Maximum buyer maturity rating \u2014 verify with market data"
+    });
+  }
+  if (evidence.length < 2) return null;
+  const confidence = clamp(rawConfidence, 35, 95);
+  return {
+    biasType: "overconfidence",
+    severity: severity(confidence),
+    confidence,
+    title: "Overconfidence Detected",
+    description: `Strategic self-assessment scores are at maximum levels (Brand: ${inputs.str01BrandClarity}/5, Differentiation: ${inputs.str02Differentiation}/5) while competitive awareness is rated at only ${inputs.mkt02Competitor}/5.`,
+    intervention: `Validate brand and differentiation claims against objective competitor data. Consider commissioning a market study or reviewing the competitor entity database before proceeding.`,
+    evidencePoints: evidence,
+    mathExplanation: `Brand: ${inputs.str01BrandClarity}/5, Differentiation: ${inputs.str02Differentiation}/5, Competitor: ${inputs.mkt02Competitor}/5. Pattern: max self-assessment + low competitor awareness.`
+  };
+}
+function detectScopeCreep(inputs, scoreResult) {
+  const evidence = [];
+  let rawConfidence = 0;
+  const isComplexDesign = inputs.des03Complexity >= 4;
+  const isHighExperience = inputs.des04Experience >= 4;
+  const isTightTimeline = inputs.ctx05Horizon === "0-12m" || inputs.ctx05Horizon === "12-24m";
+  const isWeakSupplyChain = inputs.exe01SupplyChain <= 2;
+  const isWeakContractor = inputs.exe02Contractor <= 2;
+  if (!isComplexDesign) return null;
+  if (isComplexDesign) {
+    rawConfidence += 25;
+    evidence.push({
+      variable: "des03Complexity",
+      label: "Design Complexity",
+      value: inputs.des03Complexity,
+      deviation: "High complexity increases scope change probability"
+    });
+  }
+  if (isHighExperience) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "des04Experience",
+      label: "Experience Intensity",
+      value: inputs.des04Experience,
+      deviation: "Experiential design elements compound scope risks"
+    });
+  }
+  if (isTightTimeline) {
+    rawConfidence += 25;
+    evidence.push({
+      variable: "ctx05Horizon",
+      label: "Delivery Horizon",
+      value: inputs.ctx05Horizon,
+      expected: "24-36m+ for Complexity \u2265 4",
+      deviation: "Tight timeline with complex scope"
+    });
+  }
+  if (isWeakSupplyChain) {
+    rawConfidence += 20;
+    evidence.push({
+      variable: "exe01SupplyChain",
+      label: "Supply Chain Readiness",
+      value: inputs.exe01SupplyChain,
+      expected: "\u2265 3 for complex designs",
+      deviation: "Weak supply chain cannot support scope ambitions"
+    });
+  }
+  if (isWeakContractor) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "exe02Contractor",
+      label: "Contractor Capability",
+      value: inputs.exe02Contractor,
+      deviation: "Low contractor rating compounds delivery risk"
+    });
+  }
+  if (evidence.length < 3) return null;
+  const confidence = clamp(rawConfidence, 35, 95);
+  return {
+    biasType: "scope_creep",
+    severity: severity(confidence),
+    confidence,
+    title: "Scope Creep Risk \u2014 Ambition Exceeds Delivery Capacity",
+    description: `This project combines high design complexity (${inputs.des03Complexity}/5) with ${isTightTimeline ? `a tight ${inputs.ctx05Horizon} horizon` : ""}${isWeakSupplyChain ? ` and weak supply chain (${inputs.exe01SupplyChain}/5)` : ""}. This combination significantly increases the probability of uncontrolled scope expansion.`,
+    intervention: `Either extend the delivery horizon to 24-36m+, simplify design complexity to \u2264 3, or strengthen the execution pipeline (supply chain \u2265 3, contractor \u2265 3) before proceeding.`,
+    evidencePoints: evidence,
+    mathExplanation: `Complexity: ${inputs.des03Complexity}/5, Experience: ${inputs.des04Experience}/5, Horizon: ${inputs.ctx05Horizon}, SupplyChain: ${inputs.exe01SupplyChain}/5, Contractor: ${inputs.exe02Contractor}/5.`
+  };
+}
+function detectSunkCost(inputs, scoreResult, ctx) {
+  if (ctx.evaluationCount < 3) return null;
+  if (ctx.previousScores.length < 2) return null;
+  const scores = [...ctx.previousScores, scoreResult.compositeScore];
+  let decliningCount = 0;
+  for (let i = 1; i < scores.length; i++) {
+    if (scores[i] < scores[i - 1]) decliningCount++;
+  }
+  const isDeclining = decliningCount >= Math.floor(scores.length * 0.6);
+  const latestScore = scoreResult.compositeScore;
+  const peakScore = Math.max(...ctx.previousScores);
+  if (!isDeclining || latestScore >= 60) return null;
+  const evidence = [
+    {
+      variable: "evaluationHistory",
+      label: "Evaluation Count",
+      value: ctx.evaluationCount,
+      deviation: `${ctx.evaluationCount} evaluations with declining trend`
+    },
+    {
+      variable: "scoreTrajectory",
+      label: "Score Trajectory",
+      value: `Peak: ${peakScore.toFixed(1)} \u2192 Current: ${latestScore.toFixed(1)}`,
+      deviation: `Score declined ${(peakScore - latestScore).toFixed(1)} points from peak`
+    }
+  ];
+  if (scoreResult.decisionStatus === "not_validated") {
+    evidence.push({
+      variable: "decisionStatus",
+      label: "Validation Status",
+      value: "Not Validated",
+      deviation: "Project has not achieved validation despite multiple attempts"
+    });
+  }
+  let rawConfidence = 40 + (ctx.evaluationCount - 3) * 10 + (peakScore - latestScore);
+  if (scoreResult.decisionStatus === "not_validated") rawConfidence += 15;
+  const confidence = clamp(rawConfidence, 40, 95);
+  return {
+    biasType: "sunk_cost",
+    severity: severity(confidence),
+    confidence,
+    title: "Sunk Cost Fallacy \u2014 Declining Project Persists",
+    description: `This project has been evaluated ${ctx.evaluationCount} times with a declining score trajectory (peak: ${peakScore.toFixed(1)} \u2192 current: ${latestScore.toFixed(1)}). Continued investment may be driven by prior commitment rather than objective viability.`,
+    intervention: `Perform a zero-base assessment: evaluate this project as if starting fresh today. Would you invest given the current score of ${latestScore.toFixed(1)}? Consider pivoting or shelving.`,
+    evidencePoints: evidence,
+    mathExplanation: `Evaluations: ${ctx.evaluationCount}. Declining in ${decliningCount}/${scores.length - 1} intervals. Peak: ${peakScore.toFixed(1)}, Current: ${latestScore.toFixed(1)}, Delta: -${(peakScore - latestScore).toFixed(1)}.`
+  };
+}
+function detectClusteringIllusion(inputs, scoreResult, ctx) {
+  if (inputs.mkt03Trend < 4) return null;
+  if (ctx.marketTrendActual !== null && ctx.marketTrendActual !== void 0) {
+    const gap = inputs.mkt03Trend - ctx.marketTrendActual;
+    if (gap < 2) return null;
+    const evidence = [
+      {
+        variable: "mkt03Trend",
+        label: "User Trend Assessment",
+        value: `${inputs.mkt03Trend}/5`,
+        expected: `${ctx.marketTrendActual.toFixed(1)}/5 (evidence-based)`,
+        deviation: `User rates trends +${gap.toFixed(1)} above evidence data`
+      }
+    ];
+    const confidence = clamp(40 + gap * 20, 45, 95);
+    return {
+      biasType: "clustering_illusion",
+      severity: severity(confidence),
+      confidence,
+      title: "Clustering Illusion \u2014 Trend Overestimation",
+      description: `The user-assessed market trend (${inputs.mkt03Trend}/5) significantly exceeds the evidence-based trend metric (${ctx.marketTrendActual.toFixed(1)}/5). This may reflect seeing patterns in noise \u2014 interpreting random market movements as meaningful trends.`,
+      intervention: `Cross-reference trend assessment with the Evidence Vault and market analytics. Review actual price movement data, absorption rates, and competitive supply before confirming trend score.`,
+      evidencePoints: evidence,
+      mathExplanation: `User trend: ${inputs.mkt03Trend}/5, Evidence trend: ${ctx.marketTrendActual.toFixed(1)}/5. Gap: ${gap.toFixed(1)} (threshold: \u2265 2).`
+    };
+  }
+  if (inputs.mkt03Trend >= 5 && inputs.ctx04Location === "Emerging") {
+    return {
+      biasType: "clustering_illusion",
+      severity: "medium",
+      confidence: 55,
+      title: "Clustering Illusion \u2014 Verify Trend Assessment",
+      description: `Maximum trend alignment (5/5) claimed for an Emerging location, which typically has less predictable market trends. This may reflect optimistic trend interpretation.`,
+      intervention: `Verify trend data with the Data Freshness Engine. Emerging markets often show volatile patterns that can be misread as consistent trends.`,
+      evidencePoints: [
+        {
+          variable: "mkt03Trend",
+          label: "Market Trend",
+          value: 5,
+          expected: "Evidence-backed assessment",
+          deviation: "Max trend score in an Emerging location"
+        },
+        {
+          variable: "ctx04Location",
+          label: "Location Category",
+          value: "Emerging",
+          deviation: "Emerging markets have higher trend volatility"
+        }
+      ],
+      mathExplanation: `Trend: ${inputs.mkt03Trend}/5, Location: Emerging. Max trend + high-volatility location = potential pattern overread.`
+    };
+  }
+  return null;
+}
+function detectBiases(inputs, scoreResult, ctx) {
+  const alerts = [];
+  const detectors = [
+    () => detectOptimismBias(inputs, scoreResult),
+    () => detectAnchoringBias(inputs, scoreResult, ctx),
+    () => detectConfirmationBias(inputs, scoreResult, ctx),
+    () => detectOverconfidence(inputs, scoreResult),
+    () => detectScopeCreep(inputs, scoreResult),
+    () => detectSunkCost(inputs, scoreResult, ctx),
+    () => detectClusteringIllusion(inputs, scoreResult, ctx)
+  ];
+  for (const detector of detectors) {
+    try {
+      const alert = detector();
+      if (alert) alerts.push(alert);
+    } catch (e) {
+      console.warn("[BiasDetector] Detector failed:", e);
+    }
+  }
+  const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+  alerts.sort(
+    (a, b) => (severityOrder[a.severity] ?? 4) - (severityOrder[b.severity] ?? 4) || b.confidence - a.confidence
+  );
+  return alerts;
+}
+var init_bias_detector = __esm({
+  "server/engines/bias/bias-detector.ts"() {
+    "use strict";
+    init_bias_types();
+  }
+});
+
 // server/engines/design/vocabulary.ts
 var vocabulary_exports = {};
 __export(vocabulary_exports, {
@@ -2591,6 +3026,94 @@ var riskSurfaceMaps = mysqlTable("risk_surface_maps", {
   riskBand: mysqlEnum("risk_band", ["Minimal", "Controlled", "Elevated", "Critical", "Systemic"]).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
+var biasAlerts = mysqlTable("bias_alerts", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("projectId").notNull(),
+  scoreMatrixId: int("scoreMatrixId"),
+  userId: int("userId").notNull(),
+  orgId: int("orgId"),
+  biasType: mysqlEnum("biasType", [
+    "optimism_bias",
+    "anchoring_bias",
+    "confirmation_bias",
+    "overconfidence",
+    "scope_creep",
+    "sunk_cost",
+    "clustering_illusion"
+  ]).notNull(),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
+  confidence: decimal("confidence", { precision: 5, scale: 2 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  intervention: text("intervention"),
+  evidencePoints: json("evidencePoints"),
+  mathExplanation: text("mathExplanation"),
+  dismissed: boolean("dismissed").default(false),
+  dismissedBy: int("dismissedBy"),
+  dismissedAt: timestamp("dismissedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull()
+});
+var biasProfiles = mysqlTable("bias_profiles", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("userId").notNull(),
+  orgId: int("orgId"),
+  biasType: varchar("biasType", { length: 64 }).notNull(),
+  occurrenceCount: int("occurrenceCount").default(0),
+  lastDetectedAt: timestamp("lastDetectedAt"),
+  avgSeverity: decimal("avgSeverity", { precision: 3, scale: 2 }),
+  trend: mysqlEnum("trend", ["increasing", "stable", "decreasing"]).default("stable"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var spaceRecommendations = mysqlTable("space_recommendations", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  orgId: int("org_id").notNull(),
+  roomId: varchar("room_id", { length: 10 }).notNull(),
+  roomName: varchar("room_name", { length: 100 }).notNull(),
+  sqm: decimal("sqm", { precision: 8, scale: 2 }),
+  styleDirection: varchar("style_direction", { length: 500 }),
+  colorScheme: varchar("color_scheme", { length: 500 }),
+  materialPackage: json("material_package"),
+  // MaterialRec[]
+  budgetAllocation: decimal("budget_allocation", { precision: 12, scale: 2 }),
+  budgetBreakdown: json("budget_breakdown"),
+  // BudgetBreakdownItem[]
+  aiRationale: text("ai_rationale"),
+  specialNotes: json("special_notes"),
+  // string[]
+  kitchenSpec: json("kitchen_spec"),
+  // KitchenSpec | null
+  bathroomSpec: json("bathroom_spec"),
+  // BathroomSpec | null
+  alternatives: json("alternatives"),
+  // AlternativePackage[]
+  generatedAt: timestamp("generated_at").defaultNow().notNull()
+});
+var designPackages = mysqlTable("design_packages", {
+  id: int("id").primaryKey().autoincrement(),
+  orgId: int("org_id"),
+  name: varchar("name", { length: 200 }).notNull(),
+  typology: varchar("typology", { length: 100 }).notNull(),
+  tier: varchar("tier", { length: 50 }).notNull(),
+  style: varchar("style", { length: 100 }).notNull(),
+  description: text("description"),
+  targetBudgetPerSqm: decimal("target_budget_per_sqm", { precision: 10, scale: 2 }),
+  rooms: json("rooms"),
+  // SpaceRecommendation[]
+  isTemplate: boolean("is_template").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull()
+});
+var aiDesignBriefs = mysqlTable("ai_design_briefs", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  orgId: int("org_id").notNull(),
+  briefData: json("brief_data").notNull(),
+  // AIDesignBrief
+  version: varchar("version", { length: 20 }).default("1.0"),
+  generatedAt: timestamp("generated_at").defaultNow().notNull()
+});
 
 // server/_core/env.ts
 var ENV = {
@@ -3864,6 +4387,131 @@ async function insertDmComplianceChecklist(data) {
   const db = await getDb();
   if (!db) return;
   return db.insert(dmComplianceChecklists).values(data);
+}
+async function createBiasAlerts(data) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.length === 0) return;
+  return db.insert(biasAlerts).values(data);
+}
+async function getBiasAlertsByProject(projectId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(biasAlerts).where(eq(biasAlerts.projectId, projectId)).orderBy(desc(biasAlerts.createdAt));
+}
+async function getActiveBiasAlerts(projectId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(biasAlerts).where(and(
+    eq(biasAlerts.projectId, projectId),
+    eq(biasAlerts.dismissed, false)
+  )).orderBy(desc(biasAlerts.createdAt));
+}
+async function dismissBiasAlert(alertId, userId) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(biasAlerts).set({ dismissed: true, dismissedBy: userId, dismissedAt: /* @__PURE__ */ new Date() }).where(eq(biasAlerts.id, alertId));
+}
+async function getUserBiasProfile(userId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(biasProfiles).where(eq(biasProfiles.userId, userId));
+}
+async function upsertBiasProfile(userId, orgId, biasType, severityNumeric) {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await db.select().from(biasProfiles).where(and(
+    eq(biasProfiles.userId, userId),
+    eq(biasProfiles.biasType, biasType)
+  ));
+  if (existing.length > 0) {
+    const prev = existing[0];
+    const newCount = (prev.occurrenceCount || 0) + 1;
+    const prevAvg = Number(prev.avgSeverity || 0);
+    const newAvg = (prevAvg * (newCount - 1) + severityNumeric) / newCount;
+    const trend = newAvg > prevAvg + 0.1 ? "increasing" : newAvg < prevAvg - 0.1 ? "decreasing" : "stable";
+    await db.update(biasProfiles).set({
+      occurrenceCount: newCount,
+      lastDetectedAt: /* @__PURE__ */ new Date(),
+      avgSeverity: String(newAvg.toFixed(2)),
+      trend
+    }).where(eq(biasProfiles.id, prev.id));
+  } else {
+    await db.insert(biasProfiles).values({
+      userId,
+      orgId,
+      biasType,
+      occurrenceCount: 1,
+      lastDetectedAt: /* @__PURE__ */ new Date(),
+      avgSeverity: String(severityNumeric.toFixed(2)),
+      trend: "stable"
+    });
+  }
+}
+async function getProjectEvaluationHistory(projectId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(scoreMatrices).where(eq(scoreMatrices.projectId, projectId)).orderBy(desc(scoreMatrices.computedAt));
+}
+async function getUserOverrideStats(projectId) {
+  const db = await getDb();
+  if (!db) return { count: 0, netEffect: 0 };
+  const overrides = await db.select().from(overrideRecords).where(eq(overrideRecords.projectId, projectId));
+  const count = overrides.length;
+  const netEffect = overrides.reduce((sum, o) => {
+    const delta = Number(o.newValue || 0) - Number(o.originalValue || 0);
+    return sum + delta;
+  }, 0);
+  return { count, netEffect };
+}
+async function getMaterialLibrary() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(materialLibrary).where(eq(materialLibrary.isActive, true));
+}
+async function createSpaceRecommendation(data) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(spaceRecommendations).values(data);
+}
+async function getSpaceRecommendations(projectId, orgId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(spaceRecommendations).where(and(
+    eq(spaceRecommendations.projectId, projectId),
+    eq(spaceRecommendations.orgId, orgId)
+  )).orderBy(spaceRecommendations.roomId);
+}
+async function createDesignPackage(data) {
+  const db = await getDb();
+  if (!db) return;
+  const result = await db.insert(designPackages).values(data);
+  return { id: result[0].insertId };
+}
+async function getDesignPackages(typology, tier) {
+  const db = await getDb();
+  if (!db) return [];
+  let query = db.select().from(designPackages).where(eq(designPackages.isActive, true));
+  const results = await query;
+  return results.filter((p) => {
+    if (typology && p.typology !== typology) return false;
+    if (tier && p.tier !== tier) return false;
+    return true;
+  });
+}
+async function createAiDesignBrief(data) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(aiDesignBriefs).values(data);
+}
+async function getLatestAiDesignBrief(projectId, orgId) {
+  const db = await getDb();
+  if (!db) return null;
+  const results = await db.select().from(aiDesignBriefs).where(and(
+    eq(aiDesignBriefs.projectId, projectId),
+    eq(aiDesignBriefs.orgId, orgId)
+  )).orderBy(desc(aiDesignBriefs.generatedAt)).limit(1);
+  return results[0] || null;
 }
 
 // shared/_core/errors.ts
@@ -6833,6 +7481,58 @@ var projectRouter = router({
     } catch (e) {
       console.warn("[Intelligence] Failed to compute derived features:", e);
     }
+    try {
+      const { detectBiases: detectBiases2 } = await Promise.resolve().then(() => (init_bias_detector(), bias_detector_exports));
+      const evalHistory = await getProjectEvaluationHistory(input.id);
+      const overrideStats = await getUserOverrideStats(input.id);
+      const previousScores = evalHistory.filter((m) => m.id !== matrixResult.id).map((m) => Number(m.compositeScore));
+      const previousBudgets = evalHistory.filter((m) => m.id !== matrixResult.id).map((m) => {
+        const snap = m.inputSnapshot;
+        return Number(snap?.fin01BudgetCap || 0);
+      });
+      const biasCtx = {
+        projectId: input.id,
+        userId: ctx.user.id,
+        orgId: ctx.orgId,
+        evaluationCount: evalHistory.length,
+        previousScores,
+        previousBudgets,
+        overrideCount: overrideStats.count,
+        overrideNetEffect: overrideStats.netEffect,
+        marketTrendActual: null
+      };
+      const biasAlerts2 = detectBiases2(inputs, scoreResult, biasCtx);
+      if (biasAlerts2.length > 0) {
+        const severityMap = { low: 1, medium: 2, high: 3, critical: 4 };
+        await createBiasAlerts(
+          biasAlerts2.map((alert) => ({
+            projectId: input.id,
+            scoreMatrixId: matrixResult.id,
+            userId: ctx.user.id,
+            orgId: ctx.orgId,
+            biasType: alert.biasType,
+            severity: alert.severity,
+            confidence: String(alert.confidence),
+            title: alert.title,
+            description: alert.description,
+            intervention: alert.intervention,
+            evidencePoints: alert.evidencePoints,
+            mathExplanation: alert.mathExplanation
+          }))
+        );
+        for (const alert of biasAlerts2) {
+          await upsertBiasProfile(
+            ctx.user.id,
+            ctx.orgId,
+            alert.biasType,
+            severityMap[alert.severity] || 2
+          );
+        }
+        console.log(`[V11] Detected ${biasAlerts2.length} cognitive bias(es) for project ${input.id}`);
+      }
+    } catch (e) {
+      console.warn("[V11] Bias detection failed (non-blocking):", e);
+    }
     await updateProject(input.id, {
       status: "evaluated",
       modelVersionId: modelVersion.id,
@@ -8767,23 +9467,24 @@ async function generateImage(options) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not configured");
   }
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${process.env.GEMINI_API_KEY}`;
+  const model = "gemini-2.5-flash-preview-image-generation";
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      instances: [
+      contents: [
         {
-          prompt: options.prompt
+          parts: [
+            { text: options.prompt }
+          ]
         }
       ],
-      parameters: {
-        sampleCount: 1
-        // Optional parameters you might consider exposing later:
-        // aspectRatio: "1:1",
-        // outputOptions: { mimeType: "image/png" }
+      generationConfig: {
+        responseModalities: ["IMAGE", "TEXT"],
+        responseMimeType: "text/plain"
       }
     })
   });
@@ -8794,15 +9495,29 @@ async function generateImage(options) {
     );
   }
   const result = await response.json();
-  const base64Data = result.predictions?.[0]?.bytesBase64Encoded;
-  if (!base64Data) {
-    throw new Error("Gemini Image API returned an invalid response missing base64 bytes");
+  const candidates = result.candidates || [];
+  let base64Data;
+  let mimeType = "image/png";
+  for (const candidate of candidates) {
+    const parts = candidate.content?.parts || [];
+    for (const part of parts) {
+      if (part.inlineData) {
+        base64Data = part.inlineData.data;
+        mimeType = part.inlineData.mimeType || "image/png";
+        break;
+      }
+    }
+    if (base64Data) break;
   }
+  if (!base64Data) {
+    throw new Error("Gemini Image API returned no image data in the response");
+  }
+  const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.includes("webp") ? "webp" : "png";
   const buffer = Buffer3.from(base64Data, "base64");
   const { url } = await storagePut(
-    `generated/${Date.now()}.png`,
+    `generated/${Date.now()}.${ext}`,
     buffer,
-    "image/png"
+    mimeType
   );
   return {
     url
@@ -10711,14 +11426,22 @@ var GRADE_A_SOURCE_IDS = /* @__PURE__ */ new Set([
   "nakheel-properties",
   "rics-market-reports",
   "jll-mena-research",
-  "dubai-statistics-center"
+  "dubai-statistics-center",
+  "dubai-pulse-materials",
+  "scad-abu-dhabi",
+  "dld-transactions",
+  "aldar-properties",
+  "cbre-uae-research",
+  "knight-frank-uae",
+  "savills-me-research"
 ]);
 var GRADE_B_SOURCE_IDS = /* @__PURE__ */ new Set([
   "rak-ceramics-uae",
   "porcelanosa-uae",
   "hafele-uae",
   "gems-building-materials",
-  "dragon-mart-dubai"
+  "dragon-mart-dubai",
+  "property-monitor-dubai"
 ]);
 var GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set([
   "dera-interiors"
@@ -11147,12 +11870,12 @@ async function detectPriceChange(currentRecord) {
   if (currentPrice === previousPrice) return null;
   const changePct = (currentPrice - previousPrice) / Math.abs(previousPrice) * 100;
   const changeDirection = currentPrice > previousPrice ? "increased" : "decreased";
-  let severity = "none";
+  let severity2 = "none";
   const absChange = Math.abs(changePct);
-  if (absChange >= 10) severity = "significant";
-  else if (absChange >= 5) severity = "notable";
-  else if (absChange > 0) severity = "minor";
-  if (severity === "none") return null;
+  if (absChange >= 10) severity2 = "significant";
+  else if (absChange >= 5) severity2 = "notable";
+  else if (absChange > 0) severity2 = "minor";
+  if (severity2 === "none") return null;
   const result = await createPriceChangeEvent({
     itemName: currentRecord.itemName.substring(0, 255),
     category: currentRecord.category.substring(0, 255),
@@ -11161,16 +11884,16 @@ async function detectPriceChange(currentRecord) {
     newPrice: currentPrice.toString(),
     changePct: changePct.toString(),
     changeDirection,
-    severity,
+    severity: severity2,
     detectedAt: currentRecord.captureDate
   });
-  if (severity === "significant" || severity === "notable") {
+  if (severity2 === "significant" || severity2 === "notable") {
     const insightType = changeDirection === "increased" ? "cost_pressure" : "market_opportunity";
     await insertProjectInsight({
       insightType,
-      severity: severity === "significant" ? "critical" : "warning",
+      severity: severity2 === "significant" ? "critical" : "warning",
       title: `${changeDirection === "increased" ? "Price Spike" : "Price Drop"} Detected: ${currentRecord.itemName}`.substring(0, 512),
-      body: `A ${severity} price ${changeDirection} of ${Math.abs(changePct).toFixed(1)}% was detected for ${currentRecord.itemName} supplied via ${currentRecord.publisher}. Previous: ${previousPrice} AED, New: ${currentPrice} AED.`,
+      body: `A ${severity2} price ${changeDirection} of ${Math.abs(changePct).toFixed(1)}% was detected for ${currentRecord.itemName} supplied via ${currentRecord.publisher}. Previous: ${previousPrice} AED, New: ${currentPrice} AED.`,
       actionableRecommendation: `Review associated material benchmarks to adjust expected forecasting costs accordingly.`,
       confidenceScore: "0.85",
       dataPoints: [
@@ -11178,7 +11901,7 @@ async function detectPriceChange(currentRecord) {
         { label: "New Price", value: currentPrice.toString() },
         { label: "Deviation %", value: `${changePct.toFixed(1)}%` }
       ],
-      triggerCondition: `Change detector alert: abs(change) >= ${severity === "significant" ? 10 : 5}%`
+      triggerCondition: `Change detector alert: abs(change) >= ${severity2 === "significant" ? 10 : 5}%`
     });
   }
   return {
@@ -11188,7 +11911,7 @@ async function detectPriceChange(currentRecord) {
     newPrice: currentPrice,
     changePct,
     changeDirection,
-    severity
+    severity: severity2
   };
 }
 
@@ -12930,7 +13653,16 @@ var SOURCE_URLS = {
   "jll-mena-research": "https://www.jll.com/en/trends-and-insights/research",
   "dubai-statistics-center": "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
   "hafele-uae": "https://www.hafele.com/",
-  "gems-building-materials": "https://gemsbuilding.com/products/"
+  "gems-building-materials": "https://gemsbuilding.com/products/",
+  // ─── V4: New UAE Market Sources ─────────────────────────────────
+  "dubai-pulse-materials": "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
+  "scad-abu-dhabi": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+  "dld-transactions": "https://www.dubaipulse.gov.ae/data/dld_transactions/dld_transactions-open",
+  "aldar-properties": "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
+  "cbre-uae-research": "https://www.cbre.ae/en/insights",
+  "knight-frank-uae": "https://www.knightfrank.ae/research",
+  "savills-me-research": "https://www.savills.me/insight-and-opinion/",
+  "property-monitor-dubai": "https://www.propertymonitor.ae/market-reports"
 };
 var LLM_EXTRACTION_SYSTEM_PROMPT2 = `You are a data extraction engine for the MIYAR real estate intelligence platform.
 You extract structured evidence from raw HTML content of UAE construction/real estate websites.
@@ -13265,6 +13997,162 @@ var GEMSConnector = class extends HTMLSourceConnector {
   defaultTags = ["building-materials", "supplier", "wholesale"];
   defaultUnit = "unit";
 };
+var DubaiPulseConnector = class extends HTMLSourceConnector {
+  sourceId = "dubai-pulse-materials";
+  sourceName = "Dubai Pulse \u2014 Material Prices";
+  sourceUrl = SOURCE_URLS["dubai-pulse-materials"];
+  category = "material_cost";
+  geography = "Dubai";
+  defaultTags = ["government", "material-prices", "construction", "dubai-pulse"];
+  defaultUnit = "unit";
+  async normalize(evidence) {
+    const grade2 = assignGrade(this.sourceId);
+    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+    const llmEvidence = evidence;
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? "unit",
+      confidence,
+      grade: grade2,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags
+    };
+  }
+};
+var SCADConnector = class extends HTMLSourceConnector {
+  sourceId = "scad-abu-dhabi";
+  sourceName = "SCAD Abu Dhabi Statistics";
+  sourceUrl = SOURCE_URLS["scad-abu-dhabi"];
+  category = "material_cost";
+  geography = "Abu Dhabi";
+  defaultTags = ["government", "statistics", "abu-dhabi", "material-prices"];
+  defaultUnit = "unit";
+  async normalize(evidence) {
+    const grade2 = assignGrade(this.sourceId);
+    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+    const llmEvidence = evidence;
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? "unit",
+      confidence,
+      grade: grade2,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags
+    };
+  }
+};
+var DLDTransactionsConnector = class extends HTMLSourceConnector {
+  sourceId = "dld-transactions";
+  sourceName = "DLD Real Estate Transactions";
+  sourceUrl = SOURCE_URLS["dld-transactions"];
+  category = "market_trend";
+  geography = "Dubai";
+  defaultTags = ["government", "transactions", "real-estate", "dld"];
+  defaultUnit = "sqft";
+  async normalize(evidence) {
+    const grade2 = assignGrade(this.sourceId);
+    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+    const llmEvidence = evidence;
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? "sqft",
+      confidence,
+      grade: grade2,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags
+    };
+  }
+};
+var AldarPropertiesConnector = class extends HTMLSourceConnector {
+  sourceId = "aldar-properties";
+  sourceName = "Aldar Properties";
+  sourceUrl = SOURCE_URLS["aldar-properties"];
+  category = "competitor_project";
+  geography = "Abu Dhabi";
+  defaultTags = ["developer", "abu-dhabi", "residential", "master-plan"];
+  defaultUnit = "sqft";
+};
+var CBREResearchConnector = class extends HTMLSourceConnector {
+  sourceId = "cbre-uae-research";
+  sourceName = "CBRE UAE Research";
+  sourceUrl = SOURCE_URLS["cbre-uae-research"];
+  category = "market_trend";
+  geography = "UAE";
+  defaultTags = ["market-research", "real-estate", "commercial", "cbre"];
+  defaultUnit = "sqft";
+  async normalize(evidence) {
+    const grade2 = assignGrade(this.sourceId);
+    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+    const llmEvidence = evidence;
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? null,
+      confidence,
+      grade: grade2,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags
+    };
+  }
+};
+var KnightFrankConnector = class extends HTMLSourceConnector {
+  sourceId = "knight-frank-uae";
+  sourceName = "Knight Frank UAE";
+  sourceUrl = SOURCE_URLS["knight-frank-uae"];
+  category = "market_trend";
+  geography = "UAE";
+  defaultTags = ["market-research", "real-estate", "residential", "knight-frank"];
+  defaultUnit = "sqft";
+  async normalize(evidence) {
+    const grade2 = assignGrade(this.sourceId);
+    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+    const llmEvidence = evidence;
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? null,
+      confidence,
+      grade: grade2,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags
+    };
+  }
+};
+var SavillsConnector = class extends HTMLSourceConnector {
+  sourceId = "savills-me-research";
+  sourceName = "Savills ME Research";
+  sourceUrl = SOURCE_URLS["savills-me-research"];
+  category = "market_trend";
+  geography = "UAE";
+  defaultTags = ["market-research", "real-estate", "investment", "savills"];
+  defaultUnit = "sqft";
+  async normalize(evidence) {
+    const grade2 = assignGrade(this.sourceId);
+    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+    const llmEvidence = evidence;
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? null,
+      confidence,
+      grade: grade2,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags
+    };
+  }
+};
+var PropertyMonitorConnector = class extends HTMLSourceConnector {
+  sourceId = "property-monitor-dubai";
+  sourceName = "Property Monitor Dubai";
+  sourceUrl = SOURCE_URLS["property-monitor-dubai"];
+  category = "market_trend";
+  geography = "Dubai";
+  defaultTags = ["market-reports", "property", "dubai", "analytics"];
+  defaultUnit = "sqft";
+};
 var ALL_CONNECTORS = {
   "rak-ceramics-uae": () => new RAKCeramicsConnector(),
   "dera-interiors": () => new DERAInteriorsConnector(),
@@ -13277,7 +14165,16 @@ var ALL_CONNECTORS = {
   "jll-mena-research": () => new JLLConnector(),
   "dubai-statistics-center": () => new DubaiStatisticsConnector(),
   "hafele-uae": () => new HafeleConnector(),
-  "gems-building-materials": () => new GEMSConnector()
+  "gems-building-materials": () => new GEMSConnector(),
+  // V4: New UAE Market Sources
+  "dubai-pulse-materials": () => new DubaiPulseConnector(),
+  "scad-abu-dhabi": () => new SCADConnector(),
+  "dld-transactions": () => new DLDTransactionsConnector(),
+  "aldar-properties": () => new AldarPropertiesConnector(),
+  "cbre-uae-research": () => new CBREResearchConnector(),
+  "knight-frank-uae": () => new KnightFrankConnector(),
+  "savills-me-research": () => new SavillsConnector(),
+  "property-monitor-dubai": () => new PropertyMonitorConnector()
 };
 function getConnectorById(sourceId) {
   const factory = ALL_CONNECTORS[sourceId];
@@ -15376,6 +16273,748 @@ var economicsRouter = router({
   })
 });
 
+// server/routers/bias.ts
+import { z as z17 } from "zod";
+var biasRouter = router({
+  // Get all bias alerts for a project (active + dismissed)
+  getAlerts: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return [];
+    return getBiasAlertsByProject(input.projectId);
+  }),
+  // Get only active (non-dismissed) alerts
+  getActiveAlerts: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return [];
+    return getActiveBiasAlerts(input.projectId);
+  }),
+  // Dismiss a bias alert
+  dismiss: orgProcedure.input(z17.object({ alertId: z17.number() })).mutation(async ({ ctx, input }) => {
+    await dismissBiasAlert(input.alertId, ctx.user.id);
+    await createAuditLog({
+      userId: ctx.user.id,
+      action: "bias.dismiss",
+      entityType: "bias_alert",
+      entityId: input.alertId,
+      details: { alertId: input.alertId }
+    });
+    return { success: true };
+  }),
+  // Get user's aggregated bias profile
+  getProfile: protectedProcedure.query(async ({ ctx }) => {
+    return getUserBiasProfile(ctx.user.id);
+  }),
+  // Get intervention report for a project (structured summary for reports)
+  getInterventionReport: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
+      return { alerts: [], hasBiases: false, summary: "No data available." };
+    }
+    const alerts = await getActiveBiasAlerts(input.projectId);
+    if (alerts.length === 0) {
+      return {
+        alerts: [],
+        hasBiases: false,
+        summary: "No cognitive biases detected. Input parameters appear objectively grounded."
+      };
+    }
+    const criticalCount = alerts.filter((a) => a.severity === "critical").length;
+    const highCount = alerts.filter((a) => a.severity === "high").length;
+    const summary = criticalCount > 0 ? `\u26A0\uFE0F ${criticalCount} critical bias(es) detected. Immediate review recommended before proceeding.` : highCount > 0 ? `${highCount} high-severity bias(es) identified. Consider reviewing inputs before finalizing.` : `${alerts.length} potential bias(es) identified at moderate confidence. Review at your discretion.`;
+    return {
+      alerts,
+      hasBiases: true,
+      summary,
+      criticalCount,
+      highCount,
+      totalCount: alerts.length
+    };
+  })
+});
+
+// server/routers/design-advisor.ts
+import { z as z18 } from "zod";
+
+// server/engines/design/ai-design-advisor.ts
+init_llm();
+init_space_program();
+var KITCHEN_ROOMS = ["KIT"];
+var BATHROOM_ROOMS = ["MEN", "BTH", "ENS"];
+var WET_ROOM_IDS = [...KITCHEN_ROOMS, ...BATHROOM_ROOMS, "UTL"];
+var TIER_PRICE_MULTIPLIERS = {
+  "Entry": 0.5,
+  "Mid": 0.7,
+  "Upper-mid": 1,
+  "Luxury": 1.6,
+  "Ultra-luxury": 2.8
+};
+async function generateDesignRecommendations(project, inputs, materialLibrary2) {
+  const spaceProgram = buildSpaceProgram(project);
+  const rooms = spaceProgram.rooms;
+  const totalBudget = spaceProgram.totalFitoutBudgetAed;
+  const materialSummary = buildMaterialSummary(materialLibrary2, inputs);
+  const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary);
+  const aiResponse = await callGeminiForDesign(prompt);
+  const recommendations = mapAIResponseToRecommendations(
+    aiResponse,
+    rooms,
+    totalBudget,
+    materialLibrary2,
+    inputs
+  );
+  return recommendations;
+}
+function buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary) {
+  const roomList = rooms.map((r) => `- ${r.id} "${r.name}": ${r.sqm} sqm, Grade ${r.finishGrade}, Priority ${r.priority}, Budget ${(r.budgetPct * 100).toFixed(0)}%`).join("\n");
+  return `You are an expert UAE interior design consultant. Generate detailed per-space design recommendations for this project.
+
+## Project Context
+- **Name**: ${project.name || "Untitled Project"}
+- **Typology**: ${inputs.ctx01Typology}
+- **Scale**: ${inputs.ctx02Scale}
+- **GFA**: ${inputs.ctx03Gfa} sqm
+- **Location**: ${inputs.ctx04Location}
+- **Market Tier**: ${inputs.mkt01Tier}
+- **Design Style**: ${inputs.des01Style}
+- **Material Level**: ${inputs.des02MaterialLevel}/5
+- **Complexity**: ${inputs.des03Complexity}/5
+- **Total Fitout Budget**: ${totalBudget.toLocaleString()} AED
+
+## Spaces to Design
+${roomList}
+
+## Available Materials (from our library)
+${materialSummary}
+
+## Instructions
+For EACH space, provide:
+1. **styleDirection** \u2014 A specific design direction (e.g., "Warm minimalism with brass accents and limestone textures")
+2. **colorScheme** \u2014 Specific colors (e.g., "Warm sand #D4C5A9, Charcoal #3A3A3A, Brass #B8860B")
+3. **materials** \u2014 For each element (floor, wall_primary, wall_feature, ceiling, joinery, hardware), recommend a specific product with brand and price range
+4. **budgetBreakdown** \u2014 % allocation per element within the room
+5. **rationale** \u2014 Why this style fits the project context
+6. **specialNotes** \u2014 Tips for the interior designer
+
+For KITCHEN spaces (${KITCHEN_ROOMS.join(", ")}), also provide kitchenSpec with:
+- layoutType, cabinetStyle, cabinetFinish, countertopMaterial, backsplash, sinkType
+- applianceLevel ("standard"/"premium"/"professional"), applianceBrands, storageFeatures
+
+For BATHROOM spaces (${BATHROOM_ROOMS.join(", ")}), also provide bathroomSpec with:
+- showerType, vanityStyle, vanityWidth, tilePattern, wallTile, floorTile
+- fixtureFinish, fixtureBrand, mirrorType, luxuryFeatures
+
+Match materials to the "${inputs.mkt01Tier}" market tier. Use UAE-available brands and realistic AED pricing.
+
+Respond in JSON format matching GeminiDesignResponse schema:
+{
+  "spaces": [...],
+  "overallDesignNarrative": "...",
+  "designPhilosophy": "..."
+}`;
+}
+function buildMaterialSummary(materials, inputs) {
+  if (!materials || materials.length === 0) {
+    return "No materials in library \u2014 recommend based on market knowledge.";
+  }
+  const grouped = {};
+  for (const m of materials.filter((m2) => m2.isActive)) {
+    const key = m.category;
+    if (!grouped[key]) grouped[key] = [];
+    if (grouped[key].length < 3) {
+      grouped[key].push(m);
+    }
+  }
+  return Object.entries(grouped).map(([cat, items]) => {
+    const list = items.map(
+      (m) => `  \u2022 ${m.productName} (${m.brand}) \u2014 ${m.tier} \u2014 ${m.priceAedMin || "?"}\u2013${m.priceAedMax || "?"} AED/${m.unitLabel}`
+    ).join("\n");
+    return `**${cat}**:
+${list}`;
+  }).join("\n");
+}
+async function callGeminiForDesign(prompt) {
+  const result = await invokeLLM({
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert interior design AI specializing in UAE luxury and mid-market projects. Always respond with valid JSON."
+      },
+      { role: "user", content: prompt }
+    ],
+    responseFormat: { type: "json_object" },
+    maxTokens: 8e3
+  });
+  const text2 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
+  try {
+    return JSON.parse(text2);
+  } catch {
+    console.error("[DesignAdvisor] Failed to parse Gemini response:", text2.substring(0, 500));
+    throw new Error("AI design recommendation generation failed \u2014 invalid response format");
+  }
+}
+function mapAIResponseToRecommendations(aiResponse, rooms, totalBudget, materialLibrary2, inputs) {
+  return rooms.map((room) => {
+    const aiSpace = aiResponse.spaces.find((s) => s.roomId === room.id);
+    const roomBudget = totalBudget * room.budgetPct;
+    if (!aiSpace) {
+      return buildFallbackRecommendation(room, roomBudget, inputs);
+    }
+    const materialPackage = (aiSpace.materials || []).map((m) => {
+      const libraryMatch = findBestMaterialMatch(materialLibrary2, m.element, m.brand, m.productName);
+      return {
+        materialLibraryId: libraryMatch?.id ?? null,
+        productName: libraryMatch?.productName || m.productName,
+        brand: libraryMatch?.brand || m.brand,
+        category: libraryMatch?.category || m.element,
+        element: m.element,
+        priceRangeAed: libraryMatch ? `${libraryMatch.priceAedMin}\u2013${libraryMatch.priceAedMax} AED/${libraryMatch.unitLabel}` : m.priceRange,
+        aiRationale: m.rationale
+      };
+    });
+    const budgetBreakdown = (aiSpace.budgetBreakdown || []).map((b) => ({
+      element: b.element,
+      amount: Math.round(roomBudget * (b.percentage / 100)),
+      percentage: b.percentage
+    }));
+    let kitchenSpec;
+    let bathroomSpec;
+    if (KITCHEN_ROOMS.includes(room.id) && aiSpace.kitchenSpec) {
+      const tierMult = TIER_PRICE_MULTIPLIERS[inputs.mkt01Tier] || 1;
+      kitchenSpec = {
+        ...aiSpace.kitchenSpec,
+        estimatedCostAed: Math.round(roomBudget * 0.6 * tierMult)
+      };
+    }
+    if (BATHROOM_ROOMS.includes(room.id) && aiSpace.bathroomSpec) {
+      const tierMult = TIER_PRICE_MULTIPLIERS[inputs.mkt01Tier] || 1;
+      bathroomSpec = {
+        ...aiSpace.bathroomSpec,
+        estimatedCostAed: Math.round(roomBudget * 0.55 * tierMult)
+      };
+    }
+    return {
+      roomId: room.id,
+      roomName: room.name,
+      sqm: room.sqm,
+      styleDirection: aiSpace.styleDirection,
+      colorScheme: aiSpace.colorScheme,
+      materialPackage,
+      budgetAllocation: Math.round(roomBudget),
+      budgetBreakdown,
+      aiRationale: aiSpace.rationale,
+      specialNotes: aiSpace.specialNotes || [],
+      alternatives: [],
+      kitchenSpec,
+      bathroomSpec
+    };
+  });
+}
+function findBestMaterialMatch(library, element, brand, productName) {
+  if (!library || library.length === 0) return null;
+  const categoryMap = {
+    floor: "flooring",
+    wall_primary: "wall_paint",
+    wall_feature: "wall_tile",
+    wall_wet: "wall_tile",
+    ceiling: "ceiling",
+    joinery: "joinery",
+    hardware: "hardware"
+  };
+  const category = categoryMap[element] || element;
+  let match = library.find(
+    (m) => m.category === category && m.brand.toLowerCase() === brand.toLowerCase() && m.isActive
+  );
+  if (!match) {
+    match = library.find((m) => m.category === category && m.isActive);
+  }
+  return match || null;
+}
+function buildFallbackRecommendation(room, roomBudget, inputs) {
+  return {
+    roomId: room.id,
+    roomName: room.name,
+    sqm: room.sqm,
+    styleDirection: `${inputs.des01Style} \u2014 standard finish`,
+    colorScheme: "Neutral palette",
+    materialPackage: [],
+    budgetAllocation: Math.round(roomBudget),
+    budgetBreakdown: [
+      { element: "floor", amount: Math.round(roomBudget * 0.3), percentage: 30 },
+      { element: "wall_primary", amount: Math.round(roomBudget * 0.2), percentage: 20 },
+      { element: "ceiling", amount: Math.round(roomBudget * 0.1), percentage: 10 },
+      { element: "joinery", amount: Math.round(roomBudget * 0.25), percentage: 25 },
+      { element: "hardware", amount: Math.round(roomBudget * 0.15), percentage: 15 }
+    ],
+    aiRationale: "Fallback recommendation \u2014 AI did not generate specific guidance for this space.",
+    specialNotes: [],
+    alternatives: []
+  };
+}
+async function generateAIDesignBrief(project, inputs, recommendations) {
+  const spaceSummary = recommendations.map((r) => `- **${r.roomName}** (${r.sqm}sqm): ${r.styleDirection}. Budget: ${r.budgetAllocation.toLocaleString()} AED. Key materials: ${r.materialPackage.map((m) => m.productName).join(", ") || "TBD"}`).join("\n");
+  const prompt = `Generate a professional interior design brief for this project. This brief will be handed to an interior designer.
+
+## Project
+- Name: ${project.name}
+- Typology: ${inputs.ctx01Typology}
+- Location: ${inputs.ctx04Location}
+- Market Tier: ${inputs.mkt01Tier}
+- Style: ${inputs.des01Style}
+- GFA: ${inputs.ctx03Gfa} sqm
+
+## Space Recommendations (Already Generated)
+${spaceSummary}
+
+## Instructions
+Write a professional, actionable design brief with:
+1. **executiveSummary** \u2014 3-4 sentences positioning the project
+2. **designDirection** \u2014 overall style, color strategy, material philosophy, lighting approach, key differentiators
+3. **spaceBySpaceGuide** \u2014 for each space: designIntent (2-3 sentences), keyMaterials, moodKeywords, doList (3 items), dontList (2 items)
+4. **deliverables** \u2014 what the designer should produce
+5. **qualityGates** \u2014 acceptance criteria
+6. **notes** \u2014 important considerations
+
+Write in professional consultancy tone. Be specific \u2014 use actual material names, colors, and dimensions.
+
+Respond in JSON format.`;
+  const result = await invokeLLM({
+    messages: [
+      {
+        role: "system",
+        content: "You are a senior interior design consultant preparing a professional design brief. Respond with valid JSON."
+      },
+      { role: "user", content: prompt }
+    ],
+    responseFormat: { type: "json_object" },
+    maxTokens: 6e3
+  });
+  const text2 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
+  let parsed;
+  try {
+    parsed = JSON.parse(text2);
+  } catch {
+    throw new Error("AI design brief generation failed \u2014 invalid response");
+  }
+  const totalBudget = recommendations.reduce((sum, r) => sum + r.budgetAllocation, 0);
+  return {
+    projectName: project.name,
+    preparedFor: project.clientName || project.name,
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    version: "1.0",
+    executiveSummary: parsed.executiveSummary || "",
+    designDirection: {
+      overallStyle: parsed.designDirection?.overallStyle || inputs.des01Style,
+      colorStrategy: parsed.designDirection?.colorStrategy || "",
+      materialPhilosophy: parsed.designDirection?.materialPhilosophy || "",
+      lightingApproach: parsed.designDirection?.lightingApproach || "",
+      keyDifferentiators: parsed.designDirection?.keyDifferentiators || []
+    },
+    spaceBySpaceGuide: (parsed.spaceBySpaceGuide || []).map((s) => ({
+      roomId: s.roomId || "",
+      roomName: s.roomName || "",
+      designIntent: s.designIntent || "",
+      keyMaterials: s.keyMaterials || [],
+      moodKeywords: s.moodKeywords || [],
+      doList: s.doList || [],
+      dontList: s.dontList || []
+    })),
+    budgetSummary: {
+      totalFitoutBudget: totalBudget,
+      costPerSqm: Math.round(totalBudget / (Number(inputs.ctx03Gfa) || 1)),
+      allocationBySpace: recommendations.map((r) => ({
+        room: r.roomName,
+        amount: r.budgetAllocation,
+        pct: Math.round(r.budgetAllocation / totalBudget * 100)
+      })),
+      contingency: Math.round(totalBudget * 0.1)
+    },
+    materialSpecifications: {
+      primary: recommendations.flatMap(
+        (r) => r.materialPackage.filter((m) => ["floor", "wall_primary"].includes(m.element))
+      ),
+      secondary: recommendations.flatMap(
+        (r) => r.materialPackage.filter((m) => ["ceiling", "joinery"].includes(m.element))
+      ),
+      accent: recommendations.flatMap(
+        (r) => r.materialPackage.filter((m) => ["wall_feature", "hardware"].includes(m.element))
+      )
+    },
+    supplierDirectory: extractSuppliers(recommendations),
+    deliverables: parsed.deliverables || [
+      "Concept design package with mood boards",
+      "Material specification sheets",
+      "Furniture layout drawings",
+      "Lighting plan",
+      "3D visualizations (key spaces)"
+    ],
+    qualityGates: parsed.qualityGates || [
+      "Client sign-off on concept direction",
+      "Material sample approval",
+      "Budget alignment confirmation"
+    ],
+    notes: parsed.notes || []
+  };
+}
+function extractSuppliers(recs) {
+  const supplierMap = {};
+  for (const r of recs) {
+    for (const m of r.materialPackage) {
+      if (m.brand) {
+        if (!supplierMap[m.brand]) supplierMap[m.brand] = /* @__PURE__ */ new Set();
+        supplierMap[m.brand].add(m.category);
+      }
+    }
+  }
+  return Object.entries(supplierMap).map(([name, cats]) => ({
+    name,
+    categories: Array.from(cats)
+  }));
+}
+
+// server/routers/design-advisor.ts
+init_space_program();
+
+// server/engines/design/nano-banana-client.ts
+function buildRoomMoodBoardPrompt(ctx, rec) {
+  const materials = rec.materialPackage.map((m) => `${m.productName} by ${m.brand}`).join(", ");
+  return `Create a professional interior design mood board for a ${rec.roomName} in a ${ctx.tier} ${ctx.typology} project in ${ctx.location}.
+
+Design direction: ${rec.styleDirection}
+Color scheme: ${rec.colorScheme}
+Key materials: ${materials || "High-quality finishes"}
+Room size: ${rec.sqm} sqm
+
+The mood board should include:
+- Material swatches and texture samples
+- Color palette with hex codes
+- Furniture and decor inspiration
+- Lighting atmosphere references
+- Spatial arrangement concepts
+
+Professional architectural presentation style. Clean white background with elegant grid layout. No text overlays. High-end design magazine quality.`;
+}
+function buildRoomRenderPrompt(ctx, rec) {
+  const materials = rec.materialPackage.slice(0, 4).map((m) => m.productName).join(", ");
+  return `Create a photorealistic interior render of a ${rec.roomName} (${rec.sqm} sqm) in a ${ctx.tier} ${ctx.typology} home in ${ctx.location}.
+
+Design style: ${rec.styleDirection}
+Colors: ${rec.colorScheme}
+Materials: ${materials || "Premium finishes"}
+
+Show a beautifully designed space with natural daylight from large windows. Include contemporary furniture appropriate for the ${ctx.tier} market segment. Warm, inviting atmosphere. Professional architectural visualization quality. Camera at eye level with slight wide-angle lens. No people in the image.`;
+}
+function buildMaterialBoardPrompt(ctx, rec) {
+  const materialDetails = rec.materialPackage.map((m) => `${m.element}: ${m.productName} (${m.brand}) \u2014 ${m.priceRangeAed}`).join("\n");
+  return `Create a professional material and finish specification board for a ${rec.roomName} in a ${ctx.tier} ${ctx.typology} project.
+
+Design style: ${rec.styleDirection}
+Materials to show:
+${materialDetails || "Premium flooring, wall finish, joinery, hardware"}
+
+Present as a flat-lay product photography board:
+- Each material swatch cleanly arranged on a white/light grey surface
+- Show actual material textures (stone grain, wood grain, metal finish, fabric weave)
+- Arrange in an aesthetically pleasing grid or diagonal composition
+- 6-8 material samples visible
+- Professional product photography lighting
+- No text labels, just the materials themselves
+- Architectural specification board style`;
+}
+function buildKitchenRenderPrompt(ctx, rec, kitchen) {
+  return `Create a photorealistic kitchen interior render for a ${ctx.tier} ${ctx.typology} home in ${ctx.location}.
+
+Kitchen specifications:
+- Layout: ${kitchen.layoutType}
+- Cabinets: ${kitchen.cabinetStyle}, ${kitchen.cabinetFinish} finish
+- Countertop: ${kitchen.countertopMaterial}
+- Backsplash: ${kitchen.backsplash}
+- Sink: ${kitchen.sinkType}
+- Appliance level: ${kitchen.applianceLevel} (${kitchen.applianceBrands?.join(", ") || "Premium"})
+- Storage features: ${kitchen.storageFeatures?.join(", ") || "Modern"}
+
+Design style: ${rec.styleDirection}
+Color scheme: ${rec.colorScheme}
+
+Show a beautifully designed modern kitchen with natural light. Include pendant lighting above the island/counter. Show the full kitchen layout with all elements visible. Professional architectural visualization. Warm, lived-in atmosphere. No people.`;
+}
+function buildBathroomRenderPrompt(ctx, rec, bathroom) {
+  return `Create a photorealistic luxury bathroom interior render for a ${ctx.tier} ${ctx.typology} home in ${ctx.location}.
+
+Bathroom specifications:
+- Shower: ${bathroom.showerType} with frameless glass
+- Vanity: ${bathroom.vanityStyle}, ${bathroom.vanityWidth} wide
+- Wall tile: ${bathroom.wallTile}
+- Floor tile: ${bathroom.floorTile}
+- Tile pattern: ${bathroom.tilePattern}
+- Fixtures: ${bathroom.fixtureFinish} finish by ${bathroom.fixtureBrand}
+- Mirror: ${bathroom.mirrorType}
+- Luxury features: ${bathroom.luxuryFeatures?.join(", ") || "Premium fixtures"}
+
+Design style: ${rec.styleDirection}
+Color scheme: ${rec.colorScheme}
+
+Spa-like atmosphere with soft natural light and warm ambient lighting. Show all key elements: vanity, shower, mirror, and fixtures. Professional architectural visualization quality. Serene and luxurious mood. No people.`;
+}
+function buildHeroImagePrompt(ctx) {
+  return `Create a stunning hero marketing image for a ${ctx.tier} ${ctx.typology} development called "${ctx.projectName}" in ${ctx.location}.
+
+Show a breathtaking interior living space with ${ctx.style} design aesthetic. Natural light streaming through floor-to-ceiling windows with a view. Premium finishes and designer furniture. The image should convey luxury, sophistication, and aspiration.
+
+Professional real estate marketing photography quality. Warm golden hour lighting. Wide-angle architectural lens. Magazine cover quality. No people, no text overlays.`;
+}
+function buildColorPalettePrompt(ctx, rec) {
+  return `Create a clean, professional color palette visualization for an interior design project.
+
+Color scheme: ${rec.colorScheme}
+Design style: ${rec.styleDirection}
+
+Show 5-7 color swatches arranged horizontally on a pure white background. Each swatch should be a clean rectangle or circle. Include complementary accent colors. The palette should feel cohesive and sophisticated, appropriate for a ${ctx.tier} ${ctx.typology} interior.
+
+Minimalist design, no text, no labels, just beautiful color harmony. Professional design tool aesthetic.`;
+}
+async function generateSpaceVisual(ctx, rec, type) {
+  let prompt;
+  switch (type) {
+    case "mood_board":
+      prompt = buildRoomMoodBoardPrompt(ctx, rec);
+      break;
+    case "material_board":
+      prompt = buildMaterialBoardPrompt(ctx, rec);
+      break;
+    case "room_render":
+      prompt = buildRoomRenderPrompt(ctx, rec);
+      break;
+    case "kitchen_render":
+      if (!rec.kitchenSpec) throw new Error("No kitchen specification available for this space");
+      prompt = buildKitchenRenderPrompt(ctx, rec, rec.kitchenSpec);
+      break;
+    case "bathroom_render":
+      if (!rec.bathroomSpec) throw new Error("No bathroom specification available for this space");
+      prompt = buildBathroomRenderPrompt(ctx, rec, rec.bathroomSpec);
+      break;
+    case "color_palette":
+      prompt = buildColorPalettePrompt(ctx, rec);
+      break;
+    case "hero_image":
+      prompt = buildHeroImagePrompt(ctx);
+      break;
+    default:
+      throw new Error(`Unknown visual type: ${type}`);
+  }
+  const result = await generateImage({ prompt });
+  return {
+    type,
+    roomId: rec.roomId,
+    imageUrl: result.url || "",
+    prompt,
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+async function generateHeroVisual(ctx) {
+  const prompt = buildHeroImagePrompt(ctx);
+  const result = await generateImage({ prompt });
+  return {
+    type: "hero_image",
+    imageUrl: result.url || "",
+    prompt,
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+
+// server/routers/design-advisor.ts
+function projectToInputs5(p) {
+  return {
+    ctx01Typology: p.ctx01Typology || "Residential",
+    ctx02Scale: p.ctx02Scale || "Medium",
+    ctx03Gfa: Number(p.ctx03Gfa || 0),
+    ctx04Location: p.ctx04Location || "Secondary",
+    ctx05Horizon: p.ctx05Horizon || "12-24m",
+    str01BrandClarity: Number(p.str01BrandClarity || 3),
+    str02Differentiation: Number(p.str02Differentiation || 3),
+    str03BuyerMaturity: Number(p.str03BuyerMaturity || 3),
+    mkt01Tier: p.mkt01Tier || "Upper-mid",
+    mkt02Competitor: Number(p.mkt02Competitor || 3),
+    mkt03Trend: Number(p.mkt03Trend || 3),
+    fin01BudgetCap: Number(p.fin01BudgetCap || 0),
+    fin02Flexibility: Number(p.fin02Flexibility || 3),
+    fin03ShockTolerance: Number(p.fin03ShockTolerance || 3),
+    fin04SalesPremium: Number(p.fin04SalesPremium || 3),
+    des01Style: p.des01Style || "Modern",
+    des02MaterialLevel: Number(p.des02MaterialLevel || 3),
+    des03Complexity: Number(p.des03Complexity || 3),
+    des04Experience: Number(p.des04Experience || 3),
+    des05Sustainability: Number(p.des05Sustainability || 2),
+    exe01SupplyChain: Number(p.exe01SupplyChain || 3),
+    exe02Contractor: Number(p.exe02Contractor || 3),
+    exe03Approvals: Number(p.exe03Approvals || 2),
+    exe04QaMaturity: Number(p.exe04QaMaturity || 3),
+    add01SampleKit: !!p.add01SampleKit,
+    add02PortfolioMode: !!p.add02PortfolioMode,
+    add03DashboardExport: !!p.add03DashboardExport
+  };
+}
+function buildProjectContext(project) {
+  return {
+    projectName: project.name || "Untitled",
+    typology: project.ctx01Typology || "Residential",
+    location: project.ctx04Location || "Secondary",
+    tier: project.mkt01Tier || "Upper-mid",
+    style: project.des01Style || "Modern",
+    gfa: Number(project.ctx03Gfa || 0)
+  };
+}
+function mapRecToSpace(rec) {
+  return {
+    roomId: rec.roomId,
+    roomName: rec.roomName,
+    sqm: Number(rec.sqm),
+    styleDirection: rec.styleDirection || "",
+    colorScheme: rec.colorScheme || "",
+    materialPackage: rec.materialPackage || [],
+    budgetAllocation: Number(rec.budgetAllocation),
+    budgetBreakdown: rec.budgetBreakdown || [],
+    aiRationale: rec.aiRationale || "",
+    specialNotes: rec.specialNotes || [],
+    alternatives: rec.alternatives || [],
+    kitchenSpec: rec.kitchenSpec || void 0,
+    bathroomSpec: rec.bathroomSpec || void 0
+  };
+}
+var designAdvisorRouter = router({
+  // ═════════════════════════════════════════════════════════════════════════
+  // Phase 1: AI Design Recommendations
+  // ═════════════════════════════════════════════════════════════════════════
+  generateRecommendations: orgProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const inputs = projectToInputs5(project);
+    const materials = await getMaterialLibrary();
+    const recommendations = await generateDesignRecommendations(project, inputs, materials);
+    for (const rec of recommendations) {
+      await createSpaceRecommendation({
+        projectId: input.projectId,
+        orgId: ctx.orgId,
+        roomId: rec.roomId,
+        roomName: rec.roomName,
+        sqm: String(rec.sqm),
+        styleDirection: rec.styleDirection,
+        colorScheme: rec.colorScheme,
+        materialPackage: rec.materialPackage,
+        budgetAllocation: String(rec.budgetAllocation),
+        budgetBreakdown: rec.budgetBreakdown,
+        aiRationale: rec.aiRationale,
+        specialNotes: rec.specialNotes,
+        kitchenSpec: rec.kitchenSpec || null,
+        bathroomSpec: rec.bathroomSpec || null,
+        alternatives: rec.alternatives
+      });
+    }
+    return { recommendations, count: recommendations.length };
+  }),
+  getRecommendations: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    return getSpaceRecommendations(input.projectId, ctx.orgId);
+  }),
+  getSpaceRecommendation: orgProcedure.input(z18.object({ projectId: z18.number(), roomId: z18.string() })).query(async ({ ctx, input }) => {
+    const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
+    return recs.find((r) => r.roomId === input.roomId) || null;
+  }),
+  getSpaceProgram: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    return buildSpaceProgram(project);
+  }),
+  generateDesignBrief: orgProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const inputs = projectToInputs5(project);
+    const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
+    if (!recs || recs.length === 0) {
+      throw new Error("Generate design recommendations first before creating a brief.");
+    }
+    const recommendations = recs.map(mapRecToSpace);
+    const brief = await generateAIDesignBrief(project, inputs, recommendations);
+    await createAiDesignBrief({
+      projectId: input.projectId,
+      orgId: ctx.orgId,
+      briefData: brief
+    });
+    return brief;
+  }),
+  getDesignBrief: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    return getLatestAiDesignBrief(input.projectId, ctx.orgId);
+  }),
+  getStandardPackages: orgProcedure.input(z18.object({
+    typology: z18.string().optional(),
+    tier: z18.string().optional()
+  })).query(async ({ input }) => {
+    return getDesignPackages(input.typology, input.tier);
+  }),
+  saveAsPackage: orgProcedure.input(z18.object({
+    projectId: z18.number(),
+    name: z18.string(),
+    description: z18.string().optional()
+  })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
+    return createDesignPackage({
+      orgId: ctx.orgId,
+      name: input.name,
+      typology: project.ctx01Typology || "Residential",
+      tier: project.mkt01Tier || "Upper-mid",
+      style: project.des01Style || "Modern",
+      description: input.description || null,
+      targetBudgetPerSqm: String(Math.round(Number(project.fin01BudgetCap) || 0)),
+      rooms: recs,
+      isTemplate: true
+    });
+  }),
+  // ═════════════════════════════════════════════════════════════════════════
+  // Phase 2: Visual Generation (Nano Banana)
+  // ═════════════════════════════════════════════════════════════════════════
+  generateVisual: orgProcedure.input(z18.object({
+    projectId: z18.number(),
+    roomId: z18.string(),
+    type: z18.enum(["mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette"])
+  })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
+    const rec = recs.find((r) => r.roomId === input.roomId);
+    if (!rec) throw new Error("Space recommendation not found \u2014 generate recommendations first");
+    const spaceRec = mapRecToSpace(rec);
+    const projectCtx = buildProjectContext(project);
+    const result = await generateSpaceVisual(projectCtx, spaceRec, input.type);
+    await createGeneratedVisual({
+      projectId: input.projectId,
+      type: input.type,
+      promptJson: { prompt: result.prompt, roomId: input.roomId, visualType: input.type },
+      status: "completed",
+      createdBy: ctx.user.id,
+      imageAssetId: null
+    });
+    return result;
+  }),
+  generateHero: orgProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const projectCtx = buildProjectContext(project);
+    const result = await generateHeroVisual(projectCtx);
+    await createGeneratedVisual({
+      projectId: input.projectId,
+      type: "hero",
+      promptJson: { prompt: result.prompt, visualType: "hero_image" },
+      status: "completed",
+      createdBy: ctx.user.id,
+      imageAssetId: null
+    });
+    return result;
+  }),
+  getVisuals: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    return getGeneratedVisualsByProject(input.projectId);
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -15393,7 +17032,9 @@ var appRouter = router({
   learning: learningRouter,
   autonomous: autonomousRouter,
   organization: organizationRouter,
-  economics: economicsRouter
+  economics: economicsRouter,
+  bias: biasRouter,
+  designAdvisor: designAdvisorRouter
 });
 
 // server/_core/context.ts
