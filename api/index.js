@@ -11583,17 +11583,92 @@ var BaseSourceConnector = class {
 
 // server/engines/ingestion/connectors/dynamic.ts
 init_llm();
+
+// server/engines/ingestion/crawler.ts
+init_llm();
+var DEFAULT_CRAWL_CONFIG = {
+  maxDepth: 2,
+  pageBudget: 20,
+  requestDelayMs: 2e3,
+  includePatterns: [],
+  excludePatterns: [
+    "\\.pdf$",
+    "\\.jpg$",
+    "\\.png$",
+    "\\.gif$",
+    "\\.svg$",
+    "/cart",
+    "/checkout",
+    "/login",
+    "/register",
+    "/account",
+    "/privacy",
+    "/terms",
+    "/cookie",
+    "/sitemap\\.xml",
+    "#",
+    "mailto:",
+    "tel:",
+    "javascript:"
+  ],
+  linkHints: ""
+};
+function discoverLinks(html, baseUrl, config) {
+  const base = new URL(baseUrl);
+  const seen = /* @__PURE__ */ new Set();
+  const results = [];
+  const hrefRegex = /href=["']([^"']+)["']/gi;
+  let match;
+  while ((match = hrefRegex.exec(html)) !== null) {
+    try {
+      const href = match[1];
+      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
+        continue;
+      }
+      const resolved = new URL(href, baseUrl);
+      if (resolved.hostname !== base.hostname) continue;
+      const normalized = `${resolved.origin}${resolved.pathname}`.replace(/\/$/, "");
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      const excluded = config.excludePatterns.some((pattern) => {
+        try {
+          return new RegExp(pattern, "i").test(normalized);
+        } catch {
+          return false;
+        }
+      });
+      if (excluded) continue;
+      if (config.includePatterns.length > 0) {
+        const included = config.includePatterns.some((pattern) => {
+          try {
+            return new RegExp(pattern, "i").test(normalized);
+          } catch {
+            return false;
+          }
+        });
+        if (!included) continue;
+      }
+      results.push(normalized);
+    } catch {
+    }
+  }
+  return results;
+}
+
+// server/engines/ingestion/connectors/dynamic.ts
 var LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
 You extract structured evidence from raw HTML or JSON content of UAE construction/real estate websites.
 Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
-function buildDynamicPrompt(sourceName, category, geography, contentSnippet, hints, lastFetch) {
+function buildDynamicPrompt(sourceName, category, geography, contentSnippet, hints, lastFetch, pageUrl) {
   const dateFilter = lastFetch ? `
 Focus on content published or updated after ${lastFetch.toISOString().split("T")[0]}.` : "";
   const hintsFilter = hints ? `
 EXTRACTION HINTS: ${hints}` : "";
+  const pageRef = pageUrl ? `
+Page URL: ${pageUrl}` : "";
   return `Extract evidence items from this ${sourceName} source content.
 Category: ${category}
-Geography: ${geography}${dateFilter}${hintsFilter}
+Geography: ${geography}${pageRef}${dateFilter}${hintsFilter}
 
 Return a JSON array of objects with these exact fields:
 - title: string (item/product/project name)
@@ -11604,14 +11679,20 @@ Return a JSON array of objects with these exact fields:
 - unit: string|null (e.g. "sqm", "sqft", "piece", "unit", null if not applicable)
 
 Rules:
-- Extract up to 15 items maximum
+- Extract ALL items you can find, up to 50 maximum
 - Only extract items with real data (titles, prices, descriptions)
 - Do NOT invent data \u2014 if no items found, return empty array []
 - Do NOT output confidence, grade, or scoring fields
 
-Content (truncated to 8000 chars):
-${contentSnippet.substring(0, 8e3)}`;
+Content (truncated to 12000 chars):
+${contentSnippet.substring(0, 12e3)}`;
 }
+var CRAWLABLE_TYPES = /* @__PURE__ */ new Set([
+  "supplier_catalog",
+  "manufacturer_catalog",
+  "retailer_listing",
+  "aggregator"
+]);
 var DynamicConnector = class extends BaseSourceConnector {
   sourceId;
   sourceName;
@@ -11622,6 +11703,11 @@ var DynamicConnector = class extends BaseSourceConnector {
   extractionHints;
   defaultUnit = "unit";
   defaultTags = [];
+  sourceType;
+  crawlConfig;
+  /** Accumulates extracted evidence from all crawled pages */
+  _allPageEvidence = [];
+  _crawled = false;
   constructor(config) {
     super();
     this.sourceId = String(config.id);
@@ -11635,60 +11721,169 @@ var DynamicConnector = class extends BaseSourceConnector {
       industry_report: "market_trend",
       government_tender: "project_award",
       trade_publication: "market_trend",
+      aggregator: "material_cost",
       other: "other"
     };
-    this.category = typeCategoryMap[config.sourceType || "other"] || "other";
+    this.sourceType = config.sourceType || "other";
+    this.category = typeCategoryMap[this.sourceType] || "other";
     this.geography = config.region || "UAE";
     this.scrapeMethod = config.scrapeMethod || "html_llm";
     this.extractionHints = config.extractionHints || "";
     if (config.lastSuccessfulFetch) {
       this.lastSuccessfulFetch = new Date(config.lastSuccessfulFetch);
     }
+    const userCrawl = config.scrapeConfig?.crawl || {};
+    this.crawlConfig = {
+      ...DEFAULT_CRAWL_CONFIG,
+      requestDelayMs: config.requestDelayMs || DEFAULT_CRAWL_CONFIG.requestDelayMs,
+      ...userCrawl
+    };
+    if (config.requestDelayMs) {
+      this.requestDelayMs = config.requestDelayMs;
+    }
   }
+  /**
+   * Should this source use multi-page crawling?
+   */
+  shouldCrawl() {
+    return CRAWLABLE_TYPES.has(this.sourceType) && this.crawlConfig.maxDepth > 0;
+  }
+  /**
+   * Crawl multiple pages, extract from each, accumulate results.
+   * The orchestrator calls fetch() → extract() in sequence.
+   * For crawlable sources, fetch() crawls all pages and accumulates extracted evidence internally.
+   * extract() then returns the accumulated results.
+   */
+  async fetch() {
+    if (!this.shouldCrawl()) {
+      return super.fetch();
+    }
+    console.log(`[DynamicConnector] \u{1F577}\uFE0F  Crawling ${this.sourceName} (max ${this.crawlConfig.pageBudget} pages, depth ${this.crawlConfig.maxDepth})`);
+    const visited = /* @__PURE__ */ new Set();
+    const queue = [{ url: this.sourceUrl, depth: 0 }];
+    const allEvidence = [];
+    let pagesProcessed = 0;
+    let pagesFailed = 0;
+    while (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
+      const { url, depth } = queue.shift();
+      const normalizedUrl = url.replace(/\/$/, "");
+      if (visited.has(normalizedUrl)) continue;
+      visited.add(normalizedUrl);
+      const origUrl = this.sourceUrl;
+      this.sourceUrl = url;
+      let payload;
+      try {
+        payload = await super.fetch();
+      } catch (err) {
+        console.warn(`[DynamicConnector] Page fetch failed: ${url}`);
+        pagesFailed++;
+        this.sourceUrl = origUrl;
+        continue;
+      }
+      this.sourceUrl = origUrl;
+      if (payload.error || !payload.rawHtml || payload.rawHtml.length < 100) {
+        pagesFailed++;
+        continue;
+      }
+      pagesProcessed++;
+      try {
+        const evidence = await this.extractFromPage(payload.rawHtml, url);
+        if (evidence.length > 0) {
+          console.log(`[DynamicConnector]   \u{1F4C4} ${url} \u2192 ${evidence.length} items`);
+          allEvidence.push(...evidence);
+        }
+      } catch (err) {
+        console.warn(`[DynamicConnector]   \u26A0\uFE0F  Extraction failed for ${url}`);
+      }
+      if (depth < this.crawlConfig.maxDepth) {
+        const links = discoverLinks(payload.rawHtml, url, this.crawlConfig);
+        for (const link of links) {
+          const normLink = link.replace(/\/$/, "");
+          if (!visited.has(normLink) && !queue.some((q) => q.url.replace(/\/$/, "") === normLink)) {
+            queue.push({ url: link, depth: depth + 1 });
+          }
+        }
+      }
+      if (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
+        await new Promise((r) => setTimeout(r, this.crawlConfig.requestDelayMs));
+      }
+    }
+    console.log(`[DynamicConnector] \u{1F577}\uFE0F  Crawl complete: ${pagesProcessed} pages, ${allEvidence.length} items extracted, ${pagesFailed} failed`);
+    this._allPageEvidence = allEvidence;
+    this._crawled = true;
+    return {
+      url: this.sourceUrl,
+      rawHtml: `<!-- Crawled ${pagesProcessed} pages, ${allEvidence.length} items extracted -->`,
+      statusCode: 200,
+      fetchedAt: /* @__PURE__ */ new Date()
+    };
+  }
+  /**
+   * Extract evidence from a single page using LLM.
+   */
+  async extractFromPage(rawHtml, pageUrl) {
+    const textContent = rawHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (textContent.length < 50) return [];
+    try {
+      const response = await invokeLLM({
+        messages: [
+          { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: buildDynamicPrompt(
+              this.sourceName,
+              this.category,
+              this.geography,
+              textContent,
+              this.extractionHints,
+              this.lastSuccessfulFetch,
+              pageUrl
+            )
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+      const resText = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
+      if (!resText) return [];
+      const parsed = JSON.parse(resText);
+      const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.data || [];
+      if (!Array.isArray(items)) return [];
+      return items.filter((item) => item && typeof item.title === "string" && item.title.length > 0).slice(0, 50).map((item) => ({
+        title: `${this.sourceName} - ${String(item.title).substring(0, 255)}`,
+        rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
+        publishedDate: item.publishedDate ? new Date(item.publishedDate) : void 0,
+        category: this.category,
+        geography: this.geography,
+        sourceUrl: pageUrl,
+        _llmMetric: String(item.metric || item.title || "").substring(0, 255),
+        _llmValue: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
+        _llmUnit: typeof item.unit === "string" ? item.unit : null
+      }));
+    } catch (err) {
+      console.error(`[DynamicConnector] LLM extraction failed for ${pageUrl}:`, err);
+      return [];
+    }
+  }
+  /**
+   * Called by the orchestrator after fetch().
+   * For multi-page crawls, returns pre-accumulated evidence.
+   * For single-page sources, runs LLM extraction on the fetched HTML.
+   */
   async extract(raw) {
+    if (this._crawled && this._allPageEvidence.length > 0) {
+      const evidence = [...this._allPageEvidence];
+      this._allPageEvidence = [];
+      this._crawled = false;
+      return evidence;
+    }
     const isHtml = !!raw.rawHtml;
     const content = isHtml ? raw.rawHtml : JSON.stringify(raw.rawJson || {});
     if (!content || content.length < 50) return [];
     if (this.scrapeMethod === "html_llm" || this.scrapeMethod === "json_api") {
-      try {
-        const textContent = isHtml ? content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : content;
-        const response = await invokeLLM({
-          messages: [
-            { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: buildDynamicPrompt(
-                this.sourceName,
-                this.category,
-                this.geography,
-                textContent,
-                this.extractionHints,
-                this.lastSuccessfulFetch
-              )
-            }
-          ],
-          response_format: { type: "json_object" }
-        });
-        const resText = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
-        if (!resText) return [];
-        const parsed = JSON.parse(resText);
-        const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.data || [];
-        if (!Array.isArray(items)) return [];
-        return items.filter((item) => item && typeof item.title === "string" && item.title.length > 0).slice(0, 15).map((item) => ({
-          title: `${this.sourceName} - ${String(item.title).substring(0, 255)}`,
-          rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
-          publishedDate: item.publishedDate ? new Date(item.publishedDate) : void 0,
-          category: this.category,
-          geography: this.geography,
-          sourceUrl: raw.url,
-          _llmMetric: String(item.metric || item.title || "").substring(0, 255),
-          _llmValue: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
-          _llmUnit: typeof item.unit === "string" ? item.unit : null
-        }));
-      } catch (err) {
-        console.error(`[DynamicConnector] Extraction failed for ${this.sourceName}: `, err);
-        return [];
-      }
+      return this.extractFromPage(
+        isHtml ? content : `<pre>${content}</pre>`,
+        raw.url
+      );
     }
     return [];
   }
