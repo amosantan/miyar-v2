@@ -36,9 +36,9 @@ export interface CrawlConfig {
 }
 
 export const DEFAULT_CRAWL_CONFIG: CrawlConfig = {
-    maxDepth: 2,
-    pageBudget: 20,
-    requestDelayMs: 2000,
+    maxDepth: 1,
+    pageBudget: 3,
+    requestDelayMs: 1000,
     includePatterns: [],
     excludePatterns: [
         "\\.pdf$", "\\.jpg$", "\\.png$", "\\.gif$", "\\.svg$",

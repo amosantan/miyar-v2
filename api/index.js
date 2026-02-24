@@ -11647,9 +11647,9 @@ init_llm();
 // server/engines/ingestion/crawler.ts
 init_llm();
 var DEFAULT_CRAWL_CONFIG = {
-  maxDepth: 2,
-  pageBudget: 20,
-  requestDelayMs: 2e3,
+  maxDepth: 1,
+  pageBudget: 3,
+  requestDelayMs: 1e3,
   includePatterns: [],
   excludePatterns: [
     "\\.pdf$",
