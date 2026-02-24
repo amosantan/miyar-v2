@@ -3999,6 +3999,7 @@ async function auditLog(data) {
 }
 
 // server/routers/auth.ts
+import { eq as eq2 } from "drizzle-orm";
 var authRouter = router({
   me: publicProcedure.query((opts) => opts.ctx.user),
   logout: publicProcedure.mutation(async ({ ctx }) => {
@@ -4052,6 +4053,25 @@ var authRouter = router({
     });
     const cookieOptions = getSessionCookieOptions(ctx.req);
     ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+    if (!user.orgId) {
+      const drizzleDb = await getDb();
+      if (drizzleDb) {
+        const orgName = `${user.name || user.email?.split("@")[0] || "user"}'s Workspace`;
+        const orgSlug = `${(user.name || user.email?.split("@")[0] || "user").toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}`;
+        const [orgResult] = await drizzleDb.insert(organizations).values({
+          name: orgName,
+          slug: orgSlug,
+          plan: "free"
+        });
+        const orgId = Number(orgResult.insertId);
+        await drizzleDb.insert(organizationMembers).values({
+          orgId,
+          userId: user.id,
+          role: "admin"
+        });
+        await drizzleDb.update(users).set({ orgId }).where(eq2(users.id, user.id));
+      }
+    }
     await auditLog({
       userId: user.id,
       action: "auth.login",
@@ -4087,6 +4107,23 @@ var authRouter = router({
     ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
     const createdUser = await getUserByEmail(input.email);
     if (createdUser) {
+      const drizzleDb = await getDb();
+      if (drizzleDb && !createdUser.orgId) {
+        const orgName = `${input.email.split("@")[0]}'s Workspace`;
+        const orgSlug = `${input.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}`;
+        const [orgResult] = await drizzleDb.insert(organizations).values({
+          name: orgName,
+          slug: orgSlug,
+          plan: "free"
+        });
+        const orgId = Number(orgResult.insertId);
+        await drizzleDb.insert(organizationMembers).values({
+          orgId,
+          userId: createdUser.id,
+          role: "admin"
+        });
+        await drizzleDb.update(users).set({ orgId }).where(eq2(users.id, createdUser.id));
+      }
       await auditLog({
         userId: createdUser.id,
         action: "auth.register",
@@ -6365,7 +6402,7 @@ async function generateInsights(input, options = {}) {
 }
 
 // server/engines/autonomous/alert-engine.ts
-import { eq as eq2, inArray as inArray2, and as and2, sql as sql2 } from "drizzle-orm";
+import { eq as eq3, inArray as inArray2, and as and2, sql as sql2 } from "drizzle-orm";
 async function evaluateAlerts(params) {
   const db = await getDb();
   if (!db) return [];
@@ -6467,8 +6504,8 @@ async function evaluateAlerts(params) {
   for (const alert of newAlerts) {
     const existing = await db.select().from(platformAlerts).where(
       and2(
-        eq2(platformAlerts.alertType, alert.alertType),
-        eq2(platformAlerts.status, "active")
+        eq3(platformAlerts.alertType, alert.alertType),
+        eq3(platformAlerts.status, "active")
         // For perfect duplicate suppression on JSON array, we can use simple string equality or fetch and filter
         // We'll fetch active of this type and filter by JS equality
       )
@@ -6505,13 +6542,13 @@ async function triggerAlertEngine() {
 
 // server/engines/autonomous/document-generator.ts
 init_llm();
-import { eq as eq3, desc as desc2 } from "drizzle-orm";
+import { eq as eq4, desc as desc2 } from "drizzle-orm";
 async function generateAutonomousDesignBrief(projectId) {
   const db = await getDb();
   if (!db) throw new Error("Database not connected");
-  const [project] = await db.select().from(projects).where(eq3(projects.id, projectId));
+  const [project] = await db.select().from(projects).where(eq4(projects.id, projectId));
   if (!project) throw new Error("Project not found");
-  const scoreRecords = await db.select().from(scoreMatrices).where(eq3(scoreMatrices.projectId, projectId)).orderBy(desc2(scoreMatrices.computedAt)).limit(1);
+  const scoreRecords = await db.select().from(scoreMatrices).where(eq4(scoreMatrices.projectId, projectId)).orderBy(desc2(scoreMatrices.computedAt)).limit(1);
   const scores = scoreRecords[0] || null;
   const systemPrompt = `
 You are an expert real estate development consultant and interior design strategist for MIYAR.
@@ -11352,7 +11389,7 @@ async function detectTrends(metric, category, geography, points, options) {
 }
 
 // server/engines/ingestion/orchestrator.ts
-import { and as and3, eq as eq4, sql as sql3 } from "drizzle-orm";
+import { and as and3, eq as eq5, sql as sql3 } from "drizzle-orm";
 var MAX_CONCURRENT = 3;
 async function runWithConcurrencyLimit(tasks, limit) {
   const results = [];
@@ -11375,8 +11412,8 @@ async function isDuplicate(sourceUrl, itemName, captureDate) {
   if (!db) return false;
   const existing = await db.select({ id: evidenceRecords.id }).from(evidenceRecords).where(
     and3(
-      eq4(evidenceRecords.sourceUrl, sourceUrl),
-      eq4(evidenceRecords.itemName, itemName),
+      eq5(evidenceRecords.sourceUrl, sourceUrl),
+      eq5(evidenceRecords.itemName, itemName),
       sql3`DATE(${evidenceRecords.captureDate}) = DATE(${captureDate})`
     )
   ).limit(1);
@@ -11416,7 +11453,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const connector of connectors) {
-        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq4(sourceRegistry.name, connector.sourceId)).limit(1);
+        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq5(sourceRegistry.name, connector.sourceId)).limit(1);
         if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
           connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
         }
@@ -11598,7 +11635,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const result of connectorResults) {
-        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq4(sourceRegistry.name, result.sourceId)).limit(1);
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq5(sourceRegistry.name, result.sourceId)).limit(1);
         const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
         const isSuccess = result.status === "success";
         const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
@@ -11611,7 +11648,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         if (isSuccess) {
           updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
         }
-        await db.update(sourceRegistry).set(updates).where(eq4(sourceRegistry.name, result.sourceId));
+        await db.update(sourceRegistry).set(updates).where(eq5(sourceRegistry.name, result.sourceId));
       }
     }
   } catch (err) {
@@ -13251,11 +13288,11 @@ function getAllConnectors() {
 }
 
 // server/routers/ingestion.ts
-import { desc as desc3, eq as eq6 } from "drizzle-orm";
+import { desc as desc3, eq as eq7 } from "drizzle-orm";
 
 // server/engines/ingestion/scheduler.ts
 import cron from "node-cron";
-import { eq as eq5 } from "drizzle-orm";
+import { eq as eq6 } from "drizzle-orm";
 var scheduledTasks = [];
 var lastScheduledRunAt = null;
 var isSchedulerRunning = false;
@@ -13375,7 +13412,7 @@ var ingestionRouter = router({
   getRunDetail: protectedProcedure.input(z10.object({ runId: z10.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
-    const runs = await db.select().from(ingestionRuns).where(eq6(ingestionRuns.runId, input.runId)).limit(1);
+    const runs = await db.select().from(ingestionRuns).where(eq7(ingestionRuns.runId, input.runId)).limit(1);
     return runs.length > 0 ? runs[0] : null;
   }),
   /**
@@ -13699,7 +13736,7 @@ async function analyseCompetitorLandscape(projects2, options = {}) {
 }
 
 // server/routers/analytics.ts
-import { and as and4, eq as eq7, isNotNull } from "drizzle-orm";
+import { and as and4, eq as eq8, isNotNull } from "drizzle-orm";
 var analyticsRouter = router({
   getTrends: protectedProcedure.input(
     z11.object({
@@ -13748,7 +13785,7 @@ var analyticsRouter = router({
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
       and4(
-        eq7(evidenceRecords.category, input.category),
+        eq8(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -13786,7 +13823,7 @@ var analyticsRouter = router({
       sourceUrl: competitorProjects.sourceUrl,
       completenessScore: competitorProjects.completenessScore,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq7(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq8(competitorProjects.competitorId, competitorEntities.id));
     const projects2 = dbProjects.map((p) => {
       let pricePerSqft;
       if (p.priceIndicators && typeof p.priceIndicators === "object") {
@@ -13823,7 +13860,7 @@ var analyticsRouter = router({
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
       and4(
-        eq7(evidenceRecords.category, input.category),
+        eq8(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -13925,7 +13962,7 @@ var analyticsRouter = router({
       projectName: competitorProjects.projectName,
       totalUnits: competitorProjects.totalUnits,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq7(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq8(competitorProjects.competitorId, competitorEntities.id));
     let competitorLandscape;
     if (dbProjects.length > 0) {
       const compProjects = dbProjects.map((p) => ({
@@ -14486,7 +14523,7 @@ var predictiveRouter = router({
 // server/routers/learning.ts
 import { z as z13 } from "zod";
 import { TRPCError as TRPCError6 } from "@trpc/server";
-import { eq as eq8, desc as desc4 } from "drizzle-orm";
+import { eq as eq9, desc as desc4 } from "drizzle-orm";
 
 // server/engines/learning/outcome-comparator.ts
 function compareOutcomeToPrediction(params) {
@@ -14641,25 +14678,25 @@ var learningRouter = router({
   }),
   getPendingLogicProposals: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(logicChangeLog).where(eq8(logicChangeLog.status, "proposed")).orderBy(desc4(logicChangeLog.createdAt));
+    return await ormDb.select().from(logicChangeLog).where(eq9(logicChangeLog.status, "proposed")).orderBy(desc4(logicChangeLog.createdAt));
   }),
   getPendingBenchmarkSuggestions: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(benchmarkSuggestions).where(eq8(benchmarkSuggestions.status, "pending")).orderBy(desc4(benchmarkSuggestions.createdAt));
+    return await ormDb.select().from(benchmarkSuggestions).where(eq9(benchmarkSuggestions.status, "pending")).orderBy(desc4(benchmarkSuggestions.createdAt));
   }),
   getComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ input }) => {
     const ormDb = await getDb();
-    const rows = await ormDb.select().from(outcomeComparisons).where(eq8(outcomeComparisons.projectId, input.projectId)).orderBy(desc4(outcomeComparisons.comparedAt)).limit(1);
+    const rows = await ormDb.select().from(outcomeComparisons).where(eq9(outcomeComparisons.projectId, input.projectId)).orderBy(desc4(outcomeComparisons.comparedAt)).limit(1);
     return rows[0] || null;
   }),
   runComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).mutation(async ({ input }) => {
     const ormDb = await getDb();
-    const outcomes = await ormDb.select().from(projectOutcomes).where(eq8(projectOutcomes.projectId, input.projectId)).limit(1);
+    const outcomes = await ormDb.select().from(projectOutcomes).where(eq9(projectOutcomes.projectId, input.projectId)).limit(1);
     if (!outcomes.length) {
       throw new TRPCError6({ code: "NOT_FOUND", message: "No outcome found for project" });
     }
     const outcome = outcomes[0];
-    const matrices = await ormDb.select().from(scoreMatrices).where(eq8(scoreMatrices.projectId, input.projectId)).orderBy(desc4(scoreMatrices.computedAt)).limit(1);
+    const matrices = await ormDb.select().from(scoreMatrices).where(eq9(scoreMatrices.projectId, input.projectId)).orderBy(desc4(scoreMatrices.computedAt)).limit(1);
     if (!matrices.length) {
       throw new TRPCError6({ code: "NOT_FOUND", message: "No score matrix found for project" });
     }
@@ -14732,7 +14769,7 @@ var learningRouter = router({
 
 // server/routers/autonomous.ts
 import { z as z14 } from "zod";
-import { eq as eq10, and as and5, desc as desc6, sql as sql6 } from "drizzle-orm";
+import { eq as eq11, and as and5, desc as desc6, sql as sql6 } from "drizzle-orm";
 import { TRPCError as TRPCError7 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
@@ -14863,17 +14900,17 @@ ${JSON.stringify(truncatedData, null, 2)}` }
 
 // server/engines/autonomous/portfolio-engine.ts
 init_llm();
-import { eq as eq9, desc as desc5 } from "drizzle-orm";
+import { eq as eq10, desc as desc5 } from "drizzle-orm";
 async function generatePortfolioInsights() {
   const db = await getDb();
   if (!db) throw new Error("Database error");
-  const allProjects = await db.select().from(projects).where(eq9(projects.status, "evaluated"));
+  const allProjects = await db.select().from(projects).where(eq10(projects.status, "evaluated"));
   if (allProjects.length === 0) {
     return "No evaluated projects available for portfolio analysis.";
   }
   const portfolioProjects = [];
   for (const p of allProjects) {
-    const scores = await db.select().from(scoreMatrices).where(eq9(scoreMatrices.projectId, p.id)).orderBy(desc5(scoreMatrices.computedAt)).limit(1);
+    const scores = await db.select().from(scoreMatrices).where(eq10(scoreMatrices.projectId, p.id)).orderBy(desc5(scoreMatrices.computedAt)).limit(1);
     if (scores.length > 0) {
       const s = scores[0];
       portfolioProjects.push({
@@ -14956,12 +14993,12 @@ var autonomousRouter = router({
     if (!db) return [];
     let conditions = [];
     const targetStatus = input?.status || "active";
-    conditions.push(eq10(platformAlerts.status, targetStatus));
+    conditions.push(eq11(platformAlerts.status, targetStatus));
     if (input?.severity) {
-      conditions.push(eq10(platformAlerts.severity, input.severity));
+      conditions.push(eq11(platformAlerts.severity, input.severity));
     }
     if (input?.type) {
-      conditions.push(eq10(platformAlerts.alertType, input.type));
+      conditions.push(eq11(platformAlerts.alertType, input.type));
     }
     return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc6(platformAlerts.createdAt));
   }),
@@ -14972,7 +15009,7 @@ var autonomousRouter = router({
       status: "acknowledged",
       acknowledgedBy: ctx.user.id,
       acknowledgedAt: /* @__PURE__ */ new Date()
-    }).where(eq10(platformAlerts.id, input.id));
+    }).where(eq11(platformAlerts.id, input.id));
     return { success: true };
   }),
   resolveAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
@@ -14980,7 +15017,7 @@ var autonomousRouter = router({
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
       status: "resolved"
-    }).where(eq10(platformAlerts.id, input.id));
+    }).where(eq11(platformAlerts.id, input.id));
     return { success: true };
   }),
   nlQuery: protectedProcedure.input(z14.object({ query: z14.string() })).mutation(async ({ ctx, input }) => {
@@ -14989,7 +15026,7 @@ var autonomousRouter = router({
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
     const recentQueries = await db.select({ count: sql6`count(*)` }).from(nlQueryLog).where(
       and5(
-        eq10(nlQueryLog.userId, ctx.user.id),
+        eq11(nlQueryLog.userId, ctx.user.id),
         sql6`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
     );
@@ -15016,7 +15053,7 @@ var autonomousRouter = router({
 // server/routers/organization.ts
 import { z as z15 } from "zod";
 import { TRPCError as TRPCError8 } from "@trpc/server";
-import { eq as eq11, and as and6 } from "drizzle-orm";
+import { eq as eq12, and as and6 } from "drizzle-orm";
 import { nanoid as nanoid5 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z15.object({
@@ -15026,7 +15063,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
-    const existing = await db.select().from(organizations).where(eq11(organizations.slug, input.slug)).limit(1);
+    const existing = await db.select().from(organizations).where(eq12(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
       throw new TRPCError8({ code: "CONFLICT", message: "Slug is already taken" });
     }
@@ -15042,7 +15079,7 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: "admin"
     });
-    await db.update(users).set({ orgId }).where(eq11(users.id, ctx.user.id));
+    await db.update(users).set({ orgId }).where(eq12(users.id, ctx.user.id));
     return { success: true, orgId };
   }),
   myOrgs: protectedProcedure.query(async ({ ctx }) => {
@@ -15051,7 +15088,7 @@ var organizationRouter = router({
     const result = await db.select({
       org: organizations,
       role: organizationMembers.role
-    }).from(organizationMembers).innerJoin(organizations, eq11(organizations.id, organizationMembers.orgId)).where(eq11(organizationMembers.userId, ctx.user.id));
+    }).from(organizationMembers).innerJoin(organizations, eq12(organizations.id, organizationMembers.orgId)).where(eq12(organizationMembers.userId, ctx.user.id));
     return result;
   }),
   inviteMember: orgProcedure.input(z15.object({
@@ -15060,7 +15097,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and6(eq11(organizationMembers.orgId, ctx.orgId), eq11(organizationMembers.userId, ctx.user.id))).limit(1);
+    const myMembership = await db.select().from(organizationMembers).where(and6(eq12(organizationMembers.orgId, ctx.orgId), eq12(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
       throw new TRPCError8({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
@@ -15079,7 +15116,7 @@ var organizationRouter = router({
   acceptInvite: protectedProcedure.input(z15.object({ token: z15.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR" });
-    const inviteResult = await db.select().from(organizationInvites).where(eq11(organizationInvites.token, input.token)).limit(1);
+    const inviteResult = await db.select().from(organizationInvites).where(eq12(organizationInvites.token, input.token)).limit(1);
     const invite = inviteResult[0];
     if (!invite) throw new TRPCError8({ code: "NOT_FOUND", message: "Invalid invite token" });
     if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError8({ code: "BAD_REQUEST", message: "Invite expired" });
@@ -15088,8 +15125,8 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: invite.role
     });
-    await db.update(users).set({ orgId: invite.orgId }).where(eq11(users.id, ctx.user.id));
-    await db.delete(organizationInvites).where(eq11(organizationInvites.id, invite.id));
+    await db.update(users).set({ orgId: invite.orgId }).where(eq12(users.id, ctx.user.id));
+    await db.delete(organizationInvites).where(eq12(organizationInvites.id, invite.id));
     return { success: true, orgId: invite.orgId };
   })
 });

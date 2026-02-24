@@ -1,5 +1,6 @@
 import { z } from "zod";
 import * as db from "../db";
+import { getDb } from "../db";
 import { sdk } from "../_core/sdk";
 import { publicProcedure, router } from "../_core/trpc";
 import crypto from "crypto";
@@ -8,6 +9,8 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { TRPCError } from "@trpc/server";
 import { auditLog } from "../_core/audit";
+import { organizations, organizationMembers, users } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 export const authRouter = router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -71,6 +74,27 @@ export const authRouter = router({
             const cookieOptions = getSessionCookieOptions(ctx.req);
             (ctx.res as any).cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
+            // Auto-create org for existing users without one
+            if (!user.orgId) {
+                const drizzleDb = await getDb();
+                if (drizzleDb) {
+                    const orgName = `${(user.name || user.email?.split("@")[0] || "user")}'s Workspace`;
+                    const orgSlug = `${(user.name || user.email?.split("@")[0] || "user").toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}`;
+                    const [orgResult] = await drizzleDb.insert(organizations).values({
+                        name: orgName,
+                        slug: orgSlug,
+                        plan: "free",
+                    });
+                    const orgId = Number((orgResult as any).insertId);
+                    await drizzleDb.insert(organizationMembers).values({
+                        orgId,
+                        userId: user.id,
+                        role: "admin",
+                    });
+                    await drizzleDb.update(users).set({ orgId }).where(eq(users.id, user.id));
+                }
+            }
+
             await auditLog({
                 userId: user.id,
                 action: "auth.login",
@@ -114,6 +138,25 @@ export const authRouter = router({
 
             const createdUser = await db.getUserByEmail(input.email);
             if (createdUser) {
+                // Auto-create a default organization for the new user
+                const drizzleDb = await getDb();
+                if (drizzleDb && !createdUser.orgId) {
+                    const orgName = `${input.email.split("@")[0]}'s Workspace`;
+                    const orgSlug = `${input.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}`;
+                    const [orgResult] = await drizzleDb.insert(organizations).values({
+                        name: orgName,
+                        slug: orgSlug,
+                        plan: "free",
+                    });
+                    const orgId = Number((orgResult as any).insertId);
+                    await drizzleDb.insert(organizationMembers).values({
+                        orgId,
+                        userId: createdUser.id,
+                        role: "admin",
+                    });
+                    await drizzleDb.update(users).set({ orgId }).where(eq(users.id, createdUser.id));
+                }
+
                 await auditLog({
                     userId: createdUser.id,
                     action: "auth.register",
