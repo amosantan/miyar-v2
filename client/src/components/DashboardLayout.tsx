@@ -368,32 +368,30 @@ function DashboardLayoutContent({
             })()}
 
             {/* Market Intelligence Section */}
-            {isAdmin && (
-              <SidebarGroup>
-                <SidebarGroupLabel>Market Intelligence</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {marketIntelItems.map((item) => {
-                      const isActive = location.startsWith(item.path);
-                      return (
-                        <SidebarMenuItem key={item.path}>
-                          <SidebarMenuButton
-                            isActive={isActive}
-                            onClick={() => setLocation(item.path)}
-                            tooltip={item.label}
-                          >
-                            <item.icon
-                              className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                            />
-                            <span>{item.label}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      );
-                    })}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            )}
+            <SidebarGroup>
+              <SidebarGroupLabel>Market Intelligence</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {marketIntelItems.map((item) => {
+                    const isActive = location.startsWith(item.path);
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          onClick={() => setLocation(item.path)}
+                          tooltip={item.label}
+                        >
+                          <item.icon
+                            className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                          />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
 
             {/* Admin Section */}
             {isAdmin && (
