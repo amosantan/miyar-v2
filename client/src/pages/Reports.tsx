@@ -165,15 +165,15 @@ function ReportsContent() {
                     key={rt.value}
                     onClick={() => setReportType(rt.value)}
                     className={`text-left p-4 rounded-lg border transition-all ${reportType === rt.value
-                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                        : "border-border hover:border-primary/30"
+                      ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                      : "border-border hover:border-primary/30"
                       }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <rt.icon
                         className={`h-5 w-5 ${reportType === rt.value
-                            ? "text-primary"
-                            : "text-muted-foreground"
+                          ? "text-primary"
+                          : "text-muted-foreground"
                           }`}
                       />
                       <Badge className={`text-[10px] ${rt.badgeColor} border-0`}>
@@ -324,6 +324,13 @@ function ReportsContent() {
                                 src={r.fileUrl}
                                 className="w-full h-[600px] bg-white"
                                 title={`Report preview: ${r.reportType}`}
+                              />
+                            ) : r.content?.html ? (
+                              <iframe
+                                srcDoc={r.content.html}
+                                className="w-full h-[600px] bg-white"
+                                title={`Report preview: ${r.reportType}`}
+                                sandbox="allow-same-origin"
                               />
                             ) : r.content ? (
                               <div className="p-4 bg-secondary/10 max-h-96 overflow-y-auto">

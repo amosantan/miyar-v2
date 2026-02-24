@@ -7202,14 +7202,14 @@ var projectRouter = router({
       const result = await storagePut(fileKey, html, "text/html");
       fileUrl = result.url;
     } catch (e) {
-      console.warn("[Report] S3 upload failed, storing content only:", e);
+      console.warn("[Report] S3 upload failed, storing HTML content inline:", e);
     }
     await createReportInstance({
       projectId: input.projectId,
       scoreMatrixId: latest.id,
       reportType: input.reportType,
       fileUrl,
-      content: reportData,
+      content: fileUrl ? reportData : { ...reportData, html },
       generatedBy: ctx.user.id,
       benchmarkVersionId: activeBV?.id ?? null
     });
