@@ -15,7 +15,7 @@ import { useParams, useLocation } from "wouter";
 import {
   Zap, ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Info,
   TrendingUp, TrendingDown, BarChart3, Shield, Target, Lightbulb,
-  Download, ChevronRight, Loader2,
+  Download, ChevronRight, Loader2, Sparkles,
 } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import {
@@ -482,6 +482,15 @@ function ProjectDetailContent() {
               <Zap className="h-3.5 w-3.5" />
             )}
             {hasScores ? "Re-evaluate" : "Evaluate"}
+          </Button>
+          <Button
+            onClick={() => setLocation(`/projects/${project.id}/design-advisor`)}
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Design Advisor
           </Button>
         </div>
       </div>
