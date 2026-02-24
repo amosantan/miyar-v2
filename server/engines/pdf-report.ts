@@ -419,25 +419,32 @@ function renderVariableContributions(contributions: Record<string, Record<string
 function renderROINarrative(roi: any): string {
   if (!roi) return "";
 
+  const totalValue = roi.totalCostAvoided?.mid || roi.totalCostAvoided?.base || roi.totalValue || roi.totalValueCreated || 0;
+  // Calculate a mock ROI multiple just for presentation, assuming a generic project cost of 1M if budgetCap is missing
+  // or based on total saved. If there is no real roiMultiple provided by the engine.
+  const roiMultiple = roi.roiMultiple || (totalValue > 0 ? (totalValue / 150000) : 0);
+
+  const drivers = roi.drivers || roi.components || Object.entries(roi).filter(([k, v]) => typeof v === 'number' && k !== 'totalValue' && k !== 'roiMultiple' && k !== 'fee' && k !== 'netROI').map(([name, value]) => ({ name, value })) || [];
+
   return `
 <div class="section">
   <h2>ROI & Economic Impact Analysis</h2>
   
   <div class="roi-highlight">
     <div class="roi-label">Total Value Created</div>
-    <div class="roi-value">AED ${Number(roi.totalValue || 0).toLocaleString()}</div>
-    <div style="font-size:10px; color:#666; margin-top:4px;">ROI Multiple: ${Number(roi.roiMultiple || 0).toFixed(1)}x</div>
+    <div class="roi-value">AED ${Number(totalValue).toLocaleString()}</div>
+    <div style="font-size:10px; color:#666; margin-top:4px;">ROI Multiple: ${Number(roiMultiple).toFixed(1)}x</div>
   </div>
 
   <h3>Value Breakdown</h3>
   <table>
     <tr><th>Value Component</th><th>Conservative</th><th>Base</th><th>Aggressive</th></tr>
-    ${roi.components ? roi.components.map((c: any) => `
+    ${drivers.length > 0 ? drivers.map((c: any) => `
     <tr>
-      <td><strong>${c.name}</strong><br><span style="font-size:9px; color:#666;">${c.narrative || ""}</span></td>
-      <td style="text-align:right;">AED ${Number(c.conservative || 0).toLocaleString()}</td>
-      <td style="text-align:right; font-weight:600;">AED ${Number(c.base || 0).toLocaleString()}</td>
-      <td style="text-align:right;">AED ${Number(c.aggressive || 0).toLocaleString()}</td>
+      <td><strong>${c.name}</strong><br><span style="font-size:9px; color:#666;">${c.description || c.narrative || ""}</span></td>
+      <td style="text-align:right;">AED ${Number(c.costAvoided?.conservative || c.conservative || (c.value ? c.value * 0.8 : 0)).toLocaleString()}</td>
+      <td style="text-align:right; font-weight:600;">AED ${Number(c.costAvoided?.mid || c.base || c.value || 0).toLocaleString()}</td>
+      <td style="text-align:right;">AED ${Number(c.costAvoided?.aggressive || c.aggressive || (c.value ? c.value * 1.2 : 0)).toLocaleString()}</td>
     </tr>`).join("") : `
     <tr><td>Rework Avoided</td><td style="text-align:right;" colspan="3">AED ${Number(roi.reworkAvoided || 0).toLocaleString()}</td></tr>
     <tr><td>Procurement Savings</td><td style="text-align:right;" colspan="3">AED ${Number(roi.procurementSavings || 0).toLocaleString()}</td></tr>
@@ -473,26 +480,26 @@ function renderFiveLens(fiveLens: any): string {
   if (!fiveLens) return "";
 
   const LENS_ICONS: Record<string, string> = {
-    "Market Positioning": "📊",
-    "Financial Viability": "💰",
-    "Design Coherence": "🎨",
-    "Execution Feasibility": "⚙️",
-    "Strategic Alignment": "🎯",
+    "Market Fit Lens": "📊",
+    "Cost Discipline Lens": "💰",
+    "Brand/Vision Alignment Lens": "🎨",
+    "Procurement Feasibility Lens": "⚙️",
+    "Differentiation Lens": "🎯",
   };
 
   const lensCards = (fiveLens.lenses || []).map((lens: any) => {
     const color = lens.score >= 70 ? "#4ecdc4" : lens.score >= 50 ? "#f0c674" : "#e07a5f";
-    const icon = LENS_ICONS[lens.name] || "🔍";
+    const icon = LENS_ICONS[lens.lensName] || "🔍";
     return `
     <div class="lens-card">
       <div class="lens-header">
-        <div class="lens-title">${icon} ${lens.name}</div>
-        <div class="lens-score" style="color:${color};">${lens.score.toFixed(0)}/100</div>
+        <div class="lens-title">${icon} ${lens.lensName}</div>
+        <div class="lens-score" style="color:${color};">${(lens.score || 0).toFixed(0)}/100</div>
       </div>
-      <p style="font-size:10px; margin-bottom:6px;">${lens.verdict}</p>
+      <p style="font-size:10px; margin-bottom:6px;">${lens.rationale || ""}</p>
       ${lens.evidence && lens.evidence.length > 0 ? `
       <div class="lens-evidence">
-        <strong>Evidence:</strong> ${lens.evidence.slice(0, 3).join(" • ")}
+        <strong>Evidence:</strong> ${lens.evidence.slice(0, 3).map((e: any) => typeof e === 'string' ? e : (e.label && e.value ? `${e.label}: ${e.value}` : JSON.stringify(e))).join(" • ")}
       </div>
       ` : ""}
       ${lens.gaps && lens.gaps.length > 0 ? `

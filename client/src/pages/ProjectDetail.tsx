@@ -181,8 +181,8 @@ function SensitivityToggles({ sensitivityData, baseScore }: {
               key={entry.variable}
               onClick={() => setSelectedVar(selectedVar === entry.variable ? null : entry.variable)}
               className={`p-2.5 rounded-lg border text-left transition-all text-xs ${selectedVar === entry.variable
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:border-primary/40 bg-card"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/40 bg-card"
                 }`}
             >
               <p className="font-medium text-foreground truncate">
@@ -407,6 +407,7 @@ function ProjectDetailContent() {
     onSuccess: () => {
       toast.success("Report generated");
       utils.project.listReports.invalidate({ projectId });
+      setLocation("/reports");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -852,9 +853,9 @@ function ProjectDetailContent() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-sm font-bold ${lens.grade === "A" ? "bg-emerald-500/20 text-emerald-400" :
-                                lens.grade === "B" ? "bg-blue-500/20 text-blue-400" :
-                                  lens.grade === "C" ? "bg-amber-500/20 text-amber-400" :
-                                    "bg-red-500/20 text-red-400"
+                              lens.grade === "B" ? "bg-blue-500/20 text-blue-400" :
+                                lens.grade === "C" ? "bg-amber-500/20 text-amber-400" :
+                                  "bg-red-500/20 text-red-400"
                               }`}>
                               {lens.grade}
                             </div>

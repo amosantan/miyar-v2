@@ -1,0 +1,1 @@
+ALTER TABLE `evidence_references` MODIFY COLUMN `targetType` enum('scenario','decision_note','explainability_driver','design_brief','report','material_board','pack_section','project') NOT NULL;

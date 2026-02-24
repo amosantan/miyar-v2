@@ -3,7 +3,7 @@
  * Evidence Vault, Design Brief, Visual Generation, Board Composer, Materials, Collaboration
  */
 import { z } from "zod";
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, adminProcedure, orgProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { storagePut } from "../storage";
@@ -282,12 +282,12 @@ export const designRouter = router({
       if (input.customPrompt) {
         prompt = input.customPrompt;
       } else if (input.templateId) {
-        const templates = await db.getAllPromptTemplates(input.type);
-        const tmpl = templates.find(t => t.id === input.templateId);
+        const templates = await db.getAllPromptTemplates(input.type, ctx.user.orgId ?? undefined);
+        const tmpl = templates.find((t: any) => t.id === input.templateId);
         prompt = tmpl ? interpolateTemplate(tmpl.templateText, context) : generateDefaultPrompt(input.type, context);
       } else {
         // Use active template or default
-        const tmpl = await db.getActivePromptTemplate(input.type);
+        const tmpl = await db.getActivePromptTemplate(input.type, ctx.user.orgId ?? undefined);
         prompt = tmpl ? interpolateTemplate(tmpl.templateText, context) : generateDefaultPrompt(input.type, context);
       }
 
@@ -352,7 +352,7 @@ export const designRouter = router({
     .query(async ({ input }) => {
       const visuals = await db.getGeneratedVisualsByProject(input.projectId);
       // Join with project_assets to get image URLs
-      const enriched = await Promise.all(visuals.map(async (v) => {
+      const enriched = await Promise.all(visuals.map(async (v: any) => {
         let imageUrl: string | null = null;
         if (v.imageAssetId) {
           const asset = await db.getProjectAssetById(v.imageAssetId);
@@ -698,10 +698,10 @@ export const designRouter = router({
 
   // ─── Prompt Templates ───────────────────────────────────────────────────────
 
-  listPromptTemplates: protectedProcedure
+  listPromptTemplates: orgProcedure
     .input(z.object({ type: z.string().optional() }))
-    .query(async ({ input }) => {
-      return db.getAllPromptTemplates(input.type);
+    .query(async ({ ctx, input }) => {
+      return db.getAllPromptTemplates(input.type, ctx.orgId);
     }),
 
   createPromptTemplate: adminProcedure
@@ -712,7 +712,7 @@ export const designRouter = router({
       variables: z.array(z.string()),
     }))
     .mutation(async ({ ctx, input }) => {
-      return db.createPromptTemplate({ ...input, createdBy: ctx.user.id });
+      return db.createPromptTemplate({ ...input, createdBy: ctx.user.id, orgId: ctx.user.orgId ?? undefined });
     }),
 
   updatePromptTemplate: adminProcedure

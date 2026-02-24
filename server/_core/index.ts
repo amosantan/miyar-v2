@@ -9,6 +9,20 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { startIngestionScheduler } from "../engines/ingestion/scheduler";
 import { startLearningScheduler } from "../engines/learning/scheduler";
+import { startAlertScheduler } from "../engines/autonomous/alert-scheduler";
+
+// --- Global Error Boundary (V7-07) ---
+// Prevent the entire server process from crashing due to stray async exceptions
+process.on("uncaughtException", (error) => {
+  console.error("🔥 [CRITICAL] Uncaught Exception:", error);
+  // Ideally, report to a monitoring service (Sentry/Datadog) here
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("🔥 [CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
+  // Ideally, report to a monitoring service here
+});
+// ------------------------------------
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -76,6 +90,13 @@ async function startServer() {
       startLearningScheduler();
     } catch (e) {
       console.error("[Learning Scheduler] Failed to start:", e);
+    }
+
+    // Start alert evaluation scheduler (V7-00a)
+    try {
+      startAlertScheduler();
+    } catch (e) {
+      console.error("[Alert Scheduler] Failed to start:", e);
     }
   });
 }

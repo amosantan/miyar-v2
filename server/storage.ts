@@ -6,6 +6,8 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Buffer } from "node:buffer";
 import process from "node:process";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 function getS3Client() {
   const region = process.env.AWS_REGION || "us-east-1";
@@ -47,7 +49,11 @@ export async function storagePut(
 
   if (!bucketName) {
     // Return a dummy object if running without credentials to allow local dev testing without crashing
-    return { key, url: `https://dummy-bucket.s3.amazonaws.com/${key}` };
+    // Instead of dummy-bucket, save to local disk and return local URL
+    const localPath = path.join(process.cwd(), "client", "public", "uploads", key);
+    await fs.mkdir(path.dirname(localPath), { recursive: true });
+    await fs.writeFile(localPath, typeof data === "string" ? Buffer.from(data, "utf-8") : data);
+    return { key, url: `/uploads/${key}` };
   }
 
   const command = new PutObjectCommand({
@@ -78,7 +84,7 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
   const key = normalizeKey(relKey);
 
   if (!bucketName) {
-    return { key, url: `https://dummy-bucket.s3.amazonaws.com/${key}` };
+    return { key, url: `/uploads/${key}` };
   }
 
   const getCommand = new GetObjectCommand({

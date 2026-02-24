@@ -50,8 +50,9 @@ function AuditLogsContent() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {log.entityType}
-                        {log.entityId ? ` #${log.entityId}` : ""} · User #
-                        {log.userId}
+                        {log.entityId ? ` #${log.entityId}` : ""} · User:{" "}
+                        {log.user?.email || `ID ${log.userId || "System"}`}
+                        {log.orgId ? ` (Org #${log.orgId})` : " (Global)"}
                       </p>
                     </div>
                   </div>

@@ -1,0 +1,389 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 20mm 15mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.6; font-size: 11px; }
+  .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 80vh; text-align: center; }
+  .cover h1 { font-size: 28px; color: #0f3460; margin-bottom: 8px; letter-spacing: 1px; }
+  .cover h2 { font-size: 16px; color: #4ecdc4; font-weight: 400; margin-bottom: 24px; }
+  .cover .project { font-size: 20px; color: #1a1a2e; font-weight: 600; }
+  .cover .date { font-size: 12px; color: #666; margin-top: 16px; }
+  .cover .logo { font-size: 36px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 32px; }
+  .cover .confidential { font-size: 10px; color: #999; margin-top: 40px; text-transform: uppercase; letter-spacing: 2px; }
+  .cover .watermark { font-size: 8px; color: #ccc; margin-top: 8px; font-family: monospace; }
+  h2 { font-size: 16px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 6px; margin: 24px 0 12px; }
+  h3 { font-size: 13px; color: #0f3460; margin: 16px 0 8px; }
+  p { margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
+  th { background: #0f3460; color: #fff; padding: 8px 10px; text-align: left; font-weight: 600; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+  .score-box { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: 700; font-size: 14px; }
+  .status-badge { display: inline-block; padding: 6px 16px; border-radius: 4px; font-weight: 700; font-size: 12px; color: #fff; letter-spacing: 1px; }
+  .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0; }
+  .metric-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; text-align: center; }
+  .metric-card .label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .metric-card .value { font-size: 22px; font-weight: 700; color: #0f3460; margin: 4px 0; }
+  .metric-card .grade { font-size: 10px; }
+  .risk-flag { background: #fff3cd; border-left: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .action-item { background: #e8f5e9; border-left: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .penalty-item { background: #fce4ec; border-left: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .lens-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; margin: 8px 0; }
+  .lens-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .lens-title { font-size: 12px; font-weight: 700; color: #0f3460; }
+  .lens-score { font-size: 14px; font-weight: 700; }
+  .lens-evidence { font-size: 9px; color: #666; margin-top: 4px; }
+  .roi-highlight { background: linear-gradient(135deg, #e8f5e9, #f1f8e9); border: 1px solid #c8e6c9; border-radius: 8px; padding: 16px; margin: 12px 0; text-align: center; }
+  .roi-value { font-size: 28px; font-weight: 800; color: #2e7d32; }
+  .roi-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .evidence-trace { background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px 12px; margin: 8px 0; font-size: 9px; font-family: monospace; color: #666; }
+  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
+  .section { page-break-inside: avoid; margin-bottom: 20px; }
+  .repro-meta { background: #f0f4f8; border: 1px solid #d0d7de; border-radius: 6px; padding: 10px 14px; margin: 16px auto; max-width: 400px; font-size: 9px; color: #444; text-align: left; }
+  .repro-meta .label { font-weight: 600; color: #0f3460; display: inline-block; min-width: 120px; }
+  .citation-ref { font-size: 8px; color: #0f3460; vertical-align: super; font-weight: 600; cursor: help; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="logo">MIYAR</div>
+  <h1>Full Evaluation Report</h1>
+  <h2>Comprehensive Decision Intelligence Analysis</h2>
+  <div class="project">One Palm Branded Residences — Premium Luxury</div>
+  <div class="date">February 24, 2026</div>
+  <div class="confidential">Confidential — For Internal Use Only</div>
+  <div class="watermark">Document ID: MYR-FUL-2-mlzqgec9</div>
+  <div class="repro-meta">
+    <div><span class="label">Scoring Engine:</span> MIYAR Decision Intelligence V2</div>
+    <div><span class="label">Model Version:</span> v2.0.0</div>
+    <div><span class="label">Generated:</span> 2026-02-23T22:13:10.425Z</div>
+    <div><span class="label">Document ID:</span> MYR-FUL-2-mlzqgec9</div>
+    <div><span class="label">Reproducibility:</span> All inputs, weights, thresholds, and benchmark data are frozen at generation time. Re-evaluation with identical inputs and the same benchmark/logic version will produce identical scores.</div>
+  </div>
+</div>
+
+
+<div class="section">
+  <h2>Executive Summary</h2>
+  <div style="text-align: center; margin: 16px 0;">
+    <div class="status-badge" style="background: #4ecdc4;">
+      VALIDATED
+    </div>
+  </div>
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="label">Composite Score</div>
+      <div class="value">82.0</div>
+      <div class="grade">Excellent</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Risk-Adjusted Score</div>
+      <div class="value" style="color: #4ecdc4;">71.4</div>
+      <div class="grade">Strong</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Confidence</div>
+      <div class="value">90%</div>
+      <div class="grade">High</div>
+    </div>
+  </div>
+</div>
+
+
+<div class="section">
+  <h2>Dimension Score Breakdown</h2>
+  <table>
+    <tr><th>Dimension</th><th>Score (0-100)</th><th>Weight</th><th>Weighted</th><th>Grade</th></tr>
+    <tr>
+      <td>Strategic Alignment</td>
+      <td style="text-align:center; font-weight:700;">92.5</td>
+      <td style="text-align:center;">25%</td>
+      <td style="text-align:center;">23.1</td>
+      <td style="text-align:center;">Excellent</td>
+    </tr><tr>
+      <td>Financial Feasibility</td>
+      <td style="text-align:center; font-weight:700;">81.5</td>
+      <td style="text-align:center;">20%</td>
+      <td style="text-align:center;">16.3</td>
+      <td style="text-align:center;">Excellent</td>
+    </tr><tr>
+      <td>Market Positioning</td>
+      <td style="text-align:center; font-weight:700;">89.5</td>
+      <td style="text-align:center;">20%</td>
+      <td style="text-align:center;">17.9</td>
+      <td style="text-align:center;">Excellent</td>
+    </tr><tr>
+      <td>Differentiation Strength</td>
+      <td style="text-align:center; font-weight:700;">87.5</td>
+      <td style="text-align:center;">20%</td>
+      <td style="text-align:center;">17.5</td>
+      <td style="text-align:center;">Excellent</td>
+    </tr><tr>
+      <td>Execution Risk</td>
+      <td style="text-align:center; font-weight:700;">47.5</td>
+      <td style="text-align:center;">15%</td>
+      <td style="text-align:center;">7.1</td>
+      <td style="text-align:center;">Critical</td>
+    </tr>
+    <tr style="font-weight:700; background:#f0f4f8;">
+      <td>Composite</td>
+      <td style="text-align:center;">82.0</td>
+      <td style="text-align:center;">100%</td>
+      <td style="text-align:center;">82.0</td>
+      <td style="text-align:center;">Excellent</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section"><h2>Variable Contribution Analysis</h2><p>How each input variable contributes to each dimension score:</p><h3>Differentiation Strength</h3><table><tr><th>Variable</th><th>Contribution</th></tr><tr><td>str02_n</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.30</td></tr><tr><td>des04_n</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.25</td></tr><tr><td>des02_n</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.20</td></tr><tr><td>competitorInverse</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.13</td></tr></table><h3>Execution Risk</h3><table><tr><th>Variable</th><th>Contribution</th></tr><tr><td>executionResilience</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.26</td></tr><tr><td>approvalsInverse</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.10</td></tr><tr><td>supplyChainInverse</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.06</td></tr><tr><td>complexityInverse</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.05</td></tr></table><h3>Financial Feasibility</h3><table><tr><th>Variable</th><th>Contribution</th></tr><tr><td>budgetFit</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.40</td></tr><tr><td>fin02_n</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.15</td></tr><tr><td>executionResilience</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.15</td></tr><tr><td>costStability</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.11</td></tr></table><h3>Market Positioning</h3><table><tr><th>Variable</th><th>Contribution</th></tr><tr><td>marketFit</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.35</td></tr><tr><td>des04_n</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.20</td></tr><tr><td>differentiationPressure</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.19</td></tr><tr><td>trendFit</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.16</td></tr></table><h3>Strategic Alignment</h3><table><tr><th>Variable</th><th>Contribution</th></tr><tr><td>str01_n</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.35</td></tr><tr><td>str03_n</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.25</td></tr><tr><td>compatVisionMarket</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.25</td></tr><tr><td>compatVisionDesign</td><td style="text-align:center; color: #4ecdc4; font-weight:600;">+0.07</td></tr></table></div>
+
+<div class="section">
+  <h2>Sensitivity Analysis</h2>
+  <p>Top 8 variables ranked by impact on composite score when adjusted ±1 unit:</p>
+  <table>
+    <tr><th>Variable</th><th>Sensitivity</th><th>Score (+1)</th><th>Score (-1)</th><th>Range</th></tr>
+    <tr>
+      <td>str01BrandClarity</td>
+      <td style="text-align:center;">4.68</td>
+      <td style="text-align:center;">82.0</td>
+      <td style="text-align:center;">77.3</td>
+      <td style="text-align:center;">4.7</td>
+    </tr><tr>
+      <td>exe02Contractor</td>
+      <td style="text-align:center;">2.31</td>
+      <td style="text-align:center;">83.1</td>
+      <td style="text-align:center;">80.8</td>
+      <td style="text-align:center;">2.3</td>
+    </tr><tr>
+      <td>exe04QaMaturity</td>
+      <td style="text-align:center;">2.31</td>
+      <td style="text-align:center;">83.1</td>
+      <td style="text-align:center;">80.8</td>
+      <td style="text-align:center;">2.3</td>
+    </tr><tr>
+      <td>des04Experience</td>
+      <td style="text-align:center;">2.25</td>
+      <td style="text-align:center;">82.0</td>
+      <td style="text-align:center;">79.7</td>
+      <td style="text-align:center;">2.3</td>
+    </tr><tr>
+      <td>fin02Flexibility</td>
+      <td style="text-align:center;">2.00</td>
+      <td style="text-align:center;">83.0</td>
+      <td style="text-align:center;">81.0</td>
+      <td style="text-align:center;">2.0</td>
+    </tr><tr>
+      <td>des02MaterialLevel</td>
+      <td style="text-align:center;">1.70</td>
+      <td style="text-align:center;">82.0</td>
+      <td style="text-align:center;">80.3</td>
+      <td style="text-align:center;">1.7</td>
+    </tr><tr>
+      <td>str03BuyerMaturity</td>
+      <td style="text-align:center;">1.56</td>
+      <td style="text-align:center;">82.0</td>
+      <td style="text-align:center;">80.4</td>
+      <td style="text-align:center;">1.6</td>
+    </tr><tr>
+      <td>des03Complexity</td>
+      <td style="text-align:center;">1.50</td>
+      <td style="text-align:center;">81.2</td>
+      <td style="text-align:center;">82.7</td>
+      <td style="text-align:center;">-1.5</td>
+    </tr>
+  </table>
+</div>
+
+
+<div class="section">
+  <h2>Risk Assessment</h2>
+  <div class="metric-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="metric-card">
+      <div class="label">Risk Score</div>
+      <div class="value" style="color: #4ecdc4;">30.1</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Penalties Applied</div>
+      <div class="value">0</div>
+    </div>
+  </div>
+  
+  <p>No risk flags triggered.</p>
+</div>
+
+<div class="section"><h2>Recommended Actions</h2><p>No conditional actions required. All parameters are within acceptable ranges.</p></div>
+
+<div class="section">
+  <h2>5-Lens Defensibility Framework</h2>
+  <div class="metric-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="metric-card">
+      <div class="label">Overall Defensibility</div>
+      <div class="value" style="color: #4ecdc4;">
+        82
+      </div>
+      <div class="grade">Excellent</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Weakest Lens</div>
+      <div class="value" style="font-size:14px; color:#e07a5f;">—</div>
+      <div class="grade">Priority improvement area</div>
+    </div>
+  </div>
+  
+    <div class="lens-card">
+      <div class="lens-header">
+        <div class="lens-title">🔍 undefined</div>
+        <div class="lens-score" style="color:#4ecdc4;">90/100</div>
+      </div>
+      <p style="font-size:10px; margin-bottom:6px;">undefined</p>
+      
+      <div class="lens-evidence">
+        <strong>Evidence:</strong> [object Object] • [object Object] • [object Object]
+      </div>
+      
+      
+    </div>
+    <div class="lens-card">
+      <div class="lens-header">
+        <div class="lens-title">🔍 undefined</div>
+        <div class="lens-score" style="color:#4ecdc4;">82/100</div>
+      </div>
+      <p style="font-size:10px; margin-bottom:6px;">undefined</p>
+      
+      <div class="lens-evidence">
+        <strong>Evidence:</strong> [object Object] • [object Object] • [object Object]
+      </div>
+      
+      
+    </div>
+    <div class="lens-card">
+      <div class="lens-header">
+        <div class="lens-title">🔍 undefined</div>
+        <div class="lens-score" style="color:#4ecdc4;">93/100</div>
+      </div>
+      <p style="font-size:10px; margin-bottom:6px;">undefined</p>
+      
+      <div class="lens-evidence">
+        <strong>Evidence:</strong> [object Object] • [object Object] • [object Object]
+      </div>
+      
+      
+    </div>
+    <div class="lens-card">
+      <div class="lens-header">
+        <div class="lens-title">🔍 undefined</div>
+        <div class="lens-score" style="color:#e07a5f;">48/100</div>
+      </div>
+      <p style="font-size:10px; margin-bottom:6px;">undefined</p>
+      
+      <div class="lens-evidence">
+        <strong>Evidence:</strong> [object Object] • [object Object] • [object Object]
+      </div>
+      
+      
+    </div>
+    <div class="lens-card">
+      <div class="lens-header">
+        <div class="lens-title">🔍 undefined</div>
+        <div class="lens-score" style="color:#4ecdc4;">88/100</div>
+      </div>
+      <p style="font-size:10px; margin-bottom:6px;">undefined</p>
+      
+      <div class="lens-evidence">
+        <strong>Evidence:</strong> [object Object] • [object Object] • [object Object]
+      </div>
+      
+      
+    </div>
+</div>
+
+
+<div class="section">
+  <h2>ROI & Economic Impact Analysis</h2>
+  
+  <div class="roi-highlight">
+    <div class="roi-label">Total Value Created</div>
+    <div class="roi-value">AED 0</div>
+    <div style="font-size:10px; color:#666; margin-top:4px;">ROI Multiple: 0.0x</div>
+  </div>
+
+  <h3>Value Breakdown</h3>
+  <table>
+    <tr><th>Value Component</th><th>Conservative</th><th>Base</th><th>Aggressive</th></tr>
+    
+    <tr><td>Rework Avoided</td><td style="text-align:right;" colspan="3">AED 0</td></tr>
+    <tr><td>Procurement Savings</td><td style="text-align:right;" colspan="3">AED 0</td></tr>
+    <tr><td>Time-Value Gain</td><td style="text-align:right;" colspan="3">AED 0</td></tr>
+    <tr><td>Spec Efficiency</td><td style="text-align:right;" colspan="3">AED 0</td></tr>
+    <tr><td>Positioning Premium</td><td style="text-align:right;" colspan="3">AED 0</td></tr>
+    
+  </table>
+
+  
+
+  
+  <h3>Key Assumptions</h3>
+  <ul style="font-size:9px; color:#666; padding-left:16px;">
+    <li>Hourly rate: AED 350</li><li>Market tier: Ultra-luxury (multiplier: 2x)</li><li>Project horizon: 24-36m</li><li>Composite score: 81.95/100</li><li>Risk score: 30.1/100</li><li>Conservative scenario: 60% of mid estimate</li><li>Aggressive scenario: 140% of mid estimate</li>
+  </ul>
+  
+</div>
+
+
+<div class="section">
+  <h2>Material Board Annex</h2>
+  <p style="font-size:10px; color:#666;">No material boards have been created for this project. Use the Board Composer to build material boards with cost estimates and RFQ-ready procurement schedules.</p>
+</div>
+
+
+<div class="section">
+  <h2>Evidence References</h2>
+  <p style="font-size:10px; color:#666;">No evidence records linked to this project at the time of report generation.</p>
+</div>
+
+
+<div class="section">
+  <h2>Evidence Trace & Provenance</h2>
+  <div class="evidence-trace">
+    Document ID: MYR-FUL-2-mlzqgec9<br>
+    Project ID: 2<br>
+    Benchmark Version: BV-1.0.0<br>
+    Logic Version: MIYAR Logic v1.0 — Baseline<br>
+    Model Version: v2.0.0<br>
+    Generated: 2026-02-23T22:13:10.426Z<br>
+    Scoring Engine: MIYAR Decision Intelligence V2<br>
+    Hash: TVlSLUZVTC0yLW1s
+  </div>
+  <p style="font-size:9px; color:#666; margin-top:8px;">
+    This document contains a cryptographic evidence trace linking the scoring inputs, benchmark data version,
+    logic version (weights + thresholds), and model configuration used at the time of generation. Any modification
+    to the underlying data would produce a different document hash, ensuring auditability and defensibility of the decision record.
+  </p>
+</div>
+
+<div class="section"><h2>Project Input Summary</h2><h3>Context</h3><table><tr><th>Parameter</th><th>Value</th></tr><tr><td style="width:50%;">Typology</td><td>Residential</td></tr><tr><td style="width:50%;">Scale</td><td>Medium</td></tr><tr><td style="width:50%;">GFA (sqm)</td><td>180,000</td></tr><tr><td style="width:50%;">Location</td><td>Prime</td></tr><tr><td style="width:50%;">Delivery Horizon</td><td>24-36m</td></tr></table><h3>Strategy</h3><table><tr><th>Parameter</th><th>Value</th></tr><tr><td style="width:50%;">Brand Clarity</td><td>5/5</td></tr><tr><td style="width:50%;">Differentiation</td><td>5/5</td></tr><tr><td style="width:50%;">Buyer Maturity</td><td>5/5</td></tr></table><h3>Market</h3><table><tr><th>Parameter</th><th>Value</th></tr><tr><td style="width:50%;">Market Tier</td><td>Ultra-luxury</td></tr><tr><td style="width:50%;">Competitor Intensity</td><td>3/5</td></tr><tr><td style="width:50%;">Trend Sensitivity</td><td>4/5</td></tr></table><h3>Financial</h3><table><tr><th>Parameter</th><th>Value</th></tr><tr><td style="width:50%;">Budget Cap (AED/sqft)</td><td>850</td></tr><tr><td style="width:50%;">Flexibility</td><td>4/5</td></tr><tr><td style="width:50%;">Shock Tolerance</td><td>4/5</td></tr><tr><td style="width:50%;">Sales Premium</td><td>5/5</td></tr></table><h3>Design</h3><table><tr><th>Parameter</th><th>Value</th></tr><tr><td style="width:50%;">Style</td><td>Contemporary</td></tr><tr><td style="width:50%;">Material Level</td><td>5/5</td></tr><tr><td style="width:50%;">Complexity</td><td>4/5</td></tr><tr><td style="width:50%;">Experience</td><td>5/5</td></tr><tr><td style="width:50%;">Sustainability</td><td>3/5</td></tr></table><h3>Execution</h3><table><tr><th>Parameter</th><th>Value</th></tr><tr><td style="width:50%;">Supply Chain</td><td>4/5</td></tr><tr><td style="width:50%;">Contractor</td><td>4/5</td></tr><tr><td style="width:50%;">Approvals</td><td>3/5</td></tr><tr><td style="width:50%;">QA Maturity</td><td>4/5</td></tr></table></div>
+
+
+<div class="section" style="margin-top:24px; padding:12px; background:#fff8e1; border:1px solid #ffe082; border-radius:6px;">
+  <h3 style="color:#e65100; font-size:11px; margin-bottom:6px;">Important Disclaimer</h3>
+  <p style="font-size:9px; color:#5d4037; line-height:1.5;">
+    This document is a <strong>concept-level assessment</strong> generated by the MIYAR Decision Intelligence Platform.
+    All scores, recommendations, and specifications are <strong>advisory only</strong> and are subject to detailed design,
+    engineering review, and professional validation. Material specifications, cost estimates, and procurement guidance
+    are indicative and must be confirmed through formal tender processes. MIYAR does not warrant the accuracy of
+    third-party benchmark data or market intelligence used in this assessment. This document does not constitute
+    professional design, financial, or legal advice.
+  </p>
+</div>
+
+<div class="footer">
+  MIYAR Decision Intelligence Platform V2 | Document ID: MYR-FUL-2-mlzqgec9 | Generated: February 24, 2026<br>
+  Model Version: v2.0.0 | Benchmark Version: BV-1.0.0 | Logic Version: MIYAR Logic v1.0 — Baseline<br>
+  <span style="font-size:8px;">This report is auto-generated and watermarked. Scores are advisory and do not constitute professional design or financial advice.</span>
+</div>
+</body>
+</html>

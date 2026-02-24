@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDb } from "../db";
-import { platformAlerts } from "../../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { platformAlerts, nlQueryLog } from "../../drizzle/schema";
+import { eq, and, desc, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { processNlQuery } from "../engines/autonomous/nl-engine";
 import { generateAutonomousDesignBrief } from "../engines/autonomous/document-generator";
 import { generatePortfolioInsights } from "../engines/autonomous/portfolio-engine";
@@ -70,8 +71,31 @@ export const autonomousRouter = router({
 
     nlQuery: protectedProcedure
         .input(z.object({ query: z.string() }))
-        .mutation(async ({ input }) => {
-            const result = await processNlQuery(input.query);
+        .mutation(async ({ ctx, input }) => {
+            const db = await getDb();
+            if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
+
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+            const recentQueries = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(nlQueryLog)
+                .where(
+                    and(
+                        eq(nlQueryLog.userId, ctx.user.id),
+                        sql`${nlQueryLog.createdAt} > ${oneHourAgo}`
+                    )
+                );
+
+            const count = Number(recentQueries[0]?.count || 0);
+            if (count >= 20) {
+                throw new TRPCError({
+                    code: "TOO_MANY_REQUESTS",
+                    message: "Natural language query limit: 20 queries/hour"
+                });
+            }
+
+            const result = await processNlQuery(ctx.user.id, input.query);
             return result;
         }),
 

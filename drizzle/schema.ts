@@ -22,10 +22,51 @@ export const users = mysqlTable("users", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  orgId: int("orgId"), // added in V7 for backward compat later to be notNull
 });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+// ─── Organizations (V7 - Multi-tenancy) ─────────────────────────────────────────────────────────
+export const organizations = mysqlTable("organizations", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  domain: varchar("domain", { length: 255 }),
+  plan: mysqlEnum("plan", ["free", "pro", "enterprise"]).default("free").notNull(),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = typeof organizations.$inferInsert;
+
+export const organizationMembers = mysqlTable("organization_members", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type OrganizationMember = typeof organizationMembers.$inferSelect;
+export type InsertOrganizationMember = typeof organizationMembers.$inferInsert;
+
+export const organizationInvites = mysqlTable("organization_invites", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type OrganizationInvite = typeof organizationInvites.$inferSelect;
+export type InsertOrganizationInvite = typeof organizationInvites.$inferInsert;
+
 
 // ─── Model Versions ─────────────────────────────────────────────────────────
 export const modelVersions = mysqlTable("model_versions", {
@@ -98,6 +139,7 @@ export type InsertBenchmarkCategory = typeof benchmarkCategories.$inferInsert;
 export const projects = mysqlTable("projects", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  orgId: int("orgId"),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   status: mysqlEnum("status", [
@@ -266,6 +308,7 @@ export type InsertScoreMatrix = typeof scoreMatrices.$inferInsert;
 export const scenarios = mysqlTable("scenarios", {
   id: int("id").autoincrement().primaryKey(),
   projectId: int("projectId").notNull(),
+  orgId: int("orgId"),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   variableOverrides: json("variableOverrides"),
@@ -578,6 +621,7 @@ export type InsertMaterialToBoard = typeof materialsToBoards.$inferInsert;
 // ─── Prompt Templates (V2.8 — Admin-editable nano banana prompts) ───────────
 export const promptTemplates = mysqlTable("prompt_templates", {
   id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId"),
   name: varchar("name", { length: 255 }).notNull(),
   type: mysqlEnum("type", ["mood", "material_board", "hero"]).notNull(),
   templateText: text("templateText").notNull(),
@@ -613,6 +657,7 @@ export type InsertComment = typeof comments.$inferInsert;
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId"),
   userId: int("userId"),
   action: varchar("action", { length: 128 }).notNull(),
   entityType: varchar("entityType", { length: 64 }).notNull(),
@@ -940,6 +985,7 @@ export const evidenceRecords = mysqlTable("evidence_records", {
   id: int("id").autoincrement().primaryKey(),
   recordId: varchar("recordId", { length: 64 }).notNull().unique(), // MYR-PE-XXXX
   projectId: int("projectId"), // optional: can be global evidence
+  orgId: int("orgId"),
   sourceRegistryId: int("sourceRegistryId"), // FK to source_registry
   category: mysqlEnum("category", [
     "floors",
@@ -1343,3 +1389,121 @@ export const platformAlerts = mysqlTable("platform_alerts", {
 
 export type PlatformAlert = typeof platformAlerts.$inferSelect;
 export type InsertPlatformAlert = typeof platformAlerts.$inferInsert;
+
+// ─── NL Query Log (V7 — Production Hardening) ───────────────────────────────
+export const nlQueryLog = mysqlTable("nl_query_log", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("user_id").notNull(),
+  queryText: text("query_text").notNull(),
+  sqlGenerated: text("sql_generated"),
+  rowsReturned: int("rows_returned").default(0),
+  executionMs: int("execution_ms"),
+  status: mysqlEnum("status", ["success", "error", "blocked"]).default("success"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type NlQueryLog = typeof nlQueryLog.$inferSelect;
+export type InsertNlQueryLog = typeof nlQueryLog.$inferInsert;
+
+// ─── V8 - Design Intelligence Layer ───────────────────────────────────────
+export const materialLibrary = mysqlTable("material_library", {
+  id: int("id").primaryKey().autoincrement(),
+  category: mysqlEnum("category", [
+    "flooring", "wall_paint", "wall_tile", "ceiling",
+    "joinery", "sanitaryware", "fittings", "lighting",
+    "hardware", "specialty"
+  ]).notNull(),
+  tier: mysqlEnum("tier", [
+    "affordable", "mid", "premium", "ultra"
+  ]).notNull(),
+  style: mysqlEnum("style", [
+    "modern", "contemporary", "classic",
+    "minimalist", "arabesque", "all"
+  ]).default("all").notNull(),
+  productCode: varchar("product_code", { length: 100 }),
+  productName: varchar("product_name", { length: 300 }).notNull(),
+  brand: varchar("brand", { length: 150 }).notNull(),
+  supplierName: varchar("supplier_name", { length: 200 }).notNull(),
+  supplierLocation: varchar("supplier_location", { length: 200 }),
+  supplierPhone: varchar("supplier_phone", { length: 50 }),
+  unitLabel: varchar("unit_label", { length: 30 }).notNull(),
+  priceAedMin: decimal("price_aed_min", { precision: 10, scale: 2 }),
+  priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true).notNull(),
+});
+
+export type MaterialLibrary = typeof materialLibrary.$inferSelect;
+export type InsertMaterialLibrary = typeof materialLibrary.$inferInsert;
+
+export const finishScheduleItems = mysqlTable(
+  "finish_schedule_items", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  organizationId: int("organization_id").notNull(),
+  roomId: varchar("room_id", { length: 10 }).notNull(),
+  roomName: varchar("room_name", { length: 100 }).notNull(),
+  element: mysqlEnum("element", [
+    "floor", "wall_primary", "wall_feature",
+    "wall_wet", "ceiling", "joinery", "hardware"
+  ]).notNull(),
+  materialLibraryId: int("material_library_id"),
+  overrideSpec: varchar("override_spec", { length: 500 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type FinishScheduleItem = typeof finishScheduleItems.$inferSelect;
+export type InsertFinishScheduleItem = typeof finishScheduleItems.$inferInsert;
+
+export const projectColorPalettes = mysqlTable(
+  "project_color_palettes", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  organizationId: int("organization_id").notNull(),
+  paletteKey: varchar("palette_key", { length: 100 }).notNull(),
+  colors: json("colors").notNull(),
+  geminiRationale: text("gemini_rationale"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ProjectColorPalette = typeof projectColorPalettes.$inferSelect;
+export type InsertProjectColorPalette = typeof projectColorPalettes.$inferInsert;
+
+export const rfqLineItems = mysqlTable("rfq_line_items", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  organizationId: int("organization_id").notNull(),
+  sectionNo: int("section_no").notNull(),
+  itemCode: varchar("item_code", { length: 20 }).notNull(),
+  description: varchar("description", { length: 500 }).notNull(),
+  unit: varchar("unit", { length: 20 }).notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }),
+  unitRateAedMin: decimal("unit_rate_aed_min",
+    { precision: 10, scale: 2 }),
+  unitRateAedMax: decimal("unit_rate_aed_max",
+    { precision: 10, scale: 2 }),
+  totalAedMin: decimal("total_aed_min",
+    { precision: 12, scale: 2 }),
+  totalAedMax: decimal("total_aed_max",
+    { precision: 12, scale: 2 }),
+  supplierName: varchar("supplier_name", { length: 200 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type RfqLineItem = typeof rfqLineItems.$inferSelect;
+export type InsertRfqLineItem = typeof rfqLineItems.$inferInsert;
+
+export const dmComplianceChecklists = mysqlTable(
+  "dm_compliance_checklists", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  organizationId: int("organization_id").notNull(),
+  items: json("items").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DmComplianceChecklist = typeof dmComplianceChecklists.$inferSelect;
+export type InsertDmComplianceChecklist = typeof dmComplianceChecklists.$inferInsert;
+

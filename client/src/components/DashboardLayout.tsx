@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { NotificationBell } from "./NotificationBell";
 import { AiAssistantPanel } from "./AiAssistantPanel";
+import { AdminSystemHealthMenu } from "./AdminSystemHealthMenu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -476,6 +477,7 @@ function DashboardLayoutContent({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {isAdmin && <AdminSystemHealthMenu />}
             <AiAssistantPanel />
             <NotificationBell />
           </div>

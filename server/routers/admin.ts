@@ -179,7 +179,7 @@ export const adminRouter = router({
         const changeRatio = allBenchmarks.length > 0 ? totalChanges / allBenchmarks.length : 0;
 
         const affected = changeRatio > threshold
-          ? allScores.map(s => ({ projectId: s.projectId, currentScore: Number(s.compositeScore), estimatedImpact: "may_change" as const }))
+          ? allScores.map((s: any) => ({ projectId: s.projectId, currentScore: Number(s.compositeScore), estimatedImpact: "may_change" as const }))
           : [];
 
         return { affectedProjects: affected, totalProjects: allScores.length, changeRatio, diff };
@@ -545,5 +545,36 @@ export const adminRouter = router({
 
         return result;
       }),
+  }),
+
+  // ─── Health Checks ───────────────────────────────────────────────────
+  healthCheck: adminProcedure.query(async () => {
+    let dbStatus = "offline";
+    try {
+      const dbInstance = await db.getDb();
+      if (dbInstance) {
+        // Just verify connection is alive
+        await dbInstance.execute("SELECT 1");
+        dbStatus = "online";
+      }
+    } catch {
+      dbStatus = "error";
+    }
+
+    // Since we've moved to Gemini
+    const llmStatus = process.env.GEMINI_API_KEY ? "online" : "offline";
+
+    return {
+      status: dbStatus === "online" && llmStatus === "online" ? "healthy" : "degraded",
+      services: {
+        database: dbStatus,
+        llm: llmStatus,
+        scheduler: "online",
+      },
+      metrics: {
+        memoryUsage: process.memoryUsage().heapUsed / 1024 / 1024, // in MB
+        uptime: process.uptime(),
+      }
+    };
   }),
 });

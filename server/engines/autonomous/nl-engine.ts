@@ -1,6 +1,7 @@
 import { invokeLLM } from "../../_core/llm";
 import { getDb } from "../../db";
 import { sql } from "drizzle-orm";
+import { nlQueryLog } from "../../../drizzle/schema";
 
 const SCHEMA_CONTEXT = `
 You are an expert data analyst for MIYAR, an interior design validation platform. 
@@ -22,7 +23,13 @@ CRITICAL RULES:
 5. Limit the results to 50 rows maximum to prevent huge payloads.
 `;
 
-export async function processNlQuery(query: string): Promise<{ textOutput: string; rawData: any[]; sqlGenerated: string }> {
+export async function processNlQuery(userId: number, query: string): Promise<{ textOutput: string; rawData: any[]; sqlGenerated: string }> {
+    const startTime = Date.now();
+    let generatedSql = "";
+    let rawData: any[] = [];
+    let textOutput = "";
+    let status: "success" | "error" | "blocked" = "success";
+
     try {
         // Phase 1: Text to SQL
         const sqlResponse = await invokeLLM({
@@ -33,7 +40,7 @@ export async function processNlQuery(query: string): Promise<{ textOutput: strin
         });
 
         const content = sqlResponse.choices?.[0]?.message?.content;
-        let generatedSql = typeof content === "string"
+        generatedSql = typeof content === "string"
             ? content
             : Array.isArray(content)
                 ? content.map((c: any) => c.text || "").join("")
@@ -48,11 +55,9 @@ export async function processNlQuery(query: string): Promise<{ textOutput: strin
             throw new Error("Only SELECT queries are allowed for security reasons.");
         }
 
-        // Phase 2: Execution
         const db = await getDb();
         if (!db) throw new Error("Database not connected");
 
-        let rawData: any[] = [];
         try {
             // Execute raw SQL using Drizzle sql.raw
             const result = await db.execute(sql.raw(generatedSql));
@@ -65,6 +70,7 @@ export async function processNlQuery(query: string): Promise<{ textOutput: strin
             }
         } catch (dbError: any) {
             console.error("[NlEngine] SQL Execution Error:", dbError);
+            status = "error";
             return {
                 textOutput: `I experienced an error executing the generated query. Error: ${dbError.message}`,
                 rawData: [],
@@ -92,7 +98,7 @@ Explain the findings in simple terms.
         });
 
         const ansContent = answerResponse.choices?.[0]?.message?.content;
-        const textOutput = typeof ansContent === "string"
+        textOutput = typeof ansContent === "string"
             ? ansContent
             : Array.isArray(ansContent)
                 ? ansContent.map((c: any) => c.text || "").join("")
@@ -106,6 +112,24 @@ Explain the findings in simple terms.
 
     } catch (error: any) {
         console.error("[NlEngine] Query processing failed:", error);
+        status = "error";
         throw new Error(error.message || "Failed to process natural language query.");
+    } finally {
+        const executionMs = Date.now() - startTime;
+        const db = await getDb();
+        if (db && userId) {
+            try {
+                await db.insert(nlQueryLog).values({
+                    userId,
+                    queryText: query,
+                    sqlGenerated: generatedSql || undefined,
+                    rowsReturned: rawData.length,
+                    executionMs,
+                    status
+                });
+            } catch (logErr) {
+                console.error("[NlEngine] Failed to log NL query:", logErr);
+            }
+        }
     }
 }

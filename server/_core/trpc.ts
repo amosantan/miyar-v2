@@ -43,3 +43,25 @@ export const adminProcedure = t.procedure.use(
     });
   }),
 );
+
+const requireOrg = t.middleware(async opts => {
+  const { ctx, next } = opts;
+
+  if (!ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+  }
+
+  if (!ctx.user.orgId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "User does not belong to an organization" });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      user: ctx.user,
+      orgId: ctx.user.orgId,
+    },
+  });
+});
+
+export const orgProcedure = t.procedure.use(requireOrg);

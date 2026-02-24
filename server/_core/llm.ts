@@ -363,18 +363,46 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     };
   }
 
-  const response = await fetch(resolveApiUrl(), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let response: Response | undefined;
+  let attempt = 0;
+  const maxRetries = 2; // Reduced from 5 to prevent UI hanging forever
 
-  if (!response.ok) {
-    const errorText = await response.text();
+  while (attempt <= maxRetries) {
+    response = await fetch(resolveApiUrl(), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      break;
+    }
+
+    if (response.status === 429 || response.status === 503) {
+      attempt++;
+      if (attempt > maxRetries) break;
+
+      const errorText = await response.text();
+      console.warn(`[Gemini API] HTTP ${response.status} hit. Retrying attempt ${attempt}/${maxRetries}... Error details: ${errorText.substring(0, 200)}`);
+
+      // Shorter exponential backoff: 2s, 4s to prevent massive tRPC timeouts
+      const delay = (Math.pow(2, attempt) * 1000) + Math.random() * 500;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    } else {
+      break;
+    }
+  }
+
+  if (!response || !response.ok) {
+    const errorText = response ? await response.text().catch(() => "Unknown error") : "No response";
+    const isRateLimit = response?.status === 429;
+
     throw new Error(
-      `Gemini LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+      isRateLimit
+        ? `Gemini Request Limit Reached: Your API key is on the Free Tier (15 requests/min). Please update GEMINI_API_KEY in .env with a billing-enabled key from Google AI Studio.`
+        : `Gemini LLM invoke failed: ${response?.status} ${response?.statusText} – ${errorText}`
     );
   }
 

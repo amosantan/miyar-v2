@@ -7,10 +7,20 @@ import bcryptjs from "bcryptjs";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { TRPCError } from "@trpc/server";
+import { auditLog } from "../_core/audit";
 
 export const authRouter = router({
     me: publicProcedure.query((opts) => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
+    logout: publicProcedure.mutation(async ({ ctx }) => {
+        if (ctx.user) {
+            await auditLog({
+                userId: ctx.user.id,
+                action: "auth.logout",
+                entityType: "user",
+                entityId: ctx.user.id,
+                ipAddress: (ctx.req?.headers?.["x-forwarded-for"] as string) || ctx.req?.socket?.remoteAddress || "127.0.0.1",
+            });
+        }
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
         return { success: true } as const;
@@ -61,6 +71,14 @@ export const authRouter = router({
             const cookieOptions = getSessionCookieOptions(ctx.req);
             ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
+            await auditLog({
+                userId: user.id,
+                action: "auth.login",
+                entityType: "user",
+                entityId: user.id,
+                ipAddress: (ctx.req?.headers?.["x-forwarded-for"] as string) || ctx.req?.socket?.remoteAddress || "127.0.0.1",
+            });
+
             return { success: true };
         }),
     register: publicProcedure
@@ -93,6 +111,17 @@ export const authRouter = router({
 
             const cookieOptions = getSessionCookieOptions(ctx.req);
             ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+            const createdUser = await db.getUserByEmail(input.email);
+            if (createdUser) {
+                await auditLog({
+                    userId: createdUser.id,
+                    action: "auth.register",
+                    entityType: "user",
+                    entityId: createdUser.id,
+                    ipAddress: (ctx.req?.headers?.["x-forwarded-for"] as string) || ctx.req?.socket?.remoteAddress || "127.0.0.1",
+                });
+            }
 
             return { success: true };
         }),

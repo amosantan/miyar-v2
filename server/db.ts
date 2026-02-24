@@ -52,6 +52,11 @@ import {
   projectInsights,
   priceChangeEvents,
   platformAlerts,
+  materialLibrary,
+  finishScheduleItems,
+  projectColorPalettes,
+  rfqLineItems,
+  dmComplianceChecklists,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -159,6 +164,12 @@ export async function getProjectsByUser(userId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(projects).where(eq(projects.userId, userId)).orderBy(desc(projects.updatedAt));
+}
+
+export async function getProjectsByOrg(orgId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projects).where(eq(projects.orgId, orgId)).orderBy(desc(projects.updatedAt));
 }
 
 export async function getAllProjects() {
@@ -540,15 +551,32 @@ export async function getAllReports() {
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
 
 export async function createAuditLog(data: typeof auditLogs.$inferInsert) {
-  const db = await getDb();
-  if (!db) return;
-  await db.insert(auditLogs).values(data);
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db.insert(auditLogs).values(data);
+  } catch (error) {
+    console.error("[AuditLog] Failed to insert audit log:", error);
+    // Silent fail - audit logging should never crash the main application flow
+  }
 }
 
 export async function getAuditLogs(limit = 50) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit);
+  const results = await db.select({
+    log: auditLogs,
+    user: {
+      email: users.email,
+      name: users.name,
+    }
+  })
+    .from(auditLogs)
+    .leftJoin(users, eq(auditLogs.userId, users.id))
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(limit);
+
+  return results.map((r: any) => ({ ...r.log, user: r.user }));
 }
 
 // ─── Override Records ────────────────────────────────────────────────────────
@@ -803,11 +831,13 @@ export async function reorderBoardTiles(boardId: number, orderedIds: number[]) {
 
 // ─── Prompt Templates (V2.8) ────────────────────────────────────────────────
 
-export async function getAllPromptTemplates(type?: string) {
+export async function getAllPromptTemplates(type?: string, orgId?: number) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
   if (type) conditions.push(eq(promptTemplates.type, type as any));
+  if (orgId) conditions.push(eq(promptTemplates.orgId, orgId));
+
   let query = db.select().from(promptTemplates);
   if (conditions.length > 0) {
     query = query.where(and(...conditions)) as any;
@@ -815,12 +845,15 @@ export async function getAllPromptTemplates(type?: string) {
   return query.orderBy(desc(promptTemplates.createdAt));
 }
 
-export async function getActivePromptTemplate(type: string) {
+export async function getActivePromptTemplate(type: string, orgId?: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(promptTemplates)
-    .where(and(eq(promptTemplates.type, type as any), eq(promptTemplates.isActive, true)))
-    .limit(1);
+
+  const conditions = [eq(promptTemplates.type, type as any), eq(promptTemplates.isActive, true)];
+  if (orgId) conditions.push(eq(promptTemplates.orgId, orgId));
+
+  let query = db.select().from(promptTemplates).where(and(...conditions)).limit(1);
+  const result = await query;
   return result[0];
 }
 
@@ -1801,4 +1834,30 @@ export async function updateInsightStatus(
     updates.acknowledgedAt = new Date();
   }
   return db.update(projectInsights).set(updates).where(eq(projectInsights.id, insightId));
+}
+
+// ─── V8: Design Intelligence Layer ──────────────────────────────────────────
+
+export async function insertFinishScheduleItem(data: typeof finishScheduleItems.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  return db.insert(finishScheduleItems).values(data);
+}
+
+export async function insertProjectColorPalette(data: typeof projectColorPalettes.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  return db.insert(projectColorPalettes).values(data);
+}
+
+export async function insertRfqLineItem(data: typeof rfqLineItems.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  return db.insert(rfqLineItems).values(data);
+}
+
+export async function insertDmComplianceChecklist(data: typeof dmComplianceChecklists.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  return db.insert(dmComplianceChecklists).values(data);
 }
