@@ -1,22 +1,15 @@
 /**
- * Image generation helper using internal ImageService
+ * Image generation helper using Gemini native image generation
+ *
+ * Uses gemini-2.0-flash-exp with responseModalities: ["IMAGE", "TEXT"]
+ * for native image generation via the Gemini API.
  *
  * Example usage:
  *   const { url: imageUrl } = await generateImage({
  *     prompt: "A serene landscape with mountains"
  *   });
- *
- * For editing:
- *   const { url: imageUrl } = await generateImage({
- *     prompt: "Add a rainbow to this landscape",
- *     originalImages: [{
- *       url: "https://example.com/original.jpg",
- *       mimeType: "image/jpeg"
- *     }]
- *   });
  */
 import { storagePut } from "server/storage";
-import { ENV } from "./env";
 import { Buffer } from "buffer";
 
 export type GenerateImageOptions = {
@@ -39,7 +32,9 @@ export async function generateImage(
     throw new Error("GEMINI_API_KEY is not configured");
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${process.env.GEMINI_API_KEY}`;
+  // Use Gemini native image generation (generateContent with IMAGE modality)
+  const model = "gemini-2.0-flash-exp";
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -47,17 +42,17 @@ export async function generateImage(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      instances: [
+      contents: [
         {
-          prompt: options.prompt,
-        }
+          parts: [
+            { text: options.prompt },
+          ],
+        },
       ],
-      parameters: {
-        sampleCount: 1,
-        // Optional parameters you might consider exposing later:
-        // aspectRatio: "1:1",
-        // outputOptions: { mimeType: "image/png" }
-      }
+      generationConfig: {
+        responseModalities: ["IMAGE", "TEXT"],
+        responseMimeType: "text/plain",
+      },
     }),
   });
 
@@ -69,19 +64,36 @@ export async function generateImage(
   }
 
   const result = await response.json();
-  const base64Data = result.predictions?.[0]?.bytesBase64Encoded;
 
-  if (!base64Data) {
-    throw new Error("Gemini Image API returned an invalid response missing base64 bytes");
+  // Extract inline image data from the response
+  const candidates = result.candidates || [];
+  let base64Data: string | undefined;
+  let mimeType = "image/png";
+
+  for (const candidate of candidates) {
+    const parts = candidate.content?.parts || [];
+    for (const part of parts) {
+      if (part.inlineData) {
+        base64Data = part.inlineData.data;
+        mimeType = part.inlineData.mimeType || "image/png";
+        break;
+      }
+    }
+    if (base64Data) break;
   }
 
+  if (!base64Data) {
+    throw new Error("Gemini Image API returned no image data in the response");
+  }
+
+  const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.includes("webp") ? "webp" : "png";
   const buffer = Buffer.from(base64Data, "base64");
 
   // Save to S3
   const { url } = await storagePut(
-    `generated/${Date.now()}.png`,
+    `generated/${Date.now()}.${ext}`,
     buffer,
-    "image/png"
+    mimeType
   );
   return {
     url,
