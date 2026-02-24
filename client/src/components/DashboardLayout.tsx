@@ -89,6 +89,7 @@ const analysisItems = [
 ];
 
 const designItems = [
+  { icon: Sparkles, label: "AI Design Advisor", path: "/projects/:id/design-advisor", dynamic: true },
   { icon: FolderOpen, label: "Evidence Vault", path: "/projects/:id/evidence", dynamic: true },
   { icon: Palette, label: "Design Brief", path: "/projects/:id/brief", dynamic: true },
   { icon: Camera, label: "Visual Studio", path: "/projects/:id/visuals", dynamic: true },
