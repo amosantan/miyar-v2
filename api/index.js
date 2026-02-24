@@ -1,5 +1,11 @@
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined") return require.apply(this, arguments);
+  throw Error('Dynamic require of "' + x + '" is not supported');
+});
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -11419,11 +11425,30 @@ async function checkRobotsTxt(targetUrl, userAgent) {
     return true;
   }
 }
+var _firecrawlClient = null;
+function getFirecrawlClient() {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  if (!apiKey) return null;
+  if (!_firecrawlClient) {
+    try {
+      const FirecrawlApp = __require("@mendable/firecrawl-js").default;
+      _firecrawlClient = new FirecrawlApp({ apiKey });
+    } catch (err) {
+      console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
+      return null;
+    }
+  }
+  return _firecrawlClient;
+}
+function isFirecrawlAvailable() {
+  return !!process.env.FIRECRAWL_API_KEY;
+}
 var rawSourcePayloadSchema = z8.object({
   url: z8.string().url(),
   fetchedAt: z8.date(),
   rawHtml: z8.string().optional(),
   rawJson: z8.record(z8.string(), z8.unknown()).optional(),
+  markdown: z8.string().optional(),
   statusCode: z8.number().int(),
   error: z8.string().optional()
 });
@@ -11467,9 +11492,7 @@ var GRADE_B_SOURCE_IDS = /* @__PURE__ */ new Set([
   "dragon-mart-dubai",
   "property-monitor-dubai"
 ]);
-var GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set([
-  "dera-interiors"
-]);
+var GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set(["dera-interiors"]);
 function assignGrade(sourceId) {
   if (GRADE_A_SOURCE_IDS.has(sourceId)) return "A";
   if (GRADE_B_SOURCE_IDS.has(sourceId)) return "B";
@@ -11501,33 +11524,61 @@ var FETCH_TIMEOUT_MS = 15e3;
 var MAX_RETRIES = 3;
 var BASE_BACKOFF_MS = 1e3;
 var BaseSourceConnector = class {
-  /** Set by orchestrator before fetch to enable incremental ingestion */
   lastSuccessfulFetch;
   requestDelayMs;
   /**
-   * Shared fetch with timeout (15s) and exponential backoff retry (max 3 attempts).
-   * Returns RawSourcePayload with error field populated on failure.
+   * Fetch using Firecrawl's headless browser API.
+   * Renders JavaScript, bypasses bot protection, returns clean markdown.
    */
-  async fetch() {
+  async fetchWithFirecrawl(url) {
+    const targetUrl = url || this.sourceUrl;
+    const client = getFirecrawlClient();
+    if (!client) {
+      return this.fetchBasic(targetUrl);
+    }
+    try {
+      console.log(`[Connector] \u{1F525} Firecrawl scraping: ${targetUrl}`);
+      const result = await client.scrapeUrl(targetUrl, {
+        formats: ["markdown", "html"],
+        waitFor: 3e3,
+        timeout: 3e4
+      });
+      if (!result.success) {
+        console.warn(`[Connector] Firecrawl failed for ${targetUrl}: ${result.error || "unknown"}, falling back to basic fetch`);
+        return this.fetchBasic(targetUrl);
+      }
+      const markdown = result.markdown || "";
+      const html = result.html || "";
+      console.log(`[Connector] \u{1F525} Firecrawl success: ${targetUrl} (${markdown.length} chars md, ${html.length} chars html)`);
+      return {
+        url: targetUrl,
+        fetchedAt: /* @__PURE__ */ new Date(),
+        rawHtml: html,
+        markdown,
+        statusCode: result.metadata?.statusCode || 200
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Connector] Firecrawl error for ${targetUrl}: ${errorMsg}, falling back`);
+      return this.fetchBasic(targetUrl);
+    }
+  }
+  /**
+   * Basic HTTP fetch — used as fallback when Firecrawl is unavailable.
+   */
+  async fetchBasic(url) {
+    const targetUrl = url || this.sourceUrl;
     let lastError;
     const userAgent = getRandomUserAgent();
-    const isAllowed = await checkRobotsTxt(this.sourceUrl, userAgent);
+    const isAllowed = await checkRobotsTxt(targetUrl, userAgent);
     if (!isAllowed) {
-      return {
-        url: this.sourceUrl,
-        fetchedAt: /* @__PURE__ */ new Date(),
-        statusCode: 403,
-        error: "Blocked by origin robots.txt"
-      };
-    }
-    if (this.requestDelayMs && this.requestDelayMs > 0) {
-      await new Promise((r) => setTimeout(r, this.requestDelayMs));
+      return { url: targetUrl, fetchedAt: /* @__PURE__ */ new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
     }
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-        const response = await globalThis.fetch(this.sourceUrl, {
+        const response = await globalThis.fetch(targetUrl, {
           signal: controller.signal,
           headers: {
             "User-Agent": userAgent,
@@ -11556,7 +11607,7 @@ var BaseSourceConnector = class {
           }
         }
         return {
-          url: this.sourceUrl,
+          url: targetUrl,
           fetchedAt: /* @__PURE__ */ new Date(),
           rawHtml,
           rawJson,
@@ -11573,11 +11624,23 @@ var BaseSourceConnector = class {
       }
     }
     return {
-      url: this.sourceUrl,
+      url: targetUrl,
       fetchedAt: /* @__PURE__ */ new Date(),
       statusCode: 0,
       error: `Failed after ${MAX_RETRIES} attempts: ${lastError}`
     };
+  }
+  /**
+   * Main fetch method. Uses Firecrawl when available, falls back to basic HTTP.
+   */
+  async fetch() {
+    if (this.requestDelayMs && this.requestDelayMs > 0) {
+      await new Promise((r) => setTimeout(r, this.requestDelayMs));
+    }
+    if (isFirecrawlAvailable()) {
+      return this.fetchWithFirecrawl();
+    }
+    return this.fetchBasic();
   }
 };
 
@@ -11657,7 +11720,7 @@ function discoverLinks(html, baseUrl, config) {
 
 // server/engines/ingestion/connectors/dynamic.ts
 var LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
-You extract structured evidence from raw HTML or JSON content of UAE construction/real estate websites.
+You extract structured evidence from website content of UAE construction/real estate websites.
 Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
 function buildDynamicPrompt(sourceName, category, geography, contentSnippet, hints, lastFetch, pageUrl) {
   const dateFilter = lastFetch ? `
@@ -11684,8 +11747,8 @@ Rules:
 - Do NOT invent data \u2014 if no items found, return empty array []
 - Do NOT output confidence, grade, or scoring fields
 
-Content (truncated to 12000 chars):
-${contentSnippet.substring(0, 12e3)}`;
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16e3)}`;
 }
 var CRAWLABLE_TYPES = /* @__PURE__ */ new Set([
   "supplier_catalog",
@@ -11742,20 +11805,18 @@ var DynamicConnector = class extends BaseSourceConnector {
       this.requestDelayMs = config.requestDelayMs;
     }
   }
-  /**
-   * Should this source use multi-page crawling?
-   */
   shouldCrawl() {
     return CRAWLABLE_TYPES.has(this.sourceType) && this.crawlConfig.maxDepth > 0;
   }
   /**
-   * Crawl multiple pages, extract from each, accumulate results.
-   * The orchestrator calls fetch() → extract() in sequence.
-   * For crawlable sources, fetch() crawls all pages and accumulates extracted evidence internally.
-   * extract() then returns the accumulated results.
+   * Fetch with multi-page crawling for catalog sources.
+   * Uses Firecrawl when available for JS-rendered pages.
    */
   async fetch() {
     if (!this.shouldCrawl()) {
+      if (isFirecrawlAvailable()) {
+        return this.fetchWithFirecrawl();
+      }
       return super.fetch();
     }
     console.log(`[DynamicConnector] \u{1F577}\uFE0F  Crawling ${this.sourceName} (max ${this.crawlConfig.pageBudget} pages, depth ${this.crawlConfig.maxDepth})`);
@@ -11769,25 +11830,26 @@ var DynamicConnector = class extends BaseSourceConnector {
       const normalizedUrl = url.replace(/\/$/, "");
       if (visited.has(normalizedUrl)) continue;
       visited.add(normalizedUrl);
-      const origUrl = this.sourceUrl;
-      this.sourceUrl = url;
       let payload;
       try {
-        payload = await super.fetch();
+        if (isFirecrawlAvailable()) {
+          payload = await this.fetchWithFirecrawl(url);
+        } else {
+          payload = await this.fetchBasic(url);
+        }
       } catch (err) {
         console.warn(`[DynamicConnector] Page fetch failed: ${url}`);
         pagesFailed++;
-        this.sourceUrl = origUrl;
         continue;
       }
-      this.sourceUrl = origUrl;
-      if (payload.error || !payload.rawHtml || payload.rawHtml.length < 100) {
+      if (payload.error || !payload.rawHtml && !payload.markdown || (payload.rawHtml?.length || 0) + (payload.markdown?.length || 0) < 100) {
         pagesFailed++;
         continue;
       }
       pagesProcessed++;
       try {
-        const evidence = await this.extractFromPage(payload.rawHtml, url);
+        const content = payload.markdown || payload.rawHtml || "";
+        const evidence = await this.extractFromContent(content, url, !!payload.markdown);
         if (evidence.length > 0) {
           console.log(`[DynamicConnector]   \u{1F4C4} ${url} \u2192 ${evidence.length} items`);
           allEvidence.push(...evidence);
@@ -11795,7 +11857,7 @@ var DynamicConnector = class extends BaseSourceConnector {
       } catch (err) {
         console.warn(`[DynamicConnector]   \u26A0\uFE0F  Extraction failed for ${url}`);
       }
-      if (depth < this.crawlConfig.maxDepth) {
+      if (depth < this.crawlConfig.maxDepth && payload.rawHtml) {
         const links = discoverLinks(payload.rawHtml, url, this.crawlConfig);
         for (const link of links) {
           const normLink = link.replace(/\/$/, "");
@@ -11819,10 +11881,16 @@ var DynamicConnector = class extends BaseSourceConnector {
     };
   }
   /**
-   * Extract evidence from a single page using LLM.
+   * Extract evidence from content using LLM.
+   * Prefers markdown (from Firecrawl) over raw HTML.
    */
-  async extractFromPage(rawHtml, pageUrl) {
-    const textContent = rawHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  async extractFromContent(content, pageUrl, isMarkdown) {
+    let textContent;
+    if (isMarkdown) {
+      textContent = content.trim();
+    } else {
+      textContent = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    }
     if (textContent.length < 50) return [];
     try {
       const response = await invokeLLM({
@@ -11865,9 +11933,9 @@ var DynamicConnector = class extends BaseSourceConnector {
     }
   }
   /**
-   * Called by the orchestrator after fetch().
+   * Called by orchestrator after fetch().
    * For multi-page crawls, returns pre-accumulated evidence.
-   * For single-page sources, runs LLM extraction on the fetched HTML.
+   * For single-page, runs LLM extraction on fetched content.
    */
   async extract(raw) {
     if (this._crawled && this._allPageEvidence.length > 0) {
@@ -11876,16 +11944,14 @@ var DynamicConnector = class extends BaseSourceConnector {
       this._crawled = false;
       return evidence;
     }
-    const isHtml = !!raw.rawHtml;
-    const content = isHtml ? raw.rawHtml : JSON.stringify(raw.rawJson || {});
+    const content = raw.markdown || raw.rawHtml || JSON.stringify(raw.rawJson || {});
     if (!content || content.length < 50) return [];
-    if (this.scrapeMethod === "html_llm" || this.scrapeMethod === "json_api") {
-      return this.extractFromPage(
-        isHtml ? content : `<pre>${content}</pre>`,
-        raw.url
-      );
-    }
-    return [];
+    const isMarkdown = !!raw.markdown;
+    return this.extractFromContent(
+      isMarkdown ? content : raw.rawHtml ? content : `<pre>${content}</pre>`,
+      raw.url,
+      isMarkdown
+    );
   }
   async normalize(evidence) {
     const grade2 = assignGrade(this.sourceId);

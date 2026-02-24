@@ -1,13 +1,13 @@
 import { BaseSourceConnector } from "../connector";
 import type { RawSourcePayload, ExtractedEvidence, NormalizedEvidenceInput } from "../connector";
-import { assignGrade, computeConfidence } from "../connector";
+import { assignGrade, computeConfidence, isFirecrawlAvailable } from "../connector";
 import { invokeLLM } from "../../../_core/llm";
 import { discoverLinks, DEFAULT_CRAWL_CONFIG, type CrawlConfig } from "../crawler";
 
 // ─── LLM Prompts ────────────────────────────────────────────────
 
 const LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
-You extract structured evidence from raw HTML or JSON content of UAE construction/real estate websites.
+You extract structured evidence from website content of UAE construction/real estate websites.
 Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
 
 function buildDynamicPrompt(
@@ -44,8 +44,8 @@ Rules:
 - Do NOT invent data — if no items found, return empty array []
 - Do NOT output confidence, grade, or scoring fields
 
-Content (truncated to 12000 chars):
-${contentSnippet.substring(0, 12000)}`;
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16000)}`;
 }
 
 // ─── Source types that benefit from multi-page crawling ──────────
@@ -93,7 +93,6 @@ export class DynamicConnector extends BaseSourceConnector {
         this.sourceName = config.name;
         this.sourceUrl = config.url;
 
-        // Map sourceType to evidence category
         const typeCategoryMap: Record<string, string> = {
             supplier_catalog: "material_cost",
             manufacturer_catalog: "material_cost",
@@ -116,7 +115,6 @@ export class DynamicConnector extends BaseSourceConnector {
             this.lastSuccessfulFetch = new Date(config.lastSuccessfulFetch);
         }
 
-        // Configure crawl settings — merge defaults with per-source overrides
         const userCrawl = config.scrapeConfig?.crawl || {};
         this.crawlConfig = {
             ...DEFAULT_CRAWL_CONFIG,
@@ -129,22 +127,20 @@ export class DynamicConnector extends BaseSourceConnector {
         }
     }
 
-    /**
-     * Should this source use multi-page crawling?
-     */
     private shouldCrawl(): boolean {
         return CRAWLABLE_TYPES.has(this.sourceType) && this.crawlConfig.maxDepth > 0;
     }
 
     /**
-     * Crawl multiple pages, extract from each, accumulate results.
-     * The orchestrator calls fetch() → extract() in sequence.
-     * For crawlable sources, fetch() crawls all pages and accumulates extracted evidence internally.
-     * extract() then returns the accumulated results.
+     * Fetch with multi-page crawling for catalog sources.
+     * Uses Firecrawl when available for JS-rendered pages.
      */
     async fetch(): Promise<RawSourcePayload> {
         if (!this.shouldCrawl()) {
-            // Single-page mode (developer brochures, reports, etc.)
+            // Single-page mode — use Firecrawl or basic fetch
+            if (isFirecrawlAvailable()) {
+                return this.fetchWithFirecrawl();
+            }
             return super.fetch();
         }
 
@@ -164,21 +160,22 @@ export class DynamicConnector extends BaseSourceConnector {
             if (visited.has(normalizedUrl)) continue;
             visited.add(normalizedUrl);
 
-            // Fetch this page
-            const origUrl = this.sourceUrl;
-            (this as any).sourceUrl = url;
+            // Fetch this page (using Firecrawl if available)
             let payload: RawSourcePayload;
             try {
-                payload = await super.fetch();
+                if (isFirecrawlAvailable()) {
+                    payload = await this.fetchWithFirecrawl(url);
+                } else {
+                    payload = await this.fetchBasic(url);
+                }
             } catch (err) {
                 console.warn(`[DynamicConnector] Page fetch failed: ${url}`);
                 pagesFailed++;
-                (this as any).sourceUrl = origUrl;
                 continue;
             }
-            (this as any).sourceUrl = origUrl;
 
-            if (payload.error || !payload.rawHtml || payload.rawHtml.length < 100) {
+            if (payload.error || (!payload.rawHtml && !payload.markdown) ||
+                ((payload.rawHtml?.length || 0) + (payload.markdown?.length || 0)) < 100) {
                 pagesFailed++;
                 continue;
             }
@@ -187,7 +184,8 @@ export class DynamicConnector extends BaseSourceConnector {
 
             // Extract evidence from this page using LLM
             try {
-                const evidence = await this.extractFromPage(payload.rawHtml, url);
+                const content = payload.markdown || payload.rawHtml || "";
+                const evidence = await this.extractFromContent(content, url, !!payload.markdown);
                 if (evidence.length > 0) {
                     console.log(`[DynamicConnector]   📄 ${url} → ${evidence.length} items`);
                     allEvidence.push(...evidence);
@@ -196,8 +194,8 @@ export class DynamicConnector extends BaseSourceConnector {
                 console.warn(`[DynamicConnector]   ⚠️  Extraction failed for ${url}`);
             }
 
-            // Discover internal links if within depth limit
-            if (depth < this.crawlConfig.maxDepth) {
+            // Discover internal links if within depth limit (use HTML for link discovery)
+            if (depth < this.crawlConfig.maxDepth && payload.rawHtml) {
                 const links = discoverLinks(payload.rawHtml, url, this.crawlConfig);
                 for (const link of links) {
                     const normLink = link.replace(/\/$/, "");
@@ -215,11 +213,9 @@ export class DynamicConnector extends BaseSourceConnector {
 
         console.log(`[DynamicConnector] 🕷️  Crawl complete: ${pagesProcessed} pages, ${allEvidence.length} items extracted, ${pagesFailed} failed`);
 
-        // Store accumulated evidence for the extract() call
         this._allPageEvidence = allEvidence;
         this._crawled = true;
 
-        // Return a synthetic payload — the real data is in _allPageEvidence
         return {
             url: this.sourceUrl,
             rawHtml: `<!-- Crawled ${pagesProcessed} pages, ${allEvidence.length} items extracted -->`,
@@ -229,15 +225,24 @@ export class DynamicConnector extends BaseSourceConnector {
     }
 
     /**
-     * Extract evidence from a single page using LLM.
+     * Extract evidence from content using LLM.
+     * Prefers markdown (from Firecrawl) over raw HTML.
      */
-    private async extractFromPage(rawHtml: string, pageUrl: string): Promise<ExtractedEvidence[]> {
-        const textContent = rawHtml
-            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-            .replace(/<[^>]+>/g, " ")
-            .replace(/\s+/g, " ")
-            .trim();
+    private async extractFromContent(content: string, pageUrl: string, isMarkdown: boolean): Promise<ExtractedEvidence[]> {
+        let textContent: string;
+
+        if (isMarkdown) {
+            // Markdown from Firecrawl is already clean — just trim
+            textContent = content.trim();
+        } else {
+            // Strip scripts/styles from HTML
+            textContent = content
+                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+                .replace(/<[^>]+>/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
 
         if (textContent.length < 50) return [];
 
@@ -272,7 +277,7 @@ export class DynamicConnector extends BaseSourceConnector {
 
             return items
                 .filter((item: any) => item && typeof item.title === "string" && item.title.length > 0)
-                .slice(0, 50) // Up to 50 items per page
+                .slice(0, 50)
                 .map((item: any) => ({
                     title: `${this.sourceName} - ${String(item.title).substring(0, 255)}`,
                     rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
@@ -291,33 +296,28 @@ export class DynamicConnector extends BaseSourceConnector {
     }
 
     /**
-     * Called by the orchestrator after fetch().
+     * Called by orchestrator after fetch().
      * For multi-page crawls, returns pre-accumulated evidence.
-     * For single-page sources, runs LLM extraction on the fetched HTML.
+     * For single-page, runs LLM extraction on fetched content.
      */
     async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
-        // If we crawled multiple pages, return the accumulated results
         if (this._crawled && this._allPageEvidence.length > 0) {
             const evidence = [...this._allPageEvidence];
-            this._allPageEvidence = []; // Reset for next run
+            this._allPageEvidence = [];
             this._crawled = false;
             return evidence;
         }
 
-        // Single-page extraction (developer brochures, reports, etc.)
-        const isHtml = !!raw.rawHtml;
-        const content = isHtml ? raw.rawHtml! : JSON.stringify(raw.rawJson || {});
-
+        // Single-page extraction — prefer markdown over HTML
+        const content = raw.markdown || raw.rawHtml || JSON.stringify(raw.rawJson || {});
         if (!content || content.length < 50) return [];
 
-        if (this.scrapeMethod === "html_llm" || this.scrapeMethod === "json_api") {
-            return this.extractFromPage(
-                isHtml ? content : `<pre>${content}</pre>`,
-                raw.url,
-            );
-        }
-
-        return [];
+        const isMarkdown = !!raw.markdown;
+        return this.extractFromContent(
+            isMarkdown ? content : (raw.rawHtml ? content : `<pre>${content}</pre>`),
+            raw.url,
+            isMarkdown,
+        );
     }
 
     async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {

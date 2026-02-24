@@ -1,9 +1,12 @@
 /**
  * MIYAR V2 — Source Connector Interface & Base Class
  *
- * All 12 UAE source connectors implement SourceConnector.
+ * All UAE source connectors implement SourceConnector.
  * BaseSourceConnector provides shared fetch logic with timeout,
  * retry (exponential backoff, max 3 attempts), and error capture.
+ *
+ * Supports Firecrawl for JavaScript-rendered pages when
+ * FIRECRAWL_API_KEY is set in environment.
  *
  * LLM is permitted ONLY for:
  *   - Extracting structured data from unstructured HTML
@@ -61,6 +64,31 @@ async function checkRobotsTxt(targetUrl: string, userAgent: string): Promise<boo
   }
 }
 
+// ─── Firecrawl Client (lazy-loaded) ─────────────────────────────
+
+let _firecrawlClient: any = null;
+
+function getFirecrawlClient(): any | null {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  if (!apiKey) return null;
+
+  if (!_firecrawlClient) {
+    try {
+      const FirecrawlApp = require("@mendable/firecrawl-js").default;
+      _firecrawlClient = new FirecrawlApp({ apiKey });
+    } catch (err) {
+      console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
+      return null;
+    }
+  }
+  return _firecrawlClient;
+}
+
+/** Check if Firecrawl is available */
+export function isFirecrawlAvailable(): boolean {
+  return !!process.env.FIRECRAWL_API_KEY;
+}
+
 // ─── Types ───────────────────────────────────────────────────────
 
 export interface SourceConnector {
@@ -81,6 +109,8 @@ export interface RawSourcePayload {
   fetchedAt: Date;
   rawHtml?: string;
   rawJson?: object;
+  /** Markdown content from Firecrawl (cleaner than HTML for LLM) */
+  markdown?: string;
   statusCode: number;
   error?: string;
 }
@@ -89,8 +119,8 @@ export interface ExtractedEvidence {
   title: string;
   rawText: string;
   publishedDate?: Date;
-  category: string; // "material_cost" | "fitout_rate" | "market_trend" | "competitor_project"
-  geography: string; // "Dubai" | "Abu Dhabi" | "UAE"
+  category: string;
+  geography: string;
   sourceUrl: string;
 }
 
@@ -98,7 +128,7 @@ export interface NormalizedEvidenceInput {
   metric: string;
   value: number | null;
   unit: string | null;
-  confidence: number; // 0.0 – 1.0
+  confidence: number;
   grade: "A" | "B" | "C";
   summary: string;
   tags: string[];
@@ -111,6 +141,7 @@ export const rawSourcePayloadSchema = z.object({
   fetchedAt: z.date(),
   rawHtml: z.string().optional(),
   rawJson: z.record(z.string(), z.unknown()).optional(),
+  markdown: z.string().optional(),
   statusCode: z.number().int(),
   error: z.string().optional(),
 });
@@ -136,50 +167,32 @@ export const normalizedEvidenceInputSchema = z.object({
 
 // ─── Deterministic Grade Assignment ──────────────────────────────
 
-/** Grade A sources: verified government, international research, official industry bodies */
 const GRADE_A_SOURCE_IDS = new Set([
-  "emaar-properties",
-  "damac-properties",
-  "nakheel-properties",
-  "rics-market-reports",
-  "jll-mena-research",
-  "dubai-statistics-center",
-  "dubai-pulse-materials",
-  "scad-abu-dhabi",
-  "dld-transactions",
-  "aldar-properties",
-  "cbre-uae-research",
-  "knight-frank-uae",
-  "savills-me-research",
+  "emaar-properties", "damac-properties", "nakheel-properties",
+  "rics-market-reports", "jll-mena-research", "dubai-statistics-center",
+  "dubai-pulse-materials", "scad-abu-dhabi", "dld-transactions",
+  "aldar-properties", "cbre-uae-research", "knight-frank-uae", "savills-me-research",
 ]);
 
-/** Grade B sources: established trade suppliers with published price lists */
 const GRADE_B_SOURCE_IDS = new Set([
-  "rak-ceramics-uae",
-  "porcelanosa-uae",
-  "hafele-uae",
-  "gems-building-materials",
-  "dragon-mart-dubai",
-  "property-monitor-dubai",
+  "rak-ceramics-uae", "porcelanosa-uae", "hafele-uae",
+  "gems-building-materials", "dragon-mart-dubai", "property-monitor-dubai",
 ]);
 
-/** Grade C sources: interior design / fit-out firms with project-based pricing */
-const GRADE_C_SOURCE_IDS = new Set([
-  "dera-interiors",
-]);
+const GRADE_C_SOURCE_IDS = new Set(["dera-interiors"]);
 
 export function assignGrade(sourceId: string): "A" | "B" | "C" {
   if (GRADE_A_SOURCE_IDS.has(sourceId)) return "A";
   if (GRADE_B_SOURCE_IDS.has(sourceId)) return "B";
   if (GRADE_C_SOURCE_IDS.has(sourceId)) return "C";
-  return "C"; // default to lowest grade for unknown sources
+  return "C";
 }
 
 // ─── Deterministic Confidence Rules ──────────────────────────────
 
 const BASE_CONFIDENCE: Record<string, number> = { A: 0.85, B: 0.70, C: 0.55 };
-const RECENCY_BONUS = 0.10;       // publishedDate within 90 days
-const STALENESS_PENALTY = -0.15;  // publishedDate > 365 days or missing
+const RECENCY_BONUS = 0.10;
+const STALENESS_PENALTY = -0.15;
 const CONFIDENCE_CAP = 1.0;
 const CONFIDENCE_FLOOR = 0.20;
 
@@ -216,30 +229,64 @@ export abstract class BaseSourceConnector implements SourceConnector {
   abstract sourceId: string;
   abstract sourceName: string;
   abstract sourceUrl: string;
-  /** Set by orchestrator before fetch to enable incremental ingestion */
   lastSuccessfulFetch?: Date;
   requestDelayMs?: number;
 
   /**
-   * Shared fetch with timeout (15s) and exponential backoff retry (max 3 attempts).
-   * Returns RawSourcePayload with error field populated on failure.
+   * Fetch using Firecrawl's headless browser API.
+   * Renders JavaScript, bypasses bot protection, returns clean markdown.
    */
-  async fetch(): Promise<RawSourcePayload> {
+  async fetchWithFirecrawl(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    const client = getFirecrawlClient();
+
+    if (!client) {
+      return this.fetchBasic(targetUrl);
+    }
+
+    try {
+      console.log(`[Connector] 🔥 Firecrawl scraping: ${targetUrl}`);
+      const result = await client.scrapeUrl(targetUrl, {
+        formats: ["markdown", "html"],
+        waitFor: 3000,
+        timeout: 30000,
+      });
+
+      if (!result.success) {
+        console.warn(`[Connector] Firecrawl failed for ${targetUrl}: ${result.error || "unknown"}, falling back to basic fetch`);
+        return this.fetchBasic(targetUrl);
+      }
+
+      const markdown = result.markdown || "";
+      const html = result.html || "";
+
+      console.log(`[Connector] 🔥 Firecrawl success: ${targetUrl} (${markdown.length} chars md, ${html.length} chars html)`);
+
+      return {
+        url: targetUrl,
+        fetchedAt: new Date(),
+        rawHtml: html,
+        markdown,
+        statusCode: result.metadata?.statusCode || 200,
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Connector] Firecrawl error for ${targetUrl}: ${errorMsg}, falling back`);
+      return this.fetchBasic(targetUrl);
+    }
+  }
+
+  /**
+   * Basic HTTP fetch — used as fallback when Firecrawl is unavailable.
+   */
+  async fetchBasic(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
     let lastError: string | undefined;
     const userAgent = getRandomUserAgent();
 
-    const isAllowed = await checkRobotsTxt(this.sourceUrl, userAgent);
+    const isAllowed = await checkRobotsTxt(targetUrl, userAgent);
     if (!isAllowed) {
-      return {
-        url: this.sourceUrl,
-        fetchedAt: new Date(),
-        statusCode: 403,
-        error: "Blocked by origin robots.txt",
-      };
-    }
-
-    if (this.requestDelayMs && this.requestDelayMs > 0) {
-      await new Promise(r => setTimeout(r, this.requestDelayMs));
+      return { url: targetUrl, fetchedAt: new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
     }
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -247,7 +294,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-        const response = await globalThis.fetch(this.sourceUrl, {
+        const response = await globalThis.fetch(targetUrl, {
           signal: controller.signal,
           headers: {
             "User-Agent": userAgent,
@@ -273,18 +320,13 @@ export abstract class BaseSourceConnector implements SourceConnector {
             throw new Error("Paywall detected on page content");
           }
 
-          // Try to parse as JSON if it looks like JSON
           if (rawHtml.trim().startsWith("{") || rawHtml.trim().startsWith("[")) {
-            try {
-              rawJson = JSON.parse(rawHtml);
-            } catch {
-              // Keep as HTML
-            }
+            try { rawJson = JSON.parse(rawHtml); } catch { /* Keep as HTML */ }
           }
         }
 
         return {
-          url: this.sourceUrl,
+          url: targetUrl,
           fetchedAt: new Date(),
           rawHtml,
           rawJson,
@@ -303,11 +345,26 @@ export abstract class BaseSourceConnector implements SourceConnector {
     }
 
     return {
-      url: this.sourceUrl,
+      url: targetUrl,
       fetchedAt: new Date(),
       statusCode: 0,
       error: `Failed after ${MAX_RETRIES} attempts: ${lastError}`,
     };
+  }
+
+  /**
+   * Main fetch method. Uses Firecrawl when available, falls back to basic HTTP.
+   */
+  async fetch(): Promise<RawSourcePayload> {
+    if (this.requestDelayMs && this.requestDelayMs > 0) {
+      await new Promise(r => setTimeout(r, this.requestDelayMs));
+    }
+
+    if (isFirecrawlAvailable()) {
+      return this.fetchWithFirecrawl();
+    }
+
+    return this.fetchBasic();
   }
 
   abstract extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
