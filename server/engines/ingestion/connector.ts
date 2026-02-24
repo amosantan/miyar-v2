@@ -144,6 +144,13 @@ const GRADE_A_SOURCE_IDS = new Set([
   "rics-market-reports",
   "jll-mena-research",
   "dubai-statistics-center",
+  "dubai-pulse-materials",
+  "scad-abu-dhabi",
+  "dld-transactions",
+  "aldar-properties",
+  "cbre-uae-research",
+  "knight-frank-uae",
+  "savills-me-research",
 ]);
 
 /** Grade B sources: established trade suppliers with published price lists */
@@ -153,6 +160,7 @@ const GRADE_B_SOURCE_IDS = new Set([
   "hafele-uae",
   "gems-building-materials",
   "dragon-mart-dubai",
+  "property-monitor-dubai",
 ]);
 
 /** Grade C sources: interior design / fit-out firms with project-based pricing */

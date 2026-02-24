@@ -1553,3 +1553,106 @@ export const riskSurfaceMaps = mysqlTable("risk_surface_maps", {
 export type RiskSurfaceMap = typeof riskSurfaceMaps.$inferSelect;
 export type InsertRiskSurfaceMap = typeof riskSurfaceMaps.$inferInsert;
 
+// ─── V11: Cognitive Bias Framework ──────────────────────────────────────────
+
+export const biasAlerts = mysqlTable("bias_alerts", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("projectId").notNull(),
+  scoreMatrixId: int("scoreMatrixId"),
+  userId: int("userId").notNull(),
+  orgId: int("orgId"),
+  biasType: mysqlEnum("biasType", [
+    "optimism_bias",
+    "anchoring_bias",
+    "confirmation_bias",
+    "overconfidence",
+    "scope_creep",
+    "sunk_cost",
+    "clustering_illusion",
+  ]).notNull(),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
+  confidence: decimal("confidence", { precision: 5, scale: 2 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  intervention: text("intervention"),
+  evidencePoints: json("evidencePoints"),
+  mathExplanation: text("mathExplanation"),
+  dismissed: boolean("dismissed").default(false),
+  dismissedBy: int("dismissedBy"),
+  dismissedAt: timestamp("dismissedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type BiasAlertRow = typeof biasAlerts.$inferSelect;
+export type InsertBiasAlert = typeof biasAlerts.$inferInsert;
+
+export const biasProfiles = mysqlTable("bias_profiles", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("userId").notNull(),
+  orgId: int("orgId"),
+  biasType: varchar("biasType", { length: 64 }).notNull(),
+  occurrenceCount: int("occurrenceCount").default(0),
+  lastDetectedAt: timestamp("lastDetectedAt"),
+  avgSeverity: decimal("avgSeverity", { precision: 3, scale: 2 }),
+  trend: mysqlEnum("trend", ["increasing", "stable", "decreasing"]).default("stable"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BiasProfileRow = typeof biasProfiles.$inferSelect;
+export type InsertBiasProfile = typeof biasProfiles.$inferInsert;
+
+// ─── Phase 1: Smart Design Brain ────────────────────────────────────────────
+
+export const spaceRecommendations = mysqlTable("space_recommendations", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  orgId: int("org_id").notNull(),
+  roomId: varchar("room_id", { length: 10 }).notNull(),
+  roomName: varchar("room_name", { length: 100 }).notNull(),
+  sqm: decimal("sqm", { precision: 8, scale: 2 }),
+  styleDirection: varchar("style_direction", { length: 500 }),
+  colorScheme: varchar("color_scheme", { length: 500 }),
+  materialPackage: json("material_package"),       // MaterialRec[]
+  budgetAllocation: decimal("budget_allocation", { precision: 12, scale: 2 }),
+  budgetBreakdown: json("budget_breakdown"),        // BudgetBreakdownItem[]
+  aiRationale: text("ai_rationale"),
+  specialNotes: json("special_notes"),              // string[]
+  kitchenSpec: json("kitchen_spec"),                // KitchenSpec | null
+  bathroomSpec: json("bathroom_spec"),              // BathroomSpec | null
+  alternatives: json("alternatives"),               // AlternativePackage[]
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+});
+
+export type SpaceRecommendationRow = typeof spaceRecommendations.$inferSelect;
+export type InsertSpaceRecommendation = typeof spaceRecommendations.$inferInsert;
+
+export const designPackages = mysqlTable("design_packages", {
+  id: int("id").primaryKey().autoincrement(),
+  orgId: int("org_id"),
+  name: varchar("name", { length: 200 }).notNull(),
+  typology: varchar("typology", { length: 100 }).notNull(),
+  tier: varchar("tier", { length: 50 }).notNull(),
+  style: varchar("style", { length: 100 }).notNull(),
+  description: text("description"),
+  targetBudgetPerSqm: decimal("target_budget_per_sqm", { precision: 10, scale: 2 }),
+  rooms: json("rooms"),                            // SpaceRecommendation[]
+  isTemplate: boolean("is_template").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DesignPackageRow = typeof designPackages.$inferSelect;
+export type InsertDesignPackage = typeof designPackages.$inferInsert;
+
+export const aiDesignBriefs = mysqlTable("ai_design_briefs", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  orgId: int("org_id").notNull(),
+  briefData: json("brief_data").notNull(),          // AIDesignBrief
+  version: varchar("version", { length: 20 }).default("1.0"),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+});
+
+export type AiDesignBriefRow = typeof aiDesignBriefs.$inferSelect;
+export type InsertAiDesignBrief = typeof aiDesignBriefs.$inferInsert;

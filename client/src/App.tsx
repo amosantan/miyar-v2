@@ -49,6 +49,7 @@ import IngestionMonitor from "./pages/market-intel/IngestionMonitor";
 import AnalyticsDashboard from "./pages/market-intel/AnalyticsDashboard";
 import DataHealth from "./pages/market-intel/DataHealth";
 import Alerts from "./pages/Alerts";
+import DesignAdvisor from "./pages/DesignAdvisor";
 
 function Router() {
   return (
@@ -64,6 +65,7 @@ function Router() {
       <Route path="/projects/:id/visuals" component={VisualStudio} />
       <Route path="/projects/:id/boards" component={BoardComposer} />
       <Route path="/projects/:id/collaboration" component={Collaboration} />
+      <Route path="/projects/:id/design-advisor" component={DesignAdvisor} />
       <Route path="/results" component={Results} />
       <Route path="/scenarios" component={Scenarios} />
       <Route path="/scenarios/templates" component={ScenarioTemplates} />

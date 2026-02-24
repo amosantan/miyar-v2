@@ -307,6 +307,71 @@ export const projectRouter = router({
         console.warn("[Intelligence] Failed to compute derived features:", e);
       }
 
+      // V11: Cognitive Bias Detection
+      try {
+        const { detectBiases } = await import("../engines/bias/bias-detector");
+        const evalHistory = await db.getProjectEvaluationHistory(input.id);
+        const overrideStats = await db.getUserOverrideStats(input.id);
+
+        const previousScores = evalHistory
+          .filter((m: any) => m.id !== matrixResult.id)
+          .map((m: any) => Number(m.compositeScore));
+        const previousBudgets = evalHistory
+          .filter((m: any) => m.id !== matrixResult.id)
+          .map((m: any) => {
+            const snap = m.inputSnapshot as any;
+            return Number(snap?.fin01BudgetCap || 0);
+          });
+
+        const biasCtx = {
+          projectId: input.id,
+          userId: ctx.user.id,
+          orgId: ctx.orgId,
+          evaluationCount: evalHistory.length,
+          previousScores,
+          previousBudgets,
+          overrideCount: overrideStats.count,
+          overrideNetEffect: overrideStats.netEffect,
+          marketTrendActual: null as number | null,
+        };
+
+        const biasAlerts = detectBiases(inputs, scoreResult, biasCtx);
+
+        if (biasAlerts.length > 0) {
+          const severityMap: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
+          await db.createBiasAlerts(
+            biasAlerts.map(alert => ({
+              projectId: input.id,
+              scoreMatrixId: matrixResult.id,
+              userId: ctx.user.id,
+              orgId: ctx.orgId,
+              biasType: alert.biasType as any,
+              severity: alert.severity as any,
+              confidence: String(alert.confidence) as any,
+              title: alert.title,
+              description: alert.description,
+              intervention: alert.intervention,
+              evidencePoints: alert.evidencePoints,
+              mathExplanation: alert.mathExplanation,
+            }))
+          );
+
+          // Update bias profiles
+          for (const alert of biasAlerts) {
+            await db.upsertBiasProfile(
+              ctx.user.id,
+              ctx.orgId,
+              alert.biasType,
+              severityMap[alert.severity] || 2
+            );
+          }
+
+          console.log(`[V11] Detected ${biasAlerts.length} cognitive bias(es) for project ${input.id}`);
+        }
+      } catch (e) {
+        console.warn("[V11] Bias detection failed (non-blocking):", e);
+      }
+
       await db.updateProject(input.id, {
         status: "evaluated",
         modelVersionId: modelVersion.id,

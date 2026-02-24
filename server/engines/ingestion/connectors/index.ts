@@ -37,6 +37,15 @@ export const SOURCE_URLS: Record<string, string> = {
   "dubai-statistics-center": "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
   "hafele-uae": "https://www.hafele.com/",
   "gems-building-materials": "https://gemsbuilding.com/products/",
+  // ─── V4: New UAE Market Sources ─────────────────────────────────
+  "dubai-pulse-materials": "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
+  "scad-abu-dhabi": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+  "dld-transactions": "https://www.dubaipulse.gov.ae/data/dld_transactions/dld_transactions-open",
+  "aldar-properties": "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
+  "cbre-uae-research": "https://www.cbre.ae/en/insights",
+  "knight-frank-uae": "https://www.knightfrank.ae/research",
+  "savills-me-research": "https://www.savills.me/insight-and-opinion/",
+  "property-monitor-dubai": "https://www.propertymonitor.ae/market-reports",
 };
 
 // ─── Shared LLM Extraction Prompt Template ─────────────────────
@@ -499,6 +508,198 @@ export class GEMSConnector extends HTMLSourceConnector {
   defaultUnit = "unit";
 }
 
+// ─── 13. Dubai Pulse — Construction Material Prices ─────────────
+
+export class DubaiPulseConnector extends HTMLSourceConnector {
+  sourceId = "dubai-pulse-materials";
+  sourceName = "Dubai Pulse — Material Prices";
+  sourceUrl = SOURCE_URLS["dubai-pulse-materials"];
+  category = "material_cost";
+  geography = "Dubai";
+  defaultTags = ["government", "material-prices", "construction", "dubai-pulse"];
+  defaultUnit = "unit";
+
+  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+    const grade = assignGrade(this.sourceId);
+    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
+
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? "unit",
+      confidence,
+      grade,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags,
+    };
+  }
+}
+
+// ─── 14. SCAD Abu Dhabi — Building Material Statistics ──────────
+
+export class SCADConnector extends HTMLSourceConnector {
+  sourceId = "scad-abu-dhabi";
+  sourceName = "SCAD Abu Dhabi Statistics";
+  sourceUrl = SOURCE_URLS["scad-abu-dhabi"];
+  category = "material_cost";
+  geography = "Abu Dhabi";
+  defaultTags = ["government", "statistics", "abu-dhabi", "material-prices"];
+  defaultUnit = "unit";
+
+  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+    const grade = assignGrade(this.sourceId);
+    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
+
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? "unit",
+      confidence,
+      grade,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags,
+    };
+  }
+}
+
+// ─── 15. DLD — Real Estate Transactions ─────────────────────────
+
+export class DLDTransactionsConnector extends HTMLSourceConnector {
+  sourceId = "dld-transactions";
+  sourceName = "DLD Real Estate Transactions";
+  sourceUrl = SOURCE_URLS["dld-transactions"];
+  category = "market_trend";
+  geography = "Dubai";
+  defaultTags = ["government", "transactions", "real-estate", "dld"];
+  defaultUnit = "sqft";
+
+  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+    const grade = assignGrade(this.sourceId);
+    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
+
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? "sqft",
+      confidence,
+      grade,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags,
+    };
+  }
+}
+
+// ─── 16. Aldar Properties ───────────────────────────────────────
+
+export class AldarPropertiesConnector extends HTMLSourceConnector {
+  sourceId = "aldar-properties";
+  sourceName = "Aldar Properties";
+  sourceUrl = SOURCE_URLS["aldar-properties"];
+  category = "competitor_project";
+  geography = "Abu Dhabi";
+  defaultTags = ["developer", "abu-dhabi", "residential", "master-plan"];
+  defaultUnit = "sqft";
+}
+
+// ─── 17. CBRE UAE Research ──────────────────────────────────────
+
+export class CBREResearchConnector extends HTMLSourceConnector {
+  sourceId = "cbre-uae-research";
+  sourceName = "CBRE UAE Research";
+  sourceUrl = SOURCE_URLS["cbre-uae-research"];
+  category = "market_trend";
+  geography = "UAE";
+  defaultTags = ["market-research", "real-estate", "commercial", "cbre"];
+  defaultUnit = "sqft";
+
+  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+    const grade = assignGrade(this.sourceId);
+    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
+
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? null,
+      confidence,
+      grade,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags,
+    };
+  }
+}
+
+// ─── 18. Knight Frank UAE ───────────────────────────────────────
+
+export class KnightFrankConnector extends HTMLSourceConnector {
+  sourceId = "knight-frank-uae";
+  sourceName = "Knight Frank UAE";
+  sourceUrl = SOURCE_URLS["knight-frank-uae"];
+  category = "market_trend";
+  geography = "UAE";
+  defaultTags = ["market-research", "real-estate", "residential", "knight-frank"];
+  defaultUnit = "sqft";
+
+  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+    const grade = assignGrade(this.sourceId);
+    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
+
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? null,
+      confidence,
+      grade,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags,
+    };
+  }
+}
+
+// ─── 19. Savills Middle East ────────────────────────────────────
+
+export class SavillsConnector extends HTMLSourceConnector {
+  sourceId = "savills-me-research";
+  sourceName = "Savills ME Research";
+  sourceUrl = SOURCE_URLS["savills-me-research"];
+  category = "market_trend";
+  geography = "UAE";
+  defaultTags = ["market-research", "real-estate", "investment", "savills"];
+  defaultUnit = "sqft";
+
+  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+    const grade = assignGrade(this.sourceId);
+    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
+
+    return {
+      metric: llmEvidence._llmMetric || evidence.title,
+      value: llmEvidence._llmValue ?? null,
+      unit: llmEvidence._llmUnit ?? null,
+      confidence,
+      grade,
+      summary: extractSnippet(evidence.rawText),
+      tags: this.defaultTags,
+    };
+  }
+}
+
+// ─── 20. Property Monitor Dubai ─────────────────────────────────
+
+export class PropertyMonitorConnector extends HTMLSourceConnector {
+  sourceId = "property-monitor-dubai";
+  sourceName = "Property Monitor Dubai";
+  sourceUrl = SOURCE_URLS["property-monitor-dubai"];
+  category = "market_trend";
+  geography = "Dubai";
+  defaultTags = ["market-reports", "property", "dubai", "analytics"];
+  defaultUnit = "sqft";
+}
+
 // ─── Connector Registry ─────────────────────────────────────────
 
 export const ALL_CONNECTORS: Record<string, () => BaseSourceConnector> = {
@@ -514,6 +715,15 @@ export const ALL_CONNECTORS: Record<string, () => BaseSourceConnector> = {
   "dubai-statistics-center": () => new DubaiStatisticsConnector(),
   "hafele-uae": () => new HafeleConnector(),
   "gems-building-materials": () => new GEMSConnector(),
+  // V4: New UAE Market Sources
+  "dubai-pulse-materials": () => new DubaiPulseConnector(),
+  "scad-abu-dhabi": () => new SCADConnector(),
+  "dld-transactions": () => new DLDTransactionsConnector(),
+  "aldar-properties": () => new AldarPropertiesConnector(),
+  "cbre-uae-research": () => new CBREResearchConnector(),
+  "knight-frank-uae": () => new KnightFrankConnector(),
+  "savills-me-research": () => new SavillsConnector(),
+  "property-monitor-dubai": () => new PropertyMonitorConnector(),
 };
 
 export function getConnectorById(sourceId: string): BaseSourceConnector | null {

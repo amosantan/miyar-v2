@@ -17,6 +17,8 @@ import { learningRouter } from "./routers/learning";
 import { autonomousRouter } from "./routers/autonomous";
 import { organizationRouter } from "./routers/organization";
 import { economicsRouter } from "./routers/economics";
+import { biasRouter } from "./routers/bias";
+import { designAdvisorRouter } from "./routers/design-advisor";
 
 export const appRouter = router({
   system: systemRouter,
@@ -35,6 +37,8 @@ export const appRouter = router({
   autonomous: autonomousRouter,
   organization: organizationRouter,
   economics: economicsRouter,
+  bias: biasRouter,
+  designAdvisor: designAdvisorRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -57,6 +57,11 @@ import {
   projectColorPalettes,
   rfqLineItems,
   dmComplianceChecklists,
+  biasAlerts,
+  biasProfiles,
+  spaceRecommendations,
+  designPackages,
+  aiDesignBriefs,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1860,4 +1865,180 @@ export async function insertDmComplianceChecklist(data: typeof dmComplianceCheck
   const db = await getDb();
   if (!db) return;
   return db.insert(dmComplianceChecklists).values(data);
+}
+
+// ─── V11: Cognitive Bias Framework ──────────────────────────────────────────
+
+export async function createBiasAlert(data: typeof biasAlerts.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  return db.insert(biasAlerts).values(data);
+}
+
+export async function createBiasAlerts(data: (typeof biasAlerts.$inferInsert)[]) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.length === 0) return;
+  return db.insert(biasAlerts).values(data);
+}
+
+export async function getBiasAlertsByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(biasAlerts)
+    .where(eq(biasAlerts.projectId, projectId))
+    .orderBy(desc(biasAlerts.createdAt));
+}
+
+export async function getActiveBiasAlerts(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(biasAlerts)
+    .where(and(
+      eq(biasAlerts.projectId, projectId),
+      eq(biasAlerts.dismissed, false),
+    ))
+    .orderBy(desc(biasAlerts.createdAt));
+}
+
+export async function dismissBiasAlert(alertId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(biasAlerts)
+    .set({ dismissed: true, dismissedBy: userId, dismissedAt: new Date() })
+    .where(eq(biasAlerts.id, alertId));
+}
+
+export async function getUserBiasProfile(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(biasProfiles)
+    .where(eq(biasProfiles.userId, userId));
+}
+
+export async function upsertBiasProfile(
+  userId: number,
+  orgId: number | null,
+  biasType: string,
+  severityNumeric: number
+) {
+  const db = await getDb();
+  if (!db) return;
+  // Check if profile exists
+  const existing = await db.select().from(biasProfiles)
+    .where(and(
+      eq(biasProfiles.userId, userId),
+      eq(biasProfiles.biasType, biasType),
+    ));
+
+  if (existing.length > 0) {
+    const prev = existing[0];
+    const newCount = (prev.occurrenceCount || 0) + 1;
+    const prevAvg = Number(prev.avgSeverity || 0);
+    const newAvg = ((prevAvg * (newCount - 1)) + severityNumeric) / newCount;
+    const trend = newAvg > prevAvg + 0.1 ? "increasing" : newAvg < prevAvg - 0.1 ? "decreasing" : "stable";
+    await db.update(biasProfiles)
+      .set({
+        occurrenceCount: newCount,
+        lastDetectedAt: new Date(),
+        avgSeverity: String(newAvg.toFixed(2)) as any,
+        trend: trend as any,
+      })
+      .where(eq(biasProfiles.id, prev.id));
+  } else {
+    await db.insert(biasProfiles).values({
+      userId,
+      orgId,
+      biasType,
+      occurrenceCount: 1,
+      lastDetectedAt: new Date(),
+      avgSeverity: String(severityNumeric.toFixed(2)) as any,
+      trend: "stable",
+    });
+  }
+}
+
+export async function getProjectEvaluationHistory(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(scoreMatrices)
+    .where(eq(scoreMatrices.projectId, projectId))
+    .orderBy(desc(scoreMatrices.computedAt));
+}
+
+export async function getUserOverrideStats(projectId: number) {
+  const db = await getDb();
+  if (!db) return { count: 0, netEffect: 0 };
+  const overrides = await db.select().from(overrideRecords)
+    .where(eq(overrideRecords.projectId, projectId));
+  const count = overrides.length;
+  const netEffect = overrides.reduce((sum: number, o: any) => {
+    const delta = Number(o.newValue || 0) - Number(o.originalValue || 0);
+    return sum + delta;
+  }, 0);
+  return { count, netEffect };
+}
+
+// ─── Phase 1: Smart Design Brain DB Functions ───────────────────────────────
+
+export async function getMaterialLibrary() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(materialLibrary).where(eq(materialLibrary.isActive, true));
+}
+
+export async function createSpaceRecommendation(data: typeof spaceRecommendations.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(spaceRecommendations).values(data);
+}
+
+export async function getSpaceRecommendations(projectId: number, orgId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(spaceRecommendations)
+    .where(and(
+      eq(spaceRecommendations.projectId, projectId),
+      eq(spaceRecommendations.orgId, orgId)
+    ))
+    .orderBy(spaceRecommendations.roomId);
+}
+
+export async function createDesignPackage(data: typeof designPackages.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  const result = await db.insert(designPackages).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function getDesignPackages(typology?: string, tier?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  let query = db.select().from(designPackages).where(eq(designPackages.isActive, true));
+  // Note: additional filtering done in-memory for simplicity
+  const results = await query;
+  return results.filter((p: any) => {
+    if (typology && p.typology !== typology) return false;
+    if (tier && p.tier !== tier) return false;
+    return true;
+  });
+}
+
+export async function createAiDesignBrief(data: typeof aiDesignBriefs.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(aiDesignBriefs).values(data);
+}
+
+export async function getLatestAiDesignBrief(projectId: number, orgId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const results = await db.select().from(aiDesignBriefs)
+    .where(and(
+      eq(aiDesignBriefs.projectId, projectId),
+      eq(aiDesignBriefs.orgId, orgId)
+    ))
+    .orderBy(desc(aiDesignBriefs.generatedAt))
+    .limit(1);
+  return results[0] || null;
 }

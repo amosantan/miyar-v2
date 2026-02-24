@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { EvidenceReferencesPanel } from "@/components/EvidenceReferencesPanel";
 import PredictivePanel from "@/components/PredictivePanel";
+import BiasAlerts from "@/components/BiasAlerts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -399,6 +400,7 @@ function ProjectDetailContent() {
       utils.project.roi.invalidate({ projectId });
       utils.project.fiveLens.invalidate({ projectId });
       utils.project.intelligence.invalidate({ projectId });
+      utils.bias.getActiveAlerts.invalidate({ projectId });
     },
     onError: (err) => toast.error(err.message),
   });
@@ -642,6 +644,9 @@ function ProjectDetailContent() {
 
           {/* ─── Risk & Actions Tab ────────────────────────────────────── */}
           <TabsContent value="risk" className="space-y-4">
+            {/* V11: Cognitive Bias Analysis */}
+            <BiasAlerts projectId={projectId} />
+
             {/* Penalties */}
             <Card>
               <CardHeader className="pb-2">
