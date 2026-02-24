@@ -68,12 +68,57 @@ export default function IngestionMonitor() {
       );
       refetchStatus();
       refetchHistory();
+      refetchHealth();
     },
     onError: (e) => {
       setIsRunning(false);
       toast.error(`Source ingestion failed: ${e.message}`);
     },
   });
+
+  // Registry-based scrape (for DB sources like Graniti UAE, IKEA, etc.)
+  const scrapeRegistryMutation = trpc.marketIntel.sources.scrapeNow.useMutation({
+    onMutate: () => setIsRunning(true),
+    onSuccess: (report) => {
+      setIsRunning(false);
+      toast.success(
+        `Source ingestion complete: ${report.evidenceCreated} records created`
+      );
+      refetchStatus();
+      refetchHistory();
+      refetchHealth();
+    },
+    onError: (e) => {
+      setIsRunning(false);
+      toast.error(`Source ingestion failed: ${e.message}`);
+    },
+  });
+
+  // Build combined source list: registry sources + hardcoded connectors (deduped)
+  const allSources = (() => {
+    const combined: Array<{ id: string; name: string; type: "registry" | "connector" }> = [];
+    const seen = new Set<string>();
+
+    // Registry sources first (DB sources)
+    for (const rs of registrySources ?? []) {
+      const key = rs.name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push({ id: `reg:${rs.id}`, name: rs.name, type: "registry" });
+      }
+    }
+
+    // Then hardcoded connectors (only if not already in registry)
+    for (const s of sources ?? []) {
+      const key = s.sourceName.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push({ id: `con:${s.sourceId}`, name: s.sourceName, type: "connector" });
+      }
+    }
+
+    return combined;
+  })();
 
   const handleRunAll = () => {
     if (isRunning) return;
@@ -82,7 +127,15 @@ export default function IngestionMonitor() {
 
   const handleRunSource = () => {
     if (isRunning || !selectedSource) return;
-    runSourceMutation.mutate({ sourceId: selectedSource });
+    if (selectedSource.startsWith("reg:")) {
+      // Registry source → use scrapeNow
+      const id = parseInt(selectedSource.replace("reg:", ""));
+      scrapeRegistryMutation.mutate({ id });
+    } else {
+      // Hardcoded connector → use runSource
+      const sourceId = selectedSource.replace("con:", "");
+      runSourceMutation.mutate({ sourceId });
+    }
   };
 
   const formatDuration = (ms: number | null | undefined) => {
@@ -286,9 +339,9 @@ export default function IngestionMonitor() {
                     <SelectValue placeholder="Select a source..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {sources?.map((s) => (
-                      <SelectItem key={s.sourceId} value={s.sourceId}>
-                        {s.sourceName}
+                    {allSources.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -298,7 +351,7 @@ export default function IngestionMonitor() {
                   disabled={isRunning || !selectedSource}
                   variant="outline"
                 >
-                  {isRunning && runSourceMutation.isPending ? (
+                  {isRunning && (runSourceMutation.isPending || scrapeRegistryMutation.isPending) ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
                     <ArrowRight className="w-4 h-4 mr-2" />
@@ -494,8 +547,8 @@ export default function IngestionMonitor() {
                         <td className="py-2 px-3 text-center">
                           <Badge className={
                             s.lastStatus === "success" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                            s.lastStatus === "partial" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
-                            "bg-red-500/10 text-red-400 border-red-500/20"
+                              s.lastStatus === "partial" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                                "bg-red-500/10 text-red-400 border-red-500/20"
                           }>
                             {s.lastStatus}
                           </Badge>
@@ -504,10 +557,9 @@ export default function IngestionMonitor() {
                           <div className="flex items-center justify-end gap-2">
                             <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${
-                                  s.successRate >= 80 ? "bg-emerald-400" :
-                                  s.successRate >= 50 ? "bg-amber-400" : "bg-red-400"
-                                }`}
+                                className={`h-full rounded-full ${s.successRate >= 80 ? "bg-emerald-400" :
+                                    s.successRate >= 50 ? "bg-amber-400" : "bg-red-400"
+                                  }`}
                                 style={{ width: `${s.successRate}%` }}
                               />
                             </div>
