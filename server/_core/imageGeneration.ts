@@ -33,7 +33,7 @@ export async function generateImage(
   }
 
   // Use Gemini native image generation (generateContent with IMAGE modality)
-  const model = "gemini-2.0-flash-exp";
+  const model = "gemini-2.5-flash-preview-image-generation";
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
   const response = await fetch(endpoint, {
