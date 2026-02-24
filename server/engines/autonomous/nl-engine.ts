@@ -7,20 +7,21 @@ const SCHEMA_CONTEXT = `
 You are an expert data analyst for MIYAR, an interior design validation platform. 
 Your task is to translate user natural language queries into valid MySQL SELECT queries.
 
-Database Schema Context:
-- users: id, email, role, created_at
-- projects: id, name, user_id, status, ctx01_typology, ctx04_location, mkt01_tier, created_at, updated_at
-- project_score_matrices: id, project_id, composite_score, ras_score, risk_score, confidence_score, decision_status, sa_score, ff_score, mp_score, ds_score, er_score, created_at
-- benchmarks: id, typology, location, market_tier, total_cost_mid, area_mid, scope_factors
-- platform_alerts: id, severity (critical, high, medium, info), alert_type (price_shock, project_at_risk, accuracy_degraded, pattern_warning, benchmark_drift, market_opportunity), title, message, status (active, acknowledged, resolved), affected_project_ids (JSON), created_at
-- learning_signals: id, project_id, metric, predicted_val, actual_val, delta_pct, accuracy_score, status
+Database Schema Context (Use exact camelCase column names as provided):
+- users: id, email, role, createdAt
+- projects: id, name, userId, status, ctx01Typology, ctx04Location, mkt01Tier, createdAt, updatedAt
+- score_matrices: id, projectId, compositeScore, rasScore, riskScore, confidenceScore, decisionStatus, saScore, ffScore, mpScore, dsScore, erScore, createdAt
+- benchmark_data: id, typology, location, marketTier, totalCostMid, areaMid, scopeFactors
+- platform_alerts: id, severity (critical, high, medium, info), alertType (price_shock, project_at_risk, accuracy_degraded, pattern_warning, benchmark_drift, market_opportunity), title, message, status (active, acknowledged, resolved), affectedProjectIds (JSON), createdAt
+- project_outcomes: id, projectId, metric, predictedVal, actualVal, deltaPct, accuracyScore, status
 
 CRITICAL RULES:
 1. Generate ONLY a valid MySQL SELECT query. Do NOT include markdown blocks (like \`\`\`sql).
 2. ONLY use SELECT. Do NOT use INSERT, UPDATE, DELETE, DROP.
-3. Be aware of the tables and column names provided.
-4. If a user asks for "highest risk" or "low score", risk_score > 60 is high risk, score < 50 is low score.
+3. Be aware of the tables and EXACT column names provided (they use camelCase).
+4. If a user asks for "highest risk" or "low score", riskScore > 60 is high risk, score < 50 is low score.
 5. Limit the results to 50 rows maximum to prevent huge payloads.
+6. If the user asks a conversational question (e.g. "hi"), or asks you to perform an action (e.g. "create a project", "delete this"), DO NOT output SQL. Output a polite conversational response starting exactly with the prefix "MESSAGE: " and explain your capabilities (you are a data retrieval assistant).
 `;
 
 export async function processNlQuery(userId: number, query: string): Promise<{ textOutput: string; rawData: any[]; sqlGenerated: string }> {
@@ -47,12 +48,26 @@ export async function processNlQuery(userId: number, query: string): Promise<{ t
                 : "";
 
         generatedSql = generatedSql.trim();
+
+        // Handle conversational bypass
+        if (generatedSql.startsWith("MESSAGE:")) {
+            return {
+                textOutput: generatedSql.replace("MESSAGE:", "").trim(),
+                rawData: [],
+                sqlGenerated: ""
+            };
+        }
+
         // Remove markdown code blocks if the LLM adds them despite instructions
         generatedSql = generatedSql.replace(/^```sql\n?/, "").replace(/\n?```$/, "").trim();
 
-        // Prevent any non-READ operations
+        // Prevent any non-READ operations gracefully instead of crashing
         if (!generatedSql.toUpperCase().startsWith("SELECT")) {
-            throw new Error("Only SELECT queries are allowed for security reasons.");
+            return {
+                textOutput: "I am a read-only data assistant and cannot perform actions that modify data (like creating or updating records). Please use the MIYAR platform interfaces to perform those actions, or ask me for data insights!",
+                rawData: [],
+                sqlGenerated: generatedSql
+            };
         }
 
         const db = await getDb();
@@ -72,7 +87,7 @@ export async function processNlQuery(userId: number, query: string): Promise<{ t
             console.error("[NlEngine] SQL Execution Error:", dbError);
             status = "error";
             return {
-                textOutput: `I experienced an error executing the generated query. Error: ${dbError.message}`,
+                textOutput: `I experienced an error executing the generated query. I might need a more specific prompt. (Internal Error: ${dbError.message})`,
                 rawData: [],
                 sqlGenerated: generatedSql
             };
