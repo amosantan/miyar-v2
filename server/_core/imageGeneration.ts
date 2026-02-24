@@ -18,7 +18,6 @@
 import { storagePut } from "server/storage";
 import { ENV } from "./env";
 import { Buffer } from "buffer";
-import process from "process";
 
 export type GenerateImageOptions = {
   prompt: string;

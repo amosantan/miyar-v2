@@ -27,7 +27,6 @@
  */
 import { ENV } from "./env";
 import { Buffer } from "buffer";
-import process from "process";
 
 export type TranscribeOptions = {
   audioUrl: string; // URL to the audio file (e.g., S3 URL)

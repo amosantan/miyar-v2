@@ -1,5 +1,4 @@
 import { ENV } from "./env";
-import process from "process";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
