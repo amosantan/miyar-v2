@@ -16985,7 +16985,7 @@ var designAdvisorRouter = router({
     await createGeneratedVisual({
       projectId: input.projectId,
       type: input.type,
-      promptJson: { prompt: result.prompt, roomId: input.roomId, visualType: input.type },
+      promptJson: { prompt: result.prompt, roomId: input.roomId, visualType: input.type, imageUrl: result.imageUrl },
       status: "completed",
       createdBy: ctx.user.id,
       imageAssetId: null
@@ -17000,7 +17000,7 @@ var designAdvisorRouter = router({
     await createGeneratedVisual({
       projectId: input.projectId,
       type: "hero",
-      promptJson: { prompt: result.prompt, visualType: "hero_image" },
+      promptJson: { prompt: result.prompt, visualType: "hero_image", imageUrl: result.imageUrl },
       status: "completed",
       createdBy: ctx.user.id,
       imageAssetId: null
