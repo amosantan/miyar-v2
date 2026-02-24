@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { useParams } from "wouter";
 import {
     Wand2, Loader2, ChefHat, Bath, Home, Palette, DollarSign,
-    FileText, Download, Sparkles, ArrowRight, Info, Package,
+    FileText, Download, Sparkles, ArrowRight, Info, Package, Camera, Image,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -227,6 +227,39 @@ function DesignAdvisorContent() {
         onError: (err) => toast.error(err.message),
     });
 
+    // Phase 2: Visual generation
+    const { data: visuals } = trpc.designAdvisor.getVisuals.useQuery(
+        { projectId },
+        { enabled: !!projectId }
+    );
+
+    const [generatingVisual, setGeneratingVisual] = useState<string | null>(null);
+
+    const visualMutation = trpc.designAdvisor.generateVisual.useMutation({
+        onSuccess: (data) => {
+            toast.success(`Generated ${data.type.replace("_", " ")} for ${data.roomId}`);
+            utils.designAdvisor.getVisuals.invalidate({ projectId });
+            setGeneratingVisual(null);
+        },
+        onError: (err) => {
+            toast.error(err.message);
+            setGeneratingVisual(null);
+        },
+    });
+
+    const heroMutation = trpc.designAdvisor.generateHero.useMutation({
+        onSuccess: () => {
+            toast.success("Hero image generated!");
+            utils.designAdvisor.getVisuals.invalidate({ projectId });
+        },
+        onError: (err) => toast.error(err.message),
+    });
+
+    function handleGenerateVisual(roomId: string, type: string) {
+        setGeneratingVisual(`${roomId}-${type}`);
+        visualMutation.mutate({ projectId, roomId, type: type as any });
+    }
+
     const hasRecs = recommendations && recommendations.length > 0;
     const totalBudget = hasRecs
         ? recommendations.reduce((sum: number, r: any) => sum + Number(r.budgetAllocation || 0), 0)
@@ -341,6 +374,7 @@ function DesignAdvisorContent() {
                 <Tabs defaultValue="spaces" className="space-y-4">
                     <TabsList className="bg-secondary/50">
                         <TabsTrigger value="spaces">Spaces ({recommendations?.length})</TabsTrigger>
+                        <TabsTrigger value="visuals">🎨 Visuals</TabsTrigger>
                         <TabsTrigger value="brief">Design Brief</TabsTrigger>
                         <TabsTrigger value="budget">Budget</TabsTrigger>
                     </TabsList>
@@ -352,6 +386,122 @@ function DesignAdvisorContent() {
                                 <SpaceCard key={rec.id || rec.roomId} rec={rec} />
                             ))}
                         </div>
+                    </TabsContent>
+
+                    {/* Visuals Tab */}
+                    <TabsContent value="visuals" className="space-y-6">
+                        {/* Hero Image */}
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="text-base flex items-center gap-2">
+                                        <Image className="h-4 w-4 text-primary" />
+                                        Hero Image
+                                    </CardTitle>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => heroMutation.mutate({ projectId })}
+                                        disabled={heroMutation.isPending}
+                                        className="gap-1.5"
+                                    >
+                                        {heroMutation.isPending ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                            <Camera className="h-3.5 w-3.5" />
+                                        )}
+                                        Generate Hero
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {(visuals || []).filter((v: any) => v.type === "hero").length > 0 ? (
+                                    <div className="grid gap-3">
+                                        {(visuals || []).filter((v: any) => v.type === "hero").map((v: any) => (
+                                            <img
+                                                key={v.id}
+                                                src={(v.promptJson as any)?.imageUrl || v.imageUrl}
+                                                alt="Hero"
+                                                className="w-full rounded-lg border border-border/50"
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground text-center py-4">No hero images yet — click Generate Hero above</p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Per-Space Visual Generation */}
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <Camera className="h-4 w-4 text-primary" />
+                                    Per-Space Visuals
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {(recommendations || []).map((rec: any) => {
+                                    const roomVisuals = (visuals || []).filter((v: any) => (v.promptJson as any)?.roomId === rec.roomId);
+                                    const hasKitchen = !!rec.kitchenSpec;
+                                    const hasBathroom = !!rec.bathroomSpec;
+
+                                    return (
+                                        <div key={rec.roomId} className="border border-border/50 rounded-lg p-3">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h4 className="text-sm font-medium text-foreground">{rec.roomName}</h4>
+                                                <span className="text-[10px] text-muted-foreground">{roomVisuals.length} visuals</span>
+                                            </div>
+
+                                            {/* Generate Buttons */}
+                                            <div className="flex flex-wrap gap-1.5 mb-3">
+                                                {["mood_board", "material_board", "room_render", "color_palette",
+                                                    ...(hasKitchen ? ["kitchen_render"] : []),
+                                                    ...(hasBathroom ? ["bathroom_render"] : []),
+                                                ].map((type) => (
+                                                    <Button
+                                                        key={type}
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-7 text-[10px] gap-1"
+                                                        disabled={generatingVisual === `${rec.roomId}-${type}`}
+                                                        onClick={() => handleGenerateVisual(rec.roomId, type)}
+                                                    >
+                                                        {generatingVisual === `${rec.roomId}-${type}` ? (
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                        ) : (
+                                                            <Camera className="h-3 w-3" />
+                                                        )}
+                                                        {type.replace(/_/g, " ")}
+                                                    </Button>
+                                                ))}
+                                            </div>
+
+                                            {/* Existing Visuals Grid */}
+                                            {roomVisuals.length > 0 && (
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {roomVisuals.map((v: any) => (
+                                                        <div key={v.id} className="relative group">
+                                                            <img
+                                                                src={(v.promptJson as any)?.imageUrl}
+                                                                alt={`${rec.roomName} ${v.type}`}
+                                                                className="w-full aspect-[4/3] object-cover rounded-md border border-border/50"
+                                                            />
+                                                            <Badge
+                                                                variant="secondary"
+                                                                className="absolute bottom-1 left-1 text-[8px]"
+                                                            >
+                                                                {((v.promptJson as any)?.visualType || v.type).replace(/_/g, " ")}
+                                                            </Badge>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     {/* Brief Tab */}
