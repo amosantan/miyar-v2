@@ -2148,7 +2148,7 @@ var generatedVisuals = mysqlTable("generated_visuals", {
   id: int("id").autoincrement().primaryKey(),
   projectId: int("projectId").notNull(),
   scenarioId: int("scenarioId"),
-  type: mysqlEnum("type", ["mood", "material_board", "hero"]).notNull(),
+  type: mysqlEnum("type", ["mood", "mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette", "hero"]).notNull(),
   promptJson: json("promptJson").notNull(),
   modelVersion: varchar("modelVersion", { length: 64 }).default("nano-banana-v1"),
   imageAssetId: int("imageAssetId"),
