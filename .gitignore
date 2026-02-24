@@ -110,5 +110,3 @@ temp/
 .webdev/
 .vercel
 api-build/
-api/index.mjs
-api/index.js
