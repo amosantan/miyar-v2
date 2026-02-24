@@ -1050,6 +1050,15 @@ export const evidenceRecords = mysqlTable("evidence_records", {
   fileKey: varchar("fileKey", { length: 512 }), // S3 key for the file
   fileMimeType: varchar("fileMimeType", { length: 128 }),
   runId: varchar("runId", { length: 64 }), // links to intelligence_audit_log
+  // V7: Design Intelligence Fields
+  finishLevel: mysqlEnum("finishLevel", ["basic", "standard", "premium", "luxury", "ultra_luxury"]),
+  designStyle: varchar("designStyle", { length: 255 }),
+  brandsMentioned: json("brandsMentioned"), // string[]
+  materialSpec: text("materialSpec"),
+  intelligenceType: mysqlEnum("intelligenceType", [
+    "material_price", "finish_specification", "design_trend",
+    "market_statistic", "competitor_positioning", "regulation",
+  ]).default("material_price"),
   createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

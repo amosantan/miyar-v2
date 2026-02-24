@@ -861,6 +861,20 @@ var init_schema = __esm({
       fileMimeType: varchar("fileMimeType", { length: 128 }),
       runId: varchar("runId", { length: 64 }),
       // links to intelligence_audit_log
+      // V7: Design Intelligence Fields
+      finishLevel: mysqlEnum("finishLevel", ["basic", "standard", "premium", "luxury", "ultra_luxury"]),
+      designStyle: varchar("designStyle", { length: 255 }),
+      brandsMentioned: json("brandsMentioned"),
+      // string[]
+      materialSpec: text("materialSpec"),
+      intelligenceType: mysqlEnum("intelligenceType", [
+        "material_price",
+        "finish_specification",
+        "design_trend",
+        "market_statistic",
+        "competitor_positioning",
+        "regulation"
+      ]).default("material_price"),
       createdBy: int("createdBy"),
       createdAt: timestamp("createdAt").defaultNow().notNull()
     });
@@ -11918,33 +11932,158 @@ function discoverLinks(html, baseUrl, config) {
 var LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
 You extract structured evidence from website content of UAE construction/real estate websites.
 Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
-function buildDynamicPrompt(sourceName, category, geography, contentSnippet, hints, lastFetch, pageUrl) {
-  const dateFilter = lastFetch ? `
-Focus on content published or updated after ${lastFetch.toISOString().split("T")[0]}.` : "";
+function buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
   const hintsFilter = hints ? `
 EXTRACTION HINTS: ${hints}` : "";
   const pageRef = pageUrl ? `
 Page URL: ${pageUrl}` : "";
-  return `Extract evidence items from this ${sourceName} source content.
-Category: ${category}
-Geography: ${geography}${pageRef}${dateFilter}${hintsFilter}
+  return `Extract products with prices from this ${sourceName} supplier/retailer page.
+Geography: ${geography}${pageRef}${hintsFilter}
 
-Return a JSON array of objects with these exact fields:
-- title: string (item/product/project name)
-- rawText: string (relevant text snippet, max 500 chars)
-- publishedDate: string|null (ISO date if found, null otherwise)
-- metric: string (what is being measured, e.g. "Marble Tile 60x60 price")
-- value: number|null (numeric value in AED if found, null otherwise)
-- unit: string|null (e.g. "sqm", "sqft", "piece", "unit", null if not applicable)
+IMPORTANT: Extract EXACT AED prices. If price is shown, include it. Skip items with no price.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (product name with specification, e.g. "Calacatta Marble Tile 60x60cm")
+- rawText: string (product description or context, max 500 chars)
+- value: number (price in AED \u2014 REQUIRED, skip items without price)
+- valueMax: number|null (max price if a range is shown, e.g. for "85-110 AED/sqm" value=85, valueMax=110)
+- unit: string (REQUIRED \u2014 "sqm", "piece", "unit", "m", "L", "set", etc.)
+- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
+- brand: string|null (manufacturer/brand name if visible)
+- publishedDate: string|null (ISO date if found)
 
 Rules:
-- Extract ALL items you can find, up to 50 maximum
-- Only extract items with real data (titles, prices, descriptions)
-- Do NOT invent data \u2014 if no items found, return empty array []
-- Do NOT output confidence, grade, or scoring fields
+- Extract ALL priced items you can find, up to 50 maximum
+- Price MUST be a number in AED \u2014 skip items with no visible price
+- For price ranges like "85-110", set value=85 and valueMax=110
+- Convert known currencies to AED (USD\xD73.67, EUR\xD74.0)
+- Do NOT invent prices
+- Return empty array [] if no priced items found
 
 Content (truncated to 16000 chars):
 ${contentSnippet.substring(0, 16e3)}`;
+}
+function buildDeveloperIntelPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
+  const hintsFilter = hints ? `
+EXTRACTION HINTS: ${hints}` : "";
+  const pageRef = pageUrl ? `
+Page URL: ${pageUrl}` : "";
+  return `Extract INTERIOR DESIGN intelligence from this ${sourceName} developer/project website.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: finish specifications, material brands used, design aesthetic, quality tier.
+DO NOT extract: property prices, bedroom counts, unit sizes, payment plans, or sales offers.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (project/development name)
+- rawText: string (description of finishes and design, max 500 chars)
+- finishLevel: string (one of: "basic", "standard", "premium", "luxury", "ultra_luxury")
+- designStyle: string (aesthetic description, e.g. "Contemporary Italian", "Modern Arabic", "Minimalist Scandinavian", "Classic European")
+- brands: string[] (brand names mentioned, e.g. ["Grohe", "Porcelanosa", "Miele", "Villeroy & Boch"])
+- materialSpec: string (specific materials mentioned, e.g. "Imported marble flooring, engineered oak, quartz countertops, European kitchen appliances")
+- category: string (main area \u2014 "floors", "walls", "sanitary", "kitchen", "joinery", "lighting", "ffe", "other")
+
+Rules:
+- ONE record per project/development (not per unit type)
+- Focus on WHAT MATERIALS and FINISHES are used, not the property itself
+- If the page describes kitchen specs, bathroom specs, floor specs \u2014 extract each as separate records
+- If no interior design info found, return empty array []
+- Look for words like: marble, granite, porcelain, hardwood, premium, luxury, European, imported, bespoke
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16e3)}`;
+}
+function buildMarketResearchPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
+  const hintsFilter = hints ? `
+EXTRACTION HINTS: ${hints}` : "";
+  const pageRef = pageUrl ? `
+Page URL: ${pageUrl}` : "";
+  return `Extract market intelligence and construction/real estate statistics from this ${sourceName} report.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: price indices, construction cost benchmarks, market trends, supply/demand data, forecasts.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (statistic or finding name, e.g. "Average Fitout Cost - Luxury Residential")
+- rawText: string (the finding with context, max 500 chars)
+- value: number|null (numeric value in AED if applicable)
+- unit: string|null (e.g. "sqft", "sqm", "percent", "index", "AED/sqm")
+- trend: string|null (one of: "rising", "stable", "falling", or null if not a trend)
+- publishedDate: string|null (ISO date if found)
+- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
+
+Rules:
+- Extract ALL statistics, data points, and findings \u2014 up to 50 maximum
+- Include forecasts and projections with timeframe in rawText
+- Include percentage changes and growth rates
+- If no relevant data found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16e3)}`;
+}
+function buildGovernmentDataPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
+  const hintsFilter = hints ? `
+EXTRACTION HINTS: ${hints}` : "";
+  const pageRef = pageUrl ? `
+Page URL: ${pageUrl}` : "";
+  return `Extract construction and real estate data from this ${sourceName} government source.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: building permits, construction statistics, cost indices, regulations, standards.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (data point, regulation, or statistic name)
+- rawText: string (description or finding, max 500 chars)
+- value: number|null (numeric value if applicable)
+- unit: string|null (measurement unit)
+- publishedDate: string|null (ISO date if found)
+- category: string ("other" for most government data)
+
+Rules:
+- Extract data relevant to construction, interior design, and real estate
+- Include regulatory changes affecting building standards
+- If no relevant data found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16e3)}`;
+}
+function selectPrompt(sourceType, sourceName, geography, contentSnippet, hints, pageUrl) {
+  switch (sourceType) {
+    case "supplier_catalog":
+    case "manufacturer_catalog":
+    case "retailer_listing":
+    case "aggregator":
+      return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    case "developer_brochure":
+      return buildDeveloperIntelPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    case "industry_report":
+    case "trade_publication":
+      return buildMarketResearchPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    case "government_tender":
+    case "procurement_portal":
+      return buildGovernmentDataPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    default:
+      return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+  }
+}
+function getIntelligenceType(sourceType) {
+  switch (sourceType) {
+    case "supplier_catalog":
+    case "manufacturer_catalog":
+    case "retailer_listing":
+    case "aggregator":
+      return "material_price";
+    case "developer_brochure":
+      return "finish_specification";
+    case "industry_report":
+    case "trade_publication":
+      return "market_statistic";
+    case "government_tender":
+    case "procurement_portal":
+      return "regulation";
+    default:
+      return "material_price";
+  }
 }
 var CRAWLABLE_TYPES = /* @__PURE__ */ new Set([
   "supplier_catalog",
@@ -11973,14 +12112,14 @@ var DynamicConnector = class extends BaseSourceConnector {
     this.sourceName = config.name;
     this.sourceUrl = config.url;
     const typeCategoryMap = {
-      supplier_catalog: "material_cost",
-      manufacturer_catalog: "material_cost",
-      retailer_listing: "material_cost",
-      developer_brochure: "competitor_project",
-      industry_report: "market_trend",
-      government_tender: "project_award",
-      trade_publication: "market_trend",
-      aggregator: "material_cost",
+      supplier_catalog: "floors",
+      manufacturer_catalog: "floors",
+      retailer_listing: "floors",
+      developer_brochure: "other",
+      industry_report: "other",
+      government_tender: "other",
+      trade_publication: "other",
+      aggregator: "floors",
       other: "other"
     };
     this.sourceType = config.sourceType || "other";
@@ -12009,6 +12148,10 @@ var DynamicConnector = class extends BaseSourceConnector {
    * Uses Firecrawl when available for JS-rendered pages.
    */
   async fetch() {
+    const localBudget = process.env.LOCAL_PAGE_BUDGET ? parseInt(process.env.LOCAL_PAGE_BUDGET, 10) : void 0;
+    if (localBudget) {
+      this.crawlConfig = { ...this.crawlConfig, pageBudget: localBudget };
+    }
     if (!this.shouldCrawl()) {
       if (isFirecrawlAvailable()) {
         return this.fetchWithFirecrawl();
@@ -12078,7 +12221,7 @@ var DynamicConnector = class extends BaseSourceConnector {
   }
   /**
    * Extract evidence from content using LLM.
-   * Prefers markdown (from Firecrawl) over raw HTML.
+   * Uses source-type-specific prompts for targeted extraction.
    */
   async extractFromContent(content, pageUrl, isMarkdown) {
     let textContent;
@@ -12089,21 +12232,18 @@ var DynamicConnector = class extends BaseSourceConnector {
     }
     if (textContent.length < 50) return [];
     try {
+      const prompt = selectPrompt(
+        this.sourceType,
+        this.sourceName,
+        this.geography,
+        textContent,
+        this.extractionHints,
+        pageUrl
+      );
       const response = await invokeLLM({
         messages: [
           { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: buildDynamicPrompt(
-              this.sourceName,
-              this.category,
-              this.geography,
-              textContent,
-              this.extractionHints,
-              this.lastSuccessfulFetch,
-              pageUrl
-            )
-          }
+          { role: "user", content: prompt }
         ],
         response_format: { type: "json_object" }
       });
@@ -12112,16 +12252,26 @@ var DynamicConnector = class extends BaseSourceConnector {
       const parsed = JSON.parse(resText);
       const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.data || [];
       if (!Array.isArray(items)) return [];
+      const intelligenceType = getIntelligenceType(this.sourceType);
       return items.filter((item) => item && typeof item.title === "string" && item.title.length > 0).slice(0, 50).map((item) => ({
-        title: `${this.sourceName} - ${String(item.title).substring(0, 255)}`,
+        title: String(item.title).substring(0, 255),
         rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
         publishedDate: item.publishedDate ? new Date(item.publishedDate) : void 0,
-        category: this.category,
+        category: item.category || this.category,
         geography: this.geography,
         sourceUrl: pageUrl,
+        // Material pricing fields
         _llmMetric: String(item.metric || item.title || "").substring(0, 255),
         _llmValue: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
-        _llmUnit: typeof item.unit === "string" ? item.unit : null
+        _llmValueMax: typeof item.valueMax === "number" && isFinite(item.valueMax) ? item.valueMax : null,
+        _llmUnit: typeof item.unit === "string" ? item.unit : null,
+        _llmBrand: typeof item.brand === "string" ? item.brand : null,
+        // Design intelligence fields
+        _llmFinishLevel: typeof item.finishLevel === "string" ? item.finishLevel : null,
+        _llmDesignStyle: typeof item.designStyle === "string" ? item.designStyle : null,
+        _llmBrands: Array.isArray(item.brands) ? item.brands : null,
+        _llmMaterialSpec: typeof item.materialSpec === "string" ? item.materialSpec : null,
+        _llmIntelligenceType: intelligenceType
       }));
     } catch (err) {
       console.error(`[DynamicConnector] LLM extraction failed for ${pageUrl}:`, err);
@@ -12156,11 +12306,19 @@ var DynamicConnector = class extends BaseSourceConnector {
     return {
       metric: llmEvidence._llmMetric || evidence.title,
       value: llmEvidence._llmValue ?? null,
+      valueMax: llmEvidence._llmValueMax ?? null,
       unit: llmEvidence._llmUnit ?? this.defaultUnit,
       confidence,
       grade: grade2,
       summary: (evidence.rawText || "").replace(/\s+/g, " ").trim().substring(0, 500),
-      tags: this.defaultTags
+      tags: this.defaultTags,
+      brand: llmEvidence._llmBrand ?? null,
+      // Design intelligence fields
+      finishLevel: llmEvidence._llmFinishLevel ?? null,
+      designStyle: llmEvidence._llmDesignStyle ?? null,
+      brandsMentioned: llmEvidence._llmBrands ?? null,
+      materialSpec: llmEvidence._llmMaterialSpec ?? null,
+      intelligenceType: llmEvidence._llmIntelligenceType ?? "material_price"
     };
   }
 };
@@ -12628,7 +12786,8 @@ async function isDuplicate(sourceUrl, itemName, captureDate) {
   return existing.length > 0;
 }
 var CATEGORY_MAP = {
-  material_cost: "other",
+  material_cost: "floors",
+  // LLM now sets correct category per-item
   fitout_rate: "other",
   market_trend: "other",
   competitor_project: "other",
@@ -12753,12 +12912,16 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             skipped++;
             continue;
           }
+          const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
+          const evidenceCategory = validCategories.includes(evidence.category) ? evidence.category : mapCategory(evidence.category);
           const { id: newRecordId } = await createEvidenceRecord({
             recordId: generateRecordId(),
             sourceRegistryId: typeof connector.sourceId === "number" ? connector.sourceId : parseInt(connector.sourceId) || void 0,
             sourceUrl: evidence.sourceUrl,
-            category: mapCategory(evidence.category),
+            category: evidenceCategory,
             itemName: normalized.metric,
+            priceMin: normalized.value?.toString() ?? null,
+            priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
             priceTypical: normalized.value?.toString() ?? null,
             unit: normalized.unit || "unit",
             currencyOriginal: "AED",
@@ -12770,7 +12933,13 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             title: evidence.title,
             tags: normalized.tags,
             notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine`,
-            runId
+            runId,
+            // V7: Design Intelligence Fields
+            finishLevel: normalized.finishLevel ?? null,
+            designStyle: normalized.designStyle ?? null,
+            brandsMentioned: normalized.brandsMentioned ?? null,
+            materialSpec: normalized.materialSpec ?? null,
+            intelligenceType: normalized.intelligenceType ?? "material_price"
           });
           const insertedRecord = await getEvidenceRecordById(newRecordId);
           if (insertedRecord) {

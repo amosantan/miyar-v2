@@ -128,7 +128,7 @@ async function isDuplicate(
 
 /** Map connector evidence categories to evidence_records table enum values */
 const CATEGORY_MAP: Record<string, string> = {
-  material_cost: "other",
+  material_cost: "floors",         // LLM now sets correct category per-item
   fitout_rate: "other",
   market_trend: "other",
   competitor_project: "other",
@@ -294,12 +294,20 @@ export async function runIngestion(
           }
 
           // Persist to evidence_records
+          // Map category: use LLM-provided category if valid, otherwise fallback
+          const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
+          const evidenceCategory = validCategories.includes(evidence.category)
+            ? evidence.category
+            : mapCategory(evidence.category);
+
           const { id: newRecordId } = await createEvidenceRecord({
             recordId: generateRecordId(),
             sourceRegistryId: typeof connector.sourceId === 'number' ? connector.sourceId : (parseInt(connector.sourceId) || undefined),
             sourceUrl: evidence.sourceUrl,
-            category: mapCategory(evidence.category) as any,
+            category: evidenceCategory as any,
             itemName: normalized.metric,
+            priceMin: normalized.value?.toString() ?? null,
+            priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
             priceTypical: normalized.value?.toString() ?? null,
             unit: normalized.unit || "unit",
             currencyOriginal: "AED",
@@ -312,6 +320,12 @@ export async function runIngestion(
             tags: normalized.tags,
             notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine`,
             runId: runId,
+            // V7: Design Intelligence Fields
+            finishLevel: (normalized.finishLevel as any) ?? null,
+            designStyle: normalized.designStyle ?? null,
+            brandsMentioned: normalized.brandsMentioned ?? null,
+            materialSpec: normalized.materialSpec ?? null,
+            intelligenceType: (normalized.intelligenceType as any) ?? "material_price",
           });
 
           // Hand off to the intelligent change detector to log significant fluctuations

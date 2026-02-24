@@ -133,11 +133,19 @@ export interface ExtractedEvidence {
 export interface NormalizedEvidenceInput {
   metric: string;
   value: number | null;
+  valueMax?: number | null;
   unit: string | null;
   confidence: number;
   grade: "A" | "B" | "C";
   summary: string;
   tags: string[];
+  brand?: string | null;
+  // V7: Design Intelligence Fields
+  finishLevel?: string | null;
+  designStyle?: string | null;
+  brandsMentioned?: string[] | null;
+  materialSpec?: string | null;
+  intelligenceType?: string;
 }
 
 // ─── Zod Schemas (runtime validation) ────────────────────────────
