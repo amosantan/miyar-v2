@@ -32,8 +32,8 @@ export async function generateImage(
     throw new Error("GEMINI_API_KEY is not configured");
   }
 
-  // Use Gemini native image generation (generateContent with IMAGE modality)
-  const model = "gemini-2.5-flash-preview-image-generation";
+  // Use Gemini native image generation (Nano Banana = gemini-2.5-flash-image)
+  const model = "gemini-2.5-flash-image";
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
   const response = await fetch(endpoint, {

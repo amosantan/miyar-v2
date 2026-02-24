@@ -9467,7 +9467,7 @@ async function generateImage(options) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not configured");
   }
-  const model = "gemini-2.5-flash-preview-image-generation";
+  const model = "gemini-2.5-flash-image";
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
   const response = await fetch(endpoint, {
     method: "POST",
