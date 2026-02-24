@@ -67,7 +67,7 @@ export default function SourceRegistry() {
   });
 
   const seedMutation = trpc.marketIntel.sources.seedDefaults.useMutation({
-    onSuccess: (data) => { toast.success(`Seeded ${data.created} default sources`); refetch(); },
+    onSuccess: (data) => { toast.success(`Seeded ${data.created} sources (${data.skipped ?? 0} already existed)`); refetch(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -151,12 +151,10 @@ export default function SourceRegistry() {
               <Download className="h-4 w-4 mr-2" />
               Template
             </Button>
-            {(!sources || sources.length === 0) && (
-              <Button variant="outline" onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending}>
-                <Zap className="h-4 w-4 mr-2" />
-                {seedMutation.isPending ? "Seeding..." : "Seed Defaults"}
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending}>
+              <Zap className="h-4 w-4 mr-2" />
+              {seedMutation.isPending ? "Seeding..." : "Seed UAE Sources"}
+            </Button>
             <Dialog open={showAdd} onOpenChange={setShowAdd}>
               <DialogTrigger asChild>
                 <Button><Plus className="h-4 w-4 mr-2" />Add Source</Button>

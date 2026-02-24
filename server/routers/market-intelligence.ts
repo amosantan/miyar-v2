@@ -10,6 +10,7 @@ import { nanoid } from "nanoid";
 import { DynamicConnector } from "../engines/ingestion/connectors/dynamic";
 import { runSingleConnector, testScrape } from "../engines/ingestion/orchestrator";
 import { generateCsvTemplate, processCsvUpload } from "../engines/ingestion/csv-pipeline";
+import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
 
 // ─── Shared Schemas ─────────────────────────────────────────────────────────
 
@@ -193,19 +194,14 @@ export const marketIntelligenceRouter = router({
       }),
 
     seedDefaults: adminProcedure.mutation(async ({ ctx }) => {
-      const defaults = getDefaultSources();
-      let created = 0;
-      for (const src of defaults) {
-        await db.createSourceRegistryEntry({ ...src, addedBy: ctx.user.id });
-        created++;
-      }
+      const result = await seedUAESources();
       await db.createAuditLog({
         userId: ctx.user.id,
         action: "source_registry.seed_defaults",
         entityType: "source_registry",
-        details: { count: created },
+        details: { created: result.created, skipped: result.skipped },
       });
-      return { created };
+      return { created: result.created, skipped: result.skipped };
     }),
 
     testScrape: adminProcedure

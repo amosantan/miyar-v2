@@ -6,6 +6,7 @@
  *
  * Usage: npx tsx server/engines/ingestion/seeds/uae-sources.ts
  */
+import "dotenv/config";
 
 import { getDb } from "../../../db";
 import { sourceRegistry } from "../../../../drizzle/schema";
