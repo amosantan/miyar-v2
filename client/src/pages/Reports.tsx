@@ -23,9 +23,11 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
+  Printer,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { toast } from "sonner";
+import ReportRenderer from "@/components/ReportRenderer";
 
 const REPORT_TYPES = [
   {
@@ -110,6 +112,63 @@ function ReportsContent() {
     a.target = "_blank";
     a.click();
   }
+
+  const handlePrintPdf = useCallback((reportId: number) => {
+    const el = document.getElementById(`report-content-${reportId}`);
+    if (!el) return;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) { toast.error("Please allow popups for PDF download"); return; }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html><head>
+      <meta charset="utf-8">
+      <title>MIYAR Report</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1a1a2e; background: white; font-size: 13px; line-height: 1.6; }
+        h2 { font-size: 22px; margin-bottom: 4px; color: #0f0f23; }
+        h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; margin: 24px 0 12px; color: #444; border-bottom: 2px solid #e0e0e0; padding-bottom: 6px; }
+        .header { border-bottom: 3px solid #0ea5e9; padding-bottom: 16px; margin-bottom: 24px; }
+        .header p { color: #666; font-size: 12px; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+        .stat-box { background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center; }
+        .stat-box .label { font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-box .value { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+        .score-bar { margin-bottom: 8px; }
+        .score-bar .bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px; }
+        .score-bar .bar-track { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+        .score-bar .bar-fill { height: 100%; border-radius: 4px; background: #0ea5e9; }
+        table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+        th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f8f9fa; font-weight: 600; color: #666; font-size: 11px; text-transform: uppercase; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+        .badge-red { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .badge-green { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+        .badge-amber { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+        .action { display: flex; gap: 10px; padding: 10px; margin-bottom: 6px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e5e7eb; }
+        .action-num { width: 20px; height: 20px; background: #0ea5e9; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+        .param-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .param-box { background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; }
+        .param-box .label { font-size: 10px; color: #888; text-transform: uppercase; }
+        .param-box .value { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+        @media print { body { padding: 20px; } .no-print { display: none; } }
+      </style>
+      </head><body>
+    `);
+
+    // Convert the React-rendered content to print-friendly HTML
+    const content = el.innerHTML;
+    // Simple transform: replace dark theme classes with print-friendly content
+    const printContent = content
+      .replace(/text-foreground/g, '')
+      .replace(/text-muted-foreground/g, '')
+      .replace(/bg-secondary\/[\d]+/g, '')
+      .replace(/bg-primary\/[\d]+/g, '');
+    printWindow.document.write(printContent);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 500);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -298,6 +357,17 @@ function ReportsContent() {
                                 </Button>
                               </>
                             )}
+                            {!r.fileUrl && r.content && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1.5 text-xs"
+                                onClick={() => handlePrintPdf(r.id)}
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                PDF
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -325,20 +395,9 @@ function ReportsContent() {
                                 className="w-full h-[600px] bg-white"
                                 title={`Report preview: ${r.reportType}`}
                               />
-                            ) : r.content?.html ? (
-                              <iframe
-                                srcDoc={r.content.html}
-                                className="w-full h-[600px] bg-white"
-                                title={`Report preview: ${r.reportType}`}
-                                sandbox="allow-same-origin"
-                              />
                             ) : r.content ? (
-                              <div className="p-4 bg-secondary/10 max-h-96 overflow-y-auto">
-                                <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed">
-                                  {typeof r.content === "string"
-                                    ? r.content
-                                    : JSON.stringify(r.content, null, 2)}
-                                </pre>
+                              <div id={`report-content-${r.id}`} className="max-h-[600px] overflow-y-auto">
+                                <ReportRenderer content={r.content} reportType={r.reportType} />
                               </div>
                             ) : (
                               <div className="p-4 text-center text-sm text-muted-foreground">
