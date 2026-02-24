@@ -4396,15 +4396,17 @@ import { eq as eq5, desc as desc3 } from "drizzle-orm";
 function detectTier(priceMin, priceMax, unit) {
   const price = priceMax || priceMin || 0;
   if (unit === "sqm" || unit === "m\xB2" || unit === "sqft" || unit === "L") {
-    if (price < 40) return "affordable";
+    if (price < 40) return "economy";
     if (price < 150) return "mid";
     if (price < 400) return "premium";
-    return "ultra";
+    if (price < 800) return "luxury";
+    return "ultra_luxury";
   }
-  if (price < 300) return "affordable";
+  if (price < 300) return "economy";
   if (price < 1500) return "mid";
   if (price < 5e3) return "premium";
-  return "ultra";
+  if (price < 15e3) return "luxury";
+  return "ultra_luxury";
 }
 async function syncEvidenceToMaterials(runId, limit = 500) {
   const db = await getDb();
@@ -4418,13 +4420,15 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
   if (evidence.length === 0) {
     return { created: 0, updated: 0, skipped: 0 };
   }
-  const existingMaterials = await db.select().from(materialLibrary);
-  const existingNames = new Set(
-    existingMaterials.map((m) => normalizeProductName(m.productName))
-  );
+  const existingMaterials = await db.select().from(materialsCatalog);
+  const existingByName = /* @__PURE__ */ new Map();
+  for (const m of existingMaterials) {
+    existingByName.set(normalizeProductName(m.name), m);
+  }
   let created = 0;
   let updated = 0;
   let skipped = 0;
+  const validCategories = ["tile", "stone", "wood", "metal", "fabric", "glass", "paint", "wallpaper", "lighting", "furniture", "fixture", "accessory", "other"];
   for (const record of evidence) {
     try {
       if (!record.itemName || record.itemName.length < 3) {
@@ -4436,66 +4440,71 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
         skipped++;
         continue;
       }
-      const maxPrice = Math.max(
+      const maxRawPrice = Math.max(
         record.priceMin ? parseFloat(String(record.priceMin)) : 0,
         record.priceMax ? parseFloat(String(record.priceMax)) : 0,
         record.priceTypical ? parseFloat(String(record.priceTypical)) : 0
       );
-      if (maxPrice > 9999999) {
+      if (maxRawPrice > 9999999) {
         skipped++;
         continue;
       }
-      const materialCategory = EVIDENCE_TO_MATERIAL_CATEGORY[record.category] || "specialty";
-      const validCategories = ["flooring", "wall_paint", "wall_tile", "ceiling", "joinery", "sanitaryware", "fittings", "lighting", "hardware", "specialty"];
-      if (!validCategories.includes(materialCategory)) {
-        skipped++;
-        continue;
+      let catalogCategory = EVIDENCE_TO_CATALOG_CATEGORY[record.category] || "other";
+      const nameLower = record.itemName.toLowerCase();
+      if (/marble|granite|travertine|onyx|limestone/.test(nameLower)) catalogCategory = "stone";
+      else if (/tile|ceramic|porcelain/.test(nameLower)) catalogCategory = "tile";
+      else if (/wood|oak|walnut|teak|parquet|veneer/.test(nameLower)) catalogCategory = "wood";
+      else if (/metal|steel|iron|brass|copper|aluminum/.test(nameLower)) catalogCategory = "metal";
+      else if (/glass|mirror/.test(nameLower)) catalogCategory = "glass";
+      else if (/paint|coating/.test(nameLower)) catalogCategory = "paint";
+      else if (/wallpaper/.test(nameLower)) catalogCategory = "wallpaper";
+      else if (/fabric|textile|upholstery|linen/.test(nameLower)) catalogCategory = "fabric";
+      else if (/light|lamp|chandelier|led/.test(nameLower)) catalogCategory = "lighting";
+      else if (/furniture|sofa|chair|table|desk|cabinet/.test(nameLower)) catalogCategory = "furniture";
+      else if (/faucet|mixer|tap|shower|toilet|basin|wc|sink/.test(nameLower)) catalogCategory = "fixture";
+      if (!validCategories.includes(catalogCategory)) {
+        catalogCategory = "other";
       }
       const priceMin = record.priceMin ? parseFloat(String(record.priceMin)) : null;
       const priceMax = record.priceMax ? parseFloat(String(record.priceMax)) : null;
       const priceTypical = record.priceTypical ? parseFloat(String(record.priceTypical)) : null;
       const tier = detectTier(priceMin, priceMax, record.unit);
       const normalizedName = normalizeProductName(record.itemName);
-      const existingMatch = existingMaterials.find(
-        (m) => normalizeProductName(m.productName) === normalizedName
-      );
+      const existingMatch = existingByName.get(normalizedName);
       if (existingMatch) {
-        const existingMin = existingMatch.priceAedMin ? parseFloat(String(existingMatch.priceAedMin)) : null;
-        const existingMax = existingMatch.priceAedMax ? parseFloat(String(existingMatch.priceAedMax)) : null;
-        const effectiveMin = priceMin || priceTypical;
-        const effectiveMax = priceMax || priceTypical;
-        if (effectiveMin && effectiveMax && (effectiveMin !== existingMin || effectiveMax !== existingMax)) {
-          await db.update(materialLibrary).set({
-            priceAedMin: effectiveMin ? String(effectiveMin) : null,
-            priceAedMax: effectiveMax ? String(effectiveMax) : null,
-            notes: `Last updated from market data: ${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}. Source: ${record.publisher || record.sourceUrl}`
-          }).where(eq5(materialLibrary.id, existingMatch.id));
+        const existingLow = existingMatch.typicalCostLow ? parseFloat(String(existingMatch.typicalCostLow)) : null;
+        const existingHigh = existingMatch.typicalCostHigh ? parseFloat(String(existingMatch.typicalCostHigh)) : null;
+        const effectiveLow = priceMin || priceTypical;
+        const effectiveHigh = priceMax || priceTypical;
+        if (effectiveLow && effectiveHigh && (effectiveLow !== existingLow || effectiveHigh !== existingHigh)) {
+          await db.update(materialsCatalog).set({
+            typicalCostLow: String(effectiveLow),
+            typicalCostHigh: String(effectiveHigh),
+            notes: `Updated from market data ${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}. ${record.publisher || ""}`
+          }).where(eq5(materialsCatalog.id, existingMatch.id));
           updated++;
         } else {
           skipped++;
         }
-      } else if (!existingNames.has(normalizedName)) {
-        const effectiveMin = priceMin || priceTypical;
-        const effectiveMax = priceMax || priceTypical;
-        const brand = record.publisher || "Market Data";
-        await db.insert(materialLibrary).values({
-          category: materialCategory,
+      } else {
+        const effectiveLow = priceMin || priceTypical;
+        const effectiveHigh = priceMax || priceTypical;
+        const costUnit = record.unit === "sqm" || record.unit === "m\xB2" ? "AED/sqm" : `AED/${record.unit || "unit"}`;
+        await db.insert(materialsCatalog).values({
+          name: record.itemName.substring(0, 255),
+          category: catalogCategory,
           tier,
-          style: "all",
-          productCode: `MKT-${record.id}`,
-          productName: record.itemName.substring(0, 300),
-          brand: brand.substring(0, 150),
-          supplierName: (record.publisher || "Various UAE Suppliers").substring(0, 200),
-          unitLabel: (record.unit || "sqm").substring(0, 30),
-          priceAedMin: effectiveMin ? String(effectiveMin) : null,
-          priceAedMax: effectiveMax ? String(effectiveMax) : null,
-          notes: `Auto-imported from evidence. Source: ${record.sourceUrl?.substring(0, 200)}`,
+          typicalCostLow: effectiveLow ? String(effectiveLow) : null,
+          typicalCostHigh: effectiveHigh ? String(effectiveHigh) : null,
+          costUnit,
+          supplierName: (record.publisher || "Market Data").substring(0, 255),
+          supplierUrl: record.sourceUrl?.substring(0, 500) || null,
+          regionAvailability: ["UAE"],
+          notes: `Auto-imported from evidence. Source: ${record.sourceUrl?.substring(0, 200) || "N/A"}`,
           isActive: true
         });
-        existingNames.add(normalizedName);
+        existingByName.set(normalizedName, {});
         created++;
-      } else {
-        skipped++;
       }
     } catch (err) {
       console.warn(`[MaterialSync] Error processing evidence ${record.id}: ${err instanceof Error ? err.message : String(err)}`);
@@ -4505,28 +4514,32 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
   return { created, updated, skipped };
 }
 function normalizeProductName(name) {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, "").replace(/\s+/g, "").substring(0, 100);
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "").substring(0, 100);
 }
-var EVIDENCE_TO_MATERIAL_CATEGORY;
+var EVIDENCE_TO_CATALOG_CATEGORY;
 var init_evidence_to_materials = __esm({
   "server/engines/ingestion/evidence-to-materials.ts"() {
     "use strict";
     init_db();
     init_schema();
-    EVIDENCE_TO_MATERIAL_CATEGORY = {
-      floors: "flooring",
-      walls: "wall_tile",
+    EVIDENCE_TO_CATALOG_CATEGORY = {
+      floors: "tile",
+      // most floor evidence is tile/stone
+      walls: "tile",
       // most wall evidence is tile/finish
-      ceilings: "ceiling",
-      joinery: "joinery",
+      ceilings: "other",
+      joinery: "wood",
+      // joinery is woodwork
       lighting: "lighting",
-      sanitary: "sanitaryware",
-      kitchen: "fittings",
+      sanitary: "fixture",
+      // sanitary = fixtures
+      kitchen: "fixture",
       // kitchen fittings
-      hardware: "hardware",
-      ffe: "specialty",
-      // FF&E → specialty
-      other: "specialty"
+      hardware: "accessory",
+      // hardware = accessories
+      ffe: "furniture",
+      // FF&E → furniture
+      other: "other"
     };
   }
 });
@@ -12584,7 +12597,7 @@ async function detectTrends(metric, category, geography, points, options) {
 
 // server/engines/ingestion/orchestrator.ts
 init_schema();
-import { and as and4, eq as eq6, sql as sql4 } from "drizzle-orm";
+import { and as and3, eq as eq6, sql as sql3 } from "drizzle-orm";
 var MAX_CONCURRENT = 3;
 async function runWithConcurrencyLimit(tasks, limit) {
   const results = [];
@@ -12606,10 +12619,10 @@ async function isDuplicate(sourceUrl, itemName, captureDate) {
   const db = await getDb();
   if (!db) return false;
   const existing = await db.select({ id: evidenceRecords.id }).from(evidenceRecords).where(
-    and4(
+    and3(
       eq6(evidenceRecords.sourceUrl, sourceUrl),
       eq6(evidenceRecords.itemName, itemName),
-      sql4`DATE(${evidenceRecords.captureDate}) = DATE(${captureDate})`
+      sql3`DATE(${evidenceRecords.captureDate}) = DATE(${captureDate})`
     )
   ).limit(1);
   return existing.length > 0;
@@ -12937,7 +12950,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     try {
       const db = await getDb();
       if (db) {
-        const recentEvidence = await db.select().from(evidenceRecords).orderBy(sql4`${evidenceRecords.createdAt} DESC`).limit(500);
+        const recentEvidence = await db.select().from(evidenceRecords).orderBy(sql3`${evidenceRecords.createdAt} DESC`).limit(500);
         const categoryGroups = /* @__PURE__ */ new Map();
         for (const record of recentEvidence) {
           const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
@@ -14887,7 +14900,7 @@ function getAllConnectors() {
 // server/routers/ingestion.ts
 init_db();
 init_schema();
-import { desc as desc4, eq as eq9, sql as sql5 } from "drizzle-orm";
+import { desc as desc4, eq as eq9, sql as sql4 } from "drizzle-orm";
 
 // server/engines/ingestion/scheduler.ts
 import cron from "node-cron";
@@ -15159,7 +15172,7 @@ var ingestionRouter = router({
       lastScrapedAt: /* @__PURE__ */ new Date(),
       lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
       lastRecordCount: report.evidenceCreated,
-      consecutiveFailures: report.sourcesFailed > 0 ? sql5`${sourceRegistry.consecutiveFailures} + 1` : 0
+      consecutiveFailures: report.sourcesFailed > 0 ? sql4`${sourceRegistry.consecutiveFailures} + 1` : 0
     }).where(eq9(sourceRegistry.id, input.id));
     return report;
   }),
@@ -15438,7 +15451,7 @@ async function analyseCompetitorLandscape(projects2, options = {}) {
 
 // server/routers/analytics.ts
 init_schema();
-import { and as and5, eq as eq10, isNotNull } from "drizzle-orm";
+import { and as and4, eq as eq10, isNotNull } from "drizzle-orm";
 var analyticsRouter = router({
   getTrends: protectedProcedure.input(
     z11.object({
@@ -15486,7 +15499,7 @@ var analyticsRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
-      and5(
+      and4(
         eq10(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
@@ -15561,7 +15574,7 @@ var analyticsRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
-      and5(
+      and4(
         eq10(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
@@ -16477,14 +16490,14 @@ var learningRouter = router({
 import { z as z14 } from "zod";
 init_db();
 init_schema();
-import { eq as eq13, and as and6, desc as desc7, sql as sql8 } from "drizzle-orm";
+import { eq as eq13, and as and5, desc as desc7, sql as sql7 } from "drizzle-orm";
 import { TRPCError as TRPCError7 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
 init_llm();
 init_db();
 init_schema();
-import { sql as sql7 } from "drizzle-orm";
+import { sql as sql6 } from "drizzle-orm";
 var SCHEMA_CONTEXT = `
 You are the MIYAR Intelligence Assistant, an expert AI embedded within MIYAR (an autonomous interior design and architectural validation platform). 
 Your primary capability is translating user natural language queries into valid MySQL SELECT queries to fetch data from the platform. 
@@ -16545,7 +16558,7 @@ Generate the MySQL query.` }
     const db = await getDb();
     if (!db) throw new Error("Database not connected");
     try {
-      const result = await db.execute(sql7.raw(generatedSql));
+      const result = await db.execute(sql6.raw(generatedSql));
       if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0])) {
         rawData = result[0];
       } else {
@@ -16712,7 +16725,7 @@ var autonomousRouter = router({
     if (input?.type) {
       conditions.push(eq13(platformAlerts.alertType, input.type));
     }
-    return db.select().from(platformAlerts).where(conditions.length > 0 ? and6(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
+    return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
   }),
   acknowledgeAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -16736,10 +16749,10 @@ var autonomousRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError7({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
-    const recentQueries = await db.select({ count: sql8`count(*)` }).from(nlQueryLog).where(
-      and6(
+    const recentQueries = await db.select({ count: sql7`count(*)` }).from(nlQueryLog).where(
+      and5(
         eq13(nlQueryLog.userId, ctx.user.id),
-        sql8`${nlQueryLog.createdAt} > ${oneHourAgo}`
+        sql7`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
     );
     const count = Number(recentQueries[0]?.count || 0);
@@ -16767,7 +16780,7 @@ init_db();
 import { z as z15 } from "zod";
 init_schema();
 import { TRPCError as TRPCError8 } from "@trpc/server";
-import { eq as eq14, and as and7 } from "drizzle-orm";
+import { eq as eq14, and as and6 } from "drizzle-orm";
 import { nanoid as nanoid5 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z15.object({
@@ -16811,7 +16824,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and7(eq14(organizationMembers.orgId, ctx.orgId), eq14(organizationMembers.userId, ctx.user.id))).limit(1);
+    const myMembership = await db.select().from(organizationMembers).where(and6(eq14(organizationMembers.orgId, ctx.orgId), eq14(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
       throw new TRPCError8({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
