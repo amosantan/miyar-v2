@@ -596,6 +596,19 @@ export async function runIngestion(
     console.error("[Ingestion] Post-run alert generation failed:", err);
   }
 
+  // V7: Auto-sync Evidence → Materials Library
+  if (totalCreated > 0) {
+    try {
+      const { syncEvidenceToMaterials } = await import("./evidence-to-materials");
+      const materialSync = await syncEvidenceToMaterials(runId);
+      console.log(
+        `[Ingestion] Post-run materials sync: ${materialSync.created} created, ${materialSync.updated} updated, ${materialSync.skipped} skipped`
+      );
+    } catch (err) {
+      console.error("[Ingestion] Post-run materials sync failed:", err);
+    }
+  }
+
   const report: IngestionRunReport = {
     runId,
     startedAt,

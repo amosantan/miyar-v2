@@ -8,1715 +8,6 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// server/_core/llm.ts
-async function invokeLLM(params) {
-  assertApiKey();
-  const {
-    messages,
-    tools,
-    outputSchema,
-    output_schema,
-    responseFormat,
-    response_format
-  } = params;
-  const { systemInstruction, contents } = await convertMessagesToGemini(messages);
-  const payload = {
-    contents
-  };
-  if (systemInstruction) {
-    payload.systemInstruction = systemInstruction;
-  }
-  if (tools && tools.length > 0) {
-    const geminiTools = [
-      {
-        functionDeclarations: tools.map((t2) => ({
-          name: t2.function.name,
-          description: t2.function.description,
-          parameters: t2.function.parameters
-        }))
-      }
-    ];
-    payload.tools = geminiTools;
-  }
-  const schema = outputSchema || output_schema;
-  const explicitFormat = responseFormat || response_format;
-  if (schema) {
-    payload.generationConfig = {
-      responseMimeType: "application/json",
-      responseSchema: schema.schema
-    };
-  } else if (explicitFormat?.type === "json_object") {
-    payload.generationConfig = {
-      responseMimeType: "application/json"
-    };
-  }
-  let response;
-  let attempt = 0;
-  const maxRetries = 2;
-  while (attempt <= maxRetries) {
-    response = await fetch(resolveApiUrl(), {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-    if (response.ok) {
-      break;
-    }
-    if (response.status === 429 || response.status === 503) {
-      attempt++;
-      if (attempt > maxRetries) break;
-      const errorText = await response.text();
-      console.warn(`[Gemini API] HTTP ${response.status} hit. Retrying attempt ${attempt}/${maxRetries}... Error details: ${errorText.substring(0, 200)}`);
-      const delay = Math.pow(2, attempt) * 1e3 + Math.random() * 500;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    } else {
-      break;
-    }
-  }
-  if (!response || !response.ok) {
-    const errorText = response ? await response.text().catch(() => "Unknown error") : "No response";
-    const isRateLimit = response?.status === 429;
-    throw new Error(
-      isRateLimit ? `Gemini Request Limit Reached: Your API key is on the Free Tier (15 requests/min). Please update GEMINI_API_KEY in .env with a billing-enabled key from Google AI Studio.` : `Gemini LLM invoke failed: ${response?.status} ${response?.statusText} \u2013 ${errorText}`
-    );
-  }
-  const data = await response.json();
-  const candidate = data.candidates?.[0];
-  if (!candidate) {
-    throw new Error("No candidates returned from Gemini API");
-  }
-  const parts = candidate.content?.parts || [];
-  const textParts = parts.filter((p) => p.text).map((p) => p.text).join("");
-  const functionCallParts = parts.filter((p) => p.functionCall);
-  let tool_calls;
-  if (functionCallParts.length > 0) {
-    tool_calls = functionCallParts.map((fc, idx) => ({
-      id: `call_${Date.now()}_${idx}`,
-      type: "function",
-      function: {
-        name: fc.functionCall.name,
-        arguments: JSON.stringify(fc.functionCall.args || {})
-      }
-    }));
-  }
-  return {
-    id: `gemini-${Date.now()}`,
-    created: Math.floor(Date.now() / 1e3),
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-    choices: [
-      {
-        index: 0,
-        message: {
-          role: "assistant",
-          content: textParts,
-          tool_calls
-        },
-        finish_reason: candidate.finishReason === "STOP" ? "stop" : functionCallParts.length > 0 ? "tool_calls" : "length"
-      }
-    ],
-    usage: {
-      prompt_tokens: data.usageMetadata?.promptTokenCount || 0,
-      completion_tokens: data.usageMetadata?.candidatesTokenCount || 0,
-      total_tokens: data.usageMetadata?.totalTokenCount || 0
-    }
-  };
-}
-var ensureArray, normalizeContentPart, mapRoleToGemini, normalizeContentToGeminiParts, convertMessagesToGemini, resolveApiUrl, assertApiKey;
-var init_llm = __esm({
-  "server/_core/llm.ts"() {
-    "use strict";
-    ensureArray = (value) => Array.isArray(value) ? value : [value];
-    normalizeContentPart = (part) => {
-      if (typeof part === "string") {
-        return { type: "text", text: part };
-      }
-      if (part.type === "text") {
-        return part;
-      }
-      if (part.type === "image_url") {
-        return part;
-      }
-      if (part.type === "file_url") {
-        return part;
-      }
-      throw new Error("Unsupported message content part");
-    };
-    mapRoleToGemini = (role) => {
-      if (role === "assistant") return "model";
-      return "user";
-    };
-    normalizeContentToGeminiParts = async (content) => {
-      const parts = ensureArray(content).map(normalizeContentPart);
-      return await Promise.all(parts.map(async (part) => {
-        if (part.type === "text") return { text: part.text };
-        if (part.type === "image_url") {
-          try {
-            const response = await fetch(part.image_url.url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const mimeType = response.headers.get("content-type") || "image/jpeg";
-            return {
-              inlineData: {
-                mimeType,
-                data: buffer.toString("base64")
-              }
-            };
-          } catch (err) {
-            console.error("Failed to fetch image for Gemini inlineData:", err.message);
-            return { text: `[Image reference: ${part.image_url.url}]` };
-          }
-        }
-        if (part.type === "file_url") {
-          return { text: `[File reference: ${part.file_url.url}]` };
-        }
-        return { text: "" };
-      }));
-    };
-    convertMessagesToGemini = async (messages) => {
-      let systemInstruction;
-      const contents = [];
-      for (const msg of messages) {
-        if (msg.role === "system") {
-          const parts2 = await normalizeContentToGeminiParts(msg.content);
-          if (!systemInstruction) systemInstruction = { parts: [] };
-          systemInstruction.parts.push(...parts2);
-          continue;
-        }
-        if (msg.role === "tool" || msg.role === "function") {
-          const responseText = ensureArray(msg.content).map((p) => typeof p === "string" ? p : JSON.stringify(p)).join("\n");
-          let parsedResponse;
-          try {
-            parsedResponse = JSON.parse(responseText);
-          } catch {
-            parsedResponse = { result: responseText };
-          }
-          contents.push({
-            role: "user",
-            parts: [{
-              functionResponse: {
-                name: msg.name || "unknown_tool",
-                response: parsedResponse
-              }
-            }]
-          });
-          continue;
-        }
-        const role = mapRoleToGemini(msg.role);
-        const parts = await normalizeContentToGeminiParts(msg.content);
-        if (msg.role === "assistant" && msg.tool_calls?.length > 0) {
-          const functionCalls = msg.tool_calls.map((tc) => ({
-            functionCall: {
-              name: tc.function.name,
-              args: JSON.parse(tc.function.arguments || "{}")
-            }
-          }));
-          contents.push({
-            role: "model",
-            parts: [...parts, ...functionCalls]
-          });
-          continue;
-        }
-        contents.push({ role, parts });
-      }
-      return { systemInstruction, contents };
-    };
-    resolveApiUrl = () => {
-      const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-      return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    };
-    assertApiKey = () => {
-      if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY is not configured in the environment");
-      }
-    };
-  }
-});
-
-// server/engines/bias/bias-types.ts
-var TIER_BUDGET_BENCHMARKS, BIAS_LABELS;
-var init_bias_types = __esm({
-  "server/engines/bias/bias-types.ts"() {
-    "use strict";
-    TIER_BUDGET_BENCHMARKS = {
-      "Mid": { median: 800, low: 500, high: 1200 },
-      "Upper-mid": { median: 1500, low: 1e3, high: 2200 },
-      "Luxury": { median: 3e3, low: 2e3, high: 5e3 },
-      "Ultra-luxury": { median: 6e3, low: 4e3, high: 12e3 }
-    };
-    BIAS_LABELS = {
-      optimism_bias: "Optimism Bias",
-      anchoring_bias: "Anchoring Bias",
-      confirmation_bias: "Confirmation Bias",
-      overconfidence: "Overconfidence",
-      scope_creep: "Scope Creep Risk",
-      sunk_cost: "Sunk Cost Fallacy",
-      clustering_illusion: "Clustering Illusion"
-    };
-  }
-});
-
-// server/engines/bias/bias-detector.ts
-var bias_detector_exports = {};
-__export(bias_detector_exports, {
-  BIAS_LABELS: () => BIAS_LABELS,
-  detectBiases: () => detectBiases
-});
-function severity(confidence) {
-  if (confidence >= 85) return "critical";
-  if (confidence >= 70) return "high";
-  if (confidence >= 50) return "medium";
-  return "low";
-}
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
-}
-function detectOptimismBias(inputs, scoreResult) {
-  const tier = inputs.mkt01Tier;
-  if (tier !== "Luxury" && tier !== "Ultra-luxury") return null;
-  const benchmark = TIER_BUDGET_BENCHMARKS[tier];
-  if (!benchmark) return null;
-  const gfa = inputs.ctx03Gfa || 500;
-  const budget = inputs.fin01BudgetCap || 0;
-  const expectedBudget = benchmark.median * gfa;
-  const budgetRatio = expectedBudget > 0 ? budget / expectedBudget : 1;
-  const evidence = [];
-  let rawConfidence = 0;
-  if (budget > 0 && budgetRatio < 0.7) {
-    const shortfall = ((1 - budgetRatio) * 100).toFixed(0);
-    rawConfidence += 40 + (1 - budgetRatio) * 40;
-    evidence.push({
-      variable: "fin01BudgetCap",
-      label: "Budget Cap",
-      value: `AED ${budget.toLocaleString()}`,
-      expected: `AED ${expectedBudget.toLocaleString()} (median for ${tier})`,
-      deviation: `${shortfall}% below ${tier} market median`
-    });
-  }
-  if (inputs.fin02Flexibility <= 2) {
-    rawConfidence += 20;
-    evidence.push({
-      variable: "fin02Flexibility",
-      label: "Budget Flexibility",
-      value: inputs.fin02Flexibility,
-      expected: "\u2265 3 for high-tier projects",
-      deviation: "Rigid budget with premium ambitions"
-    });
-  }
-  if (inputs.fin03ShockTolerance <= 2) {
-    rawConfidence += 15;
-    evidence.push({
-      variable: "fin03ShockTolerance",
-      label: "Shock Tolerance",
-      value: inputs.fin03ShockTolerance,
-      expected: "\u2265 3 for luxury market exposure",
-      deviation: "Low resilience to cost overruns in premium segment"
-    });
-  }
-  if (inputs.des03Complexity >= 4 && (inputs.ctx05Horizon === "0-12m" || inputs.ctx05Horizon === "12-24m")) {
-    rawConfidence += 15;
-    evidence.push({
-      variable: "des03Complexity",
-      label: "Design Complexity",
-      value: inputs.des03Complexity,
-      expected: "Lower complexity or longer horizon for Complexity \u2265 4"
-    });
-  }
-  if (evidence.length === 0) return null;
-  const confidence = clamp(rawConfidence, 20, 98);
-  return {
-    biasType: "optimism_bias",
-    severity: severity(confidence),
-    confidence,
-    title: "Optimism Bias Detected",
-    description: `This ${tier} project has ${evidence.length} indicator(s) suggesting unrealistic expectations. The selected tier implies market-rate costs that significantly exceed the configured budget and flexibility parameters.`,
-    intervention: `Review budget allocation against ${tier} benchmarks. Consider either increasing the budget cap to at least AED ${(TIER_BUDGET_BENCHMARKS[tier].low * (inputs.ctx03Gfa || 500)).toLocaleString()} or adjusting the market tier downward.`,
-    evidencePoints: evidence,
-    mathExplanation: `Budget ratio = actual / (${tier} median \xD7 GFA) = ${budgetRatio.toFixed(2)}. Threshold: < 0.70 triggers flag. Flexibility: ${inputs.fin02Flexibility}/5, ShockTolerance: ${inputs.fin03ShockTolerance}/5.`
-  };
-}
-function detectAnchoringBias(inputs, scoreResult, ctx) {
-  if (ctx.evaluationCount < 3) return null;
-  if (ctx.previousBudgets.length < 3) return null;
-  const currentBudget = inputs.fin01BudgetCap || 0;
-  if (currentBudget <= 0) return null;
-  const budgetVariance = ctx.previousBudgets.map(
-    (b) => Math.abs(b - currentBudget) / currentBudget
-  );
-  const maxVariance = Math.max(...budgetVariance);
-  const avgVariance = budgetVariance.reduce((a, b) => a + b, 0) / budgetVariance.length;
-  if (maxVariance > 0.05) return null;
-  const hasFinancialPenalties = scoreResult.penalties.some(
-    (p) => p.id.includes("budget") || p.id.includes("fin") || p.trigger.toLowerCase().includes("budget")
-  );
-  const evidence = [
-    {
-      variable: "fin01BudgetCap",
-      label: "Budget Cap (History)",
-      value: `AED ${currentBudget.toLocaleString()}`,
-      expected: "Adjustment based on evaluation feedback",
-      deviation: `Budget unchanged (\xB1${(maxVariance * 100).toFixed(1)}%) across ${ctx.evaluationCount} evaluations`
-    }
-  ];
-  if (hasFinancialPenalties) {
-    evidence.push({
-      variable: "penalties",
-      label: "Active Financial Penalties",
-      value: scoreResult.penalties.filter(
-        (p) => p.id.includes("budget") || p.id.includes("fin")
-      ).length,
-      deviation: "Budget-related penalties persist but budget unchanged"
-    });
-  }
-  let rawConfidence = 50 + (ctx.evaluationCount - 3) * 10 + (avgVariance < 0.02 ? 15 : 0);
-  if (hasFinancialPenalties) rawConfidence += 20;
-  const confidence = clamp(rawConfidence, 40, 95);
-  return {
-    biasType: "anchoring_bias",
-    severity: severity(confidence),
-    confidence,
-    title: "Anchoring Bias \u2014 Budget Fixed Despite Feedback",
-    description: `The budget has remained at AED ${currentBudget.toLocaleString()} (\xB1${(maxVariance * 100).toFixed(1)}%) across ${ctx.evaluationCount} evaluations. The system has flagged financial penalties, but the budget has not been adjusted.`,
-    intervention: `Consider whether the initial budget was set based on objective data or an arbitrary anchor. Re-evaluate using the market benchmarks and sensitivity analysis to determine the optimal budget range.`,
-    evidencePoints: evidence,
-    mathExplanation: `Max budget variance = ${(maxVariance * 100).toFixed(2)}% (threshold: 5%). Evaluations: ${ctx.evaluationCount}. Financial penalties active: ${hasFinancialPenalties}.`
-  };
-}
-function detectConfirmationBias(inputs, scoreResult, ctx) {
-  if (ctx.overrideCount < 2) return null;
-  if (ctx.overrideNetEffect <= 0) return null;
-  if (scoreResult.compositeScore >= 65) return null;
-  const evidence = [
-    {
-      variable: "overrideCount",
-      label: "Manual Overrides",
-      value: ctx.overrideCount,
-      expected: "Balanced overrides (both up and down)",
-      deviation: `${ctx.overrideCount} overrides applied, all increasing scores by net +${ctx.overrideNetEffect.toFixed(1)}`
-    },
-    {
-      variable: "compositeScore",
-      label: "Composite Score",
-      value: scoreResult.compositeScore.toFixed(1),
-      expected: "\u2265 65 for a validated project",
-      deviation: `Score remains ${scoreResult.compositeScore.toFixed(1)} despite positive overrides`
-    }
-  ];
-  let rawConfidence = 45 + ctx.overrideCount * 10 + (65 - scoreResult.compositeScore);
-  const confidence = clamp(rawConfidence, 40, 95);
-  return {
-    biasType: "confirmation_bias",
-    severity: severity(confidence),
-    confidence,
-    title: "Confirmation Bias \u2014 Cherry-Picking Overrides",
-    description: `${ctx.overrideCount} manual overrides have been applied, all increasing the score by a net +${ctx.overrideNetEffect.toFixed(1)} points. Despite this, the composite score remains at ${scoreResult.compositeScore.toFixed(1)}, below the validation threshold.`,
-    intervention: `Review each override for objective justification. Consider whether the project fundamentals support the desired direction, or whether the overrides are being used to validate a predetermined conclusion.`,
-    evidencePoints: evidence,
-    mathExplanation: `Overrides: ${ctx.overrideCount}, net effect: +${ctx.overrideNetEffect.toFixed(1)}. Post-override composite: ${scoreResult.compositeScore.toFixed(1)} (threshold: 65). All overrides positive \u2192 confirmation bias pattern.`
-  };
-}
-function detectOverconfidence(inputs, scoreResult) {
-  const evidence = [];
-  let rawConfidence = 0;
-  if (inputs.str01BrandClarity >= 5 && inputs.str02Differentiation >= 5) {
-    rawConfidence += 40;
-    evidence.push({
-      variable: "str01BrandClarity + str02Differentiation",
-      label: "Self-Assessed Brand + Differentiation",
-      value: "5/5 + 5/5",
-      expected: "Rare to have perfect scores in both",
-      deviation: "Maximum self-assessment on both strategic dimensions"
-    });
-  } else if (inputs.str01BrandClarity >= 4 && inputs.str02Differentiation >= 4) {
-    rawConfidence += 20;
-  } else {
-    return null;
-  }
-  if (inputs.mkt02Competitor <= 2) {
-    rawConfidence += 30;
-    evidence.push({
-      variable: "mkt02Competitor",
-      label: "Competitive Awareness",
-      value: inputs.mkt02Competitor,
-      expected: "\u2265 3 in active UAE real estate market",
-      deviation: "Low competitor rating despite high brand confidence"
-    });
-  }
-  if (inputs.str03BuyerMaturity >= 5) {
-    rawConfidence += 15;
-    evidence.push({
-      variable: "str03BuyerMaturity",
-      label: "Buyer Maturity",
-      value: inputs.str03BuyerMaturity,
-      expected: "Evidence-based assessment",
-      deviation: "Maximum buyer maturity rating \u2014 verify with market data"
-    });
-  }
-  if (evidence.length < 2) return null;
-  const confidence = clamp(rawConfidence, 35, 95);
-  return {
-    biasType: "overconfidence",
-    severity: severity(confidence),
-    confidence,
-    title: "Overconfidence Detected",
-    description: `Strategic self-assessment scores are at maximum levels (Brand: ${inputs.str01BrandClarity}/5, Differentiation: ${inputs.str02Differentiation}/5) while competitive awareness is rated at only ${inputs.mkt02Competitor}/5.`,
-    intervention: `Validate brand and differentiation claims against objective competitor data. Consider commissioning a market study or reviewing the competitor entity database before proceeding.`,
-    evidencePoints: evidence,
-    mathExplanation: `Brand: ${inputs.str01BrandClarity}/5, Differentiation: ${inputs.str02Differentiation}/5, Competitor: ${inputs.mkt02Competitor}/5. Pattern: max self-assessment + low competitor awareness.`
-  };
-}
-function detectScopeCreep(inputs, scoreResult) {
-  const evidence = [];
-  let rawConfidence = 0;
-  const isComplexDesign = inputs.des03Complexity >= 4;
-  const isHighExperience = inputs.des04Experience >= 4;
-  const isTightTimeline = inputs.ctx05Horizon === "0-12m" || inputs.ctx05Horizon === "12-24m";
-  const isWeakSupplyChain = inputs.exe01SupplyChain <= 2;
-  const isWeakContractor = inputs.exe02Contractor <= 2;
-  if (!isComplexDesign) return null;
-  if (isComplexDesign) {
-    rawConfidence += 25;
-    evidence.push({
-      variable: "des03Complexity",
-      label: "Design Complexity",
-      value: inputs.des03Complexity,
-      deviation: "High complexity increases scope change probability"
-    });
-  }
-  if (isHighExperience) {
-    rawConfidence += 15;
-    evidence.push({
-      variable: "des04Experience",
-      label: "Experience Intensity",
-      value: inputs.des04Experience,
-      deviation: "Experiential design elements compound scope risks"
-    });
-  }
-  if (isTightTimeline) {
-    rawConfidence += 25;
-    evidence.push({
-      variable: "ctx05Horizon",
-      label: "Delivery Horizon",
-      value: inputs.ctx05Horizon,
-      expected: "24-36m+ for Complexity \u2265 4",
-      deviation: "Tight timeline with complex scope"
-    });
-  }
-  if (isWeakSupplyChain) {
-    rawConfidence += 20;
-    evidence.push({
-      variable: "exe01SupplyChain",
-      label: "Supply Chain Readiness",
-      value: inputs.exe01SupplyChain,
-      expected: "\u2265 3 for complex designs",
-      deviation: "Weak supply chain cannot support scope ambitions"
-    });
-  }
-  if (isWeakContractor) {
-    rawConfidence += 15;
-    evidence.push({
-      variable: "exe02Contractor",
-      label: "Contractor Capability",
-      value: inputs.exe02Contractor,
-      deviation: "Low contractor rating compounds delivery risk"
-    });
-  }
-  if (evidence.length < 3) return null;
-  const confidence = clamp(rawConfidence, 35, 95);
-  return {
-    biasType: "scope_creep",
-    severity: severity(confidence),
-    confidence,
-    title: "Scope Creep Risk \u2014 Ambition Exceeds Delivery Capacity",
-    description: `This project combines high design complexity (${inputs.des03Complexity}/5) with ${isTightTimeline ? `a tight ${inputs.ctx05Horizon} horizon` : ""}${isWeakSupplyChain ? ` and weak supply chain (${inputs.exe01SupplyChain}/5)` : ""}. This combination significantly increases the probability of uncontrolled scope expansion.`,
-    intervention: `Either extend the delivery horizon to 24-36m+, simplify design complexity to \u2264 3, or strengthen the execution pipeline (supply chain \u2265 3, contractor \u2265 3) before proceeding.`,
-    evidencePoints: evidence,
-    mathExplanation: `Complexity: ${inputs.des03Complexity}/5, Experience: ${inputs.des04Experience}/5, Horizon: ${inputs.ctx05Horizon}, SupplyChain: ${inputs.exe01SupplyChain}/5, Contractor: ${inputs.exe02Contractor}/5.`
-  };
-}
-function detectSunkCost(inputs, scoreResult, ctx) {
-  if (ctx.evaluationCount < 3) return null;
-  if (ctx.previousScores.length < 2) return null;
-  const scores = [...ctx.previousScores, scoreResult.compositeScore];
-  let decliningCount = 0;
-  for (let i = 1; i < scores.length; i++) {
-    if (scores[i] < scores[i - 1]) decliningCount++;
-  }
-  const isDeclining = decliningCount >= Math.floor(scores.length * 0.6);
-  const latestScore = scoreResult.compositeScore;
-  const peakScore = Math.max(...ctx.previousScores);
-  if (!isDeclining || latestScore >= 60) return null;
-  const evidence = [
-    {
-      variable: "evaluationHistory",
-      label: "Evaluation Count",
-      value: ctx.evaluationCount,
-      deviation: `${ctx.evaluationCount} evaluations with declining trend`
-    },
-    {
-      variable: "scoreTrajectory",
-      label: "Score Trajectory",
-      value: `Peak: ${peakScore.toFixed(1)} \u2192 Current: ${latestScore.toFixed(1)}`,
-      deviation: `Score declined ${(peakScore - latestScore).toFixed(1)} points from peak`
-    }
-  ];
-  if (scoreResult.decisionStatus === "not_validated") {
-    evidence.push({
-      variable: "decisionStatus",
-      label: "Validation Status",
-      value: "Not Validated",
-      deviation: "Project has not achieved validation despite multiple attempts"
-    });
-  }
-  let rawConfidence = 40 + (ctx.evaluationCount - 3) * 10 + (peakScore - latestScore);
-  if (scoreResult.decisionStatus === "not_validated") rawConfidence += 15;
-  const confidence = clamp(rawConfidence, 40, 95);
-  return {
-    biasType: "sunk_cost",
-    severity: severity(confidence),
-    confidence,
-    title: "Sunk Cost Fallacy \u2014 Declining Project Persists",
-    description: `This project has been evaluated ${ctx.evaluationCount} times with a declining score trajectory (peak: ${peakScore.toFixed(1)} \u2192 current: ${latestScore.toFixed(1)}). Continued investment may be driven by prior commitment rather than objective viability.`,
-    intervention: `Perform a zero-base assessment: evaluate this project as if starting fresh today. Would you invest given the current score of ${latestScore.toFixed(1)}? Consider pivoting or shelving.`,
-    evidencePoints: evidence,
-    mathExplanation: `Evaluations: ${ctx.evaluationCount}. Declining in ${decliningCount}/${scores.length - 1} intervals. Peak: ${peakScore.toFixed(1)}, Current: ${latestScore.toFixed(1)}, Delta: -${(peakScore - latestScore).toFixed(1)}.`
-  };
-}
-function detectClusteringIllusion(inputs, scoreResult, ctx) {
-  if (inputs.mkt03Trend < 4) return null;
-  if (ctx.marketTrendActual !== null && ctx.marketTrendActual !== void 0) {
-    const gap = inputs.mkt03Trend - ctx.marketTrendActual;
-    if (gap < 2) return null;
-    const evidence = [
-      {
-        variable: "mkt03Trend",
-        label: "User Trend Assessment",
-        value: `${inputs.mkt03Trend}/5`,
-        expected: `${ctx.marketTrendActual.toFixed(1)}/5 (evidence-based)`,
-        deviation: `User rates trends +${gap.toFixed(1)} above evidence data`
-      }
-    ];
-    const confidence = clamp(40 + gap * 20, 45, 95);
-    return {
-      biasType: "clustering_illusion",
-      severity: severity(confidence),
-      confidence,
-      title: "Clustering Illusion \u2014 Trend Overestimation",
-      description: `The user-assessed market trend (${inputs.mkt03Trend}/5) significantly exceeds the evidence-based trend metric (${ctx.marketTrendActual.toFixed(1)}/5). This may reflect seeing patterns in noise \u2014 interpreting random market movements as meaningful trends.`,
-      intervention: `Cross-reference trend assessment with the Evidence Vault and market analytics. Review actual price movement data, absorption rates, and competitive supply before confirming trend score.`,
-      evidencePoints: evidence,
-      mathExplanation: `User trend: ${inputs.mkt03Trend}/5, Evidence trend: ${ctx.marketTrendActual.toFixed(1)}/5. Gap: ${gap.toFixed(1)} (threshold: \u2265 2).`
-    };
-  }
-  if (inputs.mkt03Trend >= 5 && inputs.ctx04Location === "Emerging") {
-    return {
-      biasType: "clustering_illusion",
-      severity: "medium",
-      confidence: 55,
-      title: "Clustering Illusion \u2014 Verify Trend Assessment",
-      description: `Maximum trend alignment (5/5) claimed for an Emerging location, which typically has less predictable market trends. This may reflect optimistic trend interpretation.`,
-      intervention: `Verify trend data with the Data Freshness Engine. Emerging markets often show volatile patterns that can be misread as consistent trends.`,
-      evidencePoints: [
-        {
-          variable: "mkt03Trend",
-          label: "Market Trend",
-          value: 5,
-          expected: "Evidence-backed assessment",
-          deviation: "Max trend score in an Emerging location"
-        },
-        {
-          variable: "ctx04Location",
-          label: "Location Category",
-          value: "Emerging",
-          deviation: "Emerging markets have higher trend volatility"
-        }
-      ],
-      mathExplanation: `Trend: ${inputs.mkt03Trend}/5, Location: Emerging. Max trend + high-volatility location = potential pattern overread.`
-    };
-  }
-  return null;
-}
-function detectBiases(inputs, scoreResult, ctx) {
-  const alerts = [];
-  const detectors = [
-    () => detectOptimismBias(inputs, scoreResult),
-    () => detectAnchoringBias(inputs, scoreResult, ctx),
-    () => detectConfirmationBias(inputs, scoreResult, ctx),
-    () => detectOverconfidence(inputs, scoreResult),
-    () => detectScopeCreep(inputs, scoreResult),
-    () => detectSunkCost(inputs, scoreResult, ctx),
-    () => detectClusteringIllusion(inputs, scoreResult, ctx)
-  ];
-  for (const detector of detectors) {
-    try {
-      const alert = detector();
-      if (alert) alerts.push(alert);
-    } catch (e) {
-      console.warn("[BiasDetector] Detector failed:", e);
-    }
-  }
-  const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-  alerts.sort(
-    (a, b) => (severityOrder[a.severity] ?? 4) - (severityOrder[b.severity] ?? 4) || b.confidence - a.confidence
-  );
-  return alerts;
-}
-var init_bias_detector = __esm({
-  "server/engines/bias/bias-detector.ts"() {
-    "use strict";
-    init_bias_types();
-  }
-});
-
-// server/engines/design/vocabulary.ts
-var vocabulary_exports = {};
-__export(vocabulary_exports, {
-  buildDesignVocabulary: () => buildDesignVocabulary
-});
-function buildDesignVocabulary(project) {
-  const cap = Number(project.fin01BudgetCap || 0);
-  const styleRaw = (project.des01Style || "modern").toLowerCase();
-  let style = styleRaw;
-  if (!["modern", "minimalist", "arabesque", "classic", "contemporary"].includes(style)) {
-    style = "modern";
-  }
-  const des03_n = Number(project.des03Complexity || 0);
-  const des04_n = Number(project.des04Experience || 0);
-  const des05_n = Number(project.des05Sustainability || 0);
-  const mkt01Tier = (project.mkt01Tier || "mid").toLowerCase();
-  let materialTier = "mid";
-  if (cap < 200) materialTier = "affordable";
-  else if (cap < 300) materialTier = "mid";
-  else if (cap < 450) materialTier = "premium";
-  else materialTier = "ultra";
-  const finishTone = des04_n >= 0.5 ? "warm" : "cool";
-  let paletteKey = "warm_minimalism";
-  if (["modern", "minimalist"].includes(style)) {
-    if (finishTone === "warm") {
-      paletteKey = "warm_minimalism";
-    } else {
-      paletteKey = "cool_minimalism";
-    }
-  } else if (["arabesque", "classic"].includes(style)) {
-    if (style === "classic" && ["premium", "ultra"].includes(materialTier)) {
-      paletteKey = "classic_marble";
-    } else {
-      paletteKey = "arabesque_warmth";
-    }
-  } else {
-    paletteKey = "warm_minimalism";
-  }
-  let hardwareFinish = "Brushed Chrome";
-  if (["modern", "minimalist"].includes(style)) hardwareFinish = "Brushed Chrome";
-  else if (style === "arabesque") hardwareFinish = "Polished Brass";
-  else if (style === "classic") hardwareFinish = "Polished Chrome";
-  else if (style === "contemporary") hardwareFinish = "Matte Black";
-  let ceilingType = "Standard Gypsum";
-  if (des03_n > 0.7) {
-    ceilingType = "Feature Coffered Ceiling";
-  } else if (des03_n >= 0.4) {
-    ceilingType = "Gypsum with Cove Lighting Detail";
-  }
-  let lightingMood = "Warm White 2700K";
-  if (["ultra", "premium"].includes(mkt01Tier)) {
-  }
-  if (["ultra", "premium"].includes(mkt01Tier)) {
-    lightingMood = "Layered Lighting 2700\u20134000K";
-  } else if (style === "arabesque") {
-    lightingMood = "Warm Accent 2700K";
-  } else {
-    lightingMood = "Warm White 2700K";
-  }
-  const styleFamily = `${mkt01Tier.charAt(0).toUpperCase() + mkt01Tier.slice(1)} ${style.charAt(0).toUpperCase() + style.slice(1)}`;
-  let complexityLabel = "Standard";
-  if (des03_n < 0.3) complexityLabel = "Simplified";
-  else if (des03_n > 0.7) complexityLabel = "Bespoke";
-  else complexityLabel = "Rich";
-  let joinery = "Standard MDF / Laminate";
-  if (materialTier === "ultra" || materialTier === "premium") joinery = "Custom Wood Veneer & PU Paint";
-  let floorPrimary = "Porcelain Tile / SPC Vinyl";
-  if (materialTier === "ultra") floorPrimary = "Natural Stone / Marble";
-  else if (materialTier === "premium") floorPrimary = "Engineered Hardwood";
-  let floorWet = "Anti-slip Ceramic";
-  if (materialTier === "ultra" || materialTier === "premium") floorWet = "Textured Porcelain / Marble";
-  let sustainNote = "Standard building compliance.";
-  if (des05_n > 0.6) {
-    sustainNote = "Focus on sustainable materials, LEED/Al Sa'fat alignment.";
-  }
-  return {
-    styleFamily,
-    materialTier,
-    paletteKey,
-    complexityLabel,
-    finishTone: finishTone === "warm" ? "Warm Neutrals" : "Cool Greys",
-    joinery,
-    hardwareFinish,
-    floorPrimary,
-    floorWet,
-    ceilingType,
-    lightingMood,
-    sustainNote
-  };
-}
-var init_vocabulary = __esm({
-  "server/engines/design/vocabulary.ts"() {
-    "use strict";
-  }
-});
-
-// server/engines/design/space-program.ts
-var space_program_exports = {};
-__export(space_program_exports, {
-  buildSpaceProgram: () => buildSpaceProgram
-});
-function buildSpaceProgram(project) {
-  const gfa = Number(project.ctx03Gfa || 0);
-  const budgetCap = Number(project.fin01BudgetCap || 0);
-  const typology = (project.ctx01Typology || "Residential").toLowerCase();
-  const totalFitoutBudgetAed = gfa * budgetCap * 10.764 * 0.35;
-  let baseRooms = [];
-  if (typology === "hospitality") {
-    baseRooms = [
-      { id: "LBY", name: "Hotel Lobby", pctSqm: 0.2, pctBudget: 0.3, priority: "high", finishGrade: "A" },
-      { id: "GRM", name: "Guest Room (std)", pctSqm: 0.25, pctBudget: 0.2, priority: "high", finishGrade: "A" },
-      { id: "GRS", name: "Guest Room (suite)", pctSqm: 0.1, pctBudget: 0.2, priority: "high", finishGrade: "A" },
-      { id: "FBB", name: "F&B / Restaurant", pctSqm: 0.2, pctBudget: 0.15, priority: "high", finishGrade: "A" },
-      { id: "COR", name: "Corridors", pctSqm: 0.15, pctBudget: 0.05, priority: "medium", finishGrade: "B" },
-      { id: "BOH", name: "Back of House", pctSqm: 0.1, pctBudget: 0.1, priority: "low", finishGrade: "C" }
-    ];
-  } else if (typology === "commercial" || typology === "office") {
-    baseRooms = [
-      { id: "OPN", name: "Open Plan Office", pctSqm: 0.4, pctBudget: 0.25, priority: "medium", finishGrade: "B" },
-      { id: "MET", name: "Meeting Rooms", pctSqm: 0.2, pctBudget: 0.3, priority: "high", finishGrade: "A" },
-      { id: "RCP", name: "Reception", pctSqm: 0.1, pctBudget: 0.2, priority: "high", finishGrade: "A" },
-      { id: "BRK", name: "Break Areas", pctSqm: 0.1, pctBudget: 0.1, priority: "medium", finishGrade: "B" },
-      { id: "COR", name: "Circulation", pctSqm: 0.1, pctBudget: 0.05, priority: "low", finishGrade: "C" },
-      { id: "UTL", name: "Utility & WCs", pctSqm: 0.1, pctBudget: 0.1, priority: "medium", finishGrade: "B" }
-    ];
-  } else {
-    baseRooms = [
-      { id: "LVG", name: "Living & Dining", pctSqm: 0.28, pctBudget: 0.28, priority: "high", finishGrade: "A" },
-      { id: "MBR", name: "Master Bedroom", pctSqm: 0.18, pctBudget: 0.22, priority: "high", finishGrade: "A" },
-      { id: "MEN", name: "Master Ensuite", pctSqm: 0.08, pctBudget: 0.14, priority: "high", finishGrade: "A" },
-      { id: "KIT", name: "Kitchen", pctSqm: 0.1, pctBudget: 0.16, priority: "high", finishGrade: "A" },
-      { id: "BD2", name: "Bedroom 2", pctSqm: 0.1, pctBudget: 0.07, priority: "medium", finishGrade: "B" },
-      { id: "BD3", name: "Bedroom 3", pctSqm: 0.08, pctBudget: 0.05, priority: "medium", finishGrade: "B" },
-      { id: "BTH", name: "Bathroom 2", pctSqm: 0.05, pctBudget: 0.05, priority: "medium", finishGrade: "B" },
-      { id: "ENT", name: "Entry & Corridors", pctSqm: 0.08, pctBudget: 0.02, priority: "low", finishGrade: "B" },
-      { id: "UTL", name: "Utility & Maid's", pctSqm: 0.05, pctBudget: 0.01, priority: "low", finishGrade: "C" }
-    ];
-  }
-  const rooms = baseRooms.map((r) => ({
-    id: r.id,
-    name: r.name,
-    sqm: Number((gfa * r.pctSqm).toFixed(2)),
-    budgetPct: r.pctBudget,
-    priority: r.priority,
-    finishGrade: r.finishGrade
-  }));
-  const totalAllocatedSqm = rooms.reduce((sum, r) => sum + r.sqm, 0);
-  return {
-    totalFitoutBudgetAed,
-    rooms,
-    totalAllocatedSqm
-  };
-}
-var init_space_program = __esm({
-  "server/engines/design/space-program.ts"() {
-    "use strict";
-  }
-});
-
-// server/engines/design/finish-schedule.ts
-var finish_schedule_exports = {};
-__export(finish_schedule_exports, {
-  buildFinishSchedule: () => buildFinishSchedule
-});
-function buildFinishSchedule(project, vocab, rooms, materials) {
-  const schedule = [];
-  const downgradeTier = (tier) => {
-    if (tier === "ultra") return "premium";
-    if (tier === "premium") return "mid";
-    if (tier === "mid") return "affordable";
-    return "affordable";
-  };
-  const getMaterial = (element, roomTier, elementStyle) => {
-    let category = element;
-    if (element === "floor") category = "flooring";
-    else if (element.startsWith("wall_")) {
-      if (element === "wall_wet") category = "wall_tile";
-      else category = "wall_paint";
-    }
-    let match = materials.find(
-      (m) => m.category === category && m.tier === roomTier && (m.style === elementStyle || m.style === "all")
-    );
-    if (!match) match = materials.find((m) => m.category === category && m.tier === roomTier);
-    if (!match) match = materials.find((m) => m.category === category && (m.style === elementStyle || m.style === "all"));
-    if (!match) match = materials.find((m) => m.category === category);
-    return match;
-  };
-  for (const room of rooms) {
-    const elements = ["floor", "wall_primary", "wall_feature", "wall_wet", "ceiling", "joinery", "hardware"];
-    for (const element of elements) {
-      if (element === "wall_wet" && ["LVG", "MBR", "BD2", "BD3", "ENT", "OPN", "MET", "RCP", "BRK", "COR"].includes(room.id)) {
-        continue;
-      }
-      if (element === "wall_feature" && ["UTL", "BOH", "COR", "ENT", "BTH", "MEN"].includes(room.id)) {
-        continue;
-      }
-      let activeTier = vocab.materialTier;
-      if (room.finishGrade === "C") {
-        activeTier = "affordable";
-      } else if (room.finishGrade === "B") {
-        if (element === "floor" || element === "wall_primary") {
-          activeTier = downgradeTier(activeTier);
-        }
-      }
-      let activeStyle = "modern";
-      if (vocab.paletteKey.includes("minimalism")) activeStyle = "minimalist";
-      else if (vocab.paletteKey.includes("arabesque")) activeStyle = "arabesque";
-      else if (vocab.paletteKey.includes("classic")) activeStyle = "classic";
-      const material = getMaterial(element, activeTier, activeStyle);
-      let overrideSpec = null;
-      if (element === "ceiling") overrideSpec = vocab.ceilingType;
-      if (element === "joinery") overrideSpec = vocab.joinery;
-      if (element === "hardware") overrideSpec = vocab.hardwareFinish;
-      schedule.push({
-        projectId: project.id,
-        organizationId: project.organizationId,
-        roomId: room.id,
-        roomName: room.name,
-        element,
-        materialLibraryId: material ? material.id : null,
-        overrideSpec,
-        notes: material ? material.notes : null
-      });
-    }
-  }
-  return schedule;
-}
-var init_finish_schedule = __esm({
-  "server/engines/design/finish-schedule.ts"() {
-    "use strict";
-  }
-});
-
-// server/engines/design/palette-seeds.ts
-var paletteSeeds;
-var init_palette_seeds = __esm({
-  "server/engines/design/palette-seeds.ts"() {
-    "use strict";
-    paletteSeeds = {
-      warm_minimalism: {
-        name: "Warm Minimalism",
-        style: ["modern", "contemporary", "mid", "premium", "ultra"],
-        colors: [
-          { role: "Primary", name: "Natural Linen", brand: "Jotun Fenomastic 10BB 83/008", code: "#EAE6D7", ral: "RAL 1013", finish: "Matte", applyTo: "General Walls" },
-          { role: "Secondary", name: "Warm Canvas", brand: "Jotun Lady 11YY 86/030", code: "#F2EDDB", ral: "RAL 9001", finish: "Eggshell", applyTo: "Passageways" },
-          { role: "Accent", name: "Desert Bronze", brand: "National Paints 7002", code: "#8F7B66", ral: "RAL 8024", finish: "Satin", applyTo: "Niches & Details" },
-          { role: "Feature Wall", name: "Earth Spice", brand: "Jotun Lady 40YY 40/149", code: "#B59E75", ral: "RAL 1011", finish: "Matte", applyTo: "Living / Master Bed" },
-          { role: "Trim/Joinery", name: "Pure Brilliant White", brand: "Dulux", code: "#F4F8F4", ral: "RAL 9010", finish: "Semi-gloss", applyTo: "Doors & Skirting" }
-        ]
-      },
-      cool_minimalism: {
-        name: "Cool Minimalism",
-        style: ["minimalist", "modern", "mid", "premium", "ultra"],
-        colors: [
-          { role: "Primary", name: "Pale Slate", brand: "Jotun Fenomastic 53BG 83/006", code: "#D8DCE0", ral: "RAL 7047", finish: "Matte", applyTo: "General Walls" },
-          { role: "Secondary", name: "Ivory", brand: "Dulux Natural Hints", code: "#F2EDDB", ral: "RAL 9001", finish: "Eggshell", applyTo: "Passageways" },
-          { role: "Accent", name: "Forest Sage", brand: "Jotun Lady 10GG 22/094", code: "#8BA58F", ral: "RAL 6021", finish: "Matte", applyTo: "Study / Bathrooms" },
-          { role: "Feature Wall", name: "Carbon Dusk", brand: "National Paints 5004", code: "#383E42", ral: "RAL 7016", finish: "Matte", applyTo: "Media Wall" },
-          { role: "Trim/Joinery", name: "Pure White", brand: "Jotun Lady", code: "#F4F8F4", ral: "RAL 9010", finish: "Semi-gloss", applyTo: "Doors & Skirting" }
-        ]
-      },
-      arabesque_warmth: {
-        name: "Arabesque Warmth",
-        style: ["arabesque", "classic"],
-        colors: [
-          { role: "Primary", name: "Saffron Cream", brand: "National Paints 1003", code: "#DFBA8D", ral: "RAL 1001", finish: "Matte", applyTo: "General Walls" },
-          { role: "Secondary", name: "Terracotta Blush", brand: "Jotun Lady 5YR 73/040", code: "#CC8870", ral: "RAL 3012", finish: "Eggshell", applyTo: "Dining / Corridors" },
-          { role: "Accent", name: "Emerald Leaf", brand: "Jotun Lady 6GY 25/076", code: "#00875A", ral: "RAL 6029", finish: "Satin", applyTo: "Entry Foyer" },
-          { role: "Feature Wall", name: "Midnight Teal", brand: "Dulux Heritage", code: "#2B5A5C", ral: "RAL 5020", finish: "Matte", applyTo: "Formal Living" },
-          { role: "Trim/Joinery", name: "Gold Ochre", brand: "Jotun Lady", code: "#C89F38", ral: "RAL 1005", finish: "Gloss", applyTo: "Custom Joinery" }
-        ]
-      },
-      classic_marble: {
-        name: "Classic Marble",
-        style: ["classic", "premium", "ultra"],
-        colors: [
-          { role: "Primary", name: "Wimborne White 239", brand: "Farrow & Ball", code: "#F4F8F4", ral: "RAL 9010", finish: "Estate Emulsion", applyTo: "General Walls" },
-          { role: "Secondary", name: "Elephant's Breath 229", brand: "Farrow & Ball", code: "#C5BDB4", ral: "RAL 7044", finish: "Estate Emulsion", applyTo: "Secondary Rooms" },
-          { role: "Accent", name: "Olive Gold", brand: "Jotun Lady 70YY 20/199", code: "#9E976A", ral: "RAL 1020", finish: "Satin", applyTo: "Study / Library" },
-          { role: "Feature Wall", name: "Railings 31", brand: "Farrow & Ball", code: "#2E3234", ral: "RAL 7021", finish: "Estate Emulsion", applyTo: "Formal Reception" },
-          { role: "Trim/Joinery", name: "All White 2005", brand: "Farrow & Ball", code: "#FFFFFF", ral: "RAL 9010", finish: "Gloss", applyTo: "Wainscotting & Trim" }
-        ]
-      }
-    };
-  }
-});
-
-// server/engines/design/color-palette.ts
-var color_palette_exports = {};
-__export(color_palette_exports, {
-  buildColorPalette: () => buildColorPalette
-});
-async function buildColorPalette(project, vocab) {
-  const palette = paletteSeeds[vocab.paletteKey] || paletteSeeds["warm_minimalism"];
-  const prompt = `Why these colors (${palette.colors.map((c) => c.name).join(", ")}) work for ${project.name} in ${project.ctx04Location || "Dubai"} given the ${vocab.styleFamily} direction and ${vocab.materialTier} market position. Please write a 3-sentence stylistic rationale narrative. Do not use asterisks or markdown in your response.`;
-  let rationale = "A curated selection of tones tailored for optimal aesthetic and functional resonance.";
-  try {
-    const result = await invokeLLM({
-      messages: [{ role: "user", content: prompt }]
-    });
-    if (result && result.choices && result.choices.length > 0) {
-      rationale = result.choices[0].message.content;
-    }
-  } catch (err) {
-    console.error("Failed to generate palette rationale:", err);
-  }
-  return {
-    projectId: project.id,
-    organizationId: project.organizationId,
-    paletteKey: vocab.paletteKey,
-    colors: palette.colors,
-    geminiRationale: rationale
-  };
-}
-var init_color_palette = __esm({
-  "server/engines/design/color-palette.ts"() {
-    "use strict";
-    init_palette_seeds();
-    init_llm();
-  }
-});
-
-// server/engines/design/rfq-generator.ts
-var rfq_generator_exports = {};
-__export(rfq_generator_exports, {
-  buildRFQPack: () => buildRFQPack
-});
-function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
-  const rfqItems = [];
-  const getMaterial = (id) => materials.find((m) => m.id === id);
-  let subtotalMin = 0;
-  let subtotalMax = 0;
-  const pushLine = (sectionNo, itemCode, description, unit, quantity, rateMin, rateMax, supplierName) => {
-    const totalMin = quantity * rateMin;
-    const totalMax = quantity * rateMax;
-    subtotalMin += totalMin;
-    subtotalMax += totalMax;
-    rfqItems.push({
-      projectId,
-      organizationId: orgId,
-      sectionNo,
-      itemCode,
-      description,
-      unit,
-      quantity,
-      unitRateAedMin: rateMin,
-      unitRateAedMax: rateMax,
-      totalAedMin: totalMin,
-      totalAedMax: totalMax,
-      supplierName
-    });
-  };
-  const getSchedulesForRoom = (roomId) => finishSchedule.filter((f) => f.roomId === roomId);
-  rooms.forEach((room, idx) => {
-    const floors = getSchedulesForRoom(room.id).filter((f) => f.element === "floor");
-    floors.forEach((floor) => {
-      const mat = getMaterial(floor.materialLibraryId);
-      if (mat) {
-        pushLine(
-          1,
-          `FL-${room.id}`,
-          `Supply & install ${mat.productName} to ${room.name}`,
-          "sqm",
-          room.sqm,
-          Number(mat.priceAedMin || 0),
-          Number(mat.priceAedMax || 0),
-          mat.supplierName
-        );
-      }
-    });
-  });
-  rooms.forEach((room, idx) => {
-    const walls = getSchedulesForRoom(room.id).filter((f) => f.element.startsWith("wall_"));
-    walls.forEach((wall) => {
-      const mat = getMaterial(wall.materialLibraryId);
-      if (mat) {
-        const areaMultiplier = wall.element === "wall_primary" ? 2.5 : 1;
-        const qty = room.sqm * areaMultiplier;
-        pushLine(
-          2,
-          `WL-${room.id}-${wall.element.split("_")[1]}`,
-          `Supply & apply ${mat.productName} to ${room.name} (${wall.element})`,
-          "sqm",
-          qty,
-          Number(mat.priceAedMin || 0),
-          Number(mat.priceAedMax || 0),
-          mat.supplierName
-        );
-      }
-    });
-  });
-  rooms.forEach((room, idx) => {
-    const ceil = getSchedulesForRoom(room.id).find((f) => f.element === "ceiling");
-    if (ceil) {
-      let rateMin = 90;
-      let rateMax = 120;
-      if (ceil.overrideSpec?.includes("Coffered")) {
-        rateMin = 180;
-        rateMax = 250;
-      }
-      if (ceil.overrideSpec?.includes("Cove")) {
-        rateMin = 130;
-        rateMax = 160;
-      }
-      pushLine(
-        3,
-        `CL-${room.id}`,
-        `Supply & install ${ceil.overrideSpec || "Gypsum Ceiling"} to ${room.name}`,
-        "sqm",
-        room.sqm,
-        rateMin,
-        rateMax,
-        "Various Subcontractors"
-      );
-    }
-  });
-  rooms.forEach((room, idx) => {
-    const joinery = getSchedulesForRoom(room.id).find((f) => f.element === "joinery");
-    if (joinery && ["MBR", "BD2", "BD3", "KIT", "LVG"].includes(room.id)) {
-      let lm = room.sqm * 0.2;
-      let rateMin = 1200;
-      let rateMax = 1800;
-      if (room.id === "KIT") {
-        rateMin = 2e3;
-        rateMax = 3500;
-        lm = room.sqm * 0.4;
-      }
-      pushLine(
-        4,
-        `JN-${room.id}`,
-        `Custom Joinery / Wardrobes / Cabinets in ${room.name} (${joinery.overrideSpec})`,
-        "lm",
-        lm,
-        rateMin,
-        rateMax,
-        "Specialist Joinery"
-      );
-    }
-  });
-  const wetRooms = rooms.filter((r) => ["MEN", "BTH", "UTL", "KIT"].includes(r.id));
-  wetRooms.forEach((room) => {
-    const swMat = materials.find((m) => m.category === "sanitaryware");
-    if (swMat) {
-      pushLine(
-        5,
-        `SW-${room.id}`,
-        `Allow for Sanitaryware & Brassware package for ${room.name}`,
-        "set",
-        1,
-        Number(swMat.priceAedMin || 0) * 3,
-        // rough multiplier for a full room set
-        Number(swMat.priceAedMax || 0) * 4,
-        swMat.supplierName
-      );
-    }
-  });
-  rfqItems.push({
-    projectId,
-    organizationId: orgId,
-    sectionNo: 6,
-    itemCode: "PS-01",
-    description: "Contingency (10% of Sections 1-5)",
-    unit: "sum",
-    quantity: 1,
-    unitRateAedMin: subtotalMin * 0.1,
-    unitRateAedMax: subtotalMax * 0.1,
-    totalAedMin: subtotalMin * 0.1,
-    totalAedMax: subtotalMax * 0.1,
-    supplierName: ""
-  });
-  rfqItems.push({
-    projectId,
-    organizationId: orgId,
-    sectionNo: 6,
-    itemCode: "PS-02",
-    description: "DM/DDA Approval Fees (Provisional)",
-    unit: "sum",
-    quantity: 1,
-    unitRateAedMin: 15e3,
-    unitRateAedMax: 15e3,
-    totalAedMin: 15e3,
-    totalAedMax: 15e3,
-    supplierName: "Dubai Authorities"
-  });
-  rfqItems.push({
-    projectId,
-    organizationId: orgId,
-    sectionNo: 6,
-    itemCode: "PS-03",
-    description: "FF&E Procurement Management (Provisional)",
-    unit: "sum",
-    quantity: 1,
-    unitRateAedMin: 25e3,
-    unitRateAedMax: 25e3,
-    totalAedMin: 25e3,
-    totalAedMax: 25e3,
-    supplierName: "Design Consultant"
-  });
-  return rfqItems;
-}
-var init_rfq_generator = __esm({
-  "server/engines/design/rfq-generator.ts"() {
-    "use strict";
-  }
-});
-
-// server/engines/design/dm-compliance.ts
-var dm_compliance_exports = {};
-__export(dm_compliance_exports, {
-  buildDMComplianceChecklist: () => buildDMComplianceChecklist
-});
-function buildDMComplianceChecklist(projectId, orgId, project) {
-  const typology = (project.ctx01Typology || "Residential").toLowerCase();
-  const items = [];
-  const pushItem = (code, desc7, status) => {
-    items.push({
-      code,
-      description: desc7,
-      status,
-      verified: false
-    });
-  };
-  if (typology === "commercial" || typology === "office") {
-    pushItem("DCD-FLS", "Fire Life Safety Code (Dubai Civil Defence) Approval", "Mandatory");
-    pushItem("DDA-ACC", "DDA Accessibility Guidelines (POD compliant WC)", "Mandatory");
-    pushItem("DM-ASH", "ASHRAE Ventilation standard for open plan (Dubai Municipality)", "Mandatory");
-    pushItem("DM-STR", "Structural NOC for internal partitions", "Conditional");
-  } else if (typology === "hospitality") {
-    pushItem("DM-FHS", "F&B Health & Safety (Dubai Municipality Food Safety Dept)", "Mandatory");
-    pushItem("DET-CLS", "Dubai Economy & Tourism (DET) Classification requirements", "Mandatory");
-    pushItem("DCD-FLS", "Fire Life Safety Code (Dubai Civil Defence)", "Mandatory");
-    pushItem("SIRA-CCTV", "SIRA CCTV Layout Approval", "Mandatory");
-  } else {
-    pushItem("DEV-NOC", "Trakhees / Master Developer NOC (e.g. Nakheel, Emaar, DP)", "Mandatory");
-    pushItem("DEWA-LV", "DEWA minor load variation approval", "Conditional");
-    pushItem("DM-MOD", "Dubai Municipality Modification Permit", "Mandatory");
-  }
-  return {
-    projectId,
-    organizationId: orgId,
-    items
-  };
-}
-var init_dm_compliance = __esm({
-  "server/engines/design/dm-compliance.ts"() {
-    "use strict";
-  }
-});
-
-// server/engines/board-composer.ts
-var board_composer_exports = {};
-__export(board_composer_exports, {
-  computeBoardSummary: () => computeBoardSummary,
-  generateRfqLines: () => generateRfqLines,
-  recommendMaterials: () => recommendMaterials
-});
-function computeBoardSummary(items) {
-  const tierDist = {};
-  const catDist = {};
-  let costLow = 0;
-  let costHigh = 0;
-  let maxLead = 0;
-  const criticalItems = [];
-  for (const item of items) {
-    tierDist[item.tier] = (tierDist[item.tier] || 0) + 1;
-    catDist[item.category] = (catDist[item.category] || 0) + 1;
-    costLow += item.costLow;
-    costHigh += item.costHigh;
-    if (item.leadTimeDays > maxLead) maxLead = item.leadTimeDays;
-    if (item.leadTimeBand === "critical" || item.leadTimeDays >= 90) {
-      criticalItems.push(item.name);
-    }
-  }
-  return {
-    totalItems: items.length,
-    estimatedCostLow: costLow,
-    estimatedCostHigh: costHigh,
-    currency: "AED",
-    longestLeadTimeDays: maxLead,
-    criticalPathItems: criticalItems,
-    tierDistribution: tierDist,
-    categoryDistribution: catDist
-  };
-}
-function generateRfqLines(items) {
-  return items.map((item, idx) => ({
-    lineNo: idx + 1,
-    materialName: item.name,
-    category: item.category,
-    specification: `${item.tier} grade \u2014 ${item.name}`,
-    quantity: item.quantity ? `${item.quantity}` : "TBD",
-    unit: item.unitOfMeasure || item.costUnit.replace("AED/", ""),
-    estimatedUnitCostLow: item.costLow,
-    estimatedUnitCostHigh: item.costHigh,
-    leadTimeDays: item.leadTimeDays,
-    supplierSuggestion: item.supplierName,
-    notes: item.notes || ""
-  }));
-}
-function recommendMaterials(catalog, projectTier, maxItems = 10) {
-  const tierMap = {
-    Mid: ["economy", "mid"],
-    "Upper-mid": ["mid", "premium"],
-    Luxury: ["premium", "luxury"],
-    "Ultra-luxury": ["luxury", "ultra_luxury"]
-  };
-  const allowedTiers = tierMap[projectTier] || ["mid", "premium"];
-  const scored = catalog.filter((m) => allowedTiers.includes(m.tier)).map((m) => ({
-    materialId: m.id,
-    name: m.name,
-    category: m.category,
-    tier: m.tier,
-    costLow: Number(m.typicalCostLow) || 0,
-    costHigh: Number(m.typicalCostHigh) || 0,
-    costUnit: m.costUnit || "AED/unit",
-    leadTimeDays: m.leadTimeDays || 30,
-    leadTimeBand: m.leadTimeBand || "medium",
-    supplierName: m.supplierName || "TBD"
-  }));
-  const byCategory = {};
-  for (const item of scored) {
-    if (!byCategory[item.category]) byCategory[item.category] = [];
-    byCategory[item.category].push(item);
-  }
-  const result = [];
-  for (const [, items] of Object.entries(byCategory)) {
-    result.push(...items.slice(0, 2));
-  }
-  return result.slice(0, maxItems);
-}
-var init_board_composer = __esm({
-  "server/engines/board-composer.ts"() {
-    "use strict";
-  }
-});
-
-// server/engines/board-pdf.ts
-var board_pdf_exports = {};
-__export(board_pdf_exports, {
-  generateBoardPdfHtml: () => generateBoardPdfHtml
-});
-function formatDate2() {
-  return (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  });
-}
-function tierColor(tier) {
-  const map = {
-    economy: "#6b7280",
-    mid: "#3b82f6",
-    premium: "#8b5cf6",
-    luxury: "#d97706",
-    ultra_luxury: "#e11d48"
-  };
-  return map[tier] || "#6b7280";
-}
-function leadBadgeColor(band) {
-  const map = {
-    short: "#16a34a",
-    medium: "#ca8a04",
-    long: "#ea580c",
-    critical: "#dc2626"
-  };
-  return map[band] || "#ca8a04";
-}
-function generateBoardPdfHtml(input) {
-  const { boardName, projectName, items, summary, rfqLines } = input;
-  const date = formatDate2();
-  const watermark = `MYR-BRD-${Date.now().toString(36)}`;
-  const tileCards = items.map((item, idx) => `
-    <div class="tile-card">
-      <div class="tile-header">
-        <span class="tile-num">${idx + 1}</span>
-        <span class="tile-name">${item.name}</span>
-        <span class="tier-badge" style="background:${tierColor(item.tier)}">${item.tier.replace("_", " ")}</span>
-      </div>
-      <div class="tile-body">
-        <div class="tile-row"><span class="tile-label">Category</span><span>${item.category}</span></div>
-        <div class="tile-row"><span class="tile-label">Cost Range</span><span>${item.costLow.toLocaleString()} \u2013 ${item.costHigh.toLocaleString()} ${item.costUnit}</span></div>
-        <div class="tile-row"><span class="tile-label">Lead Time</span><span style="color:${leadBadgeColor(item.leadTimeBand)}">${item.leadTimeDays}d (${item.leadTimeBand})</span></div>
-        <div class="tile-row"><span class="tile-label">Supplier</span><span>${item.supplierName}</span></div>
-        ${item.quantity ? `<div class="tile-row"><span class="tile-label">Quantity</span><span>${item.quantity} ${item.unitOfMeasure || ""}</span></div>` : ""}
-        ${item.costBandOverride ? `<div class="tile-row"><span class="tile-label">Cost Band</span><span class="cost-band-badge">${item.costBandOverride}</span></div>` : ""}
-        ${item.specNotes ? `<div class="tile-spec">${item.specNotes}</div>` : ""}
-        ${item.notes ? `<div class="tile-notes">${item.notes}</div>` : ""}
-      </div>
-    </div>
-  `).join("");
-  const rfqRows = rfqLines.map((line) => `
-    <tr>
-      <td>${line.lineNo}</td>
-      <td class="font-medium">${line.materialName}</td>
-      <td>${line.category}</td>
-      <td>${line.specification}</td>
-      <td>${line.quantity}</td>
-      <td>${line.unit}</td>
-      <td class="text-right">${line.estimatedUnitCostLow.toLocaleString()}</td>
-      <td class="text-right">${line.estimatedUnitCostHigh.toLocaleString()}</td>
-      <td>${line.leadTimeDays}d</td>
-      <td>${line.supplierSuggestion}</td>
-      <td>${line.notes}</td>
-    </tr>
-  `).join("");
-  const tierDistRows = Object.entries(summary.tierDistribution).map(([tier, count]) => `
-    <div class="dist-item">
-      <span class="dist-badge" style="background:${tierColor(tier)}">${tier.replace("_", " ")}</span>
-      <span class="dist-count">${count}</span>
-    </div>
-  `).join("");
-  const catDistRows = Object.entries(summary.categoryDistribution).map(([cat, count]) => `
-    <div class="dist-item">
-      <span class="dist-label">${cat}</span>
-      <span class="dist-count">${count}</span>
-    </div>
-  `).join("");
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  @page { size: A4 landscape; margin: 15mm 12mm; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.5; font-size: 10px; }
-
-  .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 70vh; text-align: center; }
-  .cover .logo { font-size: 32px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 24px; }
-  .cover h1 { font-size: 24px; color: #0f3460; margin-bottom: 6px; }
-  .cover h2 { font-size: 14px; color: #4ecdc4; font-weight: 400; margin-bottom: 16px; }
-  .cover .project { font-size: 18px; color: #1a1a2e; font-weight: 600; }
-  .cover .date { font-size: 11px; color: #666; margin-top: 12px; }
-  .cover .confidential { font-size: 9px; color: #999; margin-top: 32px; text-transform: uppercase; letter-spacing: 2px; }
-  .cover .watermark { font-size: 8px; color: #ccc; margin-top: 6px; font-family: monospace; }
-
-  h2 { font-size: 14px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 4px; margin: 20px 0 10px; }
-  h3 { font-size: 12px; color: #0f3460; margin: 14px 0 6px; }
-
-  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
-  .summary-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px; text-align: center; }
-  .summary-card .label { font-size: 8px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
-  .summary-card .value { font-size: 20px; font-weight: 700; color: #0f3460; margin: 2px 0; }
-  .summary-card .sub { font-size: 9px; color: #888; }
-
-  .tile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
-  .tile-card { border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; page-break-inside: avoid; }
-  .tile-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0; }
-  .tile-num { font-size: 10px; font-weight: 700; color: #0f3460; background: #e8f4fd; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .tile-name { font-size: 10px; font-weight: 600; flex: 1; }
-  .tier-badge { font-size: 8px; color: #fff; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .tile-body { padding: 8px 10px; }
-  .tile-row { display: flex; justify-content: space-between; font-size: 9px; padding: 2px 0; border-bottom: 1px dotted #f0f0f0; }
-  .tile-label { color: #666; font-weight: 500; }
-  .tile-spec { font-size: 9px; color: #0f3460; background: #e8f4fd; padding: 4px 6px; border-radius: 3px; margin-top: 4px; font-style: italic; }
-  .tile-notes { font-size: 8px; color: #888; margin-top: 3px; }
-  .cost-band-badge { background: #fef3c7; color: #92400e; padding: 0 4px; border-radius: 2px; font-weight: 600; }
-
-  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9px; }
-  th { background: #0f3460; color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; }
-  td { padding: 5px 8px; border-bottom: 1px solid #e0e0e0; }
-  tr:nth-child(even) td { background: #f8f9fa; }
-  .text-right { text-align: right; }
-  .font-medium { font-weight: 600; }
-
-  .dist-grid { display: flex; gap: 16px; margin: 8px 0; flex-wrap: wrap; }
-  .dist-item { display: flex; align-items: center; gap: 6px; }
-  .dist-badge { font-size: 8px; color: #fff; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; }
-  .dist-label { font-size: 9px; color: #444; }
-  .dist-count { font-size: 11px; font-weight: 700; color: #0f3460; }
-
-  .critical-list { margin: 8px 0; }
-  .critical-item { background: #fef2f2; border-left: 3px solid #dc2626; padding: 4px 8px; margin: 3px 0; font-size: 9px; color: #991b1b; }
-
-  .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e0e0e0; font-size: 8px; color: #999; text-align: center; }
-  .section { page-break-inside: avoid; margin-bottom: 16px; }
-</style>
-</head>
-<body>
-
-<div class="cover">
-  <div class="logo">MIYAR</div>
-  <h1>Material Board</h1>
-  <h2>${boardName}</h2>
-  <div class="project">${projectName}</div>
-  <div class="date">${date}</div>
-  <div class="confidential">Confidential \u2014 For Internal Use Only</div>
-  <div class="watermark">Document ID: ${watermark}</div>
-</div>
-
-<div class="section">
-  <h2>Board Summary</h2>
-  <div class="summary-grid">
-    <div class="summary-card">
-      <div class="label">Total Items</div>
-      <div class="value">${summary.totalItems}</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">Estimated Cost Range</div>
-      <div class="value" style="font-size:14px">${summary.estimatedCostLow.toLocaleString()} \u2013 ${summary.estimatedCostHigh.toLocaleString()}</div>
-      <div class="sub">${summary.currency}</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">Longest Lead Time</div>
-      <div class="value">${summary.longestLeadTimeDays}d</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">Critical Path Items</div>
-      <div class="value">${summary.criticalPathItems.length}</div>
-    </div>
-  </div>
-
-  <h3>Tier Distribution</h3>
-  <div class="dist-grid">${tierDistRows}</div>
-
-  <h3>Category Distribution</h3>
-  <div class="dist-grid">${catDistRows}</div>
-
-  ${summary.criticalPathItems.length > 0 ? `
-  <h3>Critical Path Items</h3>
-  <div class="critical-list">
-    ${summary.criticalPathItems.map((item) => `<div class="critical-item">${item}</div>`).join("")}
-  </div>
-  ` : ""}
-</div>
-
-<div class="section">
-  <h2>Material Tiles</h2>
-  <div class="tile-grid">
-    ${tileCards}
-  </div>
-</div>
-
-<div class="section">
-  <h2>RFQ-Ready Procurement Schedule</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Material</th>
-        <th>Category</th>
-        <th>Specification</th>
-        <th>Qty</th>
-        <th>Unit</th>
-        <th class="text-right">Cost Low (AED)</th>
-        <th class="text-right">Cost High (AED)</th>
-        <th>Lead</th>
-        <th>Supplier</th>
-        <th>Notes</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rfqRows}
-    </tbody>
-  </table>
-</div>
-
-<div class="footer">
-  MIYAR Decision Intelligence Platform \u2014 Material Board Export \u2014 ${date} \u2014 ${watermark}<br/>
-  This document is auto-generated. All cost estimates are indicative and subject to supplier confirmation.
-</div>
-
-</body>
-</html>`;
-}
-var init_board_pdf = __esm({
-  "server/engines/board-pdf.ts"() {
-    "use strict";
-  }
-});
-
-// api-src/index.ts
-import express from "express";
-import { createExpressMiddleware } from "@trpc/server/adapters/express";
-
-// server/_core/oauth.ts
-function registerOAuthRoutes(app2) {
-}
-
-// server/_core/systemRouter.ts
-import { z } from "zod";
-
-// server/_core/notification.ts
-import { TRPCError } from "@trpc/server";
-var TITLE_MAX_LENGTH = 1200;
-var CONTENT_MAX_LENGTH = 2e4;
-var trimValue = (value) => value.trim();
-var isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
-var buildEndpointUrl = () => {
-  return "https://api.resend.com/emails";
-};
-var validatePayload = (input) => {
-  if (!isNonEmptyString(input.title)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Notification title is required."
-    });
-  }
-  if (!isNonEmptyString(input.content)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Notification content is required."
-    });
-  }
-  const title = trimValue(input.title);
-  const content = trimValue(input.content);
-  if (title.length > TITLE_MAX_LENGTH) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Notification title must be at most ${TITLE_MAX_LENGTH} characters.`
-    });
-  }
-  if (content.length > CONTENT_MAX_LENGTH) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Notification content must be at most ${CONTENT_MAX_LENGTH} characters.`
-    });
-  }
-  return { title, content };
-};
-async function notifyOwner(payload) {
-  const { title, content } = validatePayload(payload);
-  if (!process.env.RESEND_API_KEY) {
-    console.log(`[Notification Mock] Would have sent email to owner.`);
-    console.log(`[Notification Mock] Title: ${title}`);
-    console.log(`[Notification Mock] Content: ${content}`);
-    return true;
-  }
-  const endpoint = buildEndpointUrl();
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        from: "miyar-v2 <onboarding@resend.dev>",
-        to: ["admin@example.com"],
-        // Hardcoded for demo/handover
-        subject: title,
-        html: `<p>${content}</p>`
-      })
-    });
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      console.warn(
-        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
-      );
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.warn("[Notification] Error calling notification service:", error);
-    return false;
-  }
-}
-
-// shared/const.ts
-var COOKIE_NAME = "app_session_id";
-var ONE_YEAR_MS = 1e3 * 60 * 60 * 24 * 365;
-var UNAUTHED_ERR_MSG = "Please login (10001)";
-var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
-
-// server/_core/trpc.ts
-import { initTRPC, TRPCError as TRPCError2 } from "@trpc/server";
-import superjson from "superjson";
-var t = initTRPC.context().create({
-  transformer: superjson
-});
-var router = t.router;
-var publicProcedure = t.procedure;
-var requireUser = t.middleware(async (opts) => {
-  const { ctx, next } = opts;
-  if (!ctx.user) {
-    throw new TRPCError2({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
-  }
-  return next({
-    ctx: {
-      ...ctx,
-      user: ctx.user
-    }
-  });
-});
-var protectedProcedure = t.procedure.use(requireUser);
-var adminProcedure = t.procedure.use(
-  t.middleware(async (opts) => {
-    const { ctx, next } = opts;
-    if (!ctx.user || ctx.user.role !== "admin") {
-      throw new TRPCError2({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
-    }
-    return next({
-      ctx: {
-        ...ctx,
-        user: ctx.user
-      }
-    });
-  })
-);
-var requireOrg = t.middleware(async (opts) => {
-  const { ctx, next } = opts;
-  if (!ctx.user) {
-    throw new TRPCError2({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
-  }
-  if (!ctx.user.orgId) {
-    throw new TRPCError2({ code: "FORBIDDEN", message: "User does not belong to an organization" });
-  }
-  return next({
-    ctx: {
-      ...ctx,
-      user: ctx.user,
-      orgId: ctx.user.orgId
-    }
-  });
-});
-var orgProcedure = t.procedure.use(requireOrg);
-
-// server/_core/systemRouter.ts
-var systemRouter = router({
-  health: publicProcedure.input(
-    z.object({
-      timestamp: z.number().min(0, "timestamp cannot be negative")
-    })
-  ).query(() => ({
-    ok: true
-  })),
-  notifyOwner: adminProcedure.input(
-    z.object({
-      title: z.string().min(1, "title is required"),
-      content: z.string().min(1, "content is required")
-    })
-  ).mutation(async ({ input }) => {
-    const delivered = await notifyOwner(input);
-    return {
-      success: delivered
-    };
-  })
-});
-
-// server/routers/auth.ts
-import { z as z2 } from "zod";
-
-// server/db.ts
-import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-import mysql from "mysql2";
-
 // drizzle/schema.ts
 import {
   int,
@@ -1729,1433 +20,1447 @@ import {
   boolean,
   json
 } from "drizzle-orm/mysql-core";
-var users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  password: varchar("password", { length: 255 }),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-  orgId: int("orgId")
-  // added in V7 for backward compat later to be notNull
-});
-var organizations = mysqlTable("organizations", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  slug: varchar("slug", { length: 255 }).notNull().unique(),
-  domain: varchar("domain", { length: 255 }),
-  plan: mysqlEnum("plan", ["free", "pro", "enterprise"]).default("free").notNull(),
-  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var organizationMembers = mysqlTable("organization_members", {
-  id: int("id").autoincrement().primaryKey(),
-  orgId: int("orgId").notNull(),
-  userId: int("userId").notNull(),
-  role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var organizationInvites = mysqlTable("organization_invites", {
-  id: int("id").autoincrement().primaryKey(),
-  orgId: int("orgId").notNull(),
-  email: varchar("email", { length: 320 }).notNull(),
-  role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
-  token: varchar("token", { length: 255 }).notNull().unique(),
-  expiresAt: timestamp("expiresAt").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var modelVersions = mysqlTable("model_versions", {
-  id: int("id").autoincrement().primaryKey(),
-  versionTag: varchar("versionTag", { length: 32 }).notNull().unique(),
-  dimensionWeights: json("dimensionWeights").notNull(),
-  variableWeights: json("variableWeights").notNull(),
-  penaltyConfig: json("penaltyConfig").notNull(),
-  isActive: boolean("isActive").default(false).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  createdBy: int("createdBy"),
-  notes: text("notes")
-});
-var benchmarkVersions = mysqlTable("benchmark_versions", {
-  id: int("id").autoincrement().primaryKey(),
-  versionTag: varchar("versionTag", { length: 64 }).notNull().unique(),
-  description: text("description"),
-  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
-  publishedAt: timestamp("publishedAt"),
-  publishedBy: int("publishedBy"),
-  recordCount: int("recordCount").default(0),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  createdBy: int("createdBy")
-});
-var benchmarkCategories = mysqlTable("benchmark_categories", {
-  id: int("id").autoincrement().primaryKey(),
-  category: mysqlEnum("category", [
-    "materials",
-    "finishes",
-    "ffe",
-    "procurement",
-    "cost_bands",
-    "tier_definitions",
-    "style_families",
-    "brand_archetypes",
-    "risk_factors",
-    "lead_times"
-  ]).notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  market: varchar("market", { length: 64 }).default("UAE").notNull(),
-  submarket: varchar("submarket", { length: 64 }).default("Dubai"),
-  projectClass: mysqlEnum("projectClass", ["mid", "upper", "luxury", "ultra_luxury"]).notNull(),
-  validFrom: timestamp("validFrom"),
-  validTo: timestamp("validTo"),
-  confidenceLevel: mysqlEnum("confidenceLevel", ["high", "medium", "low"]).default("medium"),
-  sourceType: mysqlEnum("sourceType", ["manual", "admin", "imported", "curated"]).default("admin"),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  data: json("data").notNull(),
-  versionTag: varchar("versionTag", { length: 64 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  createdBy: int("createdBy")
-});
-var projects = mysqlTable("projects", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  orgId: int("orgId"),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  status: mysqlEnum("status", [
-    "draft",
-    "ready",
-    "processing",
-    "evaluated",
-    "locked"
-  ]).default("draft").notNull(),
-  // Approval gate (V2.8)
-  approvalState: mysqlEnum("approvalState", [
-    "draft",
-    "review",
-    "approved_rfq",
-    "approved_marketing"
-  ]).default("draft"),
-  // Context variables
-  ctx01Typology: mysqlEnum("ctx01Typology", [
-    "Residential",
-    "Mixed-use",
-    "Hospitality",
-    "Office"
-  ]).default("Residential"),
-  ctx02Scale: mysqlEnum("ctx02Scale", ["Small", "Medium", "Large"]).default(
-    "Medium"
-  ),
-  ctx03Gfa: decimal("ctx03Gfa", { precision: 12, scale: 2 }),
-  ctx04Location: mysqlEnum("ctx04Location", [
-    "Prime",
-    "Secondary",
-    "Emerging"
-  ]).default("Secondary"),
-  ctx05Horizon: mysqlEnum("ctx05Horizon", [
-    "0-12m",
-    "12-24m",
-    "24-36m",
-    "36m+"
-  ]).default("12-24m"),
-  // Strategy variables (1-5)
-  str01BrandClarity: int("str01BrandClarity").default(3),
-  str02Differentiation: int("str02Differentiation").default(3),
-  str03BuyerMaturity: int("str03BuyerMaturity").default(3),
-  // Market variables
-  mkt01Tier: mysqlEnum("mkt01Tier", [
-    "Mid",
-    "Upper-mid",
-    "Luxury",
-    "Ultra-luxury"
-  ]).default("Upper-mid"),
-  mkt02Competitor: int("mkt02Competitor").default(3),
-  mkt03Trend: int("mkt03Trend").default(3),
-  // Financial variables
-  fin01BudgetCap: decimal("fin01BudgetCap", { precision: 10, scale: 2 }),
-  fin02Flexibility: int("fin02Flexibility").default(3),
-  fin03ShockTolerance: int("fin03ShockTolerance").default(3),
-  fin04SalesPremium: int("fin04SalesPremium").default(3),
-  // Design variables
-  des01Style: mysqlEnum("des01Style", [
-    "Modern",
-    "Contemporary",
-    "Minimal",
-    "Classic",
-    "Fusion",
-    "Other"
-  ]).default("Modern"),
-  des02MaterialLevel: int("des02MaterialLevel").default(3),
-  des03Complexity: int("des03Complexity").default(3),
-  des04Experience: int("des04Experience").default(3),
-  des05Sustainability: int("des05Sustainability").default(2),
-  // Execution variables
-  exe01SupplyChain: int("exe01SupplyChain").default(3),
-  exe02Contractor: int("exe02Contractor").default(3),
-  exe03Approvals: int("exe03Approvals").default(2),
-  exe04QaMaturity: int("exe04QaMaturity").default(3),
-  // Add-on variables
-  add01SampleKit: boolean("add01SampleKit").default(false),
-  add02PortfolioMode: boolean("add02PortfolioMode").default(false),
-  add03DashboardExport: boolean("add03DashboardExport").default(true),
-  modelVersionId: int("modelVersionId"),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lockedAt: timestamp("lockedAt")
-});
-var directionCandidates = mysqlTable("direction_candidates", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  isPrimary: boolean("isPrimary").default(false),
-  des01Style: mysqlEnum("des01Style", [
-    "Modern",
-    "Contemporary",
-    "Minimal",
-    "Classic",
-    "Fusion",
-    "Other"
-  ]),
-  des02MaterialLevel: int("des02MaterialLevel"),
-  des03Complexity: int("des03Complexity"),
-  des04Experience: int("des04Experience"),
-  fin01BudgetCap: decimal("fin01BudgetCap", { precision: 10, scale: 2 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var scoreMatrices = mysqlTable("score_matrices", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  directionId: int("directionId"),
-  modelVersionId: int("modelVersionId").notNull(),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  saScore: decimal("saScore", { precision: 6, scale: 2 }).notNull(),
-  ffScore: decimal("ffScore", { precision: 6, scale: 2 }).notNull(),
-  mpScore: decimal("mpScore", { precision: 6, scale: 2 }).notNull(),
-  dsScore: decimal("dsScore", { precision: 6, scale: 2 }).notNull(),
-  erScore: decimal("erScore", { precision: 6, scale: 2 }).notNull(),
-  compositeScore: decimal("compositeScore", {
-    precision: 6,
-    scale: 2
-  }).notNull(),
-  riskScore: decimal("riskScore", { precision: 6, scale: 2 }).notNull(),
-  rasScore: decimal("rasScore", { precision: 6, scale: 2 }).notNull(),
-  confidenceScore: decimal("confidenceScore", {
-    precision: 6,
-    scale: 2
-  }).notNull(),
-  decisionStatus: mysqlEnum("decisionStatus", [
-    "validated",
-    "conditional",
-    "not_validated"
-  ]).notNull(),
-  penalties: json("penalties"),
-  riskFlags: json("riskFlags"),
-  dimensionWeights: json("dimensionWeights").notNull(),
-  variableContributions: json("variableContributions").notNull(),
-  conditionalActions: json("conditionalActions"),
-  inputSnapshot: json("inputSnapshot").notNull(),
-  budgetFitMethod: varchar("budgetFitMethod", { length: 32 }),
-  computedAt: timestamp("computedAt").defaultNow().notNull()
-});
-var scenarios = mysqlTable("scenarios", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  orgId: int("orgId"),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  variableOverrides: json("variableOverrides"),
-  isTemplate: boolean("isTemplate").default(false),
-  templateKey: varchar("templateKey", { length: 64 }),
-  scoreMatrixId: int("scoreMatrixId"),
-  rasScore: decimal("rasScore", { precision: 6, scale: 2 }),
-  isDominant: boolean("isDominant").default(false),
-  stabilityScore: decimal("stabilityScore", { precision: 6, scale: 2 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var benchmarkData = mysqlTable("benchmark_data", {
-  id: int("id").autoincrement().primaryKey(),
-  typology: varchar("typology", { length: 64 }).notNull(),
-  location: varchar("location", { length: 64 }).notNull(),
-  marketTier: varchar("marketTier", { length: 64 }).notNull(),
-  materialLevel: int("materialLevel").notNull(),
-  roomType: varchar("roomType", { length: 64 }).default("General"),
-  costPerSqftLow: decimal("costPerSqftLow", { precision: 10, scale: 2 }),
-  costPerSqftMid: decimal("costPerSqftMid", { precision: 10, scale: 2 }),
-  costPerSqftHigh: decimal("costPerSqftHigh", { precision: 10, scale: 2 }),
-  avgSellingPrice: decimal("avgSellingPrice", { precision: 10, scale: 2 }),
-  absorptionRate: decimal("absorptionRate", { precision: 6, scale: 4 }),
-  competitiveDensity: int("competitiveDensity"),
-  differentiationIndex: decimal("differentiationIndex", { precision: 6, scale: 4 }),
-  complexityMultiplier: decimal("complexityMultiplier", { precision: 6, scale: 4 }),
-  timelineRiskMultiplier: decimal("timelineRiskMultiplier", { precision: 6, scale: 4 }),
-  buyerPreferenceWeights: json("buyerPreferenceWeights"),
-  sourceType: mysqlEnum("sourceType", [
-    "synthetic",
-    "client_provided",
-    "curated"
-  ]).default("synthetic"),
-  sourceNote: text("sourceNote"),
-  dataYear: int("dataYear"),
-  region: varchar("region", { length: 64 }).default("UAE"),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var projectIntelligence = mysqlTable("project_intelligence", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  scoreMatrixId: int("scoreMatrixId").notNull(),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  modelVersionId: int("modelVersionId"),
-  costDeltaVsBenchmark: decimal("costDeltaVsBenchmark", { precision: 10, scale: 2 }),
-  uniquenessIndex: decimal("uniquenessIndex", { precision: 6, scale: 4 }),
-  feasibilityFlags: json("feasibilityFlags"),
-  reworkRiskIndex: decimal("reworkRiskIndex", { precision: 6, scale: 4 }),
-  procurementComplexity: decimal("procurementComplexity", { precision: 6, scale: 4 }),
-  tierPercentile: decimal("tierPercentile", { precision: 6, scale: 4 }),
-  styleFamily: varchar("styleFamily", { length: 64 }),
-  costBand: varchar("costBand", { length: 32 }),
-  inputSnapshot: json("inputSnapshot"),
-  scoreSnapshot: json("scoreSnapshot"),
-  computedAt: timestamp("computedAt").defaultNow().notNull()
-});
-var reportInstances = mysqlTable("report_instances", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  scoreMatrixId: int("scoreMatrixId").notNull(),
-  reportType: mysqlEnum("reportType", [
-    "executive_pack",
-    "full_technical",
-    "tender_brief",
-    "executive_decision_pack",
-    "design_brief_rfq",
-    "marketing_starter",
-    "validation_summary",
-    "design_brief",
-    "rfq_pack",
-    "full_report",
-    "marketing_prelaunch"
-  ]).notNull(),
-  fileUrl: text("fileUrl"),
-  bundleUrl: text("bundleUrl"),
-  content: json("content"),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  modelVersionId: int("modelVersionId"),
-  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
-  generatedBy: int("generatedBy")
-});
-var roiConfigs = mysqlTable("roi_configs", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 128 }).notNull(),
-  isActive: boolean("isActive").default(false).notNull(),
-  hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("350").notNull(),
-  reworkCostPct: decimal("reworkCostPct", { precision: 6, scale: 4 }).default("0.12").notNull(),
-  tenderIterationCost: decimal("tenderIterationCost", { precision: 10, scale: 2 }).default("25000").notNull(),
-  designCycleCost: decimal("designCycleCost", { precision: 10, scale: 2 }).default("45000").notNull(),
-  budgetVarianceMultiplier: decimal("budgetVarianceMultiplier", { precision: 6, scale: 4 }).default("0.08").notNull(),
-  timeAccelerationWeeks: int("timeAccelerationWeeks").default(6),
-  conservativeMultiplier: decimal("conservativeMultiplier", { precision: 6, scale: 4 }).default("0.60").notNull(),
-  aggressiveMultiplier: decimal("aggressiveMultiplier", { precision: 6, scale: 4 }).default("1.40").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  createdBy: int("createdBy")
-});
-var webhookConfigs = mysqlTable("webhook_configs", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  url: text("url").notNull(),
-  secret: varchar("secret", { length: 255 }),
-  events: json("events").notNull(),
-  fieldMapping: json("fieldMapping"),
-  isActive: boolean("isActive").default(true).notNull(),
-  lastTriggeredAt: timestamp("lastTriggeredAt"),
-  lastStatus: int("lastStatus"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  createdBy: int("createdBy")
-});
-var projectAssets = mysqlTable("project_assets", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  filename: varchar("filename", { length: 512 }).notNull(),
-  mimeType: varchar("mimeType", { length: 128 }).notNull(),
-  sizeBytes: int("sizeBytes").notNull(),
-  storagePath: text("storagePath").notNull(),
-  storageUrl: text("storageUrl"),
-  checksum: varchar("checksum", { length: 128 }),
-  uploadedBy: int("uploadedBy").notNull(),
-  category: mysqlEnum("category", [
-    "brief",
-    "brand",
-    "budget",
-    "competitor",
-    "inspiration",
-    "material",
-    "sales",
-    "legal",
-    "mood_image",
-    "material_board",
-    "marketing_hero",
-    "generated",
-    "other"
-  ]).default("other").notNull(),
-  tags: json("tags"),
-  // string[]
-  notes: text("notes"),
-  isClientVisible: boolean("isClientVisible").default(true).notNull(),
-  uploadedAt: timestamp("uploadedAt").defaultNow().notNull()
-});
-var assetLinks = mysqlTable("asset_links", {
-  id: int("id").autoincrement().primaryKey(),
-  assetId: int("assetId").notNull(),
-  linkType: mysqlEnum("linkType", [
-    "evaluation",
-    "report",
-    "scenario",
-    "material_board",
-    "design_brief",
-    "visual"
-  ]).notNull(),
-  linkId: int("linkId").notNull(),
-  // ID of the linked entity
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var designBriefs = mysqlTable("design_briefs", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  scenarioId: int("scenarioId"),
-  // optional: brief for a specific scenario
-  version: int("version").default(1).notNull(),
-  // 7 sections as JSON
-  projectIdentity: json("projectIdentity").notNull(),
-  positioningStatement: text("positioningStatement").notNull(),
-  styleMood: json("styleMood").notNull(),
-  materialGuidance: json("materialGuidance").notNull(),
-  budgetGuardrails: json("budgetGuardrails").notNull(),
-  procurementConstraints: json("procurementConstraints").notNull(),
-  deliverablesChecklist: json("deliverablesChecklist").notNull(),
-  // Metadata
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var generatedVisuals = mysqlTable("generated_visuals", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  scenarioId: int("scenarioId"),
-  type: mysqlEnum("type", ["mood", "mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette", "hero"]).notNull(),
-  promptJson: json("promptJson").notNull(),
-  modelVersion: varchar("modelVersion", { length: 64 }).default("nano-banana-v1"),
-  imageAssetId: int("imageAssetId"),
-  // FK to project_assets
-  status: mysqlEnum("status", ["pending", "generating", "completed", "failed"]).default("pending").notNull(),
-  errorMessage: text("errorMessage"),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var designTrends = mysqlTable("design_trends", {
-  id: int("id").autoincrement().primaryKey(),
-  trendName: varchar("trendName", { length: 255 }).notNull(),
-  trendCategory: mysqlEnum("trendCategory", [
-    "style",
-    "material",
-    "color",
-    "layout",
-    "technology",
-    "sustainability",
-    "other"
-  ]).notNull(),
-  confidenceLevel: mysqlEnum("confidenceLevel", ["emerging", "established", "declining"]).default("emerging").notNull(),
-  sourceUrl: text("sourceUrl"),
-  sourceRegistryId: int("sourceRegistryId"),
-  description: text("description"),
-  relatedMaterials: json("relatedMaterials"),
-  // string[] of material names
-  styleClassification: varchar("styleClassification", { length: 128 }),
-  // modern, classical, biophilic, japandi, etc.
-  region: varchar("region", { length: 64 }).default("UAE"),
-  firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
-  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
-  mentionCount: int("mentionCount").default(1).notNull(),
-  runId: varchar("runId", { length: 64 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var materialBoards = mysqlTable("material_boards", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  scenarioId: int("scenarioId"),
-  boardName: varchar("boardName", { length: 255 }).notNull(),
-  boardJson: json("boardJson").notNull(),
-  // materials/finishes/ff&e items
-  boardImageAssetId: int("boardImageAssetId"),
-  // FK to project_assets
-  benchmarkVersionId: int("benchmarkVersionId"),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var materialsCatalog = mysqlTable("materials_catalog", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  category: mysqlEnum("category", [
-    "tile",
-    "stone",
-    "wood",
-    "metal",
-    "fabric",
-    "glass",
-    "paint",
-    "wallpaper",
-    "lighting",
-    "furniture",
-    "fixture",
-    "accessory",
-    "other"
-  ]).notNull(),
-  tier: mysqlEnum("tier", ["economy", "mid", "premium", "luxury", "ultra_luxury"]).notNull(),
-  typicalCostLow: decimal("typicalCostLow", { precision: 10, scale: 2 }),
-  typicalCostHigh: decimal("typicalCostHigh", { precision: 10, scale: 2 }),
-  costUnit: varchar("costUnit", { length: 32 }).default("AED/sqm"),
-  leadTimeDays: int("leadTimeDays"),
-  leadTimeBand: mysqlEnum("leadTimeBand", ["short", "medium", "long", "critical"]).default("medium"),
-  regionAvailability: json("regionAvailability"),
-  // string[]
-  supplierName: varchar("supplierName", { length: 255 }),
-  supplierContact: varchar("supplierContact", { length: 255 }),
-  supplierUrl: text("supplierUrl"),
-  imageUrl: text("imageUrl"),
-  notes: text("notes"),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var materialsToBoards = mysqlTable("materials_to_boards", {
-  id: int("id").autoincrement().primaryKey(),
-  boardId: int("boardId").notNull(),
-  materialId: int("materialId").notNull(),
-  quantity: decimal("quantity", { precision: 10, scale: 2 }),
-  unitOfMeasure: varchar("unitOfMeasure", { length: 32 }),
-  notes: text("notes"),
-  sortOrder: int("sortOrder").default(0).notNull(),
-  specNotes: text("specNotes"),
-  costBandOverride: varchar("costBandOverride", { length: 64 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var promptTemplates = mysqlTable("prompt_templates", {
-  id: int("id").autoincrement().primaryKey(),
-  orgId: int("orgId"),
-  name: varchar("name", { length: 255 }).notNull(),
-  type: mysqlEnum("type", ["mood", "material_board", "hero"]).notNull(),
-  templateText: text("templateText").notNull(),
-  variables: json("variables").notNull(),
-  // string[] of variable names
-  isActive: boolean("isActive").default(true).notNull(),
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var comments = mysqlTable("comments", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  entityType: mysqlEnum("entityType", [
-    "design_brief",
-    "material_board",
-    "visual",
-    "general"
-  ]).notNull(),
-  entityId: int("entityId"),
-  userId: int("userId").notNull(),
-  content: text("content").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var auditLogs = mysqlTable("audit_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  orgId: int("orgId"),
-  userId: int("userId"),
-  action: varchar("action", { length: 128 }).notNull(),
-  entityType: varchar("entityType", { length: 64 }).notNull(),
-  entityId: int("entityId"),
-  details: json("details"),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  modelVersionId: int("modelVersionId"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  ipAddress: varchar("ipAddress", { length: 64 })
-});
-var overrideRecords = mysqlTable("override_records", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  userId: int("userId").notNull(),
-  overrideType: mysqlEnum("overrideType", [
-    "strategic",
-    "market_insight",
-    "risk_adjustment",
-    "experimental"
-  ]).notNull(),
-  authorityLevel: int("authorityLevel").notNull(),
-  originalValue: json("originalValue").notNull(),
-  overrideValue: json("overrideValue").notNull(),
-  justification: text("justification").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var logicVersions = mysqlTable("logic_versions", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 128 }).notNull(),
-  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  publishedAt: timestamp("publishedAt"),
-  notes: text("notes")
-});
-var logicWeights = mysqlTable("logic_weights", {
-  id: int("id").autoincrement().primaryKey(),
-  logicVersionId: int("logicVersionId").notNull(),
-  dimension: varchar("dimension", { length: 32 }).notNull(),
-  // sa, ff, mp, ds, er
-  weight: decimal("weight", { precision: 6, scale: 4 }).notNull()
-});
-var logicThresholds = mysqlTable("logic_thresholds", {
-  id: int("id").autoincrement().primaryKey(),
-  logicVersionId: int("logicVersionId").notNull(),
-  ruleKey: varchar("ruleKey", { length: 128 }).notNull(),
-  thresholdValue: decimal("thresholdValue", { precision: 10, scale: 4 }).notNull(),
-  comparator: mysqlEnum("comparator", ["gt", "gte", "lt", "lte", "eq", "neq"]).notNull(),
-  notes: text("notes")
-});
-var logicChangeLog = mysqlTable("logic_change_log", {
-  id: int("id").autoincrement().primaryKey(),
-  logicVersionId: int("logicVersionId").notNull(),
-  actor: int("actor").notNull(),
-  changeSummary: text("changeSummary").notNull(),
-  rationale: text("rationale").notNull(),
-  status: mysqlEnum("status", ["applied", "proposed", "rejected"]).default("applied").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var decisionPatterns = mysqlTable("decision_patterns", {
-  id: int("id").autoincrement().primaryKey(),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  category: mysqlEnum("category", ["risk_indicator", "success_driver", "cost_anomaly"]).notNull(),
-  conditions: json("conditions").notNull(),
-  // array of logic defining the pattern
-  matchCount: int("matchCount").default(0).notNull(),
-  // times it appeared
-  reliabilityScore: decimal("reliabilityScore", { precision: 5, scale: 2 }).default("0.00").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var projectPatternMatches = mysqlTable("project_pattern_matches", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  patternId: int("patternId").notNull(),
-  matchedAt: timestamp("matchedAt").defaultNow().notNull(),
-  confidence: decimal("confidence", { precision: 5, scale: 2 }).default("1.00").notNull(),
-  contextSnapshot: json("contextSnapshot")
-  // snapshot of scores during match
-});
-var scenarioInputs = mysqlTable("scenario_inputs", {
-  id: int("id").autoincrement().primaryKey(),
-  scenarioId: int("scenarioId").notNull(),
-  jsonInput: json("jsonInput").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var scenarioOutputs = mysqlTable("scenario_outputs", {
-  id: int("id").autoincrement().primaryKey(),
-  scenarioId: int("scenarioId").notNull(),
-  scoreJson: json("scoreJson").notNull(),
-  roiJson: json("roiJson"),
-  riskJson: json("riskJson"),
-  boardCostJson: json("boardCostJson"),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  logicVersionId: int("logicVersionId"),
-  computedAt: timestamp("computedAt").defaultNow().notNull()
-});
-var scenarioComparisons = mysqlTable("scenario_comparisons", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  baselineScenarioId: int("baselineScenarioId").notNull(),
-  comparedScenarioIds: json("comparedScenarioIds").notNull(),
-  // number[]
-  decisionNote: text("decisionNote"),
-  comparisonResult: json("comparisonResult"),
-  // computed tradeoffs
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var projectOutcomes = mysqlTable("project_outcomes", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  procurementActualCosts: json("procurementActualCosts"),
-  leadTimesActual: json("leadTimesActual"),
-  rfqResults: json("rfqResults"),
-  adoptionMetrics: json("adoptionMetrics"),
-  // V5 Fields
-  actualFitoutCostPerSqm: decimal("actualFitoutCostPerSqm", { precision: 10, scale: 2 }),
-  actualTotalCost: decimal("actualTotalCost", { precision: 15, scale: 2 }),
-  projectDeliveredOnTime: boolean("projectDeliveredOnTime"),
-  reworkOccurred: boolean("reworkOccurred"),
-  reworkCostAed: decimal("reworkCostAed", { precision: 15, scale: 2 }),
-  clientSatisfactionScore: int("clientSatisfactionScore"),
-  tenderIterations: int("tenderIterations"),
-  keyLessonsLearned: text("keyLessonsLearned"),
-  capturedAt: timestamp("capturedAt").defaultNow().notNull(),
-  capturedBy: int("capturedBy")
-});
-var outcomeComparisons = mysqlTable("outcome_comparisons", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  comparedAt: timestamp("comparedAt").defaultNow().notNull(),
-  // Cost accuracy
-  predictedCostMid: decimal("predictedCostMid", { precision: 15, scale: 2 }),
-  actualCost: decimal("actualCost", { precision: 15, scale: 2 }),
-  costDeltaPct: decimal("costDeltaPct", { precision: 10, scale: 4 }),
-  costAccuracyBand: mysqlEnum("costAccuracyBand", ["within_10pct", "within_20pct", "outside_20pct", "no_prediction"]).notNull(),
-  // Score accuracy
-  predictedComposite: decimal("predictedComposite", { precision: 5, scale: 4 }).notNull(),
-  predictedDecision: varchar("predictedDecision", { length: 64 }).notNull(),
-  actualOutcomeSuccess: boolean("actualOutcomeSuccess").notNull(),
-  scorePredictionCorrect: boolean("scorePredictionCorrect").notNull(),
-  // Risk accuracy
-  predictedRisk: decimal("predictedRisk", { precision: 5, scale: 4 }).notNull(),
-  actualReworkOccurred: boolean("actualReworkOccurred").notNull(),
-  riskPredictionCorrect: boolean("riskPredictionCorrect").notNull(),
-  // Delta summary
-  overallAccuracyGrade: mysqlEnum("overallAccuracyGrade", ["A", "B", "C", "insufficient_data"]).notNull(),
-  learningSignals: json("learningSignals"),
-  rawComparison: json("rawComparison")
-});
-var accuracySnapshots = mysqlTable("accuracy_snapshots", {
-  id: int("id").autoincrement().primaryKey(),
-  snapshotDate: timestamp("snapshotDate").defaultNow().notNull(),
-  totalComparisons: int("totalComparisons").notNull(),
-  withCostPrediction: int("withCostPrediction").notNull(),
-  withOutcomePrediction: int("withOutcomePrediction").notNull(),
-  // Cost accuracy
-  costWithin10Pct: int("costWithin10Pct").notNull(),
-  costWithin20Pct: int("costWithin20Pct").notNull(),
-  costOutside20Pct: int("costOutside20Pct").notNull(),
-  costMaePct: decimal("costMaePct", { precision: 8, scale: 4 }),
-  costTrend: mysqlEnum("costTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
-  // Score accuracy
-  scoreCorrectPredictions: int("scoreCorrectPredictions").notNull(),
-  scoreIncorrectPredictions: int("scoreIncorrectPredictions").notNull(),
-  scoreAccuracyRate: decimal("scoreAccuracyRate", { precision: 8, scale: 4 }).notNull(),
-  scoreTrend: mysqlEnum("scoreTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
-  // Risk accuracy
-  riskCorrectPredictions: int("riskCorrectPredictions").notNull(),
-  riskIncorrectPredictions: int("riskIncorrectPredictions").notNull(),
-  riskAccuracyRate: decimal("riskAccuracyRate", { precision: 8, scale: 4 }).notNull(),
-  riskTrend: mysqlEnum("riskTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
-  overallPlatformAccuracy: decimal("overallPlatformAccuracy", { precision: 8, scale: 4 }).notNull(),
-  gradeA: int("gradeA").notNull(),
-  gradeB: int("gradeB").notNull(),
-  gradeC: int("gradeC").notNull()
-});
-var benchmarkSuggestions = mysqlTable("benchmark_suggestions", {
-  id: int("id").autoincrement().primaryKey(),
-  basedOnOutcomesQuery: text("basedOnOutcomesQuery"),
-  suggestedChanges: json("suggestedChanges").notNull(),
-  confidence: decimal("confidence", { precision: 6, scale: 4 }),
-  status: mysqlEnum("status", ["pending", "accepted", "rejected"]).default("pending").notNull(),
-  reviewerNotes: text("reviewerNotes"),
-  reviewedBy: int("reviewedBy"),
-  reviewedAt: timestamp("reviewedAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var sourceRegistry = mysqlTable("source_registry", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  url: text("url").notNull(),
-  sourceType: mysqlEnum("sourceType", [
-    "supplier_catalog",
-    "manufacturer_catalog",
-    "developer_brochure",
-    "industry_report",
-    "government_tender",
-    "procurement_portal",
-    "trade_publication",
-    "retailer_listing",
-    "aggregator",
-    "other"
-  ]).notNull(),
-  reliabilityDefault: mysqlEnum("reliabilityDefault", ["A", "B", "C"]).default("B").notNull(),
-  isWhitelisted: boolean("isWhitelisted").default(true).notNull(),
-  region: varchar("region", { length: 64 }).default("UAE"),
-  notes: text("notes"),
-  addedBy: int("addedBy"),
-  isActive: boolean("isActive").default(true).notNull(),
-  lastSuccessfulFetch: timestamp("lastSuccessfulFetch"),
-  // DFE Fields
-  scrapeConfig: json("scrapeConfig"),
-  scrapeSchedule: varchar("scrapeSchedule", { length: 64 }),
-  scrapeMethod: mysqlEnum("scrapeMethod", [
-    "html_llm",
-    "html_rules",
-    "json_api",
-    "rss_feed",
-    "csv_upload",
-    "email_forward"
-  ]).default("html_llm").notNull(),
-  scrapeHeaders: json("scrapeHeaders"),
-  extractionHints: text("extractionHints"),
-  priceFieldMapping: json("priceFieldMapping"),
-  lastScrapedAt: timestamp("lastScrapedAt"),
-  lastScrapedStatus: mysqlEnum("lastScrapedStatus", ["success", "partial", "failed", "never"]).default("never").notNull(),
-  lastRecordCount: int("lastRecordCount").default(0).notNull(),
-  consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
-  requestDelayMs: int("requestDelayMs").default(2e3).notNull(),
-  addedAt: timestamp("addedAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var evidenceRecords = mysqlTable("evidence_records", {
-  id: int("id").autoincrement().primaryKey(),
-  recordId: varchar("recordId", { length: 64 }).notNull().unique(),
-  // MYR-PE-XXXX
-  projectId: int("projectId"),
-  // optional: can be global evidence
-  orgId: int("orgId"),
-  sourceRegistryId: int("sourceRegistryId"),
-  // FK to source_registry
-  category: mysqlEnum("category", [
-    "floors",
-    "walls",
-    "ceilings",
-    "joinery",
-    "lighting",
-    "sanitary",
-    "kitchen",
-    "hardware",
-    "ffe",
-    "other"
-  ]).notNull(),
-  itemName: varchar("itemName", { length: 255 }).notNull(),
-  specClass: varchar("specClass", { length: 128 }),
-  priceMin: decimal("priceMin", { precision: 12, scale: 2 }),
-  priceTypical: decimal("priceTypical", { precision: 12, scale: 2 }),
-  priceMax: decimal("priceMax", { precision: 12, scale: 2 }),
-  unit: varchar("unit", { length: 32 }).notNull(),
-  // sqm, lm, set, piece, etc.
-  currencyOriginal: varchar("currencyOriginal", { length: 8 }).default("AED"),
-  currencyAed: decimal("currencyAed", { precision: 12, scale: 2 }),
-  // normalized to AED
-  fxRate: decimal("fxRate", { precision: 10, scale: 6 }),
-  fxSource: text("fxSource"),
-  sourceUrl: text("sourceUrl").notNull(),
-  publisher: varchar("publisher", { length: 255 }),
-  captureDate: timestamp("captureDate").notNull(),
-  reliabilityGrade: mysqlEnum("reliabilityGrade", ["A", "B", "C"]).notNull(),
-  confidenceScore: int("confidenceScore").notNull(),
-  // 0-100
-  extractedSnippet: text("extractedSnippet"),
-  notes: text("notes"),
-  // V2.2 metadata fields
-  title: varchar("title", { length: 512 }),
-  evidencePhase: mysqlEnum("evidencePhase", ["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]),
-  author: varchar("author", { length: 255 }),
-  confidentiality: mysqlEnum("confidentiality", ["public", "internal", "confidential", "restricted"]).default("internal"),
-  tags: json("tags"),
-  // string[]
-  fileUrl: text("fileUrl"),
-  // S3 signed URL for attached evidence file
-  fileKey: varchar("fileKey", { length: 512 }),
-  // S3 key for the file
-  fileMimeType: varchar("fileMimeType", { length: 128 }),
-  runId: varchar("runId", { length: 64 }),
-  // links to intelligence_audit_log
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var benchmarkProposals = mysqlTable("benchmark_proposals", {
-  id: int("id").autoincrement().primaryKey(),
-  benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(),
-  // category:tier:unit
-  currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
-  currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
-  currentMax: decimal("currentMax", { precision: 12, scale: 2 }),
-  proposedP25: decimal("proposedP25", { precision: 12, scale: 2 }).notNull(),
-  proposedP50: decimal("proposedP50", { precision: 12, scale: 2 }).notNull(),
-  proposedP75: decimal("proposedP75", { precision: 12, scale: 2 }).notNull(),
-  weightedMean: decimal("weightedMean", { precision: 12, scale: 2 }).notNull(),
-  deltaPct: decimal("deltaPct", { precision: 8, scale: 2 }),
-  // % change from current
-  evidenceCount: int("evidenceCount").notNull(),
-  sourceDiversity: int("sourceDiversity").notNull(),
-  reliabilityDist: json("reliabilityDist").notNull(),
-  // { A: n, B: n, C: n }
-  recencyDist: json("recencyDist").notNull(),
-  // { recent: n, mid: n, old: n }
-  confidenceScore: int("confidenceScore").notNull(),
-  // 0-100
-  impactNotes: text("impactNotes"),
-  recommendation: mysqlEnum("recommendation", ["publish", "reject"]).notNull(),
-  rejectionReason: text("rejectionReason"),
-  // Review workflow
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
-  reviewerNotes: text("reviewerNotes"),
-  reviewedBy: int("reviewedBy"),
-  reviewedAt: timestamp("reviewedAt"),
-  // Snapshot linking
-  benchmarkSnapshotId: int("benchmarkSnapshotId"),
-  runId: varchar("runId", { length: 64 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var benchmarkSnapshots = mysqlTable("benchmark_snapshots", {
-  id: int("id").autoincrement().primaryKey(),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  snapshotJson: json("snapshotJson").notNull(),
-  // full benchmark state at time of snapshot
-  description: text("description"),
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var competitorEntities = mysqlTable("competitor_entities", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  headquarters: varchar("headquarters", { length: 255 }),
-  segmentFocus: mysqlEnum("segmentFocus", [
-    "affordable",
-    "mid",
-    "premium",
-    "luxury",
-    "ultra_luxury",
-    "mixed"
-  ]).default("mixed"),
-  website: text("website"),
-  logoUrl: text("logoUrl"),
-  notes: text("notes"),
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var competitorProjects = mysqlTable("competitor_projects", {
-  id: int("id").autoincrement().primaryKey(),
-  competitorId: int("competitorId").notNull(),
-  // FK to competitor_entities
-  projectName: varchar("projectName", { length: 255 }).notNull(),
-  location: varchar("location", { length: 255 }),
-  segment: mysqlEnum("segment", [
-    "affordable",
-    "mid",
-    "premium",
-    "luxury",
-    "ultra_luxury"
-  ]),
-  assetType: mysqlEnum("assetType", [
-    "residential",
-    "commercial",
-    "hospitality",
-    "mixed_use"
-  ]).default("residential"),
-  positioningKeywords: json("positioningKeywords"),
-  // string[]
-  interiorStyleSignals: json("interiorStyleSignals"),
-  // string[]
-  materialCues: json("materialCues"),
-  // string[]
-  amenityList: json("amenityList"),
-  // string[]
-  unitMix: text("unitMix"),
-  priceIndicators: json("priceIndicators"),
-  // { currency, min, max, per_unit }
-  salesMessaging: json("salesMessaging"),
-  // string[]
-  differentiationClaims: json("differentiationClaims"),
-  // string[]
-  completionStatus: mysqlEnum("completionStatus", [
-    "announced",
-    "under_construction",
-    "completed",
-    "sold_out"
-  ]),
-  launchDate: varchar("launchDate", { length: 32 }),
-  totalUnits: int("totalUnits"),
-  architect: varchar("architect", { length: 255 }),
-  interiorDesigner: varchar("interiorDesigner", { length: 255 }),
-  sourceUrl: text("sourceUrl"),
-  captureDate: timestamp("captureDate"),
-  evidenceCitations: json("evidenceCitations"),
-  // array of { field, snippet, source_url, capture_date }
-  completenessScore: int("completenessScore"),
-  // 0-100
-  runId: varchar("runId", { length: 64 }),
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var trendTags = mysqlTable("trend_tags", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 128 }).notNull().unique(),
-  category: mysqlEnum("category", [
-    "material_trend",
-    "design_trend",
-    "market_trend",
-    "buyer_preference",
-    "sustainability",
-    "technology",
-    "pricing",
-    "other"
-  ]).notNull(),
-  description: text("description"),
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var entityTags = mysqlTable("entity_tags", {
-  id: int("id").autoincrement().primaryKey(),
-  tagId: int("tagId").notNull(),
-  // FK to trend_tags
-  entityType: mysqlEnum("entityType", [
-    "competitor_project",
-    "scenario",
-    "evidence_record",
-    "project"
-  ]).notNull(),
-  entityId: int("entityId").notNull(),
-  addedBy: int("addedBy"),
-  addedAt: timestamp("addedAt").defaultNow().notNull()
-});
-var intelligenceAuditLog = mysqlTable("intelligence_audit_log", {
-  id: int("id").autoincrement().primaryKey(),
-  runType: mysqlEnum("runType", [
-    "price_extraction",
-    "competitor_extraction",
-    "benchmark_proposal",
-    "manual_entry"
-  ]).notNull(),
-  runId: varchar("runId", { length: 64 }).notNull().unique(),
-  actor: int("actor"),
-  // userId who triggered
-  inputSummary: json("inputSummary"),
-  // config/params used
-  outputSummary: json("outputSummary"),
-  // counts, coverage, errors
-  sourcesProcessed: int("sourcesProcessed").default(0),
-  recordsExtracted: int("recordsExtracted").default(0),
-  errors: int("errors").default(0),
-  errorDetails: json("errorDetails"),
-  startedAt: timestamp("startedAt").notNull(),
-  completedAt: timestamp("completedAt")
-});
-var evidenceReferences = mysqlTable("evidence_references", {
-  id: int("id").autoincrement().primaryKey(),
-  evidenceRecordId: int("evidenceRecordId").notNull(),
-  // FK to evidence_records
-  targetType: mysqlEnum("targetType", [
-    "scenario",
-    "decision_note",
-    "explainability_driver",
-    "design_brief",
-    "report",
-    "material_board",
-    "pack_section"
-  ]).notNull(),
-  targetId: int("targetId").notNull(),
-  // ID of the linked entity
-  sectionLabel: varchar("sectionLabel", { length: 255 }),
-  // e.g. "Materials Specification", "Cost Assumptions"
-  citationText: text("citationText"),
-  // inline citation snippet
-  addedBy: int("addedBy"),
-  addedAt: timestamp("addedAt").defaultNow().notNull()
-});
-var ingestionRuns = mysqlTable("ingestion_runs", {
-  id: int("id").autoincrement().primaryKey(),
-  runId: varchar("runId", { length: 64 }).notNull().unique(),
-  trigger: mysqlEnum("trigger", ["manual", "scheduled", "api"]).notNull(),
-  triggeredBy: int("triggeredBy"),
-  // userId or null for scheduled
-  status: mysqlEnum("status", ["running", "completed", "failed"]).default("running").notNull(),
-  // Counts
-  totalSources: int("totalSources").default(0).notNull(),
-  sourcesSucceeded: int("sourcesSucceeded").default(0).notNull(),
-  sourcesFailed: int("sourcesFailed").default(0).notNull(),
-  recordsExtracted: int("recordsExtracted").default(0).notNull(),
-  recordsInserted: int("recordsInserted").default(0).notNull(),
-  duplicatesSkipped: int("duplicatesSkipped").default(0).notNull(),
-  // Detail
-  sourceBreakdown: json("sourceBreakdown"),
-  // per-source { sourceId, name, status, extracted, inserted, duplicates, errors }
-  errorSummary: json("errorSummary"),
-  // [{ sourceId, error }]
-  // Timing
-  startedAt: timestamp("startedAt").notNull(),
-  completedAt: timestamp("completedAt"),
-  durationMs: int("durationMs"),
-  // Metadata
-  cronExpression: varchar("cronExpression", { length: 64 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var connectorHealth = mysqlTable("connector_health", {
-  id: int("id").autoincrement().primaryKey(),
-  runId: varchar("runId", { length: 64 }).notNull(),
-  // FK to ingestion_runs.runId
-  sourceId: varchar("sourceId", { length: 64 }).notNull(),
-  sourceName: varchar("sourceName", { length: 255 }).notNull(),
-  status: mysqlEnum("healthStatus", ["success", "partial", "failed"]).notNull(),
-  httpStatusCode: int("httpStatusCode"),
-  responseTimeMs: int("responseTimeMs"),
-  recordsExtracted: int("recordsExtracted").default(0).notNull(),
-  recordsInserted: int("recordsInserted").default(0).notNull(),
-  duplicatesSkipped: int("duplicatesSkipped").default(0).notNull(),
-  errorMessage: text("errorMessage"),
-  errorType: varchar("errorType", { length: 64 }),
-  // "dns_failure", "timeout", "http_error", "parse_error", "llm_error"
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var trendSnapshots = mysqlTable("trend_snapshots", {
-  id: int("id").autoincrement().primaryKey(),
-  metric: varchar("metric", { length: 255 }).notNull(),
-  category: varchar("category", { length: 128 }).notNull(),
-  geography: varchar("geography", { length: 128 }).notNull(),
-  dataPointCount: int("dataPointCount").default(0).notNull(),
-  gradeACount: int("gradeACount").default(0).notNull(),
-  gradeBCount: int("gradeBCount").default(0).notNull(),
-  gradeCCount: int("gradeCCount").default(0).notNull(),
-  uniqueSources: int("uniqueSources").default(0).notNull(),
-  dateRangeStart: timestamp("dateRangeStart"),
-  dateRangeEnd: timestamp("dateRangeEnd"),
-  currentMA: decimal("currentMA", { precision: 14, scale: 4 }),
-  previousMA: decimal("previousMA", { precision: 14, scale: 4 }),
-  percentChange: decimal("percentChange", { precision: 10, scale: 6 }),
-  direction: mysqlEnum("direction", ["rising", "falling", "stable", "insufficient_data"]).notNull(),
-  anomalyCount: int("anomalyCount").default(0).notNull(),
-  anomalyDetails: json("anomalyDetails"),
-  // AnomalyFlag[]
-  confidence: mysqlEnum("trendConfidence", ["high", "medium", "low", "insufficient"]).notNull(),
-  narrative: text("narrative"),
-  movingAverages: json("movingAverages"),
-  // MovingAveragePoint[]
-  ingestionRunId: varchar("ingestionRunId", { length: 64 }),
-  // FK to ingestion_runs.runId
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var projectInsights = mysqlTable("project_insights", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId"),
-  // nullable for system-wide insights
-  insightType: mysqlEnum("insightType", [
-    "cost_pressure",
-    "market_opportunity",
-    "competitor_alert",
-    "trend_signal",
-    "positioning_gap"
-  ]).notNull(),
-  severity: mysqlEnum("insightSeverity", ["critical", "warning", "info"]).notNull(),
-  title: varchar("title", { length: 512 }).notNull(),
-  body: text("body"),
-  actionableRecommendation: text("actionableRecommendation"),
-  confidenceScore: decimal("confidenceScore", { precision: 5, scale: 4 }),
-  triggerCondition: text("triggerCondition"),
-  dataPoints: json("dataPoints"),
-  status: mysqlEnum("insightStatus", ["active", "acknowledged", "dismissed", "resolved"]).default("active").notNull(),
-  acknowledgedBy: int("acknowledgedBy"),
-  acknowledgedAt: timestamp("acknowledgedAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var priceChangeEvents = mysqlTable("price_change_events", {
-  id: int("id").autoincrement().primaryKey(),
-  itemName: varchar("itemName", { length: 255 }).notNull(),
-  category: varchar("category", { length: 255 }).notNull(),
-  sourceId: int("sourceId").notNull(),
-  previousPrice: decimal("previousPrice", { precision: 12, scale: 2 }).notNull(),
-  newPrice: decimal("newPrice", { precision: 12, scale: 2 }).notNull(),
-  changePct: decimal("changePct", { precision: 10, scale: 6 }).notNull(),
-  changeDirection: mysqlEnum("changeDirection", ["increased", "decreased"]).notNull(),
-  severity: mysqlEnum("severity", ["significant", "notable", "minor", "none"]).notNull(),
-  detectedAt: timestamp("detectedAt").defaultNow().notNull()
-});
-var platformAlerts = mysqlTable("platform_alerts", {
-  id: int("id").autoincrement().primaryKey(),
-  alertType: mysqlEnum("alertType", [
-    "price_shock",
-    "project_at_risk",
-    "accuracy_degraded",
-    "pattern_warning",
-    "benchmark_drift",
-    "market_opportunity"
-  ]).notNull(),
-  severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  body: text("body").notNull(),
-  affectedProjectIds: json("affectedProjectIds"),
-  affectedCategories: json("affectedCategories"),
-  triggerData: json("triggerData"),
-  suggestedAction: text("suggestedAction").notNull(),
-  status: mysqlEnum("status", ["active", "acknowledged", "resolved", "expired"]).default("active").notNull(),
-  acknowledgedBy: int("acknowledgedBy"),
-  acknowledgedAt: timestamp("acknowledgedAt"),
-  expiresAt: timestamp("expiresAt").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var nlQueryLog = mysqlTable("nl_query_log", {
-  id: int("id").primaryKey().autoincrement(),
-  userId: int("user_id").notNull(),
-  queryText: text("query_text").notNull(),
-  sqlGenerated: text("sql_generated"),
-  rowsReturned: int("rows_returned").default(0),
-  executionMs: int("execution_ms"),
-  status: mysqlEnum("status", ["success", "error", "blocked"]).default("success"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var materialLibrary = mysqlTable("material_library", {
-  id: int("id").primaryKey().autoincrement(),
-  category: mysqlEnum("category", [
-    "flooring",
-    "wall_paint",
-    "wall_tile",
-    "ceiling",
-    "joinery",
-    "sanitaryware",
-    "fittings",
-    "lighting",
-    "hardware",
-    "specialty"
-  ]).notNull(),
-  tier: mysqlEnum("tier", [
-    "affordable",
-    "mid",
-    "premium",
-    "ultra"
-  ]).notNull(),
-  style: mysqlEnum("style", [
-    "modern",
-    "contemporary",
-    "classic",
-    "minimalist",
-    "arabesque",
-    "all"
-  ]).default("all").notNull(),
-  productCode: varchar("product_code", { length: 100 }),
-  productName: varchar("product_name", { length: 300 }).notNull(),
-  brand: varchar("brand", { length: 150 }).notNull(),
-  supplierName: varchar("supplier_name", { length: 200 }).notNull(),
-  supplierLocation: varchar("supplier_location", { length: 200 }),
-  supplierPhone: varchar("supplier_phone", { length: 50 }),
-  unitLabel: varchar("unit_label", { length: 30 }).notNull(),
-  priceAedMin: decimal("price_aed_min", { precision: 10, scale: 2 }),
-  priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
-  notes: text("notes"),
-  isActive: boolean("is_active").default(true).notNull()
-});
-var finishScheduleItems = mysqlTable(
-  "finish_schedule_items",
-  {
-    id: int("id").primaryKey().autoincrement(),
-    projectId: int("project_id").notNull(),
-    organizationId: int("organization_id").notNull(),
-    roomId: varchar("room_id", { length: 10 }).notNull(),
-    roomName: varchar("room_name", { length: 100 }).notNull(),
-    element: mysqlEnum("element", [
-      "floor",
-      "wall_primary",
-      "wall_feature",
-      "wall_wet",
-      "ceiling",
-      "joinery",
-      "hardware"
-    ]).notNull(),
-    materialLibraryId: int("material_library_id"),
-    overrideSpec: varchar("override_spec", { length: 500 }),
-    notes: text("notes"),
-    createdAt: timestamp("created_at").defaultNow().notNull()
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs;
+var init_schema = __esm({
+  "drizzle/schema.ts"() {
+    "use strict";
+    users = mysqlTable("users", {
+      id: int("id").autoincrement().primaryKey(),
+      openId: varchar("openId", { length: 64 }).notNull().unique(),
+      password: varchar("password", { length: 255 }),
+      name: text("name"),
+      email: varchar("email", { length: 320 }),
+      loginMethod: varchar("loginMethod", { length: 64 }),
+      role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+      lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+      orgId: int("orgId")
+      // added in V7 for backward compat later to be notNull
+    });
+    organizations = mysqlTable("organizations", {
+      id: int("id").autoincrement().primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      slug: varchar("slug", { length: 255 }).notNull().unique(),
+      domain: varchar("domain", { length: 255 }),
+      plan: mysqlEnum("plan", ["free", "pro", "enterprise"]).default("free").notNull(),
+      stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    organizationMembers = mysqlTable("organization_members", {
+      id: int("id").autoincrement().primaryKey(),
+      orgId: int("orgId").notNull(),
+      userId: int("userId").notNull(),
+      role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    organizationInvites = mysqlTable("organization_invites", {
+      id: int("id").autoincrement().primaryKey(),
+      orgId: int("orgId").notNull(),
+      email: varchar("email", { length: 320 }).notNull(),
+      role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
+      token: varchar("token", { length: 255 }).notNull().unique(),
+      expiresAt: timestamp("expiresAt").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    modelVersions = mysqlTable("model_versions", {
+      id: int("id").autoincrement().primaryKey(),
+      versionTag: varchar("versionTag", { length: 32 }).notNull().unique(),
+      dimensionWeights: json("dimensionWeights").notNull(),
+      variableWeights: json("variableWeights").notNull(),
+      penaltyConfig: json("penaltyConfig").notNull(),
+      isActive: boolean("isActive").default(false).notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      createdBy: int("createdBy"),
+      notes: text("notes")
+    });
+    benchmarkVersions = mysqlTable("benchmark_versions", {
+      id: int("id").autoincrement().primaryKey(),
+      versionTag: varchar("versionTag", { length: 64 }).notNull().unique(),
+      description: text("description"),
+      status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+      publishedAt: timestamp("publishedAt"),
+      publishedBy: int("publishedBy"),
+      recordCount: int("recordCount").default(0),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      createdBy: int("createdBy")
+    });
+    benchmarkCategories = mysqlTable("benchmark_categories", {
+      id: int("id").autoincrement().primaryKey(),
+      category: mysqlEnum("category", [
+        "materials",
+        "finishes",
+        "ffe",
+        "procurement",
+        "cost_bands",
+        "tier_definitions",
+        "style_families",
+        "brand_archetypes",
+        "risk_factors",
+        "lead_times"
+      ]).notNull(),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text("description"),
+      market: varchar("market", { length: 64 }).default("UAE").notNull(),
+      submarket: varchar("submarket", { length: 64 }).default("Dubai"),
+      projectClass: mysqlEnum("projectClass", ["mid", "upper", "luxury", "ultra_luxury"]).notNull(),
+      validFrom: timestamp("validFrom"),
+      validTo: timestamp("validTo"),
+      confidenceLevel: mysqlEnum("confidenceLevel", ["high", "medium", "low"]).default("medium"),
+      sourceType: mysqlEnum("sourceType", ["manual", "admin", "imported", "curated"]).default("admin"),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      data: json("data").notNull(),
+      versionTag: varchar("versionTag", { length: 64 }),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+      createdBy: int("createdBy")
+    });
+    projects = mysqlTable("projects", {
+      id: int("id").autoincrement().primaryKey(),
+      userId: int("userId").notNull(),
+      orgId: int("orgId"),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text("description"),
+      status: mysqlEnum("status", [
+        "draft",
+        "ready",
+        "processing",
+        "evaluated",
+        "locked"
+      ]).default("draft").notNull(),
+      // Approval gate (V2.8)
+      approvalState: mysqlEnum("approvalState", [
+        "draft",
+        "review",
+        "approved_rfq",
+        "approved_marketing"
+      ]).default("draft"),
+      // Context variables
+      ctx01Typology: mysqlEnum("ctx01Typology", [
+        "Residential",
+        "Mixed-use",
+        "Hospitality",
+        "Office"
+      ]).default("Residential"),
+      ctx02Scale: mysqlEnum("ctx02Scale", ["Small", "Medium", "Large"]).default(
+        "Medium"
+      ),
+      ctx03Gfa: decimal("ctx03Gfa", { precision: 12, scale: 2 }),
+      ctx04Location: mysqlEnum("ctx04Location", [
+        "Prime",
+        "Secondary",
+        "Emerging"
+      ]).default("Secondary"),
+      ctx05Horizon: mysqlEnum("ctx05Horizon", [
+        "0-12m",
+        "12-24m",
+        "24-36m",
+        "36m+"
+      ]).default("12-24m"),
+      // Strategy variables (1-5)
+      str01BrandClarity: int("str01BrandClarity").default(3),
+      str02Differentiation: int("str02Differentiation").default(3),
+      str03BuyerMaturity: int("str03BuyerMaturity").default(3),
+      // Market variables
+      mkt01Tier: mysqlEnum("mkt01Tier", [
+        "Mid",
+        "Upper-mid",
+        "Luxury",
+        "Ultra-luxury"
+      ]).default("Upper-mid"),
+      mkt02Competitor: int("mkt02Competitor").default(3),
+      mkt03Trend: int("mkt03Trend").default(3),
+      // Financial variables
+      fin01BudgetCap: decimal("fin01BudgetCap", { precision: 10, scale: 2 }),
+      fin02Flexibility: int("fin02Flexibility").default(3),
+      fin03ShockTolerance: int("fin03ShockTolerance").default(3),
+      fin04SalesPremium: int("fin04SalesPremium").default(3),
+      // Design variables
+      des01Style: mysqlEnum("des01Style", [
+        "Modern",
+        "Contemporary",
+        "Minimal",
+        "Classic",
+        "Fusion",
+        "Other"
+      ]).default("Modern"),
+      des02MaterialLevel: int("des02MaterialLevel").default(3),
+      des03Complexity: int("des03Complexity").default(3),
+      des04Experience: int("des04Experience").default(3),
+      des05Sustainability: int("des05Sustainability").default(2),
+      // Execution variables
+      exe01SupplyChain: int("exe01SupplyChain").default(3),
+      exe02Contractor: int("exe02Contractor").default(3),
+      exe03Approvals: int("exe03Approvals").default(2),
+      exe04QaMaturity: int("exe04QaMaturity").default(3),
+      // Add-on variables
+      add01SampleKit: boolean("add01SampleKit").default(false),
+      add02PortfolioMode: boolean("add02PortfolioMode").default(false),
+      add03DashboardExport: boolean("add03DashboardExport").default(true),
+      modelVersionId: int("modelVersionId"),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+      lockedAt: timestamp("lockedAt")
+    });
+    directionCandidates = mysqlTable("direction_candidates", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text("description"),
+      isPrimary: boolean("isPrimary").default(false),
+      des01Style: mysqlEnum("des01Style", [
+        "Modern",
+        "Contemporary",
+        "Minimal",
+        "Classic",
+        "Fusion",
+        "Other"
+      ]),
+      des02MaterialLevel: int("des02MaterialLevel"),
+      des03Complexity: int("des03Complexity"),
+      des04Experience: int("des04Experience"),
+      fin01BudgetCap: decimal("fin01BudgetCap", { precision: 10, scale: 2 }),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    scoreMatrices = mysqlTable("score_matrices", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      directionId: int("directionId"),
+      modelVersionId: int("modelVersionId").notNull(),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      saScore: decimal("saScore", { precision: 6, scale: 2 }).notNull(),
+      ffScore: decimal("ffScore", { precision: 6, scale: 2 }).notNull(),
+      mpScore: decimal("mpScore", { precision: 6, scale: 2 }).notNull(),
+      dsScore: decimal("dsScore", { precision: 6, scale: 2 }).notNull(),
+      erScore: decimal("erScore", { precision: 6, scale: 2 }).notNull(),
+      compositeScore: decimal("compositeScore", {
+        precision: 6,
+        scale: 2
+      }).notNull(),
+      riskScore: decimal("riskScore", { precision: 6, scale: 2 }).notNull(),
+      rasScore: decimal("rasScore", { precision: 6, scale: 2 }).notNull(),
+      confidenceScore: decimal("confidenceScore", {
+        precision: 6,
+        scale: 2
+      }).notNull(),
+      decisionStatus: mysqlEnum("decisionStatus", [
+        "validated",
+        "conditional",
+        "not_validated"
+      ]).notNull(),
+      penalties: json("penalties"),
+      riskFlags: json("riskFlags"),
+      dimensionWeights: json("dimensionWeights").notNull(),
+      variableContributions: json("variableContributions").notNull(),
+      conditionalActions: json("conditionalActions"),
+      inputSnapshot: json("inputSnapshot").notNull(),
+      budgetFitMethod: varchar("budgetFitMethod", { length: 32 }),
+      computedAt: timestamp("computedAt").defaultNow().notNull()
+    });
+    scenarios = mysqlTable("scenarios", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      orgId: int("orgId"),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text("description"),
+      variableOverrides: json("variableOverrides"),
+      isTemplate: boolean("isTemplate").default(false),
+      templateKey: varchar("templateKey", { length: 64 }),
+      scoreMatrixId: int("scoreMatrixId"),
+      rasScore: decimal("rasScore", { precision: 6, scale: 2 }),
+      isDominant: boolean("isDominant").default(false),
+      stabilityScore: decimal("stabilityScore", { precision: 6, scale: 2 }),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    benchmarkData = mysqlTable("benchmark_data", {
+      id: int("id").autoincrement().primaryKey(),
+      typology: varchar("typology", { length: 64 }).notNull(),
+      location: varchar("location", { length: 64 }).notNull(),
+      marketTier: varchar("marketTier", { length: 64 }).notNull(),
+      materialLevel: int("materialLevel").notNull(),
+      roomType: varchar("roomType", { length: 64 }).default("General"),
+      costPerSqftLow: decimal("costPerSqftLow", { precision: 10, scale: 2 }),
+      costPerSqftMid: decimal("costPerSqftMid", { precision: 10, scale: 2 }),
+      costPerSqftHigh: decimal("costPerSqftHigh", { precision: 10, scale: 2 }),
+      avgSellingPrice: decimal("avgSellingPrice", { precision: 10, scale: 2 }),
+      absorptionRate: decimal("absorptionRate", { precision: 6, scale: 4 }),
+      competitiveDensity: int("competitiveDensity"),
+      differentiationIndex: decimal("differentiationIndex", { precision: 6, scale: 4 }),
+      complexityMultiplier: decimal("complexityMultiplier", { precision: 6, scale: 4 }),
+      timelineRiskMultiplier: decimal("timelineRiskMultiplier", { precision: 6, scale: 4 }),
+      buyerPreferenceWeights: json("buyerPreferenceWeights"),
+      sourceType: mysqlEnum("sourceType", [
+        "synthetic",
+        "client_provided",
+        "curated"
+      ]).default("synthetic"),
+      sourceNote: text("sourceNote"),
+      dataYear: int("dataYear"),
+      region: varchar("region", { length: 64 }).default("UAE"),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    projectIntelligence = mysqlTable("project_intelligence", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      scoreMatrixId: int("scoreMatrixId").notNull(),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      modelVersionId: int("modelVersionId"),
+      costDeltaVsBenchmark: decimal("costDeltaVsBenchmark", { precision: 10, scale: 2 }),
+      uniquenessIndex: decimal("uniquenessIndex", { precision: 6, scale: 4 }),
+      feasibilityFlags: json("feasibilityFlags"),
+      reworkRiskIndex: decimal("reworkRiskIndex", { precision: 6, scale: 4 }),
+      procurementComplexity: decimal("procurementComplexity", { precision: 6, scale: 4 }),
+      tierPercentile: decimal("tierPercentile", { precision: 6, scale: 4 }),
+      styleFamily: varchar("styleFamily", { length: 64 }),
+      costBand: varchar("costBand", { length: 32 }),
+      inputSnapshot: json("inputSnapshot"),
+      scoreSnapshot: json("scoreSnapshot"),
+      computedAt: timestamp("computedAt").defaultNow().notNull()
+    });
+    reportInstances = mysqlTable("report_instances", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      scoreMatrixId: int("scoreMatrixId").notNull(),
+      reportType: mysqlEnum("reportType", [
+        "executive_pack",
+        "full_technical",
+        "tender_brief",
+        "executive_decision_pack",
+        "design_brief_rfq",
+        "marketing_starter",
+        "validation_summary",
+        "design_brief",
+        "rfq_pack",
+        "full_report",
+        "marketing_prelaunch"
+      ]).notNull(),
+      fileUrl: text("fileUrl"),
+      bundleUrl: text("bundleUrl"),
+      content: json("content"),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      modelVersionId: int("modelVersionId"),
+      generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+      generatedBy: int("generatedBy")
+    });
+    roiConfigs = mysqlTable("roi_configs", {
+      id: int("id").autoincrement().primaryKey(),
+      name: varchar("name", { length: 128 }).notNull(),
+      isActive: boolean("isActive").default(false).notNull(),
+      hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("350").notNull(),
+      reworkCostPct: decimal("reworkCostPct", { precision: 6, scale: 4 }).default("0.12").notNull(),
+      tenderIterationCost: decimal("tenderIterationCost", { precision: 10, scale: 2 }).default("25000").notNull(),
+      designCycleCost: decimal("designCycleCost", { precision: 10, scale: 2 }).default("45000").notNull(),
+      budgetVarianceMultiplier: decimal("budgetVarianceMultiplier", { precision: 6, scale: 4 }).default("0.08").notNull(),
+      timeAccelerationWeeks: int("timeAccelerationWeeks").default(6),
+      conservativeMultiplier: decimal("conservativeMultiplier", { precision: 6, scale: 4 }).default("0.60").notNull(),
+      aggressiveMultiplier: decimal("aggressiveMultiplier", { precision: 6, scale: 4 }).default("1.40").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      createdBy: int("createdBy")
+    });
+    webhookConfigs = mysqlTable("webhook_configs", {
+      id: int("id").autoincrement().primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      url: text("url").notNull(),
+      secret: varchar("secret", { length: 255 }),
+      events: json("events").notNull(),
+      fieldMapping: json("fieldMapping"),
+      isActive: boolean("isActive").default(true).notNull(),
+      lastTriggeredAt: timestamp("lastTriggeredAt"),
+      lastStatus: int("lastStatus"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      createdBy: int("createdBy")
+    });
+    projectAssets = mysqlTable("project_assets", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      filename: varchar("filename", { length: 512 }).notNull(),
+      mimeType: varchar("mimeType", { length: 128 }).notNull(),
+      sizeBytes: int("sizeBytes").notNull(),
+      storagePath: text("storagePath").notNull(),
+      storageUrl: text("storageUrl"),
+      checksum: varchar("checksum", { length: 128 }),
+      uploadedBy: int("uploadedBy").notNull(),
+      category: mysqlEnum("category", [
+        "brief",
+        "brand",
+        "budget",
+        "competitor",
+        "inspiration",
+        "material",
+        "sales",
+        "legal",
+        "mood_image",
+        "material_board",
+        "marketing_hero",
+        "generated",
+        "other"
+      ]).default("other").notNull(),
+      tags: json("tags"),
+      // string[]
+      notes: text("notes"),
+      isClientVisible: boolean("isClientVisible").default(true).notNull(),
+      uploadedAt: timestamp("uploadedAt").defaultNow().notNull()
+    });
+    assetLinks = mysqlTable("asset_links", {
+      id: int("id").autoincrement().primaryKey(),
+      assetId: int("assetId").notNull(),
+      linkType: mysqlEnum("linkType", [
+        "evaluation",
+        "report",
+        "scenario",
+        "material_board",
+        "design_brief",
+        "visual"
+      ]).notNull(),
+      linkId: int("linkId").notNull(),
+      // ID of the linked entity
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    designBriefs = mysqlTable("design_briefs", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      scenarioId: int("scenarioId"),
+      // optional: brief for a specific scenario
+      version: int("version").default(1).notNull(),
+      // 7 sections as JSON
+      projectIdentity: json("projectIdentity").notNull(),
+      positioningStatement: text("positioningStatement").notNull(),
+      styleMood: json("styleMood").notNull(),
+      materialGuidance: json("materialGuidance").notNull(),
+      budgetGuardrails: json("budgetGuardrails").notNull(),
+      procurementConstraints: json("procurementConstraints").notNull(),
+      deliverablesChecklist: json("deliverablesChecklist").notNull(),
+      // Metadata
+      createdBy: int("createdBy").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    generatedVisuals = mysqlTable("generated_visuals", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      scenarioId: int("scenarioId"),
+      type: mysqlEnum("type", ["mood", "mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette", "hero"]).notNull(),
+      promptJson: json("promptJson").notNull(),
+      modelVersion: varchar("modelVersion", { length: 64 }).default("nano-banana-v1"),
+      imageAssetId: int("imageAssetId"),
+      // FK to project_assets
+      status: mysqlEnum("status", ["pending", "generating", "completed", "failed"]).default("pending").notNull(),
+      errorMessage: text("errorMessage"),
+      createdBy: int("createdBy").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    designTrends = mysqlTable("design_trends", {
+      id: int("id").autoincrement().primaryKey(),
+      trendName: varchar("trendName", { length: 255 }).notNull(),
+      trendCategory: mysqlEnum("trendCategory", [
+        "style",
+        "material",
+        "color",
+        "layout",
+        "technology",
+        "sustainability",
+        "other"
+      ]).notNull(),
+      confidenceLevel: mysqlEnum("confidenceLevel", ["emerging", "established", "declining"]).default("emerging").notNull(),
+      sourceUrl: text("sourceUrl"),
+      sourceRegistryId: int("sourceRegistryId"),
+      description: text("description"),
+      relatedMaterials: json("relatedMaterials"),
+      // string[] of material names
+      styleClassification: varchar("styleClassification", { length: 128 }),
+      // modern, classical, biophilic, japandi, etc.
+      region: varchar("region", { length: 64 }).default("UAE"),
+      firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
+      lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+      mentionCount: int("mentionCount").default(1).notNull(),
+      runId: varchar("runId", { length: 64 }),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    materialBoards = mysqlTable("material_boards", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      scenarioId: int("scenarioId"),
+      boardName: varchar("boardName", { length: 255 }).notNull(),
+      boardJson: json("boardJson").notNull(),
+      // materials/finishes/ff&e items
+      boardImageAssetId: int("boardImageAssetId"),
+      // FK to project_assets
+      benchmarkVersionId: int("benchmarkVersionId"),
+      createdBy: int("createdBy").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    materialsCatalog = mysqlTable("materials_catalog", {
+      id: int("id").autoincrement().primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      category: mysqlEnum("category", [
+        "tile",
+        "stone",
+        "wood",
+        "metal",
+        "fabric",
+        "glass",
+        "paint",
+        "wallpaper",
+        "lighting",
+        "furniture",
+        "fixture",
+        "accessory",
+        "other"
+      ]).notNull(),
+      tier: mysqlEnum("tier", ["economy", "mid", "premium", "luxury", "ultra_luxury"]).notNull(),
+      typicalCostLow: decimal("typicalCostLow", { precision: 10, scale: 2 }),
+      typicalCostHigh: decimal("typicalCostHigh", { precision: 10, scale: 2 }),
+      costUnit: varchar("costUnit", { length: 32 }).default("AED/sqm"),
+      leadTimeDays: int("leadTimeDays"),
+      leadTimeBand: mysqlEnum("leadTimeBand", ["short", "medium", "long", "critical"]).default("medium"),
+      regionAvailability: json("regionAvailability"),
+      // string[]
+      supplierName: varchar("supplierName", { length: 255 }),
+      supplierContact: varchar("supplierContact", { length: 255 }),
+      supplierUrl: text("supplierUrl"),
+      imageUrl: text("imageUrl"),
+      notes: text("notes"),
+      isActive: boolean("isActive").default(true).notNull(),
+      createdBy: int("createdBy"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    materialsToBoards = mysqlTable("materials_to_boards", {
+      id: int("id").autoincrement().primaryKey(),
+      boardId: int("boardId").notNull(),
+      materialId: int("materialId").notNull(),
+      quantity: decimal("quantity", { precision: 10, scale: 2 }),
+      unitOfMeasure: varchar("unitOfMeasure", { length: 32 }),
+      notes: text("notes"),
+      sortOrder: int("sortOrder").default(0).notNull(),
+      specNotes: text("specNotes"),
+      costBandOverride: varchar("costBandOverride", { length: 64 }),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    promptTemplates = mysqlTable("prompt_templates", {
+      id: int("id").autoincrement().primaryKey(),
+      orgId: int("orgId"),
+      name: varchar("name", { length: 255 }).notNull(),
+      type: mysqlEnum("type", ["mood", "material_board", "hero"]).notNull(),
+      templateText: text("templateText").notNull(),
+      variables: json("variables").notNull(),
+      // string[] of variable names
+      isActive: boolean("isActive").default(true).notNull(),
+      createdBy: int("createdBy"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    comments = mysqlTable("comments", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      entityType: mysqlEnum("entityType", [
+        "design_brief",
+        "material_board",
+        "visual",
+        "general"
+      ]).notNull(),
+      entityId: int("entityId"),
+      userId: int("userId").notNull(),
+      content: text("content").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    auditLogs = mysqlTable("audit_logs", {
+      id: int("id").autoincrement().primaryKey(),
+      orgId: int("orgId"),
+      userId: int("userId"),
+      action: varchar("action", { length: 128 }).notNull(),
+      entityType: varchar("entityType", { length: 64 }).notNull(),
+      entityId: int("entityId"),
+      details: json("details"),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      modelVersionId: int("modelVersionId"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      ipAddress: varchar("ipAddress", { length: 64 })
+    });
+    overrideRecords = mysqlTable("override_records", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      userId: int("userId").notNull(),
+      overrideType: mysqlEnum("overrideType", [
+        "strategic",
+        "market_insight",
+        "risk_adjustment",
+        "experimental"
+      ]).notNull(),
+      authorityLevel: int("authorityLevel").notNull(),
+      originalValue: json("originalValue").notNull(),
+      overrideValue: json("overrideValue").notNull(),
+      justification: text("justification").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    logicVersions = mysqlTable("logic_versions", {
+      id: int("id").autoincrement().primaryKey(),
+      name: varchar("name", { length: 128 }).notNull(),
+      status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+      createdBy: int("createdBy"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      publishedAt: timestamp("publishedAt"),
+      notes: text("notes")
+    });
+    logicWeights = mysqlTable("logic_weights", {
+      id: int("id").autoincrement().primaryKey(),
+      logicVersionId: int("logicVersionId").notNull(),
+      dimension: varchar("dimension", { length: 32 }).notNull(),
+      // sa, ff, mp, ds, er
+      weight: decimal("weight", { precision: 6, scale: 4 }).notNull()
+    });
+    logicThresholds = mysqlTable("logic_thresholds", {
+      id: int("id").autoincrement().primaryKey(),
+      logicVersionId: int("logicVersionId").notNull(),
+      ruleKey: varchar("ruleKey", { length: 128 }).notNull(),
+      thresholdValue: decimal("thresholdValue", { precision: 10, scale: 4 }).notNull(),
+      comparator: mysqlEnum("comparator", ["gt", "gte", "lt", "lte", "eq", "neq"]).notNull(),
+      notes: text("notes")
+    });
+    logicChangeLog = mysqlTable("logic_change_log", {
+      id: int("id").autoincrement().primaryKey(),
+      logicVersionId: int("logicVersionId").notNull(),
+      actor: int("actor").notNull(),
+      changeSummary: text("changeSummary").notNull(),
+      rationale: text("rationale").notNull(),
+      status: mysqlEnum("status", ["applied", "proposed", "rejected"]).default("applied").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    decisionPatterns = mysqlTable("decision_patterns", {
+      id: int("id").autoincrement().primaryKey(),
+      name: text("name").notNull(),
+      description: text("description").notNull(),
+      category: mysqlEnum("category", ["risk_indicator", "success_driver", "cost_anomaly"]).notNull(),
+      conditions: json("conditions").notNull(),
+      // array of logic defining the pattern
+      matchCount: int("matchCount").default(0).notNull(),
+      // times it appeared
+      reliabilityScore: decimal("reliabilityScore", { precision: 5, scale: 2 }).default("0.00").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    projectPatternMatches = mysqlTable("project_pattern_matches", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      patternId: int("patternId").notNull(),
+      matchedAt: timestamp("matchedAt").defaultNow().notNull(),
+      confidence: decimal("confidence", { precision: 5, scale: 2 }).default("1.00").notNull(),
+      contextSnapshot: json("contextSnapshot")
+      // snapshot of scores during match
+    });
+    scenarioInputs = mysqlTable("scenario_inputs", {
+      id: int("id").autoincrement().primaryKey(),
+      scenarioId: int("scenarioId").notNull(),
+      jsonInput: json("jsonInput").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    scenarioOutputs = mysqlTable("scenario_outputs", {
+      id: int("id").autoincrement().primaryKey(),
+      scenarioId: int("scenarioId").notNull(),
+      scoreJson: json("scoreJson").notNull(),
+      roiJson: json("roiJson"),
+      riskJson: json("riskJson"),
+      boardCostJson: json("boardCostJson"),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      logicVersionId: int("logicVersionId"),
+      computedAt: timestamp("computedAt").defaultNow().notNull()
+    });
+    scenarioComparisons = mysqlTable("scenario_comparisons", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      baselineScenarioId: int("baselineScenarioId").notNull(),
+      comparedScenarioIds: json("comparedScenarioIds").notNull(),
+      // number[]
+      decisionNote: text("decisionNote"),
+      comparisonResult: json("comparisonResult"),
+      // computed tradeoffs
+      createdBy: int("createdBy"),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    projectOutcomes = mysqlTable("project_outcomes", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      procurementActualCosts: json("procurementActualCosts"),
+      leadTimesActual: json("leadTimesActual"),
+      rfqResults: json("rfqResults"),
+      adoptionMetrics: json("adoptionMetrics"),
+      // V5 Fields
+      actualFitoutCostPerSqm: decimal("actualFitoutCostPerSqm", { precision: 10, scale: 2 }),
+      actualTotalCost: decimal("actualTotalCost", { precision: 15, scale: 2 }),
+      projectDeliveredOnTime: boolean("projectDeliveredOnTime"),
+      reworkOccurred: boolean("reworkOccurred"),
+      reworkCostAed: decimal("reworkCostAed", { precision: 15, scale: 2 }),
+      clientSatisfactionScore: int("clientSatisfactionScore"),
+      tenderIterations: int("tenderIterations"),
+      keyLessonsLearned: text("keyLessonsLearned"),
+      capturedAt: timestamp("capturedAt").defaultNow().notNull(),
+      capturedBy: int("capturedBy")
+    });
+    outcomeComparisons = mysqlTable("outcome_comparisons", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      comparedAt: timestamp("comparedAt").defaultNow().notNull(),
+      // Cost accuracy
+      predictedCostMid: decimal("predictedCostMid", { precision: 15, scale: 2 }),
+      actualCost: decimal("actualCost", { precision: 15, scale: 2 }),
+      costDeltaPct: decimal("costDeltaPct", { precision: 10, scale: 4 }),
+      costAccuracyBand: mysqlEnum("costAccuracyBand", ["within_10pct", "within_20pct", "outside_20pct", "no_prediction"]).notNull(),
+      // Score accuracy
+      predictedComposite: decimal("predictedComposite", { precision: 5, scale: 4 }).notNull(),
+      predictedDecision: varchar("predictedDecision", { length: 64 }).notNull(),
+      actualOutcomeSuccess: boolean("actualOutcomeSuccess").notNull(),
+      scorePredictionCorrect: boolean("scorePredictionCorrect").notNull(),
+      // Risk accuracy
+      predictedRisk: decimal("predictedRisk", { precision: 5, scale: 4 }).notNull(),
+      actualReworkOccurred: boolean("actualReworkOccurred").notNull(),
+      riskPredictionCorrect: boolean("riskPredictionCorrect").notNull(),
+      // Delta summary
+      overallAccuracyGrade: mysqlEnum("overallAccuracyGrade", ["A", "B", "C", "insufficient_data"]).notNull(),
+      learningSignals: json("learningSignals"),
+      rawComparison: json("rawComparison")
+    });
+    accuracySnapshots = mysqlTable("accuracy_snapshots", {
+      id: int("id").autoincrement().primaryKey(),
+      snapshotDate: timestamp("snapshotDate").defaultNow().notNull(),
+      totalComparisons: int("totalComparisons").notNull(),
+      withCostPrediction: int("withCostPrediction").notNull(),
+      withOutcomePrediction: int("withOutcomePrediction").notNull(),
+      // Cost accuracy
+      costWithin10Pct: int("costWithin10Pct").notNull(),
+      costWithin20Pct: int("costWithin20Pct").notNull(),
+      costOutside20Pct: int("costOutside20Pct").notNull(),
+      costMaePct: decimal("costMaePct", { precision: 8, scale: 4 }),
+      costTrend: mysqlEnum("costTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+      // Score accuracy
+      scoreCorrectPredictions: int("scoreCorrectPredictions").notNull(),
+      scoreIncorrectPredictions: int("scoreIncorrectPredictions").notNull(),
+      scoreAccuracyRate: decimal("scoreAccuracyRate", { precision: 8, scale: 4 }).notNull(),
+      scoreTrend: mysqlEnum("scoreTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+      // Risk accuracy
+      riskCorrectPredictions: int("riskCorrectPredictions").notNull(),
+      riskIncorrectPredictions: int("riskIncorrectPredictions").notNull(),
+      riskAccuracyRate: decimal("riskAccuracyRate", { precision: 8, scale: 4 }).notNull(),
+      riskTrend: mysqlEnum("riskTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+      overallPlatformAccuracy: decimal("overallPlatformAccuracy", { precision: 8, scale: 4 }).notNull(),
+      gradeA: int("gradeA").notNull(),
+      gradeB: int("gradeB").notNull(),
+      gradeC: int("gradeC").notNull()
+    });
+    benchmarkSuggestions = mysqlTable("benchmark_suggestions", {
+      id: int("id").autoincrement().primaryKey(),
+      basedOnOutcomesQuery: text("basedOnOutcomesQuery"),
+      suggestedChanges: json("suggestedChanges").notNull(),
+      confidence: decimal("confidence", { precision: 6, scale: 4 }),
+      status: mysqlEnum("status", ["pending", "accepted", "rejected"]).default("pending").notNull(),
+      reviewerNotes: text("reviewerNotes"),
+      reviewedBy: int("reviewedBy"),
+      reviewedAt: timestamp("reviewedAt"),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    sourceRegistry = mysqlTable("source_registry", {
+      id: int("id").autoincrement().primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      url: text("url").notNull(),
+      sourceType: mysqlEnum("sourceType", [
+        "supplier_catalog",
+        "manufacturer_catalog",
+        "developer_brochure",
+        "industry_report",
+        "government_tender",
+        "procurement_portal",
+        "trade_publication",
+        "retailer_listing",
+        "aggregator",
+        "other"
+      ]).notNull(),
+      reliabilityDefault: mysqlEnum("reliabilityDefault", ["A", "B", "C"]).default("B").notNull(),
+      isWhitelisted: boolean("isWhitelisted").default(true).notNull(),
+      region: varchar("region", { length: 64 }).default("UAE"),
+      notes: text("notes"),
+      addedBy: int("addedBy"),
+      isActive: boolean("isActive").default(true).notNull(),
+      lastSuccessfulFetch: timestamp("lastSuccessfulFetch"),
+      // DFE Fields
+      scrapeConfig: json("scrapeConfig"),
+      scrapeSchedule: varchar("scrapeSchedule", { length: 64 }),
+      scrapeMethod: mysqlEnum("scrapeMethod", [
+        "html_llm",
+        "html_rules",
+        "json_api",
+        "rss_feed",
+        "csv_upload",
+        "email_forward"
+      ]).default("html_llm").notNull(),
+      scrapeHeaders: json("scrapeHeaders"),
+      extractionHints: text("extractionHints"),
+      priceFieldMapping: json("priceFieldMapping"),
+      lastScrapedAt: timestamp("lastScrapedAt"),
+      lastScrapedStatus: mysqlEnum("lastScrapedStatus", ["success", "partial", "failed", "never"]).default("never").notNull(),
+      lastRecordCount: int("lastRecordCount").default(0).notNull(),
+      consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
+      requestDelayMs: int("requestDelayMs").default(2e3).notNull(),
+      addedAt: timestamp("addedAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    evidenceRecords = mysqlTable("evidence_records", {
+      id: int("id").autoincrement().primaryKey(),
+      recordId: varchar("recordId", { length: 64 }).notNull().unique(),
+      // MYR-PE-XXXX
+      projectId: int("projectId"),
+      // optional: can be global evidence
+      orgId: int("orgId"),
+      sourceRegistryId: int("sourceRegistryId"),
+      // FK to source_registry
+      category: mysqlEnum("category", [
+        "floors",
+        "walls",
+        "ceilings",
+        "joinery",
+        "lighting",
+        "sanitary",
+        "kitchen",
+        "hardware",
+        "ffe",
+        "other"
+      ]).notNull(),
+      itemName: varchar("itemName", { length: 255 }).notNull(),
+      specClass: varchar("specClass", { length: 128 }),
+      priceMin: decimal("priceMin", { precision: 12, scale: 2 }),
+      priceTypical: decimal("priceTypical", { precision: 12, scale: 2 }),
+      priceMax: decimal("priceMax", { precision: 12, scale: 2 }),
+      unit: varchar("unit", { length: 32 }).notNull(),
+      // sqm, lm, set, piece, etc.
+      currencyOriginal: varchar("currencyOriginal", { length: 8 }).default("AED"),
+      currencyAed: decimal("currencyAed", { precision: 12, scale: 2 }),
+      // normalized to AED
+      fxRate: decimal("fxRate", { precision: 10, scale: 6 }),
+      fxSource: text("fxSource"),
+      sourceUrl: text("sourceUrl").notNull(),
+      publisher: varchar("publisher", { length: 255 }),
+      captureDate: timestamp("captureDate").notNull(),
+      reliabilityGrade: mysqlEnum("reliabilityGrade", ["A", "B", "C"]).notNull(),
+      confidenceScore: int("confidenceScore").notNull(),
+      // 0-100
+      extractedSnippet: text("extractedSnippet"),
+      notes: text("notes"),
+      // V2.2 metadata fields
+      title: varchar("title", { length: 512 }),
+      evidencePhase: mysqlEnum("evidencePhase", ["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]),
+      author: varchar("author", { length: 255 }),
+      confidentiality: mysqlEnum("confidentiality", ["public", "internal", "confidential", "restricted"]).default("internal"),
+      tags: json("tags"),
+      // string[]
+      fileUrl: text("fileUrl"),
+      // S3 signed URL for attached evidence file
+      fileKey: varchar("fileKey", { length: 512 }),
+      // S3 key for the file
+      fileMimeType: varchar("fileMimeType", { length: 128 }),
+      runId: varchar("runId", { length: 64 }),
+      // links to intelligence_audit_log
+      createdBy: int("createdBy"),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    benchmarkProposals = mysqlTable("benchmark_proposals", {
+      id: int("id").autoincrement().primaryKey(),
+      benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(),
+      // category:tier:unit
+      currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
+      currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
+      currentMax: decimal("currentMax", { precision: 12, scale: 2 }),
+      proposedP25: decimal("proposedP25", { precision: 12, scale: 2 }).notNull(),
+      proposedP50: decimal("proposedP50", { precision: 12, scale: 2 }).notNull(),
+      proposedP75: decimal("proposedP75", { precision: 12, scale: 2 }).notNull(),
+      weightedMean: decimal("weightedMean", { precision: 12, scale: 2 }).notNull(),
+      deltaPct: decimal("deltaPct", { precision: 8, scale: 2 }),
+      // % change from current
+      evidenceCount: int("evidenceCount").notNull(),
+      sourceDiversity: int("sourceDiversity").notNull(),
+      reliabilityDist: json("reliabilityDist").notNull(),
+      // { A: n, B: n, C: n }
+      recencyDist: json("recencyDist").notNull(),
+      // { recent: n, mid: n, old: n }
+      confidenceScore: int("confidenceScore").notNull(),
+      // 0-100
+      impactNotes: text("impactNotes"),
+      recommendation: mysqlEnum("recommendation", ["publish", "reject"]).notNull(),
+      rejectionReason: text("rejectionReason"),
+      // Review workflow
+      status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+      reviewerNotes: text("reviewerNotes"),
+      reviewedBy: int("reviewedBy"),
+      reviewedAt: timestamp("reviewedAt"),
+      // Snapshot linking
+      benchmarkSnapshotId: int("benchmarkSnapshotId"),
+      runId: varchar("runId", { length: 64 }),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    benchmarkSnapshots = mysqlTable("benchmark_snapshots", {
+      id: int("id").autoincrement().primaryKey(),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      snapshotJson: json("snapshotJson").notNull(),
+      // full benchmark state at time of snapshot
+      description: text("description"),
+      createdBy: int("createdBy"),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    competitorEntities = mysqlTable("competitor_entities", {
+      id: int("id").autoincrement().primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      headquarters: varchar("headquarters", { length: 255 }),
+      segmentFocus: mysqlEnum("segmentFocus", [
+        "affordable",
+        "mid",
+        "premium",
+        "luxury",
+        "ultra_luxury",
+        "mixed"
+      ]).default("mixed"),
+      website: text("website"),
+      logoUrl: text("logoUrl"),
+      notes: text("notes"),
+      createdBy: int("createdBy"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    competitorProjects = mysqlTable("competitor_projects", {
+      id: int("id").autoincrement().primaryKey(),
+      competitorId: int("competitorId").notNull(),
+      // FK to competitor_entities
+      projectName: varchar("projectName", { length: 255 }).notNull(),
+      location: varchar("location", { length: 255 }),
+      segment: mysqlEnum("segment", [
+        "affordable",
+        "mid",
+        "premium",
+        "luxury",
+        "ultra_luxury"
+      ]),
+      assetType: mysqlEnum("assetType", [
+        "residential",
+        "commercial",
+        "hospitality",
+        "mixed_use"
+      ]).default("residential"),
+      positioningKeywords: json("positioningKeywords"),
+      // string[]
+      interiorStyleSignals: json("interiorStyleSignals"),
+      // string[]
+      materialCues: json("materialCues"),
+      // string[]
+      amenityList: json("amenityList"),
+      // string[]
+      unitMix: text("unitMix"),
+      priceIndicators: json("priceIndicators"),
+      // { currency, min, max, per_unit }
+      salesMessaging: json("salesMessaging"),
+      // string[]
+      differentiationClaims: json("differentiationClaims"),
+      // string[]
+      completionStatus: mysqlEnum("completionStatus", [
+        "announced",
+        "under_construction",
+        "completed",
+        "sold_out"
+      ]),
+      launchDate: varchar("launchDate", { length: 32 }),
+      totalUnits: int("totalUnits"),
+      architect: varchar("architect", { length: 255 }),
+      interiorDesigner: varchar("interiorDesigner", { length: 255 }),
+      sourceUrl: text("sourceUrl"),
+      captureDate: timestamp("captureDate"),
+      evidenceCitations: json("evidenceCitations"),
+      // array of { field, snippet, source_url, capture_date }
+      completenessScore: int("completenessScore"),
+      // 0-100
+      runId: varchar("runId", { length: 64 }),
+      createdBy: int("createdBy"),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    trendTags = mysqlTable("trend_tags", {
+      id: int("id").autoincrement().primaryKey(),
+      name: varchar("name", { length: 128 }).notNull().unique(),
+      category: mysqlEnum("category", [
+        "material_trend",
+        "design_trend",
+        "market_trend",
+        "buyer_preference",
+        "sustainability",
+        "technology",
+        "pricing",
+        "other"
+      ]).notNull(),
+      description: text("description"),
+      createdBy: int("createdBy"),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    entityTags = mysqlTable("entity_tags", {
+      id: int("id").autoincrement().primaryKey(),
+      tagId: int("tagId").notNull(),
+      // FK to trend_tags
+      entityType: mysqlEnum("entityType", [
+        "competitor_project",
+        "scenario",
+        "evidence_record",
+        "project"
+      ]).notNull(),
+      entityId: int("entityId").notNull(),
+      addedBy: int("addedBy"),
+      addedAt: timestamp("addedAt").defaultNow().notNull()
+    });
+    intelligenceAuditLog = mysqlTable("intelligence_audit_log", {
+      id: int("id").autoincrement().primaryKey(),
+      runType: mysqlEnum("runType", [
+        "price_extraction",
+        "competitor_extraction",
+        "benchmark_proposal",
+        "manual_entry"
+      ]).notNull(),
+      runId: varchar("runId", { length: 64 }).notNull().unique(),
+      actor: int("actor"),
+      // userId who triggered
+      inputSummary: json("inputSummary"),
+      // config/params used
+      outputSummary: json("outputSummary"),
+      // counts, coverage, errors
+      sourcesProcessed: int("sourcesProcessed").default(0),
+      recordsExtracted: int("recordsExtracted").default(0),
+      errors: int("errors").default(0),
+      errorDetails: json("errorDetails"),
+      startedAt: timestamp("startedAt").notNull(),
+      completedAt: timestamp("completedAt")
+    });
+    evidenceReferences = mysqlTable("evidence_references", {
+      id: int("id").autoincrement().primaryKey(),
+      evidenceRecordId: int("evidenceRecordId").notNull(),
+      // FK to evidence_records
+      targetType: mysqlEnum("targetType", [
+        "scenario",
+        "decision_note",
+        "explainability_driver",
+        "design_brief",
+        "report",
+        "material_board",
+        "pack_section"
+      ]).notNull(),
+      targetId: int("targetId").notNull(),
+      // ID of the linked entity
+      sectionLabel: varchar("sectionLabel", { length: 255 }),
+      // e.g. "Materials Specification", "Cost Assumptions"
+      citationText: text("citationText"),
+      // inline citation snippet
+      addedBy: int("addedBy"),
+      addedAt: timestamp("addedAt").defaultNow().notNull()
+    });
+    ingestionRuns = mysqlTable("ingestion_runs", {
+      id: int("id").autoincrement().primaryKey(),
+      runId: varchar("runId", { length: 64 }).notNull().unique(),
+      trigger: mysqlEnum("trigger", ["manual", "scheduled", "api"]).notNull(),
+      triggeredBy: int("triggeredBy"),
+      // userId or null for scheduled
+      status: mysqlEnum("status", ["running", "completed", "failed"]).default("running").notNull(),
+      // Counts
+      totalSources: int("totalSources").default(0).notNull(),
+      sourcesSucceeded: int("sourcesSucceeded").default(0).notNull(),
+      sourcesFailed: int("sourcesFailed").default(0).notNull(),
+      recordsExtracted: int("recordsExtracted").default(0).notNull(),
+      recordsInserted: int("recordsInserted").default(0).notNull(),
+      duplicatesSkipped: int("duplicatesSkipped").default(0).notNull(),
+      // Detail
+      sourceBreakdown: json("sourceBreakdown"),
+      // per-source { sourceId, name, status, extracted, inserted, duplicates, errors }
+      errorSummary: json("errorSummary"),
+      // [{ sourceId, error }]
+      // Timing
+      startedAt: timestamp("startedAt").notNull(),
+      completedAt: timestamp("completedAt"),
+      durationMs: int("durationMs"),
+      // Metadata
+      cronExpression: varchar("cronExpression", { length: 64 }),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    connectorHealth = mysqlTable("connector_health", {
+      id: int("id").autoincrement().primaryKey(),
+      runId: varchar("runId", { length: 64 }).notNull(),
+      // FK to ingestion_runs.runId
+      sourceId: varchar("sourceId", { length: 64 }).notNull(),
+      sourceName: varchar("sourceName", { length: 255 }).notNull(),
+      status: mysqlEnum("healthStatus", ["success", "partial", "failed"]).notNull(),
+      httpStatusCode: int("httpStatusCode"),
+      responseTimeMs: int("responseTimeMs"),
+      recordsExtracted: int("recordsExtracted").default(0).notNull(),
+      recordsInserted: int("recordsInserted").default(0).notNull(),
+      duplicatesSkipped: int("duplicatesSkipped").default(0).notNull(),
+      errorMessage: text("errorMessage"),
+      errorType: varchar("errorType", { length: 64 }),
+      // "dns_failure", "timeout", "http_error", "parse_error", "llm_error"
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    trendSnapshots = mysqlTable("trend_snapshots", {
+      id: int("id").autoincrement().primaryKey(),
+      metric: varchar("metric", { length: 255 }).notNull(),
+      category: varchar("category", { length: 128 }).notNull(),
+      geography: varchar("geography", { length: 128 }).notNull(),
+      dataPointCount: int("dataPointCount").default(0).notNull(),
+      gradeACount: int("gradeACount").default(0).notNull(),
+      gradeBCount: int("gradeBCount").default(0).notNull(),
+      gradeCCount: int("gradeCCount").default(0).notNull(),
+      uniqueSources: int("uniqueSources").default(0).notNull(),
+      dateRangeStart: timestamp("dateRangeStart"),
+      dateRangeEnd: timestamp("dateRangeEnd"),
+      currentMA: decimal("currentMA", { precision: 14, scale: 4 }),
+      previousMA: decimal("previousMA", { precision: 14, scale: 4 }),
+      percentChange: decimal("percentChange", { precision: 10, scale: 6 }),
+      direction: mysqlEnum("direction", ["rising", "falling", "stable", "insufficient_data"]).notNull(),
+      anomalyCount: int("anomalyCount").default(0).notNull(),
+      anomalyDetails: json("anomalyDetails"),
+      // AnomalyFlag[]
+      confidence: mysqlEnum("trendConfidence", ["high", "medium", "low", "insufficient"]).notNull(),
+      narrative: text("narrative"),
+      movingAverages: json("movingAverages"),
+      // MovingAveragePoint[]
+      ingestionRunId: varchar("ingestionRunId", { length: 64 }),
+      // FK to ingestion_runs.runId
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    projectInsights = mysqlTable("project_insights", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId"),
+      // nullable for system-wide insights
+      insightType: mysqlEnum("insightType", [
+        "cost_pressure",
+        "market_opportunity",
+        "competitor_alert",
+        "trend_signal",
+        "positioning_gap"
+      ]).notNull(),
+      severity: mysqlEnum("insightSeverity", ["critical", "warning", "info"]).notNull(),
+      title: varchar("title", { length: 512 }).notNull(),
+      body: text("body"),
+      actionableRecommendation: text("actionableRecommendation"),
+      confidenceScore: decimal("confidenceScore", { precision: 5, scale: 4 }),
+      triggerCondition: text("triggerCondition"),
+      dataPoints: json("dataPoints"),
+      status: mysqlEnum("insightStatus", ["active", "acknowledged", "dismissed", "resolved"]).default("active").notNull(),
+      acknowledgedBy: int("acknowledgedBy"),
+      acknowledgedAt: timestamp("acknowledgedAt"),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    priceChangeEvents = mysqlTable("price_change_events", {
+      id: int("id").autoincrement().primaryKey(),
+      itemName: varchar("itemName", { length: 255 }).notNull(),
+      category: varchar("category", { length: 255 }).notNull(),
+      sourceId: int("sourceId").notNull(),
+      previousPrice: decimal("previousPrice", { precision: 12, scale: 2 }).notNull(),
+      newPrice: decimal("newPrice", { precision: 12, scale: 2 }).notNull(),
+      changePct: decimal("changePct", { precision: 10, scale: 6 }).notNull(),
+      changeDirection: mysqlEnum("changeDirection", ["increased", "decreased"]).notNull(),
+      severity: mysqlEnum("severity", ["significant", "notable", "minor", "none"]).notNull(),
+      detectedAt: timestamp("detectedAt").defaultNow().notNull()
+    });
+    platformAlerts = mysqlTable("platform_alerts", {
+      id: int("id").autoincrement().primaryKey(),
+      alertType: mysqlEnum("alertType", [
+        "price_shock",
+        "project_at_risk",
+        "accuracy_degraded",
+        "pattern_warning",
+        "benchmark_drift",
+        "market_opportunity"
+      ]).notNull(),
+      severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
+      title: varchar("title", { length: 255 }).notNull(),
+      body: text("body").notNull(),
+      affectedProjectIds: json("affectedProjectIds"),
+      affectedCategories: json("affectedCategories"),
+      triggerData: json("triggerData"),
+      suggestedAction: text("suggestedAction").notNull(),
+      status: mysqlEnum("status", ["active", "acknowledged", "resolved", "expired"]).default("active").notNull(),
+      acknowledgedBy: int("acknowledgedBy"),
+      acknowledgedAt: timestamp("acknowledgedAt"),
+      expiresAt: timestamp("expiresAt").notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    nlQueryLog = mysqlTable("nl_query_log", {
+      id: int("id").primaryKey().autoincrement(),
+      userId: int("user_id").notNull(),
+      queryText: text("query_text").notNull(),
+      sqlGenerated: text("sql_generated"),
+      rowsReturned: int("rows_returned").default(0),
+      executionMs: int("execution_ms"),
+      status: mysqlEnum("status", ["success", "error", "blocked"]).default("success"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    materialLibrary = mysqlTable("material_library", {
+      id: int("id").primaryKey().autoincrement(),
+      category: mysqlEnum("category", [
+        "flooring",
+        "wall_paint",
+        "wall_tile",
+        "ceiling",
+        "joinery",
+        "sanitaryware",
+        "fittings",
+        "lighting",
+        "hardware",
+        "specialty"
+      ]).notNull(),
+      tier: mysqlEnum("tier", [
+        "affordable",
+        "mid",
+        "premium",
+        "ultra"
+      ]).notNull(),
+      style: mysqlEnum("style", [
+        "modern",
+        "contemporary",
+        "classic",
+        "minimalist",
+        "arabesque",
+        "all"
+      ]).default("all").notNull(),
+      productCode: varchar("product_code", { length: 100 }),
+      productName: varchar("product_name", { length: 300 }).notNull(),
+      brand: varchar("brand", { length: 150 }).notNull(),
+      supplierName: varchar("supplier_name", { length: 200 }).notNull(),
+      supplierLocation: varchar("supplier_location", { length: 200 }),
+      supplierPhone: varchar("supplier_phone", { length: 50 }),
+      unitLabel: varchar("unit_label", { length: 30 }).notNull(),
+      priceAedMin: decimal("price_aed_min", { precision: 10, scale: 2 }),
+      priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
+      notes: text("notes"),
+      isActive: boolean("is_active").default(true).notNull()
+    });
+    finishScheduleItems = mysqlTable(
+      "finish_schedule_items",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        projectId: int("project_id").notNull(),
+        organizationId: int("organization_id").notNull(),
+        roomId: varchar("room_id", { length: 10 }).notNull(),
+        roomName: varchar("room_name", { length: 100 }).notNull(),
+        element: mysqlEnum("element", [
+          "floor",
+          "wall_primary",
+          "wall_feature",
+          "wall_wet",
+          "ceiling",
+          "joinery",
+          "hardware"
+        ]).notNull(),
+        materialLibraryId: int("material_library_id"),
+        overrideSpec: varchar("override_spec", { length: 500 }),
+        notes: text("notes"),
+        createdAt: timestamp("created_at").defaultNow().notNull()
+      }
+    );
+    projectColorPalettes = mysqlTable(
+      "project_color_palettes",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        projectId: int("project_id").notNull(),
+        organizationId: int("organization_id").notNull(),
+        paletteKey: varchar("palette_key", { length: 100 }).notNull(),
+        colors: json("colors").notNull(),
+        geminiRationale: text("gemini_rationale"),
+        createdAt: timestamp("created_at").defaultNow().notNull()
+      }
+    );
+    rfqLineItems = mysqlTable("rfq_line_items", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      organizationId: int("organization_id").notNull(),
+      sectionNo: int("section_no").notNull(),
+      itemCode: varchar("item_code", { length: 20 }).notNull(),
+      description: varchar("description", { length: 500 }).notNull(),
+      unit: varchar("unit", { length: 20 }).notNull(),
+      quantity: decimal("quantity", { precision: 10, scale: 2 }),
+      unitRateAedMin: decimal(
+        "unit_rate_aed_min",
+        { precision: 10, scale: 2 }
+      ),
+      unitRateAedMax: decimal(
+        "unit_rate_aed_max",
+        { precision: 10, scale: 2 }
+      ),
+      totalAedMin: decimal(
+        "total_aed_min",
+        { precision: 12, scale: 2 }
+      ),
+      totalAedMax: decimal(
+        "total_aed_max",
+        { precision: 12, scale: 2 }
+      ),
+      supplierName: varchar("supplier_name", { length: 200 }),
+      notes: text("notes"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    dmComplianceChecklists = mysqlTable(
+      "dm_compliance_checklists",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        projectId: int("project_id").notNull(),
+        organizationId: int("organization_id").notNull(),
+        items: json("items").notNull(),
+        createdAt: timestamp("created_at").defaultNow().notNull()
+      }
+    );
+    projectRoiModels = mysqlTable("project_roi_models", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      scenarioId: int("scenario_id"),
+      reworkCostAvoided: decimal("rework_cost_avoided", { precision: 14, scale: 2 }).notNull(),
+      programmeAccelerationValue: decimal("programme_acceleration_value", { precision: 14, scale: 2 }).notNull(),
+      totalValueCreated: decimal("total_value_created", { precision: 14, scale: 2 }).notNull(),
+      netRoiPercent: decimal("net_roi_percent", { precision: 8, scale: 2 }).notNull(),
+      confidenceMultiplier: decimal("confidence_multiplier", { precision: 5, scale: 4 }).notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    scenarioStressTests = mysqlTable("scenario_stress_tests", {
+      id: int("id").primaryKey().autoincrement(),
+      scenarioId: int("scenario_id").notNull(),
+      stressCondition: varchar("stress_condition", { length: 100 }).notNull(),
+      impactMagnitudePercent: decimal("impact_magnitude_percent", { precision: 6, scale: 2 }).notNull(),
+      resilienceScore: int("resilience_score").notNull(),
+      // 1-100
+      failurePoints: json("failure_points").notNull(),
+      // JSON array of components that fail
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    riskSurfaceMaps = mysqlTable("risk_surface_maps", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      domain: varchar("domain", { length: 100 }).notNull(),
+      probability: int("probability").notNull(),
+      // 0-100
+      impact: int("impact").notNull(),
+      // 0-100
+      vulnerability: int("vulnerability").notNull(),
+      // 0-100
+      controlStrength: int("control_strength").notNull(),
+      // 1-100
+      compositeRiskScore: int("composite_risk_score").notNull(),
+      // Calculated via R = (P * I * V) / C
+      riskBand: mysqlEnum("risk_band", ["Minimal", "Controlled", "Elevated", "Critical", "Systemic"]).notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    biasAlerts = mysqlTable("bias_alerts", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("projectId").notNull(),
+      scoreMatrixId: int("scoreMatrixId"),
+      userId: int("userId").notNull(),
+      orgId: int("orgId"),
+      biasType: mysqlEnum("biasType", [
+        "optimism_bias",
+        "anchoring_bias",
+        "confirmation_bias",
+        "overconfidence",
+        "scope_creep",
+        "sunk_cost",
+        "clustering_illusion"
+      ]).notNull(),
+      severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
+      confidence: decimal("confidence", { precision: 5, scale: 2 }).notNull(),
+      title: varchar("title", { length: 255 }).notNull(),
+      description: text("description"),
+      intervention: text("intervention"),
+      evidencePoints: json("evidencePoints"),
+      mathExplanation: text("mathExplanation"),
+      dismissed: boolean("dismissed").default(false),
+      dismissedBy: int("dismissedBy"),
+      dismissedAt: timestamp("dismissedAt"),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    biasProfiles = mysqlTable("bias_profiles", {
+      id: int("id").primaryKey().autoincrement(),
+      userId: int("userId").notNull(),
+      orgId: int("orgId"),
+      biasType: varchar("biasType", { length: 64 }).notNull(),
+      occurrenceCount: int("occurrenceCount").default(0),
+      lastDetectedAt: timestamp("lastDetectedAt"),
+      avgSeverity: decimal("avgSeverity", { precision: 3, scale: 2 }),
+      trend: mysqlEnum("trend", ["increasing", "stable", "decreasing"]).default("stable"),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    spaceRecommendations = mysqlTable("space_recommendations", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      orgId: int("org_id").notNull(),
+      roomId: varchar("room_id", { length: 10 }).notNull(),
+      roomName: varchar("room_name", { length: 100 }).notNull(),
+      sqm: decimal("sqm", { precision: 8, scale: 2 }),
+      styleDirection: varchar("style_direction", { length: 500 }),
+      colorScheme: varchar("color_scheme", { length: 500 }),
+      materialPackage: json("material_package"),
+      // MaterialRec[]
+      budgetAllocation: decimal("budget_allocation", { precision: 12, scale: 2 }),
+      budgetBreakdown: json("budget_breakdown"),
+      // BudgetBreakdownItem[]
+      aiRationale: text("ai_rationale"),
+      specialNotes: json("special_notes"),
+      // string[]
+      kitchenSpec: json("kitchen_spec"),
+      // KitchenSpec | null
+      bathroomSpec: json("bathroom_spec"),
+      // BathroomSpec | null
+      alternatives: json("alternatives"),
+      // AlternativePackage[]
+      generatedAt: timestamp("generated_at").defaultNow().notNull()
+    });
+    designPackages = mysqlTable("design_packages", {
+      id: int("id").primaryKey().autoincrement(),
+      orgId: int("org_id"),
+      name: varchar("name", { length: 200 }).notNull(),
+      typology: varchar("typology", { length: 100 }).notNull(),
+      tier: varchar("tier", { length: 50 }).notNull(),
+      style: varchar("style", { length: 100 }).notNull(),
+      description: text("description"),
+      targetBudgetPerSqm: decimal("target_budget_per_sqm", { precision: 10, scale: 2 }),
+      rooms: json("rooms"),
+      // SpaceRecommendation[]
+      isTemplate: boolean("is_template").default(false).notNull(),
+      isActive: boolean("is_active").default(true).notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull()
+    });
+    aiDesignBriefs = mysqlTable("ai_design_briefs", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      orgId: int("org_id").notNull(),
+      briefData: json("brief_data").notNull(),
+      // AIDesignBrief
+      version: varchar("version", { length: 20 }).default("1.0"),
+      generatedAt: timestamp("generated_at").defaultNow().notNull()
+    });
   }
-);
-var projectColorPalettes = mysqlTable(
-  "project_color_palettes",
-  {
-    id: int("id").primaryKey().autoincrement(),
-    projectId: int("project_id").notNull(),
-    organizationId: int("organization_id").notNull(),
-    paletteKey: varchar("palette_key", { length: 100 }).notNull(),
-    colors: json("colors").notNull(),
-    geminiRationale: text("gemini_rationale"),
-    createdAt: timestamp("created_at").defaultNow().notNull()
-  }
-);
-var rfqLineItems = mysqlTable("rfq_line_items", {
-  id: int("id").primaryKey().autoincrement(),
-  projectId: int("project_id").notNull(),
-  organizationId: int("organization_id").notNull(),
-  sectionNo: int("section_no").notNull(),
-  itemCode: varchar("item_code", { length: 20 }).notNull(),
-  description: varchar("description", { length: 500 }).notNull(),
-  unit: varchar("unit", { length: 20 }).notNull(),
-  quantity: decimal("quantity", { precision: 10, scale: 2 }),
-  unitRateAedMin: decimal(
-    "unit_rate_aed_min",
-    { precision: 10, scale: 2 }
-  ),
-  unitRateAedMax: decimal(
-    "unit_rate_aed_max",
-    { precision: 10, scale: 2 }
-  ),
-  totalAedMin: decimal(
-    "total_aed_min",
-    { precision: 12, scale: 2 }
-  ),
-  totalAedMax: decimal(
-    "total_aed_max",
-    { precision: 12, scale: 2 }
-  ),
-  supplierName: varchar("supplier_name", { length: 200 }),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var dmComplianceChecklists = mysqlTable(
-  "dm_compliance_checklists",
-  {
-    id: int("id").primaryKey().autoincrement(),
-    projectId: int("project_id").notNull(),
-    organizationId: int("organization_id").notNull(),
-    items: json("items").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull()
-  }
-);
-var projectRoiModels = mysqlTable("project_roi_models", {
-  id: int("id").primaryKey().autoincrement(),
-  projectId: int("project_id").notNull(),
-  scenarioId: int("scenario_id"),
-  reworkCostAvoided: decimal("rework_cost_avoided", { precision: 14, scale: 2 }).notNull(),
-  programmeAccelerationValue: decimal("programme_acceleration_value", { precision: 14, scale: 2 }).notNull(),
-  totalValueCreated: decimal("total_value_created", { precision: 14, scale: 2 }).notNull(),
-  netRoiPercent: decimal("net_roi_percent", { precision: 8, scale: 2 }).notNull(),
-  confidenceMultiplier: decimal("confidence_multiplier", { precision: 5, scale: 4 }).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var scenarioStressTests = mysqlTable("scenario_stress_tests", {
-  id: int("id").primaryKey().autoincrement(),
-  scenarioId: int("scenario_id").notNull(),
-  stressCondition: varchar("stress_condition", { length: 100 }).notNull(),
-  impactMagnitudePercent: decimal("impact_magnitude_percent", { precision: 6, scale: 2 }).notNull(),
-  resilienceScore: int("resilience_score").notNull(),
-  // 1-100
-  failurePoints: json("failure_points").notNull(),
-  // JSON array of components that fail
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var riskSurfaceMaps = mysqlTable("risk_surface_maps", {
-  id: int("id").primaryKey().autoincrement(),
-  projectId: int("project_id").notNull(),
-  domain: varchar("domain", { length: 100 }).notNull(),
-  probability: int("probability").notNull(),
-  // 0-100
-  impact: int("impact").notNull(),
-  // 0-100
-  vulnerability: int("vulnerability").notNull(),
-  // 0-100
-  controlStrength: int("control_strength").notNull(),
-  // 1-100
-  compositeRiskScore: int("composite_risk_score").notNull(),
-  // Calculated via R = (P * I * V) / C
-  riskBand: mysqlEnum("risk_band", ["Minimal", "Controlled", "Elevated", "Critical", "Systemic"]).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var biasAlerts = mysqlTable("bias_alerts", {
-  id: int("id").primaryKey().autoincrement(),
-  projectId: int("projectId").notNull(),
-  scoreMatrixId: int("scoreMatrixId"),
-  userId: int("userId").notNull(),
-  orgId: int("orgId"),
-  biasType: mysqlEnum("biasType", [
-    "optimism_bias",
-    "anchoring_bias",
-    "confirmation_bias",
-    "overconfidence",
-    "scope_creep",
-    "sunk_cost",
-    "clustering_illusion"
-  ]).notNull(),
-  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
-  confidence: decimal("confidence", { precision: 5, scale: 2 }).notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  description: text("description"),
-  intervention: text("intervention"),
-  evidencePoints: json("evidencePoints"),
-  mathExplanation: text("mathExplanation"),
-  dismissed: boolean("dismissed").default(false),
-  dismissedBy: int("dismissedBy"),
-  dismissedAt: timestamp("dismissedAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var biasProfiles = mysqlTable("bias_profiles", {
-  id: int("id").primaryKey().autoincrement(),
-  userId: int("userId").notNull(),
-  orgId: int("orgId"),
-  biasType: varchar("biasType", { length: 64 }).notNull(),
-  occurrenceCount: int("occurrenceCount").default(0),
-  lastDetectedAt: timestamp("lastDetectedAt"),
-  avgSeverity: decimal("avgSeverity", { precision: 3, scale: 2 }),
-  trend: mysqlEnum("trend", ["increasing", "stable", "decreasing"]).default("stable"),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var spaceRecommendations = mysqlTable("space_recommendations", {
-  id: int("id").primaryKey().autoincrement(),
-  projectId: int("project_id").notNull(),
-  orgId: int("org_id").notNull(),
-  roomId: varchar("room_id", { length: 10 }).notNull(),
-  roomName: varchar("room_name", { length: 100 }).notNull(),
-  sqm: decimal("sqm", { precision: 8, scale: 2 }),
-  styleDirection: varchar("style_direction", { length: 500 }),
-  colorScheme: varchar("color_scheme", { length: 500 }),
-  materialPackage: json("material_package"),
-  // MaterialRec[]
-  budgetAllocation: decimal("budget_allocation", { precision: 12, scale: 2 }),
-  budgetBreakdown: json("budget_breakdown"),
-  // BudgetBreakdownItem[]
-  aiRationale: text("ai_rationale"),
-  specialNotes: json("special_notes"),
-  // string[]
-  kitchenSpec: json("kitchen_spec"),
-  // KitchenSpec | null
-  bathroomSpec: json("bathroom_spec"),
-  // BathroomSpec | null
-  alternatives: json("alternatives"),
-  // AlternativePackage[]
-  generatedAt: timestamp("generated_at").defaultNow().notNull()
-});
-var designPackages = mysqlTable("design_packages", {
-  id: int("id").primaryKey().autoincrement(),
-  orgId: int("org_id"),
-  name: varchar("name", { length: 200 }).notNull(),
-  typology: varchar("typology", { length: 100 }).notNull(),
-  tier: varchar("tier", { length: 50 }).notNull(),
-  style: varchar("style", { length: 100 }).notNull(),
-  description: text("description"),
-  targetBudgetPerSqm: decimal("target_budget_per_sqm", { precision: 10, scale: 2 }),
-  rooms: json("rooms"),
-  // SpaceRecommendation[]
-  isTemplate: boolean("is_template").default(false).notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull()
-});
-var aiDesignBriefs = mysqlTable("ai_design_briefs", {
-  id: int("id").primaryKey().autoincrement(),
-  projectId: int("project_id").notNull(),
-  orgId: int("org_id").notNull(),
-  briefData: json("brief_data").notNull(),
-  // AIDesignBrief
-  version: varchar("version", { length: 20 }).default("1.0"),
-  generatedAt: timestamp("generated_at").defaultNow().notNull()
 });
 
 // server/_core/env.ts
-var ENV = {
-  // Database
-  DATABASE_URL: process.env.DATABASE_URL || "",
-  // App / Auth
-  cookieSecret: process.env.JWT_SECRET ?? "",
-  isProduction: process.env.NODE_ENV === "production",
-  ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
-  // Google Maps (optional — used by map.ts for geocoding & directions)
-  googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? ""
-};
+var ENV;
+var init_env = __esm({
+  "server/_core/env.ts"() {
+    "use strict";
+    ENV = {
+      // Database
+      DATABASE_URL: process.env.DATABASE_URL || "",
+      // App / Auth
+      cookieSecret: process.env.JWT_SECRET ?? "",
+      isProduction: process.env.NODE_ENV === "production",
+      ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
+      // Google Maps (optional — used by map.ts for geocoding & directions)
+      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? ""
+    };
+  }
+});
 
 // server/db.ts
-var _db = null;
+import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2";
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -4540,6 +2845,1865 @@ async function getLatestAiDesignBrief(projectId, orgId) {
   )).orderBy(desc(aiDesignBriefs.generatedAt)).limit(1);
   return results[0] || null;
 }
+var _db;
+var init_db = __esm({
+  "server/db.ts"() {
+    "use strict";
+    init_schema();
+    init_env();
+    _db = null;
+  }
+});
+
+// server/_core/llm.ts
+async function invokeLLM(params) {
+  assertApiKey();
+  const {
+    messages,
+    tools,
+    outputSchema,
+    output_schema,
+    responseFormat,
+    response_format
+  } = params;
+  const { systemInstruction, contents } = await convertMessagesToGemini(messages);
+  const payload = {
+    contents
+  };
+  if (systemInstruction) {
+    payload.systemInstruction = systemInstruction;
+  }
+  if (tools && tools.length > 0) {
+    const geminiTools = [
+      {
+        functionDeclarations: tools.map((t2) => ({
+          name: t2.function.name,
+          description: t2.function.description,
+          parameters: t2.function.parameters
+        }))
+      }
+    ];
+    payload.tools = geminiTools;
+  }
+  const schema = outputSchema || output_schema;
+  const explicitFormat = responseFormat || response_format;
+  if (schema) {
+    payload.generationConfig = {
+      responseMimeType: "application/json",
+      responseSchema: schema.schema
+    };
+  } else if (explicitFormat?.type === "json_object") {
+    payload.generationConfig = {
+      responseMimeType: "application/json"
+    };
+  }
+  let response;
+  let attempt = 0;
+  const maxRetries = 2;
+  while (attempt <= maxRetries) {
+    response = await fetch(resolveApiUrl(), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    if (response.ok) {
+      break;
+    }
+    if (response.status === 429 || response.status === 503) {
+      attempt++;
+      if (attempt > maxRetries) break;
+      const errorText = await response.text();
+      console.warn(`[Gemini API] HTTP ${response.status} hit. Retrying attempt ${attempt}/${maxRetries}... Error details: ${errorText.substring(0, 200)}`);
+      const delay = Math.pow(2, attempt) * 1e3 + Math.random() * 500;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    } else {
+      break;
+    }
+  }
+  if (!response || !response.ok) {
+    const errorText = response ? await response.text().catch(() => "Unknown error") : "No response";
+    const isRateLimit = response?.status === 429;
+    throw new Error(
+      isRateLimit ? `Gemini Request Limit Reached: Your API key is on the Free Tier (15 requests/min). Please update GEMINI_API_KEY in .env with a billing-enabled key from Google AI Studio.` : `Gemini LLM invoke failed: ${response?.status} ${response?.statusText} \u2013 ${errorText}`
+    );
+  }
+  const data = await response.json();
+  const candidate = data.candidates?.[0];
+  if (!candidate) {
+    throw new Error("No candidates returned from Gemini API");
+  }
+  const parts = candidate.content?.parts || [];
+  const textParts = parts.filter((p) => p.text).map((p) => p.text).join("");
+  const functionCallParts = parts.filter((p) => p.functionCall);
+  let tool_calls;
+  if (functionCallParts.length > 0) {
+    tool_calls = functionCallParts.map((fc, idx) => ({
+      id: `call_${Date.now()}_${idx}`,
+      type: "function",
+      function: {
+        name: fc.functionCall.name,
+        arguments: JSON.stringify(fc.functionCall.args || {})
+      }
+    }));
+  }
+  return {
+    id: `gemini-${Date.now()}`,
+    created: Math.floor(Date.now() / 1e3),
+    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: textParts,
+          tool_calls
+        },
+        finish_reason: candidate.finishReason === "STOP" ? "stop" : functionCallParts.length > 0 ? "tool_calls" : "length"
+      }
+    ],
+    usage: {
+      prompt_tokens: data.usageMetadata?.promptTokenCount || 0,
+      completion_tokens: data.usageMetadata?.candidatesTokenCount || 0,
+      total_tokens: data.usageMetadata?.totalTokenCount || 0
+    }
+  };
+}
+var ensureArray, normalizeContentPart, mapRoleToGemini, normalizeContentToGeminiParts, convertMessagesToGemini, resolveApiUrl, assertApiKey;
+var init_llm = __esm({
+  "server/_core/llm.ts"() {
+    "use strict";
+    ensureArray = (value) => Array.isArray(value) ? value : [value];
+    normalizeContentPart = (part) => {
+      if (typeof part === "string") {
+        return { type: "text", text: part };
+      }
+      if (part.type === "text") {
+        return part;
+      }
+      if (part.type === "image_url") {
+        return part;
+      }
+      if (part.type === "file_url") {
+        return part;
+      }
+      throw new Error("Unsupported message content part");
+    };
+    mapRoleToGemini = (role) => {
+      if (role === "assistant") return "model";
+      return "user";
+    };
+    normalizeContentToGeminiParts = async (content) => {
+      const parts = ensureArray(content).map(normalizeContentPart);
+      return await Promise.all(parts.map(async (part) => {
+        if (part.type === "text") return { text: part.text };
+        if (part.type === "image_url") {
+          try {
+            const response = await fetch(part.image_url.url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const mimeType = response.headers.get("content-type") || "image/jpeg";
+            return {
+              inlineData: {
+                mimeType,
+                data: buffer.toString("base64")
+              }
+            };
+          } catch (err) {
+            console.error("Failed to fetch image for Gemini inlineData:", err.message);
+            return { text: `[Image reference: ${part.image_url.url}]` };
+          }
+        }
+        if (part.type === "file_url") {
+          return { text: `[File reference: ${part.file_url.url}]` };
+        }
+        return { text: "" };
+      }));
+    };
+    convertMessagesToGemini = async (messages) => {
+      let systemInstruction;
+      const contents = [];
+      for (const msg of messages) {
+        if (msg.role === "system") {
+          const parts2 = await normalizeContentToGeminiParts(msg.content);
+          if (!systemInstruction) systemInstruction = { parts: [] };
+          systemInstruction.parts.push(...parts2);
+          continue;
+        }
+        if (msg.role === "tool" || msg.role === "function") {
+          const responseText = ensureArray(msg.content).map((p) => typeof p === "string" ? p : JSON.stringify(p)).join("\n");
+          let parsedResponse;
+          try {
+            parsedResponse = JSON.parse(responseText);
+          } catch {
+            parsedResponse = { result: responseText };
+          }
+          contents.push({
+            role: "user",
+            parts: [{
+              functionResponse: {
+                name: msg.name || "unknown_tool",
+                response: parsedResponse
+              }
+            }]
+          });
+          continue;
+        }
+        const role = mapRoleToGemini(msg.role);
+        const parts = await normalizeContentToGeminiParts(msg.content);
+        if (msg.role === "assistant" && msg.tool_calls?.length > 0) {
+          const functionCalls = msg.tool_calls.map((tc) => ({
+            functionCall: {
+              name: tc.function.name,
+              args: JSON.parse(tc.function.arguments || "{}")
+            }
+          }));
+          contents.push({
+            role: "model",
+            parts: [...parts, ...functionCalls]
+          });
+          continue;
+        }
+        contents.push({ role, parts });
+      }
+      return { systemInstruction, contents };
+    };
+    resolveApiUrl = () => {
+      const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+      return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    };
+    assertApiKey = () => {
+      if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is not configured in the environment");
+      }
+    };
+  }
+});
+
+// server/engines/bias/bias-types.ts
+var TIER_BUDGET_BENCHMARKS, BIAS_LABELS;
+var init_bias_types = __esm({
+  "server/engines/bias/bias-types.ts"() {
+    "use strict";
+    TIER_BUDGET_BENCHMARKS = {
+      "Mid": { median: 800, low: 500, high: 1200 },
+      "Upper-mid": { median: 1500, low: 1e3, high: 2200 },
+      "Luxury": { median: 3e3, low: 2e3, high: 5e3 },
+      "Ultra-luxury": { median: 6e3, low: 4e3, high: 12e3 }
+    };
+    BIAS_LABELS = {
+      optimism_bias: "Optimism Bias",
+      anchoring_bias: "Anchoring Bias",
+      confirmation_bias: "Confirmation Bias",
+      overconfidence: "Overconfidence",
+      scope_creep: "Scope Creep Risk",
+      sunk_cost: "Sunk Cost Fallacy",
+      clustering_illusion: "Clustering Illusion"
+    };
+  }
+});
+
+// server/engines/bias/bias-detector.ts
+var bias_detector_exports = {};
+__export(bias_detector_exports, {
+  BIAS_LABELS: () => BIAS_LABELS,
+  detectBiases: () => detectBiases
+});
+function severity(confidence) {
+  if (confidence >= 85) return "critical";
+  if (confidence >= 70) return "high";
+  if (confidence >= 50) return "medium";
+  return "low";
+}
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+function detectOptimismBias(inputs, scoreResult) {
+  const tier = inputs.mkt01Tier;
+  if (tier !== "Luxury" && tier !== "Ultra-luxury") return null;
+  const benchmark = TIER_BUDGET_BENCHMARKS[tier];
+  if (!benchmark) return null;
+  const gfa = inputs.ctx03Gfa || 500;
+  const budget = inputs.fin01BudgetCap || 0;
+  const expectedBudget = benchmark.median * gfa;
+  const budgetRatio = expectedBudget > 0 ? budget / expectedBudget : 1;
+  const evidence = [];
+  let rawConfidence = 0;
+  if (budget > 0 && budgetRatio < 0.7) {
+    const shortfall = ((1 - budgetRatio) * 100).toFixed(0);
+    rawConfidence += 40 + (1 - budgetRatio) * 40;
+    evidence.push({
+      variable: "fin01BudgetCap",
+      label: "Budget Cap",
+      value: `AED ${budget.toLocaleString()}`,
+      expected: `AED ${expectedBudget.toLocaleString()} (median for ${tier})`,
+      deviation: `${shortfall}% below ${tier} market median`
+    });
+  }
+  if (inputs.fin02Flexibility <= 2) {
+    rawConfidence += 20;
+    evidence.push({
+      variable: "fin02Flexibility",
+      label: "Budget Flexibility",
+      value: inputs.fin02Flexibility,
+      expected: "\u2265 3 for high-tier projects",
+      deviation: "Rigid budget with premium ambitions"
+    });
+  }
+  if (inputs.fin03ShockTolerance <= 2) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "fin03ShockTolerance",
+      label: "Shock Tolerance",
+      value: inputs.fin03ShockTolerance,
+      expected: "\u2265 3 for luxury market exposure",
+      deviation: "Low resilience to cost overruns in premium segment"
+    });
+  }
+  if (inputs.des03Complexity >= 4 && (inputs.ctx05Horizon === "0-12m" || inputs.ctx05Horizon === "12-24m")) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "des03Complexity",
+      label: "Design Complexity",
+      value: inputs.des03Complexity,
+      expected: "Lower complexity or longer horizon for Complexity \u2265 4"
+    });
+  }
+  if (evidence.length === 0) return null;
+  const confidence = clamp(rawConfidence, 20, 98);
+  return {
+    biasType: "optimism_bias",
+    severity: severity(confidence),
+    confidence,
+    title: "Optimism Bias Detected",
+    description: `This ${tier} project has ${evidence.length} indicator(s) suggesting unrealistic expectations. The selected tier implies market-rate costs that significantly exceed the configured budget and flexibility parameters.`,
+    intervention: `Review budget allocation against ${tier} benchmarks. Consider either increasing the budget cap to at least AED ${(TIER_BUDGET_BENCHMARKS[tier].low * (inputs.ctx03Gfa || 500)).toLocaleString()} or adjusting the market tier downward.`,
+    evidencePoints: evidence,
+    mathExplanation: `Budget ratio = actual / (${tier} median \xD7 GFA) = ${budgetRatio.toFixed(2)}. Threshold: < 0.70 triggers flag. Flexibility: ${inputs.fin02Flexibility}/5, ShockTolerance: ${inputs.fin03ShockTolerance}/5.`
+  };
+}
+function detectAnchoringBias(inputs, scoreResult, ctx) {
+  if (ctx.evaluationCount < 3) return null;
+  if (ctx.previousBudgets.length < 3) return null;
+  const currentBudget = inputs.fin01BudgetCap || 0;
+  if (currentBudget <= 0) return null;
+  const budgetVariance = ctx.previousBudgets.map(
+    (b) => Math.abs(b - currentBudget) / currentBudget
+  );
+  const maxVariance = Math.max(...budgetVariance);
+  const avgVariance = budgetVariance.reduce((a, b) => a + b, 0) / budgetVariance.length;
+  if (maxVariance > 0.05) return null;
+  const hasFinancialPenalties = scoreResult.penalties.some(
+    (p) => p.id.includes("budget") || p.id.includes("fin") || p.trigger.toLowerCase().includes("budget")
+  );
+  const evidence = [
+    {
+      variable: "fin01BudgetCap",
+      label: "Budget Cap (History)",
+      value: `AED ${currentBudget.toLocaleString()}`,
+      expected: "Adjustment based on evaluation feedback",
+      deviation: `Budget unchanged (\xB1${(maxVariance * 100).toFixed(1)}%) across ${ctx.evaluationCount} evaluations`
+    }
+  ];
+  if (hasFinancialPenalties) {
+    evidence.push({
+      variable: "penalties",
+      label: "Active Financial Penalties",
+      value: scoreResult.penalties.filter(
+        (p) => p.id.includes("budget") || p.id.includes("fin")
+      ).length,
+      deviation: "Budget-related penalties persist but budget unchanged"
+    });
+  }
+  let rawConfidence = 50 + (ctx.evaluationCount - 3) * 10 + (avgVariance < 0.02 ? 15 : 0);
+  if (hasFinancialPenalties) rawConfidence += 20;
+  const confidence = clamp(rawConfidence, 40, 95);
+  return {
+    biasType: "anchoring_bias",
+    severity: severity(confidence),
+    confidence,
+    title: "Anchoring Bias \u2014 Budget Fixed Despite Feedback",
+    description: `The budget has remained at AED ${currentBudget.toLocaleString()} (\xB1${(maxVariance * 100).toFixed(1)}%) across ${ctx.evaluationCount} evaluations. The system has flagged financial penalties, but the budget has not been adjusted.`,
+    intervention: `Consider whether the initial budget was set based on objective data or an arbitrary anchor. Re-evaluate using the market benchmarks and sensitivity analysis to determine the optimal budget range.`,
+    evidencePoints: evidence,
+    mathExplanation: `Max budget variance = ${(maxVariance * 100).toFixed(2)}% (threshold: 5%). Evaluations: ${ctx.evaluationCount}. Financial penalties active: ${hasFinancialPenalties}.`
+  };
+}
+function detectConfirmationBias(inputs, scoreResult, ctx) {
+  if (ctx.overrideCount < 2) return null;
+  if (ctx.overrideNetEffect <= 0) return null;
+  if (scoreResult.compositeScore >= 65) return null;
+  const evidence = [
+    {
+      variable: "overrideCount",
+      label: "Manual Overrides",
+      value: ctx.overrideCount,
+      expected: "Balanced overrides (both up and down)",
+      deviation: `${ctx.overrideCount} overrides applied, all increasing scores by net +${ctx.overrideNetEffect.toFixed(1)}`
+    },
+    {
+      variable: "compositeScore",
+      label: "Composite Score",
+      value: scoreResult.compositeScore.toFixed(1),
+      expected: "\u2265 65 for a validated project",
+      deviation: `Score remains ${scoreResult.compositeScore.toFixed(1)} despite positive overrides`
+    }
+  ];
+  let rawConfidence = 45 + ctx.overrideCount * 10 + (65 - scoreResult.compositeScore);
+  const confidence = clamp(rawConfidence, 40, 95);
+  return {
+    biasType: "confirmation_bias",
+    severity: severity(confidence),
+    confidence,
+    title: "Confirmation Bias \u2014 Cherry-Picking Overrides",
+    description: `${ctx.overrideCount} manual overrides have been applied, all increasing the score by a net +${ctx.overrideNetEffect.toFixed(1)} points. Despite this, the composite score remains at ${scoreResult.compositeScore.toFixed(1)}, below the validation threshold.`,
+    intervention: `Review each override for objective justification. Consider whether the project fundamentals support the desired direction, or whether the overrides are being used to validate a predetermined conclusion.`,
+    evidencePoints: evidence,
+    mathExplanation: `Overrides: ${ctx.overrideCount}, net effect: +${ctx.overrideNetEffect.toFixed(1)}. Post-override composite: ${scoreResult.compositeScore.toFixed(1)} (threshold: 65). All overrides positive \u2192 confirmation bias pattern.`
+  };
+}
+function detectOverconfidence(inputs, scoreResult) {
+  const evidence = [];
+  let rawConfidence = 0;
+  if (inputs.str01BrandClarity >= 5 && inputs.str02Differentiation >= 5) {
+    rawConfidence += 40;
+    evidence.push({
+      variable: "str01BrandClarity + str02Differentiation",
+      label: "Self-Assessed Brand + Differentiation",
+      value: "5/5 + 5/5",
+      expected: "Rare to have perfect scores in both",
+      deviation: "Maximum self-assessment on both strategic dimensions"
+    });
+  } else if (inputs.str01BrandClarity >= 4 && inputs.str02Differentiation >= 4) {
+    rawConfidence += 20;
+  } else {
+    return null;
+  }
+  if (inputs.mkt02Competitor <= 2) {
+    rawConfidence += 30;
+    evidence.push({
+      variable: "mkt02Competitor",
+      label: "Competitive Awareness",
+      value: inputs.mkt02Competitor,
+      expected: "\u2265 3 in active UAE real estate market",
+      deviation: "Low competitor rating despite high brand confidence"
+    });
+  }
+  if (inputs.str03BuyerMaturity >= 5) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "str03BuyerMaturity",
+      label: "Buyer Maturity",
+      value: inputs.str03BuyerMaturity,
+      expected: "Evidence-based assessment",
+      deviation: "Maximum buyer maturity rating \u2014 verify with market data"
+    });
+  }
+  if (evidence.length < 2) return null;
+  const confidence = clamp(rawConfidence, 35, 95);
+  return {
+    biasType: "overconfidence",
+    severity: severity(confidence),
+    confidence,
+    title: "Overconfidence Detected",
+    description: `Strategic self-assessment scores are at maximum levels (Brand: ${inputs.str01BrandClarity}/5, Differentiation: ${inputs.str02Differentiation}/5) while competitive awareness is rated at only ${inputs.mkt02Competitor}/5.`,
+    intervention: `Validate brand and differentiation claims against objective competitor data. Consider commissioning a market study or reviewing the competitor entity database before proceeding.`,
+    evidencePoints: evidence,
+    mathExplanation: `Brand: ${inputs.str01BrandClarity}/5, Differentiation: ${inputs.str02Differentiation}/5, Competitor: ${inputs.mkt02Competitor}/5. Pattern: max self-assessment + low competitor awareness.`
+  };
+}
+function detectScopeCreep(inputs, scoreResult) {
+  const evidence = [];
+  let rawConfidence = 0;
+  const isComplexDesign = inputs.des03Complexity >= 4;
+  const isHighExperience = inputs.des04Experience >= 4;
+  const isTightTimeline = inputs.ctx05Horizon === "0-12m" || inputs.ctx05Horizon === "12-24m";
+  const isWeakSupplyChain = inputs.exe01SupplyChain <= 2;
+  const isWeakContractor = inputs.exe02Contractor <= 2;
+  if (!isComplexDesign) return null;
+  if (isComplexDesign) {
+    rawConfidence += 25;
+    evidence.push({
+      variable: "des03Complexity",
+      label: "Design Complexity",
+      value: inputs.des03Complexity,
+      deviation: "High complexity increases scope change probability"
+    });
+  }
+  if (isHighExperience) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "des04Experience",
+      label: "Experience Intensity",
+      value: inputs.des04Experience,
+      deviation: "Experiential design elements compound scope risks"
+    });
+  }
+  if (isTightTimeline) {
+    rawConfidence += 25;
+    evidence.push({
+      variable: "ctx05Horizon",
+      label: "Delivery Horizon",
+      value: inputs.ctx05Horizon,
+      expected: "24-36m+ for Complexity \u2265 4",
+      deviation: "Tight timeline with complex scope"
+    });
+  }
+  if (isWeakSupplyChain) {
+    rawConfidence += 20;
+    evidence.push({
+      variable: "exe01SupplyChain",
+      label: "Supply Chain Readiness",
+      value: inputs.exe01SupplyChain,
+      expected: "\u2265 3 for complex designs",
+      deviation: "Weak supply chain cannot support scope ambitions"
+    });
+  }
+  if (isWeakContractor) {
+    rawConfidence += 15;
+    evidence.push({
+      variable: "exe02Contractor",
+      label: "Contractor Capability",
+      value: inputs.exe02Contractor,
+      deviation: "Low contractor rating compounds delivery risk"
+    });
+  }
+  if (evidence.length < 3) return null;
+  const confidence = clamp(rawConfidence, 35, 95);
+  return {
+    biasType: "scope_creep",
+    severity: severity(confidence),
+    confidence,
+    title: "Scope Creep Risk \u2014 Ambition Exceeds Delivery Capacity",
+    description: `This project combines high design complexity (${inputs.des03Complexity}/5) with ${isTightTimeline ? `a tight ${inputs.ctx05Horizon} horizon` : ""}${isWeakSupplyChain ? ` and weak supply chain (${inputs.exe01SupplyChain}/5)` : ""}. This combination significantly increases the probability of uncontrolled scope expansion.`,
+    intervention: `Either extend the delivery horizon to 24-36m+, simplify design complexity to \u2264 3, or strengthen the execution pipeline (supply chain \u2265 3, contractor \u2265 3) before proceeding.`,
+    evidencePoints: evidence,
+    mathExplanation: `Complexity: ${inputs.des03Complexity}/5, Experience: ${inputs.des04Experience}/5, Horizon: ${inputs.ctx05Horizon}, SupplyChain: ${inputs.exe01SupplyChain}/5, Contractor: ${inputs.exe02Contractor}/5.`
+  };
+}
+function detectSunkCost(inputs, scoreResult, ctx) {
+  if (ctx.evaluationCount < 3) return null;
+  if (ctx.previousScores.length < 2) return null;
+  const scores = [...ctx.previousScores, scoreResult.compositeScore];
+  let decliningCount = 0;
+  for (let i = 1; i < scores.length; i++) {
+    if (scores[i] < scores[i - 1]) decliningCount++;
+  }
+  const isDeclining = decliningCount >= Math.floor(scores.length * 0.6);
+  const latestScore = scoreResult.compositeScore;
+  const peakScore = Math.max(...ctx.previousScores);
+  if (!isDeclining || latestScore >= 60) return null;
+  const evidence = [
+    {
+      variable: "evaluationHistory",
+      label: "Evaluation Count",
+      value: ctx.evaluationCount,
+      deviation: `${ctx.evaluationCount} evaluations with declining trend`
+    },
+    {
+      variable: "scoreTrajectory",
+      label: "Score Trajectory",
+      value: `Peak: ${peakScore.toFixed(1)} \u2192 Current: ${latestScore.toFixed(1)}`,
+      deviation: `Score declined ${(peakScore - latestScore).toFixed(1)} points from peak`
+    }
+  ];
+  if (scoreResult.decisionStatus === "not_validated") {
+    evidence.push({
+      variable: "decisionStatus",
+      label: "Validation Status",
+      value: "Not Validated",
+      deviation: "Project has not achieved validation despite multiple attempts"
+    });
+  }
+  let rawConfidence = 40 + (ctx.evaluationCount - 3) * 10 + (peakScore - latestScore);
+  if (scoreResult.decisionStatus === "not_validated") rawConfidence += 15;
+  const confidence = clamp(rawConfidence, 40, 95);
+  return {
+    biasType: "sunk_cost",
+    severity: severity(confidence),
+    confidence,
+    title: "Sunk Cost Fallacy \u2014 Declining Project Persists",
+    description: `This project has been evaluated ${ctx.evaluationCount} times with a declining score trajectory (peak: ${peakScore.toFixed(1)} \u2192 current: ${latestScore.toFixed(1)}). Continued investment may be driven by prior commitment rather than objective viability.`,
+    intervention: `Perform a zero-base assessment: evaluate this project as if starting fresh today. Would you invest given the current score of ${latestScore.toFixed(1)}? Consider pivoting or shelving.`,
+    evidencePoints: evidence,
+    mathExplanation: `Evaluations: ${ctx.evaluationCount}. Declining in ${decliningCount}/${scores.length - 1} intervals. Peak: ${peakScore.toFixed(1)}, Current: ${latestScore.toFixed(1)}, Delta: -${(peakScore - latestScore).toFixed(1)}.`
+  };
+}
+function detectClusteringIllusion(inputs, scoreResult, ctx) {
+  if (inputs.mkt03Trend < 4) return null;
+  if (ctx.marketTrendActual !== null && ctx.marketTrendActual !== void 0) {
+    const gap = inputs.mkt03Trend - ctx.marketTrendActual;
+    if (gap < 2) return null;
+    const evidence = [
+      {
+        variable: "mkt03Trend",
+        label: "User Trend Assessment",
+        value: `${inputs.mkt03Trend}/5`,
+        expected: `${ctx.marketTrendActual.toFixed(1)}/5 (evidence-based)`,
+        deviation: `User rates trends +${gap.toFixed(1)} above evidence data`
+      }
+    ];
+    const confidence = clamp(40 + gap * 20, 45, 95);
+    return {
+      biasType: "clustering_illusion",
+      severity: severity(confidence),
+      confidence,
+      title: "Clustering Illusion \u2014 Trend Overestimation",
+      description: `The user-assessed market trend (${inputs.mkt03Trend}/5) significantly exceeds the evidence-based trend metric (${ctx.marketTrendActual.toFixed(1)}/5). This may reflect seeing patterns in noise \u2014 interpreting random market movements as meaningful trends.`,
+      intervention: `Cross-reference trend assessment with the Evidence Vault and market analytics. Review actual price movement data, absorption rates, and competitive supply before confirming trend score.`,
+      evidencePoints: evidence,
+      mathExplanation: `User trend: ${inputs.mkt03Trend}/5, Evidence trend: ${ctx.marketTrendActual.toFixed(1)}/5. Gap: ${gap.toFixed(1)} (threshold: \u2265 2).`
+    };
+  }
+  if (inputs.mkt03Trend >= 5 && inputs.ctx04Location === "Emerging") {
+    return {
+      biasType: "clustering_illusion",
+      severity: "medium",
+      confidence: 55,
+      title: "Clustering Illusion \u2014 Verify Trend Assessment",
+      description: `Maximum trend alignment (5/5) claimed for an Emerging location, which typically has less predictable market trends. This may reflect optimistic trend interpretation.`,
+      intervention: `Verify trend data with the Data Freshness Engine. Emerging markets often show volatile patterns that can be misread as consistent trends.`,
+      evidencePoints: [
+        {
+          variable: "mkt03Trend",
+          label: "Market Trend",
+          value: 5,
+          expected: "Evidence-backed assessment",
+          deviation: "Max trend score in an Emerging location"
+        },
+        {
+          variable: "ctx04Location",
+          label: "Location Category",
+          value: "Emerging",
+          deviation: "Emerging markets have higher trend volatility"
+        }
+      ],
+      mathExplanation: `Trend: ${inputs.mkt03Trend}/5, Location: Emerging. Max trend + high-volatility location = potential pattern overread.`
+    };
+  }
+  return null;
+}
+function detectBiases(inputs, scoreResult, ctx) {
+  const alerts = [];
+  const detectors = [
+    () => detectOptimismBias(inputs, scoreResult),
+    () => detectAnchoringBias(inputs, scoreResult, ctx),
+    () => detectConfirmationBias(inputs, scoreResult, ctx),
+    () => detectOverconfidence(inputs, scoreResult),
+    () => detectScopeCreep(inputs, scoreResult),
+    () => detectSunkCost(inputs, scoreResult, ctx),
+    () => detectClusteringIllusion(inputs, scoreResult, ctx)
+  ];
+  for (const detector of detectors) {
+    try {
+      const alert = detector();
+      if (alert) alerts.push(alert);
+    } catch (e) {
+      console.warn("[BiasDetector] Detector failed:", e);
+    }
+  }
+  const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+  alerts.sort(
+    (a, b) => (severityOrder[a.severity] ?? 4) - (severityOrder[b.severity] ?? 4) || b.confidence - a.confidence
+  );
+  return alerts;
+}
+var init_bias_detector = __esm({
+  "server/engines/bias/bias-detector.ts"() {
+    "use strict";
+    init_bias_types();
+  }
+});
+
+// server/engines/design/vocabulary.ts
+var vocabulary_exports = {};
+__export(vocabulary_exports, {
+  buildDesignVocabulary: () => buildDesignVocabulary
+});
+function buildDesignVocabulary(project) {
+  const cap = Number(project.fin01BudgetCap || 0);
+  const styleRaw = (project.des01Style || "modern").toLowerCase();
+  let style = styleRaw;
+  if (!["modern", "minimalist", "arabesque", "classic", "contemporary"].includes(style)) {
+    style = "modern";
+  }
+  const des03_n = Number(project.des03Complexity || 0);
+  const des04_n = Number(project.des04Experience || 0);
+  const des05_n = Number(project.des05Sustainability || 0);
+  const mkt01Tier = (project.mkt01Tier || "mid").toLowerCase();
+  let materialTier = "mid";
+  if (cap < 200) materialTier = "affordable";
+  else if (cap < 300) materialTier = "mid";
+  else if (cap < 450) materialTier = "premium";
+  else materialTier = "ultra";
+  const finishTone = des04_n >= 0.5 ? "warm" : "cool";
+  let paletteKey = "warm_minimalism";
+  if (["modern", "minimalist"].includes(style)) {
+    if (finishTone === "warm") {
+      paletteKey = "warm_minimalism";
+    } else {
+      paletteKey = "cool_minimalism";
+    }
+  } else if (["arabesque", "classic"].includes(style)) {
+    if (style === "classic" && ["premium", "ultra"].includes(materialTier)) {
+      paletteKey = "classic_marble";
+    } else {
+      paletteKey = "arabesque_warmth";
+    }
+  } else {
+    paletteKey = "warm_minimalism";
+  }
+  let hardwareFinish = "Brushed Chrome";
+  if (["modern", "minimalist"].includes(style)) hardwareFinish = "Brushed Chrome";
+  else if (style === "arabesque") hardwareFinish = "Polished Brass";
+  else if (style === "classic") hardwareFinish = "Polished Chrome";
+  else if (style === "contemporary") hardwareFinish = "Matte Black";
+  let ceilingType = "Standard Gypsum";
+  if (des03_n > 0.7) {
+    ceilingType = "Feature Coffered Ceiling";
+  } else if (des03_n >= 0.4) {
+    ceilingType = "Gypsum with Cove Lighting Detail";
+  }
+  let lightingMood = "Warm White 2700K";
+  if (["ultra", "premium"].includes(mkt01Tier)) {
+  }
+  if (["ultra", "premium"].includes(mkt01Tier)) {
+    lightingMood = "Layered Lighting 2700\u20134000K";
+  } else if (style === "arabesque") {
+    lightingMood = "Warm Accent 2700K";
+  } else {
+    lightingMood = "Warm White 2700K";
+  }
+  const styleFamily = `${mkt01Tier.charAt(0).toUpperCase() + mkt01Tier.slice(1)} ${style.charAt(0).toUpperCase() + style.slice(1)}`;
+  let complexityLabel = "Standard";
+  if (des03_n < 0.3) complexityLabel = "Simplified";
+  else if (des03_n > 0.7) complexityLabel = "Bespoke";
+  else complexityLabel = "Rich";
+  let joinery = "Standard MDF / Laminate";
+  if (materialTier === "ultra" || materialTier === "premium") joinery = "Custom Wood Veneer & PU Paint";
+  let floorPrimary = "Porcelain Tile / SPC Vinyl";
+  if (materialTier === "ultra") floorPrimary = "Natural Stone / Marble";
+  else if (materialTier === "premium") floorPrimary = "Engineered Hardwood";
+  let floorWet = "Anti-slip Ceramic";
+  if (materialTier === "ultra" || materialTier === "premium") floorWet = "Textured Porcelain / Marble";
+  let sustainNote = "Standard building compliance.";
+  if (des05_n > 0.6) {
+    sustainNote = "Focus on sustainable materials, LEED/Al Sa'fat alignment.";
+  }
+  return {
+    styleFamily,
+    materialTier,
+    paletteKey,
+    complexityLabel,
+    finishTone: finishTone === "warm" ? "Warm Neutrals" : "Cool Greys",
+    joinery,
+    hardwareFinish,
+    floorPrimary,
+    floorWet,
+    ceilingType,
+    lightingMood,
+    sustainNote
+  };
+}
+var init_vocabulary = __esm({
+  "server/engines/design/vocabulary.ts"() {
+    "use strict";
+  }
+});
+
+// server/engines/design/space-program.ts
+var space_program_exports = {};
+__export(space_program_exports, {
+  buildSpaceProgram: () => buildSpaceProgram
+});
+function buildSpaceProgram(project) {
+  const gfa = Number(project.ctx03Gfa || 0);
+  const budgetCap = Number(project.fin01BudgetCap || 0);
+  const typology = (project.ctx01Typology || "Residential").toLowerCase();
+  const totalFitoutBudgetAed = gfa * budgetCap * 10.764 * 0.35;
+  let baseRooms = [];
+  if (typology === "hospitality") {
+    baseRooms = [
+      { id: "LBY", name: "Hotel Lobby", pctSqm: 0.2, pctBudget: 0.3, priority: "high", finishGrade: "A" },
+      { id: "GRM", name: "Guest Room (std)", pctSqm: 0.25, pctBudget: 0.2, priority: "high", finishGrade: "A" },
+      { id: "GRS", name: "Guest Room (suite)", pctSqm: 0.1, pctBudget: 0.2, priority: "high", finishGrade: "A" },
+      { id: "FBB", name: "F&B / Restaurant", pctSqm: 0.2, pctBudget: 0.15, priority: "high", finishGrade: "A" },
+      { id: "COR", name: "Corridors", pctSqm: 0.15, pctBudget: 0.05, priority: "medium", finishGrade: "B" },
+      { id: "BOH", name: "Back of House", pctSqm: 0.1, pctBudget: 0.1, priority: "low", finishGrade: "C" }
+    ];
+  } else if (typology === "commercial" || typology === "office") {
+    baseRooms = [
+      { id: "OPN", name: "Open Plan Office", pctSqm: 0.4, pctBudget: 0.25, priority: "medium", finishGrade: "B" },
+      { id: "MET", name: "Meeting Rooms", pctSqm: 0.2, pctBudget: 0.3, priority: "high", finishGrade: "A" },
+      { id: "RCP", name: "Reception", pctSqm: 0.1, pctBudget: 0.2, priority: "high", finishGrade: "A" },
+      { id: "BRK", name: "Break Areas", pctSqm: 0.1, pctBudget: 0.1, priority: "medium", finishGrade: "B" },
+      { id: "COR", name: "Circulation", pctSqm: 0.1, pctBudget: 0.05, priority: "low", finishGrade: "C" },
+      { id: "UTL", name: "Utility & WCs", pctSqm: 0.1, pctBudget: 0.1, priority: "medium", finishGrade: "B" }
+    ];
+  } else {
+    baseRooms = [
+      { id: "LVG", name: "Living & Dining", pctSqm: 0.28, pctBudget: 0.28, priority: "high", finishGrade: "A" },
+      { id: "MBR", name: "Master Bedroom", pctSqm: 0.18, pctBudget: 0.22, priority: "high", finishGrade: "A" },
+      { id: "MEN", name: "Master Ensuite", pctSqm: 0.08, pctBudget: 0.14, priority: "high", finishGrade: "A" },
+      { id: "KIT", name: "Kitchen", pctSqm: 0.1, pctBudget: 0.16, priority: "high", finishGrade: "A" },
+      { id: "BD2", name: "Bedroom 2", pctSqm: 0.1, pctBudget: 0.07, priority: "medium", finishGrade: "B" },
+      { id: "BD3", name: "Bedroom 3", pctSqm: 0.08, pctBudget: 0.05, priority: "medium", finishGrade: "B" },
+      { id: "BTH", name: "Bathroom 2", pctSqm: 0.05, pctBudget: 0.05, priority: "medium", finishGrade: "B" },
+      { id: "ENT", name: "Entry & Corridors", pctSqm: 0.08, pctBudget: 0.02, priority: "low", finishGrade: "B" },
+      { id: "UTL", name: "Utility & Maid's", pctSqm: 0.05, pctBudget: 0.01, priority: "low", finishGrade: "C" }
+    ];
+  }
+  const rooms = baseRooms.map((r) => ({
+    id: r.id,
+    name: r.name,
+    sqm: Number((gfa * r.pctSqm).toFixed(2)),
+    budgetPct: r.pctBudget,
+    priority: r.priority,
+    finishGrade: r.finishGrade
+  }));
+  const totalAllocatedSqm = rooms.reduce((sum, r) => sum + r.sqm, 0);
+  return {
+    totalFitoutBudgetAed,
+    rooms,
+    totalAllocatedSqm
+  };
+}
+var init_space_program = __esm({
+  "server/engines/design/space-program.ts"() {
+    "use strict";
+  }
+});
+
+// server/engines/design/finish-schedule.ts
+var finish_schedule_exports = {};
+__export(finish_schedule_exports, {
+  buildFinishSchedule: () => buildFinishSchedule
+});
+function buildFinishSchedule(project, vocab, rooms, materials) {
+  const schedule = [];
+  const downgradeTier = (tier) => {
+    if (tier === "ultra") return "premium";
+    if (tier === "premium") return "mid";
+    if (tier === "mid") return "affordable";
+    return "affordable";
+  };
+  const getMaterial = (element, roomTier, elementStyle) => {
+    let category = element;
+    if (element === "floor") category = "flooring";
+    else if (element.startsWith("wall_")) {
+      if (element === "wall_wet") category = "wall_tile";
+      else category = "wall_paint";
+    }
+    let match = materials.find(
+      (m) => m.category === category && m.tier === roomTier && (m.style === elementStyle || m.style === "all")
+    );
+    if (!match) match = materials.find((m) => m.category === category && m.tier === roomTier);
+    if (!match) match = materials.find((m) => m.category === category && (m.style === elementStyle || m.style === "all"));
+    if (!match) match = materials.find((m) => m.category === category);
+    return match;
+  };
+  for (const room of rooms) {
+    const elements = ["floor", "wall_primary", "wall_feature", "wall_wet", "ceiling", "joinery", "hardware"];
+    for (const element of elements) {
+      if (element === "wall_wet" && ["LVG", "MBR", "BD2", "BD3", "ENT", "OPN", "MET", "RCP", "BRK", "COR"].includes(room.id)) {
+        continue;
+      }
+      if (element === "wall_feature" && ["UTL", "BOH", "COR", "ENT", "BTH", "MEN"].includes(room.id)) {
+        continue;
+      }
+      let activeTier = vocab.materialTier;
+      if (room.finishGrade === "C") {
+        activeTier = "affordable";
+      } else if (room.finishGrade === "B") {
+        if (element === "floor" || element === "wall_primary") {
+          activeTier = downgradeTier(activeTier);
+        }
+      }
+      let activeStyle = "modern";
+      if (vocab.paletteKey.includes("minimalism")) activeStyle = "minimalist";
+      else if (vocab.paletteKey.includes("arabesque")) activeStyle = "arabesque";
+      else if (vocab.paletteKey.includes("classic")) activeStyle = "classic";
+      const material = getMaterial(element, activeTier, activeStyle);
+      let overrideSpec = null;
+      if (element === "ceiling") overrideSpec = vocab.ceilingType;
+      if (element === "joinery") overrideSpec = vocab.joinery;
+      if (element === "hardware") overrideSpec = vocab.hardwareFinish;
+      schedule.push({
+        projectId: project.id,
+        organizationId: project.organizationId,
+        roomId: room.id,
+        roomName: room.name,
+        element,
+        materialLibraryId: material ? material.id : null,
+        overrideSpec,
+        notes: material ? material.notes : null
+      });
+    }
+  }
+  return schedule;
+}
+var init_finish_schedule = __esm({
+  "server/engines/design/finish-schedule.ts"() {
+    "use strict";
+  }
+});
+
+// server/engines/design/palette-seeds.ts
+var paletteSeeds;
+var init_palette_seeds = __esm({
+  "server/engines/design/palette-seeds.ts"() {
+    "use strict";
+    paletteSeeds = {
+      warm_minimalism: {
+        name: "Warm Minimalism",
+        style: ["modern", "contemporary", "mid", "premium", "ultra"],
+        colors: [
+          { role: "Primary", name: "Natural Linen", brand: "Jotun Fenomastic 10BB 83/008", code: "#EAE6D7", ral: "RAL 1013", finish: "Matte", applyTo: "General Walls" },
+          { role: "Secondary", name: "Warm Canvas", brand: "Jotun Lady 11YY 86/030", code: "#F2EDDB", ral: "RAL 9001", finish: "Eggshell", applyTo: "Passageways" },
+          { role: "Accent", name: "Desert Bronze", brand: "National Paints 7002", code: "#8F7B66", ral: "RAL 8024", finish: "Satin", applyTo: "Niches & Details" },
+          { role: "Feature Wall", name: "Earth Spice", brand: "Jotun Lady 40YY 40/149", code: "#B59E75", ral: "RAL 1011", finish: "Matte", applyTo: "Living / Master Bed" },
+          { role: "Trim/Joinery", name: "Pure Brilliant White", brand: "Dulux", code: "#F4F8F4", ral: "RAL 9010", finish: "Semi-gloss", applyTo: "Doors & Skirting" }
+        ]
+      },
+      cool_minimalism: {
+        name: "Cool Minimalism",
+        style: ["minimalist", "modern", "mid", "premium", "ultra"],
+        colors: [
+          { role: "Primary", name: "Pale Slate", brand: "Jotun Fenomastic 53BG 83/006", code: "#D8DCE0", ral: "RAL 7047", finish: "Matte", applyTo: "General Walls" },
+          { role: "Secondary", name: "Ivory", brand: "Dulux Natural Hints", code: "#F2EDDB", ral: "RAL 9001", finish: "Eggshell", applyTo: "Passageways" },
+          { role: "Accent", name: "Forest Sage", brand: "Jotun Lady 10GG 22/094", code: "#8BA58F", ral: "RAL 6021", finish: "Matte", applyTo: "Study / Bathrooms" },
+          { role: "Feature Wall", name: "Carbon Dusk", brand: "National Paints 5004", code: "#383E42", ral: "RAL 7016", finish: "Matte", applyTo: "Media Wall" },
+          { role: "Trim/Joinery", name: "Pure White", brand: "Jotun Lady", code: "#F4F8F4", ral: "RAL 9010", finish: "Semi-gloss", applyTo: "Doors & Skirting" }
+        ]
+      },
+      arabesque_warmth: {
+        name: "Arabesque Warmth",
+        style: ["arabesque", "classic"],
+        colors: [
+          { role: "Primary", name: "Saffron Cream", brand: "National Paints 1003", code: "#DFBA8D", ral: "RAL 1001", finish: "Matte", applyTo: "General Walls" },
+          { role: "Secondary", name: "Terracotta Blush", brand: "Jotun Lady 5YR 73/040", code: "#CC8870", ral: "RAL 3012", finish: "Eggshell", applyTo: "Dining / Corridors" },
+          { role: "Accent", name: "Emerald Leaf", brand: "Jotun Lady 6GY 25/076", code: "#00875A", ral: "RAL 6029", finish: "Satin", applyTo: "Entry Foyer" },
+          { role: "Feature Wall", name: "Midnight Teal", brand: "Dulux Heritage", code: "#2B5A5C", ral: "RAL 5020", finish: "Matte", applyTo: "Formal Living" },
+          { role: "Trim/Joinery", name: "Gold Ochre", brand: "Jotun Lady", code: "#C89F38", ral: "RAL 1005", finish: "Gloss", applyTo: "Custom Joinery" }
+        ]
+      },
+      classic_marble: {
+        name: "Classic Marble",
+        style: ["classic", "premium", "ultra"],
+        colors: [
+          { role: "Primary", name: "Wimborne White 239", brand: "Farrow & Ball", code: "#F4F8F4", ral: "RAL 9010", finish: "Estate Emulsion", applyTo: "General Walls" },
+          { role: "Secondary", name: "Elephant's Breath 229", brand: "Farrow & Ball", code: "#C5BDB4", ral: "RAL 7044", finish: "Estate Emulsion", applyTo: "Secondary Rooms" },
+          { role: "Accent", name: "Olive Gold", brand: "Jotun Lady 70YY 20/199", code: "#9E976A", ral: "RAL 1020", finish: "Satin", applyTo: "Study / Library" },
+          { role: "Feature Wall", name: "Railings 31", brand: "Farrow & Ball", code: "#2E3234", ral: "RAL 7021", finish: "Estate Emulsion", applyTo: "Formal Reception" },
+          { role: "Trim/Joinery", name: "All White 2005", brand: "Farrow & Ball", code: "#FFFFFF", ral: "RAL 9010", finish: "Gloss", applyTo: "Wainscotting & Trim" }
+        ]
+      }
+    };
+  }
+});
+
+// server/engines/design/color-palette.ts
+var color_palette_exports = {};
+__export(color_palette_exports, {
+  buildColorPalette: () => buildColorPalette
+});
+async function buildColorPalette(project, vocab) {
+  const palette = paletteSeeds[vocab.paletteKey] || paletteSeeds["warm_minimalism"];
+  const prompt = `Why these colors (${palette.colors.map((c) => c.name).join(", ")}) work for ${project.name} in ${project.ctx04Location || "Dubai"} given the ${vocab.styleFamily} direction and ${vocab.materialTier} market position. Please write a 3-sentence stylistic rationale narrative. Do not use asterisks or markdown in your response.`;
+  let rationale = "A curated selection of tones tailored for optimal aesthetic and functional resonance.";
+  try {
+    const result = await invokeLLM({
+      messages: [{ role: "user", content: prompt }]
+    });
+    if (result && result.choices && result.choices.length > 0) {
+      rationale = result.choices[0].message.content;
+    }
+  } catch (err) {
+    console.error("Failed to generate palette rationale:", err);
+  }
+  return {
+    projectId: project.id,
+    organizationId: project.organizationId,
+    paletteKey: vocab.paletteKey,
+    colors: palette.colors,
+    geminiRationale: rationale
+  };
+}
+var init_color_palette = __esm({
+  "server/engines/design/color-palette.ts"() {
+    "use strict";
+    init_palette_seeds();
+    init_llm();
+  }
+});
+
+// server/engines/design/rfq-generator.ts
+var rfq_generator_exports = {};
+__export(rfq_generator_exports, {
+  buildRFQPack: () => buildRFQPack
+});
+function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
+  const rfqItems = [];
+  const getMaterial = (id) => materials.find((m) => m.id === id);
+  let subtotalMin = 0;
+  let subtotalMax = 0;
+  const pushLine = (sectionNo, itemCode, description, unit, quantity, rateMin, rateMax, supplierName) => {
+    const totalMin = quantity * rateMin;
+    const totalMax = quantity * rateMax;
+    subtotalMin += totalMin;
+    subtotalMax += totalMax;
+    rfqItems.push({
+      projectId,
+      organizationId: orgId,
+      sectionNo,
+      itemCode,
+      description,
+      unit,
+      quantity,
+      unitRateAedMin: rateMin,
+      unitRateAedMax: rateMax,
+      totalAedMin: totalMin,
+      totalAedMax: totalMax,
+      supplierName
+    });
+  };
+  const getSchedulesForRoom = (roomId) => finishSchedule.filter((f) => f.roomId === roomId);
+  rooms.forEach((room, idx) => {
+    const floors = getSchedulesForRoom(room.id).filter((f) => f.element === "floor");
+    floors.forEach((floor) => {
+      const mat = getMaterial(floor.materialLibraryId);
+      if (mat) {
+        pushLine(
+          1,
+          `FL-${room.id}`,
+          `Supply & install ${mat.productName} to ${room.name}`,
+          "sqm",
+          room.sqm,
+          Number(mat.priceAedMin || 0),
+          Number(mat.priceAedMax || 0),
+          mat.supplierName
+        );
+      }
+    });
+  });
+  rooms.forEach((room, idx) => {
+    const walls = getSchedulesForRoom(room.id).filter((f) => f.element.startsWith("wall_"));
+    walls.forEach((wall) => {
+      const mat = getMaterial(wall.materialLibraryId);
+      if (mat) {
+        const areaMultiplier = wall.element === "wall_primary" ? 2.5 : 1;
+        const qty = room.sqm * areaMultiplier;
+        pushLine(
+          2,
+          `WL-${room.id}-${wall.element.split("_")[1]}`,
+          `Supply & apply ${mat.productName} to ${room.name} (${wall.element})`,
+          "sqm",
+          qty,
+          Number(mat.priceAedMin || 0),
+          Number(mat.priceAedMax || 0),
+          mat.supplierName
+        );
+      }
+    });
+  });
+  rooms.forEach((room, idx) => {
+    const ceil = getSchedulesForRoom(room.id).find((f) => f.element === "ceiling");
+    if (ceil) {
+      let rateMin = 90;
+      let rateMax = 120;
+      if (ceil.overrideSpec?.includes("Coffered")) {
+        rateMin = 180;
+        rateMax = 250;
+      }
+      if (ceil.overrideSpec?.includes("Cove")) {
+        rateMin = 130;
+        rateMax = 160;
+      }
+      pushLine(
+        3,
+        `CL-${room.id}`,
+        `Supply & install ${ceil.overrideSpec || "Gypsum Ceiling"} to ${room.name}`,
+        "sqm",
+        room.sqm,
+        rateMin,
+        rateMax,
+        "Various Subcontractors"
+      );
+    }
+  });
+  rooms.forEach((room, idx) => {
+    const joinery = getSchedulesForRoom(room.id).find((f) => f.element === "joinery");
+    if (joinery && ["MBR", "BD2", "BD3", "KIT", "LVG"].includes(room.id)) {
+      let lm = room.sqm * 0.2;
+      let rateMin = 1200;
+      let rateMax = 1800;
+      if (room.id === "KIT") {
+        rateMin = 2e3;
+        rateMax = 3500;
+        lm = room.sqm * 0.4;
+      }
+      pushLine(
+        4,
+        `JN-${room.id}`,
+        `Custom Joinery / Wardrobes / Cabinets in ${room.name} (${joinery.overrideSpec})`,
+        "lm",
+        lm,
+        rateMin,
+        rateMax,
+        "Specialist Joinery"
+      );
+    }
+  });
+  const wetRooms = rooms.filter((r) => ["MEN", "BTH", "UTL", "KIT"].includes(r.id));
+  wetRooms.forEach((room) => {
+    const swMat = materials.find((m) => m.category === "sanitaryware");
+    if (swMat) {
+      pushLine(
+        5,
+        `SW-${room.id}`,
+        `Allow for Sanitaryware & Brassware package for ${room.name}`,
+        "set",
+        1,
+        Number(swMat.priceAedMin || 0) * 3,
+        // rough multiplier for a full room set
+        Number(swMat.priceAedMax || 0) * 4,
+        swMat.supplierName
+      );
+    }
+  });
+  rfqItems.push({
+    projectId,
+    organizationId: orgId,
+    sectionNo: 6,
+    itemCode: "PS-01",
+    description: "Contingency (10% of Sections 1-5)",
+    unit: "sum",
+    quantity: 1,
+    unitRateAedMin: subtotalMin * 0.1,
+    unitRateAedMax: subtotalMax * 0.1,
+    totalAedMin: subtotalMin * 0.1,
+    totalAedMax: subtotalMax * 0.1,
+    supplierName: ""
+  });
+  rfqItems.push({
+    projectId,
+    organizationId: orgId,
+    sectionNo: 6,
+    itemCode: "PS-02",
+    description: "DM/DDA Approval Fees (Provisional)",
+    unit: "sum",
+    quantity: 1,
+    unitRateAedMin: 15e3,
+    unitRateAedMax: 15e3,
+    totalAedMin: 15e3,
+    totalAedMax: 15e3,
+    supplierName: "Dubai Authorities"
+  });
+  rfqItems.push({
+    projectId,
+    organizationId: orgId,
+    sectionNo: 6,
+    itemCode: "PS-03",
+    description: "FF&E Procurement Management (Provisional)",
+    unit: "sum",
+    quantity: 1,
+    unitRateAedMin: 25e3,
+    unitRateAedMax: 25e3,
+    totalAedMin: 25e3,
+    totalAedMax: 25e3,
+    supplierName: "Design Consultant"
+  });
+  return rfqItems;
+}
+var init_rfq_generator = __esm({
+  "server/engines/design/rfq-generator.ts"() {
+    "use strict";
+  }
+});
+
+// server/engines/design/dm-compliance.ts
+var dm_compliance_exports = {};
+__export(dm_compliance_exports, {
+  buildDMComplianceChecklist: () => buildDMComplianceChecklist
+});
+function buildDMComplianceChecklist(projectId, orgId, project) {
+  const typology = (project.ctx01Typology || "Residential").toLowerCase();
+  const items = [];
+  const pushItem = (code, desc8, status) => {
+    items.push({
+      code,
+      description: desc8,
+      status,
+      verified: false
+    });
+  };
+  if (typology === "commercial" || typology === "office") {
+    pushItem("DCD-FLS", "Fire Life Safety Code (Dubai Civil Defence) Approval", "Mandatory");
+    pushItem("DDA-ACC", "DDA Accessibility Guidelines (POD compliant WC)", "Mandatory");
+    pushItem("DM-ASH", "ASHRAE Ventilation standard for open plan (Dubai Municipality)", "Mandatory");
+    pushItem("DM-STR", "Structural NOC for internal partitions", "Conditional");
+  } else if (typology === "hospitality") {
+    pushItem("DM-FHS", "F&B Health & Safety (Dubai Municipality Food Safety Dept)", "Mandatory");
+    pushItem("DET-CLS", "Dubai Economy & Tourism (DET) Classification requirements", "Mandatory");
+    pushItem("DCD-FLS", "Fire Life Safety Code (Dubai Civil Defence)", "Mandatory");
+    pushItem("SIRA-CCTV", "SIRA CCTV Layout Approval", "Mandatory");
+  } else {
+    pushItem("DEV-NOC", "Trakhees / Master Developer NOC (e.g. Nakheel, Emaar, DP)", "Mandatory");
+    pushItem("DEWA-LV", "DEWA minor load variation approval", "Conditional");
+    pushItem("DM-MOD", "Dubai Municipality Modification Permit", "Mandatory");
+  }
+  return {
+    projectId,
+    organizationId: orgId,
+    items
+  };
+}
+var init_dm_compliance = __esm({
+  "server/engines/design/dm-compliance.ts"() {
+    "use strict";
+  }
+});
+
+// server/engines/board-composer.ts
+var board_composer_exports = {};
+__export(board_composer_exports, {
+  computeBoardSummary: () => computeBoardSummary,
+  generateRfqLines: () => generateRfqLines,
+  recommendMaterials: () => recommendMaterials
+});
+function computeBoardSummary(items) {
+  const tierDist = {};
+  const catDist = {};
+  let costLow = 0;
+  let costHigh = 0;
+  let maxLead = 0;
+  const criticalItems = [];
+  for (const item of items) {
+    tierDist[item.tier] = (tierDist[item.tier] || 0) + 1;
+    catDist[item.category] = (catDist[item.category] || 0) + 1;
+    costLow += item.costLow;
+    costHigh += item.costHigh;
+    if (item.leadTimeDays > maxLead) maxLead = item.leadTimeDays;
+    if (item.leadTimeBand === "critical" || item.leadTimeDays >= 90) {
+      criticalItems.push(item.name);
+    }
+  }
+  return {
+    totalItems: items.length,
+    estimatedCostLow: costLow,
+    estimatedCostHigh: costHigh,
+    currency: "AED",
+    longestLeadTimeDays: maxLead,
+    criticalPathItems: criticalItems,
+    tierDistribution: tierDist,
+    categoryDistribution: catDist
+  };
+}
+function generateRfqLines(items) {
+  return items.map((item, idx) => ({
+    lineNo: idx + 1,
+    materialName: item.name,
+    category: item.category,
+    specification: `${item.tier} grade \u2014 ${item.name}`,
+    quantity: item.quantity ? `${item.quantity}` : "TBD",
+    unit: item.unitOfMeasure || item.costUnit.replace("AED/", ""),
+    estimatedUnitCostLow: item.costLow,
+    estimatedUnitCostHigh: item.costHigh,
+    leadTimeDays: item.leadTimeDays,
+    supplierSuggestion: item.supplierName,
+    notes: item.notes || ""
+  }));
+}
+function recommendMaterials(catalog, projectTier, maxItems = 10) {
+  const tierMap = {
+    Mid: ["economy", "mid"],
+    "Upper-mid": ["mid", "premium"],
+    Luxury: ["premium", "luxury"],
+    "Ultra-luxury": ["luxury", "ultra_luxury"]
+  };
+  const allowedTiers = tierMap[projectTier] || ["mid", "premium"];
+  const scored = catalog.filter((m) => allowedTiers.includes(m.tier)).map((m) => ({
+    materialId: m.id,
+    name: m.name,
+    category: m.category,
+    tier: m.tier,
+    costLow: Number(m.typicalCostLow) || 0,
+    costHigh: Number(m.typicalCostHigh) || 0,
+    costUnit: m.costUnit || "AED/unit",
+    leadTimeDays: m.leadTimeDays || 30,
+    leadTimeBand: m.leadTimeBand || "medium",
+    supplierName: m.supplierName || "TBD"
+  }));
+  const byCategory = {};
+  for (const item of scored) {
+    if (!byCategory[item.category]) byCategory[item.category] = [];
+    byCategory[item.category].push(item);
+  }
+  const result = [];
+  for (const [, items] of Object.entries(byCategory)) {
+    result.push(...items.slice(0, 2));
+  }
+  return result.slice(0, maxItems);
+}
+var init_board_composer = __esm({
+  "server/engines/board-composer.ts"() {
+    "use strict";
+  }
+});
+
+// server/engines/board-pdf.ts
+var board_pdf_exports = {};
+__export(board_pdf_exports, {
+  generateBoardPdfHtml: () => generateBoardPdfHtml
+});
+function formatDate2() {
+  return (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+}
+function tierColor(tier) {
+  const map = {
+    economy: "#6b7280",
+    mid: "#3b82f6",
+    premium: "#8b5cf6",
+    luxury: "#d97706",
+    ultra_luxury: "#e11d48"
+  };
+  return map[tier] || "#6b7280";
+}
+function leadBadgeColor(band) {
+  const map = {
+    short: "#16a34a",
+    medium: "#ca8a04",
+    long: "#ea580c",
+    critical: "#dc2626"
+  };
+  return map[band] || "#ca8a04";
+}
+function generateBoardPdfHtml(input) {
+  const { boardName, projectName, items, summary, rfqLines } = input;
+  const date = formatDate2();
+  const watermark = `MYR-BRD-${Date.now().toString(36)}`;
+  const tileCards = items.map((item, idx) => `
+    <div class="tile-card">
+      <div class="tile-header">
+        <span class="tile-num">${idx + 1}</span>
+        <span class="tile-name">${item.name}</span>
+        <span class="tier-badge" style="background:${tierColor(item.tier)}">${item.tier.replace("_", " ")}</span>
+      </div>
+      <div class="tile-body">
+        <div class="tile-row"><span class="tile-label">Category</span><span>${item.category}</span></div>
+        <div class="tile-row"><span class="tile-label">Cost Range</span><span>${item.costLow.toLocaleString()} \u2013 ${item.costHigh.toLocaleString()} ${item.costUnit}</span></div>
+        <div class="tile-row"><span class="tile-label">Lead Time</span><span style="color:${leadBadgeColor(item.leadTimeBand)}">${item.leadTimeDays}d (${item.leadTimeBand})</span></div>
+        <div class="tile-row"><span class="tile-label">Supplier</span><span>${item.supplierName}</span></div>
+        ${item.quantity ? `<div class="tile-row"><span class="tile-label">Quantity</span><span>${item.quantity} ${item.unitOfMeasure || ""}</span></div>` : ""}
+        ${item.costBandOverride ? `<div class="tile-row"><span class="tile-label">Cost Band</span><span class="cost-band-badge">${item.costBandOverride}</span></div>` : ""}
+        ${item.specNotes ? `<div class="tile-spec">${item.specNotes}</div>` : ""}
+        ${item.notes ? `<div class="tile-notes">${item.notes}</div>` : ""}
+      </div>
+    </div>
+  `).join("");
+  const rfqRows = rfqLines.map((line) => `
+    <tr>
+      <td>${line.lineNo}</td>
+      <td class="font-medium">${line.materialName}</td>
+      <td>${line.category}</td>
+      <td>${line.specification}</td>
+      <td>${line.quantity}</td>
+      <td>${line.unit}</td>
+      <td class="text-right">${line.estimatedUnitCostLow.toLocaleString()}</td>
+      <td class="text-right">${line.estimatedUnitCostHigh.toLocaleString()}</td>
+      <td>${line.leadTimeDays}d</td>
+      <td>${line.supplierSuggestion}</td>
+      <td>${line.notes}</td>
+    </tr>
+  `).join("");
+  const tierDistRows = Object.entries(summary.tierDistribution).map(([tier, count]) => `
+    <div class="dist-item">
+      <span class="dist-badge" style="background:${tierColor(tier)}">${tier.replace("_", " ")}</span>
+      <span class="dist-count">${count}</span>
+    </div>
+  `).join("");
+  const catDistRows = Object.entries(summary.categoryDistribution).map(([cat, count]) => `
+    <div class="dist-item">
+      <span class="dist-label">${cat}</span>
+      <span class="dist-count">${count}</span>
+    </div>
+  `).join("");
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4 landscape; margin: 15mm 12mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.5; font-size: 10px; }
+
+  .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 70vh; text-align: center; }
+  .cover .logo { font-size: 32px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 24px; }
+  .cover h1 { font-size: 24px; color: #0f3460; margin-bottom: 6px; }
+  .cover h2 { font-size: 14px; color: #4ecdc4; font-weight: 400; margin-bottom: 16px; }
+  .cover .project { font-size: 18px; color: #1a1a2e; font-weight: 600; }
+  .cover .date { font-size: 11px; color: #666; margin-top: 12px; }
+  .cover .confidential { font-size: 9px; color: #999; margin-top: 32px; text-transform: uppercase; letter-spacing: 2px; }
+  .cover .watermark { font-size: 8px; color: #ccc; margin-top: 6px; font-family: monospace; }
+
+  h2 { font-size: 14px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 4px; margin: 20px 0 10px; }
+  h3 { font-size: 12px; color: #0f3460; margin: 14px 0 6px; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+  .summary-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px; text-align: center; }
+  .summary-card .label { font-size: 8px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .summary-card .value { font-size: 20px; font-weight: 700; color: #0f3460; margin: 2px 0; }
+  .summary-card .sub { font-size: 9px; color: #888; }
+
+  .tile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+  .tile-card { border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; page-break-inside: avoid; }
+  .tile-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0; }
+  .tile-num { font-size: 10px; font-weight: 700; color: #0f3460; background: #e8f4fd; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .tile-name { font-size: 10px; font-weight: 600; flex: 1; }
+  .tier-badge { font-size: 8px; color: #fff; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tile-body { padding: 8px 10px; }
+  .tile-row { display: flex; justify-content: space-between; font-size: 9px; padding: 2px 0; border-bottom: 1px dotted #f0f0f0; }
+  .tile-label { color: #666; font-weight: 500; }
+  .tile-spec { font-size: 9px; color: #0f3460; background: #e8f4fd; padding: 4px 6px; border-radius: 3px; margin-top: 4px; font-style: italic; }
+  .tile-notes { font-size: 8px; color: #888; margin-top: 3px; }
+  .cost-band-badge { background: #fef3c7; color: #92400e; padding: 0 4px; border-radius: 2px; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9px; }
+  th { background: #0f3460; color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; }
+  td { padding: 5px 8px; border-bottom: 1px solid #e0e0e0; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+  .text-right { text-align: right; }
+  .font-medium { font-weight: 600; }
+
+  .dist-grid { display: flex; gap: 16px; margin: 8px 0; flex-wrap: wrap; }
+  .dist-item { display: flex; align-items: center; gap: 6px; }
+  .dist-badge { font-size: 8px; color: #fff; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; }
+  .dist-label { font-size: 9px; color: #444; }
+  .dist-count { font-size: 11px; font-weight: 700; color: #0f3460; }
+
+  .critical-list { margin: 8px 0; }
+  .critical-item { background: #fef2f2; border-left: 3px solid #dc2626; padding: 4px 8px; margin: 3px 0; font-size: 9px; color: #991b1b; }
+
+  .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e0e0e0; font-size: 8px; color: #999; text-align: center; }
+  .section { page-break-inside: avoid; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="logo">MIYAR</div>
+  <h1>Material Board</h1>
+  <h2>${boardName}</h2>
+  <div class="project">${projectName}</div>
+  <div class="date">${date}</div>
+  <div class="confidential">Confidential \u2014 For Internal Use Only</div>
+  <div class="watermark">Document ID: ${watermark}</div>
+</div>
+
+<div class="section">
+  <h2>Board Summary</h2>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="label">Total Items</div>
+      <div class="value">${summary.totalItems}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Estimated Cost Range</div>
+      <div class="value" style="font-size:14px">${summary.estimatedCostLow.toLocaleString()} \u2013 ${summary.estimatedCostHigh.toLocaleString()}</div>
+      <div class="sub">${summary.currency}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Longest Lead Time</div>
+      <div class="value">${summary.longestLeadTimeDays}d</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Critical Path Items</div>
+      <div class="value">${summary.criticalPathItems.length}</div>
+    </div>
+  </div>
+
+  <h3>Tier Distribution</h3>
+  <div class="dist-grid">${tierDistRows}</div>
+
+  <h3>Category Distribution</h3>
+  <div class="dist-grid">${catDistRows}</div>
+
+  ${summary.criticalPathItems.length > 0 ? `
+  <h3>Critical Path Items</h3>
+  <div class="critical-list">
+    ${summary.criticalPathItems.map((item) => `<div class="critical-item">${item}</div>`).join("")}
+  </div>
+  ` : ""}
+</div>
+
+<div class="section">
+  <h2>Material Tiles</h2>
+  <div class="tile-grid">
+    ${tileCards}
+  </div>
+</div>
+
+<div class="section">
+  <h2>RFQ-Ready Procurement Schedule</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Material</th>
+        <th>Category</th>
+        <th>Specification</th>
+        <th>Qty</th>
+        <th>Unit</th>
+        <th class="text-right">Cost Low (AED)</th>
+        <th class="text-right">Cost High (AED)</th>
+        <th>Lead</th>
+        <th>Supplier</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rfqRows}
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  MIYAR Decision Intelligence Platform \u2014 Material Board Export \u2014 ${date} \u2014 ${watermark}<br/>
+  This document is auto-generated. All cost estimates are indicative and subject to supplier confirmation.
+</div>
+
+</body>
+</html>`;
+}
+var init_board_pdf = __esm({
+  "server/engines/board-pdf.ts"() {
+    "use strict";
+  }
+});
+
+// server/engines/ingestion/evidence-to-materials.ts
+var evidence_to_materials_exports = {};
+__export(evidence_to_materials_exports, {
+  syncEvidenceToMaterials: () => syncEvidenceToMaterials
+});
+import { eq as eq5, desc as desc3 } from "drizzle-orm";
+function detectTier(priceMin, priceMax, unit) {
+  const price = priceMax || priceMin || 0;
+  if (unit === "sqm" || unit === "m\xB2" || unit === "sqft" || unit === "L") {
+    if (price < 40) return "affordable";
+    if (price < 150) return "mid";
+    if (price < 400) return "premium";
+    return "ultra";
+  }
+  if (price < 300) return "affordable";
+  if (price < 1500) return "mid";
+  if (price < 5e3) return "premium";
+  return "ultra";
+}
+async function syncEvidenceToMaterials(runId, limit = 500) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  let evidence;
+  if (runId) {
+    evidence = await db.select().from(evidenceRecords).where(eq5(evidenceRecords.runId, runId)).limit(limit);
+  } else {
+    evidence = await db.select().from(evidenceRecords).orderBy(desc3(evidenceRecords.createdAt)).limit(limit);
+  }
+  if (evidence.length === 0) {
+    return { created: 0, updated: 0, skipped: 0 };
+  }
+  const existingMaterials = await db.select().from(materialLibrary);
+  const existingNames = new Set(
+    existingMaterials.map((m) => normalizeProductName(m.productName))
+  );
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  for (const record of evidence) {
+    try {
+      if (!record.itemName || record.itemName.length < 3) {
+        skipped++;
+        continue;
+      }
+      const hasPrice = record.priceMin || record.priceMax || record.priceTypical;
+      if (!hasPrice) {
+        skipped++;
+        continue;
+      }
+      const maxPrice = Math.max(
+        record.priceMin ? parseFloat(String(record.priceMin)) : 0,
+        record.priceMax ? parseFloat(String(record.priceMax)) : 0,
+        record.priceTypical ? parseFloat(String(record.priceTypical)) : 0
+      );
+      if (maxPrice > 9999999) {
+        skipped++;
+        continue;
+      }
+      const materialCategory = EVIDENCE_TO_MATERIAL_CATEGORY[record.category] || "specialty";
+      const validCategories = ["flooring", "wall_paint", "wall_tile", "ceiling", "joinery", "sanitaryware", "fittings", "lighting", "hardware", "specialty"];
+      if (!validCategories.includes(materialCategory)) {
+        skipped++;
+        continue;
+      }
+      const priceMin = record.priceMin ? parseFloat(String(record.priceMin)) : null;
+      const priceMax = record.priceMax ? parseFloat(String(record.priceMax)) : null;
+      const priceTypical = record.priceTypical ? parseFloat(String(record.priceTypical)) : null;
+      const tier = detectTier(priceMin, priceMax, record.unit);
+      const normalizedName = normalizeProductName(record.itemName);
+      const existingMatch = existingMaterials.find(
+        (m) => normalizeProductName(m.productName) === normalizedName
+      );
+      if (existingMatch) {
+        const existingMin = existingMatch.priceAedMin ? parseFloat(String(existingMatch.priceAedMin)) : null;
+        const existingMax = existingMatch.priceAedMax ? parseFloat(String(existingMatch.priceAedMax)) : null;
+        const effectiveMin = priceMin || priceTypical;
+        const effectiveMax = priceMax || priceTypical;
+        if (effectiveMin && effectiveMax && (effectiveMin !== existingMin || effectiveMax !== existingMax)) {
+          await db.update(materialLibrary).set({
+            priceAedMin: effectiveMin ? String(effectiveMin) : null,
+            priceAedMax: effectiveMax ? String(effectiveMax) : null,
+            notes: `Last updated from market data: ${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}. Source: ${record.publisher || record.sourceUrl}`
+          }).where(eq5(materialLibrary.id, existingMatch.id));
+          updated++;
+        } else {
+          skipped++;
+        }
+      } else if (!existingNames.has(normalizedName)) {
+        const effectiveMin = priceMin || priceTypical;
+        const effectiveMax = priceMax || priceTypical;
+        const brand = record.publisher || "Market Data";
+        await db.insert(materialLibrary).values({
+          category: materialCategory,
+          tier,
+          style: "all",
+          productCode: `MKT-${record.id}`,
+          productName: record.itemName.substring(0, 300),
+          brand: brand.substring(0, 150),
+          supplierName: (record.publisher || "Various UAE Suppliers").substring(0, 200),
+          unitLabel: (record.unit || "sqm").substring(0, 30),
+          priceAedMin: effectiveMin ? String(effectiveMin) : null,
+          priceAedMax: effectiveMax ? String(effectiveMax) : null,
+          notes: `Auto-imported from evidence. Source: ${record.sourceUrl?.substring(0, 200)}`,
+          isActive: true
+        });
+        existingNames.add(normalizedName);
+        created++;
+      } else {
+        skipped++;
+      }
+    } catch (err) {
+      console.warn(`[MaterialSync] Error processing evidence ${record.id}: ${err instanceof Error ? err.message : String(err)}`);
+      skipped++;
+    }
+  }
+  return { created, updated, skipped };
+}
+function normalizeProductName(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "").replace(/\s+/g, "").substring(0, 100);
+}
+var EVIDENCE_TO_MATERIAL_CATEGORY;
+var init_evidence_to_materials = __esm({
+  "server/engines/ingestion/evidence-to-materials.ts"() {
+    "use strict";
+    init_db();
+    init_schema();
+    EVIDENCE_TO_MATERIAL_CATEGORY = {
+      floors: "flooring",
+      walls: "wall_tile",
+      // most wall evidence is tile/finish
+      ceilings: "ceiling",
+      joinery: "joinery",
+      lighting: "lighting",
+      sanitary: "sanitaryware",
+      kitchen: "fittings",
+      // kitchen fittings
+      hardware: "hardware",
+      ffe: "specialty",
+      // FF&E → specialty
+      other: "specialty"
+    };
+  }
+});
+
+// api-src/index.ts
+import express from "express";
+import { createExpressMiddleware } from "@trpc/server/adapters/express";
+
+// server/_core/oauth.ts
+function registerOAuthRoutes(app2) {
+}
+
+// server/_core/systemRouter.ts
+import { z } from "zod";
+
+// server/_core/notification.ts
+import { TRPCError } from "@trpc/server";
+var TITLE_MAX_LENGTH = 1200;
+var CONTENT_MAX_LENGTH = 2e4;
+var trimValue = (value) => value.trim();
+var isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
+var buildEndpointUrl = () => {
+  return "https://api.resend.com/emails";
+};
+var validatePayload = (input) => {
+  if (!isNonEmptyString(input.title)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Notification title is required."
+    });
+  }
+  if (!isNonEmptyString(input.content)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Notification content is required."
+    });
+  }
+  const title = trimValue(input.title);
+  const content = trimValue(input.content);
+  if (title.length > TITLE_MAX_LENGTH) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Notification title must be at most ${TITLE_MAX_LENGTH} characters.`
+    });
+  }
+  if (content.length > CONTENT_MAX_LENGTH) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Notification content must be at most ${CONTENT_MAX_LENGTH} characters.`
+    });
+  }
+  return { title, content };
+};
+async function notifyOwner(payload) {
+  const { title, content } = validatePayload(payload);
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[Notification Mock] Would have sent email to owner.`);
+    console.log(`[Notification Mock] Title: ${title}`);
+    console.log(`[Notification Mock] Content: ${content}`);
+    return true;
+  }
+  const endpoint = buildEndpointUrl();
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        from: "miyar-v2 <onboarding@resend.dev>",
+        to: ["admin@example.com"],
+        // Hardcoded for demo/handover
+        subject: title,
+        html: `<p>${content}</p>`
+      })
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      console.warn(
+        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("[Notification] Error calling notification service:", error);
+    return false;
+  }
+}
+
+// shared/const.ts
+var COOKIE_NAME = "app_session_id";
+var ONE_YEAR_MS = 1e3 * 60 * 60 * 24 * 365;
+var UNAUTHED_ERR_MSG = "Please login (10001)";
+var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
+
+// server/_core/trpc.ts
+import { initTRPC, TRPCError as TRPCError2 } from "@trpc/server";
+import superjson from "superjson";
+var t = initTRPC.context().create({
+  transformer: superjson
+});
+var router = t.router;
+var publicProcedure = t.procedure;
+var requireUser = t.middleware(async (opts) => {
+  const { ctx, next } = opts;
+  if (!ctx.user) {
+    throw new TRPCError2({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+  }
+  return next({
+    ctx: {
+      ...ctx,
+      user: ctx.user
+    }
+  });
+});
+var protectedProcedure = t.procedure.use(requireUser);
+var adminProcedure = t.procedure.use(
+  t.middleware(async (opts) => {
+    const { ctx, next } = opts;
+    if (!ctx.user || ctx.user.role !== "admin") {
+      throw new TRPCError2({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+    }
+    return next({
+      ctx: {
+        ...ctx,
+        user: ctx.user
+      }
+    });
+  })
+);
+var requireOrg = t.middleware(async (opts) => {
+  const { ctx, next } = opts;
+  if (!ctx.user) {
+    throw new TRPCError2({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+  }
+  if (!ctx.user.orgId) {
+    throw new TRPCError2({ code: "FORBIDDEN", message: "User does not belong to an organization" });
+  }
+  return next({
+    ctx: {
+      ...ctx,
+      user: ctx.user,
+      orgId: ctx.user.orgId
+    }
+  });
+});
+var orgProcedure = t.procedure.use(requireOrg);
+
+// server/_core/systemRouter.ts
+var systemRouter = router({
+  health: publicProcedure.input(
+    z.object({
+      timestamp: z.number().min(0, "timestamp cannot be negative")
+    })
+  ).query(() => ({
+    ok: true
+  })),
+  notifyOwner: adminProcedure.input(
+    z.object({
+      title: z.string().min(1, "title is required"),
+      content: z.string().min(1, "content is required")
+    })
+  ).mutation(async ({ input }) => {
+    const delivered = await notifyOwner(input);
+    return {
+      success: delivered
+    };
+  })
+});
+
+// server/routers/auth.ts
+init_db();
+init_db();
+import { z as z2 } from "zod";
 
 // shared/_core/errors.ts
 var HttpError = class extends Error {
@@ -4552,6 +4716,8 @@ var HttpError = class extends Error {
 var ForbiddenError = (msg) => new HttpError(403, msg);
 
 // server/_core/sdk.ts
+init_db();
+init_env();
 import { parse as parseCookieHeader } from "cookie";
 import { SignJWT, jwtVerify } from "jose";
 var isNonEmptyString2 = (value) => typeof value === "string" && value.length > 0;
@@ -4663,6 +4829,8 @@ function getSessionCookieOptions(req) {
 import { TRPCError as TRPCError3 } from "@trpc/server";
 
 // server/_core/audit.ts
+init_db();
+init_schema();
 async function auditLog(data) {
   try {
     const db = await getDb();
@@ -4674,6 +4842,7 @@ async function auditLog(data) {
 }
 
 // server/routers/auth.ts
+init_schema();
 import { eq as eq2 } from "drizzle-orm";
 var authRouter = router({
   me: publicProcedure.query((opts) => opts.ctx.user),
@@ -4813,6 +4982,7 @@ var authRouter = router({
 
 // server/routers/project.ts
 import { z as z3 } from "zod";
+init_db();
 
 // server/engines/normalization.ts
 function normalizeOrdinal(value) {
@@ -6772,6 +6942,7 @@ function solveConstraints(baseProject, constraints) {
 }
 
 // server/engines/webhook.ts
+init_db();
 import crypto2 from "crypto";
 function signPayload(payload, secret) {
   return crypto2.createHmac("sha256", secret).update(payload).digest("hex");
@@ -7073,7 +7244,12 @@ async function generateInsights(input, options = {}) {
   return insights;
 }
 
+// server/routers/project.ts
+init_db();
+
 // server/engines/autonomous/alert-engine.ts
+init_db();
+init_schema();
 import { eq as eq3, inArray as inArray2, and as and2, sql as sql2 } from "drizzle-orm";
 async function evaluateAlerts(params) {
   const db = await getDb();
@@ -7213,7 +7389,9 @@ async function triggerAlertEngine() {
 }
 
 // server/engines/autonomous/document-generator.ts
+init_db();
 init_llm();
+init_schema();
 import { eq as eq4, desc as desc2 } from "drizzle-orm";
 async function generateAutonomousDesignBrief(projectId) {
   const db = await getDb();
@@ -7969,6 +8147,7 @@ var projectRouter = router({
 
 // server/routers/scenario.ts
 import { z as z4 } from "zod";
+init_db();
 
 // server/engines/scenario.ts
 function runScenario(baseInputs, scenario, config) {
@@ -8109,6 +8288,7 @@ var scenarioRouter = router({
 
 // server/routers/admin.ts
 import { z as z5 } from "zod";
+init_db();
 
 // server/engines/portfolio.ts
 function computeDistributions(items) {
@@ -8793,6 +8973,9 @@ var adminRouter = router({
   })
 });
 
+// server/routers/seed.ts
+init_db();
+
 // server/engines/design-brief.ts
 var STYLE_MOOD_MAP = {
   Modern: {
@@ -9428,6 +9611,7 @@ var seedRouter = router({
 
 // server/routers/design.ts
 import { z as z6 } from "zod";
+init_db();
 import { TRPCError as TRPCError4 } from "@trpc/server";
 
 // server/engines/visual-gen.ts
@@ -10486,6 +10670,7 @@ var designRouter = router({
 
 // server/routers/intelligence.ts
 import { z as z7 } from "zod";
+init_db();
 
 // server/engines/explainability.ts
 var DIMENSION_LABELS2 = {
@@ -11380,6 +11565,7 @@ function computeDeltas(baseline, compared) {
 
 // server/routers/market-intelligence.ts
 import { z as z9 } from "zod";
+init_db();
 import { nanoid as nanoid4 } from "nanoid";
 
 // server/engines/ingestion/connector.ts
@@ -11968,8 +12154,10 @@ var DynamicConnector = class extends BaseSourceConnector {
 
 // server/engines/ingestion/orchestrator.ts
 import { randomUUID as randomUUID2 } from "crypto";
+init_db();
 
 // server/engines/ingestion/proposal-generator.ts
+init_db();
 import { randomUUID } from "crypto";
 
 // server/engines/ingestion/freshness.ts
@@ -12137,6 +12325,7 @@ async function generateBenchmarkProposals(options = {}) {
 }
 
 // server/engines/ingestion/change-detector.ts
+init_db();
 async function detectPriceChange(currentRecord) {
   if (!currentRecord.priceTypical || !currentRecord.sourceRegistryId) return null;
   const currentPrice = parseFloat(currentRecord.priceTypical);
@@ -12394,7 +12583,8 @@ async function detectTrends(metric, category, geography, points, options) {
 }
 
 // server/engines/ingestion/orchestrator.ts
-import { and as and3, eq as eq5, sql as sql3 } from "drizzle-orm";
+init_schema();
+import { and as and4, eq as eq6, sql as sql4 } from "drizzle-orm";
 var MAX_CONCURRENT = 3;
 async function runWithConcurrencyLimit(tasks, limit) {
   const results = [];
@@ -12416,10 +12606,10 @@ async function isDuplicate(sourceUrl, itemName, captureDate) {
   const db = await getDb();
   if (!db) return false;
   const existing = await db.select({ id: evidenceRecords.id }).from(evidenceRecords).where(
-    and3(
-      eq5(evidenceRecords.sourceUrl, sourceUrl),
-      eq5(evidenceRecords.itemName, itemName),
-      sql3`DATE(${evidenceRecords.captureDate}) = DATE(${captureDate})`
+    and4(
+      eq6(evidenceRecords.sourceUrl, sourceUrl),
+      eq6(evidenceRecords.itemName, itemName),
+      sql4`DATE(${evidenceRecords.captureDate}) = DATE(${captureDate})`
     )
   ).limit(1);
   return existing.length > 0;
@@ -12458,7 +12648,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const connector of connectors) {
-        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq5(sourceRegistry.name, connector.sourceId)).limit(1);
+        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq6(sourceRegistry.name, connector.sourceId)).limit(1);
         if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
           connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
         }
@@ -12640,7 +12830,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const result of connectorResults) {
-        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq5(sourceRegistry.name, result.sourceId)).limit(1);
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq6(sourceRegistry.name, result.sourceId)).limit(1);
         const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
         const isSuccess = result.status === "success";
         const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
@@ -12653,7 +12843,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         if (isSuccess) {
           updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
         }
-        await db.update(sourceRegistry).set(updates).where(eq5(sourceRegistry.name, result.sourceId));
+        await db.update(sourceRegistry).set(updates).where(eq6(sourceRegistry.name, result.sourceId));
       }
     }
   } catch (err) {
@@ -12747,7 +12937,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     try {
       const db = await getDb();
       if (db) {
-        const recentEvidence = await db.select().from(evidenceRecords).orderBy(sql3`${evidenceRecords.createdAt} DESC`).limit(500);
+        const recentEvidence = await db.select().from(evidenceRecords).orderBy(sql4`${evidenceRecords.createdAt} DESC`).limit(500);
         const categoryGroups = /* @__PURE__ */ new Map();
         for (const record of recentEvidence) {
           const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
@@ -12807,6 +12997,17 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
   } catch (err) {
     console.error("[Ingestion] Post-run alert generation failed:", err);
   }
+  if (totalCreated > 0) {
+    try {
+      const { syncEvidenceToMaterials: syncEvidenceToMaterials2 } = await Promise.resolve().then(() => (init_evidence_to_materials(), evidence_to_materials_exports));
+      const materialSync = await syncEvidenceToMaterials2(runId);
+      console.log(
+        `[Ingestion] Post-run materials sync: ${materialSync.created} created, ${materialSync.updated} updated, ${materialSync.skipped} skipped`
+      );
+    } catch (err) {
+      console.error("[Ingestion] Post-run materials sync failed:", err);
+    }
+  }
   const report = {
     runId,
     startedAt,
@@ -12856,6 +13057,7 @@ async function testScrape(connector) {
 }
 
 // server/engines/ingestion/csv-pipeline.ts
+init_db();
 import * as xlsx from "xlsx";
 function generateRecordId2() {
   const ts = Date.now().toString(36);
@@ -12956,8 +13158,10 @@ async function processCsvUpload(buffer, sourceId, addedByUserId) {
 }
 
 // server/engines/ingestion/seeds/uae-sources.ts
+init_db();
+init_schema();
 import "dotenv/config";
-import { eq as eq6 } from "drizzle-orm";
+import { eq as eq7 } from "drizzle-orm";
 var UAE_SOURCES = [
   // ── Supplier Catalogs ─────────────────────────────────────────
   {
@@ -13239,7 +13443,7 @@ async function seedUAESources() {
   const errors = [];
   for (const source of UAE_SOURCES) {
     try {
-      const existing = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq6(sourceRegistry.url, source.url)).limit(1);
+      const existing = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq7(sourceRegistry.url, source.url)).limit(1);
       if (existing.length > 0) {
         console.log(`[Seeder] Skipping "${source.name}" \u2014 already exists (id=${existing[0].id})`);
         skipped++;
@@ -14681,11 +14885,15 @@ function getAllConnectors() {
 }
 
 // server/routers/ingestion.ts
-import { desc as desc3, eq as eq8, sql as sql4 } from "drizzle-orm";
+init_db();
+init_schema();
+import { desc as desc4, eq as eq9, sql as sql5 } from "drizzle-orm";
 
 // server/engines/ingestion/scheduler.ts
 import cron from "node-cron";
-import { eq as eq7 } from "drizzle-orm";
+init_db();
+init_schema();
+import { eq as eq8 } from "drizzle-orm";
 var scheduledTasks = [];
 var lastScheduledRunAt = null;
 var isSchedulerRunning = false;
@@ -14750,7 +14958,7 @@ var ingestionRouter = router({
     if (!db) return { runs: [], total: 0 };
     const limit = input?.limit ?? 20;
     const offset = input?.offset ?? 0;
-    const runs = await db.select().from(ingestionRuns).orderBy(desc3(ingestionRuns.createdAt)).limit(limit).offset(offset);
+    const runs = await db.select().from(ingestionRuns).orderBy(desc4(ingestionRuns.createdAt)).limit(limit).offset(offset);
     const allRuns = await db.select({ id: ingestionRuns.id }).from(ingestionRuns);
     const total = allRuns.length;
     return { runs, total };
@@ -14770,7 +14978,7 @@ var ingestionRouter = router({
         nextScheduledRun: null
       };
     }
-    const lastRuns = await db.select().from(ingestionRuns).orderBy(desc3(ingestionRuns.createdAt)).limit(1);
+    const lastRuns = await db.select().from(ingestionRuns).orderBy(desc4(ingestionRuns.createdAt)).limit(1);
     const lastRun = lastRuns.length > 0 ? lastRuns[0] : null;
     const allRuns = await db.select().from(ingestionRuns);
     const totalRuns = allRuns.length;
@@ -14805,7 +15013,7 @@ var ingestionRouter = router({
   getRunDetail: protectedProcedure.input(z10.object({ runId: z10.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
-    const runs = await db.select().from(ingestionRuns).where(eq8(ingestionRuns.runId, input.runId)).limit(1);
+    const runs = await db.select().from(ingestionRuns).where(eq9(ingestionRuns.runId, input.runId)).limit(1);
     return runs.length > 0 ? runs[0] : null;
   }),
   /**
@@ -14887,8 +15095,8 @@ var ingestionRouter = router({
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
-    const filter = input?.activeOnly !== false ? eq8(sourceRegistry.isActive, true) : void 0;
-    const sources = filter ? await db.select().from(sourceRegistry).where(filter).orderBy(desc3(sourceRegistry.updatedAt)) : await db.select().from(sourceRegistry).orderBy(desc3(sourceRegistry.updatedAt));
+    const filter = input?.activeOnly !== false ? eq9(sourceRegistry.isActive, true) : void 0;
+    const sources = filter ? await db.select().from(sourceRegistry).where(filter).orderBy(desc4(sourceRegistry.updatedAt)) : await db.select().from(sourceRegistry).orderBy(desc4(sourceRegistry.updatedAt));
     return sources;
   }),
   /**
@@ -14934,7 +15142,7 @@ var ingestionRouter = router({
   toggleSource: adminProcedure.input(z10.object({ id: z10.number(), isActive: z10.boolean() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq8(sourceRegistry.id, input.id));
+    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq9(sourceRegistry.id, input.id));
     return { id: input.id, isActive: input.isActive };
   }),
   /**
@@ -14943,7 +15151,7 @@ var ingestionRouter = router({
   runRegisteredSource: adminProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    const [source] = await db.select().from(sourceRegistry).where(eq8(sourceRegistry.id, input.id)).limit(1);
+    const [source] = await db.select().from(sourceRegistry).where(eq9(sourceRegistry.id, input.id)).limit(1);
     if (!source) throw new Error("Source not found");
     const connector = new DynamicConnector(source);
     const report = await runIngestion([connector], "manual", ctx.user.id);
@@ -14951,8 +15159,8 @@ var ingestionRouter = router({
       lastScrapedAt: /* @__PURE__ */ new Date(),
       lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
       lastRecordCount: report.evidenceCreated,
-      consecutiveFailures: report.sourcesFailed > 0 ? sql4`${sourceRegistry.consecutiveFailures} + 1` : 0
-    }).where(eq8(sourceRegistry.id, input.id));
+      consecutiveFailures: report.sourcesFailed > 0 ? sql5`${sourceRegistry.consecutiveFailures} + 1` : 0
+    }).where(eq9(sourceRegistry.id, input.id));
     return report;
   }),
   /**
@@ -14971,9 +15179,9 @@ var ingestionRouter = router({
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
-    let query = db.select().from(designTrends).orderBy(desc3(designTrends.mentionCount)).limit(input?.limit ?? 50);
+    let query = db.select().from(designTrends).orderBy(desc4(designTrends.mentionCount)).limit(input?.limit ?? 50);
     if (input?.category) {
-      query = query.where(eq8(designTrends.trendCategory, input.category));
+      query = query.where(eq9(designTrends.trendCategory, input.category));
     }
     return query;
   })
@@ -14981,6 +15189,7 @@ var ingestionRouter = router({
 
 // server/routers/analytics.ts
 import { z as z11 } from "zod";
+init_db();
 
 // server/engines/analytics/market-positioning.ts
 var TIER_LABELS = {
@@ -15228,7 +15437,8 @@ async function analyseCompetitorLandscape(projects2, options = {}) {
 }
 
 // server/routers/analytics.ts
-import { and as and4, eq as eq9, isNotNull } from "drizzle-orm";
+init_schema();
+import { and as and5, eq as eq10, isNotNull } from "drizzle-orm";
 var analyticsRouter = router({
   getTrends: protectedProcedure.input(
     z11.object({
@@ -15276,8 +15486,8 @@ var analyticsRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
-      and4(
-        eq9(evidenceRecords.category, input.category),
+      and5(
+        eq10(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -15315,7 +15525,7 @@ var analyticsRouter = router({
       sourceUrl: competitorProjects.sourceUrl,
       completenessScore: competitorProjects.completenessScore,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq9(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq10(competitorProjects.competitorId, competitorEntities.id));
     const projects2 = dbProjects.map((p) => {
       let pricePerSqft;
       if (p.priceIndicators && typeof p.priceIndicators === "object") {
@@ -15351,8 +15561,8 @@ var analyticsRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
-      and4(
-        eq9(evidenceRecords.category, input.category),
+      and5(
+        eq10(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -15454,7 +15664,7 @@ var analyticsRouter = router({
       projectName: competitorProjects.projectName,
       totalUnits: competitorProjects.totalUnits,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq9(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq10(competitorProjects.competitorId, competitorEntities.id));
     let competitorLandscape;
     if (dbProjects.length > 0) {
       const compProjects = dbProjects.map((p) => ({
@@ -15520,6 +15730,7 @@ var analyticsRouter = router({
 
 // server/routers/predictive.ts
 import { z as z12 } from "zod";
+init_db();
 import { TRPCError as TRPCError5 } from "@trpc/server";
 
 // server/engines/predictive/cost-range.ts
@@ -15852,6 +16063,7 @@ function matchScoreMatrixToPatterns(scores, availablePatterns) {
 }
 
 // server/routers/predictive.ts
+init_schema();
 var predictiveRouter = router({
   /**
    * V4-08: Get cost range prediction for a project category
@@ -16014,8 +16226,10 @@ var predictiveRouter = router({
 
 // server/routers/learning.ts
 import { z as z13 } from "zod";
+init_db();
+init_schema();
 import { TRPCError as TRPCError6 } from "@trpc/server";
-import { eq as eq10, desc as desc4 } from "drizzle-orm";
+import { eq as eq11, desc as desc5 } from "drizzle-orm";
 
 // server/engines/learning/outcome-comparator.ts
 function compareOutcomeToPrediction(params) {
@@ -16161,34 +16375,34 @@ function compareOutcomeToPrediction(params) {
 var learningRouter = router({
   getAccuracyLedger: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    const rows = await ormDb.select().from(accuracySnapshots).orderBy(desc4(accuracySnapshots.snapshotDate)).limit(1);
+    const rows = await ormDb.select().from(accuracySnapshots).orderBy(desc5(accuracySnapshots.snapshotDate)).limit(1);
     return rows[0] || null;
   }),
   getAccuracyHistory: protectedProcedure.input(z13.object({ limit: z13.number().default(20) }).optional()).query(async ({ input }) => {
     const ormDb = await getDb();
-    return await ormDb.select().from(accuracySnapshots).orderBy(desc4(accuracySnapshots.snapshotDate)).limit(input?.limit || 20);
+    return await ormDb.select().from(accuracySnapshots).orderBy(desc5(accuracySnapshots.snapshotDate)).limit(input?.limit || 20);
   }),
   getPendingLogicProposals: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(logicChangeLog).where(eq10(logicChangeLog.status, "proposed")).orderBy(desc4(logicChangeLog.createdAt));
+    return await ormDb.select().from(logicChangeLog).where(eq11(logicChangeLog.status, "proposed")).orderBy(desc5(logicChangeLog.createdAt));
   }),
   getPendingBenchmarkSuggestions: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(benchmarkSuggestions).where(eq10(benchmarkSuggestions.status, "pending")).orderBy(desc4(benchmarkSuggestions.createdAt));
+    return await ormDb.select().from(benchmarkSuggestions).where(eq11(benchmarkSuggestions.status, "pending")).orderBy(desc5(benchmarkSuggestions.createdAt));
   }),
   getComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ input }) => {
     const ormDb = await getDb();
-    const rows = await ormDb.select().from(outcomeComparisons).where(eq10(outcomeComparisons.projectId, input.projectId)).orderBy(desc4(outcomeComparisons.comparedAt)).limit(1);
+    const rows = await ormDb.select().from(outcomeComparisons).where(eq11(outcomeComparisons.projectId, input.projectId)).orderBy(desc5(outcomeComparisons.comparedAt)).limit(1);
     return rows[0] || null;
   }),
   runComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).mutation(async ({ input }) => {
     const ormDb = await getDb();
-    const outcomes = await ormDb.select().from(projectOutcomes).where(eq10(projectOutcomes.projectId, input.projectId)).limit(1);
+    const outcomes = await ormDb.select().from(projectOutcomes).where(eq11(projectOutcomes.projectId, input.projectId)).limit(1);
     if (!outcomes.length) {
       throw new TRPCError6({ code: "NOT_FOUND", message: "No outcome found for project" });
     }
     const outcome = outcomes[0];
-    const matrices = await ormDb.select().from(scoreMatrices).where(eq10(scoreMatrices.projectId, input.projectId)).orderBy(desc4(scoreMatrices.computedAt)).limit(1);
+    const matrices = await ormDb.select().from(scoreMatrices).where(eq11(scoreMatrices.projectId, input.projectId)).orderBy(desc5(scoreMatrices.computedAt)).limit(1);
     if (!matrices.length) {
       throw new TRPCError6({ code: "NOT_FOUND", message: "No score matrix found for project" });
     }
@@ -16261,12 +16475,16 @@ var learningRouter = router({
 
 // server/routers/autonomous.ts
 import { z as z14 } from "zod";
-import { eq as eq12, and as and5, desc as desc6, sql as sql7 } from "drizzle-orm";
+init_db();
+init_schema();
+import { eq as eq13, and as and6, desc as desc7, sql as sql8 } from "drizzle-orm";
 import { TRPCError as TRPCError7 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
 init_llm();
-import { sql as sql6 } from "drizzle-orm";
+init_db();
+init_schema();
+import { sql as sql7 } from "drizzle-orm";
 var SCHEMA_CONTEXT = `
 You are the MIYAR Intelligence Assistant, an expert AI embedded within MIYAR (an autonomous interior design and architectural validation platform). 
 Your primary capability is translating user natural language queries into valid MySQL SELECT queries to fetch data from the platform. 
@@ -16327,7 +16545,7 @@ Generate the MySQL query.` }
     const db = await getDb();
     if (!db) throw new Error("Database not connected");
     try {
-      const result = await db.execute(sql6.raw(generatedSql));
+      const result = await db.execute(sql7.raw(generatedSql));
       if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0])) {
         rawData = result[0];
       } else {
@@ -16392,17 +16610,19 @@ ${JSON.stringify(truncatedData, null, 2)}` }
 
 // server/engines/autonomous/portfolio-engine.ts
 init_llm();
-import { eq as eq11, desc as desc5 } from "drizzle-orm";
+init_db();
+init_schema();
+import { eq as eq12, desc as desc6 } from "drizzle-orm";
 async function generatePortfolioInsights() {
   const db = await getDb();
   if (!db) throw new Error("Database error");
-  const allProjects = await db.select().from(projects).where(eq11(projects.status, "evaluated"));
+  const allProjects = await db.select().from(projects).where(eq12(projects.status, "evaluated"));
   if (allProjects.length === 0) {
     return "No evaluated projects available for portfolio analysis.";
   }
   const portfolioProjects = [];
   for (const p of allProjects) {
-    const scores = await db.select().from(scoreMatrices).where(eq11(scoreMatrices.projectId, p.id)).orderBy(desc5(scoreMatrices.computedAt)).limit(1);
+    const scores = await db.select().from(scoreMatrices).where(eq12(scoreMatrices.projectId, p.id)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
     if (scores.length > 0) {
       const s = scores[0];
       portfolioProjects.push({
@@ -16485,14 +16705,14 @@ var autonomousRouter = router({
     if (!db) return [];
     let conditions = [];
     const targetStatus = input?.status || "active";
-    conditions.push(eq12(platformAlerts.status, targetStatus));
+    conditions.push(eq13(platformAlerts.status, targetStatus));
     if (input?.severity) {
-      conditions.push(eq12(platformAlerts.severity, input.severity));
+      conditions.push(eq13(platformAlerts.severity, input.severity));
     }
     if (input?.type) {
-      conditions.push(eq12(platformAlerts.alertType, input.type));
+      conditions.push(eq13(platformAlerts.alertType, input.type));
     }
-    return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc6(platformAlerts.createdAt));
+    return db.select().from(platformAlerts).where(conditions.length > 0 ? and6(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
   }),
   acknowledgeAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -16501,7 +16721,7 @@ var autonomousRouter = router({
       status: "acknowledged",
       acknowledgedBy: ctx.user.id,
       acknowledgedAt: /* @__PURE__ */ new Date()
-    }).where(eq12(platformAlerts.id, input.id));
+    }).where(eq13(platformAlerts.id, input.id));
     return { success: true };
   }),
   resolveAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
@@ -16509,17 +16729,17 @@ var autonomousRouter = router({
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
       status: "resolved"
-    }).where(eq12(platformAlerts.id, input.id));
+    }).where(eq13(platformAlerts.id, input.id));
     return { success: true };
   }),
   nlQuery: protectedProcedure.input(z14.object({ query: z14.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError7({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
-    const recentQueries = await db.select({ count: sql7`count(*)` }).from(nlQueryLog).where(
-      and5(
-        eq12(nlQueryLog.userId, ctx.user.id),
-        sql7`${nlQueryLog.createdAt} > ${oneHourAgo}`
+    const recentQueries = await db.select({ count: sql8`count(*)` }).from(nlQueryLog).where(
+      and6(
+        eq13(nlQueryLog.userId, ctx.user.id),
+        sql8`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
     );
     const count = Number(recentQueries[0]?.count || 0);
@@ -16543,9 +16763,11 @@ var autonomousRouter = router({
 });
 
 // server/routers/organization.ts
+init_db();
 import { z as z15 } from "zod";
+init_schema();
 import { TRPCError as TRPCError8 } from "@trpc/server";
-import { eq as eq13, and as and6 } from "drizzle-orm";
+import { eq as eq14, and as and7 } from "drizzle-orm";
 import { nanoid as nanoid5 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z15.object({
@@ -16555,7 +16777,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
-    const existing = await db.select().from(organizations).where(eq13(organizations.slug, input.slug)).limit(1);
+    const existing = await db.select().from(organizations).where(eq14(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
       throw new TRPCError8({ code: "CONFLICT", message: "Slug is already taken" });
     }
@@ -16571,7 +16793,7 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: "admin"
     });
-    await db.update(users).set({ orgId }).where(eq13(users.id, ctx.user.id));
+    await db.update(users).set({ orgId }).where(eq14(users.id, ctx.user.id));
     return { success: true, orgId };
   }),
   myOrgs: protectedProcedure.query(async ({ ctx }) => {
@@ -16580,7 +16802,7 @@ var organizationRouter = router({
     const result = await db.select({
       org: organizations,
       role: organizationMembers.role
-    }).from(organizationMembers).innerJoin(organizations, eq13(organizations.id, organizationMembers.orgId)).where(eq13(organizationMembers.userId, ctx.user.id));
+    }).from(organizationMembers).innerJoin(organizations, eq14(organizations.id, organizationMembers.orgId)).where(eq14(organizationMembers.userId, ctx.user.id));
     return result;
   }),
   inviteMember: orgProcedure.input(z15.object({
@@ -16589,7 +16811,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and6(eq13(organizationMembers.orgId, ctx.orgId), eq13(organizationMembers.userId, ctx.user.id))).limit(1);
+    const myMembership = await db.select().from(organizationMembers).where(and7(eq14(organizationMembers.orgId, ctx.orgId), eq14(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
       throw new TRPCError8({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
@@ -16608,7 +16830,7 @@ var organizationRouter = router({
   acceptInvite: protectedProcedure.input(z15.object({ token: z15.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR" });
-    const inviteResult = await db.select().from(organizationInvites).where(eq13(organizationInvites.token, input.token)).limit(1);
+    const inviteResult = await db.select().from(organizationInvites).where(eq14(organizationInvites.token, input.token)).limit(1);
     const invite = inviteResult[0];
     if (!invite) throw new TRPCError8({ code: "NOT_FOUND", message: "Invalid invite token" });
     if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError8({ code: "BAD_REQUEST", message: "Invite expired" });
@@ -16617,8 +16839,8 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: invite.role
     });
-    await db.update(users).set({ orgId: invite.orgId }).where(eq13(users.id, ctx.user.id));
-    await db.delete(organizationInvites).where(eq13(organizationInvites.id, invite.id));
+    await db.update(users).set({ orgId: invite.orgId }).where(eq14(users.id, ctx.user.id));
+    await db.delete(organizationInvites).where(eq14(organizationInvites.id, invite.id));
     return { success: true, orgId: invite.orgId };
   })
 });
@@ -16870,6 +17092,7 @@ var economicsRouter = router({
 
 // server/routers/bias.ts
 import { z as z17 } from "zod";
+init_db();
 var biasRouter = router({
   // Get all bias alerts for a project (active + dismissed)
   getAlerts: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
@@ -16929,6 +17152,7 @@ var biasRouter = router({
 
 // server/routers/design-advisor.ts
 import { z as z18 } from "zod";
+init_db();
 
 // server/engines/design/ai-design-advisor.ts
 init_llm();
