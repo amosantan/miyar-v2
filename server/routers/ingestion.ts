@@ -19,9 +19,11 @@ import {
   ALL_CONNECTORS,
 } from "../engines/ingestion/connectors/index";
 import { getDb, getConnectorHealthByRun, getConnectorHealthHistory, getConnectorHealthSummary } from "../db";
-import { ingestionRuns, connectorHealth } from "../../drizzle/schema";
-import { desc, eq } from "drizzle-orm";
+import { ingestionRuns, connectorHealth, sourceRegistry, designTrends } from "../../drizzle/schema";
+import { desc, eq, sql } from "drizzle-orm";
 import { getSchedulerStatus } from "../engines/ingestion/scheduler";
+import { DynamicConnector } from "../engines/ingestion/connectors/dynamic";
+import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
 
 export const ingestionRouter = router({
   /**
@@ -265,5 +267,128 @@ export const ingestionRouter = router({
           ? Math.round(((s.successes + s.partials) / s.totalRuns) * 100)
           : 0,
       }));
+    }),
+
+  // ─── Source Registry Management ──────────────────────────────
+
+  /**
+   * List all sources from source_registry with health info.
+   */
+  listSources: protectedProcedure
+    .input(z.object({
+      activeOnly: z.boolean().default(true),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const filter = input?.activeOnly !== false ? eq(sourceRegistry.isActive, true) : undefined;
+      const sources = filter
+        ? await db.select().from(sourceRegistry).where(filter).orderBy(desc(sourceRegistry.updatedAt))
+        : await db.select().from(sourceRegistry).orderBy(desc(sourceRegistry.updatedAt));
+      return sources;
+    }),
+
+  /**
+   * Create a new source in the registry.
+   */
+  createSource: adminProcedure
+    .input(z.object({
+      name: z.string().min(1).max(255),
+      url: z.string().url(),
+      sourceType: z.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
+      reliabilityDefault: z.enum(["A", "B", "C"]).default("B"),
+      region: z.string().default("UAE"),
+      scrapeMethod: z.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+      scrapeSchedule: z.string().optional(),
+      extractionHints: z.string().optional(),
+      notes: z.string().optional(),
+      requestDelayMs: z.number().default(2000),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      const [result] = await db.insert(sourceRegistry).values({
+        name: input.name,
+        url: input.url,
+        sourceType: input.sourceType,
+        reliabilityDefault: input.reliabilityDefault,
+        region: input.region,
+        scrapeMethod: input.scrapeMethod,
+        scrapeSchedule: input.scrapeSchedule,
+        extractionHints: input.extractionHints,
+        notes: input.notes,
+        requestDelayMs: input.requestDelayMs,
+        isActive: true,
+        isWhitelisted: true,
+        addedBy: ctx.user.id,
+        lastScrapedStatus: "never",
+        lastRecordCount: 0,
+        consecutiveFailures: 0,
+      });
+      return { id: result.insertId, name: input.name };
+    }),
+
+  /**
+   * Toggle source active/inactive.
+   */
+  toggleSource: adminProcedure
+    .input(z.object({ id: z.number(), isActive: z.boolean() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq(sourceRegistry.id, input.id));
+      return { id: input.id, isActive: input.isActive };
+    }),
+
+  /**
+   * Run a single DB-registered source via DynamicConnector.
+   */
+  runRegisteredSource: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      const [source] = await db.select().from(sourceRegistry).where(eq(sourceRegistry.id, input.id)).limit(1);
+      if (!source) throw new Error("Source not found");
+      const connector = new DynamicConnector(source);
+      const report = await runIngestion([connector], "manual", ctx.user.id);
+      // Update lastScrapedAt + status
+      await db.update(sourceRegistry).set({
+        lastScrapedAt: new Date(),
+        lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
+        lastRecordCount: report.evidenceCreated,
+        consecutiveFailures: report.sourcesFailed > 0
+          ? sql`${sourceRegistry.consecutiveFailures} + 1`
+          : 0,
+      }).where(eq(sourceRegistry.id, input.id));
+      return report;
+    }),
+
+  /**
+   * Seed all UAE sources into source_registry.
+   */
+  seedSources: adminProcedure
+    .mutation(async () => {
+      return seedUAESources();
+    }),
+
+  // ─── Design Trends ──────────────────────────────────────────
+
+  /**
+   * List detected design trends, ordered by mention count.
+   */
+  getTrends: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      category: z.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional(),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      let query = db.select().from(designTrends).orderBy(desc(designTrends.mentionCount)).limit(input?.limit ?? 50);
+      if (input?.category) {
+        query = query.where(eq(designTrends.trendCategory, input.category)) as any;
+      }
+      return query;
     }),
 });

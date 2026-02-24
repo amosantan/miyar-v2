@@ -2158,6 +2158,33 @@ var generatedVisuals = mysqlTable("generated_visuals", {
   createdBy: int("createdBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull()
 });
+var designTrends = mysqlTable("design_trends", {
+  id: int("id").autoincrement().primaryKey(),
+  trendName: varchar("trendName", { length: 255 }).notNull(),
+  trendCategory: mysqlEnum("trendCategory", [
+    "style",
+    "material",
+    "color",
+    "layout",
+    "technology",
+    "sustainability",
+    "other"
+  ]).notNull(),
+  confidenceLevel: mysqlEnum("confidenceLevel", ["emerging", "established", "declining"]).default("emerging").notNull(),
+  sourceUrl: text("sourceUrl"),
+  sourceRegistryId: int("sourceRegistryId"),
+  description: text("description"),
+  relatedMaterials: json("relatedMaterials"),
+  // string[] of material names
+  styleClassification: varchar("styleClassification", { length: 128 }),
+  // modern, classical, biophilic, japandi, etc.
+  region: varchar("region", { length: 64 }).default("UAE"),
+  firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
+  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+  mentionCount: int("mentionCount").default(1).notNull(),
+  runId: varchar("runId", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull()
+});
 var materialBoards = mysqlTable("material_boards", {
   id: int("id").autoincrement().primaryKey(),
   projectId: int("projectId").notNull(),
@@ -14182,7 +14209,7 @@ function getAllConnectors() {
 }
 
 // server/routers/ingestion.ts
-import { desc as desc3, eq as eq7 } from "drizzle-orm";
+import { desc as desc3, eq as eq8, sql as sql4 } from "drizzle-orm";
 
 // server/engines/ingestion/scheduler.ts
 import cron from "node-cron";
@@ -14213,6 +14240,336 @@ function getSchedulerStatus() {
     lastScheduledRunAt: lastScheduledRunAt?.toISOString() ?? null,
     isCurrentlyRunning: isSchedulerRunning
   };
+}
+
+// server/engines/ingestion/seeds/uae-sources.ts
+import { eq as eq7 } from "drizzle-orm";
+var UAE_SOURCES = [
+  // ── Supplier Catalogs ─────────────────────────────────────────
+  {
+    name: "Graniti UAE",
+    url: "https://www.granitiuae.com/",
+    sourceType: "supplier_catalog",
+    reliabilityDefault: "B",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 7 * * 1",
+    // Monday 7 AM UTC
+    extractionHints: "Extract product names, material types (tiles, marble, granite, sanitary ware, outdoor furniture), prices in AED, dimensions. Product pages use Elementor tabs with categories: Bathroom, Washroom, Tiles, Slabs, Outdoor, Mosaics. Look for product cards with prices.",
+    notes: "Major UAE tile/sanitary supplier with Sheikh Zayed Road showroom. Has sub-pages per category.",
+    requestDelayMs: 3e3
+  },
+  {
+    name: "RAK Ceramics UAE",
+    url: "https://www.rakceramics.com/ae/",
+    sourceType: "manufacturer_catalog",
+    reliabilityDefault: "B",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 7 * * 1",
+    extractionHints: "Extract ceramic tile products, dimensions (e.g. 60x60, 80x80, 120x60), finishes (matt, glossy, polished), series names, and prices if available. RAK is a UAE manufacturer \u2014 high reliability for local pricing.",
+    notes: "UAE-based manufacturer. World's largest ceramics production facility in RAK.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Porcelanosa UAE",
+    url: "https://www.porcelanosa.com/ae/",
+    sourceType: "manufacturer_catalog",
+    reliabilityDefault: "B",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 8 * * 1",
+    extractionHints: "Extract product lines for tiles, bathroom fixtures, kitchens. Look for prices in AED, product dimensions, material type (porcelain, ceramic, natural stone). Premium brand \u2014 prices indicate upper-mid to luxury tier.",
+    notes: "Spanish premium manufacturer with UAE presence.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Hafele UAE",
+    url: "https://www.hafele.ae/en/",
+    sourceType: "supplier_catalog",
+    reliabilityDefault: "B",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 7 * * 3",
+    // Wednesday 7 AM
+    extractionHints: "Extract hardware products: handles, hinges, drawer systems, kitchen fittings, wardrobe accessories. Look for product codes, prices in AED, categories. Focus on kitchen and bathroom hardware for interior design benchmarks.",
+    notes: "German hardware manufacturer with UAE distribution. Key for joinery/hardware benchmarks.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "GEMS Building Materials",
+    url: "https://www.gems-bm.com/",
+    sourceType: "supplier_catalog",
+    reliabilityDefault: "B",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 7 * * 1",
+    extractionHints: "Extract building material products, prices in AED, categories (tiles, marble, granite, plumbing, electrical). Focus on unit prices per sqm/sqft/piece.",
+    notes: "UAE building materials supplier.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Dragon Mart Dubai",
+    url: "https://www.dragonmart.ae/",
+    sourceType: "retailer_listing",
+    reliabilityDefault: "B",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 7 * * 1",
+    extractionHints: "Extract products from building materials, home improvement, lighting categories. Look for wholesale and retail prices in AED. Dragon Mart is value-oriented \u2014 prices indicate budget to standard tier.",
+    notes: "Largest trading hub in UAE. Budget to mid-range materials.",
+    requestDelayMs: 3e3
+  },
+  {
+    name: "Danube Home",
+    url: "https://www.danubehome.com/uae/",
+    sourceType: "retailer_listing",
+    reliabilityDefault: "B",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 8 * * 2",
+    // Tuesday
+    extractionHints: "Extract furniture, bathroom fixtures, kitchen products, lighting, flooring. Look for product prices in AED, dimensions, categories. Danube is mid-range \u2014 indicates standard to upper-mid pricing tiers.",
+    notes: "Major UAE home furnishing retailer with online catalog.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "IKEA UAE",
+    url: "https://www.ikea.com/ae/en/",
+    sourceType: "retailer_listing",
+    reliabilityDefault: "B",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 8 * * 3",
+    extractionHints: "Extract kitchen systems (METOD/KNOXHULT), bathroom (GODMORGON/HEMNES), wardrobes (PAX), lighting prices in AED. IKEA represents the standard-tier benchmark for FF&E.",
+    notes: "Global budget-to-mid furniture brand. Standard FF&E benchmark.",
+    requestDelayMs: 3e3
+  },
+  {
+    name: "ACE Hardware UAE",
+    url: "https://www.aceuae.com/",
+    sourceType: "retailer_listing",
+    reliabilityDefault: "B",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 9 * * 3",
+    extractionHints: "Extract hardware, paint, plumbing, electrical products with AED prices. Focus on building materials, tools, home improvement categories for construction cost benchmarks.",
+    notes: "Hardware retail chain in UAE.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Pan Marble Dubai",
+    url: "https://www.pansidubai.com/",
+    sourceType: "supplier_catalog",
+    reliabilityDefault: "B",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 7 * * 5",
+    // Friday (monthly effective)
+    extractionHints: "Extract marble and natural stone products: travertine, granite, onyx, limestone. Look for AED prices per sqm/sqft, slab dimensions, stone origin. Premium material supplier.",
+    notes: "Major marble/natural stone supplier in Dubai.",
+    requestDelayMs: 3e3
+  },
+  {
+    name: "Homes R Us UAE",
+    url: "https://www.homecentre.com/ae/en",
+    sourceType: "retailer_listing",
+    reliabilityDefault: "C",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 8 * * 5",
+    extractionHints: "Extract furniture, soft furnishings, d\xE9cor, lighting products with AED prices. Focus on living room, bedroom, dining categories for FF&E cost benchmarks.",
+    notes: "Home Centre by Landmark Group. Mid-range FF&E.",
+    requestDelayMs: 2e3
+  },
+  // ── Developer Brochures (Competitor Intelligence) ─────────────
+  {
+    name: "Emaar Properties",
+    url: "https://www.emaar.com/en/our-communities",
+    sourceType: "developer_brochure",
+    reliabilityDefault: "A",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract project names, locations, unit types, starting prices in AED, design themes, amenities, handover dates. Emaar is Dubai's premier developer \u2014 ultra-luxury to premium tier. Look for community pages with project cards.",
+    notes: "Dubai's largest developer. Projects: Downtown, Dubai Hills, Creek Harbour.",
+    requestDelayMs: 3e3
+  },
+  {
+    name: "DAMAC Properties",
+    url: "https://www.damacproperties.com/en/properties",
+    sourceType: "developer_brochure",
+    reliabilityDefault: "A",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 2",
+    extractionHints: "Extract project names, pricing in AED, design partnerships (Versace, Cavalli, etc.), finishing specifications, unit sizes. DAMAC focuses on luxury branded residences.",
+    notes: "Luxury developer known for branded residences.",
+    requestDelayMs: 3e3
+  },
+  {
+    name: "Aldar Properties",
+    url: "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
+    sourceType: "developer_brochure",
+    reliabilityDefault: "A",
+    region: "Abu Dhabi",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 3",
+    extractionHints: "Extract project names, locations in Abu Dhabi, unit types, prices in AED, design tier. Aldar is Abu Dhabi's premium developer \u2014 focus on Saadiyat Island, Yas Island, Reem Island projects.",
+    notes: "Abu Dhabi's largest developer.",
+    requestDelayMs: 3e3
+  },
+  {
+    name: "Sobha Realty",
+    url: "https://www.sobharealty.com/projects/",
+    sourceType: "developer_brochure",
+    reliabilityDefault: "B",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 4",
+    extractionHints: "Extract project names, finishing quality descriptions (Sobha is known for high-quality finishes), material specifications, prices per sqft. Focus on design quality and material mentions.",
+    notes: "Known for superior construction quality and finishes.",
+    requestDelayMs: 3e3
+  },
+  {
+    name: "Ellington Properties",
+    url: "https://www.ellingtongroup.com/",
+    sourceType: "developer_brochure",
+    reliabilityDefault: "B",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 7 * * 4",
+    extractionHints: "Extract project names, design philosophy descriptions, material brands mentioned, interior design style keywords. Ellington is design-focused \u2014 extract any references to specific materials, finishes, or design partners.",
+    notes: "Design-focused boutique developer.",
+    requestDelayMs: 3e3
+  },
+  // ── Industry Reports & Trends ─────────────────────────────────
+  {
+    name: "CBRE UAE Research",
+    url: "https://www.cbre.ae/en/insights",
+    sourceType: "industry_report",
+    reliabilityDefault: "A",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract report titles, publication dates, key metrics (average rents, sales prices, vacancy rates, supply pipeline). Focus on residential and commercial real estate market data for UAE/Dubai/Abu Dhabi.",
+    notes: "Tier-1 real estate research. Grade A source.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Knight Frank UAE",
+    url: "https://www.knightfrank.ae/research",
+    sourceType: "industry_report",
+    reliabilityDefault: "A",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 2",
+    extractionHints: "Extract research report summaries, market indicators (prime residential prices, transaction volumes), forecast data. Focus on Dubai and Abu Dhabi residential market insights.",
+    notes: "Tier-1 property consultancy research.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "JLL MENA Research",
+    url: "https://www.jll.ae/en/trends-and-insights",
+    sourceType: "industry_report",
+    reliabilityDefault: "A",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 7 * * 2",
+    extractionHints: "Extract market reports, property clock positions, rent/sales trends, construction costs. JLL publishes quarterly UAE property market overviews with concrete data points.",
+    notes: "Top-tier real estate advisory.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Commercial Interior Design Magazine",
+    url: "https://www.commercialinteriordesign.com/",
+    sourceType: "trade_publication",
+    reliabilityDefault: "C",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 8 * * 1",
+    extractionHints: "Extract article titles about UAE/Dubai interior design projects, trend mentions (biophilic, minimalist, japandi, etc.), material brand mentions, designer names, project descriptions. Focus on residential projects.",
+    notes: "Leading Middle East interior design publication.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Dezeen UAE/Dubai",
+    url: "https://www.dezeen.com/tag/dubai/",
+    sourceType: "trade_publication",
+    reliabilityDefault: "C",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 9 * * 1",
+    extractionHints: "Extract project names, architects/designers, design descriptions, material innovations mentioned. Focus on residential interior design trends relevant to Dubai market.",
+    notes: "Global architecture/design publication, Dubai tag.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "ArchDaily UAE",
+    url: "https://www.archdaily.com/tag/united-arab-emirates",
+    sourceType: "trade_publication",
+    reliabilityDefault: "C",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 9 * * 3",
+    extractionHints: "Extract featured projects in UAE, design trends, material specifications mentioned, architectural styles. Focus on residential and hospitality interiors for trend detection.",
+    notes: "Major architecture publication.",
+    requestDelayMs: 2e3
+  }
+];
+async function seedUAESources() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  let created = 0;
+  let skipped = 0;
+  const errors = [];
+  for (const source of UAE_SOURCES) {
+    try {
+      const existing = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq7(sourceRegistry.url, source.url)).limit(1);
+      if (existing.length > 0) {
+        console.log(`[Seeder] Skipping "${source.name}" \u2014 already exists (id=${existing[0].id})`);
+        skipped++;
+        continue;
+      }
+      await db.insert(sourceRegistry).values({
+        name: source.name,
+        url: source.url,
+        sourceType: source.sourceType,
+        reliabilityDefault: source.reliabilityDefault,
+        isWhitelisted: true,
+        region: source.region,
+        notes: source.notes,
+        isActive: true,
+        scrapeMethod: source.scrapeMethod,
+        scrapeSchedule: source.scrapeSchedule,
+        extractionHints: source.extractionHints,
+        requestDelayMs: source.requestDelayMs,
+        lastScrapedStatus: "never",
+        lastRecordCount: 0,
+        consecutiveFailures: 0
+      });
+      console.log(`[Seeder] \u2705 Created source: "${source.name}"`);
+      created++;
+    } catch (err) {
+      const msg = `Failed to seed "${source.name}": ${err instanceof Error ? err.message : String(err)}`;
+      console.error(`[Seeder] \u274C ${msg}`);
+      errors.push(msg);
+    }
+  }
+  console.log(`
+[Seeder] Done: ${created} created, ${skipped} skipped, ${errors.length} errors`);
+  return { created, skipped, errors };
+}
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("uae-sources.ts")) {
+  seedUAESources().then(({ created, skipped, errors }) => {
+    console.log(`
+Seeder complete: ${created} sources created, ${skipped} skipped`);
+    if (errors.length) console.error("Errors:", errors);
+    process.exit(errors.length > 0 ? 1 : 0);
+  }).catch((err) => {
+    console.error("Seeder failed:", err);
+    process.exit(1);
+  });
 }
 
 // server/routers/ingestion.ts
@@ -14306,7 +14663,7 @@ var ingestionRouter = router({
   getRunDetail: protectedProcedure.input(z10.object({ runId: z10.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
-    const runs = await db.select().from(ingestionRuns).where(eq7(ingestionRuns.runId, input.runId)).limit(1);
+    const runs = await db.select().from(ingestionRuns).where(eq8(ingestionRuns.runId, input.runId)).limit(1);
     return runs.length > 0 ? runs[0] : null;
   }),
   /**
@@ -14378,6 +14735,105 @@ var ingestionRouter = router({
       ...s,
       successRate: s.totalRuns > 0 ? Math.round((s.successes + s.partials) / s.totalRuns * 100) : 0
     }));
+  }),
+  // ─── Source Registry Management ──────────────────────────────
+  /**
+   * List all sources from source_registry with health info.
+   */
+  listSources: protectedProcedure.input(z10.object({
+    activeOnly: z10.boolean().default(true)
+  }).optional()).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) return [];
+    const filter = input?.activeOnly !== false ? eq8(sourceRegistry.isActive, true) : void 0;
+    const sources = filter ? await db.select().from(sourceRegistry).where(filter).orderBy(desc3(sourceRegistry.updatedAt)) : await db.select().from(sourceRegistry).orderBy(desc3(sourceRegistry.updatedAt));
+    return sources;
+  }),
+  /**
+   * Create a new source in the registry.
+   */
+  createSource: adminProcedure.input(z10.object({
+    name: z10.string().min(1).max(255),
+    url: z10.string().url(),
+    sourceType: z10.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
+    reliabilityDefault: z10.enum(["A", "B", "C"]).default("B"),
+    region: z10.string().default("UAE"),
+    scrapeMethod: z10.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+    scrapeSchedule: z10.string().optional(),
+    extractionHints: z10.string().optional(),
+    notes: z10.string().optional(),
+    requestDelayMs: z10.number().default(2e3)
+  })).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    const [result] = await db.insert(sourceRegistry).values({
+      name: input.name,
+      url: input.url,
+      sourceType: input.sourceType,
+      reliabilityDefault: input.reliabilityDefault,
+      region: input.region,
+      scrapeMethod: input.scrapeMethod,
+      scrapeSchedule: input.scrapeSchedule,
+      extractionHints: input.extractionHints,
+      notes: input.notes,
+      requestDelayMs: input.requestDelayMs,
+      isActive: true,
+      isWhitelisted: true,
+      addedBy: ctx.user.id,
+      lastScrapedStatus: "never",
+      lastRecordCount: 0,
+      consecutiveFailures: 0
+    });
+    return { id: result.insertId, name: input.name };
+  }),
+  /**
+   * Toggle source active/inactive.
+   */
+  toggleSource: adminProcedure.input(z10.object({ id: z10.number(), isActive: z10.boolean() })).mutation(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq8(sourceRegistry.id, input.id));
+    return { id: input.id, isActive: input.isActive };
+  }),
+  /**
+   * Run a single DB-registered source via DynamicConnector.
+   */
+  runRegisteredSource: adminProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    const [source] = await db.select().from(sourceRegistry).where(eq8(sourceRegistry.id, input.id)).limit(1);
+    if (!source) throw new Error("Source not found");
+    const connector = new DynamicConnector(source);
+    const report = await runIngestion([connector], "manual", ctx.user.id);
+    await db.update(sourceRegistry).set({
+      lastScrapedAt: /* @__PURE__ */ new Date(),
+      lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
+      lastRecordCount: report.evidenceCreated,
+      consecutiveFailures: report.sourcesFailed > 0 ? sql4`${sourceRegistry.consecutiveFailures} + 1` : 0
+    }).where(eq8(sourceRegistry.id, input.id));
+    return report;
+  }),
+  /**
+   * Seed all UAE sources into source_registry.
+   */
+  seedSources: adminProcedure.mutation(async () => {
+    return seedUAESources();
+  }),
+  // ─── Design Trends ──────────────────────────────────────────
+  /**
+   * List detected design trends, ordered by mention count.
+   */
+  getTrends: protectedProcedure.input(z10.object({
+    limit: z10.number().min(1).max(100).default(50),
+    category: z10.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional()
+  }).optional()).query(async ({ input }) => {
+    const db = await getDb();
+    if (!db) return [];
+    let query = db.select().from(designTrends).orderBy(desc3(designTrends.mentionCount)).limit(input?.limit ?? 50);
+    if (input?.category) {
+      query = query.where(eq8(designTrends.trendCategory, input.category));
+    }
+    return query;
   })
 });
 
@@ -14630,7 +15086,7 @@ async function analyseCompetitorLandscape(projects2, options = {}) {
 }
 
 // server/routers/analytics.ts
-import { and as and4, eq as eq8, isNotNull } from "drizzle-orm";
+import { and as and4, eq as eq9, isNotNull } from "drizzle-orm";
 var analyticsRouter = router({
   getTrends: protectedProcedure.input(
     z11.object({
@@ -14679,7 +15135,7 @@ var analyticsRouter = router({
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
       and4(
-        eq8(evidenceRecords.category, input.category),
+        eq9(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -14717,7 +15173,7 @@ var analyticsRouter = router({
       sourceUrl: competitorProjects.sourceUrl,
       completenessScore: competitorProjects.completenessScore,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq8(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq9(competitorProjects.competitorId, competitorEntities.id));
     const projects2 = dbProjects.map((p) => {
       let pricePerSqft;
       if (p.priceIndicators && typeof p.priceIndicators === "object") {
@@ -14754,7 +15210,7 @@ var analyticsRouter = router({
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
       and4(
-        eq8(evidenceRecords.category, input.category),
+        eq9(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -14856,7 +15312,7 @@ var analyticsRouter = router({
       projectName: competitorProjects.projectName,
       totalUnits: competitorProjects.totalUnits,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq8(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq9(competitorProjects.competitorId, competitorEntities.id));
     let competitorLandscape;
     if (dbProjects.length > 0) {
       const compProjects = dbProjects.map((p) => ({
@@ -15417,7 +15873,7 @@ var predictiveRouter = router({
 // server/routers/learning.ts
 import { z as z13 } from "zod";
 import { TRPCError as TRPCError6 } from "@trpc/server";
-import { eq as eq9, desc as desc4 } from "drizzle-orm";
+import { eq as eq10, desc as desc4 } from "drizzle-orm";
 
 // server/engines/learning/outcome-comparator.ts
 function compareOutcomeToPrediction(params) {
@@ -15572,25 +16028,25 @@ var learningRouter = router({
   }),
   getPendingLogicProposals: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(logicChangeLog).where(eq9(logicChangeLog.status, "proposed")).orderBy(desc4(logicChangeLog.createdAt));
+    return await ormDb.select().from(logicChangeLog).where(eq10(logicChangeLog.status, "proposed")).orderBy(desc4(logicChangeLog.createdAt));
   }),
   getPendingBenchmarkSuggestions: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(benchmarkSuggestions).where(eq9(benchmarkSuggestions.status, "pending")).orderBy(desc4(benchmarkSuggestions.createdAt));
+    return await ormDb.select().from(benchmarkSuggestions).where(eq10(benchmarkSuggestions.status, "pending")).orderBy(desc4(benchmarkSuggestions.createdAt));
   }),
   getComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ input }) => {
     const ormDb = await getDb();
-    const rows = await ormDb.select().from(outcomeComparisons).where(eq9(outcomeComparisons.projectId, input.projectId)).orderBy(desc4(outcomeComparisons.comparedAt)).limit(1);
+    const rows = await ormDb.select().from(outcomeComparisons).where(eq10(outcomeComparisons.projectId, input.projectId)).orderBy(desc4(outcomeComparisons.comparedAt)).limit(1);
     return rows[0] || null;
   }),
   runComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).mutation(async ({ input }) => {
     const ormDb = await getDb();
-    const outcomes = await ormDb.select().from(projectOutcomes).where(eq9(projectOutcomes.projectId, input.projectId)).limit(1);
+    const outcomes = await ormDb.select().from(projectOutcomes).where(eq10(projectOutcomes.projectId, input.projectId)).limit(1);
     if (!outcomes.length) {
       throw new TRPCError6({ code: "NOT_FOUND", message: "No outcome found for project" });
     }
     const outcome = outcomes[0];
-    const matrices = await ormDb.select().from(scoreMatrices).where(eq9(scoreMatrices.projectId, input.projectId)).orderBy(desc4(scoreMatrices.computedAt)).limit(1);
+    const matrices = await ormDb.select().from(scoreMatrices).where(eq10(scoreMatrices.projectId, input.projectId)).orderBy(desc4(scoreMatrices.computedAt)).limit(1);
     if (!matrices.length) {
       throw new TRPCError6({ code: "NOT_FOUND", message: "No score matrix found for project" });
     }
@@ -15663,12 +16119,12 @@ var learningRouter = router({
 
 // server/routers/autonomous.ts
 import { z as z14 } from "zod";
-import { eq as eq11, and as and5, desc as desc6, sql as sql6 } from "drizzle-orm";
+import { eq as eq12, and as and5, desc as desc6, sql as sql7 } from "drizzle-orm";
 import { TRPCError as TRPCError7 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
 init_llm();
-import { sql as sql5 } from "drizzle-orm";
+import { sql as sql6 } from "drizzle-orm";
 var SCHEMA_CONTEXT = `
 You are the MIYAR Intelligence Assistant, an expert AI embedded within MIYAR (an autonomous interior design and architectural validation platform). 
 Your primary capability is translating user natural language queries into valid MySQL SELECT queries to fetch data from the platform. 
@@ -15729,7 +16185,7 @@ Generate the MySQL query.` }
     const db = await getDb();
     if (!db) throw new Error("Database not connected");
     try {
-      const result = await db.execute(sql5.raw(generatedSql));
+      const result = await db.execute(sql6.raw(generatedSql));
       if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0])) {
         rawData = result[0];
       } else {
@@ -15794,17 +16250,17 @@ ${JSON.stringify(truncatedData, null, 2)}` }
 
 // server/engines/autonomous/portfolio-engine.ts
 init_llm();
-import { eq as eq10, desc as desc5 } from "drizzle-orm";
+import { eq as eq11, desc as desc5 } from "drizzle-orm";
 async function generatePortfolioInsights() {
   const db = await getDb();
   if (!db) throw new Error("Database error");
-  const allProjects = await db.select().from(projects).where(eq10(projects.status, "evaluated"));
+  const allProjects = await db.select().from(projects).where(eq11(projects.status, "evaluated"));
   if (allProjects.length === 0) {
     return "No evaluated projects available for portfolio analysis.";
   }
   const portfolioProjects = [];
   for (const p of allProjects) {
-    const scores = await db.select().from(scoreMatrices).where(eq10(scoreMatrices.projectId, p.id)).orderBy(desc5(scoreMatrices.computedAt)).limit(1);
+    const scores = await db.select().from(scoreMatrices).where(eq11(scoreMatrices.projectId, p.id)).orderBy(desc5(scoreMatrices.computedAt)).limit(1);
     if (scores.length > 0) {
       const s = scores[0];
       portfolioProjects.push({
@@ -15887,12 +16343,12 @@ var autonomousRouter = router({
     if (!db) return [];
     let conditions = [];
     const targetStatus = input?.status || "active";
-    conditions.push(eq11(platformAlerts.status, targetStatus));
+    conditions.push(eq12(platformAlerts.status, targetStatus));
     if (input?.severity) {
-      conditions.push(eq11(platformAlerts.severity, input.severity));
+      conditions.push(eq12(platformAlerts.severity, input.severity));
     }
     if (input?.type) {
-      conditions.push(eq11(platformAlerts.alertType, input.type));
+      conditions.push(eq12(platformAlerts.alertType, input.type));
     }
     return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc6(platformAlerts.createdAt));
   }),
@@ -15903,7 +16359,7 @@ var autonomousRouter = router({
       status: "acknowledged",
       acknowledgedBy: ctx.user.id,
       acknowledgedAt: /* @__PURE__ */ new Date()
-    }).where(eq11(platformAlerts.id, input.id));
+    }).where(eq12(platformAlerts.id, input.id));
     return { success: true };
   }),
   resolveAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
@@ -15911,17 +16367,17 @@ var autonomousRouter = router({
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
       status: "resolved"
-    }).where(eq11(platformAlerts.id, input.id));
+    }).where(eq12(platformAlerts.id, input.id));
     return { success: true };
   }),
   nlQuery: protectedProcedure.input(z14.object({ query: z14.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError7({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
-    const recentQueries = await db.select({ count: sql6`count(*)` }).from(nlQueryLog).where(
+    const recentQueries = await db.select({ count: sql7`count(*)` }).from(nlQueryLog).where(
       and5(
-        eq11(nlQueryLog.userId, ctx.user.id),
-        sql6`${nlQueryLog.createdAt} > ${oneHourAgo}`
+        eq12(nlQueryLog.userId, ctx.user.id),
+        sql7`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
     );
     const count = Number(recentQueries[0]?.count || 0);
@@ -15947,7 +16403,7 @@ var autonomousRouter = router({
 // server/routers/organization.ts
 import { z as z15 } from "zod";
 import { TRPCError as TRPCError8 } from "@trpc/server";
-import { eq as eq12, and as and6 } from "drizzle-orm";
+import { eq as eq13, and as and6 } from "drizzle-orm";
 import { nanoid as nanoid5 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z15.object({
@@ -15957,7 +16413,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
-    const existing = await db.select().from(organizations).where(eq12(organizations.slug, input.slug)).limit(1);
+    const existing = await db.select().from(organizations).where(eq13(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
       throw new TRPCError8({ code: "CONFLICT", message: "Slug is already taken" });
     }
@@ -15973,7 +16429,7 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: "admin"
     });
-    await db.update(users).set({ orgId }).where(eq12(users.id, ctx.user.id));
+    await db.update(users).set({ orgId }).where(eq13(users.id, ctx.user.id));
     return { success: true, orgId };
   }),
   myOrgs: protectedProcedure.query(async ({ ctx }) => {
@@ -15982,7 +16438,7 @@ var organizationRouter = router({
     const result = await db.select({
       org: organizations,
       role: organizationMembers.role
-    }).from(organizationMembers).innerJoin(organizations, eq12(organizations.id, organizationMembers.orgId)).where(eq12(organizationMembers.userId, ctx.user.id));
+    }).from(organizationMembers).innerJoin(organizations, eq13(organizations.id, organizationMembers.orgId)).where(eq13(organizationMembers.userId, ctx.user.id));
     return result;
   }),
   inviteMember: orgProcedure.input(z15.object({
@@ -15991,7 +16447,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and6(eq12(organizationMembers.orgId, ctx.orgId), eq12(organizationMembers.userId, ctx.user.id))).limit(1);
+    const myMembership = await db.select().from(organizationMembers).where(and6(eq13(organizationMembers.orgId, ctx.orgId), eq13(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
       throw new TRPCError8({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
@@ -16010,7 +16466,7 @@ var organizationRouter = router({
   acceptInvite: protectedProcedure.input(z15.object({ token: z15.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR" });
-    const inviteResult = await db.select().from(organizationInvites).where(eq12(organizationInvites.token, input.token)).limit(1);
+    const inviteResult = await db.select().from(organizationInvites).where(eq13(organizationInvites.token, input.token)).limit(1);
     const invite = inviteResult[0];
     if (!invite) throw new TRPCError8({ code: "NOT_FOUND", message: "Invalid invite token" });
     if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError8({ code: "BAD_REQUEST", message: "Invite expired" });
@@ -16019,8 +16475,8 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: invite.role
     });
-    await db.update(users).set({ orgId: invite.orgId }).where(eq12(users.id, ctx.user.id));
-    await db.delete(organizationInvites).where(eq12(organizationInvites.id, invite.id));
+    await db.update(users).set({ orgId: invite.orgId }).where(eq13(users.id, ctx.user.id));
+    await db.delete(organizationInvites).where(eq13(organizationInvites.id, invite.id));
     return { success: true, orgId: invite.orgId };
   })
 });

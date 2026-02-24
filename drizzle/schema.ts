@@ -544,6 +544,30 @@ export const generatedVisuals = mysqlTable("generated_visuals", {
 export type GeneratedVisual = typeof generatedVisuals.$inferSelect;
 export type InsertGeneratedVisual = typeof generatedVisuals.$inferInsert;
 
+// ─── Design Trends (V3 — Phase 3 Trend Detection) ───────────────────────────
+export const designTrends = mysqlTable("design_trends", {
+  id: int("id").autoincrement().primaryKey(),
+  trendName: varchar("trendName", { length: 255 }).notNull(),
+  trendCategory: mysqlEnum("trendCategory", [
+    "style", "material", "color", "layout", "technology", "sustainability", "other",
+  ]).notNull(),
+  confidenceLevel: mysqlEnum("confidenceLevel", ["emerging", "established", "declining"]).default("emerging").notNull(),
+  sourceUrl: text("sourceUrl"),
+  sourceRegistryId: int("sourceRegistryId"),
+  description: text("description"),
+  relatedMaterials: json("relatedMaterials"), // string[] of material names
+  styleClassification: varchar("styleClassification", { length: 128 }), // modern, classical, biophilic, japandi, etc.
+  region: varchar("region", { length: 64 }).default("UAE"),
+  firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
+  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+  mentionCount: int("mentionCount").default(1).notNull(),
+  runId: varchar("runId", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DesignTrend = typeof designTrends.$inferSelect;
+export type InsertDesignTrend = typeof designTrends.$inferInsert;
+
 // ─── Material Boards (V2.8 — Board Composer) ────────────────────────────────
 export const materialBoards = mysqlTable("material_boards", {
   id: int("id").autoincrement().primaryKey(),
