@@ -4,7 +4,7 @@ import { sdk } from "../_core/sdk";
 import { publicProcedure, router } from "../_core/trpc";
 import crypto from "crypto";
 import bcryptjs from "bcryptjs";
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { TRPCError } from "@trpc/server";
 import { auditLog } from "../_core/audit";
