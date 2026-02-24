@@ -6124,8 +6124,6 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Buffer as Buffer2 } from "node:buffer";
 import process2 from "node:process";
-import fs from "node:fs/promises";
-import path from "node:path";
 function getS3Client() {
   const region = process2.env.AWS_REGION || "us-east-1";
   const accessKeyId = process2.env.AWS_ACCESS_KEY_ID;
@@ -6152,10 +6150,9 @@ async function storagePut(relKey, data, contentType = "application/octet-stream"
   const { client, bucketName } = getS3Client();
   const key = normalizeKey(relKey);
   if (!bucketName) {
-    const localPath = path.join(process2.cwd(), "client", "public", "uploads", key);
-    await fs.mkdir(path.dirname(localPath), { recursive: true });
-    await fs.writeFile(localPath, typeof data === "string" ? Buffer2.from(data, "utf-8") : data);
-    return { key, url: `/uploads/${key}` };
+    const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
+    const dataUrl = `data:${contentType};base64,${b64}`;
+    return { key, url: dataUrl };
   }
   const command = new PutObjectCommand({
     Bucket: bucketName,

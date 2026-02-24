@@ -48,12 +48,12 @@ export async function storagePut(
   const key = normalizeKey(relKey);
 
   if (!bucketName) {
-    // Return a dummy object if running without credentials to allow local dev testing without crashing
-    // Instead of dummy-bucket, save to local disk and return local URL
-    const localPath = path.join(process.cwd(), "client", "public", "uploads", key);
-    await fs.mkdir(path.dirname(localPath), { recursive: true });
-    await fs.writeFile(localPath, typeof data === "string" ? Buffer.from(data, "utf-8") : data);
-    return { key, url: `/uploads/${key}` };
+    // No S3 bucket configured — return base64 data URL (works on serverless)
+    const b64 = Buffer.isBuffer(data) ? data.toString("base64")
+      : typeof data === "string" ? Buffer.from(data, "utf-8").toString("base64")
+        : Buffer.from(data).toString("base64");
+    const dataUrl = `data:${contentType};base64,${b64}`;
+    return { key, url: dataUrl };
   }
 
   const command = new PutObjectCommand({
