@@ -18,11 +18,11 @@ export const authRouter = router({
                 action: "auth.logout",
                 entityType: "user",
                 entityId: ctx.user.id,
-                ipAddress: (ctx.req?.headers?.["x-forwarded-for"] as string) || ctx.req?.socket?.remoteAddress || "127.0.0.1",
+                ipAddress: ((ctx.req as any)?.headers?.["x-forwarded-for"] as string) || (ctx.req as any)?.socket?.remoteAddress || "127.0.0.1",
             });
         }
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+        (ctx.res as any).clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
         return { success: true } as const;
     }),
     login: publicProcedure
@@ -69,14 +69,14 @@ export const authRouter = router({
             });
 
             const cookieOptions = getSessionCookieOptions(ctx.req);
-            ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+            (ctx.res as any).cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
             await auditLog({
                 userId: user.id,
                 action: "auth.login",
                 entityType: "user",
                 entityId: user.id,
-                ipAddress: (ctx.req?.headers?.["x-forwarded-for"] as string) || ctx.req?.socket?.remoteAddress || "127.0.0.1",
+                ipAddress: ((ctx.req as any)?.headers?.["x-forwarded-for"] as string) || (ctx.req as any)?.socket?.remoteAddress || "127.0.0.1",
             });
 
             return { success: true };
@@ -110,7 +110,7 @@ export const authRouter = router({
             });
 
             const cookieOptions = getSessionCookieOptions(ctx.req);
-            ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+            (ctx.res as any).cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
             const createdUser = await db.getUserByEmail(input.email);
             if (createdUser) {
@@ -119,7 +119,7 @@ export const authRouter = router({
                     action: "auth.register",
                     entityType: "user",
                     entityId: createdUser.id,
-                    ipAddress: (ctx.req?.headers?.["x-forwarded-for"] as string) || ctx.req?.socket?.remoteAddress || "127.0.0.1",
+                    ipAddress: ((ctx.req as any)?.headers?.["x-forwarded-for"] as string) || (ctx.req as any)?.socket?.remoteAddress || "127.0.0.1",
                 });
             }
 

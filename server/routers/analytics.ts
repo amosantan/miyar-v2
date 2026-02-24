@@ -152,7 +152,7 @@ export const analyticsRouter = router({
         .from(competitorProjects)
         .leftJoin(competitorEntities, eq(competitorProjects.competitorId, competitorEntities.id));
 
-      const projects: CompetitorProject[] = dbProjects.map((p) => {
+      const projects: CompetitorProject[] = dbProjects.map((p: any) => {
         // Extract price from priceIndicators JSON if available
         let pricePerSqft: number | undefined;
         if (p.priceIndicators && typeof p.priceIndicators === "object") {
@@ -306,7 +306,7 @@ export const analyticsRouter = router({
 
       // Gather trend data
       const trendSnaps = await getTrendSnapshots({ limit: 50 });
-      const trends = trendSnaps.map((s) => ({
+      const trends = trendSnaps.map((s: any) => ({
         metric: s.metric,
         category: s.category,
         direction: s.direction || "stable",
@@ -330,7 +330,7 @@ export const analyticsRouter = router({
 
       let competitorLandscape;
       if (dbProjects.length > 0) {
-        const compProjects: CompetitorProject[] = dbProjects.map((p) => ({
+        const compProjects: CompetitorProject[] = dbProjects.map((p: any) => ({
           developerId: String(p.competitorId),
           developerName: p.entityName || "Unknown",
           projectName: p.projectName,

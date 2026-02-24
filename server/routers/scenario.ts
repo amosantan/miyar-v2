@@ -114,7 +114,7 @@ export const scenarioRouter = router({
       const scenarioRecords = await db.getScenariosByProject(input.projectId);
       if (scenarioRecords.length === 0) return [];
 
-      const scenarioInputs: ScenarioInput[] = scenarioRecords.map((s) => ({
+      const scenarioInputs: ScenarioInput[] = scenarioRecords.map((s: any) => ({
         name: s.name,
         description: s.description ?? undefined,
         variableOverrides: (s.variableOverrides ?? {}) as Partial<ProjectInputs>,

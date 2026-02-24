@@ -66,7 +66,7 @@ export async function storagePut(
     ContentType: contentType,
   });
 
-  await client.send(command);
+  await (client as any).send(command);
 
   // Return the signed URL to read back
   const getCommand = new GetObjectCommand({
@@ -74,7 +74,7 @@ export async function storagePut(
     Key: key,
   });
 
-  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  const url = await getSignedUrl(client as any, getCommand as any, { expiresIn: 3600 * 24 * 7 });
 
   return { key, url };
 }
@@ -92,7 +92,7 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
     Key: key,
   });
 
-  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  const url = await getSignedUrl(client as any, getCommand as any, { expiresIn: 3600 * 24 * 7 });
 
   return { key, url };
 }

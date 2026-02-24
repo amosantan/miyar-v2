@@ -176,8 +176,8 @@ export const intelligenceRouter = router({
 
       return {
         logicVersion: { id: logicVersion.id, name: logicVersion.name, status: logicVersion.status },
-        weights: weights.map((w) => ({ dimension: w.dimension, weight: w.weight })),
-        thresholds: thresholds.map((t) => ({
+        weights: weights.map((w: any) => ({ dimension: w.dimension, weight: w.weight })),
+        thresholds: thresholds.map((t: any) => ({
           ruleKey: t.ruleKey,
           thresholdValue: t.thresholdValue,
           comparator: t.comparator,
@@ -255,8 +255,8 @@ export const intelligenceRouter = router({
         const outputs = await listScenarioOutputs(allIds);
 
         // Build comparison result
-        const baselineOutput = outputs.find((o) => o.scenarioId === input.baselineScenarioId);
-        const comparedOutputs = outputs.filter((o) => input.comparedScenarioIds.includes(o.scenarioId));
+        const baselineOutput = outputs.find((o: any) => o.scenarioId === input.baselineScenarioId);
+        const comparedOutputs = outputs.filter((o: any) => input.comparedScenarioIds.includes(o.scenarioId));
 
         const comparisonResult = {
           baseline: {
@@ -264,7 +264,7 @@ export const intelligenceRouter = router({
             scores: baselineOutput?.scoreJson ?? null,
             roi: baselineOutput?.roiJson ?? null,
           },
-          compared: comparedOutputs.map((o) => ({
+          compared: comparedOutputs.map((o: any) => ({
             scenarioId: o.scenarioId,
             scores: o.scoreJson,
             roi: o.roiJson,
@@ -304,7 +304,7 @@ export const intelligenceRouter = router({
 
         // Get scenario names
         const allScenarios = await getScenariosByProject(comparison.projectId);
-        const scenarioMap = new Map(allScenarios.map((s) => [s.id, s.name]));
+        const scenarioMap = new Map<number, string>(allScenarios.map((s: any) => [s.id, s.name as string]));
 
         const compResult = (comparison.comparisonResult ?? {}) as Record<string, unknown>;
         const baseline = (compResult.baseline ?? {}) as Record<string, unknown>;
@@ -322,7 +322,7 @@ export const intelligenceRouter = router({
             scores: (baseline.scores ?? null) as Record<string, number> | null,
             roi: (baseline.roi ?? null) as Record<string, number> | null,
           },
-          comparedScenarios: compared.map((c) => {
+          comparedScenarios: compared.map((c: any) => {
             const sid = c.scenarioId as number;
             return {
               id: sid,
@@ -461,8 +461,8 @@ export const intelligenceRouter = router({
           inputSnapshot,
           benchmarkVersion ?? {},
           {
-            weights: weights.map((w) => ({ dimension: w.dimension, weight: w.weight })),
-            thresholds: thresholds.map((t) => ({
+            weights: weights.map((w: any) => ({ dimension: w.dimension, weight: w.weight })),
+            thresholds: thresholds.map((t: any) => ({
               ruleKey: t.ruleKey,
               thresholdValue: t.thresholdValue,
               comparator: t.comparator ?? "gte",
@@ -542,7 +542,7 @@ export const intelligenceRouter = router({
         }
       }
 
-      const outcomesForLearning = outcomes.map((o) => ({
+      const outcomesForLearning = outcomes.map((o: any) => ({
         projectId: o.projectId,
         procurementActualCosts: (o.procurementActualCosts as Record<string, number>) ?? undefined,
         leadTimesActual: (o.leadTimesActual as Record<string, number>) ?? undefined,

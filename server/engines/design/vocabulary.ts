@@ -1,4 +1,3 @@
-import { Project } from "../../db";
 
 export type DesignVocabulary = {
     styleFamily: string;

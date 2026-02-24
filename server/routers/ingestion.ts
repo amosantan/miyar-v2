@@ -111,7 +111,7 @@ export const ingestionRouter = router({
       const allRuns = await db.select().from(ingestionRuns);
       const totalRuns = allRuns.length;
       const totalRecordsIngested = allRuns.reduce(
-        (sum, r) => sum + (r.recordsInserted ?? 0),
+        (sum: number, r: any) => sum + (r.recordsInserted ?? 0),
         0
       );
 
@@ -121,18 +121,18 @@ export const ingestionRouter = router({
       return {
         lastRun: lastRun
           ? {
-              runId: lastRun.runId,
-              status: lastRun.status,
-              trigger: lastRun.trigger,
-              totalSources: lastRun.totalSources,
-              sourcesSucceeded: lastRun.sourcesSucceeded,
-              sourcesFailed: lastRun.sourcesFailed,
-              recordsInserted: lastRun.recordsInserted,
-              duplicatesSkipped: lastRun.duplicatesSkipped,
-              startedAt: lastRun.startedAt,
-              completedAt: lastRun.completedAt,
-              durationMs: lastRun.durationMs,
-            }
+            runId: lastRun.runId,
+            status: lastRun.status,
+            trigger: lastRun.trigger,
+            totalSources: lastRun.totalSources,
+            sourcesSucceeded: lastRun.sourcesSucceeded,
+            sourcesFailed: lastRun.sourcesFailed,
+            recordsInserted: lastRun.recordsInserted,
+            duplicatesSkipped: lastRun.duplicatesSkipped,
+            startedAt: lastRun.startedAt,
+            completedAt: lastRun.completedAt,
+            durationMs: lastRun.durationMs,
+          }
           : null,
         totalRuns,
         totalRecordsIngested,

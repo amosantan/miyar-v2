@@ -149,7 +149,7 @@ export const seedRouter = router({
     for (const sample of SAMPLE_PROJECTS) {
       // Check if already seeded (by name)
       const existing = await db.getProjectsByUser(ctx.user.id);
-      if (existing.some((p) => p.name === sample.name)) {
+      if (existing.some((p: any) => p.name === sample.name)) {
         continue; // Skip if already exists
       }
 
