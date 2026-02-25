@@ -11668,7 +11668,8 @@ var extractedEvidenceSchema = z8.object({
   title: z8.string().min(1),
   rawText: z8.string().min(1),
   publishedDate: z8.date().optional(),
-  category: z8.enum(["material_cost", "fitout_rate", "market_trend", "competitor_project"]),
+  category: z8.string().min(1),
+  // Accept any category — validated at orchestrator level
   geography: z8.string().min(1),
   sourceUrl: z8.string().url()
 });

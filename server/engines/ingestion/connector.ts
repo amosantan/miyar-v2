@@ -164,7 +164,7 @@ export const extractedEvidenceSchema = z.object({
   title: z.string().min(1),
   rawText: z.string().min(1),
   publishedDate: z.date().optional(),
-  category: z.enum(["material_cost", "fitout_rate", "market_trend", "competitor_project"]),
+  category: z.string().min(1), // Accept any category — validated at orchestrator level
   geography: z.string().min(1),
   sourceUrl: z.string().url(),
 });

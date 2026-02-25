@@ -10,7 +10,7 @@ import { sourceRegistry } from "../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 
 async function main() {
-    const db = getDb();
+    const db = await getDb();
     console.log("🕷️  MIYAR Full Local Scrape");
     console.log("━".repeat(60));
 
