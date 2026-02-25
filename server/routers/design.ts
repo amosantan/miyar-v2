@@ -8,6 +8,7 @@ import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { storagePut } from "../storage";
 import { generateDesignBrief } from "../engines/design-brief";
+import { getLiveCategoryPricing } from "../engines/pricing-engine";
 import { buildPromptContext, interpolateTemplate, generateDefaultPrompt, validatePrompt } from "../engines/visual-gen";
 import { computeBoardSummary, generateRfqLines, recommendMaterials } from "../engines/board-composer";
 import { generateImage } from "../_core/imageGeneration";
@@ -169,10 +170,19 @@ export const designRouter = router({
         },
       };
 
+      // Fetch live market pricing for the project's finish level
+      const tierToFinish: Record<string, string> = {
+        "Mid": "standard", "Upper-mid": "premium",
+        "Luxury": "luxury", "Ultra-luxury": "ultra_luxury",
+      };
+      const targetFinish = tierToFinish[inputs.mkt01Tier] || "standard";
+      const livePricing = await getLiveCategoryPricing(targetFinish);
+
       const briefData = generateDesignBrief(
         { name: project.name, description: project.description },
         inputs,
         scoreResult,
+        Object.keys(livePricing).length > 0 ? livePricing : undefined,
       );
 
       // Get latest version number

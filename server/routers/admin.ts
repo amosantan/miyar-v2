@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, adminProcedure, protectedProcedure } from "../_core/trpc";
 import * as db from "../db";
 import { computeDistributions, computeComplianceHeatmap, detectFailurePatterns, computeImprovementLevers, type PortfolioProject } from "../engines/portfolio";
+import { syncMaterialsWithBenchmarks, getLiveCategoryPricing } from "../engines/pricing-engine";
 
 export const adminRouter = router({
   // ─── Benchmarks ──────────────────────────────────────────────────────
@@ -544,6 +545,30 @@ export const adminRouter = router({
         });
 
         return result;
+      }),
+  }),
+
+  // ─── Dynamic Pricing (V4) ─────────────────────────────────────────────
+  pricing: router({
+    syncMaterials: adminProcedure
+      .mutation(async ({ ctx }) => {
+        const result = await syncMaterialsWithBenchmarks();
+        await db.createAuditLog({
+          userId: ctx.user.id,
+          action: "pricing.sync_materials",
+          entityType: "material_catalog",
+          details: result,
+        });
+        return result;
+      }),
+
+    previewLive: adminProcedure
+      .input(z.object({
+        finishLevel: z.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).default("standard"),
+      }).optional())
+      .query(async ({ input }) => {
+        const level = input?.finishLevel || "standard";
+        return getLiveCategoryPricing(level);
       }),
   }),
 

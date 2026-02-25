@@ -5,6 +5,7 @@
  */
 
 import type { ProjectInputs } from "../../shared/miyar-types";
+import type { CategoryPricing } from "./pricing-engine";
 
 export interface DesignBriefData {
   projectIdentity: {
@@ -165,6 +166,7 @@ export function generateDesignBrief(
   project: { name: string; description: string | null },
   inputs: ProjectInputs,
   scoreResult: { compositeScore: number; decisionStatus: string; dimensions: Record<string, number> },
+  livePricing?: Record<string, CategoryPricing>,
 ): DesignBriefData {
   const style = inputs.des01Style || "Modern";
   const tier = inputs.mkt01Tier || "Upper-mid";
@@ -175,9 +177,18 @@ export function generateDesignBrief(
   const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
   const totalBudgetCap = budget && gfa ? budget * gfa : null;
 
-  // Determine cost band
+  // Determine cost band — use live pricing if available, else static bands
   let costBand = "Standard (Fit-out)";
-  if (budget) {
+  let dynamicCostPerSqm: number | null = null;
+  if (livePricing && Object.keys(livePricing).length > 0) {
+    // Bottom-up: sum weighted means across all available categories
+    const totalPerSqm = Object.values(livePricing).reduce((sum, cp) => sum + cp.weightedMean, 0);
+    dynamicCostPerSqm = totalPerSqm;
+    if (totalPerSqm > 8000) costBand = "Ultra-Premium Luxury (Market-Verified)";
+    else if (totalPerSqm > 4500) costBand = "Premium High-End (Market-Verified)";
+    else if (totalPerSqm > 2500) costBand = "Upper-Standard Modern (Market-Verified)";
+    else costBand = "Standard Fit-out (Market-Verified)";
+  } else if (budget) {
     if (budget > 8000) costBand = "Ultra-Premium Luxury";
     else if (budget > 4500) costBand = "Premium High-End";
     else if (budget > 2500) costBand = "Upper-Standard Modern";
@@ -246,19 +257,58 @@ export function generateDesignBrief(
   veNotes.push("Continuously evaluate sub-contractor BOQs against the MIYAR budget cap during the tender phase.");
   if (gfa && gfa > 2000) veNotes.push("Leverage the large floor plate for bulk discount negotiations on flooring and ceiling tiles.");
 
-  // BOQ Math
+  // BOQ Math — Bottom-up from live pricing when available, top-down fallback
   const distroList = BOQ_DISTRIBUTION[inputs.ctx01Typology] || BOQ_DISTRIBUTION.Commercial;
+
+  // Map BOQ distribution categories to evidence categories for live pricing lookup
+  const boqToEvidenceCat: Record<string, string[]> = {
+    "Civil & MEP Works (Flooring, Ceilings, Partitions)": ["floors", "ceilings", "walls"],
+    "Civil & MEP Works (Partitions, HVAC, Data)": ["floors", "ceilings", "walls"],
+    "Civil & MEP Works": ["floors", "ceilings", "walls"],
+    "Fixed Joinery (Kitchens, Wardrobes, Doors)": ["joinery"],
+    "Feature Joinery & Reception": ["joinery"],
+    "Fixed Joinery & Millwork": ["joinery"],
+    "Sanitaryware & Wet Areas": ["sanitary"],
+    "Sanitaryware & Specialized Equipment": ["sanitary"],
+    "Pantry & Washrooms": ["sanitary", "kitchen"],
+    "FF&E (Loose Furniture, Lighting, Art)": ["ffe", "lighting"],
+    "FF&E (Custom Furniture, Drapery, Rugs)": ["ffe", "lighting"],
+    "Workstations & Loose Furniture": ["ffe"],
+  };
+
   const coreAllocations = distroList.map((d) => {
     let estCostStr = "TBD";
-    if (totalBudgetCap) {
+    let usedLive = false;
+
+    if (livePricing && gfa) {
+      // Try bottom-up: sum average costs for each mapped evidence category
+      const mappedCats = boqToEvidenceCat[d.category] || [];
+      let catSqmCost = 0;
+      let matched = 0;
+      for (const ec of mappedCats) {
+        if (livePricing[ec]) {
+          catSqmCost += livePricing[ec].weightedMean;
+          matched++;
+        }
+      }
+      if (matched > 0) {
+        const catTotal = catSqmCost * gfa;
+        estCostStr = `AED ${Math.round(catTotal).toLocaleString()} (market-verified)`;
+        usedLive = true;
+      }
+    }
+
+    // Fallback: top-down from budget cap
+    if (!usedLive && totalBudgetCap) {
       const catTotal = (d.percentage / 100) * totalBudgetCap;
       estCostStr = `AED ${Math.round(catTotal).toLocaleString()}`;
     }
+
     return {
       category: d.category,
       percentage: d.percentage,
       estimatedCostLabel: estCostStr,
-      notes: d.notes
+      notes: usedLive ? `${d.notes} [Pricing source: Live market benchmarks]` : d.notes,
     };
   });
 
@@ -295,7 +345,9 @@ export function generateDesignBrief(
       coreAllocations,
     },
     detailedBudget: {
-      costPerSqmTarget: budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
+      costPerSqmTarget: dynamicCostPerSqm
+        ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (market-verified)`
+        : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
       totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
       costBand,
       flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
