@@ -198,10 +198,10 @@ function ProjectNewContent() {
             key={i}
             onClick={() => i <= step && setStep(i)}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${i === step
-                ? "bg-primary/15 text-primary"
-                : i < step
-                  ? "text-miyar-teal cursor-pointer hover:bg-secondary"
-                  : "text-muted-foreground"
+              ? "bg-primary/15 text-primary"
+              : i < step
+                ? "text-miyar-teal cursor-pointer hover:bg-secondary"
+                : "text-muted-foreground"
               }`}
           >
             {i < step ? (
@@ -287,7 +287,7 @@ function ProjectNewContent() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>GFA (sq ft)</Label>
+                  <Label>GFA (sqm)</Label>
                   <Input
                     type="number"
                     placeholder="e.g., 500000"
@@ -433,7 +433,7 @@ function ProjectNewContent() {
           {step === 3 && (
             <>
               <div className="space-y-2">
-                <Label>Budget Cap (AED per sq ft)</Label>
+                <Label>Budget Cap (AED per sqm)</Label>
                 <Input
                   type="number"
                   placeholder="e.g., 400"
@@ -446,7 +446,7 @@ function ProjectNewContent() {
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  Maximum interior fit-out cost per square foot
+                  Maximum interior fit-out cost per square meter
                 </p>
               </div>
               <OrdinalSlider

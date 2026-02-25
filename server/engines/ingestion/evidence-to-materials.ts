@@ -143,12 +143,21 @@ export async function syncEvidenceToMaterials(
             }
 
             // Parse prices
-            const priceMin = record.priceMin ? parseFloat(String(record.priceMin)) : null;
-            const priceMax = record.priceMax ? parseFloat(String(record.priceMax)) : null;
-            const priceTypical = record.priceTypical ? parseFloat(String(record.priceTypical)) : null;
+            let priceMin = record.priceMin ? parseFloat(String(record.priceMin)) : null;
+            let priceMax = record.priceMax ? parseFloat(String(record.priceMax)) : null;
+            let priceTypical = record.priceTypical ? parseFloat(String(record.priceTypical)) : null;
+            let unit = record.unit?.toLowerCase() || "";
+
+            // Convert sqft to sqm for standardized tier detection and database storage (1 sqm = 10.7639 sqft)
+            if (unit === "sqft" || unit === "sq.ft" || unit === "sq ft") {
+                if (priceMin) priceMin = priceMin * 10.7639;
+                if (priceMax) priceMax = priceMax * 10.7639;
+                if (priceTypical) priceTypical = priceTypical * 10.7639;
+                unit = "sqm";
+            }
 
             // Determine tier
-            const tier = detectTier(priceMin, priceMax, record.unit);
+            const tier = detectTier(priceMin, priceMax, unit);
 
             // Normalize the product name for dedup
             const normalizedName = normalizeProductName(record.itemName);
@@ -182,7 +191,7 @@ export async function syncEvidenceToMaterials(
                 // Create new material entry
                 const effectiveLow = priceMin || priceTypical;
                 const effectiveHigh = priceMax || priceTypical;
-                const costUnit = record.unit === "sqm" || record.unit === "m²" ? "AED/sqm" : `AED/${record.unit || "unit"}`;
+                const costUnit = unit === "sqm" || unit === "m²" ? "AED/sqm" : `AED/${unit || "unit"}`;
 
                 await db.insert(materialsCatalog).values({
                     name: record.itemName.substring(0, 255),
