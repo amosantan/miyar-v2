@@ -48,13 +48,13 @@ function BenchmarksContent() {
                       Tier
                     </th>
                     <th className="text-right py-2 px-3 text-muted-foreground font-medium">
-                      Avg Cost
+                      Cost/sqft (Mid)
                     </th>
                     <th className="text-right py-2 px-3 text-muted-foreground font-medium">
-                      Avg Score
+                      Absorption Rate
                     </th>
                     <th className="text-right py-2 px-3 text-muted-foreground font-medium">
-                      Sample Size
+                      Material Level
                     </th>
                   </tr>
                 </thead>
@@ -66,15 +66,15 @@ function BenchmarksContent() {
                     >
                       <td className="py-2 px-3 text-foreground">{b.region}</td>
                       <td className="py-2 px-3 text-foreground">{b.typology}</td>
-                      <td className="py-2 px-3 text-foreground">{b.tier}</td>
+                      <td className="py-2 px-3 text-foreground">{b.marketTier || "—"}</td>
                       <td className="py-2 px-3 text-right text-foreground">
-                        {b.avgCostPerSqft ? Number(b.avgCostPerSqft).toFixed(0) : "—"}
+                        {b.costPerSqftMid ? `AED ${Number(b.costPerSqftMid).toFixed(0)}` : "—"}
                       </td>
                       <td className="py-2 px-3 text-right text-foreground">
-                        {b.avgScore ? Number(b.avgScore).toFixed(1) : "—"}
+                        {b.absorptionRate ? Number(b.absorptionRate).toFixed(2) : "—"}
                       </td>
                       <td className="py-2 px-3 text-right text-foreground">
-                        {b.sampleSize ?? "—"}
+                        {b.materialLevel ?? "—"}
                       </td>
                     </tr>
                   ))}
