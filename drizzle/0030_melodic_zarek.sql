@@ -1,0 +1,1 @@
+ALTER TABLE `project_insights` MODIFY COLUMN `insightType` enum('cost_pressure','market_opportunity','competitor_alert','trend_signal','positioning_gap','style_shift','brand_dominance','spec_inflation') NOT NULL;

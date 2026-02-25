@@ -62,7 +62,7 @@ async function buildEvalConfig(
 const projectInputSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
-  ctx01Typology: z.enum(["Residential", "Mixed-use", "Hospitality", "Office"]).default("Residential"),
+  ctx01Typology: z.enum(["Residential", "Mixed-use", "Hospitality", "Office", "Villa", "Gated Community", "Villa Development"]).default("Residential"),
   ctx02Scale: z.enum(["Small", "Medium", "Large"]).default("Medium"),
   ctx03Gfa: z.number().nullable().optional(),
   ctx04Location: z.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
@@ -89,6 +89,9 @@ const projectInputSchema = z.object({
   add01SampleKit: z.boolean().default(false),
   add02PortfolioMode: z.boolean().default(false),
   add03DashboardExport: z.boolean().default(true),
+  unitMix: z.any().optional(),
+  villaSpaces: z.any().optional(),
+  developerGuidelines: z.any().optional(),
 });
 
 function projectToInputs(p: any): ProjectInputs {

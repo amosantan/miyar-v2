@@ -166,6 +166,9 @@ export const projects = mysqlTable("projects", {
     "Mixed-use",
     "Hospitality",
     "Office",
+    "Villa",
+    "Gated Community",
+    "Villa Development",
   ]).default("Residential"),
   ctx02Scale: mysqlEnum("ctx02Scale", ["Small", "Medium", "Large"]).default(
     "Medium"
@@ -228,6 +231,11 @@ export const projects = mysqlTable("projects", {
   add01SampleKit: boolean("add01SampleKit").default(false),
   add02PortfolioMode: boolean("add02PortfolioMode").default(false),
   add03DashboardExport: boolean("add03DashboardExport").default(true),
+
+  // Expanded Inputs
+  unitMix: json("unitMix"),
+  villaSpaces: json("villaSpaces"),
+  developerGuidelines: json("developerGuidelines"),
 
   modelVersionId: int("modelVersionId"),
   benchmarkVersionId: int("benchmarkVersionId"),
@@ -1362,6 +1370,9 @@ export const projectInsights = mysqlTable("project_insights", {
     "competitor_alert",
     "trend_signal",
     "positioning_gap",
+    "style_shift",
+    "brand_dominance",
+    "spec_inflation",
   ]).notNull(),
   severity: mysqlEnum("insightSeverity", ["critical", "warning", "info"]).notNull(),
   title: varchar("title", { length: 512 }).notNull(),

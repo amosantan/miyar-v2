@@ -1144,6 +1144,35 @@ function ProjectDetailContent() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Extended Brief */}
+      {(project.unitMix || project.villaSpaces || project.developerGuidelines) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Extended Brief</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {project.developerGuidelines && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-foreground">Developer Guidelines & Target Audience</h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{project.developerGuidelines as string}</p>
+              </div>
+            )}
+            {project.unitMix && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-foreground">Unit Mix</h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{project.unitMix as string}</p>
+              </div>
+            )}
+            {project.villaSpaces && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-foreground">Villa Spaces</h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{project.villaSpaces as string}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

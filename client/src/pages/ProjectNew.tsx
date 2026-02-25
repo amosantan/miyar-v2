@@ -110,6 +110,9 @@ type FormData = {
   add01SampleKit: boolean;
   add02PortfolioMode: boolean;
   add03DashboardExport: boolean;
+  unitMix?: string;
+  villaSpaces?: string;
+  developerGuidelines?: string;
 };
 
 function ProjectNewContent() {
@@ -147,6 +150,9 @@ function ProjectNewContent() {
     add01SampleKit: false,
     add02PortfolioMode: false,
     add03DashboardExport: true,
+    unitMix: "",
+    villaSpaces: "",
+    developerGuidelines: "",
   });
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
@@ -191,13 +197,12 @@ function ProjectNewContent() {
           <button
             key={i}
             onClick={() => i <= step && setStep(i)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-              i === step
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${i === step
                 ? "bg-primary/15 text-primary"
                 : i < step
-                ? "text-miyar-teal cursor-pointer hover:bg-secondary"
-                : "text-muted-foreground"
-            }`}
+                  ? "text-miyar-teal cursor-pointer hover:bg-secondary"
+                  : "text-muted-foreground"
+              }`}
           >
             {i < step ? (
               <CheckCircle2 className="h-3.5 w-3.5" />
@@ -257,6 +262,9 @@ function ProjectNewContent() {
                       <SelectItem value="Mixed-use">Mixed-use</SelectItem>
                       <SelectItem value="Hospitality">Hospitality</SelectItem>
                       <SelectItem value="Office">Office</SelectItem>
+                      <SelectItem value="Villa">Villa</SelectItem>
+                      <SelectItem value="Gated Community">Gated Community</SelectItem>
+                      <SelectItem value="Villa Development">Villa Development</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -326,12 +334,45 @@ function ProjectNewContent() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {["Villa", "Gated Community", "Villa Development"].includes(form.ctx01Typology) && (
+                <div className="space-y-2">
+                  <Label>Villa Spaces (e.g. Majlis, Show Kitchen)</Label>
+                  <Textarea
+                    placeholder="List expected spaces in the villas..."
+                    value={form.villaSpaces || ""}
+                    onChange={(e) => set("villaSpaces", e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              )}
+
+              {["Residential", "Gated Community", "Mixed-use", "Villa Development"].includes(form.ctx01Typology) && (
+                <div className="space-y-2">
+                  <Label>Unit Mix</Label>
+                  <Textarea
+                    placeholder="e.g. 20% 1BR, 50% 2BR, 30% 3BR..."
+                    value={form.unitMix || ""}
+                    onChange={(e) => set("unitMix", e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              )}
             </>
           )}
 
           {/* Step 1: Strategy */}
           {step === 1 && (
             <>
+              <div className="space-y-2 mb-6">
+                <Label>Developer Guidelines & Target Audience</Label>
+                <Textarea
+                  placeholder="Describe developer brand guidelines, design briefs, or specific target demographic..."
+                  value={form.developerGuidelines || ""}
+                  onChange={(e) => set("developerGuidelines", e.target.value)}
+                  rows={3}
+                />
+              </div>
               <OrdinalSlider
                 label="Brand Clarity (STR-01)"
                 tooltip="How clearly defined is the project's brand identity and narrative?"
