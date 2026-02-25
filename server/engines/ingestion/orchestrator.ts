@@ -546,17 +546,20 @@ export async function runIngestion(
           .orderBy(sql`${evidenceRecords.createdAt} DESC`)
           .limit(500);
 
-        // Group by category
-        const categoryGroups = new Map<string, DataPoint[]>();
+        // Group by category:finishLevel
+        const categoryGroups = new Map<string, { category: string; points: DataPoint[] }>();
         for (const record of recentEvidence) {
           const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
           if (value === null || isNaN(value)) continue;
           const date = record.captureDate || record.createdAt;
           if (!date) continue;
           const category = record.category || "other";
+          const finishLevel = record.finishLevel?.toLowerCase() || "standard";
+          const metric = `${category}:${finishLevel}`;
           const grade = (record.reliabilityGrade as "A" | "B" | "C") || "C";
-          if (!categoryGroups.has(category)) categoryGroups.set(category, []);
-          categoryGroups.get(category)!.push({
+
+          if (!categoryGroups.has(metric)) categoryGroups.set(metric, { category, points: [] });
+          categoryGroups.get(metric)!.points.push({
             date: new Date(date),
             value,
             grade,
@@ -566,10 +569,10 @@ export async function runIngestion(
         }
 
         let trendsGenerated = 0;
-        for (const [category, points] of Array.from(categoryGroups.entries())) {
-          if (points.length < 2) continue;
-          const trend = await detectTrends(category, category, "UAE", points, {
-            generateNarrative: points.length >= 5,
+        for (const [metric, group] of Array.from(categoryGroups.entries())) {
+          if (group.points.length < 2) continue;
+          const trend = await detectTrends(metric, group.category, "UAE", group.points, {
+            generateNarrative: group.points.length >= 5,
           });
           await insertTrendSnapshot({
             metric: trend.metric,

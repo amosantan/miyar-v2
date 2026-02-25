@@ -51,10 +51,11 @@ export async function generateBenchmarkProposals(
     return { proposalsCreated: 0, groupsAnalyzed: 0, totalEvidence: 0, proposals: [] };
   }
 
-  // Group evidence by category + unit (benchmark key)
+  // Group evidence by category + finishLevel + unit (benchmark key)
   const groups = new Map<string, typeof evidence>();
   for (const rec of evidence) {
-    const key = `${rec.category}:${rec.unit}`;
+    const finish = rec.finishLevel?.toLowerCase() || 'standard';
+    const key = `${rec.category}:${finish}:${rec.unit}`;
     const existing = groups.get(key) ?? [];
     existing.push(rec);
     groups.set(key, existing);

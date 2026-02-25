@@ -36,7 +36,8 @@ const TIER_PRICE_MULTIPLIERS: Record<string, number> = {
 export async function generateDesignRecommendations(
     project: any,
     inputs: ProjectInputs,
-    materialLibrary: any[]
+    materialLibrary: any[],
+    recentEvidence: any[] = []
 ): Promise<SpaceRecommendation[]> {
     const spaceProgram = buildSpaceProgram(project);
     const rooms = spaceProgram.rooms;
@@ -44,7 +45,8 @@ export async function generateDesignRecommendations(
 
     // Build context for Gemini
     const materialSummary = buildMaterialSummary(materialLibrary, inputs);
-    const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary);
+    const marketIntelSummary = buildMarketIntelSummary(recentEvidence, inputs);
+    const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary, marketIntelSummary);
 
     // Call Gemini
     const aiResponse = await callGeminiForDesign(prompt);
@@ -68,7 +70,8 @@ function buildDesignPrompt(
     inputs: ProjectInputs,
     rooms: Room[],
     totalBudget: number,
-    materialSummary: string
+    materialSummary: string,
+    marketIntelSummary: string
 ): string {
     const roomList = rooms
         .map(r => `- ${r.id} "${r.name}": ${r.sqm} sqm, Grade ${r.finishGrade}, Priority ${r.priority}, Budget ${(r.budgetPct * 100).toFixed(0)}%`)
@@ -93,6 +96,9 @@ ${roomList}
 
 ## Available Materials (from our library)
 ${materialSummary}
+
+## Latest Market Intelligence (from recent data)
+${marketIntelSummary}
 
 ## Instructions
 For EACH space, provide:
@@ -144,6 +150,33 @@ function buildMaterialSummary(materials: any[], inputs: ProjectInputs): string {
             return `**${cat}**:\n${list}`;
         })
         .join("\n");
+}
+
+function buildMarketIntelSummary(recentEvidence: any[], inputs: ProjectInputs): string {
+    if (!recentEvidence || recentEvidence.length === 0) {
+        return "No recent market intelligence available.";
+    }
+
+    // Filter evidence somewhat relevant to project's tier/style
+    const relevant = recentEvidence.filter(e => {
+        if (!e.finishLevel && !e.designStyle) return true;
+        const matchesTier = e.finishLevel?.toLowerCase() === inputs.mkt01Tier.toLowerCase();
+        const matchesStyle = e.designStyle?.toLowerCase().includes(inputs.des01Style.toLowerCase());
+        return matchesTier || matchesStyle;
+    }).slice(0, 20); // Top 20 relevant insights
+
+    if (relevant.length === 0) {
+        return "Market intelligence exists, but no specific matches for this tier/style currently dominating.";
+    }
+
+    return relevant.map(e => {
+        let line = `- **${e.itemName}**`;
+        if (e.designStyle) line += ` (${e.designStyle})`;
+        if (e.finishLevel) line += ` [${e.finishLevel} finish]`;
+        if (e.brandsMentioned && e.brandsMentioned.length > 0) line += ` — brands: ${e.brandsMentioned.join(", ")}`;
+        if (e.priceMin || e.priceMax) line += ` — Price: ${e.priceMin || "?"}-${e.priceMax || "?"} ${e.unit || "AED"}`;
+        return line;
+    }).join("\n");
 }
 
 // ─── Gemini API Call ────────────────────────────────────────────────────────

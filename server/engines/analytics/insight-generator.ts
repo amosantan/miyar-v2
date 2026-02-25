@@ -24,7 +24,10 @@ export type InsightType =
   | "market_opportunity"
   | "competitor_alert"
   | "trend_signal"
-  | "positioning_gap";
+  | "positioning_gap"
+  | "style_shift"
+  | "brand_dominance"
+  | "spec_inflation";
 
 export type InsightSeverity = "critical" | "warning" | "info";
 
@@ -76,6 +79,13 @@ export interface InsightInput {
     projectName: string;
     segment?: string;
     geography?: string;
+  };
+
+  // Design Intelligence
+  designIntelligence?: {
+    styleMentions?: Array<{ style: string; currentPeriod: number; previousPeriod: number; percentChange: number }>;
+    brandShare?: Array<{ brand: string; category: string; sharePercentage: number }>;
+    finishLevelInflation?: Array<{ finishLevel: string; category: string; percentChange: number; categoryAvgChange: number }>;
   };
 }
 
@@ -287,6 +297,90 @@ function checkPositioningGap(input: InsightInput): GeneratedInsight | null {
   };
 }
 
+function checkStyleShift(input: InsightInput): GeneratedInsight | null {
+  if (!input.designIntelligence?.styleMentions) return null;
+
+  const shiftingStyles = input.designIntelligence.styleMentions.filter(
+    (s) => s.percentChange > 20 && s.currentPeriod >= 3 // Meaningful volume
+  );
+
+  if (shiftingStyles.length === 0) return null;
+
+  const topShift = shiftingStyles.reduce((max, s) => s.percentChange > max.percentChange ? s : max);
+
+  return {
+    type: "style_shift",
+    severity: topShift.percentChange > 50 ? "warning" : "info",
+    title: `Style momentum: ${topShift.style} mentions increased by ${topShift.percentChange.toFixed(0)}%`,
+    body: null,
+    actionableRecommendation: null,
+    confidenceScore: 0.75,
+    triggerCondition: `Design style mentions increased by >20% period-over-period`,
+    dataPoints: {
+      style: topShift.style,
+      percentChange: topShift.percentChange,
+      currentMentions: topShift.currentPeriod,
+      previousMentions: topShift.previousPeriod,
+    },
+  };
+}
+
+function checkBrandDominance(input: InsightInput): GeneratedInsight | null {
+  if (!input.designIntelligence?.brandShare) return null;
+
+  const dominantBrands = input.designIntelligence.brandShare.filter(
+    (b) => b.sharePercentage > 50
+  );
+
+  if (dominantBrands.length === 0) return null;
+
+  const topBrand = dominantBrands.reduce((max, b) => b.sharePercentage > max.sharePercentage ? b : max);
+
+  return {
+    type: "brand_dominance",
+    severity: topBrand.sharePercentage > 70 ? "warning" : "info",
+    title: `Brand dominance: ${topBrand.brand} captures ${topBrand.sharePercentage.toFixed(0)}% share in ${topBrand.category}`,
+    body: null,
+    actionableRecommendation: null,
+    confidenceScore: 0.80,
+    triggerCondition: `Brand holds >50% mention share within a category`,
+    dataPoints: {
+      brand: topBrand.brand,
+      category: topBrand.category,
+      sharePercentage: topBrand.sharePercentage,
+    },
+  };
+}
+
+function checkSpecInflation(input: InsightInput): GeneratedInsight | null {
+  if (!input.designIntelligence?.finishLevelInflation) return null;
+
+  const inflatedSpecs = input.designIntelligence.finishLevelInflation.filter(
+    (f) => f.percentChange > 10 && (f.percentChange - f.categoryAvgChange) > 5
+  );
+
+  if (inflatedSpecs.length === 0) return null;
+
+  const topInflation = inflatedSpecs.reduce((max, f) => f.percentChange > max.percentChange ? f : max);
+
+  return {
+    type: "spec_inflation",
+    severity: topInflation.percentChange > 20 ? "warning" : "info",
+    title: `Spec inflation: ${topInflation.finishLevel} ${topInflation.category} costs rising disproportionately (+${topInflation.percentChange.toFixed(0)}%)`,
+    body: null,
+    actionableRecommendation: null,
+    confidenceScore: 0.70,
+    triggerCondition: `Finish level price increasing >10% AND >5% faster than category average`,
+    dataPoints: {
+      finishLevel: topInflation.finishLevel,
+      category: topInflation.category,
+      specChange: topInflation.percentChange,
+      categoryChange: topInflation.categoryAvgChange,
+      delta: topInflation.percentChange - topInflation.categoryAvgChange
+    },
+  };
+}
+
 // ─── LLM Narrative Enrichment ────────────────────────────────────
 
 async function enrichWithLLM(insight: GeneratedInsight): Promise<GeneratedInsight> {
@@ -365,13 +459,16 @@ export async function generateInsights(
 ): Promise<GeneratedInsight[]> {
   const { enrichWithLLM: shouldEnrich = true } = options;
 
-  // Run all 5 deterministic checks
+  // Run all deterministic checks
   const checks = [
     checkCostPressure(input),
     checkMarketOpportunity(input),
     checkCompetitorAlert(input),
     checkTrendSignal(input),
     checkPositioningGap(input),
+    checkStyleShift(input),
+    checkBrandDominance(input),
+    checkSpecInflation(input),
   ];
 
   const insights = checks.filter((i): i is GeneratedInsight => i !== null);

@@ -84,7 +84,9 @@ export const designAdvisorRouter = router({
 
             const inputs = projectToInputs(project);
             const materials = await db.getMaterialLibrary();
-            const recommendations = await generateDesignRecommendations(project, inputs, materials);
+            const recentEvidence = await db.listEvidenceRecords({ limit: 100 });
+
+            const recommendations = await generateDesignRecommendations(project, inputs, materials, recentEvidence);
 
             for (const rec of recommendations) {
                 await db.createSpaceRecommendation({

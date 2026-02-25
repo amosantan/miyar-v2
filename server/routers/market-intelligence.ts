@@ -47,6 +47,13 @@ const evidenceRecordSchema = z.object({
   fileUrl: z.string().optional(),
   fileKey: z.string().optional(),
   fileMimeType: z.string().optional(),
+
+  // Source-type Intelligence fields
+  finishLevel: z.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).nullable().optional(),
+  designStyle: z.string().nullable().optional(),
+  brandsMentioned: z.array(z.string()).nullable().optional(),
+  materialSpec: z.string().nullable().optional(),
+  intelligenceType: z.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional(),
 });
 
 const sourceRegistrySchema = z.object({
