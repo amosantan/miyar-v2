@@ -16,8 +16,7 @@ import ScenarioTemplates from "./pages/ScenarioTemplates";
 import Reports from "./pages/Reports";
 import EvidenceVault from "./pages/EvidenceVault";
 import DesignBrief from "./pages/DesignBrief";
-import VisualStudio from "./pages/VisualStudio";
-import BoardComposer from "./pages/BoardComposer";
+import DesignStudio from "./pages/DesignStudio";
 import Collaboration from "./pages/Collaboration";
 import Benchmarks from "./pages/admin/Benchmarks";
 import BenchmarkVersions from "./pages/admin/BenchmarkVersions";
@@ -62,8 +61,7 @@ function Router() {
       <Route path="/projects/:id" component={ProjectDetail} />
       <Route path="/projects/:id/evidence" component={EvidenceVault} />
       <Route path="/projects/:id/brief" component={DesignBrief} />
-      <Route path="/projects/:id/visuals" component={VisualStudio} />
-      <Route path="/projects/:id/boards" component={BoardComposer} />
+      <Route path="/projects/:id/design-studio" component={DesignStudio} />
       <Route path="/projects/:id/collaboration" component={Collaboration} />
       <Route path="/projects/:id/design-advisor" component={DesignAdvisor} />
       <Route path="/results" component={Results} />

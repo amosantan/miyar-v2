@@ -402,6 +402,65 @@ export const designRouter = router({
       return { success: true };
     }),
 
+  // ─── Pin Visuals to Material Boards (V4) ────────────────────────────────────
+
+  pinVisualToBoard: protectedProcedure
+    .input(z.object({
+      visualId: z.number(),
+      boardId: z.number(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const visual = await db.getGeneratedVisualById(input.visualId);
+      if (!visual || !visual.imageAssetId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Visual not found or has no image" });
+      }
+      // Create an asset link from the visual's image asset to the board
+      const link = await db.createAssetLink({
+        assetId: visual.imageAssetId,
+        linkType: "material_board",
+        linkId: input.boardId,
+      });
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "visual.pin_to_board",
+        entityType: "generated_visual",
+        entityId: visual.id,
+        details: { boardId: input.boardId, linkId: link.id },
+      });
+      return { success: true, linkId: link.id };
+    }),
+
+  listPinnedVisuals: protectedProcedure
+    .input(z.object({ boardId: z.number() }))
+    .query(async ({ input }) => {
+      const links = await db.getAssetLinksByEntity("material_board", input.boardId);
+      // Resolve each link to its visual + image URL
+      const pinned = await Promise.all(links.map(async (link: { id: number; assetId: number; createdAt: Date }) => {
+        const asset = await db.getProjectAssetById(link.assetId);
+        return {
+          linkId: link.id,
+          assetId: link.assetId,
+          imageUrl: asset?.storageUrl ?? null,
+          fileName: asset?.fileName ?? null,
+          pinnedAt: link.createdAt,
+        };
+      }));
+      return pinned;
+    }),
+
+  unpinVisual: protectedProcedure
+    .input(z.object({ linkId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await db.deleteAssetLink(input.linkId);
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "visual.unpin_from_board",
+        entityType: "asset_link",
+        entityId: input.linkId,
+      });
+      return { success: true };
+    }),
+
   // ─── Material Board Composer ────────────────────────────────────────────────
 
   createBoard: protectedProcedure

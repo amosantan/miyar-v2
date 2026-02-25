@@ -658,6 +658,13 @@ export async function getAssetLinksByEntity(linkType: string, linkId: number) {
   );
 }
 
+export async function deleteAssetLink(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(assetLinks).where(eq(assetLinks.id, id));
+  return { success: true };
+}
+
 // ─── Design Briefs (V2.8) ───────────────────────────────────────────────────
 
 export async function createDesignBrief(data: typeof designBriefs.$inferInsert) {
