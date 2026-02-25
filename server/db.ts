@@ -1146,10 +1146,20 @@ export async function getScenarioComparisonById(id: number) {
 
 export async function createProjectOutcome(data: {
   projectId: number;
+  // V2.13 fields
   procurementActualCosts?: unknown;
   leadTimesActual?: unknown;
   rfqResults?: unknown;
   adoptionMetrics?: unknown;
+  // V5 fields
+  actualFitoutCostPerSqm?: string;
+  actualTotalCost?: string;
+  projectDeliveredOnTime?: boolean;
+  reworkOccurred?: boolean;
+  reworkCostAed?: string;
+  clientSatisfactionScore?: number;
+  tenderIterations?: number;
+  keyLessonsLearned?: string;
   capturedBy?: number;
 }) {
   const db = await getDb();
