@@ -7,19 +7,19 @@ import type { ProjectInputs } from "../../shared/miyar-types";
 /* ─── Shared test fixtures ─── */
 const baseInputs: ProjectInputs = {
   ctx01Typology: "Residential",
-  ctx02Scale: "Tower",
+  ctx02Scale: "Large",
   ctx03Gfa: 500000,
   ctx04Location: "Prime",
   ctx05Horizon: "12-24m",
   mkt01Tier: "Luxury",
-  mkt02Differentiation: 4,
+  str02Differentiation: 4,
   mkt03BrandAlignment: 4,
   des01Style: "Contemporary",
   des02MaterialLevel: 4,
   des03Complexity: 4,
   des04Experience: 4,
   des05Sustainability: 3,
-  fin01BudgetCap: 500,
+  fin01BudgetCap: 4600,
   fin02Flexibility: 3,
   fin03ShockTolerance: 3,
   exe01SupplyChain: 3,
@@ -48,41 +48,44 @@ describe("Design Brief Generator", () => {
     expect(brief.projectIdentity.marketTier).toBe("Luxury");
     expect(brief.projectIdentity.style).toBe("Contemporary");
 
-    expect(brief.positioningStatement).toContain("Test Tower");
-    expect(brief.positioningStatement).toContain("validated");
+    expect(brief.designNarrative.positioningStatement).toContain("Test Tower");
+    expect(brief.designNarrative.positioningStatement).toContain("validates");
 
-    expect(brief.styleMood).toBeDefined();
-    expect(brief.styleMood.primaryStyle).toBe("Contemporary");
-    expect(brief.styleMood.moodKeywords.length).toBeGreaterThan(0);
-    expect(brief.styleMood.colorPalette.length).toBeGreaterThan(0);
+    expect(brief.designNarrative).toBeDefined();
+    expect(brief.designNarrative.primaryStyle).toBe("Contemporary");
+    expect(brief.designNarrative.moodKeywords.length).toBeGreaterThan(0);
+    expect(brief.designNarrative.colorPalette.length).toBeGreaterThan(0);
 
-    expect(brief.materialGuidance).toBeDefined();
-    expect(brief.materialGuidance.tierRecommendation).toBe("Luxury");
-    expect(brief.materialGuidance.primaryMaterials.length).toBeGreaterThan(0);
-    expect(brief.materialGuidance.accentMaterials.length).toBeGreaterThan(0);
-    expect(brief.materialGuidance.avoidMaterials.length).toBeGreaterThan(0);
+    expect(brief.materialSpecifications).toBeDefined();
+    expect(brief.materialSpecifications.tierRequirement).toBe("Luxury");
+    expect(brief.materialSpecifications.approvedMaterials.length).toBeGreaterThan(0);
+    expect(brief.materialSpecifications.finishesAndTextures.length).toBeGreaterThan(0);
+    expect(brief.materialSpecifications.prohibitedMaterials.length).toBeGreaterThan(0);
 
-    expect(brief.budgetGuardrails).toBeDefined();
-    expect(brief.budgetGuardrails.costPerSqftTarget).toContain("500");
-    expect(brief.budgetGuardrails.costBand).toBe("Premium");
+    expect(brief.boqFramework).toBeDefined();
+    expect(brief.boqFramework.coreAllocations.length).toBeGreaterThan(0);
 
-    expect(brief.procurementConstraints).toBeDefined();
-    expect(brief.procurementConstraints.criticalPathItems.length).toBeGreaterThan(0);
-    expect(brief.procurementConstraints.importDependencies.length).toBeGreaterThan(0);
+    expect(brief.detailedBudget).toBeDefined();
+    expect(brief.detailedBudget.costPerSqmTarget).toContain("4,600");
+    expect(brief.detailedBudget.costBand).toBe("Premium High-End");
 
-    expect(brief.deliverablesChecklist).toBeDefined();
-    expect(brief.deliverablesChecklist.phase1.length).toBeGreaterThan(0);
-    expect(brief.deliverablesChecklist.phase2.length).toBeGreaterThan(0);
-    expect(brief.deliverablesChecklist.phase3.length).toBeGreaterThan(0);
-    expect(brief.deliverablesChecklist.qualityGates.length).toBeGreaterThan(0);
+    expect(brief.designerInstructions.procurementAndLogistics).toBeDefined();
+    expect(brief.designerInstructions.procurementAndLogistics.criticalPathItems.length).toBeGreaterThan(0);
+    expect(brief.designerInstructions.procurementAndLogistics.importDependencies.length).toBeGreaterThan(0);
+
+    expect(brief.designerInstructions.phasedDeliverables).toBeDefined();
+    expect(brief.designerInstructions.phasedDeliverables.conceptDesign.length).toBeGreaterThan(0);
+    expect(brief.designerInstructions.phasedDeliverables.schematicDesign.length).toBeGreaterThan(0);
+    expect(brief.designerInstructions.phasedDeliverables.detailedDesign.length).toBeGreaterThan(0);
+    expect(brief.designerInstructions.authorityApprovals.length).toBeGreaterThan(0);
   });
 
   it("adjusts for different tiers", () => {
     const midInputs = { ...baseInputs, mkt01Tier: "Mid" as any, des02MaterialLevel: 2, des03Complexity: 2 };
     const midBrief = generateDesignBrief({ name: "Mid Project", description: null }, midInputs, { ...scoreResult, compositeScore: 65 });
 
-    expect(midBrief.materialGuidance.tierRecommendation).toBe("Mid");
-    expect(midBrief.materialGuidance.primaryMaterials).toContain("Engineered stone");
+    expect(midBrief.materialSpecifications.tierRequirement).toBe("Mid");
+    expect(midBrief.materialSpecifications.approvedMaterials).toContain("Engineered stone countertops");
   });
 
   it("adjusts positioning for conditional status", () => {
@@ -91,7 +94,7 @@ describe("Design Brief Generator", () => {
       baseInputs,
       { ...scoreResult, decisionStatus: "conditional", compositeScore: 55 },
     );
-    expect(brief.positioningStatement).toContain("conditional");
+    expect(brief.designNarrative.positioningStatement).toContain("conditionally validates");
   });
 
   it("adjusts positioning for not_validated status", () => {
@@ -100,21 +103,21 @@ describe("Design Brief Generator", () => {
       baseInputs,
       { ...scoreResult, decisionStatus: "not_validated", compositeScore: 35 },
     );
-    expect(brief.positioningStatement).toContain("revision");
+    expect(brief.designNarrative.positioningStatement).toContain("revision");
   });
 
   it("handles ultra-luxury tier", () => {
-    const ultraInputs = { ...baseInputs, mkt01Tier: "Ultra-luxury" as any, fin01BudgetCap: 800 };
+    const ultraInputs = { ...baseInputs, mkt01Tier: "Ultra-luxury" as any, fin01BudgetCap: 8500 };
     const brief = generateDesignBrief({ name: "Ultra", description: null }, ultraInputs, scoreResult);
-    expect(brief.budgetGuardrails.costBand).toBe("Ultra-Premium");
-    expect(brief.materialGuidance.tierRecommendation).toBe("Ultra-luxury");
-    expect(brief.procurementConstraints.criticalPathItems).toContain("Bespoke furniture commissioning");
+    expect(brief.detailedBudget.costBand).toBe("Ultra-Premium Luxury");
+    expect(brief.materialSpecifications.tierRequirement).toBe("Ultra-luxury");
+    expect(brief.designerInstructions.procurementAndLogistics.criticalPathItems).toContain("Procurement of limited-edition or custom-commissioned FF&E.");
   });
 
   it("handles high sustainability priority", () => {
     const sustainInputs = { ...baseInputs, des05Sustainability: 5 };
     const brief = generateDesignBrief({ name: "Green", description: null }, sustainInputs, scoreResult);
-    expect(brief.materialGuidance.sustainabilityNotes).toContain("High sustainability");
+    expect(brief.materialSpecifications.sustainabilityMandate).toContain("High Priority");
   });
 });
 

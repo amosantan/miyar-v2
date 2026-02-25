@@ -184,12 +184,11 @@ export const designRouter = router({
         scenarioId: input.scenarioId,
         version: nextVersion,
         projectIdentity: briefData.projectIdentity,
-        positioningStatement: briefData.positioningStatement,
-        styleMood: briefData.styleMood,
-        materialGuidance: briefData.materialGuidance,
-        budgetGuardrails: briefData.budgetGuardrails,
-        procurementConstraints: briefData.procurementConstraints,
-        deliverablesChecklist: briefData.deliverablesChecklist,
+        designNarrative: briefData.designNarrative,
+        materialSpecifications: briefData.materialSpecifications,
+        boqFramework: briefData.boqFramework,
+        detailedBudget: briefData.detailedBudget,
+        designerInstructions: briefData.designerInstructions,
         createdBy: ctx.user.id,
       });
 
@@ -232,12 +231,11 @@ export const designRouter = router({
 
       const docxBuffer = await generateDesignBriefDocx({
         projectIdentity: (brief.projectIdentity ?? {}) as Record<string, unknown>,
-        positioningStatement: brief.positioningStatement ?? "",
-        styleMood: (brief.styleMood ?? {}) as Record<string, unknown>,
-        materialGuidance: (brief.materialGuidance ?? {}) as Record<string, unknown>,
-        budgetGuardrails: (brief.budgetGuardrails ?? {}) as Record<string, unknown>,
-        procurementConstraints: (brief.procurementConstraints ?? {}) as Record<string, unknown>,
-        deliverablesChecklist: (brief.deliverablesChecklist ?? {}) as Record<string, unknown>,
+        designNarrative: (brief.designNarrative ?? {}) as Record<string, unknown>,
+        materialSpecifications: (brief.materialSpecifications ?? {}) as Record<string, unknown>,
+        boqFramework: brief.boqFramework as any,
+        detailedBudget: (brief.detailedBudget ?? {}) as Record<string, unknown>,
+        designerInstructions: brief.designerInstructions as any,
         version: brief.version,
         projectName: project?.name,
       });

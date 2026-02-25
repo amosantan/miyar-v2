@@ -363,7 +363,7 @@ function renderInputSummary(inputs: ProjectInputs): string {
     {
       title: "Financial",
       items: [
-        ["Budget Cap (AED/sqft)", inputs.fin01BudgetCap ? inputs.fin01BudgetCap.toLocaleString() : "N/A"],
+        ["Budget Cap (AED/sqm)", inputs.fin01BudgetCap ? inputs.fin01BudgetCap.toLocaleString() : "N/A"],
         ["Flexibility", `${inputs.fin02Flexibility}/5`],
         ["Shock Tolerance", `${inputs.fin03ShockTolerance}/5`],
         ["Sales Premium", `${inputs.fin04SalesPremium}/5`],
@@ -647,6 +647,7 @@ export interface PDFReportInput {
   scenarioComparison?: any[];
   fiveLens?: any;
   roiNarrative?: any;
+  designBrief?: any;
   benchmarkVersion?: string;
   logicVersion?: string;
   evidenceRefs?: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }>;
@@ -715,23 +716,125 @@ export function generateValidationSummaryHTML(data: PDFReportInput): string {
   ].join("\n");
 }
 
+function renderDesignBrief(brief: any): string {
+  if (!brief) return "<div class='section'><p>No Design Brief data available.</p></div>";
+
+  const narrative = brief.designNarrative || {};
+  const materials = brief.materialSpecifications || {};
+  const boq = brief.boqFramework || { coreAllocations: [] };
+  const budget = brief.detailedBudget || {};
+  const instructions = brief.designerInstructions || { phasedDeliverables: {} };
+
+  const boqRows = (boq.coreAllocations || []).map((b: any) => `
+    <tr>
+      <td>${b.category || "—"}</td>
+      <td style="text-align:center;">${b.percentage || 0}%</td>
+      <td style="text-align:right;">${b.estimatedCostLabel || "—"}</td>
+      <td><span style="font-size: 10px; color: #666;">${b.notes || "—"}</span></td>
+    </tr>
+  `).join("");
+
+  return `
+<div class="section">
+  <h2>Design Narrative & Positioning</h2>
+  <p>${narrative.positioningStatement || "—"}</p>
+  <table>
+    <tr><th width="30%">Parameter</th><th>Value</th></tr>
+    <tr><td style="font-weight:bold;">Primary Style</td><td>${narrative.primaryStyle || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Mood Keywords</td><td>${(narrative.moodKeywords || []).join(", ") || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Color Palette</td><td>${(narrative.colorPalette || []).join(", ") || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Texture Direction</td><td>${narrative.textureDirection || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Lighting Approach</td><td>${narrative.lightingApproach || "—"}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Material Specifications</h2>
+  <table>
+    <tr><th width="30%">Parameter</th><th>Value</th></tr>
+    <tr><td style="font-weight:bold;">Tier Requirement</td><td>${materials.tierRequirement || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Quality Benchmark</td><td>${materials.qualityBenchmark || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Sustainability</td><td>${materials.sustainabilityMandate || "—"}</td></tr>
+  </table>
+  
+  <h3>Approved Materials (Primary)</h3>
+  <ul>${(materials.approvedMaterials || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3>Approved Finishes & Textures</h3>
+  <ul>${(materials.finishesAndTextures || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3 style="color: #c62828;">Prohibited Materials (Value Engineering Flags)</h3>
+  <ul>${(materials.prohibitedMaterials || []).map((m: string) => `<li><span style="color: #c62828;">${m}</span></li>`).join("")}</ul>
+</div>
+
+<div class="section">
+  <h2>Target BOQ Framework</h2>
+  ${boq.totalEstimatedSqm ? `<p><strong>Total Estimated Project Area:</strong> ${boq.totalEstimatedSqm.toLocaleString()} Sqm</p>` : ""}
+  <table>
+    <tr>
+      <th width="35%">Category</th>
+      <th width="15%" style="text-align:center;">Allocation</th>
+      <th width="20%" style="text-align:right;">Estimated Budget</th>
+      <th width="30%">Notes</th>
+    </tr>
+    ${boqRows || "<tr><td colspan='4'>No allocations available.</td></tr>"}
+  </table>
+</div>
+
+<div class="section">
+  <h2>Detailed Budget Guardrails</h2>
+  <table>
+    <tr><th width="30%">Parameter</th><th>Value</th></tr>
+    <tr><td style="font-weight:bold;">Cost Per Sqm Target</td><td>${budget.costPerSqmTarget || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Total Budget Cap</td><td>${budget.totalBudgetCap || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Cost Band</td><td>${budget.costBand || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Contingency</td><td>${budget.contingencyRecommendation || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Flexibility Level</td><td>${budget.flexibilityLevel || "—"}</td></tr>
+  </table>
+  
+  <h3>Value Engineering Directives</h3>
+  <ul>${(budget.valueEngineeringMandates || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+</div>
+
+<div class="section">
+  <h2>Workflow & Execution Instructions</h2>
+  <p><strong>Lead Time Window:</strong> ${(instructions.procurementAndLogistics || {}).leadTimeWindow || "—"}</p>
+  
+  <h3>Critical Path Procurement Items</h3>
+  <ul>${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3>Local Authority Approvals (Dubai)</h3>
+  <ul>${(instructions.authorityApprovals || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3>Contractor Coordination Requirements</h3>
+  <ul>${(instructions.coordinationRequirements || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3>Phased Deliverables</h3>
+  <div class="info-box">
+    <strong>Phase 1 — Concept & Schematic:</strong>
+    <ul>${(instructions.phasedDeliverables.conceptDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  </div>
+  <div class="info-box">
+    <strong>Phase 2 — Detailed Design:</strong>
+    <ul>${(instructions.phasedDeliverables.schematicDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  </div>
+  <div class="info-box">
+    <strong>Phase 3 — IFC & Tender:</strong>
+    <ul>${(instructions.phasedDeliverables.detailedDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  </div>
+</div>
+`;
+}
+
 export function generateDesignBriefHTML(data: PDFReportInput): string {
   const watermark = generateWatermark(data.projectId, "design_brief");
   return [
-    htmlHeader("Design Brief + RFQ Pack", "Technical Specification & Variable Analysis", data.projectName, watermark),
-    renderExecutiveSummary(data.scoreResult),
-    renderDimensionTable(data.scoreResult),
-    renderVariableContributions(data.scoreResult.variableContributions),
-    renderSensitivity(data.sensitivity),
-    renderRiskAssessment(data.scoreResult),
-    renderConditionalActions(data.scoreResult),
-    data.fiveLens ? renderFiveLens(data.fiveLens) : "",
-    renderBoardAnnex(data.boardSummaries),
+    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, watermark),
+    renderDesignBrief(data.designBrief),
     renderEvidenceReferences(data.evidenceRefs),
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
-    renderInputSummary(data.inputs),
     htmlFooter(data.projectId, "design_brief", watermark, data.benchmarkVersion, data.logicVersion),
-  ].join("\n");
+  ].join("\\n");
 }
 
 export function generateFullReportHTML(data: PDFReportInput): string {

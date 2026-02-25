@@ -45,7 +45,7 @@ function SpaceCard({ rec }: { rec: any }) {
                         </div>
                         <div>
                             <CardTitle className="text-sm">{rec.roomName}</CardTitle>
-                            <p className="text-xs text-muted-foreground">{rec.sqm || "?"} sqft</p>
+                            <p className="text-xs text-muted-foreground">{rec.sqm || "?"} sqm</p>
                         </div>
                     </div>
                     <Badge variant="outline" className="text-[10px]">
@@ -328,12 +328,12 @@ function DesignAdvisorContent() {
                 <Card>
                     <CardContent className="pt-4 pb-3 text-center">
                         <p className="text-xs text-muted-foreground mb-1">GFA</p>
-                        <p className="text-2xl font-bold text-foreground">{project?.ctx03Gfa || 0} sqft</p>
+                        <p className="text-2xl font-bold text-foreground">{project?.ctx03Gfa || 0} sqm</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardContent className="pt-4 pb-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Cost/sqft</p>
+                        <p className="text-xs text-muted-foreground mb-1">Cost/sqm</p>
                         <p className="text-2xl font-bold text-foreground">
                             {project?.ctx03Gfa ? formatAed(Math.round(totalBudget / Number(project.ctx03Gfa))) : "—"}
                         </p>

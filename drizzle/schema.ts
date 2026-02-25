@@ -519,12 +519,11 @@ export const designBriefs = mysqlTable("design_briefs", {
   version: int("version").default(1).notNull(),
   // 7 sections as JSON
   projectIdentity: json("projectIdentity").notNull(),
-  positioningStatement: text("positioningStatement").notNull(),
-  styleMood: json("styleMood").notNull(),
-  materialGuidance: json("materialGuidance").notNull(),
-  budgetGuardrails: json("budgetGuardrails").notNull(),
-  procurementConstraints: json("procurementConstraints").notNull(),
-  deliverablesChecklist: json("deliverablesChecklist").notNull(),
+  designNarrative: json("designNarrative").notNull(),
+  materialSpecifications: json("materialSpecifications").notNull(),
+  boqFramework: json("boqFramework").notNull(),
+  detailedBudget: json("detailedBudget").notNull(),
+  designerInstructions: json("designerInstructions").notNull(),
   // Metadata
   createdBy: int("createdBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

@@ -1,7 +1,7 @@
 /**
- * Design Brief Generator Engine (V2.8)
+ * Design Brief Generator Engine (V2.8) - Dubai Market Edition
  * Deterministic design brief generation from project data + evaluation results.
- * Produces 7-section structured brief with versioning.
+ * Produces a highly actionable 6-section structured interior design brief.
  */
 
 import type { ProjectInputs } from "../../shared/miyar-types";
@@ -17,8 +17,8 @@ export interface DesignBriefData {
     marketTier: string;
     style: string;
   };
-  positioningStatement: string;
-  styleMood: {
+  designNarrative: {
+    positioningStatement: string;
     primaryStyle: string;
     moodKeywords: string[];
     colorPalette: string[];
@@ -26,33 +26,44 @@ export interface DesignBriefData {
     lightingApproach: string;
     spatialPhilosophy: string;
   };
-  materialGuidance: {
-    tierRecommendation: string;
-    primaryMaterials: string[];
-    accentMaterials: string[];
-    avoidMaterials: string[];
-    sustainabilityNotes: string;
+  materialSpecifications: {
+    tierRequirement: string;
+    approvedMaterials: string[];
+    prohibitedMaterials: string[];
+    finishesAndTextures: string[];
+    sustainabilityMandate: string;
     qualityBenchmark: string;
   };
-  budgetGuardrails: {
-    costPerSqftTarget: string;
+  boqFramework: {
+    totalEstimatedSqm: number | null;
+    coreAllocations: {
+      category: string;
+      percentage: number;
+      estimatedCostLabel: string;
+      notes: string;
+    }[];
+  };
+  detailedBudget: {
+    costPerSqmTarget: string;
+    totalBudgetCap: string;
     costBand: string;
     flexibilityLevel: string;
     contingencyRecommendation: string;
-    valueEngineeringNotes: string[];
+    valueEngineeringMandates: string[];
   };
-  procurementConstraints: {
-    leadTimeWindow: string;
-    criticalPathItems: string[];
-    localSourcingPriority: string;
-    importDependencies: string[];
-    riskMitigations: string[];
-  };
-  deliverablesChecklist: {
-    phase1: string[];
-    phase2: string[];
-    phase3: string[];
-    qualityGates: string[];
+  designerInstructions: {
+    phasedDeliverables: {
+      conceptDesign: string[];
+      schematicDesign: string[];
+      detailedDesign: string[];
+    };
+    authorityApprovals: string[];
+    coordinationRequirements: string[];
+    procurementAndLogistics: {
+      leadTimeWindow: string;
+      criticalPathItems: string[];
+      importDependencies: string[];
+    };
   };
 }
 
@@ -101,31 +112,53 @@ const STYLE_MOOD_MAP: Record<string, { keywords: string[]; colors: string[]; tex
   },
 };
 
-const TIER_MATERIALS: Record<string, { primary: string[]; accent: string[]; avoid: string[]; quality: string }> = {
+const TIER_MATERIALS: Record<string, { primary: string[]; finishes: string[]; avoid: string[]; quality: string }> = {
   Mid: {
-    primary: ["Engineered stone", "Porcelain tile", "Laminate wood", "Painted MDF"],
-    accent: ["Stainless steel", "Glass mosaic", "Vinyl fabric"],
-    avoid: ["Natural marble (cost)", "Solid hardwood (budget)", "Custom metalwork"],
-    quality: "Good quality commercial-grade materials with consistent finish",
+    primary: ["Engineered stone countertops", "Large-format porcelain floor tiles (60x60cm)", "Laminate wood flooring for bedrooms", "Painted MDF joinery"],
+    finishes: ["Powder-coated aluminum", "Matte black or brushed nickel hardware", "Commercial-grade vinyl wallcoverings"],
+    avoid: ["Natural marble slabs", "Solid hardwood flooring", "Bespoke brass or copper metalwork", "Silk or delicate natural fabrics"],
+    quality: "Good quality commercial-grade materials with high durability and consistent mass-produced finish.",
   },
   "Upper-mid": {
-    primary: ["Quartz composite", "Large-format porcelain", "Engineered oak", "Lacquered joinery"],
-    accent: ["Brushed nickel", "Ceramic tile", "Performance fabric"],
-    avoid: ["Ultra-premium stone", "Bespoke furniture", "Exotic hardwoods"],
-    quality: "Premium commercial-grade with select residential-quality feature elements",
+    primary: ["Quartz composite surfaces", "Large-format porcelain (120x60cm)", "Engineered oak flooring", "Lacquered or wood-veneer joinery"],
+    finishes: ["Brushed brass or nickel accents", "Textured ceramic wall tiles", "Performance blend fabrics"],
+    avoid: ["Ultra-premium exotic stone (Calacatta, Onyx)", "Fully bespoke loose furniture", "Exotic solid hardwoods"],
+    quality: "Premium commercial-grade bridging standard residential build with select residential-quality feature elements.",
   },
   Luxury: {
-    primary: ["Natural marble", "Solid hardwood", "Custom joinery", "Natural stone"],
-    accent: ["Brushed brass", "Silk fabric", "Hand-blown glass", "Leather"],
-    avoid: ["Laminate surfaces", "Vinyl", "Standard-grade fixtures"],
-    quality: "Residential luxury grade — hand-selected materials with visible craftsmanship",
+    primary: ["Natural marble (Carrara, Statuario)", "Solid European hardwood", "Custom-built joinery with integrated lighting", "Natural travertine or slate"],
+    finishes: ["Satin brass or bronze fixtures", "Silk and wool blend fabrics", "Hand-blown glass lighting", "Full-grain leather upholstery"],
+    avoid: ["Laminate surfaces", "Vinyl flooring", "Standard-grade sanitary ware", "Visible MDF edges"],
+    quality: "Residential luxury grade — hand-selected materials with visible artisan craftsmanship and texture.",
   },
   "Ultra-luxury": {
-    primary: ["Book-matched marble", "Exotic hardwood", "Bespoke metalwork", "Artisan plaster"],
-    accent: ["24k gold leaf", "Murano glass", "Cashmere", "Mother of pearl"],
-    avoid: ["Any mass-produced finish", "Standard hardware", "Synthetic materials"],
-    quality: "Museum-grade — one-of-a-kind pieces, master craftsman execution, provenance documented",
+    primary: ["Book-matched marble slabs", "Rare exotic hardwood", "Bespoke architectural metalwork", "Artisan venetian plaster"],
+    finishes: ["24k gold leaf details", "Murano glass", "Cashmere wallcoverings", "Mother of pearl inlay"],
+    avoid: ["Any mass-produced finish or synthetic imitation", "Standard catalog hardware", "Printed porcelain mimicking stone"],
+    quality: "Museum-grade — one-of-a-kind pieces, master craftsman execution, provenance documented for every major surface.",
   },
+};
+
+// Generic Dubai standard BOQ allocation percentages
+const BOQ_DISTRIBUTION: Record<string, { category: string; percentage: number; notes: string }[]> = {
+  Residential: [
+    { category: "Civil & MEP Works (Flooring, Ceilings, Partitions)", percentage: 35, notes: "Includes demolition, AC modifications, smart home cabling." },
+    { category: "Fixed Joinery (Kitchens, Wardrobes, Doors)", percentage: 25, notes: "High impact area. Focus on veneer matching and hardware quality." },
+    { category: "Sanitaryware & Wet Areas", percentage: 15, notes: "Waterproofing and high-grade imported fixtures." },
+    { category: "FF&E (Loose Furniture, Lighting, Art)", percentage: 25, notes: "Sourced locally or imported depending on timeline." },
+  ],
+  Commercial: [
+    { category: "Civil & MEP Works (Partitions, HVAC, Data)", percentage: 45, notes: "Heavy focus on IT infrastructure and acoustics." },
+    { category: "Workstations & Loose Furniture", percentage: 30, notes: "Ergonomic seating and adaptive desking." },
+    { category: "Pantry & Washrooms", percentage: 10, notes: "Durable, high-traffic finishes." },
+    { category: "Feature Joinery & Reception", percentage: 15, notes: "Brand identity focal points." },
+  ],
+  Hospitality: [
+    { category: "Civil & MEP Works", percentage: 30, notes: "Acoustic separation and complex integrated lighting." },
+    { category: "FF&E (Custom Furniture, Drapery, Rugs)", percentage: 40, notes: "High durability textiles, fire-rated materials." },
+    { category: "Fixed Joinery & Millwork", percentage: 15, notes: "Bespoke casegoods." },
+    { category: "Sanitaryware & Specialized Equipment", percentage: 15, notes: "Luxury hotel-grade fixtures." },
+  ]
 };
 
 export function generateDesignBrief(
@@ -140,83 +173,94 @@ export function generateDesignBrief(
 
   const gfa = inputs.ctx03Gfa ? Number(inputs.ctx03Gfa) : null;
   const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
+  const totalBudgetCap = budget && gfa ? budget * gfa : null;
 
   // Determine cost band
-  let costBand = "Standard";
+  let costBand = "Standard (Fit-out)";
   if (budget) {
-    if (budget > 700) costBand = "Ultra-Premium";
-    else if (budget > 450) costBand = "Premium";
-    else if (budget > 250) costBand = "Upper-Standard";
+    if (budget > 8000) costBand = "Ultra-Premium Luxury";
+    else if (budget > 4500) costBand = "Premium High-End";
+    else if (budget > 2500) costBand = "Upper-Standard Modern";
   }
 
   // Flexibility mapping
   const flexMap: Record<number, string> = {
-    1: "Very tight — minimal room for specification upgrades",
-    2: "Constrained — value engineering required for any upgrades",
-    3: "Moderate — selective upgrades possible in high-impact areas",
-    4: "Flexible — room for specification enhancements across key areas",
-    5: "Open — full creative freedom within quality parameters",
+    1: "Strictly fixed. Value engineering required immediately to meet target.",
+    2: "Constrained. Submittals must provide cheaper alternatives.",
+    3: "Moderate. Upgrades allowed only if offset by savings elsewhere.",
+    4: "Flexible. Room to upgrade hero areas (e.g. reception, master bed).",
+    5: "Open. Unconstrained budget for ultra-luxury specifications.",
   };
 
   // Lead time based on horizon
   const horizonLeadMap: Record<string, string> = {
-    "0-12m": "Aggressive — prioritize locally stocked materials, minimize custom orders",
-    "12-24m": "Standard — balance between custom and ready-made, plan long-lead items early",
-    "24-36m": "Comfortable — full custom palette available, phase procurement strategically",
-    "36m+": "Extended — opportunity for bespoke commissions and artisan collaborations",
+    "0-12m": "0-12 Months (Aggressive) — Zero tolerance for long-lead imports. Focus on locally stocked materials in the UAE.",
+    "12-24m": "12-24 Months (Standard) — Safely import European lighting and hardware. Monitor shipping delays.",
+    "24-36m": "24-36 Months (Comfortable) — Full global sourcing available. Phase procurement.",
+    "36m+": "36 Months+ (Extended) — Opportunity for bespoke Italian/European factory commissions.",
   };
 
-  // Sustainability notes
+  // Sustainability notes (Dubai Green Building Regulations focus)
   const sustainNotes = inputs.des05Sustainability >= 4
-    ? "High sustainability priority — specify recycled content, low-VOC, FSC-certified wood, local sourcing preferred"
+    ? "High Priority: Must exceed Dubai Green Building (Al Sa'fat) Gold standards. Specify low-VOC, locally manufactured materials, and ultra-efficient MEP."
     : inputs.des05Sustainability >= 3
-    ? "Moderate sustainability consideration — prefer eco-friendly options where cost-neutral"
-    : "Standard compliance — meet local building code requirements for sustainability";
+      ? "Moderate Priority: Adhere to baseline Al Sa'fat regulations. Prefer sustainable materials if cost-neutral."
+      : "Standard Compliance: Meet minimum Dubai Municipality building codes and basic Al Sa'fat requirements.";
 
   // Positioning statement
   const positioningParts: string[] = [];
-  positioningParts.push(`${project.name} is a ${tier.toLowerCase()} ${inputs.ctx01Typology.toLowerCase()} project`);
-  positioningParts.push(`positioned in a ${inputs.ctx04Location.toLowerCase()} location`);
-  positioningParts.push(`with a ${style.toLowerCase()} design direction`);
+  positioningParts.push(`The ${project.name} is a ${tier.toLowerCase()} ${inputs.ctx01Typology.toLowerCase()} internal fit-out`);
+  positioningParts.push(`located in a ${inputs.ctx04Location.toLowerCase()} area of Dubai`);
+  positioningParts.push(`embracing a ${style.toLowerCase()} design language.`);
   if (scoreResult.decisionStatus === "validated") {
-    positioningParts.push(`that has been validated by MIYAR with a composite score of ${scoreResult.compositeScore.toFixed(1)}`);
+    positioningParts.push(`MIYAR validates this direction with a high composite feasible score of ${scoreResult.compositeScore.toFixed(1)}/100.`);
   } else if (scoreResult.decisionStatus === "conditional") {
-    positioningParts.push(`with conditional validation (score: ${scoreResult.compositeScore.toFixed(1)}) — specific adjustments recommended`);
+    positioningParts.push(`MIYAR conditionally validates this direction (Score: ${scoreResult.compositeScore.toFixed(1)}/100). The interior team must actively mitigate flagged constraints during schematic design.`);
   } else {
-    positioningParts.push(`requiring design direction revision (score: ${scoreResult.compositeScore.toFixed(1)})`);
+    positioningParts.push(`MIYAR flags this brief for revision (Score: ${scoreResult.compositeScore.toFixed(1)}/100). Severe discrepancies exist between the budget and the target material luxury tiers.`);
   }
 
-  // Critical path items based on complexity and material level
+  // Critical path items
   const criticalPath: string[] = [];
-  if (inputs.des02MaterialLevel >= 4) criticalPath.push("Natural stone selection and slab reservation");
-  if (inputs.des03Complexity >= 4) criticalPath.push("Custom joinery shop drawings and prototyping");
-  if (inputs.des04Experience >= 4) criticalPath.push("Smart home system integration and programming");
-  if (tier === "Ultra-luxury") criticalPath.push("Bespoke furniture commissioning");
-  if (inputs.exe01SupplyChain <= 2) criticalPath.push("Import logistics for specialty materials");
-  if (criticalPath.length === 0) criticalPath.push("Standard procurement timeline applies");
+  if (inputs.des02MaterialLevel >= 4) criticalPath.push("Dry-lay approval for natural stone slabs at local UAE yards.");
+  if (inputs.des03Complexity >= 4) criticalPath.push("Shop drawing approvals for complex architectural metalwork/joinery.");
+  if (inputs.des04Experience >= 4) criticalPath.push("AV/IT and Smart Home automation rough-in coordination.");
+  if (tier === "Ultra-luxury") criticalPath.push("Procurement of limited-edition or custom-commissioned FF&E.");
+  if (inputs.exe01SupplyChain <= 2) criticalPath.push("Customs clearance and shipping buffers for all imported finishing materials.");
+  if (criticalPath.length === 0) criticalPath.push("Standard interior fit-out mobilization and procurement.");
 
   // Import dependencies
   const importDeps: string[] = [];
-  if (inputs.des02MaterialLevel >= 4) importDeps.push("Italian marble (8-12 week lead)");
-  if (tier === "Luxury" || tier === "Ultra-luxury") importDeps.push("European hardware and fixtures (6-10 weeks)");
-  if (inputs.des03Complexity >= 4) importDeps.push("Custom lighting from European manufacturers (10-14 weeks)");
-  if (importDeps.length === 0) importDeps.push("Primarily local/regional sourcing feasible");
+  if (inputs.des02MaterialLevel >= 4) importDeps.push("Italian/Spanish Natural Marble (10-14 weeks lead).");
+  if (tier === "Luxury" || tier === "Ultra-luxury") importDeps.push("European sanitaryware & brassware (8-12 weeks).");
+  if (inputs.des03Complexity >= 4) importDeps.push("European architectural lighting tracks and drivers (10-12 weeks).");
+  if (importDeps.length === 0) importDeps.push("100% locally stocked building materials.");
 
-  // Risk mitigations
-  const riskMits: string[] = [];
-  if (inputs.exe01SupplyChain <= 2) riskMits.push("Pre-order critical materials immediately upon brief approval");
-  if (inputs.fin03ShockTolerance <= 2) riskMits.push("Lock material prices with supplier agreements before design freeze");
-  riskMits.push("Identify 2-3 alternative materials for each critical specification");
-  riskMits.push("Schedule mock-up reviews at 30% and 60% completion milestones");
-
-  // Value engineering notes
+  // Value engineering
   const veNotes: string[] = [];
   if (inputs.fin02Flexibility <= 2) {
-    veNotes.push("Focus premium materials on high-visibility areas (lobby, master suite, kitchen)");
-    veNotes.push("Use cost-effective alternatives in secondary spaces (storage, utility, corridors)");
+    veNotes.push("Restrict Class A natural stone strictly to primary visual axes (Main Entrance, Feature Walls).");
+    veNotes.push("Substitute hidden joinery carcasses (wardrobe internals, back-of-house) with standard melamine.");
+    veNotes.push("Specify large-format porcelain instead of marble for secondary washrooms.");
   }
-  veNotes.push("Consider material substitution matrix for budget flexibility");
-  if (gfa && gfa > 300000) veNotes.push("Bulk procurement discounts available at this scale — negotiate early");
+  veNotes.push("Continuously evaluate sub-contractor BOQs against the MIYAR budget cap during the tender phase.");
+  if (gfa && gfa > 2000) veNotes.push("Leverage the large floor plate for bulk discount negotiations on flooring and ceiling tiles.");
+
+  // BOQ Math
+  const distroList = BOQ_DISTRIBUTION[inputs.ctx01Typology] || BOQ_DISTRIBUTION.Commercial;
+  const coreAllocations = distroList.map((d) => {
+    let estCostStr = "TBD";
+    if (totalBudgetCap) {
+      const catTotal = (d.percentage / 100) * totalBudgetCap;
+      estCostStr = `AED ${Math.round(catTotal).toLocaleString()}`;
+    }
+    return {
+      category: d.category,
+      percentage: d.percentage,
+      estimatedCostLabel: estCostStr,
+      notes: d.notes
+    };
+  });
 
   return {
     projectIdentity: {
@@ -229,8 +273,8 @@ export function generateDesignBrief(
       marketTier: tier,
       style,
     },
-    positioningStatement: positioningParts.join(" ") + ".",
-    styleMood: {
+    designNarrative: {
+      positioningStatement: positioningParts.join(" "),
       primaryStyle: style,
       moodKeywords: mood.keywords,
       colorPalette: mood.colors,
@@ -238,56 +282,59 @@ export function generateDesignBrief(
       lightingApproach: mood.lighting,
       spatialPhilosophy: mood.spatial,
     },
-    materialGuidance: {
-      tierRecommendation: tier,
-      primaryMaterials: materials.primary,
-      accentMaterials: materials.accent,
-      avoidMaterials: materials.avoid,
-      sustainabilityNotes: sustainNotes,
+    materialSpecifications: {
+      tierRequirement: tier,
+      approvedMaterials: materials.primary,
+      prohibitedMaterials: materials.avoid,
+      finishesAndTextures: materials.finishes,
+      sustainabilityMandate: sustainNotes,
       qualityBenchmark: materials.quality,
     },
-    budgetGuardrails: {
-      costPerSqftTarget: budget ? `${budget} AED/sqft` : "Not specified",
+    boqFramework: {
+      totalEstimatedSqm: gfa,
+      coreAllocations,
+    },
+    detailedBudget: {
+      costPerSqmTarget: budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
+      totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
       costBand,
       flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
-      contingencyRecommendation: inputs.fin03ShockTolerance <= 2 ? "15-20% contingency recommended" : "10-15% contingency recommended",
-      valueEngineeringNotes: veNotes,
+      contingencyRecommendation: inputs.fin03ShockTolerance <= 2 ? "Allocate 15-20% Contractor Contingency" : "Allocate 10% Contractor Contingency",
+      valueEngineeringMandates: veNotes,
     },
-    procurementConstraints: {
-      leadTimeWindow: horizonLeadMap[inputs.ctx05Horizon] || horizonLeadMap["12-24m"],
-      criticalPathItems: criticalPath,
-      localSourcingPriority: inputs.exe01SupplyChain >= 4 ? "Strong local supply chain — prioritize regional materials" : "Mixed sourcing — balance local availability with specification requirements",
-      importDependencies: importDeps,
-      riskMitigations: riskMits,
-    },
-    deliverablesChecklist: {
-      phase1: [
-        "Mood board (approved)",
-        "Material palette board",
-        "Color scheme presentation",
-        "Spatial concept diagrams",
-        "Budget allocation matrix",
+    designerInstructions: {
+      phasedDeliverables: {
+        conceptDesign: [
+          "Mood boards, spatial narratives, and initial 3D masses.",
+          "High-level space planning layouts (Block Plans).",
+          "Initial material palette look-and-feel.",
+        ],
+        schematicDesign: [
+          "Developed 3D renderings for key spaces.",
+          "Preliminary RCPs (Reflected Ceiling Plans) and MEP overlays.",
+          "Preliminary Material Schedule & Finishes Legend.",
+        ],
+        detailedDesign: [
+          "IFC (Issued for Construction) drawing package.",
+          "Fully detailed BOQ (Bill of Quantities) ready for tender.",
+          "Finalised FF&E Matrix with exact supplier quotes.",
+        ]
+      },
+      authorityApprovals: [
+        "Dubai Municipality (DM) - Architectural & Fit-out Approvals.",
+        "Dubai Civil Defense (DCD) - Fire safety & sprinkler modifications.",
+        "Developer/Landlord NOCs (Emaar, Nakheel, DMCC, etc.) before site mobilization."
       ],
-      phase2: [
-        "Detailed material specifications",
-        "FF&E schedule with pricing",
-        "Lighting design concept",
-        "Sample kit assembly",
-        "Supplier shortlist with lead times",
+      coordinationRequirements: [
+        "MEP Contractor: Coordinate AC grill placements with seamless ceiling details.",
+        "Lighting Consultant: Align decorative fixture dimming protocols with main automation system.",
+        "Acoustic Consultant: Soundproofing details for partitions meeting Dubai luxury standards."
       ],
-      phase3: [
-        "Final specification book",
-        "Procurement schedule",
-        "Quality control checklist",
-        "Installation guidelines",
-        "Handover documentation",
-      ],
-      qualityGates: [
-        "Design direction sign-off (before Phase 2)",
-        "Material sample approval (before procurement)",
-        "Mock-up review (before mass production)",
-        "Final walkthrough (before handover)",
-      ],
-    },
+      procurementAndLogistics: {
+        leadTimeWindow: horizonLeadMap[inputs.ctx05Horizon] || horizonLeadMap["12-24m"],
+        criticalPathItems: criticalPath,
+        importDependencies: importDeps,
+      }
+    }
   };
 }

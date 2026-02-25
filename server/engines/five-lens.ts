@@ -75,7 +75,7 @@ export function computeFiveLens(
   // Lens 2: Cost Discipline
   const ffScore = Number(scoreMatrix.ffScore);
   const costEvidence: LensEvidence[] = [
-    { variable: "fin01BudgetCap", label: "Budget Cap (AED/sqft)", value: Number(project.fin01BudgetCap || 0), weight: 0.30, contribution: contributions.fin01BudgetCap?.contribution || 0 },
+    { variable: "fin01BudgetCap", label: "Budget Cap (AED/sqm)", value: Number(project.fin01BudgetCap || 0), weight: 0.30, contribution: contributions.fin01BudgetCap?.contribution || 0 },
     { variable: "fin02Flexibility", label: "Budget Flexibility", value: project.fin02Flexibility || 3, weight: 0.25, contribution: contributions.fin02Flexibility?.contribution || 0 },
     { variable: "fin03ShockTolerance", label: "Shock Tolerance", value: project.fin03ShockTolerance || 3, weight: 0.25, contribution: contributions.fin03ShockTolerance?.contribution || 0 },
     { variable: "fin04SalesPremium", label: "Sales Premium Potential", value: project.fin04SalesPremium || 3, weight: 0.20, contribution: contributions.fin04SalesPremium?.contribution || 0 },
@@ -128,7 +128,7 @@ export function computeFiveLens(
       grade: grade(ffScore),
       evidence: costEvidence,
       penalties: penaltyNames.filter((p: string) => p.toLowerCase().includes("budget") || p.toLowerCase().includes("cost") || p.toLowerCase().includes("financial")),
-      rationale: `Financial feasibility scores ${ffScore.toFixed(1)}/100. Budget cap of AED ${Number(project.fin01BudgetCap || 0).toLocaleString()}/sqft with flexibility rating ${project.fin02Flexibility}/5. ${ffScore >= 70 ? "Budget is well-calibrated to market expectations." : ffScore >= 50 ? "Budget is within acceptable range but may face pressure." : "Budget constraints pose significant risk to project delivery."}`,
+      rationale: `Financial feasibility scores ${ffScore.toFixed(1)}/100. Budget cap of AED ${Number(project.fin01BudgetCap || 0).toLocaleString()}/sqm with flexibility rating ${project.fin02Flexibility}/5. ${ffScore >= 70 ? "Budget is well-calibrated to market expectations." : ffScore >= 50 ? "Budget is within acceptable range but may face pressure." : "Budget constraints pose significant risk to project delivery."}`,
     },
     {
       lensId: 3,

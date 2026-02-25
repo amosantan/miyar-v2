@@ -313,9 +313,9 @@ export async function getBenchmarks(typology?: string, location?: string, market
 
 export async function getExpectedCost(typology: string, location: string, marketTier: string): Promise<number> {
   const benchmarks = await getBenchmarks(typology, location, marketTier);
-  if (benchmarks.length === 0) return 400;
-  const avg = benchmarks.reduce((sum: number, b: any) => sum + Number(b.costPerSqftMid ?? 400), 0) / benchmarks.length;
-  return avg;
+  if (benchmarks.length === 0) return 400 * 10.7639; // Convert default to sqm
+  const avgSqft = benchmarks.reduce((sum: number, b: any) => sum + Number(b.costPerSqftMid ?? 400), 0) / benchmarks.length;
+  return avgSqft * 10.7639; // Convert to AED/sqm
 }
 
 export async function createBenchmark(data: typeof benchmarkData.$inferInsert) {

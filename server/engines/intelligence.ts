@@ -67,8 +67,8 @@ export function computeDerivedFeatures(
     b.marketTier === tier
   );
   const avgBenchmarkCost = relevantBenchmarks.length > 0
-    ? relevantBenchmarks.reduce((s, b) => s + Number(b.costPerSqftMid || 0), 0) / relevantBenchmarks.length
-    : 400;
+    ? (relevantBenchmarks.reduce((s, b) => s + Number(b.costPerSqftMid || 0), 0) / relevantBenchmarks.length) * 10.7639
+    : 400 * 10.7639;
   const costDeltaVsBenchmark = budgetCap > 0 ? ((budgetCap - avgBenchmarkCost) / avgBenchmarkCost) * 100 : 0;
 
   // Uniqueness index (0-1): based on differentiation, style, and material level

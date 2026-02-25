@@ -1,6 +1,6 @@
 /**
  * MIYAR Design Brief DOCX Generator
- * Generates a structured Word document from the 7-section design brief data.
+ * Generates a structured Word document from the 6-section design brief data.
  */
 import {
   Document,
@@ -21,19 +21,26 @@ import {
   NumberFormat,
 } from "docx";
 
-/**
- * Design Brief data comes from LLM-generated JSON stored in the database.
- * Fields are dynamic and vary per project, so we use Record<string, unknown>
- * for the flexible sections. The code accesses fields with optional chaining.
- */
 interface DesignBriefData {
   projectIdentity: Record<string, unknown>;
-  positioningStatement: string;
-  styleMood: Record<string, unknown>;
-  materialGuidance: Record<string, unknown>;
-  budgetGuardrails: Record<string, unknown>;
-  procurementConstraints: Record<string, unknown>;
-  deliverablesChecklist: Record<string, unknown>;
+  designNarrative: Record<string, unknown>;
+  materialSpecifications: Record<string, unknown>;
+  boqFramework: {
+    totalEstimatedSqm: number | null;
+    coreAllocations: {
+      category: string;
+      percentage: number;
+      estimatedCostLabel: string;
+      notes: string;
+    }[];
+  };
+  detailedBudget: Record<string, unknown>;
+  designerInstructions: {
+    phasedDeliverables: Record<string, string[]>;
+    authorityApprovals: string[];
+    coordinationRequirements: string[];
+    procurementAndLogistics: Record<string, unknown>;
+  };
   version: number;
   projectName?: string;
 }
@@ -109,14 +116,69 @@ function twoColumnTable(rows: [string, string][]): Table {
   });
 }
 
+function boqTable(allocations: { category: string; percentage: number; estimatedCostLabel: string; notes: string }[]): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: [
+          new TableCell({
+            width: { size: 30, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "1a3a4a" },
+            children: [new Paragraph({ children: [new TextRun({ text: "Category", bold: true, color: "ffffff", size: 20 })] })],
+          }),
+          new TableCell({
+            width: { size: 15, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "1a3a4a" },
+            children: [new Paragraph({ children: [new TextRun({ text: "Allocation", bold: true, color: "ffffff", size: 20 })] })],
+          }),
+          new TableCell({
+            width: { size: 25, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "1a3a4a" },
+            children: [new Paragraph({ children: [new TextRun({ text: "Estimated Budget", bold: true, color: "ffffff", size: 20 })] })],
+          }),
+          new TableCell({
+            width: { size: 30, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "1a3a4a" },
+            children: [new Paragraph({ children: [new TextRun({ text: "Notes", bold: true, color: "ffffff", size: 20 })] })],
+          }),
+        ],
+      }),
+      ...allocations.map(
+        (alloc, i) =>
+          new TableRow({
+            children: [
+              new TableCell({
+                shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : undefined,
+                children: [new Paragraph({ children: [new TextRun({ text: alloc.category, size: 20 })] })],
+              }),
+              new TableCell({
+                shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : undefined,
+                children: [new Paragraph({ children: [new TextRun({ text: `${alloc.percentage}%`, size: 20 })] })],
+              }),
+              new TableCell({
+                shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : undefined,
+                children: [new Paragraph({ children: [new TextRun({ text: alloc.estimatedCostLabel, size: 20 })] })],
+              }),
+              new TableCell({
+                shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : undefined,
+                children: [new Paragraph({ children: [new TextRun({ text: alloc.notes, size: 20 })] })],
+              }),
+            ],
+          })
+      ),
+    ],
+  });
+}
+
 export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Buffer> {
-  // LLM-generated JSON has dynamic fields — use Record<string, any> for safe property access
   const identity = (data.projectIdentity ?? {}) as Record<string, any>;
-  const styleMood = (data.styleMood ?? {}) as Record<string, any>;
-  const materialGuidance = (data.materialGuidance ?? {}) as Record<string, any>;
-  const budgetGuardrails = (data.budgetGuardrails ?? {}) as Record<string, any>;
-  const procurement = (data.procurementConstraints ?? {}) as Record<string, any>;
-  const deliverables = (data.deliverablesChecklist ?? {}) as Record<string, any>;
+  const narrative = (data.designNarrative ?? {}) as Record<string, any>;
+  const materials = (data.materialSpecifications ?? {}) as Record<string, any>;
+  const boq = data.boqFramework ?? { totalEstimatedSqm: null, coreAllocations: [] };
+  const budget = (data.detailedBudget ?? {}) as Record<string, any>;
+  const instructions = data.designerInstructions ?? { phasedDeliverables: {}, authorityApprovals: [], coordinationRequirements: [], procurementAndLogistics: {} };
 
   const projectName = String(data.projectName ?? identity.projectName ?? "MIYAR Project");
   const watermark = `MYR-BRIEF-${Date.now().toString(36)}`;
@@ -128,7 +190,7 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 3000, after: 400 },
-      children: [new TextRun({ text: "MIYAR Design Brief", size: 56, bold: true, color: "1a3a4a" })],
+      children: [new TextRun({ text: "MIYAR Design Instruction Brief", size: 56, bold: true, color: "1a3a4a" })],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -155,7 +217,7 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
       ["Project Name", identity.projectName ?? "—"],
       ["Typology", identity.typology ?? "—"],
       ["Scale", identity.scale ?? "—"],
-      ["GFA", identity.gfa ? `${Number(identity.gfa).toLocaleString()} sqft` : "—"],
+      ["GFA", identity.gfa ? `${Number(identity.gfa).toLocaleString()} sqm` : "—"],
       ["Location", identity.location ?? "—"],
       ["Delivery Horizon", identity.horizon ?? "—"],
       ["Market Tier", identity.marketTier ?? "—"],
@@ -164,110 +226,132 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
   );
   sections.push(spacer());
 
-  // ─── Section 2: Positioning Statement ─────────────────────────────────────
-  sections.push(heading("2. Positioning Statement"));
-  sections.push(bodyText(data.positioningStatement ?? "No positioning statement generated."));
+  // ─── Section 2: Design Narrative ─────────────────────────────────────────
+  sections.push(heading("2. Design Narrative"));
+  sections.push(bodyText(narrative.positioningStatement ?? "No positioning statement generated."));
+  sections.push(labelValue("Primary Style", narrative.primaryStyle ?? "—"));
+
+  if (Array.isArray(narrative.moodKeywords) && narrative.moodKeywords.length > 0) {
+    sections.push(labelValue("Mood Keywords", narrative.moodKeywords.join(", ")));
+  }
+  if (Array.isArray(narrative.colorPalette) && narrative.colorPalette.length > 0) {
+    sections.push(labelValue("Color Palette", narrative.colorPalette.join(", ")));
+  }
+
+  sections.push(labelValue("Texture Direction", narrative.textureDirection ?? "—"));
+  sections.push(labelValue("Lighting Approach", narrative.lightingApproach ?? "—"));
+  sections.push(labelValue("Spatial Philosophy", narrative.spatialPhilosophy ?? "—"));
   sections.push(spacer());
 
-  // ─── Section 3: Style & Mood Direction ────────────────────────────────────
-  sections.push(heading("3. Style & Mood Direction"));
-  sections.push(labelValue("Primary Style", styleMood.primaryStyle ?? "—"));
-  if (styleMood.moodKeywords?.length) {
-    sections.push(labelValue("Mood Keywords", styleMood.moodKeywords.join(", ")));
-  }
-  if (styleMood.colorPalette?.length) {
-    sections.push(labelValue("Color Palette", styleMood.colorPalette.join(", ")));
-  }
-  sections.push(labelValue("Texture Direction", styleMood.textureDirection ?? "—"));
-  sections.push(labelValue("Lighting Approach", styleMood.lightingApproach ?? "—"));
-  sections.push(labelValue("Spatial Philosophy", styleMood.spatialPhilosophy ?? "—"));
-  sections.push(spacer());
+  // ─── Section 3: Material Specifications ──────────────────────────────────
+  sections.push(heading("3. Material Specifications"));
+  sections.push(labelValue("Target Tier Requirement", materials.tierRequirement ?? "—"));
+  sections.push(labelValue("Quality Benchmark", materials.qualityBenchmark ?? "—"));
+  sections.push(labelValue("Sustainability Mandate", materials.sustainabilityMandate ?? "—"));
 
-  // ─── Section 4: Material Guidance ─────────────────────────────────────────
-  sections.push(heading("4. Material Guidance"));
-  sections.push(labelValue("Tier Recommendation", materialGuidance.tierRecommendation ?? "—"));
-  sections.push(labelValue("Quality Benchmark", materialGuidance.qualityBenchmark ?? "—"));
-  if (materialGuidance.primaryMaterials?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Primary Materials:", bold: true, size: 22 })] }));
-    for (const m of materialGuidance.primaryMaterials) {
+  if (Array.isArray(materials.approvedMaterials) && materials.approvedMaterials.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Approved Materials (Primary):", bold: true, size: 22 })] }));
+    for (const m of materials.approvedMaterials) {
       sections.push(bulletItem(m));
     }
   }
-  if (materialGuidance.accentMaterials?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Accent Materials:", bold: true, size: 22 })] }));
-    for (const m of materialGuidance.accentMaterials) {
+
+  if (Array.isArray(materials.finishesAndTextures) && materials.finishesAndTextures.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Approved Finishes & Textures:", bold: true, size: 22 })] }));
+    for (const m of materials.finishesAndTextures) {
       sections.push(bulletItem(m));
     }
   }
-  if (materialGuidance.avoidMaterials?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Materials to Avoid:", bold: true, size: 22, color: "c62828" })] }));
-    for (const m of materialGuidance.avoidMaterials) {
+
+  if (Array.isArray(materials.prohibitedMaterials) && materials.prohibitedMaterials.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Prohibited Materials (Value Engineering Flags):", bold: true, size: 22, color: "c62828" })] }));
+    for (const m of materials.prohibitedMaterials) {
       sections.push(bulletItem(m));
     }
   }
-  sections.push(labelValue("Sustainability Notes", materialGuidance.sustainabilityNotes ?? "—"));
   sections.push(spacer());
 
-  // ─── Section 5: Budget Guardrails ─────────────────────────────────────────
-  sections.push(heading("5. Budget Guardrails"));
+  // ─── Section 4: Target BOQ Framework ─────────────────────────────────────
+  sections.push(heading("4. Target BOQ Framework"));
+  if (boq.totalEstimatedSqm) {
+    sections.push(labelValue("Total Estimated Project Area", `${boq.totalEstimatedSqm.toLocaleString()} Sqm`));
+  }
+  if (Array.isArray(boq.coreAllocations) && boq.coreAllocations.length > 0) {
+    sections.push(new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: "Indicative Budget Allocations per Category:", size: 22 })] }));
+    sections.push(boqTable(boq.coreAllocations));
+  } else {
+    sections.push(bodyText("No BOQ framework generated."));
+  }
+  sections.push(spacer());
+
+  // ─── Section 5: Detailed Budget Guardrails ───────────────────────────────
+  sections.push(heading("5. Detailed Budget Guardrails"));
   sections.push(
     twoColumnTable([
-      ["Cost Target", budgetGuardrails.costPerSqftTarget ?? "—"],
-      ["Cost Band", budgetGuardrails.costBand ?? "—"],
-      ["Contingency", budgetGuardrails.contingencyRecommendation ?? "—"],
-      ["Flexibility Level", budgetGuardrails.flexibilityLevel ?? "—"],
+      ["Cost Per Sqm Target", budget.costPerSqmTarget ?? "—"],
+      ["Total Budget Cap", budget.totalBudgetCap ?? "—"],
+      ["Cost Band", budget.costBand ?? "—"],
+      ["Contingency Recommendation", budget.contingencyRecommendation ?? "—"],
+      ["Budget Flexibility Level", budget.flexibilityLevel ?? "—"],
     ])
   );
-  if (budgetGuardrails.valueEngineeringNotes?.length) {
-    sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "Value Engineering Notes:", bold: true, size: 22 })] }));
-    for (const note of budgetGuardrails.valueEngineeringNotes) {
+  if (Array.isArray(budget.valueEngineeringMandates) && budget.valueEngineeringMandates.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "Value Engineering Directives:", bold: true, size: 22 })] }));
+    for (const note of budget.valueEngineeringMandates) {
       sections.push(bulletItem(note));
     }
   }
   sections.push(spacer());
 
-  // ─── Section 6: Procurement Constraints ───────────────────────────────────
-  sections.push(heading("6. Procurement Constraints"));
-  sections.push(labelValue("Lead Time Window", procurement.leadTimeWindow ?? "—"));
-  if (procurement.criticalPathItems?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Critical Path Items:", bold: true, size: 22 })] }));
-    for (const item of procurement.criticalPathItems) {
+  // ─── Section 6: Workflow & Execution Instructions ────────────────────────
+  sections.push(heading("6. Workflow & Execution Instructions"));
+
+  const pLogic = (instructions.procurementAndLogistics ?? {}) as Record<string, any>;
+  sections.push(labelValue("Lead Time Window", pLogic.leadTimeWindow ?? "—"));
+
+  if (Array.isArray(pLogic.criticalPathItems) && pLogic.criticalPathItems.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Critical Path Procurement Items:", bold: true, size: 22 })] }));
+    for (const item of pLogic.criticalPathItems) {
       sections.push(bulletItem(item));
     }
   }
-  if (procurement.importDependencies?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Import Dependencies:", bold: true, size: 22 })] }));
-    for (const dep of procurement.importDependencies) {
-      sections.push(bulletItem(dep));
-    }
-  }
-  if (procurement.riskMitigations?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Risk Mitigations:", bold: true, size: 22 })] }));
-    for (const m of procurement.riskMitigations) {
-      sections.push(bulletItem(m));
-    }
-  }
-  sections.push(spacer());
 
-  // ─── Section 7: Deliverables Checklist ────────────────────────────────────
-  sections.push(heading("7. Deliverables Checklist"));
+  if (Array.isArray(pLogic.importDependencies) && pLogic.importDependencies.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Import Logistics Dependencies:", bold: true, size: 22 })] }));
+    for (const item of pLogic.importDependencies) {
+      sections.push(bulletItem(item));
+    }
+  }
+
+  if (Array.isArray(instructions.authorityApprovals) && instructions.authorityApprovals.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Local Authority Approvals (Dubai):", bold: true, size: 22 })] }));
+    for (const item of instructions.authorityApprovals) {
+      sections.push(bulletItem(item));
+    }
+  }
+
+  if (Array.isArray(instructions.coordinationRequirements) && instructions.coordinationRequirements.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Contractor Coordination Requirements:", bold: true, size: 22 })] }));
+    for (const item of instructions.coordinationRequirements) {
+      sections.push(bulletItem(item));
+    }
+  }
+
+  sections.push(spacer());
+  sections.push(heading("Phased Deliverables", HeadingLevel.HEADING_2));
+
   const phases = [
-    { label: "Phase 1 — Concept", items: deliverables.phase1 },
-    { label: "Phase 2 — Development", items: deliverables.phase2 },
-    { label: "Phase 3 — Execution", items: deliverables.phase3 },
+    { label: "Phase 1 — Concept & Schematic", items: instructions.phasedDeliverables?.conceptDesign },
+    { label: "Phase 2 — Detailed Design", items: instructions.phasedDeliverables?.schematicDesign },
+    { label: "Phase 3 — IFC & Tender", items: instructions.phasedDeliverables?.detailedDesign },
   ];
+
   for (const phase of phases) {
-    sections.push(heading(phase.label, HeadingLevel.HEADING_2));
-    if (phase.items?.length) {
+    if (Array.isArray(phase.items) && phase.items.length > 0) {
+      sections.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [new TextRun({ text: phase.label, bold: true, size: 22 })] }));
       for (const item of phase.items) {
         sections.push(bulletItem(`☐ ${item}`));
       }
-    }
-  }
-  if (deliverables.qualityGates?.length) {
-    sections.push(heading("Quality Gates", HeadingLevel.HEADING_2));
-    for (let i = 0; i < deliverables.qualityGates.length; i++) {
-      sections.push(bulletItem(`Gate ${i + 1}: ${deliverables.qualityGates[i]}`));
     }
   }
 
@@ -279,32 +363,17 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
       spacing: { after: 120 },
       children: [
         new TextRun({
-          text: "This document is a concept-level assessment generated by the MIYAR Decision Intelligence Platform. ",
+          text: "This document is a concept-level interior design instruction brief generated by the MIYAR platform. ",
           size: 20,
           color: "5D4037",
         }),
         new TextRun({
-          text: "All scores, recommendations, and specifications are advisory only and are subject to detailed design, ",
+          text: "All material directives, BOQ targets, and workflows are advisory and must be professionally validated. ",
           size: 20,
           color: "5D4037",
         }),
         new TextRun({
-          text: "engineering review, and professional validation. Material specifications, cost estimates, and procurement ",
-          size: 20,
-          color: "5D4037",
-        }),
-        new TextRun({
-          text: "guidance are indicative and must be confirmed through formal tender processes. MIYAR does not warrant the ",
-          size: 20,
-          color: "5D4037",
-        }),
-        new TextRun({
-          text: "accuracy of third-party benchmark data or market intelligence used in this assessment. This document does ",
-          size: 20,
-          color: "5D4037",
-        }),
-        new TextRun({
-          text: "not constitute professional design, financial, or legal advice.",
+          text: "This document does not constitute professional engineering, financial, or legal advice.",
           size: 20,
           color: "5D4037",
         }),
@@ -320,7 +389,7 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
       spacing: { before: 400 },
       children: [
         new TextRun({
-          text: `MIYAR Decision Intelligence Platform — Document ID: ${watermark}`,
+          text: `MIYAR Interior Design Instruction — Document ID: ${watermark}`,
           size: 16,
           color: "999999",
           italics: true,
@@ -328,22 +397,10 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
       ],
     })
   );
-  sections.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({
-          text: "This document is auto-generated and watermarked. Scores are advisory and do not constitute professional design or financial advice.",
-          size: 14,
-          color: "999999",
-        }),
-      ],
-    })
-  );
 
   const doc = new Document({
     creator: "MIYAR Decision Intelligence Platform",
-    title: `Design Brief — ${projectName}`,
+    title: `Design Instruction Brief — ${projectName}`,
     description: `MIYAR Design Brief v${data.version} for ${projectName}`,
     sections: [
       {
@@ -357,7 +414,7 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
             children: [
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
-                children: [new TextRun({ text: `MIYAR Design Brief — ${projectName}`, size: 16, color: "999999" })],
+                children: [new TextRun({ text: `MIYAR Design Instruction — ${projectName}`, size: 16, color: "999999" })],
               }),
             ],
           }),

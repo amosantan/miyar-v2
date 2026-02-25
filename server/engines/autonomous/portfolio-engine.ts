@@ -38,7 +38,7 @@ export async function generatePortfolioInsights(): Promise<string> {
                 project: p,
                 scoreMatrix: s,
                 intelligence: {
-                    costBand: p.fin01BudgetCap ? p.fin01BudgetCap + " AED/sqft" : "market_mid"
+                    costBand: p.fin01BudgetCap ? p.fin01BudgetCap + " AED/sqm" : "market_mid"
                 } as any
             });
         }

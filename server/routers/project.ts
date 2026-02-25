@@ -5,6 +5,7 @@ import { evaluate, computeROI, type EvaluationConfig } from "../engines/scoring"
 import { runSensitivityAnalysis } from "../engines/sensitivity";
 import { generateValidationSummary, generateDesignBrief, generateFullReport } from "../engines/report";
 import { generateReportHTML, type PDFReportInput } from "../engines/pdf-report";
+import { generateDesignBrief as generateNewDesignBrief } from "../engines/design-brief";
 import { storagePut } from "../storage";
 import { nanoid } from "nanoid";
 import type { ProjectInputs } from "../../shared/miyar-types";
@@ -731,12 +732,11 @@ export const projectRouter = router({
             version: 1,
             createdBy: ctx.user.id,
             projectIdentity: { name: project.name, location: project.ctx04Location },
-            positioningStatement: colorPalette.geminiRationale || "Curated aesthetic alignment.",
-            styleMood: colorPalette,
-            materialGuidance: { vocab, finishSchedule },
-            budgetGuardrails: { totalFitoutBudgetAed, rfqMin, rfqMax, rfqPack },
-            procurementConstraints: { rfqMin, rfqMax },
-            deliverablesChecklist: complianceChecklist
+            designNarrative: { positioningStatement: colorPalette.geminiRationale || "Curated aesthetic alignment." },
+            materialSpecifications: { vocab, finishSchedule },
+            boqFramework: { coreAllocations: [] },
+            detailedBudget: { totalFitoutBudgetAed, rfqMin, rfqMax, rfqPack },
+            designerInstructions: { deliverablesChecklist: complianceChecklist }
           });
 
           console.log(`[V8] Successfully orchestrated Design Intelligence Layer for Project ${project.id}.`);
@@ -827,7 +827,10 @@ export const projectRouter = router({
         logicVersion: logicVersionTag,
         evidenceRefs,
         boardSummaries,
-        autonomousContent: input.reportType === "autonomous_design_brief" ? (reportData as any).content : undefined
+        autonomousContent: input.reportType === "autonomous_design_brief" ? (reportData as any).content : undefined,
+        designBrief: input.reportType === "design_brief" || input.reportType === "full_report"
+          ? generateNewDesignBrief({ name: project.name, description: project.description }, inputs, scoreResult)
+          : undefined,
       };
       const html = generateReportHTML(input.reportType, pdfInput);
 
