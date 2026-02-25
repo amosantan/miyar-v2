@@ -1517,6 +1517,7 @@ export const rfqLineItems = mysqlTable("rfq_line_items", {
   id: int("id").primaryKey().autoincrement(),
   projectId: int("project_id").notNull(),
   organizationId: int("organization_id").notNull(),
+  briefId: int("brief_id"), // FK to design_briefs — traces which Brief generated this line
   sectionNo: int("section_no").notNull(),
   itemCode: varchar("item_code", { length: 20 }).notNull(),
   description: varchar("description", { length: 500 }).notNull(),
@@ -1531,6 +1532,7 @@ export const rfqLineItems = mysqlTable("rfq_line_items", {
   totalAedMax: decimal("total_aed_max",
     { precision: 12, scale: 2 }),
   supplierName: varchar("supplier_name", { length: 200 }),
+  pricingSource: varchar("pricing_source", { length: 32 }), // "market-verified" | "estimated" | "manual"
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

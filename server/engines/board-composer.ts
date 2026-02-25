@@ -1,8 +1,16 @@
 /**
- * Board Composer Engine (V2.8)
+ * Board Composer Engine (V4)
  * Deterministic material board composition from catalog + project context.
  * Generates RFQ-ready material lists with cost estimates.
  */
+
+export interface BriefConstraints {
+  approvedMaterials: string[];
+  prohibitedMaterials: string[];
+  totalBudgetCap: string;
+  tierRequirement: string;
+  pricingVerified?: boolean;
+}
 
 export interface BoardItem {
   materialId: number;
@@ -29,6 +37,11 @@ export interface BoardSummary {
   criticalPathItems: string[];
   tierDistribution: Record<string, number>;
   categoryDistribution: Record<string, number>;
+  budgetComplianceCheck?: {
+    budgetCapAed: number | null;
+    utilizationPct: number | null;
+    status: "within_budget" | "over_budget" | "unknown";
+  };
 }
 
 export interface RfqLine {
@@ -48,7 +61,7 @@ export interface RfqLine {
 /**
  * Compute board summary statistics
  */
-export function computeBoardSummary(items: BoardItem[]): BoardSummary {
+export function computeBoardSummary(items: BoardItem[], briefConstraints?: BriefConstraints): BoardSummary {
   const tierDist: Record<string, number> = {};
   const catDist: Record<string, number> = {};
   let costLow = 0;
@@ -67,6 +80,19 @@ export function computeBoardSummary(items: BoardItem[]): BoardSummary {
     }
   }
 
+  // Budget compliance check if brief constraints provided
+  let budgetComplianceCheck: BoardSummary["budgetComplianceCheck"];
+  if (briefConstraints) {
+    const capStr = briefConstraints.totalBudgetCap.replace(/[^0-9.]/g, "");
+    const cap = Number(capStr) || null;
+    const utilizationPct = cap ? Math.round((costHigh / cap) * 100) : null;
+    budgetComplianceCheck = {
+      budgetCapAed: cap,
+      utilizationPct,
+      status: cap ? (costHigh <= cap ? "within_budget" : "over_budget") : "unknown",
+    };
+  }
+
   return {
     totalItems: items.length,
     estimatedCostLow: costLow,
@@ -76,26 +102,42 @@ export function computeBoardSummary(items: BoardItem[]): BoardSummary {
     criticalPathItems: criticalItems,
     tierDistribution: tierDist,
     categoryDistribution: catDist,
+    budgetComplianceCheck,
   };
 }
 
 /**
  * Generate RFQ-ready line items from board
  */
-export function generateRfqLines(items: BoardItem[]): RfqLine[] {
-  return items.map((item, idx) => ({
-    lineNo: idx + 1,
-    materialName: item.name,
-    category: item.category,
-    specification: `${item.tier} grade — ${item.name}`,
-    quantity: item.quantity ? `${item.quantity}` : "TBD",
-    unit: item.unitOfMeasure || item.costUnit.replace("AED/", ""),
-    estimatedUnitCostLow: item.costLow,
-    estimatedUnitCostHigh: item.costHigh,
-    leadTimeDays: item.leadTimeDays,
-    supplierSuggestion: item.supplierName,
-    notes: item.notes || "",
-  }));
+export function generateRfqLines(items: BoardItem[], briefConstraints?: BriefConstraints): RfqLine[] {
+  return items.map((item, idx) => {
+    const notes: string[] = [];
+    if (item.notes) notes.push(item.notes);
+
+    // Check against brief constraints if provided
+    if (briefConstraints) {
+      if (briefConstraints.pricingVerified) notes.push("(market-verified)");
+      const prohibited = briefConstraints.prohibitedMaterials.map(p => p.toLowerCase());
+      const itemLower = item.name.toLowerCase();
+      if (prohibited.some(p => itemLower.includes(p.split("(")[0].trim().toLowerCase()))) {
+        notes.push("⚠ Not in approved materials list");
+      }
+    }
+
+    return {
+      lineNo: idx + 1,
+      materialName: item.name,
+      category: item.category,
+      specification: `${item.tier} grade — ${item.name}`,
+      quantity: item.quantity ? `${item.quantity}` : "TBD",
+      unit: item.unitOfMeasure || item.costUnit.replace("AED/", ""),
+      estimatedUnitCostLow: item.costLow,
+      estimatedUnitCostHigh: item.costHigh,
+      leadTimeDays: item.leadTimeDays,
+      supplierSuggestion: item.supplierName,
+      notes: notes.join(" | ") || "",
+    };
+  });
 }
 
 /**
@@ -126,7 +168,7 @@ export function recommendMaterials(
   };
 
   const allowedTiers = tierMap[projectTier] || ["mid", "premium"];
-  
+
   // Filter and score materials
   const scored = catalog
     .filter(m => allowedTiers.includes(m.tier))

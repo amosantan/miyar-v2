@@ -707,6 +707,7 @@ export const projectRouter = router({
           const { buildFinishSchedule } = await import("../engines/design/finish-schedule");
           const { buildColorPalette } = await import("../engines/design/color-palette");
           const { buildRFQPack } = await import("../engines/design/rfq-generator");
+          const { buildRFQFromBrief: buildRFQFromBriefLegacy } = await import("../engines/design/rfq-generator");
           const { buildDMComplianceChecklist } = await import("../engines/design/dm-compliance");
 
           const vocab = buildDesignVocabulary(project);
@@ -714,20 +715,15 @@ export const projectRouter = router({
           const materials = await db.getAllMaterials();
           const finishSchedule = buildFinishSchedule(project, vocab, rooms, materials);
           const colorPalette = await buildColorPalette(project, vocab);
-          const rfqPack = buildRFQPack(project.id, project.orgId || 1, finishSchedule, rooms, materials);
           const complianceChecklist = buildDMComplianceChecklist(project.id, project.orgId || 1, project);
 
           // Insert deterministic records into DB
           for (const item of finishSchedule) await db.insertFinishScheduleItem(item);
           await db.insertProjectColorPalette(colorPalette);
-          for (const item of rfqPack) await db.insertRfqLineItem(item);
           await db.insertDmComplianceChecklist(complianceChecklist);
 
-          // Wrap legacy response
-          const rfqMin = rfqPack.reduce((acc, r) => acc + Number(r.totalAedMin || 0), 0);
-          const rfqMax = rfqPack.reduce((acc, r) => acc + Number(r.totalAedMax || 0), 0);
-
-          await db.createDesignBrief({
+          // Create the Design Brief first
+          const briefResult = await db.createDesignBrief({
             projectId: project.id,
             version: 1,
             createdBy: ctx.user.id,
@@ -735,9 +731,16 @@ export const projectRouter = router({
             designNarrative: { positioningStatement: colorPalette.geminiRationale || "Curated aesthetic alignment." },
             materialSpecifications: { vocab, finishSchedule },
             boqFramework: { coreAllocations: [] },
-            detailedBudget: { totalFitoutBudgetAed, rfqMin, rfqMax, rfqPack },
+            detailedBudget: { totalFitoutBudgetAed, rfqMin: 0, rfqMax: 0 },
             designerInstructions: { deliverablesChecklist: complianceChecklist }
           });
+
+          // Generate RFQ — use legacy path since this Brief doesn't have full BOQ allocations
+          const rfqPack = buildRFQPack(project.id, project.orgId || 1, finishSchedule, rooms, materials);
+          for (const item of rfqPack) await db.insertRfqLineItem(item);
+
+          const rfqMin = rfqPack.reduce((acc: number, r: any) => acc + Number(r.totalAedMin || 0), 0);
+          const rfqMax = rfqPack.reduce((acc: number, r: any) => acc + Number(r.totalAedMax || 0), 0);
 
           console.log(`[V8] Successfully orchestrated Design Intelligence Layer for Project ${project.id}.`);
         } catch (v8Err) {

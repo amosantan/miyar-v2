@@ -7,8 +7,9 @@ import { router, protectedProcedure, adminProcedure, orgProcedure } from "../_co
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { storagePut } from "../storage";
-import { generateDesignBrief } from "../engines/design-brief";
+import { generateDesignBrief, type DesignBriefData } from "../engines/design-brief";
 import { getLiveCategoryPricing } from "../engines/pricing-engine";
+import { buildRFQFromBrief } from "../engines/design/rfq-generator";
 import { buildPromptContext, interpolateTemplate, generateDefaultPrompt, validatePrompt } from "../engines/visual-gen";
 import { computeBoardSummary, generateRfqLines, recommendMaterials } from "../engines/board-composer";
 import { generateImage } from "../_core/imageGeneration";
@@ -229,6 +230,75 @@ export const designRouter = router({
     .input(z.object({ projectId: z.number() }))
     .query(async ({ input }) => {
       return db.getLatestDesignBrief(input.projectId);
+    }),
+
+  // ─── RFQ from Brief (V4 Pipeline) ─────────────────────────────────────────
+
+  generateRfqFromBrief: protectedProcedure
+    .input(z.object({
+      projectId: z.number(),
+      briefId: z.number(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // 1. Fetch the Design Brief
+      const brief = await db.getDesignBriefById(input.briefId);
+      if (!brief) throw new TRPCError({ code: "NOT_FOUND", message: "Design Brief not found" });
+
+      const project = await db.getProjectById(input.projectId);
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+
+      // 2. Reconstruct DesignBriefData from stored JSON columns
+      const briefData: DesignBriefData = {
+        projectIdentity: brief.projectIdentity as DesignBriefData["projectIdentity"],
+        designNarrative: brief.designNarrative as DesignBriefData["designNarrative"],
+        materialSpecifications: brief.materialSpecifications as DesignBriefData["materialSpecifications"],
+        boqFramework: brief.boqFramework as DesignBriefData["boqFramework"],
+        detailedBudget: brief.detailedBudget as DesignBriefData["detailedBudget"],
+        designerInstructions: brief.designerInstructions as DesignBriefData["designerInstructions"],
+      };
+
+      // 3. Fetch project materials for enrichment
+      const materials = await db.getAllMaterials();
+      const materialList = materials.map((m: any) => ({
+        id: m.id,
+        name: m.name || m.productName || "",
+        category: m.category || "",
+        tier: m.tier || "mid",
+        priceAedMin: m.typicalCostLow || m.priceAedMin || 0,
+        priceAedMax: m.typicalCostHigh || m.priceAedMax || 0,
+        supplierName: m.supplierName || "TBD",
+      }));
+
+      // 4. Generate RFQ from Brief
+      const result = buildRFQFromBrief(
+        input.projectId,
+        project.orgId || 1,
+        briefData,
+        input.briefId,
+        materialList,
+      );
+
+      // 5. Persist RFQ line items
+      for (const item of result.items) {
+        await db.insertRfqLineItem(item as any);
+      }
+
+      // 6. Audit log
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "rfq.generate_from_brief",
+        entityType: "design_brief",
+        entityId: input.briefId,
+        details: {
+          projectId: input.projectId,
+          lineItems: result.items.length,
+          subtotalMin: result.summary.subtotalMin,
+          subtotalMax: result.summary.subtotalMax,
+          marketVerifiedCount: result.summary.marketVerifiedCount,
+        },
+      });
+
+      return result;
     }),
 
   exportBriefDocx: protectedProcedure
