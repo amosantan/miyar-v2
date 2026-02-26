@@ -2,7 +2,7 @@
 -- Health score history: already exists via customer_health_scores table (each run inserts a row)
 -- Sustainability history: create a dedicated table to capture Digital Twin snapshots over time
 
-CREATE TABLE IF NOT EXISTS `sustainability_snapshots` (
+CREATE TABLE `sustainability_snapshots` (
   `id` int AUTO_INCREMENT NOT NULL PRIMARY KEY,
   `projectId` int NOT NULL,
   `userId` int NOT NULL,
@@ -21,9 +21,9 @@ CREATE TABLE IF NOT EXISTS `sustainability_snapshots` (
   CONSTRAINT `fk_ss_user` FOREIGN KEY (`userId`) REFERENCES `users`(`id`)
 );
 
-CREATE INDEX IF NOT EXISTS `idx_ss_projectId` ON `sustainability_snapshots` (`projectId`);
-CREATE INDEX IF NOT EXISTS `idx_ss_userId` ON `sustainability_snapshots` (`userId`);
-CREATE INDEX IF NOT EXISTS `idx_ss_created` ON `sustainability_snapshots` (`createdAt`);
+CREATE INDEX `idx_ss_projectId` ON `sustainability_snapshots` (`projectId`);
+CREATE INDEX `idx_ss_userId` ON `sustainability_snapshots` (`userId`);
+CREATE INDEX `idx_ss_created` ON `sustainability_snapshots` (`createdAt`);
 
 -- Health score trend index (already has userId index above, add composite for trend queries)
-CREATE INDEX IF NOT EXISTS `idx_health_trend` ON `customer_health_scores` (`userId`, `createdAt`);
+CREATE INDEX `idx_health_trend` ON `customer_health_scores` (`userId`, `createdAt`);

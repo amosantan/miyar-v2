@@ -1,7 +1,7 @@
 -- P3-2: Move hardcoded material data to database
 -- Migrate material constants from digital-twin.ts to a DB table
 
-CREATE TABLE IF NOT EXISTS `material_constants` (
+CREATE TABLE `material_constants` (
   `id` int AUTO_INCREMENT NOT NULL PRIMARY KEY,
   `materialType` varchar(32) NOT NULL UNIQUE,
   `carbonIntensity` decimal(10,4) NOT NULL COMMENT 'kgCO2e per kg of material',
@@ -34,4 +34,4 @@ ON DUPLICATE KEY UPDATE
   `maintenanceFactor` = VALUES(`maintenanceFactor`),
   `costPerM2` = VALUES(`costPerM2`);
 
-CREATE INDEX IF NOT EXISTS `idx_material_active` ON `material_constants` (`isActive`, `materialType`);
+CREATE INDEX `idx_material_active` ON `material_constants` (`isActive`, `materialType`);
