@@ -1,8 +1,10 @@
+import React from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { RequireAuth, RequireAdmin } from "./components/RouteGuards";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -56,60 +58,89 @@ import Simulations from "./pages/Simulations";
 import CustomerSuccess from "./pages/CustomerSuccess";
 import Sustainability from "./pages/Sustainability";
 
+// Helper: wrap a component with RequireAuth
+function Protected({ Component }: { Component: React.ComponentType<any> }) {
+  return (
+    <RequireAuth>
+      <Component />
+    </RequireAuth>
+  );
+}
+
+// Helper: wrap a component with RequireAuth + RequireAdmin
+function AdminOnly({ Component }: { Component: React.ComponentType<any> }) {
+  return (
+    <RequireAuth>
+      <RequireAdmin>
+        <Component />
+      </RequireAdmin>
+    </RequireAuth>
+  );
+}
+
 function Router() {
   return (
     <Switch>
+      {/* Public routes */}
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/projects" component={Projects} />
-      <Route path="/projects/new" component={ProjectNew} />
-      <Route path="/projects/:id" component={ProjectDetail} />
-      <Route path="/projects/:id/evidence" component={EvidenceVault} />
-      <Route path="/projects/:id/brief" component={DesignBrief} />
-      <Route path="/projects/:id/design-studio" component={DesignStudio} />
-      <Route path="/projects/:id/collaboration" component={Collaboration} />
-      <Route path="/projects/:id/design-advisor" component={DesignAdvisor} />
-      <Route path="/results" component={Results} />
-      <Route path="/scenarios" component={Scenarios} />
-      <Route path="/scenarios/templates" component={ScenarioTemplates} />
-      <Route path="/reports" component={Reports} />
-      <Route path="/admin/benchmarks" component={Benchmarks} />
-      <Route path="/admin/benchmark-versions" component={BenchmarkVersions} />
-      <Route path="/admin/benchmark-categories" component={BenchmarkCategories} />
-      <Route path="/admin/models" component={ModelVersions} />
-      <Route path="/admin/audit" component={AuditLogs} />
-      <Route path="/admin/overrides" component={Overrides} />
-      <Route path="/admin/benchmark-health" component={BenchmarkHealth} />
-      <Route path="/admin/portfolio" component={Portfolio} />
-      <Route path="/admin/roi-config" component={RoiConfig} />
-      <Route path="/admin/webhooks" component={Webhooks} />
-      <Route path="/admin/csv-import" component={CsvImport} />
-      <Route path="/admin/materials" component={MaterialsLibrary} />
-      <Route path="/admin/prompt-templates" component={PromptTemplates} />
-      <Route path="/admin/logic-registry" component={LogicRegistry} />
-      <Route path="/admin/calibration" component={Calibration} />
-      <Route path="/admin/benchmark-learning" component={BenchmarkLearning} />
-      <Route path="/admin/learning-dashboard" component={LearningDashboard} />
-      <Route path="/projects/:id/explainability" component={Explainability} />
-      <Route path="/projects/:id/outcomes" component={Outcomes} />
-      <Route path="/scenarios/compare" component={ScenarioComparison} />
-      <Route path="/market-intel/evidence" component={EvidenceVaultMI} />
-      <Route path="/market-intel/sources" component={SourceRegistry} />
-      <Route path="/market-intel/proposals" component={BenchmarkProposals} />
-      <Route path="/market-intel/competitors" component={CompetitorsMI} />
-      <Route path="/market-intel/tags" component={TrendTags} />
-      <Route path="/market-intel/audit" component={IntelAuditLog} />
-      <Route path="/market-intel/data-health" component={DataHealth} />
-      <Route path="/market-intel/ingestion" component={IngestionMonitor} />
-      <Route path="/market-intel/analytics" component={AnalyticsDashboard} />
-      <Route path="/alerts" component={Alerts} />
-      <Route path="/portfolio" component={PortfolioPage} />
-      <Route path="/risk-heatmap" component={RiskHeatmap} />
-      <Route path="/bias-insights" component={BiasInsights} />
-      <Route path="/simulations" component={Simulations} />
-      <Route path="/customer-success" component={CustomerSuccess} />
-      <Route path="/sustainability" component={Sustainability} />
+
+      {/* Protected routes */}
+      <Route path="/dashboard">{() => <Protected Component={Dashboard} />}</Route>
+      <Route path="/projects">{() => <Protected Component={Projects} />}</Route>
+      <Route path="/projects/new">{() => <Protected Component={ProjectNew} />}</Route>
+      <Route path="/projects/:id">{() => <Protected Component={ProjectDetail} />}</Route>
+      <Route path="/projects/:id/evidence">{() => <Protected Component={EvidenceVault} />}</Route>
+      <Route path="/projects/:id/brief">{() => <Protected Component={DesignBrief} />}</Route>
+      <Route path="/projects/:id/design-studio">{() => <Protected Component={DesignStudio} />}</Route>
+      <Route path="/projects/:id/collaboration">{() => <Protected Component={Collaboration} />}</Route>
+      <Route path="/projects/:id/design-advisor">{() => <Protected Component={DesignAdvisor} />}</Route>
+      <Route path="/projects/:id/explainability">{() => <Protected Component={Explainability} />}</Route>
+      <Route path="/projects/:id/outcomes">{() => <Protected Component={Outcomes} />}</Route>
+      <Route path="/results">{() => <Protected Component={Results} />}</Route>
+      <Route path="/scenarios">{() => <Protected Component={Scenarios} />}</Route>
+      <Route path="/scenarios/templates">{() => <Protected Component={ScenarioTemplates} />}</Route>
+      <Route path="/scenarios/compare">{() => <Protected Component={ScenarioComparison} />}</Route>
+      <Route path="/reports">{() => <Protected Component={Reports} />}</Route>
+      <Route path="/alerts">{() => <Protected Component={Alerts} />}</Route>
+      <Route path="/portfolio">{() => <Protected Component={PortfolioPage} />}</Route>
+      <Route path="/risk-heatmap">{() => <Protected Component={RiskHeatmap} />}</Route>
+      <Route path="/bias-insights">{() => <Protected Component={BiasInsights} />}</Route>
+      <Route path="/simulations">{() => <Protected Component={Simulations} />}</Route>
+      <Route path="/customer-success">{() => <Protected Component={CustomerSuccess} />}</Route>
+      <Route path="/sustainability">{() => <Protected Component={Sustainability} />}</Route>
+
+      {/* Market Intelligence (protected) */}
+      <Route path="/market-intel/evidence">{() => <Protected Component={EvidenceVaultMI} />}</Route>
+      <Route path="/market-intel/sources">{() => <Protected Component={SourceRegistry} />}</Route>
+      <Route path="/market-intel/proposals">{() => <Protected Component={BenchmarkProposals} />}</Route>
+      <Route path="/market-intel/competitors">{() => <Protected Component={CompetitorsMI} />}</Route>
+      <Route path="/market-intel/tags">{() => <Protected Component={TrendTags} />}</Route>
+      <Route path="/market-intel/audit">{() => <Protected Component={IntelAuditLog} />}</Route>
+      <Route path="/market-intel/data-health">{() => <Protected Component={DataHealth} />}</Route>
+      <Route path="/market-intel/ingestion">{() => <Protected Component={IngestionMonitor} />}</Route>
+      <Route path="/market-intel/analytics">{() => <Protected Component={AnalyticsDashboard} />}</Route>
+
+      {/* Admin routes (admin-only) */}
+      <Route path="/admin/benchmarks">{() => <AdminOnly Component={Benchmarks} />}</Route>
+      <Route path="/admin/benchmark-versions">{() => <AdminOnly Component={BenchmarkVersions} />}</Route>
+      <Route path="/admin/benchmark-categories">{() => <AdminOnly Component={BenchmarkCategories} />}</Route>
+      <Route path="/admin/models">{() => <AdminOnly Component={ModelVersions} />}</Route>
+      <Route path="/admin/audit">{() => <AdminOnly Component={AuditLogs} />}</Route>
+      <Route path="/admin/overrides">{() => <AdminOnly Component={Overrides} />}</Route>
+      <Route path="/admin/benchmark-health">{() => <AdminOnly Component={BenchmarkHealth} />}</Route>
+      <Route path="/admin/portfolio">{() => <AdminOnly Component={Portfolio} />}</Route>
+      <Route path="/admin/roi-config">{() => <AdminOnly Component={RoiConfig} />}</Route>
+      <Route path="/admin/webhooks">{() => <AdminOnly Component={Webhooks} />}</Route>
+      <Route path="/admin/csv-import">{() => <AdminOnly Component={CsvImport} />}</Route>
+      <Route path="/admin/materials">{() => <AdminOnly Component={MaterialsLibrary} />}</Route>
+      <Route path="/admin/prompt-templates">{() => <AdminOnly Component={PromptTemplates} />}</Route>
+      <Route path="/admin/logic-registry">{() => <AdminOnly Component={LogicRegistry} />}</Route>
+      <Route path="/admin/calibration">{() => <AdminOnly Component={Calibration} />}</Route>
+      <Route path="/admin/benchmark-learning">{() => <AdminOnly Component={BenchmarkLearning} />}</Route>
+      <Route path="/admin/learning-dashboard">{() => <AdminOnly Component={LearningDashboard} />}</Route>
+
+      {/* Fallback */}
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

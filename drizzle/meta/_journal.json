@@ -225,6 +225,13 @@
       "when": 1772033179362,
       "tag": "0031_blue_marten_broadcloak",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1772118383093,
+      "tag": "0032_woozy_retro_girl",
+      "breakpoints": true
     }
   ]
 }
