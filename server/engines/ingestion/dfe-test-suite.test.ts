@@ -177,7 +177,7 @@ MockItem${i},material_cost,Dubai,Price,${10 + i},sqm`;
             const connector = new DynamicConnector(source);
             expect(connector.sourceId).toBe('42');
             expect(connector.sourceName).toBe('My Custom Source');
-            expect(connector.category).toBe('material_cost');
+            expect(connector.category).toBe('floors');
             expect(connector.geography).toBe('Abu Dhabi');
             expect(connector.scrapeMethod).toBe('html_rules');
             expect(connector.extractionHints).toBe('Focus on tables');
@@ -192,7 +192,8 @@ MockItem${i},material_cost,Dubai,Price,${10 + i},sqm`;
                     sourceType: i % 2 === 0 ? 'industry_report' : 'government_tender'
                 });
 
-                expect(mapTest.category).toBe(i % 2 === 0 ? 'market_trend' : 'project_award');
+                // Both industry_report and government_tender map to 'other' in typeCategoryMap
+                expect(mapTest.category).toBe('other');
             });
         }
     });

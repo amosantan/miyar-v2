@@ -1,9 +1,20 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import * as db from "../db";
+import { getDb } from "../db";
 import { runScenarioComparison } from "../engines/scenario";
 import type { EvaluationConfig } from "../engines/scoring";
 import type { ProjectInputs, ScenarioInput } from "../../shared/miyar-types";
+import { simulateStressTest, type StressCondition } from "../engines/risk/stress-tester";
+import { evaluateRiskSurface, type RiskInputParams } from "../engines/risk/risk-evaluator";
+import { calculateProjectRoi } from "../engines/economic/roi-calculator";
+import { rankScenarios, type ScenarioProfile } from "../engines/autonomous/scenario-ranking";
+import {
+  scenarioStressTests,
+  riskSurfaceMaps,
+  projectRoiModels,
+} from "../../drizzle/schema";
+import { eq, desc } from "drizzle-orm";
 
 function projectToInputs(p: any): ProjectInputs {
   return {
@@ -122,4 +133,214 @@ export const scenarioRouter = router({
 
       return runScenarioComparison(baseInputs, scenarioInputs, config);
     }),
+
+  // ─── D1: Stress Test ────────────────────────────────────────────────
+  stressTest: protectedProcedure
+    .input(z.object({
+      scenarioId: z.number(),
+      stressCondition: z.enum(["cost_surge", "demand_collapse", "market_shift", "data_disruption"]),
+      baselineBudgetAed: z.number(),
+      tier: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) throw new Error("Database unavailable");
+
+      const result = simulateStressTest(
+        input.stressCondition as StressCondition,
+        input.baselineBudgetAed,
+        input.tier
+      );
+
+      // Persist to scenario_stress_tests
+      await drizzle.insert(scenarioStressTests).values({
+        scenarioId: input.scenarioId,
+        stressCondition: input.stressCondition,
+        impactMagnitudePercent: String(result.impactMagnitudePercent),
+        resilienceScore: result.resilienceScore,
+        failurePoints: result.failurePoints,
+      });
+
+      return result;
+    }),
+
+  listStressTests: protectedProcedure
+    .input(z.object({ scenarioId: z.number() }))
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) return [];
+
+      return drizzle
+        .select()
+        .from(scenarioStressTests)
+        .where(eq(scenarioStressTests.scenarioId, input.scenarioId))
+        .orderBy(desc(scenarioStressTests.createdAt));
+    }),
+
+  // ─── D2: Economic Model (ROI) ──────────────────────────────────────
+  calculateRoi: protectedProcedure
+    .input(z.object({
+      projectId: z.number(),
+      scenarioId: z.number().optional(),
+      tier: z.string(),
+      scale: z.string(),
+      totalBudgetAed: z.number(),
+      totalDevelopmentValue: z.number(),
+      complexityScore: z.number(),
+      serviceFeeAed: z.number(),
+      decisionSpeedAdjustment: z.number().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) throw new Error("Database unavailable");
+
+      const roi = calculateProjectRoi({
+        tier: input.tier,
+        scale: input.scale,
+        totalBudgetAed: input.totalBudgetAed,
+        totalDevelopmentValue: input.totalDevelopmentValue,
+        complexityScore: input.complexityScore,
+        serviceFeeAed: input.serviceFeeAed,
+        decisionSpeedAdjustment: input.decisionSpeedAdjustment,
+      });
+
+      // Persist to project_roi_models
+      await drizzle.insert(projectRoiModels).values({
+        projectId: input.projectId,
+        scenarioId: input.scenarioId ?? null,
+        reworkCostAvoided: String(roi.reworkCostAvoided),
+        programmeAccelerationValue: String(roi.programmeAccelerationValue),
+        totalValueCreated: String(roi.totalValueCreated),
+        netRoiPercent: String(roi.netRoiPercent),
+        confidenceMultiplier: String(roi.confidenceMultiplier),
+      });
+
+      return roi;
+    }),
+
+  // ─── D3: Risk Surface Map ──────────────────────────────────────────
+  generateRiskSurface: protectedProcedure
+    .input(z.object({
+      projectId: z.number(),
+      tier: z.string(),
+      horizon: z.string(),
+      location: z.string(),
+      complexityScore: z.number(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) throw new Error("Database unavailable");
+
+      const domains: RiskInputParams["domain"][] = [
+        "Model", "Operational", "Commercial", "Technology",
+        "Data", "Behavioural", "Strategic", "Regulatory",
+      ];
+
+      const results = domains.map((domain) =>
+        evaluateRiskSurface({
+          domain,
+          tier: input.tier,
+          horizon: input.horizon,
+          location: input.location,
+          complexityScore: input.complexityScore,
+        })
+      );
+
+      // Persist each domain result
+      for (const r of results) {
+        await drizzle.insert(riskSurfaceMaps).values({
+          projectId: input.projectId,
+          domain: r.domain,
+          probability: r.probability,
+          impact: r.impact,
+          vulnerability: r.vulnerability,
+          controlStrength: r.controlStrength,
+          compositeRiskScore: r.compositeRiskScore,
+          riskBand: r.riskBand,
+        });
+      }
+
+      return {
+        projectId: input.projectId,
+        domains: results,
+        overallRisk: Math.round(
+          results.reduce((s, r) => s + r.compositeRiskScore, 0) / results.length
+        ),
+      };
+    }),
+
+  getRiskSurface: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) return [];
+
+      return drizzle
+        .select()
+        .from(riskSurfaceMaps)
+        .where(eq(riskSurfaceMaps.projectId, input.projectId))
+        .orderBy(desc(riskSurfaceMaps.createdAt));
+    }),
+
+  // ─── D4: Scenario Ranking ─────────────────────────────────────────
+  rank: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) return [];
+
+      const project = await db.getProjectById(input.projectId);
+      if (!project || project.userId !== ctx.user.id) return [];
+
+      const scenarios = await db.getScenariosByProject(input.projectId);
+      if (scenarios.length === 0) return [];
+
+      // Build ScenarioProfile[] from scenarios + stress tests + ROI data
+      const profiles: ScenarioProfile[] = [];
+
+      for (const s of scenarios) {
+        // Get stress tests for this scenario
+        const stressTests = await drizzle
+          .select()
+          .from(scenarioStressTests)
+          .where(eq(scenarioStressTests.scenarioId, s.id));
+
+        const avgResilience = stressTests.length > 0
+          ? Math.round(stressTests.reduce((sum: number, t: any) => sum + t.resilienceScore, 0) / stressTests.length)
+          : 70; // Default decent resilience if no stress tests run
+
+        // Get ROI for this scenario
+        const roiRows = await drizzle
+          .select()
+          .from(projectRoiModels)
+          .where(eq(projectRoiModels.scenarioId, s.id))
+          .orderBy(desc(projectRoiModels.createdAt))
+          .limit(1);
+
+        const netRoi = roiRows.length > 0
+          ? Number(roiRows[0].netRoiPercent)
+          : 0;
+
+        // Get risk surface for the project (shared across scenarios)
+        const riskMaps = await drizzle
+          .select()
+          .from(riskSurfaceMaps)
+          .where(eq(riskSurfaceMaps.projectId, input.projectId));
+
+        const avgRisk = riskMaps.length > 0
+          ? Math.round(riskMaps.reduce((sum: number, r: any) => sum + r.compositeRiskScore, 0) / riskMaps.length)
+          : 50; // Default moderate risk
+
+        profiles.push({
+          scenarioId: s.id,
+          name: s.name,
+          netRoiPercent: netRoi,
+          avgResilienceScore: avgResilience,
+          compositeRiskScore: avgRisk,
+        });
+      }
+
+      return rankScenarios(profiles);
+    }),
 });
+

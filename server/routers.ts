@@ -19,6 +19,7 @@ import { organizationRouter } from "./routers/organization";
 import { economicsRouter } from "./routers/economics";
 import { biasRouter } from "./routers/bias";
 import { designAdvisorRouter } from "./routers/design-advisor";
+import { portfolioRouter } from "./routers/portfolio";
 
 export const appRouter = router({
   system: systemRouter,
@@ -39,6 +40,7 @@ export const appRouter = router({
   economics: economicsRouter,
   bias: biasRouter,
   designAdvisor: designAdvisorRouter,
+  portfolio: portfolioRouter,
 });
 
 export type AppRouter = typeof appRouter;

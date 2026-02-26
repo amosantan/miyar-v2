@@ -43,8 +43,8 @@ import {
 // ─── 1. Connector Registry ──────────────────────────────────────
 
 describe("V2-04: Connector Registry", () => {
-  it("has exactly 12 registered connectors", () => {
-    expect(Object.keys(ALL_CONNECTORS)).toHaveLength(12);
+  it("has at least 12 registered connectors (V2 core + V4/V5 additions)", () => {
+    expect(Object.keys(ALL_CONNECTORS).length).toBeGreaterThanOrEqual(12);
   });
 
   it("contains all 12 UAE source IDs", () => {
@@ -79,9 +79,9 @@ describe("V2-04: Connector Registry", () => {
     expect(connector).toBeNull();
   });
 
-  it("getAllConnectors returns all 12 connectors", () => {
+  it("getAllConnectors returns all registered connectors", () => {
     const connectors = getAllConnectors();
-    expect(connectors).toHaveLength(12);
+    expect(connectors.length).toBeGreaterThanOrEqual(12);
     const ids = connectors.map((c) => c.sourceId);
     expect(ids).toContain("rak-ceramics-uae");
     expect(ids).toContain("emaar-properties");

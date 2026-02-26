@@ -1414,7 +1414,9 @@ export const platformAlerts = mysqlTable("platform_alerts", {
     "accuracy_degraded",
     "pattern_warning",
     "benchmark_drift",
-    "market_opportunity"
+    "market_opportunity",
+    "portfolio_risk",
+    "portfolio_failure_pattern"
   ]).notNull(),
   severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
@@ -1701,3 +1703,28 @@ export const aiDesignBriefs = mysqlTable("ai_design_briefs", {
 
 export type AiDesignBriefRow = typeof aiDesignBriefs.$inferSelect;
 export type InsertAiDesignBrief = typeof aiDesignBriefs.$inferInsert;
+
+// ─── Portfolios (Phase C) ────────────────────────────────────────────────────
+export const portfolios = mysqlTable("portfolios", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  organizationId: int("organization_id").notNull(),
+  createdBy: int("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Portfolio = typeof portfolios.$inferSelect;
+export type InsertPortfolio = typeof portfolios.$inferInsert;
+
+export const portfolioProjects = mysqlTable("portfolio_projects", {
+  id: int("id").autoincrement().primaryKey(),
+  portfolioId: int("portfolio_id").notNull(),
+  projectId: int("project_id").notNull(),
+  addedAt: timestamp("added_at").defaultNow().notNull(),
+  note: text("note"),
+});
+
+export type PortfolioProjectRow = typeof portfolioProjects.$inferSelect;
+export type InsertPortfolioProject = typeof portfolioProjects.$inferInsert;

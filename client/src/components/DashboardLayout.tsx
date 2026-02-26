@@ -86,6 +86,8 @@ const analysisItems = [
   { icon: Wand2, label: "Scenario Templates", path: "/scenarios/templates" },
   { icon: Scale, label: "Scenario Comparison", path: "/scenarios/compare" },
   { icon: FileText, label: "Reports", path: "/reports" },
+  { icon: PieChart, label: "Portfolio", path: "/portfolio" },
+  { icon: Shield, label: "Risk Heatmap", path: "/risk-heatmap" },
 ];
 
 const designItems = [

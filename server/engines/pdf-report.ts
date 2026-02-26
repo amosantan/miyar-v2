@@ -1043,3 +1043,210 @@ export function generateReportHTML(reportType: ReportType, data: PDFReportInput)
       return generateValidationSummaryHTML(data);
   }
 }
+
+// ─── Portfolio Report ───────────────────────────────────────────────────────
+
+export interface PortfolioPDFInput {
+  portfolioName: string;
+  portfolioId: number;
+  description?: string;
+  totalProjects: number;
+  scoredCount: number;
+  avgComposite: number;
+  avgRisk: number;
+  projects: Array<{
+    name: string;
+    tier?: string;
+    style?: string;
+    compositeScore: number | null;
+    riskScore: number | null;
+    decisionStatus: string | null;
+  }>;
+  distributions: Array<{
+    dimension: string;
+    buckets: Array<{ label: string; count: number; avgScore: number }>;
+  }>;
+  failurePatterns: Array<{
+    pattern: string;
+    description: string;
+    severity: string;
+    frequency: number;
+  }>;
+  improvementLevers: Array<{
+    rank: number;
+    lever: string;
+    description: string;
+    estimatedImpact: string;
+  }>;
+  complianceHeatmap: Array<{
+    tier: string;
+    dimensions: Record<string, { avg: number; count: number }>;
+  }>;
+}
+
+export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
+  const watermark = `MYR-PFL-${data.portfolioId}-${Date.now().toString(36)}`;
+
+  // ─── Cover ─────────────────────────────────────────────────────────────
+  const cover = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 20mm 15mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.6; font-size: 11px; }
+  .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 80vh; text-align: center; }
+  .cover .logo { font-size: 36px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 32px; }
+  .cover h1 { font-size: 28px; color: #0f3460; margin-bottom: 8px; }
+  .cover h2 { font-size: 16px; color: #4ecdc4; font-weight: 400; margin-bottom: 24px; }
+  .cover .project { font-size: 20px; color: #1a1a2e; font-weight: 600; }
+  .cover .date { font-size: 12px; color: #666; margin-top: 16px; }
+  .cover .confidential { font-size: 10px; color: #999; margin-top: 40px; text-transform: uppercase; letter-spacing: 2px; }
+  h2 { font-size: 16px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 6px; margin: 24px 0 12px; }
+  h3 { font-size: 13px; color: #0f3460; margin: 16px 0 8px; }
+  p { margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
+  th { background: #0f3460; color: #fff; padding: 8px 10px; text-align: left; font-weight: 600; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 12px 0; }
+  .metric-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; text-align: center; }
+  .metric-card .label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .metric-card .value { font-size: 22px; font-weight: 700; color: #0f3460; margin: 4px 0; }
+  .section { page-break-inside: avoid; margin-bottom: 20px; }
+  .risk-flag { background: #fff3cd; border-left: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .action-item { background: #e8f5e9; border-left: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .penalty-item { background: #fce4ec; border-left: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
+  .status-go { color: #2e7d32; font-weight: 700; }
+  .status-conditional { color: #f57f17; font-weight: 700; }
+  .status-nogo { color: #c62828; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="logo">MIYAR</div>
+  <h1>Portfolio Analysis Report</h1>
+  <h2>Multi-Project Decision Intelligence Summary</h2>
+  <div class="project">${data.portfolioName}</div>
+  <div class="date">${formatDate()}</div>
+  <div class="confidential">Confidential — For Internal Use Only</div>
+</div>
+`;
+
+  // ─── Executive Summary ─────────────────────────────────────────────────
+  const summary = `
+<div class="section">
+  <h2>Portfolio Executive Summary</h2>
+  ${data.description ? `<p>${data.description}</p>` : ""}
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="label">Total Projects</div>
+      <div class="value">${data.totalProjects}</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Scored</div>
+      <div class="value">${data.scoredCount}</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Avg Composite</div>
+      <div class="value" style="color: ${data.avgComposite >= 75 ? "#4ecdc4" : data.avgComposite >= 55 ? "#f0c674" : "#e07a5f"};">${data.avgComposite}</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Avg Risk</div>
+      <div class="value" style="color: ${data.avgRisk <= 45 ? "#4ecdc4" : data.avgRisk <= 60 ? "#f0c674" : "#e07a5f"};">${data.avgRisk}</div>
+    </div>
+  </div>
+</div>
+`;
+
+  // ─── Project Comparison Table ──────────────────────────────────────────
+  const projectRows = data.projects.map((p) => {
+    const statusClass = p.decisionStatus === "GO" ? "status-go"
+      : p.decisionStatus === "CONDITIONAL_GO" ? "status-conditional"
+        : p.decisionStatus === "NO_GO" ? "status-nogo" : "";
+    return `<tr>
+      <td>${p.name}</td>
+      <td>${p.tier || "—"}</td>
+      <td>${p.style || "—"}</td>
+      <td style="text-align:center; font-weight:700; color: ${(p.compositeScore || 0) >= 75 ? "#4ecdc4" : (p.compositeScore || 0) >= 55 ? "#f0c674" : "#e07a5f"};">${p.compositeScore ?? "N/A"}</td>
+      <td style="text-align:center;">${p.riskScore ?? "N/A"}</td>
+      <td style="text-align:center;" class="${statusClass}">${(p.decisionStatus || "—").replace(/_/g, " ")}</td>
+    </tr>`;
+  }).join("");
+
+  const projectTable = `
+<div class="section">
+  <h2>Project Comparison</h2>
+  <table>
+    <tr><th>Project</th><th>Tier</th><th>Style</th><th>Composite</th><th>Risk</th><th>Decision</th></tr>
+    ${projectRows}
+  </table>
+</div>
+`;
+
+  // ─── Score Distributions ───────────────────────────────────────────────
+  let distSection = "";
+  if (data.distributions.length > 0) {
+    const distTables = data.distributions.map((dist) => {
+      const rows = dist.buckets
+        .filter((b) => b.count > 0)
+        .map((b) => `<tr><td>${b.label}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`)
+        .join("");
+      return `<h3>${dist.dimension}</h3><table><tr><th>Group</th><th>Count</th><th>Avg Score</th></tr>${rows}</table>`;
+    }).join("");
+    distSection = `<div class="section"><h2>Score Distributions by Dimension</h2>${distTables}</div>`;
+  }
+
+  // ─── Failure Patterns ──────────────────────────────────────────────────
+  let fpSection = "";
+  if (data.failurePatterns.length > 0) {
+    const fpItems = data.failurePatterns.map((fp) => {
+      const css = fp.severity === "high" ? "penalty-item" : fp.severity === "medium" ? "risk-flag" : "action-item";
+      return `<div class="${css}"><strong>${fp.pattern}</strong> (${fp.severity}, ${fp.frequency} project(s))<br>${fp.description}</div>`;
+    }).join("");
+    fpSection = `<div class="section"><h2>Failure Patterns</h2>${fpItems}</div>`;
+  }
+
+  // ─── Improvement Levers ────────────────────────────────────────────────
+  let leverSection = "";
+  if (data.improvementLevers.length > 0) {
+    const leverRows = data.improvementLevers.map((l) =>
+      `<tr><td style="text-align:center; font-weight:700;">${l.rank}</td><td>${l.lever}</td><td>${l.description}</td><td style="text-align:center; color: ${l.estimatedImpact === "High" ? "#4ecdc4" : l.estimatedImpact === "Medium" ? "#f0c674" : "#666"}; font-weight:700;">${l.estimatedImpact}</td></tr>`
+    ).join("");
+    leverSection = `<div class="section"><h2>Improvement Levers</h2><table><tr><th>#</th><th>Lever</th><th>Description</th><th>Impact</th></tr>${leverRows}</table></div>`;
+  }
+
+  // ─── Compliance Heatmap ────────────────────────────────────────────────
+  let heatmapSection = "";
+  if (data.complianceHeatmap.length > 0) {
+    const dims = ["sa", "ff", "mp", "ds", "er"];
+    const dimLabels: Record<string, string> = { sa: "SA", ff: "FF", mp: "MP", ds: "DS", er: "ER" };
+    const headerCols = dims.map((d) => `<th style="text-align:center;">${dimLabels[d] || d}</th>`).join("");
+    const heatRows = data.complianceHeatmap.map((row) => {
+      const cells = dims.map((d) => {
+        const cell = row.dimensions[d];
+        if (!cell || cell.count === 0) return `<td style="text-align:center; color:#999;">—</td>`;
+        const color = cell.avg >= 75 ? "#e8f5e9" : cell.avg >= 55 ? "#fff8e1" : "#fce4ec";
+        const textColor = cell.avg >= 75 ? "#2e7d32" : cell.avg >= 55 ? "#f57f17" : "#c62828";
+        return `<td style="text-align:center; background:${color}; color:${textColor}; font-weight:700;">${cell.avg} <span style="font-size:8px; font-weight:400;">(${cell.count})</span></td>`;
+      }).join("");
+      return `<tr><td style="font-weight:700;">${row.tier}</td>${cells}</tr>`;
+    }).join("");
+    heatmapSection = `<div class="section"><h2>Compliance Heatmap (Tier × Dimension)</h2><table><tr><th>Tier</th>${headerCols}</tr>${heatRows}</table></div>`;
+  }
+
+  // ─── Footer ────────────────────────────────────────────────────────────
+  const footer = `
+<div class="footer">
+  <p>Generated by MIYAR Decision Intelligence • ${formatDate()} • Document ID: ${watermark}</p>
+  <p>Portfolio ID: ${data.portfolioId} • Model Version: v2.0.0 • ${data.totalProjects} projects analyzed</p>
+</div>
+</body>
+</html>
+`;
+
+  return [cover, summary, projectTable, distSection, heatmapSection, fpSection, leverSection, footer].join("\n");
+}

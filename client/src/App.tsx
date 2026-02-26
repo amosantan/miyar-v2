@@ -49,6 +49,8 @@ import AnalyticsDashboard from "./pages/market-intel/AnalyticsDashboard";
 import DataHealth from "./pages/market-intel/DataHealth";
 import Alerts from "./pages/Alerts";
 import DesignAdvisor from "./pages/DesignAdvisor";
+import PortfolioPage from "./pages/PortfolioPage";
+import RiskHeatmap from "./pages/RiskHeatmap";
 
 function Router() {
   return (
@@ -98,6 +100,8 @@ function Router() {
       <Route path="/market-intel/ingestion" component={IngestionMonitor} />
       <Route path="/market-intel/analytics" component={AnalyticsDashboard} />
       <Route path="/alerts" component={Alerts} />
+      <Route path="/portfolio" component={PortfolioPage} />
+      <Route path="/risk-heatmap" component={RiskHeatmap} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
