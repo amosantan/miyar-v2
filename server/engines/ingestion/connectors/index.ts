@@ -46,6 +46,9 @@ export const SOURCE_URLS: Record<string, string> = {
   "knight-frank-uae": "https://www.knightfrank.ae/research",
   "savills-me-research": "https://www.savills.me/insight-and-opinion/",
   "property-monitor-dubai": "https://www.propertymonitor.ae/market-reports",
+  // ─── V5: Live Property Listing Sources ─────────────────────────
+  "bayut-listings": "https://www.bayut.com/for-sale/property/dubai/",
+  "propertyfinder-listings": "https://www.propertyfinder.ae/en/buy/dubai/",
 };
 
 // ─── Shared LLM Extraction Prompt Template ─────────────────────
@@ -700,6 +703,121 @@ export class PropertyMonitorConnector extends HTMLSourceConnector {
   defaultUnit = "sqft";
 }
 
+// ─── 21. Bayut Property Listings ────────────────────────────────
+
+export class BayutListingsConnector extends HTMLSourceConnector {
+  sourceId = "bayut-listings";
+  sourceName = "Bayut — UAE Property Listings";
+  sourceUrl = SOURCE_URLS["bayut-listings"];
+  category = "property_price";
+  geography = "Dubai";
+  defaultTags = ["property-listing", "prices", "residential", "bayut", "dubizzle"];
+  defaultUnit = "sqft";
+  requestDelayMs = 2000; // Respect rate limits
+
+  /**
+   * Bayut listings are JS-rendered — Firecrawl is strongly preferred.
+   * Falls back to basic fetch if Firecrawl is unavailable.
+   */
+  async fetch(): Promise<RawSourcePayload> {
+    if (this.requestDelayMs && this.requestDelayMs > 0) {
+      await new Promise(r => setTimeout(r, this.requestDelayMs));
+    }
+    // Always prefer Firecrawl for Bayut (JS-rendered SPA)
+    return this.fetchWithFirecrawl();
+  }
+
+  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+    const grade = assignGrade(this.sourceId);
+    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
+
+    // Bayut-specific: extract price per sqft when available
+    let metric = llmEvidence._llmMetric || evidence.title;
+    let value = llmEvidence._llmValue ?? null;
+    let unit = llmEvidence._llmUnit ?? "sqft";
+
+    // Try to compute price per sqft from listing data
+    if (value && evidence.rawText) {
+      const areaMatch = evidence.rawText.match(/(\d[\d,]*)\s*(?:sq\.?\s*ft|sqft)/i);
+      if (areaMatch) {
+        const area = parseFloat(areaMatch[1].replace(/,/g, ""));
+        if (area > 0 && value > area) {
+          metric = `${metric} — AED/sqft`;
+          value = Math.round(value / area);
+          unit = "sqft";
+        }
+      }
+    }
+
+    return {
+      metric,
+      value,
+      unit,
+      confidence,
+      grade,
+      summary: extractSnippet(evidence.rawText),
+      tags: [...this.defaultTags, "listing"],
+    };
+  }
+}
+
+// ─── 22. PropertyFinder Listings ────────────────────────────────
+
+export class PropertyFinderListingsConnector extends HTMLSourceConnector {
+  sourceId = "propertyfinder-listings";
+  sourceName = "PropertyFinder — UAE Listings";
+  sourceUrl = SOURCE_URLS["propertyfinder-listings"];
+  category = "property_price";
+  geography = "Dubai";
+  defaultTags = ["property-listing", "prices", "residential", "propertyfinder"];
+  defaultUnit = "sqft";
+  requestDelayMs = 2000; // Respect rate limits
+
+  /**
+   * PropertyFinder is also JS-rendered — use Firecrawl.
+   */
+  async fetch(): Promise<RawSourcePayload> {
+    if (this.requestDelayMs && this.requestDelayMs > 0) {
+      await new Promise(r => setTimeout(r, this.requestDelayMs));
+    }
+    return this.fetchWithFirecrawl();
+  }
+
+  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+    const grade = assignGrade(this.sourceId);
+    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    const llmEvidence = evidence as any;
+
+    let metric = llmEvidence._llmMetric || evidence.title;
+    let value = llmEvidence._llmValue ?? null;
+    let unit = llmEvidence._llmUnit ?? "sqft";
+
+    // PropertyFinder-specific: extract price per sqft
+    if (value && evidence.rawText) {
+      const areaMatch = evidence.rawText.match(/(\d[\d,]*)\s*(?:sq\.?\s*ft|sqft)/i);
+      if (areaMatch) {
+        const area = parseFloat(areaMatch[1].replace(/,/g, ""));
+        if (area > 0 && value > area) {
+          metric = `${metric} — AED/sqft`;
+          value = Math.round(value / area);
+          unit = "sqft";
+        }
+      }
+    }
+
+    return {
+      metric,
+      value,
+      unit,
+      confidence,
+      grade,
+      summary: extractSnippet(evidence.rawText),
+      tags: [...this.defaultTags, "listing"],
+    };
+  }
+}
+
 // ─── Connector Registry ─────────────────────────────────────────
 
 export const ALL_CONNECTORS: Record<string, () => BaseSourceConnector> = {
@@ -724,6 +842,9 @@ export const ALL_CONNECTORS: Record<string, () => BaseSourceConnector> = {
   "knight-frank-uae": () => new KnightFrankConnector(),
   "savills-me-research": () => new SavillsConnector(),
   "property-monitor-dubai": () => new PropertyMonitorConnector(),
+  // V5: Live Property Listing Sources
+  "bayut-listings": () => new BayutListingsConnector(),
+  "propertyfinder-listings": () => new PropertyFinderListingsConnector(),
 };
 
 export function getConnectorById(sourceId: string): BaseSourceConnector | null {

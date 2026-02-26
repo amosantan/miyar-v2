@@ -298,6 +298,32 @@ const UAE_SOURCES: SourceSeed[] = [
         notes: "Major architecture publication.",
         requestDelayMs: 2000,
     },
+
+    // ── Live Property Listing Aggregators (V5) ───────────────────
+    {
+        name: "Bayut Property Listings",
+        url: "https://www.bayut.com/for-sale/property/dubai/",
+        sourceType: "aggregator",
+        reliabilityDefault: "B",
+        region: "Dubai",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1,4",  // Monday + Thursday 6 AM
+        extractionHints: "Extract property listings: project name, location/area, price in AED, property type (apartment/villa/townhouse), bedrooms, size in sqft, developer name. Compute price per sqft where possible. Focus on new/off-plan listings for market positioning data.",
+        notes: "Largest UAE property portal (part of Dubizzle/EMPG group). JS-rendered — requires Firecrawl.",
+        requestDelayMs: 3000,
+    },
+    {
+        name: "PropertyFinder Listings",
+        url: "https://www.propertyfinder.ae/en/buy/dubai/",
+        sourceType: "aggregator",
+        reliabilityDefault: "B",
+        region: "Dubai",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 7 * * 2,5",  // Tuesday + Friday 7 AM
+        extractionHints: "Extract property listings: project/building name, area, asking price in AED, property type, bedrooms, size sqft, agent/developer. Focus on listed prices for market intelligence and pricing trends.",
+        notes: "Top UAE property search portal. JS-rendered — requires Firecrawl.",
+        requestDelayMs: 3000,
+    },
 ];
 
 // ─── Seeder Function ────────────────────────────────────────────
