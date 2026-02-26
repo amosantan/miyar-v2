@@ -68,6 +68,7 @@ import {
   BookOpen,
   Zap,
   TrendingUp,
+  Dices,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -89,6 +90,7 @@ const analysisItems = [
   { icon: PieChart, label: "Portfolio", path: "/portfolio" },
   { icon: Shield, label: "Risk Heatmap", path: "/risk-heatmap" },
   { icon: Brain, label: "Bias Insights", path: "/bias-insights" },
+  { icon: Dices, label: "Simulations", path: "/simulations" },
 ];
 
 const designItems = [

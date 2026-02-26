@@ -1728,3 +1728,31 @@ export const portfolioProjects = mysqlTable("portfolio_projects", {
 
 export type PortfolioProjectRow = typeof portfolioProjects.$inferSelect;
 export type InsertPortfolioProject = typeof portfolioProjects.$inferInsert;
+
+// ─── Phase F: Monte Carlo Simulations ───────────────────────────────────────
+
+export const monteCarloSimulations = mysqlTable("monte_carlo_simulations", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  userId: int("user_id").notNull(),
+  orgId: int("org_id"),
+  iterations: int("iterations").notNull(),
+  p5: decimal("p5", { precision: 18, scale: 2 }),
+  p10: decimal("p10", { precision: 18, scale: 2 }),
+  p25: decimal("p25", { precision: 18, scale: 2 }),
+  p50: decimal("p50", { precision: 18, scale: 2 }),
+  p75: decimal("p75", { precision: 18, scale: 2 }),
+  p90: decimal("p90", { precision: 18, scale: 2 }),
+  p95: decimal("p95", { precision: 18, scale: 2 }),
+  mean: decimal("mean", { precision: 18, scale: 2 }),
+  stdDev: decimal("std_dev", { precision: 18, scale: 2 }),
+  var95: decimal("var95", { precision: 18, scale: 2 }),
+  budgetExceedProbability: decimal("budget_exceed_pct", { precision: 6, scale: 2 }),
+  histogram: json("histogram"),
+  timeSeriesData: json("time_series_data"),
+  config: json("config"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type MonteCarloSimulationRow = typeof monteCarloSimulations.$inferSelect;
+export type InsertMonteCarloSimulation = typeof monteCarloSimulations.$inferInsert;

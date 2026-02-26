@@ -13,6 +13,7 @@ import {
   scenarioStressTests,
   riskSurfaceMaps,
   projectRoiModels,
+  monteCarloSimulations,
 } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 
@@ -342,5 +343,89 @@ export const scenarioRouter = router({
 
       return rankScenarios(profiles);
     }),
-});
 
+  // ─── Phase F: Monte Carlo Simulation ────────────────────────────────────
+
+  runMonteCarlo: protectedProcedure
+    .input(z.object({
+      projectId: z.number(),
+      iterations: z.number().min(100).max(50000).default(10000),
+      horizonMonths: z.number().min(1).max(60).default(18),
+      costVolatilityPct: z.number().min(1).max(50).default(12),
+      trendVolatility: z.number().min(0).max(20).default(3),
+    }))
+    .mutation(async ({ ctx, input }: { ctx: any; input: any }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project) throw new Error("Project not found");
+
+      const { runMonteCarloSimulation } = await import("../engines/predictive/monte-carlo");
+
+      // Extract cost and project params
+      const baseCost = Number(project.fin01BudgetCap || 0);
+      const gfa = Number(project.siteArea || 500);
+      const trendPct = Number(project.marketTrendPercent || 3);
+      const marketCond = (project as any).marketCondition || "balanced";
+
+      const result = runMonteCarloSimulation({
+        baseCostPerSqm: baseCost > 0 ? baseCost / gfa : 2500,
+        gfa,
+        trendAnnualPct: trendPct,
+        trendVolatility: input.trendVolatility,
+        marketCondition: marketCond,
+        horizonMonths: input.horizonMonths,
+        budgetCap: baseCost > 0 ? baseCost : undefined,
+        iterations: input.iterations,
+        costVolatilityPct: input.costVolatilityPct,
+      });
+
+      // Persist
+      const d = await getDb();
+      if (d) {
+        await d.insert(monteCarloSimulations).values({
+          projectId: input.projectId,
+          userId: ctx.user.id,
+          orgId: ctx.user.orgId || null,
+          iterations: result.iterations,
+          p5: String(result.percentiles.p5),
+          p10: String(result.percentiles.p10),
+          p25: String(result.percentiles.p25),
+          p50: String(result.percentiles.p50),
+          p75: String(result.percentiles.p75),
+          p90: String(result.percentiles.p90),
+          p95: String(result.percentiles.p95),
+          mean: String(result.mean),
+          stdDev: String(result.stdDev),
+          var95: String(result.var95),
+          budgetExceedProbability: result.budgetExceedProbability != null
+            ? String(result.budgetExceedProbability)
+            : null,
+          histogram: result.histogram,
+          timeSeriesData: result.timeSeries,
+          config: result.config,
+        });
+      }
+
+      return result;
+    }),
+
+  getSimulations: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }: { input: any }) => {
+      const d = await getDb();
+      if (!d) return [];
+      return d.select().from(monteCarloSimulations)
+        .where(eq(monteCarloSimulations.projectId, input.projectId))
+        .orderBy(desc(monteCarloSimulations.createdAt))
+        .limit(10);
+    }),
+
+  getSimulation: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }: { input: any }) => {
+      const d = await getDb();
+      if (!d) return null;
+      const rows = await d.select().from(monteCarloSimulations)
+        .where(eq(monteCarloSimulations.id, input.id));
+      return rows[0] || null;
+    }),
+});
