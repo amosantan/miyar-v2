@@ -10,17 +10,20 @@ import { serveStatic, setupVite } from "./vite";
 import { startIngestionScheduler } from "../engines/ingestion/scheduler";
 import { startLearningScheduler } from "../engines/learning/scheduler";
 import { startAlertScheduler } from "../engines/autonomous/alert-scheduler";
+import { initSentry, captureException } from "./sentry";
+
+// Initialise Sentry error tracking (no-ops if SENTRY_DSN is not set)
+initSentry();
 
 // --- Global Error Boundary (V7-07) ---
-// Prevent the entire server process from crashing due to stray async exceptions
 process.on("uncaughtException", (error) => {
   console.error("🔥 [CRITICAL] Uncaught Exception:", error);
-  // Ideally, report to a monitoring service (Sentry/Datadog) here
+  captureException(error, { source: "uncaughtException" });
 });
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("🔥 [CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
-  // Ideally, report to a monitoring service here
+  captureException(reason, { source: "unhandledRejection" });
 });
 // ------------------------------------
 

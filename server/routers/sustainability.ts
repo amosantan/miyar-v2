@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, heavyProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import * as db from "../db";
 import { digitalTwinModels } from "../../drizzle/schema";
@@ -17,7 +17,7 @@ const materialEnum = z.enum([
 ]);
 
 export const sustainabilityRouter = router({
-    computeTwin: protectedProcedure
+    computeTwin: heavyProcedure
         .input(z.object({
             projectId: z.number(),
             floors: z.number().min(1).max(200).default(5),
@@ -31,7 +31,7 @@ export const sustainabilityRouter = router({
             includeRenewables: z.boolean().default(false),
             waterRecycling: z.boolean().default(false),
         }))
-        .mutation(async ({ ctx, input }: { ctx: any; input: any }) => {
+        .mutation(async ({ ctx, input }) => {
             const project = await db.getProjectById(input.projectId);
             if (!project) throw new Error("Project not found");
 
@@ -87,7 +87,7 @@ export const sustainabilityRouter = router({
 
     getTwinModels: protectedProcedure
         .input(z.object({ projectId: z.number() }))
-        .query(async ({ input }: { input: any }) => {
+        .query(async ({ input }) => {
             const d = await getDb();
             if (!d) return [];
             return d.select().from(digitalTwinModels)
@@ -98,7 +98,7 @@ export const sustainabilityRouter = router({
 
     getLatestTwin: protectedProcedure
         .input(z.object({ projectId: z.number() }))
-        .query(async ({ input }: { input: any }) => {
+        .query(async ({ input }) => {
             const d = await getDb();
             if (!d) return null;
             const rows = await d.select().from(digitalTwinModels)

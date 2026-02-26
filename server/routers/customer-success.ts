@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, heavyProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import * as db from "../db";
 import {
@@ -18,8 +18,8 @@ import { calculateHealthScore, type HealthMetrics } from "../engines/customer/he
 
 export const customerSuccessRouter = router({
     // Calculate and persist a fresh health score
-    calculateHealth: protectedProcedure
-        .mutation(async ({ ctx }: { ctx: any }) => {
+    calculateHealth: heavyProcedure
+        .mutation(async ({ ctx }) => {
             const d = await getDb();
             if (!d) throw new Error("Database unavailable");
 
@@ -39,11 +39,11 @@ export const customerSuccessRouter = router({
 
             const totalActions = recentLogs.length;
             const uniqueActiveDays = new Set(
-                recentLogs.map((l: any) => new Date(l.createdAt).toISOString().split("T")[0])
+                recentLogs.map((l: { createdAt: Date | string }) => new Date(l.createdAt).toISOString().split("T")[0])
             ).size;
 
             const lastAction = recentLogs.length > 0
-                ? recentLogs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+                ? recentLogs.sort((a: { createdAt: Date | string }, b: { createdAt: Date | string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
                 : null;
             const daysSinceLastAction = lastAction
                 ? Math.floor((now.getTime() - new Date(lastAction.createdAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -52,10 +52,10 @@ export const customerSuccessRouter = router({
             // Adoption: project & feature counts
             const projects = await db.getProjectsByUser(userId);
             const totalProjects = projects?.length || 0;
-            const evaluatedProjects = projects?.filter((p: any) => p.status === "evaluated").length || 0;
+            const evaluatedProjects = projects?.filter((p: { status: string }) => p.status === "evaluated").length || 0;
 
             // Count scenarios
-            const scenarioActions = recentLogs.filter((l: any) => l.entityType === "scenario").length;
+            const scenarioActions = recentLogs.filter((l: { entityType: string }) => l.entityType === "scenario").length;
 
             // Count simulations
             const simRows = await d.select({ c: count() }).from(monteCarloSimulations)
@@ -63,20 +63,20 @@ export const customerSuccessRouter = router({
             const simulationsRun = simRows[0]?.c || 0;
 
             // Bias scans
-            const biasScanActions = recentLogs.filter((l: any) => l.action === "bias.scan").length;
+            const biasScanActions = recentLogs.filter((l: { action: string }) => l.action === "bias.scan").length;
 
             // Portfolios
-            const portfolioActions = recentLogs.filter((l: any) => l.entityType === "portfolio").length;
+            const portfolioActions = recentLogs.filter((l: { entityType: string }) => l.entityType === "portfolio").length;
 
             // Reports
-            const reportActions = recentLogs.filter((l: any) =>
+            const reportActions = recentLogs.filter((l: { action: string }) =>
                 l.action === "project.report" || l.action === "portfolio.report"
             ).length;
 
             // Quality: avg score, bias stats
             const evaluatedProjScores = projects
-                ?.filter((p: any) => p.status === "evaluated" && p.compositeScore != null)
-                .map((p: any) => Number(p.compositeScore)) || [];
+                ?.filter((p: { status: string; compositeScore?: number | null }) => p.status === "evaluated" && p.compositeScore != null)
+                .map((p: { compositeScore?: number | null }) => Number(p.compositeScore)) || [];
             const avgProjectScore = evaluatedProjScores.length > 0
                 ? evaluatedProjScores.reduce((s: number, v: number) => s + v, 0) / evaluatedProjScores.length
                 : 0;
@@ -84,20 +84,20 @@ export const customerSuccessRouter = router({
             const allBiasAlerts = await d.select().from(biasAlerts)
                 .where(eq(biasAlerts.userId, userId));
             const biasAlertsTotal = allBiasAlerts.length;
-            const biasAlertsDismissed = allBiasAlerts.filter((a: any) => a.dismissed).length;
+            const biasAlertsDismissed = allBiasAlerts.filter((a: { dismissed: boolean }) => a.dismissed).length;
 
             // Velocity: this month vs last month
-            const thisMonthProjects = projects?.filter((p: any) =>
+            const thisMonthProjects = projects?.filter((p: { createdAt: Date | string }) =>
                 new Date(p.createdAt) >= thisMonthStart
             ).length || 0;
-            const lastMonthProjects = projects?.filter((p: any) =>
+            const lastMonthProjects = projects?.filter((p: { createdAt: Date | string }) =>
                 new Date(p.createdAt) >= lastMonthStart && new Date(p.createdAt) < thisMonthStart
             ).length || 0;
 
-            const thisMonthEvals = recentLogs.filter((l: any) =>
+            const thisMonthEvals = recentLogs.filter((l: { action: string; createdAt: Date | string }) =>
                 l.action === "project.evaluate" && new Date(l.createdAt) >= thisMonthStart
             ).length;
-            const lastMonthEvals = recentLogs.filter((l: any) =>
+            const lastMonthEvals = recentLogs.filter((l: { action: string; createdAt: Date | string }) =>
                 l.action === "project.evaluate" &&
                 new Date(l.createdAt) >= lastMonthStart &&
                 new Date(l.createdAt) < thisMonthStart
@@ -144,7 +144,7 @@ export const customerSuccessRouter = router({
 
     // Get latest health score
     getHealth: protectedProcedure
-        .query(async ({ ctx }: { ctx: any }) => {
+        .query(async ({ ctx }) => {
             const d = await getDb();
             if (!d) return null;
             const rows = await d.select().from(customerHealthScores)
@@ -157,7 +157,7 @@ export const customerSuccessRouter = router({
     // Recent activity feed
     getActivityFeed: protectedProcedure
         .input(z.object({ limit: z.number().min(1).max(50).default(20) }).optional())
-        .query(async ({ ctx, input }: { ctx: any; input?: any }) => {
+        .query(async ({ ctx, input }) => {
             const d = await getDb();
             if (!d) return [];
             const limit = input?.limit || 20;

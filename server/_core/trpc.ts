@@ -65,3 +65,12 @@ const requireOrg = t.middleware(async opts => {
 });
 
 export const orgProcedure = t.procedure.use(requireOrg);
+
+// ─── Rate-limited procedure for expensive compute mutations ─────────────────
+import { createRateLimitMiddleware } from "./rate-limit";
+
+/** Protected + rate limited: max 5 calls/minute per user */
+export const heavyProcedure = t.procedure
+  .use(requireUser)
+  .use(createRateLimitMiddleware(t, { max: 5, windowMs: 60_000, keyPrefix: "heavy" }));
+

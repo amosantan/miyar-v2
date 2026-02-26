@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure, heavyProcedure } from "../_core/trpc";
 import * as db from "../db";
 import { getDb } from "../db";
 import { runScenarioComparison } from "../engines/scenario";
@@ -346,7 +346,7 @@ export const scenarioRouter = router({
 
   // ─── Phase F: Monte Carlo Simulation ────────────────────────────────────
 
-  runMonteCarlo: protectedProcedure
+  runMonteCarlo: heavyProcedure
     .input(z.object({
       projectId: z.number(),
       iterations: z.number().min(100).max(50000).default(10000),
@@ -354,7 +354,7 @@ export const scenarioRouter = router({
       costVolatilityPct: z.number().min(1).max(50).default(12),
       trendVolatility: z.number().min(0).max(20).default(3),
     }))
-    .mutation(async ({ ctx, input }: { ctx: any; input: any }) => {
+    .mutation(async ({ ctx, input }) => {
       const project = await db.getProjectById(input.projectId);
       if (!project) throw new Error("Project not found");
 
@@ -410,7 +410,7 @@ export const scenarioRouter = router({
 
   getSimulations: protectedProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }: { input: any }) => {
+    .query(async ({ input }) => {
       const d = await getDb();
       if (!d) return [];
       return d.select().from(monteCarloSimulations)
@@ -421,7 +421,7 @@ export const scenarioRouter = router({
 
   getSimulation: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .query(async ({ input }: { input: any }) => {
+    .query(async ({ input }) => {
       const d = await getDb();
       if (!d) return null;
       const rows = await d.select().from(monteCarloSimulations)
