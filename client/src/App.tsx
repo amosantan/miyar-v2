@@ -51,6 +51,7 @@ import Alerts from "./pages/Alerts";
 import DesignAdvisor from "./pages/DesignAdvisor";
 import PortfolioPage from "./pages/PortfolioPage";
 import RiskHeatmap from "./pages/RiskHeatmap";
+import BiasInsights from "./pages/BiasInsights";
 
 function Router() {
   return (
@@ -102,6 +103,7 @@ function Router() {
       <Route path="/alerts" component={Alerts} />
       <Route path="/portfolio" component={PortfolioPage} />
       <Route path="/risk-heatmap" component={RiskHeatmap} />
+      <Route path="/bias-insights" component={BiasInsights} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

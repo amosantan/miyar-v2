@@ -88,6 +88,7 @@ const analysisItems = [
   { icon: FileText, label: "Reports", path: "/reports" },
   { icon: PieChart, label: "Portfolio", path: "/portfolio" },
   { icon: Shield, label: "Risk Heatmap", path: "/risk-heatmap" },
+  { icon: Brain, label: "Bias Insights", path: "/bias-insights" },
 ];
 
 const designItems = [
