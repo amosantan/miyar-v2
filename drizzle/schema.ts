@@ -1821,3 +1821,22 @@ export const sustainabilitySnapshots = mysqlTable("sustainability_snapshots", {
 
 export type SustainabilitySnapshot = typeof sustainabilitySnapshots.$inferSelect;
 export type InsertSustainabilitySnapshot = typeof sustainabilitySnapshots.$inferInsert;
+
+// ─── Phase P3-2: Material Constants (DB-backed material library) ─────────────
+
+export const materialConstants = mysqlTable("material_constants", {
+  id: int("id").primaryKey().autoincrement(),
+  materialType: varchar("materialType", { length: 32 }).notNull().unique(),
+  carbonIntensity: decimal("carbonIntensity", { precision: 10, scale: 4 }).notNull(),
+  density: int("density").notNull(),
+  typicalThickness: decimal("typicalThickness", { precision: 6, scale: 3 }).notNull(),
+  recyclability: decimal("recyclability", { precision: 4, scale: 3 }).notNull(),
+  maintenanceFactor: decimal("maintenanceFactor", { precision: 6, scale: 4 }).notNull(),
+  costPerM2: decimal("costPerM2", { precision: 10, scale: 2 }).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MaterialConstant = typeof materialConstants.$inferSelect;
+export type InsertMaterialConstant = typeof materialConstants.$inferInsert;

@@ -11,6 +11,9 @@ import { startIngestionScheduler } from "../engines/ingestion/scheduler";
 import { startLearningScheduler } from "../engines/learning/scheduler";
 import { startAlertScheduler } from "../engines/autonomous/alert-scheduler";
 import { initSentry, captureException } from "./sentry";
+import { registerSSE } from "./sse-notifications";
+import { registerApiDocs } from "./api-docs";
+import { requestLogger, logger, startPerfMonitor } from "./logger";
 
 // Initialise Sentry error tracking (no-ops if SENTRY_DSN is not set)
 initSentry();
@@ -52,8 +55,19 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // P3-7: Structured request logging
+  app.use(requestLogger);
+
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // P3-3: Server-Sent Events for real-time notifications
+  registerSSE(app);
+
+  // P3-5: API documentation endpoints
+  registerApiDocs(app);
+
   // tRPC API
   app.use(
     "/api/trpc",
@@ -73,33 +87,36 @@ async function startServer() {
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+    logger.warn(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+    logger.info(`Server running on http://localhost:${port}/`);
+
+    // P3-7: Start performance monitor (log memory/uptime every 5 min)
+    startPerfMonitor(5);
 
     // Start ingestion scheduler (V2-07)
     try {
       startIngestionScheduler().catch(e => {
-        console.error("[Ingestion Scheduler] Async start failed:", e);
+        logger.error("[Ingestion Scheduler] Async start failed", { error: String(e) });
       });
     } catch (e) {
-      console.error("[Ingestion Scheduler] Failed to start:", e);
+      logger.error("[Ingestion Scheduler] Failed to start", { error: String(e) });
     }
 
     // Start learning accuracy scheduler (V5-02)
     try {
       startLearningScheduler();
     } catch (e) {
-      console.error("[Learning Scheduler] Failed to start:", e);
+      logger.error("[Learning Scheduler] Failed to start", { error: String(e) });
     }
 
     // Start alert evaluation scheduler (V7-00a)
     try {
       startAlertScheduler();
     } catch (e) {
-      console.error("[Alert Scheduler] Failed to start:", e);
+      logger.error("[Alert Scheduler] Failed to start", { error: String(e) });
     }
   });
 }
