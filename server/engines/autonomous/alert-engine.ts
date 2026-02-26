@@ -1,4 +1,5 @@
 import { getDb } from "../../db";
+import { deliverAlert } from "./alert-delivery";
 import { platformAlerts, decisionPatterns, benchmarkProposals, projectPatternMatches, projects, priceChangeEvents, projectInsights, outcomeComparisons, accuracySnapshots } from "../../../drizzle/schema";
 import { eq, inArray, and, sql } from "drizzle-orm";
 import type {
@@ -158,7 +159,13 @@ export async function evaluateAlerts(params: AlertEvaluationParams): Promise<Ale
 
         if (!isDuplicate) {
             const [result] = await db.insert(platformAlerts).values(alert);
-            insertedAlerts.push({ ...alert, id: result.insertId });
+            const inserted = { ...alert, id: result.insertId };
+            insertedAlerts.push(inserted);
+
+            // Attempt email delivery (non-blocking, graceful degradation)
+            deliverAlert(inserted).catch((e) =>
+                console.error("[AlertEngine] Delivery failed for alert:", inserted.title, e)
+            );
         }
     }
 

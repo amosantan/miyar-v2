@@ -2,6 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import {
   FolderKanban,
@@ -19,10 +20,14 @@ import {
   GitBranch,
   Layers,
   Activity,
+  Search,
+  Sparkles,
+  Loader2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 function statusIcon(status: string) {
   if (status === "evaluated")
@@ -56,6 +61,22 @@ function decisionBadge(decision: string | null | undefined) {
 function DashboardContent() {
   const { data: projects, isLoading } = trpc.project.listWithScores.useQuery();
   const [, setLocation] = useLocation();
+
+  // --- Ask MIYAR inline NL query state ---
+  const [nlQuery, setNlQuery] = useState("");
+  const [nlAnswer, setNlAnswer] = useState<string | null>(null);
+  const nlMutation = trpc.autonomous.nlQuery.useMutation({
+    onSuccess: (data) => setNlAnswer(data.textOutput),
+    onError: (err) => setNlAnswer(`Error: ${err.message}`),
+  });
+
+  const handleAskMiyar = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nlQuery.trim()) return;
+    setNlAnswer(null);
+    nlMutation.mutate({ query: nlQuery.trim() });
+  };
+  // --- end NL query state ---
 
   const seedMutation = trpc.seed.seedProjects.useMutation({
     onSuccess: (data) => {
@@ -105,6 +126,55 @@ function DashboardContent() {
           <PlusCircle className="h-4 w-4" /> New Project
         </Button>
       </div>
+
+      {/* Ask MIYAR — Inline NL Query Search Bar */}
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 via-transparent to-miyar-teal/5">
+        <CardContent className="pt-5 pb-4 px-5">
+          <form onSubmit={handleAskMiyar} className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={nlQuery}
+                onChange={(e) => setNlQuery(e.target.value)}
+                placeholder="Ask MIYAR anything... e.g. 'Show projects with risk > 60' or 'What's my highest composite score?'"
+                className="pl-10 pr-4 bg-background/80 border-border/50 focus-visible:ring-primary/30"
+                disabled={nlMutation.isPending}
+              />
+            </div>
+            <Button type="submit" size="sm" disabled={nlMutation.isPending || !nlQuery.trim()} className="gap-2 shrink-0">
+              {nlMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              Ask
+            </Button>
+          </form>
+
+          {/* Inline Answer */}
+          {(nlAnswer || nlMutation.isPending) && (
+            <div className="mt-4 rounded-lg border border-border bg-background/60 p-4 relative">
+              {nlAnswer && (
+                <button
+                  onClick={() => { setNlAnswer(null); setNlQuery(""); }}
+                  className="absolute top-2 right-2 h-6 w-6 rounded-full bg-muted flex items-center justify-center hover:bg-muted-foreground/20 transition-colors"
+                >
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </button>
+              )}
+              {nlMutation.isPending ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Querying the intelligence engine...
+                </div>
+              ) : (
+                <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed pr-6">
+                  {nlAnswer}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Primary Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
