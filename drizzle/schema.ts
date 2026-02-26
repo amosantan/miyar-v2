@@ -1799,3 +1799,25 @@ export const digitalTwinModels = mysqlTable("digital_twin_models", {
 
 export type DigitalTwinModelRow = typeof digitalTwinModels.$inferSelect;
 export type InsertDigitalTwinModel = typeof digitalTwinModels.$inferInsert;
+
+// ─── Phase P2-5: Sustainability Snapshots (Historical Tracking) ──────────────
+
+export const sustainabilitySnapshots = mysqlTable("sustainability_snapshots", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("projectId").notNull(),
+  userId: int("userId").notNull(),
+  compositeScore: int("compositeScore").notNull(),
+  grade: varchar("grade", { length: 2 }).notNull(),
+  embodiedCarbon: decimal("embodiedCarbon", { precision: 18, scale: 2 }).notNull(),
+  operationalEnergy: decimal("operationalEnergy", { precision: 18, scale: 2 }).notNull(),
+  lifecycleCost: decimal("lifecycleCost", { precision: 18, scale: 2 }).notNull(),
+  carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }),
+  energyRating: varchar("energyRating", { length: 2 }),
+  renewablesEnabled: boolean("renewablesEnabled").default(false),
+  waterRecycling: boolean("waterRecycling").default(false),
+  configSnapshot: json("configSnapshot"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SustainabilitySnapshot = typeof sustainabilitySnapshots.$inferSelect;
+export type InsertSustainabilitySnapshot = typeof sustainabilitySnapshots.$inferInsert;

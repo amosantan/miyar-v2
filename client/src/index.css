@@ -140,9 +140,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),
@@ -187,9 +189,9 @@
 
 .design-studio-header {
   background: linear-gradient(135deg,
-    oklch(0.19 0.05 260) 0%,
-    oklch(0.22 0.06 200) 50%,
-    oklch(0.19 0.04 260) 100%);
+      oklch(0.19 0.05 260) 0%,
+      oklch(0.22 0.06 200) 50%,
+      oklch(0.19 0.04 260) 100%);
   border: 1px solid oklch(0.30 0.04 200 / 0.4);
 }
 
@@ -242,3 +244,105 @@
   opacity: 1;
 }
 
+/* ─── P2-7: Mobile Responsive Enhancements ─────────────────────────────────── */
+
+@media (max-width: 768px) {
+
+  /* Stack grids on mobile */
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Reduce card padding */
+  .rounded-xl,
+  .rounded-lg {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Make tables horizontally scrollable */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Improve touch targets */
+  button,
+  [role="button"],
+  a[href] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Hide less important text on mobile */
+  .hidden-mobile {
+    display: none !important;
+  }
+
+  /* Reduce heading sizes */
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  h3 {
+    font-size: 1.1rem !important;
+  }
+
+  /* Full-width charts */
+  .recharts-responsive-container {
+    width: 100% !important;
+    min-height: 200px;
+  }
+
+  /* Prevent horizontal overflow */
+  body,
+  html {
+    overflow-x: hidden;
+  }
+
+  /* Compact top bar */
+  .sticky.top-0 {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+}
+
+/* Small mobile (< 480px) */
+@media (max-width: 480px) {
+
+  /* Even more compact */
+  main {
+    padding: 0.5rem !important;
+  }
+
+  /* Stack flex layouts */
+  .flex.gap-4,
+  .flex.gap-6 {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Increase font readability */
+  .text-xs {
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+  }
+}
+
+/* Tablet (768px–1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}

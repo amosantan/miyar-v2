@@ -7,7 +7,7 @@ import { z } from "zod";
 import { protectedProcedure, heavyProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import * as db from "../db";
-import { digitalTwinModels } from "../../drizzle/schema";
+import { digitalTwinModels, sustainabilitySnapshots } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 import { computeDigitalTwin, type MaterialType } from "../engines/sustainability/digital-twin";
 
@@ -62,7 +62,7 @@ export const sustainabilityRouter = router({
                 waterRecycling: input.waterRecycling,
             });
 
-            // Persist
+            // Persist to digital_twin_models
             const d = await getDb();
             if (d) {
                 await d.insert(digitalTwinModels).values({
@@ -79,6 +79,22 @@ export const sustainabilityRouter = router({
                     carbonBreakdown: result.carbonBreakdown,
                     lifecycle: result.lifecycle,
                     config: result.config,
+                });
+
+                // Also persist to sustainability_snapshots for historical tracking (P2-5)
+                await d.insert(sustainabilitySnapshots).values({
+                    projectId: input.projectId,
+                    userId: ctx.user.id,
+                    compositeScore: result.sustainabilityScore,
+                    grade: result.sustainabilityGrade,
+                    embodiedCarbon: String(result.totalEmbodiedCarbon),
+                    operationalEnergy: String(result.operationalEnergy),
+                    lifecycleCost: String(result.lifecycleCost30yr),
+                    carbonPerSqm: String(result.carbonPerSqm),
+                    energyRating: result.energyRating || null,
+                    renewablesEnabled: input.includeRenewables,
+                    waterRecycling: input.waterRecycling,
+                    configSnapshot: result.config,
                 });
             }
 

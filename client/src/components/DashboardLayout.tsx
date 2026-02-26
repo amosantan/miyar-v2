@@ -2,6 +2,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { NotificationBell } from "./NotificationBell";
 import { AiAssistantPanel } from "./AiAssistantPanel";
 import { AdminSystemHealthMenu } from "./AdminSystemHealthMenu";
+import { CommandPalette } from "./CommandPalette";
+import { OnboardingFlow } from "./OnboardingFlow";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -483,6 +485,17 @@ function DashboardLayoutContent({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Cmd+K shortcut hint */}
+            <button
+              onClick={() => {
+                window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+              }}
+              className="hidden md:inline-flex items-center gap-1.5 rounded-lg border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors"
+            >
+              <Search className="h-3 w-3" />
+              <span>Search</span>
+              <kbd className="ml-1 rounded border bg-background px-1 font-mono text-[10px]">⌘K</kbd>
+            </button>
             {isAdmin && <AdminSystemHealthMenu />}
             <AiAssistantPanel />
             <NotificationBell />
@@ -490,6 +503,10 @@ function DashboardLayoutContent({
         </div>
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </SidebarInset>
+
+      {/* Global overlays */}
+      <CommandPalette />
+      <OnboardingFlow />
     </>
   );
 }
