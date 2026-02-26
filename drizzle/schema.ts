@@ -1776,3 +1776,26 @@ export const customerHealthScores = mysqlTable("customer_health_scores", {
 
 export type CustomerHealthScoreRow = typeof customerHealthScores.$inferSelect;
 export type InsertCustomerHealthScore = typeof customerHealthScores.$inferInsert;
+
+// ─── Phase H: Digital Twin & Sustainability ─────────────────────────────────
+
+export const digitalTwinModels = mysqlTable("digital_twin_models", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("project_id").notNull(),
+  userId: int("user_id").notNull(),
+  orgId: int("org_id"),
+  sustainabilityScore: int("sustainability_score").notNull(),
+  sustainabilityGrade: varchar("sustainability_grade", { length: 5 }).notNull(),
+  embodiedCarbon: decimal("embodied_carbon", { precision: 18, scale: 2 }),
+  carbonPerSqm: decimal("carbon_per_sqm", { precision: 12, scale: 2 }),
+  operationalEnergy: decimal("operational_energy", { precision: 18, scale: 2 }),
+  energyPerSqm: decimal("energy_per_sqm", { precision: 12, scale: 2 }),
+  lifecycleCost30yr: decimal("lifecycle_cost_30yr", { precision: 18, scale: 2 }),
+  carbonBreakdown: json("carbon_breakdown"),
+  lifecycle: json("lifecycle"),
+  config: json("config"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DigitalTwinModelRow = typeof digitalTwinModels.$inferSelect;
+export type InsertDigitalTwinModel = typeof digitalTwinModels.$inferInsert;

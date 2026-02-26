@@ -54,6 +54,7 @@ import RiskHeatmap from "./pages/RiskHeatmap";
 import BiasInsights from "./pages/BiasInsights";
 import Simulations from "./pages/Simulations";
 import CustomerSuccess from "./pages/CustomerSuccess";
+import Sustainability from "./pages/Sustainability";
 
 function Router() {
   return (
@@ -108,6 +109,7 @@ function Router() {
       <Route path="/bias-insights" component={BiasInsights} />
       <Route path="/simulations" component={Simulations} />
       <Route path="/customer-success" component={CustomerSuccess} />
+      <Route path="/sustainability" component={Sustainability} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -69,6 +69,7 @@ import {
   Zap,
   TrendingUp,
   Dices,
+  Leaf,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -92,6 +93,7 @@ const analysisItems = [
   { icon: Brain, label: "Bias Insights", path: "/bias-insights" },
   { icon: Dices, label: "Simulations", path: "/simulations" },
   { icon: HeartPulse, label: "Customer Success", path: "/customer-success" },
+  { icon: Leaf, label: "Sustainability", path: "/sustainability" },
 ];
 
 const designItems = [
