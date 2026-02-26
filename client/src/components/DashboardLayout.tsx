@@ -91,6 +91,7 @@ const analysisItems = [
   { icon: Shield, label: "Risk Heatmap", path: "/risk-heatmap" },
   { icon: Brain, label: "Bias Insights", path: "/bias-insights" },
   { icon: Dices, label: "Simulations", path: "/simulations" },
+  { icon: HeartPulse, label: "Customer Success", path: "/customer-success" },
 ];
 
 const designItems = [

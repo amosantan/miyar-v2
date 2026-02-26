@@ -1756,3 +1756,23 @@ export const monteCarloSimulations = mysqlTable("monte_carlo_simulations", {
 
 export type MonteCarloSimulationRow = typeof monteCarloSimulations.$inferSelect;
 export type InsertMonteCarloSimulation = typeof monteCarloSimulations.$inferInsert;
+
+// ─── Phase G: Customer Success ──────────────────────────────────────────────
+
+export const customerHealthScores = mysqlTable("customer_health_scores", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("user_id").notNull(),
+  orgId: int("org_id"),
+  compositeScore: int("composite_score").notNull(),
+  engagementScore: int("engagement_score").notNull(),
+  adoptionScore: int("adoption_score").notNull(),
+  qualityScore: int("quality_score").notNull(),
+  velocityScore: int("velocity_score").notNull(),
+  healthTier: varchar("health_tier", { length: 20 }).notNull(),
+  recommendations: json("recommendations"),
+  metrics: json("metrics"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type CustomerHealthScoreRow = typeof customerHealthScores.$inferSelect;
+export type InsertCustomerHealthScore = typeof customerHealthScores.$inferInsert;
