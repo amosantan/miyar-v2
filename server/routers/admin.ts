@@ -3,6 +3,8 @@ import { router, adminProcedure, protectedProcedure } from "../_core/trpc";
 import * as db from "../db";
 import { computeDistributions, computeComplianceHeatmap, detectFailurePatterns, computeImprovementLevers, type PortfolioProject } from "../engines/portfolio";
 import { syncMaterialsWithBenchmarks, getLiveCategoryPricing } from "../engines/pricing-engine";
+import { seedBenchmarks } from "../engines/benchmark-seeder";
+import { generateSyntheticBenchmarks } from "../engines/synthetic-generator";
 
 export const adminRouter = router({
   // ─── Benchmarks ──────────────────────────────────────────────────────
@@ -571,6 +573,32 @@ export const adminRouter = router({
         return getLiveCategoryPricing(level);
       }),
   }),
+
+  // ─── Benchmark Seeder (Phase C.2) ────────────────────────────────────
+  seedBenchmarks: adminProcedure
+    .mutation(async ({ ctx }) => {
+      const result = await seedBenchmarks();
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "benchmark.seed",
+        entityType: "benchmark",
+        details: result,
+      });
+      return result;
+    }),
+
+  // ─── Synthetic Gap-Fill (Phase C.3) ─────────────────────────────────
+  generateSyntheticBenchmarks: adminProcedure
+    .mutation(async ({ ctx }) => {
+      const result = await generateSyntheticBenchmarks();
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "benchmark.synthetic_generate",
+        entityType: "benchmark",
+        details: result,
+      });
+      return result;
+    }),
 
   // ─── Health Checks ───────────────────────────────────────────────────
   healthCheck: adminProcedure.query(async () => {

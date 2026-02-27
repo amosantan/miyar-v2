@@ -232,6 +232,13 @@
       "when": 1772118383093,
       "tag": "0032_woozy_retro_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "5",
+      "when": 1772189411006,
+      "tag": "0033_magenta_nova",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,7 @@
 var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -7,6 +9,15 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
+var __copyProps = (to, from, except, desc12) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc12 = __getOwnPropDesc(from, key)) || desc12.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // drizzle/schema.ts
 import {
@@ -20,7 +31,7 @@ import {
   boolean,
   json
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -141,7 +152,10 @@ var init_schema = __esm({
         "Residential",
         "Mixed-use",
         "Hospitality",
-        "Office"
+        "Office",
+        "Villa",
+        "Gated Community",
+        "Villa Development"
       ]).default("Residential"),
       ctx02Scale: mysqlEnum("ctx02Scale", ["Small", "Medium", "Large"]).default(
         "Medium"
@@ -158,6 +172,20 @@ var init_schema = __esm({
         "24-36m",
         "36m+"
       ]).default("12-24m"),
+      // DLD Area reference (Phase B.3 — links to DLD open data areas)
+      dldAreaId: int("dld_area_id"),
+      dldAreaName: varchar("dld_area_name", { length: 200 }),
+      // Project purpose — drives fitout quality and benchmark selection
+      projectPurpose: mysqlEnum("project_purpose", [
+        "sell_offplan",
+        // New off-plan development — showroom-quality finishes, premium specs
+        "sell_ready",
+        // Ready property sale — durable premium finishes, market-competitive
+        "rent",
+        // Rental yield focus — durability over luxury, cost-efficient materials
+        "mixed"
+        // Mixed use — balanced approach
+      ]).default("sell_ready"),
       // Strategy variables (1-5)
       str01BrandClarity: int("str01BrandClarity").default(3),
       str02Differentiation: int("str02Differentiation").default(3),
@@ -198,6 +226,10 @@ var init_schema = __esm({
       add01SampleKit: boolean("add01SampleKit").default(false),
       add02PortfolioMode: boolean("add02PortfolioMode").default(false),
       add03DashboardExport: boolean("add03DashboardExport").default(true),
+      // Expanded Inputs
+      unitMix: json("unitMix"),
+      villaSpaces: json("villaSpaces"),
+      developerGuidelines: json("developerGuidelines"),
       modelVersionId: int("modelVersionId"),
       benchmarkVersionId: int("benchmarkVersionId"),
       createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -428,12 +460,11 @@ var init_schema = __esm({
       version: int("version").default(1).notNull(),
       // 7 sections as JSON
       projectIdentity: json("projectIdentity").notNull(),
-      positioningStatement: text("positioningStatement").notNull(),
-      styleMood: json("styleMood").notNull(),
-      materialGuidance: json("materialGuidance").notNull(),
-      budgetGuardrails: json("budgetGuardrails").notNull(),
-      procurementConstraints: json("procurementConstraints").notNull(),
-      deliverablesChecklist: json("deliverablesChecklist").notNull(),
+      designNarrative: json("designNarrative").notNull(),
+      materialSpecifications: json("materialSpecifications").notNull(),
+      boqFramework: json("boqFramework").notNull(),
+      detailedBudget: json("detailedBudget").notNull(),
+      designerInstructions: json("designerInstructions").notNull(),
       // Metadata
       createdBy: int("createdBy").notNull(),
       createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -1150,7 +1181,10 @@ var init_schema = __esm({
         "market_opportunity",
         "competitor_alert",
         "trend_signal",
-        "positioning_gap"
+        "positioning_gap",
+        "style_shift",
+        "brand_dominance",
+        "spec_inflation"
       ]).notNull(),
       severity: mysqlEnum("insightSeverity", ["critical", "warning", "info"]).notNull(),
       title: varchar("title", { length: 512 }).notNull(),
@@ -1184,7 +1218,9 @@ var init_schema = __esm({
         "accuracy_degraded",
         "pattern_warning",
         "benchmark_drift",
-        "market_opportunity"
+        "market_opportunity",
+        "portfolio_risk",
+        "portfolio_failure_pattern"
       ]).notNull(),
       severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
       title: varchar("title", { length: 255 }).notNull(),
@@ -1288,6 +1324,8 @@ var init_schema = __esm({
       id: int("id").primaryKey().autoincrement(),
       projectId: int("project_id").notNull(),
       organizationId: int("organization_id").notNull(),
+      briefId: int("brief_id"),
+      // FK to design_briefs — traces which Brief generated this line
       sectionNo: int("section_no").notNull(),
       itemCode: varchar("item_code", { length: 20 }).notNull(),
       description: varchar("description", { length: 500 }).notNull(),
@@ -1310,6 +1348,8 @@ var init_schema = __esm({
         { precision: 12, scale: 2 }
       ),
       supplierName: varchar("supplier_name", { length: 200 }),
+      pricingSource: varchar("pricing_source", { length: 32 }),
+      // "market-verified" | "estimated" | "manual"
       notes: text("notes"),
       createdAt: timestamp("created_at").defaultNow().notNull()
     });
@@ -1448,7 +1488,240 @@ var init_schema = __esm({
       briefData: json("brief_data").notNull(),
       // AIDesignBrief
       version: varchar("version", { length: 20 }).default("1.0"),
+      // Phase 5: Shareable link
+      shareToken: varchar("share_token", { length: 64 }),
+      shareExpiresAt: timestamp("share_expires_at"),
       generatedAt: timestamp("generated_at").defaultNow().notNull()
+    });
+    portfolios = mysqlTable("portfolios", {
+      id: int("id").autoincrement().primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text("description"),
+      organizationId: int("organization_id").notNull(),
+      createdBy: int("created_by").notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull()
+    });
+    portfolioProjects = mysqlTable("portfolio_projects", {
+      id: int("id").autoincrement().primaryKey(),
+      portfolioId: int("portfolio_id").notNull(),
+      projectId: int("project_id").notNull(),
+      addedAt: timestamp("added_at").defaultNow().notNull(),
+      note: text("note")
+    });
+    monteCarloSimulations = mysqlTable("monte_carlo_simulations", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      userId: int("user_id").notNull(),
+      orgId: int("org_id"),
+      iterations: int("iterations").notNull(),
+      p5: decimal("p5", { precision: 18, scale: 2 }),
+      p10: decimal("p10", { precision: 18, scale: 2 }),
+      p25: decimal("p25", { precision: 18, scale: 2 }),
+      p50: decimal("p50", { precision: 18, scale: 2 }),
+      p75: decimal("p75", { precision: 18, scale: 2 }),
+      p90: decimal("p90", { precision: 18, scale: 2 }),
+      p95: decimal("p95", { precision: 18, scale: 2 }),
+      mean: decimal("mean", { precision: 18, scale: 2 }),
+      stdDev: decimal("std_dev", { precision: 18, scale: 2 }),
+      var95: decimal("var95", { precision: 18, scale: 2 }),
+      budgetExceedProbability: decimal("budget_exceed_pct", { precision: 6, scale: 2 }),
+      histogram: json("histogram"),
+      timeSeriesData: json("time_series_data"),
+      config: json("config"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    customerHealthScores = mysqlTable("customer_health_scores", {
+      id: int("id").primaryKey().autoincrement(),
+      userId: int("user_id").notNull(),
+      orgId: int("org_id"),
+      compositeScore: int("composite_score").notNull(),
+      engagementScore: int("engagement_score").notNull(),
+      adoptionScore: int("adoption_score").notNull(),
+      qualityScore: int("quality_score").notNull(),
+      velocityScore: int("velocity_score").notNull(),
+      healthTier: varchar("health_tier", { length: 20 }).notNull(),
+      recommendations: json("recommendations"),
+      metrics: json("metrics"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    digitalTwinModels = mysqlTable("digital_twin_models", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      userId: int("user_id").notNull(),
+      orgId: int("org_id"),
+      sustainabilityScore: int("sustainability_score").notNull(),
+      sustainabilityGrade: varchar("sustainability_grade", { length: 5 }).notNull(),
+      embodiedCarbon: decimal("embodied_carbon", { precision: 18, scale: 2 }),
+      carbonPerSqm: decimal("carbon_per_sqm", { precision: 12, scale: 2 }),
+      operationalEnergy: decimal("operational_energy", { precision: 18, scale: 2 }),
+      energyPerSqm: decimal("energy_per_sqm", { precision: 12, scale: 2 }),
+      lifecycleCost30yr: decimal("lifecycle_cost_30yr", { precision: 18, scale: 2 }),
+      carbonBreakdown: json("carbon_breakdown"),
+      lifecycle: json("lifecycle"),
+      config: json("config"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    sustainabilitySnapshots = mysqlTable("sustainability_snapshots", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("projectId").notNull(),
+      userId: int("userId").notNull(),
+      compositeScore: int("compositeScore").notNull(),
+      grade: varchar("grade", { length: 2 }).notNull(),
+      embodiedCarbon: decimal("embodiedCarbon", { precision: 18, scale: 2 }).notNull(),
+      operationalEnergy: decimal("operationalEnergy", { precision: 18, scale: 2 }).notNull(),
+      lifecycleCost: decimal("lifecycleCost", { precision: 18, scale: 2 }).notNull(),
+      carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }),
+      energyRating: varchar("energyRating", { length: 2 }),
+      renewablesEnabled: boolean("renewablesEnabled").default(false),
+      waterRecycling: boolean("waterRecycling").default(false),
+      configSnapshot: json("configSnapshot"),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    materialConstants = mysqlTable("material_constants", {
+      id: int("id").primaryKey().autoincrement(),
+      materialType: varchar("materialType", { length: 32 }).notNull().unique(),
+      carbonIntensity: decimal("carbonIntensity", { precision: 10, scale: 4 }).notNull(),
+      density: int("density").notNull(),
+      typicalThickness: decimal("typicalThickness", { precision: 6, scale: 3 }).notNull(),
+      recyclability: decimal("recyclability", { precision: 4, scale: 3 }).notNull(),
+      maintenanceFactor: decimal("maintenanceFactor", { precision: 6, scale: 4 }).notNull(),
+      costPerM2: decimal("costPerM2", { precision: 10, scale: 2 }).notNull(),
+      isActive: boolean("isActive").default(true).notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
+    dldProjects = mysqlTable("dld_projects", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: bigint("project_id", { mode: "number" }).notNull(),
+      // DLD project_id
+      projectNumber: int("project_number"),
+      projectName: varchar("project_name", { length: 500 }),
+      projectDescriptionEn: text("project_description_en"),
+      projectStatus: varchar("project_status", { length: 50 }),
+      // ACTIVE, FINISHED, NOT_STARTED, etc.
+      projectClassification: varchar("project_classification", { length: 50 }),
+      // مباني, فلل, مجمع فلل
+      projectType: varchar("project_type", { length: 50 }),
+      areaId: int("area_id"),
+      areaNameEn: varchar("area_name_en", { length: 200 }),
+      areaNameAr: varchar("area_name_ar", { length: 200 }),
+      masterProjectEn: varchar("master_project_en", { length: 300 }),
+      masterProjectAr: varchar("master_project_ar", { length: 300 }),
+      developerName: varchar("developer_name", { length: 500 }),
+      developerNumber: int("developer_number"),
+      masterDeveloperName: varchar("master_developer_name", { length: 500 }),
+      zoningAuthorityEn: varchar("zoning_authority_en", { length: 200 }),
+      escrowAgentName: varchar("escrow_agent_name", { length: 500 }),
+      noOfUnits: int("no_of_units").default(0),
+      noOfVillas: int("no_of_villas").default(0),
+      noOfBuildings: int("no_of_buildings").default(0),
+      noOfLands: int("no_of_lands").default(0),
+      percentCompleted: int("percent_completed").default(0),
+      projectStartDate: varchar("project_start_date", { length: 20 }),
+      projectEndDate: varchar("project_end_date", { length: 20 }),
+      completionDate: varchar("completion_date", { length: 20 }),
+      propertyId: bigint("property_id", { mode: "number" }),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    dldTransactions = mysqlTable("dld_transactions", {
+      id: int("id").autoincrement().primaryKey(),
+      transactionId: varchar("transaction_id", { length: 50 }),
+      // e.g. "1-41-2011-1593"
+      transGroupEn: varchar("trans_group_en", { length: 50 }),
+      // Sales, Gifts, Mortgages
+      procedureNameEn: varchar("procedure_name_en", { length: 100 }),
+      // Delayed Sell, Sell - Pre registration
+      regTypeEn: varchar("reg_type_en", { length: 50 }),
+      // Existing Properties, Off-Plan Properties
+      propertyTypeEn: varchar("property_type_en", { length: 50 }),
+      // Unit, Villa, Land, Building
+      propertySubTypeEn: varchar("property_sub_type_en", { length: 100 }),
+      // Flat, Villa, Shop, Office
+      propertyUsageEn: varchar("property_usage_en", { length: 50 }),
+      // Residential, Commercial, Hospitality, etc.
+      areaId: int("area_id"),
+      areaNameEn: varchar("area_name_en", { length: 200 }),
+      projectNameEn: varchar("project_name_en", { length: 300 }),
+      buildingNameEn: varchar("building_name_en", { length: 300 }),
+      masterProjectEn: varchar("master_project_en", { length: 300 }),
+      actualWorth: decimal("actual_worth", { precision: 14, scale: 2 }),
+      // Total transaction AED
+      procedureArea: decimal("procedure_area", { precision: 10, scale: 2 }),
+      // Area in sqm
+      meterSalePrice: decimal("meter_sale_price", { precision: 10, scale: 2 }),
+      // AED per sqm (DLD-calculated)
+      roomsEn: varchar("rooms_en", { length: 30 }),
+      // Studio, 1 B/R, 2 B/R...
+      instanceDate: varchar("instance_date", { length: 20 }),
+      // Transaction date (YYYY-MM-DD)
+      hasParking: int("has_parking"),
+      nearestMetroEn: varchar("nearest_metro_en", { length: 200 }),
+      nearestMallEn: varchar("nearest_mall_en", { length: 200 }),
+      nearestLandmarkEn: varchar("nearest_landmark_en", { length: 200 }),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    dldRents = mysqlTable("dld_rents", {
+      id: int("id").autoincrement().primaryKey(),
+      contractId: varchar("contract_id", { length: 50 }),
+      // e.g. "CNT2129627812"
+      contractRegTypeEn: varchar("contract_reg_type_en", { length: 50 }),
+      // New, Renew
+      ejariPropertyTypeEn: varchar("ejari_property_type_en", { length: 100 }),
+      // Flat, Villa
+      ejariPropertySubTypeEn: varchar("ejari_property_sub_type_en", { length: 100 }),
+      // Studio, 1bed+Hall, etc.
+      propertyUsageEn: varchar("property_usage_en", { length: 100 }),
+      // Residential, Commercial
+      areaId: int("area_id"),
+      areaNameEn: varchar("area_name_en", { length: 200 }),
+      projectNameEn: varchar("project_name_en", { length: 300 }),
+      masterProjectEn: varchar("master_project_en", { length: 300 }),
+      annualAmount: decimal("annual_amount", { precision: 12, scale: 2 }),
+      // Annual rent AED
+      contractAmount: decimal("contract_amount", { precision: 12, scale: 2 }),
+      actualArea: decimal("actual_area", { precision: 10, scale: 2 }),
+      // Area in sqm
+      rentPerSqm: decimal("rent_per_sqm", { precision: 10, scale: 2 }),
+      // Calculated: annual / area
+      contractStartDate: varchar("contract_start_date", { length: 20 }),
+      contractEndDate: varchar("contract_end_date", { length: 20 }),
+      tenantTypeEn: varchar("tenant_type_en", { length: 50 }),
+      isFreeHold: int("is_free_hold"),
+      nearestMetroEn: varchar("nearest_metro_en", { length: 200 }),
+      nearestMallEn: varchar("nearest_mall_en", { length: 200 }),
+      nearestLandmarkEn: varchar("nearest_landmark_en", { length: 200 }),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    dldAreaBenchmarks = mysqlTable("dld_area_benchmarks", {
+      id: int("id").autoincrement().primaryKey(),
+      areaId: int("area_id").notNull(),
+      areaNameEn: varchar("area_name_en", { length: 200 }).notNull(),
+      propertyType: varchar("property_type", { length: 100 }),
+      // Apartment, Villa, or ALL
+      period: varchar("period", { length: 10 }).notNull(),
+      // "2025-Q1", "2025" etc.
+      // Sale price analytics (AED/sqm — from DLD meter_sale_price)
+      saleP25: decimal("sale_p25", { precision: 10, scale: 2 }),
+      saleP50: decimal("sale_p50", { precision: 10, scale: 2 }),
+      // Median
+      saleP75: decimal("sale_p75", { precision: 10, scale: 2 }),
+      saleMean: decimal("sale_mean", { precision: 10, scale: 2 }),
+      saleTransactionCount: int("sale_transaction_count").default(0),
+      saleYoyChangePct: decimal("sale_yoy_change_pct", { precision: 6, scale: 2 }),
+      // Rental analytics (AED/sqm annual)
+      rentP50: decimal("rent_p50", { precision: 10, scale: 2 }),
+      rentMean: decimal("rent_mean", { precision: 10, scale: 2 }),
+      rentTransactionCount: int("rent_transaction_count").default(0),
+      // Derived metrics
+      grossYield: decimal("gross_yield", { precision: 6, scale: 2 }),
+      // rent / sale price %
+      absorptionRate: decimal("absorption_rate", { precision: 6, scale: 4 }),
+      // Fitout calibration (AED/sqm)
+      recommendedFitoutLow: decimal("recommended_fitout_low", { precision: 10, scale: 2 }),
+      recommendedFitoutMid: decimal("recommended_fitout_mid", { precision: 10, scale: 2 }),
+      recommendedFitoutHigh: decimal("recommended_fitout_high", { precision: 10, scale: 2 }),
+      computedAt: timestamp("computed_at").defaultNow().notNull()
     });
   }
 });
@@ -1472,7 +1745,230 @@ var init_env = __esm({
 });
 
 // server/db.ts
-import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
+var db_exports = {};
+__export(db_exports, {
+  addLogicChangeLogEntry: () => addLogicChangeLogEntry,
+  addMaterialToBoard: () => addMaterialToBoard,
+  archiveLogicVersion: () => archiveLogicVersion,
+  createAiDesignBrief: () => createAiDesignBrief,
+  createAssetLink: () => createAssetLink,
+  createAuditLog: () => createAuditLog,
+  createBenchmark: () => createBenchmark,
+  createBenchmarkCategory: () => createBenchmarkCategory,
+  createBenchmarkProposal: () => createBenchmarkProposal,
+  createBenchmarkSnapshot: () => createBenchmarkSnapshot,
+  createBenchmarkSuggestion: () => createBenchmarkSuggestion,
+  createBenchmarkVersion: () => createBenchmarkVersion,
+  createBiasAlert: () => createBiasAlert,
+  createBiasAlerts: () => createBiasAlerts,
+  createComment: () => createComment,
+  createCompetitorEntity: () => createCompetitorEntity,
+  createCompetitorProject: () => createCompetitorProject,
+  createDesignBrief: () => createDesignBrief,
+  createDesignPackage: () => createDesignPackage,
+  createDirection: () => createDirection,
+  createEntityTag: () => createEntityTag,
+  createEvidenceRecord: () => createEvidenceRecord,
+  createEvidenceReference: () => createEvidenceReference,
+  createGeneratedVisual: () => createGeneratedVisual,
+  createIntelligenceAuditEntry: () => createIntelligenceAuditEntry,
+  createLogicVersion: () => createLogicVersion,
+  createMaterial: () => createMaterial,
+  createMaterialBoard: () => createMaterialBoard,
+  createModelVersion: () => createModelVersion,
+  createOverrideRecord: () => createOverrideRecord,
+  createPriceChangeEvent: () => createPriceChangeEvent,
+  createProject: () => createProject,
+  createProjectAsset: () => createProjectAsset,
+  createProjectIntelligence: () => createProjectIntelligence,
+  createProjectOutcome: () => createProjectOutcome,
+  createPromptTemplate: () => createPromptTemplate,
+  createReportInstance: () => createReportInstance,
+  createRoiConfig: () => createRoiConfig,
+  createScenarioComparison: () => createScenarioComparison,
+  createScenarioInput: () => createScenarioInput,
+  createScenarioOutput: () => createScenarioOutput,
+  createScenarioRecord: () => createScenarioRecord,
+  createScoreMatrix: () => createScoreMatrix,
+  createSourceRegistryEntry: () => createSourceRegistryEntry,
+  createSpaceRecommendation: () => createSpaceRecommendation,
+  createTrendTag: () => createTrendTag,
+  createWebhookConfig: () => createWebhookConfig,
+  deleteAssetLink: () => deleteAssetLink,
+  deleteBenchmark: () => deleteBenchmark,
+  deleteBenchmarkCategory: () => deleteBenchmarkCategory,
+  deleteCompetitorEntity: () => deleteCompetitorEntity,
+  deleteCompetitorProject: () => deleteCompetitorProject,
+  deleteDirection: () => deleteDirection,
+  deleteEntityTag: () => deleteEntityTag,
+  deleteEvidenceRecord: () => deleteEvidenceRecord,
+  deleteEvidenceReference: () => deleteEvidenceReference,
+  deleteMaterial: () => deleteMaterial,
+  deleteMaterialBoard: () => deleteMaterialBoard,
+  deleteProject: () => deleteProject,
+  deleteProjectAsset: () => deleteProjectAsset,
+  deleteScenario: () => deleteScenario,
+  deleteSourceRegistryEntry: () => deleteSourceRegistryEntry,
+  deleteTrendTag: () => deleteTrendTag,
+  deleteWebhookConfig: () => deleteWebhookConfig,
+  dismissBiasAlert: () => dismissBiasAlert,
+  emailExists: () => emailExists,
+  getActiveBenchmarkVersion: () => getActiveBenchmarkVersion,
+  getActiveBiasAlerts: () => getActiveBiasAlerts,
+  getActiveModelVersion: () => getActiveModelVersion,
+  getActivePromptTemplate: () => getActivePromptTemplate,
+  getActiveRoiConfig: () => getActiveRoiConfig,
+  getActiveSourceRegistry: () => getActiveSourceRegistry,
+  getActiveWebhookConfigs: () => getActiveWebhookConfigs,
+  getAiDesignBrief: () => getAiDesignBrief,
+  getAiDesignBriefByShareToken: () => getAiDesignBriefByShareToken,
+  getAllAreaBenchmarks: () => getAllAreaBenchmarks,
+  getAllBenchmarkCategories: () => getAllBenchmarkCategories,
+  getAllBenchmarkData: () => getAllBenchmarkData,
+  getAllBenchmarkVersions: () => getAllBenchmarkVersions,
+  getAllMaterials: () => getAllMaterials,
+  getAllModelVersions: () => getAllModelVersions,
+  getAllProjectIntelligence: () => getAllProjectIntelligence,
+  getAllProjects: () => getAllProjects,
+  getAllPromptTemplates: () => getAllPromptTemplates,
+  getAllReports: () => getAllReports,
+  getAllRoiConfigs: () => getAllRoiConfigs,
+  getAllScoreMatrices: () => getAllScoreMatrices,
+  getAllWebhookConfigs: () => getAllWebhookConfigs,
+  getAnomalies: () => getAnomalies,
+  getAssetLinksByAsset: () => getAssetLinksByAsset,
+  getAssetLinksByEntity: () => getAssetLinksByEntity,
+  getAuditLogs: () => getAuditLogs,
+  getBenchmarkDiff: () => getBenchmarkDiff,
+  getBenchmarkForProject: () => getBenchmarkForProject,
+  getBenchmarkProposalById: () => getBenchmarkProposalById,
+  getBenchmarkSnapshotById: () => getBenchmarkSnapshotById,
+  getBenchmarkVersionById: () => getBenchmarkVersionById,
+  getBenchmarks: () => getBenchmarks,
+  getBiasAlertsByProject: () => getBiasAlertsByProject,
+  getCommentsByEntity: () => getCommentsByEntity,
+  getCommentsByProject: () => getCommentsByProject,
+  getCompetitorEntityById: () => getCompetitorEntityById,
+  getCompetitorProjectById: () => getCompetitorProjectById,
+  getConnectorHealthByRun: () => getConnectorHealthByRun,
+  getConnectorHealthHistory: () => getConnectorHealthHistory,
+  getConnectorHealthSummary: () => getConnectorHealthSummary,
+  getDataHealthStats: () => getDataHealthStats,
+  getDb: () => getDb,
+  getDesignBriefById: () => getDesignBriefById,
+  getDesignBriefsByProject: () => getDesignBriefsByProject,
+  getDesignPackages: () => getDesignPackages,
+  getDesignTrends: () => getDesignTrends,
+  getDirectionsByProject: () => getDirectionsByProject,
+  getDldAreaBenchmark: () => getDldAreaBenchmark,
+  getDldAreaBenchmarkByName: () => getDldAreaBenchmarkByName,
+  getDldAreaComparison: () => getDldAreaComparison,
+  getDldAreas: () => getDldAreas,
+  getDldProjectsByArea: () => getDldProjectsByArea,
+  getDldRentCount: () => getDldRentCount,
+  getDldTransactionCount: () => getDldTransactionCount,
+  getEntityTags: () => getEntityTags,
+  getEvidenceForTarget: () => getEvidenceForTarget,
+  getEvidenceRecordById: () => getEvidenceRecordById,
+  getEvidenceStats: () => getEvidenceStats,
+  getEvidenceWithSources: () => getEvidenceWithSources,
+  getExpectedCost: () => getExpectedCost,
+  getGeneratedVisualById: () => getGeneratedVisualById,
+  getGeneratedVisualsByProject: () => getGeneratedVisualsByProject,
+  getIngestionRunById: () => getIngestionRunById,
+  getIngestionRunHistory: () => getIngestionRunHistory,
+  getIntelligenceAuditEntryById: () => getIntelligenceAuditEntryById,
+  getLatestAiDesignBrief: () => getLatestAiDesignBrief,
+  getLatestDesignBrief: () => getLatestDesignBrief,
+  getLogicChangeLog: () => getLogicChangeLog,
+  getLogicThresholds: () => getLogicThresholds,
+  getLogicVersionById: () => getLogicVersionById,
+  getLogicWeights: () => getLogicWeights,
+  getMaterialBoardById: () => getMaterialBoardById,
+  getMaterialBoardsByProject: () => getMaterialBoardsByProject,
+  getMaterialById: () => getMaterialById,
+  getMaterialConstantByType: () => getMaterialConstantByType,
+  getMaterialConstants: () => getMaterialConstants,
+  getMaterialLibrary: () => getMaterialLibrary,
+  getMaterialsByBoard: () => getMaterialsByBoard,
+  getOverridesByProject: () => getOverridesByProject,
+  getPreviousEvidenceRecord: () => getPreviousEvidenceRecord,
+  getProjectAssetById: () => getProjectAssetById,
+  getProjectAssets: () => getProjectAssets,
+  getProjectById: () => getProjectById,
+  getProjectEvaluationHistory: () => getProjectEvaluationHistory,
+  getProjectInsights: () => getProjectInsights,
+  getProjectIntelligenceByProject: () => getProjectIntelligenceByProject,
+  getProjectOutcomes: () => getProjectOutcomes,
+  getProjectsByOrg: () => getProjectsByOrg,
+  getProjectsByUser: () => getProjectsByUser,
+  getPublishedLogicVersion: () => getPublishedLogicVersion,
+  getReportsByProject: () => getReportsByProject,
+  getScenarioComparisonById: () => getScenarioComparisonById,
+  getScenarioInput: () => getScenarioInput,
+  getScenarioOutput: () => getScenarioOutput,
+  getScenariosByProject: () => getScenariosByProject,
+  getScoreMatricesByProject: () => getScoreMatricesByProject,
+  getScoreMatrixById: () => getScoreMatrixById,
+  getSourceRegistryById: () => getSourceRegistryById,
+  getSpaceRecommendations: () => getSpaceRecommendations,
+  getTaggedEntities: () => getTaggedEntities,
+  getTrendHistory: () => getTrendHistory,
+  getTrendSnapshots: () => getTrendSnapshots,
+  getUserBiasProfile: () => getUserBiasProfile,
+  getUserByEmail: () => getUserByEmail,
+  getUserByOpenId: () => getUserByOpenId,
+  getUserOverrideStats: () => getUserOverrideStats,
+  insertConnectorHealth: () => insertConnectorHealth,
+  insertDmComplianceChecklist: () => insertDmComplianceChecklist,
+  insertFinishScheduleItem: () => insertFinishScheduleItem,
+  insertProjectColorPalette: () => insertProjectColorPalette,
+  insertProjectInsight: () => insertProjectInsight,
+  insertRfqLineItem: () => insertRfqLineItem,
+  insertTrendSnapshot: () => insertTrendSnapshot,
+  listAllOutcomes: () => listAllOutcomes,
+  listBenchmarkProposals: () => listBenchmarkProposals,
+  listBenchmarkSnapshots: () => listBenchmarkSnapshots,
+  listBenchmarkSuggestions: () => listBenchmarkSuggestions,
+  listCompetitorEntities: () => listCompetitorEntities,
+  listCompetitorProjects: () => listCompetitorProjects,
+  listEvidenceRecords: () => listEvidenceRecords,
+  listEvidenceReferences: () => listEvidenceReferences,
+  listIntelligenceAuditLog: () => listIntelligenceAuditLog,
+  listLogicVersions: () => listLogicVersions,
+  listScenarioComparisons: () => listScenarioComparisons,
+  listScenarioOutputs: () => listScenarioOutputs,
+  listSourceRegistry: () => listSourceRegistry,
+  listTrendTags: () => listTrendTags,
+  publishBenchmarkVersion: () => publishBenchmarkVersion,
+  publishLogicVersion: () => publishLogicVersion,
+  removeMaterialFromBoard: () => removeMaterialFromBoard,
+  reorderBoardTiles: () => reorderBoardTiles,
+  reviewBenchmarkProposal: () => reviewBenchmarkProposal,
+  reviewBenchmarkSuggestion: () => reviewBenchmarkSuggestion,
+  setLogicThresholds: () => setLogicThresholds,
+  setLogicWeights: () => setLogicWeights,
+  updateAiDesignBriefShareToken: () => updateAiDesignBriefShareToken,
+  updateBenchmarkCategory: () => updateBenchmarkCategory,
+  updateBoardTile: () => updateBoardTile,
+  updateCompetitorEntity: () => updateCompetitorEntity,
+  updateCompetitorProject: () => updateCompetitorProject,
+  updateGeneratedVisual: () => updateGeneratedVisual,
+  updateInsightStatus: () => updateInsightStatus,
+  updateMaterial: () => updateMaterial,
+  updateMaterialBoard: () => updateMaterialBoard,
+  updateProject: () => updateProject,
+  updateProjectApprovalState: () => updateProjectApprovalState,
+  updateProjectAsset: () => updateProjectAsset,
+  updatePromptTemplate: () => updatePromptTemplate,
+  updateRoiConfig: () => updateRoiConfig,
+  updateSourceRegistryEntry: () => updateSourceRegistryEntry,
+  updateWebhookConfig: () => updateWebhookConfig,
+  upsertAreaBenchmark: () => upsertAreaBenchmark,
+  upsertBiasProfile: () => upsertBiasProfile,
+  upsertUser: () => upsertUser
+});
+import { eq, and, desc, asc, sql, inArray, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 async function getDb() {
@@ -1593,6 +2089,22 @@ async function deleteProject(id) {
   if (!db) throw new Error("DB not available");
   await db.delete(projects).where(eq(projects.id, id));
 }
+async function createDirection(data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(directionCandidates).values(data);
+  return { id: Number(result[0].insertId) };
+}
+async function getDirectionsByProject(projectId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(directionCandidates).where(eq(directionCandidates.projectId, projectId));
+}
+async function deleteDirection(id) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(directionCandidates).where(eq(directionCandidates.id, id));
+}
 async function createScoreMatrix(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -1664,9 +2176,9 @@ async function getBenchmarks(typology, location, marketTier) {
 }
 async function getExpectedCost(typology, location, marketTier) {
   const benchmarks = await getBenchmarks(typology, location, marketTier);
-  if (benchmarks.length === 0) return 400;
-  const avg = benchmarks.reduce((sum, b) => sum + Number(b.costPerSqftMid ?? 400), 0) / benchmarks.length;
-  return avg;
+  if (benchmarks.length === 0) return 400 * 10.7639;
+  const avgSqft = benchmarks.reduce((sum, b) => sum + Number(b.costPerSqftMid ?? 400), 0) / benchmarks.length;
+  return avgSqft * 10.7639;
 }
 async function createBenchmark(data) {
   const db = await getDb();
@@ -1695,6 +2207,12 @@ async function getActiveBenchmarkVersion() {
   const result = await db.select().from(benchmarkVersions).where(eq(benchmarkVersions.status, "published")).orderBy(desc(benchmarkVersions.publishedAt)).limit(1);
   return result[0];
 }
+async function getBenchmarkVersionById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const result = await db.select().from(benchmarkVersions).where(eq(benchmarkVersions.id, id)).limit(1);
+  return result[0];
+}
 async function createBenchmarkVersion(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -1705,12 +2223,12 @@ async function publishBenchmarkVersion(id, publishedBy) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(benchmarkVersions).set({ status: "archived" }).where(eq(benchmarkVersions.status, "published"));
-  const count = await db.select({ count: sql`COUNT(*)` }).from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, id));
+  const count2 = await db.select({ count: sql`COUNT(*)` }).from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, id));
   await db.update(benchmarkVersions).set({
     status: "published",
     publishedAt: /* @__PURE__ */ new Date(),
     publishedBy,
-    recordCount: count[0]?.count ?? 0
+    recordCount: count2[0]?.count ?? 0
   }).where(eq(benchmarkVersions.id, id));
 }
 async function getBenchmarkDiff(oldVersionId, newVersionId) {
@@ -1847,6 +2365,11 @@ async function getReportsByProject(projectId) {
   if (!db) return [];
   return db.select().from(reportInstances).where(eq(reportInstances.projectId, projectId)).orderBy(desc(reportInstances.generatedAt));
 }
+async function getAllReports() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(reportInstances).orderBy(desc(reportInstances.generatedAt));
+}
 async function createAuditLog(data) {
   try {
     const db = await getDb();
@@ -1919,6 +2442,19 @@ async function getAssetLinksByAsset(assetId) {
   if (!db) return [];
   return db.select().from(assetLinks).where(eq(assetLinks.assetId, assetId));
 }
+async function getAssetLinksByEntity(linkType, linkId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(assetLinks).where(
+    and(eq(assetLinks.linkType, linkType), eq(assetLinks.linkId, linkId))
+  );
+}
+async function deleteAssetLink(id) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(assetLinks).where(eq(assetLinks.id, id));
+  return { success: true };
+}
 async function createDesignBrief(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -1980,6 +2516,11 @@ async function getMaterialBoardById(id) {
   if (!db) return void 0;
   const result = await db.select().from(materialBoards).where(eq(materialBoards.id, id));
   return result[0];
+}
+async function updateMaterialBoard(id, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(materialBoards).set(data).where(eq(materialBoards.id, id));
 }
 async function deleteMaterialBoard(id) {
   const db = await getDb();
@@ -2652,6 +3193,107 @@ async function getConnectorHealthSummary() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3);
   return db.select().from(connectorHealth).where(gte(connectorHealth.createdAt, thirtyDaysAgo)).orderBy(desc(connectorHealth.createdAt));
 }
+async function getIngestionRunById(runId) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(ingestionRuns).where(eq(ingestionRuns.runId, runId));
+  return rows[0];
+}
+async function getIngestionRunHistory(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(ingestionRuns).orderBy(desc(ingestionRuns.startedAt)).limit(limit);
+}
+async function getDldAreas() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.execute(sql`
+    SELECT area_id as areaId, area_name_en as areaNameEn, area_name_ar as areaNameAr,
+           COUNT(*) as projectCount,
+           SUM(COALESCE(no_of_units, 0) + COALESCE(no_of_villas, 0)) as totalUnits
+    FROM dld_projects
+    WHERE area_name_en IS NOT NULL AND area_name_en != ''
+    GROUP BY area_id, area_name_en, area_name_ar
+    ORDER BY projectCount DESC
+  `);
+  return rows?.[0] ?? [];
+}
+async function getDldProjectsByArea(areaId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dldProjects).where(eq(dldProjects.areaId, areaId));
+}
+async function getDldAreaComparison(areaId) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.execute(sql`
+    SELECT
+      project_status as status,
+      COUNT(*) as projectCount,
+      SUM(COALESCE(no_of_units, 0)) as totalUnits,
+      SUM(COALESCE(no_of_villas, 0)) as totalVillas,
+      SUM(COALESCE(no_of_buildings, 0)) as totalBuildings,
+      AVG(percent_completed) as avgCompletion
+    FROM dld_projects
+    WHERE area_id = ${areaId}
+    GROUP BY project_status
+  `);
+  const developers = await db.execute(sql`
+    SELECT developer_name as name, COUNT(*) as projects,
+           SUM(COALESCE(no_of_units, 0) + COALESCE(no_of_villas, 0)) as totalUnits
+    FROM dld_projects
+    WHERE area_id = ${areaId}
+    GROUP BY developer_name
+    ORDER BY projects DESC
+    LIMIT 10
+  `);
+  return {
+    statusBreakdown: rows?.[0] ?? [],
+    topDevelopers: developers?.[0] ?? []
+  };
+}
+async function getDldAreaBenchmark(areaId) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dldAreaBenchmarks).where(eq(dldAreaBenchmarks.areaId, areaId)).orderBy(desc(dldAreaBenchmarks.computedAt)).limit(1);
+  return rows[0] ?? null;
+}
+async function getDldAreaBenchmarkByName(areaName) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dldAreaBenchmarks).where(eq(dldAreaBenchmarks.areaNameEn, areaName)).orderBy(desc(dldAreaBenchmarks.computedAt)).limit(1);
+  return rows[0] ?? null;
+}
+async function getAllAreaBenchmarks() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dldAreaBenchmarks).orderBy(desc(dldAreaBenchmarks.saleTransactionCount));
+}
+async function upsertAreaBenchmark(data) {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await db.select({ id: dldAreaBenchmarks.id }).from(dldAreaBenchmarks).where(and(
+    eq(dldAreaBenchmarks.areaId, data.areaId),
+    eq(dldAreaBenchmarks.period, data.period)
+  )).limit(1);
+  if (existing.length > 0) {
+    await db.update(dldAreaBenchmarks).set({ ...data, computedAt: /* @__PURE__ */ new Date() }).where(eq(dldAreaBenchmarks.id, existing[0].id));
+  } else {
+    await db.insert(dldAreaBenchmarks).values(data);
+  }
+}
+async function getDldTransactionCount() {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.execute(sql`SELECT COUNT(*) as cnt FROM dld_transactions`);
+  return rows?.[0]?.[0]?.cnt ?? 0;
+}
+async function getDldRentCount() {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.execute(sql`SELECT COUNT(*) as cnt FROM dld_rents`);
+  return rows?.[0]?.[0]?.cnt ?? 0;
+}
 async function insertTrendSnapshot(data) {
   const db = await getDb();
   if (!db) return;
@@ -2734,6 +3376,11 @@ async function insertDmComplianceChecklist(data) {
   if (!db) return;
   return db.insert(dmComplianceChecklists).values(data);
 }
+async function createBiasAlert(data) {
+  const db = await getDb();
+  if (!db) return;
+  return db.insert(biasAlerts).values(data);
+}
 async function createBiasAlerts(data) {
   const db = await getDb();
   if (!db) return;
@@ -2803,12 +3450,12 @@ async function getUserOverrideStats(projectId) {
   const db = await getDb();
   if (!db) return { count: 0, netEffect: 0 };
   const overrides = await db.select().from(overrideRecords).where(eq(overrideRecords.projectId, projectId));
-  const count = overrides.length;
+  const count2 = overrides.length;
   const netEffect = overrides.reduce((sum, o) => {
     const delta = Number(o.newValue || 0) - Number(o.originalValue || 0);
     return sum + delta;
   }, 0);
-  return { count, netEffect };
+  return { count: count2, netEffect };
 }
 async function getMaterialLibrary() {
   const db = await getDb();
@@ -2858,6 +3505,111 @@ async function getLatestAiDesignBrief(projectId, orgId) {
     eq(aiDesignBriefs.orgId, orgId)
   )).orderBy(desc(aiDesignBriefs.generatedAt)).limit(1);
   return results[0] || null;
+}
+async function getAiDesignBrief(projectId) {
+  const db = await getDb();
+  if (!db) return null;
+  const results = await db.select().from(aiDesignBriefs).where(eq(aiDesignBriefs.projectId, projectId)).orderBy(desc(aiDesignBriefs.generatedAt)).limit(1);
+  return results[0] || null;
+}
+async function updateAiDesignBriefShareToken(briefId, token, expiresAt) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(aiDesignBriefs).set({ shareToken: token, shareExpiresAt: expiresAt }).where(eq(aiDesignBriefs.id, briefId));
+}
+async function getAiDesignBriefByShareToken(token) {
+  const db = await getDb();
+  if (!db) return null;
+  const results = await db.select().from(aiDesignBriefs).where(eq(aiDesignBriefs.shareToken, token)).limit(1);
+  return results[0] || null;
+}
+async function getMaterialConstants() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(materialConstants).orderBy(materialConstants.materialType);
+}
+async function getMaterialConstantByType(materialType) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const results = await db.select().from(materialConstants).where(eq(materialConstants.materialType, materialType)).limit(1);
+  return results[0];
+}
+async function getDesignTrends(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.region) conditions.push(eq(designTrends.region, filters.region));
+  if (filters?.styleClassification) conditions.push(eq(designTrends.styleClassification, filters.styleClassification));
+  const query = db.select().from(designTrends);
+  if (conditions.length > 0) query.where(and(...conditions));
+  const rows = await query.orderBy(desc(designTrends.mentionCount)).limit(filters?.limit ?? 30);
+  return rows;
+}
+async function getBenchmarkForProject(typology, location, marketTier) {
+  const db = await getDb();
+  if (!db) return null;
+  const exact = await db.select().from(benchmarkData).where(and(
+    eq(benchmarkData.typology, typology),
+    eq(benchmarkData.location, location),
+    eq(benchmarkData.marketTier, marketTier)
+  )).limit(1);
+  if (exact.length > 0) return exact[0];
+  const noLoc = await db.select().from(benchmarkData).where(and(eq(benchmarkData.typology, typology), eq(benchmarkData.marketTier, marketTier))).limit(1);
+  if (noLoc.length > 0) return noLoc[0];
+  const justTier = await db.select().from(benchmarkData).where(eq(benchmarkData.marketTier, marketTier)).limit(1);
+  return justTier[0] ?? null;
+}
+async function getEvidenceWithSources(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters.category) conditions.push(eq(evidenceRecords.category, filters.category));
+  if (filters.projectId) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+  conditions.push(sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`);
+  let query = db.select({
+    id: evidenceRecords.id,
+    recordId: evidenceRecords.recordId,
+    category: evidenceRecords.category,
+    itemName: evidenceRecords.itemName,
+    specClass: evidenceRecords.specClass,
+    priceMin: evidenceRecords.priceMin,
+    priceTypical: evidenceRecords.priceTypical,
+    priceMax: evidenceRecords.priceMax,
+    unit: evidenceRecords.unit,
+    currencyAed: evidenceRecords.currencyAed,
+    reliabilityGrade: evidenceRecords.reliabilityGrade,
+    extractedSnippet: evidenceRecords.extractedSnippet,
+    captureDate: evidenceRecords.captureDate,
+    evidencePhase: evidenceRecords.evidencePhase,
+    sourceUrl: evidenceRecords.sourceUrl,
+    // Joined source fields
+    sourceName: sourceRegistry.name,
+    sourceType: sourceRegistry.sourceType,
+    sourceReliability: sourceRegistry.reliabilityDefault,
+    sourcePageUrl: sourceRegistry.url,
+    sourceLastFetch: sourceRegistry.lastSuccessfulFetch
+  }).from(evidenceRecords).leftJoin(sourceRegistry, eq(evidenceRecords.sourceRegistryId, sourceRegistry.id));
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions));
+  }
+  return query.orderBy(desc(evidenceRecords.captureDate)).limit(filters.limit ?? 20);
+}
+async function getActiveSourceRegistry(limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    id: sourceRegistry.id,
+    name: sourceRegistry.name,
+    url: sourceRegistry.url,
+    sourceType: sourceRegistry.sourceType,
+    reliabilityDefault: sourceRegistry.reliabilityDefault,
+    region: sourceRegistry.region,
+    lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch,
+    lastScrapedStatus: sourceRegistry.lastScrapedStatus,
+    lastRecordCount: sourceRegistry.lastRecordCount,
+    notes: sourceRegistry.notes
+  }).from(sourceRegistry).where(and(eq(sourceRegistry.isWhitelisted, true), eq(sourceRegistry.isActive, true))).orderBy(asc(sourceRegistry.reliabilityDefault), desc(sourceRegistry.lastSuccessfulFetch)).limit(limit);
+  return rows;
 }
 var _db;
 var init_db = __esm({
@@ -3531,6 +4283,178 @@ var init_bias_detector = __esm({
   }
 });
 
+// server/engines/dld-analytics.ts
+var dld_analytics_exports = {};
+__export(dld_analytics_exports, {
+  computeAreaPriceStats: () => computeAreaPriceStats,
+  computeFitoutCalibration: () => computeFitoutCalibration,
+  computeMarketPosition: () => computeMarketPosition,
+  computeYield: () => computeYield,
+  getAreaSaleMedianSqm: () => getAreaSaleMedianSqm
+});
+function percentile(sorted, p) {
+  if (sorted.length === 0) return 0;
+  if (sorted.length === 1) return sorted[0];
+  const idx = p / 100 * (sorted.length - 1);
+  const lower = Math.floor(idx);
+  const upper = Math.ceil(idx);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (idx - lower);
+}
+function computeAreaPriceStats(transactions, rentals, dldProjects2) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const t2 of transactions) {
+    if (!t2.pricePerSqm || t2.pricePerSqm <= 0) continue;
+    const key = `${t2.areaId}::${t2.propertyType || "ALL"}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(t2);
+  }
+  const rentalGroups = /* @__PURE__ */ new Map();
+  if (rentals) {
+    for (const r of rentals) {
+      if (!r.rentPerSqm || r.rentPerSqm <= 0) continue;
+      const key = `${r.areaId}::${r.propertyType || "ALL"}`;
+      if (!rentalGroups.has(key)) rentalGroups.set(key, []);
+      rentalGroups.get(key).push(r);
+    }
+  }
+  const projectGroups = /* @__PURE__ */ new Map();
+  if (dldProjects2) {
+    for (const p of dldProjects2) {
+      const units = (p.noOfUnits ?? 0) + (p.noOfVillas ?? 0);
+      const current = projectGroups.get(p.areaId) ?? { totalUnits: 0, activeUnits: 0 };
+      current.totalUnits += units;
+      if (p.projectStatus === "ACTIVE") current.activeUnits += units;
+      projectGroups.set(p.areaId, current);
+    }
+  }
+  const results = [];
+  for (const [key, txns] of Array.from(groups.entries())) {
+    const [areaIdStr, propertyType] = key.split("::");
+    const areaId = parseInt(areaIdStr);
+    const areaNameEn = txns[0].areaNameEn;
+    const prices = txns.map((t2) => t2.pricePerSqm).sort((a, b) => a - b);
+    const saleP25 = percentile(prices, 25);
+    const saleP50 = percentile(prices, 50);
+    const saleP75 = percentile(prices, 75);
+    const saleMean = prices.reduce((s, v) => s + v, 0) / prices.length;
+    const rentalKey = key;
+    const rents = rentalGroups.get(rentalKey);
+    let rentP50 = null;
+    let rentMean = null;
+    let rentCount = 0;
+    if (rents && rents.length > 0) {
+      const rentPrices = rents.map((r) => r.rentPerSqm).sort((a, b) => a - b);
+      rentP50 = percentile(rentPrices, 50);
+      rentMean = rentPrices.reduce((s, v) => s + v, 0) / rentPrices.length;
+      rentCount = rents.length;
+    }
+    const grossYield = rentP50 && saleP50 > 0 ? rentP50 / saleP50 * 100 : null;
+    const projData = projectGroups.get(areaId);
+    const absorptionRate = projData && projData.activeUnits > 0 ? Math.min(1, txns.length / projData.activeUnits) : null;
+    const latestDate = txns[txns.length - 1]?.transactionDate || "";
+    const year = latestDate.substring(0, 4);
+    const month = parseInt(latestDate.substring(5, 7) || "1");
+    const quarter = Math.ceil(month / 3);
+    const period = `${year}-Q${quarter}`;
+    results.push({
+      areaId,
+      areaNameEn,
+      propertyType,
+      period,
+      saleP25: Math.round(saleP25 * 100) / 100,
+      saleP50: Math.round(saleP50 * 100) / 100,
+      saleP75: Math.round(saleP75 * 100) / 100,
+      saleMean: Math.round(saleMean * 100) / 100,
+      saleTransactionCount: txns.length,
+      saleYoyChangePct: null,
+      // Requires historical data — computed in a second pass
+      rentP50: rentP50 ? Math.round(rentP50 * 100) / 100 : null,
+      rentMean: rentMean ? Math.round(rentMean * 100) / 100 : null,
+      rentTransactionCount: rentCount,
+      grossYield: grossYield ? Math.round(grossYield * 100) / 100 : null,
+      absorptionRate
+    });
+  }
+  return results.sort((a, b) => b.saleTransactionCount - a.saleTransactionCount);
+}
+function computeFitoutCalibration(stats) {
+  return stats.filter((s) => s.saleP50 > 0).map((s) => {
+    const median = s.saleP50;
+    return {
+      areaId: s.areaId,
+      areaNameEn: s.areaNameEn,
+      saleMedianPerSqm: median,
+      fitoutRecommended: {
+        lowPct: 10,
+        midPct: 18,
+        highPct: 28,
+        lowAedPerSqm: Math.round(median * 0.1),
+        midAedPerSqm: Math.round(median * 0.18),
+        highAedPerSqm: Math.round(median * 0.28)
+      }
+    };
+  });
+}
+function computeYield(salePrice, annualRent, operatingCostPct = 0.22) {
+  if (salePrice <= 0) return { grossYield: 0, netYield: 0, operatingCost: 0 };
+  const grossYield = annualRent / salePrice * 100;
+  const operatingCost = annualRent * operatingCostPct;
+  const netYield = (annualRent - operatingCost) / salePrice * 100;
+  return {
+    grossYield: Math.round(grossYield * 100) / 100,
+    netYield: Math.round(netYield * 100) / 100,
+    operatingCost: Math.round(operatingCost)
+  };
+}
+function computeMarketPosition(fitoutCostPerSqm, salePricePerSqm, tier, areaP25, areaP75) {
+  const fitoutRatio = salePricePerSqm > 0 ? fitoutCostPerSqm / salePricePerSqm : 0;
+  let score = 0.5;
+  if (areaP25 !== void 0 && areaP75 !== void 0 && areaP75 > areaP25) {
+    score = (fitoutCostPerSqm - areaP25) / (areaP75 - areaP25);
+    score = Math.max(0, Math.min(2, score));
+  }
+  let label;
+  if (score < 0) label = "Below Market";
+  else if (score < 0.3) label = "Economy";
+  else if (score < 0.7) label = "Mid-Market";
+  else if (score <= 1) label = "Premium";
+  else label = "Above Market";
+  const pctile = Math.min(100, Math.max(0, Math.round(score * 100)));
+  const percentile3 = pctile > 50 ? `Top ${100 - pctile}%` : `Bottom ${pctile}%`;
+  const benchmarks = FITOUT_RATIO_BENCHMARKS[tier] ?? FITOUT_RATIO_BENCHMARKS.mid;
+  let riskFlag = null;
+  let riskMessage = null;
+  if (fitoutRatio > benchmarks.max) {
+    riskFlag = "OVER_SPEC";
+    riskMessage = `Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price exceeds ${tier} norm of ${(benchmarks.max * 100).toFixed(0)}%. Consider reducing specification to improve ROI.`;
+  } else if (fitoutRatio < benchmarks.min) {
+    riskFlag = "UNDER_SPEC";
+    riskMessage = `Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price is below ${tier} minimum of ${(benchmarks.min * 100).toFixed(0)}%. May not meet buyer expectations.`;
+  }
+  return { score, label, percentile: percentile3, fitoutRatio, riskFlag, riskMessage };
+}
+async function getAreaSaleMedianSqm(areaId) {
+  if (!areaId) return 25e3;
+  const benchmark = await getDldAreaBenchmark(areaId);
+  if (!benchmark || !benchmark.saleP50) return 25e3;
+  return Math.round(Number(benchmark.saleP50));
+}
+var FITOUT_RATIO_BENCHMARKS;
+var init_dld_analytics = __esm({
+  "server/engines/dld-analytics.ts"() {
+    "use strict";
+    init_db();
+    FITOUT_RATIO_BENCHMARKS = {
+      economy: { min: 0.08, max: 0.12, typical: 0.1 },
+      mid: { min: 0.12, max: 0.18, typical: 0.15 },
+      premium: { min: 0.15, max: 0.22, typical: 0.18 },
+      luxury: { min: 0.18, max: 0.28, typical: 0.23 },
+      ultra_luxury: { min: 0.25, max: 0.35, typical: 0.3 }
+    };
+  }
+});
+
 // server/engines/design/vocabulary.ts
 var vocabulary_exports = {};
 __export(vocabulary_exports, {
@@ -3856,8 +4780,196 @@ var init_color_palette = __esm({
 // server/engines/design/rfq-generator.ts
 var rfq_generator_exports = {};
 __export(rfq_generator_exports, {
+  buildRFQFromBrief: () => buildRFQFromBrief,
   buildRFQPack: () => buildRFQPack
 });
+function parseCostLabel(label) {
+  const isVerified = label.includes("market-verified");
+  const cleaned = label.replace(/[^0-9.,\-—]/g, " ").trim();
+  const numbers = cleaned.split(/[\-—\s]+/).map((s) => Number(s.replace(/,/g, ""))).filter((n) => !isNaN(n) && n > 0);
+  if (numbers.length === 0) return null;
+  if (numbers.length === 1) return { min: numbers[0], max: numbers[0], isMarketVerified: isVerified };
+  return { min: numbers[0], max: numbers[1], isMarketVerified: isVerified };
+}
+function parseBudgetCap(s) {
+  const cleaned = s.replace(/[^0-9.]/g, "");
+  const n = Number(cleaned);
+  return isNaN(n) || n === 0 ? null : n;
+}
+function isApprovedMaterial(mat, specs) {
+  const prohibited = specs.prohibitedMaterials.map((p) => p.toLowerCase());
+  const matNameLower = mat.name.toLowerCase();
+  for (const p of prohibited) {
+    if (matNameLower.includes(p.split("(")[0].trim().toLowerCase())) return false;
+  }
+  return true;
+}
+function buildRFQFromBrief(projectId, orgId, briefData, briefId, materials) {
+  const items = [];
+  const gfa = briefData.boqFramework.totalEstimatedSqm || 0;
+  const budgetCap = parseBudgetCap(briefData.detailedBudget.totalBudgetCap);
+  let subtotalMin = 0;
+  let subtotalMax = 0;
+  let marketVerifiedCount = 0;
+  let estimatedCount = 0;
+  briefData.boqFramework.coreAllocations.forEach((alloc, sectionIdx) => {
+    const sectionNo = sectionIdx + 1;
+    const costParsed = parseCostLabel(alloc.estimatedCostLabel);
+    const mapping = CATEGORY_MATERIAL_MAP[alloc.category];
+    const qty = gfa > 0 && mapping ? Math.round(gfa * mapping.areaMultiplier) : 1;
+    const unit = mapping?.defaultUnit || "lot";
+    const matchingMaterials = materials?.filter((m) => {
+      if (!mapping) return false;
+      return mapping.categories.some((c) => m.category.toLowerCase().includes(c));
+    }).filter((m) => isApprovedMaterial(m, briefData.materialSpecifications)) || [];
+    if (matchingMaterials.length > 0) {
+      matchingMaterials.slice(0, 3).forEach((mat, matIdx) => {
+        const rateMin = Number(mat.priceAedMin || 0);
+        const rateMax = Number(mat.priceAedMax || 0);
+        const pricingSource = costParsed?.isMarketVerified ? "market-verified" : "estimated";
+        const totalMin = qty * rateMin;
+        const totalMax = qty * rateMax;
+        subtotalMin += totalMin;
+        subtotalMax += totalMax;
+        if (pricingSource === "market-verified") marketVerifiedCount++;
+        else estimatedCount++;
+        items.push({
+          projectId,
+          organizationId: orgId,
+          briefId: briefId ?? null,
+          sectionNo,
+          itemCode: `${sectionNo.toString().padStart(2, "0")}-${(matIdx + 1).toString().padStart(2, "0")}`,
+          description: `Supply & install ${mat.name} \u2014 ${alloc.category}`,
+          unit,
+          quantity: qty,
+          unitRateAedMin: rateMin,
+          unitRateAedMax: rateMax,
+          totalAedMin: totalMin,
+          totalAedMax: totalMax,
+          supplierName: mat.supplierName || "TBD",
+          pricingSource,
+          notes: alloc.notes || void 0
+        });
+      });
+    } else if (costParsed) {
+      const pricingSource = costParsed.isMarketVerified ? "market-verified" : "estimated";
+      subtotalMin += costParsed.min;
+      subtotalMax += costParsed.max;
+      if (pricingSource === "market-verified") marketVerifiedCount++;
+      else estimatedCount++;
+      items.push({
+        projectId,
+        organizationId: orgId,
+        briefId: briefId ?? null,
+        sectionNo,
+        itemCode: `${sectionNo.toString().padStart(2, "0")}-PS`,
+        description: `${alloc.category} \u2014 Provisional Sum (from Design Brief)`,
+        unit: "sum",
+        quantity: 1,
+        unitRateAedMin: costParsed.min,
+        unitRateAedMax: costParsed.max,
+        totalAedMin: costParsed.min,
+        totalAedMax: costParsed.max,
+        supplierName: "Per Design Brief",
+        pricingSource,
+        notes: `${alloc.percentage}% of total budget. ${alloc.notes}`
+      });
+    } else {
+      estimatedCount++;
+      items.push({
+        projectId,
+        organizationId: orgId,
+        briefId: briefId ?? null,
+        sectionNo,
+        itemCode: `${sectionNo.toString().padStart(2, "0")}-TBD`,
+        description: `${alloc.category} \u2014 To Be Detailed`,
+        unit: "sum",
+        quantity: 1,
+        unitRateAedMin: 0,
+        unitRateAedMax: 0,
+        totalAedMin: 0,
+        totalAedMax: 0,
+        supplierName: "TBD",
+        pricingSource: "estimated",
+        notes: `${alloc.percentage}% allocation \u2014 requires detailed pricing. ${alloc.notes}`
+      });
+    }
+  });
+  const contingencyPct = briefData.detailedBudget.contingencyRecommendation.match(/(\d+)%/)?.[1];
+  const contPct = contingencyPct ? Number(contingencyPct) / 100 : 0.1;
+  const contingencyMin = subtotalMin * contPct;
+  const contingencyMax = subtotalMax * contPct;
+  const lastSection = items.length > 0 ? items[items.length - 1].sectionNo + 1 : 1;
+  items.push({
+    projectId,
+    organizationId: orgId,
+    briefId: briefId ?? null,
+    sectionNo: lastSection,
+    itemCode: "PS-CONT",
+    description: `Contingency (${Math.round(contPct * 100)}% of Sections 1-${lastSection - 1})`,
+    unit: "sum",
+    quantity: 1,
+    unitRateAedMin: contingencyMin,
+    unitRateAedMax: contingencyMax,
+    totalAedMin: contingencyMin,
+    totalAedMax: contingencyMax,
+    supplierName: "",
+    pricingSource: "estimated",
+    notes: briefData.detailedBudget.contingencyRecommendation
+  });
+  items.push({
+    projectId,
+    organizationId: orgId,
+    briefId: briefId ?? null,
+    sectionNo: lastSection,
+    itemCode: "PS-DM",
+    description: "DM/DDA Approval Fees (Provisional)",
+    unit: "sum",
+    quantity: 1,
+    unitRateAedMin: 15e3,
+    unitRateAedMax: 15e3,
+    totalAedMin: 15e3,
+    totalAedMax: 15e3,
+    supplierName: "Dubai Authorities",
+    pricingSource: "estimated",
+    notes: "Standard Dubai Municipality / DDA approval fees for interior fit-out."
+  });
+  items.push({
+    projectId,
+    organizationId: orgId,
+    briefId: briefId ?? null,
+    sectionNo: lastSection,
+    itemCode: "PS-FFE",
+    description: "FF&E Procurement Management (Provisional)",
+    unit: "sum",
+    quantity: 1,
+    unitRateAedMin: 25e3,
+    unitRateAedMax: 25e3,
+    totalAedMin: 25e3,
+    totalAedMax: 25e3,
+    supplierName: "Design Consultant",
+    pricingSource: "estimated"
+  });
+  const grandTotalMin = subtotalMin + contingencyMin + 4e4;
+  const grandTotalMax = subtotalMax + contingencyMax + 4e4;
+  return {
+    items,
+    summary: {
+      totalSections: lastSection,
+      totalLineItems: items.length,
+      subtotalMin,
+      subtotalMax,
+      contingencyMin,
+      contingencyMax,
+      grandTotalMin,
+      grandTotalMax,
+      marketVerifiedCount,
+      estimatedCount,
+      budgetCapAed: budgetCap,
+      budgetUtilizationPct: budgetCap ? Math.round(grandTotalMax / budgetCap * 100) : null
+    }
+  };
+}
 function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
   const rfqItems = [];
   const getMaterial = (id) => materials.find((m) => m.id === id);
@@ -3880,11 +4992,12 @@ function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
       unitRateAedMax: rateMax,
       totalAedMin: totalMin,
       totalAedMax: totalMax,
-      supplierName
+      supplierName,
+      pricingSource: "estimated"
     });
   };
   const getSchedulesForRoom = (roomId) => finishSchedule.filter((f) => f.roomId === roomId);
-  rooms.forEach((room, idx) => {
+  rooms.forEach((room) => {
     const floors = getSchedulesForRoom(room.id).filter((f) => f.element === "floor");
     floors.forEach((floor) => {
       const mat = getMaterial(floor.materialLibraryId);
@@ -3902,7 +5015,7 @@ function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
       }
     });
   });
-  rooms.forEach((room, idx) => {
+  rooms.forEach((room) => {
     const walls = getSchedulesForRoom(room.id).filter((f) => f.element.startsWith("wall_"));
     walls.forEach((wall) => {
       const mat = getMaterial(wall.materialLibraryId);
@@ -3922,7 +5035,7 @@ function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
       }
     });
   });
-  rooms.forEach((room, idx) => {
+  rooms.forEach((room) => {
     const ceil = getSchedulesForRoom(room.id).find((f) => f.element === "ceiling");
     if (ceil) {
       let rateMin = 90;
@@ -3947,7 +5060,7 @@ function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
       );
     }
   });
-  rooms.forEach((room, idx) => {
+  rooms.forEach((room) => {
     const joinery = getSchedulesForRoom(room.id).find((f) => f.element === "joinery");
     if (joinery && ["MBR", "BD2", "BD3", "KIT", "LVG"].includes(room.id)) {
       let lm = room.sqm * 0.2;
@@ -3981,7 +5094,6 @@ function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
         "set",
         1,
         Number(swMat.priceAedMin || 0) * 3,
-        // rough multiplier for a full room set
         Number(swMat.priceAedMax || 0) * 4,
         swMat.supplierName
       );
@@ -3999,7 +5111,8 @@ function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
     unitRateAedMax: subtotalMax * 0.1,
     totalAedMin: subtotalMin * 0.1,
     totalAedMax: subtotalMax * 0.1,
-    supplierName: ""
+    supplierName: "",
+    pricingSource: "estimated"
   });
   rfqItems.push({
     projectId,
@@ -4013,7 +5126,8 @@ function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
     unitRateAedMax: 15e3,
     totalAedMin: 15e3,
     totalAedMax: 15e3,
-    supplierName: "Dubai Authorities"
+    supplierName: "Dubai Authorities",
+    pricingSource: "estimated"
   });
   rfqItems.push({
     projectId,
@@ -4027,13 +5141,77 @@ function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
     unitRateAedMax: 25e3,
     totalAedMin: 25e3,
     totalAedMax: 25e3,
-    supplierName: "Design Consultant"
+    supplierName: "Design Consultant",
+    pricingSource: "estimated"
   });
   return rfqItems;
 }
+var CATEGORY_MATERIAL_MAP;
 var init_rfq_generator = __esm({
   "server/engines/design/rfq-generator.ts"() {
     "use strict";
+    CATEGORY_MATERIAL_MAP = {
+      "Civil & MEP Works (Flooring, Ceilings, Partitions)": {
+        categories: ["flooring", "ceiling", "partition", "tiles"],
+        defaultUnit: "sqm",
+        areaMultiplier: 1
+      },
+      "Civil & MEP Works (Partitions, HVAC, Data)": {
+        categories: ["partition", "ceiling", "mechanical"],
+        defaultUnit: "sqm",
+        areaMultiplier: 1
+      },
+      "Civil & MEP Works": {
+        categories: ["flooring", "ceiling", "partition"],
+        defaultUnit: "sqm",
+        areaMultiplier: 1
+      },
+      "Fixed Joinery (Kitchens, Wardrobes, Doors)": {
+        categories: ["joinery", "kitchen", "doors", "wardrobes"],
+        defaultUnit: "lm",
+        areaMultiplier: 0.25
+      },
+      "Feature Joinery & Reception": {
+        categories: ["joinery", "reception"],
+        defaultUnit: "lm",
+        areaMultiplier: 0.15
+      },
+      "Fixed Joinery & Millwork": {
+        categories: ["joinery", "millwork"],
+        defaultUnit: "lm",
+        areaMultiplier: 0.2
+      },
+      "Sanitaryware & Wet Areas": {
+        categories: ["sanitaryware", "brassware", "tiles"],
+        defaultUnit: "set",
+        areaMultiplier: 0.12
+      },
+      "Sanitaryware & Specialized Equipment": {
+        categories: ["sanitaryware", "brassware", "equipment"],
+        defaultUnit: "set",
+        areaMultiplier: 0.12
+      },
+      "Pantry & Washrooms": {
+        categories: ["sanitaryware", "kitchen", "tiles"],
+        defaultUnit: "set",
+        areaMultiplier: 0.08
+      },
+      "FF&E (Loose Furniture, Lighting, Art)": {
+        categories: ["furniture", "lighting", "art", "decorative"],
+        defaultUnit: "lot",
+        areaMultiplier: 1
+      },
+      "FF&E (Custom Furniture, Drapery, Rugs)": {
+        categories: ["furniture", "drapery", "rugs", "textiles"],
+        defaultUnit: "lot",
+        areaMultiplier: 1
+      },
+      "Workstations & Loose Furniture": {
+        categories: ["furniture", "workstation", "seating"],
+        defaultUnit: "nr",
+        areaMultiplier: 0.05
+      }
+    };
   }
 });
 
@@ -4045,10 +5223,10 @@ __export(dm_compliance_exports, {
 function buildDMComplianceChecklist(projectId, orgId, project) {
   const typology = (project.ctx01Typology || "Residential").toLowerCase();
   const items = [];
-  const pushItem = (code, desc8, status) => {
+  const pushItem = (code, desc12, status) => {
     items.push({
       code,
-      description: desc8,
+      description: desc12,
       status,
       verified: false
     });
@@ -4087,7 +5265,7 @@ __export(board_composer_exports, {
   generateRfqLines: () => generateRfqLines,
   recommendMaterials: () => recommendMaterials
 });
-function computeBoardSummary(items) {
+function computeBoardSummary(items, briefConstraints) {
   const tierDist = {};
   const catDist = {};
   let costLow = 0;
@@ -4104,6 +5282,17 @@ function computeBoardSummary(items) {
       criticalItems.push(item.name);
     }
   }
+  let budgetComplianceCheck;
+  if (briefConstraints) {
+    const capStr = briefConstraints.totalBudgetCap.replace(/[^0-9.]/g, "");
+    const cap = Number(capStr) || null;
+    const utilizationPct = cap ? Math.round(costHigh / cap * 100) : null;
+    budgetComplianceCheck = {
+      budgetCapAed: cap,
+      utilizationPct,
+      status: cap ? costHigh <= cap ? "within_budget" : "over_budget" : "unknown"
+    };
+  }
   return {
     totalItems: items.length,
     estimatedCostLow: costLow,
@@ -4112,23 +5301,36 @@ function computeBoardSummary(items) {
     longestLeadTimeDays: maxLead,
     criticalPathItems: criticalItems,
     tierDistribution: tierDist,
-    categoryDistribution: catDist
+    categoryDistribution: catDist,
+    budgetComplianceCheck
   };
 }
-function generateRfqLines(items) {
-  return items.map((item, idx) => ({
-    lineNo: idx + 1,
-    materialName: item.name,
-    category: item.category,
-    specification: `${item.tier} grade \u2014 ${item.name}`,
-    quantity: item.quantity ? `${item.quantity}` : "TBD",
-    unit: item.unitOfMeasure || item.costUnit.replace("AED/", ""),
-    estimatedUnitCostLow: item.costLow,
-    estimatedUnitCostHigh: item.costHigh,
-    leadTimeDays: item.leadTimeDays,
-    supplierSuggestion: item.supplierName,
-    notes: item.notes || ""
-  }));
+function generateRfqLines(items, briefConstraints) {
+  return items.map((item, idx) => {
+    const notes = [];
+    if (item.notes) notes.push(item.notes);
+    if (briefConstraints) {
+      if (briefConstraints.pricingVerified) notes.push("(market-verified)");
+      const prohibited = briefConstraints.prohibitedMaterials.map((p) => p.toLowerCase());
+      const itemLower = item.name.toLowerCase();
+      if (prohibited.some((p) => itemLower.includes(p.split("(")[0].trim().toLowerCase()))) {
+        notes.push("\u26A0 Not in approved materials list");
+      }
+    }
+    return {
+      lineNo: idx + 1,
+      materialName: item.name,
+      category: item.category,
+      specification: `${item.tier} grade \u2014 ${item.name}`,
+      quantity: item.quantity ? `${item.quantity}` : "TBD",
+      unit: item.unitOfMeasure || item.costUnit.replace("AED/", ""),
+      estimatedUnitCostLow: item.costLow,
+      estimatedUnitCostHigh: item.costHigh,
+      leadTimeDays: item.leadTimeDays,
+      supplierSuggestion: item.supplierName,
+      notes: notes.join(" | ") || ""
+    };
+  });
 }
 function recommendMaterials(catalog, projectTier, maxItems = 10) {
   const tierMap = {
@@ -4163,6 +5365,149 @@ function recommendMaterials(catalog, projectTier, maxItems = 10) {
 }
 var init_board_composer = __esm({
   "server/engines/board-composer.ts"() {
+    "use strict";
+  }
+});
+
+// server/engines/predictive/monte-carlo.ts
+var monte_carlo_exports = {};
+__export(monte_carlo_exports, {
+  runMonteCarloSimulation: () => runMonteCarloSimulation
+});
+function randNormal() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+function sampleNormal(mean, stdDev) {
+  return mean + stdDev * randNormal();
+}
+function sampleUniform(min, max) {
+  return min + Math.random() * (max - min);
+}
+function marketFactor(condition) {
+  switch (condition) {
+    case "tight":
+      return 1.05;
+    case "soft":
+      return 0.95;
+    default:
+      return 1;
+  }
+}
+function annualToMonthly(annualPct) {
+  return Math.pow(1 + annualPct / 100, 1 / 12) - 1;
+}
+function percentile2(sorted, p) {
+  if (sorted.length === 0) return 0;
+  const idx = p / 100 * (sorted.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+function runMonteCarloSimulation(config) {
+  const {
+    baseCostPerSqm,
+    gfa,
+    trendAnnualPct,
+    trendVolatility = 3,
+    marketCondition,
+    horizonMonths,
+    budgetCap,
+    iterations = 1e4,
+    costVolatilityPct = 12,
+    gfaVariancePct = 5
+  } = config;
+  const N = Math.max(100, Math.min(iterations, 5e4));
+  const mFactor = marketFactor(marketCondition);
+  const outcomes = new Array(N);
+  const months = Array.from({ length: horizonMonths }, (_, i) => i + 1);
+  const monthlyPaths = months.map(() => []);
+  for (let i = 0; i < N; i++) {
+    const costStd = baseCostPerSqm * (costVolatilityPct / 100);
+    const simCost = Math.max(baseCostPerSqm * 0.5, sampleNormal(baseCostPerSqm, costStd));
+    const gfaMin = gfa * (1 - gfaVariancePct / 100);
+    const gfaMax = gfa * (1 + gfaVariancePct / 100);
+    const simGfa = sampleUniform(gfaMin, gfaMax);
+    const simTrend = sampleUniform(
+      trendAnnualPct - trendVolatility,
+      trendAnnualPct + trendVolatility
+    );
+    const monthlyRate = annualToMonthly(simTrend);
+    for (let m = 0; m < months.length; m++) {
+      const month = months[m];
+      const compounded = simCost * Math.pow(1 + monthlyRate, month) * mFactor;
+      const totalAtMonth = compounded * simGfa;
+      monthlyPaths[m].push(totalAtMonth);
+    }
+    const finalCost = simCost * Math.pow(1 + monthlyRate, horizonMonths) * mFactor;
+    outcomes[i] = finalCost * simGfa;
+  }
+  outcomes.sort((a, b) => a - b);
+  const percentiles = {
+    p5: Math.round(percentile2(outcomes, 5)),
+    p10: Math.round(percentile2(outcomes, 10)),
+    p25: Math.round(percentile2(outcomes, 25)),
+    p50: Math.round(percentile2(outcomes, 50)),
+    p75: Math.round(percentile2(outcomes, 75)),
+    p90: Math.round(percentile2(outcomes, 90)),
+    p95: Math.round(percentile2(outcomes, 95))
+  };
+  const sum = outcomes.reduce((s, v) => s + v, 0);
+  const mean = sum / N;
+  const variance = outcomes.reduce((s, v) => s + (v - mean) ** 2, 0) / N;
+  const stdDev = Math.sqrt(variance);
+  const BUCKETS = 20;
+  const minVal = outcomes[0];
+  const maxVal = outcomes[N - 1];
+  const range = maxVal - minVal || 1;
+  const bucketWidth = range / BUCKETS;
+  const histogram = Array.from({ length: BUCKETS }, (_, i) => ({
+    rangeMin: Math.round(minVal + i * bucketWidth),
+    rangeMax: Math.round(minVal + (i + 1) * bucketWidth),
+    count: 0,
+    percentage: 0
+  }));
+  for (const val of outcomes) {
+    const idx = Math.min(Math.floor((val - minVal) / bucketWidth), BUCKETS - 1);
+    histogram[idx].count++;
+  }
+  for (const b of histogram) {
+    b.percentage = Math.round(b.count / N * 1e4) / 100;
+  }
+  const timeSeries = months.map((month, m) => {
+    const sorted = [...monthlyPaths[m]].sort((a, b) => a - b);
+    return {
+      month,
+      p10: Math.round(percentile2(sorted, 10)),
+      p50: Math.round(percentile2(sorted, 50)),
+      p90: Math.round(percentile2(sorted, 90))
+    };
+  });
+  const var95 = percentiles.p95;
+  let budgetExceedProbability = null;
+  if (budgetCap && budgetCap > 0) {
+    const exceedCount = outcomes.filter((v) => v > budgetCap).length;
+    budgetExceedProbability = Math.round(exceedCount / N * 1e4) / 100;
+  }
+  return {
+    iterations: N,
+    percentiles,
+    histogram,
+    timeSeries,
+    mean: Math.round(mean),
+    stdDev: Math.round(stdDev),
+    var95,
+    budgetExceedProbability,
+    minOutcome: Math.round(minVal),
+    maxOutcome: Math.round(maxVal),
+    config
+  };
+}
+var init_monte_carlo = __esm({
+  "server/engines/predictive/monte-carlo.ts"() {
     "use strict";
   }
 });
@@ -4236,16 +5581,16 @@ function generateBoardPdfHtml(input) {
       <td>${line.notes}</td>
     </tr>
   `).join("");
-  const tierDistRows = Object.entries(summary.tierDistribution).map(([tier, count]) => `
+  const tierDistRows = Object.entries(summary.tierDistribution).map(([tier, count2]) => `
     <div class="dist-item">
       <span class="dist-badge" style="background:${tierColor(tier)}">${tier.replace("_", " ")}</span>
-      <span class="dist-count">${count}</span>
+      <span class="dist-count">${count2}</span>
     </div>
   `).join("");
-  const catDistRows = Object.entries(summary.categoryDistribution).map(([cat, count]) => `
+  const catDistRows = Object.entries(summary.categoryDistribution).map(([cat, count2]) => `
     <div class="dist-item">
       <span class="dist-label">${cat}</span>
-      <span class="dist-count">${count}</span>
+      <span class="dist-count">${count2}</span>
     </div>
   `).join("");
   return `<!DOCTYPE html>
@@ -4401,12 +5746,576 @@ var init_board_pdf = __esm({
   }
 });
 
+// server/engines/investor-pdf.ts
+var investor_pdf_exports = {};
+__export(investor_pdf_exports, {
+  generateInvestorPdfHtml: () => generateInvestorPdfHtml
+});
+function fmtAed(n) {
+  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M AED`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K AED`;
+  return `${n.toLocaleString()} AED`;
+}
+function gradeColor(g) {
+  return { A: "#10b981", B: "#22c55e", C: "#f59e0b", D: "#f97316", E: "#ef4444" }[g] ?? "#94a3b8";
+}
+function confColor(c) {
+  return { established: "#10b981", emerging: "#8b5cf6", declining: "#ef4444" }[c] ?? "#94a3b8";
+}
+function generateInvestorPdfHtml(input) {
+  const {
+    projectName,
+    typology,
+    location,
+    tier,
+    style,
+    gfaSqm,
+    execSummary,
+    designDirection,
+    spaces,
+    materials,
+    materialConstants: materialConstants2,
+    totalFitoutBudget,
+    costPerSqm,
+    sustainabilityGrade,
+    salePremiumPct,
+    estimatedSalesPremiumAed,
+    benchmark,
+    designTrends: designTrends2,
+    shareToken
+  } = input;
+  const watermark = `MYR-INV-${Date.now().toString(36).toUpperCase()}`;
+  const date = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const spaceBars = spaces.slice(0, 12).map((s) => `
+    <div class="bar-row">
+      <span class="bar-label">${s.name}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${Math.min(s.pct, 100).toFixed(1)}%"></div>
+      </div>
+      <span class="bar-pct">${s.pct.toFixed(0)}%</span>
+      <span class="bar-amt">${fmtAed(s.budgetAed)}</span>
+    </div>
+  `).join("");
+  const matRows = materials.slice(0, 16).map((m, i) => `
+    <tr class="${i % 2 === 0 ? "even" : ""}">
+      <td>${m.name}</td>
+      <td>${m.brand}</td>
+      <td>${m.room}</td>
+      <td>${m.price ?? "\u2014"}</td>
+    </tr>
+  `).join("");
+  const constRows = materialConstants2.slice(0, 9).map((c, i) => `
+    <tr class="${i % 2 === 0 ? "even" : ""}">
+      <td class="capitalize">${c.materialType}</td>
+      <td>${c.costPerM2.toLocaleString()} AED</td>
+      <td>${Number(c.carbonIntensity).toFixed(0)} kg/m\xB2</td>
+      <td><span class="grade-badge" style="background:${gradeColor(c.sustainabilityGrade)}">${c.sustainabilityGrade}</span></td>
+    </tr>
+  `).join("");
+  const bmSection = benchmark ? `
+    <div class="panel">
+      <div class="panel-title">Market Benchmark \u2014 ${benchmark.typology ?? typology} \xB7 ${benchmark.marketTier ?? tier}${benchmark.dataYear ? ` \xB7 ${benchmark.dataYear}` : ""}</div>
+      <div class="kpi-grid">
+        ${benchmark.costPerSqmLow != null ? `<div class="kpi"><div class="kpi-label">Low</div><div class="kpi-value">${benchmark.costPerSqmLow.toLocaleString()} AED/m\xB2</div></div>` : ""}
+        ${benchmark.costPerSqmMid != null ? `<div class="kpi"><div class="kpi-label">Mid</div><div class="kpi-value">${benchmark.costPerSqmMid.toLocaleString()} AED/m\xB2</div></div>` : ""}
+        ${benchmark.costPerSqmHigh != null ? `<div class="kpi"><div class="kpi-label">High</div><div class="kpi-value">${benchmark.costPerSqmHigh.toLocaleString()} AED/m\xB2</div></div>` : ""}
+        <div class="kpi"><div class="kpi-label">Your Estimate</div><div class="kpi-value" style="color:${costPerSqm <= (benchmark.costPerSqmMid ?? Infinity) ? "#10b981" : "#f59e0b"}">${costPerSqm.toLocaleString()} AED/m\xB2</div></div>
+      </div>
+    </div>
+  ` : "";
+  const trendRows = (designTrends2 ?? []).slice(0, 8).map((t2) => `
+    <div class="trend-row">
+      <span class="conf-badge" style="background:${confColor(t2.confidenceLevel)}">${t2.confidenceLevel}</span>
+      <span class="trend-name">${t2.trendName}</span>
+      <span class="trend-cat">${t2.trendCategory}</span>
+    </div>
+  `).join("");
+  const ddPills = Object.entries(designDirection ?? {}).slice(0, 6).map(([k, v]) => `
+    <div class="dd-row">
+      <span class="dd-key">${k.replace(/([A-Z])/g, " $1").trim()}</span>
+      <span class="dd-val">${Array.isArray(v) ? v.join(", ") : String(v)}</span>
+    </div>
+  `).join("");
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MIYAR Investor Brief \u2014 ${projectName}</title>
+<style>
+  @page { size: A4 portrait; margin: 15mm 14mm; }
+  @media print { .no-print { display: none; } }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #0f172a; font-size: 10px; line-height: 1.5; background: #fff; }
+
+  /* Cover */
+  .cover { page-break-after: always; padding: 40mm 0 20mm; text-align: center; }
+  .cover .brand { font-size: 30px; font-weight: 800; letter-spacing: 4px; color: #0f3460; }
+  .cover .subtitle { font-size: 12px; color: #4ecdc4; margin: 4px 0 20px; letter-spacing: 2px; text-transform: uppercase; }
+  .cover .project-name { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+  .cover .meta { font-size: 10px; color: #64748b; margin-bottom: 6px; }
+  .cover .divider { width: 60px; height: 3px; background: #4ecdc4; margin: 20px auto; }
+  .cover .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 340px; margin: 24px auto 0; }
+  .cover .kpi-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 8px; background: #f8fafc; }
+  .cover .kpi-card .cv { font-size: 16px; font-weight: 800; color: #0f3460; }
+  .cover .kpi-card .cl { font-size: 7px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+  .cover .watermark { font-size: 7px; color: #cbd5e1; margin-top: 30px; font-family: monospace; }
+
+  /* Sections */
+  h2 { font-size: 12px; font-weight: 700; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 4px; margin: 18px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
+  h3 { font-size: 10px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
+
+  .section { page-break-inside: avoid; margin-bottom: 14px; }
+  .section-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* KPI row */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
+  .kpi { border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; text-align: center; background: #f8fafc; }
+  .kpi-label { font-size: 7px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+  .kpi-value { font-size: 14px; font-weight: 800; color: #0f3460; margin: 2px 0; }
+  .kpi-sub { font-size: 7px; color: #64748b; }
+
+  /* Panel */
+  .panel { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin: 8px 0; background: #f8fafc; }
+  .panel-title { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 8px; }
+
+  /* Exec summary */
+  .exec-body { font-size: 10px; color: #334155; line-height: 1.65; padding: 8px 0; }
+
+  /* Design direction */
+  .dd-row { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px dotted #e2e8f0; font-size: 9px; }
+  .dd-key { width: 110px; color: #64748b; font-weight: 600; text-transform: capitalize; flex-shrink: 0; }
+  .dd-val { color: #0f172a; flex: 1; }
+
+  /* Budget bars */
+  .bar-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 9px; }
+  .bar-label { width: 90px; color: #475569; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, #4ecdc4, #0f3460); border-radius: 4px; }
+  .bar-pct { width: 28px; color: #475569; text-align: right; flex-shrink: 0; }
+  .bar-amt { width: 60px; color: #0f3460; font-weight: 600; text-align: right; flex-shrink: 0; font-size: 8px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9px; }
+  th { background: #0f3460; color: #fff; padding: 5px 8px; text-align: left; font-weight: 600; font-size: 8px; letter-spacing: 0.5px; }
+  td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; }
+  tr.even td { background: #f8fafc; }
+  .capitalize { text-transform: capitalize; }
+
+  /* ROI grid */
+  .roi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .roi-card { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; }
+  .roi-big { font-size: 20px; font-weight: 800; color: #0f3460; }
+  .roi-label { font-size: 7px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+  .roi-sub { font-size: 8px; color: #64748b; margin-top: 3px; }
+  .text-emerald { color: #10b981; }
+  .text-amber { color: #f59e0b; }
+
+  /* Sustainability */
+  .grade-chip { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; font-weight: 800; color: #fff; }
+  .grade-badge { font-size: 8px; color: #fff; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
+
+  /* Trends */
+  .trend-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px dotted #e2e8f0; font-size: 9px; }
+  .conf-badge { font-size: 7px; color: #fff; padding: 1px 5px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
+  .trend-name { flex: 1; font-weight: 600; color: #0f172a; }
+  .trend-cat { font-size: 7px; color: #94a3b8; text-transform: uppercase; }
+
+  /* Footer */
+  .footer { margin-top: 20px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 7px; color: #94a3b8; text-align: center; }
+
+  /* Print button */
+  .no-print { position: fixed; top: 16px; right: 16px; z-index: 999; background: #0f3460; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .no-print:hover { background: #1e4a7a; }
+</style>
+</head>
+<body>
+
+<button class="no-print" onclick="window.print()">\u2B07 Download / Print PDF</button>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="brand">MIYAR</div>
+  <div class="subtitle">Investor Intelligence Brief</div>
+  <div class="project-name">${projectName}</div>
+  <div class="meta">${typology} \xB7 ${tier} \xB7 ${location}</div>
+  <div class="meta">${gfaSqm.toLocaleString()} sqm GFA \xB7 ${style} Design</div>
+  <div class="divider"></div>
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="cv">${fmtAed(totalFitoutBudget)}</div><div class="cl">Total Fitout</div></div>
+    <div class="kpi-card"><div class="cv">${costPerSqm.toLocaleString()}</div><div class="cl">AED/m\xB2</div></div>
+    <div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${sustainabilityGrade}</div><div class="cl">Sust. Grade</div></div>
+  </div>
+  <div class="meta" style="margin-top:20px">${date}</div>
+  <div class="watermark">Document ID: ${watermark}${shareToken ? ` \xB7 Share: /share/${shareToken}` : ""}</div>
+</div>
+
+<!-- SECTION A: DESIGN IDENTITY -->
+<div class="section">
+  <h2>A \xB7 Design Identity</h2>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Typology</div><div class="kpi-value" style="font-size:11px">${typology}</div></div>
+    <div class="kpi"><div class="kpi-label">Style</div><div class="kpi-value" style="font-size:11px">${style}</div></div>
+    <div class="kpi"><div class="kpi-label">Tier</div><div class="kpi-value" style="font-size:11px">${tier}</div></div>
+    <div class="kpi"><div class="kpi-label">Location</div><div class="kpi-value" style="font-size:11px">${location}</div></div>
+  </div>
+  ${execSummary ? `<p class="exec-body">${execSummary}</p>` : ""}
+  ${ddPills ? `<div class="panel" style="margin-top:8px">${ddPills}</div>` : ""}
+</div>
+
+<!-- SECTION B: MATERIAL SPEC -->
+${materials.length > 0 ? `
+<div class="section">
+  <h2>B \xB7 Material Specification</h2>
+  <table>
+    <thead><tr><th>Product</th><th>Brand</th><th>Space</th><th>Price Range</th></tr></thead>
+    <tbody>${matRows}</tbody>
+  </table>
+  ${materialConstants2.length > 0 ? `
+  <h3>UAE Market Constants (AED/m\xB2)</h3>
+  <table>
+    <thead><tr><th>Material</th><th>Cost/m\xB2</th><th>Carbon</th><th>Grade</th></tr></thead>
+    <tbody>${constRows}</tbody>
+  </table>` : ""}
+</div>
+` : ""}
+
+<!-- SECTION C: BUDGET SYNTHESIS -->
+<div class="section">
+  <h2>C \xB7 Budget Synthesis</h2>
+  <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr)">
+    <div class="kpi"><div class="kpi-label">Total Fitout Budget</div><div class="kpi-value" style="font-size:13px">${fmtAed(totalFitoutBudget)}</div></div>
+    <div class="kpi"><div class="kpi-label">Cost / m\xB2</div><div class="kpi-value" style="font-size:13px">${costPerSqm.toLocaleString()} AED</div></div>
+    <div class="kpi"><div class="kpi-label">GFA</div><div class="kpi-value" style="font-size:13px">${gfaSqm.toLocaleString()} sqm</div></div>
+  </div>
+  ${spaceBars ? `<h3>Budget by Space</h3><div class="panel">${spaceBars}</div>` : ""}
+  ${bmSection}
+</div>
+
+<!-- SECTION D: ROI BRIDGE -->
+<div class="section">
+  <h2>D \xB7 ROI Bridge</h2>
+  <div class="roi-grid">
+    <div class="roi-card">
+      <div class="roi-label">Sustainability Grade</div>
+      <div style="margin-top: 6px; display: flex; align-items: center; gap: 10px;">
+        <div class="grade-chip" style="background:${gradeColor(sustainabilityGrade)}">${sustainabilityGrade}</div>
+        <div class="roi-sub">Based on material selection and tier for ${location}</div>
+      </div>
+    </div>
+    <div class="roi-card">
+      <div class="roi-label">Design Premium Potential</div>
+      <div class="roi-big text-emerald">+${salePremiumPct}%</div>
+      <div class="roi-sub">\u2248 ${fmtAed(estimatedSalesPremiumAed)} uplift vs. standard fitout</div>
+    </div>
+    <div class="roi-card" style="grid-column: span 2">
+      <div class="roi-label">ROI Summary</div>
+      <div style="display: flex; gap: 30px; margin-top: 6px; font-size: 9px;">
+        <div><div style="color: #64748b">Fitout Investment</div><div style="font-weight:700; color:#0f3460">${fmtAed(totalFitoutBudget)}</div></div>
+        <div><div style="color: #64748b">Design Premium</div><div style="font-weight:700; color:#10b981">+${fmtAed(estimatedSalesPremiumAed)}</div></div>
+        <div><div style="color: #64748b">Net Uplift</div><div style="font-weight:700; color:${estimatedSalesPremiumAed > totalFitoutBudget ? "#10b981" : "#f59e0b"}">${fmtAed(estimatedSalesPremiumAed - totalFitoutBudget)}</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION E: MARKET INTELLIGENCE -->
+${(designTrends2 ?? []).length > 0 ? `
+<div class="section">
+  <h2>E \xB7 Market Intelligence</h2>
+  ${trendRows ? `
+  <h3>UAE Design Trends (${style} \xB7 UAE)</h3>
+  <div class="panel">${trendRows}</div>` : ""}
+</div>
+` : ""}
+
+<!-- FOOTER -->
+<div class="footer">
+  MIYAR Decision Intelligence Platform \xB7 Investor Brief \xB7 ${date} \xB7 ${watermark}<br>
+  This document is auto-generated. All estimates are indicative and should be professionally validated before investment decisions.
+  ${shareToken ? `\xB7 Accessible at /share/${shareToken}` : ""}
+</div>
+
+</body>
+</html>`;
+}
+var init_investor_pdf = __esm({
+  "server/engines/investor-pdf.ts"() {
+    "use strict";
+  }
+});
+
+// server/engines/ingestion/connector.ts
+import { z as z8 } from "zod";
+import robotsParser from "robots-parser";
+function getRandomUserAgent() {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+async function checkRobotsTxt(targetUrl, userAgent) {
+  try {
+    const urlObj = new URL(targetUrl);
+    const origin = urlObj.origin;
+    let robots = robotsCache.get(origin);
+    if (!robots) {
+      const robotsUrl = `${origin}/robots.txt`;
+      const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
+      if (res.ok) {
+        const text2 = await res.text();
+        robots = robotsParser(robotsUrl, text2);
+      } else {
+        robots = robotsParser(robotsUrl, "");
+      }
+      robotsCache.set(origin, robots);
+    }
+    return robots.isAllowed(targetUrl, userAgent) !== false;
+  } catch (err) {
+    return true;
+  }
+}
+async function getFirecrawlClient() {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  if (!apiKey) return null;
+  if (!_firecrawlClient && !_firecrawlInitPromise) {
+    _firecrawlInitPromise = (async () => {
+      try {
+        const mod = await import("@mendable/firecrawl-js");
+        const FirecrawlApp = mod.default;
+        _firecrawlClient = new FirecrawlApp({ apiKey });
+      } catch (err) {
+        console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
+      }
+      return _firecrawlClient;
+    })();
+  }
+  if (_firecrawlInitPromise) await _firecrawlInitPromise;
+  return _firecrawlClient;
+}
+function isFirecrawlAvailable() {
+  return !!process.env.FIRECRAWL_API_KEY;
+}
+function assignGrade(sourceId) {
+  if (GRADE_A_SOURCE_IDS.has(sourceId)) return "A";
+  if (GRADE_B_SOURCE_IDS.has(sourceId)) return "B";
+  if (GRADE_C_SOURCE_IDS.has(sourceId)) return "C";
+  return "C";
+}
+function computeConfidence2(grade2, publishedDate, fetchedAt) {
+  let confidence = BASE_CONFIDENCE[grade2];
+  if (!publishedDate) {
+    confidence += STALENESS_PENALTY;
+  } else {
+    const daysSincePublished = Math.floor(
+      (fetchedAt.getTime() - publishedDate.getTime()) / (1e3 * 60 * 60 * 24)
+    );
+    if (daysSincePublished <= 90) {
+      confidence += RECENCY_BONUS;
+    } else if (daysSincePublished > 365) {
+      confidence += STALENESS_PENALTY;
+    }
+  }
+  return Math.min(CONFIDENCE_CAP, Math.max(CONFIDENCE_FLOOR, confidence));
+}
+var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, robotsCache, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, BASE_CONFIDENCE, RECENCY_BONUS, STALENESS_PENALTY, CONFIDENCE_CAP, CONFIDENCE_FLOOR, FETCH_TIMEOUT_MS, MAX_RETRIES, BASE_BACKOFF_MS, BaseSourceConnector;
+var init_connector = __esm({
+  "server/engines/ingestion/connector.ts"() {
+    "use strict";
+    USER_AGENTS = [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
+    ];
+    CAPTCHA_INDICATORS = ["cf-browser-verification", "g-recaptcha", "px-captcha", "Please verify you are a human"];
+    PAYWALL_INDICATORS = ["subscribe to read", "premium content", "paywall"];
+    robotsCache = /* @__PURE__ */ new Map();
+    _firecrawlClient = null;
+    _firecrawlInitPromise = null;
+    rawSourcePayloadSchema = z8.object({
+      url: z8.string().url(),
+      fetchedAt: z8.date(),
+      rawHtml: z8.string().optional(),
+      rawJson: z8.record(z8.string(), z8.unknown()).optional(),
+      markdown: z8.string().optional(),
+      statusCode: z8.number().int(),
+      error: z8.string().optional()
+    });
+    extractedEvidenceSchema = z8.object({
+      title: z8.string().min(1),
+      rawText: z8.string().min(1),
+      publishedDate: z8.date().optional(),
+      category: z8.string().min(1),
+      // Accept any category — validated at orchestrator level
+      geography: z8.string().min(1),
+      sourceUrl: z8.string().url()
+    });
+    normalizedEvidenceInputSchema = z8.object({
+      metric: z8.string().min(1),
+      value: z8.number().nullable(),
+      unit: z8.string().nullable(),
+      confidence: z8.number().min(0).max(1),
+      grade: z8.enum(["A", "B", "C"]),
+      summary: z8.string().min(1),
+      tags: z8.array(z8.string())
+    });
+    GRADE_A_SOURCE_IDS = /* @__PURE__ */ new Set([
+      "emaar-properties",
+      "damac-properties",
+      "nakheel-properties",
+      "rics-market-reports",
+      "jll-mena-research",
+      "dubai-statistics-center",
+      "dubai-pulse-materials",
+      "scad-abu-dhabi",
+      "dld-transactions",
+      "aldar-properties",
+      "cbre-uae-research",
+      "knight-frank-uae",
+      "savills-me-research"
+    ]);
+    GRADE_B_SOURCE_IDS = /* @__PURE__ */ new Set([
+      "rak-ceramics-uae",
+      "porcelanosa-uae",
+      "hafele-uae",
+      "gems-building-materials",
+      "dragon-mart-dubai",
+      "property-monitor-dubai"
+    ]);
+    GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set(["dera-interiors"]);
+    BASE_CONFIDENCE = { A: 0.85, B: 0.7, C: 0.55 };
+    RECENCY_BONUS = 0.1;
+    STALENESS_PENALTY = -0.15;
+    CONFIDENCE_CAP = 1;
+    CONFIDENCE_FLOOR = 0.2;
+    FETCH_TIMEOUT_MS = 15e3;
+    MAX_RETRIES = 3;
+    BASE_BACKOFF_MS = 1e3;
+    BaseSourceConnector = class {
+      lastSuccessfulFetch;
+      requestDelayMs;
+      /**
+       * Fetch using Firecrawl's headless browser API.
+       * Renders JavaScript, bypasses bot protection, returns clean markdown.
+       */
+      async fetchWithFirecrawl(url) {
+        const targetUrl = url || this.sourceUrl;
+        const client = await getFirecrawlClient();
+        if (!client) {
+          return this.fetchBasic(targetUrl);
+        }
+        try {
+          console.log(`[Connector] \u{1F525} Firecrawl scraping: ${targetUrl}`);
+          const doc = await client.scrape(targetUrl, {
+            formats: ["markdown", "html"]
+          });
+          const markdown = doc?.markdown || "";
+          const html = doc?.html || "";
+          if (markdown.length < 50 && html.length < 50) {
+            console.warn(`[Connector] Firecrawl returned too little content for ${targetUrl}, falling back`);
+            return this.fetchBasic(targetUrl);
+          }
+          console.log(`[Connector] \u{1F525} Firecrawl success: ${targetUrl} (${markdown.length} chars md, ${html.length} chars html)`);
+          return {
+            url: targetUrl,
+            fetchedAt: /* @__PURE__ */ new Date(),
+            rawHtml: html,
+            markdown,
+            statusCode: doc?.metadata?.statusCode || 200
+          };
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.warn(`[Connector] Firecrawl error for ${targetUrl}: ${errorMsg}, falling back`);
+          return this.fetchBasic(targetUrl);
+        }
+      }
+      /**
+       * Basic HTTP fetch — used as fallback when Firecrawl is unavailable.
+       */
+      async fetchBasic(url) {
+        const targetUrl = url || this.sourceUrl;
+        let lastError;
+        const userAgent = getRandomUserAgent();
+        const isAllowed = await checkRobotsTxt(targetUrl, userAgent);
+        if (!isAllowed) {
+          return { url: targetUrl, fetchedAt: /* @__PURE__ */ new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
+        }
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+            const response = await globalThis.fetch(targetUrl, {
+              signal: controller.signal,
+              headers: {
+                "User-Agent": userAgent,
+                "Accept": "text/html,application/json,application/xml;q=0.9,*/*;q=0.8"
+              }
+            });
+            clearTimeout(timeout);
+            const contentType = response.headers.get("content-type") || "";
+            let rawHtml;
+            let rawJson;
+            if (contentType.includes("application/json")) {
+              rawJson = await response.json();
+            } else {
+              rawHtml = await response.text();
+              if (CAPTCHA_INDICATORS.some((ind) => rawHtml.includes(ind))) {
+                throw new Error("CAPTCHA challenge detected on page");
+              }
+              if (PAYWALL_INDICATORS.some((ind) => rawHtml.toLowerCase().includes(ind))) {
+                throw new Error("Paywall detected on page content");
+              }
+              if (rawHtml.trim().startsWith("{") || rawHtml.trim().startsWith("[")) {
+                try {
+                  rawJson = JSON.parse(rawHtml);
+                } catch {
+                }
+              }
+            }
+            return {
+              url: targetUrl,
+              fetchedAt: /* @__PURE__ */ new Date(),
+              rawHtml,
+              rawJson,
+              statusCode: response.status,
+              error: response.ok ? void 0 : `HTTP ${response.status} ${response.statusText}`
+            };
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            lastError = errorMsg;
+            if (attempt < MAX_RETRIES) {
+              const backoffMs = BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
+              await new Promise((resolve) => setTimeout(resolve, backoffMs));
+            }
+          }
+        }
+        return {
+          url: targetUrl,
+          fetchedAt: /* @__PURE__ */ new Date(),
+          statusCode: 0,
+          error: `Failed after ${MAX_RETRIES} attempts: ${lastError}`
+        };
+      }
+      /**
+       * Main fetch method. Uses Firecrawl when available, falls back to basic HTTP.
+       */
+      async fetch() {
+        if (this.requestDelayMs && this.requestDelayMs > 0) {
+          await new Promise((r) => setTimeout(r, this.requestDelayMs));
+        }
+        if (isFirecrawlAvailable()) {
+          return this.fetchWithFirecrawl();
+        }
+        return this.fetchBasic();
+      }
+    };
+  }
+});
+
 // server/engines/ingestion/evidence-to-materials.ts
 var evidence_to_materials_exports = {};
 __export(evidence_to_materials_exports, {
   syncEvidenceToMaterials: () => syncEvidenceToMaterials
 });
-import { eq as eq5, desc as desc3 } from "drizzle-orm";
+import { eq as eq6, desc as desc4 } from "drizzle-orm";
 function detectTier(priceMin, priceMax, unit) {
   const price = priceMax || priceMin || 0;
   if (unit === "sqm" || unit === "m\xB2" || unit === "sqft" || unit === "L") {
@@ -4427,9 +6336,9 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
   if (!db) throw new Error("DB not available");
   let evidence;
   if (runId) {
-    evidence = await db.select().from(evidenceRecords).where(eq5(evidenceRecords.runId, runId)).limit(limit);
+    evidence = await db.select().from(evidenceRecords).where(eq6(evidenceRecords.runId, runId)).limit(limit);
   } else {
-    evidence = await db.select().from(evidenceRecords).orderBy(desc3(evidenceRecords.createdAt)).limit(limit);
+    evidence = await db.select().from(evidenceRecords).orderBy(desc4(evidenceRecords.createdAt)).limit(limit);
   }
   if (evidence.length === 0) {
     return { created: 0, updated: 0, skipped: 0 };
@@ -4479,10 +6388,17 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
       if (!validCategories.includes(catalogCategory)) {
         catalogCategory = "other";
       }
-      const priceMin = record.priceMin ? parseFloat(String(record.priceMin)) : null;
-      const priceMax = record.priceMax ? parseFloat(String(record.priceMax)) : null;
-      const priceTypical = record.priceTypical ? parseFloat(String(record.priceTypical)) : null;
-      const tier = detectTier(priceMin, priceMax, record.unit);
+      let priceMin = record.priceMin ? parseFloat(String(record.priceMin)) : null;
+      let priceMax = record.priceMax ? parseFloat(String(record.priceMax)) : null;
+      let priceTypical = record.priceTypical ? parseFloat(String(record.priceTypical)) : null;
+      let unit = record.unit?.toLowerCase() || "";
+      if (unit === "sqft" || unit === "sq.ft" || unit === "sq ft") {
+        if (priceMin) priceMin = priceMin * 10.7639;
+        if (priceMax) priceMax = priceMax * 10.7639;
+        if (priceTypical) priceTypical = priceTypical * 10.7639;
+        unit = "sqm";
+      }
+      const tier = detectTier(priceMin, priceMax, unit);
       const normalizedName = normalizeProductName(record.itemName);
       const existingMatch = existingByName.get(normalizedName);
       if (existingMatch) {
@@ -4495,7 +6411,7 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
             typicalCostLow: String(effectiveLow),
             typicalCostHigh: String(effectiveHigh),
             notes: `Updated from market data ${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}. ${record.publisher || ""}`
-          }).where(eq5(materialsCatalog.id, existingMatch.id));
+          }).where(eq6(materialsCatalog.id, existingMatch.id));
           updated++;
         } else {
           skipped++;
@@ -4503,7 +6419,7 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
       } else {
         const effectiveLow = priceMin || priceTypical;
         const effectiveHigh = priceMax || priceTypical;
-        const costUnit = record.unit === "sqm" || record.unit === "m\xB2" ? "AED/sqm" : `AED/${record.unit || "unit"}`;
+        const costUnit = unit === "sqm" || unit === "m\xB2" ? "AED/sqm" : `AED/${unit || "unit"}`;
         await db.insert(materialsCatalog).values({
           name: record.itemName.substring(0, 255),
           category: catalogCategory,
@@ -4554,6 +6470,190 @@ var init_evidence_to_materials = __esm({
       ffe: "furniture",
       // FF&E → furniture
       other: "other"
+    };
+  }
+});
+
+// server/engines/ingestion/connectors/scad-pdf-connector.ts
+var scad_pdf_connector_exports = {};
+__export(scad_pdf_connector_exports, {
+  SCADPdfConnector: () => SCADPdfConnector
+});
+var SCAD_PDF_URLS, SCAD_PUBLICATIONS_URL, EXTRACTION_PROMPT, SCADPdfConnector;
+var init_scad_pdf_connector = __esm({
+  "server/engines/ingestion/connectors/scad-pdf-connector.ts"() {
+    "use strict";
+    init_connector();
+    init_llm();
+    SCAD_PDF_URLS = [
+      "https://www.scad.gov.ae/Release%20Documents/Construction%20Cost%20Index%20Report%20Q4%202024_EN.pdf",
+      "https://www.scad.gov.ae/Release%20Documents/Construction%20Material%20Prices%202024_EN.pdf"
+    ];
+    SCAD_PUBLICATIONS_URL = "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx";
+    EXTRACTION_PROMPT = `You are a data extraction engine for MIYAR, a UAE real estate intelligence platform.
+
+Extract material price data from this SCAD (Statistics Centre Abu Dhabi) PDF text.
+Focus on: construction materials, building materials, finishing materials, and their price indices.
+
+Return a JSON array of objects with these exact fields:
+- materialName: string (e.g. "Portland Cement", "Steel Reinforcement Bar", "Ceramic Tiles 30x30")
+- category: string (one of: "cement", "steel", "aggregate", "timber", "tiles", "glass", "paint", "insulation", "plumbing", "electrical", "stone", "other")
+- priceAed: number|null (price in AED per unit, null if only index given)
+- unit: string (e.g. "ton", "kg", "sqm", "piece", "bag", "meter", "cubic_meter")
+- indexValue: number|null (price index value if available, base=100)
+- yearQuarter: string|null (e.g. "2024-Q4", "2024")
+- changePercent: number|null (year-over-year % change if stated)
+
+Rules:
+- Extract up to 30 items
+- Only real data from the PDF \u2014 do NOT invent values
+- If a row has an index but no absolute AED price, still include it with priceAed: null
+- Return [] if no material data found
+
+PDF text content:
+`;
+    SCADPdfConnector = class extends BaseSourceConnector {
+      sourceId = "scad-pdf-materials";
+      sourceName = "SCAD Abu Dhabi \u2014 Material Price Index (PDF)";
+      sourceUrl = SCAD_PUBLICATIONS_URL;
+      /**
+       * Fetch: download PDF(s) and extract text via pdf-parse.
+       * Falls back to publications page HTML if PDF fetch fails.
+       */
+      async fetch() {
+        let allText = "";
+        for (const pdfUrl of SCAD_PDF_URLS) {
+          try {
+            const response = await fetch(pdfUrl, {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform; +https://miyar.ai)",
+                "Accept": "application/pdf"
+              },
+              signal: AbortSignal.timeout(3e4)
+            });
+            if (!response.ok) {
+              console.warn(`[SCAD PDF] HTTP ${response.status} for ${pdfUrl}`);
+              continue;
+            }
+            const buffer = Buffer.from(await response.arrayBuffer());
+            let pdfParse;
+            try {
+              pdfParse = (await import("pdf-parse")).default;
+            } catch {
+              console.error("[SCAD PDF] pdf-parse not available \u2014 run: npm install pdf-parse");
+              continue;
+            }
+            const parsed = await pdfParse(buffer);
+            if (parsed.text && parsed.text.length > 100) {
+              allText += `
+--- Source: ${pdfUrl} ---
+${parsed.text}
+`;
+              console.log(`[SCAD PDF] Extracted ${parsed.text.length} chars from ${pdfUrl} (${parsed.numpages} pages)`);
+            }
+          } catch (err) {
+            console.warn(`[SCAD PDF] Failed to fetch/parse ${pdfUrl}:`, err instanceof Error ? err.message : String(err));
+          }
+        }
+        if (allText.length < 100) {
+          try {
+            const htmlResp = await fetch(this.sourceUrl, {
+              headers: { "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform)" },
+              signal: AbortSignal.timeout(15e3)
+            });
+            if (htmlResp.ok) {
+              allText = await htmlResp.text();
+            }
+          } catch {
+          }
+        }
+        return {
+          url: SCAD_PDF_URLS[0] || this.sourceUrl,
+          rawHtml: allText,
+          // Using rawHtml field for the extracted text
+          fetchedAt: /* @__PURE__ */ new Date(),
+          statusCode: allText.length > 100 ? 200 : 0
+        };
+      }
+      /**
+       * Extract: send PDF text to Gemini for structured material price extraction.
+       */
+      async extract(raw) {
+        const text2 = raw.rawHtml || "";
+        if (!text2 || text2.length < 100) return [];
+        const truncated = text2.substring(0, 15e3);
+        try {
+          const response = await invokeLLM({
+            messages: [
+              {
+                role: "system",
+                content: "You extract structured data from SCAD Abu Dhabi construction material publications. Return ONLY valid JSON. No markdown fences."
+              },
+              {
+                role: "user",
+                content: EXTRACTION_PROMPT + truncated
+              }
+            ],
+            response_format: { type: "json_object" }
+          });
+          const content = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
+          if (!content) return [];
+          const parsed = JSON.parse(content);
+          const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.materials || parsed.data || [];
+          if (!Array.isArray(items)) return [];
+          return items.filter((item) => item && typeof item.materialName === "string" && item.materialName.length > 0).slice(0, 30).map((item) => ({
+            title: `SCAD Material Index \u2014 ${item.materialName}`,
+            rawText: [
+              item.materialName,
+              item.priceAed ? `AED ${item.priceAed}/${item.unit}` : null,
+              item.indexValue ? `Index: ${item.indexValue}` : null,
+              item.changePercent ? `YoY: ${item.changePercent > 0 ? "+" : ""}${item.changePercent}%` : null,
+              item.yearQuarter
+            ].filter(Boolean).join(" | "),
+            publishedDate: void 0,
+            category: "material_cost",
+            geography: "Abu Dhabi",
+            sourceUrl: raw.url,
+            // Pass through structured data for normalize()
+            _scadItem: item
+          }));
+        } catch (err) {
+          console.error("[SCAD PDF] LLM extraction failed:", err instanceof Error ? err.message : String(err));
+          return [];
+        }
+      }
+      /**
+       * Normalize: convert extracted items into evidence record format.
+       */
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const scadItem = evidence._scadItem;
+        const metric = scadItem ? `${scadItem.materialName} (${scadItem.category})` : evidence.title;
+        const value = scadItem?.priceAed ?? scadItem?.indexValue ?? null;
+        const unit = scadItem?.unit ?? "unit";
+        const tags = [
+          "government",
+          "statistics",
+          "abu-dhabi",
+          "material-index",
+          "scad",
+          scadItem?.category
+        ].filter(Boolean);
+        const summaryParts = [evidence.rawText];
+        if (scadItem?.changePercent != null) {
+          summaryParts.push(`Year-over-year change: ${scadItem.changePercent > 0 ? "+" : ""}${scadItem.changePercent}%`);
+        }
+        return {
+          metric,
+          value,
+          unit,
+          confidence,
+          grade: grade2,
+          summary: summaryParts.join(" \u2014 ").substring(0, 500),
+          tags
+        };
+      }
     };
   }
 });
@@ -4653,8 +6753,47 @@ var UNAUTHED_ERR_MSG = "Please login (10001)";
 var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
 
 // server/_core/trpc.ts
-import { initTRPC, TRPCError as TRPCError2 } from "@trpc/server";
+import { initTRPC, TRPCError as TRPCError3 } from "@trpc/server";
 import superjson from "superjson";
+
+// server/_core/rate-limit.ts
+import { TRPCError as TRPCError2 } from "@trpc/server";
+var store = /* @__PURE__ */ new Map();
+setInterval(() => {
+  const now = Date.now();
+  const keys = Array.from(store.keys());
+  for (const key of keys) {
+    const entry = store.get(key);
+    if (!entry) continue;
+    entry.timestamps = entry.timestamps.filter((t2) => now - t2 < 3e5);
+    if (entry.timestamps.length === 0) store.delete(key);
+  }
+}, 3e5);
+function createRateLimitMiddleware(t2, opts = {}) {
+  const { windowMs = 6e4, max = 5, keyPrefix = "rl" } = opts;
+  return t2.middleware(async ({ ctx, next, path }) => {
+    const userId = ctx?.user?.id ?? "anon";
+    const key = `${keyPrefix}:${userId}:${path}`;
+    const now = Date.now();
+    let entry = store.get(key);
+    if (!entry) {
+      entry = { timestamps: [] };
+      store.set(key, entry);
+    }
+    entry.timestamps = entry.timestamps.filter((ts) => now - ts < windowMs);
+    if (entry.timestamps.length >= max) {
+      const retryAfterMs = entry.timestamps[0] + windowMs - now;
+      throw new TRPCError2({
+        code: "TOO_MANY_REQUESTS",
+        message: `Rate limit exceeded. Try again in ${Math.ceil(retryAfterMs / 1e3)}s.`
+      });
+    }
+    entry.timestamps.push(now);
+    return next();
+  });
+}
+
+// server/_core/trpc.ts
 var t = initTRPC.context().create({
   transformer: superjson
 });
@@ -4663,7 +6802,7 @@ var publicProcedure = t.procedure;
 var requireUser = t.middleware(async (opts) => {
   const { ctx, next } = opts;
   if (!ctx.user) {
-    throw new TRPCError2({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    throw new TRPCError3({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
   }
   return next({
     ctx: {
@@ -4677,7 +6816,7 @@ var adminProcedure = t.procedure.use(
   t.middleware(async (opts) => {
     const { ctx, next } = opts;
     if (!ctx.user || ctx.user.role !== "admin") {
-      throw new TRPCError2({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+      throw new TRPCError3({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
     return next({
       ctx: {
@@ -4690,10 +6829,10 @@ var adminProcedure = t.procedure.use(
 var requireOrg = t.middleware(async (opts) => {
   const { ctx, next } = opts;
   if (!ctx.user) {
-    throw new TRPCError2({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    throw new TRPCError3({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
   }
   if (!ctx.user.orgId) {
-    throw new TRPCError2({ code: "FORBIDDEN", message: "User does not belong to an organization" });
+    throw new TRPCError3({ code: "FORBIDDEN", message: "User does not belong to an organization" });
   }
   return next({
     ctx: {
@@ -4704,6 +6843,7 @@ var requireOrg = t.middleware(async (opts) => {
   });
 });
 var orgProcedure = t.procedure.use(requireOrg);
+var heavyProcedure = t.procedure.use(requireUser).use(createRateLimitMiddleware(t, { max: 5, windowMs: 6e4, keyPrefix: "heavy" }));
 
 // server/_core/systemRouter.ts
 var systemRouter = router({
@@ -4853,7 +6993,7 @@ function getSessionCookieOptions(req) {
 }
 
 // server/routers/auth.ts
-import { TRPCError as TRPCError3 } from "@trpc/server";
+import { TRPCError as TRPCError4 } from "@trpc/server";
 
 // server/_core/audit.ts
 init_db();
@@ -4892,7 +7032,7 @@ var authRouter = router({
     const user = await getUserByEmail(input.email);
     console.log("[Auth] getUserByEmail result:", user ? `found (id=${user.id}, email=${user.email})` : "NOT FOUND");
     if (!user) {
-      throw new TRPCError3({
+      throw new TRPCError4({
         code: "UNAUTHORIZED",
         message: "User not found or incorrect credentials"
       });
@@ -4906,14 +7046,14 @@ var authRouter = router({
           const newBcryptHash = await bcryptjs.hash(input.password, 12);
           await upsertUser({ ...user, password: newBcryptHash });
         } else {
-          throw new TRPCError3({
+          throw new TRPCError4({
             code: "UNAUTHORIZED",
             message: "User not found or incorrect credentials"
           });
         }
       }
     } else {
-      throw new TRPCError3({
+      throw new TRPCError4({
         code: "UNAUTHORIZED",
         message: "Please reset your password or sign in with your old method"
       });
@@ -4955,7 +7095,7 @@ var authRouter = router({
   register: publicProcedure.input(z2.object({ email: z2.string().email(), password: z2.string() })).mutation(async ({ input, ctx }) => {
     const exists = await emailExists(input.email);
     if (exists) {
-      throw new TRPCError3({
+      throw new TRPCError4({
         code: "CONFLICT",
         message: "Email already exists"
       });
@@ -5647,12 +7787,12 @@ function renderEvidenceReferences(refs) {
 </div>
 `;
   const rows = refs.map((r, i) => {
-    const gradeColor = r.reliabilityGrade === "A" ? "#2e7d32" : r.reliabilityGrade === "B" ? "#f57c00" : "#c62828";
+    const gradeColor2 = r.reliabilityGrade === "A" ? "#2e7d32" : r.reliabilityGrade === "B" ? "#f57c00" : "#c62828";
     return `<tr>
     <td><span class="citation-ref">[${i + 1}]</span></td>
     <td>${r.title}</td>
     <td>${r.category || "\u2014"}</td>
-    <td style="color:${gradeColor}; font-weight:600;">${r.reliabilityGrade || "\u2014"}</td>
+    <td style="color:${gradeColor2}; font-weight:600;">${r.reliabilityGrade || "\u2014"}</td>
     <td>${r.captureDate ? new Date(r.captureDate).toLocaleDateString() : "\u2014"}</td>
     <td>${r.sourceUrl ? `<a href="${r.sourceUrl}" style="color:#0f3460;">[link]</a>` : "\u2014"}</td>
   </tr>`;
@@ -5853,7 +7993,7 @@ function renderInputSummary(inputs) {
     {
       title: "Financial",
       items: [
-        ["Budget Cap (AED/sqft)", inputs.fin01BudgetCap ? inputs.fin01BudgetCap.toLocaleString() : "N/A"],
+        ["Budget Cap (AED/sqm)", inputs.fin01BudgetCap ? inputs.fin01BudgetCap.toLocaleString() : "N/A"],
         ["Flexibility", `${inputs.fin02Flexibility}/5`],
         ["Shock Tolerance", `${inputs.fin03ShockTolerance}/5`],
         ["Sales Premium", `${inputs.fin04SalesPremium}/5`]
@@ -6058,7 +8198,7 @@ function renderBoardAnnex(boardSummaries) {
   }
   const boardCards = boardSummaries.map((b) => {
     const tierRows = Object.entries(b.tierDistribution).map(
-      ([tier, count]) => `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${tier.replace("_", " ")}:</strong> ${count}</span>`
+      ([tier, count2]) => `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${tier.replace("_", " ")}:</strong> ${count2}</span>`
     ).join("");
     return `
     <div style="border:1px solid #e0e0e0; border-radius:6px; padding:12px; margin:8px 0; page-break-inside:avoid;">
@@ -6162,23 +8302,121 @@ function generateValidationSummaryHTML(data) {
     htmlFooter(data.projectId, "validation_summary", watermark, data.benchmarkVersion, data.logicVersion)
   ].join("\n");
 }
+function renderDesignBrief(brief) {
+  if (!brief) return "<div class='section'><p>No Design Brief data available.</p></div>";
+  const narrative = brief.designNarrative || {};
+  const materials = brief.materialSpecifications || {};
+  const boq = brief.boqFramework || { coreAllocations: [] };
+  const budget = brief.detailedBudget || {};
+  const instructions = brief.designerInstructions || { phasedDeliverables: {} };
+  const boqRows = (boq.coreAllocations || []).map((b) => `
+    <tr>
+      <td>${b.category || "\u2014"}</td>
+      <td style="text-align:center;">${b.percentage || 0}%</td>
+      <td style="text-align:right;">${b.estimatedCostLabel || "\u2014"}</td>
+      <td><span style="font-size: 10px; color: #666;">${b.notes || "\u2014"}</span></td>
+    </tr>
+  `).join("");
+  return `
+<div class="section">
+  <h2>Design Narrative & Positioning</h2>
+  <p>${narrative.positioningStatement || "\u2014"}</p>
+  <table>
+    <tr><th width="30%">Parameter</th><th>Value</th></tr>
+    <tr><td style="font-weight:bold;">Primary Style</td><td>${narrative.primaryStyle || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Mood Keywords</td><td>${(narrative.moodKeywords || []).join(", ") || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Color Palette</td><td>${(narrative.colorPalette || []).join(", ") || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Texture Direction</td><td>${narrative.textureDirection || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Lighting Approach</td><td>${narrative.lightingApproach || "\u2014"}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Material Specifications</h2>
+  <table>
+    <tr><th width="30%">Parameter</th><th>Value</th></tr>
+    <tr><td style="font-weight:bold;">Tier Requirement</td><td>${materials.tierRequirement || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Quality Benchmark</td><td>${materials.qualityBenchmark || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Sustainability</td><td>${materials.sustainabilityMandate || "\u2014"}</td></tr>
+  </table>
+  
+  <h3>Approved Materials (Primary)</h3>
+  <ul>${(materials.approvedMaterials || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3>Approved Finishes & Textures</h3>
+  <ul>${(materials.finishesAndTextures || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3 style="color: #c62828;">Prohibited Materials (Value Engineering Flags)</h3>
+  <ul>${(materials.prohibitedMaterials || []).map((m) => `<li><span style="color: #c62828;">${m}</span></li>`).join("")}</ul>
+</div>
+
+<div class="section">
+  <h2>Target BOQ Framework</h2>
+  ${boq.totalEstimatedSqm ? `<p><strong>Total Estimated Project Area:</strong> ${boq.totalEstimatedSqm.toLocaleString()} Sqm</p>` : ""}
+  <table>
+    <tr>
+      <th width="35%">Category</th>
+      <th width="15%" style="text-align:center;">Allocation</th>
+      <th width="20%" style="text-align:right;">Estimated Budget</th>
+      <th width="30%">Notes</th>
+    </tr>
+    ${boqRows || "<tr><td colspan='4'>No allocations available.</td></tr>"}
+  </table>
+</div>
+
+<div class="section">
+  <h2>Detailed Budget Guardrails</h2>
+  <table>
+    <tr><th width="30%">Parameter</th><th>Value</th></tr>
+    <tr><td style="font-weight:bold;">Cost Per Sqm Target</td><td>${budget.costPerSqmTarget || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Total Budget Cap</td><td>${budget.totalBudgetCap || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Cost Band</td><td>${budget.costBand || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Contingency</td><td>${budget.contingencyRecommendation || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Flexibility Level</td><td>${budget.flexibilityLevel || "\u2014"}</td></tr>
+  </table>
+  
+  <h3>Value Engineering Directives</h3>
+  <ul>${(budget.valueEngineeringMandates || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+</div>
+
+<div class="section">
+  <h2>Workflow & Execution Instructions</h2>
+  <p><strong>Lead Time Window:</strong> ${(instructions.procurementAndLogistics || {}).leadTimeWindow || "\u2014"}</p>
+  
+  <h3>Critical Path Procurement Items</h3>
+  <ul>${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3>Local Authority Approvals (Dubai)</h3>
+  <ul>${(instructions.authorityApprovals || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3>Contractor Coordination Requirements</h3>
+  <ul>${(instructions.coordinationRequirements || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  
+  <h3>Phased Deliverables</h3>
+  <div class="info-box">
+    <strong>Phase 1 \u2014 Concept & Schematic:</strong>
+    <ul>${(instructions.phasedDeliverables.conceptDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  </div>
+  <div class="info-box">
+    <strong>Phase 2 \u2014 Detailed Design:</strong>
+    <ul>${(instructions.phasedDeliverables.schematicDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  </div>
+  <div class="info-box">
+    <strong>Phase 3 \u2014 IFC & Tender:</strong>
+    <ul>${(instructions.phasedDeliverables.detailedDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  </div>
+</div>
+`;
+}
 function generateDesignBriefHTML(data) {
   const watermark = generateWatermark(data.projectId, "design_brief");
   return [
-    htmlHeader("Design Brief + RFQ Pack", "Technical Specification & Variable Analysis", data.projectName, watermark),
-    renderExecutiveSummary(data.scoreResult),
-    renderDimensionTable(data.scoreResult),
-    renderVariableContributions(data.scoreResult.variableContributions),
-    renderSensitivity(data.sensitivity),
-    renderRiskAssessment(data.scoreResult),
-    renderConditionalActions(data.scoreResult),
-    data.fiveLens ? renderFiveLens(data.fiveLens) : "",
-    renderBoardAnnex(data.boardSummaries),
+    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, watermark),
+    renderDesignBrief(data.designBrief),
     renderEvidenceReferences(data.evidenceRefs),
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
-    renderInputSummary(data.inputs),
     htmlFooter(data.projectId, "design_brief", watermark, data.benchmarkVersion, data.logicVersion)
-  ].join("\n");
+  ].join("\\n");
 }
 function generateFullReportHTML(data) {
   const watermark = generateWatermark(data.projectId, "full_report");
@@ -6337,6 +8575,537 @@ function generateReportHTML(reportType, data) {
     default:
       return generateValidationSummaryHTML(data);
   }
+}
+function generatePortfolioReportHTML(data) {
+  const watermark = `MYR-PFL-${data.portfolioId}-${Date.now().toString(36)}`;
+  const cover = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 20mm 15mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.6; font-size: 11px; }
+  .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 80vh; text-align: center; }
+  .cover .logo { font-size: 36px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 32px; }
+  .cover h1 { font-size: 28px; color: #0f3460; margin-bottom: 8px; }
+  .cover h2 { font-size: 16px; color: #4ecdc4; font-weight: 400; margin-bottom: 24px; }
+  .cover .project { font-size: 20px; color: #1a1a2e; font-weight: 600; }
+  .cover .date { font-size: 12px; color: #666; margin-top: 16px; }
+  .cover .confidential { font-size: 10px; color: #999; margin-top: 40px; text-transform: uppercase; letter-spacing: 2px; }
+  h2 { font-size: 16px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 6px; margin: 24px 0 12px; }
+  h3 { font-size: 13px; color: #0f3460; margin: 16px 0 8px; }
+  p { margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
+  th { background: #0f3460; color: #fff; padding: 8px 10px; text-align: left; font-weight: 600; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 12px 0; }
+  .metric-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; text-align: center; }
+  .metric-card .label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .metric-card .value { font-size: 22px; font-weight: 700; color: #0f3460; margin: 4px 0; }
+  .section { page-break-inside: avoid; margin-bottom: 20px; }
+  .risk-flag { background: #fff3cd; border-left: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .action-item { background: #e8f5e9; border-left: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .penalty-item { background: #fce4ec; border-left: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
+  .status-go { color: #2e7d32; font-weight: 700; }
+  .status-conditional { color: #f57f17; font-weight: 700; }
+  .status-nogo { color: #c62828; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="logo">MIYAR</div>
+  <h1>Portfolio Analysis Report</h1>
+  <h2>Multi-Project Decision Intelligence Summary</h2>
+  <div class="project">${data.portfolioName}</div>
+  <div class="date">${formatDate()}</div>
+  <div class="confidential">Confidential \u2014 For Internal Use Only</div>
+</div>
+`;
+  const summary = `
+<div class="section">
+  <h2>Portfolio Executive Summary</h2>
+  ${data.description ? `<p>${data.description}</p>` : ""}
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="label">Total Projects</div>
+      <div class="value">${data.totalProjects}</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Scored</div>
+      <div class="value">${data.scoredCount}</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Avg Composite</div>
+      <div class="value" style="color: ${data.avgComposite >= 75 ? "#4ecdc4" : data.avgComposite >= 55 ? "#f0c674" : "#e07a5f"};">${data.avgComposite}</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Avg Risk</div>
+      <div class="value" style="color: ${data.avgRisk <= 45 ? "#4ecdc4" : data.avgRisk <= 60 ? "#f0c674" : "#e07a5f"};">${data.avgRisk}</div>
+    </div>
+  </div>
+</div>
+`;
+  const projectRows = data.projects.map((p) => {
+    const statusClass = p.decisionStatus === "GO" ? "status-go" : p.decisionStatus === "CONDITIONAL_GO" ? "status-conditional" : p.decisionStatus === "NO_GO" ? "status-nogo" : "";
+    return `<tr>
+      <td>${p.name}</td>
+      <td>${p.tier || "\u2014"}</td>
+      <td>${p.style || "\u2014"}</td>
+      <td style="text-align:center; font-weight:700; color: ${(p.compositeScore || 0) >= 75 ? "#4ecdc4" : (p.compositeScore || 0) >= 55 ? "#f0c674" : "#e07a5f"};">${p.compositeScore ?? "N/A"}</td>
+      <td style="text-align:center;">${p.riskScore ?? "N/A"}</td>
+      <td style="text-align:center;" class="${statusClass}">${(p.decisionStatus || "\u2014").replace(/_/g, " ")}</td>
+    </tr>`;
+  }).join("");
+  const projectTable = `
+<div class="section">
+  <h2>Project Comparison</h2>
+  <table>
+    <tr><th>Project</th><th>Tier</th><th>Style</th><th>Composite</th><th>Risk</th><th>Decision</th></tr>
+    ${projectRows}
+  </table>
+</div>
+`;
+  let distSection = "";
+  if (data.distributions.length > 0) {
+    const distTables = data.distributions.map((dist) => {
+      const rows = dist.buckets.filter((b) => b.count > 0).map((b) => `<tr><td>${b.label}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`).join("");
+      return `<h3>${dist.dimension}</h3><table><tr><th>Group</th><th>Count</th><th>Avg Score</th></tr>${rows}</table>`;
+    }).join("");
+    distSection = `<div class="section"><h2>Score Distributions by Dimension</h2>${distTables}</div>`;
+  }
+  let fpSection = "";
+  if (data.failurePatterns.length > 0) {
+    const fpItems = data.failurePatterns.map((fp) => {
+      const css = fp.severity === "high" ? "penalty-item" : fp.severity === "medium" ? "risk-flag" : "action-item";
+      return `<div class="${css}"><strong>${fp.pattern}</strong> (${fp.severity}, ${fp.frequency} project(s))<br>${fp.description}</div>`;
+    }).join("");
+    fpSection = `<div class="section"><h2>Failure Patterns</h2>${fpItems}</div>`;
+  }
+  let leverSection = "";
+  if (data.improvementLevers.length > 0) {
+    const leverRows = data.improvementLevers.map(
+      (l) => `<tr><td style="text-align:center; font-weight:700;">${l.rank}</td><td>${l.lever}</td><td>${l.description}</td><td style="text-align:center; color: ${l.estimatedImpact === "High" ? "#4ecdc4" : l.estimatedImpact === "Medium" ? "#f0c674" : "#666"}; font-weight:700;">${l.estimatedImpact}</td></tr>`
+    ).join("");
+    leverSection = `<div class="section"><h2>Improvement Levers</h2><table><tr><th>#</th><th>Lever</th><th>Description</th><th>Impact</th></tr>${leverRows}</table></div>`;
+  }
+  let heatmapSection = "";
+  if (data.complianceHeatmap.length > 0) {
+    const dims = ["sa", "ff", "mp", "ds", "er"];
+    const dimLabels = { sa: "SA", ff: "FF", mp: "MP", ds: "DS", er: "ER" };
+    const headerCols = dims.map((d) => `<th style="text-align:center;">${dimLabels[d] || d}</th>`).join("");
+    const heatRows = data.complianceHeatmap.map((row) => {
+      const cells = dims.map((d) => {
+        const cell = row.dimensions[d];
+        if (!cell || cell.count === 0) return `<td style="text-align:center; color:#999;">\u2014</td>`;
+        const color = cell.avg >= 75 ? "#e8f5e9" : cell.avg >= 55 ? "#fff8e1" : "#fce4ec";
+        const textColor = cell.avg >= 75 ? "#2e7d32" : cell.avg >= 55 ? "#f57f17" : "#c62828";
+        return `<td style="text-align:center; background:${color}; color:${textColor}; font-weight:700;">${cell.avg} <span style="font-size:8px; font-weight:400;">(${cell.count})</span></td>`;
+      }).join("");
+      return `<tr><td style="font-weight:700;">${row.tier}</td>${cells}</tr>`;
+    }).join("");
+    heatmapSection = `<div class="section"><h2>Compliance Heatmap (Tier \xD7 Dimension)</h2><table><tr><th>Tier</th>${headerCols}</tr>${heatRows}</table></div>`;
+  }
+  const footer = `
+<div class="footer">
+  <p>Generated by MIYAR Decision Intelligence \u2022 ${formatDate()} \u2022 Document ID: ${watermark}</p>
+  <p>Portfolio ID: ${data.portfolioId} \u2022 Model Version: v2.0.0 \u2022 ${data.totalProjects} projects analyzed</p>
+</div>
+</body>
+</html>
+`;
+  return [cover, summary, projectTable, distSection, heatmapSection, fpSection, leverSection, footer].join("\n");
+}
+
+// server/engines/design-brief.ts
+var STYLE_MOOD_MAP = {
+  Modern: {
+    keywords: ["clean lines", "open plan", "minimalist", "functional elegance", "geometric"],
+    colors: ["warm white", "charcoal", "natural oak", "matte black", "soft grey"],
+    texture: "Smooth surfaces with selective tactile contrast \u2014 polished concrete, matte lacquer, brushed metal",
+    lighting: "Layered ambient + task lighting with concealed LED strips and statement pendants",
+    spatial: "Open-plan living with defined zones through material transitions rather than walls"
+  },
+  Contemporary: {
+    keywords: ["curated luxury", "refined", "timeless", "sophisticated", "bespoke"],
+    colors: ["ivory", "champagne gold", "deep navy", "warm taupe", "bronze"],
+    texture: "Rich layering \u2014 marble, silk, velvet, hand-finished metals, natural stone",
+    lighting: "Dramatic accent lighting with warm ambient base, sculptural fixtures as focal points",
+    spatial: "Generous proportions with intimate conversation areas, seamless indoor-outdoor flow"
+  },
+  Minimal: {
+    keywords: ["essential", "serene", "restrained", "zen", "purposeful"],
+    colors: ["pure white", "pale grey", "natural linen", "warm concrete", "muted sage"],
+    texture: "Monolithic surfaces \u2014 seamless plaster, raw timber, natural stone with minimal joints",
+    lighting: "Diffused natural light maximized, architectural lighting integrated into surfaces",
+    spatial: "Uncluttered volumes where each element earns its place, negative space as design tool"
+  },
+  Classic: {
+    keywords: ["heritage", "ornamental", "symmetrical", "grand", "traditional craftsmanship"],
+    colors: ["cream", "burgundy", "forest green", "antique gold", "rich walnut"],
+    texture: "Ornate plasterwork, carved wood, damask fabrics, polished brass, veined marble",
+    lighting: "Chandeliers and sconces with warm incandescent tones, layered drapery for light control",
+    spatial: "Formal room hierarchy with enfilade circulation, proportional ceiling heights"
+  },
+  Fusion: {
+    keywords: ["eclectic", "cultural blend", "unexpected pairings", "artisanal", "narrative"],
+    colors: ["terracotta", "indigo", "saffron", "olive", "raw umber"],
+    texture: "Handcrafted meets industrial \u2014 zellige tiles, raw steel, woven textiles, reclaimed wood",
+    lighting: "Mix of artisan pendants, lanterns, and modern track systems",
+    spatial: "Layered spaces with cultural references, discovery moments, and curated collections"
+  },
+  Other: {
+    keywords: ["custom", "experimental", "site-specific", "innovative", "boundary-pushing"],
+    colors: ["project-specific palette", "contextual response", "material-driven", "site-inspired", "bespoke"],
+    texture: "Custom material palette responding to project narrative and site context",
+    lighting: "Bespoke lighting design responding to program and spatial character",
+    spatial: "Innovative spatial organization driven by project-specific requirements"
+  }
+};
+var TIER_MATERIALS = {
+  Mid: {
+    primary: ["Engineered stone countertops", "Large-format porcelain floor tiles (60x60cm)", "Laminate wood flooring for bedrooms", "Painted MDF joinery"],
+    finishes: ["Powder-coated aluminum", "Matte black or brushed nickel hardware", "Commercial-grade vinyl wallcoverings"],
+    avoid: ["Natural marble slabs", "Solid hardwood flooring", "Bespoke brass or copper metalwork", "Silk or delicate natural fabrics"],
+    quality: "Good quality commercial-grade materials with high durability and consistent mass-produced finish."
+  },
+  "Upper-mid": {
+    primary: ["Quartz composite surfaces", "Large-format porcelain (120x60cm)", "Engineered oak flooring", "Lacquered or wood-veneer joinery"],
+    finishes: ["Brushed brass or nickel accents", "Textured ceramic wall tiles", "Performance blend fabrics"],
+    avoid: ["Ultra-premium exotic stone (Calacatta, Onyx)", "Fully bespoke loose furniture", "Exotic solid hardwoods"],
+    quality: "Premium commercial-grade bridging standard residential build with select residential-quality feature elements."
+  },
+  Luxury: {
+    primary: ["Natural marble (Carrara, Statuario)", "Solid European hardwood", "Custom-built joinery with integrated lighting", "Natural travertine or slate"],
+    finishes: ["Satin brass or bronze fixtures", "Silk and wool blend fabrics", "Hand-blown glass lighting", "Full-grain leather upholstery"],
+    avoid: ["Laminate surfaces", "Vinyl flooring", "Standard-grade sanitary ware", "Visible MDF edges"],
+    quality: "Residential luxury grade \u2014 hand-selected materials with visible artisan craftsmanship and texture."
+  },
+  "Ultra-luxury": {
+    primary: ["Book-matched marble slabs", "Rare exotic hardwood", "Bespoke architectural metalwork", "Artisan venetian plaster"],
+    finishes: ["24k gold leaf details", "Murano glass", "Cashmere wallcoverings", "Mother of pearl inlay"],
+    avoid: ["Any mass-produced finish or synthetic imitation", "Standard catalog hardware", "Printed porcelain mimicking stone"],
+    quality: "Museum-grade \u2014 one-of-a-kind pieces, master craftsman execution, provenance documented for every major surface."
+  }
+};
+var BOQ_DISTRIBUTION = {
+  Residential: [
+    { category: "Civil & MEP Works (Flooring, Ceilings, Partitions)", percentage: 35, notes: "Includes demolition, AC modifications, smart home cabling." },
+    { category: "Fixed Joinery (Kitchens, Wardrobes, Doors)", percentage: 25, notes: "High impact area. Focus on veneer matching and hardware quality." },
+    { category: "Sanitaryware & Wet Areas", percentage: 15, notes: "Waterproofing and high-grade imported fixtures." },
+    { category: "FF&E (Loose Furniture, Lighting, Art)", percentage: 25, notes: "Sourced locally or imported depending on timeline." }
+  ],
+  Commercial: [
+    { category: "Civil & MEP Works (Partitions, HVAC, Data)", percentage: 45, notes: "Heavy focus on IT infrastructure and acoustics." },
+    { category: "Workstations & Loose Furniture", percentage: 30, notes: "Ergonomic seating and adaptive desking." },
+    { category: "Pantry & Washrooms", percentage: 10, notes: "Durable, high-traffic finishes." },
+    { category: "Feature Joinery & Reception", percentage: 15, notes: "Brand identity focal points." }
+  ],
+  Hospitality: [
+    { category: "Civil & MEP Works", percentage: 30, notes: "Acoustic separation and complex integrated lighting." },
+    { category: "FF&E (Custom Furniture, Drapery, Rugs)", percentage: 40, notes: "High durability textiles, fire-rated materials." },
+    { category: "Fixed Joinery & Millwork", percentage: 15, notes: "Bespoke casegoods." },
+    { category: "Sanitaryware & Specialized Equipment", percentage: 15, notes: "Luxury hotel-grade fixtures." }
+  ]
+};
+var TIER_MATERIAL_TYPES = {
+  "Mid": ["concrete", "ceramic", "paint"],
+  "Upper-mid": ["concrete", "stone", "paint", "glass"],
+  "Luxury": ["stone", "glass", "steel", "wood"],
+  "Ultra-luxury": ["stone", "glass", "steel", "aluminum", "wood"]
+};
+var TIER_PREMIUM_PCT = {
+  "Entry": 0,
+  "Mid": 3,
+  "Upper-mid": 8,
+  "Luxury": 18,
+  "Ultra-luxury": 30
+};
+function generateDesignBrief2(project, inputs, scoreResult, livePricing, materialConstants2, areaSalePricePerSqm, projectPurpose) {
+  const style = inputs.des01Style || "Modern";
+  const tier = inputs.mkt01Tier || "Upper-mid";
+  const mood = STYLE_MOOD_MAP[style] || STYLE_MOOD_MAP.Other;
+  const purpose = projectPurpose || "sell_ready";
+  const PURPOSE_TIER_ADJUST = {
+    sell_offplan: 1,
+    // one tier up (showroom quality)
+    sell_ready: 0,
+    // as-is
+    rent: -1,
+    // one tier down (durability focus)
+    mixed: 0
+    // balanced
+  };
+  const tierOrder = ["Mid", "Upper-mid", "Luxury", "Ultra-luxury"];
+  const baseTierIdx = tierOrder.indexOf(tier);
+  const adjustedTierIdx = Math.max(0, Math.min(tierOrder.length - 1, baseTierIdx + (PURPOSE_TIER_ADJUST[purpose] || 0)));
+  const effectiveMaterialTier = tierOrder[adjustedTierIdx];
+  const materials = TIER_MATERIALS[effectiveMaterialTier] || TIER_MATERIALS["Upper-mid"];
+  const gfa = inputs.ctx03Gfa ? Number(inputs.ctx03Gfa) : null;
+  const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
+  const totalBudgetCap = budget && gfa ? budget * gfa : null;
+  let costBand = "Standard (Fit-out)";
+  let dynamicCostPerSqm = null;
+  if (livePricing && Object.keys(livePricing).length > 0) {
+    const totalPerSqm = Object.values(livePricing).reduce((sum, cp) => sum + cp.weightedMean, 0);
+    dynamicCostPerSqm = totalPerSqm;
+    if (totalPerSqm > 8e3) costBand = "Ultra-Premium Luxury (Market-Verified)";
+    else if (totalPerSqm > 4500) costBand = "Premium High-End (Market-Verified)";
+    else if (totalPerSqm > 2500) costBand = "Upper-Standard Modern (Market-Verified)";
+    else costBand = "Standard Fit-out (Market-Verified)";
+  } else if (budget) {
+    if (budget > 8e3) costBand = "Ultra-Premium Luxury";
+    else if (budget > 4500) costBand = "Premium High-End";
+    else if (budget > 2500) costBand = "Upper-Standard Modern";
+  }
+  const flexMap = {
+    1: "Strictly fixed. Value engineering required immediately to meet target.",
+    2: "Constrained. Submittals must provide cheaper alternatives.",
+    3: "Moderate. Upgrades allowed only if offset by savings elsewhere.",
+    4: "Flexible. Room to upgrade hero areas (e.g. reception, master bed).",
+    5: "Open. Unconstrained budget for ultra-luxury specifications."
+  };
+  const horizonLeadMap = {
+    "0-12m": "0-12 Months (Aggressive) \u2014 Zero tolerance for long-lead imports. Focus on locally stocked materials in the UAE.",
+    "12-24m": "12-24 Months (Standard) \u2014 Safely import European lighting and hardware. Monitor shipping delays.",
+    "24-36m": "24-36 Months (Comfortable) \u2014 Full global sourcing available. Phase procurement.",
+    "36m+": "36 Months+ (Extended) \u2014 Opportunity for bespoke Italian/European factory commissions."
+  };
+  const sustainNotes = inputs.des05Sustainability >= 4 ? "High Priority: Must exceed Dubai Green Building (Al Sa'fat) Gold standards. Specify low-VOC, locally manufactured materials, and ultra-efficient MEP." : inputs.des05Sustainability >= 3 ? "Moderate Priority: Adhere to baseline Al Sa'fat regulations. Prefer sustainable materials if cost-neutral." : "Standard Compliance: Meet minimum Dubai Municipality building codes and basic Al Sa'fat requirements.";
+  const purposeLabel = {
+    sell_offplan: "positioned for off-plan sales with showroom-quality finishes",
+    sell_ready: "positioned for ready-to-move sales with durable premium finishes",
+    rent: "designed for rental yield optimisation with high-durability, cost-efficient materials",
+    mixed: "designed for a mixed-use strategy balancing resale appeal and rental durability"
+  };
+  const positioningParts = [];
+  positioningParts.push(`The ${project.name} is a ${tier.toLowerCase()} ${inputs.ctx01Typology.toLowerCase()} internal fit-out`);
+  positioningParts.push(`located in a ${inputs.ctx04Location.toLowerCase()} area of Dubai,`);
+  positioningParts.push(`${purposeLabel[purpose] || purposeLabel.sell_ready},`);
+  positioningParts.push(`embracing a ${style.toLowerCase()} design language.`);
+  if (effectiveMaterialTier !== tier) {
+    positioningParts.push(`Material specifications adjusted to ${effectiveMaterialTier.toLowerCase()} quality level based on project purpose.`);
+  }
+  if (scoreResult.decisionStatus === "validated") {
+    positioningParts.push(`MIYAR validates this direction with a high composite feasible score of ${scoreResult.compositeScore.toFixed(1)}/100.`);
+  } else if (scoreResult.decisionStatus === "conditional") {
+    positioningParts.push(`MIYAR conditionally validates this direction (Score: ${scoreResult.compositeScore.toFixed(1)}/100). The interior team must actively mitigate flagged constraints during schematic design.`);
+  } else {
+    positioningParts.push(`MIYAR flags this brief for revision (Score: ${scoreResult.compositeScore.toFixed(1)}/100). Severe discrepancies exist between the budget and the target material luxury tiers.`);
+  }
+  const criticalPath = [];
+  if (inputs.des02MaterialLevel >= 4) criticalPath.push("Dry-lay approval for natural stone slabs at local UAE yards.");
+  if (inputs.des03Complexity >= 4) criticalPath.push("Shop drawing approvals for complex architectural metalwork/joinery.");
+  if (inputs.des04Experience >= 4) criticalPath.push("AV/IT and Smart Home automation rough-in coordination.");
+  if (tier === "Ultra-luxury") criticalPath.push("Procurement of limited-edition or custom-commissioned FF&E.");
+  if (inputs.exe01SupplyChain <= 2) criticalPath.push("Customs clearance and shipping buffers for all imported finishing materials.");
+  if (criticalPath.length === 0) criticalPath.push("Standard interior fit-out mobilization and procurement.");
+  const importDeps = [];
+  if (inputs.des02MaterialLevel >= 4) importDeps.push("Italian/Spanish Natural Marble (10-14 weeks lead).");
+  if (tier === "Luxury" || tier === "Ultra-luxury") importDeps.push("European sanitaryware & brassware (8-12 weeks).");
+  if (inputs.des03Complexity >= 4) importDeps.push("European architectural lighting tracks and drivers (10-12 weeks).");
+  if (importDeps.length === 0) importDeps.push("100% locally stocked building materials.");
+  const veNotes = [];
+  if (inputs.fin02Flexibility <= 2) {
+    veNotes.push("Restrict Class A natural stone strictly to primary visual axes (Main Entrance, Feature Walls).");
+    veNotes.push("Substitute hidden joinery carcasses (wardrobe internals, back-of-house) with standard melamine.");
+    veNotes.push("Specify large-format porcelain instead of marble for secondary washrooms.");
+  }
+  veNotes.push("Continuously evaluate sub-contractor BOQs against the MIYAR budget cap during the tender phase.");
+  if (gfa && gfa > 2e3) veNotes.push("Leverage the large floor plate for bulk discount negotiations on flooring and ceiling tiles.");
+  const distroList = BOQ_DISTRIBUTION[inputs.ctx01Typology] || BOQ_DISTRIBUTION.Commercial;
+  const boqToEvidenceCat = {
+    "Civil & MEP Works (Flooring, Ceilings, Partitions)": ["floors", "ceilings", "walls"],
+    "Civil & MEP Works (Partitions, HVAC, Data)": ["floors", "ceilings", "walls"],
+    "Civil & MEP Works": ["floors", "ceilings", "walls"],
+    "Fixed Joinery (Kitchens, Wardrobes, Doors)": ["joinery"],
+    "Feature Joinery & Reception": ["joinery"],
+    "Fixed Joinery & Millwork": ["joinery"],
+    "Sanitaryware & Wet Areas": ["sanitary"],
+    "Sanitaryware & Specialized Equipment": ["sanitary"],
+    "Pantry & Washrooms": ["sanitary", "kitchen"],
+    "FF&E (Loose Furniture, Lighting, Art)": ["ffe", "lighting"],
+    "FF&E (Custom Furniture, Drapery, Rugs)": ["ffe", "lighting"],
+    "Workstations & Loose Furniture": ["ffe"]
+  };
+  const coreAllocations = distroList.map((d) => {
+    let estCostStr = "TBD";
+    let usedLive = false;
+    if (livePricing && gfa) {
+      const mappedCats = boqToEvidenceCat[d.category] || [];
+      let catSqmCost = 0;
+      let matched = 0;
+      for (const ec of mappedCats) {
+        if (livePricing[ec]) {
+          catSqmCost += livePricing[ec].weightedMean;
+          matched++;
+        }
+      }
+      if (matched > 0) {
+        const catTotal = catSqmCost * gfa;
+        estCostStr = `AED ${Math.round(catTotal).toLocaleString()} (market-verified)`;
+        usedLive = true;
+      }
+    }
+    if (!usedLive && totalBudgetCap) {
+      const catTotal = d.percentage / 100 * totalBudgetCap;
+      estCostStr = `AED ${Math.round(catTotal).toLocaleString()}`;
+    }
+    return {
+      category: d.category,
+      percentage: d.percentage,
+      estimatedCostLabel: estCostStr,
+      notes: usedLive ? `${d.notes} [Pricing source: Live market benchmarks]` : d.notes
+    };
+  });
+  let pricingAnalytics;
+  if (materialConstants2 && materialConstants2.length > 0 && gfa) {
+    const constLookup = new Map(materialConstants2.map((c) => [c.materialType, c]));
+    const tierTypes = TIER_MATERIAL_TYPES[tier] || TIER_MATERIAL_TYPES["Upper-mid"];
+    const matchedTypes = tierTypes.filter((t2) => constLookup.has(t2));
+    const sqmPerType = matchedTypes.length > 0 ? gfa / matchedTypes.length : 0;
+    let totalCostAed = 0;
+    let totalCarbonKg = 0;
+    let weightedMaintenanceSum = 0;
+    const materialBreakdown = [];
+    for (const mt of matchedTypes) {
+      const c = constLookup.get(mt);
+      const costPerSqm = Number(c.costPerM2 ?? 0);
+      const carbonIntensity = Number(c.carbonIntensity ?? 0);
+      const maintenanceFactor = Number(c.maintenanceFactor ?? 3);
+      const lineCost = costPerSqm * sqmPerType;
+      const lineCarbonKg = carbonIntensity * sqmPerType;
+      totalCostAed += lineCost;
+      totalCarbonKg += lineCarbonKg;
+      weightedMaintenanceSum += maintenanceFactor * sqmPerType;
+      materialBreakdown.push({
+        materialType: mt,
+        allocatedSqm: Math.round(sqmPerType),
+        costPerSqm,
+        lineCostAed: Math.round(lineCost),
+        carbonKg: Math.round(lineCarbonKg),
+        maintenanceFactor
+      });
+    }
+    const costPerSqmAvg = matchedTypes.length > 0 ? totalCostAed / gfa : 0;
+    const avgMaintenanceFactor = gfa > 0 && matchedTypes.length > 0 ? weightedMaintenanceSum / gfa : 3;
+    const avgCarbonPerSqm = gfa > 0 ? totalCarbonKg / gfa : 0;
+    const sustainabilityGrade = avgCarbonPerSqm < 30 ? "A" : avgCarbonPerSqm < 60 ? "B" : avgCarbonPerSqm < 100 ? "C" : avgCarbonPerSqm < 150 ? "D" : "E";
+    const designPremiumPct = TIER_PREMIUM_PCT[tier] ?? 8;
+    const baseSalePrice = areaSalePricePerSqm ?? 25e3;
+    const salePriceSource = areaSalePricePerSqm ? "dld_transactions" : "hardcoded_fallback";
+    const designPremiumAed = Math.round(gfa * baseSalePrice * designPremiumPct / 100);
+    const fitoutRatio = baseSalePrice > 0 ? costPerSqmAvg / baseSalePrice : null;
+    const FITOUT_RATIOS = {
+      "Mid": { min: 0.08, max: 0.12 },
+      "Upper-mid": { min: 0.12, max: 0.18 },
+      "Luxury": { min: 0.18, max: 0.28 },
+      "Ultra-luxury": { min: 0.25, max: 0.35 }
+    };
+    const ratioLimits = FITOUT_RATIOS[tier] ?? { min: 0.12, max: 0.18 };
+    let overSpecWarning = null;
+    if (fitoutRatio !== null) {
+      if (fitoutRatio > ratioLimits.max) {
+        overSpecWarning = `\u26A0\uFE0F Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price exceeds ${tier} norm of ${ratioLimits.max * 100}%. Consider reducing specification.`;
+      } else if (fitoutRatio < ratioLimits.min) {
+        overSpecWarning = `\u26A0\uFE0F Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price is below ${tier} minimum of ${ratioLimits.min * 100}%. May not meet buyer expectations.`;
+      }
+    }
+    pricingAnalytics = {
+      costPerSqmAvg: Math.round(costPerSqmAvg),
+      totalFitoutCostAed: Math.round(totalCostAed),
+      totalCarbonKg: Math.round(totalCarbonKg),
+      avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
+      sustainabilityGrade,
+      materialBreakdown,
+      pricingSource: "material_constants",
+      designPremiumAed,
+      designPremiumPct,
+      fitoutRatio,
+      overSpecWarning,
+      salePriceSource,
+      areaSalePricePerSqm: baseSalePrice
+    };
+  }
+  return {
+    projectIdentity: {
+      projectName: project.name,
+      typology: inputs.ctx01Typology,
+      scale: inputs.ctx02Scale,
+      gfa,
+      location: inputs.ctx04Location,
+      horizon: inputs.ctx05Horizon,
+      marketTier: tier,
+      style
+    },
+    designNarrative: {
+      positioningStatement: positioningParts.join(" "),
+      primaryStyle: style,
+      moodKeywords: mood.keywords,
+      colorPalette: mood.colors,
+      textureDirection: mood.texture,
+      lightingApproach: mood.lighting,
+      spatialPhilosophy: mood.spatial
+    },
+    materialSpecifications: {
+      tierRequirement: tier,
+      approvedMaterials: materials.primary,
+      prohibitedMaterials: materials.avoid,
+      finishesAndTextures: materials.finishes,
+      sustainabilityMandate: sustainNotes,
+      qualityBenchmark: materials.quality
+    },
+    boqFramework: {
+      totalEstimatedSqm: gfa,
+      coreAllocations
+    },
+    detailedBudget: {
+      costPerSqmTarget: dynamicCostPerSqm ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (market-verified)` : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
+      totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
+      costBand,
+      flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
+      contingencyRecommendation: inputs.fin03ShockTolerance <= 2 ? "Allocate 15-20% Contractor Contingency" : "Allocate 10% Contractor Contingency",
+      valueEngineeringMandates: veNotes
+    },
+    designerInstructions: {
+      phasedDeliverables: {
+        conceptDesign: [
+          "Mood boards, spatial narratives, and initial 3D masses.",
+          "High-level space planning layouts (Block Plans).",
+          "Initial material palette look-and-feel."
+        ],
+        schematicDesign: [
+          "Developed 3D renderings for key spaces.",
+          "Preliminary RCPs (Reflected Ceiling Plans) and MEP overlays.",
+          "Preliminary Material Schedule & Finishes Legend."
+        ],
+        detailedDesign: [
+          "IFC (Issued for Construction) drawing package.",
+          "Fully detailed BOQ (Bill of Quantities) ready for tender.",
+          "Finalised FF&E Matrix with exact supplier quotes."
+        ]
+      },
+      authorityApprovals: [
+        "Dubai Municipality (DM) - Architectural & Fit-out Approvals.",
+        "Dubai Civil Defense (DCD) - Fire safety & sprinkler modifications.",
+        "Developer/Landlord NOCs (Emaar, Nakheel, DMCC, etc.) before site mobilization."
+      ],
+      coordinationRequirements: [
+        "MEP Contractor: Coordinate AC grill placements with seamless ceiling details.",
+        "Lighting Consultant: Align decorative fixture dimming protocols with main automation system.",
+        "Acoustic Consultant: Soundproofing details for partitions meeting Dubai luxury standards."
+      ],
+      procurementAndLogistics: {
+        leadTimeWindow: horizonLeadMap[inputs.ctx05Horizon] || horizonLeadMap["12-24m"],
+        criticalPathItems: criticalPath,
+        importDependencies: importDeps
+      }
+    },
+    pricingAnalytics
+  };
 }
 
 // server/storage.ts
@@ -6620,7 +9389,7 @@ function computeFiveLens(project, scoreMatrix, benchmarks) {
   }
   const ffScore = Number(scoreMatrix.ffScore);
   const costEvidence = [
-    { variable: "fin01BudgetCap", label: "Budget Cap (AED/sqft)", value: Number(project.fin01BudgetCap || 0), weight: 0.3, contribution: contributions.fin01BudgetCap?.contribution || 0 },
+    { variable: "fin01BudgetCap", label: "Budget Cap (AED/sqm)", value: Number(project.fin01BudgetCap || 0), weight: 0.3, contribution: contributions.fin01BudgetCap?.contribution || 0 },
     { variable: "fin02Flexibility", label: "Budget Flexibility", value: project.fin02Flexibility || 3, weight: 0.25, contribution: contributions.fin02Flexibility?.contribution || 0 },
     { variable: "fin03ShockTolerance", label: "Shock Tolerance", value: project.fin03ShockTolerance || 3, weight: 0.25, contribution: contributions.fin03ShockTolerance?.contribution || 0 },
     { variable: "fin04SalesPremium", label: "Sales Premium Potential", value: project.fin04SalesPremium || 3, weight: 0.2, contribution: contributions.fin04SalesPremium?.contribution || 0 }
@@ -6666,7 +9435,7 @@ function computeFiveLens(project, scoreMatrix, benchmarks) {
       grade: grade(ffScore),
       evidence: costEvidence,
       penalties: penaltyNames.filter((p) => p.toLowerCase().includes("budget") || p.toLowerCase().includes("cost") || p.toLowerCase().includes("financial")),
-      rationale: `Financial feasibility scores ${ffScore.toFixed(1)}/100. Budget cap of AED ${Number(project.fin01BudgetCap || 0).toLocaleString()}/sqft with flexibility rating ${project.fin02Flexibility}/5. ${ffScore >= 70 ? "Budget is well-calibrated to market expectations." : ffScore >= 50 ? "Budget is within acceptable range but may face pressure." : "Budget constraints pose significant risk to project delivery."}`
+      rationale: `Financial feasibility scores ${ffScore.toFixed(1)}/100. Budget cap of AED ${Number(project.fin01BudgetCap || 0).toLocaleString()}/sqm with flexibility rating ${project.fin02Flexibility}/5. ${ffScore >= 70 ? "Budget is well-calibrated to market expectations." : ffScore >= 50 ? "Budget is within acceptable range but may face pressure." : "Budget constraints pose significant risk to project delivery."}`
     },
     {
       lensId: 3,
@@ -6748,7 +9517,7 @@ function computeDerivedFeatures(project, scoreMatrix, benchmarks, allScores) {
   const relevantBenchmarks = benchmarks.filter(
     (b) => b.typology === project.ctx01Typology && b.marketTier === tier
   );
-  const avgBenchmarkCost = relevantBenchmarks.length > 0 ? relevantBenchmarks.reduce((s, b) => s + Number(b.costPerSqftMid || 0), 0) / relevantBenchmarks.length : 400;
+  const avgBenchmarkCost = relevantBenchmarks.length > 0 ? relevantBenchmarks.reduce((s, b) => s + Number(b.costPerSqftMid || 0), 0) / relevantBenchmarks.length * 10.7639 : 400 * 10.7639;
   const costDeltaVsBenchmark = budgetCap > 0 ? (budgetCap - avgBenchmarkCost) / avgBenchmarkCost * 100 : 0;
   const diff = project.str02Differentiation || 3;
   const uniquenessIndex = Math.min(1, Math.max(0, (diff * 0.4 + materialLevel * 0.3 + complexity * 0.3) / 5));
@@ -7166,29 +9935,99 @@ function checkTrendSignal(input) {
 }
 function checkPositioningGap(input) {
   if (!input.marketPosition) return null;
-  const { percentile, targetValue, percentiles, tier } = input.marketPosition;
-  if (percentile >= POSITIONING_GAP_PERCENTILE_LOW && percentile <= POSITIONING_GAP_PERCENTILE_HIGH) {
+  const { percentile: percentile3, targetValue, percentiles, tier } = input.marketPosition;
+  if (percentile3 >= POSITIONING_GAP_PERCENTILE_LOW && percentile3 <= POSITIONING_GAP_PERCENTILE_HIGH) {
     return null;
   }
-  const isBelow = percentile < POSITIONING_GAP_PERCENTILE_LOW;
+  const isBelow = percentile3 < POSITIONING_GAP_PERCENTILE_LOW;
   const confidenceScore = 0.7;
   return {
     type: "positioning_gap",
     severity: isBelow ? "info" : "warning",
-    title: `Positioning gap: project at P${Math.round(percentile)} (${isBelow ? "below" : "above"} market range)`,
+    title: `Positioning gap: project at P${Math.round(percentile3)} (${isBelow ? "below" : "above"} market range)`,
     body: null,
     actionableRecommendation: null,
     confidenceScore,
     triggerCondition: `Project percentile outside P${POSITIONING_GAP_PERCENTILE_LOW}-P${POSITIONING_GAP_PERCENTILE_HIGH} range`,
     dataPoints: {
       targetValue,
-      percentile,
+      percentile: percentile3,
       tier,
       p25: percentiles.p25,
       p50: percentiles.p50,
       p75: percentiles.p75,
       gapToP25: targetValue - percentiles.p25,
       gapToP75: targetValue - percentiles.p75
+    }
+  };
+}
+function checkStyleShift(input) {
+  if (!input.designIntelligence?.styleMentions) return null;
+  const shiftingStyles = input.designIntelligence.styleMentions.filter(
+    (s) => s.percentChange > 20 && s.currentPeriod >= 3
+    // Meaningful volume
+  );
+  if (shiftingStyles.length === 0) return null;
+  const topShift = shiftingStyles.reduce((max, s) => s.percentChange > max.percentChange ? s : max);
+  return {
+    type: "style_shift",
+    severity: topShift.percentChange > 50 ? "warning" : "info",
+    title: `Style momentum: ${topShift.style} mentions increased by ${topShift.percentChange.toFixed(0)}%`,
+    body: null,
+    actionableRecommendation: null,
+    confidenceScore: 0.75,
+    triggerCondition: `Design style mentions increased by >20% period-over-period`,
+    dataPoints: {
+      style: topShift.style,
+      percentChange: topShift.percentChange,
+      currentMentions: topShift.currentPeriod,
+      previousMentions: topShift.previousPeriod
+    }
+  };
+}
+function checkBrandDominance(input) {
+  if (!input.designIntelligence?.brandShare) return null;
+  const dominantBrands = input.designIntelligence.brandShare.filter(
+    (b) => b.sharePercentage > 50
+  );
+  if (dominantBrands.length === 0) return null;
+  const topBrand = dominantBrands.reduce((max, b) => b.sharePercentage > max.sharePercentage ? b : max);
+  return {
+    type: "brand_dominance",
+    severity: topBrand.sharePercentage > 70 ? "warning" : "info",
+    title: `Brand dominance: ${topBrand.brand} captures ${topBrand.sharePercentage.toFixed(0)}% share in ${topBrand.category}`,
+    body: null,
+    actionableRecommendation: null,
+    confidenceScore: 0.8,
+    triggerCondition: `Brand holds >50% mention share within a category`,
+    dataPoints: {
+      brand: topBrand.brand,
+      category: topBrand.category,
+      sharePercentage: topBrand.sharePercentage
+    }
+  };
+}
+function checkSpecInflation(input) {
+  if (!input.designIntelligence?.finishLevelInflation) return null;
+  const inflatedSpecs = input.designIntelligence.finishLevelInflation.filter(
+    (f) => f.percentChange > 10 && f.percentChange - f.categoryAvgChange > 5
+  );
+  if (inflatedSpecs.length === 0) return null;
+  const topInflation = inflatedSpecs.reduce((max, f) => f.percentChange > max.percentChange ? f : max);
+  return {
+    type: "spec_inflation",
+    severity: topInflation.percentChange > 20 ? "warning" : "info",
+    title: `Spec inflation: ${topInflation.finishLevel} ${topInflation.category} costs rising disproportionately (+${topInflation.percentChange.toFixed(0)}%)`,
+    body: null,
+    actionableRecommendation: null,
+    confidenceScore: 0.7,
+    triggerCondition: `Finish level price increasing >10% AND >5% faster than category average`,
+    dataPoints: {
+      finishLevel: topInflation.finishLevel,
+      category: topInflation.category,
+      specChange: topInflation.percentChange,
+      categoryChange: topInflation.categoryAvgChange,
+      delta: topInflation.percentChange - topInflation.categoryAvgChange
     }
   };
 }
@@ -7254,7 +10093,10 @@ async function generateInsights(input, options = {}) {
     checkMarketOpportunity(input),
     checkCompetitorAlert(input),
     checkTrendSignal(input),
-    checkPositioningGap(input)
+    checkPositioningGap(input),
+    checkStyleShift(input),
+    checkBrandDominance(input),
+    checkSpecInflation(input)
   ];
   const insights = checks.filter((i) => i !== null);
   if (shouldEnrich) {
@@ -7276,6 +10118,79 @@ init_db();
 
 // server/engines/autonomous/alert-engine.ts
 init_db();
+
+// server/engines/autonomous/alert-delivery.ts
+var RESEND_API_URL = "https://api.resend.com/emails";
+async function deliverAlert(alert) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const recipientEmail = process.env.ALERT_RECIPIENT_EMAIL || process.env.ADMIN_EMAIL;
+  if (!apiKey) {
+    console.log("[AlertDelivery] RESEND_API_KEY not set, skipping email delivery");
+    return { delivered: false, channel: "skipped" };
+  }
+  if (!recipientEmail) {
+    console.log("[AlertDelivery] No ALERT_RECIPIENT_EMAIL or ADMIN_EMAIL set, skipping");
+    return { delivered: false, channel: "skipped" };
+  }
+  if (alert.severity !== "critical" && alert.severity !== "high") {
+    return { delivered: false, channel: "skipped" };
+  }
+  const severityEmoji = alert.severity === "critical" ? "\u{1F534}" : "\u{1F7E0}";
+  const severityLabel = alert.severity.toUpperCase();
+  const htmlBody = `
+    <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #0d1117, #161b22); padding: 24px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: #e6edf3; margin: 0; font-size: 20px;">
+          ${severityEmoji} MIYAR Alert \u2014 ${severityLabel}
+        </h1>
+      </div>
+      <div style="background: #ffffff; padding: 24px; border: 1px solid #d0d7de; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="color: #1f2328; margin-top: 0;">${alert.title}</h2>
+        <p style="color: #656d76; line-height: 1.6;">${alert.body || ""}</p>
+        
+        ${alert.suggestedAction ? `
+          <div style="background: #f6f8fa; border-left: 4px solid #0969da; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;">
+            <strong style="color: #1f2328;">Suggested Action:</strong>
+            <p style="color: #656d76; margin: 4px 0 0;">${alert.suggestedAction}</p>
+          </div>
+        ` : ""}
+        
+        <p style="color: #656d76; font-size: 12px; margin-top: 24px;">
+          Alert Type: <code>${alert.alertType}</code> \xB7 
+          Generated: ${(/* @__PURE__ */ new Date()).toISOString()}
+        </p>
+      </div>
+    </div>
+  `;
+  try {
+    const response = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: "MIYAR Alerts <alerts@miyar.ai>",
+        to: [recipientEmail],
+        subject: `${severityEmoji} [${severityLabel}] ${alert.title}`,
+        html: htmlBody
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[AlertDelivery] Resend API error (${response.status}):`, errorText);
+      return { delivered: false, channel: "email", error: errorText };
+    }
+    const result = await response.json();
+    console.log(`[AlertDelivery] Email sent successfully (ID: ${result.id}) for alert: ${alert.title}`);
+    return { delivered: true, channel: "email" };
+  } catch (error) {
+    console.error("[AlertDelivery] Failed to send email:", error.message);
+    return { delivered: false, channel: "email", error: error.message };
+  }
+}
+
+// server/engines/autonomous/alert-engine.ts
 init_schema();
 import { eq as eq3, inArray as inArray2, and as and2, sql as sql2 } from "drizzle-orm";
 async function evaluateAlerts(params) {
@@ -7390,7 +10305,11 @@ async function evaluateAlerts(params) {
     );
     if (!isDuplicate2) {
       const [result] = await db.insert(platformAlerts).values(alert);
-      insertedAlerts.push({ ...alert, id: result.insertId });
+      const inserted = { ...alert, id: result.insertId };
+      insertedAlerts.push(inserted);
+      deliverAlert(inserted).catch(
+        (e) => console.error("[AlertEngine] Delivery failed for alert:", inserted.title, e)
+      );
     }
   }
   return insertedAlerts;
@@ -7499,7 +10418,7 @@ async function buildEvalConfig(modelVersion, expectedCost, benchmarkCount, overr
 var projectInputSchema = z3.object({
   name: z3.string().min(1).max(255),
   description: z3.string().optional(),
-  ctx01Typology: z3.enum(["Residential", "Mixed-use", "Hospitality", "Office"]).default("Residential"),
+  ctx01Typology: z3.enum(["Residential", "Mixed-use", "Hospitality", "Office", "Villa", "Gated Community", "Villa Development"]).default("Residential"),
   ctx02Scale: z3.enum(["Small", "Medium", "Large"]).default("Medium"),
   ctx03Gfa: z3.number().nullable().optional(),
   ctx04Location: z3.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
@@ -7525,7 +10444,14 @@ var projectInputSchema = z3.object({
   exe04QaMaturity: z3.number().min(1).max(5).default(3),
   add01SampleKit: z3.boolean().default(false),
   add02PortfolioMode: z3.boolean().default(false),
-  add03DashboardExport: z3.boolean().default(true)
+  add03DashboardExport: z3.boolean().default(true),
+  unitMix: z3.any().optional(),
+  villaSpaces: z3.any().optional(),
+  developerGuidelines: z3.any().optional(),
+  // DLD integration fields
+  dldAreaId: z3.number().nullable().optional(),
+  dldAreaName: z3.string().optional(),
+  projectPurpose: z3.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready")
 });
 function projectToInputs(p) {
   return {
@@ -7650,11 +10576,18 @@ var projectRouter = router({
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) throw new Error("No active model version found");
     const inputs = projectToInputs(project);
-    const expectedCost = await getExpectedCost(
+    let expectedCost = await getExpectedCost(
       inputs.ctx01Typology,
       inputs.ctx04Location,
       inputs.mkt01Tier
     );
+    if (project.dldAreaId) {
+      const dldBenchmark = await getDldAreaBenchmark(project.dldAreaId);
+      if (dldBenchmark?.recommendedFitoutMid) {
+        expectedCost = Number(dldBenchmark.recommendedFitoutMid);
+        console.log(`[Evaluate] Using DLD fitout benchmark: ${expectedCost} AED/sqm for area ${project.dldAreaName || project.dldAreaId}`);
+      }
+    }
     const benchmarks = await getBenchmarks(
       inputs.ctx01Typology,
       inputs.ctx04Location,
@@ -7828,7 +10761,26 @@ var projectRouter = router({
     } catch (err) {
       console.error("[Project] Post-evaluation alert generation failed:", err);
     }
-    return { scoreMatrixId: matrixResult.id, ...scoreResult };
+    let dldMarketPosition = null;
+    if (project.dldAreaId) {
+      const { computeMarketPosition: computeMarketPosition3 } = await Promise.resolve().then(() => (init_dld_analytics(), dld_analytics_exports));
+      const dldBench = await getDldAreaBenchmark(project.dldAreaId);
+      if (dldBench?.saleP50) {
+        const fitoutCost = Number(project.fin01BudgetCap || expectedCost);
+        const tierMap = { "Entry": "economy", "Mid": "mid", "Upper-mid": "premium", "Luxury": "luxury", "Ultra-luxury": "ultra_luxury" };
+        dldMarketPosition = computeMarketPosition3(
+          fitoutCost,
+          Number(dldBench.saleP50),
+          tierMap[inputs.mkt01Tier] || "mid",
+          dldBench.saleP25 ? Number(dldBench.saleP25) : void 0,
+          dldBench.saleP75 ? Number(dldBench.saleP75) : void 0
+        );
+        if (dldMarketPosition.riskFlag) {
+          console.log(`[Evaluate] DLD Spec Risk: ${dldMarketPosition.riskFlag} \u2014 ${dldMarketPosition.riskMessage}`);
+        }
+      }
+    }
+    return { scoreMatrixId: matrixResult.id, ...scoreResult, dldMarketPosition };
   }),
   getScores: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
     const project = await getProjectById(input.projectId);
@@ -7875,7 +10827,21 @@ var projectRouter = router({
       tier: project.mkt01Tier || "Upper-mid",
       horizon: project.ctx05Horizon || "12-24m"
     };
-    return computeRoi(roiInputs, coefficients);
+    const roiResult = computeRoi(roiInputs, coefficients);
+    let dldContext = null;
+    if (project.dldAreaId) {
+      const dldBench = await getDldAreaBenchmark(project.dldAreaId);
+      if (dldBench) {
+        dldContext = {
+          areaName: project.dldAreaName || dldBench.areaName,
+          grossYield: dldBench.grossYield ? Number(dldBench.grossYield) : null,
+          saleP50: dldBench.saleP50 ? Number(dldBench.saleP50) : null,
+          projectPurpose: project.projectPurpose || "sell_ready",
+          fitoutMid: dldBench.recommendedFitoutMid ? Number(dldBench.recommendedFitoutMid) : null
+        };
+      }
+    }
+    return { ...roiResult, dldContext };
   }),
   // ─── V2: 5-Lens Validation Framework ──────────────────────────────
   fiveLens: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
@@ -8018,32 +10984,32 @@ var projectRouter = router({
         const { buildFinishSchedule: buildFinishSchedule2 } = await Promise.resolve().then(() => (init_finish_schedule(), finish_schedule_exports));
         const { buildColorPalette: buildColorPalette2 } = await Promise.resolve().then(() => (init_color_palette(), color_palette_exports));
         const { buildRFQPack: buildRFQPack2 } = await Promise.resolve().then(() => (init_rfq_generator(), rfq_generator_exports));
+        const { buildRFQFromBrief: buildRFQFromBriefLegacy } = await Promise.resolve().then(() => (init_rfq_generator(), rfq_generator_exports));
         const { buildDMComplianceChecklist: buildDMComplianceChecklist2 } = await Promise.resolve().then(() => (init_dm_compliance(), dm_compliance_exports));
         const vocab = buildDesignVocabulary2(project);
         const { totalFitoutBudgetAed, rooms, totalAllocatedSqm } = buildSpaceProgram2(project);
         const materials = await getAllMaterials();
         const finishSchedule = buildFinishSchedule2(project, vocab, rooms, materials);
         const colorPalette = await buildColorPalette2(project, vocab);
-        const rfqPack = buildRFQPack2(project.id, project.orgId || 1, finishSchedule, rooms, materials);
         const complianceChecklist = buildDMComplianceChecklist2(project.id, project.orgId || 1, project);
         for (const item of finishSchedule) await insertFinishScheduleItem(item);
         await insertProjectColorPalette(colorPalette);
-        for (const item of rfqPack) await insertRfqLineItem(item);
         await insertDmComplianceChecklist(complianceChecklist);
-        const rfqMin = rfqPack.reduce((acc, r) => acc + Number(r.totalAedMin || 0), 0);
-        const rfqMax = rfqPack.reduce((acc, r) => acc + Number(r.totalAedMax || 0), 0);
-        await createDesignBrief({
+        const briefResult = await createDesignBrief({
           projectId: project.id,
           version: 1,
           createdBy: ctx.user.id,
           projectIdentity: { name: project.name, location: project.ctx04Location },
-          positioningStatement: colorPalette.geminiRationale || "Curated aesthetic alignment.",
-          styleMood: colorPalette,
-          materialGuidance: { vocab, finishSchedule },
-          budgetGuardrails: { totalFitoutBudgetAed, rfqMin, rfqMax, rfqPack },
-          procurementConstraints: { rfqMin, rfqMax },
-          deliverablesChecklist: complianceChecklist
+          designNarrative: { positioningStatement: colorPalette.geminiRationale || "Curated aesthetic alignment." },
+          materialSpecifications: { vocab, finishSchedule },
+          boqFramework: { coreAllocations: [] },
+          detailedBudget: { totalFitoutBudgetAed, rfqMin: 0, rfqMax: 0 },
+          designerInstructions: { deliverablesChecklist: complianceChecklist }
         });
+        const rfqPack = buildRFQPack2(project.id, project.orgId || 1, finishSchedule, rooms, materials);
+        for (const item of rfqPack) await insertRfqLineItem(item);
+        const rfqMin = rfqPack.reduce((acc, r) => acc + Number(r.totalAedMin || 0), 0);
+        const rfqMax = rfqPack.reduce((acc, r) => acc + Number(r.totalAedMax || 0), 0);
         console.log(`[V8] Successfully orchestrated Design Intelligence Layer for Project ${project.id}.`);
       } catch (v8Err) {
         console.error("[V8] Engine integration error:", v8Err);
@@ -8122,7 +11088,8 @@ var projectRouter = router({
       logicVersion: logicVersionTag,
       evidenceRefs,
       boardSummaries,
-      autonomousContent: input.reportType === "autonomous_design_brief" ? reportData.content : void 0
+      autonomousContent: input.reportType === "autonomous_design_brief" ? reportData.content : void 0,
+      designBrief: input.reportType === "design_brief" || input.reportType === "full_report" ? generateDesignBrief2({ name: project.name, description: project.description }, inputs, scoreResult) : void 0
     };
     const html = generateReportHTML(input.reportType, pdfInput);
     let fileUrl = null;
@@ -8175,6 +11142,7 @@ var projectRouter = router({
 // server/routers/scenario.ts
 import { z as z4 } from "zod";
 init_db();
+init_db();
 
 // server/engines/scenario.ts
 function runScenario(baseInputs, scenario, config) {
@@ -8214,7 +11182,182 @@ function runScenarioComparison(baseInputs, scenarios2, config) {
   return results;
 }
 
+// server/engines/risk/stress-tester.ts
+function simulateStressTest(condition, baselineBudgetAed, tier) {
+  let impactMagnitudePercent = 0;
+  let resilienceScore = 100;
+  let failurePoints = [];
+  switch (condition) {
+    case "cost_surge":
+      impactMagnitudePercent = 20;
+      break;
+    case "demand_collapse":
+      impactMagnitudePercent = -50;
+      break;
+    case "market_shift":
+      impactMagnitudePercent = -15;
+      break;
+    case "data_disruption":
+      impactMagnitudePercent = 0;
+      break;
+  }
+  if (condition === "cost_surge") {
+    resilienceScore = tier === "Ultra-luxury" ? 85 : tier === "Luxury" ? 70 : 45;
+    if (resilienceScore < 60) {
+      failurePoints.push("margin_protection", "finishing_budget_saturation");
+    }
+  }
+  if (condition === "demand_collapse") {
+    resilienceScore = tier === "Ultra-luxury" ? 40 : tier === "Luxury" ? 50 : 80;
+    if (resilienceScore < 60) {
+      failurePoints.push("sales_velocity", "carry_cost_overrun");
+    }
+  }
+  if (condition === "market_shift") {
+    resilienceScore = 65;
+    failurePoints.push("design_obsolescence");
+  }
+  if (condition === "data_disruption") {
+    resilienceScore = 50;
+    failurePoints.push("model_robustness", "confidence_interval");
+  }
+  return {
+    stressCondition: condition,
+    impactMagnitudePercent,
+    resilienceScore,
+    failurePoints
+  };
+}
+
+// server/engines/risk/risk-evaluator.ts
+function evaluateRiskSurface(params) {
+  const { domain, tier, horizon, location, complexityScore } = params;
+  let baseProbability = 50;
+  let baseImpact = 50;
+  let baseVulnerability = 50;
+  let controlStrength = 60;
+  switch (domain) {
+    case "Commercial":
+      baseProbability = tier === "Ultra-luxury" ? 80 : tier === "Luxury" ? 65 : 40;
+      baseImpact = complexityScore > 75 ? 90 : 60;
+      baseVulnerability = horizon.includes("36m") ? 85 : 50;
+      controlStrength = 70;
+      break;
+    case "Operational":
+      baseProbability = location === "Emerging" ? 75 : 45;
+      baseImpact = tier.includes("luxury") ? 85 : 55;
+      baseVulnerability = complexityScore;
+      controlStrength = 55;
+      break;
+    case "Strategic":
+      baseProbability = tier === "Mid" ? 70 : 40;
+      baseImpact = 95;
+      baseVulnerability = horizon.includes("36m") ? 80 : 40;
+      controlStrength = 40;
+      break;
+    default:
+      baseProbability = 50;
+      baseImpact = 50;
+      baseVulnerability = 50;
+  }
+  const rUnbounded = baseProbability * baseImpact * baseVulnerability / controlStrength;
+  let compositeRiskScore = Math.floor(rUnbounded / 200);
+  if (compositeRiskScore > 100) compositeRiskScore = 100;
+  if (compositeRiskScore < 1) compositeRiskScore = 1;
+  let riskBand;
+  if (compositeRiskScore <= 20) riskBand = "Minimal";
+  else if (compositeRiskScore <= 40) riskBand = "Controlled";
+  else if (compositeRiskScore <= 60) riskBand = "Elevated";
+  else if (compositeRiskScore <= 80) riskBand = "Critical";
+  else riskBand = "Systemic";
+  return {
+    domain,
+    probability: baseProbability,
+    impact: baseImpact,
+    vulnerability: baseVulnerability,
+    controlStrength,
+    compositeRiskScore,
+    riskBand
+  };
+}
+
+// server/engines/economic/cost-avoidance.ts
+function calculateCostAvoidance(tier, scale, totalBudgetAed, complexityScore) {
+  const probability = Math.min(0.5, 0.15 + complexityScore * 35e-4);
+  const costOfChangeMultiplier = tier === "Ultra-luxury" ? 0.25 : tier === "Luxury" ? 0.2 : 0.18;
+  const costOfChange = totalBudgetAed * costOfChangeMultiplier;
+  const scopeRatio = scale === "Large" ? 0.4 : scale === "Medium" ? 0.6 : 0.85;
+  const reworkCostAvoided = probability * costOfChange * scopeRatio;
+  return {
+    reworkCostAvoided: Number(reworkCostAvoided.toFixed(2)),
+    probabilityPercent: Number((probability * 100).toFixed(1)),
+    estimatedReplacementCost: Number(costOfChange.toFixed(2)),
+    scopeImpactRatio: Number(scopeRatio.toFixed(2))
+  };
+}
+
+// server/engines/economic/programme-acceleration.ts
+function calculateProgrammeAcceleration(totalDevelopmentValue, tier, decisionSpeedAdjustment = 1) {
+  const baselineDaysSaved = tier === "Ultra-luxury" ? 60 : tier === "Luxury" ? 45 : 30;
+  const actualDaysSaved = baselineDaysSaved * decisionSpeedAdjustment;
+  const annualFinancingCost = totalDevelopmentValue * 0.08;
+  const dailyCarryCost = annualFinancingCost / 365;
+  const accelerationValue = actualDaysSaved * dailyCarryCost;
+  return {
+    programmeAccelerationValue: Number(accelerationValue.toFixed(2)),
+    daysSaved: Number(actualDaysSaved.toFixed(0)),
+    dailyCarryCost: Number(dailyCarryCost.toFixed(2))
+  };
+}
+
+// server/engines/economic/roi-calculator.ts
+function calculateProjectRoi(params) {
+  const {
+    tier,
+    scale,
+    totalBudgetAed,
+    totalDevelopmentValue,
+    complexityScore,
+    decisionSpeedAdjustment = 1,
+    serviceFeeAed
+  } = params;
+  const costAvoidance = calculateCostAvoidance(tier, scale, totalBudgetAed, complexityScore);
+  const acceleration = calculateProgrammeAcceleration(totalDevelopmentValue, tier, decisionSpeedAdjustment);
+  const totalValueCreated = costAvoidance.reworkCostAvoided + acceleration.programmeAccelerationValue;
+  const netRoiPercent = serviceFeeAed > 0 ? (totalValueCreated - serviceFeeAed) / serviceFeeAed * 100 : 0;
+  const confidenceMultiplier = complexityScore > 80 ? 0.85 : complexityScore > 60 ? 0.9 : 0.95;
+  const riskAdjustedValue = totalValueCreated * confidenceMultiplier;
+  return {
+    reworkCostAvoided: costAvoidance.reworkCostAvoided,
+    programmeAccelerationValue: acceleration.programmeAccelerationValue,
+    totalValueCreated: Number(totalValueCreated.toFixed(2)),
+    riskAdjustedValue: Number(riskAdjustedValue.toFixed(2)),
+    netRoiPercent: Number(netRoiPercent.toFixed(2)),
+    confidenceMultiplier: Number(confidenceMultiplier.toFixed(3)),
+    breakdown: {
+      costAvoidance,
+      acceleration
+    }
+  };
+}
+
+// server/engines/autonomous/scenario-ranking.ts
+function rankScenarios(scenarios2) {
+  const scoredScenarios = scenarios2.map((scenario) => {
+    const roiScore = Math.min(scenario.netRoiPercent, 100);
+    const riskInverted = 100 - scenario.compositeRiskScore;
+    const strategicRankScore = roiScore * 0.5 + scenario.avgResilienceScore * 0.3 + riskInverted * 0.2;
+    return {
+      ...scenario,
+      strategicRankScore: Number(strategicRankScore.toFixed(2))
+    };
+  });
+  return scoredScenarios.sort((a, b) => b.strategicRankScore - a.strategicRankScore);
+}
+
 // server/routers/scenario.ts
+init_schema();
+import { eq as eq5, desc as desc3 } from "drizzle-orm";
 function projectToInputs2(p) {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
@@ -8310,6 +11453,210 @@ var scenarioRouter = router({
       variableOverrides: s.variableOverrides ?? {}
     }));
     return runScenarioComparison(baseInputs, scenarioInputs2, config);
+  }),
+  // ─── D1: Stress Test ────────────────────────────────────────────────
+  stressTest: protectedProcedure.input(z4.object({
+    scenarioId: z4.number(),
+    stressCondition: z4.enum(["cost_surge", "demand_collapse", "market_shift", "data_disruption"]),
+    baselineBudgetAed: z4.number(),
+    tier: z4.string()
+  })).mutation(async ({ ctx, input }) => {
+    const drizzle2 = await getDb();
+    if (!drizzle2) throw new Error("Database unavailable");
+    const result = simulateStressTest(
+      input.stressCondition,
+      input.baselineBudgetAed,
+      input.tier
+    );
+    await drizzle2.insert(scenarioStressTests).values({
+      scenarioId: input.scenarioId,
+      stressCondition: input.stressCondition,
+      impactMagnitudePercent: String(result.impactMagnitudePercent),
+      resilienceScore: result.resilienceScore,
+      failurePoints: result.failurePoints
+    });
+    return result;
+  }),
+  listStressTests: protectedProcedure.input(z4.object({ scenarioId: z4.number() })).query(async ({ input }) => {
+    const drizzle2 = await getDb();
+    if (!drizzle2) return [];
+    return drizzle2.select().from(scenarioStressTests).where(eq5(scenarioStressTests.scenarioId, input.scenarioId)).orderBy(desc3(scenarioStressTests.createdAt));
+  }),
+  // ─── D2: Economic Model (ROI) ──────────────────────────────────────
+  calculateRoi: protectedProcedure.input(z4.object({
+    projectId: z4.number(),
+    scenarioId: z4.number().optional(),
+    tier: z4.string(),
+    scale: z4.string(),
+    totalBudgetAed: z4.number(),
+    totalDevelopmentValue: z4.number(),
+    complexityScore: z4.number(),
+    serviceFeeAed: z4.number(),
+    decisionSpeedAdjustment: z4.number().optional()
+  })).mutation(async ({ ctx, input }) => {
+    const drizzle2 = await getDb();
+    if (!drizzle2) throw new Error("Database unavailable");
+    const roi = calculateProjectRoi({
+      tier: input.tier,
+      scale: input.scale,
+      totalBudgetAed: input.totalBudgetAed,
+      totalDevelopmentValue: input.totalDevelopmentValue,
+      complexityScore: input.complexityScore,
+      serviceFeeAed: input.serviceFeeAed,
+      decisionSpeedAdjustment: input.decisionSpeedAdjustment
+    });
+    await drizzle2.insert(projectRoiModels).values({
+      projectId: input.projectId,
+      scenarioId: input.scenarioId ?? null,
+      reworkCostAvoided: String(roi.reworkCostAvoided),
+      programmeAccelerationValue: String(roi.programmeAccelerationValue),
+      totalValueCreated: String(roi.totalValueCreated),
+      netRoiPercent: String(roi.netRoiPercent),
+      confidenceMultiplier: String(roi.confidenceMultiplier)
+    });
+    return roi;
+  }),
+  // ─── D3: Risk Surface Map ──────────────────────────────────────────
+  generateRiskSurface: protectedProcedure.input(z4.object({
+    projectId: z4.number(),
+    tier: z4.string(),
+    horizon: z4.string(),
+    location: z4.string(),
+    complexityScore: z4.number()
+  })).mutation(async ({ ctx, input }) => {
+    const drizzle2 = await getDb();
+    if (!drizzle2) throw new Error("Database unavailable");
+    const domains = [
+      "Model",
+      "Operational",
+      "Commercial",
+      "Technology",
+      "Data",
+      "Behavioural",
+      "Strategic",
+      "Regulatory"
+    ];
+    const results = domains.map(
+      (domain) => evaluateRiskSurface({
+        domain,
+        tier: input.tier,
+        horizon: input.horizon,
+        location: input.location,
+        complexityScore: input.complexityScore
+      })
+    );
+    for (const r of results) {
+      await drizzle2.insert(riskSurfaceMaps).values({
+        projectId: input.projectId,
+        domain: r.domain,
+        probability: r.probability,
+        impact: r.impact,
+        vulnerability: r.vulnerability,
+        controlStrength: r.controlStrength,
+        compositeRiskScore: r.compositeRiskScore,
+        riskBand: r.riskBand
+      });
+    }
+    return {
+      projectId: input.projectId,
+      domains: results,
+      overallRisk: Math.round(
+        results.reduce((s, r) => s + r.compositeRiskScore, 0) / results.length
+      )
+    };
+  }),
+  getRiskSurface: protectedProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ input }) => {
+    const drizzle2 = await getDb();
+    if (!drizzle2) return [];
+    return drizzle2.select().from(riskSurfaceMaps).where(eq5(riskSurfaceMaps.projectId, input.projectId)).orderBy(desc3(riskSurfaceMaps.createdAt));
+  }),
+  // ─── D4: Scenario Ranking ─────────────────────────────────────────
+  rank: protectedProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+    const drizzle2 = await getDb();
+    if (!drizzle2) return [];
+    const project = await getProjectById(input.projectId);
+    if (!project || project.userId !== ctx.user.id) return [];
+    const scenarios2 = await getScenariosByProject(input.projectId);
+    if (scenarios2.length === 0) return [];
+    const profiles = [];
+    for (const s of scenarios2) {
+      const stressTests = await drizzle2.select().from(scenarioStressTests).where(eq5(scenarioStressTests.scenarioId, s.id));
+      const avgResilience = stressTests.length > 0 ? Math.round(stressTests.reduce((sum, t2) => sum + t2.resilienceScore, 0) / stressTests.length) : 70;
+      const roiRows = await drizzle2.select().from(projectRoiModels).where(eq5(projectRoiModels.scenarioId, s.id)).orderBy(desc3(projectRoiModels.createdAt)).limit(1);
+      const netRoi = roiRows.length > 0 ? Number(roiRows[0].netRoiPercent) : 0;
+      const riskMaps = await drizzle2.select().from(riskSurfaceMaps).where(eq5(riskSurfaceMaps.projectId, input.projectId));
+      const avgRisk = riskMaps.length > 0 ? Math.round(riskMaps.reduce((sum, r) => sum + r.compositeRiskScore, 0) / riskMaps.length) : 50;
+      profiles.push({
+        scenarioId: s.id,
+        name: s.name,
+        netRoiPercent: netRoi,
+        avgResilienceScore: avgResilience,
+        compositeRiskScore: avgRisk
+      });
+    }
+    return rankScenarios(profiles);
+  }),
+  // ─── Phase F: Monte Carlo Simulation ────────────────────────────────────
+  runMonteCarlo: heavyProcedure.input(z4.object({
+    projectId: z4.number(),
+    iterations: z4.number().min(100).max(5e4).default(1e4),
+    horizonMonths: z4.number().min(1).max(60).default(18),
+    costVolatilityPct: z4.number().min(1).max(50).default(12),
+    trendVolatility: z4.number().min(0).max(20).default(3)
+  })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new Error("Project not found");
+    const { runMonteCarloSimulation: runMonteCarloSimulation2 } = await Promise.resolve().then(() => (init_monte_carlo(), monte_carlo_exports));
+    const baseCost = Number(project.fin01BudgetCap || 0);
+    const gfa = Number(project.siteArea || 500);
+    const trendPct = Number(project.marketTrendPercent || 3);
+    const marketCond = project.marketCondition || "balanced";
+    const result = runMonteCarloSimulation2({
+      baseCostPerSqm: baseCost > 0 ? baseCost / gfa : 2500,
+      gfa,
+      trendAnnualPct: trendPct,
+      trendVolatility: input.trendVolatility,
+      marketCondition: marketCond,
+      horizonMonths: input.horizonMonths,
+      budgetCap: baseCost > 0 ? baseCost : void 0,
+      iterations: input.iterations,
+      costVolatilityPct: input.costVolatilityPct
+    });
+    const d = await getDb();
+    if (d) {
+      await d.insert(monteCarloSimulations).values({
+        projectId: input.projectId,
+        userId: ctx.user.id,
+        orgId: ctx.user.orgId || null,
+        iterations: result.iterations,
+        p5: String(result.percentiles.p5),
+        p10: String(result.percentiles.p10),
+        p25: String(result.percentiles.p25),
+        p50: String(result.percentiles.p50),
+        p75: String(result.percentiles.p75),
+        p90: String(result.percentiles.p90),
+        p95: String(result.percentiles.p95),
+        mean: String(result.mean),
+        stdDev: String(result.stdDev),
+        var95: String(result.var95),
+        budgetExceedProbability: result.budgetExceedProbability != null ? String(result.budgetExceedProbability) : null,
+        histogram: result.histogram,
+        timeSeriesData: result.timeSeries,
+        config: result.config
+      });
+    }
+    return result;
+  }),
+  getSimulations: protectedProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ input }) => {
+    const d = await getDb();
+    if (!d) return [];
+    return d.select().from(monteCarloSimulations).where(eq5(monteCarloSimulations.projectId, input.projectId)).orderBy(desc3(monteCarloSimulations.createdAt)).limit(10);
+  }),
+  getSimulation: protectedProcedure.input(z4.object({ id: z4.number() })).query(async ({ input }) => {
+    const d = await getDb();
+    if (!d) return null;
+    const rows = await d.select().from(monteCarloSimulations).where(eq5(monteCarloSimulations.id, input.id));
+    return rows[0] || null;
   })
 });
 
@@ -8510,6 +11857,305 @@ function computeImprovementLevers(items) {
     });
   }
   return levers;
+}
+
+// server/engines/pricing-engine.ts
+init_db();
+var MATERIAL_TO_EVIDENCE_CATEGORY = {
+  tile: "floors",
+  stone: "floors",
+  wood: "floors",
+  metal: "joinery",
+  fabric: "ffe",
+  glass: "joinery",
+  paint: "walls",
+  wallpaper: "walls",
+  lighting: "lighting",
+  furniture: "ffe",
+  fixture: "sanitary",
+  accessory: "ffe",
+  other: "other"
+};
+var TIER_TO_FINISH = {
+  economy: "basic",
+  mid: "standard",
+  premium: "premium",
+  luxury: "luxury",
+  ultra_luxury: "ultra_luxury"
+};
+async function getLiveCategoryPricing(finishLevel) {
+  const normalizedFinish = finishLevel.toLowerCase();
+  const allApproved = await listBenchmarkProposals("approved");
+  const pricingDict = {};
+  for (const proposal of allApproved) {
+    const parts = proposal.benchmarkKey.split(":");
+    if (parts.length < 3) continue;
+    const [cat, finish, unit] = parts;
+    if (finish === normalizedFinish) {
+      pricingDict[cat] = {
+        category: cat,
+        finishLevel: finish,
+        unit,
+        p25: Number(proposal.proposedP25) || 0,
+        p50: Number(proposal.proposedP50) || 0,
+        p75: Number(proposal.proposedP75) || 0,
+        weightedMean: Number(proposal.weightedMean) || 0
+      };
+    }
+  }
+  return pricingDict;
+}
+async function syncMaterialsWithBenchmarks() {
+  const allApproved = await listBenchmarkProposals("approved");
+  const materials = await getAllMaterials();
+  let updatedCount = 0;
+  let matchedCount = 0;
+  let skippedCount = 0;
+  for (const material of materials) {
+    const evidenceCat = MATERIAL_TO_EVIDENCE_CATEGORY[material.category] || "other";
+    const targetFinishLevel = TIER_TO_FINISH[material.tier] || "standard";
+    const searchPrefix = `${evidenceCat}:${targetFinishLevel}:`;
+    const matchedProposal = allApproved.find(
+      (p) => p.benchmarkKey.startsWith(searchPrefix)
+    );
+    if (!matchedProposal) {
+      skippedCount++;
+      continue;
+    }
+    matchedCount++;
+    const newLow = Number(matchedProposal.proposedP25);
+    const newHigh = Number(matchedProposal.proposedP75);
+    if (Number(material.typicalCostLow) !== newLow || Number(material.typicalCostHigh) !== newHigh) {
+      await updateMaterial(material.id, {
+        typicalCostLow: newLow.toFixed(2),
+        typicalCostHigh: newHigh.toFixed(2)
+      });
+      updatedCount++;
+    }
+  }
+  return { updatedCount, matchedCount, skippedCount };
+}
+
+// server/engines/benchmark-seeder.ts
+init_db();
+var TYPOLOGIES = [
+  "Residential",
+  "Mixed-use",
+  "Hospitality",
+  "Office",
+  "Villa",
+  "Gated Community",
+  "Villa Development"
+];
+var LOCATIONS = ["Prime", "Secondary", "Emerging"];
+var TIERS = ["Mid", "Upper-mid", "Luxury", "Ultra-luxury"];
+var MATERIAL_LEVELS = [1, 2, 3, 4, 5];
+var ROOM_TYPES = ["General", "Living", "Kitchen", "Bathroom", "Bedroom", "Lobby"];
+var TIER_BASE_BANDS = {
+  "Mid": { low: 450, mid: 650, high: 900 },
+  "Upper-mid": { low: 800, mid: 1200, high: 1700 },
+  "Luxury": { low: 1500, mid: 2200, high: 3200 },
+  "Ultra-luxury": { low: 2800, mid: 4200, high: 6500 }
+};
+var LOCATION_MULTIPLIER = {
+  "Prime": 1.25,
+  "Secondary": 1,
+  "Emerging": 0.82
+};
+var TYPOLOGY_MULTIPLIER = {
+  "Residential": 1,
+  "Mixed-use": 1.08,
+  "Hospitality": 1.35,
+  "Office": 0.85,
+  "Villa": 1.15,
+  "Gated Community": 1.1,
+  "Villa Development": 1.12
+};
+var MATERIAL_LEVEL_MULTIPLIER = {
+  1: 0.65,
+  2: 0.82,
+  3: 1,
+  4: 1.3,
+  5: 1.75
+};
+var ROOM_TYPE_MULTIPLIER = {
+  "General": 1,
+  "Living": 0.95,
+  "Kitchen": 1.35,
+  "Bathroom": 1.45,
+  "Bedroom": 0.8,
+  "Lobby": 1.2
+};
+async function getDldCalibrationFactor() {
+  try {
+    const benchmarks = await getAllAreaBenchmarks();
+    if (!benchmarks || benchmarks.length === 0) return 1;
+    const fitouts = benchmarks.map((b) => Number(b.recommendedFitoutMid)).filter((v) => v > 0 && isFinite(v)).sort((a, b) => a - b);
+    if (fitouts.length === 0) return 1;
+    const medianFitout = fitouts[Math.floor(fitouts.length / 2)];
+    const calibration = medianFitout / 1200;
+    return Math.max(0.7, Math.min(1.5, calibration));
+  } catch {
+    return 1;
+  }
+}
+async function seedBenchmarks() {
+  const existing = await getAllBenchmarkData();
+  const existingKeys = new Set(
+    existing.map(
+      (b) => `${b.typology}|${b.location}|${b.marketTier}|${b.materialLevel}|${b.roomType || "General"}`
+    )
+  );
+  const dldFactor = await getDldCalibrationFactor();
+  console.log(`[Benchmark Seeder] DLD calibration factor: ${dldFactor.toFixed(3)}`);
+  let created = 0;
+  let skipped = 0;
+  const total = TYPOLOGIES.length * LOCATIONS.length * TIERS.length * MATERIAL_LEVELS.length * ROOM_TYPES.length;
+  for (const typology of TYPOLOGIES) {
+    for (const location of LOCATIONS) {
+      for (const tier of TIERS) {
+        for (const materialLevel of MATERIAL_LEVELS) {
+          for (const roomType of ROOM_TYPES) {
+            const key = `${typology}|${location}|${tier}|${materialLevel}|${roomType}`;
+            if (existingKeys.has(key)) {
+              skipped++;
+              continue;
+            }
+            const base = TIER_BASE_BANDS[tier];
+            const locMul = LOCATION_MULTIPLIER[location];
+            const typMul = TYPOLOGY_MULTIPLIER[typology];
+            const matMul = MATERIAL_LEVEL_MULTIPLIER[materialLevel];
+            const roomMul = ROOM_TYPE_MULTIPLIER[roomType];
+            const low = Math.round(base.low * locMul * typMul * matMul * roomMul * dldFactor);
+            const mid = Math.round(base.mid * locMul * typMul * matMul * roomMul * dldFactor);
+            const high = Math.round(base.high * locMul * typMul * matMul * roomMul * dldFactor);
+            await createBenchmark({
+              typology,
+              location,
+              marketTier: tier,
+              materialLevel,
+              roomType,
+              costPerSqftLow: String(low),
+              costPerSqftMid: String(mid),
+              costPerSqftHigh: String(high),
+              sourceType: "curated",
+              sourceNote: `Seeded: base=${tier}(${base.mid}) \xD7 loc=${location}(${locMul}) \xD7 typ=${typology}(${typMul}) \xD7 mat=L${materialLevel}(${matMul}) \xD7 room=${roomType}(${roomMul}) \xD7 DLD(${dldFactor.toFixed(2)})`,
+              dataYear: 2025,
+              region: "UAE"
+            });
+            created++;
+          }
+        }
+      }
+    }
+  }
+  console.log(`[Benchmark Seeder] Done: ${created} created, ${skipped} skipped (already exist), ${total} total combos`);
+  return { created, skipped, total };
+}
+
+// server/engines/synthetic-generator.ts
+init_db();
+var TYPOLOGIES2 = [
+  "Residential",
+  "Mixed-use",
+  "Hospitality",
+  "Office",
+  "Villa",
+  "Gated Community",
+  "Villa Development"
+];
+var LOCATIONS2 = ["Prime", "Secondary", "Emerging"];
+var TIERS2 = ["Mid", "Upper-mid", "Luxury", "Ultra-luxury"];
+var MATERIAL_LEVELS2 = [1, 2, 3, 4, 5];
+var ROOM_TYPES2 = ["General", "Living", "Kitchen", "Bathroom", "Bedroom", "Lobby"];
+var TIER_ORDER = ["Mid", "Upper-mid", "Luxury", "Ultra-luxury"];
+function findNearest(existing, typology, location, tier, materialLevel, roomType) {
+  for (const loc of LOCATIONS2) {
+    const key = `${typology}|${loc}|${tier}|${materialLevel}|${roomType}`;
+    if (existing.has(key)) return existing.get(key);
+  }
+  for (const typ of TYPOLOGIES2) {
+    const key = `${typ}|${location}|${tier}|${materialLevel}|${roomType}`;
+    if (existing.has(key)) return existing.get(key);
+  }
+  const tierIdx = TIER_ORDER.indexOf(tier);
+  for (const offset of [1, -1, 2, -2]) {
+    const adjIdx = tierIdx + offset;
+    if (adjIdx >= 0 && adjIdx < TIER_ORDER.length) {
+      const adjTier = TIER_ORDER[adjIdx];
+      const key = `${typology}|${location}|${adjTier}|${materialLevel}|${roomType}`;
+      if (existing.has(key)) {
+        const tierScale = (tierIdx + 1) / (adjIdx + 1);
+        const neighbor = existing.get(key);
+        return {
+          ...neighbor,
+          _scaled: true,
+          _tierScale: tierScale
+        };
+      }
+    }
+  }
+  if (roomType !== "General") {
+    const key = `${typology}|${location}|${tier}|${materialLevel}|General`;
+    if (existing.has(key)) return existing.get(key);
+  }
+  return null;
+}
+async function generateSyntheticBenchmarks() {
+  const allBenchmarks = await getAllBenchmarkData();
+  const existingMap = /* @__PURE__ */ new Map();
+  for (const b of allBenchmarks) {
+    const key = `${b.typology}|${b.location}|${b.marketTier}|${b.materialLevel}|${b.roomType || "General"}`;
+    existingMap.set(key, b);
+  }
+  const totalCombos = TYPOLOGIES2.length * LOCATIONS2.length * TIERS2.length * MATERIAL_LEVELS2.length * ROOM_TYPES2.length;
+  const gaps = [];
+  for (const typology of TYPOLOGIES2) {
+    for (const location of LOCATIONS2) {
+      for (const tier of TIERS2) {
+        for (const materialLevel of MATERIAL_LEVELS2) {
+          for (const roomType of ROOM_TYPES2) {
+            const key = `${typology}|${location}|${tier}|${materialLevel}|${roomType}`;
+            if (!existingMap.has(key)) {
+              gaps.push({ typology, location, tier, materialLevel, roomType });
+            }
+          }
+        }
+      }
+    }
+  }
+  const gapsBefore = gaps.length;
+  let generated = 0;
+  for (const gap of gaps) {
+    const neighbor = findNearest(existingMap, gap.typology, gap.location, gap.tier, gap.materialLevel, gap.roomType);
+    if (!neighbor) {
+      console.warn(`[Synthetic] No neighbor found for ${gap.typology}|${gap.location}|${gap.tier}|${gap.materialLevel}|${gap.roomType}`);
+      continue;
+    }
+    const scale = neighbor._tierScale || 1;
+    const low = Math.round(Number(neighbor.costPerSqftLow || 0) * scale);
+    const mid = Math.round(Number(neighbor.costPerSqftMid || 0) * scale);
+    const high = Math.round(Number(neighbor.costPerSqftHigh || 0) * scale);
+    if (mid <= 0) continue;
+    const sourceNote = neighbor._scaled ? `Synthetic: interpolated from ${neighbor.typology}/${neighbor.location}/${neighbor.marketTier} (tier-scaled \xD7${scale.toFixed(2)})` : `Synthetic: interpolated from ${neighbor.typology}/${neighbor.location}/${neighbor.marketTier}/L${neighbor.materialLevel}/${neighbor.roomType || "General"}`;
+    await createBenchmark({
+      typology: gap.typology,
+      location: gap.location,
+      marketTier: gap.tier,
+      materialLevel: gap.materialLevel,
+      roomType: gap.roomType,
+      costPerSqftLow: String(low),
+      costPerSqftMid: String(mid),
+      costPerSqftHigh: String(high),
+      sourceType: "synthetic",
+      sourceNote,
+      dataYear: 2025,
+      region: "UAE"
+    });
+    generated++;
+  }
+  console.log(`[Synthetic] Done: ${generated} generated from ${gapsBefore} gaps (${totalCombos} total combos)`);
+  return { generated, gapsBefore, totalCombos };
 }
 
 // server/routers/admin.ts
@@ -8971,6 +12617,47 @@ var adminRouter = router({
       return result;
     })
   }),
+  // ─── Dynamic Pricing (V4) ─────────────────────────────────────────────
+  pricing: router({
+    syncMaterials: adminProcedure.mutation(async ({ ctx }) => {
+      const result = await syncMaterialsWithBenchmarks();
+      await createAuditLog({
+        userId: ctx.user.id,
+        action: "pricing.sync_materials",
+        entityType: "material_catalog",
+        details: result
+      });
+      return result;
+    }),
+    previewLive: adminProcedure.input(z5.object({
+      finishLevel: z5.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).default("standard")
+    }).optional()).query(async ({ input }) => {
+      const level = input?.finishLevel || "standard";
+      return getLiveCategoryPricing(level);
+    })
+  }),
+  // ─── Benchmark Seeder (Phase C.2) ────────────────────────────────────
+  seedBenchmarks: adminProcedure.mutation(async ({ ctx }) => {
+    const result = await seedBenchmarks();
+    await createAuditLog({
+      userId: ctx.user.id,
+      action: "benchmark.seed",
+      entityType: "benchmark",
+      details: result
+    });
+    return result;
+  }),
+  // ─── Synthetic Gap-Fill (Phase C.3) ─────────────────────────────────
+  generateSyntheticBenchmarks: adminProcedure.mutation(async ({ ctx }) => {
+    const result = await generateSyntheticBenchmarks();
+    await createAuditLog({
+      userId: ctx.user.id,
+      action: "benchmark.synthetic_generate",
+      entityType: "benchmark",
+      details: result
+    });
+    return result;
+  }),
   // ─── Health Checks ───────────────────────────────────────────────────
   healthCheck: adminProcedure.query(async () => {
     let dbStatus = "offline";
@@ -9002,215 +12689,6 @@ var adminRouter = router({
 
 // server/routers/seed.ts
 init_db();
-
-// server/engines/design-brief.ts
-var STYLE_MOOD_MAP = {
-  Modern: {
-    keywords: ["clean lines", "open plan", "minimalist", "functional elegance", "geometric"],
-    colors: ["warm white", "charcoal", "natural oak", "matte black", "soft grey"],
-    texture: "Smooth surfaces with selective tactile contrast \u2014 polished concrete, matte lacquer, brushed metal",
-    lighting: "Layered ambient + task lighting with concealed LED strips and statement pendants",
-    spatial: "Open-plan living with defined zones through material transitions rather than walls"
-  },
-  Contemporary: {
-    keywords: ["curated luxury", "refined", "timeless", "sophisticated", "bespoke"],
-    colors: ["ivory", "champagne gold", "deep navy", "warm taupe", "bronze"],
-    texture: "Rich layering \u2014 marble, silk, velvet, hand-finished metals, natural stone",
-    lighting: "Dramatic accent lighting with warm ambient base, sculptural fixtures as focal points",
-    spatial: "Generous proportions with intimate conversation areas, seamless indoor-outdoor flow"
-  },
-  Minimal: {
-    keywords: ["essential", "serene", "restrained", "zen", "purposeful"],
-    colors: ["pure white", "pale grey", "natural linen", "warm concrete", "muted sage"],
-    texture: "Monolithic surfaces \u2014 seamless plaster, raw timber, natural stone with minimal joints",
-    lighting: "Diffused natural light maximized, architectural lighting integrated into surfaces",
-    spatial: "Uncluttered volumes where each element earns its place, negative space as design tool"
-  },
-  Classic: {
-    keywords: ["heritage", "ornamental", "symmetrical", "grand", "traditional craftsmanship"],
-    colors: ["cream", "burgundy", "forest green", "antique gold", "rich walnut"],
-    texture: "Ornate plasterwork, carved wood, damask fabrics, polished brass, veined marble",
-    lighting: "Chandeliers and sconces with warm incandescent tones, layered drapery for light control",
-    spatial: "Formal room hierarchy with enfilade circulation, proportional ceiling heights"
-  },
-  Fusion: {
-    keywords: ["eclectic", "cultural blend", "unexpected pairings", "artisanal", "narrative"],
-    colors: ["terracotta", "indigo", "saffron", "olive", "raw umber"],
-    texture: "Handcrafted meets industrial \u2014 zellige tiles, raw steel, woven textiles, reclaimed wood",
-    lighting: "Mix of artisan pendants, lanterns, and modern track systems",
-    spatial: "Layered spaces with cultural references, discovery moments, and curated collections"
-  },
-  Other: {
-    keywords: ["custom", "experimental", "site-specific", "innovative", "boundary-pushing"],
-    colors: ["project-specific palette", "contextual response", "material-driven", "site-inspired", "bespoke"],
-    texture: "Custom material palette responding to project narrative and site context",
-    lighting: "Bespoke lighting design responding to program and spatial character",
-    spatial: "Innovative spatial organization driven by project-specific requirements"
-  }
-};
-var TIER_MATERIALS = {
-  Mid: {
-    primary: ["Engineered stone", "Porcelain tile", "Laminate wood", "Painted MDF"],
-    accent: ["Stainless steel", "Glass mosaic", "Vinyl fabric"],
-    avoid: ["Natural marble (cost)", "Solid hardwood (budget)", "Custom metalwork"],
-    quality: "Good quality commercial-grade materials with consistent finish"
-  },
-  "Upper-mid": {
-    primary: ["Quartz composite", "Large-format porcelain", "Engineered oak", "Lacquered joinery"],
-    accent: ["Brushed nickel", "Ceramic tile", "Performance fabric"],
-    avoid: ["Ultra-premium stone", "Bespoke furniture", "Exotic hardwoods"],
-    quality: "Premium commercial-grade with select residential-quality feature elements"
-  },
-  Luxury: {
-    primary: ["Natural marble", "Solid hardwood", "Custom joinery", "Natural stone"],
-    accent: ["Brushed brass", "Silk fabric", "Hand-blown glass", "Leather"],
-    avoid: ["Laminate surfaces", "Vinyl", "Standard-grade fixtures"],
-    quality: "Residential luxury grade \u2014 hand-selected materials with visible craftsmanship"
-  },
-  "Ultra-luxury": {
-    primary: ["Book-matched marble", "Exotic hardwood", "Bespoke metalwork", "Artisan plaster"],
-    accent: ["24k gold leaf", "Murano glass", "Cashmere", "Mother of pearl"],
-    avoid: ["Any mass-produced finish", "Standard hardware", "Synthetic materials"],
-    quality: "Museum-grade \u2014 one-of-a-kind pieces, master craftsman execution, provenance documented"
-  }
-};
-function generateDesignBrief2(project, inputs, scoreResult) {
-  const style = inputs.des01Style || "Modern";
-  const tier = inputs.mkt01Tier || "Upper-mid";
-  const mood = STYLE_MOOD_MAP[style] || STYLE_MOOD_MAP.Other;
-  const materials = TIER_MATERIALS[tier] || TIER_MATERIALS["Upper-mid"];
-  const gfa = inputs.ctx03Gfa ? Number(inputs.ctx03Gfa) : null;
-  const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
-  let costBand = "Standard";
-  if (budget) {
-    if (budget > 700) costBand = "Ultra-Premium";
-    else if (budget > 450) costBand = "Premium";
-    else if (budget > 250) costBand = "Upper-Standard";
-  }
-  const flexMap = {
-    1: "Very tight \u2014 minimal room for specification upgrades",
-    2: "Constrained \u2014 value engineering required for any upgrades",
-    3: "Moderate \u2014 selective upgrades possible in high-impact areas",
-    4: "Flexible \u2014 room for specification enhancements across key areas",
-    5: "Open \u2014 full creative freedom within quality parameters"
-  };
-  const horizonLeadMap = {
-    "0-12m": "Aggressive \u2014 prioritize locally stocked materials, minimize custom orders",
-    "12-24m": "Standard \u2014 balance between custom and ready-made, plan long-lead items early",
-    "24-36m": "Comfortable \u2014 full custom palette available, phase procurement strategically",
-    "36m+": "Extended \u2014 opportunity for bespoke commissions and artisan collaborations"
-  };
-  const sustainNotes = inputs.des05Sustainability >= 4 ? "High sustainability priority \u2014 specify recycled content, low-VOC, FSC-certified wood, local sourcing preferred" : inputs.des05Sustainability >= 3 ? "Moderate sustainability consideration \u2014 prefer eco-friendly options where cost-neutral" : "Standard compliance \u2014 meet local building code requirements for sustainability";
-  const positioningParts = [];
-  positioningParts.push(`${project.name} is a ${tier.toLowerCase()} ${inputs.ctx01Typology.toLowerCase()} project`);
-  positioningParts.push(`positioned in a ${inputs.ctx04Location.toLowerCase()} location`);
-  positioningParts.push(`with a ${style.toLowerCase()} design direction`);
-  if (scoreResult.decisionStatus === "validated") {
-    positioningParts.push(`that has been validated by MIYAR with a composite score of ${scoreResult.compositeScore.toFixed(1)}`);
-  } else if (scoreResult.decisionStatus === "conditional") {
-    positioningParts.push(`with conditional validation (score: ${scoreResult.compositeScore.toFixed(1)}) \u2014 specific adjustments recommended`);
-  } else {
-    positioningParts.push(`requiring design direction revision (score: ${scoreResult.compositeScore.toFixed(1)})`);
-  }
-  const criticalPath = [];
-  if (inputs.des02MaterialLevel >= 4) criticalPath.push("Natural stone selection and slab reservation");
-  if (inputs.des03Complexity >= 4) criticalPath.push("Custom joinery shop drawings and prototyping");
-  if (inputs.des04Experience >= 4) criticalPath.push("Smart home system integration and programming");
-  if (tier === "Ultra-luxury") criticalPath.push("Bespoke furniture commissioning");
-  if (inputs.exe01SupplyChain <= 2) criticalPath.push("Import logistics for specialty materials");
-  if (criticalPath.length === 0) criticalPath.push("Standard procurement timeline applies");
-  const importDeps = [];
-  if (inputs.des02MaterialLevel >= 4) importDeps.push("Italian marble (8-12 week lead)");
-  if (tier === "Luxury" || tier === "Ultra-luxury") importDeps.push("European hardware and fixtures (6-10 weeks)");
-  if (inputs.des03Complexity >= 4) importDeps.push("Custom lighting from European manufacturers (10-14 weeks)");
-  if (importDeps.length === 0) importDeps.push("Primarily local/regional sourcing feasible");
-  const riskMits = [];
-  if (inputs.exe01SupplyChain <= 2) riskMits.push("Pre-order critical materials immediately upon brief approval");
-  if (inputs.fin03ShockTolerance <= 2) riskMits.push("Lock material prices with supplier agreements before design freeze");
-  riskMits.push("Identify 2-3 alternative materials for each critical specification");
-  riskMits.push("Schedule mock-up reviews at 30% and 60% completion milestones");
-  const veNotes = [];
-  if (inputs.fin02Flexibility <= 2) {
-    veNotes.push("Focus premium materials on high-visibility areas (lobby, master suite, kitchen)");
-    veNotes.push("Use cost-effective alternatives in secondary spaces (storage, utility, corridors)");
-  }
-  veNotes.push("Consider material substitution matrix for budget flexibility");
-  if (gfa && gfa > 3e5) veNotes.push("Bulk procurement discounts available at this scale \u2014 negotiate early");
-  return {
-    projectIdentity: {
-      projectName: project.name,
-      typology: inputs.ctx01Typology,
-      scale: inputs.ctx02Scale,
-      gfa,
-      location: inputs.ctx04Location,
-      horizon: inputs.ctx05Horizon,
-      marketTier: tier,
-      style
-    },
-    positioningStatement: positioningParts.join(" ") + ".",
-    styleMood: {
-      primaryStyle: style,
-      moodKeywords: mood.keywords,
-      colorPalette: mood.colors,
-      textureDirection: mood.texture,
-      lightingApproach: mood.lighting,
-      spatialPhilosophy: mood.spatial
-    },
-    materialGuidance: {
-      tierRecommendation: tier,
-      primaryMaterials: materials.primary,
-      accentMaterials: materials.accent,
-      avoidMaterials: materials.avoid,
-      sustainabilityNotes: sustainNotes,
-      qualityBenchmark: materials.quality
-    },
-    budgetGuardrails: {
-      costPerSqftTarget: budget ? `${budget} AED/sqft` : "Not specified",
-      costBand,
-      flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
-      contingencyRecommendation: inputs.fin03ShockTolerance <= 2 ? "15-20% contingency recommended" : "10-15% contingency recommended",
-      valueEngineeringNotes: veNotes
-    },
-    procurementConstraints: {
-      leadTimeWindow: horizonLeadMap[inputs.ctx05Horizon] || horizonLeadMap["12-24m"],
-      criticalPathItems: criticalPath,
-      localSourcingPriority: inputs.exe01SupplyChain >= 4 ? "Strong local supply chain \u2014 prioritize regional materials" : "Mixed sourcing \u2014 balance local availability with specification requirements",
-      importDependencies: importDeps,
-      riskMitigations: riskMits
-    },
-    deliverablesChecklist: {
-      phase1: [
-        "Mood board (approved)",
-        "Material palette board",
-        "Color scheme presentation",
-        "Spatial concept diagrams",
-        "Budget allocation matrix"
-      ],
-      phase2: [
-        "Detailed material specifications",
-        "FF&E schedule with pricing",
-        "Lighting design concept",
-        "Sample kit assembly",
-        "Supplier shortlist with lead times"
-      ],
-      phase3: [
-        "Final specification book",
-        "Procurement schedule",
-        "Quality control checklist",
-        "Installation guidelines",
-        "Handover documentation"
-      ],
-      qualityGates: [
-        "Design direction sign-off (before Phase 2)",
-        "Material sample approval (before procurement)",
-        "Mock-up review (before mass production)",
-        "Final walkthrough (before handover)"
-      ]
-    }
-  };
-}
-
-// server/routers/seed.ts
 init_board_composer();
 async function buildEvalConfigForSeed(modelVersion, expectedCost, benchmarkCount) {
   const baseWeights = modelVersion.dimensionWeights;
@@ -9639,7 +13117,9 @@ var seedRouter = router({
 // server/routers/design.ts
 import { z as z6 } from "zod";
 init_db();
-import { TRPCError as TRPCError4 } from "@trpc/server";
+import { TRPCError as TRPCError5 } from "@trpc/server";
+init_dld_analytics();
+init_rfq_generator();
 
 // server/engines/visual-gen.ts
 function buildPromptContext(inputs) {
@@ -9840,13 +13320,67 @@ function twoColumnTable(rows) {
     ]
   });
 }
+function boqTable(allocations) {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: [
+          new TableCell({
+            width: { size: 30, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "1a3a4a" },
+            children: [new Paragraph({ children: [new TextRun({ text: "Category", bold: true, color: "ffffff", size: 20 })] })]
+          }),
+          new TableCell({
+            width: { size: 15, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "1a3a4a" },
+            children: [new Paragraph({ children: [new TextRun({ text: "Allocation", bold: true, color: "ffffff", size: 20 })] })]
+          }),
+          new TableCell({
+            width: { size: 25, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "1a3a4a" },
+            children: [new Paragraph({ children: [new TextRun({ text: "Estimated Budget", bold: true, color: "ffffff", size: 20 })] })]
+          }),
+          new TableCell({
+            width: { size: 30, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "1a3a4a" },
+            children: [new Paragraph({ children: [new TextRun({ text: "Notes", bold: true, color: "ffffff", size: 20 })] })]
+          })
+        ]
+      }),
+      ...allocations.map(
+        (alloc, i) => new TableRow({
+          children: [
+            new TableCell({
+              shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
+              children: [new Paragraph({ children: [new TextRun({ text: alloc.category, size: 20 })] })]
+            }),
+            new TableCell({
+              shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
+              children: [new Paragraph({ children: [new TextRun({ text: `${alloc.percentage}%`, size: 20 })] })]
+            }),
+            new TableCell({
+              shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
+              children: [new Paragraph({ children: [new TextRun({ text: alloc.estimatedCostLabel, size: 20 })] })]
+            }),
+            new TableCell({
+              shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
+              children: [new Paragraph({ children: [new TextRun({ text: alloc.notes, size: 20 })] })]
+            })
+          ]
+        })
+      )
+    ]
+  });
+}
 async function generateDesignBriefDocx(data) {
   const identity = data.projectIdentity ?? {};
-  const styleMood = data.styleMood ?? {};
-  const materialGuidance = data.materialGuidance ?? {};
-  const budgetGuardrails = data.budgetGuardrails ?? {};
-  const procurement = data.procurementConstraints ?? {};
-  const deliverables = data.deliverablesChecklist ?? {};
+  const narrative = data.designNarrative ?? {};
+  const materials = data.materialSpecifications ?? {};
+  const boq = data.boqFramework ?? { totalEstimatedSqm: null, coreAllocations: [] };
+  const budget = data.detailedBudget ?? {};
+  const instructions = data.designerInstructions ?? { phasedDeliverables: {}, authorityApprovals: [], coordinationRequirements: [], procurementAndLogistics: {} };
   const projectName = String(data.projectName ?? identity.projectName ?? "MIYAR Project");
   const watermark = `MYR-BRIEF-${Date.now().toString(36)}`;
   const sections = [];
@@ -9854,7 +13388,7 @@ async function generateDesignBriefDocx(data) {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 3e3, after: 400 },
-      children: [new TextRun({ text: "MIYAR Design Brief", size: 56, bold: true, color: "1a3a4a" })]
+      children: [new TextRun({ text: "MIYAR Design Instruction Brief", size: 56, bold: true, color: "1a3a4a" })]
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -9879,7 +13413,7 @@ async function generateDesignBriefDocx(data) {
       ["Project Name", identity.projectName ?? "\u2014"],
       ["Typology", identity.typology ?? "\u2014"],
       ["Scale", identity.scale ?? "\u2014"],
-      ["GFA", identity.gfa ? `${Number(identity.gfa).toLocaleString()} sqft` : "\u2014"],
+      ["GFA", identity.gfa ? `${Number(identity.gfa).toLocaleString()} sqm` : "\u2014"],
       ["Location", identity.location ?? "\u2014"],
       ["Delivery Horizon", identity.horizon ?? "\u2014"],
       ["Market Tier", identity.marketTier ?? "\u2014"],
@@ -9887,99 +13421,110 @@ async function generateDesignBriefDocx(data) {
     ])
   );
   sections.push(spacer());
-  sections.push(heading("2. Positioning Statement"));
-  sections.push(bodyText(data.positioningStatement ?? "No positioning statement generated."));
-  sections.push(spacer());
-  sections.push(heading("3. Style & Mood Direction"));
-  sections.push(labelValue("Primary Style", styleMood.primaryStyle ?? "\u2014"));
-  if (styleMood.moodKeywords?.length) {
-    sections.push(labelValue("Mood Keywords", styleMood.moodKeywords.join(", ")));
+  sections.push(heading("2. Design Narrative"));
+  sections.push(bodyText(narrative.positioningStatement ?? "No positioning statement generated."));
+  sections.push(labelValue("Primary Style", narrative.primaryStyle ?? "\u2014"));
+  if (Array.isArray(narrative.moodKeywords) && narrative.moodKeywords.length > 0) {
+    sections.push(labelValue("Mood Keywords", narrative.moodKeywords.join(", ")));
   }
-  if (styleMood.colorPalette?.length) {
-    sections.push(labelValue("Color Palette", styleMood.colorPalette.join(", ")));
+  if (Array.isArray(narrative.colorPalette) && narrative.colorPalette.length > 0) {
+    sections.push(labelValue("Color Palette", narrative.colorPalette.join(", ")));
   }
-  sections.push(labelValue("Texture Direction", styleMood.textureDirection ?? "\u2014"));
-  sections.push(labelValue("Lighting Approach", styleMood.lightingApproach ?? "\u2014"));
-  sections.push(labelValue("Spatial Philosophy", styleMood.spatialPhilosophy ?? "\u2014"));
+  sections.push(labelValue("Texture Direction", narrative.textureDirection ?? "\u2014"));
+  sections.push(labelValue("Lighting Approach", narrative.lightingApproach ?? "\u2014"));
+  sections.push(labelValue("Spatial Philosophy", narrative.spatialPhilosophy ?? "\u2014"));
   sections.push(spacer());
-  sections.push(heading("4. Material Guidance"));
-  sections.push(labelValue("Tier Recommendation", materialGuidance.tierRecommendation ?? "\u2014"));
-  sections.push(labelValue("Quality Benchmark", materialGuidance.qualityBenchmark ?? "\u2014"));
-  if (materialGuidance.primaryMaterials?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Primary Materials:", bold: true, size: 22 })] }));
-    for (const m of materialGuidance.primaryMaterials) {
+  sections.push(heading("3. Material Specifications"));
+  sections.push(labelValue("Target Tier Requirement", materials.tierRequirement ?? "\u2014"));
+  sections.push(labelValue("Quality Benchmark", materials.qualityBenchmark ?? "\u2014"));
+  sections.push(labelValue("Sustainability Mandate", materials.sustainabilityMandate ?? "\u2014"));
+  if (Array.isArray(materials.approvedMaterials) && materials.approvedMaterials.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Approved Materials (Primary):", bold: true, size: 22 })] }));
+    for (const m of materials.approvedMaterials) {
       sections.push(bulletItem(m));
     }
   }
-  if (materialGuidance.accentMaterials?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Accent Materials:", bold: true, size: 22 })] }));
-    for (const m of materialGuidance.accentMaterials) {
+  if (Array.isArray(materials.finishesAndTextures) && materials.finishesAndTextures.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Approved Finishes & Textures:", bold: true, size: 22 })] }));
+    for (const m of materials.finishesAndTextures) {
       sections.push(bulletItem(m));
     }
   }
-  if (materialGuidance.avoidMaterials?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Materials to Avoid:", bold: true, size: 22, color: "c62828" })] }));
-    for (const m of materialGuidance.avoidMaterials) {
+  if (Array.isArray(materials.prohibitedMaterials) && materials.prohibitedMaterials.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Prohibited Materials (Value Engineering Flags):", bold: true, size: 22, color: "c62828" })] }));
+    for (const m of materials.prohibitedMaterials) {
       sections.push(bulletItem(m));
     }
   }
-  sections.push(labelValue("Sustainability Notes", materialGuidance.sustainabilityNotes ?? "\u2014"));
   sections.push(spacer());
-  sections.push(heading("5. Budget Guardrails"));
+  sections.push(heading("4. Target BOQ Framework"));
+  if (boq.totalEstimatedSqm) {
+    sections.push(labelValue("Total Estimated Project Area", `${boq.totalEstimatedSqm.toLocaleString()} Sqm`));
+  }
+  if (Array.isArray(boq.coreAllocations) && boq.coreAllocations.length > 0) {
+    sections.push(new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: "Indicative Budget Allocations per Category:", size: 22 })] }));
+    sections.push(boqTable(boq.coreAllocations));
+  } else {
+    sections.push(bodyText("No BOQ framework generated."));
+  }
+  sections.push(spacer());
+  sections.push(heading("5. Detailed Budget Guardrails"));
   sections.push(
     twoColumnTable([
-      ["Cost Target", budgetGuardrails.costPerSqftTarget ?? "\u2014"],
-      ["Cost Band", budgetGuardrails.costBand ?? "\u2014"],
-      ["Contingency", budgetGuardrails.contingencyRecommendation ?? "\u2014"],
-      ["Flexibility Level", budgetGuardrails.flexibilityLevel ?? "\u2014"]
+      ["Cost Per Sqm Target", budget.costPerSqmTarget ?? "\u2014"],
+      ["Total Budget Cap", budget.totalBudgetCap ?? "\u2014"],
+      ["Cost Band", budget.costBand ?? "\u2014"],
+      ["Contingency Recommendation", budget.contingencyRecommendation ?? "\u2014"],
+      ["Budget Flexibility Level", budget.flexibilityLevel ?? "\u2014"]
     ])
   );
-  if (budgetGuardrails.valueEngineeringNotes?.length) {
-    sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "Value Engineering Notes:", bold: true, size: 22 })] }));
-    for (const note of budgetGuardrails.valueEngineeringNotes) {
+  if (Array.isArray(budget.valueEngineeringMandates) && budget.valueEngineeringMandates.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "Value Engineering Directives:", bold: true, size: 22 })] }));
+    for (const note of budget.valueEngineeringMandates) {
       sections.push(bulletItem(note));
     }
   }
   sections.push(spacer());
-  sections.push(heading("6. Procurement Constraints"));
-  sections.push(labelValue("Lead Time Window", procurement.leadTimeWindow ?? "\u2014"));
-  if (procurement.criticalPathItems?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Critical Path Items:", bold: true, size: 22 })] }));
-    for (const item of procurement.criticalPathItems) {
+  sections.push(heading("6. Workflow & Execution Instructions"));
+  const pLogic = instructions.procurementAndLogistics ?? {};
+  sections.push(labelValue("Lead Time Window", pLogic.leadTimeWindow ?? "\u2014"));
+  if (Array.isArray(pLogic.criticalPathItems) && pLogic.criticalPathItems.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Critical Path Procurement Items:", bold: true, size: 22 })] }));
+    for (const item of pLogic.criticalPathItems) {
       sections.push(bulletItem(item));
     }
   }
-  if (procurement.importDependencies?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Import Dependencies:", bold: true, size: 22 })] }));
-    for (const dep of procurement.importDependencies) {
-      sections.push(bulletItem(dep));
+  if (Array.isArray(pLogic.importDependencies) && pLogic.importDependencies.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Import Logistics Dependencies:", bold: true, size: 22 })] }));
+    for (const item of pLogic.importDependencies) {
+      sections.push(bulletItem(item));
     }
   }
-  if (procurement.riskMitigations?.length) {
-    sections.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: "Risk Mitigations:", bold: true, size: 22 })] }));
-    for (const m of procurement.riskMitigations) {
-      sections.push(bulletItem(m));
+  if (Array.isArray(instructions.authorityApprovals) && instructions.authorityApprovals.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Local Authority Approvals (Dubai):", bold: true, size: 22 })] }));
+    for (const item of instructions.authorityApprovals) {
+      sections.push(bulletItem(item));
+    }
+  }
+  if (Array.isArray(instructions.coordinationRequirements) && instructions.coordinationRequirements.length > 0) {
+    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Contractor Coordination Requirements:", bold: true, size: 22 })] }));
+    for (const item of instructions.coordinationRequirements) {
+      sections.push(bulletItem(item));
     }
   }
   sections.push(spacer());
-  sections.push(heading("7. Deliverables Checklist"));
+  sections.push(heading("Phased Deliverables", HeadingLevel.HEADING_2));
   const phases = [
-    { label: "Phase 1 \u2014 Concept", items: deliverables.phase1 },
-    { label: "Phase 2 \u2014 Development", items: deliverables.phase2 },
-    { label: "Phase 3 \u2014 Execution", items: deliverables.phase3 }
+    { label: "Phase 1 \u2014 Concept & Schematic", items: instructions.phasedDeliverables?.conceptDesign },
+    { label: "Phase 2 \u2014 Detailed Design", items: instructions.phasedDeliverables?.schematicDesign },
+    { label: "Phase 3 \u2014 IFC & Tender", items: instructions.phasedDeliverables?.detailedDesign }
   ];
   for (const phase of phases) {
-    sections.push(heading(phase.label, HeadingLevel.HEADING_2));
-    if (phase.items?.length) {
+    if (Array.isArray(phase.items) && phase.items.length > 0) {
+      sections.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [new TextRun({ text: phase.label, bold: true, size: 22 })] }));
       for (const item of phase.items) {
         sections.push(bulletItem(`\u2610 ${item}`));
       }
-    }
-  }
-  if (deliverables.qualityGates?.length) {
-    sections.push(heading("Quality Gates", HeadingLevel.HEADING_2));
-    for (let i = 0; i < deliverables.qualityGates.length; i++) {
-      sections.push(bulletItem(`Gate ${i + 1}: ${deliverables.qualityGates[i]}`));
     }
   }
   sections.push(spacer());
@@ -9989,32 +13534,17 @@ async function generateDesignBriefDocx(data) {
       spacing: { after: 120 },
       children: [
         new TextRun({
-          text: "This document is a concept-level assessment generated by the MIYAR Decision Intelligence Platform. ",
+          text: "This document is a concept-level interior design instruction brief generated by the MIYAR platform. ",
           size: 20,
           color: "5D4037"
         }),
         new TextRun({
-          text: "All scores, recommendations, and specifications are advisory only and are subject to detailed design, ",
+          text: "All material directives, BOQ targets, and workflows are advisory and must be professionally validated. ",
           size: 20,
           color: "5D4037"
         }),
         new TextRun({
-          text: "engineering review, and professional validation. Material specifications, cost estimates, and procurement ",
-          size: 20,
-          color: "5D4037"
-        }),
-        new TextRun({
-          text: "guidance are indicative and must be confirmed through formal tender processes. MIYAR does not warrant the ",
-          size: 20,
-          color: "5D4037"
-        }),
-        new TextRun({
-          text: "accuracy of third-party benchmark data or market intelligence used in this assessment. This document does ",
-          size: 20,
-          color: "5D4037"
-        }),
-        new TextRun({
-          text: "not constitute professional design, financial, or legal advice.",
+          text: "This document does not constitute professional engineering, financial, or legal advice.",
           size: 20,
           color: "5D4037"
         })
@@ -10028,7 +13558,7 @@ async function generateDesignBriefDocx(data) {
       spacing: { before: 400 },
       children: [
         new TextRun({
-          text: `MIYAR Decision Intelligence Platform \u2014 Document ID: ${watermark}`,
+          text: `MIYAR Interior Design Instruction \u2014 Document ID: ${watermark}`,
           size: 16,
           color: "999999",
           italics: true
@@ -10036,21 +13566,9 @@ async function generateDesignBriefDocx(data) {
       ]
     })
   );
-  sections.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({
-          text: "This document is auto-generated and watermarked. Scores are advisory and do not constitute professional design or financial advice.",
-          size: 14,
-          color: "999999"
-        })
-      ]
-    })
-  );
   const doc = new Document({
     creator: "MIYAR Decision Intelligence Platform",
-    title: `Design Brief \u2014 ${projectName}`,
+    title: `Design Instruction Brief \u2014 ${projectName}`,
     description: `MIYAR Design Brief v${data.version} for ${projectName}`,
     sections: [
       {
@@ -10064,7 +13582,7 @@ async function generateDesignBriefDocx(data) {
             children: [
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
-                children: [new TextRun({ text: `MIYAR Design Brief \u2014 ${projectName}`, size: 16, color: "999999" })]
+                children: [new TextRun({ text: `MIYAR Design Instruction \u2014 ${projectName}`, size: 16, color: "999999" })]
               })
             ]
           })
@@ -10167,7 +13685,7 @@ var designRouter = router({
   }),
   deleteAsset: protectedProcedure.input(z6.object({ assetId: z6.number() })).mutation(async ({ ctx, input }) => {
     const asset = await getProjectAssetById(input.assetId);
-    if (!asset) throw new TRPCError4({ code: "NOT_FOUND", message: "Asset not found" });
+    if (!asset) throw new TRPCError5({ code: "NOT_FOUND", message: "Asset not found" });
     await deleteProjectAsset(input.assetId);
     await createAuditLog({
       userId: ctx.user.id,
@@ -10202,10 +13720,10 @@ var designRouter = router({
   // ─── Design Brief Generator ─────────────────────────────────────────────────
   generateBrief: protectedProcedure.input(z6.object({ projectId: z6.number(), scenarioId: z6.number().optional() })).mutation(async ({ ctx, input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError4({ code: "NOT_FOUND", message: "Project not found" });
+    if (!project) throw new TRPCError5({ code: "NOT_FOUND", message: "Project not found" });
     const scores = await getScoreMatricesByProject(input.projectId);
     const latest = scores[0];
-    if (!latest) throw new TRPCError4({ code: "PRECONDITION_FAILED", message: "Project must be evaluated first" });
+    if (!latest) throw new TRPCError5({ code: "PRECONDITION_FAILED", message: "Project must be evaluated first" });
     const inputs = projectToInputs4(project);
     const scoreResult = {
       compositeScore: Number(latest.compositeScore),
@@ -10218,10 +13736,26 @@ var designRouter = router({
         er: Number(latest.erScore)
       }
     };
+    const tierToFinish = {
+      "Mid": "standard",
+      "Upper-mid": "premium",
+      "Luxury": "luxury",
+      "Ultra-luxury": "ultra_luxury"
+    };
+    const targetFinish = tierToFinish[inputs.mkt01Tier] || "standard";
+    const livePricing = await getLiveCategoryPricing(targetFinish);
+    const matConstants = await getMaterialConstants();
+    const areaSaleMedian = await getAreaSaleMedianSqm(project.dldAreaId);
     const briefData = generateDesignBrief2(
       { name: project.name, description: project.description },
       inputs,
-      scoreResult
+      scoreResult,
+      Object.keys(livePricing).length > 0 ? livePricing : void 0,
+      matConstants.length > 0 ? matConstants : void 0,
+      areaSaleMedian,
+      // DLD area median, replaces 25K fallback
+      project.projectPurpose
+      // Purpose adjusts material tier
     );
     const existing = await getDesignBriefsByProject(input.projectId);
     const nextVersion = existing.length > 0 ? existing[0].version + 1 : 1;
@@ -10230,12 +13764,11 @@ var designRouter = router({
       scenarioId: input.scenarioId,
       version: nextVersion,
       projectIdentity: briefData.projectIdentity,
-      positioningStatement: briefData.positioningStatement,
-      styleMood: briefData.styleMood,
-      materialGuidance: briefData.materialGuidance,
-      budgetGuardrails: briefData.budgetGuardrails,
-      procurementConstraints: briefData.procurementConstraints,
-      deliverablesChecklist: briefData.deliverablesChecklist,
+      designNarrative: briefData.designNarrative,
+      materialSpecifications: briefData.materialSpecifications,
+      boqFramework: briefData.boqFramework,
+      detailedBudget: briefData.detailedBudget,
+      designerInstructions: briefData.designerInstructions,
       createdBy: ctx.user.id
     });
     await createAuditLog({
@@ -10256,18 +13789,69 @@ var designRouter = router({
   getLatestBrief: protectedProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ input }) => {
     return getLatestDesignBrief(input.projectId);
   }),
+  // ─── RFQ from Brief (V4 Pipeline) ─────────────────────────────────────────
+  generateRfqFromBrief: protectedProcedure.input(z6.object({
+    projectId: z6.number(),
+    briefId: z6.number()
+  })).mutation(async ({ ctx, input }) => {
+    const brief = await getDesignBriefById(input.briefId);
+    if (!brief) throw new TRPCError5({ code: "NOT_FOUND", message: "Design Brief not found" });
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new TRPCError5({ code: "NOT_FOUND", message: "Project not found" });
+    const briefData = {
+      projectIdentity: brief.projectIdentity,
+      designNarrative: brief.designNarrative,
+      materialSpecifications: brief.materialSpecifications,
+      boqFramework: brief.boqFramework,
+      detailedBudget: brief.detailedBudget,
+      designerInstructions: brief.designerInstructions
+    };
+    const materials = await getAllMaterials();
+    const materialList = materials.map((m) => ({
+      id: m.id,
+      name: m.name || m.productName || "",
+      category: m.category || "",
+      tier: m.tier || "mid",
+      priceAedMin: m.typicalCostLow || m.priceAedMin || 0,
+      priceAedMax: m.typicalCostHigh || m.priceAedMax || 0,
+      supplierName: m.supplierName || "TBD"
+    }));
+    const result = buildRFQFromBrief(
+      input.projectId,
+      project.orgId || 1,
+      briefData,
+      input.briefId,
+      materialList
+    );
+    for (const item of result.items) {
+      await insertRfqLineItem(item);
+    }
+    await createAuditLog({
+      userId: ctx.user.id,
+      action: "rfq.generate_from_brief",
+      entityType: "design_brief",
+      entityId: input.briefId,
+      details: {
+        projectId: input.projectId,
+        lineItems: result.items.length,
+        subtotalMin: result.summary.subtotalMin,
+        subtotalMax: result.summary.subtotalMax,
+        marketVerifiedCount: result.summary.marketVerifiedCount
+      }
+    });
+    return result;
+  }),
   exportBriefDocx: protectedProcedure.input(z6.object({ briefId: z6.number() })).mutation(async ({ input }) => {
     const brief = await getDesignBriefById(input.briefId);
     if (!brief) throw new Error("Design brief not found");
     const project = await getProjectById(brief.projectId);
     const docxBuffer = await generateDesignBriefDocx({
       projectIdentity: brief.projectIdentity ?? {},
-      positioningStatement: brief.positioningStatement ?? "",
-      styleMood: brief.styleMood ?? {},
-      materialGuidance: brief.materialGuidance ?? {},
-      budgetGuardrails: brief.budgetGuardrails ?? {},
-      procurementConstraints: brief.procurementConstraints ?? {},
-      deliverablesChecklist: brief.deliverablesChecklist ?? {},
+      designNarrative: brief.designNarrative ?? {},
+      materialSpecifications: brief.materialSpecifications ?? {},
+      boqFramework: brief.boqFramework,
+      detailedBudget: brief.detailedBudget ?? {},
+      designerInstructions: brief.designerInstructions,
       version: brief.version,
       projectName: project?.name
     });
@@ -10284,7 +13868,7 @@ var designRouter = router({
     templateId: z6.number().optional()
   })).mutation(async ({ ctx, input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError4({ code: "NOT_FOUND", message: "Project not found" });
+    if (!project) throw new TRPCError5({ code: "NOT_FOUND", message: "Project not found" });
     let inputs = projectToInputs4(project);
     if (input.scenarioId) {
       const scenarioInput = await getScenarioInput(input.scenarioId);
@@ -10307,7 +13891,7 @@ var designRouter = router({
     }
     const validation = validatePrompt(prompt);
     if (!validation.valid) {
-      throw new TRPCError4({ code: "BAD_REQUEST", message: validation.reason });
+      throw new TRPCError5({ code: "BAD_REQUEST", message: validation.reason });
     }
     const visualResult = await createGeneratedVisual({
       projectId: input.projectId,
@@ -10370,7 +13954,7 @@ var designRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const visual = await getGeneratedVisualById(input.visualId);
     if (!visual || !visual.imageAssetId) {
-      throw new TRPCError4({ code: "NOT_FOUND", message: "Visual not found or has no image" });
+      throw new TRPCError5({ code: "NOT_FOUND", message: "Visual not found or has no image" });
     }
     await createEvidenceReference({
       evidenceRecordId: visual.imageAssetId,
@@ -10386,6 +13970,53 @@ var designRouter = router({
       entityType: "generated_visual",
       entityId: visual.id,
       details: { targetType: input.targetType, targetId: input.targetId }
+    });
+    return { success: true };
+  }),
+  // ─── Pin Visuals to Material Boards (V4) ────────────────────────────────────
+  pinVisualToBoard: protectedProcedure.input(z6.object({
+    visualId: z6.number(),
+    boardId: z6.number()
+  })).mutation(async ({ ctx, input }) => {
+    const visual = await getGeneratedVisualById(input.visualId);
+    if (!visual || !visual.imageAssetId) {
+      throw new TRPCError5({ code: "NOT_FOUND", message: "Visual not found or has no image" });
+    }
+    const link = await createAssetLink({
+      assetId: visual.imageAssetId,
+      linkType: "material_board",
+      linkId: input.boardId
+    });
+    await createAuditLog({
+      userId: ctx.user.id,
+      action: "visual.pin_to_board",
+      entityType: "generated_visual",
+      entityId: visual.id,
+      details: { boardId: input.boardId, linkId: link.id }
+    });
+    return { success: true, linkId: link.id };
+  }),
+  listPinnedVisuals: protectedProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ input }) => {
+    const links = await getAssetLinksByEntity("material_board", input.boardId);
+    const pinned = await Promise.all(links.map(async (link) => {
+      const asset = await getProjectAssetById(link.assetId);
+      return {
+        linkId: link.id,
+        assetId: link.assetId,
+        imageUrl: asset?.storageUrl ?? null,
+        fileName: asset?.fileName ?? null,
+        pinnedAt: link.createdAt
+      };
+    }));
+    return pinned;
+  }),
+  unpinVisual: protectedProcedure.input(z6.object({ linkId: z6.number() })).mutation(async ({ ctx, input }) => {
+    await deleteAssetLink(input.linkId);
+    await createAuditLog({
+      userId: ctx.user.id,
+      action: "visual.unpin_from_board",
+      entityType: "asset_link",
+      entityId: input.linkId
     });
     return { success: true };
   }),
@@ -10429,7 +14060,7 @@ var designRouter = router({
   }),
   getBoard: protectedProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ input }) => {
     const board = await getMaterialBoardById(input.boardId);
-    if (!board) throw new TRPCError4({ code: "NOT_FOUND" });
+    if (!board) throw new TRPCError5({ code: "NOT_FOUND" });
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const materialDetails = [];
     for (const bm of boardMaterials) {
@@ -10494,9 +14125,9 @@ var designRouter = router({
   }),
   exportBoardPdf: protectedProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
     const board = await getMaterialBoardById(input.boardId);
-    if (!board) throw new TRPCError4({ code: "NOT_FOUND" });
+    if (!board) throw new TRPCError5({ code: "NOT_FOUND" });
     const project = await getProjectById(board.projectId);
-    if (!project) throw new TRPCError4({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError5({ code: "NOT_FOUND" });
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const items = [];
     for (const bm of boardMaterials) {
@@ -10575,7 +14206,7 @@ var designRouter = router({
   }),
   recommendMaterials: protectedProcedure.input(z6.object({ projectId: z6.number(), maxItems: z6.number().default(10) })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError4({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError5({ code: "NOT_FOUND" });
     const catalog = await getAllMaterials();
     return recommendMaterials(catalog, project.mkt01Tier || "Upper-mid", input.maxItems);
   }),
@@ -10692,6 +14323,393 @@ var designRouter = router({
       details: { approvalState: input.approvalState, rationale: input.rationale }
     });
     return { success: true };
+  }),
+  // ─── Structural Analytics (Phase 1 Fix — material_constants bridge) ─────────
+  /**
+   * Returns all seeded material constants so the frontend can display
+   * real AED/m² pricing without an additional roundtrip.
+   */
+  getMaterialConstants: protectedProcedure.query(async () => {
+    return getMaterialConstants();
+  }),
+  /**
+   * calculateSpec — given a list of {materialType, areaM2} pairs, computes:
+   *   - total cost in AED
+   *   - total carbon footprint in kg CO²
+   *   - weighted average maintenance factor (1–5 scale)
+   *   - sustainability grade (A–E)
+   *
+   * Crosses the caller's material mix with the material_constants table.
+   * Unknown material types are skipped (graceful fallback).
+   */
+  calculateSpec: protectedProcedure.input(z6.object({
+    items: z6.array(z6.object({
+      materialType: z6.string(),
+      // e.g. "concrete", "stone", "glass"
+      areaM2: z6.number().positive()
+    }))
+  })).mutation(async ({ input }) => {
+    const constants = await getMaterialConstants();
+    const lookup = new Map(constants.map((c) => [c.materialType, c]));
+    let totalCostAed = 0;
+    let totalCarbonKg = 0;
+    let weightedMaintenanceSum = 0;
+    let totalArea = 0;
+    const breakdown = [];
+    for (const item of input.items) {
+      const c = lookup.get(item.materialType);
+      if (!c) {
+        breakdown.push({
+          materialType: item.materialType,
+          areaM2: item.areaM2,
+          costPerM2: 0,
+          lineCostAed: 0,
+          carbonKg: 0,
+          maintenanceFactor: 3,
+          matched: false
+        });
+        continue;
+      }
+      const costPerM2 = Number(c.costPerM2 ?? 0);
+      const carbonIntensity = Number(c.carbonIntensity ?? 0);
+      const maintenanceFactor = Number(c.maintenanceFactor ?? 3);
+      const lineCost = costPerM2 * item.areaM2;
+      const lineCarbonKg = carbonIntensity * item.areaM2;
+      totalCostAed += lineCost;
+      totalCarbonKg += lineCarbonKg;
+      weightedMaintenanceSum += maintenanceFactor * item.areaM2;
+      totalArea += item.areaM2;
+      breakdown.push({
+        materialType: item.materialType,
+        areaM2: item.areaM2,
+        costPerM2,
+        lineCostAed: lineCost,
+        carbonKg: lineCarbonKg,
+        maintenanceFactor,
+        matched: true
+      });
+    }
+    const avgMaintenanceFactor = totalArea > 0 ? weightedMaintenanceSum / totalArea : 3;
+    const avgCarbonPerM2 = totalArea > 0 ? totalCarbonKg / totalArea : 0;
+    let sustainabilityGrade;
+    if (avgCarbonPerM2 < 30) sustainabilityGrade = "A";
+    else if (avgCarbonPerM2 < 60) sustainabilityGrade = "B";
+    else if (avgCarbonPerM2 < 100) sustainabilityGrade = "C";
+    else if (avgCarbonPerM2 < 150) sustainabilityGrade = "D";
+    else sustainabilityGrade = "E";
+    return {
+      totalCostAed: Math.round(totalCostAed),
+      totalCarbonKg: Math.round(totalCarbonKg),
+      avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
+      sustainabilityGrade,
+      totalAreaM2: totalArea,
+      costPerM2Avg: totalArea > 0 ? Math.round(totalCostAed / totalArea) : 0,
+      breakdown
+    };
+  }),
+  // ─── Phase 4: Market Grounding ──────────────────────────────────────────────
+  /**
+   * 4.1 Design Trends: Return UAE market trends filtered by project style.
+   * Used to inject market signals into AI recommendations and display trend
+   * context in the InvestorSummary / DesignBrief pages.
+   */
+  getDesignTrends: orgProcedure.input(z6.object({
+    projectId: z6.number(),
+    limit: z6.number().min(1).max(50).default(20)
+  })).query(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const style = project.des01Style ?? void 0;
+    const trends = await getDesignTrends({
+      styleClassification: style,
+      region: "UAE",
+      limit: input.limit
+    });
+    if (trends.length === 0) {
+      return getDesignTrends({ region: "UAE", limit: input.limit });
+    }
+    return trends;
+  }),
+  /**
+   * 4.2 Benchmark Overlay: Return AED/sqm benchmark for the project's
+   * typology + location + tier, with progressive fallback.
+   */
+  getBenchmarkForProject: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const typology = project.ctx01Typology ?? "Residential";
+    const location = project.ctx04Location ?? "Secondary";
+    const tier = project.mkt01Tier ?? "Upper-mid";
+    const bm = await getBenchmarkForProject(typology, location, tier);
+    if (!bm) return null;
+    const SQM_PER_SQFT = 10.7639;
+    return {
+      id: bm.id,
+      typology: bm.typology,
+      location: bm.location,
+      marketTier: bm.marketTier,
+      // Costs in AED/sqm (benchmark stored as AED/sqft)
+      costPerSqmLow: bm.costPerSqftLow != null ? Math.round(Number(bm.costPerSqftLow) * SQM_PER_SQFT) : null,
+      costPerSqmMid: bm.costPerSqftMid != null ? Math.round(Number(bm.costPerSqftMid) * SQM_PER_SQFT) : null,
+      costPerSqmHigh: bm.costPerSqftHigh != null ? Math.round(Number(bm.costPerSqftHigh) * SQM_PER_SQFT) : null,
+      avgSellingPrice: bm.avgSellingPrice != null ? Number(bm.avgSellingPrice) : null,
+      absorptionRate: bm.absorptionRate != null ? Number(bm.absorptionRate) : null,
+      differentiationIndex: bm.differentiationIndex != null ? Number(bm.differentiationIndex) : null,
+      competitiveDensity: bm.competitiveDensity,
+      sourceType: bm.sourceType,
+      dataYear: bm.dataYear
+    };
+  }),
+  /**
+   * 4.3 Competitor Context: Top active intel sources from source_registry,
+   * used to surface the "where this data comes from" panel in briefs.
+   */
+  // ─── Phase B.3: DLD Area Intelligence ──────────────────────────────────────
+  getDldAreas: orgProcedure.query(async () => {
+    return getDldAreas();
+  }),
+  getDldAreaComparison: orgProcedure.input(z6.object({ areaId: z6.number() })).query(async ({ input }) => {
+    const [projects2, comparison] = await Promise.all([
+      getDldProjectsByArea(input.areaId),
+      getDldAreaComparison(input.areaId)
+    ]);
+    return {
+      projects: projects2,
+      comparison,
+      totalProjects: projects2.length,
+      activeProjects: projects2.filter((p) => p.projectStatus === "ACTIVE").length,
+      finishedProjects: projects2.filter((p) => p.projectStatus === "FINISHED").length,
+      totalUnits: projects2.reduce((s, p) => s + (p.noOfUnits ?? 0) + (p.noOfVillas ?? 0), 0)
+    };
+  }),
+  getAreaBenchmarks: orgProcedure.query(async () => {
+    return getAllAreaBenchmarks();
+  }),
+  getAreaBenchmark: orgProcedure.input(z6.object({ areaId: z6.number() })).query(async ({ input }) => {
+    return getDldAreaBenchmark(input.areaId);
+  }),
+  getDldDataStats: orgProcedure.query(async () => {
+    const [transactionCount, rentCount] = await Promise.all([
+      getDldTransactionCount(),
+      getDldRentCount()
+    ]);
+    return { transactionCount, rentCount };
+  }),
+  /** Returns DLD benchmark data for a project's saved area — used by Investor Summary */
+  getProjectDldBenchmark: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project) return null;
+    if (!project.dldAreaId) return null;
+    const benchmark = await getDldAreaBenchmark(project.dldAreaId);
+    return benchmark ? {
+      areaName: project.dldAreaName || benchmark.areaName,
+      projectPurpose: project.projectPurpose || "sell_ready",
+      saleP50: benchmark.saleP50 ? Number(benchmark.saleP50) : null,
+      saleP25: benchmark.saleP25 ? Number(benchmark.saleP25) : null,
+      saleP75: benchmark.saleP75 ? Number(benchmark.saleP75) : null,
+      saleMean: benchmark.saleMean ? Number(benchmark.saleMean) : null,
+      grossYield: benchmark.grossYield ? Number(benchmark.grossYield) : null,
+      fitoutLow: benchmark.recommendedFitoutLow ? Number(benchmark.recommendedFitoutLow) : null,
+      fitoutMid: benchmark.recommendedFitoutMid ? Number(benchmark.recommendedFitoutMid) : null,
+      fitoutHigh: benchmark.recommendedFitoutHigh ? Number(benchmark.recommendedFitoutHigh) : null,
+      transactionCount: benchmark.transactionCount ? Number(benchmark.transactionCount) : 0,
+      rentContractCount: benchmark.rentContractCount ? Number(benchmark.rentContractCount) : 0
+    } : null;
+  }),
+  // ─── Phase A.4: Data Freshness ─────────────────────────────────────────────
+  getDataFreshness: orgProcedure.query(async () => {
+    const [sources, healthRecords, runs] = await Promise.all([
+      getActiveSourceRegistry(50),
+      getConnectorHealthSummary(),
+      getIngestionRunHistory(5)
+    ]);
+    const latestRun = runs.length > 0 ? runs[0] : null;
+    const sourceFreshness = (sources ?? []).map((s) => {
+      const healthRec = (healthRecords ?? []).find(
+        (h) => String(h.sourceId) === String(s.id) || h.sourceName === s.name
+      );
+      const lastFetch = s.lastSuccessfulFetch ?? healthRec?.createdAt ?? null;
+      const daysSince = lastFetch ? Math.floor((Date.now() - new Date(lastFetch).getTime()) / (1e3 * 60 * 60 * 24)) : null;
+      return {
+        id: s.id,
+        name: s.name,
+        sourceType: s.sourceType,
+        reliabilityGrade: s.reliabilityDefault,
+        lastFetch,
+        daysSince,
+        freshness: daysSince === null ? "unknown" : daysSince <= 7 ? "fresh" : daysSince <= 30 ? "aging" : "stale",
+        latestStatus: healthRec?.status ?? null,
+        recordsExtracted: healthRec?.recordsExtracted ?? 0
+      };
+    });
+    const freshCount = sourceFreshness.filter((s) => s.freshness === "fresh").length;
+    const agingCount = sourceFreshness.filter((s) => s.freshness === "aging").length;
+    const staleCount = sourceFreshness.filter((s) => s.freshness === "stale").length;
+    const unknownCount = sourceFreshness.filter((s) => s.freshness === "unknown").length;
+    const totalSources = sourceFreshness.length;
+    const overallHealth = staleCount > totalSources * 0.3 ? "degraded" : agingCount > totalSources * 0.5 ? "aging" : "healthy";
+    return {
+      overallHealth,
+      totalSources,
+      freshCount,
+      agingCount,
+      staleCount,
+      unknownCount,
+      latestRun: latestRun ? {
+        runId: latestRun.runId,
+        status: latestRun.status,
+        startedAt: latestRun.startedAt,
+        totalSources: latestRun.totalSources,
+        sourcesSucceeded: latestRun.sourcesSucceeded,
+        sourcesFailed: latestRun.sourcesFailed,
+        recordsExtracted: latestRun.recordsExtracted
+      } : null,
+      sources: sourceFreshness
+    };
+  }),
+  // ─── Phase A.3: Evidence Chain ─────────────────────────────────────────────
+  getEvidenceChain: orgProcedure.input(z6.object({
+    category: z6.string().optional(),
+    projectId: z6.number().optional(),
+    limit: z6.number().min(1).max(50).default(20)
+  })).query(async ({ input }) => {
+    const results = await getEvidenceWithSources({
+      category: input.category,
+      projectId: input.projectId,
+      limit: input.limit
+    });
+    return { evidence: results };
+  }),
+  getCompetitorContext: orgProcedure.input(z6.object({ limit: z6.number().min(1).max(20).default(6) })).query(async ({ input }) => {
+    return getActiveSourceRegistry(input.limit);
+  }),
+  // ─── Phase 5: Export & Handover ─────────────────────────────────────────────
+  exportInvestorPdf: orgProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
+    const { generateInvestorPdfHtml: generateInvestorPdfHtml2 } = await Promise.resolve().then(() => (init_investor_pdf(), investor_pdf_exports));
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const [brief, recs, materialConsts, benchmark, trends] = await Promise.all([
+      getAiDesignBrief(input.projectId),
+      getSpaceRecommendations(input.projectId, ctx.orgId),
+      getMaterialConstants(),
+      getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
+      getDesignTrends({ styleClassification: project.des01Style ?? void 0, region: "UAE", limit: 8 })
+    ]);
+    const totalFitoutBudget = (recs ?? []).reduce((s, r) => s + Number(r.budgetAllocation || 0), 0);
+    const gfa = Number(project.ctx03Gfa ?? 0);
+    const costPerSqm = gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0;
+    const TIER_PREMIUM_PCT2 = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
+    const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
+    const estimatedSalesPremiumAed = gfa > 0 ? Math.round(gfa * 25e3 * salePremiumPct / 100) : 0;
+    const TIER_GRADE = { "Entry": "B", "Mid": "B", "Upper-mid": "C", "Luxury": "D", "Ultra-luxury": "D" };
+    const sustainabilityGrade = TIER_GRADE[project.mkt01Tier ?? "Upper-mid"] ?? "C";
+    const briefData = brief?.briefData ?? {};
+    const allMaterials = (recs ?? []).flatMap(
+      (r) => (r.materialPackage || []).map((m) => ({ name: m.productName, brand: m.brand, price: m.priceRangeAed, room: r.roomName }))
+    );
+    const spaces = (recs ?? []).map((r) => ({
+      name: r.roomName,
+      budgetAed: Number(r.budgetAllocation || 0),
+      sqm: Number(r.sqm || 0),
+      pct: totalFitoutBudget > 0 ? Number(r.budgetAllocation || 0) / totalFitoutBudget * 100 : 0,
+      styleDirection: r.styleDirection
+    }));
+    const SQF = 10.7639;
+    const bmFmt = benchmark ? {
+      costPerSqmLow: benchmark.costPerSqftLow != null ? Math.round(Number(benchmark.costPerSqftLow) * SQF) : null,
+      costPerSqmMid: benchmark.costPerSqftMid != null ? Math.round(Number(benchmark.costPerSqftMid) * SQF) : null,
+      costPerSqmHigh: benchmark.costPerSqftHigh != null ? Math.round(Number(benchmark.costPerSqftHigh) * SQF) : null,
+      typology: benchmark.typology,
+      location: benchmark.location,
+      marketTier: benchmark.marketTier,
+      dataYear: benchmark.dataYear
+    } : null;
+    const html = generateInvestorPdfHtml2({
+      projectName: project.name ?? "Untitled Project",
+      typology: project.ctx01Typology ?? "Residential",
+      location: project.ctx04Location ?? "UAE",
+      tier: project.mkt01Tier ?? "Upper-mid",
+      style: project.des01Style ?? "Modern",
+      gfaSqm: gfa,
+      execSummary: briefData.executiveSummary ?? "",
+      designDirection: briefData.designDirection ?? {},
+      spaces,
+      materials: allMaterials,
+      materialConstants: (materialConsts ?? []).map((c) => ({
+        materialType: c.materialType,
+        costPerM2: Number(c.costPerM2),
+        carbonIntensity: Number(c.carbonIntensity),
+        sustainabilityGrade
+      })),
+      totalFitoutBudget,
+      costPerSqm,
+      sustainabilityGrade,
+      salePremiumPct,
+      estimatedSalesPremiumAed,
+      benchmark: bmFmt,
+      designTrends: trends,
+      shareToken: brief?.shareToken ?? void 0
+    });
+    return { html, projectName: project.name ?? "Project" };
+  }),
+  createShareLink: orgProcedure.input(z6.object({ projectId: z6.number(), expiryDays: z6.number().min(1).max(90).default(7) })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const brief = await getAiDesignBrief(input.projectId);
+    if (!brief) throw new Error("Generate a design brief first before sharing");
+    const token = nanoid2(32);
+    const expiresAt = /* @__PURE__ */ new Date();
+    expiresAt.setDate(expiresAt.getDate() + input.expiryDays);
+    await updateAiDesignBriefShareToken(brief.id, token, expiresAt);
+    return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
+  }),
+  resolveShareLink: publicProcedure.input(z6.object({ token: z6.string().min(8).max(64) })).query(async ({ input }) => {
+    const brief = await getAiDesignBriefByShareToken(input.token);
+    if (!brief) throw new Error("Share link not found or expired");
+    if (brief.shareExpiresAt && new Date(brief.shareExpiresAt) < /* @__PURE__ */ new Date()) throw new Error("This share link has expired");
+    const project = await getProjectById(brief.projectId);
+    if (!project) throw new Error("Project not found");
+    const [recs, benchmark, trends] = await Promise.all([
+      getSpaceRecommendations(brief.projectId, project.orgId ?? 0),
+      getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
+      getDesignTrends({ styleClassification: project.des01Style ?? void 0, region: "UAE", limit: 8 })
+    ]);
+    const totalFitoutBudget = (recs ?? []).reduce((s, r) => s + Number(r.budgetAllocation || 0), 0);
+    const gfa = Number(project.ctx03Gfa ?? 0);
+    const TIER_PREMIUM_PCT2 = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
+    const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
+    const SQF = 10.7639;
+    return {
+      projectName: project.name ?? "Untitled Project",
+      typology: project.ctx01Typology ?? "Residential",
+      location: project.ctx04Location ?? "UAE",
+      tier: project.mkt01Tier ?? "Upper-mid",
+      style: project.des01Style ?? "Modern",
+      gfaSqm: gfa,
+      execSummary: brief.briefData?.executiveSummary ?? "",
+      designDirection: brief.briefData?.designDirection ?? {},
+      spaces: (recs ?? []).map((r) => ({
+        name: r.roomName,
+        budgetAed: Number(r.budgetAllocation || 0),
+        sqm: Number(r.sqm || 0),
+        pct: totalFitoutBudget > 0 ? Number(r.budgetAllocation || 0) / totalFitoutBudget * 100 : 0
+      })),
+      totalFitoutBudget,
+      costPerSqm: gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0,
+      salePremiumPct,
+      estimatedSalesPremiumAed: gfa > 0 ? Math.round(gfa * 25e3 * salePremiumPct / 100) : 0,
+      benchmark: benchmark ? {
+        costPerSqmLow: benchmark.costPerSqftLow != null ? Math.round(Number(benchmark.costPerSqftLow) * SQF) : null,
+        costPerSqmMid: benchmark.costPerSqftMid != null ? Math.round(Number(benchmark.costPerSqftMid) * SQF) : null,
+        costPerSqmHigh: benchmark.costPerSqftHigh != null ? Math.round(Number(benchmark.costPerSqftHigh) * SQF) : null,
+        typology: benchmark.typology,
+        location: benchmark.location,
+        marketTier: benchmark.marketTier,
+        dataYear: benchmark.dataYear
+      } : null,
+      designTrends: trends,
+      expiresAt: brief.shareExpiresAt?.toISOString()
+    };
   })
 });
 
@@ -11595,270 +15613,14 @@ import { z as z9 } from "zod";
 init_db();
 import { nanoid as nanoid4 } from "nanoid";
 
-// server/engines/ingestion/connector.ts
-import { z as z8 } from "zod";
-import robotsParser from "robots-parser";
-var USER_AGENTS = [
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
-];
-var CAPTCHA_INDICATORS = ["cf-browser-verification", "g-recaptcha", "px-captcha", "Please verify you are a human"];
-var PAYWALL_INDICATORS = ["subscribe to read", "premium content", "paywall"];
-function getRandomUserAgent() {
-  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-}
-var robotsCache = /* @__PURE__ */ new Map();
-async function checkRobotsTxt(targetUrl, userAgent) {
-  try {
-    const urlObj = new URL(targetUrl);
-    const origin = urlObj.origin;
-    let robots = robotsCache.get(origin);
-    if (!robots) {
-      const robotsUrl = `${origin}/robots.txt`;
-      const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
-      if (res.ok) {
-        const text2 = await res.text();
-        robots = robotsParser(robotsUrl, text2);
-      } else {
-        robots = robotsParser(robotsUrl, "");
-      }
-      robotsCache.set(origin, robots);
-    }
-    return robots.isAllowed(targetUrl, userAgent) !== false;
-  } catch (err) {
-    return true;
-  }
-}
-var _firecrawlClient = null;
-var _firecrawlInitPromise = null;
-async function getFirecrawlClient() {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
-  if (!apiKey) return null;
-  if (!_firecrawlClient && !_firecrawlInitPromise) {
-    _firecrawlInitPromise = (async () => {
-      try {
-        const mod = await import("@mendable/firecrawl-js");
-        const FirecrawlApp = mod.default;
-        _firecrawlClient = new FirecrawlApp({ apiKey });
-      } catch (err) {
-        console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
-      }
-      return _firecrawlClient;
-    })();
-  }
-  if (_firecrawlInitPromise) await _firecrawlInitPromise;
-  return _firecrawlClient;
-}
-function isFirecrawlAvailable() {
-  return !!process.env.FIRECRAWL_API_KEY;
-}
-var rawSourcePayloadSchema = z8.object({
-  url: z8.string().url(),
-  fetchedAt: z8.date(),
-  rawHtml: z8.string().optional(),
-  rawJson: z8.record(z8.string(), z8.unknown()).optional(),
-  markdown: z8.string().optional(),
-  statusCode: z8.number().int(),
-  error: z8.string().optional()
-});
-var extractedEvidenceSchema = z8.object({
-  title: z8.string().min(1),
-  rawText: z8.string().min(1),
-  publishedDate: z8.date().optional(),
-  category: z8.string().min(1),
-  // Accept any category — validated at orchestrator level
-  geography: z8.string().min(1),
-  sourceUrl: z8.string().url()
-});
-var normalizedEvidenceInputSchema = z8.object({
-  metric: z8.string().min(1),
-  value: z8.number().nullable(),
-  unit: z8.string().nullable(),
-  confidence: z8.number().min(0).max(1),
-  grade: z8.enum(["A", "B", "C"]),
-  summary: z8.string().min(1),
-  tags: z8.array(z8.string())
-});
-var GRADE_A_SOURCE_IDS = /* @__PURE__ */ new Set([
-  "emaar-properties",
-  "damac-properties",
-  "nakheel-properties",
-  "rics-market-reports",
-  "jll-mena-research",
-  "dubai-statistics-center",
-  "dubai-pulse-materials",
-  "scad-abu-dhabi",
-  "dld-transactions",
-  "aldar-properties",
-  "cbre-uae-research",
-  "knight-frank-uae",
-  "savills-me-research"
-]);
-var GRADE_B_SOURCE_IDS = /* @__PURE__ */ new Set([
-  "rak-ceramics-uae",
-  "porcelanosa-uae",
-  "hafele-uae",
-  "gems-building-materials",
-  "dragon-mart-dubai",
-  "property-monitor-dubai"
-]);
-var GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set(["dera-interiors"]);
-function assignGrade(sourceId) {
-  if (GRADE_A_SOURCE_IDS.has(sourceId)) return "A";
-  if (GRADE_B_SOURCE_IDS.has(sourceId)) return "B";
-  if (GRADE_C_SOURCE_IDS.has(sourceId)) return "C";
-  return "C";
-}
-var BASE_CONFIDENCE = { A: 0.85, B: 0.7, C: 0.55 };
-var RECENCY_BONUS = 0.1;
-var STALENESS_PENALTY = -0.15;
-var CONFIDENCE_CAP = 1;
-var CONFIDENCE_FLOOR = 0.2;
-function computeConfidence2(grade2, publishedDate, fetchedAt) {
-  let confidence = BASE_CONFIDENCE[grade2];
-  if (!publishedDate) {
-    confidence += STALENESS_PENALTY;
-  } else {
-    const daysSincePublished = Math.floor(
-      (fetchedAt.getTime() - publishedDate.getTime()) / (1e3 * 60 * 60 * 24)
-    );
-    if (daysSincePublished <= 90) {
-      confidence += RECENCY_BONUS;
-    } else if (daysSincePublished > 365) {
-      confidence += STALENESS_PENALTY;
-    }
-  }
-  return Math.min(CONFIDENCE_CAP, Math.max(CONFIDENCE_FLOOR, confidence));
-}
-var FETCH_TIMEOUT_MS = 15e3;
-var MAX_RETRIES = 3;
-var BASE_BACKOFF_MS = 1e3;
-var BaseSourceConnector = class {
-  lastSuccessfulFetch;
-  requestDelayMs;
-  /**
-   * Fetch using Firecrawl's headless browser API.
-   * Renders JavaScript, bypasses bot protection, returns clean markdown.
-   */
-  async fetchWithFirecrawl(url) {
-    const targetUrl = url || this.sourceUrl;
-    const client = await getFirecrawlClient();
-    if (!client) {
-      return this.fetchBasic(targetUrl);
-    }
-    try {
-      console.log(`[Connector] \u{1F525} Firecrawl scraping: ${targetUrl}`);
-      const doc = await client.scrape(targetUrl, {
-        formats: ["markdown", "html"]
-      });
-      const markdown = doc?.markdown || "";
-      const html = doc?.html || "";
-      if (markdown.length < 50 && html.length < 50) {
-        console.warn(`[Connector] Firecrawl returned too little content for ${targetUrl}, falling back`);
-        return this.fetchBasic(targetUrl);
-      }
-      console.log(`[Connector] \u{1F525} Firecrawl success: ${targetUrl} (${markdown.length} chars md, ${html.length} chars html)`);
-      return {
-        url: targetUrl,
-        fetchedAt: /* @__PURE__ */ new Date(),
-        rawHtml: html,
-        markdown,
-        statusCode: doc?.metadata?.statusCode || 200
-      };
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.warn(`[Connector] Firecrawl error for ${targetUrl}: ${errorMsg}, falling back`);
-      return this.fetchBasic(targetUrl);
-    }
-  }
-  /**
-   * Basic HTTP fetch — used as fallback when Firecrawl is unavailable.
-   */
-  async fetchBasic(url) {
-    const targetUrl = url || this.sourceUrl;
-    let lastError;
-    const userAgent = getRandomUserAgent();
-    const isAllowed = await checkRobotsTxt(targetUrl, userAgent);
-    if (!isAllowed) {
-      return { url: targetUrl, fetchedAt: /* @__PURE__ */ new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
-    }
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-        const response = await globalThis.fetch(targetUrl, {
-          signal: controller.signal,
-          headers: {
-            "User-Agent": userAgent,
-            "Accept": "text/html,application/json,application/xml;q=0.9,*/*;q=0.8"
-          }
-        });
-        clearTimeout(timeout);
-        const contentType = response.headers.get("content-type") || "";
-        let rawHtml;
-        let rawJson;
-        if (contentType.includes("application/json")) {
-          rawJson = await response.json();
-        } else {
-          rawHtml = await response.text();
-          if (CAPTCHA_INDICATORS.some((ind) => rawHtml.includes(ind))) {
-            throw new Error("CAPTCHA challenge detected on page");
-          }
-          if (PAYWALL_INDICATORS.some((ind) => rawHtml.toLowerCase().includes(ind))) {
-            throw new Error("Paywall detected on page content");
-          }
-          if (rawHtml.trim().startsWith("{") || rawHtml.trim().startsWith("[")) {
-            try {
-              rawJson = JSON.parse(rawHtml);
-            } catch {
-            }
-          }
-        }
-        return {
-          url: targetUrl,
-          fetchedAt: /* @__PURE__ */ new Date(),
-          rawHtml,
-          rawJson,
-          statusCode: response.status,
-          error: response.ok ? void 0 : `HTTP ${response.status} ${response.statusText}`
-        };
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        lastError = errorMsg;
-        if (attempt < MAX_RETRIES) {
-          const backoffMs = BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
-          await new Promise((resolve) => setTimeout(resolve, backoffMs));
-        }
-      }
-    }
-    return {
-      url: targetUrl,
-      fetchedAt: /* @__PURE__ */ new Date(),
-      statusCode: 0,
-      error: `Failed after ${MAX_RETRIES} attempts: ${lastError}`
-    };
-  }
-  /**
-   * Main fetch method. Uses Firecrawl when available, falls back to basic HTTP.
-   */
-  async fetch() {
-    if (this.requestDelayMs && this.requestDelayMs > 0) {
-      await new Promise((r) => setTimeout(r, this.requestDelayMs));
-    }
-    if (isFirecrawlAvailable()) {
-      return this.fetchWithFirecrawl();
-    }
-    return this.fetchBasic();
-  }
-};
-
 // server/engines/ingestion/connectors/dynamic.ts
+init_connector();
+init_connector();
 init_llm();
 
 // server/engines/ingestion/crawler.ts
+init_connector();
+init_connector();
 init_llm();
 var DEFAULT_CRAWL_CONFIG = {
   maxDepth: 1,
@@ -12325,8 +16087,9 @@ var DynamicConnector = class extends BaseSourceConnector {
 };
 
 // server/engines/ingestion/orchestrator.ts
-import { randomUUID as randomUUID2 } from "crypto";
+init_connector();
 init_db();
+import { randomUUID as randomUUID2 } from "crypto";
 
 // server/engines/ingestion/proposal-generator.ts
 init_db();
@@ -12383,7 +16146,8 @@ async function generateBenchmarkProposals(options = {}) {
   }
   const groups = /* @__PURE__ */ new Map();
   for (const rec of evidence) {
-    const key = `${rec.category}:${rec.unit}`;
+    const finish = rec.finishLevel?.toLowerCase() || "standard";
+    const key = `${rec.category}:${finish}:${rec.unit}`;
     const existing = groups.get(key) ?? [];
     existing.push(rec);
     groups.set(key, existing);
@@ -12756,7 +16520,7 @@ async function detectTrends(metric, category, geography, points, options) {
 
 // server/engines/ingestion/orchestrator.ts
 init_schema();
-import { and as and3, eq as eq6, sql as sql3 } from "drizzle-orm";
+import { and as and3, eq as eq7, sql as sql3 } from "drizzle-orm";
 var MAX_CONCURRENT = 3;
 async function runWithConcurrencyLimit(tasks, limit) {
   const results = [];
@@ -12779,8 +16543,8 @@ async function isDuplicate(sourceUrl, itemName, captureDate) {
   if (!db) return false;
   const existing = await db.select({ id: evidenceRecords.id }).from(evidenceRecords).where(
     and3(
-      eq6(evidenceRecords.sourceUrl, sourceUrl),
-      eq6(evidenceRecords.itemName, itemName),
+      eq7(evidenceRecords.sourceUrl, sourceUrl),
+      eq7(evidenceRecords.itemName, itemName),
       sql3`DATE(${evidenceRecords.captureDate}) = DATE(${captureDate})`
     )
   ).limit(1);
@@ -12821,7 +16585,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const connector of connectors) {
-        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq6(sourceRegistry.name, connector.sourceId)).limit(1);
+        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq7(sourceRegistry.name, connector.sourceId)).limit(1);
         if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
           connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
         }
@@ -13013,7 +16777,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const result of connectorResults) {
-        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq6(sourceRegistry.name, result.sourceId)).limit(1);
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq7(sourceRegistry.name, result.sourceId)).limit(1);
         const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
         const isSuccess = result.status === "success";
         const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
@@ -13026,7 +16790,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         if (isSuccess) {
           updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
         }
-        await db.update(sourceRegistry).set(updates).where(eq6(sourceRegistry.name, result.sourceId));
+        await db.update(sourceRegistry).set(updates).where(eq7(sourceRegistry.name, result.sourceId));
       }
     }
   } catch (err) {
@@ -13128,9 +16892,11 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           const date = record.captureDate || record.createdAt;
           if (!date) continue;
           const category = record.category || "other";
+          const finishLevel = record.finishLevel?.toLowerCase() || "standard";
+          const metric = `${category}:${finishLevel}`;
           const grade2 = record.reliabilityGrade || "C";
-          if (!categoryGroups.has(category)) categoryGroups.set(category, []);
-          categoryGroups.get(category).push({
+          if (!categoryGroups.has(metric)) categoryGroups.set(metric, { category, points: [] });
+          categoryGroups.get(metric).points.push({
             date: new Date(date),
             value,
             grade: grade2,
@@ -13139,10 +16905,10 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           });
         }
         let trendsGenerated = 0;
-        for (const [category, points] of Array.from(categoryGroups.entries())) {
-          if (points.length < 2) continue;
-          const trend = await detectTrends(category, category, "UAE", points, {
-            generateNarrative: points.length >= 5
+        for (const [metric, group] of Array.from(categoryGroups.entries())) {
+          if (group.points.length < 2) continue;
+          const trend = await detectTrends(metric, group.category, "UAE", group.points, {
+            generateNarrative: group.points.length >= 5
           });
           await insertTrendSnapshot({
             metric: trend.metric,
@@ -13344,7 +17110,7 @@ async function processCsvUpload(buffer, sourceId, addedByUserId) {
 init_db();
 init_schema();
 import "dotenv/config";
-import { eq as eq7 } from "drizzle-orm";
+import { eq as eq8 } from "drizzle-orm";
 var UAE_SOURCES = [
   // ── Supplier Catalogs ─────────────────────────────────────────
   {
@@ -13616,6 +17382,33 @@ var UAE_SOURCES = [
     extractionHints: "Extract featured projects in UAE, design trends, material specifications mentioned, architectural styles. Focus on residential and hospitality interiors for trend detection.",
     notes: "Major architecture publication.",
     requestDelayMs: 2e3
+  },
+  // ── Live Property Listing Aggregators (V5) ───────────────────
+  {
+    name: "Bayut Property Listings",
+    url: "https://www.bayut.com/for-sale/property/dubai/",
+    sourceType: "aggregator",
+    reliabilityDefault: "B",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1,4",
+    // Monday + Thursday 6 AM
+    extractionHints: "Extract property listings: project name, location/area, price in AED, property type (apartment/villa/townhouse), bedrooms, size in sqft, developer name. Compute price per sqft where possible. Focus on new/off-plan listings for market positioning data.",
+    notes: "Largest UAE property portal (part of Dubizzle/EMPG group). JS-rendered \u2014 requires Firecrawl.",
+    requestDelayMs: 3e3
+  },
+  {
+    name: "PropertyFinder Listings",
+    url: "https://www.propertyfinder.ae/en/buy/dubai/",
+    sourceType: "aggregator",
+    reliabilityDefault: "B",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 7 * * 2,5",
+    // Tuesday + Friday 7 AM
+    extractionHints: "Extract property listings: project/building name, area, asking price in AED, property type, bedrooms, size sqft, agent/developer. Focus on listed prices for market intelligence and pricing trends.",
+    notes: "Top UAE property search portal. JS-rendered \u2014 requires Firecrawl.",
+    requestDelayMs: 3e3
   }
 ];
 async function seedUAESources() {
@@ -13626,7 +17419,7 @@ async function seedUAESources() {
   const errors = [];
   for (const source of UAE_SOURCES) {
     try {
-      const existing = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq7(sourceRegistry.url, source.url)).limit(1);
+      const existing = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq8(sourceRegistry.url, source.url)).limit(1);
       if (existing.length > 0) {
         console.log(`[Seeder] Skipping "${source.name}" \u2014 already exists (id=${existing[0].id})`);
         skipped++;
@@ -13715,7 +17508,13 @@ var evidenceRecordSchema = z9.object({
   tags: z9.array(z9.string()).optional(),
   fileUrl: z9.string().optional(),
   fileKey: z9.string().optional(),
-  fileMimeType: z9.string().optional()
+  fileMimeType: z9.string().optional(),
+  // Source-type Intelligence fields
+  finishLevel: z9.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).nullable().optional(),
+  designStyle: z9.string().nullable().optional(),
+  brandsMentioned: z9.array(z9.string()).nullable().optional(),
+  materialSpec: z9.string().nullable().optional(),
+  intelligenceType: z9.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional()
 });
 var sourceRegistrySchema = z9.object({
   name: z9.string().min(1),
@@ -14523,6 +18322,7 @@ var marketIntelligenceRouter = router({
 import { z as z10 } from "zod";
 
 // server/engines/ingestion/connectors/index.ts
+init_connector();
 init_llm();
 var SOURCE_URLS = {
   "rak-ceramics-uae": "https://www.rakceramics.com/",
@@ -14540,12 +18340,16 @@ var SOURCE_URLS = {
   // ─── V4: New UAE Market Sources ─────────────────────────────────
   "dubai-pulse-materials": "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
   "scad-abu-dhabi": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+  "scad-pdf-materials": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
   "dld-transactions": "https://www.dubaipulse.gov.ae/data/dld_transactions/dld_transactions-open",
   "aldar-properties": "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
   "cbre-uae-research": "https://www.cbre.ae/en/insights",
   "knight-frank-uae": "https://www.knightfrank.ae/research",
   "savills-me-research": "https://www.savills.me/insight-and-opinion/",
-  "property-monitor-dubai": "https://www.propertymonitor.ae/market-reports"
+  "property-monitor-dubai": "https://www.propertymonitor.ae/market-reports",
+  // ─── V5: Live Property Listing Sources ─────────────────────────
+  "bayut-listings": "https://www.bayut.com/for-sale/property/dubai/",
+  "propertyfinder-listings": "https://www.propertyfinder.ae/en/buy/dubai/"
 };
 var LLM_EXTRACTION_SYSTEM_PROMPT2 = `You are a data extraction engine for the MIYAR real estate intelligence platform.
 You extract structured evidence from raw HTML content of UAE construction/real estate websites.
@@ -15036,6 +18840,103 @@ var PropertyMonitorConnector = class extends HTMLSourceConnector {
   defaultTags = ["market-reports", "property", "dubai", "analytics"];
   defaultUnit = "sqft";
 };
+var BayutListingsConnector = class extends HTMLSourceConnector {
+  sourceId = "bayut-listings";
+  sourceName = "Bayut \u2014 UAE Property Listings";
+  sourceUrl = SOURCE_URLS["bayut-listings"];
+  category = "property_price";
+  geography = "Dubai";
+  defaultTags = ["property-listing", "prices", "residential", "bayut", "dubizzle"];
+  defaultUnit = "sqft";
+  requestDelayMs = 2e3;
+  // Respect rate limits
+  /**
+   * Bayut listings are JS-rendered — Firecrawl is strongly preferred.
+   * Falls back to basic fetch if Firecrawl is unavailable.
+   */
+  async fetch() {
+    if (this.requestDelayMs && this.requestDelayMs > 0) {
+      await new Promise((r) => setTimeout(r, this.requestDelayMs));
+    }
+    return this.fetchWithFirecrawl();
+  }
+  async normalize(evidence) {
+    const grade2 = assignGrade(this.sourceId);
+    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+    const llmEvidence = evidence;
+    let metric = llmEvidence._llmMetric || evidence.title;
+    let value = llmEvidence._llmValue ?? null;
+    let unit = llmEvidence._llmUnit ?? "sqft";
+    if (value && evidence.rawText) {
+      const areaMatch = evidence.rawText.match(/(\d[\d,]*)\s*(?:sq\.?\s*ft|sqft)/i);
+      if (areaMatch) {
+        const area = parseFloat(areaMatch[1].replace(/,/g, ""));
+        if (area > 0 && value > area) {
+          metric = `${metric} \u2014 AED/sqft`;
+          value = Math.round(value / area);
+          unit = "sqft";
+        }
+      }
+    }
+    return {
+      metric,
+      value,
+      unit,
+      confidence,
+      grade: grade2,
+      summary: extractSnippet(evidence.rawText),
+      tags: [...this.defaultTags, "listing"]
+    };
+  }
+};
+var PropertyFinderListingsConnector = class extends HTMLSourceConnector {
+  sourceId = "propertyfinder-listings";
+  sourceName = "PropertyFinder \u2014 UAE Listings";
+  sourceUrl = SOURCE_URLS["propertyfinder-listings"];
+  category = "property_price";
+  geography = "Dubai";
+  defaultTags = ["property-listing", "prices", "residential", "propertyfinder"];
+  defaultUnit = "sqft";
+  requestDelayMs = 2e3;
+  // Respect rate limits
+  /**
+   * PropertyFinder is also JS-rendered — use Firecrawl.
+   */
+  async fetch() {
+    if (this.requestDelayMs && this.requestDelayMs > 0) {
+      await new Promise((r) => setTimeout(r, this.requestDelayMs));
+    }
+    return this.fetchWithFirecrawl();
+  }
+  async normalize(evidence) {
+    const grade2 = assignGrade(this.sourceId);
+    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+    const llmEvidence = evidence;
+    let metric = llmEvidence._llmMetric || evidence.title;
+    let value = llmEvidence._llmValue ?? null;
+    let unit = llmEvidence._llmUnit ?? "sqft";
+    if (value && evidence.rawText) {
+      const areaMatch = evidence.rawText.match(/(\d[\d,]*)\s*(?:sq\.?\s*ft|sqft)/i);
+      if (areaMatch) {
+        const area = parseFloat(areaMatch[1].replace(/,/g, ""));
+        if (area > 0 && value > area) {
+          metric = `${metric} \u2014 AED/sqft`;
+          value = Math.round(value / area);
+          unit = "sqft";
+        }
+      }
+    }
+    return {
+      metric,
+      value,
+      unit,
+      confidence,
+      grade: grade2,
+      summary: extractSnippet(evidence.rawText),
+      tags: [...this.defaultTags, "listing"]
+    };
+  }
+};
 var ALL_CONNECTORS = {
   "rak-ceramics-uae": () => new RAKCeramicsConnector(),
   "dera-interiors": () => new DERAInteriorsConnector(),
@@ -15057,7 +18958,15 @@ var ALL_CONNECTORS = {
   "cbre-uae-research": () => new CBREResearchConnector(),
   "knight-frank-uae": () => new KnightFrankConnector(),
   "savills-me-research": () => new SavillsConnector(),
-  "property-monitor-dubai": () => new PropertyMonitorConnector()
+  "property-monitor-dubai": () => new PropertyMonitorConnector(),
+  // V5: Live Property Listing Sources
+  "bayut-listings": () => new BayutListingsConnector(),
+  "propertyfinder-listings": () => new PropertyFinderListingsConnector(),
+  // V6: PDF-based connectors
+  "scad-pdf-materials": () => {
+    const { SCADPdfConnector: SCADPdfConnector2 } = (init_scad_pdf_connector(), __toCommonJS(scad_pdf_connector_exports));
+    return new SCADPdfConnector2();
+  }
 };
 function getConnectorById(sourceId) {
   const factory = ALL_CONNECTORS[sourceId];
@@ -15070,13 +18979,13 @@ function getAllConnectors() {
 // server/routers/ingestion.ts
 init_db();
 init_schema();
-import { desc as desc4, eq as eq9, sql as sql4 } from "drizzle-orm";
+import { desc as desc5, eq as eq10, sql as sql4 } from "drizzle-orm";
 
 // server/engines/ingestion/scheduler.ts
 import cron from "node-cron";
 init_db();
 init_schema();
-import { eq as eq8 } from "drizzle-orm";
+import { eq as eq9 } from "drizzle-orm";
 var scheduledTasks = [];
 var lastScheduledRunAt = null;
 var isSchedulerRunning = false;
@@ -15141,7 +19050,7 @@ var ingestionRouter = router({
     if (!db) return { runs: [], total: 0 };
     const limit = input?.limit ?? 20;
     const offset = input?.offset ?? 0;
-    const runs = await db.select().from(ingestionRuns).orderBy(desc4(ingestionRuns.createdAt)).limit(limit).offset(offset);
+    const runs = await db.select().from(ingestionRuns).orderBy(desc5(ingestionRuns.createdAt)).limit(limit).offset(offset);
     const allRuns = await db.select({ id: ingestionRuns.id }).from(ingestionRuns);
     const total = allRuns.length;
     return { runs, total };
@@ -15161,7 +19070,7 @@ var ingestionRouter = router({
         nextScheduledRun: null
       };
     }
-    const lastRuns = await db.select().from(ingestionRuns).orderBy(desc4(ingestionRuns.createdAt)).limit(1);
+    const lastRuns = await db.select().from(ingestionRuns).orderBy(desc5(ingestionRuns.createdAt)).limit(1);
     const lastRun = lastRuns.length > 0 ? lastRuns[0] : null;
     const allRuns = await db.select().from(ingestionRuns);
     const totalRuns = allRuns.length;
@@ -15196,7 +19105,7 @@ var ingestionRouter = router({
   getRunDetail: protectedProcedure.input(z10.object({ runId: z10.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
-    const runs = await db.select().from(ingestionRuns).where(eq9(ingestionRuns.runId, input.runId)).limit(1);
+    const runs = await db.select().from(ingestionRuns).where(eq10(ingestionRuns.runId, input.runId)).limit(1);
     return runs.length > 0 ? runs[0] : null;
   }),
   /**
@@ -15278,8 +19187,8 @@ var ingestionRouter = router({
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
-    const filter = input?.activeOnly !== false ? eq9(sourceRegistry.isActive, true) : void 0;
-    const sources = filter ? await db.select().from(sourceRegistry).where(filter).orderBy(desc4(sourceRegistry.updatedAt)) : await db.select().from(sourceRegistry).orderBy(desc4(sourceRegistry.updatedAt));
+    const filter = input?.activeOnly !== false ? eq10(sourceRegistry.isActive, true) : void 0;
+    const sources = filter ? await db.select().from(sourceRegistry).where(filter).orderBy(desc5(sourceRegistry.updatedAt)) : await db.select().from(sourceRegistry).orderBy(desc5(sourceRegistry.updatedAt));
     return sources;
   }),
   /**
@@ -15325,7 +19234,7 @@ var ingestionRouter = router({
   toggleSource: adminProcedure.input(z10.object({ id: z10.number(), isActive: z10.boolean() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq9(sourceRegistry.id, input.id));
+    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq10(sourceRegistry.id, input.id));
     return { id: input.id, isActive: input.isActive };
   }),
   /**
@@ -15334,7 +19243,7 @@ var ingestionRouter = router({
   runRegisteredSource: adminProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    const [source] = await db.select().from(sourceRegistry).where(eq9(sourceRegistry.id, input.id)).limit(1);
+    const [source] = await db.select().from(sourceRegistry).where(eq10(sourceRegistry.id, input.id)).limit(1);
     if (!source) throw new Error("Source not found");
     const connector = new DynamicConnector(source);
     const report = await runIngestion([connector], "manual", ctx.user.id);
@@ -15343,7 +19252,7 @@ var ingestionRouter = router({
       lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
       lastRecordCount: report.evidenceCreated,
       consecutiveFailures: report.sourcesFailed > 0 ? sql4`${sourceRegistry.consecutiveFailures} + 1` : 0
-    }).where(eq9(sourceRegistry.id, input.id));
+    }).where(eq10(sourceRegistry.id, input.id));
     return report;
   }),
   /**
@@ -15362,9 +19271,9 @@ var ingestionRouter = router({
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
-    let query = db.select().from(designTrends).orderBy(desc4(designTrends.mentionCount)).limit(input?.limit ?? 50);
+    let query = db.select().from(designTrends).orderBy(desc5(designTrends.mentionCount)).limit(input?.limit ?? 50);
     if (input?.category) {
-      query = query.where(eq9(designTrends.trendCategory, input.category));
+      query = query.where(eq10(designTrends.trendCategory, input.category));
     }
     return query;
   })
@@ -15391,7 +19300,7 @@ function computePercentiles(values) {
   }
   const sorted = [...values].sort((a, b) => a - b);
   const n = sorted.length;
-  const percentile = (p) => {
+  const percentile3 = (p) => {
     if (n === 1) return sorted[0];
     const rank = p / 100 * (n - 1);
     const lower = Math.floor(rank);
@@ -15402,10 +19311,10 @@ function computePercentiles(values) {
   };
   const mean = sorted.reduce((sum, v) => sum + v, 0) / n;
   return {
-    p25: Math.round(percentile(25) * 100) / 100,
-    p50: Math.round(percentile(50) * 100) / 100,
-    p75: Math.round(percentile(75) * 100) / 100,
-    p90: Math.round(percentile(90) * 100) / 100,
+    p25: Math.round(percentile3(25) * 100) / 100,
+    p50: Math.round(percentile3(50) * 100) / 100,
+    p75: Math.round(percentile3(75) * 100) / 100,
+    p90: Math.round(percentile3(90) * 100) / 100,
     min: sorted[0],
     max: sorted[n - 1],
     mean: Math.round(mean * 100) / 100,
@@ -15443,11 +19352,11 @@ function computeCompetitiveIndex(targetValue, percentiles) {
   const normalized = (targetValue - percentiles.min) / (percentiles.max - percentiles.min);
   return Math.round(Math.min(100, Math.max(0, normalized * 100)) * 100) / 100;
 }
-function computeMarketPosition(targetValue, dataPoints) {
+function computeMarketPosition2(targetValue, dataPoints) {
   const values = dataPoints.map((d) => d.value);
   const percentiles = computePercentiles(values);
   const tier = assignTier(targetValue, percentiles);
-  const percentile = computePercentileRank(targetValue, values);
+  const percentile3 = computePercentileRank(targetValue, values);
   const gradeACount = dataPoints.filter((d) => d.grade === "A").length;
   const uniqueSources = new Set(dataPoints.map((d) => d.sourceId)).size;
   const confidence = assessConfidence2(dataPoints.length, gradeACount);
@@ -15456,7 +19365,7 @@ function computeMarketPosition(targetValue, dataPoints) {
     targetValue,
     tier,
     tierLabel: TIER_LABELS[tier],
-    percentile,
+    percentile: percentile3,
     percentiles,
     dataPointCount: dataPoints.length,
     gradeACount,
@@ -15621,7 +19530,7 @@ async function analyseCompetitorLandscape(projects2, options = {}) {
 
 // server/routers/analytics.ts
 init_schema();
-import { and as and4, eq as eq10, isNotNull } from "drizzle-orm";
+import { and as and4, eq as eq11, isNotNull } from "drizzle-orm";
 var analyticsRouter = router({
   getTrends: protectedProcedure.input(
     z11.object({
@@ -15670,7 +19579,7 @@ var analyticsRouter = router({
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
       and4(
-        eq10(evidenceRecords.category, input.category),
+        eq11(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -15686,7 +19595,7 @@ var analyticsRouter = router({
         recordId: record.id
       });
     }
-    const position = computeMarketPosition(input.targetValue, dataPoints);
+    const position = computeMarketPosition2(input.targetValue, dataPoints);
     return { position };
   }),
   getCompetitorLandscape: protectedProcedure.input(
@@ -15708,7 +19617,7 @@ var analyticsRouter = router({
       sourceUrl: competitorProjects.sourceUrl,
       completenessScore: competitorProjects.completenessScore,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq10(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq11(competitorProjects.competitorId, competitorEntities.id));
     const projects2 = dbProjects.map((p) => {
       let pricePerSqft;
       if (p.priceIndicators && typeof p.priceIndicators === "object") {
@@ -15745,7 +19654,7 @@ var analyticsRouter = router({
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
       and4(
-        eq10(evidenceRecords.category, input.category),
+        eq11(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -15847,7 +19756,7 @@ var analyticsRouter = router({
       projectName: competitorProjects.projectName,
       totalUnits: competitorProjects.totalUnits,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq10(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq11(competitorProjects.competitorId, competitorEntities.id));
     let competitorLandscape;
     if (dbProjects.length > 0) {
       const compProjects = dbProjects.map((p) => ({
@@ -15914,15 +19823,15 @@ var analyticsRouter = router({
 // server/routers/predictive.ts
 import { z as z12 } from "zod";
 init_db();
-import { TRPCError as TRPCError5 } from "@trpc/server";
+import { TRPCError as TRPCError6 } from "@trpc/server";
 
 // server/engines/predictive/cost-range.ts
-function weightedPercentile(values, percentile) {
+function weightedPercentile(values, percentile3) {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a.value - b.value);
   const totalWeight = sorted.reduce((sum, v) => sum + v.weight, 0);
   if (totalWeight === 0) return 0;
-  const target = percentile / 100 * totalWeight;
+  const target = percentile3 / 100 * totalWeight;
   let cumWeight = 0;
   for (let i = 0; i < sorted.length; i++) {
     cumWeight += sorted[i].weight;
@@ -16120,7 +20029,7 @@ function predictOutcome(compositeScore, outcomes, variableContributions, options
 }
 
 // server/engines/predictive/scenario-projection.ts
-function marketFactor(condition) {
+function marketFactor2(condition) {
   switch (condition) {
     case "tight":
       return 1.05;
@@ -16148,7 +20057,7 @@ function projectScenarioCost(input) {
   const safeGfa = gfa || 0;
   const safeTrend = trendDirection === "insufficient_data" ? 0 : trendPercentChange;
   const safeHorizon = Math.max(1, Math.min(horizonMonths || 18, 120));
-  const mFactor = marketFactor(marketCondition);
+  const mFactor = marketFactor2(marketCondition);
   const monthlyRate = annualToMonthlyRate(safeTrend);
   const milestones = [3, 6, 12, safeHorizon].filter((v, i, arr) => arr.indexOf(v) === i).sort((a, b) => a - b);
   function computeProjections(baseCost) {
@@ -16257,7 +20166,7 @@ var predictiveRouter = router({
     geography: z12.string().optional()
   })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError5({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError6({ code: "NOT_FOUND" });
     const projectEvidence = await listEvidenceRecords({ projectId: input.projectId, limit: 500 });
     const allEvidence = await listEvidenceRecords({ limit: 1e3 });
     const toDataPoint = (e) => ({
@@ -16291,7 +20200,7 @@ var predictiveRouter = router({
    */
   getOutcomePrediction: protectedProcedure.input(z12.object({ projectId: z12.number() })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError5({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError6({ code: "NOT_FOUND" });
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
     if (!latest) {
@@ -16328,7 +20237,7 @@ var predictiveRouter = router({
    */
   getProjectPatterns: protectedProcedure.input(z12.object({ projectId: z12.number() })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError5({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError6({ code: "NOT_FOUND" });
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
     if (!latest) return [];
@@ -16352,7 +20261,7 @@ var predictiveRouter = router({
     marketCondition: z12.enum(["tight", "balanced", "soft"]).default("balanced")
   })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError5({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError6({ code: "NOT_FOUND" });
     const gfa = Number(project.ctx03Gfa) || 0;
     const budgetCap = Number(project.fin01BudgetCap) || 0;
     const budgetPerSqm = gfa > 0 ? budgetCap / gfa : 0;
@@ -16411,8 +20320,8 @@ var predictiveRouter = router({
 import { z as z13 } from "zod";
 init_db();
 init_schema();
-import { TRPCError as TRPCError6 } from "@trpc/server";
-import { eq as eq11, desc as desc5 } from "drizzle-orm";
+import { TRPCError as TRPCError7 } from "@trpc/server";
+import { eq as eq12, desc as desc6 } from "drizzle-orm";
 
 // server/engines/learning/outcome-comparator.ts
 function compareOutcomeToPrediction(params) {
@@ -16554,44 +20463,332 @@ function compareOutcomeToPrediction(params) {
   };
 }
 
+// server/engines/learning/post-mortem-evidence.ts
+function generatePostMortemEvidence(projectId, comparison, projectContext) {
+  const evidence = [];
+  const ts = comparison.comparedAt.getTime();
+  const geo = projectContext.location || "UAE";
+  if (comparison.costDeltaPct !== null && comparison.actualCost !== null) {
+    const absDelta = Math.abs(comparison.costDeltaPct);
+    if (absDelta > 5) {
+      const direction = comparison.costDeltaPct > 0 ? "higher" : "lower";
+      const reliability = absDelta <= 10 ? "A" : absDelta <= 20 ? "B" : "C";
+      evidence.push({
+        sourceId: `postmortem-cost-${projectId}-${ts}`,
+        sourceType: "post_mortem",
+        category: "cost_accuracy",
+        evidencePhase: "handover",
+        priceMin: comparison.predictedCostMid ? comparison.predictedCostMid * 0.9 : null,
+        priceTypical: comparison.actualCost,
+        priceMax: comparison.predictedCostMid ? comparison.predictedCostMid * 1.1 : null,
+        unit: "AED/sqm",
+        reliability,
+        confidenceScore: reliability === "A" ? 0.95 : reliability === "B" ? 0.8 : 0.6,
+        geography: geo,
+        notes: `Post-mortem: actual cost was ${absDelta.toFixed(1)}% ${direction} than predicted (${comparison.costAccuracyBand}). Predicted: AED ${comparison.predictedCostMid?.toFixed(0)}/sqm, Actual: AED ${comparison.actualCost.toFixed(0)}/sqm. Grade: ${comparison.overallAccuracyGrade}.`,
+        tags: [
+          "post-mortem",
+          `accuracy-${comparison.costAccuracyBand}`,
+          `grade-${comparison.overallAccuracyGrade}`,
+          projectContext.typology || "unknown",
+          projectContext.tier || "unknown"
+        ]
+      });
+    }
+  }
+  if (!comparison.riskPredictionCorrect) {
+    const riskSignal = comparison.learningSignals.find(
+      (s) => s.signalType === "risk_under_predicted" || s.signalType === "risk_over_predicted"
+    );
+    if (riskSignal) {
+      evidence.push({
+        sourceId: `postmortem-risk-${projectId}-${ts}`,
+        sourceType: "post_mortem",
+        category: "risk_calibration",
+        evidencePhase: "handover",
+        priceMin: null,
+        priceTypical: null,
+        priceMax: null,
+        unit: "score",
+        reliability: "B",
+        confidenceScore: 0.85,
+        geography: geo,
+        notes: `Risk prediction ${riskSignal.signalType === "risk_under_predicted" ? "underestimated" : "overestimated"}. Predicted risk: ${comparison.predictedRisk.toFixed(0)}, Rework occurred: ${comparison.actualReworkOccurred}. Suggested: ${riskSignal.suggestedAdjustmentDirection} ${riskSignal.affectedDimension || "ER"} dimension weight.`,
+        tags: [
+          "post-mortem",
+          "risk-miss",
+          riskSignal.signalType,
+          riskSignal.affectedDimension || "ER"
+        ]
+      });
+    }
+  }
+  if (!comparison.scorePredictionCorrect) {
+    evidence.push({
+      sourceId: `postmortem-score-${projectId}-${ts}`,
+      sourceType: "post_mortem",
+      category: "score_calibration",
+      evidencePhase: "handover",
+      priceMin: null,
+      priceTypical: null,
+      priceMax: null,
+      unit: "composite",
+      reliability: "B",
+      confidenceScore: 0.8,
+      geography: geo,
+      notes: `Score prediction was ${comparison.scorePredictionCorrect ? "correct" : "incorrect"}. Predicted: ${comparison.predictedDecision} (score: ${comparison.predictedComposite.toFixed(3)}), Actual success: ${comparison.actualOutcomeSuccess}. Grade: ${comparison.overallAccuracyGrade}.`,
+      tags: [
+        "post-mortem",
+        "score-miss",
+        `decision-${comparison.predictedDecision}`,
+        `outcome-${comparison.actualOutcomeSuccess ? "success" : "failure"}`
+      ]
+    });
+  }
+  return evidence;
+}
+function summarizeLearningSignals(signals) {
+  const adjustments = signals.filter((s) => s.suggestedAdjustmentDirection !== "none").map((s) => ({
+    dimension: s.affectedDimension || "overall",
+    direction: s.suggestedAdjustmentDirection,
+    magnitude: s.magnitude,
+    rationale: `${s.signalType}: magnitude ${s.magnitude.toFixed(1)}`
+  }));
+  const summary = [];
+  const costUnder = signals.find((s) => s.signalType === "cost_under_predicted");
+  const costOver = signals.find((s) => s.signalType === "cost_over_predicted");
+  const riskUnder = signals.find((s) => s.signalType === "risk_under_predicted");
+  const riskOver = signals.find((s) => s.signalType === "risk_over_predicted");
+  const scoreCorrect = signals.find((s) => s.signalType === "score_correctly_predicted");
+  if (costUnder) summary.push(`Cost was under-predicted by ${costUnder.magnitude.toFixed(1)}% \u2014 consider increasing cost benchmarks.`);
+  if (costOver) summary.push(`Cost was over-predicted by ${costOver.magnitude.toFixed(1)}% \u2014 consider decreasing cost benchmarks.`);
+  if (riskUnder) summary.push(`Risk was under-predicted \u2014 rework occurred despite low risk score. Review ${riskUnder.affectedDimension || "ER"} dimension.`);
+  if (riskOver) summary.push(`Risk was over-predicted \u2014 no rework despite high risk score. Review ${riskOver.affectedDimension || "ER"} dimension.`);
+  if (scoreCorrect) summary.push(`Score prediction was correct \u2014 current weights are calibrated well.`);
+  return {
+    totalSignals: signals.length,
+    actionRequired: adjustments.length > 0,
+    summary,
+    adjustments
+  };
+}
+
 // server/routers/learning.ts
 var learningRouter = router({
   getAccuracyLedger: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    const rows = await ormDb.select().from(accuracySnapshots).orderBy(desc5(accuracySnapshots.snapshotDate)).limit(1);
+    const rows = await ormDb.select().from(accuracySnapshots).orderBy(desc6(accuracySnapshots.snapshotDate)).limit(1);
     return rows[0] || null;
   }),
   getAccuracyHistory: protectedProcedure.input(z13.object({ limit: z13.number().default(20) }).optional()).query(async ({ input }) => {
     const ormDb = await getDb();
-    return await ormDb.select().from(accuracySnapshots).orderBy(desc5(accuracySnapshots.snapshotDate)).limit(input?.limit || 20);
+    return await ormDb.select().from(accuracySnapshots).orderBy(desc6(accuracySnapshots.snapshotDate)).limit(input?.limit || 20);
   }),
   getPendingLogicProposals: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(logicChangeLog).where(eq11(logicChangeLog.status, "proposed")).orderBy(desc5(logicChangeLog.createdAt));
+    return await ormDb.select().from(logicChangeLog).where(eq12(logicChangeLog.status, "proposed")).orderBy(desc6(logicChangeLog.createdAt));
   }),
   getPendingBenchmarkSuggestions: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(benchmarkSuggestions).where(eq11(benchmarkSuggestions.status, "pending")).orderBy(desc5(benchmarkSuggestions.createdAt));
+    return await ormDb.select().from(benchmarkSuggestions).where(eq12(benchmarkSuggestions.status, "pending")).orderBy(desc6(benchmarkSuggestions.createdAt));
   }),
   getComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ input }) => {
     const ormDb = await getDb();
-    const rows = await ormDb.select().from(outcomeComparisons).where(eq11(outcomeComparisons.projectId, input.projectId)).orderBy(desc5(outcomeComparisons.comparedAt)).limit(1);
+    const rows = await ormDb.select().from(outcomeComparisons).where(eq12(outcomeComparisons.projectId, input.projectId)).orderBy(desc6(outcomeComparisons.comparedAt)).limit(1);
     return rows[0] || null;
+  }),
+  // ─── Post-Mortem / Handover (V4) ────────────────────────────────────────
+  submitPostMortem: protectedProcedure.input(z13.object({
+    projectId: z13.number(),
+    // Actual costs
+    actualTotalCost: z13.string().optional(),
+    actualFitoutCostPerSqm: z13.string().optional(),
+    procurementActualCosts: z13.record(z13.string(), z13.number()).optional(),
+    // Timeline
+    projectDeliveredOnTime: z13.boolean().optional(),
+    leadTimesActual: z13.record(z13.string(), z13.number()).optional(),
+    // Quality
+    reworkOccurred: z13.boolean().optional(),
+    reworkCostAed: z13.string().optional(),
+    clientSatisfactionScore: z13.number().min(1).max(5).optional(),
+    // Procurement
+    tenderIterations: z13.number().optional(),
+    rfqResults: z13.record(z13.string(), z13.number()).optional(),
+    // Lessons
+    keyLessonsLearned: z13.string().optional()
+  })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new TRPCError7({ code: "NOT_FOUND", message: "Project not found" });
+    const outcomeId = await createProjectOutcome({
+      projectId: input.projectId,
+      actualTotalCost: input.actualTotalCost,
+      actualFitoutCostPerSqm: input.actualFitoutCostPerSqm,
+      procurementActualCosts: input.procurementActualCosts,
+      projectDeliveredOnTime: input.projectDeliveredOnTime,
+      leadTimesActual: input.leadTimesActual,
+      reworkOccurred: input.reworkOccurred,
+      reworkCostAed: input.reworkCostAed,
+      clientSatisfactionScore: input.clientSatisfactionScore,
+      tenderIterations: input.tenderIterations,
+      rfqResults: input.rfqResults,
+      keyLessonsLearned: input.keyLessonsLearned,
+      capturedBy: ctx.user.id
+    });
+    let comparison = null;
+    let learningSummary = null;
+    let evidenceGenerated = 0;
+    try {
+      const ormDb = await getDb();
+      const outcomes = await ormDb.select().from(projectOutcomes).where(eq12(projectOutcomes.projectId, input.projectId)).orderBy(desc6(projectOutcomes.capturedAt)).limit(1);
+      const matrices = await ormDb.select().from(scoreMatrices).where(eq12(scoreMatrices.projectId, input.projectId)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
+      if (outcomes.length > 0 && matrices.length > 0) {
+        const outcome = outcomes[0];
+        const scoreMatrix = matrices[0];
+        const projectEvidence = await listEvidenceRecords({ projectId: input.projectId, limit: 500 });
+        const allEvidence = await listEvidenceRecords({ limit: 1e3 });
+        const toDataPoint = (e) => ({
+          priceMin: Number(e.priceMin) || 0,
+          priceTypical: Number(e.priceTypical) || 0,
+          priceMax: Number(e.priceMax) || 0,
+          unit: e.unit || "sqm",
+          reliabilityGrade: e.reliabilityGrade,
+          confidenceScore: e.confidenceScore,
+          captureDate: e.captureDate,
+          category: e.category,
+          geography: project.ctx04Location || "UAE"
+        });
+        const evidence = projectEvidence.map(toDataPoint);
+        const uaeWideEvidence = allEvidence.map(toDataPoint);
+        const trends = await getTrendSnapshots({ limit: 10 });
+        const trendData = trends.map((t2) => ({
+          category: t2.category,
+          direction: t2.direction,
+          percentChange: Number(t2.percentChange) || 0,
+          confidence: t2.confidence
+        }));
+        const costPrediction = predictCostRange(evidence, trendData, {
+          category: void 0,
+          geography: project.ctx04Location || void 0,
+          uaeWideEvidence
+        });
+        const allScores = await getAllScoreMatrices();
+        const comparableOutcomes = [];
+        for (const sm of allScores) {
+          if (sm.projectId === input.projectId) continue;
+          const proj = await getProjectById(sm.projectId);
+          if (!proj) continue;
+          comparableOutcomes.push({
+            projectId: sm.projectId,
+            compositeScore: Number(sm.compositeScore) || 0,
+            decisionStatus: sm.decisionStatus,
+            typology: proj.ctx01Typology || "Residential",
+            tier: proj.mkt01Tier || "Mid",
+            geography: proj.ctx04Location || void 0
+          });
+        }
+        const outcomePrediction = predictOutcome(
+          Number(scoreMatrix.compositeScore) || 0,
+          comparableOutcomes,
+          scoreMatrix.variableContributions || {},
+          {
+            typology: project.ctx01Typology || "Residential",
+            tier: project.mkt01Tier || "Mid",
+            geography: project.ctx04Location || void 0
+          }
+        );
+        comparison = compareOutcomeToPrediction({
+          projectId: input.projectId,
+          outcome,
+          scoreMatrix,
+          costPrediction,
+          outcomePrediction
+        });
+        await ormDb.insert(outcomeComparisons).values(comparison);
+        learningSummary = summarizeLearningSignals(comparison.learningSignals);
+        const postMortemEvidence = generatePostMortemEvidence(
+          input.projectId,
+          comparison,
+          {
+            typology: project.ctx01Typology || void 0,
+            tier: project.mkt01Tier || void 0,
+            location: project.ctx04Location || void 0,
+            gfa: null
+          }
+        );
+        for (const ev of postMortemEvidence) {
+          try {
+            await createEvidenceRecord({
+              sourceId: ev.sourceId,
+              sourceType: ev.sourceType,
+              category: ev.category,
+              evidencePhase: ev.evidencePhase,
+              priceMin: ev.priceMin !== null ? String(ev.priceMin) : void 0,
+              priceTypical: ev.priceTypical !== null ? String(ev.priceTypical) : void 0,
+              priceMax: ev.priceMax !== null ? String(ev.priceMax) : void 0,
+              unit: ev.unit,
+              reliabilityGrade: ev.reliability,
+              confidenceScore: ev.confidenceScore,
+              geography: ev.geography,
+              notes: ev.notes,
+              tags: ev.tags
+            });
+            evidenceGenerated++;
+          } catch (evErr) {
+            console.warn("[PostMortem] Evidence insert failed:", evErr);
+          }
+        }
+      }
+    } catch (compErr) {
+      console.warn("[PostMortem] Auto-comparison failed (non-fatal):", compErr);
+    }
+    await createAuditLog({
+      userId: ctx.user.id,
+      action: "project.submit_post_mortem",
+      entityType: "project",
+      entityId: input.projectId,
+      details: {
+        outcomeId,
+        actualTotalCost: input.actualTotalCost,
+        comparisonRun: comparison !== null,
+        accuracyGrade: comparison?.overallAccuracyGrade || null,
+        evidenceGenerated
+      }
+    });
+    return {
+      success: true,
+      outcomeId,
+      comparison,
+      learningSummary,
+      evidenceGenerated
+    };
+  }),
+  getPostMortemStatus: protectedProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ input }) => {
+    const ormDb = await getDb();
+    const outcomes = await ormDb.select().from(projectOutcomes).where(eq12(projectOutcomes.projectId, input.projectId)).orderBy(desc6(projectOutcomes.capturedAt)).limit(1);
+    const comparisons = await ormDb.select().from(outcomeComparisons).where(eq12(outcomeComparisons.projectId, input.projectId)).orderBy(desc6(outcomeComparisons.comparedAt)).limit(1);
+    return {
+      hasOutcome: outcomes.length > 0,
+      outcome: outcomes[0] || null,
+      hasComparison: comparisons.length > 0,
+      comparison: comparisons[0] || null,
+      accuracyGrade: comparisons[0]?.overallAccuracyGrade || null,
+      learningSummary: comparisons[0]?.learningSignals ? summarizeLearningSignals(comparisons[0].learningSignals) : null
+    };
   }),
   runComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).mutation(async ({ input }) => {
     const ormDb = await getDb();
-    const outcomes = await ormDb.select().from(projectOutcomes).where(eq11(projectOutcomes.projectId, input.projectId)).limit(1);
+    const outcomes = await ormDb.select().from(projectOutcomes).where(eq12(projectOutcomes.projectId, input.projectId)).limit(1);
     if (!outcomes.length) {
-      throw new TRPCError6({ code: "NOT_FOUND", message: "No outcome found for project" });
+      throw new TRPCError7({ code: "NOT_FOUND", message: "No outcome found for project" });
     }
     const outcome = outcomes[0];
-    const matrices = await ormDb.select().from(scoreMatrices).where(eq11(scoreMatrices.projectId, input.projectId)).orderBy(desc5(scoreMatrices.computedAt)).limit(1);
+    const matrices = await ormDb.select().from(scoreMatrices).where(eq12(scoreMatrices.projectId, input.projectId)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
     if (!matrices.length) {
-      throw new TRPCError6({ code: "NOT_FOUND", message: "No score matrix found for project" });
+      throw new TRPCError7({ code: "NOT_FOUND", message: "No score matrix found for project" });
     }
     const scoreMatrix = matrices[0];
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError6({ code: "NOT_FOUND", message: "Project not found" });
+    if (!project) throw new TRPCError7({ code: "NOT_FOUND", message: "Project not found" });
     const projectEvidence = await listEvidenceRecords({ projectId: input.projectId, limit: 500 });
     const allEvidence = await listEvidenceRecords({ limit: 1e3 });
     const toDataPoint = (e) => ({
@@ -16660,8 +20857,8 @@ var learningRouter = router({
 import { z as z14 } from "zod";
 init_db();
 init_schema();
-import { eq as eq13, and as and5, desc as desc7, sql as sql7 } from "drizzle-orm";
-import { TRPCError as TRPCError7 } from "@trpc/server";
+import { eq as eq14, and as and5, desc as desc8, sql as sql7 } from "drizzle-orm";
+import { TRPCError as TRPCError8 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
 init_llm();
@@ -16795,33 +20992,33 @@ ${JSON.stringify(truncatedData, null, 2)}` }
 init_llm();
 init_db();
 init_schema();
-import { eq as eq12, desc as desc6 } from "drizzle-orm";
+import { eq as eq13, desc as desc7 } from "drizzle-orm";
 async function generatePortfolioInsights() {
   const db = await getDb();
   if (!db) throw new Error("Database error");
-  const allProjects = await db.select().from(projects).where(eq12(projects.status, "evaluated"));
+  const allProjects = await db.select().from(projects).where(eq13(projects.status, "evaluated"));
   if (allProjects.length === 0) {
     return "No evaluated projects available for portfolio analysis.";
   }
-  const portfolioProjects = [];
+  const portfolioProjects2 = [];
   for (const p of allProjects) {
-    const scores = await db.select().from(scoreMatrices).where(eq12(scoreMatrices.projectId, p.id)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
+    const scores = await db.select().from(scoreMatrices).where(eq13(scoreMatrices.projectId, p.id)).orderBy(desc7(scoreMatrices.computedAt)).limit(1);
     if (scores.length > 0) {
       const s = scores[0];
-      portfolioProjects.push({
+      portfolioProjects2.push({
         project: p,
         scoreMatrix: s,
         intelligence: {
-          costBand: p.fin01BudgetCap ? p.fin01BudgetCap + " AED/sqft" : "market_mid"
+          costBand: p.fin01BudgetCap ? p.fin01BudgetCap + " AED/sqm" : "market_mid"
         }
       });
     }
   }
-  const distributions = computeDistributions(portfolioProjects);
-  const heatmap = computeComplianceHeatmap(portfolioProjects);
-  const failurePatterns = detectFailurePatterns(portfolioProjects);
-  const levers = computeImprovementLevers(portfolioProjects);
-  const briefProjects = portfolioProjects.map((p) => ({
+  const distributions = computeDistributions(portfolioProjects2);
+  const heatmap = computeComplianceHeatmap(portfolioProjects2);
+  const failurePatterns = detectFailurePatterns(portfolioProjects2);
+  const levers = computeImprovementLevers(portfolioProjects2);
+  const briefProjects = portfolioProjects2.map((p) => ({
     name: p.project.name,
     tier: p.project.mkt01Tier || "Unknown",
     score: Number(p.scoreMatrix.compositeScore),
@@ -16888,14 +21085,14 @@ var autonomousRouter = router({
     if (!db) return [];
     let conditions = [];
     const targetStatus = input?.status || "active";
-    conditions.push(eq13(platformAlerts.status, targetStatus));
+    conditions.push(eq14(platformAlerts.status, targetStatus));
     if (input?.severity) {
-      conditions.push(eq13(platformAlerts.severity, input.severity));
+      conditions.push(eq14(platformAlerts.severity, input.severity));
     }
     if (input?.type) {
-      conditions.push(eq13(platformAlerts.alertType, input.type));
+      conditions.push(eq14(platformAlerts.alertType, input.type));
     }
-    return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
+    return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc8(platformAlerts.createdAt));
   }),
   acknowledgeAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -16904,7 +21101,7 @@ var autonomousRouter = router({
       status: "acknowledged",
       acknowledgedBy: ctx.user.id,
       acknowledgedAt: /* @__PURE__ */ new Date()
-    }).where(eq13(platformAlerts.id, input.id));
+    }).where(eq14(platformAlerts.id, input.id));
     return { success: true };
   }),
   resolveAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
@@ -16912,22 +21109,22 @@ var autonomousRouter = router({
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
       status: "resolved"
-    }).where(eq13(platformAlerts.id, input.id));
+    }).where(eq14(platformAlerts.id, input.id));
     return { success: true };
   }),
   nlQuery: protectedProcedure.input(z14.object({ query: z14.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError7({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
+    if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
     const recentQueries = await db.select({ count: sql7`count(*)` }).from(nlQueryLog).where(
       and5(
-        eq13(nlQueryLog.userId, ctx.user.id),
+        eq14(nlQueryLog.userId, ctx.user.id),
         sql7`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
     );
-    const count = Number(recentQueries[0]?.count || 0);
-    if (count >= 20) {
-      throw new TRPCError7({
+    const count2 = Number(recentQueries[0]?.count || 0);
+    if (count2 >= 20) {
+      throw new TRPCError8({
         code: "TOO_MANY_REQUESTS",
         message: "Natural language query limit: 20 queries/hour"
       });
@@ -16949,8 +21146,8 @@ var autonomousRouter = router({
 init_db();
 import { z as z15 } from "zod";
 init_schema();
-import { TRPCError as TRPCError8 } from "@trpc/server";
-import { eq as eq14, and as and6 } from "drizzle-orm";
+import { TRPCError as TRPCError9 } from "@trpc/server";
+import { eq as eq15, and as and6 } from "drizzle-orm";
 import { nanoid as nanoid5 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z15.object({
@@ -16959,10 +21156,10 @@ var organizationRouter = router({
     domain: z15.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
-    const existing = await db.select().from(organizations).where(eq14(organizations.slug, input.slug)).limit(1);
+    if (!db) throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
+    const existing = await db.select().from(organizations).where(eq15(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
-      throw new TRPCError8({ code: "CONFLICT", message: "Slug is already taken" });
+      throw new TRPCError9({ code: "CONFLICT", message: "Slug is already taken" });
     }
     const [orgResult] = await db.insert(organizations).values({
       name: input.name,
@@ -16976,7 +21173,7 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: "admin"
     });
-    await db.update(users).set({ orgId }).where(eq14(users.id, ctx.user.id));
+    await db.update(users).set({ orgId }).where(eq15(users.id, ctx.user.id));
     return { success: true, orgId };
   }),
   myOrgs: protectedProcedure.query(async ({ ctx }) => {
@@ -16985,7 +21182,7 @@ var organizationRouter = router({
     const result = await db.select({
       org: organizations,
       role: organizationMembers.role
-    }).from(organizationMembers).innerJoin(organizations, eq14(organizations.id, organizationMembers.orgId)).where(eq14(organizationMembers.userId, ctx.user.id));
+    }).from(organizationMembers).innerJoin(organizations, eq15(organizations.id, organizationMembers.orgId)).where(eq15(organizationMembers.userId, ctx.user.id));
     return result;
   }),
   inviteMember: orgProcedure.input(z15.object({
@@ -16993,10 +21190,10 @@ var organizationRouter = router({
     role: z15.enum(["admin", "member", "viewer"])
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and6(eq14(organizationMembers.orgId, ctx.orgId), eq14(organizationMembers.userId, ctx.user.id))).limit(1);
+    if (!db) throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR" });
+    const myMembership = await db.select().from(organizationMembers).where(and6(eq15(organizationMembers.orgId, ctx.orgId), eq15(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
-      throw new TRPCError8({ code: "FORBIDDEN", message: "Only admins can invite members" });
+      throw new TRPCError9({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
     const token = nanoid5(32);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
@@ -17012,199 +21209,24 @@ var organizationRouter = router({
   }),
   acceptInvite: protectedProcedure.input(z15.object({ token: z15.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR" });
-    const inviteResult = await db.select().from(organizationInvites).where(eq14(organizationInvites.token, input.token)).limit(1);
+    if (!db) throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR" });
+    const inviteResult = await db.select().from(organizationInvites).where(eq15(organizationInvites.token, input.token)).limit(1);
     const invite = inviteResult[0];
-    if (!invite) throw new TRPCError8({ code: "NOT_FOUND", message: "Invalid invite token" });
-    if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError8({ code: "BAD_REQUEST", message: "Invite expired" });
+    if (!invite) throw new TRPCError9({ code: "NOT_FOUND", message: "Invalid invite token" });
+    if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError9({ code: "BAD_REQUEST", message: "Invite expired" });
     await db.insert(organizationMembers).values({
       orgId: invite.orgId,
       userId: ctx.user.id,
       role: invite.role
     });
-    await db.update(users).set({ orgId: invite.orgId }).where(eq14(users.id, ctx.user.id));
-    await db.delete(organizationInvites).where(eq14(organizationInvites.id, invite.id));
+    await db.update(users).set({ orgId: invite.orgId }).where(eq15(users.id, ctx.user.id));
+    await db.delete(organizationInvites).where(eq15(organizationInvites.id, invite.id));
     return { success: true, orgId: invite.orgId };
   })
 });
 
 // server/routers/economics.ts
 import { z as z16 } from "zod";
-
-// server/engines/economic/cost-avoidance.ts
-function calculateCostAvoidance(tier, scale, totalBudgetAed, complexityScore) {
-  const probability = Math.min(0.5, 0.15 + complexityScore * 35e-4);
-  const costOfChangeMultiplier = tier === "Ultra-luxury" ? 0.25 : tier === "Luxury" ? 0.2 : 0.18;
-  const costOfChange = totalBudgetAed * costOfChangeMultiplier;
-  const scopeRatio = scale === "Large" ? 0.4 : scale === "Medium" ? 0.6 : 0.85;
-  const reworkCostAvoided = probability * costOfChange * scopeRatio;
-  return {
-    reworkCostAvoided: Number(reworkCostAvoided.toFixed(2)),
-    probabilityPercent: Number((probability * 100).toFixed(1)),
-    estimatedReplacementCost: Number(costOfChange.toFixed(2)),
-    scopeImpactRatio: Number(scopeRatio.toFixed(2))
-  };
-}
-
-// server/engines/economic/programme-acceleration.ts
-function calculateProgrammeAcceleration(totalDevelopmentValue, tier, decisionSpeedAdjustment = 1) {
-  const baselineDaysSaved = tier === "Ultra-luxury" ? 60 : tier === "Luxury" ? 45 : 30;
-  const actualDaysSaved = baselineDaysSaved * decisionSpeedAdjustment;
-  const annualFinancingCost = totalDevelopmentValue * 0.08;
-  const dailyCarryCost = annualFinancingCost / 365;
-  const accelerationValue = actualDaysSaved * dailyCarryCost;
-  return {
-    programmeAccelerationValue: Number(accelerationValue.toFixed(2)),
-    daysSaved: Number(actualDaysSaved.toFixed(0)),
-    dailyCarryCost: Number(dailyCarryCost.toFixed(2))
-  };
-}
-
-// server/engines/economic/roi-calculator.ts
-function calculateProjectRoi(params) {
-  const {
-    tier,
-    scale,
-    totalBudgetAed,
-    totalDevelopmentValue,
-    complexityScore,
-    decisionSpeedAdjustment = 1,
-    serviceFeeAed
-  } = params;
-  const costAvoidance = calculateCostAvoidance(tier, scale, totalBudgetAed, complexityScore);
-  const acceleration = calculateProgrammeAcceleration(totalDevelopmentValue, tier, decisionSpeedAdjustment);
-  const totalValueCreated = costAvoidance.reworkCostAvoided + acceleration.programmeAccelerationValue;
-  const netRoiPercent = serviceFeeAed > 0 ? (totalValueCreated - serviceFeeAed) / serviceFeeAed * 100 : 0;
-  const confidenceMultiplier = complexityScore > 80 ? 0.85 : complexityScore > 60 ? 0.9 : 0.95;
-  const riskAdjustedValue = totalValueCreated * confidenceMultiplier;
-  return {
-    reworkCostAvoided: costAvoidance.reworkCostAvoided,
-    programmeAccelerationValue: acceleration.programmeAccelerationValue,
-    totalValueCreated: Number(totalValueCreated.toFixed(2)),
-    riskAdjustedValue: Number(riskAdjustedValue.toFixed(2)),
-    netRoiPercent: Number(netRoiPercent.toFixed(2)),
-    confidenceMultiplier: Number(confidenceMultiplier.toFixed(3)),
-    breakdown: {
-      costAvoidance,
-      acceleration
-    }
-  };
-}
-
-// server/engines/risk/risk-evaluator.ts
-function evaluateRiskSurface(params) {
-  const { domain, tier, horizon, location, complexityScore } = params;
-  let baseProbability = 50;
-  let baseImpact = 50;
-  let baseVulnerability = 50;
-  let controlStrength = 60;
-  switch (domain) {
-    case "Commercial":
-      baseProbability = tier === "Ultra-luxury" ? 80 : tier === "Luxury" ? 65 : 40;
-      baseImpact = complexityScore > 75 ? 90 : 60;
-      baseVulnerability = horizon.includes("36m") ? 85 : 50;
-      controlStrength = 70;
-      break;
-    case "Operational":
-      baseProbability = location === "Emerging" ? 75 : 45;
-      baseImpact = tier.includes("luxury") ? 85 : 55;
-      baseVulnerability = complexityScore;
-      controlStrength = 55;
-      break;
-    case "Strategic":
-      baseProbability = tier === "Mid" ? 70 : 40;
-      baseImpact = 95;
-      baseVulnerability = horizon.includes("36m") ? 80 : 40;
-      controlStrength = 40;
-      break;
-    default:
-      baseProbability = 50;
-      baseImpact = 50;
-      baseVulnerability = 50;
-  }
-  const rUnbounded = baseProbability * baseImpact * baseVulnerability / controlStrength;
-  let compositeRiskScore = Math.floor(rUnbounded / 200);
-  if (compositeRiskScore > 100) compositeRiskScore = 100;
-  if (compositeRiskScore < 1) compositeRiskScore = 1;
-  let riskBand;
-  if (compositeRiskScore <= 20) riskBand = "Minimal";
-  else if (compositeRiskScore <= 40) riskBand = "Controlled";
-  else if (compositeRiskScore <= 60) riskBand = "Elevated";
-  else if (compositeRiskScore <= 80) riskBand = "Critical";
-  else riskBand = "Systemic";
-  return {
-    domain,
-    probability: baseProbability,
-    impact: baseImpact,
-    vulnerability: baseVulnerability,
-    controlStrength,
-    compositeRiskScore,
-    riskBand
-  };
-}
-
-// server/engines/risk/stress-tester.ts
-function simulateStressTest(condition, baselineBudgetAed, tier) {
-  let impactMagnitudePercent = 0;
-  let resilienceScore = 100;
-  let failurePoints = [];
-  switch (condition) {
-    case "cost_surge":
-      impactMagnitudePercent = 20;
-      break;
-    case "demand_collapse":
-      impactMagnitudePercent = -50;
-      break;
-    case "market_shift":
-      impactMagnitudePercent = -15;
-      break;
-    case "data_disruption":
-      impactMagnitudePercent = 0;
-      break;
-  }
-  if (condition === "cost_surge") {
-    resilienceScore = tier === "Ultra-luxury" ? 85 : tier === "Luxury" ? 70 : 45;
-    if (resilienceScore < 60) {
-      failurePoints.push("margin_protection", "finishing_budget_saturation");
-    }
-  }
-  if (condition === "demand_collapse") {
-    resilienceScore = tier === "Ultra-luxury" ? 40 : tier === "Luxury" ? 50 : 80;
-    if (resilienceScore < 60) {
-      failurePoints.push("sales_velocity", "carry_cost_overrun");
-    }
-  }
-  if (condition === "market_shift") {
-    resilienceScore = 65;
-    failurePoints.push("design_obsolescence");
-  }
-  if (condition === "data_disruption") {
-    resilienceScore = 50;
-    failurePoints.push("model_robustness", "confidence_interval");
-  }
-  return {
-    stressCondition: condition,
-    impactMagnitudePercent,
-    resilienceScore,
-    failurePoints
-  };
-}
-
-// server/engines/autonomous/scenario-ranking.ts
-function rankScenarios(scenarios2) {
-  const scoredScenarios = scenarios2.map((scenario) => {
-    const roiScore = Math.min(scenario.netRoiPercent, 100);
-    const riskInverted = 100 - scenario.compositeRiskScore;
-    const strategicRankScore = roiScore * 0.5 + scenario.avgResilienceScore * 0.3 + riskInverted * 0.2;
-    return {
-      ...scenario,
-      strategicRankScore: Number(strategicRankScore.toFixed(2))
-    };
-  });
-  return scoredScenarios.sort((a, b) => b.strategicRankScore - a.strategicRankScore);
-}
-
-// server/routers/economics.ts
 var economicsRouter = router({
   calculateRoi: publicProcedure.input(z16.object({
     tier: z16.string(),
@@ -17330,6 +21352,96 @@ var biasRouter = router({
       highCount,
       totalCount: alerts.length
     };
+  }),
+  // On-demand bias scan (without re-evaluating project)
+  scan: orgProcedure.input(z17.object({ projectId: z17.number() })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
+      throw new Error("Project not found or access denied");
+    }
+    const matrices = await getScoreMatricesByProject(input.projectId);
+    if (!matrices || matrices.length === 0) {
+      throw new Error("Project has no evaluations yet. Evaluate the project first.");
+    }
+    const latestMatrix = matrices[0];
+    const scoreResult = {
+      compositeScore: Number(latestMatrix.compositeScore),
+      penalties: latestMatrix.penalties || [],
+      decisionStatus: latestMatrix.decisionStatus
+    };
+    const inputs = latestMatrix.inputSnapshot || project;
+    const evalHistory = await getProjectEvaluationHistory(input.projectId);
+    const overrideStats = await getUserOverrideStats(input.projectId);
+    const previousScores = evalHistory.filter((m) => m.id !== latestMatrix.id).map((m) => Number(m.compositeScore));
+    const previousBudgets = evalHistory.filter((m) => m.id !== latestMatrix.id).map((m) => Number(m.inputSnapshot?.fin01BudgetCap || 0));
+    const biasCtx = {
+      projectId: input.projectId,
+      userId: ctx.user.id,
+      orgId: ctx.orgId,
+      evaluationCount: evalHistory.length,
+      previousScores,
+      previousBudgets,
+      overrideCount: overrideStats.count,
+      overrideNetEffect: overrideStats.netEffect,
+      marketTrendActual: null
+    };
+    const { detectBiases: detectBiases2 } = await Promise.resolve().then(() => (init_bias_detector(), bias_detector_exports));
+    const biasAlerts2 = detectBiases2(inputs, scoreResult, biasCtx);
+    const severityMap = { low: 1, medium: 2, high: 3, critical: 4 };
+    if (biasAlerts2.length > 0) {
+      await createBiasAlerts(
+        biasAlerts2.map((alert) => ({
+          projectId: input.projectId,
+          scoreMatrixId: latestMatrix.id,
+          userId: ctx.user.id,
+          orgId: ctx.orgId,
+          biasType: alert.biasType,
+          severity: alert.severity,
+          confidence: String(alert.confidence),
+          title: alert.title,
+          description: alert.description,
+          intervention: alert.intervention,
+          evidencePoints: alert.evidencePoints,
+          mathExplanation: alert.mathExplanation
+        }))
+      );
+      for (const alert of biasAlerts2) {
+        await upsertBiasProfile(
+          ctx.user.id,
+          ctx.orgId,
+          alert.biasType,
+          severityMap[alert.severity] || 2
+        );
+      }
+    }
+    await createAuditLog({
+      userId: ctx.user.id,
+      action: "bias.scan",
+      entityType: "project",
+      entityId: input.projectId,
+      details: { detected: biasAlerts2.length }
+    });
+    return {
+      detected: biasAlerts2.length,
+      alerts: biasAlerts2
+    };
+  }),
+  // Get all active alerts across all user projects (for dashboard)
+  getAllActiveAlerts: protectedProcedure.query(async ({ ctx }) => {
+    const projects2 = await getProjectsByUser(ctx.user.id);
+    if (!projects2 || projects2.length === 0) return [];
+    const allAlerts = [];
+    for (const p of projects2) {
+      const alerts = await getActiveBiasAlerts(p.id);
+      allAlerts.push(...alerts.map((a) => ({
+        ...a,
+        projectName: p.name
+      })));
+    }
+    return allAlerts.sort((a, b) => {
+      const sev = { critical: 0, high: 1, medium: 2, low: 3 };
+      return (sev[a.severity] ?? 4) - (sev[b.severity] ?? 4);
+    });
   })
 });
 
@@ -17350,12 +21462,45 @@ var TIER_PRICE_MULTIPLIERS = {
   "Luxury": 1.6,
   "Ultra-luxury": 2.8
 };
-async function generateDesignRecommendations(project, inputs, materialLibrary2) {
+async function generateDesignRecommendations(project, inputs, materialLibrary2, recentEvidence = [], designTrends2 = []) {
   const spaceProgram = buildSpaceProgram(project);
   const rooms = spaceProgram.rooms;
-  const totalBudget = spaceProgram.totalFitoutBudgetAed;
+  let totalBudget = spaceProgram.totalFitoutBudgetAed;
+  if (project.dldAreaId) {
+    const { getDldAreaBenchmark: getDldAreaBenchmark2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+    const benchmark = await getDldAreaBenchmark2(project.dldAreaId);
+    const gfa = Number(project.ctx03Gfa || 0);
+    if (benchmark?.recommendedFitoutMid && gfa > 0) {
+      const dldBudget = Number(benchmark.recommendedFitoutMid) * gfa;
+      if (dldBudget > 0) {
+        console.log(`[SpaceRecs] DLD budget override: ${totalBudget.toLocaleString()} \u2192 ${dldBudget.toLocaleString()} AED (${benchmark.recommendedFitoutMid} AED/sqm \xD7 ${gfa} sqm)`);
+        totalBudget = dldBudget;
+      }
+    }
+  }
   const materialSummary = buildMaterialSummary(materialLibrary2, inputs);
-  const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary);
+  const marketIntelSummary = buildMarketIntelSummary(recentEvidence, inputs);
+  const trendContext = buildTrendContext(designTrends2, inputs);
+  let dldContext = "";
+  if (project.dldAreaId) {
+    const { getAreaSaleMedianSqm: getAreaSaleMedianSqm2 } = await Promise.resolve().then(() => (init_dld_analytics(), dld_analytics_exports));
+    const { getDldAreaBenchmark: getDldAreaBenchmark2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+    const benchmark = await getDldAreaBenchmark2(project.dldAreaId);
+    if (benchmark) {
+      const purposeLabel = {
+        sell_offplan: "Off-plan sale (showroom-quality finishes expected)",
+        sell_ready: "Ready sale (premium, durable finishes)",
+        rent: "Rental investment (prioritize durability, cost-efficiency, low maintenance)",
+        mixed: "Mixed strategy (balance resale appeal and rental durability)"
+      };
+      dldContext = `- **Area**: ${project.dldAreaName || benchmark.areaName}
+- **Median Sale Price**: ${benchmark.saleP50 ? Math.round(Number(benchmark.saleP50)).toLocaleString() : "N/A"} AED/sqm
+- **Recommended Fitout**: ${benchmark.recommendedFitoutMid ? Math.round(Number(benchmark.recommendedFitoutMid)).toLocaleString() : "N/A"} AED/sqm
+- **Gross Rental Yield**: ${benchmark.grossYield ? Number(benchmark.grossYield).toFixed(1) : "N/A"}%
+- **Project Purpose**: ${purposeLabel[project.projectPurpose] || purposeLabel.sell_ready}`;
+    }
+  }
+  const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary, marketIntelSummary, trendContext, dldContext);
   const aiResponse = await callGeminiForDesign(prompt);
   const recommendations = mapAIResponseToRecommendations(
     aiResponse,
@@ -17366,7 +21511,7 @@ async function generateDesignRecommendations(project, inputs, materialLibrary2) 
   );
   return recommendations;
 }
-function buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary) {
+function buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary, marketIntelSummary, trendContext = "", dldContext = "") {
   const roomList = rooms.map((r) => `- ${r.id} "${r.name}": ${r.sqm} sqm, Grade ${r.finishGrade}, Priority ${r.priority}, Budget ${(r.budgetPct * 100).toFixed(0)}%`).join("\n");
   return `You are an expert UAE interior design consultant. Generate detailed per-space design recommendations for this project.
 
@@ -17388,6 +21533,14 @@ ${roomList}
 ## Available Materials (from our library)
 ${materialSummary}
 
+## Latest Market Intelligence (from recent data)
+${marketIntelSummary}
+${trendContext ? `
+## UAE Design Trends (current market signals \u2014 bias your recommendations toward these)
+${trendContext}` : ""}
+${dldContext ? `
+## DLD Area Market Context (calibrate budget and material quality to this area)
+${dldContext}` : ""}
 ## Instructions
 For EACH space, provide:
 1. **styleDirection** \u2014 A specific design direction (e.g., "Warm minimalism with brass accents and limestone textures")
@@ -17432,6 +21585,56 @@ function buildMaterialSummary(materials, inputs) {
     ).join("\n");
     return `**${cat}**:
 ${list}`;
+  }).join("\n");
+}
+function buildMarketIntelSummary(recentEvidence, inputs) {
+  if (!recentEvidence || recentEvidence.length === 0) {
+    return "No recent market intelligence available.";
+  }
+  const relevant = recentEvidence.filter((e) => {
+    if (!e.finishLevel && !e.designStyle) return true;
+    const matchesTier = e.finishLevel?.toLowerCase() === inputs.mkt01Tier.toLowerCase();
+    const matchesStyle = e.designStyle?.toLowerCase().includes(inputs.des01Style.toLowerCase());
+    return matchesTier || matchesStyle;
+  }).slice(0, 20);
+  if (relevant.length === 0) {
+    return "Market intelligence exists, but no specific matches for this tier/style currently dominating.";
+  }
+  return relevant.map((e) => {
+    let line = `- **${e.itemName}**`;
+    if (e.designStyle) line += ` (${e.designStyle})`;
+    if (e.finishLevel) line += ` [${e.finishLevel} finish]`;
+    if (e.brandsMentioned && e.brandsMentioned.length > 0) line += ` \u2014 brands: ${e.brandsMentioned.join(", ")}`;
+    if (e.priceMin || e.priceMax) line += ` \u2014 Price: ${e.priceMin || "?"}-${e.priceMax || "?"} ${e.unit || "AED"}`;
+    return line;
+  }).join("\n");
+}
+function buildTrendContext(trends, inputs) {
+  if (!trends || trends.length === 0) return "";
+  const filtered = trends.filter(
+    (t2) => !t2.styleClassification || t2.styleClassification.toLowerCase() === inputs.des01Style.toLowerCase()
+  );
+  const top = (filtered.length > 0 ? filtered : trends).sort((a, b) => {
+    const order = { established: 0, emerging: 1, declining: 2 };
+    return (order[a.confidenceLevel] ?? 1) - (order[b.confidenceLevel] ?? 1);
+  }).slice(0, 12);
+  if (top.length === 0) return "";
+  const grouped = {};
+  for (const t2 of top) {
+    const cat = t2.trendCategory ?? "other";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(t2);
+  }
+  return Object.entries(grouped).map(([cat, items]) => {
+    const lines = items.map((t2) => {
+      let s = `  - **${t2.trendName}** [${t2.confidenceLevel}]`;
+      if (t2.description) s += `: ${t2.description.substring(0, 100)}`;
+      if (t2.relatedMaterials && Array.isArray(t2.relatedMaterials) && t2.relatedMaterials.length > 0)
+        s += ` (materials: ${t2.relatedMaterials.slice(0, 4).join(", ")})`;
+      return s;
+    }).join("\n");
+    return `**${cat.toUpperCase()}**:
+${lines}`;
   }).join("\n");
 }
 async function callGeminiForDesign(prompt) {
@@ -17554,6 +21757,28 @@ function buildFallbackRecommendation(room, roomBudget, inputs) {
 }
 async function generateAIDesignBrief(project, inputs, recommendations) {
   const spaceSummary = recommendations.map((r) => `- **${r.roomName}** (${r.sqm}sqm): ${r.styleDirection}. Budget: ${r.budgetAllocation.toLocaleString()} AED. Key materials: ${r.materialPackage.map((m) => m.productName).join(", ") || "TBD"}`).join("\n");
+  let dldSection = "";
+  if (project.dldAreaId) {
+    const { getDldAreaBenchmark: getDldAreaBenchmark2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+    const benchmark = await getDldAreaBenchmark2(project.dldAreaId);
+    if (benchmark) {
+      const purposeLabel = {
+        sell_offplan: "off-plan sale \u2014 prioritize showroom-quality finishes and visual wow factor",
+        sell_ready: "ready sale \u2014 premium durable finishes competitive in this area",
+        rent: "rental yield \u2014 prioritize durability, minimal maintenance, cost-efficient materials",
+        mixed: "mixed use \u2014 balance resale attractiveness with rental durability"
+      };
+      dldSection = `
+## DLD Area Market Context
+- Area: ${project.dldAreaName || benchmark.areaName}
+- Median Sale Price: ${benchmark.saleP50 ? Math.round(Number(benchmark.saleP50)).toLocaleString() : "N/A"} AED/sqm
+- Recommended Fitout: ${benchmark.recommendedFitoutMid ? Math.round(Number(benchmark.recommendedFitoutMid)).toLocaleString() : "N/A"} AED/sqm
+- Gross Yield: ${benchmark.grossYield ? Number(benchmark.grossYield).toFixed(1) : "N/A"}%
+- Project Purpose: ${purposeLabel[project.projectPurpose] || purposeLabel.sell_ready}
+
+Calibrate material quality and budget tone to this area's market positioning. Mention the project purpose impact on material selection.`;
+    }
+  }
   const prompt = `Generate a professional interior design brief for this project. This brief will be handed to an interior designer.
 
 ## Project
@@ -17563,7 +21788,7 @@ async function generateAIDesignBrief(project, inputs, recommendations) {
 - Market Tier: ${inputs.mkt01Tier}
 - Style: ${inputs.des01Style}
 - GFA: ${inputs.ctx03Gfa} sqm
-
+${dldSection}
 ## Space Recommendations (Already Generated)
 ${spaceSummary}
 
@@ -17891,7 +22116,20 @@ var designAdvisorRouter = router({
     if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
     const inputs = projectToInputs5(project);
     const materials = await getMaterialLibrary();
-    const recommendations = await generateDesignRecommendations(project, inputs, materials);
+    const recentEvidence = await listEvidenceRecords({ limit: 100 });
+    const designTrends2 = await getDesignTrends({
+      styleClassification: project.des01Style ?? void 0,
+      region: "UAE",
+      limit: 20
+    });
+    const trends = designTrends2.length > 0 ? designTrends2 : await getDesignTrends({ region: "UAE", limit: 20 });
+    const recommendations = await generateDesignRecommendations(
+      project,
+      inputs,
+      materials,
+      recentEvidence,
+      trends
+    );
     for (const rec of recommendations) {
       await createSpaceRecommendation({
         projectId: input.projectId,
@@ -18017,6 +22255,1089 @@ var designAdvisorRouter = router({
   })
 });
 
+// server/routers/portfolio.ts
+import { z as z19 } from "zod";
+init_db();
+init_schema();
+import { eq as eq16, and as and7, desc as desc9, inArray as inArray3 } from "drizzle-orm";
+var portfolioRouter = router({
+  // ─── List all portfolios for current org ──────────────────────────
+  list: orgProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return [];
+    const rows = await db.select().from(portfolios).where(eq16(portfolios.organizationId, ctx.orgId)).orderBy(desc9(portfolios.updatedAt));
+    const result = [];
+    for (const p of rows) {
+      const links = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, p.id));
+      let avgComposite = 0;
+      let avgRisk = 0;
+      let scoredCount = 0;
+      if (links.length > 0) {
+        const projectIds = links.map((l) => l.projectId);
+        const scores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, projectIds)).orderBy(desc9(scoreMatrices.computedAt));
+        const latestByProject = /* @__PURE__ */ new Map();
+        for (const s of scores) {
+          if (!latestByProject.has(s.projectId)) {
+            latestByProject.set(s.projectId, s);
+          }
+        }
+        for (const s of Array.from(latestByProject.values())) {
+          avgComposite += Number(s.compositeScore);
+          avgRisk += Number(s.riskScore);
+          scoredCount++;
+        }
+        if (scoredCount > 0) {
+          avgComposite = Math.round(avgComposite / scoredCount * 10) / 10;
+          avgRisk = Math.round(avgRisk / scoredCount * 10) / 10;
+        }
+      }
+      result.push({
+        ...p,
+        projectCount: links.length,
+        scoredCount,
+        avgComposite,
+        avgRisk
+      });
+    }
+    return result;
+  }),
+  // ─── Get portfolio by ID with full details ────────────────────────
+  getById: orgProcedure.input(z19.object({ id: z19.number() })).query(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) return null;
+    const [portfolio] = await db.select().from(portfolios).where(
+      and7(
+        eq16(portfolios.id, input.id),
+        eq16(portfolios.organizationId, ctx.orgId)
+      )
+    );
+    if (!portfolio) return null;
+    const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    if (links.length === 0) {
+      return {
+        ...portfolio,
+        projects: [],
+        analytics: null
+      };
+    }
+    const projectIds = links.map((l) => l.projectId);
+    const projectList = await db.select().from(projects).where(inArray3(projects.id, projectIds));
+    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, projectIds)).orderBy(desc9(scoreMatrices.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, projectIds)).orderBy(desc9(projectIntelligence.computedAt));
+    const latestScoreByProject = /* @__PURE__ */ new Map();
+    for (const s of allScores) {
+      if (!latestScoreByProject.has(s.projectId)) {
+        latestScoreByProject.set(s.projectId, s);
+      }
+    }
+    const intelByProject = /* @__PURE__ */ new Map();
+    for (const intel of allIntel) {
+      if (!intelByProject.has(intel.projectId)) {
+        intelByProject.set(intel.projectId, intel);
+      }
+    }
+    const portfolioItems = [];
+    const projectDetails = [];
+    for (const p of projectList) {
+      const score = latestScoreByProject.get(p.id);
+      const intel = intelByProject.get(p.id);
+      const link = links.find((l) => l.projectId === p.id);
+      projectDetails.push({
+        id: p.id,
+        name: p.name,
+        tier: p.mkt01Tier,
+        style: p.des01Style,
+        status: p.status,
+        compositeScore: score ? Number(score.compositeScore) : null,
+        riskScore: score ? Number(score.riskScore) : null,
+        decisionStatus: score?.decisionStatus ?? null,
+        costBand: intel?.costBand ?? null,
+        addedAt: link?.addedAt,
+        note: link?.note
+      });
+      if (score) {
+        portfolioItems.push({
+          project: p,
+          scoreMatrix: score,
+          intelligence: intel ? {
+            costDeltaVsBenchmark: Number(intel.costDeltaVsBenchmark),
+            uniquenessIndex: Number(intel.uniquenessIndex),
+            feasibilityFlags: intel.feasibilityFlags || [],
+            reworkRiskIndex: Number(intel.reworkRiskIndex),
+            procurementComplexity: Number(intel.procurementComplexity),
+            tierPercentile: Number(intel.tierPercentile),
+            styleFamily: intel.styleFamily || "custom",
+            costBand: intel.costBand || "market_mid"
+          } : void 0
+        });
+      }
+    }
+    const analytics = portfolioItems.length > 0 ? {
+      totalProjects: projectList.length,
+      scoredProjects: portfolioItems.length,
+      avgComposite: Math.round(
+        portfolioItems.reduce(
+          (sum, p) => sum + Number(p.scoreMatrix.compositeScore),
+          0
+        ) / portfolioItems.length * 10
+      ) / 10,
+      avgRisk: Math.round(
+        portfolioItems.reduce(
+          (sum, p) => sum + Number(p.scoreMatrix.riskScore),
+          0
+        ) / portfolioItems.length * 10
+      ) / 10,
+      distributions: computeDistributions(portfolioItems),
+      complianceHeatmap: computeComplianceHeatmap(portfolioItems),
+      failurePatterns: detectFailurePatterns(portfolioItems),
+      improvementLevers: computeImprovementLevers(portfolioItems)
+    } : null;
+    return {
+      ...portfolio,
+      projects: projectDetails,
+      analytics
+    };
+  }),
+  // ─── Create portfolio ─────────────────────────────────────────────
+  create: orgProcedure.input(
+    z19.object({
+      name: z19.string().min(1).max(255),
+      description: z19.string().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database error");
+    const [result] = await db.insert(portfolios).values({
+      name: input.name,
+      description: input.description ?? null,
+      organizationId: ctx.orgId,
+      createdBy: ctx.user.id
+    });
+    return { id: Number(result.insertId), name: input.name };
+  }),
+  // ─── Update portfolio ─────────────────────────────────────────────
+  update: orgProcedure.input(
+    z19.object({
+      id: z19.number(),
+      name: z19.string().min(1).max(255).optional(),
+      description: z19.string().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database error");
+    const [existing] = await db.select().from(portfolios).where(
+      and7(
+        eq16(portfolios.id, input.id),
+        eq16(portfolios.organizationId, ctx.orgId)
+      )
+    );
+    if (!existing) throw new Error("Portfolio not found");
+    const updates = {};
+    if (input.name !== void 0) updates.name = input.name;
+    if (input.description !== void 0)
+      updates.description = input.description;
+    await db.update(portfolios).set(updates).where(eq16(portfolios.id, input.id));
+    return { success: true };
+  }),
+  // ─── Delete portfolio ─────────────────────────────────────────────
+  delete: orgProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database error");
+    const [existing] = await db.select().from(portfolios).where(
+      and7(
+        eq16(portfolios.id, input.id),
+        eq16(portfolios.organizationId, ctx.orgId)
+      )
+    );
+    if (!existing) throw new Error("Portfolio not found");
+    await db.delete(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    await db.delete(portfolios).where(eq16(portfolios.id, input.id));
+    return { success: true };
+  }),
+  // ─── Add project to portfolio ─────────────────────────────────────
+  addProject: orgProcedure.input(
+    z19.object({
+      portfolioId: z19.number(),
+      projectId: z19.number(),
+      note: z19.string().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database error");
+    const [portfolio] = await db.select().from(portfolios).where(
+      and7(
+        eq16(portfolios.id, input.portfolioId),
+        eq16(portfolios.organizationId, ctx.orgId)
+      )
+    );
+    if (!portfolio) throw new Error("Portfolio not found");
+    const [project] = await db.select().from(projects).where(eq16(projects.id, input.projectId));
+    if (!project || project.orgId !== ctx.orgId) {
+      throw new Error("Project not found");
+    }
+    const existing = await db.select().from(portfolioProjects).where(
+      and7(
+        eq16(portfolioProjects.portfolioId, input.portfolioId),
+        eq16(portfolioProjects.projectId, input.projectId)
+      )
+    );
+    if (existing.length > 0) {
+      return { success: true, message: "Project already in portfolio" };
+    }
+    await db.insert(portfolioProjects).values({
+      portfolioId: input.portfolioId,
+      projectId: input.projectId,
+      note: input.note ?? null
+    });
+    return { success: true };
+  }),
+  // ─── Remove project from portfolio ────────────────────────────────
+  removeProject: orgProcedure.input(
+    z19.object({
+      portfolioId: z19.number(),
+      projectId: z19.number()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database error");
+    const [portfolio] = await db.select().from(portfolios).where(
+      and7(
+        eq16(portfolios.id, input.portfolioId),
+        eq16(portfolios.organizationId, ctx.orgId)
+      )
+    );
+    if (!portfolio) throw new Error("Portfolio not found");
+    await db.delete(portfolioProjects).where(
+      and7(
+        eq16(portfolioProjects.portfolioId, input.portfolioId),
+        eq16(portfolioProjects.projectId, input.projectId)
+      )
+    );
+    return { success: true };
+  }),
+  // ─── Available projects (not in this portfolio) ───────────────────
+  availableProjects: orgProcedure.input(z19.object({ portfolioId: z19.number() })).query(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) return [];
+    const allProjects = await db.select().from(projects).where(eq16(projects.orgId, ctx.orgId));
+    const linked = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.portfolioId));
+    const linkedIds = new Set(linked.map((l) => l.projectId));
+    return allProjects.filter((p) => !linkedIds.has(p.id)).map((p) => ({
+      id: p.id,
+      name: p.name,
+      tier: p.mkt01Tier,
+      style: p.des01Style,
+      status: p.status
+    }));
+  }),
+  // ─── Generate PDF Report ────────────────────────────────────
+  generateReport: orgProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database unavailable");
+    const [portfolio] = await db.select().from(portfolios).where(
+      and7(
+        eq16(portfolios.id, input.id),
+        eq16(portfolios.organizationId, ctx.orgId)
+      )
+    );
+    if (!portfolio) throw new Error("Portfolio not found");
+    const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    if (links.length === 0) {
+      throw new Error("Portfolio has no projects \u2014 add projects before generating a report.");
+    }
+    const pIds = links.map((l) => l.projectId);
+    const projectList = await db.select().from(projects).where(inArray3(projects.id, pIds));
+    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, pIds)).orderBy(desc9(scoreMatrices.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, pIds)).orderBy(desc9(projectIntelligence.computedAt));
+    const latestScoreByProject = /* @__PURE__ */ new Map();
+    for (const s of allScores) {
+      if (!latestScoreByProject.has(s.projectId)) {
+        latestScoreByProject.set(s.projectId, s);
+      }
+    }
+    const intelByProject = /* @__PURE__ */ new Map();
+    for (const intel of allIntel) {
+      if (!intelByProject.has(intel.projectId)) {
+        intelByProject.set(intel.projectId, intel);
+      }
+    }
+    const portfolioItems = [];
+    const projectDetails = [];
+    for (const p of projectList) {
+      const score = latestScoreByProject.get(p.id);
+      const intel = intelByProject.get(p.id);
+      projectDetails.push({
+        name: p.name,
+        tier: p.mkt01Tier || void 0,
+        style: p.des01Style || void 0,
+        compositeScore: score ? Number(score.compositeScore) : null,
+        riskScore: score ? Number(score.riskScore) : null,
+        decisionStatus: score?.decisionStatus ?? null
+      });
+      if (score) {
+        portfolioItems.push({
+          project: p,
+          scoreMatrix: score,
+          intelligence: intel ? {
+            costDeltaVsBenchmark: Number(intel.costDeltaVsBenchmark),
+            uniquenessIndex: Number(intel.uniquenessIndex),
+            feasibilityFlags: intel.feasibilityFlags || [],
+            reworkRiskIndex: Number(intel.reworkRiskIndex),
+            procurementComplexity: Number(intel.procurementComplexity),
+            tierPercentile: Number(intel.tierPercentile),
+            styleFamily: intel.styleFamily || "custom",
+            costBand: intel.costBand || "market_mid"
+          } : void 0
+        });
+      }
+    }
+    const distributions = computeDistributions(portfolioItems);
+    const rawHeatmap = computeComplianceHeatmap(portfolioItems);
+    const failurePatterns = detectFailurePatterns(portfolioItems);
+    const improvementLevers = computeImprovementLevers(portfolioItems);
+    const heatmapByTier = /* @__PURE__ */ new Map();
+    for (const cell of rawHeatmap) {
+      if (!heatmapByTier.has(cell.row)) {
+        heatmapByTier.set(cell.row, {});
+      }
+      heatmapByTier.get(cell.row)[cell.col] = {
+        avg: Math.round(cell.score * 10) / 10,
+        count: cell.projectCount
+      };
+    }
+    const complianceHeatmap = Array.from(heatmapByTier.entries()).map(
+      ([tier, dimensions]) => ({ tier, dimensions })
+    );
+    const scored = portfolioItems;
+    const avgComposite = scored.length > 0 ? Math.round(
+      scored.reduce((s, p) => s + Number(p.scoreMatrix.compositeScore), 0) / scored.length
+    ) : 0;
+    const avgRisk = scored.length > 0 ? Math.round(
+      scored.reduce((s, p) => s + Number(p.scoreMatrix.riskScore), 0) / scored.length
+    ) : 0;
+    const pdfInput = {
+      portfolioName: portfolio.name,
+      portfolioId: portfolio.id,
+      description: portfolio.description || void 0,
+      totalProjects: projectList.length,
+      scoredCount: scored.length,
+      avgComposite,
+      avgRisk,
+      projects: projectDetails,
+      distributions,
+      failurePatterns,
+      improvementLevers,
+      complianceHeatmap
+    };
+    const html = generatePortfolioReportHTML(pdfInput);
+    return { html, portfolioName: portfolio.name };
+  }),
+  // ─── Check Portfolio Alerts ──────────────────────────────────
+  checkAlerts: orgProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database unavailable");
+    const [portfolio] = await db.select().from(portfolios).where(
+      and7(
+        eq16(portfolios.id, input.id),
+        eq16(portfolios.organizationId, ctx.orgId)
+      )
+    );
+    if (!portfolio) throw new Error("Portfolio not found");
+    const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    if (links.length === 0) return { alerts: [], message: "No projects in portfolio" };
+    const pIds = links.map((l) => l.projectId);
+    const projectList = await db.select().from(projects).where(inArray3(projects.id, pIds));
+    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, pIds)).orderBy(desc9(scoreMatrices.computedAt));
+    const latestScoreByProject = /* @__PURE__ */ new Map();
+    for (const s of allScores) {
+      if (!latestScoreByProject.has(s.projectId)) {
+        latestScoreByProject.set(s.projectId, s);
+      }
+    }
+    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, pIds)).orderBy(desc9(projectIntelligence.computedAt));
+    const intelByProject = /* @__PURE__ */ new Map();
+    for (const intel of allIntel) {
+      if (!intelByProject.has(intel.projectId)) {
+        intelByProject.set(intel.projectId, intel);
+      }
+    }
+    const portfolioItems = [];
+    for (const p of projectList) {
+      const score = latestScoreByProject.get(p.id);
+      const intel = intelByProject.get(p.id);
+      if (score) {
+        portfolioItems.push({
+          project: p,
+          scoreMatrix: score,
+          intelligence: intel ? {
+            costDeltaVsBenchmark: Number(intel.costDeltaVsBenchmark),
+            uniquenessIndex: Number(intel.uniquenessIndex),
+            feasibilityFlags: intel.feasibilityFlags || [],
+            reworkRiskIndex: Number(intel.reworkRiskIndex),
+            procurementComplexity: Number(intel.procurementComplexity),
+            tierPercentile: Number(intel.tierPercentile),
+            styleFamily: intel.styleFamily || "custom",
+            costBand: intel.costBand || "market_mid"
+          } : void 0
+        });
+      }
+    }
+    if (portfolioItems.length === 0) return { alerts: [], message: "No scored projects" };
+    const avgComposite = Math.round(
+      portfolioItems.reduce((s, p) => s + Number(p.scoreMatrix.compositeScore), 0) / portfolioItems.length
+    );
+    const avgRisk = Math.round(
+      portfolioItems.reduce((s, p) => s + Number(p.scoreMatrix.riskScore), 0) / portfolioItems.length
+    );
+    const noGoCount = portfolioItems.filter(
+      (p) => p.scoreMatrix.decisionStatus === "not_validated"
+    ).length;
+    const failurePatterns = detectFailurePatterns(portfolioItems);
+    const candidates = [];
+    if (avgComposite < 55) {
+      candidates.push({
+        alertType: "portfolio_risk",
+        severity: avgComposite < 40 ? "critical" : "high",
+        title: `Portfolio "${portfolio.name}" \u2014 Low Average Score`,
+        body: `Portfolio average composite score is ${avgComposite}/100 across ${portfolioItems.length} projects. This indicates systemic design feasibility concerns.`,
+        affectedProjectIds: pIds,
+        affectedCategories: [],
+        triggerData: { portfolioId: portfolio.id, avgComposite, avgRisk },
+        suggestedAction: "Review underperforming projects and consider replacing or redesigning low-scoring components.",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
+      });
+    }
+    if (avgRisk > 65) {
+      candidates.push({
+        alertType: "portfolio_risk",
+        severity: avgRisk > 80 ? "critical" : "high",
+        title: `Portfolio "${portfolio.name}" \u2014 Elevated Risk`,
+        body: `Portfolio average risk score is ${avgRisk}/100. ${noGoCount} project(s) have NO_GO decisions.`,
+        affectedProjectIds: pIds,
+        affectedCategories: [],
+        triggerData: { portfolioId: portfolio.id, avgRisk, noGoCount },
+        suggestedAction: "Prioritize risk mitigation for the highest-risk projects. Consider portfolio rebalancing.",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
+      });
+    }
+    if (noGoCount > portfolioItems.length / 2) {
+      candidates.push({
+        alertType: "portfolio_risk",
+        severity: "critical",
+        title: `Portfolio "${portfolio.name}" \u2014 Majority NO_GO`,
+        body: `${noGoCount} out of ${portfolioItems.length} scored projects have NO_GO decisions. Portfolio viability is severely compromised.`,
+        affectedProjectIds: pIds,
+        affectedCategories: [],
+        triggerData: { portfolioId: portfolio.id, noGoCount, total: portfolioItems.length },
+        suggestedAction: "Conduct an emergency portfolio review. Consider replacing failing projects or fundamentally redesigning the approach.",
+        expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1e3)
+      });
+    }
+    for (const fp of failurePatterns.filter((f) => f.severity === "high")) {
+      candidates.push({
+        alertType: "portfolio_failure_pattern",
+        severity: "high",
+        title: `Portfolio "${portfolio.name}" \u2014 ${fp.pattern}`,
+        body: `${fp.description} (affects ${fp.frequency} project(s))`,
+        affectedProjectIds: pIds,
+        affectedCategories: [],
+        triggerData: { portfolioId: portfolio.id, pattern: fp },
+        suggestedAction: "Address the root cause of this recurring failure pattern across the portfolio.",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
+      });
+    }
+    const inserted = [];
+    for (const alert of candidates) {
+      const existing = await db.select().from(platformAlerts).where(
+        and7(
+          eq16(platformAlerts.alertType, alert.alertType),
+          eq16(platformAlerts.status, "active")
+        )
+      );
+      const isDuplicate2 = existing.some(
+        (e) => e.title === alert.title && JSON.stringify(e.affectedProjectIds) === JSON.stringify(alert.affectedProjectIds)
+      );
+      if (!isDuplicate2) {
+        const [result] = await db.insert(platformAlerts).values(alert);
+        const alertWithId = { ...alert, id: result.insertId };
+        inserted.push(alertWithId);
+        deliverAlert(alertWithId).catch(
+          (e) => console.error("[PortfolioAlerts] Delivery failed:", alert.title, e)
+        );
+      }
+    }
+    return {
+      alerts: inserted.map((a) => ({
+        id: a.id,
+        type: a.alertType,
+        severity: a.severity,
+        title: a.title,
+        body: a.body
+      })),
+      message: inserted.length > 0 ? `${inserted.length} new alert(s) generated` : "Portfolio health is within acceptable thresholds \u2014 no new alerts."
+    };
+  })
+});
+
+// server/routers/customer-success.ts
+import { z as z20 } from "zod";
+init_db();
+init_db();
+init_schema();
+import { eq as eq17, desc as desc10, gte as gte2, and as and8, count } from "drizzle-orm";
+
+// server/engines/customer/health-score.ts
+function clamp2(v, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, v));
+}
+function tierFromScore(score) {
+  if (score >= 85) return "Thriving";
+  if (score >= 65) return "Healthy";
+  if (score >= 40) return "At Risk";
+  return "Churning";
+}
+function scoreEngagement(m) {
+  const factors = [];
+  const recency = clamp2(100 - m.daysSinceLastAction / 30 * 100);
+  factors.push(`Recency: ${Math.round(recency)}/100 (${m.daysSinceLastAction}d ago)`);
+  const activeDays = clamp2(m.uniqueActiveDays / 20 * 100);
+  factors.push(`Active days: ${Math.round(activeDays)}/100 (${m.uniqueActiveDays}/30d)`);
+  const actionsPerWeek = m.totalActions / 4;
+  const actionScore = clamp2(actionsPerWeek / 50 * 100);
+  factors.push(`Actions/week: ${Math.round(actionScore)}/100 (${actionsPerWeek.toFixed(0)}/wk)`);
+  const score = Math.round(recency * 0.4 + activeDays * 0.35 + actionScore * 0.25);
+  return { score, weight: 0.3, weighted: Math.round(score * 0.3), label: "Engagement", factors };
+}
+function scoreAdoption(m) {
+  const factors = [];
+  const features = [
+    m.totalProjects > 0,
+    m.evaluatedProjects > 0,
+    m.scenariosCreated > 0,
+    m.simulationsRun > 0,
+    m.biasScansRun > 0,
+    m.portfoliosCreated > 0,
+    m.reportsGenerated > 0
+  ];
+  const usedCount = features.filter(Boolean).length;
+  const breadth = clamp2(usedCount / 7 * 100);
+  factors.push(`Features used: ${usedCount}/7`);
+  const evalRate = m.totalProjects > 0 ? clamp2(m.evaluatedProjects / m.totalProjects * 100) : 0;
+  factors.push(`Evaluation rate: ${Math.round(evalRate)}%`);
+  const advancedScore = clamp2(Math.min((m.simulationsRun + m.biasScansRun) * 20, 100));
+  factors.push(`Advanced features: ${Math.round(advancedScore)}/100`);
+  const score = Math.round(breadth * 0.4 + evalRate * 0.35 + advancedScore * 0.25);
+  return { score, weight: 0.25, weighted: Math.round(score * 0.25), label: "Adoption", factors };
+}
+function scoreQuality(m) {
+  const factors = [];
+  const projScore = clamp2(m.avgProjectScore);
+  factors.push(`Avg project score: ${Math.round(projScore)}/100`);
+  const biasRate = m.biasAlertsTotal > 0 ? clamp2(m.biasAlertsDismissed / m.biasAlertsTotal * 100) : 100;
+  factors.push(`Bias remediation: ${Math.round(biasRate)}%`);
+  const coverage = m.totalProjects > 0 ? clamp2(m.evaluatedProjects / m.totalProjects * 100) : 0;
+  factors.push(`Evaluation coverage: ${Math.round(coverage)}%`);
+  const score = Math.round(projScore * 0.4 + biasRate * 0.3 + coverage * 0.3);
+  return { score, weight: 0.25, weighted: Math.round(score * 0.25), label: "Quality", factors };
+}
+function scoreVelocity(m) {
+  const factors = [];
+  const projRate = clamp2(m.projectsThisMonth / 5 * 100);
+  factors.push(`Projects this month: ${m.projectsThisMonth}`);
+  let growthScore = 50;
+  if (m.projectsLastMonth > 0) {
+    const growthRatio = m.projectsThisMonth / m.projectsLastMonth;
+    growthScore = clamp2(growthRatio * 50);
+  } else if (m.projectsThisMonth > 0) {
+    growthScore = 80;
+  }
+  factors.push(`Growth trend: ${Math.round(growthScore)}/100`);
+  const evalRate = clamp2(m.evaluationsThisMonth / 5 * 100);
+  factors.push(`Evaluations this month: ${m.evaluationsThisMonth}`);
+  const score = Math.round(projRate * 0.35 + growthScore * 0.35 + evalRate * 0.3);
+  return { score, weight: 0.2, weighted: Math.round(score * 0.2), label: "Velocity", factors };
+}
+function generateRecommendations(m, eng, adp, qua, vel) {
+  const recs = [];
+  if (eng.score < 50) {
+    recs.push("\u{1F4C5} Try to use the platform at least 3 times per week to build evaluation habits.");
+  }
+  if (m.daysSinceLastAction > 14) {
+    recs.push("\u26A0\uFE0F You haven't been active for over 2 weeks. Re-engage to keep project data fresh.");
+  }
+  if (adp.score < 50) {
+    if (m.simulationsRun === 0) recs.push("\u{1F3B2} Run Monte Carlo simulations to understand cost risk distributions.");
+    if (m.biasScansRun === 0) recs.push("\u{1F9E0} Use Bias Insights to detect cognitive biases in your evaluations.");
+    if (m.portfoliosCreated === 0) recs.push("\u{1F4CA} Create a portfolio to monitor multiple projects together.");
+    if (m.scenariosCreated === 0) recs.push("\u{1F500} Create scenarios to compare design alternatives.");
+  }
+  if (qua.score < 50) {
+    if (m.avgProjectScore < 50) recs.push("\u{1F4C8} Review low-scoring projects and address flagged weaknesses.");
+    if (m.biasAlertsTotal > m.biasAlertsDismissed * 2) recs.push("\u{1F50D} Address outstanding bias alerts to improve decision quality.");
+  }
+  if (vel.score < 40) {
+    recs.push("\u{1F680} Aim to evaluate at least 2 projects per month to maintain momentum.");
+  }
+  if (m.totalProjects > 0 && m.evaluatedProjects === 0) {
+    recs.push("\u2705 You have projects but none evaluated. Run your first evaluation to unlock insights.");
+  }
+  if (recs.length === 0) {
+    recs.push("\u{1F31F} Great work \u2014 keep up the momentum!");
+  }
+  return recs.slice(0, 5);
+}
+function calculateHealthScore(metrics) {
+  const engagement = scoreEngagement(metrics);
+  const adoption = scoreAdoption(metrics);
+  const quality = scoreQuality(metrics);
+  const velocity = scoreVelocity(metrics);
+  const compositeScore = Math.round(
+    engagement.weighted + adoption.weighted + quality.weighted + velocity.weighted
+  );
+  const tier = tierFromScore(compositeScore);
+  const recommendations = generateRecommendations(metrics, engagement, adoption, quality, velocity);
+  return {
+    compositeScore,
+    tier,
+    engagement,
+    adoption,
+    quality,
+    velocity,
+    recommendations,
+    metrics
+  };
+}
+
+// server/routers/customer-success.ts
+var customerSuccessRouter = router({
+  // Calculate and persist a fresh health score
+  calculateHealth: heavyProcedure.mutation(async ({ ctx }) => {
+    const d = await getDb();
+    if (!d) throw new Error("Database unavailable");
+    const userId = ctx.user.id;
+    const now = /* @__PURE__ */ new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1e3);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const recentLogs = await d.select().from(auditLogs).where(and8(
+      eq17(auditLogs.userId, userId),
+      gte2(auditLogs.createdAt, thirtyDaysAgo)
+    ));
+    const totalActions = recentLogs.length;
+    const uniqueActiveDays = new Set(
+      recentLogs.map((l) => new Date(l.createdAt).toISOString().split("T")[0])
+    ).size;
+    const lastAction = recentLogs.length > 0 ? recentLogs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] : null;
+    const daysSinceLastAction = lastAction ? Math.floor((now.getTime() - new Date(lastAction.createdAt).getTime()) / (1e3 * 60 * 60 * 24)) : 30;
+    const projects2 = await getProjectsByUser(userId);
+    const totalProjects = projects2?.length || 0;
+    const evaluatedProjects = projects2?.filter((p) => p.status === "evaluated").length || 0;
+    const scenarioActions = recentLogs.filter((l) => l.entityType === "scenario").length;
+    const simRows = await d.select({ c: count() }).from(monteCarloSimulations).where(eq17(monteCarloSimulations.userId, userId));
+    const simulationsRun = simRows[0]?.c || 0;
+    const biasScanActions = recentLogs.filter((l) => l.action === "bias.scan").length;
+    const portfolioActions = recentLogs.filter((l) => l.entityType === "portfolio").length;
+    const reportActions = recentLogs.filter(
+      (l) => l.action === "project.report" || l.action === "portfolio.report"
+    ).length;
+    const evaluatedProjScores = projects2?.filter((p) => p.status === "evaluated" && p.compositeScore != null).map((p) => Number(p.compositeScore)) || [];
+    const avgProjectScore = evaluatedProjScores.length > 0 ? evaluatedProjScores.reduce((s, v) => s + v, 0) / evaluatedProjScores.length : 0;
+    const allBiasAlerts = await d.select().from(biasAlerts).where(eq17(biasAlerts.userId, userId));
+    const biasAlertsTotal = allBiasAlerts.length;
+    const biasAlertsDismissed = allBiasAlerts.filter((a) => a.dismissed).length;
+    const thisMonthProjects = projects2?.filter(
+      (p) => new Date(p.createdAt) >= thisMonthStart
+    ).length || 0;
+    const lastMonthProjects = projects2?.filter(
+      (p) => new Date(p.createdAt) >= lastMonthStart && new Date(p.createdAt) < thisMonthStart
+    ).length || 0;
+    const thisMonthEvals = recentLogs.filter(
+      (l) => l.action === "project.evaluate" && new Date(l.createdAt) >= thisMonthStart
+    ).length;
+    const lastMonthEvals = recentLogs.filter(
+      (l) => l.action === "project.evaluate" && new Date(l.createdAt) >= lastMonthStart && new Date(l.createdAt) < thisMonthStart
+    ).length;
+    const metrics = {
+      totalActions,
+      daysSinceLastAction,
+      uniqueActiveDays,
+      totalProjects,
+      evaluatedProjects,
+      scenariosCreated: scenarioActions,
+      simulationsRun: Number(simulationsRun),
+      biasScansRun: biasScanActions,
+      portfoliosCreated: portfolioActions > 0 ? 1 : 0,
+      reportsGenerated: reportActions,
+      avgProjectScore,
+      biasAlertsTotal,
+      biasAlertsDismissed,
+      projectsThisMonth: thisMonthProjects,
+      projectsLastMonth: lastMonthProjects,
+      evaluationsThisMonth: thisMonthEvals,
+      evaluationsLastMonth: lastMonthEvals
+    };
+    const result = calculateHealthScore(metrics);
+    await d.insert(customerHealthScores).values({
+      userId,
+      orgId: ctx.user.orgId || null,
+      compositeScore: result.compositeScore,
+      engagementScore: result.engagement.score,
+      adoptionScore: result.adoption.score,
+      qualityScore: result.quality.score,
+      velocityScore: result.velocity.score,
+      healthTier: result.tier,
+      recommendations: result.recommendations,
+      metrics: result.metrics
+    });
+    return result;
+  }),
+  // Get latest health score
+  getHealth: protectedProcedure.query(async ({ ctx }) => {
+    const d = await getDb();
+    if (!d) return null;
+    const rows = await d.select().from(customerHealthScores).where(eq17(customerHealthScores.userId, ctx.user.id)).orderBy(desc10(customerHealthScores.createdAt)).limit(1);
+    return rows[0] || null;
+  }),
+  // Recent activity feed
+  getActivityFeed: protectedProcedure.input(z20.object({ limit: z20.number().min(1).max(50).default(20) }).optional()).query(async ({ ctx, input }) => {
+    const d = await getDb();
+    if (!d) return [];
+    const limit = input?.limit || 20;
+    return d.select().from(auditLogs).where(eq17(auditLogs.userId, ctx.user.id)).orderBy(desc10(auditLogs.createdAt)).limit(limit);
+  })
+});
+
+// server/routers/sustainability.ts
+import { z as z21 } from "zod";
+init_db();
+init_db();
+init_schema();
+import { eq as eq18, desc as desc11 } from "drizzle-orm";
+
+// server/engines/sustainability/digital-twin.ts
+var MATERIAL_DB = {
+  concrete: { carbonIntensity: 0.159, density: 2400, typicalThickness: 0.25, recyclability: 0.65, maintenanceFactor: 5e-3, costPerM2: 350 },
+  steel: { carbonIntensity: 1.55, density: 7850, typicalThickness: 0.015, recyclability: 0.9, maintenanceFactor: 8e-3, costPerM2: 480 },
+  glass: { carbonIntensity: 0.86, density: 2500, typicalThickness: 0.012, recyclability: 0.4, maintenanceFactor: 0.015, costPerM2: 620 },
+  aluminum: { carbonIntensity: 8.24, density: 2700, typicalThickness: 3e-3, recyclability: 0.95, maintenanceFactor: 0.01, costPerM2: 750 },
+  timber: { carbonIntensity: 0.46, density: 600, typicalThickness: 0.1, recyclability: 0.7, maintenanceFactor: 0.02, costPerM2: 420 },
+  stone: { carbonIntensity: 0.079, density: 2600, typicalThickness: 0.03, recyclability: 0.3, maintenanceFactor: 3e-3, costPerM2: 550 },
+  gypsum: { carbonIntensity: 0.12, density: 1e3, typicalThickness: 0.013, recyclability: 0.2, maintenanceFactor: 0.01, costPerM2: 120 },
+  insulation: { carbonIntensity: 1.86, density: 30, typicalThickness: 0.1, recyclability: 0.15, maintenanceFactor: 2e-3, costPerM2: 180 },
+  ceramic: { carbonIntensity: 0.74, density: 2e3, typicalThickness: 0.01, recyclability: 0.1, maintenanceFactor: 5e-3, costPerM2: 280 }
+};
+var CLIMATE_FACTOR = {
+  dubai: 1.35,
+  abu_dhabi: 1.4,
+  sharjah: 1.3,
+  other_gcc: 1.25,
+  temperate: 0.7
+};
+var SPEC_MULTIPLIER = {
+  economy: 0.75,
+  standard: 1,
+  premium: 1.3,
+  luxury: 1.65
+};
+function clamp3(v, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, v));
+}
+function gradeFromScore(score) {
+  if (score >= 90) return "A+";
+  if (score >= 80) return "A";
+  if (score >= 70) return "B+";
+  if (score >= 60) return "B";
+  if (score >= 50) return "C";
+  if (score >= 40) return "D";
+  return "F";
+}
+function calculateEmbodiedCarbon(config) {
+  const totalArea = config.gfa * config.floors;
+  const breakdown = [];
+  let totalCarbon = 0;
+  for (const mix of config.materials) {
+    const mat = MATERIAL_DB[mix.material];
+    if (!mat) continue;
+    const areaShare = totalArea * (mix.percentage / 100);
+    const volume = areaShare * mat.typicalThickness;
+    const mass = volume * mat.density;
+    const carbon = mass * mat.carbonIntensity;
+    totalCarbon += carbon;
+    breakdown.push({
+      material: mix.material,
+      kgCO2e: Math.round(carbon),
+      percentage: 0,
+      // filled after
+      intensity: Math.round(carbon / areaShare)
+    });
+  }
+  for (const item of breakdown) {
+    item.percentage = totalCarbon > 0 ? Math.round(item.kgCO2e / totalCarbon * 100) : 0;
+  }
+  breakdown.sort((a, b) => b.kgCO2e - a.kgCO2e);
+  return {
+    total: Math.round(totalCarbon),
+    perSqm: Math.round(totalCarbon / config.gfa),
+    breakdown
+  };
+}
+function calculateOperationalEnergy(config) {
+  const climateFactor = CLIMATE_FACTOR[config.location] || 1;
+  const specMult = SPEC_MULTIPLIER[config.specLevel] || 1;
+  const baseEUI = 180;
+  const glazingPenalty = 1 + (config.glazingRatio - 0.3) * 1.5;
+  const coolingFraction = 0.55 * climateFactor * Math.max(0.5, glazingPenalty);
+  const renewableOffset = config.includeRenewables ? 0.85 : 1;
+  const totalEUI = baseEUI * specMult * renewableOffset;
+  const cooling = totalEUI * coolingFraction;
+  const lighting = totalEUI * 0.25;
+  const equipment = totalEUI * (1 - coolingFraction - 0.25);
+  return {
+    total: Math.round(totalEUI * config.gfa),
+    perSqm: Math.round(totalEUI),
+    cooling: Math.round(cooling * config.gfa),
+    lighting: Math.round(lighting * config.gfa),
+    equipment: Math.round(Math.max(0, equipment * config.gfa))
+  };
+}
+function calculateLifecycleCost(config, energyCostPerKwh = 0.38) {
+  const specMult = SPEC_MULTIPLIER[config.specLevel] || 1;
+  let constructionCostPerM2 = 0;
+  for (const mix of config.materials) {
+    const mat = MATERIAL_DB[mix.material];
+    if (!mat) continue;
+    constructionCostPerM2 += mat.costPerM2 * (mix.percentage / 100) * specMult;
+  }
+  const constructionTotal = constructionCostPerM2 * config.gfa;
+  let annualMaintenancePct = 0;
+  for (const mix of config.materials) {
+    const mat = MATERIAL_DB[mix.material];
+    if (!mat) continue;
+    annualMaintenancePct += mat.maintenanceFactor * (mix.percentage / 100);
+  }
+  const annualMaintenance = constructionTotal * annualMaintenancePct;
+  const energy = calculateOperationalEnergy(config);
+  const annualEnergyCost = energy.total * energyCostPerKwh;
+  const escalation = 0.03;
+  const timeline = [];
+  let cumulative = constructionTotal;
+  for (let year = 0; year <= 30; year++) {
+    const escFactor = Math.pow(1 + escalation, year);
+    const maint = year === 0 ? 0 : annualMaintenance * escFactor;
+    const ener = year === 0 ? 0 : annualEnergyCost * escFactor;
+    cumulative += maint + ener;
+    timeline.push({
+      year,
+      cumulativeCost: Math.round(cumulative),
+      maintenanceCost: Math.round(maint),
+      energyCost: Math.round(ener),
+      constructionCost: year === 0 ? Math.round(constructionTotal) : 0
+    });
+  }
+  return {
+    total30yr: Math.round(cumulative),
+    perSqm: Math.round(cumulative / config.gfa),
+    timeline
+  };
+}
+function scoreCarbonEfficiency(carbonPerSqm) {
+  if (carbonPerSqm <= 200) return 100;
+  if (carbonPerSqm >= 1200) return 10;
+  return clamp3(Math.round(100 - (carbonPerSqm - 200) / 1e3 * 90));
+}
+function scoreEnergyRating(euiPerSqm, hasRenewables) {
+  let score = 0;
+  if (euiPerSqm <= 80) score = 100;
+  else if (euiPerSqm >= 300) score = 10;
+  else score = Math.round(100 - (euiPerSqm - 80) / 220 * 90);
+  if (hasRenewables) score = Math.min(100, score + 10);
+  return clamp3(score);
+}
+function scoreMaterialCircularity(materials) {
+  let weightedRecyclability = 0;
+  for (const mix of materials) {
+    const mat = MATERIAL_DB[mix.material];
+    if (!mat) continue;
+    weightedRecyclability += mat.recyclability * (mix.percentage / 100);
+  }
+  return clamp3(Math.round(weightedRecyclability * 100));
+}
+function scoreWaterEfficiency(hasRecycling, specLevel) {
+  let score = 40;
+  if (hasRecycling) score += 35;
+  if (specLevel === "premium" || specLevel === "luxury") score += 15;
+  else if (specLevel === "standard") score += 10;
+  return clamp3(score);
+}
+function generateRecommendations2(carbonEff, energyRating, circularity, waterEff, config) {
+  const recs = [];
+  if (carbonEff < 50) {
+    const highCarbon = config.materials.sort((a, b) => {
+      const ca = MATERIAL_DB[a.material]?.carbonIntensity || 0;
+      const cb = MATERIAL_DB[b.material]?.carbonIntensity || 0;
+      return cb - ca;
+    })[0];
+    if (highCarbon) {
+      recs.push(`\u{1F3D7}\uFE0F Consider reducing ${highCarbon.material} usage \u2014 it has the highest carbon intensity in your material mix.`);
+    }
+    recs.push("\u267B\uFE0F Explore low-carbon concrete alternatives (GGBS, fly ash) to reduce embodied carbon by 30-50%.");
+  }
+  if (energyRating < 50) {
+    if (config.glazingRatio > 0.4) {
+      recs.push("\u{1FA9F} Reduce glazing ratio below 40% or use high-performance low-E glass to cut cooling loads.");
+    }
+    if (!config.includeRenewables) {
+      recs.push("\u2600\uFE0F Add rooftop solar PV to offset 15-25% of operational energy consumption.");
+    }
+  }
+  if (circularity < 50) {
+    recs.push("\u{1F504} Incorporate design-for-disassembly principles and prefer materials with >70% recyclability.");
+  }
+  if (waterEff < 50 && !config.waterRecycling) {
+    recs.push("\u{1F4A7} Implement greywater recycling and condensate recovery to improve water efficiency by 40%.");
+  }
+  if (recs.length === 0) {
+    recs.push("\u{1F31F} Excellent sustainability profile \u2014 consider pursuing Estidama Pearl or LEED certification.");
+  }
+  return recs.slice(0, 5);
+}
+function computeDigitalTwin(config) {
+  const carbon = calculateEmbodiedCarbon(config);
+  const energy = calculateOperationalEnergy(config);
+  const lifecycle = calculateLifecycleCost(config);
+  const carbonEfficiency = scoreCarbonEfficiency(carbon.perSqm);
+  const energyRating = scoreEnergyRating(energy.perSqm, !!config.includeRenewables);
+  const materialCircularity = scoreMaterialCircularity(config.materials);
+  const waterEfficiency = scoreWaterEfficiency(!!config.waterRecycling, config.specLevel);
+  const sustainabilityScore = Math.round(
+    carbonEfficiency * 0.35 + energyRating * 0.3 + materialCircularity * 0.2 + waterEfficiency * 0.15
+  );
+  const recommendations = generateRecommendations2(
+    carbonEfficiency,
+    energyRating,
+    materialCircularity,
+    waterEfficiency,
+    config
+  );
+  return {
+    sustainabilityScore,
+    sustainabilityGrade: gradeFromScore(sustainabilityScore),
+    totalEmbodiedCarbon: carbon.total,
+    carbonPerSqm: carbon.perSqm,
+    carbonBreakdown: carbon.breakdown,
+    operationalEnergy: energy.total,
+    energyPerSqm: energy.perSqm,
+    coolingLoad: energy.cooling,
+    lightingLoad: energy.lighting,
+    equipmentLoad: energy.equipment,
+    lifecycleCost30yr: lifecycle.total30yr,
+    lifecycleCostPerSqm: lifecycle.perSqm,
+    lifecycle: lifecycle.timeline,
+    carbonEfficiency,
+    energyRating,
+    materialCircularity,
+    waterEfficiency,
+    recommendations,
+    config
+  };
+}
+
+// server/routers/sustainability.ts
+var materialEnum = z21.enum([
+  "concrete",
+  "steel",
+  "glass",
+  "aluminum",
+  "timber",
+  "stone",
+  "gypsum",
+  "insulation",
+  "ceramic"
+]);
+var sustainabilityRouter = router({
+  computeTwin: heavyProcedure.input(z21.object({
+    projectId: z21.number(),
+    floors: z21.number().min(1).max(200).default(5),
+    specLevel: z21.enum(["economy", "standard", "premium", "luxury"]).default("standard"),
+    glazingRatio: z21.number().min(0).max(1).default(0.35),
+    materials: z21.array(z21.object({
+      material: materialEnum,
+      percentage: z21.number().min(0).max(100)
+    })).optional(),
+    location: z21.enum(["dubai", "abu_dhabi", "sharjah", "other_gcc", "temperate"]).default("dubai"),
+    includeRenewables: z21.boolean().default(false),
+    waterRecycling: z21.boolean().default(false)
+  })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new Error("Project not found");
+    const gfa = Number(project.siteArea || 500);
+    const sustainabilityRating = Number(project.des05Sustainability || 2);
+    const materials = input.materials && input.materials.length > 0 ? input.materials : [
+      { material: "concrete", percentage: 45 },
+      { material: "steel", percentage: 20 },
+      { material: "glass", percentage: 12 },
+      { material: "gypsum", percentage: 10 },
+      { material: "ceramic", percentage: 8 },
+      { material: "insulation", percentage: 5 }
+    ];
+    const result = computeDigitalTwin({
+      gfa,
+      floors: input.floors,
+      specLevel: input.specLevel,
+      glazingRatio: input.glazingRatio,
+      materials,
+      location: input.location,
+      sustainabilityRating,
+      includeRenewables: input.includeRenewables,
+      waterRecycling: input.waterRecycling
+    });
+    const d = await getDb();
+    if (d) {
+      await d.insert(digitalTwinModels).values({
+        projectId: input.projectId,
+        userId: ctx.user.id,
+        orgId: ctx.user.orgId || null,
+        sustainabilityScore: result.sustainabilityScore,
+        sustainabilityGrade: result.sustainabilityGrade,
+        embodiedCarbon: String(result.totalEmbodiedCarbon),
+        carbonPerSqm: String(result.carbonPerSqm),
+        operationalEnergy: String(result.operationalEnergy),
+        energyPerSqm: String(result.energyPerSqm),
+        lifecycleCost30yr: String(result.lifecycleCost30yr),
+        carbonBreakdown: result.carbonBreakdown,
+        lifecycle: result.lifecycle,
+        config: result.config
+      });
+      await d.insert(sustainabilitySnapshots).values({
+        projectId: input.projectId,
+        userId: ctx.user.id,
+        compositeScore: result.sustainabilityScore,
+        grade: result.sustainabilityGrade,
+        embodiedCarbon: String(result.totalEmbodiedCarbon),
+        operationalEnergy: String(result.operationalEnergy),
+        lifecycleCost: String(result.lifecycleCost30yr),
+        carbonPerSqm: String(result.carbonPerSqm),
+        energyRating: result.energyRating || null,
+        renewablesEnabled: input.includeRenewables,
+        waterRecycling: input.waterRecycling,
+        configSnapshot: result.config
+      });
+    }
+    return result;
+  }),
+  getTwinModels: protectedProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ input }) => {
+    const d = await getDb();
+    if (!d) return [];
+    return d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(10);
+  }),
+  getLatestTwin: protectedProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ input }) => {
+    const d = await getDb();
+    if (!d) return null;
+    const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
+    return rows[0] || null;
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -18036,7 +23357,10 @@ var appRouter = router({
   organization: organizationRouter,
   economics: economicsRouter,
   bias: biasRouter,
-  designAdvisor: designAdvisorRouter
+  designAdvisor: designAdvisorRouter,
+  portfolio: portfolioRouter,
+  customerSuccess: customerSuccessRouter,
+  sustainability: sustainabilityRouter
 });
 
 // server/_core/context.ts

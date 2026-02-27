@@ -40,6 +40,7 @@ export const SOURCE_URLS: Record<string, string> = {
   // ─── V4: New UAE Market Sources ─────────────────────────────────
   "dubai-pulse-materials": "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
   "scad-abu-dhabi": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+  "scad-pdf-materials": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
   "dld-transactions": "https://www.dubaipulse.gov.ae/data/dld_transactions/dld_transactions-open",
   "aldar-properties": "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
   "cbre-uae-research": "https://www.cbre.ae/en/insights",
@@ -845,6 +846,11 @@ export const ALL_CONNECTORS: Record<string, () => BaseSourceConnector> = {
   // V5: Live Property Listing Sources
   "bayut-listings": () => new BayutListingsConnector(),
   "propertyfinder-listings": () => new PropertyFinderListingsConnector(),
+  // V6: PDF-based connectors
+  "scad-pdf-materials": () => {
+    const { SCADPdfConnector } = require("./scad-pdf-connector");
+    return new SCADPdfConnector();
+  },
 };
 
 export function getConnectorById(sourceId: string): BaseSourceConnector | null {
