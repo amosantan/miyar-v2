@@ -50,6 +50,7 @@ import IntelAuditLog from "./pages/market-intel/IntelAuditLog";
 import IngestionMonitor from "./pages/market-intel/IngestionMonitor";
 import AnalyticsDashboard from "./pages/market-intel/AnalyticsDashboard";
 import DataHealth from "./pages/market-intel/DataHealth";
+import DldInsights from "./pages/market-intel/DldInsights";
 import Alerts from "./pages/Alerts";
 import DesignAdvisor from "./pages/DesignAdvisor";
 import PortfolioPage from "./pages/PortfolioPage";
@@ -126,6 +127,7 @@ function Router() {
       <Route path="/market-intel/data-health">{() => <Protected Component={DataHealth} />}</Route>
       <Route path="/market-intel/ingestion">{() => <Protected Component={IngestionMonitor} />}</Route>
       <Route path="/market-intel/analytics">{() => <Protected Component={AnalyticsDashboard} />}</Route>
+      <Route path="/market-intel/dld-insights">{() => <Protected Component={DldInsights} />}</Route>
 
       {/* Admin routes (admin-only) */}
       <Route path="/admin/benchmarks">{() => <AdminOnly Component={Benchmarks} />}</Route>

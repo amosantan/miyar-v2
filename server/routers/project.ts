@@ -466,7 +466,28 @@ export const projectRouter = router({
         console.error("[Project] Post-evaluation alert generation failed:", err);
       }
 
-      return { scoreMatrixId: matrixResult.id, ...scoreResult };
+      // Phase C.1+C.2: DLD Market Positioning + Over/Under-Spec Detection
+      let dldMarketPosition = null;
+      if (project.dldAreaId) {
+        const { computeMarketPosition } = await import("../engines/dld-analytics");
+        const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
+        if (dldBench?.saleP50) {
+          const fitoutCost = Number(project.fin01BudgetCap || expectedCost);
+          const tierMap: Record<string, string> = { "Entry": "economy", "Mid": "mid", "Upper-mid": "premium", "Luxury": "luxury", "Ultra-luxury": "ultra_luxury" };
+          dldMarketPosition = computeMarketPosition(
+            fitoutCost,
+            Number(dldBench.saleP50),
+            tierMap[inputs.mkt01Tier] || "mid",
+            dldBench.saleP25 ? Number(dldBench.saleP25) : undefined,
+            dldBench.saleP75 ? Number(dldBench.saleP75) : undefined,
+          );
+          if (dldMarketPosition.riskFlag) {
+            console.log(`[Evaluate] DLD Spec Risk: ${dldMarketPosition.riskFlag} — ${dldMarketPosition.riskMessage}`);
+          }
+        }
+      }
+
+      return { scoreMatrixId: matrixResult.id, ...scoreResult, dldMarketPosition };
     }),
 
   getScores: orgProcedure
@@ -531,7 +552,24 @@ export const projectRouter = router({
         horizon: project.ctx05Horizon || "12-24m",
       };
 
-      return computeRoi(roiInputs, coefficients);
+      const roiResult = computeRoi(roiInputs, coefficients);
+
+      // Phase C.3: Enrich ROI with DLD rental yield context
+      let dldContext = null;
+      if (project.dldAreaId) {
+        const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
+        if (dldBench) {
+          dldContext = {
+            areaName: project.dldAreaName || dldBench.areaName,
+            grossYield: dldBench.grossYield ? Number(dldBench.grossYield) : null,
+            saleP50: dldBench.saleP50 ? Number(dldBench.saleP50) : null,
+            projectPurpose: project.projectPurpose || "sell_ready",
+            fitoutMid: dldBench.recommendedFitoutMid ? Number(dldBench.recommendedFitoutMid) : null,
+          };
+        }
+      }
+
+      return { ...roiResult, dldContext };
     }),
 
   // ─── V2: 5-Lens Validation Framework ──────────────────────────────

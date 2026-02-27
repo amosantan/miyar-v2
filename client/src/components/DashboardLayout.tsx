@@ -73,6 +73,7 @@ import {
   TrendingUp,
   Dices,
   Leaf,
+  MapPin,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -119,6 +120,7 @@ const marketIntelItems = [
   { icon: HeartPulse, label: "Data Health", path: "/market-intel/data-health" },
   { icon: Zap, label: "Ingestion Monitor", path: "/market-intel/ingestion" },
   { icon: TrendingUp, label: "Analytics Intelligence", path: "/market-intel/analytics" },
+  { icon: MapPin, label: "DLD Insights", path: "/market-intel/dld-insights" },
 ];
 
 const adminItems = [
