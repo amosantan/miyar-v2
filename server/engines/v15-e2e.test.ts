@@ -22,6 +22,7 @@ const UAE_PROJECT_INPUTS: ProjectInputs = {
   ctx01Typology: "Residential",
   ctx02Scale: "Medium",
   ctx03Gfa: 1800,
+  totalFitoutArea: 1500,
   ctx04Location: "Prime", // Dubai = Prime
   ctx05Horizon: "12-24m" as any, // 18 months
   str01BrandClarity: 4,
@@ -46,6 +47,8 @@ const UAE_PROJECT_INPUTS: ProjectInputs = {
   add01SampleKit: false,
   add02PortfolioMode: false,
   add03DashboardExport: false,
+  city: "Dubai",
+  sustainCertTarget: "silver",
 };
 
 // ─── Evaluation Config (matches published logic version weights) ─────────────
@@ -98,8 +101,10 @@ describe("V1.5-08: Full Evaluation Pipeline E2E Test", () => {
     });
 
     it("all normalized values are in [0, 1] range", () => {
+      // Fields that are not normalized to [0,1] — ratios and multipliers
+      const EXCLUDE_KEYS = new Set(["fitoutRatio", "sustainCertMultiplier", "scaleBand"]);
       for (const [key, val] of Object.entries(n)) {
-        if (typeof val === "number") {
+        if (typeof val === "number" && !EXCLUDE_KEYS.has(key)) {
           expect(val).toBeGreaterThanOrEqual(0);
           expect(val).toBeLessThanOrEqual(1);
         }

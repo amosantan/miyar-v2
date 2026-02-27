@@ -68,6 +68,7 @@ import {
   dldTransactions,
   dldRents,
   dldAreaBenchmarks,
+  pdfExtractions,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2362,4 +2363,55 @@ export async function getActiveSourceRegistry(limit = 10) {
     .orderBy(asc(sourceRegistry.reliabilityDefault), desc(sourceRegistry.lastSuccessfulFetch))
     .limit(limit);
   return rows;
+}
+
+// ─── PDF Extractions (V4 — Fit-out Oracle) ──────────────────────────────────
+
+export async function createPdfExtraction(data: typeof pdfExtractions.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(pdfExtractions).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function getPdfExtractionsByProject(projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(pdfExtractions)
+    .where(eq(pdfExtractions.projectId, projectId))
+    .orderBy(desc(pdfExtractions.createdAt));
+}
+
+export async function getPdfExtractionById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(pdfExtractions).where(eq(pdfExtractions.id, id));
+  return rows[0];
+}
+
+export async function updatePdfExtraction(
+  id: number,
+  data: Partial<{
+    status: "pending" | "extracted" | "verified" | "rejected";
+    extractedRooms: any;
+    totalExtractedArea: string;
+    verifiedBy: number;
+    verifiedAt: Date;
+  }>
+) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(pdfExtractions).set(data as any).where(eq(pdfExtractions.id, id));
+}
+
+export async function updateProjectVerification(
+  projectId: number,
+  data: { fitoutAreaVerified?: boolean; totalFitoutArea?: number }
+) {
+  const db = await getDb();
+  if (!db) return;
+  const updates: any = {};
+  if (data.fitoutAreaVerified !== undefined) updates.fitoutAreaVerified = data.fitoutAreaVerified;
+  if (data.totalFitoutArea !== undefined) updates.totalFitoutArea = String(data.totalFitoutArea);
+  return db.update(projects).set(updates).where(eq(projects.id, projectId));
 }

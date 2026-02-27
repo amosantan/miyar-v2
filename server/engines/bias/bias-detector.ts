@@ -13,6 +13,7 @@ import type {
     DetectorContext,
 } from "./bias-types";
 import { TIER_BUDGET_BENCHMARKS, BIAS_LABELS } from "./bias-types";
+import { getPricingArea } from "../area-utils";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ function detectOptimismBias(
     const benchmark = TIER_BUDGET_BENCHMARKS[tier];
     if (!benchmark) return null;
 
-    const gfa = inputs.ctx03Gfa || 500; // default 500 sqm if not set
+    const gfa = getPricingArea(inputs); // V4: uses fitout area
     const budget = inputs.fin01BudgetCap || 0;
     const expectedBudget = benchmark.median * gfa;
     const budgetRatio = expectedBudget > 0 ? budget / expectedBudget : 1;

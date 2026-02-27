@@ -6,6 +6,7 @@ export type LocationCategory = "Prime" | "Secondary" | "Emerging";
 export type DeliveryHorizon = "0-12m" | "12-24m" | "24-36m" | "36m+";
 export type MarketTier = "Mid" | "Upper-mid" | "Luxury" | "Ultra-luxury";
 export type DesignStyle = "Modern" | "Contemporary" | "Minimal" | "Classic" | "Fusion" | "Other";
+export type ProjectArchetype = "residential_multi" | "office" | "single_villa" | "hospitality" | "community";
 export type ProjectCity = "Dubai" | "Abu Dhabi";
 export type ProjectStatus = "draft" | "ready" | "processing" | "evaluated" | "locked";
 export type DecisionStatus = "validated" | "conditional" | "not_validated";
@@ -18,6 +19,7 @@ export interface ProjectInputs {
   ctx01Typology: ProjectTypology;
   ctx02Scale: ProjectScale;
   ctx03Gfa: number | null;
+  totalFitoutArea: number | null;
   ctx04Location: LocationCategory;
   ctx05Horizon: DeliveryHorizon;
   // City & Sustainability Certification
@@ -82,6 +84,7 @@ export interface NormalizedInputs {
   compatVisionDesign: number;
   costVolatility: number;
   sustainCertMultiplier: number;
+  fitoutRatio: number;
 }
 
 export interface DimensionScores {

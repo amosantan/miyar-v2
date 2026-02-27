@@ -70,6 +70,7 @@ const VARIABLE_LABELS: Record<string, string> = {
   ctx01Typology: "Project Typology",
   ctx02Scale: "Project Scale",
   ctx03Gfa: "Gross Floor Area (sqm)",
+  totalFitoutArea: "Interior Fit-out Area (sqm)",
   ctx04Location: "Location Category",
   ctx05Horizon: "Delivery Horizon",
   // Strategy (3 variables)
@@ -147,7 +148,7 @@ const STRING_ENUM_VARS = new Set(["mkt01Tier", "des01Style", "ctx01Typology", "c
 const BOOLEAN_VARS = new Set(["add01SampleKit", "add02PortfolioMode", "add03DashboardExport"]);
 
 /** Variables that are numeric but not ordinal 1-5 (raw display, no normalization) */
-const RAW_NUMERIC_VARS = new Set(["fin01BudgetCap", "ctx03Gfa"]);
+const RAW_NUMERIC_VARS = new Set(["fin01BudgetCap", "ctx03Gfa", "totalFitoutArea"]);
 
 /** Display label mapping for string enum variables */
 const ENUM_DISPLAY_LABELS: Record<string, Record<string, string>> = {
@@ -251,7 +252,7 @@ export function generateExplainabilityReport(
   // Add-on booleans are placed in er (execution readiness).
   const dimensionVarMap: Record<string, string[]> = {
     sa: ["str01BrandClarity", "str02Differentiation", "str03BuyerMaturity", "ctx01Typology"],
-    ff: ["fin01BudgetCap", "fin02Flexibility", "fin03ShockTolerance", "fin04SalesPremium", "ctx03Gfa"],
+    ff: ["fin01BudgetCap", "fin02Flexibility", "fin03ShockTolerance", "fin04SalesPremium", "ctx03Gfa", "totalFitoutArea"],
     mp: ["mkt01Tier", "mkt02Competitor", "mkt03Trend", "ctx04Location"],
     ds: ["des01Style", "des02MaterialLevel", "des03Complexity", "des04Experience", "des05Sustainability", "ctx02Scale"],
     er: ["exe01SupplyChain", "exe02Contractor", "exe03Approvals", "exe04QaMaturity", "ctx05Horizon", "add01SampleKit", "add02PortfolioMode", "add03DashboardExport"],

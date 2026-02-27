@@ -6,6 +6,7 @@
 
 import type { ProjectInputs } from "../../shared/miyar-types";
 import type { CategoryPricing } from "./pricing-engine";
+import { getPricingArea } from "./area-utils";
 
 export interface PricingAnalytics {
   /** Weighted average AED/m² across all specified material types */
@@ -241,7 +242,7 @@ export function generateDesignBrief(
   const effectiveMaterialTier = tierOrder[adjustedTierIdx];
   const materials = TIER_MATERIALS[effectiveMaterialTier] || TIER_MATERIALS["Upper-mid"];
 
-  const gfa = inputs.ctx03Gfa ? Number(inputs.ctx03Gfa) : null;
+  const gfa = getPricingArea(inputs);
   const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
   const totalBudgetCap = budget && gfa ? budget * gfa : null;
 

@@ -61,12 +61,32 @@ async function buildEvalConfig(
   };
 }
 
+// V4 — Typed schemas for archetype-specific data
+const unitMixItemSchema = z.object({
+  unitType: z.string(),
+  areaSqm: z.number().min(0),
+  count: z.number().int().min(1),
+  includeInFitout: z.boolean().default(true),
+});
+
+const villaSpaceSchema = z.object({
+  floor: z.string(),
+  rooms: z.array(z.object({
+    name: z.string(),
+    areaSqm: z.number().min(0),
+  })),
+});
+
 const projectInputSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   ctx01Typology: z.enum(["Residential", "Mixed-use", "Hospitality", "Office", "Villa", "Gated Community", "Villa Development"]).default("Residential"),
   ctx02Scale: z.enum(["Small", "Medium", "Large"]).default("Medium"),
   ctx03Gfa: z.number().nullable().optional(),
+  // V4 — Fit-out area fields
+  totalFitoutArea: z.number().nullable().optional(),
+  totalNonFinishArea: z.number().nullable().optional(),
+  projectArchetype: z.enum(["residential_multi", "office", "single_villa", "hospitality", "community"]).optional(),
   ctx04Location: z.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
   ctx05Horizon: z.enum(["0-12m", "12-24m", "24-36m", "36m+"]).default("12-24m"),
   str01BrandClarity: z.number().min(1).max(5).default(3),
@@ -91,8 +111,8 @@ const projectInputSchema = z.object({
   add01SampleKit: z.boolean().default(false),
   add02PortfolioMode: z.boolean().default(false),
   add03DashboardExport: z.boolean().default(true),
-  unitMix: z.any().optional(),
-  villaSpaces: z.any().optional(),
+  unitMix: z.array(unitMixItemSchema).optional(),
+  villaSpaces: z.array(villaSpaceSchema).optional(),
   developerGuidelines: z.any().optional(),
   // DLD integration fields
   dldAreaId: z.number().nullable().optional(),
@@ -108,6 +128,7 @@ function projectToInputs(p: any): ProjectInputs {
     ctx01Typology: p.ctx01Typology ?? "Residential",
     ctx02Scale: p.ctx02Scale ?? "Medium",
     ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
     ctx04Location: p.ctx04Location ?? "Secondary",
     ctx05Horizon: p.ctx05Horizon ?? "12-24m",
     str01BrandClarity: p.str01BrandClarity ?? 3,
@@ -182,6 +203,8 @@ export const projectRouter = router({
         orgId: ctx.orgId,
         status: "draft",
         ctx03Gfa: input.ctx03Gfa ? String(input.ctx03Gfa) as any : null,
+        totalFitoutArea: input.totalFitoutArea ? String(input.totalFitoutArea) as any : null,
+        totalNonFinishArea: input.totalNonFinishArea ? String(input.totalNonFinishArea) as any : null,
         fin01BudgetCap: input.fin01BudgetCap ? String(input.fin01BudgetCap) as any : null,
       });
       await db.createAuditLog({
@@ -945,5 +968,150 @@ export const projectRouter = router({
       const project = await db.getProjectById(input.projectId);
       if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return [];
       return db.getReportsByProject(input.projectId);
+    }),
+
+  // ─── V4: Area Verification Gate ───────────────────────────────────────────
+
+  extractAreas: orgProcedure
+    .input(z.object({
+      projectId: z.number(),
+      assetId: z.number(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) {
+        throw new Error("Project not found or unauthorized");
+      }
+
+      const asset = await db.getProjectAssetById(input.assetId);
+      if (!asset) throw new Error("Asset not found");
+      if (!asset.storageUrl) throw new Error("Asset has no storage URL");
+
+      // Create pending extraction record
+      const extraction = await db.createPdfExtraction({
+        projectId: input.projectId,
+        assetId: input.assetId,
+        extractionMethod: "vision_ai",
+        status: "pending",
+      });
+
+      try {
+        const { extractRoomsFromImage } = await import("../engines/pdf-extraction");
+
+        const result = await extractRoomsFromImage(
+          asset.storageUrl,
+          {
+            typology: project.ctx01Typology || undefined,
+            gfa: project.ctx03Gfa ? Number(project.ctx03Gfa) : undefined,
+            archetype: (project as any).projectArchetype || undefined,
+          }
+        );
+
+        // Update extraction with results
+        await db.updatePdfExtraction(extraction.id, {
+          status: "extracted",
+          extractedRooms: result.rooms,
+          totalExtractedArea: String(result.totalArea),
+        });
+
+        await db.createAuditLog({
+          userId: ctx.user.id,
+          action: "area.extract",
+          entityType: "pdf_extraction",
+          entityId: extraction.id,
+          details: {
+            projectId: input.projectId,
+            assetId: input.assetId,
+            roomCount: result.rooms.length,
+            totalArea: result.totalArea,
+          },
+        });
+
+        return {
+          id: extraction.id,
+          rooms: result.rooms,
+          totalArea: result.totalArea,
+          warnings: result.warnings,
+          status: "extracted" as const,
+        };
+      } catch (error: any) {
+        await db.updatePdfExtraction(extraction.id, {
+          status: "rejected",
+        });
+        throw new Error(`Area extraction failed: ${error.message}`);
+      }
+    }),
+
+  verifyAreas: orgProcedure
+    .input(z.object({
+      projectId: z.number(),
+      extractionId: z.number(),
+      action: z.enum(["verify", "reject"]),
+      adjustedTotalArea: z.number().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) {
+        throw new Error("Project not found or unauthorized");
+      }
+
+      const extraction = await db.getPdfExtractionById(input.extractionId);
+      if (!extraction) throw new Error("Extraction not found");
+      if (extraction.projectId !== input.projectId) throw new Error("Extraction does not belong to this project");
+
+      if (input.action === "verify") {
+        // Mark extraction as verified
+        await db.updatePdfExtraction(input.extractionId, {
+          status: "verified",
+          verifiedBy: ctx.user.id,
+          verifiedAt: new Date(),
+        });
+
+        // Update project's fitout area verification flag
+        const verifiedArea = input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
+        await db.updateProjectVerification(input.projectId, {
+          fitoutAreaVerified: true,
+          totalFitoutArea: verifiedArea,
+        });
+
+        await db.createAuditLog({
+          userId: ctx.user.id,
+          action: "area.verify",
+          entityType: "pdf_extraction",
+          entityId: input.extractionId,
+          details: {
+            projectId: input.projectId,
+            verifiedArea,
+            adjustedFromExtracted: input.adjustedTotalArea !== undefined,
+          },
+        });
+
+        return { success: true, verifiedArea };
+      } else {
+        // Reject extraction
+        await db.updatePdfExtraction(input.extractionId, {
+          status: "rejected",
+          verifiedBy: ctx.user.id,
+          verifiedAt: new Date(),
+        });
+
+        await db.createAuditLog({
+          userId: ctx.user.id,
+          action: "area.reject",
+          entityType: "pdf_extraction",
+          entityId: input.extractionId,
+          details: { projectId: input.projectId },
+        });
+
+        return { success: true, verifiedArea: null };
+      }
+    }),
+
+  getExtractions: orgProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return [];
+      return db.getPdfExtractionsByProject(input.projectId);
     }),
 });

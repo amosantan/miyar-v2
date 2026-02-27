@@ -41,6 +41,7 @@ function projectToInputs(p: any): ProjectInputs {
     ctx01Typology: p.ctx01Typology ?? "Residential",
     ctx02Scale: p.ctx02Scale ?? "Medium",
     ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
     ctx04Location: p.ctx04Location ?? "Secondary",
     ctx05Horizon: p.ctx05Horizon ?? "12-24m",
     str01BrandClarity: p.str01BrandClarity ?? 3,
@@ -65,6 +66,8 @@ function projectToInputs(p: any): ProjectInputs {
     add01SampleKit: p.add01SampleKit ?? false,
     add02PortfolioMode: p.add02PortfolioMode ?? false,
     add03DashboardExport: p.add03DashboardExport ?? true,
+    city: p.city ?? "Dubai",
+    sustainCertTarget: p.sustainCertTarget || "silver",
   };
 }
 

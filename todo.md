@@ -185,3 +185,16 @@ For 50M+ AED deals, the investor may need a digitally signed document.
 | Phase D — Governance & Compliance | ✅ Complete | Estidama/Al Sa'fat, audit trails, methodology page, cert-aware pricing |
 | Phase E — Scale Features | ✅ Complete | Portfolio benchmarking, mobile share views, RICS NRM alignment |
 
+---
+
+## 🚀 MIYAR v4 — The Fit-out Oracle
+
+> **Mission**: Shift MIYAR from GFA-based to fit-out-area-based pricing — luxury fitout should never price structural voids.
+
+| Phase | Status | Summary |
+|-------|--------|---------|
+| Phase A — Schema + Types + Area Utility | 🎯 In Progress | `totalFitoutArea` column, `projectArchetype` enum, `area-utils.ts`, typed unitMix/villaSpaces schemas |
+| Phase B — Adaptive Project Creator | 📋 Planned | Archetype-conditional UI (residential unit mix, villa room list, office shell & core toggle) |
+| Phase C — Engine Migration (50+ callsites) | 📋 Planned | Migrate scoring, normalization, design-brief, bias-detector, AI advisor, explainability, reports from GFA → fitout area |
+| Phase D — Developer Verification Gate | 📋 Planned | Area audit page, Gemini vision PDF extraction, confidence scoring, verification workflow |
+

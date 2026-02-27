@@ -14,6 +14,7 @@ import type {
   DecisionStatus,
 } from "../../shared/miyar-types";
 import { normalizeInputs } from "./normalization";
+import { getPricingArea } from "./area-utils";
 
 // ─── Dimension Scoring ───────────────────────────────────────────────────────
 
@@ -380,9 +381,10 @@ export function computeROI(
   netROI: number;
   roiMultiple: number;
 } {
-  const gfa = inputs.ctx03Gfa ?? 500000;
+  // V4: Use fitout area for pricing calculations (falls back to GFA)
+  const pricingArea = getPricingArea(inputs);
   const budgetCap = inputs.fin01BudgetCap ?? 400;
-  const totalBudget = gfa * budgetCap;
+  const totalBudget = pricingArea * budgetCap;
 
   // Rework avoided: 8-15% of total budget, scaled by score
   const reworkRate = 0.08 + (compositeScore / 100) * 0.07;

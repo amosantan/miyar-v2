@@ -26,8 +26,13 @@ import {
   Palette,
   Wrench,
   Settings,
+  Plus,
+  Trash2,
+  AlertTriangle,
+  Layers,
+  Home,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { CITY_TIERS, DEFAULT_TIER, CERT_MULTIPLIERS, CERT_TO_DES05 } from "../../../server/engines/sustainability/sustainability-multipliers";
@@ -82,6 +87,458 @@ function OrdinalSlider({
   );
 }
 
+// ─── V4: Archetype Mapping ─────────────────────────────────────────────────
+
+type ProjectArchetype = "residential_multi" | "office" | "single_villa" | "hospitality" | "community";
+
+function getArchetype(typology: string): ProjectArchetype {
+  switch (typology) {
+    case "Residential":
+    case "Mixed-use":
+      return "residential_multi";
+    case "Villa":
+    case "Villa Development":
+      return "single_villa";
+    case "Office":
+      return "office";
+    case "Hospitality":
+      return "hospitality";
+    case "Gated Community":
+      return "community";
+    default:
+      return "residential_multi";
+  }
+}
+
+/** Benchmark fitout efficiency ratios by archetype */
+const ARCHETYPE_EFFICIENCY: Record<string, { low: number; mid: number; high: number }> = {
+  residential_multi: { low: 0.70, mid: 0.75, high: 0.80 },
+  office: { low: 0.65, mid: 0.70, high: 0.75 },
+  single_villa: { low: 0.85, mid: 0.90, high: 0.95 },
+  hospitality: { low: 0.55, mid: 0.62, high: 0.70 },
+  community: { low: 0.72, mid: 0.78, high: 0.85 },
+};
+
+// ─── V4: Unit Mix Types ────────────────────────────────────────────────────
+
+type UnitMixRow = {
+  unitType: string;
+  areaSqm: number;
+  count: number;
+  includeInFitout: boolean;
+};
+
+const DEFAULT_UNIT_TYPES = ["Studio", "1 BR", "2 BR", "3 BR", "Penthouse", "Duplex"];
+
+function UnitMixBuilder({
+  units,
+  onChange,
+}: {
+  units: UnitMixRow[];
+  onChange: (units: UnitMixRow[]) => void;
+}) {
+  const addRow = () => {
+    const nextType = DEFAULT_UNIT_TYPES.find(
+      (t) => !units.some((u) => u.unitType === t)
+    ) || `Unit ${units.length + 1}`;
+    onChange([...units, { unitType: nextType, areaSqm: 80, count: 1, includeInFitout: true }]);
+  };
+
+  const removeRow = (idx: number) => {
+    onChange(units.filter((_, i) => i !== idx));
+  };
+
+  const updateRow = (idx: number, field: keyof UnitMixRow, value: any) => {
+    const next = [...units];
+    next[idx] = { ...next[idx], [field]: value };
+    onChange(next);
+  };
+
+  const totalFitout = units
+    .filter((u) => u.includeInFitout)
+    .reduce((sum, u) => sum + u.areaSqm * u.count, 0);
+  const totalUnits = units.reduce((sum, u) => sum + u.count, 0);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Layers className="h-4 w-4 text-primary" />
+          <Label className="text-sm font-semibold">Unit Mix Builder</Label>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={addRow} className="gap-1 h-7 text-xs">
+          <Plus className="h-3 w-3" /> Add Unit
+        </Button>
+      </div>
+
+      {units.length > 0 && (
+        <div className="border border-border rounded-lg overflow-hidden">
+          {/* Header */}
+          <div className="grid grid-cols-[1fr_90px_70px_70px_32px] gap-1 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground">
+            <span>Type</span>
+            <span>Area (sqm)</span>
+            <span>Count</span>
+            <span>Fitout</span>
+            <span></span>
+          </div>
+          {/* Rows */}
+          {units.map((u, i) => (
+            <div key={i} className="grid grid-cols-[1fr_90px_70px_70px_32px] gap-1 px-3 py-1.5 border-t border-border items-center">
+              <Select value={u.unitType} onValueChange={(v) => updateRow(i, "unitType", v)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEFAULT_UNIT_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                  <SelectItem value={`Custom ${i + 1}`}>Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                className="h-8 text-xs"
+                value={u.areaSqm || ""}
+                onChange={(e) => updateRow(i, "areaSqm", Number(e.target.value) || 0)}
+              />
+              <Input
+                type="number"
+                className="h-8 text-xs"
+                value={u.count || ""}
+                onChange={(e) => updateRow(i, "count", Math.max(1, parseInt(e.target.value) || 1))}
+              />
+              <div className="flex justify-center">
+                <Switch
+                  checked={u.includeInFitout}
+                  onCheckedChange={(v) => updateRow(i, "includeInFitout", v)}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={() => removeRow(i)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+          {/* Summary */}
+          <div className="grid grid-cols-[1fr_90px_70px_70px_32px] gap-1 px-3 py-2 bg-primary/5 border-t border-border text-xs font-semibold">
+            <span className="text-foreground">Total</span>
+            <span className="text-primary">{totalFitout.toLocaleString()} sqm</span>
+            <span className="text-muted-foreground">{totalUnits} units</span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      )}
+
+      {units.length === 0 && (
+        <div className="border border-dashed border-border rounded-lg p-6 text-center">
+          <p className="text-sm text-muted-foreground">Add unit types to build the project mix</p>
+          <Button type="button" variant="outline" size="sm" onClick={addRow} className="mt-2 gap-1">
+            <Plus className="h-3 w-3" /> Add First Unit
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── V4: Room List Builder ─────────────────────────────────────────────────
+
+type VillaRoom = { name: string; areaSqm: number };
+type VillaFloor = { floor: string; rooms: VillaRoom[] };
+
+const VILLA_PRESETS: Record<string, VillaRoom[]> = {
+  Ground: [
+    { name: "Majlis", areaSqm: 45 },
+    { name: "Show Kitchen", areaSqm: 25 },
+    { name: "Living Room", areaSqm: 40 },
+    { name: "Guest Suite", areaSqm: 30 },
+    { name: "Powder Room", areaSqm: 5 },
+  ],
+  First: [
+    { name: "Master Suite", areaSqm: 55 },
+    { name: "Bedroom 2", areaSqm: 25 },
+    { name: "Bedroom 3", areaSqm: 22 },
+    { name: "Family Lounge", areaSqm: 30 },
+  ],
+  Basement: [
+    { name: "Cinema Room", areaSqm: 35 },
+    { name: "Gym", areaSqm: 30 },
+    { name: "Maid's Room", areaSqm: 12 },
+    { name: "Storage", areaSqm: 15 },
+  ],
+};
+
+function RoomListBuilder({
+  floors,
+  onChange,
+}: {
+  floors: VillaFloor[];
+  onChange: (floors: VillaFloor[]) => void;
+}) {
+  const addFloor = () => {
+    const floorNames = ["Ground", "First", "Second", "Basement", "Roof", "Mezzanine"];
+    const next = floorNames.find((f) => !floors.some((fl) => fl.floor === f)) || `Floor ${floors.length + 1}`;
+    const presetRooms = VILLA_PRESETS[next] || [{ name: "Room 1", areaSqm: 20 }];
+    onChange([...floors, { floor: next, rooms: presetRooms }]);
+  };
+
+  const removeFloor = (idx: number) => {
+    onChange(floors.filter((_, i) => i !== idx));
+  };
+
+  const addRoom = (floorIdx: number) => {
+    const next = [...floors];
+    next[floorIdx] = {
+      ...next[floorIdx],
+      rooms: [...next[floorIdx].rooms, { name: `Room ${next[floorIdx].rooms.length + 1}`, areaSqm: 20 }],
+    };
+    onChange(next);
+  };
+
+  const removeRoom = (floorIdx: number, roomIdx: number) => {
+    const next = [...floors];
+    next[floorIdx] = {
+      ...next[floorIdx],
+      rooms: next[floorIdx].rooms.filter((_, i) => i !== roomIdx),
+    };
+    onChange(next);
+  };
+
+  const updateRoom = (floorIdx: number, roomIdx: number, field: keyof VillaRoom, value: any) => {
+    const next = [...floors];
+    const rooms = [...next[floorIdx].rooms];
+    rooms[roomIdx] = { ...rooms[roomIdx], [field]: value };
+    next[floorIdx] = { ...next[floorIdx], rooms };
+    onChange(next);
+  };
+
+  const totalArea = floors.reduce(
+    (sum, fl) => sum + fl.rooms.reduce((s, r) => s + r.areaSqm, 0),
+    0
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Home className="h-4 w-4 text-primary" />
+          <Label className="text-sm font-semibold">Villa Room List</Label>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={addFloor} className="gap-1 h-7 text-xs">
+          <Plus className="h-3 w-3" /> Add Floor
+        </Button>
+      </div>
+
+      {floors.map((fl, fi) => (
+        <div key={fi} className="border border-border rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-muted/50">
+            <span className="text-xs font-semibold text-foreground">{fl.floor} Floor</span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">
+                {fl.rooms.reduce((s, r) => s + r.areaSqm, 0).toLocaleString()} sqm
+              </span>
+              <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeFloor(fi)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          {fl.rooms.map((r, ri) => (
+            <div key={ri} className="grid grid-cols-[1fr_90px_32px] gap-2 px-3 py-1.5 border-t border-border items-center">
+              <Input
+                className="h-8 text-xs"
+                value={r.name}
+                onChange={(e) => updateRoom(fi, ri, "name", e.target.value)}
+              />
+              <Input
+                type="number"
+                className="h-8 text-xs"
+                value={r.areaSqm || ""}
+                onChange={(e) => updateRoom(fi, ri, "areaSqm", Number(e.target.value) || 0)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-destructive"
+                onClick={() => removeRoom(fi, ri)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+          <div className="px-3 py-1.5 border-t border-border">
+            <Button type="button" variant="ghost" size="sm" onClick={() => addRoom(fi)} className="gap-1 h-7 text-xs text-muted-foreground hover:text-primary">
+              <Plus className="h-3 w-3" /> Add Room
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      {floors.length === 0 && (
+        <div className="border border-dashed border-border rounded-lg p-6 text-center">
+          <p className="text-sm text-muted-foreground">Add floors and rooms to define the villa layout</p>
+          <Button type="button" variant="outline" size="sm" onClick={addFloor} className="mt-2 gap-1">
+            <Plus className="h-3 w-3" /> Add Ground Floor
+          </Button>
+        </div>
+      )}
+
+      {floors.length > 0 && (
+        <div className="flex items-center justify-between px-3 py-2 bg-primary/5 rounded-lg text-xs font-semibold">
+          <span>Total Interior Area</span>
+          <span className="text-primary">{totalArea.toLocaleString()} sqm</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── V4: Shell & Core Toggle (Office) ──────────────────────────────────────
+
+function ShellCoreToggle({
+  fitoutCategory,
+  customRatio,
+  gfa,
+  onCategoryChange,
+  onRatioChange,
+}: {
+  fitoutCategory: "cat_a" | "cat_b";
+  customRatio: number;
+  gfa: number;
+  onCategoryChange: (cat: "cat_a" | "cat_b") => void;
+  onRatioChange: (ratio: number) => void;
+}) {
+  const defaultRatios = { cat_a: 0.35, cat_b: 0.70 };
+  const activeRatio = customRatio || defaultRatios[fitoutCategory];
+  const fitoutArea = Math.round(gfa * activeRatio);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Building2 className="h-4 w-4 text-primary" />
+        <Label className="text-sm font-semibold">Fitout Category</Label>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            onCategoryChange("cat_a");
+            onRatioChange(defaultRatios.cat_a);
+          }}
+          className={`rounded-lg border-2 p-3 text-left transition-all ${fitoutCategory === "cat_a"
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-primary/40"
+            }`}
+        >
+          <span className="text-sm font-semibold text-foreground">Cat A — Shell & Core</span>
+          <p className="text-xs text-muted-foreground mt-1">
+            Lobbies, washrooms, lift lobbies only (~35% of GFA)
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onCategoryChange("cat_b");
+            onRatioChange(defaultRatios.cat_b);
+          }}
+          className={`rounded-lg border-2 p-3 text-left transition-all ${fitoutCategory === "cat_b"
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-primary/40"
+            }`}
+        >
+          <span className="text-sm font-semibold text-foreground">Cat B — Full Fitout</span>
+          <p className="text-xs text-muted-foreground mt-1">
+            Complete tenant fitout including floor, ceiling, partitions (~70% of GFA)
+          </p>
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs">Custom Ratio Override</Label>
+          <span className="text-xs font-medium text-primary">{Math.round(activeRatio * 100)}%</span>
+        </div>
+        <Slider
+          min={20}
+          max={95}
+          step={5}
+          value={[Math.round(activeRatio * 100)]}
+          onValueChange={([v]) => onRatioChange(v / 100)}
+        />
+        <p className="text-xs text-muted-foreground">
+          Estimated fitout area: <span className="font-medium text-foreground">{fitoutArea.toLocaleString()} sqm</span> of {gfa.toLocaleString()} sqm GFA
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── V4: Fitout Area Summary Badge ─────────────────────────────────────────
+
+function FitoutAreaSummary({
+  gfa,
+  fitoutArea,
+  archetype,
+}: {
+  gfa: number;
+  fitoutArea: number;
+  archetype: ProjectArchetype;
+}) {
+  if (!fitoutArea || !gfa) return null;
+
+  const ratio = fitoutArea / gfa;
+  const benchmark = ARCHETYPE_EFFICIENCY[archetype];
+  const isLow = benchmark && ratio < benchmark.low;
+  const isHigh = benchmark && ratio > benchmark.high;
+  const isOk = !isLow && !isHigh;
+
+  return (
+    <div className={`rounded-lg border p-3 space-y-2 ${isOk ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"
+      }`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">Area Breakdown</span>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isOk ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600"
+          }`}>
+          {Math.round(ratio * 100)}% efficiency
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-3 text-xs">
+        <div>
+          <span className="text-muted-foreground">GFA</span>
+          <p className="font-semibold text-foreground">{gfa.toLocaleString()} sqm</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Fitout Area</span>
+          <p className="font-semibold text-primary">{fitoutArea.toLocaleString()} sqm</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Non-Finish</span>
+          <p className="font-semibold text-foreground">{(gfa - fitoutArea).toLocaleString()} sqm</p>
+        </div>
+      </div>
+      {(isLow || isHigh) && benchmark && (
+        <div className="flex items-start gap-1.5 text-xs text-amber-600">
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            {isLow
+              ? `Fitout ratio is below expected range (${(benchmark.low * 100).toFixed(0)}-${(benchmark.high * 100).toFixed(0)}%). Verify GFA includes all structural areas.`
+              : `Fitout ratio exceeds expected range (${(benchmark.low * 100).toFixed(0)}-${(benchmark.high * 100).toFixed(0)}%). Verify fit-out scope.`}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Form Types ────────────────────────────────────────────────────────────
+
 type FormData = {
   name: string;
   description: string;
@@ -115,8 +572,11 @@ type FormData = {
   add01SampleKit: boolean;
   add02PortfolioMode: boolean;
   add03DashboardExport: boolean;
-  unitMix?: string;
-  villaSpaces?: string;
+  // V4 — structured area inputs
+  unitMixRows: UnitMixRow[];
+  villaFloors: VillaFloor[];
+  officeFitoutCategory: "cat_a" | "cat_b";
+  officeCustomRatio: number;
   developerGuidelines?: string;
   city: string;
   sustainCertTarget: string;
@@ -160,8 +620,11 @@ function ProjectNewContent() {
     add01SampleKit: false,
     add02PortfolioMode: false,
     add03DashboardExport: true,
-    unitMix: "",
-    villaSpaces: "",
+    // V4 defaults
+    unitMixRows: [],
+    villaFloors: [],
+    officeFitoutCategory: "cat_b",
+    officeCustomRatio: 0.70,
     developerGuidelines: "",
     city: "Dubai",
     sustainCertTarget: "silver",
@@ -170,11 +633,70 @@ function ProjectNewContent() {
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  // V4: Derive archetype from typology
+  const archetype = useMemo(() => getArchetype(form.ctx01Typology), [form.ctx01Typology]);
+
+  // V4: Auto-calculate totalFitoutArea based on archetype
+  const computedFitoutArea = useMemo<number>(() => {
+    switch (archetype) {
+      case "residential_multi":
+      case "community": {
+        // Sum of included units
+        const unitTotal = form.unitMixRows
+          .filter((u) => u.includeInFitout)
+          .reduce((sum, u) => sum + u.areaSqm * u.count, 0);
+        return unitTotal > 0 ? unitTotal : 0;
+      }
+      case "single_villa": {
+        // Sum of all rooms across floors
+        return form.villaFloors.reduce(
+          (sum, fl) => sum + fl.rooms.reduce((s, r) => s + r.areaSqm, 0),
+          0
+        );
+      }
+      case "office": {
+        // GFA × fitout ratio
+        return Math.round((form.ctx03Gfa || 0) * form.officeCustomRatio);
+      }
+      case "hospitality": {
+        // Same as residential (unit-based) or fallback to GFA × mid ratio
+        const unitTotal = form.unitMixRows
+          .filter((u) => u.includeInFitout)
+          .reduce((sum, u) => sum + u.areaSqm * u.count, 0);
+        if (unitTotal > 0) return unitTotal;
+        const eff = ARCHETYPE_EFFICIENCY.hospitality;
+        return Math.round((form.ctx03Gfa || 0) * eff.mid);
+      }
+      default:
+        return 0;
+    }
+  }, [archetype, form.unitMixRows, form.villaFloors, form.ctx03Gfa, form.officeCustomRatio]);
+
   const canProceed = step === 0 ? form.name.trim().length > 0 : true;
 
   async function handleCreate() {
     try {
-      const result = await createProject.mutateAsync(form as any);
+      // Build submission payload
+      const payload: any = { ...form };
+
+      // V4: Add computed area fields
+      payload.totalFitoutArea = computedFitoutArea > 0 ? computedFitoutArea : null;
+      payload.totalNonFinishArea = (form.ctx03Gfa && computedFitoutArea > 0)
+        ? form.ctx03Gfa - computedFitoutArea
+        : null;
+      payload.projectArchetype = archetype;
+
+      // Serialize structured data to JSON arrays for the router
+      payload.unitMix = form.unitMixRows.length > 0 ? form.unitMixRows : undefined;
+      payload.villaSpaces = form.villaFloors.length > 0 ? form.villaFloors : undefined;
+
+      // Remove internal-only fields
+      delete payload.unitMixRows;
+      delete payload.villaFloors;
+      delete payload.officeFitoutCategory;
+      delete payload.officeCustomRatio;
+
+      const result = await createProject.mutateAsync(payload);
       toast.success("Project created successfully");
       setLocation(`/projects/${result.id}`);
     } catch (e: any) {
@@ -404,28 +926,42 @@ function ProjectNewContent() {
                 </Select>
               </div>
 
-              {["Villa", "Gated Community", "Villa Development"].includes(form.ctx01Typology) && (
-                <div className="space-y-2">
-                  <Label>Villa Spaces (e.g. Majlis, Show Kitchen)</Label>
-                  <Textarea
-                    placeholder="List expected spaces in the villas..."
-                    value={form.villaSpaces || ""}
-                    onChange={(e) => set("villaSpaces", e.target.value)}
-                    rows={2}
-                  />
-                </div>
+              {/* ─── V4: Archetype-specific sub-forms ─── */}
+
+              {/* Residential / Mixed-use / Gated Community / Hospitality → Unit Mix */}
+              {["residential_multi", "community", "hospitality"].includes(archetype) && (
+                <UnitMixBuilder
+                  units={form.unitMixRows}
+                  onChange={(rows) => set("unitMixRows", rows)}
+                />
               )}
 
-              {["Residential", "Gated Community", "Mixed-use", "Villa Development"].includes(form.ctx01Typology) && (
-                <div className="space-y-2">
-                  <Label>Unit Mix</Label>
-                  <Textarea
-                    placeholder="e.g. 20% 1BR, 50% 2BR, 30% 3BR..."
-                    value={form.unitMix || ""}
-                    onChange={(e) => set("unitMix", e.target.value)}
-                    rows={2}
-                  />
-                </div>
+              {/* Villa / Villa Development → Room List */}
+              {archetype === "single_villa" && (
+                <RoomListBuilder
+                  floors={form.villaFloors}
+                  onChange={(floors) => set("villaFloors", floors)}
+                />
+              )}
+
+              {/* Office → Shell & Core Toggle */}
+              {archetype === "office" && (
+                <ShellCoreToggle
+                  fitoutCategory={form.officeFitoutCategory}
+                  customRatio={form.officeCustomRatio}
+                  gfa={form.ctx03Gfa || 0}
+                  onCategoryChange={(cat) => set("officeFitoutCategory", cat)}
+                  onRatioChange={(ratio) => set("officeCustomRatio", ratio)}
+                />
+              )}
+
+              {/* V4: Fitout Area Summary (shows whenever we have GFA + computed area) */}
+              {form.ctx03Gfa && computedFitoutArea > 0 && (
+                <FitoutAreaSummary
+                  gfa={form.ctx03Gfa}
+                  fitoutArea={computedFitoutArea}
+                  archetype={archetype}
+                />
               )}
             </>
           )}
@@ -516,6 +1052,11 @@ function ProjectNewContent() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Maximum interior fit-out cost per square meter
+                  {computedFitoutArea > 0 && form.fin01BudgetCap && (
+                    <span className="ml-1 text-primary font-medium">
+                      — Est. total: {(computedFitoutArea * form.fin01BudgetCap).toLocaleString()} AED
+                    </span>
+                  )}
                 </p>
               </div>
               <OrdinalSlider
@@ -666,9 +1207,35 @@ function ProjectNewContent() {
                       </span>
                     </div>
                     <div>
+                      <span className="text-muted-foreground">Archetype:</span>{" "}
+                      <span className="text-foreground capitalize">
+                        {archetype.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                    <div>
                       <span className="text-muted-foreground">Scale:</span>{" "}
                       <span className="text-foreground">{form.ctx02Scale}</span>
                     </div>
+                    <div>
+                      <span className="text-muted-foreground">GFA:</span>{" "}
+                      <span className="text-foreground">
+                        {form.ctx03Gfa ? `${form.ctx03Gfa.toLocaleString()} sqm` : "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Fitout Area:</span>{" "}
+                      <span className="text-primary font-medium">
+                        {computedFitoutArea > 0 ? `${computedFitoutArea.toLocaleString()} sqm` : "—"}
+                      </span>
+                    </div>
+                    {form.ctx03Gfa && computedFitoutArea > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Fitout Ratio:</span>{" "}
+                        <span className="text-foreground">
+                          {Math.round((computedFitoutArea / form.ctx03Gfa) * 100)}%
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <span className="text-muted-foreground">Location:</span>{" "}
                       <span className="text-foreground">
@@ -702,8 +1269,28 @@ function ProjectNewContent() {
                         </span>
                       </span>
                     </div>
+                    {form.fin01BudgetCap && computedFitoutArea > 0 && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Est. Total Budget:</span>{" "}
+                        <span className="text-primary font-semibold">
+                          {(computedFitoutArea * form.fin01BudgetCap).toLocaleString()} AED
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          ({form.fin01BudgetCap} AED/sqm × {computedFitoutArea.toLocaleString()} sqm)
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* V4: Fitout area efficiency check in review */}
+                {form.ctx03Gfa && computedFitoutArea > 0 && (
+                  <FitoutAreaSummary
+                    gfa={form.ctx03Gfa}
+                    fitoutArea={computedFitoutArea}
+                    archetype={archetype}
+                  />
+                )}
 
                 {/* Add-ons */}
                 <div className="space-y-3">

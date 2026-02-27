@@ -145,6 +145,7 @@ export const projects = mysqlTable("projects", {
   description: text("description"),
   status: mysqlEnum("status", [
     "draft",
+    "draft_area_verification",
     "ready",
     "processing",
     "evaluated",
@@ -175,6 +176,18 @@ export const projects = mysqlTable("projects", {
     "Medium"
   ),
   ctx03Gfa: decimal("ctx03Gfa", { precision: 12, scale: 2 }),
+
+  // V4 — Fit-out Oracle: area-based pricing
+  totalFitoutArea: decimal("totalFitoutArea", { precision: 12, scale: 2 }),
+  totalNonFinishArea: decimal("totalNonFinishArea", { precision: 12, scale: 2 }),
+  fitoutAreaVerified: boolean("fitoutAreaVerified").default(false),
+  projectArchetype: mysqlEnum("projectArchetype", [
+    "residential_multi",
+    "office",
+    "single_villa",
+    "hospitality",
+    "community",
+  ]),
   ctx04Location: mysqlEnum("ctx04Location", [
     "Prime",
     "Secondary",
@@ -1992,3 +2005,30 @@ export const dldAreaBenchmarks = mysqlTable("dld_area_benchmarks", {
 
 export type DldAreaBenchmark = typeof dldAreaBenchmarks.$inferSelect;
 export type InsertDldAreaBenchmark = typeof dldAreaBenchmarks.$inferInsert;
+
+// ─── PDF Extractions (V4 — Fit-out Oracle) ──────────────────────────────────
+export const pdfExtractions = mysqlTable("pdf_extractions", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  assetId: int("assetId").notNull(), // FK to project_assets
+  pageNumber: int("pageNumber"),
+  extractionMethod: mysqlEnum("extractionMethod", [
+    "text_layer",
+    "vision_ai",
+    "manual",
+  ]).default("manual").notNull(),
+  extractedRooms: json("extractedRooms"), // [{name, areaSqm, confidence, polygon}]
+  totalExtractedArea: decimal("totalExtractedArea", { precision: 12, scale: 2 }),
+  status: mysqlEnum("extractionStatus", [
+    "pending",
+    "extracted",
+    "verified",
+    "rejected",
+  ]).default("pending").notNull(),
+  verifiedBy: int("verifiedBy"),
+  verifiedAt: timestamp("verifiedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PdfExtraction = typeof pdfExtractions.$inferSelect;
+export type InsertPdfExtraction = typeof pdfExtractions.$inferInsert;

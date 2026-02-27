@@ -339,9 +339,14 @@ function renderInputSummary(inputs: ProjectInputs): string {
       items: [
         ["Typology", inputs.ctx01Typology],
         ["Scale", inputs.ctx02Scale],
-        ["GFA (sqm)", inputs.ctx03Gfa ? inputs.ctx03Gfa.toLocaleString() : "N/A"],
+        ["Gross Floor Area (sqm)", inputs.ctx03Gfa ? inputs.ctx03Gfa.toLocaleString() : "N/A"],
+        ["Interior Fit-out Area (sqm)", inputs.totalFitoutArea ? inputs.totalFitoutArea.toLocaleString() : "N/A"],
+        ...(inputs.ctx03Gfa && inputs.totalFitoutArea
+          ? [["Fitout Efficiency Ratio", `${Math.round((inputs.totalFitoutArea / inputs.ctx03Gfa) * 100)}%`] as [string, string]]
+          : []),
         ["Location", inputs.ctx04Location],
         ["Delivery Horizon", inputs.ctx05Horizon],
+        ["City", (inputs as any).city || "Dubai"],
       ],
     },
     {

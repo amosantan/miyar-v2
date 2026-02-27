@@ -29,6 +29,7 @@ const MIDMARKET: ProjectInputs = {
   ctx01Typology: "Residential",
   ctx02Scale: "Large",
   ctx03Gfa: 450000,
+  totalFitoutArea: 380000,
   ctx04Location: "Secondary",
   ctx05Horizon: "12-24m",
   str01BrandClarity: 3,
@@ -53,12 +54,15 @@ const MIDMARKET: ProjectInputs = {
   add01SampleKit: false,
   add02PortfolioMode: false,
   add03DashboardExport: true,
+  city: "Dubai",
+  sustainCertTarget: "silver",
 };
 
 const PREMIUM: ProjectInputs = {
   ctx01Typology: "Residential",
   ctx02Scale: "Medium",
   ctx03Gfa: 180000,
+  totalFitoutArea: 150000,
   ctx04Location: "Prime",
   ctx05Horizon: "24-36m",
   str01BrandClarity: 5,
@@ -83,6 +87,8 @@ const PREMIUM: ProjectInputs = {
   add01SampleKit: true,
   add02PortfolioMode: false,
   add03DashboardExport: true,
+  city: "Dubai",
+  sustainCertTarget: "gold",
 };
 
 const W: DimensionWeights = { sa: 0.25, ff: 0.20, mp: 0.20, ds: 0.15, er: 0.20 };
@@ -121,8 +127,10 @@ describe("normalizeOrdinal", () => {
 describe("normalizeInputs", () => {
   it("all values in [0,1]", () => {
     const n = normalizeInputs(MIDMARKET, 300);
-    for (const v of Object.values(n)) {
-      if (typeof v === "number") {
+    // Fields that are not normalized to [0,1] — ratios and multipliers
+    const EXCLUDE_KEYS = new Set(["fitoutRatio", "sustainCertMultiplier", "scaleBand"]);
+    for (const [k, v] of Object.entries(n)) {
+      if (typeof v === "number" && !EXCLUDE_KEYS.has(k)) {
         expect(v).toBeGreaterThanOrEqual(0);
         expect(v).toBeLessThanOrEqual(1);
       }

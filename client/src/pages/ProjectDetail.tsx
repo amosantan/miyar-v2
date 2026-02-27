@@ -1179,13 +1179,66 @@ function ProjectDetailContent() {
             {project.unitMix && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-foreground">Unit Mix</h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{project.unitMix as string}</p>
+                {Array.isArray(project.unitMix) ? (
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/30">
+                          <th className="text-left p-2 text-xs text-muted-foreground font-medium">Unit Type</th>
+                          <th className="text-right p-2 text-xs text-muted-foreground font-medium">Area (sqm)</th>
+                          <th className="text-right p-2 text-xs text-muted-foreground font-medium">Count</th>
+                          <th className="text-center p-2 text-xs text-muted-foreground font-medium">In Fitout</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(project.unitMix as any[]).map((u: any, i: number) => (
+                          <tr key={i} className="border-t border-border/50">
+                            <td className="p-2 text-foreground">{u.unitType}</td>
+                            <td className="p-2 text-right text-foreground">{u.areaSqm}</td>
+                            <td className="p-2 text-right text-foreground">{u.count}</td>
+                            <td className="p-2 text-center text-foreground">{u.includeInFitout ? "✓" : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{typeof project.unitMix === "object" ? JSON.stringify(project.unitMix, null, 2) : String(project.unitMix)}</p>
+                )}
               </div>
             )}
             {project.villaSpaces && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-foreground">Villa Spaces</h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{project.villaSpaces as string}</p>
+                {Array.isArray(project.villaSpaces) ? (
+                  <div className="space-y-3">
+                    {(project.villaSpaces as any[]).map((floor: any, fi: number) => (
+                      <div key={fi}>
+                        <p className="text-xs text-muted-foreground mb-1 font-medium">{floor.floor}</p>
+                        <div className="rounded-lg border border-border overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="bg-muted/30">
+                                <th className="text-left p-2 text-xs text-muted-foreground font-medium">Room</th>
+                                <th className="text-right p-2 text-xs text-muted-foreground font-medium">Area (sqm)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(floor.rooms || []).map((r: any, ri: number) => (
+                                <tr key={ri} className="border-t border-border/50">
+                                  <td className="p-2 text-foreground">{r.name}</td>
+                                  <td className="p-2 text-right text-foreground">{r.areaSqm}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{typeof project.villaSpaces === "object" ? JSON.stringify(project.villaSpaces, null, 2) : String(project.villaSpaces)}</p>
+                )}
               </div>
             )}
           </CardContent>

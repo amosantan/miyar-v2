@@ -11,6 +11,7 @@ import type {
   DesignStyle,
 } from "../../shared/miyar-types";
 import { getCertMultiplier } from "./sustainability/sustainability-multipliers";
+import { getPricingArea, computeFitoutRatio } from "./area-utils";
 
 /** Normalize ordinal (1-5) to [0,1] */
 export function normalizeOrdinal(value: number): number {
@@ -22,10 +23,12 @@ export function normalizeBounded(value: number, min: number, max: number): numbe
   return Math.max(0, Math.min(1, (value - min) / (max - min)));
 }
 
-/** Derive scale band from GFA */
-export function deriveScaleBand(gfa: number | null): ProjectScale {
-  if (!gfa || gfa < 250000) return "Small";
-  if (gfa <= 800000) return "Medium";
+/** Derive scale band from pricing area (V4: prefers totalFitoutArea over GFA) */
+export function deriveScaleBand(gfa: number | null, totalFitoutArea?: number | null): ProjectScale {
+  // V4: use fitout area if available, otherwise fall back to GFA
+  const area = totalFitoutArea ?? gfa;
+  if (!area || area < 500) return "Small";
+  if (area <= 5000) return "Medium";
   return "Large";
 }
 
@@ -164,7 +167,7 @@ export function normalizeInputs(
     exe02_n,
     exe03_n,
     exe04_n,
-    scaleBand: deriveScaleBand(inputs.ctx03Gfa),
+    scaleBand: deriveScaleBand(inputs.ctx03Gfa, inputs.totalFitoutArea),
     budgetClass: deriveBudgetClass(inputs.fin01BudgetCap),
     differentiationPressure,
     executionResilience,
@@ -175,5 +178,6 @@ export function normalizeInputs(
     compatVisionDesign: computeCompatVisionDesign(inputs.str02Differentiation, inputs.des01Style),
     costVolatility,
     sustainCertMultiplier,
+    fitoutRatio: computeFitoutRatio(inputs.totalFitoutArea, inputs.ctx03Gfa),
   };
 }
