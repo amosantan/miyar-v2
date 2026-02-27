@@ -90,6 +90,7 @@ type FormData = {
   ctx04Location: string;
   dldAreaId: number | null;
   dldAreaName: string;
+  projectPurpose: string;
   ctx05Horizon: string;
   str01BrandClarity: number;
   str02Differentiation: number;
@@ -132,6 +133,7 @@ function ProjectNewContent() {
     ctx04Location: "Secondary",
     dldAreaId: null,
     dldAreaName: "",
+    projectPurpose: "sell_ready",
     ctx05Horizon: "12-24m",
     str01BrandClarity: 3,
     str02Differentiation: 3,
@@ -332,6 +334,26 @@ function ProjectNewContent() {
                   />
                   <p className="text-[10px] text-muted-foreground">
                     Select the DLD-registered area for competitor intelligence and market comparison
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Project Purpose</Label>
+                  <Select
+                    value={form.projectPurpose}
+                    onValueChange={(v) => set("projectPurpose", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sell_offplan">Sell Off-Plan — Showroom-quality finishes</SelectItem>
+                      <SelectItem value="sell_ready">Sell Ready — Durable premium finishes</SelectItem>
+                      <SelectItem value="rent">Rent — Durability-focused, cost-efficient</SelectItem>
+                      <SelectItem value="mixed">Mixed — Balanced for sale + rental</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Affects material recommendations, fitout budget calibration, and ROI projections
                   </p>
                 </div>
               </div>

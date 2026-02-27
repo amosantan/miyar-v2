@@ -190,6 +190,14 @@ export const projects = mysqlTable("projects", {
   dldAreaId: int("dld_area_id"),
   dldAreaName: varchar("dld_area_name", { length: 200 }),
 
+  // Project purpose — drives fitout quality and benchmark selection
+  projectPurpose: mysqlEnum("project_purpose", [
+    "sell_offplan",   // New off-plan development — showroom-quality finishes, premium specs
+    "sell_ready",     // Ready property sale — durable premium finishes, market-competitive
+    "rent",           // Rental yield focus — durability over luxury, cost-efficient materials
+    "mixed",          // Mixed use — balanced approach
+  ]).default("sell_ready"),
+
   // Strategy variables (1-5)
   str01BrandClarity: int("str01BrandClarity").default(3),
   str02Differentiation: int("str02Differentiation").default(3),
@@ -1888,20 +1896,27 @@ export type InsertDldProject = typeof dldProjects.$inferInsert;
 // ─── DLD Transactions (Phase B.3 — Dubai Land Department Sales Data) ────────
 export const dldTransactions = mysqlTable("dld_transactions", {
   id: int("id").autoincrement().primaryKey(),
-  transactionId: bigint("transaction_id", { mode: "number" }),
-  transactionType: varchar("transaction_type", { length: 50 }),  // Sales, Mortgage, Gift
-  propertyType: varchar("property_type", { length: 100 }),       // Villa, Apartment, Land
+  transactionId: varchar("transaction_id", { length: 50 }),        // e.g. "1-41-2011-1593"
+  transGroupEn: varchar("trans_group_en", { length: 50 }),         // Sales, Gifts, Mortgages
+  procedureNameEn: varchar("procedure_name_en", { length: 100 }),  // Delayed Sell, Sell - Pre registration
+  regTypeEn: varchar("reg_type_en", { length: 50 }),               // Existing Properties, Off-Plan Properties
+  propertyTypeEn: varchar("property_type_en", { length: 50 }),     // Unit, Villa, Land, Building
+  propertySubTypeEn: varchar("property_sub_type_en", { length: 100 }), // Flat, Villa, Shop, Office
+  propertyUsageEn: varchar("property_usage_en", { length: 50 }),   // Residential, Commercial, Hospitality, etc.
   areaId: int("area_id"),
   areaNameEn: varchar("area_name_en", { length: 200 }),
-  projectName: varchar("project_name", { length: 300 }),
-  amount: decimal("amount", { precision: 14, scale: 2 }),        // Transaction amount AED
-  propertySizeSqft: decimal("property_size_sqft", { precision: 10, scale: 2 }),
-  pricePerSqft: decimal("price_per_sqft", { precision: 10, scale: 2 }),  // Calculated
-  rooms: varchar("rooms", { length: 20 }),
-  transactionDate: varchar("transaction_date", { length: 20 }),
-  registrationDate: varchar("registration_date", { length: 20 }),
-  isFreehold: boolean("is_freehold"),
+  projectNameEn: varchar("project_name_en", { length: 300 }),
+  buildingNameEn: varchar("building_name_en", { length: 300 }),
   masterProjectEn: varchar("master_project_en", { length: 300 }),
+  actualWorth: decimal("actual_worth", { precision: 14, scale: 2 }),    // Total transaction AED
+  procedureArea: decimal("procedure_area", { precision: 10, scale: 2 }), // Area in sqm
+  meterSalePrice: decimal("meter_sale_price", { precision: 10, scale: 2 }), // AED per sqm (DLD-calculated)
+  roomsEn: varchar("rooms_en", { length: 30 }),                    // Studio, 1 B/R, 2 B/R...
+  instanceDate: varchar("instance_date", { length: 20 }),          // Transaction date (YYYY-MM-DD)
+  hasParking: int("has_parking"),
+  nearestMetroEn: varchar("nearest_metro_en", { length: 200 }),
+  nearestMallEn: varchar("nearest_mall_en", { length: 200 }),
+  nearestLandmarkEn: varchar("nearest_landmark_en", { length: 200 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -1911,19 +1926,26 @@ export type InsertDldTransaction = typeof dldTransactions.$inferInsert;
 // ─── DLD Rents (Phase B.3 — Ejari Rental Data) ─────────────────────────────
 export const dldRents = mysqlTable("dld_rents", {
   id: int("id").autoincrement().primaryKey(),
-  contractId: bigint("contract_id", { mode: "number" }),
+  contractId: varchar("contract_id", { length: 50 }),              // e.g. "CNT2129627812"
+  contractRegTypeEn: varchar("contract_reg_type_en", { length: 50 }), // New, Renew
+  ejariPropertyTypeEn: varchar("ejari_property_type_en", { length: 100 }), // Flat, Villa
+  ejariPropertySubTypeEn: varchar("ejari_property_sub_type_en", { length: 100 }), // Studio, 1bed+Hall, etc.
+  propertyUsageEn: varchar("property_usage_en", { length: 100 }),  // Residential, Commercial
   areaId: int("area_id"),
   areaNameEn: varchar("area_name_en", { length: 200 }),
-  propertyType: varchar("property_type", { length: 100 }),
-  propertyUsage: varchar("property_usage", { length: 100 }),      // Residential, Commercial
-  rooms: varchar("rooms", { length: 20 }),
-  annualAmount: decimal("annual_amount", { precision: 12, scale: 2 }),
-  propertySizeSqft: decimal("property_size_sqft", { precision: 10, scale: 2 }),
-  rentPerSqft: decimal("rent_per_sqft", { precision: 10, scale: 2 }),  // Calculated
+  projectNameEn: varchar("project_name_en", { length: 300 }),
+  masterProjectEn: varchar("master_project_en", { length: 300 }),
+  annualAmount: decimal("annual_amount", { precision: 12, scale: 2 }),  // Annual rent AED
+  contractAmount: decimal("contract_amount", { precision: 12, scale: 2 }),
+  actualArea: decimal("actual_area", { precision: 10, scale: 2 }),      // Area in sqm
+  rentPerSqm: decimal("rent_per_sqm", { precision: 10, scale: 2 }),    // Calculated: annual / area
   contractStartDate: varchar("contract_start_date", { length: 20 }),
   contractEndDate: varchar("contract_end_date", { length: 20 }),
-  projectName: varchar("project_name", { length: 300 }),
-  masterProjectEn: varchar("master_project_en", { length: 300 }),
+  tenantTypeEn: varchar("tenant_type_en", { length: 50 }),
+  isFreeHold: int("is_free_hold"),
+  nearestMetroEn: varchar("nearest_metro_en", { length: 200 }),
+  nearestMallEn: varchar("nearest_mall_en", { length: 200 }),
+  nearestLandmarkEn: varchar("nearest_landmark_en", { length: 200 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -1938,7 +1960,7 @@ export const dldAreaBenchmarks = mysqlTable("dld_area_benchmarks", {
   propertyType: varchar("property_type", { length: 100 }),    // Apartment, Villa, or ALL
   period: varchar("period", { length: 10 }).notNull(),         // "2025-Q1", "2025" etc.
 
-  // Sale price analytics (AED/sqft)
+  // Sale price analytics (AED/sqm — from DLD meter_sale_price)
   saleP25: decimal("sale_p25", { precision: 10, scale: 2 }),
   saleP50: decimal("sale_p50", { precision: 10, scale: 2 }),   // Median
   saleP75: decimal("sale_p75", { precision: 10, scale: 2 }),
@@ -1946,7 +1968,7 @@ export const dldAreaBenchmarks = mysqlTable("dld_area_benchmarks", {
   saleTransactionCount: int("sale_transaction_count").default(0),
   saleYoyChangePct: decimal("sale_yoy_change_pct", { precision: 6, scale: 2 }),
 
-  // Rental analytics (AED/sqft annual)
+  // Rental analytics (AED/sqm annual)
   rentP50: decimal("rent_p50", { precision: 10, scale: 2 }),
   rentMean: decimal("rent_mean", { precision: 10, scale: 2 }),
   rentTransactionCount: int("rent_transaction_count").default(0),
@@ -1955,7 +1977,7 @@ export const dldAreaBenchmarks = mysqlTable("dld_area_benchmarks", {
   grossYield: decimal("gross_yield", { precision: 6, scale: 2 }),  // rent / sale price %
   absorptionRate: decimal("absorption_rate", { precision: 6, scale: 4 }),
 
-  // Fitout calibration (AED/sqft)
+  // Fitout calibration (AED/sqm)
   recommendedFitoutLow: decimal("recommended_fitout_low", { precision: 10, scale: 2 }),
   recommendedFitoutMid: decimal("recommended_fitout_mid", { precision: 10, scale: 2 }),
   recommendedFitoutHigh: decimal("recommended_fitout_high", { precision: 10, scale: 2 }),

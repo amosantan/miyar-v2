@@ -2,7 +2,7 @@
  * DLD Analytics Engine — Phase B.3
  *
  * 6 Calculation methods for interior design intelligence:
- * 1. Median sale price per area (AED/sqft)
+ * 1. Median sale price per area (AED/sqm — from DLD meter_sale_price)
  * 2. Fitout-to-sale ratio
  * 3. Gross & net rental yield
  * 4. Absorption rate by area
@@ -41,14 +41,14 @@ export interface AreaPriceStats {
 export interface FitoutCalibration {
     areaId: number;
     areaNameEn: string;
-    saleMedianPerSqft: number;
+    saleMedianPerSqm: number;  // AED/sqm from DLD meter_sale_price
     fitoutRecommended: {
         lowPct: number;     // Economy fitout as % of sale price
         midPct: number;     // Mid-range
         highPct: number;    // Luxury
-        lowAedPerSqft: number;
-        midAedPerSqft: number;
-        highAedPerSqft: number;
+        lowAedPerSqm: number;
+        midAedPerSqm: number;
+        highAedPerSqm: number;
     };
 }
 
@@ -88,28 +88,28 @@ function percentile(sorted: number[], p: number): number {
  * computeAreaPriceStats — Core Method #1
  *
  * Given an array of transaction records, computes P25/P50/P75/mean
- * AED/sqft for each area + property type.
+ * AED/sqm for each area + property type (using DLD meter_sale_price).
  */
 export function computeAreaPriceStats(
-    transactions: Array<{ areaId: number; areaNameEn: string; propertyType: string; pricePerSqft: number; transactionDate: string }>,
-    rentals?: Array<{ areaId: number; areaNameEn: string; propertyType: string; rentPerSqft: number }>,
+    transactions: Array<{ areaId: number; areaNameEn: string; propertyType: string; pricePerSqm: number; transactionDate: string }>,
+    rentals?: Array<{ areaId: number; areaNameEn: string; propertyType: string; rentPerSqm: number }>,
     dldProjects?: Array<{ areaId: number; noOfUnits: number; noOfVillas: number; projectStatus: string }>,
 ): AreaPriceStats[] {
     // Group transactions by areaId + propertyType
     const groups = new Map<string, typeof transactions>();
 
     for (const t of transactions) {
-        if (!t.pricePerSqft || t.pricePerSqft <= 0) continue;
+        if (!t.pricePerSqm || t.pricePerSqm <= 0) continue;
         const key = `${t.areaId}::${t.propertyType || "ALL"}`;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key)!.push(t);
     }
 
     // Group rentals similarly
-    const rentalGroups = new Map<string, Array<{ rentPerSqft: number }>>();
+    const rentalGroups = new Map<string, Array<{ rentPerSqm: number }>>();
     if (rentals) {
         for (const r of rentals) {
-            if (!r.rentPerSqft || r.rentPerSqft <= 0) continue;
+            if (!r.rentPerSqm || r.rentPerSqm <= 0) continue;
             const key = `${r.areaId}::${r.propertyType || "ALL"}`;
             if (!rentalGroups.has(key)) rentalGroups.set(key, []);
             rentalGroups.get(key)!.push(r);
@@ -135,8 +135,8 @@ export function computeAreaPriceStats(
         const areaId = parseInt(areaIdStr);
         const areaNameEn = txns[0].areaNameEn;
 
-        // Sort prices for percentile calculation
-        const prices = txns.map((t: { pricePerSqft: number }) => t.pricePerSqft).sort((a: number, b: number) => a - b);
+        // Sort prices for percentile calculation (AED/sqm)
+        const prices = txns.map((t: { pricePerSqm: number }) => t.pricePerSqm).sort((a: number, b: number) => a - b);
 
         const saleP25 = percentile(prices, 25);
         const saleP50 = percentile(prices, 50);
@@ -151,13 +151,13 @@ export function computeAreaPriceStats(
         let rentCount = 0;
 
         if (rents && rents.length > 0) {
-            const rentPrices = rents.map((r) => r.rentPerSqft).sort((a, b) => a - b);
+            const rentPrices = rents.map((r) => r.rentPerSqm).sort((a, b) => a - b);
             rentP50 = percentile(rentPrices, 50);
             rentMean = rentPrices.reduce((s, v) => s + v, 0) / rentPrices.length;
             rentCount = rents.length;
         }
 
-        // Gross yield = (annual rent per sqft / sale price per sqft) * 100
+        // Gross yield = (annual rent per sqm / sale price per sqm) * 100
         const grossYield = rentP50 && saleP50 > 0 ? (rentP50 / saleP50) * 100 : null;
 
         // Absorption rate
@@ -211,14 +211,14 @@ export function computeFitoutCalibration(stats: AreaPriceStats[]): FitoutCalibra
             return {
                 areaId: s.areaId,
                 areaNameEn: s.areaNameEn,
-                saleMedianPerSqft: median,
+                saleMedianPerSqm: median,
                 fitoutRecommended: {
                     lowPct: 10,
                     midPct: 18,
                     highPct: 28,
-                    lowAedPerSqft: Math.round(median * 0.10),
-                    midAedPerSqft: Math.round(median * 0.18),
-                    highAedPerSqft: Math.round(median * 0.28),
+                    lowAedPerSqm: Math.round(median * 0.10),
+                    midAedPerSqm: Math.round(median * 0.18),
+                    highAedPerSqm: Math.round(median * 0.28),
                 },
             };
         });
@@ -256,18 +256,18 @@ export function computeYield(
  * Returns a 0-1 score and risk flags.
  */
 export function computeMarketPosition(
-    fitoutCostPerSqft: number,
-    salePricePerSqft: number,
+    fitoutCostPerSqm: number,
+    salePricePerSqm: number,
     tier: string, // "economy" | "mid" | "premium" | "luxury" | "ultra_luxury"
     areaP25?: number,
     areaP75?: number,
 ): MarketPosition {
-    const fitoutRatio = salePricePerSqft > 0 ? fitoutCostPerSqft / salePricePerSqft : 0;
+    const fitoutRatio = salePricePerSqm > 0 ? fitoutCostPerSqm / salePricePerSqm : 0;
 
     // Market position within price band (if P25/P75 provided)
     let score = 0.5;
     if (areaP25 !== undefined && areaP75 !== undefined && areaP75 > areaP25) {
-        score = (fitoutCostPerSqft - areaP25) / (areaP75 - areaP25);
+        score = (fitoutCostPerSqm - areaP25) / (areaP75 - areaP25);
         score = Math.max(0, Math.min(2, score)); // Clamp 0-2
     }
 
@@ -302,26 +302,15 @@ export function computeMarketPosition(
 // ─── Get Area Benchmark for a Project ───────────────────────────────────────
 
 /**
- * getAreaSaleMedian
- *
- * Returns the median sale price AED/sqft for a given DLD area.
- * Falls back to overall Dubai median if no area-specific data.
- */
-export async function getAreaSaleMedian(areaId: number | null): Promise<number | null> {
-    if (!areaId) return null;
-    const benchmark = await db.getDldAreaBenchmark(areaId);
-    if (!benchmark) return null;
-    return Number(benchmark.saleP50) || null;
-}
-
-/**
  * getAreaSaleMedianSqm
  *
- * Same as above but converts sqft → sqm (×10.764).
- * MIYAR internally uses AED/sqm for design calculations.
+ * Returns the median sale price AED/sqm for a given DLD area.
+ * DLD meter_sale_price is already in AED/sqm — no conversion needed.
+ * Falls back to 25,000 AED/sqm (Dubai average) if no data.
  */
 export async function getAreaSaleMedianSqm(areaId: number | null): Promise<number> {
-    const perSqft = await getAreaSaleMedian(areaId);
-    if (!perSqft) return 25000; // Fallback to hardcoded Dubai average
-    return Math.round(perSqft * 10.764); // sqft → sqm conversion
+    if (!areaId) return 25000; // Fallback to Dubai average
+    const benchmark = await db.getDldAreaBenchmark(areaId);
+    if (!benchmark || !benchmark.saleP50) return 25000;
+    return Math.round(Number(benchmark.saleP50)); // Already in AED/sqm
 }
