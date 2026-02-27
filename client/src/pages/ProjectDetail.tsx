@@ -15,7 +15,7 @@ import { useParams, useLocation } from "wouter";
 import {
   Zap, ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Info,
   TrendingUp, TrendingDown, BarChart3, Shield, Target, Lightbulb,
-  Download, ChevronRight, Loader2, Sparkles,
+  Download, ChevronRight, Loader2, Sparkles, Building2,
 } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import {
@@ -491,6 +491,15 @@ function ProjectDetailContent() {
           >
             <Sparkles className="h-3.5 w-3.5" />
             AI Design Advisor
+          </Button>
+          <Button
+            onClick={() => setLocation(`/projects/${project.id}/investor-summary`)}
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-violet-500/30 text-violet-400 hover:bg-violet-500/10"
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            Investor View
           </Button>
         </div>
       </div>

@@ -57,6 +57,7 @@ import BiasInsights from "./pages/BiasInsights";
 import Simulations from "./pages/Simulations";
 import CustomerSuccess from "./pages/CustomerSuccess";
 import Sustainability from "./pages/Sustainability";
+import InvestorSummary from "./pages/InvestorSummary";
 
 // Helper: wrap a component with RequireAuth
 function Protected({ Component }: { Component: React.ComponentType<any> }) {
@@ -95,6 +96,7 @@ function Router() {
       <Route path="/projects/:id/design-studio">{() => <Protected Component={DesignStudio} />}</Route>
       <Route path="/projects/:id/collaboration">{() => <Protected Component={Collaboration} />}</Route>
       <Route path="/projects/:id/design-advisor">{() => <Protected Component={DesignAdvisor} />}</Route>
+      <Route path="/projects/:id/investor-summary">{() => <Protected Component={InvestorSummary} />}</Route>
       <Route path="/projects/:id/explainability">{() => <Protected Component={Explainability} />}</Route>
       <Route path="/projects/:id/outcomes">{() => <Protected Component={Outcomes} />}</Route>
       <Route path="/results">{() => <Protected Component={Results} />}</Route>

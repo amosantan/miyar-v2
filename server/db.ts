@@ -62,6 +62,7 @@ import {
   spaceRecommendations,
   designPackages,
   aiDesignBriefs,
+  materialConstants,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2058,4 +2059,23 @@ export async function getLatestAiDesignBrief(projectId: number, orgId: number) {
     .orderBy(desc(aiDesignBriefs.generatedAt))
     .limit(1);
   return results[0] || null;
+}
+
+// ─── Material Constants (P3 — Structural Analytics) ─────────────────────────
+
+/** Returns all seeded material constants (AED/m², carbon intensity, density). */
+export async function getMaterialConstants() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(materialConstants).orderBy(materialConstants.materialType);
+}
+
+/** Look up a single material constant by type string, e.g. "concrete", "stone". */
+export async function getMaterialConstantByType(materialType: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const results = await db.select().from(materialConstants)
+    .where(eq(materialConstants.materialType, materialType))
+    .limit(1);
+  return results[0];
 }

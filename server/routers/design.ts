@@ -917,4 +917,108 @@ export const designRouter = router({
       });
       return { success: true };
     }),
+
+  // ─── Structural Analytics (Phase 1 Fix — material_constants bridge) ─────────
+
+  /**
+   * Returns all seeded material constants so the frontend can display
+   * real AED/m² pricing without an additional roundtrip.
+   */
+  getMaterialConstants: protectedProcedure
+    .query(async () => {
+      return db.getMaterialConstants();
+    }),
+
+  /**
+   * calculateSpec — given a list of {materialType, areaM2} pairs, computes:
+   *   - total cost in AED
+   *   - total carbon footprint in kg CO²
+   *   - weighted average maintenance factor (1–5 scale)
+   *   - sustainability grade (A–E)
+   *
+   * Crosses the caller's material mix with the material_constants table.
+   * Unknown material types are skipped (graceful fallback).
+   */
+  calculateSpec: protectedProcedure
+    .input(z.object({
+      items: z.array(z.object({
+        materialType: z.string(),  // e.g. "concrete", "stone", "glass"
+        areaM2: z.number().positive(),
+      })),
+    }))
+    .mutation(async ({ input }) => {
+      const constants = await db.getMaterialConstants();
+      const lookup = new Map(constants.map((c: any) => [c.materialType, c]));
+
+      let totalCostAed = 0;
+      let totalCarbonKg = 0;
+      let weightedMaintenanceSum = 0;
+      let totalArea = 0;
+      const breakdown: Array<{
+        materialType: string;
+        areaM2: number;
+        costPerM2: number;
+        lineCostAed: number;
+        carbonKg: number;
+        maintenanceFactor: number;
+        matched: boolean;
+      }> = [];
+
+      for (const item of input.items) {
+        const c: any = lookup.get(item.materialType);
+        if (!c) {
+          breakdown.push({
+            materialType: item.materialType,
+            areaM2: item.areaM2,
+            costPerM2: 0,
+            lineCostAed: 0,
+            carbonKg: 0,
+            maintenanceFactor: 3,
+            matched: false,
+          });
+          continue;
+        }
+        const costPerM2 = Number(c.costPerM2 ?? 0);
+        const carbonIntensity = Number(c.carbonIntensity ?? 0); // kg CO²/m²
+        const maintenanceFactor = Number(c.maintenanceFactor ?? 3);
+        const lineCost = costPerM2 * item.areaM2;
+        const lineCarbonKg = carbonIntensity * item.areaM2;
+
+        totalCostAed += lineCost;
+        totalCarbonKg += lineCarbonKg;
+        weightedMaintenanceSum += maintenanceFactor * item.areaM2;
+        totalArea += item.areaM2;
+
+        breakdown.push({
+          materialType: item.materialType,
+          areaM2: item.areaM2,
+          costPerM2,
+          lineCostAed: lineCost,
+          carbonKg: lineCarbonKg,
+          maintenanceFactor,
+          matched: true,
+        });
+      }
+
+      const avgMaintenanceFactor = totalArea > 0 ? weightedMaintenanceSum / totalArea : 3;
+
+      // Sustainability grade based on avg carbon intensity (kg/m²)
+      const avgCarbonPerM2 = totalArea > 0 ? totalCarbonKg / totalArea : 0;
+      let sustainabilityGrade: string;
+      if (avgCarbonPerM2 < 30) sustainabilityGrade = "A";
+      else if (avgCarbonPerM2 < 60) sustainabilityGrade = "B";
+      else if (avgCarbonPerM2 < 100) sustainabilityGrade = "C";
+      else if (avgCarbonPerM2 < 150) sustainabilityGrade = "D";
+      else sustainabilityGrade = "E";
+
+      return {
+        totalCostAed: Math.round(totalCostAed),
+        totalCarbonKg: Math.round(totalCarbonKg),
+        avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
+        sustainabilityGrade,
+        totalAreaM2: totalArea,
+        costPerM2Avg: totalArea > 0 ? Math.round(totalCostAed / totalArea) : 0,
+        breakdown,
+      };
+    }),
 });
