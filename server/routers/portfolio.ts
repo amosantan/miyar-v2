@@ -175,6 +175,12 @@ export const portfolioRouter = router({
                     name: p.name,
                     tier: p.mkt01Tier,
                     style: p.des01Style,
+                    typology: p.ctx01Typology,
+                    location: p.ctx04Location,
+                    city: (p as any).city || "Dubai",
+                    gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+                    budgetCap: p.fin01BudgetCap ? Number(p.fin01BudgetCap) : null,
+                    sustainCertTarget: (p as any).sustainCertTarget || "silver",
                     status: p.status,
                     compositeScore: score ? Number(score.compositeScore) : null,
                     riskScore: score ? Number(score.riskScore) : null,
@@ -232,6 +238,18 @@ export const portfolioRouter = router({
                         complianceHeatmap: computeComplianceHeatmap(portfolioItems),
                         failurePatterns: detectFailurePatterns(portfolioItems),
                         improvementLevers: computeImprovementLevers(portfolioItems),
+                        // E.1: Aggregate stats for benchmarking
+                        totalGfa: projectList.reduce((s: number, p: typeof projectList[0]) => s + (p.ctx03Gfa ? Number(p.ctx03Gfa) : 0), 0),
+                        totalBudget: projectList.reduce((s: number, p: typeof projectList[0]) => s + (p.fin01BudgetCap ? Number(p.fin01BudgetCap) : 0), 0),
+                        avgCostPerSqm: (() => {
+                            const withGfa = projectList.filter((p: typeof projectList[0]) => p.ctx03Gfa && p.fin01BudgetCap);
+                            if (withGfa.length === 0) return 0;
+                            const totalCost = withGfa.reduce((s: number, p: typeof withGfa[0]) => s + Number(p.fin01BudgetCap!), 0);
+                            const totalArea = withGfa.reduce((s: number, p: typeof withGfa[0]) => s + Number(p.ctx03Gfa!), 0);
+                            return totalArea > 0 ? Math.round(totalCost / totalArea) : 0;
+                        })(),
+                        bestScore: Math.max(...portfolioItems.map(p => Number(p.scoreMatrix.compositeScore))),
+                        worstScore: Math.min(...portfolioItems.map(p => Number(p.scoreMatrix.compositeScore))),
                     }
                     : null;
 

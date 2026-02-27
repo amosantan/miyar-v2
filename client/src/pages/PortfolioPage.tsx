@@ -23,6 +23,9 @@ import {
     Layers,
     FileDown,
     Bell,
+    MapPin,
+    Building,
+    DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -417,61 +420,76 @@ function PortfolioDetail({
                 </div>
             </div>
 
-            {/* Summary cards */}
+            {/* Aggregate Stats — E.1 Benchmarking Strip */}
             {analytics && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                     <Card>
                         <CardContent className="pt-4 pb-3">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                                Projects
-                            </p>
-                            <p className="text-2xl font-bold mt-1">
-                                {analytics.totalProjects}
-                            </p>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Projects</p>
+                            <p className="text-2xl font-bold mt-1">{analytics.totalProjects}</p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardContent className="pt-4 pb-3">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                                Avg Score
-                            </p>
-                            <p
-                                className={`text-2xl font-bold mt-1 ${scoreColor(
-                                    analytics.avgComposite
-                                )}`}
-                            >
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Avg Score</p>
+                            <p className={`text-2xl font-bold mt-1 ${scoreColor(analytics.avgComposite)}`}>
                                 {analytics.avgComposite}
                             </p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardContent className="pt-4 pb-3">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                                Avg Risk
-                            </p>
-                            <p className="text-2xl font-bold mt-1 text-amber-400">
-                                {analytics.avgRisk}
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Best / Worst</p>
+                            <p className="text-2xl font-bold mt-1">
+                                <span className="text-green-400">{analytics.bestScore ?? "—"}</span>
+                                <span className="text-muted-foreground text-sm mx-1">/</span>
+                                <span className="text-red-400">{analytics.worstScore ?? "—"}</span>
                             </p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardContent className="pt-4 pb-3">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                                Failure Patterns
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total GFA</p>
+                            <p className="text-2xl font-bold mt-1">
+                                {(analytics.totalGfa ?? 0) > 0
+                                    ? `${((analytics.totalGfa ?? 0) / 1000).toFixed(0)}K`
+                                    : "—"}
+                                <span className="text-xs text-muted-foreground ml-1">sqm</span>
                             </p>
-                            <p className="text-2xl font-bold mt-1 text-red-400">
-                                {analytics.failurePatterns.length}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="pt-4 pb-3">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Budget</p>
+                            <p className="text-2xl font-bold mt-1">
+                                {(analytics.totalBudget ?? 0) >= 1_000_000
+                                    ? `${((analytics.totalBudget ?? 0) / 1_000_000).toFixed(1)}M`
+                                    : (analytics.totalBudget ?? 0) > 0
+                                        ? `${((analytics.totalBudget ?? 0) / 1_000).toFixed(0)}K`
+                                        : "—"}
+                                <span className="text-xs text-muted-foreground ml-1">AED</span>
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="pt-4 pb-3">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Avg Cost/sqm</p>
+                            <p className="text-2xl font-bold mt-1">
+                                {(analytics.avgCostPerSqm ?? 0) > 0
+                                    ? (analytics.avgCostPerSqm ?? 0).toLocaleString()
+                                    : "—"}
+                                <span className="text-xs text-muted-foreground ml-1">AED</span>
                             </p>
                         </CardContent>
                     </Card>
                 </div>
             )}
 
-            {/* Projects table */}
+            {/* Comparison Table — E.1 Benchmarking */}
             <Card>
                 <CardHeader>
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                        <Layers className="w-4 h-4" /> Projects in Portfolio
+                        <Layers className="w-4 h-4" /> Project Comparison
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -480,57 +498,89 @@ function PortfolioDetail({
                             No projects yet. Add projects using the button above.
                         </p>
                     ) : (
-                        <div className="divide-y divide-border">
-                            {portfolio.projects.map((p: any) => (
-                                <div
-                                    key={p.id}
-                                    className="flex items-center justify-between py-3 px-2 hover:bg-accent/30 rounded transition-colors"
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="min-w-0">
-                                            <p className="font-medium text-sm truncate">{p.name}</p>
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                                <span>{p.tier}</span>
-                                                <span>·</span>
-                                                <span>{p.style}</span>
-                                                {p.costBand && (
-                                                    <>
-                                                        <span>·</span>
-                                                        <span>{p.costBand}</span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        {p.compositeScore !== null ? (
-                                            <span
-                                                className={`font-mono text-sm font-semibold ${scoreColor(
-                                                    p.compositeScore
-                                                )}`}
-                                            >
-                                                {p.compositeScore}
-                                            </span>
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground">N/A</span>
-                                        )}
-                                        {statusBadge(p.decisionStatus)}
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7"
-                                            onClick={() =>
-                                                removeProjectMut.mutate({
-                                                    portfolioId,
-                                                    projectId: p.id,
-                                                })
-                                            }
-                                        >
-                                            <MinusCircle className="w-4 h-4 text-destructive" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-border text-muted-foreground">
+                                        <th className="text-left py-2 px-2 font-medium">Project</th>
+                                        <th className="text-left py-2 px-2 font-medium">City</th>
+                                        <th className="text-left py-2 px-2 font-medium">Typology</th>
+                                        <th className="text-left py-2 px-2 font-medium">Tier</th>
+                                        <th className="text-right py-2 px-2 font-medium">GFA (sqm)</th>
+                                        <th className="text-right py-2 px-2 font-medium">Budget (AED)</th>
+                                        <th className="text-right py-2 px-2 font-medium">Cost/sqm</th>
+                                        <th className="text-left py-2 px-2 font-medium">Cert</th>
+                                        <th className="text-right py-2 px-2 font-medium">Score</th>
+                                        <th className="text-left py-2 px-2 font-medium">Status</th>
+                                        <th className="py-2 px-2"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/50">
+                                    {portfolio.projects.map((p: any) => {
+                                        const costPerSqm = p.gfa && p.budgetCap
+                                            ? Math.round(p.budgetCap / p.gfa)
+                                            : null;
+                                        return (
+                                            <tr key={p.id} className="hover:bg-accent/30 transition-colors">
+                                                <td className="py-2 px-2 font-medium truncate max-w-[180px]">{p.name}</td>
+                                                <td className="py-2 px-2">
+                                                    <div className="flex items-center gap-1">
+                                                        <MapPin className="w-3 h-3 text-muted-foreground" />
+                                                        {p.city || "Dubai"}
+                                                    </div>
+                                                </td>
+                                                <td className="py-2 px-2 text-muted-foreground">{p.typology || "—"}</td>
+                                                <td className="py-2 px-2">
+                                                    <Badge variant="outline" className="text-[10px]">{p.tier}</Badge>
+                                                </td>
+                                                <td className="py-2 px-2 text-right font-mono">
+                                                    {p.gfa ? p.gfa.toLocaleString() : "—"}
+                                                </td>
+                                                <td className="py-2 px-2 text-right font-mono">
+                                                    {p.budgetCap
+                                                        ? p.budgetCap >= 1_000_000
+                                                            ? `${(p.budgetCap / 1_000_000).toFixed(1)}M`
+                                                            : `${(p.budgetCap / 1_000).toFixed(0)}K`
+                                                        : "—"}
+                                                </td>
+                                                <td className="py-2 px-2 text-right font-mono">
+                                                    {costPerSqm ? costPerSqm.toLocaleString() : "—"}
+                                                </td>
+                                                <td className="py-2 px-2">
+                                                    <Badge variant="secondary" className="text-[10px]">
+                                                        {p.sustainCertTarget || "silver"}
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-2 px-2 text-right">
+                                                    {p.compositeScore !== null ? (
+                                                        <span className={`font-mono font-semibold ${scoreColor(p.compositeScore)}`}>
+                                                            {p.compositeScore}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-2 px-2">{statusBadge(p.decisionStatus)}</td>
+                                                <td className="py-2 px-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6"
+                                                        onClick={() =>
+                                                            removeProjectMut.mutate({
+                                                                portfolioId,
+                                                                projectId: p.id,
+                                                            })
+                                                        }
+                                                    >
+                                                        <MinusCircle className="w-3.5 h-3.5 text-destructive" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </CardContent>

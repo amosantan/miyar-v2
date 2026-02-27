@@ -144,8 +144,8 @@ export default function Methodology() {
                             <div key={src.grade} className="flex items-start gap-3 p-3 rounded-lg border border-border/50">
                                 <Badge
                                     className={`shrink-0 ${src.grade === "A" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                                            : src.grade === "B" ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
-                                                : "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                                        : src.grade === "B" ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                                            : "bg-amber-500/15 text-amber-400 border-amber-500/30"
                                         }`}
                                     variant="outline"
                                 >
@@ -244,6 +244,39 @@ export default function Methodology() {
                             <p className="text-xs font-medium text-foreground mb-1">🏗️ Al Sa'fat</p>
                             <p className="text-[11px] text-muted-foreground">Dubai Municipality green building regulations. 18 checklist items covering energy efficiency, water, materials, indoor environment, and MEP systems.</p>
                         </div>
+                    </div>
+                </Section>
+
+                {/* RICS NRM Alignment — E.3 */}
+                <Section icon={Scale} title="RICS NRM Cost Alignment">
+                    <p className="text-sm text-muted-foreground mb-4">
+                        All cost classifications in MIYAR are aligned to RICS New Rules of Measurement (NRM)
+                        element codes, ensuring institutional credibility for board-level reporting and QS validation.
+                    </p>
+                    <div className="space-y-2">
+                        {[
+                            { code: "2", name: "Superstructure", items: "Facade cladding, glazing systems, balcony structures, insulation" },
+                            { code: "3", name: "Internal Finishes", items: "Flooring (stone, tile, wood, carpet), wall finishes, ceiling systems, joinery, metalwork" },
+                            { code: "5", name: "Services & FF&E", items: "Lighting, sanitary fittings, kitchen installations, HVAC, plumbing, electrical, smart home" },
+                            { code: "8", name: "External Works", items: "Landscaping, swimming pools, external services, garden works" },
+                        ].map(g => (
+                            <div key={g.code} className="flex gap-3 p-3 rounded-lg border border-border/50">
+                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                    <span className="text-sm font-bold font-mono text-primary">{g.code}</span>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium">Group {g.code} — {g.name}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">{g.items}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-4 p-3 bg-secondary/30 rounded-lg">
+                        <p className="text-xs text-muted-foreground">
+                            <strong>NRM element codes</strong> (e.g. 3A, 5H) appear alongside each material in the Brief Editor
+                            and Investor Summary exports. This enables direct comparison with RICS-format cost plans
+                            from quantity surveyors and institutional cost consultants.
+                        </p>
                     </div>
                 </Section>
 

@@ -18,8 +18,20 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import {
     ArrowLeft, Calculator, Leaf, Wrench, TrendingUp,
-    RefreshCw, Loader2, ChevronRight, BarChart3, Building2,
+    RefreshCw, Loader2, ChevronRight, BarChart3, Building2, Scale,
 } from "lucide-react";
+// RICS NRM element mapping
+const RICS_CODES: Record<string, { code: string; element: string }> = {
+    stone: { code: "3A", element: "Natural Stone Finishes" },
+    glass: { code: "2G", element: "Windows, Screens & Glazing" },
+    steel: { code: "3E", element: "Metalwork & Balustrades" },
+    aluminum: { code: "3E", element: "Metalwork & Balustrades" },
+    concrete: { code: "2A", element: "Frame — In Situ Concrete" },
+    ceramic: { code: "3A", element: "Ceramic/Porcelain Tile" },
+    wood: { code: "3A", element: "Timber/Engineered Wood" },
+    paint: { code: "3B", element: "Paint & Decorative Coatings" },
+    insulation: { code: "2F", element: "Insulation" },
+};
 
 // Available material types from material_constants seed
 const MATERIAL_TYPES = [
@@ -333,7 +345,14 @@ function BriefEditorContent() {
                                     {calcResult.breakdown.map((b: any) => (
                                         <div key={b.materialType} className="flex items-center gap-2 text-xs">
                                             <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                                            <span className="flex-1 text-muted-foreground capitalize">{b.materialType}</span>
+                                            <span className="flex-1 text-muted-foreground capitalize">
+                                                {b.materialType}
+                                                {RICS_CODES[b.materialType] && (
+                                                    <Badge variant="outline" className="ml-1.5 text-[9px] py-0 px-1 font-mono">
+                                                        NRM {RICS_CODES[b.materialType].code}
+                                                    </Badge>
+                                                )}
+                                            </span>
                                             <span className="text-foreground font-mono">{formatAed(b.costAed)}</span>
                                         </div>
                                     ))}
@@ -387,7 +406,7 @@ function BriefEditorContent() {
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">
                                     UAE Market Constants
-                            <DataFreshnessBanner className="mt-3" />
+                                    <DataFreshnessBanner className="mt-3" />
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -439,8 +458,8 @@ function BriefEditorContent() {
                                         <div className="flex justify-between text-[11px]">
                                             <span className="text-muted-foreground">Your estimate</span>
                                             <span className={`font-mono font-semibold ${calcResult.costPerM2Avg <= benchmark.costPerSqmMid
-                                                    ? "text-emerald-400"
-                                                    : "text-amber-400"
+                                                ? "text-emerald-400"
+                                                : "text-amber-400"
                                                 }`}>
                                                 AED {calcResult.costPerM2Avg.toLocaleString()}/m²
                                                 {calcResult.costPerM2Avg <= benchmark.costPerSqmMid ? " ✓" : " ↑"}

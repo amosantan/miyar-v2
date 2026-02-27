@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
     Building2, DollarSign, Leaf, TrendingUp, BarChart3,
-    AlertCircle, Loader2, ChevronRight, Globe, Lock,
+    AlertCircle, Loader2, ChevronRight, Globe, Lock, Shield,
 } from "lucide-react";
 
 function fmtAed(n: number): string {
@@ -70,13 +70,25 @@ export default function ShareView() {
 
     return (
         <div className="min-h-screen bg-background">
+            {/* Viewport + PWA meta */}
+            {typeof document !== "undefined" && (() => {
+                // Ensure viewport meta exists
+                if (!document.querySelector('meta[name="viewport"]')) {
+                    const meta = document.createElement("meta");
+                    meta.name = "viewport";
+                    meta.content = "width=device-width, initial-scale=1, maximum-scale=1";
+                    document.head.appendChild(meta);
+                }
+                return null;
+            })()}
+
             {/* Header bar */}
             <div className="border-b border-border/40 bg-card/60 backdrop-blur sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+                <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-primary" />
                         <span className="font-semibold text-sm text-foreground">MIYAR</span>
-                        <span className="text-muted-foreground/60 text-xs">· Shared Brief</span>
+                        <span className="text-muted-foreground/60 text-xs hidden sm:inline">· Shared Brief</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Lock className="h-3 w-3" />
@@ -89,27 +101,38 @@ export default function ShareView() {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+            <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6">
                 {/* Hero */}
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground">{data.projectName}</h1>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <h1 className="text-xl sm:text-2xl font-bold text-foreground">{data.projectName}</h1>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                         {data.typology} · {tier} · {data.location} · {data.gfaSqm.toLocaleString()} sqm GFA · {data.style}
                     </p>
+                    {/* Sustainability cert badge (from new fields) */}
+                    {((data as any).city || (data as any).sustainCertTarget) && (
+                        <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400">
+                                <Shield className="h-2.5 w-2.5 mr-1" />
+                                {(data as any).city === "Abu Dhabi" ? "Estidama" : "Al Sa'fat"}
+                                {" "}{(data as any).sustainCertTarget || "Silver"}
+                            </Badge>
+                        </div>
+                    )}
                 </div>
 
-                {/* KPI strip */}
-                <div className="grid grid-cols-3 gap-3">
+
+                {/* KPI strip — stacks on mobile */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                     {[
                         { label: "Total Fitout", value: fmtAed(totalFitoutBudget), sub: "All spaces" },
                         { label: "Cost / m²", value: `${(data.costPerSqm ?? 0).toLocaleString()} AED`, sub: "Blended avg" },
                         { label: "Design Premium", value: `+${data.salePremiumPct ?? 0}%`, sub: "Sales uplift est." },
                     ].map(k => (
                         <Card key={k.label}>
-                            <CardContent className="pt-4 pb-3 text-center">
-                                <p className="text-[10px] text-muted-foreground mb-1">{k.label}</p>
-                                <p className="text-xl font-bold text-primary">{k.value}</p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">{k.sub}</p>
+                            <CardContent className="pt-3 pb-2.5 sm:pt-4 sm:pb-3 flex sm:flex-col items-center sm:items-stretch gap-2 sm:gap-0 sm:text-center">
+                                <p className="text-[10px] text-muted-foreground sm:mb-1 shrink-0 w-20 sm:w-auto">{k.label}</p>
+                                <p className="text-lg sm:text-xl font-bold text-primary">{k.value}</p>
+                                <p className="text-[10px] text-muted-foreground sm:mt-0.5 hidden sm:block">{k.sub}</p>
                             </CardContent>
                         </Card>
                     ))}
@@ -124,12 +147,12 @@ export default function ShareView() {
                         <Card>
                             <CardContent className="pt-4 pb-3 space-y-3">
                                 {data.execSummary && (
-                                    <p className="text-sm text-muted-foreground leading-relaxed">{data.execSummary}</p>
+                                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{data.execSummary}</p>
                                 )}
                                 {Object.keys(data.designDirection ?? {}).length > 0 && (
                                     <>
                                         <Separator />
-                                        <div className="grid md:grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                             {Object.entries(data.designDirection ?? {}).slice(0, 6).map(([k, v]) => (
                                                 <div key={k} className="flex gap-2 text-xs">
                                                     <span className="w-28 shrink-0 text-muted-foreground capitalize">
@@ -214,7 +237,7 @@ export default function ShareView() {
                     <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
                         <TrendingUp className="h-3.5 w-3.5" /> C · ROI Bridge
                     </h2>
-                    <div className="grid md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Card>
                             <CardHeader className="pb-1">
                                 <CardTitle className="text-sm flex items-center gap-1.5">
@@ -269,10 +292,10 @@ export default function ShareView() {
                                         <Badge
                                             variant="outline"
                                             className={`text-[9px] shrink-0 mt-px ${t.confidenceLevel === "established"
-                                                    ? "border-emerald-500/40 text-emerald-400"
-                                                    : t.confidenceLevel === "emerging"
-                                                        ? "border-violet-500/40 text-violet-400"
-                                                        : "border-red-500/30 text-red-400"
+                                                ? "border-emerald-500/40 text-emerald-400"
+                                                : t.confidenceLevel === "emerging"
+                                                    ? "border-violet-500/40 text-violet-400"
+                                                    : "border-red-500/30 text-red-400"
                                                 }`}>
                                             {t.confidenceLevel}
                                         </Badge>
@@ -296,6 +319,11 @@ export default function ShareView() {
                         <ChevronRight className="h-3 w-3 inline mr-0.5" />
                         Powered by MIYAR Decision Intelligence · Read-only shared view
                     </p>
+                    {(data as any).documentId && (
+                        <p className="text-[9px] text-muted-foreground/50 mt-1 font-mono">
+                            Doc ID: {(data as any).documentId}
+                        </p>
+                    )}
                 </div>
             </div>
         </div>
