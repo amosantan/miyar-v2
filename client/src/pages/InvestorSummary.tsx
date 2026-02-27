@@ -11,6 +11,7 @@ import {
     Building2, Palette, Package, DollarSign, TrendingUp,
     Leaf, Wrench, ArrowLeft, Download, ChevronRight, Sparkles,
     AlertCircle, Loader2, Target, BarChart3, Globe, ExternalLink, Share2, FileText, Check,
+    MapPin,
 } from "lucide-react";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -78,6 +79,11 @@ function InvestorSummaryContent() {
         { limit: 6 },
         {},
     );
+    // Phase B.4: DLD area benchmark for this project
+    const { data: dldBenchmark } = trpc.design.getProjectDldBenchmark.useQuery(
+        { projectId },
+        { enabled: !!projectId },
+    );
 
     const hasData = !!brief?.briefData || (recs && recs.length > 0);
 
@@ -123,10 +129,18 @@ function InvestorSummaryContent() {
     };
     const sustainability = TIER_CARBON[tier] ?? { grade: "C", label: "Moderate" };
 
-    // Sales premium estimate
+    // Sales premium estimate — use DLD area median if available, else 25K fallback
     const TIER_PREMIUM_PCT: Record<string, number> = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
     const salePremiumPct = TIER_PREMIUM_PCT[tier] ?? 8;
-    const estimatedSalesPremiumAed = gfa > 0 ? Math.round(gfa * 25000 * salePremiumPct / 100) : 0;
+    const areaSalePrice = dldBenchmark?.saleP50 ?? 25000;
+    const salePriceSource = dldBenchmark?.saleP50 ? "DLD Transactions" : "Dubai Average";
+    const estimatedSalesPremiumAed = gfa > 0 ? Math.round(gfa * areaSalePrice * salePremiumPct / 100) : 0;
+    const PURPOSE_LABELS: Record<string, string> = {
+        sell_offplan: "Off-Plan Sale",
+        sell_ready: "Ready Sale",
+        rent: "Rental",
+        mixed: "Mixed Use",
+    };
 
     return (
         <div className="space-y-6 max-w-5xl">
@@ -404,7 +418,7 @@ function InvestorSummaryContent() {
                                     <p className="text-2xl font-bold text-primary">+{salePremiumPct}%</p>
                                     <p className="text-xs text-muted-foreground mt-0.5">
                                         Estimated sales premium for {tier} finishes in this market.<br />
-                                        ≈ {formatAed(estimatedSalesPremiumAed)} uplift on a {gfa}sqm unit (at AED 25K/sqm base).
+                                        ≈ {formatAed(estimatedSalesPremiumAed)} uplift on a {gfa}sqm unit (at {areaSalePrice.toLocaleString()} AED/sqm — {salePriceSource}).
                                     </p>
                                 </CardContent>
                             </Card>
@@ -445,7 +459,68 @@ function InvestorSummaryContent() {
                             </Card>
                         </div>
                     </div>
-                    {/* ── Section E: Market Intelligence (Phase 4) ───────────────── */}
+
+                    {/* ── Section E: DLD Market Context ───────────────────────────── */}
+                    {dldBenchmark && (
+                        <div>
+                            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                <MapPin className="h-3.5 w-3.5" /> DLD · Area Market Context
+                            </h2>
+                            <Card>
+                                <CardContent className="pt-5 pb-4 space-y-4">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Badge variant="outline" className="text-[10px]">{PURPOSE_LABELS[dldBenchmark.projectPurpose] ?? "Ready Sale"}</Badge>
+                                        <span className="text-sm font-semibold text-foreground">{dldBenchmark.areaName}</span>
+                                        <span className="text-[10px] text-muted-foreground ml-auto">
+                                            {dldBenchmark.transactionCount} sales · {dldBenchmark.rentContractCount} rents
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        {[
+                                            { label: "Sale Price (P50)", value: dldBenchmark.saleP50 ? `${Math.round(dldBenchmark.saleP50).toLocaleString()} AED/sqm` : "—" },
+                                            { label: "Gross Yield", value: dldBenchmark.grossYield ? `${dldBenchmark.grossYield.toFixed(1)}%` : "—" },
+                                            { label: "Fitout Rec.", value: dldBenchmark.fitoutMid ? `${Math.round(dldBenchmark.fitoutMid).toLocaleString()} AED/sqm` : "—" },
+                                            { label: "Price Range", value: dldBenchmark.saleP25 && dldBenchmark.saleP75 ? `${Math.round(dldBenchmark.saleP25).toLocaleString()}–${Math.round(dldBenchmark.saleP75).toLocaleString()}` : "—" },
+                                        ].map(item => (
+                                            <div key={item.label} className="space-y-0.5">
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{item.label}</p>
+                                                <p className="text-sm font-semibold text-foreground">{item.value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {dldBenchmark.fitoutLow && dldBenchmark.fitoutHigh && (
+                                        <>
+                                            <Separator />
+                                            <div className="space-y-1.5">
+                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recommended Fitout Band</p>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground">{Math.round(dldBenchmark.fitoutLow).toLocaleString()}</span>
+                                                    <div className="flex-1 h-2.5 bg-secondary rounded-full overflow-hidden relative">
+                                                        <div className="absolute inset-y-0 bg-gradient-to-r from-emerald-500/60 to-primary rounded-full" style={{ left: "15%", right: "15%" }} />
+                                                        {costPerSqm > 0 && (
+                                                            <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-4 bg-foreground rounded-full"
+                                                                style={{ left: `${Math.min(100, Math.max(0, ((costPerSqm - dldBenchmark.fitoutLow) / (dldBenchmark.fitoutHigh - dldBenchmark.fitoutLow)) * 70 + 15))}%` }} />
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs text-muted-foreground">{Math.round(dldBenchmark.fitoutHigh).toLocaleString()}</span>
+                                                </div>
+                                                {costPerSqm > 0 && (
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        Your fitout: {costPerSqm.toLocaleString()} AED/sqm — {costPerSqm < dldBenchmark.fitoutLow ? "⚠️ below recommended range" : costPerSqm > dldBenchmark.fitoutHigh ? "⚠️ above recommended range" : "✅ within recommended range"}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                    <p className="text-[10px] text-muted-foreground/60">
+                                        Source: Dubai Land Department · {dldBenchmark.transactionCount + dldBenchmark.rentContractCount} records analysed
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* ── Section F: Market Intelligence (Phase 4) ───────────────── */}
                     {((designTrends && designTrends.length > 0) || (competitorContext && competitorContext.length > 0)) && (
                         <div>
                             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">

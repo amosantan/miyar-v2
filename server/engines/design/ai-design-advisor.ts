@@ -42,14 +42,50 @@ export async function generateDesignRecommendations(
 ): Promise<SpaceRecommendation[]> {
     const spaceProgram = buildSpaceProgram(project);
     const rooms = spaceProgram.rooms;
-    const totalBudget = spaceProgram.totalFitoutBudgetAed;
+    let totalBudget = spaceProgram.totalFitoutBudgetAed;
+
+    // Phase B.6: Override total budget with DLD area-specific fitout recommendation
+    if (project.dldAreaId) {
+        const { getDldAreaBenchmark } = await import("../../db");
+        const benchmark = await getDldAreaBenchmark(project.dldAreaId);
+        const gfa = Number(project.ctx03Gfa || 0);
+        if (benchmark?.recommendedFitoutMid && gfa > 0) {
+            const dldBudget = Number(benchmark.recommendedFitoutMid) * gfa;
+            if (dldBudget > 0) {
+                console.log(`[SpaceRecs] DLD budget override: ${totalBudget.toLocaleString()} → ${dldBudget.toLocaleString()} AED (${benchmark.recommendedFitoutMid} AED/sqm × ${gfa} sqm)`);
+                totalBudget = dldBudget;
+            }
+        }
+    }
 
     // Build context for Gemini
     const materialSummary = buildMaterialSummary(materialLibrary, inputs);
     const marketIntelSummary = buildMarketIntelSummary(recentEvidence, inputs);
     // Phase 4: Inject trend signals
     const trendContext = buildTrendContext(designTrends, inputs);
-    const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary, marketIntelSummary, trendContext);
+
+    // Phase B.5: Build DLD area context for prompt
+    let dldContext = "";
+    if (project.dldAreaId) {
+        const { getAreaSaleMedianSqm } = await import("../dld-analytics");
+        const { getDldAreaBenchmark } = await import("../../db");
+        const benchmark = await getDldAreaBenchmark(project.dldAreaId);
+        if (benchmark) {
+            const purposeLabel: Record<string, string> = {
+                sell_offplan: "Off-plan sale (showroom-quality finishes expected)",
+                sell_ready: "Ready sale (premium, durable finishes)",
+                rent: "Rental investment (prioritize durability, cost-efficiency, low maintenance)",
+                mixed: "Mixed strategy (balance resale appeal and rental durability)",
+            };
+            dldContext = `- **Area**: ${project.dldAreaName || benchmark.areaName}
+- **Median Sale Price**: ${benchmark.saleP50 ? Math.round(Number(benchmark.saleP50)).toLocaleString() : "N/A"} AED/sqm
+- **Recommended Fitout**: ${benchmark.recommendedFitoutMid ? Math.round(Number(benchmark.recommendedFitoutMid)).toLocaleString() : "N/A"} AED/sqm
+- **Gross Rental Yield**: ${benchmark.grossYield ? Number(benchmark.grossYield).toFixed(1) : "N/A"}%
+- **Project Purpose**: ${purposeLabel[project.projectPurpose] || purposeLabel.sell_ready}`;
+        }
+    }
+
+    const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary, marketIntelSummary, trendContext, dldContext);
 
     // Call Gemini
     const aiResponse = await callGeminiForDesign(prompt);
@@ -76,6 +112,7 @@ function buildDesignPrompt(
     materialSummary: string,
     marketIntelSummary: string,
     trendContext: string = "",
+    dldContext: string = "",
 ): string {
     const roomList = rooms
         .map(r => `- ${r.id} "${r.name}": ${r.sqm} sqm, Grade ${r.finishGrade}, Priority ${r.priority}, Budget ${(r.budgetPct * 100).toFixed(0)}%`)
@@ -106,6 +143,9 @@ ${marketIntelSummary}
 ${trendContext ? `
 ## UAE Design Trends (current market signals — bias your recommendations toward these)
 ${trendContext}` : ""}
+${dldContext ? `
+## DLD Area Market Context (calibrate budget and material quality to this area)
+${dldContext}` : ""}
 ## Instructions
 For EACH space, provide:
 1. **styleDirection** — A specific design direction (e.g., "Warm minimalism with brass accents and limestone textures")
@@ -404,6 +444,30 @@ export async function generateAIDesignBrief(
         .map(r => `- **${r.roomName}** (${r.sqm}sqm): ${r.styleDirection}. Budget: ${r.budgetAllocation.toLocaleString()} AED. Key materials: ${r.materialPackage.map(m => m.productName).join(", ") || "TBD"}`)
         .join("\n");
 
+    // Phase B.5: Build DLD context for brief prompt
+    let dldSection = "";
+    if (project.dldAreaId) {
+        const { getDldAreaBenchmark } = await import("../../db");
+        const benchmark = await getDldAreaBenchmark(project.dldAreaId);
+        if (benchmark) {
+            const purposeLabel: Record<string, string> = {
+                sell_offplan: "off-plan sale — prioritize showroom-quality finishes and visual wow factor",
+                sell_ready: "ready sale — premium durable finishes competitive in this area",
+                rent: "rental yield — prioritize durability, minimal maintenance, cost-efficient materials",
+                mixed: "mixed use — balance resale attractiveness with rental durability",
+            };
+            dldSection = `
+## DLD Area Market Context
+- Area: ${project.dldAreaName || benchmark.areaName}
+- Median Sale Price: ${benchmark.saleP50 ? Math.round(Number(benchmark.saleP50)).toLocaleString() : "N/A"} AED/sqm
+- Recommended Fitout: ${benchmark.recommendedFitoutMid ? Math.round(Number(benchmark.recommendedFitoutMid)).toLocaleString() : "N/A"} AED/sqm
+- Gross Yield: ${benchmark.grossYield ? Number(benchmark.grossYield).toFixed(1) : "N/A"}%
+- Project Purpose: ${purposeLabel[project.projectPurpose] || purposeLabel.sell_ready}
+
+Calibrate material quality and budget tone to this area's market positioning. Mention the project purpose impact on material selection.`;
+        }
+    }
+
     const prompt = `Generate a professional interior design brief for this project. This brief will be handed to an interior designer.
 
 ## Project
@@ -413,7 +477,7 @@ export async function generateAIDesignBrief(
 - Market Tier: ${inputs.mkt01Tier}
 - Style: ${inputs.des01Style}
 - GFA: ${inputs.ctx03Gfa} sqm
-
+${dldSection}
 ## Space Recommendations (Already Generated)
 ${spaceSummary}
 
