@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import EvidenceChainDrawer from "@/components/EvidenceChainDrawer";
 import { useParams, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -246,6 +247,14 @@ function InvestorSummaryContent() {
                     <div>
                         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
                             <Package className="h-3.5 w-3.5" /> B · Material Specification
+                            <EvidenceChainDrawer
+                                trigger={
+                                    <button className="ml-auto text-[10px] text-primary/60 hover:text-primary transition-colors flex items-center gap-0.5">
+                                        📎 View Evidence Chain
+                                    </button>
+                                }
+                                title="Material Evidence Chain"
+                            />
                         </h2>
                         <Card>
                             <CardContent className="pt-5 pb-4">

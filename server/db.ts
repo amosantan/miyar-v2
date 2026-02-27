@@ -2168,6 +2168,56 @@ export async function getBenchmarkForProject(typology: string, location: string,
  * Get active, whitelisted source registry entries for competitor context display.
  * Sorts by reliability (A > B > C) then most recently fetched.
  */
+
+export async function getEvidenceWithSources(filters: {
+  category?: string;
+  projectId?: number;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (filters.category) conditions.push(eq(evidenceRecords.category, filters.category as any));
+  if (filters.projectId) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+  // Exclude confidential records from public provenance display
+  conditions.push(sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`);
+
+  let query = db
+    .select({
+      id: evidenceRecords.id,
+      recordId: evidenceRecords.recordId,
+      category: evidenceRecords.category,
+      itemName: evidenceRecords.itemName,
+      specClass: evidenceRecords.specClass,
+      priceMin: evidenceRecords.priceMin,
+      priceTypical: evidenceRecords.priceTypical,
+      priceMax: evidenceRecords.priceMax,
+      unit: evidenceRecords.unit,
+      currencyAed: evidenceRecords.currencyAed,
+      reliabilityGrade: evidenceRecords.reliabilityGrade,
+      extractedSnippet: evidenceRecords.extractedSnippet,
+      captureDate: evidenceRecords.captureDate,
+      evidencePhase: evidenceRecords.evidencePhase,
+      sourceUrl: evidenceRecords.sourceUrl,
+      // Joined source fields
+      sourceName: sourceRegistry.name,
+      sourceType: sourceRegistry.sourceType,
+      sourceReliability: sourceRegistry.reliabilityDefault,
+      sourcePageUrl: sourceRegistry.url,
+      sourceLastFetch: sourceRegistry.lastSuccessfulFetch,
+    })
+    .from(evidenceRecords)
+    .leftJoin(sourceRegistry, eq(evidenceRecords.sourceRegistryId, sourceRegistry.id));
+
+  if (conditions.length > 0) {
+    query = (query as any).where(and(...conditions));
+  }
+
+  return (query as any)
+    .orderBy(desc(evidenceRecords.captureDate))
+    .limit(filters.limit ?? 20);
+}
+
 export async function getActiveSourceRegistry(limit = 10) {
   const db = await getDb();
   if (!db) return [];

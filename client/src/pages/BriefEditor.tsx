@@ -8,6 +8,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import EvidenceChainDrawer from "@/components/EvidenceChainDrawer";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,9 +92,15 @@ function MaterialRow({
                     </button>
                     <span className="text-sm font-medium text-foreground capitalize">{type}</span>
                     {constData && (
-                        <Badge variant="outline" className="text-[10px]">
-                            AED {Number(constData.costPerM2).toLocaleString()}/m²
-                        </Badge>
+                        <EvidenceChainDrawer
+                            category={type === "glass" ? "walls" : type === "paint" ? "walls" : type === "insulation" ? "ceilings" : type === "ceramic" ? "floors" : type === "aluminum" ? "hardware" : type === "steel" ? "hardware" : type}
+                            trigger={
+                                <Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-primary/10 transition-colors gap-1">
+                                    AED {Number(constData.costPerM2).toLocaleString()}/m²
+                                    <span className="text-primary/60">📎</span>
+                                </Badge>
+                            }
+                        />
                     )}
                 </div>
                 <div className="text-right">

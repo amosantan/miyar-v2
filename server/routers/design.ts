@@ -1091,6 +1091,23 @@ export const designRouter = router({
    * 4.3 Competitor Context: Top active intel sources from source_registry,
    * used to surface the "where this data comes from" panel in briefs.
    */
+
+  // ─── Phase A.3: Evidence Chain ─────────────────────────────────────────────
+  getEvidenceChain: orgProcedure
+    .input(z.object({
+      category: z.string().optional(),
+      projectId: z.number().optional(),
+      limit: z.number().min(1).max(50).default(20),
+    }))
+    .query(async ({ input }) => {
+      const results = await db.getEvidenceWithSources({
+        category: input.category,
+        projectId: input.projectId,
+        limit: input.limit,
+      });
+      return { evidence: results };
+    }),
+
   getCompetitorContext: orgProcedure
     .input(z.object({ limit: z.number().min(1).max(20).default(6) }))
     .query(async ({ input }) => {
