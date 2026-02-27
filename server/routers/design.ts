@@ -1024,4 +1024,77 @@ export const designRouter = router({
         breakdown,
       };
     }),
+
+  // ─── Phase 4: Market Grounding ──────────────────────────────────────────────
+
+  /**
+   * 4.1 Design Trends: Return UAE market trends filtered by project style.
+   * Used to inject market signals into AI recommendations and display trend
+   * context in the InvestorSummary / DesignBrief pages.
+   */
+  getDesignTrends: orgProcedure
+    .input(z.object({
+      projectId: z.number(),
+      limit: z.number().min(1).max(50).default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+      const style = project.des01Style ?? undefined;
+      const trends = await db.getDesignTrends({
+        styleClassification: style,
+        region: "UAE",
+        limit: input.limit,
+      });
+      // If style-specific returned nothing, fall back to all UAE trends
+      if (trends.length === 0) {
+        return db.getDesignTrends({ region: "UAE", limit: input.limit });
+      }
+      return trends;
+    }),
+
+  /**
+   * 4.2 Benchmark Overlay: Return AED/sqm benchmark for the project's
+   * typology + location + tier, with progressive fallback.
+   */
+  getBenchmarkForProject: orgProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+      const typology = project.ctx01Typology ?? "Residential";
+      const location = project.ctx04Location ?? "Secondary";
+      const tier = project.mkt01Tier ?? "Upper-mid";
+      const bm = await db.getBenchmarkForProject(typology, location, tier);
+      if (!bm) return null;
+      // Convert sqft → sqm (1 sqft ≈ 0.0929 sqm) and provide AED range
+      const SQM_PER_SQFT = 10.7639;
+      return {
+        id: bm.id,
+        typology: bm.typology,
+        location: bm.location,
+        marketTier: bm.marketTier,
+        // Costs in AED/sqm (benchmark stored as AED/sqft)
+        costPerSqmLow: bm.costPerSqftLow != null ? Math.round(Number(bm.costPerSqftLow) * SQM_PER_SQFT) : null,
+        costPerSqmMid: bm.costPerSqftMid != null ? Math.round(Number(bm.costPerSqftMid) * SQM_PER_SQFT) : null,
+        costPerSqmHigh: bm.costPerSqftHigh != null ? Math.round(Number(bm.costPerSqftHigh) * SQM_PER_SQFT) : null,
+        avgSellingPrice: bm.avgSellingPrice != null ? Number(bm.avgSellingPrice) : null,
+        absorptionRate: bm.absorptionRate != null ? Number(bm.absorptionRate) : null,
+        differentiationIndex: bm.differentiationIndex != null ? Number(bm.differentiationIndex) : null,
+        competitiveDensity: bm.competitiveDensity,
+        sourceType: bm.sourceType,
+        dataYear: bm.dataYear,
+      };
+    }),
+
+  /**
+   * 4.3 Competitor Context: Top active intel sources from source_registry,
+   * used to surface the "where this data comes from" panel in briefs.
+   */
+  getCompetitorContext: orgProcedure
+    .input(z.object({ limit: z.number().min(1).max(20).default(6) }))
+    .query(async ({ input }) => {
+      return db.getActiveSourceRegistry(input.limit);
+    }),
 });
+

@@ -125,9 +125,13 @@ function BriefEditorContent() {
     const [, setLocation] = useLocation();
     const projectId = Number(params.id);
 
-    // Fetch project + material constants
+    // Fetch project + material constants + benchmark overlay (Phase 4)
     const { data: project } = trpc.project.get.useQuery({ id: projectId });
     const { data: materialConstants } = trpc.design.getMaterialConstants.useQuery();
+    const { data: benchmark } = trpc.design.getBenchmarkForProject.useQuery(
+        { projectId },
+        { enabled: !!projectId },
+    );
 
     // Build a lookup map for material constants
     const constMap = useMemo(
@@ -391,6 +395,50 @@ function BriefEditorContent() {
                                         </div>
                                     ))}
                                 </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Phase 4: Benchmark Overlay */}
+                    {benchmark && (
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xs flex items-center gap-1.5">
+                                    <TrendingUp className="h-3 w-3 text-emerald-400" />
+                                    <span className="text-muted-foreground uppercase tracking-wider">Market Benchmark</span>
+                                </CardTitle>
+                                <p className="text-[10px] text-muted-foreground">
+                                    {benchmark.typology} · {benchmark.location} · {benchmark.marketTier}
+                                    {benchmark.dataYear ? ` · ${benchmark.dataYear}` : ""}
+                                </p>
+                            </CardHeader>
+                            <CardContent className="space-y-1.5">
+                                {(["Low", "Mid", "High"] as const).map((label) => {
+                                    const key = `costPerSqm${label}` as "costPerSqmLow" | "costPerSqmMid" | "costPerSqmHigh";
+                                    const val = benchmark[key] as number | null;
+                                    return (
+                                        <div key={label} className="flex justify-between text-[11px]">
+                                            <span className="text-muted-foreground">{label} estimate</span>
+                                            <span className="font-mono text-foreground">
+                                                {val != null ? `AED ${val.toLocaleString()}/m²` : "—"}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                                {benchmark.costPerSqmMid != null && calcResult && (
+                                    <div className="mt-2 pt-2 border-t border-border/30">
+                                        <div className="flex justify-between text-[11px]">
+                                            <span className="text-muted-foreground">Your estimate</span>
+                                            <span className={`font-mono font-semibold ${calcResult.costPerM2Avg <= benchmark.costPerSqmMid
+                                                    ? "text-emerald-400"
+                                                    : "text-amber-400"
+                                                }`}>
+                                                AED {calcResult.costPerM2Avg.toLocaleString()}/m²
+                                                {calcResult.costPerM2Avg <= benchmark.costPerSqmMid ? " ✓" : " ↑"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     )}

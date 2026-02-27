@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import {
@@ -63,6 +63,7 @@ import {
   designPackages,
   aiDesignBriefs,
   materialConstants,
+  designTrends,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2078,4 +2079,81 @@ export async function getMaterialConstantByType(materialType: string) {
     .where(eq(materialConstants.materialType, materialType))
     .limit(1);
   return results[0];
+}
+
+// ─── Phase 4: Market Grounding ───────────────────────────────────────────────
+
+/**
+ * Get design trends, optionally filtered by style classification and region.
+ * Returns established > emerging > declining, sorted by mentionCount.
+ */
+export async function getDesignTrends(filters?: {
+  styleClassification?: string;
+  region?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.region) conditions.push(eq(designTrends.region, filters.region));
+  if (filters?.styleClassification) conditions.push(eq(designTrends.styleClassification, filters.styleClassification));
+  const query = db.select().from(designTrends);
+  if (conditions.length > 0) query.where(and(...conditions));
+  const rows = await query.orderBy(desc(designTrends.mentionCount)).limit(filters?.limit ?? 30);
+  return rows;
+}
+
+/**
+ * Find the best-matching benchmark row for a given project typology/location/tier.
+ * Falls back progressively if no exact match (relaxes location, then typology).
+ */
+export async function getBenchmarkForProject(typology: string, location: string, marketTier: string) {
+  const db = await getDb();
+  if (!db) return null;
+  // 1. Exact match
+  const exact = await db.select().from(benchmarkData)
+    .where(and(
+      eq(benchmarkData.typology, typology),
+      eq(benchmarkData.location, location),
+      eq(benchmarkData.marketTier, marketTier),
+    ))
+    .limit(1);
+  if (exact.length > 0) return exact[0];
+
+  // 2. Relax location
+  const noLoc = await db.select().from(benchmarkData)
+    .where(and(eq(benchmarkData.typology, typology), eq(benchmarkData.marketTier, marketTier)))
+    .limit(1);
+  if (noLoc.length > 0) return noLoc[0];
+
+  // 3. Relax typology too — just match tier
+  const justTier = await db.select().from(benchmarkData)
+    .where(eq(benchmarkData.marketTier, marketTier))
+    .limit(1);
+  return justTier[0] ?? null;
+}
+
+/**
+ * Get active, whitelisted source registry entries for competitor context display.
+ * Sorts by reliability (A > B > C) then most recently fetched.
+ */
+export async function getActiveSourceRegistry(limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    id: sourceRegistry.id,
+    name: sourceRegistry.name,
+    url: sourceRegistry.url,
+    sourceType: sourceRegistry.sourceType,
+    reliabilityDefault: sourceRegistry.reliabilityDefault,
+    region: sourceRegistry.region,
+    lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch,
+    lastScrapedStatus: sourceRegistry.lastScrapedStatus,
+    lastRecordCount: sourceRegistry.lastRecordCount,
+    notes: sourceRegistry.notes,
+  }).from(sourceRegistry)
+    .where(and(eq(sourceRegistry.isWhitelisted, true), eq(sourceRegistry.isActive, true)))
+    .orderBy(asc(sourceRegistry.reliabilityDefault), desc(sourceRegistry.lastSuccessfulFetch))
+    .limit(limit);
+  return rows;
 }

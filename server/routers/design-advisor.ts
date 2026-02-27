@@ -86,7 +86,20 @@ export const designAdvisorRouter = router({
             const materials = await db.getMaterialLibrary();
             const recentEvidence = await db.listEvidenceRecords({ limit: 100 });
 
-            const recommendations = await generateDesignRecommendations(project, inputs, materials, recentEvidence);
+            // Phase 4: Fetch UAE design trends, filtered by project style
+            const designTrends = await db.getDesignTrends({
+                styleClassification: project.des01Style ?? undefined,
+                region: "UAE",
+                limit: 20,
+            });
+            // Fallback: all UAE trends if no style match
+            const trends = designTrends.length > 0
+                ? designTrends
+                : await db.getDesignTrends({ region: "UAE", limit: 20 });
+
+            const recommendations = await generateDesignRecommendations(
+                project, inputs, materials, recentEvidence, trends,
+            );
 
             for (const rec of recommendations) {
                 await db.createSpaceRecommendation({

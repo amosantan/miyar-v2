@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import {
     Building2, Palette, Package, DollarSign, TrendingUp,
     Leaf, Wrench, ArrowLeft, Download, ChevronRight, Sparkles,
-    AlertCircle, Loader2, Target, BarChart3,
+    AlertCircle, Loader2, Target, BarChart3, Globe, ExternalLink,
 } from "lucide-react";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -45,6 +45,15 @@ function InvestorSummaryContent() {
     const { data: brief } = trpc.designAdvisor.getDesignBrief.useQuery({ projectId }, { enabled: !!projectId });
     const { data: recs, isLoading: recsLoading } = trpc.designAdvisor.getRecommendations.useQuery({ projectId }, { enabled: !!projectId });
     const { data: materialConstants } = trpc.design.getMaterialConstants.useQuery();
+    // Phase 4: Market Grounding
+    const { data: designTrends } = trpc.design.getDesignTrends.useQuery(
+        { projectId, limit: 12 },
+        { enabled: !!projectId },
+    );
+    const { data: competitorContext } = trpc.design.getCompetitorContext.useQuery(
+        { limit: 6 },
+        {},
+    );
 
     const hasData = !!brief?.briefData || (recs && recs.length > 0);
 
@@ -393,6 +402,98 @@ function InvestorSummaryContent() {
                             </Card>
                         </div>
                     </div>
+                    {/* ── Section E: Market Intelligence (Phase 4) ───────────────── */}
+                    {((designTrends && designTrends.length > 0) || (competitorContext && competitorContext.length > 0)) && (
+                        <div>
+                            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                <Globe className="h-3.5 w-3.5" /> E · Market Intelligence
+                            </h2>
+                            <div className="grid md:grid-cols-2 gap-3">
+                                {/* Design Trends */}
+                                {designTrends && designTrends.length > 0 && (
+                                    <Card>
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-sm flex items-center gap-1.5">
+                                                <TrendingUp className="h-3.5 w-3.5 text-violet-400" /> UAE Design Trends
+                                            </CardTitle>
+                                            <CardDescription className="text-[10px]">
+                                                Filtered for {project?.des01Style ?? "this"} style · UAE market
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-1.5">
+                                            {designTrends.slice(0, 8).map((t: any) => (
+                                                <div key={t.id} className="flex items-start gap-2 py-1 border-b border-border/20 last:border-0">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`text-[9px] shrink-0 mt-px ${t.confidenceLevel === "established"
+                                                                ? "border-emerald-500/40 text-emerald-400"
+                                                                : t.confidenceLevel === "emerging"
+                                                                    ? "border-violet-500/40 text-violet-400"
+                                                                    : "border-red-500/30 text-red-400"
+                                                            }`}>
+                                                        {t.confidenceLevel}
+                                                    </Badge>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-medium text-foreground truncate">{t.trendName}</p>
+                                                        {t.description && (
+                                                            <p className="text-[10px] text-muted-foreground line-clamp-1">
+                                                                {t.description}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <Badge variant="secondary" className="text-[9px] shrink-0">
+                                                        {t.trendCategory}
+                                                    </Badge>
+                                                </div>
+                                            ))}
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {/* Market Sources / Competitor Context */}
+                                {competitorContext && competitorContext.length > 0 && (
+                                    <Card>
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-sm flex items-center gap-1.5">
+                                                <Globe className="h-3.5 w-3.5 text-sky-400" /> Market Data Sources
+                                            </CardTitle>
+                                            <CardDescription className="text-[10px]">
+                                                Active intel sources powering this analysis
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-1.5">
+                                            {competitorContext.map((s: any) => (
+                                                <div key={s.id} className="flex items-center gap-2 py-1 border-b border-border/20 last:border-0">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`text-[9px] w-5 text-center shrink-0 ${s.reliabilityDefault === "A"
+                                                                ? "border-emerald-500/40 text-emerald-400"
+                                                                : s.reliabilityDefault === "B"
+                                                                    ? "border-amber-500/40 text-amber-400"
+                                                                    : "border-red-500/30 text-red-400"
+                                                            }`}>
+                                                        {s.reliabilityDefault}
+                                                    </Badge>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-medium text-foreground truncate">{s.name}</p>
+                                                        <p className="text-[9px] text-muted-foreground">
+                                                            {s.sourceType.replace(/_/g, " ")} · {s.lastRecordCount ?? 0} records
+                                                        </p>
+                                                    </div>
+                                                    {s.url && (
+                                                        <a href={s.url} target="_blank" rel="noreferrer"
+                                                            className="text-muted-foreground hover:text-foreground transition-colors">
+                                                            <ExternalLink className="h-3 w-3" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </CardContent>
+                                    </Card>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
         </div>

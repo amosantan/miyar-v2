@@ -37,7 +37,8 @@ export async function generateDesignRecommendations(
     project: any,
     inputs: ProjectInputs,
     materialLibrary: any[],
-    recentEvidence: any[] = []
+    recentEvidence: any[] = [],
+    designTrends: any[] = [],
 ): Promise<SpaceRecommendation[]> {
     const spaceProgram = buildSpaceProgram(project);
     const rooms = spaceProgram.rooms;
@@ -46,7 +47,9 @@ export async function generateDesignRecommendations(
     // Build context for Gemini
     const materialSummary = buildMaterialSummary(materialLibrary, inputs);
     const marketIntelSummary = buildMarketIntelSummary(recentEvidence, inputs);
-    const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary, marketIntelSummary);
+    // Phase 4: Inject trend signals
+    const trendContext = buildTrendContext(designTrends, inputs);
+    const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary, marketIntelSummary, trendContext);
 
     // Call Gemini
     const aiResponse = await callGeminiForDesign(prompt);
@@ -71,7 +74,8 @@ function buildDesignPrompt(
     rooms: Room[],
     totalBudget: number,
     materialSummary: string,
-    marketIntelSummary: string
+    marketIntelSummary: string,
+    trendContext: string = "",
 ): string {
     const roomList = rooms
         .map(r => `- ${r.id} "${r.name}": ${r.sqm} sqm, Grade ${r.finishGrade}, Priority ${r.priority}, Budget ${(r.budgetPct * 100).toFixed(0)}%`)
@@ -99,7 +103,9 @@ ${materialSummary}
 
 ## Latest Market Intelligence (from recent data)
 ${marketIntelSummary}
-
+${trendContext ? `
+## UAE Design Trends (current market signals — bias your recommendations toward these)
+${trendContext}` : ""}
 ## Instructions
 For EACH space, provide:
 1. **styleDirection** — A specific design direction (e.g., "Warm minimalism with brass accents and limestone textures")
@@ -176,6 +182,43 @@ function buildMarketIntelSummary(recentEvidence: any[], inputs: ProjectInputs): 
         if (e.brandsMentioned && e.brandsMentioned.length > 0) line += ` — brands: ${e.brandsMentioned.join(", ")}`;
         if (e.priceMin || e.priceMax) line += ` — Price: ${e.priceMin || "?"}-${e.priceMax || "?"} ${e.unit || "AED"}`;
         return line;
+    }).join("\n");
+}
+
+/**
+ * Phase 4: Build a concise trend context block to inject into the Gemini prompt.
+ * Prioritises established > emerging trends, groups by category.
+ */
+function buildTrendContext(trends: any[], inputs: ProjectInputs): string {
+    if (!trends || trends.length === 0) return "";
+    // Filter to match project style if available, else use all
+    const filtered = trends.filter(t =>
+        !t.styleClassification ||
+        t.styleClassification.toLowerCase() === inputs.des01Style.toLowerCase()
+    );
+    const top = (filtered.length > 0 ? filtered : trends)
+        .sort((a, b) => {
+            const order: Record<string, number> = { established: 0, emerging: 1, declining: 2 };
+            return (order[a.confidenceLevel] ?? 1) - (order[b.confidenceLevel] ?? 1);
+        })
+        .slice(0, 12);
+    if (top.length === 0) return "";
+    // Group by category
+    const grouped: Record<string, typeof top> = {};
+    for (const t of top) {
+        const cat = t.trendCategory ?? "other";
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push(t);
+    }
+    return Object.entries(grouped).map(([cat, items]) => {
+        const lines = items.map(t => {
+            let s = `  - **${t.trendName}** [${t.confidenceLevel}]`;
+            if (t.description) s += `: ${t.description.substring(0, 100)}`;
+            if (t.relatedMaterials && Array.isArray(t.relatedMaterials) && t.relatedMaterials.length > 0)
+                s += ` (materials: ${(t.relatedMaterials as string[]).slice(0, 4).join(", ")})`;
+            return s;
+        }).join("\n");
+        return `**${cat.toUpperCase()}**:\n${lines}`;
     }).join("\n");
 }
 
