@@ -51,6 +51,7 @@ import IngestionMonitor from "./pages/market-intel/IngestionMonitor";
 import AnalyticsDashboard from "./pages/market-intel/AnalyticsDashboard";
 import DataHealth from "./pages/market-intel/DataHealth";
 import DldInsights from "./pages/market-intel/DldInsights";
+import MarketIntelligence from "./pages/market-intel/MarketIntelligence";
 import Alerts from "./pages/Alerts";
 import DesignAdvisor from "./pages/DesignAdvisor";
 import PortfolioPage from "./pages/PortfolioPage";
@@ -132,6 +133,7 @@ function Router() {
       <Route path="/market-intel/ingestion">{() => <Protected Component={IngestionMonitor} />}</Route>
       <Route path="/market-intel/analytics">{() => <Protected Component={AnalyticsDashboard} />}</Route>
       <Route path="/market-intel/dld-insights">{() => <Protected Component={DldInsights} />}</Route>
+      <Route path="/market-intelligence">{() => <Protected Component={MarketIntelligence} />}</Route>
 
       {/* Admin routes (admin-only) */}
       <Route path="/admin/benchmarks">{() => <AdminOnly Component={Benchmarks} />}</Route>
