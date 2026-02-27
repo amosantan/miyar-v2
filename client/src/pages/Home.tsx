@@ -91,6 +91,33 @@ function GoldDiamond() {
   );
 }
 
+/* ─── Ornamental MIYAR Logo SVG ─────────────────────────────────────────────── */
+function MiyarLogo({ size = 32, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      {/* Outer ornamental frame */}
+      <path d="M32 2L42 12L52 12L52 22L62 32L52 42L52 52L42 52L32 62L22 52L12 52L12 42L2 32L12 22L12 12L22 12Z" stroke="url(#logoGrad)" strokeWidth="1.5" fill="none" />
+      {/* Inner diamond */}
+      <path d="M32 14L44 26L44 38L32 50L20 38L20 26Z" stroke="url(#logoGrad)" strokeWidth="1" fill="rgba(201,169,110,0.08)" />
+      {/* Center A/star */}
+      <path d="M32 20L38 32L44 44H36L34 40H30L28 44H20L26 32Z" fill="url(#logoGrad)" />
+      <path d="M30 36H34L32 28Z" fill="#0A1628" />
+      {/* Corner ornaments */}
+      <circle cx="32" cy="8" r="1.5" fill="#C9A96E" />
+      <circle cx="56" cy="32" r="1.5" fill="#C9A96E" />
+      <circle cx="32" cy="56" r="1.5" fill="#C9A96E" />
+      <circle cx="8" cy="32" r="1.5" fill="#C9A96E" />
+      <defs>
+        <linearGradient id="logoGrad" x1="0" y1="0" x2="64" y2="64">
+          <stop offset="0%" stopColor="#D4B87A" />
+          <stop offset="50%" stopColor="#C9A96E" />
+          <stop offset="100%" stopColor="#8B7355" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 /* ════════════════════════════════════════════════════════════════════════════ */
 export default function Home() {
   const { user, loading } = useAuth();
@@ -170,9 +197,7 @@ export default function Home() {
           <div className="flex items-center gap-8">
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C9A96E] to-[#8B7355] flex items-center justify-center">
-                <Star className="h-4 w-4 text-[#0A1628] fill-[#0A1628]" />
-              </div>
+              <MiyarLogo size={34} />
               <span className="text-lg font-bold text-gold-gradient tracking-tight">MIYAR</span>
             </div>
             {/* Nav links */}
@@ -205,19 +230,40 @@ export default function Home() {
 
       {/* ═══ HERO ═════════════════════════════════════════════════════════════ */}
       <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
-        {/* Background layers */}
-        <div className="absolute inset-0" style={{
-          background: "linear-gradient(180deg, #0D1B2A 0%, #0A1628 40%, #0F1A2E 70%, #0A1628 100%)",
+        {/* Animated luxury interior background — Ken Burns effect */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url("/images/hero-bg.png")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              animation: "kenBurns 25s ease-in-out infinite alternate",
+            }}
+          />
+          {/* Dark overlay gradient for readability — center is darkest */}
+          <div className="absolute inset-0" style={{
+            background: `
+              linear-gradient(180deg, rgba(10,22,40,0.75) 0%, rgba(10,22,40,0.55) 50%, rgba(10,22,40,0.85) 100%),
+              radial-gradient(ellipse at center, rgba(10,22,40,0.80) 30%, transparent 75%)
+            `,
+          }} />
+          {/* Left vignette */}
+          <div className="absolute inset-y-0 left-0 w-1/4" style={{
+            background: "linear-gradient(to right, rgba(10,22,40,0.9), transparent)",
+          }} />
+          {/* Right vignette */}
+          <div className="absolute inset-y-0 right-0 w-1/4" style={{
+            background: "linear-gradient(to left, rgba(10,22,40,0.9), transparent)",
+          }} />
+        </div>
+
+        {/* Gold ambient glow */}
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full opacity-25 pointer-events-none" style={{
+          background: "radial-gradient(ellipse, rgba(201,169,110,0.15) 0%, transparent 70%)",
         }} />
-        {/* Marble texture overlay */}
-        <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.5'/%3E%3C/svg%3E")`,
-        }} />
-        {/* Gold glow orbs */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full opacity-30" style={{
-          background: "radial-gradient(ellipse, rgba(201,169,110,0.12) 0%, transparent 70%)",
-        }} />
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0A1628] to-transparent z-10" />
+        {/* Bottom fade to page bg */}
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#0A1628] to-transparent z-10" />
 
         {/* Decorative vertical lines */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -226,13 +272,9 @@ export default function Home() {
         </div>
 
         <div className="relative z-20 max-w-5xl mx-auto px-6 text-center">
-          {/* Ornamental top */}
-          <div className="flex items-center justify-center gap-3 mb-6 animate-fade-in-down">
-            <div className="h-px w-16 bg-gradient-to-r from-transparent to-[#C9A96E]/50" />
-            <div className="w-2.5 h-2.5 rotate-45 border border-[#C9A96E]/60" />
-            <span className="text-[10px] font-semibold tracking-[0.4em] uppercase text-[#C9A96E]">INTERIOR INTELLIGENCE</span>
-            <div className="w-2.5 h-2.5 rotate-45 border border-[#C9A96E]/60" />
-            <div className="h-px w-16 bg-gradient-to-l from-transparent to-[#C9A96E]/50" />
+          {/* Ornamental MIYAR Icon */}
+          <div className="flex justify-center mb-6 animate-fade-in-down">
+            <MiyarLogo size={56} className="drop-shadow-lg" />
           </div>
 
           {/* Heading */}
@@ -250,7 +292,7 @@ export default function Home() {
           <GoldDiamond />
 
           {/* Subtitle */}
-          <p className="text-base md:text-lg text-[#8B9CB7] max-w-2xl mx-auto leading-relaxed mt-4 mb-10 animate-fade-in-up delay-200" style={{ animationFillMode: "both" }}>
+          <p className="text-base md:text-lg text-[#B8C5D6] max-w-2xl mx-auto leading-relaxed mt-4 mb-10 animate-fade-in-up delay-200" style={{ animationFillMode: "both" }}>
             The pinnacle of AI-driven interior design intelligence for Dubai's most
             prestigious institutional property portfolios.
           </p>
@@ -260,7 +302,7 @@ export default function Home() {
             <Button
               size="lg"
               onClick={() => (window.location.href = getLoginUrl())}
-              className="bg-[#C9A96E] hover:bg-[#B08D4C] text-[#0A1628] font-semibold px-10 py-6 text-base rounded-xl gap-2 shadow-lg shadow-[#C9A96E]/20 hover:shadow-[#C9A96E]/40 transition-all"
+              className="bg-[#C9A96E] hover:bg-[#B08D4C] text-[#0A1628] font-semibold px-10 py-6 text-base rounded-xl gap-2 shadow-lg shadow-[#C9A96E]/25 hover:shadow-[#C9A96E]/45 transition-all"
             >
               Get Started <ArrowRight className="h-4 w-4" />
             </Button>
@@ -268,7 +310,7 @@ export default function Home() {
               size="lg"
               variant="outline"
               onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
-              className="border-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/10 hover:border-[#C9A96E]/50 px-10 py-6 text-base rounded-xl"
+              className="border-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/10 hover:border-[#C9A96E]/50 px-10 py-6 text-base rounded-xl backdrop-blur-sm"
             >
               See How it Works
             </Button>
@@ -495,8 +537,8 @@ export default function Home() {
                     <div className={`absolute left-2.5 md:left-4.5 top-1 w-3 h-3 rounded-full border-2 ${v.current ? "bg-[#C9A96E] border-[#C9A96E] shadow-lg shadow-[#C9A96E]/30" : "bg-[#0A1628] border-[#C9A96E]/40"}`} />
 
                     <div className={`rounded-xl border p-6 transition-all ${v.current
-                        ? "border-[#C9A96E]/35 bg-[#C9A96E]/[0.04]"
-                        : "border-[#1E2D42] bg-[#0D1926]/50"
+                      ? "border-[#C9A96E]/35 bg-[#C9A96E]/[0.04]"
+                      : "border-[#1E2D42] bg-[#0D1926]/50"
                       }`}>
                       <div className="flex flex-wrap items-center gap-3 mb-3">
                         <span className={`text-sm font-bold px-3 py-1 rounded-lg ${v.current ? "bg-[#C9A96E] text-[#0A1628]" : "bg-[#1A2332] text-[#8B9CB7]"
