@@ -22,6 +22,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // drizzle/schema.ts
 import {
   int,
+  bigint,
   mysqlEnum,
   mysqlTable,
   text,
