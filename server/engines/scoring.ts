@@ -58,10 +58,11 @@ export function computeDifferentiationStrength(
   w: Record<string, number>
 ): number {
   const raw =
-    (w.str02 ?? 0.30) * n.str02_n +
-    (w.competitorInverse ?? 0.25) * (1 - n.mkt02_n) +
-    (w.des04 ?? 0.25) * n.des04_n +
-    (w.des02 ?? 0.20) * n.des02_n;
+    (w.str02 ?? 0.25) * n.str02_n +
+    (w.competitorInverse ?? 0.20) * (1 - n.mkt02_n) +
+    (w.des04 ?? 0.20) * n.des04_n +
+    (w.des02 ?? 0.20) * n.des02_n +
+    (w.des05 ?? 0.15) * n.des05_n;
   return Math.max(0, Math.min(100, raw * 100));
 }
 
@@ -69,11 +70,14 @@ export function computeExecutionRisk(
   n: NormalizedInputs,
   w: Record<string, number>
 ): number {
+  // Higher sustainability cert tiers increase procurement complexity
+  const certRisk = n.sustainCertMultiplier > 1.10 ? (n.sustainCertMultiplier - 1.0) * 2 : 0;
   const raw =
-    (w.executionResilience ?? 0.35) * n.executionResilience +
+    (w.executionResilience ?? 0.30) * n.executionResilience +
     (w.supplyChainInverse ?? 0.25) * (1 - n.exe01_n) +
     (w.complexityInverse ?? 0.20) * (1 - n.des03_n) +
-    (w.approvalsInverse ?? 0.20) * (1 - n.exe03_n);
+    (w.approvalsInverse ?? 0.15) * (1 - n.exe03_n) +
+    (w.certRisk ?? 0.10) * certRisk;
   return Math.max(0, Math.min(100, raw * 100));
 }
 
@@ -157,6 +161,18 @@ export function computePenalties(
     riskFlags.push("COMPLEXITY_MISMATCH");
   }
 
+  // P6: Sustainability budget underfunded — budget cap too low for cert tier
+  if (n.sustainCertMultiplier > 1.05 && n.budgetFit < 0.5) {
+    penalties.push({
+      id: "P6",
+      trigger: "sustain_underfunded",
+      effect: penaltyConfig?.P6?.effect ?? -6,
+      flag: "SUSTAIN_UNDERFUNDED",
+      description: `Budget may not cover ${Math.round((n.sustainCertMultiplier - 1) * 100)}% sustainability certification premium`,
+    });
+    riskFlags.push("SUSTAIN_UNDERFUNDED");
+  }
+
   return { penalties, riskFlags };
 }
 
@@ -206,6 +222,14 @@ export function generateConditionalActions(
       recommendation:
         "Reposition experience intensity; adjust differentiation strategy.",
       variables: ["mkt02Competitor", "des04Experience"],
+    });
+  }
+  if (riskFlags.includes("SUSTAIN_UNDERFUNDED")) {
+    actions.push({
+      trigger: "SUSTAIN_UNDERFUNDED",
+      recommendation:
+        "Increase budget cap to account for sustainability certification material premium, or lower certification target tier.",
+      variables: ["fin01BudgetCap", "sustainCertTarget"],
     });
   }
 
@@ -317,21 +341,24 @@ export function computeVariableContributions(
       trendFit: n.trendFit * (varWeights.mp?.trendFit ?? 0.20),
     },
     ds: {
-      str02_n: n.str02_n * (varWeights.ds?.str02 ?? 0.30),
+      str02_n: n.str02_n * (varWeights.ds?.str02 ?? 0.25),
       competitorInverse:
-        (1 - n.mkt02_n) * (varWeights.ds?.competitorInverse ?? 0.25),
-      des04_n: n.des04_n * (varWeights.ds?.des04 ?? 0.25),
+        (1 - n.mkt02_n) * (varWeights.ds?.competitorInverse ?? 0.20),
+      des04_n: n.des04_n * (varWeights.ds?.des04 ?? 0.20),
       des02_n: n.des02_n * (varWeights.ds?.des02 ?? 0.20),
+      des05_n: n.des05_n * (varWeights.ds?.des05 ?? 0.15),
     },
     er: {
       executionResilience:
-        n.executionResilience * (varWeights.er?.executionResilience ?? 0.35),
+        n.executionResilience * (varWeights.er?.executionResilience ?? 0.30),
       supplyChainInverse:
         (1 - n.exe01_n) * (varWeights.er?.supplyChainInverse ?? 0.25),
       complexityInverse:
         (1 - n.des03_n) * (varWeights.er?.complexityInverse ?? 0.20),
       approvalsInverse:
-        (1 - n.exe03_n) * (varWeights.er?.approvalsInverse ?? 0.20),
+        (1 - n.exe03_n) * (varWeights.er?.approvalsInverse ?? 0.15),
+      certRisk:
+        (n.sustainCertMultiplier > 1.10 ? (n.sustainCertMultiplier - 1.0) * 2 : 0) * (varWeights.er?.certRisk ?? 0.10),
     },
   };
 }

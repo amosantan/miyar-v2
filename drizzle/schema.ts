@@ -191,6 +191,10 @@ export const projects = mysqlTable("projects", {
   dldAreaId: int("dld_area_id"),
   dldAreaName: varchar("dld_area_name", { length: 200 }),
 
+  // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
+  city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
+  sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default("silver"),
+
   // Project purpose — drives fitout quality and benchmark selection
   projectPurpose: mysqlEnum("project_purpose", [
     "sell_offplan",   // New off-plan development — showroom-quality finishes, premium specs

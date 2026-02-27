@@ -30,6 +30,7 @@ import {
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { CITY_TIERS, DEFAULT_TIER, CERT_MULTIPLIERS, CERT_TO_DES05 } from "../../../server/engines/sustainability/sustainability-multipliers";
 
 const STEPS = [
   { icon: Building2, label: "Context", desc: "Project fundamentals" },
@@ -117,6 +118,8 @@ type FormData = {
   unitMix?: string;
   villaSpaces?: string;
   developerGuidelines?: string;
+  city: string;
+  sustainCertTarget: string;
 };
 
 function ProjectNewContent() {
@@ -160,6 +163,8 @@ function ProjectNewContent() {
     unitMix: "",
     villaSpaces: "",
     developerGuidelines: "",
+    city: "Dubai",
+    sustainCertTarget: "silver",
   });
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
@@ -334,6 +339,30 @@ function ProjectNewContent() {
                   />
                   <p className="text-[10px] text-muted-foreground">
                     Select the DLD-registered area for competitor intelligence and market comparison
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>City</Label>
+                  <Select
+                    value={form.city}
+                    onValueChange={(v) => {
+                      set("city", v);
+                      // Auto-set default certification tier for city
+                      const defaultTier = DEFAULT_TIER[v] || "silver";
+                      set("sustainCertTarget", defaultTier);
+                      set("des05Sustainability", CERT_TO_DES05[defaultTier] || 2);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Dubai">Dubai</SelectItem>
+                      <SelectItem value="Abu Dhabi">Abu Dhabi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Determines certification system: Dubai → Al Sa'fat, Abu Dhabi → Estidama
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -550,12 +579,39 @@ function ProjectNewContent() {
                 value={form.des04Experience}
                 onChange={(v) => set("des04Experience", v)}
               />
-              <OrdinalSlider
-                label="Sustainability (DES-05)"
-                tooltip="Commitment to sustainable materials and green certifications"
-                value={form.des05Sustainability}
-                onChange={(v) => set("des05Sustainability", v)}
-              />
+              <div className="space-y-3">
+                <Label>Sustainability Certification Target</Label>
+                <p className="text-xs text-muted-foreground">
+                  {form.city === "Abu Dhabi" ? "Estidama Pearl Rating" : "Al Sa'fat Green Building"} — affects material costs and scoring
+                </p>
+                <Select
+                  value={form.sustainCertTarget}
+                  onValueChange={(v) => {
+                    set("sustainCertTarget", v);
+                    set("des05Sustainability", CERT_TO_DES05[v] || 2);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(CITY_TIERS[form.city] || CITY_TIERS["Dubai"]).map((tier) => (
+                      <SelectItem key={tier.value} value={tier.value}>
+                        {tier.label}
+                        {tier.mandatory ? " ✱ (mandatory)" : ""}
+                        {" — "}{tier.premium} material premium
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {CERT_MULTIPLIERS[form.sustainCertTarget] && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                    <span className="text-xs font-medium text-amber-600">
+                      +{Math.round((CERT_MULTIPLIERS[form.sustainCertTarget] - 1) * 100)}% estimated material cost premium
+                    </span>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -631,6 +687,19 @@ function ProjectNewContent() {
                       <span className="text-muted-foreground">Horizon:</span>{" "}
                       <span className="text-foreground">
                         {form.ctx05Horizon}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">City:</span>{" "}
+                      <span className="text-foreground">{form.city}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Cert Target:</span>{" "}
+                      <span className="text-foreground">
+                        {(CITY_TIERS[form.city] || []).find(t => t.value === form.sustainCertTarget)?.label || form.sustainCertTarget}
+                        <span className="text-xs text-amber-600 ml-1">
+                          (+{Math.round(((CERT_MULTIPLIERS[form.sustainCertTarget] || 1) - 1) * 100)}%)
+                        </span>
                       </span>
                     </div>
                   </div>

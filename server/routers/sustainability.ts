@@ -133,6 +133,11 @@ export const sustainabilityRouter = router({
             const d = await getDb();
             if (!d) throw new Error("Database unavailable");
 
+            // Get project to determine city
+            const project = await db.getProjectById(input.projectId);
+            if (!project) throw new Error("Project not found");
+            const city = (project as any).city || "Dubai";
+
             // Get latest digital twin model for this project
             const rows = await d.select().from(digitalTwinModels)
                 .where(eq(digitalTwinModels.projectId, input.projectId))
@@ -144,10 +149,10 @@ export const sustainabilityRouter = router({
 
             const config = twin.config as any || {};
 
-            return evaluateCompliance({
+            const result = evaluateCompliance({
                 carbonPerSqm: Number(twin.carbonPerSqm),
                 energyPerSqm: Number(twin.energyPerSqm),
-                coolingLoad: 0, // Not stored separately
+                coolingLoad: 0,
                 operationalEnergy: Number(twin.operationalEnergy),
                 sustainabilityScore: twin.sustainabilityScore ?? 0,
                 carbonEfficiency: 0,
@@ -161,5 +166,13 @@ export const sustainabilityRouter = router({
                 waterRecycling: config.waterRecycling ?? false,
                 glazingRatio: config.glazingRatio ?? 0.35,
             });
+
+            // Auto-filter: only return the relevant certification for the project's city
+            return {
+                ...result,
+                city,
+                certSystem: city === "Abu Dhabi" ? "Estidama Pearl" : "Al Sa'fat",
+                sustainCertTarget: (project as any).sustainCertTarget || (city === "Abu Dhabi" ? "pearl_1" : "silver"),
+            };
         }),
 });

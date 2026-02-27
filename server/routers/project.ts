@@ -9,6 +9,7 @@ import { generateDesignBrief as generateNewDesignBrief } from "../engines/design
 import { storagePut } from "../storage";
 import { nanoid } from "nanoid";
 import type { ProjectInputs } from "../../shared/miyar-types";
+import { tierToDes05 } from "../engines/sustainability/sustainability-multipliers";
 import { computeRoi, type RoiInputs } from "../engines/roi";
 import { computeFiveLens } from "../engines/five-lens";
 import { computeDerivedFeatures } from "../engines/intelligence";
@@ -97,6 +98,9 @@ const projectInputSchema = z.object({
   dldAreaId: z.number().nullable().optional(),
   dldAreaName: z.string().optional(),
   projectPurpose: z.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
+  // City & Sustainability Certification
+  city: z.enum(["Dubai", "Abu Dhabi"]).default("Dubai"),
+  sustainCertTarget: z.string().default("silver"),
 });
 
 function projectToInputs(p: any): ProjectInputs {
@@ -120,7 +124,7 @@ function projectToInputs(p: any): ProjectInputs {
     des02MaterialLevel: p.des02MaterialLevel ?? 3,
     des03Complexity: p.des03Complexity ?? 3,
     des04Experience: p.des04Experience ?? 3,
-    des05Sustainability: p.des05Sustainability ?? 2,
+    des05Sustainability: p.des05Sustainability ?? tierToDes05(p.sustainCertTarget || "silver"),
     exe01SupplyChain: p.exe01SupplyChain ?? 3,
     exe02Contractor: p.exe02Contractor ?? 3,
     exe03Approvals: p.exe03Approvals ?? 2,
@@ -128,6 +132,8 @@ function projectToInputs(p: any): ProjectInputs {
     add01SampleKit: p.add01SampleKit ?? false,
     add02PortfolioMode: p.add02PortfolioMode ?? false,
     add03DashboardExport: p.add03DashboardExport ?? true,
+    city: p.city ?? "Dubai",
+    sustainCertTarget: p.sustainCertTarget || "silver",
   };
 }
 

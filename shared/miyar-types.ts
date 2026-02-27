@@ -6,6 +6,7 @@ export type LocationCategory = "Prime" | "Secondary" | "Emerging";
 export type DeliveryHorizon = "0-12m" | "12-24m" | "24-36m" | "36m+";
 export type MarketTier = "Mid" | "Upper-mid" | "Luxury" | "Ultra-luxury";
 export type DesignStyle = "Modern" | "Contemporary" | "Minimal" | "Classic" | "Fusion" | "Other";
+export type ProjectCity = "Dubai" | "Abu Dhabi";
 export type ProjectStatus = "draft" | "ready" | "processing" | "evaluated" | "locked";
 export type DecisionStatus = "validated" | "conditional" | "not_validated";
 export type OverrideType = "strategic" | "market_insight" | "risk_adjustment" | "experimental";
@@ -19,6 +20,9 @@ export interface ProjectInputs {
   ctx03Gfa: number | null;
   ctx04Location: LocationCategory;
   ctx05Horizon: DeliveryHorizon;
+  // City & Sustainability Certification
+  city: ProjectCity;
+  sustainCertTarget: string;
   // Strategy (1-5)
   str01BrandClarity: number;
   str02Differentiation: number;
@@ -77,6 +81,7 @@ export interface NormalizedInputs {
   compatVisionMarket: number;
   compatVisionDesign: number;
   costVolatility: number;
+  sustainCertMultiplier: number;
 }
 
 export interface DimensionScores {

@@ -10,6 +10,7 @@ import type {
   MarketTier,
   DesignStyle,
 } from "../../shared/miyar-types";
+import { getCertMultiplier } from "./sustainability/sustainability-multipliers";
 
 /** Normalize ordinal (1-5) to [0,1] */
 export function normalizeOrdinal(value: number): number {
@@ -141,6 +142,10 @@ export function normalizeInputs(
   const differentiationPressure = (mkt02_n + str02_n) / 2;
   const budgetFit = computeBudgetFit(inputs.fin01BudgetCap, expectedCost);
   const costVolatility = ((1 - exe01_n) * 0.5 + (1 - fin03_n) * 0.5);
+  const sustainCertMultiplier = getCertMultiplier(inputs.sustainCertTarget || "silver");
+
+  // Adjust expected cost by sustainability certification premium
+  const adjustedExpectedCost = expectedCost * sustainCertMultiplier;
 
   return {
     str01_n,
@@ -163,11 +168,12 @@ export function normalizeInputs(
     budgetClass: deriveBudgetClass(inputs.fin01BudgetCap),
     differentiationPressure,
     executionResilience,
-    budgetFit,
+    budgetFit: computeBudgetFit(inputs.fin01BudgetCap, adjustedExpectedCost),
     marketFit: computeMarketFit(inputs.ctx04Location, inputs.mkt01Tier, inputs.des02MaterialLevel),
     trendFit: computeTrendFit(inputs.des01Style, inputs.mkt03Trend),
     compatVisionMarket: computeCompatVisionMarket(inputs.str01BrandClarity, inputs.mkt01Tier),
     compatVisionDesign: computeCompatVisionDesign(inputs.str02Differentiation, inputs.des01Style),
     costVolatility,
+    sustainCertMultiplier,
   };
 }
