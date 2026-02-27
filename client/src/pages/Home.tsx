@@ -5,7 +5,6 @@ import {
   BarChart3,
   Shield,
   Zap,
-  Target,
   ArrowRight,
   CheckCircle2,
   Sparkles,
@@ -14,18 +13,16 @@ import {
   TrendingUp,
   Leaf,
   ChevronDown,
-  Building2,
+  LineChart,
   Layers,
-  Scale,
   Globe,
-  Award,
-  ArrowUpRight,
+  Star,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
 
-/* ─── Animated Counter Component ────────────────────────────────────────────── */
-function AnimatedCounter({ target, suffix = "", prefix = "" }: { target: string; suffix?: string; prefix?: string }) {
+/* ─── Animated Counter ──────────────────────────────────────────────────────── */
+function AnimatedCounter({ target, suffix = "" }: { target: string; suffix?: string }) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const numericTarget = parseInt(target.replace(/[^0-9]/g, ""), 10);
@@ -57,49 +54,50 @@ function AnimatedCounter({ target, suffix = "", prefix = "" }: { target: string;
 
   return (
     <div ref={ref} className="text-3xl md:text-4xl font-bold text-gold-gradient">
-      {prefix}{count.toLocaleString()}{suffix}
+      {count.toLocaleString()}{suffix}
     </div>
   );
 }
 
-/* ─── Section Wrapper with Scroll Animation ─────────────────────────────────── */
-function AnimatedSection({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  const [isVisible, setIsVisible] = useState(false);
+/* ─── Scroll-reveal wrapper ─────────────────────────────────────────────────── */
+function Reveal({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+  const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setTimeout(() => setIsVisible(true), delay);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1 }
+      ([e]) => { if (e.isIntersecting) { setTimeout(() => setVisible(true), delay); observer.disconnect(); } },
+      { threshold: 0.12 }
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, [delay]);
 
   return (
-    <div
-      ref={ref}
-      className={`transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"} ${className}`}
-    >
+    <div ref={ref} className={`transition-all duration-700 ease-out ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"} ${className}`}>
       {children}
     </div>
   );
 }
 
-/* ─── Main Home Component ───────────────────────────────────────────────────── */
+/* ─── Gold decorative diamond separator ─────────────────────────────────────── */
+function GoldDiamond() {
+  return (
+    <div className="flex items-center justify-center gap-2 my-2">
+      <div className="h-px w-12 bg-gradient-to-r from-transparent to-[#C9A96E]/40" />
+      <div className="w-2 h-2 rotate-45 bg-[#C9A96E]" />
+      <div className="h-px w-12 bg-gradient-to-l from-transparent to-[#C9A96E]/40" />
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════ */
 export default function Home() {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!loading && user) {
-      setLocation("/dashboard");
-    }
+    if (!loading && user) setLocation("/dashboard");
   }, [loading, user, setLocation]);
 
   if (loading) {
@@ -113,537 +111,477 @@ export default function Home() {
     );
   }
 
+  /* ─── Sections data ─────────────────────────────────────────────────────── */
+  const features = [
+    { icon: Sparkles, title: "AI Design Brief", desc: "Generative aesthetics tailored for high-end residential and commercial spaces based on current trends." },
+    { icon: DollarSign, title: "Live Cost Calculator", desc: "Real-time UAE market pricing for materials, labor, and luxury fit-outs updated daily." },
+    { icon: FileText, title: "Investor PDF Export", desc: "Institutional-grade reporting ready for board presentations and investment committees." },
+    { icon: BarChart3, title: "MIYAR Score", desc: "Proprietary luxury benchmark scoring to evaluate long-term property value appreciation." },
+    { icon: Globe, title: "Market Intelligence", desc: "Direct integration with Dubai Land Department (DLD) for live transaction mapping." },
+    { icon: Leaf, title: "Sustainability Compliance", desc: "Ensure every design meets the latest Dubai green building standards and ESG requirements." },
+  ];
+
+  const steps = [
+    { num: "01", title: "Define", desc: "Input property coordinates and basic shell parameters." },
+    { num: "02", title: "Analyze", desc: "Gemini AI generates 50+ localized design variations." },
+    { num: "03", title: "Review", desc: "Validate with live cost benchmarks and DLD data." },
+    { num: "04", title: "Export", desc: "Download your investor-ready PDF strategy package." },
+  ];
+
+  const versions = [
+    {
+      ver: "5.0", title: "The Authority Engine", date: "February 2026", current: true,
+      items: [
+        "Direct API connection to Dubai Land Department",
+        "Multi-asset portfolio comparison engine",
+        "Enhanced Sustainability score compliance",
+        "RICS NRM cost alignment (30+ codes)",
+        "City-aware certification pricing",
+        "Mobile-responsive share views",
+      ],
+    },
+    {
+      ver: "4.0", title: "Evidence & Prediction", date: "January 2026",
+      items: [
+        "Gemini AI Pro Integration for design logic",
+        "Institutional-grade PDF export formatting",
+        "Predictive Cost Range Engine (P15–P95)",
+        "Evidence Vault with provenance tracking",
+      ],
+    },
+    {
+      ver: "3.0", title: "Market Intelligence", date: "December 2025",
+      items: [
+        "Live material cost tracking for UAE market",
+        "Market ingestion pipeline with 5 connector types",
+        "Trend analysis & competitor landscape",
+      ],
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-[#0A1628] text-[#F0EBE3] overflow-x-hidden">
 
-      {/* ─── Navigation Bar ───────────────────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass-overlay border-b border-[#C9A96E]/10">
+      {/* ═══ NAVBAR ═══════════════════════════════════════════════════════════ */}
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[#C9A96E]/10" style={{
+        background: "rgba(10,22,40,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)"
+      }}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-xl font-bold text-gold-gradient tracking-tight">MIYAR</span>
-            <span className="text-[10px] tracking-[0.3em] uppercase text-[#8B9CB7] hidden sm:inline">مِعيار</span>
+          <div className="flex items-center gap-8">
+            {/* Logo */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C9A96E] to-[#8B7355] flex items-center justify-center">
+                <Star className="h-4 w-4 text-[#0A1628] fill-[#0A1628]" />
+              </div>
+              <span className="text-lg font-bold text-gold-gradient tracking-tight">MIYAR</span>
+            </div>
+            {/* Nav links */}
+            <div className="hidden md:flex items-center gap-6 text-sm text-[#8B9CB7]">
+              <a href="#features" className="hover:text-[#C9A96E] transition-colors">Features</a>
+              <a href="#how-it-works" className="hover:text-[#C9A96E] transition-colors">How it Works</a>
+              <a href="#dashboard" className="hover:text-[#C9A96E] transition-colors">Dashboard</a>
+              <a href="#changelog" className="hover:text-[#C9A96E] transition-colors">Changelog</a>
+            </div>
           </div>
-          <div className="flex items-center gap-6">
-            <a href="/methodology" className="text-sm text-[#8B9CB7] hover:text-[#C9A96E] transition-colors hidden md:inline">Methodology</a>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => (window.location.href = getLoginUrl())}
+              className="text-[#C9A96E] hover:bg-[#C9A96E]/10 hidden sm:inline-flex"
+            >
+              Login
+            </Button>
             <Button
               size="sm"
               onClick={() => (window.location.href = getLoginUrl())}
               className="bg-[#C9A96E] hover:bg-[#B08D4C] text-[#0A1628] font-semibold px-5 rounded-lg"
             >
-              Sign In
+              Get Started
             </Button>
           </div>
         </div>
       </nav>
 
-      {/* ─── Section 1: Hero ──────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center justify-center pt-16">
-        {/* Animated gradient background */}
-        <div className="absolute inset-0 animate-gradient" style={{
-          background: "linear-gradient(135deg, #0A1628 0%, #111827 25%, #162033 50%, #0F1A2E 75%, #0A1628 100%)",
-          backgroundSize: "400% 400%",
+      {/* ═══ HERO ═════════════════════════════════════════════════════════════ */}
+      <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
+        {/* Background layers */}
+        <div className="absolute inset-0" style={{
+          background: "linear-gradient(180deg, #0D1B2A 0%, #0A1628 40%, #0F1A2E 70%, #0A1628 100%)",
         }} />
-        {/* Subtle pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `radial-gradient(circle at 25% 25%, #C9A96E 1px, transparent 1px), radial-gradient(circle at 75% 75%, #C9A96E 1px, transparent 1px)`,
-          backgroundSize: "60px 60px",
+        {/* Marble texture overlay */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.5'/%3E%3C/svg%3E")`,
         }} />
-        {/* Gold glow */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full" style={{
-          background: "radial-gradient(circle, rgba(201, 169, 110, 0.08) 0%, transparent 70%)",
+        {/* Gold glow orbs */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full opacity-30" style={{
+          background: "radial-gradient(ellipse, rgba(201,169,110,0.12) 0%, transparent 70%)",
         }} />
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0A1628] to-transparent z-10" />
 
-        <div className="relative max-w-6xl mx-auto px-6 text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#C9A96E]/20 bg-[#C9A96E]/5 mb-8 animate-fade-in-down">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#C9A96E] animate-pulse" />
-            <span className="text-xs font-medium text-[#C9A96E] tracking-wide">V5 — THE AUTHORITY ENGINE</span>
+        {/* Decorative vertical lines */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-[15%] w-px h-full bg-gradient-to-b from-transparent via-[#C9A96E]/8 to-transparent" />
+          <div className="absolute top-0 left-[85%] w-px h-full bg-gradient-to-b from-transparent via-[#C9A96E]/8 to-transparent" />
+        </div>
+
+        <div className="relative z-20 max-w-5xl mx-auto px-6 text-center">
+          {/* Ornamental top */}
+          <div className="flex items-center justify-center gap-3 mb-6 animate-fade-in-down">
+            <div className="h-px w-16 bg-gradient-to-r from-transparent to-[#C9A96E]/50" />
+            <div className="w-2.5 h-2.5 rotate-45 border border-[#C9A96E]/60" />
+            <span className="text-[10px] font-semibold tracking-[0.4em] uppercase text-[#C9A96E]">INTERIOR INTELLIGENCE</span>
+            <div className="w-2.5 h-2.5 rotate-45 border border-[#C9A96E]/60" />
+            <div className="h-px w-16 bg-gradient-to-l from-transparent to-[#C9A96E]/50" />
           </div>
 
-          {/* Main heading */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up">
-            <span className="text-gold-gradient">Design</span>
-            <span className="text-[#F0EBE3]"> Intelligence</span>
+          {/* Heading */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-fade-in-up leading-tight">
+            Design Intelligence for
             <br />
-            <span className="text-[#8B9CB7] text-3xl md:text-4xl lg:text-5xl font-medium mt-2 block">
-              for UAE Luxury Real Estate
-            </span>
+            <span className="text-gold-gradient">UAE </span>
+            <span className="italic font-light text-gold-gradient">Luxury </span>
+            <span className="text-[#F0EBE3]">Real</span>
+            <br />
+            <span className="text-[#F0EBE3]">Estate</span>
           </h1>
 
+          {/* Ornamental */}
+          <GoldDiamond />
+
           {/* Subtitle */}
-          <p className="text-lg md:text-xl text-[#8B9CB7] max-w-2xl mx-auto leading-relaxed mb-10 animate-fade-in-up delay-200" style={{ animationFillMode: "both" }}>
-            From project parameters to board-ready investor briefs in 60 seconds —
-            powered by live DLD market data, Gemini AI, and deterministic scoring.
+          <p className="text-base md:text-lg text-[#8B9CB7] max-w-2xl mx-auto leading-relaxed mt-4 mb-10 animate-fade-in-up delay-200" style={{ animationFillMode: "both" }}>
+            The pinnacle of AI-driven interior design intelligence for Dubai's most
+            prestigious institutional property portfolios.
           </p>
 
           {/* CTA buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-in-up delay-300" style={{ animationFillMode: "both" }}>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6 animate-fade-in-up delay-300" style={{ animationFillMode: "both" }}>
             <Button
               size="lg"
               onClick={() => (window.location.href = getLoginUrl())}
-              className="bg-[#C9A96E] hover:bg-[#B08D4C] text-[#0A1628] font-semibold px-8 py-6 text-base rounded-xl gap-2 shadow-lg shadow-[#C9A96E]/20 hover:shadow-[#C9A96E]/30 transition-all"
+              className="bg-[#C9A96E] hover:bg-[#B08D4C] text-[#0A1628] font-semibold px-10 py-6 text-base rounded-xl gap-2 shadow-lg shadow-[#C9A96E]/20 hover:shadow-[#C9A96E]/40 transition-all"
             >
               Get Started <ArrowRight className="h-4 w-4" />
             </Button>
             <Button
               size="lg"
               variant="outline"
-              onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
-              className="border-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/10 hover:border-[#C9A96E]/50 px-8 py-6 text-base rounded-xl"
+              onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
+              className="border-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/10 hover:border-[#C9A96E]/50 px-10 py-6 text-base rounded-xl"
             >
-              See How It Works
+              See How it Works
             </Button>
-          </div>
-
-          {/* Floating stat cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto animate-fade-in-up delay-500" style={{ animationFillMode: "both" }}>
-            {[
-              { value: "578K", suffix: "+", label: "DLD Transactions Analyzed" },
-              { value: "150", suffix: "+", label: "Cost Benchmarks" },
-              { value: "38", label: "Compliance Checks" },
-            ].map((stat) => (
-              <div key={stat.label} className="glass-card rounded-xl px-6 py-4 text-center">
-                <AnimatedCounter target={stat.value} suffix={stat.suffix || ""} />
-                <p className="text-xs text-[#8B9CB7] mt-1">{stat.label}</p>
-              </div>
-            ))}
           </div>
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-scroll-hint">
-          <ChevronDown className="h-6 w-6 text-[#C9A96E]/50" />
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 animate-scroll-hint">
+          <ChevronDown className="h-5 w-5 text-[#C9A96E]/40" />
         </div>
       </section>
 
-      {/* ─── Section 2: Features ──────────────────────────────────────────── */}
-      <section id="features" className="relative py-24 md:py-32">
-        <div className="max-w-6xl mx-auto px-6">
-          <AnimatedSection>
-            <div className="text-center mb-16">
-              <span className="text-xs font-semibold tracking-[0.2em] uppercase text-[#C9A96E] mb-3 block">Core Platform</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-[#F0EBE3] mb-4">
-                What MIYAR Does
-              </h2>
-              <p className="text-[#8B9CB7] max-w-xl mx-auto">
-                Six analytical engines working together to validate design directions
-                with defensible market data.
-              </p>
-            </div>
-          </AnimatedSection>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* ═══ STATS BAR ════════════════════════════════════════════════════════ */}
+      <section className="relative z-20 -mt-6">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 rounded-2xl border border-[#C9A96E]/25 overflow-hidden" style={{
+            background: "linear-gradient(135deg, rgba(17,24,39,0.8) 0%, rgba(10,22,40,0.9) 100%)",
+            backdropFilter: "blur(16px)",
+          }}>
             {[
-              {
-                icon: Sparkles,
-                title: "AI Design Brief",
-                desc: "7-section design brief with AI-generated recommendations grounded in UAE market trends.",
-                tag: "Gemini AI",
-              },
-              {
-                icon: DollarSign,
-                title: "Live Cost Calculator",
-                desc: "Interactive material cost calculator with real-time AED/m² from 150+ benchmarks.",
-                tag: "Real-time",
-              },
-              {
-                icon: FileText,
-                title: "Investor PDF Export",
-                desc: "Board-ready investor briefs with professional formatting, shareable via token-gated links.",
-                tag: "Export",
-              },
-              {
-                icon: Target,
-                title: "MIYAR Score",
-                desc: "5-dimension evaluation (SA/FF/MP/DS/ER) with full explainability trace for every number.",
-                tag: "Scoring",
-              },
-              {
-                icon: TrendingUp,
-                title: "Market Intelligence",
-                desc: "Live DLD transaction analytics, area intelligence, and competitor landscape analysis.",
-                tag: "DLD Data",
-              },
-              {
-                icon: Leaf,
-                title: "Sustainability",
-                desc: "Estidama Pearl & Al Sa'fat compliance checklists with certification-aware pricing.",
-                tag: "Compliance",
-              },
-            ].map((feature, i) => (
-              <AnimatedSection key={feature.title} delay={i * 100}>
-                <div className="glass-card rounded-2xl p-6 h-full group">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-xl bg-[#C9A96E]/10 flex items-center justify-center group-hover:bg-[#C9A96E]/20 transition-colors">
-                      <feature.icon className="h-5 w-5 text-[#C9A96E]" />
-                    </div>
-                    <span className="text-[10px] font-semibold tracking-wider uppercase text-[#C9A96E]/60 px-2 py-0.5 rounded-full border border-[#C9A96E]/15">
-                      {feature.tag}
-                    </span>
-                  </div>
-                  <h3 className="font-semibold text-[#F0EBE3] mb-2 text-lg">{feature.title}</h3>
-                  <p className="text-sm text-[#8B9CB7] leading-relaxed">{feature.desc}</p>
-                </div>
-              </AnimatedSection>
+              { value: "578K", suffix: "+", label: "DLD Transactions" },
+              { value: "150", suffix: "+", label: "Benchmarks" },
+              { value: "38", label: "Compliance Checks" },
+            ].map((stat, i) => (
+              <div key={stat.label} className={`px-8 py-6 text-center ${i < 2 ? "sm:border-r border-b sm:border-b-0 border-[#C9A96E]/15" : ""}`}>
+                <AnimatedCounter target={stat.value} suffix={stat.suffix || ""} />
+                <p className="text-xs uppercase tracking-[0.15em] text-[#8B9CB7] mt-1.5">{stat.label}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── Section 3: How It Works ──────────────────────────────────────── */}
-      <section className="relative py-24 md:py-32 border-t border-[#1E2D42]">
+      {/* ═══ FEATURES — "Elite Capabilities" ══════════════════════════════════ */}
+      <section id="features" className="py-28 md:py-36">
         <div className="max-w-6xl mx-auto px-6">
-          <AnimatedSection>
-            <div className="text-center mb-16">
-              <span className="text-xs font-semibold tracking-[0.2em] uppercase text-[#C9A96E] mb-3 block">Workflow</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-[#F0EBE3]">
-                From Input to Insight in 60 Seconds
-              </h2>
+          <Reveal>
+            <div className="text-center mb-4">
+              <span className="text-xs font-semibold tracking-[0.3em] uppercase text-[#C9A96E]">Elite Capabilities</span>
             </div>
-          </AnimatedSection>
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-4xl font-bold text-[#F0EBE3] mb-3">What MIYAR Does</h2>
+              <GoldDiamond />
+            </div>
+          </Reveal>
 
-          <div className="grid md:grid-cols-4 gap-8 relative">
-            {/* Connecting line (hidden on mobile) */}
-            <div className="absolute top-12 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-[#C9A96E]/20 via-[#C9A96E]/40 to-[#C9A96E]/20 hidden md:block" />
-
-            {[
-              { step: "01", title: "Define Project", desc: "Enter typology, GFA, tier, style, city, and sustainability target.", icon: Building2 },
-              { step: "02", title: "AI Analysis", desc: "Gemini AI generates a design brief with DLD-calibrated cost estimates.", icon: Sparkles },
-              { step: "03", title: "Review & Score", desc: "5-dimension MIYAR Score evaluates feasibility, risk, and market fit.", icon: BarChart3 },
-              { step: "04", title: "Export & Share", desc: "One-click PDF export or token-gated share link for investors.", icon: ArrowUpRight },
-            ].map((s, i) => (
-              <AnimatedSection key={s.step} delay={i * 150}>
-                <div className="text-center relative">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#C9A96E]/20 to-[#C9A96E]/5 border border-[#C9A96E]/20 flex items-center justify-center relative z-10">
-                    <s.icon className="h-7 w-7 text-[#C9A96E]" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {features.map((f, i) => (
+              <Reveal key={f.title} delay={i * 80}>
+                <div className="group rounded-2xl border border-[#1E2D42] bg-[#0D1926] p-7 transition-all duration-300 hover:border-[#C9A96E]/30 hover:bg-[#101E2F] hover:shadow-lg hover:shadow-[#C9A96E]/5 h-full">
+                  <div className="flex items-start gap-4">
+                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-[#C9A96E]/20 to-[#C9A96E]/5 flex items-center justify-center shrink-0 group-hover:from-[#C9A96E]/30 group-hover:to-[#C9A96E]/10 transition-all">
+                      <f.icon className="h-5 w-5 text-[#C9A96E]" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-[#F0EBE3] mb-2 text-base">{f.title}</h3>
+                      <p className="text-sm text-[#8B9CB7] leading-relaxed">{f.desc}</p>
+                    </div>
                   </div>
-                  <div className="text-xs font-bold text-[#C9A96E]/40 mb-2 tracking-widest">STEP {s.step}</div>
-                  <h3 className="font-semibold text-[#F0EBE3] mb-2">{s.title}</h3>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ HOW IT WORKS ═════════════════════════════════════════════════════ */}
+      <section id="how-it-works" className="py-24 md:py-32 border-t border-[#1E2D42]">
+        <div className="max-w-6xl mx-auto px-6">
+          <Reveal>
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-4xl font-bold text-[#F0EBE3] mb-2">How it Works</h2>
+              <p className="text-[#8B9CB7]">A seamless workflow for rapid property intelligence.</p>
+              <GoldDiamond />
+            </div>
+          </Reveal>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
+            {/* Horizontal connector (desktop) */}
+            <div className="absolute top-12 left-[12%] right-[12%] h-px bg-gradient-to-r from-[#C9A96E]/10 via-[#C9A96E]/25 to-[#C9A96E]/10 hidden lg:block" />
+
+            {steps.map((s, i) => (
+              <Reveal key={s.num} delay={i * 120}>
+                <div className="text-center relative">
+                  <div className="w-14 h-14 mx-auto mb-5 rounded-full bg-gradient-to-br from-[#C9A96E]/25 to-[#C9A96E]/5 border border-[#C9A96E]/30 flex items-center justify-center relative z-10">
+                    <span className="text-sm font-bold text-[#C9A96E]">{s.num}</span>
+                  </div>
+                  <h3 className="font-semibold text-[#F0EBE3] mb-2 text-lg">{s.title}</h3>
                   <p className="text-sm text-[#8B9CB7] leading-relaxed">{s.desc}</p>
                 </div>
-              </AnimatedSection>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── Section 4: Trust Signals ─────────────────────────────────────── */}
-      <section className="relative py-24 md:py-32 border-t border-[#1E2D42]">
+      {/* ═══ PORTFOLIO COMMAND CENTER ═════════════════════════════════════════ */}
+      <section id="dashboard" className="py-24 md:py-32 border-t border-[#1E2D42] overflow-hidden">
         <div className="max-w-6xl mx-auto px-6">
-          <AnimatedSection>
-            <div className="text-center mb-16">
-              <span className="text-xs font-semibold tracking-[0.2em] uppercase text-[#C9A96E] mb-3 block">Institutional Grade</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-[#F0EBE3]">
-                Built for UAE Market Authority
-              </h2>
-            </div>
-          </AnimatedSection>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: Globe,
-                title: "Live DLD Data",
-                desc: "578K+ real transactions from Dubai Land Department power every cost estimate and area analysis.",
-                stat: "578K+",
-                statLabel: "Transactions",
-              },
-              {
-                icon: Leaf,
-                title: "Estidama & Al Sa'fat",
-                desc: "38 compliance checklist items with certification-aware pricing and sustainability scoring.",
-                stat: "38",
-                statLabel: "Compliance Items",
-              },
-              {
-                icon: Scale,
-                title: "RICS NRM Aligned",
-                desc: "30+ material categories mapped to RICS New Rules of Measurement for institutional credibility.",
-                stat: "30+",
-                statLabel: "NRM Codes",
-              },
-            ].map((item, i) => (
-              <AnimatedSection key={item.title} delay={i * 100}>
-                <div className="glass-card rounded-2xl p-8 text-center group">
-                  <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#C9A96E]/10 flex items-center justify-center">
-                    <item.icon className="h-7 w-7 text-[#C9A96E]" />
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left: text */}
+            <Reveal>
+              <div>
+                <span className="text-xs font-semibold tracking-[0.3em] uppercase text-[#C9A96E] mb-3 block">The Platform</span>
+                <h2 className="text-3xl md:text-4xl font-bold text-[#F0EBE3] mb-6 leading-tight">
+                  Your Portfolio<br />Command Center
+                </h2>
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-[#C9A96E]/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <LineChart className="h-4 w-4 text-[#C9A96E]" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-[#F0EBE3] text-sm">Live Analytics</h4>
+                      <p className="text-sm text-[#8B9CB7]">Monitor ROI predictions for every asset in real-time.</p>
+                    </div>
                   </div>
-                  <div className="text-2xl font-bold text-gold-gradient mb-1">{item.stat}</div>
-                  <div className="text-xs text-[#C9A96E]/60 uppercase tracking-wider mb-3">{item.statLabel}</div>
-                  <h3 className="font-semibold text-[#F0EBE3] mb-2">{item.title}</h3>
-                  <p className="text-sm text-[#8B9CB7] leading-relaxed">{item.desc}</p>
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-[#C9A96E]/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Layers className="h-4 w-4 text-[#C9A96E]" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-[#F0EBE3] text-sm">Advanced Modeling</h4>
+                      <p className="text-sm text-[#8B9CB7]">Compare fit-out levels from 'Standard' to 'Ultra Luxury'.</p>
+                    </div>
+                  </div>
                 </div>
-              </AnimatedSection>
-            ))}
-          </div>
-        </div>
-      </section>
+                <Button
+                  onClick={() => (window.location.href = getLoginUrl())}
+                  className="bg-[#C9A96E] hover:bg-[#B08D4C] text-[#0A1628] font-semibold px-8 rounded-xl shadow-lg shadow-[#C9A96E]/20"
+                >
+                  Explore the Dashboard
+                </Button>
+              </div>
+            </Reveal>
 
-      {/* ─── Section 5: App Preview ───────────────────────────────────────── */}
-      <section className="relative py-24 md:py-32 border-t border-[#1E2D42] overflow-hidden">
-        <div className="max-w-6xl mx-auto px-6">
-          <AnimatedSection>
-            <div className="text-center mb-12">
-              <span className="text-xs font-semibold tracking-[0.2em] uppercase text-[#C9A96E] mb-3 block">The Platform</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-[#F0EBE3] mb-4">
-                A Bloomberg Terminal for Interior Design
-              </h2>
-              <p className="text-[#8B9CB7] max-w-lg mx-auto">
-                Data-dense yet beautiful. Every metric traceable to source.
-                Every score explainable.
-              </p>
-            </div>
-          </AnimatedSection>
-
-          <AnimatedSection delay={200}>
-            <div className="relative mx-auto max-w-5xl" style={{ perspective: "1200px" }}>
-              <div
-                className="rounded-2xl border border-[#C9A96E]/20 overflow-hidden shadow-2xl shadow-[#C9A96E]/5"
-                style={{ transform: "rotateX(2deg) rotateY(-1deg)" }}
-              >
-                {/* Fake dashboard preview */}
-                <div className="bg-[#070F1D] p-1">
+            {/* Right: dashboard mockup */}
+            <Reveal delay={200}>
+              <div className="relative" style={{ perspective: "1200px" }}>
+                <div className="rounded-2xl border border-[#C9A96E]/20 overflow-hidden shadow-2xl shadow-black/40" style={{ transform: "rotateY(-4deg) rotateX(2deg)" }}>
                   {/* Window chrome */}
-                  <div className="flex items-center gap-1.5 px-3 py-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-                    <div className="ml-4 flex-1 h-5 rounded-md bg-[#111827] flex items-center px-3">
+                  <div className="bg-[#070F1D] px-4 py-2.5 flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
+                    <div className="ml-4 flex-1 h-5 rounded bg-[#111827] flex items-center px-3">
                       <span className="text-[10px] text-[#8B9CB7]">miyar.app/dashboard</span>
                     </div>
                   </div>
                   {/* Dashboard content */}
-                  <div className="flex min-h-[400px]">
-                    {/* Sidebar */}
-                    <div className="w-48 bg-[#070F1D] border-r border-[#162033] p-3 hidden sm:block">
-                      <div className="text-sm font-bold text-[#C9A96E] mb-4">MIYAR</div>
-                      {["Dashboard", "Projects", "Portfolio", "Market Intel", "Sustainability"].map((item, i) => (
-                        <div key={item} className={`text-xs py-2 px-2 rounded-lg mb-1 ${i === 0 ? "bg-[#C9A96E]/10 text-[#C9A96E]" : "text-[#8B9CB7]"}`}>
+                  <div className="bg-[#0A1628] flex">
+                    {/* Sidebar mini */}
+                    <div className="w-40 bg-[#070F1D] border-r border-[#162033] p-3 hidden md:block">
+                      <div className="text-xs font-bold text-[#C9A96E] mb-4 flex items-center gap-1.5">
+                        <Star className="h-3 w-3 fill-[#C9A96E]" />
+                        MIYAR
+                      </div>
+                      {["Dashboard", "Projects", "Portfolio", "Market Intel"].map((item, i) => (
+                        <div key={item} className={`text-[11px] py-1.5 px-2 rounded mb-0.5 ${i === 0 ? "bg-[#C9A96E]/10 text-[#C9A96E]" : "text-[#8B9CB7]"}`}>
                           {item}
                         </div>
                       ))}
                     </div>
-                    {/* Main */}
+                    {/* Main area */}
                     <div className="flex-1 p-4">
-                      <div className="text-sm font-semibold text-[#F0EBE3] mb-3">Executive Dashboard</div>
-                      {/* KPI row */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                      <div className="grid grid-cols-2 gap-2 mb-3">
                         {[
-                          { label: "Active Projects", value: "12" },
-                          { label: "Avg Score", value: "78.4" },
-                          { label: "Data Sources", value: "24" },
-                          { label: "Portfolio Value", value: "485M" },
+                          { label: "Active Projects", value: "24" },
+                          { label: "Avg Score", value: "88.4" },
+                          { label: "Data Sources", value: "112" },
+                          { label: "Portfolio", value: "1.8B" },
                         ].map((kpi) => (
-                          <div key={kpi.label} className="bg-[#111827] rounded-lg p-3 border border-[#1E2D42]">
-                            <div className="text-[10px] text-[#8B9CB7]">{kpi.label}</div>
-                            <div className="text-lg font-bold text-[#C9A96E]">{kpi.value}</div>
+                          <div key={kpi.label} className="bg-[#111827] rounded-lg p-2.5 border border-[#1E2D42]">
+                            <div className="text-[9px] text-[#8B9CB7] uppercase tracking-wider">{kpi.label}</div>
+                            <div className="text-base font-bold text-[#C9A96E]">{kpi.value}</div>
                           </div>
                         ))}
                       </div>
-                      {/* Chart placeholder */}
-                      <div className="bg-[#111827] rounded-lg p-3 border border-[#1E2D42] h-32 flex items-end gap-1">
-                        {[40, 55, 35, 65, 50, 75, 60, 80, 70, 85, 78, 82].map((h, i) => (
-                          <div key={i} className="flex-1 rounded-t" style={{
+                      {/* Chart */}
+                      <div className="bg-[#111827] rounded-lg p-3 border border-[#1E2D42] h-28 flex items-end gap-0.5">
+                        {[35, 50, 30, 60, 45, 70, 55, 75, 65, 82, 74, 80].map((h, i) => (
+                          <div key={i} className="flex-1 rounded-t transition-all" style={{
                             height: `${h}%`,
                             background: `linear-gradient(to top, rgba(201,169,110,0.3), rgba(201,169,110,0.8))`,
                           }} />
                         ))}
                       </div>
+                      {/* MIYAR Score badge */}
+                      <div className="mt-3 flex items-center gap-2">
+                        <div className="text-[10px] uppercase tracking-wider text-[#8B9CB7]">MIYAR Score</div>
+                        <div className="bg-[#C9A96E]/15 border border-[#C9A96E]/30 rounded-lg px-3 py-1 text-sm font-bold text-[#C9A96E]">94/100</div>
+                      </div>
                     </div>
                   </div>
                 </div>
+                {/* Drop-shadow glow */}
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-3/4 h-16 bg-[#C9A96E]/5 blur-3xl rounded-full" />
               </div>
-              {/* Reflection glow */}
-              <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-3/4 h-20 bg-[#C9A96E]/5 blur-3xl rounded-full" />
-            </div>
-          </AnimatedSection>
-        </div>
-      </section>
-
-      {/* ─── Section 6: Version Changelog ─────────────────────────────────── */}
-      <section className="relative py-24 md:py-32 border-t border-[#1E2D42]">
-        <div className="max-w-4xl mx-auto px-6">
-          <AnimatedSection>
-            <div className="text-center mb-16">
-              <span className="text-xs font-semibold tracking-[0.2em] uppercase text-[#C9A96E] mb-3 block">Changelog</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-[#F0EBE3]">
-                Platform Evolution
-              </h2>
-            </div>
-          </AnimatedSection>
-
-          <div className="space-y-6">
-            {[
-              {
-                version: "V5",
-                title: "The Authority Engine",
-                current: true,
-                features: [
-                  "Live DLD transaction analytics (578K+ records)",
-                  "Estidama & Al Sa'fat sustainability compliance",
-                  "RICS NRM cost alignment (30+ material codes)",
-                  "Portfolio benchmarking with cross-project comparison",
-                  "City-aware certification pricing (Dubai / Abu Dhabi)",
-                  "Mobile-responsive share views",
-                  "SCAD Abu Dhabi material index integration",
-                  "Synthetic gap-filler with labeled data quality",
-                ],
-              },
-              {
-                version: "V4",
-                title: "Evidence & Predictive Intelligence",
-                features: [
-                  "Predictive Cost Range Engine (P15/P50/P85/P95)",
-                  "Evidence Vault with provenance click-through",
-                  "Material Board Composer V2 with PDF export",
-                  "Visual Studio with AI image generation",
-                  "Data Freshness Badges (green/amber/red)",
-                  "Cost Forecasting panel on Analytics Dashboard",
-                ],
-              },
-              {
-                version: "V3",
-                title: "Market Intelligence & Analytics",
-                features: [
-                  "Market ingestion pipeline with 5 connector types",
-                  "Trend analysis with anomaly detection",
-                  "Competitor landscape with HHI index",
-                  "Analytics Intelligence Dashboard",
-                  "Webhook system for integrations",
-                ],
-              },
-              {
-                version: "V2",
-                title: "Scoring Engine & Explainability",
-                features: [
-                  "5-dimension scoring model (SA, FF, MP, DS, ER)",
-                  "Sensitivity analysis with variable simulation",
-                  "ROI impact estimation engine",
-                  "PDF report generation (Brief, RFQ, Summary)",
-                ],
-              },
-              {
-                version: "V1",
-                title: "Foundation",
-                features: [
-                  "Project creation with 20+ input variables",
-                  "Deterministic evaluation with composite scoring",
-                  "Risk assessment with penalty flags",
-                  "Decision classification (validated/conditional/not-validated)",
-                ],
-              },
-            ].map((v, i) => (
-              <AnimatedSection key={v.version} delay={i * 100}>
-                <div
-                  className={`rounded-2xl border p-6 transition-all ${v.current
-                      ? "border-[#C9A96E]/40 bg-[#C9A96E]/5 shadow-lg shadow-[#C9A96E]/5"
-                      : "border-[#1E2D42] bg-[#111827]/50 hover:border-[#1E2D42]/80"
-                    }`}
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <span
-                      className={`text-sm font-bold px-3 py-1 rounded-lg ${v.current
-                          ? "bg-[#C9A96E] text-[#0A1628]"
-                          : "bg-[#1A2332] text-[#8B9CB7]"
-                        }`}
-                    >
-                      {v.version}
-                    </span>
-                    <h3 className="font-semibold text-[#F0EBE3]">{v.title}</h3>
-                    {v.current && (
-                      <span className="text-xs font-medium text-[#C9A96E] flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#C9A96E] animate-pulse" />
-                        Current
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                    {v.features.map((f, fi) => (
-                      <p key={fi} className="text-sm text-[#8B9CB7] flex items-start gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-[#C9A96E]/40 mt-0.5 shrink-0" />
-                        {f}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </AnimatedSection>
-            ))}
+            </Reveal>
           </div>
         </div>
       </section>
 
-      {/* ─── Section 7: Footer ────────────────────────────────────────────── */}
-      <footer className="border-t border-[#1E2D42]">
+      {/* ═══ DEVELOPMENT JOURNEY (CHANGELOG) ══════════════════════════════════ */}
+      <section id="changelog" className="py-24 md:py-32 border-t border-[#1E2D42]">
+        <div className="max-w-4xl mx-auto px-6">
+          <Reveal>
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-4xl font-bold text-[#F0EBE3] mb-2">Development Journey</h2>
+              <GoldDiamond />
+            </div>
+          </Reveal>
+
+          {/* Timeline */}
+          <div className="relative">
+            {/* Vertical line */}
+            <div className="absolute left-4 md:left-6 top-0 bottom-0 w-px bg-gradient-to-b from-[#C9A96E]/40 via-[#C9A96E]/20 to-transparent" />
+
+            <div className="space-y-8">
+              {versions.map((v, i) => (
+                <Reveal key={v.ver} delay={i * 100}>
+                  <div className="relative pl-12 md:pl-16">
+                    {/* Dot on timeline */}
+                    <div className={`absolute left-2.5 md:left-4.5 top-1 w-3 h-3 rounded-full border-2 ${v.current ? "bg-[#C9A96E] border-[#C9A96E] shadow-lg shadow-[#C9A96E]/30" : "bg-[#0A1628] border-[#C9A96E]/40"}`} />
+
+                    <div className={`rounded-xl border p-6 transition-all ${v.current
+                        ? "border-[#C9A96E]/35 bg-[#C9A96E]/[0.04]"
+                        : "border-[#1E2D42] bg-[#0D1926]/50"
+                      }`}>
+                      <div className="flex flex-wrap items-center gap-3 mb-3">
+                        <span className={`text-sm font-bold px-3 py-1 rounded-lg ${v.current ? "bg-[#C9A96E] text-[#0A1628]" : "bg-[#1A2332] text-[#8B9CB7]"
+                          }`}>
+                          Version {v.ver}
+                        </span>
+                        {v.current && (
+                          <span className="text-xs font-medium text-[#C9A96E] flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#C9A96E] animate-pulse" />
+                            Current
+                          </span>
+                        )}
+                        <span className="text-xs text-[#8B9CB7]">{v.date}</span>
+                      </div>
+                      <h3 className="font-semibold text-[#F0EBE3] mb-3">{v.title}</h3>
+                      <ul className="space-y-1.5">
+                        {v.items.map((item, ii) => (
+                          <li key={ii} className="text-sm text-[#8B9CB7] flex items-start gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-[#C9A96E]/50 mt-0.5 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ FOOTER ═══════════════════════════════════════════════════════════ */}
+      <footer className="border-t border-[#1E2D42] bg-[#070F1D]">
         <div className="max-w-6xl mx-auto px-6 py-16">
-          <div className="grid md:grid-cols-3 gap-12 mb-12">
+          <div className="grid md:grid-cols-4 gap-10 mb-12">
             {/* Brand */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xl font-bold text-gold-gradient">MIYAR</span>
-                <span className="text-[10px] tracking-[0.3em] uppercase text-[#8B9CB7]">مِعيار</span>
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#C9A96E] to-[#8B7355] flex items-center justify-center">
+                  <Star className="h-3.5 w-3.5 text-[#0A1628] fill-[#0A1628]" />
+                </div>
+                <span className="text-lg font-bold text-gold-gradient">MIYAR</span>
               </div>
-              <p className="text-sm text-[#8B9CB7] leading-relaxed mb-4">
-                AI-powered Design Intelligence Engine for the UAE luxury
-                real estate and interior design market.
+              <p className="text-sm text-[#8B9CB7] leading-relaxed mb-4 max-w-sm">
+                Defining the future of luxury real estate design through the lens of
+                institutional intelligence and advanced AI.
               </p>
-              <div className="flex items-center gap-2 text-xs text-[#C9A96E]/60">
+              <div className="flex items-center gap-2 text-xs text-[#C9A96E]/70">
                 <Zap className="h-3 w-3" />
                 Powered by Gemini AI + Live UAE Market Data
               </div>
             </div>
 
-            {/* Product */}
+            {/* Platform */}
             <div>
-              <h4 className="text-sm font-semibold text-[#F0EBE3] mb-4">Product</h4>
-              <div className="space-y-2.5">
-                {[
-                  { label: "Methodology", href: "/methodology" },
-                  { label: "Design Brief", href: "#features" },
-                  { label: "MIYAR Score", href: "#features" },
-                  { label: "Market Intelligence", href: "#features" },
-                ].map((link) => (
-                  <a key={link.label} href={link.href} className="block text-sm text-[#8B9CB7] hover:text-[#C9A96E] transition-colors">
-                    {link.label}
-                  </a>
-                ))}
+              <h4 className="text-xs font-semibold tracking-[0.15em] uppercase text-[#F0EBE3] mb-4">Platform</h4>
+              <div className="space-y-2.5 text-sm text-[#8B9CB7]">
+                <a href="#features" className="block hover:text-[#C9A96E] transition-colors">Enterprise</a>
+                <a href="/methodology" className="block hover:text-[#C9A96E] transition-colors">Methodology</a>
+                <a href="#features" className="block hover:text-[#C9A96E] transition-colors">Integrations</a>
+                <a href="#features" className="block hover:text-[#C9A96E] transition-colors">Documentation</a>
               </div>
             </div>
 
-            {/* Coverage */}
+            {/* Company */}
             <div>
-              <h4 className="text-sm font-semibold text-[#F0EBE3] mb-4">Market Coverage</h4>
+              <h4 className="text-xs font-semibold tracking-[0.15em] uppercase text-[#F0EBE3] mb-4">Company</h4>
               <div className="space-y-2.5 text-sm text-[#8B9CB7]">
-                <p className="flex items-center gap-2">
-                  <Award className="h-3.5 w-3.5 text-[#C9A96E]/50" />
-                  Dubai (Primary)
-                </p>
-                <p className="flex items-center gap-2">
-                  <Award className="h-3.5 w-3.5 text-[#C9A96E]/50" />
-                  Abu Dhabi (SCAD + Estidama)
-                </p>
-                <p className="flex items-center gap-2">
-                  <Layers className="h-3.5 w-3.5 text-[#C9A96E]/50" />
-                  RICS NRM Compliant
-                </p>
-                <p className="flex items-center gap-2">
-                  <Shield className="h-3.5 w-3.5 text-[#C9A96E]/50" />
-                  Estidama & Al Sa'fat Certified
-                </p>
+                <a href="#" className="block hover:text-[#C9A96E] transition-colors">About Us</a>
+                <a href="#" className="block hover:text-[#C9A96E] transition-colors">Privacy Policy</a>
+                <a href="#" className="block hover:text-[#C9A96E] transition-colors">Terms of Service</a>
+                <a href="#" className="block hover:text-[#C9A96E] transition-colors">Contact</a>
               </div>
             </div>
           </div>
 
-          {/* Bottom bar */}
+          {/* Bottom */}
           <div className="pt-8 border-t border-[#1E2D42] flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-[#8B9CB7]">
-              © 2026 MIYAR Design Intelligence. All rights reserved.
-            </p>
+            <p className="text-xs text-[#8B9CB7]">© 2026 MIYAR Design Intelligence. All rights reserved.</p>
             <div className="flex items-center gap-6 text-xs text-[#8B9CB7]">
-              <a href="/methodology" className="hover:text-[#C9A96E] transition-colors">Methodology</a>
-              <span className="text-[#1E2D42]">·</span>
-              <a href="#" className="hover:text-[#C9A96E] transition-colors">Privacy</a>
-              <span className="text-[#1E2D42]">·</span>
-              <a href="#" className="hover:text-[#C9A96E] transition-colors">Terms</a>
+              <a href="#features" className="hover:text-[#C9A96E] transition-colors">Enterprise</a>
+              <a href="#" className="hover:text-[#C9A96E] transition-colors">Pricing</a>
+              <a href="#features" className="hover:text-[#C9A96E] transition-colors">Integrations</a>
+              <a href="#features" className="hover:text-[#C9A96E] transition-colors">Documentation</a>
             </div>
           </div>
         </div>
