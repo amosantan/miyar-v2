@@ -64,6 +64,7 @@ import {
   aiDesignBriefs,
   materialConstants,
   designTrends,
+  dldProjects,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1755,6 +1756,63 @@ export async function getIngestionRunHistory(limit = 20) {
   return db.select().from(ingestionRuns)
     .orderBy(desc(ingestionRuns.startedAt))
     .limit(limit);
+}
+
+
+// ─── DLD Projects (Phase B.3 — Dubai Land Department Open Data) ─────────────
+
+export async function getDldAreas(): Promise<Array<{ areaId: number; areaNameEn: string; areaNameAr: string; projectCount: number; totalUnits: number }>> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.execute(sql`
+    SELECT area_id as areaId, area_name_en as areaNameEn, area_name_ar as areaNameAr,
+           COUNT(*) as projectCount,
+           SUM(COALESCE(no_of_units, 0) + COALESCE(no_of_villas, 0)) as totalUnits
+    FROM dld_projects
+    WHERE area_name_en IS NOT NULL AND area_name_en != ''
+    GROUP BY area_id, area_name_en, area_name_ar
+    ORDER BY projectCount DESC
+  `);
+  return (rows as any)?.[0] ?? [];
+}
+
+export async function getDldProjectsByArea(areaId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dldProjects).where(eq(dldProjects.areaId, areaId));
+}
+
+export async function getDldAreaComparison(areaId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const rows = await db.execute(sql`
+    SELECT
+      project_status as status,
+      COUNT(*) as projectCount,
+      SUM(COALESCE(no_of_units, 0)) as totalUnits,
+      SUM(COALESCE(no_of_villas, 0)) as totalVillas,
+      SUM(COALESCE(no_of_buildings, 0)) as totalBuildings,
+      AVG(percent_completed) as avgCompletion
+    FROM dld_projects
+    WHERE area_id = ${areaId}
+    GROUP BY project_status
+  `);
+
+  const developers = await db.execute(sql`
+    SELECT developer_name as name, COUNT(*) as projects,
+           SUM(COALESCE(no_of_units, 0) + COALESCE(no_of_villas, 0)) as totalUnits
+    FROM dld_projects
+    WHERE area_id = ${areaId}
+    GROUP BY developer_name
+    ORDER BY projects DESC
+    LIMIT 10
+  `);
+
+  return {
+    statusBreakdown: (rows as any)?.[0] ?? [],
+    topDevelopers: (developers as any)?.[0] ?? [],
+  };
 }
 
 // ─── Trend Snapshots (V3 — Analytical Intelligence) ────────────────────────

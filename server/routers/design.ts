@@ -1093,6 +1093,30 @@ export const designRouter = router({
    */
 
 
+
+  // ─── Phase B.3: DLD Area Intelligence ──────────────────────────────────────
+  getDldAreas: orgProcedure
+    .query(async () => {
+      return db.getDldAreas();
+    }),
+
+  getDldAreaComparison: orgProcedure
+    .input(z.object({ areaId: z.number() }))
+    .query(async ({ input }) => {
+      const [projects, comparison] = await Promise.all([
+        db.getDldProjectsByArea(input.areaId),
+        db.getDldAreaComparison(input.areaId),
+      ]);
+      return {
+        projects,
+        comparison,
+        totalProjects: projects.length,
+        activeProjects: projects.filter((p: any) => p.projectStatus === "ACTIVE").length,
+        finishedProjects: projects.filter((p: any) => p.projectStatus === "FINISHED").length,
+        totalUnits: projects.reduce((s: number, p: any) => s + (p.noOfUnits ?? 0) + (p.noOfVillas ?? 0), 0),
+      };
+    }),
+
   // ─── Phase A.4: Data Freshness ─────────────────────────────────────────────
   getDataFreshness: orgProcedure
     .query(async () => {

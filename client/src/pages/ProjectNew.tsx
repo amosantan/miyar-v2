@@ -1,3 +1,4 @@
+import DldAreaSelect from "@/components/DldAreaSelect";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,6 +88,8 @@ type FormData = {
   ctx02Scale: string;
   ctx03Gfa: number | null;
   ctx04Location: string;
+  dldAreaId: number | null;
+  dldAreaName: string;
   ctx05Horizon: string;
   str01BrandClarity: number;
   str02Differentiation: number;
@@ -127,6 +130,8 @@ function ProjectNewContent() {
     ctx02Scale: "Medium",
     ctx03Gfa: null,
     ctx04Location: "Secondary",
+    dldAreaId: null,
+    dldAreaName: "",
     ctx05Horizon: "12-24m",
     str01BrandClarity: 3,
     str02Differentiation: 3,
@@ -315,6 +320,19 @@ function ProjectNewContent() {
                       <SelectItem value="Emerging">Emerging</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Dubai Area (DLD)</Label>
+                  <DldAreaSelect
+                    value={form.dldAreaId}
+                    onChange={(areaId, areaName) => {
+                      set("dldAreaId", areaId);
+                      set("dldAreaName", areaName);
+                    }}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Select the DLD-registered area for competitor intelligence and market comparison
+                  </p>
                 </div>
               </div>
               <div className="space-y-2">

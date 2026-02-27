@@ -186,6 +186,10 @@ export const projects = mysqlTable("projects", {
     "36m+",
   ]).default("12-24m"),
 
+  // DLD Area reference (Phase B.3 — links to DLD open data areas)
+  dldAreaId: int("dld_area_id"),
+  dldAreaName: varchar("dld_area_name", { length: 200 }),
+
   // Strategy variables (1-5)
   str01BrandClarity: int("str01BrandClarity").default(3),
   str02Differentiation: int("str02Differentiation").default(3),
@@ -1844,3 +1848,39 @@ export const materialConstants = mysqlTable("material_constants", {
 
 export type MaterialConstant = typeof materialConstants.$inferSelect;
 export type InsertMaterialConstant = typeof materialConstants.$inferInsert;
+
+
+// ─── DLD Projects (Phase B.3 — Dubai Land Department Open Data) ─────────────
+export const dldProjects = mysqlTable("dld_projects", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: bigint("project_id", { mode: "number" }).notNull(),        // DLD project_id
+  projectNumber: int("project_number"),
+  projectName: varchar("project_name", { length: 500 }),
+  projectDescriptionEn: text("project_description_en"),
+  projectStatus: varchar("project_status", { length: 50 }),             // ACTIVE, FINISHED, NOT_STARTED, etc.
+  projectClassification: varchar("project_classification", { length: 50 }), // مباني, فلل, مجمع فلل
+  projectType: varchar("project_type", { length: 50 }),
+  areaId: int("area_id"),
+  areaNameEn: varchar("area_name_en", { length: 200 }),
+  areaNameAr: varchar("area_name_ar", { length: 200 }),
+  masterProjectEn: varchar("master_project_en", { length: 300 }),
+  masterProjectAr: varchar("master_project_ar", { length: 300 }),
+  developerName: varchar("developer_name", { length: 500 }),
+  developerNumber: int("developer_number"),
+  masterDeveloperName: varchar("master_developer_name", { length: 500 }),
+  zoningAuthorityEn: varchar("zoning_authority_en", { length: 200 }),
+  escrowAgentName: varchar("escrow_agent_name", { length: 500 }),
+  noOfUnits: int("no_of_units").default(0),
+  noOfVillas: int("no_of_villas").default(0),
+  noOfBuildings: int("no_of_buildings").default(0),
+  noOfLands: int("no_of_lands").default(0),
+  percentCompleted: int("percent_completed").default(0),
+  projectStartDate: varchar("project_start_date", { length: 20 }),
+  projectEndDate: varchar("project_end_date", { length: 20 }),
+  completionDate: varchar("completion_date", { length: 20 }),
+  propertyId: bigint("property_id", { mode: "number" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DldProject = typeof dldProjects.$inferSelect;
+export type InsertDldProject = typeof dldProjects.$inferInsert;
