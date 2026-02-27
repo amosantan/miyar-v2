@@ -9,6 +9,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import EvidenceChainDrawer from "@/components/EvidenceChainDrawer";
+import DataFreshnessBanner from "@/components/DataFreshnessBanner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -386,6 +387,7 @@ function BriefEditorContent() {
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">
                                     UAE Market Constants
+                            <DataFreshnessBanner className="mt-3" />
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>

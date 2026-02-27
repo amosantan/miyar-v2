@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import EvidenceChainDrawer from "@/components/EvidenceChainDrawer";
+import DataFreshnessBanner from "@/components/DataFreshnessBanner";
 import { useParams, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,7 +57,7 @@ function InvestorSummaryContent() {
     const createShareLinkMut = trpc.design.createShareLink.useMutation({
         onSuccess: ({ shareUrl }) => {
             const full = window.location.origin + shareUrl;
-            navigator.clipboard.writeText(full).catch(() => {});
+            navigator.clipboard.writeText(full).catch(() => { });
             setShareCopied(true);
             toast.success(`Share link copied! Valid for 7 days · ${full}`);
             setTimeout(() => setShareCopied(false), 3000);
@@ -450,6 +451,7 @@ function InvestorSummaryContent() {
                             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
                                 <Globe className="h-3.5 w-3.5" /> E · Market Intelligence
                             </h2>
+                            <DataFreshnessBanner expanded className="mb-3" />
                             <div className="grid md:grid-cols-2 gap-3">
                                 {/* Design Trends */}
                                 {designTrends && designTrends.length > 0 && (
@@ -468,10 +470,10 @@ function InvestorSummaryContent() {
                                                     <Badge
                                                         variant="outline"
                                                         className={`text-[9px] shrink-0 mt-px ${t.confidenceLevel === "established"
-                                                                ? "border-emerald-500/40 text-emerald-400"
-                                                                : t.confidenceLevel === "emerging"
-                                                                    ? "border-violet-500/40 text-violet-400"
-                                                                    : "border-red-500/30 text-red-400"
+                                                            ? "border-emerald-500/40 text-emerald-400"
+                                                            : t.confidenceLevel === "emerging"
+                                                                ? "border-violet-500/40 text-violet-400"
+                                                                : "border-red-500/30 text-red-400"
                                                             }`}>
                                                         {t.confidenceLevel}
                                                     </Badge>
@@ -509,10 +511,10 @@ function InvestorSummaryContent() {
                                                     <Badge
                                                         variant="outline"
                                                         className={`text-[9px] w-5 text-center shrink-0 ${s.reliabilityDefault === "A"
-                                                                ? "border-emerald-500/40 text-emerald-400"
-                                                                : s.reliabilityDefault === "B"
-                                                                    ? "border-amber-500/40 text-amber-400"
-                                                                    : "border-red-500/30 text-red-400"
+                                                            ? "border-emerald-500/40 text-emerald-400"
+                                                            : s.reliabilityDefault === "B"
+                                                                ? "border-amber-500/40 text-amber-400"
+                                                                : "border-red-500/30 text-red-400"
                                                             }`}>
                                                         {s.reliabilityDefault}
                                                     </Badge>

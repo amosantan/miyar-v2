@@ -1092,6 +1092,76 @@ export const designRouter = router({
    * used to surface the "where this data comes from" panel in briefs.
    */
 
+
+  // ─── Phase A.4: Data Freshness ─────────────────────────────────────────────
+  getDataFreshness: orgProcedure
+    .query(async () => {
+      const [sources, healthRecords, runs] = await Promise.all([
+        db.getActiveSourceRegistry(50),
+        db.getConnectorHealthSummary(),
+        db.getIngestionRunHistory(5),
+      ]);
+
+      // Latest ingestion run
+      const latestRun = runs.length > 0 ? runs[0] : null;
+
+      // Build per-source freshness from source_registry.lastSuccessfulFetch
+      const sourceFreshness = (sources ?? []).map((s: any) => {
+        // Find most recent health record for this source
+        const healthRec = (healthRecords ?? []).find(
+          (h: any) => String(h.sourceId) === String(s.id) || h.sourceName === s.name
+        );
+
+        const lastFetch = s.lastSuccessfulFetch ?? healthRec?.createdAt ?? null;
+        const daysSince = lastFetch
+          ? Math.floor((Date.now() - new Date(lastFetch).getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+
+        return {
+          id: s.id,
+          name: s.name,
+          sourceType: s.sourceType,
+          reliabilityGrade: s.reliabilityDefault,
+          lastFetch,
+          daysSince,
+          freshness: daysSince === null ? "unknown" : daysSince <= 7 ? "fresh" : daysSince <= 30 ? "aging" : "stale",
+          latestStatus: healthRec?.status ?? null,
+          recordsExtracted: healthRec?.recordsExtracted ?? 0,
+        };
+      });
+
+      // Aggregate stats
+      const freshCount = sourceFreshness.filter((s: any) => s.freshness === "fresh").length;
+      const agingCount = sourceFreshness.filter((s: any) => s.freshness === "aging").length;
+      const staleCount = sourceFreshness.filter((s: any) => s.freshness === "stale").length;
+      const unknownCount = sourceFreshness.filter((s: any) => s.freshness === "unknown").length;
+      const totalSources = sourceFreshness.length;
+
+      // Overall health status
+      const overallHealth = staleCount > totalSources * 0.3 ? "degraded"
+        : agingCount > totalSources * 0.5 ? "aging"
+        : "healthy";
+
+      return {
+        overallHealth,
+        totalSources,
+        freshCount,
+        agingCount,
+        staleCount,
+        unknownCount,
+        latestRun: latestRun ? {
+          runId: latestRun.runId,
+          status: latestRun.status,
+          startedAt: latestRun.startedAt,
+          totalSources: latestRun.totalSources,
+          sourcesSucceeded: latestRun.sourcesSucceeded,
+          sourcesFailed: latestRun.sourcesFailed,
+          recordsExtracted: latestRun.recordsExtracted,
+        } : null,
+        sources: sourceFreshness,
+      };
+    }),
+
   // ─── Phase A.3: Evidence Chain ─────────────────────────────────────────────
   getEvidenceChain: orgProcedure
     .input(z.object({

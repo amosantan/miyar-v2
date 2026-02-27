@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useMemo, useState } from "react";
+import DataFreshnessBanner from "@/components/DataFreshnessBanner";
 
 function statusIcon(status: string) {
   if (status === "evaluated")
@@ -126,6 +127,9 @@ function DashboardContent() {
           <PlusCircle className="h-4 w-4" /> New Project
         </Button>
       </div>
+
+      {/* Data Freshness Strip */}
+      <DataFreshnessBanner className="mb-0" />
 
       {/* Ask MIYAR — Inline NL Query Search Bar */}
       <Card className="border-primary/20 bg-gradient-to-r from-primary/5 via-transparent to-miyar-teal/5">
