@@ -27,6 +27,7 @@ import ModelVersions from "./pages/admin/ModelVersions";
 import AuditLogs from "./pages/admin/AuditLogs";
 import Overrides from "./pages/admin/Overrides";
 import BenchmarkHealth from "./pages/admin/BenchmarkHealth";
+import ConnectorHealth from "./pages/admin/ConnectorHealth";
 import Portfolio from "./pages/admin/Portfolio";
 import RoiConfig from "./pages/admin/RoiConfig";
 import Webhooks from "./pages/admin/Webhooks";
@@ -134,6 +135,7 @@ function Router() {
       <Route path="/admin/audit">{() => <AdminOnly Component={AuditLogs} />}</Route>
       <Route path="/admin/overrides">{() => <AdminOnly Component={Overrides} />}</Route>
       <Route path="/admin/benchmark-health">{() => <AdminOnly Component={BenchmarkHealth} />}</Route>
+      <Route path="/admin/connector-health">{() => <AdminOnly Component={ConnectorHealth} />}</Route>
       <Route path="/admin/portfolio">{() => <AdminOnly Component={Portfolio} />}</Route>
       <Route path="/admin/roi-config">{() => <AdminOnly Component={RoiConfig} />}</Route>
       <Route path="/admin/webhooks">{() => <AdminOnly Component={Webhooks} />}</Route>
