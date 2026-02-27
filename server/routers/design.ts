@@ -8,6 +8,7 @@ import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { storagePut } from "../storage";
 import { generateDesignBrief, type DesignBriefData } from "../engines/design-brief";
+import { getAreaSaleMedianSqm } from "../engines/dld-analytics";
 import { getLiveCategoryPricing } from "../engines/pricing-engine";
 import { buildRFQFromBrief } from "../engines/design/rfq-generator";
 import { buildPromptContext, interpolateTemplate, generateDefaultPrompt, validatePrompt } from "../engines/visual-gen";
@@ -181,12 +182,17 @@ export const designRouter = router({
       // Phase 3: Fetch material_constants for structural cost analytics
       const matConstants = await db.getMaterialConstants();
 
+      // Phase B.3: Look up DLD area median sale price (AED/sqm)
+      const areaSaleMedian = await getAreaSaleMedianSqm(project.dldAreaId);
+
       const briefData = generateDesignBrief(
         { name: project.name, description: project.description },
         inputs,
         scoreResult,
         Object.keys(livePricing).length > 0 ? livePricing : undefined,
         matConstants.length > 0 ? matConstants : undefined,
+        areaSaleMedian, // DLD area median, replaces 25K fallback
+        project.projectPurpose as any, // Purpose adjusts material tier
       );
 
       // Get latest version number
@@ -1138,6 +1144,30 @@ export const designRouter = router({
       return { transactionCount, rentCount };
     }),
 
+  /** Returns DLD benchmark data for a project's saved area — used by Investor Summary */
+  getProjectDldBenchmark: orgProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project) return null;
+      if (!project.dldAreaId) return null;
+      const benchmark = await db.getDldAreaBenchmark(project.dldAreaId);
+      return benchmark ? {
+        areaName: project.dldAreaName || benchmark.areaName,
+        projectPurpose: project.projectPurpose || "sell_ready",
+        saleP50: benchmark.saleP50 ? Number(benchmark.saleP50) : null,
+        saleP25: benchmark.saleP25 ? Number(benchmark.saleP25) : null,
+        saleP75: benchmark.saleP75 ? Number(benchmark.saleP75) : null,
+        saleMean: benchmark.saleMean ? Number(benchmark.saleMean) : null,
+        grossYield: benchmark.grossYield ? Number(benchmark.grossYield) : null,
+        fitoutLow: benchmark.recommendedFitoutLow ? Number(benchmark.recommendedFitoutLow) : null,
+        fitoutMid: benchmark.recommendedFitoutMid ? Number(benchmark.recommendedFitoutMid) : null,
+        fitoutHigh: benchmark.recommendedFitoutHigh ? Number(benchmark.recommendedFitoutHigh) : null,
+        transactionCount: benchmark.transactionCount ? Number(benchmark.transactionCount) : 0,
+        rentContractCount: benchmark.rentContractCount ? Number(benchmark.rentContractCount) : 0,
+      } : null;
+    }),
+
   // ─── Phase A.4: Data Freshness ─────────────────────────────────────────────
   getDataFreshness: orgProcedure
     .query(async () => {
@@ -1185,7 +1215,7 @@ export const designRouter = router({
       // Overall health status
       const overallHealth = staleCount > totalSources * 0.3 ? "degraded"
         : agingCount > totalSources * 0.5 ? "aging"
-        : "healthy";
+          : "healthy";
 
       return {
         overallHealth,

@@ -93,6 +93,10 @@ const projectInputSchema = z.object({
   unitMix: z.any().optional(),
   villaSpaces: z.any().optional(),
   developerGuidelines: z.any().optional(),
+  // DLD integration fields
+  dldAreaId: z.number().nullable().optional(),
+  dldAreaName: z.string().optional(),
+  projectPurpose: z.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
 });
 
 function projectToInputs(p: any): ProjectInputs {
@@ -240,11 +244,20 @@ export const projectRouter = router({
 
       const inputs = projectToInputs(project);
 
-      const expectedCost = await db.getExpectedCost(
+      let expectedCost = await db.getExpectedCost(
         inputs.ctx01Typology,
         inputs.ctx04Location,
         inputs.mkt01Tier
       );
+
+      // Phase B.3: Override with DLD area-specific fitout benchmark if available
+      if (project.dldAreaId) {
+        const dldBenchmark = await db.getDldAreaBenchmark(project.dldAreaId);
+        if (dldBenchmark?.recommendedFitoutMid) {
+          expectedCost = Number(dldBenchmark.recommendedFitoutMid);
+          console.log(`[Evaluate] Using DLD fitout benchmark: ${expectedCost} AED/sqm for area ${project.dldAreaName || project.dldAreaId}`);
+        }
+      }
 
       const benchmarks = await db.getBenchmarks(
         inputs.ctx01Typology,

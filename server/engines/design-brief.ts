@@ -220,11 +220,26 @@ export function generateDesignBrief(
   materialConstants?: Array<{ materialType: string; costPerM2: string | number; carbonIntensity: string | number; maintenanceFactor: string | number }>,
   /** Phase B.3: DLD area median sale price AED/sqm. If provided, replaces hardcoded 25K fallback. */
   areaSalePricePerSqm?: number,
+  /** Phase B.3: Project purpose — affects material quality & durability recommendations */
+  projectPurpose?: "sell_offplan" | "sell_ready" | "rent" | "mixed",
 ): DesignBriefData {
   const style = inputs.des01Style || "Modern";
   const tier = inputs.mkt01Tier || "Upper-mid";
   const mood = STYLE_MOOD_MAP[style] || STYLE_MOOD_MAP.Other;
-  const materials = TIER_MATERIALS[tier] || TIER_MATERIALS["Upper-mid"];
+  const purpose = projectPurpose || "sell_ready";
+
+  // Purpose-adjusted material tier: rent downgrades, offplan upgrades
+  const PURPOSE_TIER_ADJUST: Record<string, number> = {
+    sell_offplan: 1,   // one tier up (showroom quality)
+    sell_ready: 0,     // as-is
+    rent: -1,          // one tier down (durability focus)
+    mixed: 0,          // balanced
+  };
+  const tierOrder = ["Mid", "Upper-mid", "Luxury", "Ultra-luxury"];
+  const baseTierIdx = tierOrder.indexOf(tier);
+  const adjustedTierIdx = Math.max(0, Math.min(tierOrder.length - 1, baseTierIdx + (PURPOSE_TIER_ADJUST[purpose] || 0)));
+  const effectiveMaterialTier = tierOrder[adjustedTierIdx];
+  const materials = TIER_MATERIALS[effectiveMaterialTier] || TIER_MATERIALS["Upper-mid"];
 
   const gfa = inputs.ctx03Gfa ? Number(inputs.ctx03Gfa) : null;
   const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
@@ -272,10 +287,20 @@ export function generateDesignBrief(
       : "Standard Compliance: Meet minimum Dubai Municipality building codes and basic Al Sa'fat requirements.";
 
   // Positioning statement
+  const purposeLabel: Record<string, string> = {
+    sell_offplan: "positioned for off-plan sales with showroom-quality finishes",
+    sell_ready: "positioned for ready-to-move sales with durable premium finishes",
+    rent: "designed for rental yield optimisation with high-durability, cost-efficient materials",
+    mixed: "designed for a mixed-use strategy balancing resale appeal and rental durability",
+  };
   const positioningParts: string[] = [];
   positioningParts.push(`The ${project.name} is a ${tier.toLowerCase()} ${inputs.ctx01Typology.toLowerCase()} internal fit-out`);
-  positioningParts.push(`located in a ${inputs.ctx04Location.toLowerCase()} area of Dubai`);
+  positioningParts.push(`located in a ${inputs.ctx04Location.toLowerCase()} area of Dubai,`);
+  positioningParts.push(`${purposeLabel[purpose] || purposeLabel.sell_ready},`);
   positioningParts.push(`embracing a ${style.toLowerCase()} design language.`);
+  if (effectiveMaterialTier !== tier) {
+    positioningParts.push(`Material specifications adjusted to ${effectiveMaterialTier.toLowerCase()} quality level based on project purpose.`);
+  }
   if (scoreResult.decisionStatus === "validated") {
     positioningParts.push(`MIYAR validates this direction with a high composite feasible score of ${scoreResult.compositeScore.toFixed(1)}/100.`);
   } else if (scoreResult.decisionStatus === "conditional") {
