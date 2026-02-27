@@ -10,6 +10,7 @@ import * as db from "../db";
 import { digitalTwinModels, sustainabilitySnapshots } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 import { computeDigitalTwin, type MaterialType } from "../engines/sustainability/digital-twin";
+import { evaluateCompliance } from "../engines/sustainability/compliance-checklists";
 
 const materialEnum = z.enum([
     "concrete", "steel", "glass", "aluminum",
@@ -122,5 +123,43 @@ export const sustainabilityRouter = router({
                 .orderBy(desc(digitalTwinModels.createdAt))
                 .limit(1);
             return rows[0] || null;
+        }),
+
+    evaluateCompliance: protectedProcedure
+        .input(z.object({
+            projectId: z.number(),
+        }))
+        .query(async ({ input }) => {
+            const d = await getDb();
+            if (!d) throw new Error("Database unavailable");
+
+            // Get latest digital twin model for this project
+            const rows = await d.select().from(digitalTwinModels)
+                .where(eq(digitalTwinModels.projectId, input.projectId))
+                .orderBy(desc(digitalTwinModels.createdAt))
+                .limit(1);
+
+            const twin = rows[0];
+            if (!twin) throw new Error("No digital twin computed yet. Run 'Compute Twin' first.");
+
+            const config = twin.config as any || {};
+
+            return evaluateCompliance({
+                carbonPerSqm: Number(twin.carbonPerSqm),
+                energyPerSqm: Number(twin.energyPerSqm),
+                coolingLoad: 0, // Not stored separately
+                operationalEnergy: Number(twin.operationalEnergy),
+                sustainabilityScore: twin.sustainabilityScore ?? 0,
+                carbonEfficiency: 0,
+                energyRating: 0,
+                materialCircularity: 0,
+                waterEfficiency: 0,
+                gfa: config.gfa ?? 500,
+                specLevel: config.specLevel ?? "standard",
+                location: config.location ?? "dubai",
+                includeRenewables: config.includeRenewables ?? false,
+                waterRecycling: config.waterRecycling ?? false,
+                glazingRatio: config.glazingRatio ?? 0.35,
+            });
         }),
 });

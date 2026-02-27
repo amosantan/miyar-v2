@@ -62,6 +62,7 @@ import Sustainability from "./pages/Sustainability";
 import InvestorSummary from "./pages/InvestorSummary";
 import ShareView from "./pages/ShareView";
 import BriefEditor from "./pages/BriefEditor";
+import Methodology from "./pages/Methodology";
 
 // Helper: wrap a component with RequireAuth
 function Protected({ Component }: { Component: React.ComponentType<any> }) {
@@ -89,6 +90,7 @@ function Router() {
       {/* Public routes */}
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
+      <Route path="/methodology" component={Methodology} />
 
       {/* Protected routes */}
       <Route path="/dashboard">{() => <Protected Component={Dashboard} />}</Route>
