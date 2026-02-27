@@ -15,7 +15,7 @@ import { useParams, useLocation } from "wouter";
 import {
   Zap, ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Info,
   TrendingUp, TrendingDown, BarChart3, Shield, Target, Lightbulb,
-  Download, ChevronRight, Loader2, Sparkles, Building2,
+  Download, ChevronRight, Loader2, Sparkles, Building2, Calculator,
 } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import {
@@ -500,6 +500,15 @@ function ProjectDetailContent() {
           >
             <Building2 className="h-3.5 w-3.5" />
             Investor View
+          </Button>
+          <Button
+            onClick={() => setLocation(`/projects/${project.id}/brief-editor`)}
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+          >
+            <Calculator className="h-3.5 w-3.5" />
+            Brief Editor
           </Button>
         </div>
       </div>

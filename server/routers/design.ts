@@ -178,12 +178,15 @@ export const designRouter = router({
       };
       const targetFinish = tierToFinish[inputs.mkt01Tier] || "standard";
       const livePricing = await getLiveCategoryPricing(targetFinish);
+      // Phase 3: Fetch material_constants for structural cost analytics
+      const matConstants = await db.getMaterialConstants();
 
       const briefData = generateDesignBrief(
         { name: project.name, description: project.description },
         inputs,
         scoreResult,
         Object.keys(livePricing).length > 0 ? livePricing : undefined,
+        matConstants.length > 0 ? matConstants : undefined,
       );
 
       // Get latest version number

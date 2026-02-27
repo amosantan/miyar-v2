@@ -7,6 +7,34 @@
 import type { ProjectInputs } from "../../shared/miyar-types";
 import type { CategoryPricing } from "./pricing-engine";
 
+export interface PricingAnalytics {
+  /** Weighted average AED/m² across all specified material types */
+  costPerSqmAvg: number;
+  /** Total estimated fitout cost in AED (costPerSqmAvg * GFA) */
+  totalFitoutCostAed: number;
+  /** Total estimated carbon footprint (kg CO²) */
+  totalCarbonKg: number;
+  /** Weighted average maintenance factor (1–5 scale) */
+  avgMaintenanceFactor: number;
+  /** Sustainability grade A–E derived from avg carbon intensity */
+  sustainabilityGrade: string;
+  /** Per-material type breakdown */
+  materialBreakdown: {
+    materialType: string;
+    allocatedSqm: number;
+    costPerSqm: number;
+    lineCostAed: number;
+    carbonKg: number;
+    maintenanceFactor: number;
+  }[];
+  /** Source of pricing data */
+  pricingSource: "material_constants" | "live_benchmarks" | "project_budget" | "none";
+  /** Estimated sales premium AED from design tier */
+  designPremiumAed: number;
+  /** Premium % for market tier */
+  designPremiumPct: number;
+}
+
 export interface DesignBriefData {
   projectIdentity: {
     projectName: string;
@@ -66,6 +94,8 @@ export interface DesignBriefData {
       importDependencies: string[];
     };
   };
+  /** Phase 3: Structural cost analytics from material_constants */
+  pricingAnalytics?: PricingAnalytics;
 }
 
 const STYLE_MOOD_MAP: Record<string, { keywords: string[]; colors: string[]; texture: string; lighting: string; spatial: string }> = {
@@ -162,11 +192,24 @@ const BOQ_DISTRIBUTION: Record<string, { category: string; percentage: number; n
   ]
 };
 
+// Maps market tier to typical primary material types in material_constants
+const TIER_MATERIAL_TYPES: Record<string, string[]> = {
+  "Mid": ["concrete", "ceramic", "paint"],
+  "Upper-mid": ["concrete", "stone", "paint", "glass"],
+  "Luxury": ["stone", "glass", "steel", "wood"],
+  "Ultra-luxury": ["stone", "glass", "steel", "aluminum", "wood"],
+};
+
+const TIER_PREMIUM_PCT: Record<string, number> = {
+  "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30,
+};
+
 export function generateDesignBrief(
   project: { name: string; description: string | null },
   inputs: ProjectInputs,
   scoreResult: { compositeScore: number; decisionStatus: string; dimensions: Record<string, number> },
   livePricing?: Record<string, CategoryPricing>,
+  materialConstants?: Array<{ materialType: string; costPerM2: string | number; carbonIntensity: string | number; maintenanceFactor: string | number }>,
 ): DesignBriefData {
   const style = inputs.des01Style || "Modern";
   const tier = inputs.mkt01Tier || "Upper-mid";
@@ -312,6 +355,66 @@ export function generateDesignBrief(
     };
   });
 
+  // ─── Phase 3: Compute pricingAnalytics from material_constants ───────────────
+  let pricingAnalytics: PricingAnalytics | undefined;
+  if (materialConstants && materialConstants.length > 0 && gfa) {
+    const constLookup = new Map(materialConstants.map(c => [c.materialType, c]));
+    const tierTypes = TIER_MATERIAL_TYPES[tier] || TIER_MATERIAL_TYPES["Upper-mid"];
+    // Distribute GFA equally across tier-relevant material types present in constants
+    const matchedTypes = tierTypes.filter(t => constLookup.has(t));
+    const sqmPerType = matchedTypes.length > 0 ? gfa / matchedTypes.length : 0;
+
+    let totalCostAed = 0;
+    let totalCarbonKg = 0;
+    let weightedMaintenanceSum = 0;
+    const materialBreakdown: PricingAnalytics["materialBreakdown"] = [];
+
+    for (const mt of matchedTypes) {
+      const c = constLookup.get(mt)!;
+      const costPerSqm = Number(c.costPerM2 ?? 0);
+      const carbonIntensity = Number(c.carbonIntensity ?? 0);
+      const maintenanceFactor = Number(c.maintenanceFactor ?? 3);
+      const lineCost = costPerSqm * sqmPerType;
+      const lineCarbonKg = carbonIntensity * sqmPerType;
+      totalCostAed += lineCost;
+      totalCarbonKg += lineCarbonKg;
+      weightedMaintenanceSum += maintenanceFactor * sqmPerType;
+      materialBreakdown.push({
+        materialType: mt,
+        allocatedSqm: Math.round(sqmPerType),
+        costPerSqm,
+        lineCostAed: Math.round(lineCost),
+        carbonKg: Math.round(lineCarbonKg),
+        maintenanceFactor,
+      });
+    }
+
+    const costPerSqmAvg = matchedTypes.length > 0 ? totalCostAed / gfa : 0;
+    const avgMaintenanceFactor = gfa > 0 && matchedTypes.length > 0 ? weightedMaintenanceSum / gfa : 3;
+    const avgCarbonPerSqm = gfa > 0 ? totalCarbonKg / gfa : 0;
+    const sustainabilityGrade =
+      avgCarbonPerSqm < 30 ? "A" :
+        avgCarbonPerSqm < 60 ? "B" :
+          avgCarbonPerSqm < 100 ? "C" :
+            avgCarbonPerSqm < 150 ? "D" : "E";
+
+    const designPremiumPct = TIER_PREMIUM_PCT[tier] ?? 8;
+    // Estimate at AED 25K/sqm as base sale price
+    const designPremiumAed = Math.round(gfa * 25000 * designPremiumPct / 100);
+
+    pricingAnalytics = {
+      costPerSqmAvg: Math.round(costPerSqmAvg),
+      totalFitoutCostAed: Math.round(totalCostAed),
+      totalCarbonKg: Math.round(totalCarbonKg),
+      avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
+      sustainabilityGrade,
+      materialBreakdown,
+      pricingSource: "material_constants",
+      designPremiumAed,
+      designPremiumPct,
+    };
+  }
+
   return {
     projectIdentity: {
       projectName: project.name,
@@ -387,6 +490,7 @@ export function generateDesignBrief(
         criticalPathItems: criticalPath,
         importDependencies: importDeps,
       }
-    }
+    },
+    pricingAnalytics,
   };
 }
