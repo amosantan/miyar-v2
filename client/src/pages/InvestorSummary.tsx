@@ -8,10 +8,12 @@ import { Separator } from "@/components/ui/separator";
 import {
     Building2, Palette, Package, DollarSign, TrendingUp,
     Leaf, Wrench, ArrowLeft, Download, ChevronRight, Sparkles,
-    AlertCircle, Loader2, Target, BarChart3, Globe, ExternalLink,
+    AlertCircle, Loader2, Target, BarChart3, Globe, ExternalLink, Share2, FileText, Check,
 } from "lucide-react";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 function formatAed(amount: number) {
     if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M AED`;
@@ -40,6 +42,27 @@ function InvestorSummaryContent() {
     const params = useParams<{ id: string }>();
     const projectId = Number(params.id);
     const [, navigate] = useLocation();
+    const { toast } = useToast();
+    const [shareCopied, setShareCopied] = useState(false);
+    const exportInvestorPdfMut = trpc.design.exportInvestorPdf.useMutation({
+        onSuccess: ({ html, projectName }) => {
+            const blob = new Blob([html], { type: "text/html" });
+            const url = URL.createObjectURL(blob);
+            const win = window.open(url, "_blank");
+            if (!win) toast({ title: "Allow popups to open the PDF preview" });
+        },
+        onError: (e) => toast({ title: "PDF export failed", description: e.message, variant: "destructive" }),
+    });
+    const createShareLinkMut = trpc.design.createShareLink.useMutation({
+        onSuccess: ({ shareUrl }) => {
+            const full = window.location.origin + shareUrl;
+            navigator.clipboard.writeText(full).catch(() => {});
+            setShareCopied(true);
+            toast({ title: "Share link copied!", description: `Valid for 7 days · ${full}` });
+            setTimeout(() => setShareCopied(false), 3000);
+        },
+        onError: (e) => toast({ title: "Could not create share link", description: e.message, variant: "destructive" }),
+    });
 
     const { data: project } = trpc.project.get.useQuery({ id: projectId });
     const { data: brief } = trpc.designAdvisor.getDesignBrief.useQuery({ projectId }, { enabled: !!projectId });
@@ -130,7 +153,18 @@ function InvestorSummaryContent() {
                     </Button>
                     <Button variant="outline" size="sm" className="gap-1.5 text-xs"
                         onClick={() => navigate(`/projects/${projectId}/brief`)}>
-                        <Download className="h-3.5 w-3.5" /> Export Brief
+                        <Download className="h-3.5 w-3.5" /> Export DOCX
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5 text-xs"
+                        disabled={exportInvestorPdfMut.isPending}
+                        onClick={() => exportInvestorPdfMut.mutate({ projectId: Number(projectId) })}>
+                        <FileText className="h-3.5 w-3.5" /> {exportInvestorPdfMut.isPending ? "Generating…" : "Export PDF"}
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5 text-xs"
+                        disabled={createShareLinkMut.isPending}
+                        onClick={() => createShareLinkMut.mutate({ projectId: Number(projectId) })}>
+                        {shareCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
+                        {shareCopied ? "Copied!" : createShareLinkMut.isPending ? "Creating…" : "Share Link"}
                     </Button>
                 </div>
             </div>

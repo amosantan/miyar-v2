@@ -58,6 +58,7 @@ import Simulations from "./pages/Simulations";
 import CustomerSuccess from "./pages/CustomerSuccess";
 import Sustainability from "./pages/Sustainability";
 import InvestorSummary from "./pages/InvestorSummary";
+import ShareView from "./pages/ShareView";
 import BriefEditor from "./pages/BriefEditor";
 
 // Helper: wrap a component with RequireAuth
@@ -145,6 +146,7 @@ function Router() {
       <Route path="/admin/learning-dashboard">{() => <AdminOnly Component={LearningDashboard} />}</Route>
 
       {/* Fallback */}
+      <Route path="/share/:token" component={ShareView} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -1698,8 +1698,12 @@ export const aiDesignBriefs = mysqlTable("ai_design_briefs", {
   orgId: int("org_id").notNull(),
   briefData: json("brief_data").notNull(),          // AIDesignBrief
   version: varchar("version", { length: 20 }).default("1.0"),
+  // Phase 5: Shareable link
+  shareToken: varchar("share_token", { length: 64 }),
+  shareExpiresAt: timestamp("share_expires_at"),
   generatedAt: timestamp("generated_at").defaultNow().notNull(),
 });
+
 
 export type AiDesignBriefRow = typeof aiDesignBriefs.$inferSelect;
 export type InsertAiDesignBrief = typeof aiDesignBriefs.$inferInsert;

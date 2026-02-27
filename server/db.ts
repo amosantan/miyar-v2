@@ -2062,6 +2062,37 @@ export async function getLatestAiDesignBrief(projectId: number, orgId: number) {
   return results[0] || null;
 }
 
+/** Phase 5 alias — get the latest brief for a project (no orgId check, for internal use). */
+export async function getAiDesignBrief(projectId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const results = await db.select().from(aiDesignBriefs)
+    .where(eq(aiDesignBriefs.projectId, projectId))
+    .orderBy(desc(aiDesignBriefs.generatedAt))
+    .limit(1);
+  return results[0] || null;
+}
+
+/** Phase 5 — Store a share token and expiry date on a brief. */
+export async function updateAiDesignBriefShareToken(briefId: number, token: string, expiresAt: Date) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(aiDesignBriefs)
+    .set({ shareToken: token, shareExpiresAt: expiresAt })
+    .where(eq(aiDesignBriefs.id, briefId));
+}
+
+/** Phase 5 — Resolve share token → brief row (used by public resolveShareLink endpoint). */
+export async function getAiDesignBriefByShareToken(token: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const results = await db.select().from(aiDesignBriefs)
+    .where(eq(aiDesignBriefs.shareToken, token))
+    .limit(1);
+  return results[0] || null;
+}
+
+
 // ─── Material Constants (P3 — Structural Analytics) ─────────────────────────
 
 /** Returns all seeded material constants (AED/m², carbon intensity, density). */

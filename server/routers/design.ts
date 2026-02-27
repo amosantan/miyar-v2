@@ -3,7 +3,7 @@
  * Evidence Vault, Design Brief, Visual Generation, Board Composer, Materials, Collaboration
  */
 import { z } from "zod";
-import { router, protectedProcedure, adminProcedure, orgProcedure } from "../_core/trpc";
+import { router, protectedProcedure, adminProcedure, orgProcedure, publicProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { storagePut } from "../storage";
@@ -1096,5 +1096,117 @@ export const designRouter = router({
     .query(async ({ input }) => {
       return db.getActiveSourceRegistry(input.limit);
     }),
+
+  // ─── Phase 5: Export & Handover ─────────────────────────────────────────────
+
+  exportInvestorPdf: orgProcedure
+    .input(z.object({ projectId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const { generateInvestorPdfHtml } = await import("../engines/investor-pdf");
+      const project = await db.getProjectById(input.projectId);
+      if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+      const [brief, recs, materialConsts, benchmark, trends] = await Promise.all([
+        db.getAiDesignBrief(input.projectId),
+        db.getSpaceRecommendations(input.projectId, ctx.orgId),
+        db.getMaterialConstants(),
+        db.getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
+        db.getDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
+      ]);
+      const totalFitoutBudget = (recs ?? []).reduce((s: number, r: any) => s + Number(r.budgetAllocation || 0), 0);
+      const gfa = Number(project.ctx03Gfa ?? 0);
+      const costPerSqm = gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0;
+      const TIER_PREMIUM_PCT: Record<string, number> = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
+      const salePremiumPct = TIER_PREMIUM_PCT[project.mkt01Tier ?? "Upper-mid"] ?? 8;
+      const estimatedSalesPremiumAed = gfa > 0 ? Math.round(gfa * 25000 * salePremiumPct / 100) : 0;
+      const TIER_GRADE: Record<string, string> = { "Entry": "B", "Mid": "B", "Upper-mid": "C", "Luxury": "D", "Ultra-luxury": "D" };
+      const sustainabilityGrade = TIER_GRADE[project.mkt01Tier ?? "Upper-mid"] ?? "C";
+      const briefData = (brief?.briefData ?? {}) as any;
+      const allMaterials = (recs ?? []).flatMap((r: any) =>
+        (r.materialPackage || []).map((m: any) => ({ name: m.productName, brand: m.brand, price: m.priceRangeAed, room: r.roomName }))
+      );
+      const spaces = (recs ?? []).map((r: any) => ({
+        name: r.roomName, budgetAed: Number(r.budgetAllocation || 0), sqm: Number(r.sqm || 0),
+        pct: totalFitoutBudget > 0 ? (Number(r.budgetAllocation || 0) / totalFitoutBudget) * 100 : 0,
+        styleDirection: r.styleDirection,
+      }));
+      const SQF = 10.7639;
+      const bmFmt = benchmark ? {
+        costPerSqmLow: benchmark.costPerSqftLow != null ? Math.round(Number(benchmark.costPerSqftLow) * SQF) : null,
+        costPerSqmMid: benchmark.costPerSqftMid != null ? Math.round(Number(benchmark.costPerSqftMid) * SQF) : null,
+        costPerSqmHigh: benchmark.costPerSqftHigh != null ? Math.round(Number(benchmark.costPerSqftHigh) * SQF) : null,
+        typology: benchmark.typology, location: benchmark.location, marketTier: benchmark.marketTier, dataYear: benchmark.dataYear,
+      } : null;
+      const html = generateInvestorPdfHtml({
+        projectName: project.name ?? "Untitled Project", typology: project.ctx01Typology ?? "Residential",
+        location: project.ctx04Location ?? "UAE", tier: project.mkt01Tier ?? "Upper-mid",
+        style: project.des01Style ?? "Modern", gfaSqm: gfa,
+        execSummary: briefData.executiveSummary ?? "", designDirection: briefData.designDirection ?? {},
+        spaces, materials: allMaterials,
+        materialConstants: (materialConsts ?? []).map((c: any) => ({
+          materialType: c.materialType, costPerM2: Number(c.costPerM2),
+          carbonIntensity: Number(c.carbonIntensity), sustainabilityGrade,
+        })),
+        totalFitoutBudget, costPerSqm, sustainabilityGrade, salePremiumPct,
+        estimatedSalesPremiumAed, benchmark: bmFmt, designTrends: trends,
+        shareToken: brief?.shareToken ?? undefined,
+      });
+      return { html, projectName: project.name ?? "Project" };
+    }),
+
+  createShareLink: orgProcedure
+    .input(z.object({ projectId: z.number(), expiryDays: z.number().min(1).max(90).default(7) }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+      const brief = await db.getAiDesignBrief(input.projectId);
+      if (!brief) throw new Error("Generate a design brief first before sharing");
+      const token = nanoid(32);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + input.expiryDays);
+      await db.updateAiDesignBriefShareToken(brief.id, token, expiresAt);
+      return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
+    }),
+
+  resolveShareLink: publicProcedure
+    .input(z.object({ token: z.string().min(8).max(64) }))
+    .query(async ({ input }) => {
+      const brief = await db.getAiDesignBriefByShareToken(input.token);
+      if (!brief) throw new Error("Share link not found or expired");
+      if (brief.shareExpiresAt && new Date(brief.shareExpiresAt) < new Date()) throw new Error("This share link has expired");
+      const project = await db.getProjectById(brief.projectId);
+      if (!project) throw new Error("Project not found");
+      const [recs, benchmark, trends] = await Promise.all([
+        db.getSpaceRecommendations(brief.projectId, project.orgId ?? 0),
+        db.getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
+        db.getDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
+      ]);
+      const totalFitoutBudget = (recs ?? []).reduce((s: number, r: any) => s + Number(r.budgetAllocation || 0), 0);
+      const gfa = Number(project.ctx03Gfa ?? 0);
+      const TIER_PREMIUM_PCT: Record<string, number> = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
+      const salePremiumPct = TIER_PREMIUM_PCT[project.mkt01Tier ?? "Upper-mid"] ?? 8;
+      const SQF = 10.7639;
+      return {
+        projectName: project.name ?? "Untitled Project", typology: project.ctx01Typology ?? "Residential",
+        location: project.ctx04Location ?? "UAE", tier: project.mkt01Tier ?? "Upper-mid",
+        style: project.des01Style ?? "Modern", gfaSqm: gfa,
+        execSummary: ((brief.briefData as any)?.executiveSummary ?? "") as string,
+        designDirection: ((brief.briefData as any)?.designDirection ?? {}) as Record<string, any>,
+        spaces: (recs ?? []).map((r: any) => ({
+          name: r.roomName, budgetAed: Number(r.budgetAllocation || 0), sqm: Number(r.sqm || 0),
+          pct: totalFitoutBudget > 0 ? (Number(r.budgetAllocation || 0) / totalFitoutBudget) * 100 : 0,
+        })),
+        totalFitoutBudget,
+        costPerSqm: gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0,
+        salePremiumPct, estimatedSalesPremiumAed: gfa > 0 ? Math.round(gfa * 25000 * salePremiumPct / 100) : 0,
+        benchmark: benchmark ? {
+          costPerSqmLow: benchmark.costPerSqftLow != null ? Math.round(Number(benchmark.costPerSqftLow) * SQF) : null,
+          costPerSqmMid: benchmark.costPerSqftMid != null ? Math.round(Number(benchmark.costPerSqftMid) * SQF) : null,
+          costPerSqmHigh: benchmark.costPerSqftHigh != null ? Math.round(Number(benchmark.costPerSqftHigh) * SQF) : null,
+          typology: benchmark.typology, location: benchmark.location, marketTier: benchmark.marketTier, dataYear: benchmark.dataYear,
+        } : null,
+        designTrends: trends, expiresAt: brief.shareExpiresAt?.toISOString(),
+      };
+    }),
 });
+
 
