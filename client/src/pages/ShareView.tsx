@@ -161,7 +161,7 @@ export default function ShareView() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2">
-                                {data.spaces.sort((a, b) => b.budgetAed - a.budgetAed).map((s) => (
+                                {data.spaces.sort((a: { budgetAed: number }, b: { budgetAed: number }) => b.budgetAed - a.budgetAed).map((s: { name: string; budgetAed: number; pct: number }) => (
                                     <div key={s.name} className="flex items-center gap-3">
                                         <span className="w-28 text-xs text-muted-foreground truncate">{s.name}</span>
                                         <div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
@@ -264,7 +264,7 @@ export default function ShareView() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-1.5">
-                                {(data.designTrends ?? []).slice(0, 8).map((t: any) => (
+                                {(data.designTrends ?? []).slice(0, 8).map((t: Record<string, any>) => (
                                     <div key={t.id} className="flex items-start gap-2 py-1 border-b border-border/20 last:border-0">
                                         <Badge
                                             variant="outline"

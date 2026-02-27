@@ -13,7 +13,7 @@ import {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 function formatAed(amount: number) {
     if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M AED`;
@@ -42,26 +42,25 @@ function InvestorSummaryContent() {
     const params = useParams<{ id: string }>();
     const projectId = Number(params.id);
     const [, navigate] = useLocation();
-    const { toast } = useToast();
     const [shareCopied, setShareCopied] = useState(false);
     const exportInvestorPdfMut = trpc.design.exportInvestorPdf.useMutation({
         onSuccess: ({ html, projectName }) => {
             const blob = new Blob([html], { type: "text/html" });
             const url = URL.createObjectURL(blob);
             const win = window.open(url, "_blank");
-            if (!win) toast({ title: "Allow popups to open the PDF preview" });
+            if (!win) toast.info("Allow popups to open the PDF preview");
         },
-        onError: (e) => toast({ title: "PDF export failed", description: e.message, variant: "destructive" }),
+        onError: (e) => toast.error(`PDF export failed: ${e.message}`),
     });
     const createShareLinkMut = trpc.design.createShareLink.useMutation({
         onSuccess: ({ shareUrl }) => {
             const full = window.location.origin + shareUrl;
             navigator.clipboard.writeText(full).catch(() => {});
             setShareCopied(true);
-            toast({ title: "Share link copied!", description: `Valid for 7 days · ${full}` });
+            toast.success(`Share link copied! Valid for 7 days · ${full}`);
             setTimeout(() => setShareCopied(false), 3000);
         },
-        onError: (e) => toast({ title: "Could not create share link", description: e.message, variant: "destructive" }),
+        onError: (e) => toast.error(`Could not create share link: ${e.message}`),
     });
 
     const { data: project } = trpc.project.get.useQuery({ id: projectId });
