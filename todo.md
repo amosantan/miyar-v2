@@ -181,11 +181,7 @@ For 50M+ AED deals, the investor may need a digitally signed document.
 |-------|--------|-------|
 | Phase A — Wire What We Have | ✅ Complete | NL query, stress test viz, evidence chains, freshness badges |
 | Phase B — Infrastructure for Live Data | ✅ Complete | Scheduler, connector health, DLD API integration |
-| Phase C — Data Expansion | 🎯 In Progress | C.1 SCAD PDF scraper, C.2 benchmark scaling, C.3 synthetic gap-fill |
-| Phase D — Governance & Compliance | 📋 Planned | Estidama/Al Sa'fat, audit trails, methodology page |
-| Phase E — Scale Features | 📋 Planned | Portfolio demo, mobile share views, RICS alignment |
+| Phase C — Data Expansion | ✅ Complete | SCAD PDF scraper, benchmark scaling, synthetic gap-fill |
+| Phase D — Governance & Compliance | ✅ Complete | Estidama/Al Sa'fat, audit trails, methodology page, cert-aware pricing |
+| Phase E — Scale Features | ✅ Complete | Portfolio benchmarking, mobile share views, RICS NRM alignment |
 
-### Phase C Items
-- [ ] C.1 — SCAD PDF scraper for material indices
-- [ ] C.2 — Scale benchmarks from 58 → 150+ (real data priority)
-- [ ] C.3 — Synthetic data generator (gap-filling, labeled as synthetic)

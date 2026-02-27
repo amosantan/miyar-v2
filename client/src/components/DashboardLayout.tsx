@@ -170,34 +170,36 @@ export default function DashboardLayout({
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-[#0A1628]">
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           <div className="flex flex-col items-center gap-4">
-            <div className="text-3xl font-bold tracking-tight text-primary">
+            <div className="text-3xl font-bold tracking-tight text-gold-gradient">
               MIYAR
             </div>
-            <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground">
-              Decision Intelligence
+            <p className="text-xs tracking-[0.3em] uppercase text-[#8B9CB7]">
+              مِعيار — Design Intelligence
             </p>
           </div>
-          <div className="flex flex-col items-center gap-3">
-            <h1 className="text-xl font-semibold tracking-tight text-center text-foreground">
-              Sign in to continue
-            </h1>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Access the MIYAR platform to validate interior design directions
-              with data-driven intelligence.
-            </p>
+          <div className="glass-card rounded-2xl p-8 w-full">
+            <div className="flex flex-col items-center gap-3">
+              <h1 className="text-xl font-semibold tracking-tight text-center text-[#F0EBE3]">
+                Sign in to continue
+              </h1>
+              <p className="text-sm text-[#8B9CB7] text-center max-w-sm">
+                Access the MIYAR platform to validate interior design directions
+                with data-driven intelligence.
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                window.location.href = getLoginUrl();
+              }}
+              size="lg"
+              className="w-full mt-6 bg-[#C9A96E] hover:bg-[#B08D4C] text-[#0A1628] font-semibold shadow-lg shadow-[#C9A96E]/20 hover:shadow-[#C9A96E]/30 transition-all"
+            >
+              Sign in
+            </Button>
           </div>
-          <Button
-            onClick={() => {
-              window.location.href = getLoginUrl();
-            }}
-            size="lg"
-            className="w-full shadow-lg hover:shadow-xl transition-all"
-          >
-            Sign in
-          </Button>
         </div>
       </div>
     );
@@ -279,16 +281,17 @@ function DashboardLayoutContent({
             <div className="flex items-center gap-3 px-2 transition-all w-full">
               <button
                 onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-accent/20 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
+                className="h-8 w-8 flex items-center justify-center hover:bg-[#C9A96E]/10 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E]/30 shrink-0"
                 aria-label="Toggle navigation"
               >
-                <PanelLeft className="h-4 w-4 text-muted-foreground" />
+                <PanelLeft className="h-4 w-4 text-[#8B9CB7]" />
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-bold tracking-tight text-primary text-lg">
+                  <span className="font-bold tracking-tight text-gold-gradient text-lg">
                     MIYAR
                   </span>
+                  <span className="text-[9px] tracking-[0.2em] text-[#8B9CB7]/60 uppercase">مِعيار</span>
                 </div>
               ) : null}
             </div>
@@ -477,13 +480,13 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset>
-        <div className="flex border-b h-14 items-center justify-between bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+        <div className="flex border-b border-[#1E2D42] h-14 items-center justify-between bg-[#0A1628]/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
           <div className="flex items-center gap-2">
             {isMobile || isCollapsed ? (
-              <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
+              <SidebarTrigger className="h-9 w-9 rounded-lg bg-[#111827]" />
             ) : null}
             <div className="flex items-center gap-3">
-              <span className="tracking-tight text-foreground font-medium">
+              <span className="tracking-tight text-[#F0EBE3] font-medium">
                 {activeMenuItem?.label ?? "MIYAR"}
               </span>
             </div>
@@ -494,11 +497,11 @@ function DashboardLayoutContent({
               onClick={() => {
                 window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
               }}
-              className="hidden md:inline-flex items-center gap-1.5 rounded-lg border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors"
+              className="hidden md:inline-flex items-center gap-1.5 rounded-lg border border-[#1E2D42] bg-[#111827]/50 px-3 py-1.5 text-xs text-[#8B9CB7] hover:bg-[#C9A96E]/10 hover:border-[#C9A96E]/30 hover:text-[#C9A96E] transition-colors"
             >
               <Search className="h-3 w-3" />
               <span>Search</span>
-              <kbd className="ml-1 rounded border bg-background px-1 font-mono text-[10px]">⌘K</kbd>
+              <kbd className="ml-1 rounded border border-[#1E2D42] bg-[#0A1628] px-1 font-mono text-[10px]">⌘K</kbd>
             </button>
             {isAdmin && <AdminSystemHealthMenu />}
             <AiAssistantPanel />
