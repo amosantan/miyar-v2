@@ -1884,3 +1884,84 @@ export const dldProjects = mysqlTable("dld_projects", {
 
 export type DldProject = typeof dldProjects.$inferSelect;
 export type InsertDldProject = typeof dldProjects.$inferInsert;
+
+// ─── DLD Transactions (Phase B.3 — Dubai Land Department Sales Data) ────────
+export const dldTransactions = mysqlTable("dld_transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  transactionId: bigint("transaction_id", { mode: "number" }),
+  transactionType: varchar("transaction_type", { length: 50 }),  // Sales, Mortgage, Gift
+  propertyType: varchar("property_type", { length: 100 }),       // Villa, Apartment, Land
+  areaId: int("area_id"),
+  areaNameEn: varchar("area_name_en", { length: 200 }),
+  projectName: varchar("project_name", { length: 300 }),
+  amount: decimal("amount", { precision: 14, scale: 2 }),        // Transaction amount AED
+  propertySizeSqft: decimal("property_size_sqft", { precision: 10, scale: 2 }),
+  pricePerSqft: decimal("price_per_sqft", { precision: 10, scale: 2 }),  // Calculated
+  rooms: varchar("rooms", { length: 20 }),
+  transactionDate: varchar("transaction_date", { length: 20 }),
+  registrationDate: varchar("registration_date", { length: 20 }),
+  isFreehold: boolean("is_freehold"),
+  masterProjectEn: varchar("master_project_en", { length: 300 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DldTransaction = typeof dldTransactions.$inferSelect;
+export type InsertDldTransaction = typeof dldTransactions.$inferInsert;
+
+// ─── DLD Rents (Phase B.3 — Ejari Rental Data) ─────────────────────────────
+export const dldRents = mysqlTable("dld_rents", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: bigint("contract_id", { mode: "number" }),
+  areaId: int("area_id"),
+  areaNameEn: varchar("area_name_en", { length: 200 }),
+  propertyType: varchar("property_type", { length: 100 }),
+  propertyUsage: varchar("property_usage", { length: 100 }),      // Residential, Commercial
+  rooms: varchar("rooms", { length: 20 }),
+  annualAmount: decimal("annual_amount", { precision: 12, scale: 2 }),
+  propertySizeSqft: decimal("property_size_sqft", { precision: 10, scale: 2 }),
+  rentPerSqft: decimal("rent_per_sqft", { precision: 10, scale: 2 }),  // Calculated
+  contractStartDate: varchar("contract_start_date", { length: 20 }),
+  contractEndDate: varchar("contract_end_date", { length: 20 }),
+  projectName: varchar("project_name", { length: 300 }),
+  masterProjectEn: varchar("master_project_en", { length: 300 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DldRent = typeof dldRents.$inferSelect;
+export type InsertDldRent = typeof dldRents.$inferInsert;
+
+// ─── DLD Area Benchmarks (Phase B.3 — Pre-computed Analytics) ───────────────
+export const dldAreaBenchmarks = mysqlTable("dld_area_benchmarks", {
+  id: int("id").autoincrement().primaryKey(),
+  areaId: int("area_id").notNull(),
+  areaNameEn: varchar("area_name_en", { length: 200 }).notNull(),
+  propertyType: varchar("property_type", { length: 100 }),    // Apartment, Villa, or ALL
+  period: varchar("period", { length: 10 }).notNull(),         // "2025-Q1", "2025" etc.
+
+  // Sale price analytics (AED/sqft)
+  saleP25: decimal("sale_p25", { precision: 10, scale: 2 }),
+  saleP50: decimal("sale_p50", { precision: 10, scale: 2 }),   // Median
+  saleP75: decimal("sale_p75", { precision: 10, scale: 2 }),
+  saleMean: decimal("sale_mean", { precision: 10, scale: 2 }),
+  saleTransactionCount: int("sale_transaction_count").default(0),
+  saleYoyChangePct: decimal("sale_yoy_change_pct", { precision: 6, scale: 2 }),
+
+  // Rental analytics (AED/sqft annual)
+  rentP50: decimal("rent_p50", { precision: 10, scale: 2 }),
+  rentMean: decimal("rent_mean", { precision: 10, scale: 2 }),
+  rentTransactionCount: int("rent_transaction_count").default(0),
+
+  // Derived metrics
+  grossYield: decimal("gross_yield", { precision: 6, scale: 2 }),  // rent / sale price %
+  absorptionRate: decimal("absorption_rate", { precision: 6, scale: 4 }),
+
+  // Fitout calibration (AED/sqft)
+  recommendedFitoutLow: decimal("recommended_fitout_low", { precision: 10, scale: 2 }),
+  recommendedFitoutMid: decimal("recommended_fitout_mid", { precision: 10, scale: 2 }),
+  recommendedFitoutHigh: decimal("recommended_fitout_high", { precision: 10, scale: 2 }),
+
+  computedAt: timestamp("computed_at").defaultNow().notNull(),
+});
+
+export type DldAreaBenchmark = typeof dldAreaBenchmarks.$inferSelect;
+export type InsertDldAreaBenchmark = typeof dldAreaBenchmarks.$inferInsert;

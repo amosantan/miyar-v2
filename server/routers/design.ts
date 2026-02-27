@@ -1117,6 +1117,27 @@ export const designRouter = router({
       };
     }),
 
+
+  getAreaBenchmarks: orgProcedure
+    .query(async () => {
+      return db.getAllAreaBenchmarks();
+    }),
+
+  getAreaBenchmark: orgProcedure
+    .input(z.object({ areaId: z.number() }))
+    .query(async ({ input }) => {
+      return db.getDldAreaBenchmark(input.areaId);
+    }),
+
+  getDldDataStats: orgProcedure
+    .query(async () => {
+      const [transactionCount, rentCount] = await Promise.all([
+        db.getDldTransactionCount(),
+        db.getDldRentCount(),
+      ]);
+      return { transactionCount, rentCount };
+    }),
+
   // ─── Phase A.4: Data Freshness ─────────────────────────────────────────────
   getDataFreshness: orgProcedure
     .query(async () => {

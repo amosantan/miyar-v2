@@ -65,6 +65,9 @@ import {
   materialConstants,
   designTrends,
   dldProjects,
+  dldTransactions,
+  dldRents,
+  dldAreaBenchmarks,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1813,6 +1816,70 @@ export async function getDldAreaComparison(areaId: number) {
     statusBreakdown: (rows as any)?.[0] ?? [],
     topDevelopers: (developers as any)?.[0] ?? [],
   };
+}
+
+
+// ─── DLD Transactions & Rents (Phase B.3 — Analytics) ───────────────────────
+
+export async function getDldAreaBenchmark(areaId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dldAreaBenchmarks)
+    .where(eq(dldAreaBenchmarks.areaId, areaId))
+    .orderBy(desc(dldAreaBenchmarks.computedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getDldAreaBenchmarkByName(areaName: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(dldAreaBenchmarks)
+    .where(eq(dldAreaBenchmarks.areaNameEn, areaName))
+    .orderBy(desc(dldAreaBenchmarks.computedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getAllAreaBenchmarks() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dldAreaBenchmarks)
+    .orderBy(desc(dldAreaBenchmarks.saleTransactionCount));
+}
+
+export async function upsertAreaBenchmark(data: typeof dldAreaBenchmarks.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  // Check if record exists for this area + period
+  const existing = await db.select({ id: dldAreaBenchmarks.id }).from(dldAreaBenchmarks)
+    .where(and(
+      eq(dldAreaBenchmarks.areaId, data.areaId),
+      eq(dldAreaBenchmarks.period, data.period),
+    ))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db.update(dldAreaBenchmarks)
+      .set({ ...data, computedAt: new Date() })
+      .where(eq(dldAreaBenchmarks.id, existing[0].id));
+  } else {
+    await db.insert(dldAreaBenchmarks).values(data);
+  }
+}
+
+export async function getDldTransactionCount() {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.execute(sql`SELECT COUNT(*) as cnt FROM dld_transactions`);
+  return (rows as any)?.[0]?.[0]?.cnt ?? 0;
+}
+
+export async function getDldRentCount() {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.execute(sql`SELECT COUNT(*) as cnt FROM dld_rents`);
+  return (rows as any)?.[0]?.[0]?.cnt ?? 0;
 }
 
 // ─── Trend Snapshots (V3 — Analytical Intelligence) ────────────────────────

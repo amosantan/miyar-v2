@@ -33,6 +33,14 @@ export interface PricingAnalytics {
   designPremiumAed: number;
   /** Premium % for market tier */
   designPremiumPct: number;
+  /** Fitout-to-sale price ratio (Phase B.3 — DLD integration) */
+  fitoutRatio: number | null;
+  /** Over/under-specification warning */
+  overSpecWarning: string | null;
+  /** Source of sale price data */
+  salePriceSource: "dld_transactions" | "hardcoded_fallback";
+  /** Area median sale price AED/sqm used for calculation */
+  areaSalePricePerSqm: number;
 }
 
 export interface DesignBriefData {
@@ -210,6 +218,8 @@ export function generateDesignBrief(
   scoreResult: { compositeScore: number; decisionStatus: string; dimensions: Record<string, number> },
   livePricing?: Record<string, CategoryPricing>,
   materialConstants?: Array<{ materialType: string; costPerM2: string | number; carbonIntensity: string | number; maintenanceFactor: string | number }>,
+  /** Phase B.3: DLD area median sale price AED/sqm. If provided, replaces hardcoded 25K fallback. */
+  areaSalePricePerSqm?: number,
 ): DesignBriefData {
   const style = inputs.des01Style || "Modern";
   const tier = inputs.mkt01Tier || "Upper-mid";
@@ -399,8 +409,28 @@ export function generateDesignBrief(
             avgCarbonPerSqm < 150 ? "D" : "E";
 
     const designPremiumPct = TIER_PREMIUM_PCT[tier] ?? 8;
-    // Estimate at AED 25K/sqm as base sale price
-    const designPremiumAed = Math.round(gfa * 25000 * designPremiumPct / 100);
+    // Phase B.3: Use DLD area median if available, else fallback to 25K/sqm
+    const baseSalePrice = areaSalePricePerSqm ?? 25000;
+    const salePriceSource: "dld_transactions" | "hardcoded_fallback" = areaSalePricePerSqm ? "dld_transactions" : "hardcoded_fallback";
+    const designPremiumAed = Math.round(gfa * baseSalePrice * designPremiumPct / 100);
+
+    // Fitout-to-sale ratio analysis
+    const fitoutRatio = baseSalePrice > 0 ? costPerSqmAvg / baseSalePrice : null;
+    const FITOUT_RATIOS: Record<string, { min: number; max: number }> = {
+      "Mid": { min: 0.08, max: 0.12 },
+      "Upper-mid": { min: 0.12, max: 0.18 },
+      "Luxury": { min: 0.18, max: 0.28 },
+      "Ultra-luxury": { min: 0.25, max: 0.35 },
+    };
+    const ratioLimits = FITOUT_RATIOS[tier] ?? { min: 0.12, max: 0.18 };
+    let overSpecWarning: string | null = null;
+    if (fitoutRatio !== null) {
+      if (fitoutRatio > ratioLimits.max) {
+        overSpecWarning = `⚠️ Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price exceeds ${tier} norm of ${(ratioLimits.max * 100)}%. Consider reducing specification.`;
+      } else if (fitoutRatio < ratioLimits.min) {
+        overSpecWarning = `⚠️ Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price is below ${tier} minimum of ${(ratioLimits.min * 100)}%. May not meet buyer expectations.`;
+      }
+    }
 
     pricingAnalytics = {
       costPerSqmAvg: Math.round(costPerSqmAvg),
@@ -412,6 +442,10 @@ export function generateDesignBrief(
       pricingSource: "material_constants",
       designPremiumAed,
       designPremiumPct,
+      fitoutRatio,
+      overSpecWarning,
+      salePriceSource,
+      areaSalePricePerSqm: baseSalePrice,
     };
   }
 
