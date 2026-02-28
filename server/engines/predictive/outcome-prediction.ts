@@ -14,6 +14,8 @@ export interface ComparableOutcome {
   typology: string;
   tier: string;
   geography?: string;
+  targetYield?: string;
+  salesStrategy?: string;
 }
 
 export interface VariableContribution {
@@ -42,10 +44,22 @@ function filterComparables(
   outcomes: ComparableOutcome[],
   targetTypology: string,
   targetTier: string,
-  targetGeography?: string
+  targetGeography?: string,
+  targetYield?: string,
+  targetSalesStrategy?: string
 ): ComparableOutcome[] {
-  // Exact match: typology + tier + geography
+  // Try ultra-specific match: typology + tier + geography + strategy + yield
   let filtered = outcomes.filter(o =>
+    o.typology === targetTypology &&
+    o.tier === targetTier &&
+    (!targetGeography || o.geography === targetGeography) &&
+    (!targetSalesStrategy || o.salesStrategy === targetSalesStrategy) &&
+    (!targetYield || o.targetYield === targetYield)
+  );
+  if (filtered.length >= 3) return filtered;
+
+  // Fallback 1: typology + tier + geography
+  filtered = outcomes.filter(o =>
     o.typology === targetTypology &&
     o.tier === targetTier &&
     (!targetGeography || o.geography === targetGeography)
@@ -88,12 +102,21 @@ export function predictOutcome(
     typology?: string;
     tier?: string;
     geography?: string;
+    targetYield?: string;
+    salesStrategy?: string;
   } = {}
 ): OutcomePrediction {
   const typology = options.typology || "Residential";
   const tier = options.tier || "Mid";
 
-  const comparables = filterComparables(outcomes, typology, tier, options.geography);
+  const comparables = filterComparables(
+    outcomes,
+    typology,
+    tier,
+    options.geography,
+    options.targetYield,
+    options.salesStrategy
+  );
 
   // Extract risk and success factors from variable contributions
   const contributions: VariableContribution[] = Object.entries(variableContributions).map(([variable, data]) => ({

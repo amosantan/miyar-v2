@@ -73,12 +73,17 @@ export function computeExecutionRisk(
 ): number {
   // Higher sustainability cert tiers increase procurement complexity
   const certRisk = n.sustainCertMultiplier > 1.10 ? (n.sustainCertMultiplier - 1.0) * 2 : 0;
-  const raw =
+  let raw =
     (w.executionResilience ?? 0.30) * n.executionResilience +
     (w.supplyChainInverse ?? 0.25) * (1 - n.exe01_n) +
     (w.complexityInverse ?? 0.20) * (1 - n.des03_n) +
     (w.approvalsInverse ?? 0.15) * (1 - n.exe03_n) +
     (w.certRisk ?? 0.10) * certRisk;
+
+  // Apply V5 strategy risk modifiers (higher raw is better ER score)
+  if (n.procurementRiskMultiplier) raw *= n.procurementRiskMultiplier;
+  if (n.materialSourcingRiskMultiplier) raw *= n.materialSourcingRiskMultiplier;
+
   return Math.max(0, Math.min(100, raw * 100));
 }
 

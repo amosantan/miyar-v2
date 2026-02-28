@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 
+import { ProjectForm } from "@/components/ProjectForm";
 import { EvidenceReferencesPanel } from "@/components/EvidenceReferencesPanel";
 import PredictivePanel from "@/components/PredictivePanel";
 import BiasAlerts from "@/components/BiasAlerts";
@@ -418,8 +419,21 @@ function ProjectDetailContent() {
 
   const handleEvaluate = () => evaluateMutation.mutate({ id: projectId });
 
+  const updateMutation = trpc.project.update.useMutation({
+    onSuccess: () => {
+      toast.success("Project updated successfully");
+      utils.project.get.invalidate({ id: projectId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const latestScore = scores?.[0];
   const hasScores = !!latestScore;
+
+  // Check if project has been updated since the last evaluation
+  const needsRecalculation = hasScores && project?.updatedAt && latestScore?.computedAt
+    ? new Date(project.updatedAt).getTime() > new Date(latestScore.computedAt).getTime()
+    : false;
 
   // Count matching benchmarks for confidence explanation
   const matchingBenchmarkCount = useMemo(() => {
@@ -513,6 +527,33 @@ function ProjectDetailContent() {
         </div>
       </div>
 
+      {needsRecalculation && (
+        <div className="rounded-lg border p-4 flex items-start gap-4 bg-blue-500/10 border-blue-500/20">
+          <Info className="h-5 w-5 mt-0.5 text-blue-400" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold mb-1 text-blue-400">
+              Project Parameters Updated
+            </h3>
+            <p className="text-sm text-foreground/90">
+              The project's underlying assumptions have been modified since the last evaluation. Please re-evaluate to see updated scores and insights.
+            </p>
+          </div>
+          <Button
+            onClick={handleEvaluate}
+            disabled={evaluateMutation.isPending}
+            size="sm"
+            className="shrink-0 gap-2"
+          >
+            {evaluateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+            Run Evaluation
+          </Button>
+        </div>
+      )}
+
       {projectAlerts.length > 0 && (
         <div className="flex flex-col gap-2">
           {projectAlerts.map((alert: any) => (
@@ -555,6 +596,7 @@ function ProjectDetailContent() {
             <TabsTrigger value="evidence">Evidence</TabsTrigger>
             <TabsTrigger value="predictive">Predictive</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           {/* ─── Overview Tab ──────────────────────────────────────────── */}
@@ -1115,6 +1157,18 @@ function ProjectDetailContent() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ─── Settings Tab ────────────────────────────────────────────── */}
+          <TabsContent value="settings" className="space-y-4">
+            <ProjectForm
+              initialData={project as any}
+              onSubmit={async (data) => {
+                await updateMutation.mutateAsync({ id: projectId, ...data });
+              }}
+              isPending={updateMutation.isPending}
+              submitLabel="Save Changes"
+            />
           </TabsContent>
         </Tabs>
       ) : (

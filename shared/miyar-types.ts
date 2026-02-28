@@ -14,6 +14,18 @@ export type OverrideType = "strategic" | "market_insight" | "risk_adjustment" | 
 export type ReportType = "validation_summary" | "design_brief" | "rfq_pack" | "full_report" | "autonomous_design_brief";
 export type BenchmarkSourceType = "synthetic" | "client_provided" | "curated";
 
+// --- V5: Concrete Analytics Types ---
+export type DeveloperType = "Master Developer" | "Private/Boutique" | "Institutional Investor";
+export type TargetDemographic = "HNWI" | "Families" | "Young Professionals" | "Investors";
+export type SalesStrategy = "Sell Off-Plan" | "Sell on Completion" | "Build-to-Rent";
+export type CompetitiveDensity = "Low" | "Moderate" | "Saturated";
+export type ProjectUsp = "Location/Views" | "Amenities/Facilities" | "Price/Value" | "Design/Architecture";
+export type TargetYield = "< 5%" | "5-7%" | "7-9%" | "> 9%";
+export type ProcurementStrategy = "Turnkey" | "Traditional" | "Construction Management";
+export type AmenityFocus = "Wellness/Spa" | "F&B/Social" | "Minimal/Essential" | "Business/Co-working";
+export type TechIntegration = "Basic" | "Smart Home Ready" | "Fully Integrated";
+export type MaterialSourcing = "Local" | "European" | "Asian" | "Global Mix";
+
 export interface ProjectInputs {
   // Context
   ctx01Typology: ProjectTypology;
@@ -53,6 +65,17 @@ export interface ProjectInputs {
   add01SampleKit: boolean;
   add02PortfolioMode: boolean;
   add03DashboardExport: boolean;
+  // V5: Concrete Analytics
+  developerType?: DeveloperType;
+  targetDemographic?: TargetDemographic;
+  salesStrategy?: SalesStrategy;
+  competitiveDensity?: CompetitiveDensity;
+  projectUsp?: ProjectUsp;
+  targetYield?: TargetYield;
+  procurementStrategy?: ProcurementStrategy;
+  amenityFocus?: AmenityFocus;
+  techIntegration?: TechIntegration;
+  materialSourcing?: MaterialSourcing;
 }
 
 export interface NormalizedInputs {
@@ -85,6 +108,8 @@ export interface NormalizedInputs {
   costVolatility: number;
   sustainCertMultiplier: number;
   fitoutRatio: number;
+  procurementRiskMultiplier?: number;
+  materialSourcingRiskMultiplier?: number;
 }
 
 export interface DimensionScores {

@@ -98,6 +98,8 @@ export const predictiveRouter = router({
           typology: proj.ctx01Typology || "Residential",
           tier: proj.mkt01Tier || "Mid",
           geography: proj.ctx04Location || undefined,
+          targetYield: proj.targetYield || undefined,
+          salesStrategy: proj.salesStrategy || undefined,
         });
       }
 
@@ -105,6 +107,8 @@ export const predictiveRouter = router({
         typology: project.ctx01Typology || "Residential",
         tier: project.mkt01Tier || "Mid",
         geography: project.ctx04Location || undefined,
+        targetYield: project.targetYield || undefined,
+        salesStrategy: project.salesStrategy || undefined,
       });
     }),
 

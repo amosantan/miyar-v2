@@ -299,6 +299,12 @@ export function generateDesignBrief(
   positioningParts.push(`located in a ${inputs.ctx04Location.toLowerCase()} area of Dubai,`);
   positioningParts.push(`${purposeLabel[purpose] || purposeLabel.sell_ready},`);
   positioningParts.push(`embracing a ${style.toLowerCase()} design language.`);
+  if (inputs.projectUsp) {
+    positioningParts.push(`Its primary Unique Selling Proposition (USP) is anchored in ${inputs.projectUsp.toLowerCase()}.`);
+  }
+  if (inputs.amenityFocus) {
+    positioningParts.push(`The amenity programming prioritizes ${inputs.amenityFocus.toLowerCase()} spaces.`);
+  }
   if (effectiveMaterialTier !== tier) {
     positioningParts.push(`Material specifications adjusted to ${effectiveMaterialTier.toLowerCase()} quality level based on project purpose.`);
   }

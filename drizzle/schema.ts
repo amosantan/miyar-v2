@@ -265,6 +265,63 @@ export const projects = mysqlTable("projects", {
   add02PortfolioMode: boolean("add02PortfolioMode").default(false),
   add03DashboardExport: boolean("add03DashboardExport").default(true),
 
+  // --- V5: Concrete Analytics Inputs ---
+  developerType: mysqlEnum("developerType", [
+    "Master Developer",
+    "Private/Boutique",
+    "Institutional Investor",
+  ]),
+  targetDemographic: mysqlEnum("targetDemographic", [
+    "HNWI",
+    "Families",
+    "Young Professionals",
+    "Investors",
+  ]),
+  salesStrategy: mysqlEnum("salesStrategy", [
+    "Sell Off-Plan",
+    "Sell on Completion",
+    "Build-to-Rent",
+  ]),
+  competitiveDensity: mysqlEnum("competitiveDensity", [
+    "Low",
+    "Moderate",
+    "Saturated",
+  ]),
+  projectUsp: mysqlEnum("projectUsp", [
+    "Location/Views",
+    "Amenities/Facilities",
+    "Price/Value",
+    "Design/Architecture",
+  ]),
+  targetYield: mysqlEnum("targetYield", [
+    "< 5%",
+    "5-7%",
+    "7-9%",
+    "> 9%",
+  ]),
+  procurementStrategy: mysqlEnum("procurementStrategy", [
+    "Turnkey",
+    "Traditional",
+    "Construction Management",
+  ]),
+  amenityFocus: mysqlEnum("amenityFocus", [
+    "Wellness/Spa",
+    "F&B/Social",
+    "Minimal/Essential",
+    "Business/Co-working",
+  ]),
+  techIntegration: mysqlEnum("techIntegration", [
+    "Basic",
+    "Smart Home Ready",
+    "Fully Integrated",
+  ]),
+  materialSourcing: mysqlEnum("materialSourcing", [
+    "Local",
+    "European",
+    "Asian",
+    "Global Mix",
+  ]),
+
   // Expanded Inputs
   unitMix: json("unitMix"),
   villaSpaces: json("villaSpaces"),

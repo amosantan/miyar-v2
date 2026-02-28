@@ -179,5 +179,7 @@ export function normalizeInputs(
     costVolatility,
     sustainCertMultiplier,
     fitoutRatio: computeFitoutRatio(inputs.totalFitoutArea, inputs.ctx03Gfa),
+    procurementRiskMultiplier: inputs.procurementStrategy === 'Turnkey' ? 1.05 : inputs.procurementStrategy === 'Construction Management' ? 0.95 : 1.0,
+    materialSourcingRiskMultiplier: inputs.materialSourcing === 'Local' ? 1.05 : (inputs.materialSourcing === 'Global Mix' || inputs.materialSourcing === 'Asian') ? 0.95 : inputs.materialSourcing === 'European' ? 0.98 : 1.0,
   };
 }

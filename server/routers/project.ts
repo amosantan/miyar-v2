@@ -114,6 +114,19 @@ const projectInputSchema = z.object({
   add01SampleKit: z.boolean().default(false),
   add02PortfolioMode: z.boolean().default(false),
   add03DashboardExport: z.boolean().default(true),
+
+  // V5: Concrete Analytics Inputs
+  developerType: z.enum(["Master Developer", "Private/Boutique", "Institutional Investor"]).optional(),
+  targetDemographic: z.enum(["HNWI", "Families", "Young Professionals", "Investors"]).optional(),
+  salesStrategy: z.enum(["Sell Off-Plan", "Sell on Completion", "Build-to-Rent"]).optional(),
+  competitiveDensity: z.enum(["Low", "Moderate", "Saturated"]).optional(),
+  projectUsp: z.enum(["Location/Views", "Amenities/Facilities", "Price/Value", "Design/Architecture"]).optional(),
+  targetYield: z.enum(["< 5%", "5-7%", "7-9%", "> 9%"]).optional(),
+  procurementStrategy: z.enum(["Turnkey", "Traditional", "Construction Management"]).optional(),
+  amenityFocus: z.enum(["Wellness/Spa", "F&B/Social", "Minimal/Essential", "Business/Co-working"]).optional(),
+  techIntegration: z.enum(["Basic", "Smart Home Ready", "Fully Integrated"]).optional(),
+  materialSourcing: z.enum(["Local", "European", "Asian", "Global Mix"]).optional(),
+
   unitMix: z.array(unitMixItemSchema).optional(),
   villaSpaces: z.array(villaSpaceSchema).optional(),
   developerGuidelines: z.any().optional(),
@@ -156,6 +169,19 @@ function projectToInputs(p: any): ProjectInputs {
     add01SampleKit: p.add01SampleKit ?? false,
     add02PortfolioMode: p.add02PortfolioMode ?? false,
     add03DashboardExport: p.add03DashboardExport ?? true,
+
+    // V5 Concrete Analytics
+    developerType: p.developerType,
+    targetDemographic: p.targetDemographic,
+    salesStrategy: p.salesStrategy,
+    competitiveDensity: p.competitiveDensity,
+    projectUsp: p.projectUsp,
+    targetYield: p.targetYield,
+    procurementStrategy: p.procurementStrategy,
+    amenityFocus: p.amenityFocus,
+    techIntegration: p.techIntegration,
+    materialSourcing: p.materialSourcing,
+
     city: p.city ?? "Dubai",
     sustainCertTarget: p.sustainCertTarget || "silver",
   };

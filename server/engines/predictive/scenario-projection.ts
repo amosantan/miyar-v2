@@ -15,6 +15,8 @@ export interface ProjectionInput {
   marketCondition: "tight" | "balanced" | "soft"; // affects market factor
   horizonMonths: number; // e.g., 18
   currency?: string;
+  salesStrategy?: string | null;
+  targetYield?: string | null;
 }
 
 export interface ProjectionPoint {
@@ -100,14 +102,32 @@ export function projectScenarioCost(input: ProjectionInput): ScenarioProjection 
     });
   }
 
-  // Three scenarios: low (0.85x trend), mid (1.0x), high (1.15x)
+  // Adjust scenario spread based on strategy and target yield
+  let highMultiplier = 1.15;
+  let lowMultiplier = 0.9;
+
+  if (input.targetYield === 'aggressive_yield') {
+    // Higher risk = wider variance
+    highMultiplier = 1.25;
+    lowMultiplier = 0.85;
+  } else if (input.targetYield === 'stable_long_term' || input.targetYield === 'capital_preservation') {
+    // Conservative = tighter variance, more predictable
+    highMultiplier = 1.10;
+    lowMultiplier = 0.95;
+  }
+
+  if (input.salesStrategy === 'build_to_rent') {
+    // BTR typically has more standard specs, tighter variance
+    highMultiplier = Math.max(1.05, highMultiplier - 0.05);
+  } else if (input.salesStrategy === 'build_to_sell') {
+    // BTS has higher market spec volatility
+    highMultiplier += 0.05;
+  }
+
+  // Three scenarios: low, mid, high
   const midProjections = computeProjections(safeCost);
-
-  // Low scenario: base cost * 0.9 (P15-like)
-  const lowProjections = computeProjections(safeCost * 0.9);
-
-  // High scenario: base cost * 1.15 (P85-like)
-  const highProjections = computeProjections(safeCost * 1.15);
+  const lowProjections = computeProjections(safeCost * lowMultiplier);
+  const highProjections = computeProjections(safeCost * highMultiplier);
 
   return {
     baseCostPerSqm: safeCost,
