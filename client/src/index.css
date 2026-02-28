@@ -514,6 +514,16 @@
   opacity: 1;
 }
 
+/* ─── Global Typography ─────────────────────────────────────────────────────── */
+@layer base {
+
+  h1,
+  h2,
+  h3 {
+    @apply font-serif tracking-tight text-[#F0EBE3];
+  }
+}
+
 /* ─── Mobile Responsive ─────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -730,7 +730,7 @@ export default function PortfolioPage() {
     const [selectedId, setSelectedId] = useState<number | null>(null);
 
     return (
-        <DashboardLayout>
+        <>
             <div className="max-w-6xl mx-auto px-6 py-8">
                 {selectedId === null ? (
                     <PortfolioList onSelect={setSelectedId} />
@@ -741,6 +741,6 @@ export default function PortfolioPage() {
                     />
                 )}
             </div>
-        </DashboardLayout>
+        </>
     );
 }

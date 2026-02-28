@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -421,8 +421,8 @@ function ReportsContent() {
 
 export default function Reports() {
   return (
-    <DashboardLayout>
+    <>
       <ReportsContent />
-    </DashboardLayout>
+    </>
   );
 }

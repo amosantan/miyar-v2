@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
@@ -67,17 +67,17 @@ export default function Portfolio() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <>
         <div className="flex items-center justify-center py-24">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (!data || data.scoredProjects === 0) {
     return (
-      <DashboardLayout>
+      <>
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Portfolio Intelligence</h1>
@@ -89,12 +89,12 @@ export default function Portfolio() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Portfolio Intelligence</h1>
@@ -318,6 +318,6 @@ export default function Portfolio() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

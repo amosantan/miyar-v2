@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { Settings, Loader2, CheckCircle2, Clock } from "lucide-react";
@@ -89,8 +89,8 @@ function ModelVersionsContent() {
 
 export default function ModelVersions() {
   return (
-    <DashboardLayout>
+    <>
       <ModelVersionsContent />
-    </DashboardLayout>
+    </>
   );
 }

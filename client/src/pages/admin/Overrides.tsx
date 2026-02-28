@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import {
@@ -129,8 +129,8 @@ function OverridesContent() {
 
 export default function Overrides() {
   return (
-    <DashboardLayout>
+    <>
       <OverridesContent />
-    </DashboardLayout>
+    </>
   );
 }

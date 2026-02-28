@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,7 +67,7 @@ export default function Alerts() {
     };
 
     return (
-        <DashboardLayout>
+        <>
             <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
@@ -204,6 +204,6 @@ export default function Alerts() {
                     </div>
                 )}
             </div>
-        </DashboardLayout>
+        </>
     );
 }

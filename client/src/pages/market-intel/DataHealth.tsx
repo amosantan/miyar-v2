@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
@@ -10,7 +10,7 @@ export default function DataHealth() {
     const { data: stats, isLoading } = trpc.marketIntel.dataHealth.useQuery();
 
     return (
-        <DashboardLayout>
+        <>
             <div className="p-8 max-w-7xl mx-auto space-y-8">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -175,6 +175,6 @@ export default function DataHealth() {
                     </>
                 ) : null}
             </div>
-        </DashboardLayout>
+        </>
     );
 }

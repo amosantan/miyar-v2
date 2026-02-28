@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +74,7 @@ export default function ScenarioTemplates() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Scenario Simulation V2</h1>
@@ -262,6 +262,6 @@ export default function ScenarioTemplates() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

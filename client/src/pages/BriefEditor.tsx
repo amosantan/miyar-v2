@@ -10,7 +10,7 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import EvidenceChainDrawer from "@/components/EvidenceChainDrawer";
 import DataFreshnessBanner from "@/components/DataFreshnessBanner";
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -478,8 +478,8 @@ function BriefEditorContent() {
 
 export default function BriefEditor() {
     return (
-        <DashboardLayout>
+        <>
             <BriefEditorContent />
-        </DashboardLayout>
+        </>
     );
 }

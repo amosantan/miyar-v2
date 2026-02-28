@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -176,7 +176,7 @@ export default function BenchmarkHealth() {
   }, [benchmarks]);
 
   return (
-    <DashboardLayout>
+    <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -421,6 +421,6 @@ export default function BenchmarkHealth() {
           </Card>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
@@ -48,7 +48,7 @@ export default function BenchmarkCategories() {
   }, [categories]);
 
   return (
-    <DashboardLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Benchmark Categories</h1>
@@ -161,6 +161,6 @@ export default function BenchmarkCategories() {
           ))
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

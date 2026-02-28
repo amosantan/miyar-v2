@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
@@ -150,8 +150,8 @@ function ProjectsContent() {
 
 export default function Projects() {
   return (
-    <DashboardLayout>
+    <>
       <ProjectsContent />
-    </DashboardLayout>
+    </>
   );
 }

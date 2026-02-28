@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { trpc } from "@/lib/trpc";
 import EvidenceChainDrawer from "@/components/EvidenceChainDrawer";
 import DataFreshnessBanner from "@/components/DataFreshnessBanner";
@@ -626,8 +626,8 @@ function InvestorSummaryContent() {
 
 export default function InvestorSummary() {
     return (
-        <DashboardLayout>
+        <>
             <InvestorSummaryContent />
-        </DashboardLayout>
+        </>
     );
 }

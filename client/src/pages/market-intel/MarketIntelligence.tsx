@@ -5,7 +5,7 @@
  */
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import DashboardLayout from "@/components/DashboardLayout";
+
 import {
     MapPin, TrendingUp, TrendingDown, Plus, Minus, LocateFixed,
     Wifi, X, ChevronDown, Star, Bell, Search, Building2, Home,
@@ -605,8 +605,8 @@ function MarketIntelligenceContent() {
 
 export default function MarketIntelligence() {
     return (
-        <DashboardLayout>
+        <>
             <MarketIntelligenceContent />
-        </DashboardLayout>
+        </>
     );
 }

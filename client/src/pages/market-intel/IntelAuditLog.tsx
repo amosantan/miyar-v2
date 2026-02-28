@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ export default function IntelAuditLog() {
   });
 
   return (
-    <DashboardLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Intelligence Audit Log</h1>
@@ -108,6 +108,6 @@ export default function IntelAuditLog() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

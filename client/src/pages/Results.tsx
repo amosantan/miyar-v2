@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -249,8 +249,8 @@ function ResultsContent() {
 
 export default function Results() {
   return (
-    <DashboardLayout>
+    <>
       <ResultsContent />
-    </DashboardLayout>
+    </>
   );
 }

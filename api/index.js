@@ -289,7 +289,10 @@ var init_schema = __esm({
         precision: 6,
         scale: 2
       }).notNull(),
-      riskScore: decimal("riskScore", { precision: 6, scale: 2 }).notNull(),
+      riskScore: decimal("riskScore", {
+        precision: 6,
+        scale: 2
+      }).notNull(),
       rasScore: decimal("rasScore", { precision: 6, scale: 2 }).notNull(),
       confidenceScore: decimal("confidenceScore", {
         precision: 6,
@@ -1589,7 +1592,7 @@ var init_schema = __esm({
       embodiedCarbon: decimal("embodiedCarbon", { precision: 18, scale: 2 }).notNull(),
       operationalEnergy: decimal("operationalEnergy", { precision: 18, scale: 2 }).notNull(),
       lifecycleCost: decimal("lifecycleCost", { precision: 18, scale: 2 }).notNull(),
-      carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }),
+      carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }).notNull(),
       energyRating: varchar("energyRating", { length: 2 }),
       renewablesEnabled: boolean("renewablesEnabled").default(false),
       waterRecycling: boolean("waterRecycling").default(false),
@@ -1698,9 +1701,9 @@ var init_schema = __esm({
       annualAmount: decimal("annual_amount", { precision: 12, scale: 2 }),
       // Annual rent AED
       contractAmount: decimal("contract_amount", { precision: 12, scale: 2 }),
-      actualArea: decimal("actual_area", { precision: 10, scale: 2 }),
+      actualArea: decimal("actual_area", { precision: 14, scale: 2 }),
       // Area in sqm
-      rentPerSqm: decimal("rent_per_sqm", { precision: 10, scale: 2 }),
+      rentPerSqm: decimal("rent_per_sqm", { precision: 14, scale: 2 }),
       // Calculated: annual / area
       contractStartDate: varchar("contract_start_date", { length: 20 }),
       contractEndDate: varchar("contract_end_date", { length: 20 }),

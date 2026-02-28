@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
+import DashboardLayout from "@/components/DashboardLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { RequireAuth, RequireAdmin } from "./components/RouteGuards";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -66,21 +67,25 @@ import BriefEditor from "./pages/BriefEditor";
 import Methodology from "./pages/Methodology";
 import AreaVerification from "./pages/AreaVerification";
 
-// Helper: wrap a component with RequireAuth
+// Helper: wrap a component with RequireAuth and DashboardLayout
 function Protected({ Component }: { Component: React.ComponentType<any> }) {
   return (
     <RequireAuth>
-      <Component />
+      <DashboardLayout>
+        <Component />
+      </DashboardLayout>
     </RequireAuth>
   );
 }
 
-// Helper: wrap a component with RequireAuth + RequireAdmin
+// Helper: wrap a component with RequireAuth + RequireAdmin and DashboardLayout
 function AdminOnly({ Component }: { Component: React.ComponentType<any> }) {
   return (
     <RequireAuth>
       <RequireAdmin>
-        <Component />
+        <DashboardLayout>
+          <Component />
+        </DashboardLayout>
       </RequireAdmin>
     </RequireAuth>
   );

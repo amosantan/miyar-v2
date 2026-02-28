@@ -58,18 +58,18 @@ export default function RoomCostWaterfall({ data, totalBudget }: RoomCostWaterfa
         if (active && payload && payload.length) {
             const dataPoint = payload[0].payload;
             return (
-                <div className="bg-[#0f172a] border border-slate-800 p-3 rounded-lg shadow-xl text-sm min-w-[150px]">
-                    <p className="font-semibold text-slate-200 mb-1">{dataPoint.name}</p>
+                <div className="glass-card p-3 rounded-lg shadow-xl text-sm min-w-[150px] border border-[#1E2D42]">
+                    <p className="font-semibold text-foreground mb-1">{dataPoint.name}</p>
                     <div className="flex justify-between gap-4">
-                        <span className="text-slate-400">Cost:</span>
-                        <span className="text-amber-400 font-mono font-medium">
+                        <span className="text-muted-foreground">Cost:</span>
+                        <span className="text-[#C9A96E] font-mono font-medium drop-shadow-[0_0_4px_rgba(201,169,110,0.5)]">
                             {formatCurrency(dataPoint.value)}
                         </span>
                     </div>
                     {!dataPoint.isTotal && (
                         <div className="flex justify-between gap-4 mt-1">
-                            <span className="text-slate-400">% of Total:</span>
-                            <span className="text-slate-300 font-mono">
+                            <span className="text-muted-foreground">% of Total:</span>
+                            <span className="text-foreground font-mono">
                                 {((dataPoint.value / totalBudget) * 100).toFixed(1)}%
                             </span>
                         </div>
@@ -81,12 +81,12 @@ export default function RoomCostWaterfall({ data, totalBudget }: RoomCostWaterfa
     };
 
     return (
-        <Card className="w-full bg-[#0B1120] border-slate-800">
+        <Card className="w-full border-border/40">
             <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-200">
+                <CardTitle className="text-sm font-semibold text-foreground">
                     Room Cost Waterfall
                 </CardTitle>
-                <CardDescription className="text-xs text-slate-400">
+                <CardDescription className="text-xs text-muted-foreground">
                     Cumulative buildup of fitout costs across programmed spaces
                 </CardDescription>
             </CardHeader>
@@ -130,11 +130,11 @@ export default function RoomCostWaterfall({ data, totalBudget }: RoomCostWaterfa
                                 {chartData.map((entry, index) => (
                                     <Cell
                                         key={`cell-${index}`}
-                                        fill={entry.isTotal ? "#3b82f6" : "#f59e0b"} // Blue for total, Amber/Gold for steps
+                                        fill={entry.isTotal ? "#f2a60d" : "rgba(201,169,110,0.4)"}
                                         className={
                                             entry.isTotal
-                                                ? "drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                                                : "drop-shadow-[0_0_6px_rgba(245,158,11,0.3)]"
+                                                ? "drop-shadow-[0_0_8px_rgba(242,166,13,0.8)]"
+                                                : "drop-shadow-[0_0_4px_rgba(201,169,110,0.3)]"
                                         }
                                     />
                                 ))}

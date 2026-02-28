@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import DashboardLayout from "@/components/DashboardLayout";
+
 import { EvidenceReferencesPanel } from "@/components/EvidenceReferencesPanel";
 import PredictivePanel from "@/components/PredictivePanel";
 import BiasAlerts from "@/components/BiasAlerts";
@@ -1281,8 +1281,8 @@ function ProjectDetailContent() {
 
 export default function ProjectDetail() {
   return (
-    <DashboardLayout>
+    <>
       <ProjectDetailContent />
-    </DashboardLayout>
+    </>
   );
 }
