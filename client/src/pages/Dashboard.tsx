@@ -344,6 +344,18 @@ function DashboardContent() {
                         {p.ctx01Typology} · {p.mkt01Tier} · {p.ctx04Location}
                       </p>
                     </div>
+                    {/* Chart */}
+                    <div className="glass-card rounded-lg p-3 h-28 flex items-end gap-1">
+                      {[35, 50, 30, 60, 45, 70, 55, 75, 65, 82, 74, 80].map((h, i) => (
+                        <div key={i} className="flex-1 rounded-t transition-all relative group" style={{
+                          height: `${h}%`,
+                          background: `linear-gradient(to top, rgba(242,166,13,0.2), rgba(242,166,13,0.9))`,
+                          boxShadow: `0 0 10px rgba(242,166,13,0.15)`
+                        }}>
+                          <div className="absolute top-0 left-0 right-0 h-0.5 bg-[#f2a60d] opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-[0_0_8px_rgba(242,166,13,0.8)]" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     {p.latestScore ? (

@@ -14,9 +14,11 @@ export type SpaceProgram = {
     totalAllocatedSqm: number;
 };
 
+import { getPricingArea } from "../area-utils";
+
 export function buildSpaceProgram(project: any): SpaceProgram {
-    const gfa = Number(project.ctx03Gfa || 0); // sqm
-    const budgetCap = Number(project.fin01BudgetCap || 0); // AED/sqft
+    const gfa = getPricingArea(project); // V4: uses fitout area when available
+    const budgetCap = Number(project.fin01BudgetCap || 0); // AED/sqm
     const typology = (project.ctx01Typology || "Residential").toLowerCase();
 
     // totalFitoutBudgetAed = GFA × budgetCap × 10.764 × 0.35

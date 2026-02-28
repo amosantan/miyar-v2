@@ -3,6 +3,7 @@ import { router, orgProcedure } from "../_core/trpc";
 import * as db from "../db";
 import { generateDesignRecommendations, generateAIDesignBrief } from "../engines/design/ai-design-advisor";
 import { buildSpaceProgram } from "../engines/design/space-program";
+import { getPricingArea } from "../engines/area-utils";
 import {
     generateSpaceVisual,
     generateHeroVisual,
@@ -51,7 +52,7 @@ function buildProjectContext(project: any) {
         location: project.ctx04Location || "Secondary",
         tier: project.mkt01Tier || "Upper-mid",
         style: project.des01Style || "Modern",
-        gfa: Number(project.ctx03Gfa || 0),
+        gfa: getPricingArea(project),
     };
 }
 

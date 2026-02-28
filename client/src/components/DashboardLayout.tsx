@@ -479,8 +479,8 @@ function DashboardLayoutContent({
         />
       </div>
 
-      <SidebarInset>
-        <div className="flex border-b border-[#1E2D42] h-14 items-center justify-between bg-[#0A1628]/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+      <SidebarInset className="premium-bg-dark-marble min-h-screen">
+        <div className="flex border-b border-[#1E2D42] h-14 items-center justify-between bg-[#0A1628]/80 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
           <div className="flex items-center gap-2">
             {isMobile || isCollapsed ? (
               <SidebarTrigger className="h-9 w-9 rounded-lg bg-[#111827]" />

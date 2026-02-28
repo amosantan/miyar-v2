@@ -13,6 +13,7 @@ import { tierToDes05 } from "../engines/sustainability/sustainability-multiplier
 import { computeRoi, type RoiInputs } from "../engines/roi";
 import { computeFiveLens } from "../engines/five-lens";
 import { computeDerivedFeatures } from "../engines/intelligence";
+import { getPricingArea } from "../engines/area-utils";
 import { SCENARIO_TEMPLATES, getScenarioTemplate, solveConstraints, type Constraint } from "../engines/scenario-templates";
 import { dispatchWebhook } from "../engines/webhook";
 import { generateInsights, type InsightInput } from "../engines/analytics/insight-generator";
@@ -87,6 +88,8 @@ const projectInputSchema = z.object({
   totalFitoutArea: z.number().nullable().optional(),
   totalNonFinishArea: z.number().nullable().optional(),
   projectArchetype: z.enum(["residential_multi", "office", "single_villa", "hospitality", "community"]).optional(),
+  officeFitoutCategory: z.enum(["catA", "catB"]).optional(),
+  officeCustomRatio: z.number().min(0).max(100).nullable().optional(),
   ctx04Location: z.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
   ctx05Horizon: z.enum(["0-12m", "12-24m", "24-36m", "36m+"]).default("12-24m"),
   str01BrandClarity: z.number().min(1).max(5).default(3),
@@ -206,6 +209,7 @@ export const projectRouter = router({
         totalFitoutArea: input.totalFitoutArea ? String(input.totalFitoutArea) as any : null,
         totalNonFinishArea: input.totalNonFinishArea ? String(input.totalNonFinishArea) as any : null,
         fin01BudgetCap: input.fin01BudgetCap ? String(input.fin01BudgetCap) as any : null,
+        officeCustomRatio: input.officeCustomRatio != null ? String(input.officeCustomRatio) as any : null,
       });
       await db.createAuditLog({
         userId: ctx.user.id,
@@ -232,6 +236,9 @@ export const projectRouter = router({
       const updateData: any = { ...data };
       if (data.ctx03Gfa !== undefined) updateData.ctx03Gfa = data.ctx03Gfa ? String(data.ctx03Gfa) : null;
       if (data.fin01BudgetCap !== undefined) updateData.fin01BudgetCap = data.fin01BudgetCap ? String(data.fin01BudgetCap) : null;
+      if (data.officeCustomRatio !== undefined) updateData.officeCustomRatio = data.officeCustomRatio != null ? String(data.officeCustomRatio) : null;
+      if (data.totalFitoutArea !== undefined) updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
+      if (data.totalNonFinishArea !== undefined) updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
       await db.updateProject(id, updateData);
       await db.createAuditLog({
         userId: ctx.user.id,
@@ -574,7 +581,7 @@ export const projectRouter = router({
         riskScore: Number(latest.riskScore),
         confidenceScore: Number(latest.confidenceScore),
         budgetCap: Number(project.fin01BudgetCap || 0),
-        gfa: Number(project.ctx03Gfa || 0),
+        gfa: getPricingArea(project),
         complexity: project.des03Complexity || 3,
         materialLevel: project.des02MaterialLevel || 3,
         tier: project.mkt01Tier || "Upper-mid",
@@ -763,7 +770,7 @@ export const projectRouter = router({
         riskScore: Number(latest.riskScore),
         confidenceScore: Number(latest.confidenceScore),
         budgetCap: Number(project.fin01BudgetCap || 0),
-        gfa: Number(project.ctx03Gfa || 0),
+        gfa: getPricingArea(project),
         complexity: project.des03Complexity || 3,
         materialLevel: project.des02MaterialLevel || 3,
         tier: project.mkt01Tier || "Upper-mid",
@@ -1002,7 +1009,7 @@ export const projectRouter = router({
           asset.storageUrl,
           {
             typology: project.ctx01Typology || undefined,
-            gfa: project.ctx03Gfa ? Number(project.ctx03Gfa) : undefined,
+            gfa: getPricingArea(project) || undefined,
             archetype: (project as any).projectArchetype || undefined,
           }
         );

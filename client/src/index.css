@@ -1,10 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
-/* ─── Manrope Font ──────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
+/* ─── Fonts ──────────────────────────────────────────────────────────── */
+
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -54,6 +55,7 @@
   --color-miyar-red: oklch(0.60 0.20 25);
   --color-miyar-amber: oklch(0.75 0.15 70);
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 /* ─── MIYAR Luxury Dark Theme ───────────────────────────────────────────────── */
@@ -101,7 +103,7 @@
   --sidebar-accent: #0F1A2E;
   --sidebar-accent-foreground: #F0EBE3;
   --sidebar-border: #162033;
-  --sidebar-ring: #C9A96E;
+  --sidebar-ring: #f2a60d;
 }
 
 .dark {
@@ -123,20 +125,40 @@
   --destructive-foreground: #F0EBE3;
   --border: #1E2D42;
   --input: #1A2738;
-  --ring: #C9A96E;
-  --chart-1: #C9A96E;
+  --ring: #f2a60d;
+  --chart-1: #f2a60d;
+  /* Brand gold */
   --chart-2: #E8D5B7;
   --chart-3: oklch(0.60 0.15 160);
   --chart-4: #8B7355;
   --chart-5: #F5EDE0;
   --sidebar: #070F1D;
   --sidebar-foreground: #B8C4D6;
-  --sidebar-primary: #C9A96E;
+  --sidebar-primary: #f2a60d;
   --sidebar-primary-foreground: #0A1628;
   --sidebar-accent: #0F1A2E;
   --sidebar-accent-foreground: #F0EBE3;
   --sidebar-border: #162033;
-  --sidebar-ring: #C9A96E;
+  --sidebar-ring: #f2a60d;
+}
+
+/* ─── Premium Application Backgrounds ────────────────────────────────────────── */
+.premium-bg-penthouse {
+  background-image:
+    linear-gradient(to bottom, rgba(10, 22, 40, 0.85), rgba(10, 22, 40, 0.95)),
+    url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=2560&q=80');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.premium-bg-dark-marble {
+  background-image:
+    linear-gradient(to bottom, rgba(10, 22, 40, 0.9), rgba(10, 22, 40, 0.98)),
+    url('https://images.unsplash.com/photo-1587313025251-1ad1c12140b9?ixlib=rb-4.0.3&auto=format&fit=crop&w=2560&q=80');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
 @layer base {
@@ -192,17 +214,18 @@
 /* ─── Glassmorphism Utilities ───────────────────────────────────────────────── */
 
 .glass-card {
-  background: rgba(17, 24, 39, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(201, 169, 110, 0.15);
+  background: rgba(17, 24, 39, 0.45);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(242, 166, 13, 0.2);
+  /* Micro-thin gold border */
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
-  background: rgba(17, 24, 39, 0.75);
-  border-color: rgba(201, 169, 110, 0.35);
-  box-shadow: 0 8px 32px rgba(201, 169, 110, 0.08);
+  background: rgba(17, 24, 39, 0.65);
+  border-color: rgba(242, 166, 13, 0.4);
+  box-shadow: 0 8px 32px rgba(242, 166, 13, 0.1);
   transform: translateY(-2px);
 }
 

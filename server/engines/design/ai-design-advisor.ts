@@ -6,6 +6,7 @@
 
 import { invokeLLM } from "../../_core/llm";
 import { buildSpaceProgram, type Room } from "./space-program";
+import { getPricingArea } from "../area-utils";
 import type {
     SpaceRecommendation,
     MaterialRec,
@@ -48,11 +49,11 @@ export async function generateDesignRecommendations(
     if (project.dldAreaId) {
         const { getDldAreaBenchmark } = await import("../../db");
         const benchmark = await getDldAreaBenchmark(project.dldAreaId);
-        const gfa = Number(project.ctx03Gfa || 0);
-        if (benchmark?.recommendedFitoutMid && gfa > 0) {
-            const dldBudget = Number(benchmark.recommendedFitoutMid) * gfa;
+        const area = getPricingArea(project);
+        if (benchmark?.recommendedFitoutMid && area > 0) {
+            const dldBudget = Number(benchmark.recommendedFitoutMid) * area;
             if (dldBudget > 0) {
-                console.log(`[SpaceRecs] DLD budget override: ${totalBudget.toLocaleString()} → ${dldBudget.toLocaleString()} AED (${benchmark.recommendedFitoutMid} AED/sqm × ${gfa} sqm)`);
+                console.log(`[SpaceRecs] DLD budget override: ${totalBudget.toLocaleString()} → ${dldBudget.toLocaleString()} AED (${benchmark.recommendedFitoutMid} AED/sqm × ${area} sqm)`);
                 totalBudget = dldBudget;
             }
         }
@@ -125,6 +126,7 @@ function buildDesignPrompt(
 - **Typology**: ${inputs.ctx01Typology}
 - **Scale**: ${inputs.ctx02Scale}
 - **GFA**: ${inputs.ctx03Gfa} sqm
+- **Fit-out Area**: ${inputs.totalFitoutArea ?? inputs.ctx03Gfa} sqm
 - **Location**: ${inputs.ctx04Location}
 - **Market Tier**: ${inputs.mkt01Tier}
 - **Design Style**: ${inputs.des01Style}
@@ -547,7 +549,7 @@ Respond in JSON format.`;
 
         budgetSummary: {
             totalFitoutBudget: totalBudget,
-            costPerSqm: Math.round(totalBudget / (Number(inputs.ctx03Gfa) || 1)),
+            costPerSqm: Math.round(totalBudget / (getPricingArea(inputs) || 1)),
             allocationBySpace: recommendations.map(r => ({
                 room: r.roomName,
                 amount: r.budgetAllocation,

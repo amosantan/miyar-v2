@@ -233,11 +233,8 @@ export default function Home() {
         {/* Animated luxury interior background — Ken Burns effect */}
         <div className="absolute inset-0 overflow-hidden">
           <div
-            className="absolute inset-0"
+            className="absolute inset-0 premium-bg-penthouse"
             style={{
-              backgroundImage: `url("/images/hero-bg.png")`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
               animation: "kenBurns 25s ease-in-out infinite alternate",
             }}
           />
@@ -278,7 +275,7 @@ export default function Home() {
           </div>
 
           {/* Heading */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-fade-in-up leading-tight">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-fade-in-up leading-tight font-serif">
             Design Intelligence for
             <br />
             <span className="text-gold-gradient">UAE </span>

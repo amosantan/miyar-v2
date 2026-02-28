@@ -109,7 +109,7 @@ function detectOptimismBias(
         description: `This ${tier} project has ${evidence.length} indicator(s) suggesting unrealistic expectations. ` +
             `The selected tier implies market-rate costs that significantly exceed the configured budget and flexibility parameters.`,
         intervention: `Review budget allocation against ${tier} benchmarks. Consider either increasing the budget cap ` +
-            `to at least AED ${(TIER_BUDGET_BENCHMARKS[tier].low * (inputs.ctx03Gfa || 500)).toLocaleString()} or adjusting the market tier downward.`,
+            `to at least AED ${(TIER_BUDGET_BENCHMARKS[tier].low * (getPricingArea(inputs) || 500)).toLocaleString()} or adjusting the market tier downward.`,
         evidencePoints: evidence,
         mathExplanation: `Budget ratio = actual / (${tier} median × GFA) = ${budgetRatio.toFixed(2)}. ` +
             `Threshold: < 0.70 triggers flag. Flexibility: ${inputs.fin02Flexibility}/5, ShockTolerance: ${inputs.fin03ShockTolerance}/5.`,

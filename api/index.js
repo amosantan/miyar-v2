@@ -32,7 +32,7 @@ import {
   boolean,
   json
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -136,6 +136,7 @@ var init_schema = __esm({
       description: text("description"),
       status: mysqlEnum("status", [
         "draft",
+        "draft_area_verification",
         "ready",
         "processing",
         "evaluated",
@@ -162,6 +163,19 @@ var init_schema = __esm({
         "Medium"
       ),
       ctx03Gfa: decimal("ctx03Gfa", { precision: 12, scale: 2 }),
+      // V4 — Fit-out Oracle: area-based pricing
+      totalFitoutArea: decimal("totalFitoutArea", { precision: 12, scale: 2 }),
+      totalNonFinishArea: decimal("totalNonFinishArea", { precision: 12, scale: 2 }),
+      fitoutAreaVerified: boolean("fitoutAreaVerified").default(false),
+      projectArchetype: mysqlEnum("projectArchetype", [
+        "residential_multi",
+        "office",
+        "single_villa",
+        "hospitality",
+        "community"
+      ]),
+      officeFitoutCategory: mysqlEnum("officeFitoutCategory", ["catA", "catB"]),
+      officeCustomRatio: decimal("officeCustomRatio", { precision: 5, scale: 2 }),
       ctx04Location: mysqlEnum("ctx04Location", [
         "Prime",
         "Secondary",
@@ -176,6 +190,9 @@ var init_schema = __esm({
       // DLD Area reference (Phase B.3 — links to DLD open data areas)
       dldAreaId: int("dld_area_id"),
       dldAreaName: varchar("dld_area_name", { length: 200 }),
+      // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
+      city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
+      sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default("silver"),
       // Project purpose — drives fitout quality and benchmark selection
       projectPurpose: mysqlEnum("project_purpose", [
         "sell_offplan",
@@ -1724,6 +1741,30 @@ var init_schema = __esm({
       recommendedFitoutHigh: decimal("recommended_fitout_high", { precision: 10, scale: 2 }),
       computedAt: timestamp("computed_at").defaultNow().notNull()
     });
+    pdfExtractions = mysqlTable("pdf_extractions", {
+      id: int("id").autoincrement().primaryKey(),
+      projectId: int("projectId").notNull(),
+      assetId: int("assetId").notNull(),
+      // FK to project_assets
+      pageNumber: int("pageNumber"),
+      extractionMethod: mysqlEnum("extractionMethod", [
+        "text_layer",
+        "vision_ai",
+        "manual"
+      ]).default("manual").notNull(),
+      extractedRooms: json("extractedRooms"),
+      // [{name, areaSqm, confidence, polygon}]
+      totalExtractedArea: decimal("totalExtractedArea", { precision: 12, scale: 2 }),
+      status: mysqlEnum("extractionStatus", [
+        "pending",
+        "extracted",
+        "verified",
+        "rejected"
+      ]).default("pending").notNull(),
+      verifiedBy: int("verifiedBy"),
+      verifiedAt: timestamp("verifiedAt"),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    });
   }
 });
 
@@ -1778,6 +1819,7 @@ __export(db_exports, {
   createMaterialBoard: () => createMaterialBoard,
   createModelVersion: () => createModelVersion,
   createOverrideRecord: () => createOverrideRecord,
+  createPdfExtraction: () => createPdfExtraction,
   createPriceChangeEvent: () => createPriceChangeEvent,
   createProject: () => createProject,
   createProjectAsset: () => createProjectAsset,
@@ -1893,6 +1935,8 @@ __export(db_exports, {
   getMaterialLibrary: () => getMaterialLibrary,
   getMaterialsByBoard: () => getMaterialsByBoard,
   getOverridesByProject: () => getOverridesByProject,
+  getPdfExtractionById: () => getPdfExtractionById,
+  getPdfExtractionsByProject: () => getPdfExtractionsByProject,
   getPreviousEvidenceRecord: () => getPreviousEvidenceRecord,
   getProjectAssetById: () => getProjectAssetById,
   getProjectAssets: () => getProjectAssets,
@@ -1958,9 +2002,11 @@ __export(db_exports, {
   updateInsightStatus: () => updateInsightStatus,
   updateMaterial: () => updateMaterial,
   updateMaterialBoard: () => updateMaterialBoard,
+  updatePdfExtraction: () => updatePdfExtraction,
   updateProject: () => updateProject,
   updateProjectApprovalState: () => updateProjectApprovalState,
   updateProjectAsset: () => updateProjectAsset,
+  updateProjectVerification: () => updateProjectVerification,
   updatePromptTemplate: () => updatePromptTemplate,
   updateRoiConfig: () => updateRoiConfig,
   updateSourceRegistryEntry: () => updateSourceRegistryEntry,
@@ -3612,6 +3658,36 @@ async function getActiveSourceRegistry(limit = 10) {
   }).from(sourceRegistry).where(and(eq(sourceRegistry.isWhitelisted, true), eq(sourceRegistry.isActive, true))).orderBy(asc(sourceRegistry.reliabilityDefault), desc(sourceRegistry.lastSuccessfulFetch)).limit(limit);
   return rows;
 }
+async function createPdfExtraction(data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(pdfExtractions).values(data);
+  return { id: Number(result.insertId) };
+}
+async function getPdfExtractionsByProject(projectId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(pdfExtractions).where(eq(pdfExtractions.projectId, projectId)).orderBy(desc(pdfExtractions.createdAt));
+}
+async function getPdfExtractionById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(pdfExtractions).where(eq(pdfExtractions.id, id));
+  return rows[0];
+}
+async function updatePdfExtraction(id, data) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(pdfExtractions).set(data).where(eq(pdfExtractions.id, id));
+}
+async function updateProjectVerification(projectId, data) {
+  const db = await getDb();
+  if (!db) return;
+  const updates = {};
+  if (data.fitoutAreaVerified !== void 0) updates.fitoutAreaVerified = data.fitoutAreaVerified;
+  if (data.totalFitoutArea !== void 0) updates.totalFitoutArea = String(data.totalFitoutArea);
+  return db.update(projects).set(updates).where(eq(projects.id, projectId));
+}
 var _db;
 var init_db = __esm({
   "server/db.ts"() {
@@ -3619,6 +3695,20 @@ var init_db = __esm({
     init_schema();
     init_env();
     _db = null;
+  }
+});
+
+// server/engines/area-utils.ts
+function getPricingArea(inputs) {
+  return inputs.totalFitoutArea ?? inputs.ctx03Gfa ?? 0;
+}
+function computeFitoutRatio(fitoutArea, gfa) {
+  if (!fitoutArea || !gfa || gfa <= 0) return 1;
+  return fitoutArea / gfa;
+}
+var init_area_utils = __esm({
+  "server/engines/area-utils.ts"() {
+    "use strict";
   }
 });
 
@@ -3892,7 +3982,7 @@ function detectOptimismBias(inputs, scoreResult) {
   if (tier !== "Luxury" && tier !== "Ultra-luxury") return null;
   const benchmark = TIER_BUDGET_BENCHMARKS[tier];
   if (!benchmark) return null;
-  const gfa = inputs.ctx03Gfa || 500;
+  const gfa = getPricingArea(inputs);
   const budget = inputs.fin01BudgetCap || 0;
   const expectedBudget = benchmark.median * gfa;
   const budgetRatio = expectedBudget > 0 ? budget / expectedBudget : 1;
@@ -3946,7 +4036,7 @@ function detectOptimismBias(inputs, scoreResult) {
     confidence,
     title: "Optimism Bias Detected",
     description: `This ${tier} project has ${evidence.length} indicator(s) suggesting unrealistic expectations. The selected tier implies market-rate costs that significantly exceed the configured budget and flexibility parameters.`,
-    intervention: `Review budget allocation against ${tier} benchmarks. Consider either increasing the budget cap to at least AED ${(TIER_BUDGET_BENCHMARKS[tier].low * (inputs.ctx03Gfa || 500)).toLocaleString()} or adjusting the market tier downward.`,
+    intervention: `Review budget allocation against ${tier} benchmarks. Consider either increasing the budget cap to at least AED ${(TIER_BUDGET_BENCHMARKS[tier].low * (getPricingArea(inputs) || 500)).toLocaleString()} or adjusting the market tier downward.`,
     evidencePoints: evidence,
     mathExplanation: `Budget ratio = actual / (${tier} median \xD7 GFA) = ${budgetRatio.toFixed(2)}. Threshold: < 0.70 triggers flag. Flexibility: ${inputs.fin02Flexibility}/5, ShockTolerance: ${inputs.fin03ShockTolerance}/5.`
   };
@@ -4281,6 +4371,7 @@ var init_bias_detector = __esm({
   "server/engines/bias/bias-detector.ts"() {
     "use strict";
     init_bias_types();
+    init_area_utils();
   }
 });
 
@@ -4558,7 +4649,7 @@ __export(space_program_exports, {
   buildSpaceProgram: () => buildSpaceProgram
 });
 function buildSpaceProgram(project) {
-  const gfa = Number(project.ctx03Gfa || 0);
+  const gfa = getPricingArea(project);
   const budgetCap = Number(project.fin01BudgetCap || 0);
   const typology = (project.ctx01Typology || "Residential").toLowerCase();
   const totalFitoutBudgetAed = gfa * budgetCap * 10.764 * 0.35;
@@ -4612,6 +4703,7 @@ function buildSpaceProgram(project) {
 var init_space_program = __esm({
   "server/engines/design/space-program.ts"() {
     "use strict";
+    init_area_utils();
   }
 });
 
@@ -5367,6 +5459,122 @@ function recommendMaterials(catalog, projectTier, maxItems = 10) {
 var init_board_composer = __esm({
   "server/engines/board-composer.ts"() {
     "use strict";
+  }
+});
+
+// server/engines/pdf-extraction.ts
+var pdf_extraction_exports = {};
+__export(pdf_extraction_exports, {
+  extractRoomsFromImage: () => extractRoomsFromImage
+});
+async function extractRoomsFromImage(imageUrl, projectContext) {
+  const contextNote = projectContext ? `
+Project context: ${projectContext.typology || "Residential"} project, GFA: ${projectContext.gfa || "unknown"} sqm, Archetype: ${projectContext.archetype || "unknown"}` : "";
+  const result = await invokeLLM({
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: EXTRACTION_PROMPT + contextNote + "\n\nAnalyze this floor plan and extract all rooms with their areas."
+          },
+          {
+            type: "image_url",
+            image_url: { url: imageUrl, detail: "high" }
+          }
+        ]
+      }
+    ],
+    outputSchema: {
+      name: "floor_plan_extraction",
+      schema: {
+        type: "object",
+        properties: {
+          rooms: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                areaSqm: { type: "number" },
+                confidence: { type: "number" },
+                category: { type: "string" }
+              },
+              required: ["name", "areaSqm", "confidence"]
+            }
+          },
+          totalArea: { type: "number" },
+          notes: { type: "string" }
+        },
+        required: ["rooms", "totalArea"]
+      }
+    }
+  });
+  const content = result.choices[0]?.message?.content;
+  const text2 = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => c.text || "").join("") : "";
+  let parsed;
+  try {
+    parsed = JSON.parse(text2);
+  } catch {
+    const jsonMatch = text2.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error("Failed to parse Gemini extraction response");
+    }
+  }
+  const warnings = [];
+  const rooms = (parsed.rooms || []).map((r) => ({
+    name: r.name || "Unknown Room",
+    areaSqm: Math.round((r.areaSqm || 0) * 10) / 10,
+    confidence: Math.min(1, Math.max(0, r.confidence || 0.5)),
+    category: r.category || "other"
+  }));
+  const summedTotal = rooms.reduce((acc, r) => acc + r.areaSqm, 0);
+  const reportedTotal = parsed.totalArea || summedTotal;
+  if (Math.abs(reportedTotal - summedTotal) > summedTotal * 0.05) {
+    warnings.push(
+      `Gemini reported total (${reportedTotal.toFixed(1)} sqm) differs from sum of rooms (${summedTotal.toFixed(1)} sqm) by ${Math.abs(reportedTotal - summedTotal).toFixed(1)} sqm`
+    );
+  }
+  const lowConfidence = rooms.filter((r) => r.confidence < 0.6);
+  if (lowConfidence.length > 0) {
+    warnings.push(
+      `${lowConfidence.length} room(s) have low extraction confidence: ${lowConfidence.map((r) => r.name).join(", ")}`
+    );
+  }
+  if (parsed.notes) {
+    warnings.push(`AI note: ${parsed.notes}`);
+  }
+  return {
+    rooms,
+    totalArea: Math.round(summedTotal * 10) / 10,
+    warnings
+  };
+}
+var EXTRACTION_PROMPT;
+var init_pdf_extraction = __esm({
+  "server/engines/pdf-extraction.ts"() {
+    "use strict";
+    init_llm();
+    EXTRACTION_PROMPT = `You are an expert architectural floor plan analyst working in the UAE interior design market.
+
+Analyze the provided floor plan image and extract ALL rooms/spaces with their approximate areas.
+
+For each room, provide:
+- name: The room label as shown on the plan (e.g., "Master Bedroom", "Living Room", "Kitchen", "Bathroom 1")
+- areaSqm: The area in square meters. If dimensions are labeled, calculate area precisely. If not, estimate based on visual proportions and any scale reference.
+- confidence: Your confidence level (0.0 to 1.0) in the area measurement
+- category: One of: living, bedroom, bathroom, kitchen, corridor, utility, balcony, dining, study, storage, terrace, other
+
+Rules:
+1. Include ALL spaces shown on the plan, including corridors, storage, and utility rooms
+2. If the plan shows dimensions in feet, convert to sqm (1 sqft = 0.0929 sqm)
+3. If no scale is provided, estimate areas based on standard UAE residential proportions (typical bedroom ~15-20 sqm, bathroom ~5-8 sqm, living room ~25-40 sqm)
+4. Do NOT include external areas (parking, garden) unless they are enclosed balconies/terraces
+5. Label rooms exactly as shown on the plan; if no label is visible, use descriptive names like "Room 1", "Corridor"
+6. Round areas to one decimal place`;
   }
 });
 
@@ -6480,7 +6688,7 @@ var scad_pdf_connector_exports = {};
 __export(scad_pdf_connector_exports, {
   SCADPdfConnector: () => SCADPdfConnector
 });
-var SCAD_PDF_URLS, SCAD_PUBLICATIONS_URL, EXTRACTION_PROMPT, SCADPdfConnector;
+var SCAD_PDF_URLS, SCAD_PUBLICATIONS_URL, EXTRACTION_PROMPT2, SCADPdfConnector;
 var init_scad_pdf_connector = __esm({
   "server/engines/ingestion/connectors/scad-pdf-connector.ts"() {
     "use strict";
@@ -6491,7 +6699,7 @@ var init_scad_pdf_connector = __esm({
       "https://www.scad.gov.ae/Release%20Documents/Construction%20Material%20Prices%202024_EN.pdf"
     ];
     SCAD_PUBLICATIONS_URL = "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx";
-    EXTRACTION_PROMPT = `You are a data extraction engine for MIYAR, a UAE real estate intelligence platform.
+    EXTRACTION_PROMPT2 = `You are a data extraction engine for MIYAR, a UAE real estate intelligence platform.
 
 Extract material price data from this SCAD (Statistics Centre Abu Dhabi) PDF text.
 Focus on: construction materials, building materials, finishing materials, and their price indices.
@@ -6592,7 +6800,7 @@ ${parsed.text}
               },
               {
                 role: "user",
-                content: EXTRACTION_PROMPT + truncated
+                content: EXTRACTION_PROMPT2 + truncated
               }
             ],
             response_format: { type: "json_object" }
@@ -7152,13 +7360,47 @@ var authRouter = router({
 import { z as z3 } from "zod";
 init_db();
 
+// server/engines/sustainability/sustainability-multipliers.ts
+var CERT_MULTIPLIERS = {
+  // Al Sa'fat (Dubai)
+  bronze: 1.03,
+  silver: 1.07,
+  gold: 1.12,
+  platinum: 1.22,
+  // Estidama (Abu Dhabi)
+  pearl_1: 1.03,
+  pearl_2: 1.07,
+  pearl_3: 1.12,
+  pearl_4: 1.16,
+  pearl_5: 1.22
+};
+var CERT_TO_DES05 = {
+  bronze: 1,
+  silver: 2,
+  gold: 3,
+  platinum: 5,
+  pearl_1: 1,
+  pearl_2: 2,
+  pearl_3: 3,
+  pearl_4: 4,
+  pearl_5: 5
+};
+function getCertMultiplier(tier) {
+  return CERT_MULTIPLIERS[tier] || 1;
+}
+function tierToDes05(tier) {
+  return CERT_TO_DES05[tier] || 2;
+}
+
 // server/engines/normalization.ts
+init_area_utils();
 function normalizeOrdinal(value) {
   return Math.max(0, Math.min(1, (value - 1) / 4));
 }
-function deriveScaleBand(gfa) {
-  if (!gfa || gfa < 25e4) return "Small";
-  if (gfa <= 8e5) return "Medium";
+function deriveScaleBand(gfa, totalFitoutArea) {
+  const area = totalFitoutArea ?? gfa;
+  if (!area || area < 500) return "Small";
+  if (area <= 5e3) return "Medium";
   return "Large";
 }
 function deriveBudgetClass(budgetCap) {
@@ -7245,6 +7487,8 @@ function normalizeInputs(inputs, expectedCost) {
   const differentiationPressure = (mkt02_n + str02_n) / 2;
   const budgetFit = computeBudgetFit(inputs.fin01BudgetCap, expectedCost);
   const costVolatility = (1 - exe01_n) * 0.5 + (1 - fin03_n) * 0.5;
+  const sustainCertMultiplier = getCertMultiplier(inputs.sustainCertTarget || "silver");
+  const adjustedExpectedCost = expectedCost * sustainCertMultiplier;
   return {
     str01_n,
     str02_n,
@@ -7262,20 +7506,23 @@ function normalizeInputs(inputs, expectedCost) {
     exe02_n,
     exe03_n,
     exe04_n,
-    scaleBand: deriveScaleBand(inputs.ctx03Gfa),
+    scaleBand: deriveScaleBand(inputs.ctx03Gfa, inputs.totalFitoutArea),
     budgetClass: deriveBudgetClass(inputs.fin01BudgetCap),
     differentiationPressure,
     executionResilience,
-    budgetFit,
+    budgetFit: computeBudgetFit(inputs.fin01BudgetCap, adjustedExpectedCost),
     marketFit: computeMarketFit(inputs.ctx04Location, inputs.mkt01Tier, inputs.des02MaterialLevel),
     trendFit: computeTrendFit(inputs.des01Style, inputs.mkt03Trend),
     compatVisionMarket: computeCompatVisionMarket(inputs.str01BrandClarity, inputs.mkt01Tier),
     compatVisionDesign: computeCompatVisionDesign(inputs.str02Differentiation, inputs.des01Style),
-    costVolatility
+    costVolatility,
+    sustainCertMultiplier,
+    fitoutRatio: computeFitoutRatio(inputs.totalFitoutArea, inputs.ctx03Gfa)
   };
 }
 
 // server/engines/scoring.ts
+init_area_utils();
 function computeStrategicAlignment(n, w) {
   const raw = (w.str01 ?? 0.35) * n.str01_n + (w.str03 ?? 0.25) * n.str03_n + (w.compatVisionMarket ?? 0.25) * n.compatVisionMarket + (w.compatVisionDesign ?? 0.15) * n.compatVisionDesign;
   return Math.max(0, Math.min(100, raw * 100));
@@ -7289,11 +7536,12 @@ function computeMarketPositioning(n, w) {
   return Math.max(0, Math.min(100, raw * 100));
 }
 function computeDifferentiationStrength(n, w) {
-  const raw = (w.str02 ?? 0.3) * n.str02_n + (w.competitorInverse ?? 0.25) * (1 - n.mkt02_n) + (w.des04 ?? 0.25) * n.des04_n + (w.des02 ?? 0.2) * n.des02_n;
+  const raw = (w.str02 ?? 0.25) * n.str02_n + (w.competitorInverse ?? 0.2) * (1 - n.mkt02_n) + (w.des04 ?? 0.2) * n.des04_n + (w.des02 ?? 0.2) * n.des02_n + (w.des05 ?? 0.15) * n.des05_n;
   return Math.max(0, Math.min(100, raw * 100));
 }
 function computeExecutionRisk(n, w) {
-  const raw = (w.executionResilience ?? 0.35) * n.executionResilience + (w.supplyChainInverse ?? 0.25) * (1 - n.exe01_n) + (w.complexityInverse ?? 0.2) * (1 - n.des03_n) + (w.approvalsInverse ?? 0.2) * (1 - n.exe03_n);
+  const certRisk = n.sustainCertMultiplier > 1.1 ? (n.sustainCertMultiplier - 1) * 2 : 0;
+  const raw = (w.executionResilience ?? 0.3) * n.executionResilience + (w.supplyChainInverse ?? 0.25) * (1 - n.exe01_n) + (w.complexityInverse ?? 0.2) * (1 - n.des03_n) + (w.approvalsInverse ?? 0.15) * (1 - n.exe03_n) + (w.certRisk ?? 0.1) * certRisk;
   return Math.max(0, Math.min(100, raw * 100));
 }
 function computePenalties(inputs, n, penaltyConfig) {
@@ -7359,6 +7607,16 @@ function computePenalties(inputs, n, penaltyConfig) {
     });
     riskFlags.push("COMPLEXITY_MISMATCH");
   }
+  if (n.sustainCertMultiplier > 1.05 && n.budgetFit < 0.5) {
+    penalties.push({
+      id: "P6",
+      trigger: "sustain_underfunded",
+      effect: penaltyConfig?.P6?.effect ?? -6,
+      flag: "SUSTAIN_UNDERFUNDED",
+      description: `Budget may not cover ${Math.round((n.sustainCertMultiplier - 1) * 100)}% sustainability certification premium`
+    });
+    riskFlags.push("SUSTAIN_UNDERFUNDED");
+  }
   return { penalties, riskFlags };
 }
 function generateConditionalActions(dimensions, riskFlags) {
@@ -7396,6 +7654,13 @@ function generateConditionalActions(dimensions, riskFlags) {
       trigger: "LOW_MP",
       recommendation: "Reposition experience intensity; adjust differentiation strategy.",
       variables: ["mkt02Competitor", "des04Experience"]
+    });
+  }
+  if (riskFlags.includes("SUSTAIN_UNDERFUNDED")) {
+    actions.push({
+      trigger: "SUSTAIN_UNDERFUNDED",
+      recommendation: "Increase budget cap to account for sustainability certification material premium, or lower certification target tier.",
+      variables: ["fin01BudgetCap", "sustainCertTarget"]
     });
   }
   return actions;
@@ -7448,23 +7713,25 @@ function computeVariableContributions(n, varWeights) {
       trendFit: n.trendFit * (varWeights.mp?.trendFit ?? 0.2)
     },
     ds: {
-      str02_n: n.str02_n * (varWeights.ds?.str02 ?? 0.3),
-      competitorInverse: (1 - n.mkt02_n) * (varWeights.ds?.competitorInverse ?? 0.25),
-      des04_n: n.des04_n * (varWeights.ds?.des04 ?? 0.25),
-      des02_n: n.des02_n * (varWeights.ds?.des02 ?? 0.2)
+      str02_n: n.str02_n * (varWeights.ds?.str02 ?? 0.25),
+      competitorInverse: (1 - n.mkt02_n) * (varWeights.ds?.competitorInverse ?? 0.2),
+      des04_n: n.des04_n * (varWeights.ds?.des04 ?? 0.2),
+      des02_n: n.des02_n * (varWeights.ds?.des02 ?? 0.2),
+      des05_n: n.des05_n * (varWeights.ds?.des05 ?? 0.15)
     },
     er: {
-      executionResilience: n.executionResilience * (varWeights.er?.executionResilience ?? 0.35),
+      executionResilience: n.executionResilience * (varWeights.er?.executionResilience ?? 0.3),
       supplyChainInverse: (1 - n.exe01_n) * (varWeights.er?.supplyChainInverse ?? 0.25),
       complexityInverse: (1 - n.des03_n) * (varWeights.er?.complexityInverse ?? 0.2),
-      approvalsInverse: (1 - n.exe03_n) * (varWeights.er?.approvalsInverse ?? 0.2)
+      approvalsInverse: (1 - n.exe03_n) * (varWeights.er?.approvalsInverse ?? 0.15),
+      certRisk: (n.sustainCertMultiplier > 1.1 ? (n.sustainCertMultiplier - 1) * 2 : 0) * (varWeights.er?.certRisk ?? 0.1)
     }
   };
 }
 function computeROI(inputs, compositeScore, fee) {
-  const gfa = inputs.ctx03Gfa ?? 5e5;
+  const pricingArea = getPricingArea(inputs);
   const budgetCap = inputs.fin01BudgetCap ?? 400;
-  const totalBudget = gfa * budgetCap;
+  const totalBudget = pricingArea * budgetCap;
   const reworkRate = 0.08 + compositeScore / 100 * 0.07;
   const reworkAvoided = totalBudget * reworkRate;
   const procRate = 0.03 + compositeScore / 100 * 0.05;
@@ -7970,9 +8237,12 @@ function renderInputSummary(inputs) {
       items: [
         ["Typology", inputs.ctx01Typology],
         ["Scale", inputs.ctx02Scale],
-        ["GFA (sqm)", inputs.ctx03Gfa ? inputs.ctx03Gfa.toLocaleString() : "N/A"],
+        ["Gross Floor Area (sqm)", inputs.ctx03Gfa ? inputs.ctx03Gfa.toLocaleString() : "N/A"],
+        ["Interior Fit-out Area (sqm)", inputs.totalFitoutArea ? inputs.totalFitoutArea.toLocaleString() : "N/A"],
+        ...inputs.ctx03Gfa && inputs.totalFitoutArea ? [["Fitout Efficiency Ratio", `${Math.round(inputs.totalFitoutArea / inputs.ctx03Gfa * 100)}%`]] : [],
         ["Location", inputs.ctx04Location],
-        ["Delivery Horizon", inputs.ctx05Horizon]
+        ["Delivery Horizon", inputs.ctx05Horizon],
+        ["City", inputs.city || "Dubai"]
       ]
     },
     {
@@ -8722,6 +8992,7 @@ function generatePortfolioReportHTML(data) {
 }
 
 // server/engines/design-brief.ts
+init_area_utils();
 var STYLE_MOOD_MAP = {
   Modern: {
     keywords: ["clean lines", "open plan", "minimalist", "functional elegance", "geometric"],
@@ -8845,7 +9116,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
   const adjustedTierIdx = Math.max(0, Math.min(tierOrder.length - 1, baseTierIdx + (PURPOSE_TIER_ADJUST[purpose] || 0)));
   const effectiveMaterialTier = tierOrder[adjustedTierIdx];
   const materials = TIER_MATERIALS[effectiveMaterialTier] || TIER_MATERIALS["Upper-mid"];
-  const gfa = inputs.ctx03Gfa ? Number(inputs.ctx03Gfa) : null;
+  const gfa = getPricingArea(inputs);
   const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
   const totalBudgetCap = budget && gfa ? budget * gfa : null;
   let costBand = "Standard (Fit-out)";
@@ -9575,6 +9846,9 @@ function computeDerivedFeatures(project, scoreMatrix, benchmarks, allScores) {
     costBand: classifyCostBand(budgetCap, tier)
   };
 }
+
+// server/routers/project.ts
+init_area_utils();
 
 // server/engines/scenario-templates.ts
 var SCENARIO_TEMPLATES = [
@@ -10416,12 +10690,31 @@ async function buildEvalConfig(modelVersion, expectedCost, benchmarkCount, overr
     overrideRate
   };
 }
+var unitMixItemSchema = z3.object({
+  unitType: z3.string(),
+  areaSqm: z3.number().min(0),
+  count: z3.number().int().min(1),
+  includeInFitout: z3.boolean().default(true)
+});
+var villaSpaceSchema = z3.object({
+  floor: z3.string(),
+  rooms: z3.array(z3.object({
+    name: z3.string(),
+    areaSqm: z3.number().min(0)
+  }))
+});
 var projectInputSchema = z3.object({
   name: z3.string().min(1).max(255),
   description: z3.string().optional(),
   ctx01Typology: z3.enum(["Residential", "Mixed-use", "Hospitality", "Office", "Villa", "Gated Community", "Villa Development"]).default("Residential"),
   ctx02Scale: z3.enum(["Small", "Medium", "Large"]).default("Medium"),
   ctx03Gfa: z3.number().nullable().optional(),
+  // V4 — Fit-out area fields
+  totalFitoutArea: z3.number().nullable().optional(),
+  totalNonFinishArea: z3.number().nullable().optional(),
+  projectArchetype: z3.enum(["residential_multi", "office", "single_villa", "hospitality", "community"]).optional(),
+  officeFitoutCategory: z3.enum(["catA", "catB"]).optional(),
+  officeCustomRatio: z3.number().min(0).max(100).nullable().optional(),
   ctx04Location: z3.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
   ctx05Horizon: z3.enum(["0-12m", "12-24m", "24-36m", "36m+"]).default("12-24m"),
   str01BrandClarity: z3.number().min(1).max(5).default(3),
@@ -10446,19 +10739,23 @@ var projectInputSchema = z3.object({
   add01SampleKit: z3.boolean().default(false),
   add02PortfolioMode: z3.boolean().default(false),
   add03DashboardExport: z3.boolean().default(true),
-  unitMix: z3.any().optional(),
-  villaSpaces: z3.any().optional(),
+  unitMix: z3.array(unitMixItemSchema).optional(),
+  villaSpaces: z3.array(villaSpaceSchema).optional(),
   developerGuidelines: z3.any().optional(),
   // DLD integration fields
   dldAreaId: z3.number().nullable().optional(),
   dldAreaName: z3.string().optional(),
-  projectPurpose: z3.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready")
+  projectPurpose: z3.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
+  // City & Sustainability Certification
+  city: z3.enum(["Dubai", "Abu Dhabi"]).default("Dubai"),
+  sustainCertTarget: z3.string().default("silver")
 });
 function projectToInputs(p) {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
     ctx02Scale: p.ctx02Scale ?? "Medium",
     ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
     ctx04Location: p.ctx04Location ?? "Secondary",
     ctx05Horizon: p.ctx05Horizon ?? "12-24m",
     str01BrandClarity: p.str01BrandClarity ?? 3,
@@ -10475,14 +10772,16 @@ function projectToInputs(p) {
     des02MaterialLevel: p.des02MaterialLevel ?? 3,
     des03Complexity: p.des03Complexity ?? 3,
     des04Experience: p.des04Experience ?? 3,
-    des05Sustainability: p.des05Sustainability ?? 2,
+    des05Sustainability: p.des05Sustainability ?? tierToDes05(p.sustainCertTarget || "silver"),
     exe01SupplyChain: p.exe01SupplyChain ?? 3,
     exe02Contractor: p.exe02Contractor ?? 3,
     exe03Approvals: p.exe03Approvals ?? 2,
     exe04QaMaturity: p.exe04QaMaturity ?? 3,
     add01SampleKit: p.add01SampleKit ?? false,
     add02PortfolioMode: p.add02PortfolioMode ?? false,
-    add03DashboardExport: p.add03DashboardExport ?? true
+    add03DashboardExport: p.add03DashboardExport ?? true,
+    city: p.city ?? "Dubai",
+    sustainCertTarget: p.sustainCertTarget || "silver"
   };
 }
 var projectRouter = router({
@@ -10521,7 +10820,10 @@ var projectRouter = router({
       orgId: ctx.orgId,
       status: "draft",
       ctx03Gfa: input.ctx03Gfa ? String(input.ctx03Gfa) : null,
-      fin01BudgetCap: input.fin01BudgetCap ? String(input.fin01BudgetCap) : null
+      totalFitoutArea: input.totalFitoutArea ? String(input.totalFitoutArea) : null,
+      totalNonFinishArea: input.totalNonFinishArea ? String(input.totalNonFinishArea) : null,
+      fin01BudgetCap: input.fin01BudgetCap ? String(input.fin01BudgetCap) : null,
+      officeCustomRatio: input.officeCustomRatio != null ? String(input.officeCustomRatio) : null
     });
     await createAuditLog({
       userId: ctx.user.id,
@@ -10545,6 +10847,9 @@ var projectRouter = router({
     const updateData = { ...data };
     if (data.ctx03Gfa !== void 0) updateData.ctx03Gfa = data.ctx03Gfa ? String(data.ctx03Gfa) : null;
     if (data.fin01BudgetCap !== void 0) updateData.fin01BudgetCap = data.fin01BudgetCap ? String(data.fin01BudgetCap) : null;
+    if (data.officeCustomRatio !== void 0) updateData.officeCustomRatio = data.officeCustomRatio != null ? String(data.officeCustomRatio) : null;
+    if (data.totalFitoutArea !== void 0) updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
+    if (data.totalNonFinishArea !== void 0) updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
     await updateProject(id, updateData);
     await createAuditLog({
       userId: ctx.user.id,
@@ -10822,7 +11127,7 @@ var projectRouter = router({
       riskScore: Number(latest.riskScore),
       confidenceScore: Number(latest.confidenceScore),
       budgetCap: Number(project.fin01BudgetCap || 0),
-      gfa: Number(project.ctx03Gfa || 0),
+      gfa: getPricingArea(project),
       complexity: project.des03Complexity || 3,
       materialLevel: project.des02MaterialLevel || 3,
       tier: project.mkt01Tier || "Upper-mid",
@@ -10967,7 +11272,7 @@ var projectRouter = router({
       riskScore: Number(latest.riskScore),
       confidenceScore: Number(latest.confidenceScore),
       budgetCap: Number(project.fin01BudgetCap || 0),
-      gfa: Number(project.ctx03Gfa || 0),
+      gfa: getPricingArea(project),
       complexity: project.des03Complexity || 3,
       materialLevel: project.des02MaterialLevel || 3,
       tier: project.mkt01Tier || "Upper-mid",
@@ -11137,6 +11442,122 @@ var projectRouter = router({
     const project = await getProjectById(input.projectId);
     if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return [];
     return getReportsByProject(input.projectId);
+  }),
+  // ─── V4: Area Verification Gate ───────────────────────────────────────────
+  extractAreas: orgProcedure.input(z3.object({
+    projectId: z3.number(),
+    assetId: z3.number()
+  })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
+      throw new Error("Project not found or unauthorized");
+    }
+    const asset = await getProjectAssetById(input.assetId);
+    if (!asset) throw new Error("Asset not found");
+    if (!asset.storageUrl) throw new Error("Asset has no storage URL");
+    const extraction = await createPdfExtraction({
+      projectId: input.projectId,
+      assetId: input.assetId,
+      extractionMethod: "vision_ai",
+      status: "pending"
+    });
+    try {
+      const { extractRoomsFromImage: extractRoomsFromImage2 } = await Promise.resolve().then(() => (init_pdf_extraction(), pdf_extraction_exports));
+      const result = await extractRoomsFromImage2(
+        asset.storageUrl,
+        {
+          typology: project.ctx01Typology || void 0,
+          gfa: getPricingArea(project) || void 0,
+          archetype: project.projectArchetype || void 0
+        }
+      );
+      await updatePdfExtraction(extraction.id, {
+        status: "extracted",
+        extractedRooms: result.rooms,
+        totalExtractedArea: String(result.totalArea)
+      });
+      await createAuditLog({
+        userId: ctx.user.id,
+        action: "area.extract",
+        entityType: "pdf_extraction",
+        entityId: extraction.id,
+        details: {
+          projectId: input.projectId,
+          assetId: input.assetId,
+          roomCount: result.rooms.length,
+          totalArea: result.totalArea
+        }
+      });
+      return {
+        id: extraction.id,
+        rooms: result.rooms,
+        totalArea: result.totalArea,
+        warnings: result.warnings,
+        status: "extracted"
+      };
+    } catch (error) {
+      await updatePdfExtraction(extraction.id, {
+        status: "rejected"
+      });
+      throw new Error(`Area extraction failed: ${error.message}`);
+    }
+  }),
+  verifyAreas: orgProcedure.input(z3.object({
+    projectId: z3.number(),
+    extractionId: z3.number(),
+    action: z3.enum(["verify", "reject"]),
+    adjustedTotalArea: z3.number().optional()
+  })).mutation(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
+      throw new Error("Project not found or unauthorized");
+    }
+    const extraction = await getPdfExtractionById(input.extractionId);
+    if (!extraction) throw new Error("Extraction not found");
+    if (extraction.projectId !== input.projectId) throw new Error("Extraction does not belong to this project");
+    if (input.action === "verify") {
+      await updatePdfExtraction(input.extractionId, {
+        status: "verified",
+        verifiedBy: ctx.user.id,
+        verifiedAt: /* @__PURE__ */ new Date()
+      });
+      const verifiedArea = input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
+      await updateProjectVerification(input.projectId, {
+        fitoutAreaVerified: true,
+        totalFitoutArea: verifiedArea
+      });
+      await createAuditLog({
+        userId: ctx.user.id,
+        action: "area.verify",
+        entityType: "pdf_extraction",
+        entityId: input.extractionId,
+        details: {
+          projectId: input.projectId,
+          verifiedArea,
+          adjustedFromExtracted: input.adjustedTotalArea !== void 0
+        }
+      });
+      return { success: true, verifiedArea };
+    } else {
+      await updatePdfExtraction(input.extractionId, {
+        status: "rejected",
+        verifiedBy: ctx.user.id,
+        verifiedAt: /* @__PURE__ */ new Date()
+      });
+      await createAuditLog({
+        userId: ctx.user.id,
+        action: "area.reject",
+        entityType: "pdf_extraction",
+        entityId: input.extractionId,
+        details: { projectId: input.projectId }
+      });
+      return { success: true, verifiedArea: null };
+    }
+  }),
+  getExtractions: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return [];
+    return getPdfExtractionsByProject(input.projectId);
   })
 });
 
@@ -11364,6 +11785,7 @@ function projectToInputs2(p) {
     ctx01Typology: p.ctx01Typology ?? "Residential",
     ctx02Scale: p.ctx02Scale ?? "Medium",
     ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
     ctx04Location: p.ctx04Location ?? "Secondary",
     ctx05Horizon: p.ctx05Horizon ?? "12-24m",
     str01BrandClarity: p.str01BrandClarity ?? 3,
@@ -11387,7 +11809,9 @@ function projectToInputs2(p) {
     exe04QaMaturity: p.exe04QaMaturity ?? 3,
     add01SampleKit: p.add01SampleKit ?? false,
     add02PortfolioMode: p.add02PortfolioMode ?? false,
-    add03DashboardExport: p.add03DashboardExport ?? true
+    add03DashboardExport: p.add03DashboardExport ?? true,
+    city: p.city ?? "Dubai",
+    sustainCertTarget: p.sustainCertTarget || "silver"
   };
 }
 var scenarioRouter = router({
@@ -12721,6 +13145,7 @@ function projectToInputs3(p) {
     ctx01Typology: p.ctx01Typology ?? "Residential",
     ctx02Scale: p.ctx02Scale ?? "Medium",
     ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
     ctx04Location: p.ctx04Location ?? "Secondary",
     ctx05Horizon: p.ctx05Horizon ?? "12-24m",
     str01BrandClarity: p.str01BrandClarity ?? 3,
@@ -12744,7 +13169,9 @@ function projectToInputs3(p) {
     exe04QaMaturity: p.exe04QaMaturity ?? 3,
     add01SampleKit: p.add01SampleKit ?? false,
     add02PortfolioMode: p.add02PortfolioMode ?? false,
-    add03DashboardExport: p.add03DashboardExport ?? true
+    add03DashboardExport: p.add03DashboardExport ?? true,
+    city: p.city ?? "Dubai",
+    sustainCertTarget: p.sustainCertTarget || "silver"
   };
 }
 var SAMPLE_PROJECTS = [
@@ -13120,6 +13547,7 @@ import { z as z6 } from "zod";
 init_db();
 import { TRPCError as TRPCError5 } from "@trpc/server";
 init_dld_analytics();
+init_area_utils();
 init_rfq_generator();
 
 // server/engines/visual-gen.ts
@@ -13617,6 +14045,7 @@ function projectToInputs4(p) {
     ctx01Typology: p.ctx01Typology ?? "Residential",
     ctx02Scale: p.ctx02Scale ?? "Medium",
     ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
     ctx04Location: p.ctx04Location ?? "Secondary",
     ctx05Horizon: p.ctx05Horizon ?? "12-24m",
     str01BrandClarity: p.str01BrandClarity ?? 3,
@@ -13640,7 +14069,9 @@ function projectToInputs4(p) {
     exe04QaMaturity: p.exe04QaMaturity ?? 3,
     add01SampleKit: p.add01SampleKit ?? false,
     add02PortfolioMode: p.add02PortfolioMode ?? false,
-    add03DashboardExport: p.add03DashboardExport ?? true
+    add03DashboardExport: p.add03DashboardExport ?? true,
+    city: p.city ?? "Dubai",
+    sustainCertTarget: p.sustainCertTarget || "silver"
   };
 }
 var designRouter = router({
@@ -14597,7 +15028,7 @@ var designRouter = router({
       getDesignTrends({ styleClassification: project.des01Style ?? void 0, region: "UAE", limit: 8 })
     ]);
     const totalFitoutBudget = (recs ?? []).reduce((s, r) => s + Number(r.budgetAllocation || 0), 0);
-    const gfa = Number(project.ctx03Gfa ?? 0);
+    const gfa = getPricingArea(project);
     const costPerSqm = gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0;
     const TIER_PREMIUM_PCT2 = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
     const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
@@ -14676,7 +15107,7 @@ var designRouter = router({
       getDesignTrends({ styleClassification: project.des01Style ?? void 0, region: "UAE", limit: 8 })
     ]);
     const totalFitoutBudget = (recs ?? []).reduce((s, r) => s + Number(r.budgetAllocation || 0), 0);
-    const gfa = Number(project.ctx03Gfa ?? 0);
+    const gfa = getPricingArea(project);
     const TIER_PREMIUM_PCT2 = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
     const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
     const SQF = 10.7639;
@@ -14731,6 +15162,7 @@ var VARIABLE_LABELS = {
   ctx01Typology: "Project Typology",
   ctx02Scale: "Project Scale",
   ctx03Gfa: "Gross Floor Area (sqm)",
+  totalFitoutArea: "Interior Fit-out Area (sqm)",
   ctx04Location: "Location Category",
   ctx05Horizon: "Delivery Horizon",
   // Strategy (3 variables)
@@ -14803,7 +15235,7 @@ var VARIABLE_TO_CONTRIBUTION_KEY = {
 };
 var STRING_ENUM_VARS = /* @__PURE__ */ new Set(["mkt01Tier", "des01Style", "ctx01Typology", "ctx02Scale", "ctx04Location", "ctx05Horizon"]);
 var BOOLEAN_VARS = /* @__PURE__ */ new Set(["add01SampleKit", "add02PortfolioMode", "add03DashboardExport"]);
-var RAW_NUMERIC_VARS = /* @__PURE__ */ new Set(["fin01BudgetCap", "ctx03Gfa"]);
+var RAW_NUMERIC_VARS = /* @__PURE__ */ new Set(["fin01BudgetCap", "ctx03Gfa", "totalFitoutArea"]);
 var ENUM_DISPLAY_LABELS = {
   mkt01Tier: {
     Mid: "Mid-Market",
@@ -14874,7 +15306,7 @@ function generateExplainabilityReport(projectId, inputSnapshot, scoreData, bench
   }
   const dimensionVarMap = {
     sa: ["str01BrandClarity", "str02Differentiation", "str03BuyerMaturity", "ctx01Typology"],
-    ff: ["fin01BudgetCap", "fin02Flexibility", "fin03ShockTolerance", "fin04SalesPremium", "ctx03Gfa"],
+    ff: ["fin01BudgetCap", "fin02Flexibility", "fin03ShockTolerance", "fin04SalesPremium", "ctx03Gfa", "totalFitoutArea"],
     mp: ["mkt01Tier", "mkt02Competitor", "mkt03Trend", "ctx04Location"],
     ds: ["des01Style", "des02MaterialLevel", "des03Complexity", "des04Experience", "des05Sustainability", "ctx02Scale"],
     er: ["exe01SupplyChain", "exe02Contractor", "exe03Approvals", "exe04QaMaturity", "ctx05Horizon", "add01SampleKit", "add02PortfolioMode", "add03DashboardExport"]
@@ -19824,6 +20256,7 @@ var analyticsRouter = router({
 // server/routers/predictive.ts
 import { z as z12 } from "zod";
 init_db();
+init_area_utils();
 import { TRPCError as TRPCError6 } from "@trpc/server";
 
 // server/engines/predictive/cost-range.ts
@@ -20263,7 +20696,7 @@ var predictiveRouter = router({
   })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
     if (!project) throw new TRPCError6({ code: "NOT_FOUND" });
-    const gfa = Number(project.ctx03Gfa) || 0;
+    const gfa = getPricingArea(project);
     const budgetCap = Number(project.fin01BudgetCap) || 0;
     const budgetPerSqm = gfa > 0 ? budgetCap / gfa : 0;
     const trends = await getTrendSnapshots({ limit: 10 });
@@ -21453,6 +21886,7 @@ init_db();
 // server/engines/design/ai-design-advisor.ts
 init_llm();
 init_space_program();
+init_area_utils();
 var KITCHEN_ROOMS = ["KIT"];
 var BATHROOM_ROOMS = ["MEN", "BTH", "ENS"];
 var WET_ROOM_IDS = [...KITCHEN_ROOMS, ...BATHROOM_ROOMS, "UTL"];
@@ -21470,11 +21904,11 @@ async function generateDesignRecommendations(project, inputs, materialLibrary2, 
   if (project.dldAreaId) {
     const { getDldAreaBenchmark: getDldAreaBenchmark2 } = await Promise.resolve().then(() => (init_db(), db_exports));
     const benchmark = await getDldAreaBenchmark2(project.dldAreaId);
-    const gfa = Number(project.ctx03Gfa || 0);
-    if (benchmark?.recommendedFitoutMid && gfa > 0) {
-      const dldBudget = Number(benchmark.recommendedFitoutMid) * gfa;
+    const area = getPricingArea(project);
+    if (benchmark?.recommendedFitoutMid && area > 0) {
+      const dldBudget = Number(benchmark.recommendedFitoutMid) * area;
       if (dldBudget > 0) {
-        console.log(`[SpaceRecs] DLD budget override: ${totalBudget.toLocaleString()} \u2192 ${dldBudget.toLocaleString()} AED (${benchmark.recommendedFitoutMid} AED/sqm \xD7 ${gfa} sqm)`);
+        console.log(`[SpaceRecs] DLD budget override: ${totalBudget.toLocaleString()} \u2192 ${dldBudget.toLocaleString()} AED (${benchmark.recommendedFitoutMid} AED/sqm \xD7 ${area} sqm)`);
         totalBudget = dldBudget;
       }
     }
@@ -21521,6 +21955,7 @@ function buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary,
 - **Typology**: ${inputs.ctx01Typology}
 - **Scale**: ${inputs.ctx02Scale}
 - **GFA**: ${inputs.ctx03Gfa} sqm
+- **Fit-out Area**: ${inputs.totalFitoutArea ?? inputs.ctx03Gfa} sqm
 - **Location**: ${inputs.ctx04Location}
 - **Market Tier**: ${inputs.mkt01Tier}
 - **Design Style**: ${inputs.des01Style}
@@ -21848,7 +22283,7 @@ Respond in JSON format.`;
     })),
     budgetSummary: {
       totalFitoutBudget: totalBudget,
-      costPerSqm: Math.round(totalBudget / (Number(inputs.ctx03Gfa) || 1)),
+      costPerSqm: Math.round(totalBudget / (getPricingArea(inputs) || 1)),
       allocationBySpace: recommendations.map((r) => ({
         room: r.roomName,
         amount: r.budgetAllocation,
@@ -21901,6 +22336,7 @@ function extractSuppliers(recs) {
 
 // server/routers/design-advisor.ts
 init_space_program();
+init_area_utils();
 
 // server/engines/design/nano-banana-client.ts
 function buildRoomMoodBoardPrompt(ctx, rec) {
@@ -22055,6 +22491,7 @@ function projectToInputs5(p) {
     ctx01Typology: p.ctx01Typology || "Residential",
     ctx02Scale: p.ctx02Scale || "Medium",
     ctx03Gfa: Number(p.ctx03Gfa || 0),
+    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
     ctx04Location: p.ctx04Location || "Secondary",
     ctx05Horizon: p.ctx05Horizon || "12-24m",
     str01BrandClarity: Number(p.str01BrandClarity || 3),
@@ -22078,7 +22515,9 @@ function projectToInputs5(p) {
     exe04QaMaturity: Number(p.exe04QaMaturity || 3),
     add01SampleKit: !!p.add01SampleKit,
     add02PortfolioMode: !!p.add02PortfolioMode,
-    add03DashboardExport: !!p.add03DashboardExport
+    add03DashboardExport: !!p.add03DashboardExport,
+    city: p.city || "Dubai",
+    sustainCertTarget: p.sustainCertTarget || "silver"
   };
 }
 function buildProjectContext(project) {
@@ -22088,7 +22527,7 @@ function buildProjectContext(project) {
     location: project.ctx04Location || "Secondary",
     tier: project.mkt01Tier || "Upper-mid",
     style: project.des01Style || "Modern",
-    gfa: Number(project.ctx03Gfa || 0)
+    gfa: getPricingArea(project)
   };
 }
 function mapRecToSpace(rec) {
@@ -22348,6 +22787,12 @@ var portfolioRouter = router({
         name: p.name,
         tier: p.mkt01Tier,
         style: p.des01Style,
+        typology: p.ctx01Typology,
+        location: p.ctx04Location,
+        city: p.city || "Dubai",
+        gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+        budgetCap: p.fin01BudgetCap ? Number(p.fin01BudgetCap) : null,
+        sustainCertTarget: p.sustainCertTarget || "silver",
         status: p.status,
         compositeScore: score ? Number(score.compositeScore) : null,
         riskScore: score ? Number(score.riskScore) : null,
@@ -22391,7 +22836,19 @@ var portfolioRouter = router({
       distributions: computeDistributions(portfolioItems),
       complianceHeatmap: computeComplianceHeatmap(portfolioItems),
       failurePatterns: detectFailurePatterns(portfolioItems),
-      improvementLevers: computeImprovementLevers(portfolioItems)
+      improvementLevers: computeImprovementLevers(portfolioItems),
+      // E.1: Aggregate stats for benchmarking
+      totalGfa: projectList.reduce((s, p) => s + (p.ctx03Gfa ? Number(p.ctx03Gfa) : 0), 0),
+      totalBudget: projectList.reduce((s, p) => s + (p.fin01BudgetCap ? Number(p.fin01BudgetCap) : 0), 0),
+      avgCostPerSqm: (() => {
+        const withGfa = projectList.filter((p) => p.ctx03Gfa && p.fin01BudgetCap);
+        if (withGfa.length === 0) return 0;
+        const totalCost = withGfa.reduce((s, p) => s + Number(p.fin01BudgetCap), 0);
+        const totalArea = withGfa.reduce((s, p) => s + Number(p.ctx03Gfa), 0);
+        return totalArea > 0 ? Math.round(totalCost / totalArea) : 0;
+      })(),
+      bestScore: Math.max(...portfolioItems.map((p) => Number(p.scoreMatrix.compositeScore))),
+      worstScore: Math.min(...portfolioItems.map((p) => Number(p.scoreMatrix.compositeScore)))
     } : null;
     return {
       ...portfolio,
@@ -23243,6 +23700,436 @@ function computeDigitalTwin(config) {
   };
 }
 
+// server/engines/sustainability/compliance-checklists.ts
+var ESTIDAMA_TIERS = ["Pearl 1", "Pearl 2", "Pearl 3", "Pearl 4", "Pearl 5"];
+function buildEstidamaChecklist(twin) {
+  return [
+    // Integrated Development Process (IDP)
+    {
+      id: "EST-IDP-01",
+      category: "Integrated Development Process",
+      requirement: "Integrated development strategy documented",
+      minTier: "Pearl 1",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "EST-IDP-02",
+      category: "Integrated Development Process",
+      requirement: "Life cycle cost analysis performed",
+      minTier: "Pearl 2",
+      autoEvaluated: true,
+      status: twin.sustainabilityScore > 0 ? "pass" : "pending",
+      notes: "Digital twin lifecycle analysis available"
+    },
+    // Natural Systems (NS)
+    {
+      id: "EST-NS-01",
+      category: "Natural Systems",
+      requirement: "Ecological assessment of site",
+      minTier: "Pearl 1",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "EST-NS-02",
+      category: "Natural Systems",
+      requirement: "Native/adaptive landscaping (\u226550%)",
+      minTier: "Pearl 2",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    // Livable Buildings (LB)
+    {
+      id: "EST-LB-01",
+      category: "Livable Buildings",
+      requirement: "Thermal comfort \u2014 indoor temp 22-25\xB0C maintained",
+      minTier: "Pearl 1",
+      autoEvaluated: true,
+      status: twin.energyRating >= 40 ? "pass" : "fail",
+      score: twin.energyRating,
+      threshold: 40,
+      unit: "rating"
+    },
+    {
+      id: "EST-LB-02",
+      category: "Livable Buildings",
+      requirement: "Daylight provision \u2014 glazing ratio optimized",
+      minTier: "Pearl 1",
+      autoEvaluated: true,
+      status: (twin.glazingRatio ?? 0.3) >= 0.2 && (twin.glazingRatio ?? 0.3) <= 0.6 ? "pass" : "fail",
+      score: (twin.glazingRatio ?? 0.3) * 100,
+      threshold: 20,
+      unit: "%",
+      notes: "Glazing 20-60% acceptable"
+    },
+    {
+      id: "EST-LB-03",
+      category: "Livable Buildings",
+      requirement: "Indoor air quality \u2014 ventilation per ASHRAE 62.1",
+      minTier: "Pearl 2",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    // Precious Water (PW)
+    {
+      id: "EST-PW-01",
+      category: "Precious Water",
+      requirement: "Water budget and monitoring plan",
+      minTier: "Pearl 1",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "EST-PW-02",
+      category: "Precious Water",
+      requirement: "Efficient fixtures \u2014 30% reduction vs baseline",
+      minTier: "Pearl 2",
+      autoEvaluated: true,
+      status: twin.waterEfficiency >= 50 ? "pass" : "fail",
+      score: twin.waterEfficiency,
+      threshold: 50,
+      unit: "score"
+    },
+    {
+      id: "EST-PW-03",
+      category: "Precious Water",
+      requirement: "Greywater recycling system installed",
+      minTier: "Pearl 3",
+      autoEvaluated: true,
+      status: twin.waterRecycling ? "pass" : "fail",
+      notes: twin.waterRecycling ? "Water recycling enabled" : "No recycling system"
+    },
+    // Resourceful Energy (RE)
+    {
+      id: "EST-RE-01",
+      category: "Resourceful Energy",
+      requirement: "Energy monitoring & sub-metering",
+      minTier: "Pearl 1",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "EST-RE-02",
+      category: "Resourceful Energy",
+      requirement: "Energy performance \u2264120 kWh/m\xB2/yr",
+      minTier: "Pearl 2",
+      autoEvaluated: true,
+      status: twin.energyPerSqm <= 120 ? "pass" : "fail",
+      score: twin.energyPerSqm,
+      threshold: 120,
+      unit: "kWh/m\xB2/yr"
+    },
+    {
+      id: "EST-RE-03",
+      category: "Resourceful Energy",
+      requirement: "Energy performance \u226490 kWh/m\xB2/yr",
+      minTier: "Pearl 3",
+      autoEvaluated: true,
+      status: twin.energyPerSqm <= 90 ? "pass" : "fail",
+      score: twin.energyPerSqm,
+      threshold: 90,
+      unit: "kWh/m\xB2/yr"
+    },
+    {
+      id: "EST-RE-04",
+      category: "Resourceful Energy",
+      requirement: "On-site renewable energy (\u22655% of demand)",
+      minTier: "Pearl 3",
+      autoEvaluated: true,
+      status: twin.includeRenewables ? "pass" : "fail",
+      notes: twin.includeRenewables ? "Renewables included" : "No on-site renewables"
+    },
+    {
+      id: "EST-RE-05",
+      category: "Resourceful Energy",
+      requirement: "Energy performance \u226460 kWh/m\xB2/yr (net zero pathway)",
+      minTier: "Pearl 5",
+      autoEvaluated: true,
+      status: twin.energyPerSqm <= 60 ? "pass" : "fail",
+      score: twin.energyPerSqm,
+      threshold: 60,
+      unit: "kWh/m\xB2/yr"
+    },
+    // Stewarding Materials (SM)
+    {
+      id: "EST-SM-01",
+      category: "Stewarding Materials",
+      requirement: "Construction waste management plan",
+      minTier: "Pearl 1",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "EST-SM-02",
+      category: "Stewarding Materials",
+      requirement: "Embodied carbon \u2264500 kgCO\u2082e/m\xB2",
+      minTier: "Pearl 2",
+      autoEvaluated: true,
+      status: twin.carbonPerSqm <= 500 ? "pass" : "fail",
+      score: twin.carbonPerSqm,
+      threshold: 500,
+      unit: "kgCO\u2082e/m\xB2"
+    },
+    {
+      id: "EST-SM-03",
+      category: "Stewarding Materials",
+      requirement: "Embodied carbon \u2264350 kgCO\u2082e/m\xB2",
+      minTier: "Pearl 4",
+      autoEvaluated: true,
+      status: twin.carbonPerSqm <= 350 ? "pass" : "fail",
+      score: twin.carbonPerSqm,
+      threshold: 350,
+      unit: "kgCO\u2082e/m\xB2"
+    },
+    {
+      id: "EST-SM-04",
+      category: "Stewarding Materials",
+      requirement: "\u226520% recycled/reclaimed materials by value",
+      minTier: "Pearl 3",
+      autoEvaluated: true,
+      status: twin.materialCircularity >= 50 ? "pass" : "fail",
+      score: twin.materialCircularity,
+      threshold: 50,
+      unit: "score"
+    }
+  ];
+}
+var ALSAFAT_TIERS = ["Bronze", "Silver", "Gold", "Platinum"];
+function buildAlSafatChecklist(twin) {
+  return [
+    // Energy Efficiency
+    {
+      id: "SAF-EN-01",
+      category: "Energy Efficiency",
+      requirement: "Building envelope U-value compliance (walls \u22640.57 W/m\xB2K)",
+      minTier: "Bronze",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "SAF-EN-02",
+      category: "Energy Efficiency",
+      requirement: "Glazing SHGC \u22640.25 for east/west facades",
+      minTier: "Bronze",
+      autoEvaluated: true,
+      status: (twin.glazingRatio ?? 0.3) <= 0.4 ? "pass" : "fail",
+      notes: "Lower glazing ratio reduces solar heat gain"
+    },
+    {
+      id: "SAF-EN-03",
+      category: "Energy Efficiency",
+      requirement: "Energy performance \u2264150 kWh/m\xB2/yr",
+      minTier: "Bronze",
+      autoEvaluated: true,
+      status: twin.energyPerSqm <= 150 ? "pass" : "fail",
+      score: twin.energyPerSqm,
+      threshold: 150,
+      unit: "kWh/m\xB2/yr"
+    },
+    {
+      id: "SAF-EN-04",
+      category: "Energy Efficiency",
+      requirement: "Energy performance \u2264110 kWh/m\xB2/yr",
+      minTier: "Silver",
+      autoEvaluated: true,
+      status: twin.energyPerSqm <= 110 ? "pass" : "fail",
+      score: twin.energyPerSqm,
+      threshold: 110,
+      unit: "kWh/m\xB2/yr"
+    },
+    {
+      id: "SAF-EN-05",
+      category: "Energy Efficiency",
+      requirement: "Energy performance \u226480 kWh/m\xB2/yr",
+      minTier: "Gold",
+      autoEvaluated: true,
+      status: twin.energyPerSqm <= 80 ? "pass" : "fail",
+      score: twin.energyPerSqm,
+      threshold: 80,
+      unit: "kWh/m\xB2/yr"
+    },
+    {
+      id: "SAF-EN-06",
+      category: "Energy Efficiency",
+      requirement: "On-site renewable energy generation",
+      minTier: "Gold",
+      autoEvaluated: true,
+      status: twin.includeRenewables ? "pass" : "fail"
+    },
+    // Water Efficiency
+    {
+      id: "SAF-WA-01",
+      category: "Water Efficiency",
+      requirement: "Low-flow fixtures (\u22648 L/min showers, \u22646 L flush)",
+      minTier: "Bronze",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "SAF-WA-02",
+      category: "Water Efficiency",
+      requirement: "Condensate recovery from HVAC",
+      minTier: "Silver",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "SAF-WA-03",
+      category: "Water Efficiency",
+      requirement: "Greywater treatment and reuse system",
+      minTier: "Gold",
+      autoEvaluated: true,
+      status: twin.waterRecycling ? "pass" : "fail"
+    },
+    // Materials & Waste
+    {
+      id: "SAF-MW-01",
+      category: "Materials & Waste",
+      requirement: "Construction waste management (\u226550% diversion)",
+      minTier: "Bronze",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "SAF-MW-02",
+      category: "Materials & Waste",
+      requirement: "Embodied carbon assessment conducted",
+      minTier: "Silver",
+      autoEvaluated: true,
+      status: twin.carbonPerSqm > 0 ? "pass" : "pending",
+      notes: `Measured: ${twin.carbonPerSqm} kgCO\u2082e/m\xB2`
+    },
+    {
+      id: "SAF-MW-03",
+      category: "Materials & Waste",
+      requirement: "Embodied carbon \u2264400 kgCO\u2082e/m\xB2",
+      minTier: "Gold",
+      autoEvaluated: true,
+      status: twin.carbonPerSqm <= 400 ? "pass" : "fail",
+      score: twin.carbonPerSqm,
+      threshold: 400,
+      unit: "kgCO\u2082e/m\xB2"
+    },
+    {
+      id: "SAF-MW-04",
+      category: "Materials & Waste",
+      requirement: "\u226530% materials from recycled/regional sources",
+      minTier: "Platinum",
+      autoEvaluated: true,
+      status: twin.materialCircularity >= 60 ? "pass" : "fail",
+      score: twin.materialCircularity,
+      threshold: 60,
+      unit: "score"
+    },
+    // Indoor Environment
+    {
+      id: "SAF-IE-01",
+      category: "Indoor Environment",
+      requirement: "Low-VOC paints and adhesives",
+      minTier: "Bronze",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "SAF-IE-02",
+      category: "Indoor Environment",
+      requirement: "Thermal comfort per ASHRAE 55",
+      minTier: "Silver",
+      autoEvaluated: true,
+      status: twin.energyRating >= 45 ? "pass" : "fail",
+      score: twin.energyRating,
+      threshold: 45,
+      unit: "rating"
+    },
+    // MEP Systems
+    {
+      id: "SAF-MEP-01",
+      category: "MEP Systems",
+      requirement: "District cooling connection or high-efficiency chiller (COP \u22655.5)",
+      minTier: "Silver",
+      autoEvaluated: false,
+      status: "pending"
+    },
+    {
+      id: "SAF-MEP-02",
+      category: "MEP Systems",
+      requirement: "BMS (Building Management System) installed",
+      minTier: "Gold",
+      autoEvaluated: false,
+      status: "pending"
+    }
+  ];
+}
+function determineEstidamaTier(checklist) {
+  for (let i = ESTIDAMA_TIERS.length - 1; i >= 0; i--) {
+    const tier = ESTIDAMA_TIERS[i];
+    const required = checklist.filter((c) => {
+      const tierIndex = ESTIDAMA_TIERS.indexOf(c.minTier);
+      return tierIndex >= 0 && tierIndex <= i;
+    });
+    const allPassed = required.every((c) => c.status === "pass" || c.status === "na");
+    if (allPassed && required.length > 0) return tier;
+  }
+  return "Below Pearl 1";
+}
+function determineAlSafatTier(checklist) {
+  for (let i = ALSAFAT_TIERS.length - 1; i >= 0; i--) {
+    const tier = ALSAFAT_TIERS[i];
+    const required = checklist.filter((c) => {
+      const tierIndex = ALSAFAT_TIERS.indexOf(c.minTier);
+      return tierIndex >= 0 && tierIndex <= i;
+    });
+    const allPassed = required.every((c) => c.status === "pass" || c.status === "na");
+    if (allPassed && required.length > 0) return tier;
+  }
+  return "Below Bronze";
+}
+function evaluateEstidama(twin) {
+  const checklist = buildEstidamaChecklist(twin);
+  const passed = checklist.filter((c) => c.status === "pass").length;
+  const failed = checklist.filter((c) => c.status === "fail").length;
+  const pending = checklist.filter((c) => c.status === "pending").length;
+  const na = checklist.filter((c) => c.status === "na").length;
+  return {
+    standard: "estidama",
+    standardLabel: "Estidama Pearl Rating (Abu Dhabi UPC)",
+    achievedTier: determineEstidamaTier(checklist),
+    maxPossibleTier: "Pearl 5",
+    totalItems: checklist.length,
+    passed,
+    failed,
+    pending,
+    na,
+    checklist
+  };
+}
+function evaluateAlSafat(twin) {
+  const checklist = buildAlSafatChecklist(twin);
+  const passed = checklist.filter((c) => c.status === "pass").length;
+  const failed = checklist.filter((c) => c.status === "fail").length;
+  const pending = checklist.filter((c) => c.status === "pending").length;
+  const na = checklist.filter((c) => c.status === "na").length;
+  return {
+    standard: "alsafat",
+    standardLabel: "Al Sa'fat (Dubai Green Building Regulations)",
+    achievedTier: determineAlSafatTier(checklist),
+    maxPossibleTier: "Platinum",
+    totalItems: checklist.length,
+    passed,
+    failed,
+    pending,
+    na,
+    checklist
+  };
+}
+function evaluateCompliance(twin) {
+  return {
+    estidama: evaluateEstidama(twin),
+    alsafat: evaluateAlSafat(twin)
+  };
+}
+
 // server/routers/sustainability.ts
 var materialEnum = z21.enum([
   "concrete",
@@ -23336,6 +24223,42 @@ var sustainabilityRouter = router({
     if (!d) return null;
     const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
     return rows[0] || null;
+  }),
+  evaluateCompliance: protectedProcedure.input(z21.object({
+    projectId: z21.number()
+  })).query(async ({ input }) => {
+    const d = await getDb();
+    if (!d) throw new Error("Database unavailable");
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new Error("Project not found");
+    const city = project.city || "Dubai";
+    const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
+    const twin = rows[0];
+    if (!twin) throw new Error("No digital twin computed yet. Run 'Compute Twin' first.");
+    const config = twin.config || {};
+    const result = evaluateCompliance({
+      carbonPerSqm: Number(twin.carbonPerSqm),
+      energyPerSqm: Number(twin.energyPerSqm),
+      coolingLoad: 0,
+      operationalEnergy: Number(twin.operationalEnergy),
+      sustainabilityScore: twin.sustainabilityScore ?? 0,
+      carbonEfficiency: 0,
+      energyRating: 0,
+      materialCircularity: 0,
+      waterEfficiency: 0,
+      gfa: config.gfa ?? 500,
+      specLevel: config.specLevel ?? "standard",
+      location: config.location ?? "dubai",
+      includeRenewables: config.includeRenewables ?? false,
+      waterRecycling: config.waterRecycling ?? false,
+      glazingRatio: config.glazingRatio ?? 0.35
+    });
+    return {
+      ...result,
+      city,
+      certSystem: city === "Abu Dhabi" ? "Estidama Pearl" : "Al Sa'fat",
+      sustainCertTarget: project.sustainCertTarget || (city === "Abu Dhabi" ? "pearl_1" : "silver")
+    };
   })
 });
 

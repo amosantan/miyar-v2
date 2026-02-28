@@ -6,6 +6,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
+import { getPricingArea } from "../engines/area-utils";
 import { predictCostRange, predictOutcome, projectScenarioCost } from "../engines/predictive";
 import { matchScoreMatrixToPatterns } from "../engines/learning/pattern-extractor";
 import { decisionPatterns } from "../../drizzle/schema";
@@ -147,8 +148,8 @@ export const predictiveRouter = router({
       const project = await db.getProjectById(input.projectId);
       if (!project) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const gfa = Number(project.ctx03Gfa) || 0;
-      // Derive budget per sqm from budget cap / GFA
+      const gfa = getPricingArea(project);
+      // Derive budget per sqm from budget cap / pricing area
       const budgetCap = Number(project.fin01BudgetCap) || 0;
       const budgetPerSqm = gfa > 0 ? budgetCap / gfa : 0;
 

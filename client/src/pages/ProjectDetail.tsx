@@ -1141,12 +1141,13 @@ function ProjectDetailContent() {
             {[
               ["Typology", project.ctx01Typology],
               ["Scale", project.ctx02Scale],
-              ["GFA", project.ctx03Gfa ? `${Number(project.ctx03Gfa).toLocaleString()} sqft` : "—"],
+              ["GFA", project.ctx03Gfa ? `${Number(project.ctx03Gfa).toLocaleString()} sqm` : "—"],
+              ["Fit-out Area", (project as any).totalFitoutArea ? `${Number((project as any).totalFitoutArea).toLocaleString()} sqm` : "—"],
               ["Location", project.ctx04Location],
               ["Horizon", project.ctx05Horizon],
               ["Market Tier", project.mkt01Tier],
               ["Style", project.des01Style],
-              ["Budget Cap", project.fin01BudgetCap ? `${Number(project.fin01BudgetCap)} AED/sqft` : "—"],
+              ["Budget Cap", project.fin01BudgetCap ? `${Number(project.fin01BudgetCap)} AED/sqm` : "—"],
               ["Brand Clarity", `${project.str01BrandClarity}/5`],
               ["Differentiation", `${project.str02Differentiation}/5`],
               ["Material Level", `${project.des02MaterialLevel}/5`],
@@ -1154,9 +1155,9 @@ function ProjectDetailContent() {
               ["Contractor", `${project.exe02Contractor}/5`],
               ["Supply Chain", `${project.exe01SupplyChain}/5`],
             ].map(([label, value]) => (
-              <div key={label as string}>
-                <p className="text-muted-foreground text-xs">{label}</p>
-                <p className="text-foreground font-medium">{value}</p>
+              <div key={String(label)}>
+                <p className="text-muted-foreground text-xs">{String(label)}</p>
+                <p className="text-foreground font-medium">{typeof value === "object" ? JSON.stringify(value) : String(value ?? "—")}</p>
               </div>
             ))}
           </div>
@@ -1173,72 +1174,102 @@ function ProjectDetailContent() {
             {project.developerGuidelines && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-foreground">Developer Guidelines & Target Audience</h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{project.developerGuidelines as string}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{typeof project.developerGuidelines === "object" ? JSON.stringify(project.developerGuidelines, null, 2) : String(project.developerGuidelines)}</p>
               </div>
             )}
             {project.unitMix && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-foreground">Unit Mix</h4>
-                {Array.isArray(project.unitMix) ? (
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-muted/30">
-                          <th className="text-left p-2 text-xs text-muted-foreground font-medium">Unit Type</th>
-                          <th className="text-right p-2 text-xs text-muted-foreground font-medium">Area (sqm)</th>
-                          <th className="text-right p-2 text-xs text-muted-foreground font-medium">Count</th>
-                          <th className="text-center p-2 text-xs text-muted-foreground font-medium">In Fitout</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(project.unitMix as any[]).map((u: any, i: number) => (
-                          <tr key={i} className="border-t border-border/50">
-                            <td className="p-2 text-foreground">{u.unitType}</td>
-                            <td className="p-2 text-right text-foreground">{u.areaSqm}</td>
-                            <td className="p-2 text-right text-foreground">{u.count}</td>
-                            <td className="p-2 text-center text-foreground">{u.includeInFitout ? "✓" : "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{typeof project.unitMix === "object" ? JSON.stringify(project.unitMix, null, 2) : String(project.unitMix)}</p>
-                )}
+                {(() => {
+                  // Safely parse unitMix — MySQL JSON columns can return strings or parsed objects
+                  let units: any[] = [];
+                  try {
+                    const raw = project.unitMix;
+                    if (Array.isArray(raw)) {
+                      units = raw;
+                    } else if (typeof raw === "string") {
+                      const parsed = JSON.parse(raw);
+                      units = Array.isArray(parsed) ? parsed : [];
+                    }
+                  } catch { /* ignore parse errors */ }
+
+                  if (units.length > 0) {
+                    return (
+                      <div className="rounded-lg border border-border overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-muted/30">
+                              <th className="text-left p-2 text-xs text-muted-foreground font-medium">Unit Type</th>
+                              <th className="text-right p-2 text-xs text-muted-foreground font-medium">Area (sqm)</th>
+                              <th className="text-right p-2 text-xs text-muted-foreground font-medium">Count</th>
+                              <th className="text-center p-2 text-xs text-muted-foreground font-medium">In Fitout</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {units.map((u: any, i: number) => (
+                              <tr key={i} className="border-t border-border/50">
+                                <td className="p-2 text-foreground">{String(u.unitType ?? "")}</td>
+                                <td className="p-2 text-right text-foreground">{String(u.areaSqm ?? 0)}</td>
+                                <td className="p-2 text-right text-foreground">{String(u.count ?? 0)}</td>
+                                <td className="p-2 text-center text-foreground">{u.includeInFitout ? "✓" : "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  }
+                  // Fallback: show raw JSON
+                  return <p className="text-sm text-muted-foreground whitespace-pre-wrap">{JSON.stringify(project.unitMix, null, 2)}</p>;
+                })()}
               </div>
             )}
             {project.villaSpaces && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-foreground">Villa Spaces</h4>
-                {Array.isArray(project.villaSpaces) ? (
-                  <div className="space-y-3">
-                    {(project.villaSpaces as any[]).map((floor: any, fi: number) => (
-                      <div key={fi}>
-                        <p className="text-xs text-muted-foreground mb-1 font-medium">{floor.floor}</p>
-                        <div className="rounded-lg border border-border overflow-hidden">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="bg-muted/30">
-                                <th className="text-left p-2 text-xs text-muted-foreground font-medium">Room</th>
-                                <th className="text-right p-2 text-xs text-muted-foreground font-medium">Area (sqm)</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(floor.rooms || []).map((r: any, ri: number) => (
-                                <tr key={ri} className="border-t border-border/50">
-                                  <td className="p-2 text-foreground">{r.name}</td>
-                                  <td className="p-2 text-right text-foreground">{r.areaSqm}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                {(() => {
+                  let floors: any[] = [];
+                  try {
+                    const raw = project.villaSpaces;
+                    if (Array.isArray(raw)) {
+                      floors = raw;
+                    } else if (typeof raw === "string") {
+                      const parsed = JSON.parse(raw);
+                      floors = Array.isArray(parsed) ? parsed : [];
+                    }
+                  } catch { /* ignore parse errors */ }
+
+                  if (floors.length > 0) {
+                    return (
+                      <div className="space-y-3">
+                        {floors.map((floor: any, fi: number) => (
+                          <div key={fi}>
+                            <p className="text-xs text-muted-foreground mb-1 font-medium">{String(floor.floor ?? `Floor ${fi + 1}`)}</p>
+                            <div className="rounded-lg border border-border overflow-hidden">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="bg-muted/30">
+                                    <th className="text-left p-2 text-xs text-muted-foreground font-medium">Room</th>
+                                    <th className="text-right p-2 text-xs text-muted-foreground font-medium">Area (sqm)</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(Array.isArray(floor.rooms) ? floor.rooms : []).map((r: any, ri: number) => (
+                                    <tr key={ri} className="border-t border-border/50">
+                                      <td className="p-2 text-foreground">{String(r.name ?? "")}</td>
+                                      <td className="p-2 text-right text-foreground">{String(r.areaSqm ?? 0)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{typeof project.villaSpaces === "object" ? JSON.stringify(project.villaSpaces, null, 2) : String(project.villaSpaces)}</p>
-                )}
+                    );
+                  }
+                  return <p className="text-sm text-muted-foreground whitespace-pre-wrap">{JSON.stringify(project.villaSpaces, null, 2)}</p>;
+                })()}
               </div>
             )}
           </CardContent>

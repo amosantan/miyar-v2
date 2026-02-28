@@ -10,6 +10,7 @@ import { storagePut } from "../storage";
 import { generateDesignBrief, type DesignBriefData } from "../engines/design-brief";
 import { getAreaSaleMedianSqm } from "../engines/dld-analytics";
 import { getLiveCategoryPricing } from "../engines/pricing-engine";
+import { getPricingArea } from "../engines/area-utils";
 import { buildRFQFromBrief } from "../engines/design/rfq-generator";
 import { buildPromptContext, interpolateTemplate, generateDefaultPrompt, validatePrompt } from "../engines/visual-gen";
 import { computeBoardSummary, generateRfqLines, recommendMaterials } from "../engines/board-composer";
@@ -1278,7 +1279,7 @@ export const designRouter = router({
         db.getDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
       ]);
       const totalFitoutBudget = (recs ?? []).reduce((s: number, r: any) => s + Number(r.budgetAllocation || 0), 0);
-      const gfa = Number(project.ctx03Gfa ?? 0);
+      const gfa = getPricingArea(project);
       const costPerSqm = gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0;
       const TIER_PREMIUM_PCT: Record<string, number> = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
       const salePremiumPct = TIER_PREMIUM_PCT[project.mkt01Tier ?? "Upper-mid"] ?? 8;
@@ -1346,7 +1347,7 @@ export const designRouter = router({
         db.getDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
       ]);
       const totalFitoutBudget = (recs ?? []).reduce((s: number, r: any) => s + Number(r.budgetAllocation || 0), 0);
-      const gfa = Number(project.ctx03Gfa ?? 0);
+      const gfa = getPricingArea(project);
       const TIER_PREMIUM_PCT: Record<string, number> = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
       const salePremiumPct = TIER_PREMIUM_PCT[project.mkt01Tier ?? "Upper-mid"] ?? 8;
       const SQF = 10.7639;

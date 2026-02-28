@@ -8,6 +8,7 @@ import {
   varchar,
   decimal,
   boolean,
+  float,
   json,
 } from "drizzle-orm/mysql-core";
 
@@ -188,6 +189,8 @@ export const projects = mysqlTable("projects", {
     "hospitality",
     "community",
   ]),
+  officeFitoutCategory: mysqlEnum("officeFitoutCategory", ["catA", "catB"]),
+  officeCustomRatio: decimal("officeCustomRatio", { precision: 5, scale: 2 }),
   ctx04Location: mysqlEnum("ctx04Location", [
     "Prime",
     "Secondary",
@@ -318,7 +321,10 @@ export const scoreMatrices = mysqlTable("score_matrices", {
     precision: 6,
     scale: 2,
   }).notNull(),
-  riskScore: decimal("riskScore", { precision: 6, scale: 2 }).notNull(),
+  riskScore: decimal("riskScore", {
+    precision: 6,
+    scale: 2,
+  }).notNull(),
   rasScore: decimal("rasScore", { precision: 6, scale: 2 }).notNull(),
   confidenceScore: decimal("confidenceScore", {
     precision: 6,
@@ -1845,7 +1851,7 @@ export const sustainabilitySnapshots = mysqlTable("sustainability_snapshots", {
   embodiedCarbon: decimal("embodiedCarbon", { precision: 18, scale: 2 }).notNull(),
   operationalEnergy: decimal("operationalEnergy", { precision: 18, scale: 2 }).notNull(),
   lifecycleCost: decimal("lifecycleCost", { precision: 18, scale: 2 }).notNull(),
-  carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }),
+  carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }).notNull(),
   energyRating: varchar("energyRating", { length: 2 }),
   renewablesEnabled: boolean("renewablesEnabled").default(false),
   waterRecycling: boolean("waterRecycling").default(false),
@@ -1955,8 +1961,8 @@ export const dldRents = mysqlTable("dld_rents", {
   masterProjectEn: varchar("master_project_en", { length: 300 }),
   annualAmount: decimal("annual_amount", { precision: 12, scale: 2 }),  // Annual rent AED
   contractAmount: decimal("contract_amount", { precision: 12, scale: 2 }),
-  actualArea: decimal("actual_area", { precision: 10, scale: 2 }),      // Area in sqm
-  rentPerSqm: decimal("rent_per_sqm", { precision: 10, scale: 2 }),    // Calculated: annual / area
+  actualArea: decimal("actual_area", { precision: 14, scale: 2 }),      // Area in sqm
+  rentPerSqm: decimal("rent_per_sqm", { precision: 14, scale: 2 }),    // Calculated: annual / area
   contractStartDate: varchar("contract_start_date", { length: 20 }),
   contractEndDate: varchar("contract_end_date", { length: 20 }),
   tenantTypeEn: varchar("tenant_type_en", { length: 50 }),

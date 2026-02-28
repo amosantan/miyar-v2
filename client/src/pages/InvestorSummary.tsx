@@ -13,6 +13,7 @@ import {
     AlertCircle, Loader2, Target, BarChart3, Globe, ExternalLink, Share2, FileText, Check,
     MapPin,
 } from "lucide-react";
+import RoomCostWaterfall from "@/components/RoomCostWaterfall";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 import { useState } from "react";
@@ -353,9 +354,9 @@ function InvestorSummaryContent() {
                                     {spaceData.map((s: { name: string; budget: number; sqm: number; pct: number }) => (
                                         <div key={s.name} className="flex items-center gap-3">
                                             <span className="w-28 text-xs text-muted-foreground truncate">{s.name}</span>
-                                            <div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
+                                            <div className="flex-1 h-3 bg-[#0A1628] border border-[#1E2D42] rounded-full overflow-hidden shadow-inner">
                                                 <div
-                                                    className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary transition-all"
+                                                    className="h-full rounded-full bg-gradient-to-r from-[#f2a60d]/40 to-[#f2a60d] transition-all drop-shadow-[0_0_4px_rgba(242,166,13,0.6)]"
                                                     style={{ width: `${s.pct}%` }}
                                                 />
                                             </div>
@@ -367,6 +368,10 @@ function InvestorSummaryContent() {
                                 {/* RFQ section removed — no direct listRfqLines endpoint yet */}
                             </CardContent>
                         </Card>
+
+                        <div className="mt-3">
+                            <RoomCostWaterfall data={spaceData} totalBudget={totalFitoutBudget} />
+                        </div>
                     </div>
 
                     {/* ── Section D: ROI Bridge ──────────────────────────────────── */}
@@ -495,8 +500,8 @@ function InvestorSummaryContent() {
                                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recommended Fitout Band</p>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-xs text-muted-foreground">{Math.round(dldBenchmark.fitoutLow).toLocaleString()}</span>
-                                                    <div className="flex-1 h-2.5 bg-secondary rounded-full overflow-hidden relative">
-                                                        <div className="absolute inset-y-0 bg-gradient-to-r from-emerald-500/60 to-primary rounded-full" style={{ left: "15%", right: "15%" }} />
+                                                    <div className="flex-1 h-3 bg-[#0A1628] border border-[#1E2D42] rounded-full overflow-hidden relative shadow-inner">
+                                                        <div className="absolute inset-y-0 bg-gradient-to-r from-[#1A2332] via-[#f2a60d]/80 to-[#f2a60d] rounded-full drop-shadow-[0_0_6px_rgba(242,166,13,0.5)]" style={{ left: "15%", right: "15%" }} />
                                                         {costPerSqm > 0 && (
                                                             <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-4 bg-foreground rounded-full"
                                                                 style={{ left: `${Math.min(100, Math.max(0, ((costPerSqm - dldBenchmark.fitoutLow) / (dldBenchmark.fitoutHigh - dldBenchmark.fitoutLow)) * 70 + 15))}%` }} />
