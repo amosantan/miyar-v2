@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PageHeader } from "@/components/PageHeader";
 import { GitCompare, ArrowUpDown, TrendingUp, TrendingDown, Minus, FileText, Download } from "lucide-react";
 
 export default function ScenarioComparison() {
@@ -66,14 +67,12 @@ export default function ScenarioComparison() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <GitCompare className="h-6 w-6 text-indigo-500" /> Scenario Comparison
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Compare scenarios side-by-side with delta analysis
-        </p>
-      </div>
+      <PageHeader
+        title="Scenario Comparison"
+        description="Compare scenarios side-by-side with delta analysis"
+        icon={GitCompare}
+        breadcrumbs={[{ label: "Analysis" }, { label: "Scenarios", path: "/scenarios" }, { label: "Compare" }]}
+      />
 
       {/* Create Comparison */}
       <Card>

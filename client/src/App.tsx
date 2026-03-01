@@ -6,6 +6,7 @@ import { Route, Switch } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { RequireAuth, RequireAdmin } from "./components/RouteGuards";
+import { PageErrorBoundary } from "./components/PageErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -79,6 +80,20 @@ function Protected({ Component }: { Component: React.ComponentType<any> }) {
   );
 }
 
+// Helper: wrap project sub-pages with an in-page error boundary
+// so crashes don't show a blank "Unexpected Error" screen
+function ProjectPage({ Component }: { Component: React.ComponentType<any> }) {
+  return (
+    <RequireAuth>
+      <DashboardLayout>
+        <PageErrorBoundary backLabel="Back to Projects" backHref="/projects">
+          <Component />
+        </PageErrorBoundary>
+      </DashboardLayout>
+    </RequireAuth>
+  );
+}
+
 // Helper: wrap a component with RequireAuth + RequireAdmin and DashboardLayout
 function AdminOnly({ Component }: { Component: React.ComponentType<any> }) {
   return (
@@ -104,18 +119,18 @@ function Router() {
       <Route path="/dashboard">{() => <Protected Component={Dashboard} />}</Route>
       <Route path="/projects">{() => <Protected Component={Projects} />}</Route>
       <Route path="/projects/new">{() => <Protected Component={ProjectNew} />}</Route>
-      <Route path="/projects/:id">{() => <Protected Component={ProjectDetail} />}</Route>
-      <Route path="/projects/:id/evidence">{() => <Protected Component={EvidenceVault} />}</Route>
-      <Route path="/projects/:id/brief">{() => <Protected Component={DesignBrief} />}</Route>
-      <Route path="/projects/:id/design-studio">{() => <Protected Component={DesignStudio} />}</Route>
-      <Route path="/projects/:id/collaboration">{() => <Protected Component={Collaboration} />}</Route>
-      <Route path="/projects/:id/design-advisor">{() => <Protected Component={DesignAdvisor} />}</Route>
-      <Route path="/projects/:id/investor-summary">{() => <Protected Component={InvestorSummary} />}</Route>
-      <Route path="/projects/:id/brief-editor">{() => <Protected Component={BriefEditor} />}</Route>
-      <Route path="/projects/:id/explainability">{() => <Protected Component={Explainability} />}</Route>
-      <Route path="/projects/:id/outcomes">{() => <Protected Component={Outcomes} />}</Route>
-      <Route path="/projects/:id/verify-areas">{() => <Protected Component={AreaVerification} />}</Route>
-      <Route path="/projects/:id/space-planner">{() => <Protected Component={SpacePlanner} />}</Route>
+      <Route path="/projects/:id">{() => <ProjectPage Component={ProjectDetail} />}</Route>
+      <Route path="/projects/:id/evidence">{() => <ProjectPage Component={EvidenceVault} />}</Route>
+      <Route path="/projects/:id/brief">{() => <ProjectPage Component={DesignBrief} />}</Route>
+      <Route path="/projects/:id/design-studio">{() => <ProjectPage Component={DesignStudio} />}</Route>
+      <Route path="/projects/:id/collaboration">{() => <ProjectPage Component={Collaboration} />}</Route>
+      <Route path="/projects/:id/design-advisor">{() => <ProjectPage Component={DesignAdvisor} />}</Route>
+      <Route path="/projects/:id/investor-summary">{() => <ProjectPage Component={InvestorSummary} />}</Route>
+      <Route path="/projects/:id/brief-editor">{() => <ProjectPage Component={BriefEditor} />}</Route>
+      <Route path="/projects/:id/explainability">{() => <ProjectPage Component={Explainability} />}</Route>
+      <Route path="/projects/:id/outcomes">{() => <ProjectPage Component={Outcomes} />}</Route>
+      <Route path="/projects/:id/verify-areas">{() => <ProjectPage Component={AreaVerification} />}</Route>
+      <Route path="/projects/:id/space-planner">{() => <ProjectPage Component={SpacePlanner} />}</Route>
       <Route path="/results">{() => <Protected Component={Results} />}</Route>
       <Route path="/scenarios">{() => <Protected Component={Scenarios} />}</Route>
       <Route path="/scenarios/templates">{() => <Protected Component={ScenarioTemplates} />}</Route>

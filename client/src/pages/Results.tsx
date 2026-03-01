@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { PageHeader } from "@/components/PageHeader";
 import { BarChart3, TrendingUp, Loader2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import {
@@ -53,12 +54,12 @@ function ResultsContent() {
 
   const radarData = latestScore
     ? [
-        { dimension: "Strategic Alignment", value: Number(latestScore.saScore) },
-        { dimension: "Financial Feasibility", value: Number(latestScore.ffScore) },
-        { dimension: "Market Positioning", value: Number(latestScore.mpScore) },
-        { dimension: "Differentiation", value: Number(latestScore.dsScore) },
-        { dimension: "Execution Risk", value: Number(latestScore.erScore) },
-      ]
+      { dimension: "Strategic Alignment", value: Number(latestScore.saScore) },
+      { dimension: "Financial Feasibility", value: Number(latestScore.ffScore) },
+      { dimension: "Market Positioning", value: Number(latestScore.mpScore) },
+      { dimension: "Differentiation", value: Number(latestScore.dsScore) },
+      { dimension: "Execution Risk", value: Number(latestScore.erScore) },
+    ]
     : [];
 
   const sensitivityData = (sensitivity ?? []).slice(0, 10).map((s) => ({
@@ -70,33 +71,31 @@ function ResultsContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            Results & Analysis
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Detailed scoring breakdown and sensitivity analysis
-          </p>
-        </div>
-        {evaluatedProjects.length > 0 && (
-          <Select
-            value={selectedId || String(evaluatedProjects[0]?.id ?? "")}
-            onValueChange={setSelectedId}
-          >
-            <SelectTrigger className="w-[250px]">
-              <SelectValue placeholder="Select project" />
-            </SelectTrigger>
-            <SelectContent>
-              {evaluatedProjects.map((p) => (
-                <SelectItem key={p.id} value={String(p.id)}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
+      <PageHeader
+        title="Results & Analysis"
+        description="Detailed scoring breakdown and sensitivity analysis"
+        icon={BarChart3}
+        breadcrumbs={[{ label: "Analysis" }, { label: "Results" }]}
+        actions={
+          evaluatedProjects.length > 0 ? (
+            <Select
+              value={selectedId || String(evaluatedProjects[0]?.id ?? "")}
+              onValueChange={setSelectedId}
+            >
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                {evaluatedProjects.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : undefined
+        }
+      />
 
       {!projectId ? (
         <Card>

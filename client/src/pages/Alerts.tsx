@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function Alerts() {
     const [statusFilter, setStatusFilter] = useState<string>("active");
@@ -69,42 +70,41 @@ export default function Alerts() {
     return (
         <>
             <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Notification Centre</h1>
-                        <p className="text-muted-foreground mt-1">
-                            Manage and review autonomous system alerts.
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-card border rounded-md p-1">
-                        <Filter className="h-4 w-4 ml-2 text-muted-foreground" />
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Statuses</SelectItem>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="acknowledged">Acknowledged</SelectItem>
-                                <SelectItem value="resolved">Resolved</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <div className="w-px h-6 bg-border mx-1" />
-                        <Select value={severityFilter} onValueChange={setSeverityFilter}>
-                            <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0">
-                                <SelectValue placeholder="Severity" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Severities</SelectItem>
-                                <SelectItem value="critical">Critical</SelectItem>
-                                <SelectItem value="high">High</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="info">Info</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Notification Centre"
+                    description="Manage and review autonomous system alerts"
+                    icon={Bell}
+                    breadcrumbs={[{ label: "Alerts" }]}
+                    actions={
+                        <div className="flex items-center gap-2 bg-card border rounded-md p-1">
+                            <Filter className="h-4 w-4 ml-2 text-muted-foreground" />
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0">
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Statuses</SelectItem>
+                                    <SelectItem value="active">Active</SelectItem>
+                                    <SelectItem value="acknowledged">Acknowledged</SelectItem>
+                                    <SelectItem value="resolved">Resolved</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <div className="w-px h-6 bg-border mx-1" />
+                            <Select value={severityFilter} onValueChange={setSeverityFilter}>
+                                <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0">
+                                    <SelectValue placeholder="Severity" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Severities</SelectItem>
+                                    <SelectItem value="critical">Critical</SelectItem>
+                                    <SelectItem value="high">High</SelectItem>
+                                    <SelectItem value="medium">Medium</SelectItem>
+                                    <SelectItem value="info">Info</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    }
+                />
 
                 {isLoading ? (
                     <div className="space-y-4">
