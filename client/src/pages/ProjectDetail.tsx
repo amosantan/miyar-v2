@@ -524,6 +524,15 @@ function ProjectDetailContent() {
             <Calculator className="h-3.5 w-3.5" />
             Brief Editor
           </Button>
+          <Button
+            onClick={() => setLocation(`/projects/${project.id}/space-planner`)}
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Space Planner
+          </Button>
         </div>
       </div>
 
