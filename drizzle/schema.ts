@@ -364,6 +364,10 @@ export const projects = mysqlTable("projects", {
   villaSpaces: json("villaSpaces"),
   developerGuidelines: json("developerGuidelines"),
 
+  // Phase 9: Floor Plan Intelligence
+  floorPlanAssetId: int("floorPlanAssetId"), // FK to project_assets
+  floorPlanAnalysis: json("floorPlanAnalysis"), // AI-extracted room breakdown
+
   modelVersionId: int("modelVersionId"),
   benchmarkVersionId: int("benchmarkVersionId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

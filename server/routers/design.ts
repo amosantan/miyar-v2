@@ -12,7 +12,9 @@ import { getAreaSaleMedianSqm } from "../engines/dld-analytics";
 import { getLiveCategoryPricing } from "../engines/pricing-engine";
 import { getPricingArea } from "../engines/area-utils";
 import { buildRFQFromBrief } from "../engines/design/rfq-generator";
-import { buildPromptContext, interpolateTemplate, generateDefaultPrompt, validatePrompt } from "../engines/visual-gen";
+import { buildPromptContext, buildBoardAwarePromptContext, buildRoomPromptContext, interpolateTemplate, generateDefaultPrompt, generateRoomRenderPrompt, validatePrompt } from "../engines/visual-gen";
+import { analyzeFloorPlan as runFloorPlanAnalysis } from "../engines/design/floor-plan-analyzer";
+import { benchmarkSpaceRatios } from "../engines/design/space-benchmarking";
 import { computeBoardSummary, generateRfqLines } from "../engines/board-composer";
 import { matchVendorsForProject } from "../engines/procurement/vendor-matching";
 import { generateImage } from "../_core/imageGeneration";
@@ -367,7 +369,35 @@ export const designRouter = router({
         }
       }
 
-      const context = buildPromptContext(inputs);
+      // Phase 9: Try to use board-aware context for material-deterministic renders
+      let context;
+      const boards = await db.getMaterialBoardsByProject(input.projectId);
+      if (boards && boards.length > 0) {
+        const activeBoard = boards[0];
+        const boardMaterials = await db.getMaterialsByBoard(activeBoard.id);
+        const enrichedMaterials = [];
+        for (const bm of boardMaterials) {
+          const mat = await db.getMaterialById(bm.materialId);
+          if (mat) {
+            enrichedMaterials.push({
+              name: mat.name,
+              category: mat.category,
+              tier: mat.tier,
+              supplierName: mat.supplierName,
+              costUnit: mat.costUnit,
+              costLow: Number(mat.typicalCostLow) || 0,
+              costHigh: Number(mat.typicalCostHigh) || 0,
+              embodiedCarbon: mat.embodiedCarbon ? parseFloat(String(mat.embodiedCarbon)) : null,
+              maintenanceFactor: mat.maintenanceFactor ? parseFloat(String(mat.maintenanceFactor)) : null,
+              brandStandardApproval: mat.brandStandardApproval || null,
+            });
+          }
+        }
+        context = buildBoardAwarePromptContext(inputs, enrichedMaterials, project.brandStandardConstraints);
+        console.log(`[Visual] Using board-aware context with ${enrichedMaterials.length} materials for project ${input.projectId}`);
+      } else {
+        context = buildPromptContext(inputs);
+      }
 
       // Build prompt
       let prompt: string;
@@ -1399,6 +1429,166 @@ export const designRouter = router({
         designTrends: trends, expiresAt: brief.shareExpiresAt?.toISOString(),
       };
     }),
-});
 
+  // ─── Phase 9: Room-Specific Render ─────────────────────────────────────────
+
+  generateRoomRender: protectedProcedure
+    .input(z.object({
+      projectId: z.number(),
+      roomName: z.string(),
+      roomType: z.string(),
+      roomSqm: z.number(),
+      finishGrade: z.enum(["A", "B", "C"]).default("A"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+
+      const inputs = projectToInputs(project);
+
+      // Fetch board materials for material-accurate renders
+      const boards = await db.getMaterialBoardsByProject(input.projectId);
+      const enrichedMaterials: any[] = [];
+      if (boards && boards.length > 0) {
+        const boardMaterials = await db.getMaterialsByBoard(boards[0].id);
+        for (const bm of boardMaterials) {
+          const mat = await db.getMaterialById(bm.materialId);
+          if (mat) {
+            enrichedMaterials.push({
+              name: mat.name,
+              category: mat.category,
+              tier: mat.tier,
+              supplierName: mat.supplierName,
+              costUnit: mat.costUnit,
+              costLow: Number(mat.typicalCostLow) || 0,
+              costHigh: Number(mat.typicalCostHigh) || 0,
+              embodiedCarbon: mat.embodiedCarbon ? parseFloat(String(mat.embodiedCarbon)) : null,
+              maintenanceFactor: mat.maintenanceFactor ? parseFloat(String(mat.maintenanceFactor)) : null,
+              brandStandardApproval: mat.brandStandardApproval || null,
+            });
+          }
+        }
+      }
+
+      const context = buildRoomPromptContext(
+        inputs, input.roomName, input.roomType, input.roomSqm,
+        enrichedMaterials, project.brandStandardConstraints
+      );
+
+      const prompt = generateRoomRenderPrompt(context, input.roomName, input.roomSqm, input.finishGrade);
+
+      const validation = validatePrompt(prompt);
+      if (!validation.valid) throw new TRPCError({ code: "BAD_REQUEST", message: validation.reason });
+
+      const visualResult = await db.createGeneratedVisual({
+        projectId: input.projectId,
+        type: "room_render" as any,
+        promptJson: { prompt, context, roomName: input.roomName, roomType: input.roomType },
+        status: "generating",
+        createdBy: ctx.user.id,
+      });
+
+      try {
+        const { url } = await generateImage({ prompt });
+
+        const assetResult = await db.createProjectAsset({
+          projectId: input.projectId,
+          filename: `room-render-${input.roomName.replace(/\s+/g, "-")}-${Date.now()}.png`,
+          mimeType: "image/png",
+          sizeBytes: 0,
+          storagePath: `projects/${input.projectId}/visuals/room-${Date.now()}.png`,
+          storageUrl: url,
+          uploadedBy: ctx.user.id,
+          category: "mood_image",
+        });
+
+        await db.updateGeneratedVisual(visualResult.id, { status: "completed", imageAssetId: assetResult.id });
+
+        return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" as const };
+      } catch (error: any) {
+        await db.updateGeneratedVisual(visualResult.id, { status: "failed", errorMessage: error.message });
+        return { id: visualResult.id, assetId: null, url: null, status: "failed" as const, error: error.message };
+      }
+    }),
+
+  // ─── Phase 9: Floor Plan Analysis ──────────────────────────────────────────
+
+  analyzeFloorPlan: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+
+      // Get the floor plan asset
+      if (!project.floorPlanAssetId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No floor plan uploaded for this project" });
+      }
+
+      const asset = await db.getProjectAssetById(project.floorPlanAssetId);
+      if (!asset || !asset.storageUrl) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Floor plan asset not found or has no URL" });
+      }
+
+      console.log(`[FloorPlan] Analyzing floor plan for project ${input.projectId}: ${asset.storageUrl}`);
+
+      const analysis = await runFloorPlanAnalysis(asset.storageUrl, asset.mimeType);
+
+      // Store in the project record
+      await db.updateProject(input.projectId, {
+        floorPlanAnalysis: analysis as any,
+        // Also update totalFitoutArea if not already set
+        ...((!project.totalFitoutArea || Number(project.totalFitoutArea) === 0) ? {
+          totalFitoutArea: String(analysis.totalEstimatedSqm) as any,
+        } : {}),
+      });
+
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "floor_plan.analyze",
+        entityType: "project",
+        entityId: input.projectId,
+        details: {
+          roomCount: analysis.rooms.length,
+          totalSqm: analysis.totalEstimatedSqm,
+          unitType: analysis.unitType,
+          confidence: analysis.analysisConfidence,
+        },
+      });
+
+      return analysis;
+    }),
+
+  // ─── Phase 9: Space Benchmarking ───────────────────────────────────────────
+
+  getSpaceBenchmark: protectedProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+
+      if (!project.floorPlanAnalysis) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Floor plan has not been analyzed yet. Upload a floor plan and run analysis first." });
+      }
+
+      const analysis = project.floorPlanAnalysis as any;
+
+      // Get DLD area data for data-backed recommendations
+      let areaName = project.dldAreaName || project.ctx04Location || "Dubai";
+      let transactionCount = 0;
+      let saleP50: number | null = null;
+
+      if (project.dldAreaId) {
+        const benchmark = await db.getDldAreaBenchmark(project.dldAreaId);
+        if (benchmark) {
+          areaName = benchmark.areaNameEn || areaName;
+          transactionCount = Number(benchmark.saleTransactionCount) || 0;
+          saleP50 = benchmark.saleP50 ? Number(benchmark.saleP50) : null;
+        }
+      }
+
+      const result = benchmarkSpaceRatios(analysis, areaName, transactionCount, saleP50);
+
+      return result;
+    }),
+});
 

@@ -12,10 +12,19 @@ export type SpaceProgram = {
     totalFitoutBudgetAed: number;
     rooms: Room[];
     totalAllocatedSqm: number;
+    source: "floor_plan" | "template";  // Phase 9: track data source
 };
 
 import { getPricingArea } from "../area-utils";
+import type { FloorPlanAnalysis } from "./floor-plan-analyzer";
 
+/**
+ * Build a space program for a project.
+ *
+ * Phase 9: When a floor plan has been analyzed (floorPlanAnalysis), use the
+ * AI-extracted room breakdown instead of hardcoded templates. This gives
+ * developers data based on their ACTUAL plan, not generic assumptions.
+ */
 export function buildSpaceProgram(project: any): SpaceProgram {
     const gfa = getPricingArea(project); // V4: uses fitout area when available
     const budgetCap = Number(project.fin01BudgetCap || 0); // AED/sqm
@@ -24,6 +33,36 @@ export function buildSpaceProgram(project: any): SpaceProgram {
     // totalFitoutBudgetAed = GFA × budgetCap × 10.764 × 0.35
     const totalFitoutBudgetAed = gfa * budgetCap * 10.764 * 0.35;
 
+    // ─── Phase 9: Use AI-extracted floor plan data when available ─────────
+    if (project.floorPlanAnalysis) {
+        const analysis = (typeof project.floorPlanAnalysis === "string"
+            ? JSON.parse(project.floorPlanAnalysis)
+            : project.floorPlanAnalysis) as FloorPlanAnalysis;
+
+        if (analysis.rooms && analysis.rooms.length > 0) {
+            const rooms: Room[] = analysis.rooms.map((r, i) => ({
+                id: r.type.substring(0, 3).toUpperCase() + (i + 1),
+                name: r.name,
+                sqm: r.estimatedSqm,
+                budgetPct: getBudgetPctByFinishGrade(r.finishGrade, r.percentOfTotal),
+                priority: r.finishGrade === "A" ? "high" as const
+                    : r.finishGrade === "B" ? "medium" as const
+                        : "low" as const,
+                finishGrade: r.finishGrade,
+            }));
+
+            const totalAllocatedSqm = rooms.reduce((sum, r) => sum + r.sqm, 0);
+
+            return {
+                totalFitoutBudgetAed,
+                rooms,
+                totalAllocatedSqm,
+                source: "floor_plan",
+            };
+        }
+    }
+
+    // ─── Fallback: Hardcoded Templates ───────────────────────────────────
     let baseRooms: { id: string; name: string; pctSqm: number; pctBudget: number; priority: "high" | "medium" | "low"; finishGrade: "A" | "B" | "C" }[] = [];
 
     if (typology === "hospitality") {
@@ -73,6 +112,16 @@ export function buildSpaceProgram(project: any): SpaceProgram {
     return {
         totalFitoutBudgetAed,
         rooms,
-        totalAllocatedSqm
+        totalAllocatedSqm,
+        source: "template",
     };
+}
+
+/**
+ * Calculate budget percentage based on finish grade and room proportion.
+ * Grade A rooms get a budget premium, Grade C rooms get less.
+ */
+function getBudgetPctByFinishGrade(grade: "A" | "B" | "C", areaPct: number): number {
+    const multiplier = grade === "A" ? 1.3 : grade === "B" ? 1.0 : 0.7;
+    return Math.round(areaPct * multiplier * 100) / 10000;
 }
