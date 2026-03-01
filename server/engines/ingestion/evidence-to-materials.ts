@@ -9,6 +9,7 @@
 import { getDb } from "../../db";
 import { materialsCatalog, evidenceRecords } from "../../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
+import { getMaterialConstants } from "../../db";
 
 // ─── Category Mapping ────────────────────────────────────────────
 // Evidence categories → Materials Catalog categories
@@ -62,6 +63,10 @@ export async function syncEvidenceToMaterials(
 ): Promise<MaterialSyncResult> {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
+
+    // Fetch baseline constants for OPEX and Carbon default fallbacks
+    const constants = await getMaterialConstants();
+    const constantsMap = new Map(constants.map((c: any) => [c.materialType, c]));
 
     // Fetch recent evidence records (from this run or most recent)
     let evidence;
@@ -159,6 +164,22 @@ export async function syncEvidenceToMaterials(
             // Determine tier
             const tier = detectTier(priceMin, priceMax, unit);
 
+            // Fetch fallback analytics from Constants table if scraped data is missing
+            const fallbackConstant = constantsMap.get(catalogCategory) as any;
+            const defaultMaintenance = fallbackConstant ? parseFloat(String(fallbackConstant.maintenanceFactor)) : 0.05;
+            const defaultCarbon = fallbackConstant ? parseFloat(String(fallbackConstant.carbonIntensity)) : 15.0;
+
+            // Brand constraints: If it's explicitly parsed from a major brand, flag as preferred, else open market
+            let brandApproval: "open_market" | "approved_vendor" | "preferred_brand" = "open_market";
+            const isKnownBrand = /cosentino|rak|grohe|kohler|marazzi|hansgrohe|flos|knoll/.test(nameLower)
+                || /cosentino|rak|grohe|kohler|marazzi|hansgrohe|flos|knoll/.test(record.publisher?.toLowerCase() || "");
+
+            if (isKnownBrand) {
+                brandApproval = "preferred_brand";
+            } else if (tier === "luxury" || tier === "ultra_luxury") {
+                brandApproval = "approved_vendor";
+            }
+
             // Normalize the product name for dedup
             const normalizedName = normalizeProductName(record.itemName);
 
@@ -180,6 +201,9 @@ export async function syncEvidenceToMaterials(
                         .set({
                             typicalCostLow: String(effectiveLow),
                             typicalCostHigh: String(effectiveHigh),
+                            maintenanceFactor: String(defaultMaintenance),
+                            embodiedCarbon: String(defaultCarbon),
+                            brandStandardApproval: brandApproval,
                             notes: `Updated from market data ${new Date().toISOString().split("T")[0]}. ${record.publisher || ""}`,
                         })
                         .where(eq(materialsCatalog.id, existingMatch.id));
@@ -200,6 +224,9 @@ export async function syncEvidenceToMaterials(
                     typicalCostLow: effectiveLow ? String(effectiveLow) : null,
                     typicalCostHigh: effectiveHigh ? String(effectiveHigh) : null,
                     costUnit,
+                    maintenanceFactor: String(defaultMaintenance),
+                    embodiedCarbon: String(defaultCarbon),
+                    brandStandardApproval: brandApproval,
                     supplierName: (record.publisher || "Market Data").substring(0, 255),
                     supplierUrl: record.sourceUrl?.substring(0, 500) || null,
                     regionAvailability: ["UAE"],

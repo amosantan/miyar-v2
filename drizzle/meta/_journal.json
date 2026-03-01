@@ -281,6 +281,13 @@
       "when": 1772279215993,
       "tag": "0039_warm_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1772349532757,
+      "tag": "0040_unusual_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }

@@ -24,6 +24,10 @@ export interface ProjectionInput {
   brandStandardConstraints?: string | null;
   timelineFlexibility?: string | null;
   targetValueAdd?: string | null;
+
+  // Phase 8: Bottom-up Board Override
+  boardMaterialsCost?: number; // Total precise cost of materials on board
+  boardMaintenanceVariance?: number; // Calculated delta from standard maintenance
 }
 
 export interface ProjectionPoint {
@@ -79,10 +83,13 @@ export function projectScenarioCost(input: ProjectionInput): ScenarioProjection 
     marketCondition,
     horizonMonths,
     currency = "AED",
+    boardMaterialsCost,
+    boardMaintenanceVariance = 0,
   } = input;
 
   // Guard against invalid inputs
-  const safeCost = baseCostPerSqm || 0;
+  // Phase 8: If a board exists, its price becomes the new base truth, fundamentally overriding AI guesses.
+  const safeCost = boardMaterialsCost ? boardMaterialsCost / (gfa || 1) : (baseCostPerSqm || 0);
   const safeGfa = gfa || 0;
   const safeTrend = trendDirection === "insufficient_data" ? 0 : trendPercentChange;
   const safeHorizon = Math.max(1, Math.min(horizonMonths || 18, 120)); // cap at 10 years
@@ -162,6 +169,17 @@ export function projectScenarioCost(input: ProjectionInput): ScenarioProjection 
   if (input.targetValueAdd === 'Brand Flagship / Trophy') {
     // Trophy assets often have elastic budgets to achieve the design vision, huge upward variance
     highMultiplier += 0.20;
+  }
+
+  // Phase 8: Hard OPEX variation injection
+  if (boardMaterialsCost) {
+    // If we have distinct market prices, our variance shrinks massively (we know exactly what it costs now)
+    highMultiplier = Math.max(1.05, highMultiplier - 0.10);
+    lowMultiplier = Math.min(0.95, lowMultiplier + 0.05);
+
+    // Inject maintenance footprint into long term projections
+    highMultiplier += (boardMaintenanceVariance / 100);
+    lowMultiplier += (boardMaintenanceVariance / 100);
   }
 
   // Three scenarios: low, mid, high

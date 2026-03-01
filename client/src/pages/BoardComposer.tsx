@@ -112,7 +112,7 @@ export default function BoardComposer() {
     if (!materials.data) return [];
     if (!materialFilter) return materials.data;
     const lower = materialFilter.toLowerCase();
-    return materials.data.filter(m =>
+    return materials.data.filter((m: any) =>
       m.name.toLowerCase().includes(lower) || m.category.toLowerCase().includes(lower)
     );
   }, [materials.data, materialFilter]);
@@ -208,7 +208,7 @@ export default function BoardComposer() {
                   onClick={() => createBoardMutation.mutate({
                     projectId,
                     boardName: newBoardName || "Untitled Board",
-                    materialIds: recommended.data?.map(m => m.materialId),
+                    materialIds: recommended.data?.map((m: any) => m.materialId),
                   })}
                   disabled={createBoardMutation.isPending}
                   className="w-full"
@@ -241,7 +241,7 @@ export default function BoardComposer() {
               </CardContent>
             </Card>
           )}
-          {boards.data?.map(board => (
+          {boards.data?.map((board: any) => (
             <Card
               key={board.id}
               className={`cursor-pointer transition-colors ${selectedBoardId === board.id ? "border-primary" : "hover:border-muted-foreground/30"}`}
@@ -328,13 +328,18 @@ export default function BoardComposer() {
                           className="mb-3"
                         />
                         <div className="space-y-2">
-                          {filteredMaterials.slice(0, 20).map(mat => (
+                          {filteredMaterials.slice(0, 20).map((mat: any) => (
                             <div key={mat.id} className="flex items-center justify-between p-2 rounded border hover:bg-accent/50">
                               <div>
                                 <p className="text-sm font-medium">{mat.name}</p>
                                 <div className="flex gap-2 text-xs text-muted-foreground">
                                   <Badge variant="outline" className="text-xs">{mat.category}</Badge>
                                   <Badge className={`text-xs ${tierColors[mat.tier] || ""}`}>{mat.tier}</Badge>
+                                  {mat.brandStandardApproval && (
+                                    <Badge variant="secondary" className="text-xs border-primary/20 text-primary">
+                                      {mat.brandStandardApproval}
+                                    </Badge>
+                                  )}
                                   <span>{mat.typicalCostLow}–{mat.typicalCostHigh} {mat.costUnit}</span>
                                 </div>
                               </div>
@@ -369,12 +374,27 @@ export default function BoardComposer() {
                               <div className="flex gap-2 items-center flex-wrap mt-1 ml-7">
                                 <Badge variant="outline" className="text-xs">{mat.category}</Badge>
                                 <Badge className={`text-xs ${tierColors[mat.tier] || ""}`}>{mat.tier}</Badge>
+                                {mat.brandStandardApproval && (
+                                  <Badge variant="secondary" className="text-xs border-primary/20 text-primary">
+                                    {mat.brandStandardApproval}
+                                  </Badge>
+                                )}
                                 <span className="text-xs text-muted-foreground">
                                   {mat.typicalCostLow}–{mat.typicalCostHigh} {mat.costUnit}
                                 </span>
                                 <span className={`text-xs ${leadColors[mat.leadTimeBand] || ""}`}>
                                   {mat.leadTimeDays}d lead
                                 </span>
+                                {mat.embodiedCarbon && (
+                                  <span className="text-xs text-emerald-600 font-medium">
+                                    {mat.embodiedCarbon} kgCO₂e
+                                  </span>
+                                )}
+                                {mat.maintenanceFactor && (
+                                  <span className="text-xs text-amber-600 font-medium">
+                                    {mat.maintenanceFactor} OPEX
+                                  </span>
+                                )}
                                 {mat.supplierName && (
                                   <span className="text-xs text-muted-foreground">• {mat.supplierName}</span>
                                 )}
@@ -549,7 +569,7 @@ export default function BoardComposer() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-2 md:grid-cols-2">
-                      {recommended.data.map(rec => (
+                      {recommended.data.map((rec: any) => (
                         <div key={rec.materialId} className="flex items-center justify-between p-2 rounded border">
                           <div>
                             <p className="text-sm font-medium">{rec.name}</p>

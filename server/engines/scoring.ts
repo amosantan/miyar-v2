@@ -197,6 +197,22 @@ export function computePenalties(
     riskFlags.push("SUSTAIN_UNDERFUNDED");
   }
 
+  // Phase 8: P7 - Live Vendor Board exceeds Budget Cap strictly
+  if (inputs.boardMaterialsCost && inputs.fin01BudgetCap) {
+    const area = inputs.totalFitoutArea || inputs.ctx03Gfa || 1;
+    const totalBudgetCap = inputs.fin01BudgetCap * area;
+    if (inputs.boardMaterialsCost > totalBudgetCap * 1.1) {
+      penalties.push({
+        id: "P7",
+        trigger: "board_budget_breach",
+        effect: -15, // Severe penalty: the actual physical items selected cost more than the cap
+        flag: "BOARD_BUDGET_BREACH",
+        description: "Live material board costs exceed project budget cap by >10%",
+      });
+      riskFlags.push("BOARD_BUDGET_BREACH");
+    }
+  }
+
   return { penalties, riskFlags };
 }
 
@@ -254,6 +270,16 @@ export function generateConditionalActions(
       recommendation:
         "Increase budget cap to account for sustainability certification material premium, or lower certification target tier.",
       variables: ["fin01BudgetCap", "sustainCertTarget"],
+    });
+  }
+
+  // Phase 8
+  if (riskFlags.includes("BOARD_BUDGET_BREACH")) {
+    actions.push({
+      trigger: "BOARD_BUDGET_BREACH",
+      recommendation:
+        "The current material board exceeds the maximum budget. Swap premium vendor items for approved market equivalents or increase Budget Cap.",
+      variables: ["fin01BudgetCap", "brandStandardConstraints"],
     });
   }
 

@@ -169,6 +169,39 @@ export const predictiveRouter = router({
         trendDirection = (bestTrend as any).direction || "insufficient_data";
       }
 
+      // Phase 8: Vendor Bottom-Up Override check
+      let boardMaterialsCost: number | undefined;
+      let boardMaintenanceVariance = 0;
+
+      const boards = await db.getMaterialBoardsByProject(input.projectId);
+      if (boards && boards.length > 0) {
+        // Just use the first/active board for projection
+        const activeBoard = boards[0];
+        const boardMaterials = await db.getMaterialsByBoard(activeBoard.id);
+
+        let totalLow = 0;
+        let totalHigh = 0;
+        let totalVariance = 0;
+
+        for (const bm of boardMaterials) {
+          const mat = await db.getMaterialById(bm.materialId);
+          if (mat) {
+            const qty = Number(bm.quantity) || 1; // Needs strict BOQ quantity to be perfectly accurate
+            totalLow += (Number(mat.typicalCostLow) || 0) * qty;
+            totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
+
+            // Base baseline assumes 5% (0.05). If material OPEX is higher, variance increases.
+            const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+            totalVariance += (matMaint - 0.05) * 100; // Store as relative percentage delta
+          }
+        }
+
+        if (totalHigh > 0) {
+          boardMaterialsCost = (totalLow + totalHigh) / 2; // Pass the average cost to baseline
+          boardMaintenanceVariance = totalVariance;
+        }
+      }
+
       return projectScenarioCost({
         baseCostPerSqm: budgetPerSqm,
         gfa,
@@ -185,6 +218,8 @@ export const predictiveRouter = router({
         brandStandardConstraints: project.brandStandardConstraints,
         timelineFlexibility: project.timelineFlexibility,
         targetValueAdd: project.targetValueAdd,
+        boardMaterialsCost,
+        boardMaintenanceVariance,
       });
     }),
 

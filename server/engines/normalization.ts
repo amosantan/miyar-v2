@@ -141,14 +141,30 @@ export function normalizeInputs(
   const exe03_n = normalizeOrdinal(inputs.exe03Approvals);
   const exe04_n = normalizeOrdinal(inputs.exe04QaMaturity);
 
-  const executionResilience = (exe02_n + exe04_n) / 2;
+  let executionResilience = (exe02_n + exe04_n) / 2;
   const differentiationPressure = (mkt02_n + str02_n) / 2;
-  const budgetFit = computeBudgetFit(inputs.fin01BudgetCap, expectedCost);
+
+  // Phase 8: Hard Vendor overrides take precedence over assumptions
+  let finalExpectedCost = expectedCost;
+  if (inputs.boardMaterialsCost && inputs.boardMaterialsCost > 0) {
+    // Expected cost is completely overridden by the strict vendor-approved material board cost.
+    // Calculate a per-SQM cost equivalent to match how budgetFit functions.
+    const area = inputs.totalFitoutArea || inputs.ctx03Gfa || 1;
+    finalExpectedCost = inputs.boardMaterialsCost / area;
+  }
+
+  if (inputs.boardMaintenanceVariance) {
+    // High maintenance variance inherently drains long term resources and adds to execution risk / lowers resilience over time.
+    // Decrease execution resilience slightly based on the variance footprint.
+    const variancePenalty = Math.max(0, Math.min(0.2, inputs.boardMaintenanceVariance / 100));
+    executionResilience = Math.max(0, executionResilience - variancePenalty);
+  }
+
   const costVolatility = ((1 - exe01_n) * 0.5 + (1 - fin03_n) * 0.5);
   const sustainCertMultiplier = getCertMultiplier(inputs.sustainCertTarget || "silver");
 
   // Adjust expected cost by sustainability certification premium
-  const adjustedExpectedCost = expectedCost * sustainCertMultiplier;
+  const adjustedExpectedCost = finalExpectedCost * sustainCertMultiplier;
 
   return {
     str01_n,

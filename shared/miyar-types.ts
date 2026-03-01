@@ -90,6 +90,10 @@ export interface ProjectInputs {
   brandStandardConstraints?: BrandStandardConstraints;
   timelineFlexibility?: TimelineFlexibility;
   targetValueAdd?: TargetValueAdd;
+
+  // Phase 8: Board overrrides
+  boardMaterialsCost?: number;
+  boardMaintenanceVariance?: number;
 }
 
 export interface NormalizedInputs {

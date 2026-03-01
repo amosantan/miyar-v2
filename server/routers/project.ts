@@ -335,6 +335,34 @@ export const projectRouter = router({
         }
       }
 
+      // Phase 8: Fetch real-world material costs from tied boards to override budgets
+      const boards = await db.getMaterialBoardsByProject(input.id);
+      if (boards && boards.length > 0) {
+        const activeBoard = boards[0];
+        const boardMaterials = await db.getMaterialsByBoard(activeBoard.id);
+
+        let totalLow = 0;
+        let totalHigh = 0;
+        let totalVariance = 0;
+
+        for (const bm of boardMaterials) {
+          const mat = await db.getMaterialById(bm.materialId);
+          if (mat) {
+            const qty = Number(bm.quantity) || 1;
+            totalLow += (Number(mat.typicalCostLow) || 0) * qty;
+            totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
+            const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+            totalVariance += (matMaint - 0.05) * 100;
+          }
+        }
+
+        if (totalHigh > 0) {
+          inputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+          inputs.boardMaintenanceVariance = totalVariance;
+          console.log(`[Evaluate] Using vendor cost override: ${inputs.boardMaterialsCost} AED for project ${input.id}`);
+        }
+      }
+
       const benchmarks = await db.getBenchmarks(
         inputs.ctx01Typology,
         inputs.ctx04Location,
@@ -698,6 +726,33 @@ export const projectRouter = router({
       const modelVersion = await db.getActiveModelVersion();
       if (!modelVersion) throw new Error("No active model version");
 
+      // Phase 8: Fetch real-world material costs from tied boards to override budgets
+      const boards = await db.getMaterialBoardsByProject(input.projectId);
+      if (boards && boards.length > 0) {
+        const activeBoard = boards[0];
+        const boardMaterials = await db.getMaterialsByBoard(activeBoard.id);
+
+        let totalLow = 0;
+        let totalHigh = 0;
+        let totalVariance = 0;
+
+        for (const bm of boardMaterials) {
+          const mat = await db.getMaterialById(bm.materialId);
+          if (mat) {
+            const qty = Number(bm.quantity) || 1;
+            totalLow += (Number(mat.typicalCostLow) || 0) * qty;
+            totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
+            const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+            totalVariance += (matMaint - 0.05) * 100;
+          }
+        }
+
+        if (totalHigh > 0) {
+          scenarioInputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+          scenarioInputs.boardMaintenanceVariance = totalVariance;
+        }
+      }
+
       const expectedCost = await db.getExpectedCost(scenarioInputs.ctx01Typology, scenarioInputs.ctx04Location, scenarioInputs.mkt01Tier);
       const benchmarks = await db.getBenchmarks(scenarioInputs.ctx01Typology, scenarioInputs.ctx04Location, scenarioInputs.mkt01Tier);
 
@@ -760,6 +815,33 @@ export const projectRouter = router({
       const inputs = projectToInputs(project);
       const modelVersion = await db.getActiveModelVersion();
       if (!modelVersion) throw new Error("No active model version");
+
+      // Phase 8: Fetch real-world material costs from tied boards to override budgets
+      const boards = await db.getMaterialBoardsByProject(input.projectId);
+      if (boards && boards.length > 0) {
+        const activeBoard = boards[0];
+        const boardMaterials = await db.getMaterialsByBoard(activeBoard.id);
+
+        let totalLow = 0;
+        let totalHigh = 0;
+        let totalVariance = 0;
+
+        for (const bm of boardMaterials) {
+          const mat = await db.getMaterialById(bm.materialId);
+          if (mat) {
+            const qty = Number(bm.quantity) || 1;
+            totalLow += (Number(mat.typicalCostLow) || 0) * qty;
+            totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
+            const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+            totalVariance += (matMaint - 0.05) * 100;
+          }
+        }
+
+        if (totalHigh > 0) {
+          inputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+          inputs.boardMaintenanceVariance = totalVariance;
+        }
+      }
 
       const expectedCost = await db.getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
       const benchmarks = await db.getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);

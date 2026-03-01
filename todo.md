@@ -1,4 +1,4 @@
-# MIYAR — TODO Roadmap
+# MIYAR — Master Target Roadmap (TODO)
 
 > **Frame**: Every item is prioritized by **investor impact** — does it help close a deal, win a board, or defend a number?
 
@@ -148,53 +148,12 @@ For 50M+ AED deals, the investor may need a digitally signed document.
 
 ---
 
-## 🛠️ Technical Debt
+## 🛠️ Outstanding Technical Debt & Polish
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| `drizzle-kit migrate` fails on existing tables | 🔴 | Use direct SQL for new columns instead of `npm run db:push` until fixed |
-| `db.getSpaceRecommendations` requires orgId but called internally | 🟡 | Add an internal overload that skips org check |
-| `ShareView.tsx` has no rate limiting on `resolveShareLink` | 🟠 | Add Redis-based rate limiter (10 req/min per token) |
-| `exportInvestorPdf` assembles data in the router | 🟡 | Move assembly logic to `server/engines/investor-pdf-assembler.ts` |
-| `investor-pdf.ts` doesn't escape HTML in user inputs | 🟠 | Sanitize `projectName`, `execSummary` etc. to prevent XSS in the blob URL |
-| `publicProcedure` in `design.ts` — no rate limit or bot protection | 🟠 | Add IP-based rate limiting on `resolveShareLink` |
-
----
-
-## 📋 Phase Summary
-
-| Phase | Status | Commit |
-|-------|--------|--------|
-| Phase 1 — Audit & Connect | ✅ Complete | `a6da478` |
-| Phase 2 — Investor Dashboard | ✅ Complete | `a6da478` |
-| Phase 3 — Brief → Numbers | ✅ Complete | `ca40d00` |
-| Phase 4 — Market Grounding | ✅ Complete | `6278c62` |
-| Phase 5 — Export & Handover | ✅ Complete | `296f743` |
-| Phase 6 — MIYAR Score Integration | 🎯 Next | — |
-| Phase 7 — Product Polish & Portfolio | 📋 Planned | — |
-
----
-
-## 🚀 MIYAR v3 — The Authority Engine
-
-| Phase | Status | Notes |
-|-------|--------|-------|
-| Phase A — Wire What We Have | ✅ Complete | NL query, stress test viz, evidence chains, freshness badges |
-| Phase B — Infrastructure for Live Data | ✅ Complete | Scheduler, connector health, DLD API integration |
-| Phase C — Data Expansion | ✅ Complete | SCAD PDF scraper, benchmark scaling, synthetic gap-fill |
-| Phase D — Governance & Compliance | ✅ Complete | Estidama/Al Sa'fat, audit trails, methodology page, cert-aware pricing |
-| Phase E — Scale Features | ✅ Complete | Portfolio benchmarking, mobile share views, RICS NRM alignment |
-
----
-
-## 🚀 MIYAR v4 — The Fit-out Oracle
-
-> **Mission**: Shift MIYAR from GFA-based to fit-out-area-based pricing — luxury fitout should never price structural voids.
-
-| Phase | Status | Summary |
-|-------|--------|---------|
-| Phase A — Schema + Types + Area Utility | 🎯 In Progress | `totalFitoutArea` column, `projectArchetype` enum, `area-utils.ts`, typed unitMix/villaSpaces schemas |
-| Phase B — Adaptive Project Creator | 📋 Planned | Archetype-conditional UI (residential unit mix, villa room list, office shell & core toggle) |
-| Phase C — Engine Migration (50+ callsites) | 📋 Planned | Migrate scoring, normalization, design-brief, bias-detector, AI advisor, explainability, reports from GFA → fitout area |
-| Phase D — Developer Verification Gate | 📋 Planned | Area audit page, Gemini vision PDF extraction, confidence scoring, verification workflow |
-
+| DOCX Export Cost Tables | High | Add material cost and budget summary tables to `docx-brief.ts` |
+| Share Link Management UI | High | Add UI to view, revoke, and extend existing share links |
+| Project Onboarding Flow | Medium | Auto-trigger `generateRecommendations` on first visit |
+| Investor Summary Branding | Medium | Allow org-level logo upload for PDF watermark |
+| Evidence Vault Search | Medium | Full-text search across `evidenceRecords` |

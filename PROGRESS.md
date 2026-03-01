@@ -379,6 +379,26 @@ Projects · Avg Score · Best/Worst · Total GFA · Total Budget · Avg Cost/sqm
 
 ---
 
+## ✅ Phase 6 — Deep Analytics & Scope Refinement · `8c65d35`
+
+### What This Built for the Investor
+
+Shifted MIYAR from standard estimation to a **Deep Analytics Engine** capable of understanding real-world strategic and execution nuances (like timeline rigidity, brand standards, and asset lifecycle goals).
+
+### What Was Built
+
+| Component | Impact |
+|-----------|--------|
+| **7 Strategic Variables** | Added `handoverCondition`, `brandedStatus`, `salesChannel`, `lifecycleFocus`, `brandStandardConstraints`, `timelineFlexibility`, `targetValueAdd` to deeply profile the investment. |
+| **Compounding Multipliers** | Created dynamic cost adjustments in `normalization.ts` (e.g., penalties for fixed 0-tolerance timelines, premiums for high-OPEX lifecycles). |
+| **Advanced MIYAR Scoring** | Adjusted `scoring.ts` to penalize Strategic Alignment (SA) and Execution Risk (ER) if the budget violates the timeline/brand constraints. |
+| **Outcome Prediction** | Refined the Monte Carlo comparables engine (`outcome-prediction.ts`) so MIYAR seeks historical comps matching the exact strategic profile before filtering by region. |
+
+### Investor Outcome
+> An investor's ROI calculation now explicitly factors in the **hidden costs of execution** (e.g., expedited shipping for zero-tolerance schedules, or premium materials dictated by strict brand lists), resulting in the most robust and defensible feasibility score in the market.
+
+---
+
 ## 🏗️ Platform Infrastructure (Built Across All Phases)
 
 These aren't features — they're the foundation everything runs on:
@@ -412,6 +432,7 @@ These aren't features — they're the foundation everything runs on:
 | Phase 3 | Brief → Numbers | `ca40d00` | — | ✅ Complete |
 | Phase 4 | Market Grounding | `6278c62` | — | ✅ Complete |
 | Phase 5 | Export & Handover | `296f743` | — | ✅ Complete |
+| **Phase 6** | Deep Analytics Engine | `8c65d35` | 17 | ✅ Complete |
 | **Phase A** | Wire What We Have | `37ff78b`→`e0ae186` | 10 | ✅ Complete |
 | **Phase B** | Infrastructure for Live Data | `1da390a`→`bbb9b60` | 35+ | ✅ Complete |
 | **Phase C** | Data Expansion | `70fd2a5` | 14 | ✅ Complete |

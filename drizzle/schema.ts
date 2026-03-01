@@ -748,6 +748,9 @@ export const materialsCatalog = mysqlTable("materials_catalog", {
   leadTimeDays: int("leadTimeDays"),
   leadTimeBand: mysqlEnum("leadTimeBand", ["short", "medium", "long", "critical"]).default("medium"),
   regionAvailability: json("regionAvailability"), // string[]
+  embodiedCarbon: decimal("embodiedCarbon", { precision: 10, scale: 4 }),
+  maintenanceFactor: decimal("maintenanceFactor", { precision: 6, scale: 4 }),
+  brandStandardApproval: mysqlEnum("brandStandardApproval", ["open_market", "approved_vendor", "preferred_brand"]).default("open_market").notNull(),
   supplierName: varchar("supplierName", { length: 255 }),
   supplierContact: varchar("supplierContact", { length: 255 }),
   supplierUrl: text("supplierUrl"),

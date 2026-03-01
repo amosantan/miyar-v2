@@ -13,7 +13,8 @@ import { getLiveCategoryPricing } from "../engines/pricing-engine";
 import { getPricingArea } from "../engines/area-utils";
 import { buildRFQFromBrief } from "../engines/design/rfq-generator";
 import { buildPromptContext, interpolateTemplate, generateDefaultPrompt, validatePrompt } from "../engines/visual-gen";
-import { computeBoardSummary, generateRfqLines, recommendMaterials } from "../engines/board-composer";
+import { computeBoardSummary, generateRfqLines } from "../engines/board-composer";
+import { matchVendorsForProject } from "../engines/procurement/vendor-matching";
 import { generateImage } from "../_core/imageGeneration";
 import type { ProjectInputs } from "../../shared/miyar-types";
 import { generateDesignBriefDocx } from "../engines/docx-brief";
@@ -774,10 +775,25 @@ export const designRouter = router({
   recommendMaterials: protectedProcedure
     .input(z.object({ projectId: z.number(), maxItems: z.number().default(10) }))
     .query(async ({ input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
-      const catalog = await db.getAllMaterials();
-      return recommendMaterials(catalog as any, project.mkt01Tier || "Upper-mid", input.maxItems);
+      // Phase 8: Vendor Matching Integration
+      const matched = await matchVendorsForProject({
+        projectId: input.projectId,
+        maxItems: input.maxItems
+      });
+
+      // Map back to expected BoardItem format for frontend compatibility
+      return matched.map((m: any) => ({
+        materialId: m.id,
+        name: m.name,
+        category: m.category,
+        tier: m.tier,
+        costLow: Number(m.typicalCostLow) || 0,
+        costHigh: Number(m.typicalCostHigh) || 0,
+        costUnit: m.costUnit || "AED/unit",
+        leadTimeDays: m.leadTimeDays || 30,
+        leadTimeBand: m.leadTimeBand || "medium",
+        supplierName: m.supplierName || "TBD",
+      }));
     }),
 
   // ─── Materials Catalog ──────────────────────────────────────────────────────
@@ -805,6 +821,9 @@ export const designRouter = router({
       leadTimeDays: z.number().optional(),
       leadTimeBand: z.enum(["short", "medium", "long", "critical"]).default("medium"),
       regionAvailability: z.array(z.string()).optional(),
+      embodiedCarbon: z.number().optional(),
+      maintenanceFactor: z.number().optional(),
+      brandStandardApproval: z.enum(["open_market", "approved_vendor", "preferred_brand"]).default("open_market"),
       supplierName: z.string().optional(),
       supplierContact: z.string().optional(),
       supplierUrl: z.string().optional(),
@@ -815,6 +834,8 @@ export const designRouter = router({
         ...input,
         typicalCostLow: input.typicalCostLow ? String(input.typicalCostLow) as any : undefined,
         typicalCostHigh: input.typicalCostHigh ? String(input.typicalCostHigh) as any : undefined,
+        embodiedCarbon: input.embodiedCarbon ? String(input.embodiedCarbon) as any : undefined,
+        maintenanceFactor: input.maintenanceFactor ? String(input.maintenanceFactor) as any : undefined,
         createdBy: ctx.user.id,
       });
       return result;
@@ -826,6 +847,9 @@ export const designRouter = router({
       name: z.string().optional(),
       typicalCostLow: z.number().optional(),
       typicalCostHigh: z.number().optional(),
+      embodiedCarbon: z.number().optional(),
+      maintenanceFactor: z.number().optional(),
+      brandStandardApproval: z.enum(["open_market", "approved_vendor", "preferred_brand"]).optional(),
       leadTimeDays: z.number().optional(),
       supplierName: z.string().optional(),
       notes: z.string().optional(),
@@ -835,6 +859,8 @@ export const designRouter = router({
       const mapped: any = { ...updates };
       if (updates.typicalCostLow !== undefined) mapped.typicalCostLow = String(updates.typicalCostLow);
       if (updates.typicalCostHigh !== undefined) mapped.typicalCostHigh = String(updates.typicalCostHigh);
+      if (updates.embodiedCarbon !== undefined) mapped.embodiedCarbon = String(updates.embodiedCarbon);
+      if (updates.maintenanceFactor !== undefined) mapped.maintenanceFactor = String(updates.maintenanceFactor);
       await db.updateMaterial(id, mapped);
       return { success: true };
     }),
