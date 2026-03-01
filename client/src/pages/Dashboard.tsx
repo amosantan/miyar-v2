@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
+import { PageHeader } from "@/components/PageHeader";
+import { PageSkeleton } from "@/components/PageSkeleton";
 import {
   FolderKanban,
   PlusCircle,
@@ -14,11 +16,11 @@ import {
   ArrowRight,
   Clock,
   Database,
-  DollarSign,
   Shield,
   TrendingUp,
   GitBranch,
   Layers,
+  LayoutDashboard,
   Activity,
   Search,
   Sparkles,
@@ -116,17 +118,16 @@ function DashboardContent() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Intelligence Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            MIYAR Decision Intelligence Platform — Portfolio Overview
-          </p>
-        </div>
-        <Button onClick={() => setLocation("/projects/new")} className="gap-2">
-          <PlusCircle className="h-4 w-4" /> New Project
-        </Button>
-      </div>
+      <PageHeader
+        title="Intelligence Dashboard"
+        description="MIYAR Decision Intelligence Platform — Portfolio Overview"
+        icon={LayoutDashboard}
+        actions={
+          <Button onClick={() => setLocation("/projects/new")} className="gap-2">
+            <PlusCircle className="h-4 w-4" /> New Project
+          </Button>
+        }
+      />
 
       {/* Data Freshness Strip */}
       <DataFreshnessBanner className="mb-0" />
@@ -261,13 +262,13 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* V2 Quick Actions */}
+      {/* Quick Actions — client workflow */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Portfolio Analytics", path: "/admin/portfolio", icon: Layers, desc: "Cross-project intelligence" },
-          { label: "ROI Configuration", path: "/admin/roi-config", icon: DollarSign, desc: "Adjust ROI coefficients" },
-          { label: "Benchmark Versions", path: "/admin/benchmark-versions", icon: GitBranch, desc: "Manage data versions" },
-          { label: "Scenario Templates", path: "/scenarios/templates", icon: Activity, desc: "Pre-built what-if scenarios" },
+          { label: "Create Project", path: "/projects/new", icon: PlusCircle, desc: "Start a new design evaluation" },
+          { label: "Scenarios", path: "/scenarios", icon: GitBranch, desc: "What-if analysis & comparisons" },
+          { label: "DLD Insights", path: "/market-intel/dld-insights", icon: TrendingUp, desc: "UAE area benchmarks" },
+          { label: "Portfolio", path: "/portfolio", icon: Layers, desc: "Cross-project intelligence" },
         ].map((action) => (
           <Card
             key={action.path}
@@ -344,18 +345,7 @@ function DashboardContent() {
                         {p.ctx01Typology} · {p.mkt01Tier} · {p.ctx04Location}
                       </p>
                     </div>
-                    {/* Chart */}
-                    <div className="glass-card rounded-lg p-3 h-28 flex items-end gap-1">
-                      {[35, 50, 30, 60, 45, 70, 55, 75, 65, 82, 74, 80].map((h, i) => (
-                        <div key={i} className="flex-1 rounded-t transition-all relative group" style={{
-                          height: `${h}%`,
-                          background: `linear-gradient(to top, rgba(242,166,13,0.2), rgba(242,166,13,0.9))`,
-                          boxShadow: `0 0 10px rgba(242,166,13,0.15)`
-                        }}>
-                          <div className="absolute top-0 left-0 right-0 h-0.5 bg-[#f2a60d] opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-[0_0_8px_rgba(242,166,13,0.8)]" />
-                        </div>
-                      ))}
-                    </div>
+
                   </div>
                   <div className="flex items-center gap-3">
                     {p.latestScore ? (

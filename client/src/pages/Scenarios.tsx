@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
+import { PageHeader } from "@/components/PageHeader";
 import {
   GitCompare, PlusCircle, Trash2, Crown, Loader2, ArrowRight,
   TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, XCircle,
@@ -699,39 +700,36 @@ function ScenariosContent() {
   return (
     <div className="space-y-6 max-w-6xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-            <Beaker className="h-6 w-6 text-primary" />
-            Decision Lab
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Create scenarios, compare outcomes, and identify the optimal direction
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {evaluatedProjects.length > 0 && (
-            <Select
-              value={selectedId || String(evaluatedProjects[0]?.id ?? "")}
-              onValueChange={setSelectedId}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select project" />
-              </SelectTrigger>
-              <SelectContent>
-                {evaluatedProjects.map((p: any) => (
-                  <SelectItem key={p.id} value={String(p.id)}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Button className="gap-2" disabled={!projectId} onClick={() => setBuilderOpen(true)}>
-            <PlusCircle className="h-4 w-4" /> New Scenario
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Decision Lab"
+        description="Create scenarios, compare outcomes, and identify the optimal direction"
+        icon={Beaker}
+        breadcrumbs={[{ label: "Analysis" }, { label: "Scenarios" }]}
+        actions={
+          <div className="flex items-center gap-3">
+            {evaluatedProjects.length > 0 && (
+              <Select
+                value={selectedId || String(evaluatedProjects[0]?.id ?? "")}
+                onValueChange={setSelectedId}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {evaluatedProjects.map((p: any) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button className="gap-2" disabled={!projectId} onClick={() => setBuilderOpen(true)}>
+              <PlusCircle className="h-4 w-4" /> New Scenario
+            </Button>
+          </div>
+        }
+      />
 
       {projectId && (
         <ScenarioBuilderDialog

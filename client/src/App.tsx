@@ -129,18 +129,20 @@ function Router() {
       <Route path="/customer-success">{() => <Protected Component={CustomerSuccess} />}</Route>
       <Route path="/sustainability">{() => <Protected Component={Sustainability} />}</Route>
 
-      {/* Market Intelligence (protected) */}
-      <Route path="/market-intel/evidence">{() => <Protected Component={EvidenceVaultMI} />}</Route>
-      <Route path="/market-intel/sources">{() => <Protected Component={SourceRegistry} />}</Route>
-      <Route path="/market-intel/proposals">{() => <Protected Component={BenchmarkProposals} />}</Route>
-      <Route path="/market-intel/competitors">{() => <Protected Component={CompetitorsMI} />}</Route>
-      <Route path="/market-intel/tags">{() => <Protected Component={TrendTags} />}</Route>
-      <Route path="/market-intel/audit">{() => <Protected Component={IntelAuditLog} />}</Route>
-      <Route path="/market-intel/data-health">{() => <Protected Component={DataHealth} />}</Route>
-      <Route path="/market-intel/ingestion">{() => <Protected Component={IngestionMonitor} />}</Route>
-      <Route path="/market-intel/analytics">{() => <Protected Component={AnalyticsDashboard} />}</Route>
+      {/* Market Intelligence — client-facing */}
       <Route path="/market-intel/dld-insights">{() => <Protected Component={DldInsights} />}</Route>
-      <Route path="/market-intelligence">{() => <Protected Component={MarketIntelligence} />}</Route>
+      <Route path="/market-intel/competitors">{() => <Protected Component={CompetitorsMI} />}</Route>
+
+      {/* Market Intelligence — admin-only internal tools */}
+      <Route path="/market-intel/evidence">{() => <AdminOnly Component={EvidenceVaultMI} />}</Route>
+      <Route path="/market-intel/sources">{() => <AdminOnly Component={SourceRegistry} />}</Route>
+      <Route path="/market-intel/proposals">{() => <AdminOnly Component={BenchmarkProposals} />}</Route>
+      <Route path="/market-intel/tags">{() => <AdminOnly Component={TrendTags} />}</Route>
+      <Route path="/market-intel/audit">{() => <AdminOnly Component={IntelAuditLog} />}</Route>
+      <Route path="/market-intel/data-health">{() => <AdminOnly Component={DataHealth} />}</Route>
+      <Route path="/market-intel/ingestion">{() => <AdminOnly Component={IngestionMonitor} />}</Route>
+      <Route path="/market-intel/analytics">{() => <AdminOnly Component={AnalyticsDashboard} />}</Route>
+      <Route path="/market-intelligence">{() => <AdminOnly Component={MarketIntelligence} />}</Route>
 
       {/* Admin routes (admin-only) */}
       <Route path="/admin/benchmarks">{() => <AdminOnly Component={Benchmarks} />}</Route>

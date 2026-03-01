@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
+import { PageHeader } from "@/components/PageHeader";
+import { PageSkeleton } from "@/components/PageSkeleton";
 import {
     FolderKanban,
     PlusCircle,
@@ -88,11 +90,7 @@ function PortfolioList({
     const [newDesc, setNewDesc] = useState("");
 
     if (listQuery.isLoading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-            </div>
-        );
+        return <PageSkeleton statCards={3} showContent />;
     }
 
     const portfolioList = listQuery.data || [];
@@ -100,59 +98,56 @@ function PortfolioList({
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold flex items-center gap-2">
-                        <FolderKanban className="w-7 h-7 text-primary" />
-                        Portfolios
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Organize and analyze your projects in named portfolios
-                    </p>
-                </div>
-                <Dialog open={showCreate} onOpenChange={setShowCreate}>
-                    <DialogTrigger asChild>
-                        <Button className="gap-2">
-                            <PlusCircle className="w-4 h-4" />
-                            New Portfolio
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Create Portfolio</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-2">
-                            <Input
-                                placeholder="Portfolio name"
-                                value={newName}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value)}
-                                autoFocus
-                            />
-                            <Input
-                                placeholder="Description (optional)"
-                                value={newDesc}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDesc(e.target.value)}
-                            />
-                        </div>
-                        <DialogFooter>
-                            <Button
-                                disabled={!newName.trim() || createMut.isPending}
-                                onClick={() =>
-                                    createMut.mutate({
-                                        name: newName.trim(),
-                                        description: newDesc.trim() || undefined,
-                                    })
-                                }
-                            >
-                                {createMut.isPending ? (
-                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                ) : null}
-                                Create
+            <PageHeader
+                title="Portfolios"
+                description="Organize and analyze your projects in named portfolios"
+                icon={FolderKanban}
+                breadcrumbs={[{ label: "Analysis" }, { label: "Portfolio" }]}
+                actions={
+                    <Dialog open={showCreate} onOpenChange={setShowCreate}>
+                        <DialogTrigger asChild>
+                            <Button className="gap-2">
+                                <PlusCircle className="w-4 h-4" />
+                                New Portfolio
                             </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </div>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create Portfolio</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-2">
+                                <Input
+                                    placeholder="Portfolio name"
+                                    value={newName}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value)}
+                                    autoFocus
+                                />
+                                <Input
+                                    placeholder="Description (optional)"
+                                    value={newDesc}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDesc(e.target.value)}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    disabled={!newName.trim() || createMut.isPending}
+                                    onClick={() =>
+                                        createMut.mutate({
+                                            name: newName.trim(),
+                                            description: newDesc.trim() || undefined,
+                                        })
+                                    }
+                                >
+                                    {createMut.isPending ? (
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    ) : null}
+                                    Create
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                }
+            />
 
             {/* Empty state */}
             {portfolioList.length === 0 && (

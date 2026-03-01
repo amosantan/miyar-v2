@@ -80,49 +80,36 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
+// ─── Client-facing navigation (simplified) ─────────────────────
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: FolderKanban, label: "Projects", path: "/projects" },
   { icon: PlusCircle, label: "New Project", path: "/projects/new" },
 ];
 
-const analysisItems = [
-  { icon: BarChart3, label: "Results", path: "/results" },
-  { icon: GitCompare, label: "Scenarios", path: "/scenarios" },
-  { icon: Wand2, label: "Scenario Templates", path: "/scenarios/templates" },
-  { icon: Scale, label: "Scenario Comparison", path: "/scenarios/compare" },
-  { icon: FileText, label: "Reports", path: "/reports" },
-  { icon: PieChart, label: "Portfolio", path: "/portfolio" },
-  { icon: Shield, label: "Risk Heatmap", path: "/risk-heatmap" },
-  { icon: Brain, label: "Bias Insights", path: "/bias-insights" },
-  { icon: Dices, label: "Simulations", path: "/simulations" },
-  { icon: HeartPulse, label: "Customer Success", path: "/customer-success" },
-  { icon: Leaf, label: "Sustainability", path: "/sustainability" },
-];
-
-const designItems = [
-  { icon: Sparkles, label: "AI Design Advisor", path: "/projects/:id/design-advisor", dynamic: true },
-  { icon: FolderOpen, label: "Evidence Vault", path: "/projects/:id/evidence", dynamic: true },
+// Project tools — shown only when user is on a project page
+const projectToolItems = [
   { icon: Palette, label: "Design Brief", path: "/projects/:id/brief", dynamic: true },
   { icon: Layers, label: "Design Studio", path: "/projects/:id/design-studio", dynamic: true },
-  { icon: MessageSquare, label: "Collaboration", path: "/projects/:id/collaboration", dynamic: true },
-  { icon: Search, label: "Explainability", path: "/projects/:id/explainability", dynamic: true },
-  { icon: Target, label: "Outcomes", path: "/projects/:id/outcomes", dynamic: true },
+  { icon: Sparkles, label: "AI Advisor", path: "/projects/:id/design-advisor", dynamic: true },
+  { icon: BarChart3, label: "Investor Summary", path: "/projects/:id/investor-summary", dynamic: true },
+  { icon: FileText, label: "Reports", path: "/reports" },
 ];
 
-const marketIntelItems = [
-  { icon: Globe, label: "Evidence Vault", path: "/market-intel/evidence" },
-  { icon: BookOpen, label: "Source Registry", path: "/market-intel/sources" },
-  { icon: FileCheck, label: "Benchmark Proposals", path: "/market-intel/proposals" },
-  { icon: Building2, label: "Competitors", path: "/market-intel/competitors" },
-  { icon: Tags, label: "Trend Tags", path: "/market-intel/tags" },
-  { icon: ScrollText, label: "Intel Audit Log", path: "/market-intel/audit" },
-  { icon: HeartPulse, label: "Data Health", path: "/market-intel/data-health" },
-  { icon: Zap, label: "Ingestion Monitor", path: "/market-intel/ingestion" },
-  { icon: TrendingUp, label: "Analytics Intelligence", path: "/market-intel/analytics" },
-  { icon: MapPin, label: "DLD Insights", path: "/market-intel/dld-insights" },
+// Market section — only high-value pages for clients
+const marketItems = [
+  { icon: MapPin, label: "DLD Area Insights", path: "/market-intel/dld-insights" },
+  { icon: Building2, label: "Competitor Overview", path: "/market-intel/competitors" },
 ];
 
+// Analysis — advanced features, shown as secondary section
+const analysisItems = [
+  { icon: GitCompare, label: "Scenarios", path: "/scenarios" },
+  { icon: PieChart, label: "Portfolio", path: "/portfolio" },
+  { icon: Activity, label: "Alerts", path: "/alerts" },
+];
+
+// ─── Admin-only navigation (full access) ────────────────────────
 const adminItems = [
   { icon: Database, label: "Benchmarks", path: "/admin/benchmarks" },
   { icon: GitBranch, label: "Benchmark Versions", path: "/admin/benchmark-versions" },
@@ -130,7 +117,7 @@ const adminItems = [
   { icon: Settings, label: "Model Versions", path: "/admin/models" },
   { icon: DollarSign, label: "ROI Config", path: "/admin/roi-config" },
   { icon: Webhook, label: "Webhooks", path: "/admin/webhooks" },
-  { icon: PieChart, label: "Portfolio", path: "/admin/portfolio" },
+  { icon: PieChart, label: "Admin Portfolio", path: "/admin/portfolio" },
   { icon: ClipboardList, label: "Audit Logs", path: "/admin/audit" },
   { icon: Shield, label: "Overrides", path: "/admin/overrides" },
   { icon: FileSpreadsheet, label: "CSV Import", path: "/admin/csv-import" },
@@ -142,6 +129,18 @@ const adminItems = [
   { icon: Sliders, label: "Calibration", path: "/admin/calibration" },
   { icon: Lightbulb, label: "Benchmark Learning", path: "/admin/benchmark-learning" },
   { icon: BarChart3, label: "Learning Dashboard", path: "/admin/learning-dashboard" },
+];
+
+// Market Intel admin tools (hidden from clients)
+const marketIntelAdminItems = [
+  { icon: Globe, label: "Evidence Vault", path: "/market-intel/evidence" },
+  { icon: BookOpen, label: "Source Registry", path: "/market-intel/sources" },
+  { icon: FileCheck, label: "Benchmark Proposals", path: "/market-intel/proposals" },
+  { icon: Tags, label: "Trend Tags", path: "/market-intel/tags" },
+  { icon: ScrollText, label: "Intel Audit Log", path: "/market-intel/audit" },
+  { icon: HeartPulse, label: "Data Health", path: "/market-intel/data-health" },
+  { icon: Zap, label: "Ingestion Monitor", path: "/market-intel/ingestion" },
+  { icon: TrendingUp, label: "Analytics Intelligence", path: "/market-intel/analytics" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -235,7 +234,7 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const allItems = [...menuItems, ...analysisItems, ...adminItems];
+  const allItems = [...menuItems, ...analysisItems, ...marketItems, ...projectToolItems, ...adminItems, ...marketIntelAdminItems];
   const activeMenuItem = allItems.find((item) => location.startsWith(item.path));
   const isMobile = useIsMobile();
   const isAdmin = user?.role === "admin";
@@ -323,7 +322,7 @@ function DashboardLayoutContent({
               </SidebarGroupContent>
             </SidebarGroup>
 
-            {/* Analysis Section */}
+            {/* Analysis — condensed */}
             <SidebarGroup>
               <SidebarGroupLabel>Analysis</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -349,19 +348,21 @@ function DashboardLayoutContent({
               </SidebarGroupContent>
             </SidebarGroup>
 
-            {/* Design Enablement Section — shows when on a project page */}
+            {/* Project Tools — contextual, only when viewing a project */}
             {(() => {
               const projectMatch = location.match(/\/projects\/(\d+)/);
               if (!projectMatch) return null;
               const pid = projectMatch[1];
               return (
                 <SidebarGroup>
-                  <SidebarGroupLabel>Design Enablement</SidebarGroupLabel>
+                  <SidebarGroupLabel>Project Tools</SidebarGroupLabel>
                   <SidebarGroupContent>
                     <SidebarMenu>
-                      {designItems.map((item) => {
-                        const resolvedPath = item.path.replace(":id", pid);
-                        const isActive = location === resolvedPath;
+                      {projectToolItems.map((item) => {
+                        const resolvedPath = (item as any).dynamic
+                          ? item.path.replace(":id", pid)
+                          : item.path;
+                        const isActive = location === resolvedPath || location.startsWith(resolvedPath);
                         return (
                           <SidebarMenuItem key={item.path}>
                             <SidebarMenuButton
@@ -383,12 +384,12 @@ function DashboardLayoutContent({
               );
             })()}
 
-            {/* Market Intelligence Section */}
+            {/* Market — client-facing, only 2 items */}
             <SidebarGroup>
-              <SidebarGroupLabel>Market Intelligence</SidebarGroupLabel>
+              <SidebarGroupLabel>Market</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {marketIntelItems.map((item) => {
+                  {marketItems.map((item) => {
                     const isActive = location.startsWith(item.path);
                     return (
                       <SidebarMenuItem key={item.path}>
@@ -409,32 +410,59 @@ function DashboardLayoutContent({
               </SidebarGroupContent>
             </SidebarGroup>
 
-            {/* Admin Section */}
+            {/* Admin Section — includes admin tools + market intel admin tools */}
             {isAdmin && (
-              <SidebarGroup>
-                <SidebarGroupLabel>Administration</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {adminItems.map((item) => {
-                      const isActive = location.startsWith(item.path);
-                      return (
-                        <SidebarMenuItem key={item.path}>
-                          <SidebarMenuButton
-                            isActive={isActive}
-                            onClick={() => setLocation(item.path)}
-                            tooltip={item.label}
-                          >
-                            <item.icon
-                              className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                            />
-                            <span>{item.label}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      );
-                    })}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
+              <>
+                <SidebarGroup>
+                  <SidebarGroupLabel>Market Intelligence</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {marketIntelAdminItems.map((item) => {
+                        const isActive = location.startsWith(item.path);
+                        return (
+                          <SidebarMenuItem key={item.path}>
+                            <SidebarMenuButton
+                              isActive={isActive}
+                              onClick={() => setLocation(item.path)}
+                              tooltip={item.label}
+                            >
+                              <item.icon
+                                className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                              />
+                              <span>{item.label}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+
+                <SidebarGroup>
+                  <SidebarGroupLabel>Administration</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {adminItems.map((item) => {
+                        const isActive = location.startsWith(item.path);
+                        return (
+                          <SidebarMenuItem key={item.path}>
+                            <SidebarMenuButton
+                              isActive={isActive}
+                              onClick={() => setLocation(item.path)}
+                              tooltip={item.label}
+                            >
+                              <item.icon
+                                className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                              />
+                              <span>{item.label}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </>
             )}
           </SidebarContent>
 

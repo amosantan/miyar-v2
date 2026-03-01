@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/PageHeader";
 import { Plus, Building2, Search, Trash2, Edit, ExternalLink, Eye, GitCompare } from "lucide-react";
 
 export default function Competitors() {
@@ -63,30 +64,30 @@ export default function Competitors() {
     <>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Competitor Intelligence</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Track competitor developers and their projects for market positioning context
-            </p>
-          </div>
-          <div className="flex gap-2">
-            {compareIds.length >= 2 && (
-              <Button variant="outline" onClick={() => setShowCompare(true)}>
-                <GitCompare className="h-4 w-4 mr-2" />Compare ({compareIds.length})
-              </Button>
-            )}
-            <Dialog open={showAddEntity} onOpenChange={setShowAddEntity}>
-              <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" />Add Competitor</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader><DialogTitle>Add Competitor</DialogTitle></DialogHeader>
-                <EntityForm onSubmit={(data) => createEntityMutation.mutate(data)} isLoading={createEntityMutation.isPending} />
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
+        <PageHeader
+          title="Competitor Intelligence"
+          description="Track competitor developers and their projects for market positioning context"
+          icon={Building2}
+          breadcrumbs={[{ label: "Market" }, { label: "Competitors" }]}
+          actions={
+            <div className="flex gap-2">
+              {compareIds.length >= 2 && (
+                <Button variant="outline" onClick={() => setShowCompare(true)}>
+                  <GitCompare className="h-4 w-4 mr-2" />Compare ({compareIds.length})
+                </Button>
+              )}
+              <Dialog open={showAddEntity} onOpenChange={setShowAddEntity}>
+                <DialogTrigger asChild>
+                  <Button><Plus className="h-4 w-4 mr-2" />Add Competitor</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader><DialogTitle>Add Competitor</DialogTitle></DialogHeader>
+                  <EntityForm onSubmit={(data) => createEntityMutation.mutate(data)} isLoading={createEntityMutation.isPending} />
+                </DialogContent>
+              </Dialog>
+            </div>
+          }
+        />
 
         <Tabs defaultValue="entities" className="space-y-4">
           <TabsList>

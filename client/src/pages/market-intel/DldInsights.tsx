@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/PageHeader";
+import { PageSkeleton } from "@/components/PageSkeleton";
 import {
     MapPin, TrendingUp, Building2, DollarSign,
     ArrowUpDown, Search, Database, BarChart3,
@@ -105,24 +107,17 @@ export default function DldInsights() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
-        );
+        return <PageSkeleton statCards={4} showTable />;
     }
 
     return (
         <div className="space-y-6 max-w-7xl">
-            {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                    <MapPin className="h-6 w-6 text-primary" /> DLD Market Insights
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                    Dubai Land Department transaction & rent benchmarks across {sorted.length} areas
-                </p>
-            </div>
+            <PageHeader
+                title="DLD Market Insights"
+                description={`Dubai Land Department transaction & rent benchmarks across ${sorted.length} areas`}
+                icon={MapPin}
+                breadcrumbs={[{ label: "Market" }, { label: "DLD Insights" }]}
+            />
 
             {/* Stats Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

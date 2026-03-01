@@ -583,6 +583,59 @@
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
   }
+
+  /* Tabs: horizontal scroll when too many tabs */
+  [role="tablist"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  [role="tablist"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Dialog: full-width on mobile */
+  [role="dialog"] {
+    max-width: calc(100vw - 1rem) !important;
+    margin: 0.5rem !important;
+  }
+
+  /* Cards: reduce padding on small screens */
+  .card-content,
+  [class*="CardContent"] {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Badge: allow wrapping */
+  .badge,
+  [class*="Badge"] {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  /* Flex containers: wrap instead of overflow */
+  .flex.items-center.justify-between {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Forms: stack labels and inputs */
+  .grid.grid-cols-2,
+  .grid.grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Truncate long text */
+  .truncate-mobile {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -599,6 +652,11 @@
   .text-xs {
     font-size: 0.75rem;
     line-height: 1.25rem;
+  }
+
+  /* Sidebar header: reduce on tiny screens */
+  [data-sidebar] {
+    font-size: 0.85rem;
   }
 }
 
