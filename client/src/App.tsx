@@ -66,6 +66,7 @@ import ShareView from "./pages/ShareView";
 import BriefEditor from "./pages/BriefEditor";
 import Methodology from "./pages/Methodology";
 import AreaVerification from "./pages/AreaVerification";
+import SpacePlanner from "./pages/SpacePlanner";
 
 // Helper: wrap a component with RequireAuth and DashboardLayout
 function Protected({ Component }: { Component: React.ComponentType<any> }) {
@@ -114,6 +115,7 @@ function Router() {
       <Route path="/projects/:id/explainability">{() => <Protected Component={Explainability} />}</Route>
       <Route path="/projects/:id/outcomes">{() => <Protected Component={Outcomes} />}</Route>
       <Route path="/projects/:id/verify-areas">{() => <Protected Component={AreaVerification} />}</Route>
+      <Route path="/projects/:id/space-planner">{() => <Protected Component={SpacePlanner} />}</Route>
       <Route path="/results">{() => <Protected Component={Results} />}</Route>
       <Route path="/scenarios">{() => <Protected Component={Scenarios} />}</Route>
       <Route path="/scenarios/templates">{() => <Protected Component={ScenarioTemplates} />}</Route>

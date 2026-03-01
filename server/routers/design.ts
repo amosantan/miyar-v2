@@ -1511,6 +1511,53 @@ export const designRouter = router({
       }
     }),
 
+  // ─── Phase 9: Floor Plan Upload ────────────────────────────────────────────
+
+  uploadFloorPlan: protectedProcedure
+    .input(z.object({
+      projectId: z.number(),
+      filename: z.string(),
+      mimeType: z.string(),
+      base64Data: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await db.getProjectById(input.projectId);
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+
+      const buffer = Buffer.from(input.base64Data, "base64");
+      const suffix = Math.random().toString(36).slice(2, 10);
+      const storagePath = `projects/${input.projectId}/floor-plans/${suffix}-${input.filename}`;
+      const { url } = await storagePut(storagePath, buffer, input.mimeType);
+
+      const result = await db.createProjectAsset({
+        projectId: input.projectId,
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: buffer.length,
+        storagePath,
+        storageUrl: url,
+        uploadedBy: ctx.user.id,
+        category: "other",
+      });
+
+      // Link the floor plan to the project
+      await db.updateProject(input.projectId, {
+        floorPlanAssetId: result.id,
+      });
+
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "floor_plan.upload",
+        entityType: "project",
+        entityId: input.projectId,
+        details: { assetId: result.id, filename: input.filename },
+      });
+
+      console.log(`[FloorPlan] Uploaded floor plan for project ${input.projectId}: ${url}`);
+
+      return { assetId: result.id, url };
+    }),
+
   // ─── Phase 9: Floor Plan Analysis ──────────────────────────────────────────
 
   analyzeFloorPlan: protectedProcedure
