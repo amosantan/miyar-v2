@@ -22,11 +22,15 @@ export function computeStrategicAlignment(
   n: NormalizedInputs,
   w: Record<string, number>
 ): number {
-  const raw =
+  let raw =
     (w.str01 ?? 0.35) * n.str01_n +
     (w.str03 ?? 0.25) * n.str03_n +
     (w.compatVisionMarket ?? 0.25) * n.compatVisionMarket +
     (w.compatVisionDesign ?? 0.15) * n.compatVisionDesign;
+
+  if (n.brandedPremiumMultiplier) raw *= n.brandedPremiumMultiplier;
+  if (n.targetValueMultiplier) raw *= n.targetValueMultiplier;
+
   return Math.max(0, Math.min(100, raw * 100));
 }
 
@@ -34,11 +38,18 @@ export function computeFinancialFeasibility(
   n: NormalizedInputs,
   w: Record<string, number>
 ): number {
-  const raw =
+  let raw =
     (w.budgetFit ?? 0.45) * n.budgetFit +
     (w.fin02 ?? 0.20) * n.fin02_n +
     (w.executionResilience ?? 0.20) * n.executionResilience +
     (w.costStability ?? 0.15) * (1 - n.costVolatility);
+
+  if (n.salesVelocityMultiplier) raw *= n.salesVelocityMultiplier;
+  // Strict brand standards severely reduce financial flexibility and crush FF score
+  if (n.brandStandardMultiplier) raw *= (1 / n.brandStandardMultiplier);
+  // High Capex for Long-term Opex retention reduces immediate Financial Feasibility score
+  if (n.lifecycleOpexMultiplier) raw *= (1 / n.lifecycleOpexMultiplier);
+
   return Math.max(0, Math.min(100, raw * 100));
 }
 
@@ -46,11 +57,14 @@ export function computeMarketPositioning(
   n: NormalizedInputs,
   w: Record<string, number>
 ): number {
-  const raw =
+  let raw =
     (w.marketFit ?? 0.35) * n.marketFit +
     (w.differentiationPressure ?? 0.25) * n.differentiationPressure +
     (w.des04 ?? 0.20) * n.des04_n +
     (w.trendFit ?? 0.20) * n.trendFit;
+
+  if (n.brandedPremiumMultiplier) raw *= n.brandedPremiumMultiplier;
+
   return Math.max(0, Math.min(100, raw * 100));
 }
 
@@ -83,6 +97,10 @@ export function computeExecutionRisk(
   // Apply V5 strategy risk modifiers (higher raw is better ER score)
   if (n.procurementRiskMultiplier) raw *= n.procurementRiskMultiplier;
   if (n.materialSourcingRiskMultiplier) raw *= n.materialSourcingRiskMultiplier;
+  // Handover condition: high value (like 1.15) implies high risk, so it reduces the ER score
+  if (n.handoverRiskMultiplier) raw *= (1 / n.handoverRiskMultiplier);
+  // Timeline zero-tolerance radically inflates execution risk (reduces ER Score)
+  if (n.timelineRiskMultiplier) raw *= (1 / n.timelineRiskMultiplier);
 
   return Math.max(0, Math.min(100, raw * 100));
 }

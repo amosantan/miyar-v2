@@ -25,6 +25,13 @@ export type ProcurementStrategy = "Turnkey" | "Traditional" | "Construction Mana
 export type AmenityFocus = "Wellness/Spa" | "F&B/Social" | "Minimal/Essential" | "Business/Co-working";
 export type TechIntegration = "Basic" | "Smart Home Ready" | "Fully Integrated";
 export type MaterialSourcing = "Local" | "European" | "Asian" | "Global Mix";
+export type HandoverCondition = "Shell & Core" | "Category A" | "Category B" | "Fully Furnished";
+export type BrandedStatus = "Unbranded" | "Hospitality Branded" | "Fashion/Automotive Branded";
+export type SalesChannel = "Local Brokerage" | "International Roadshows" | "Direct to VIP";
+export type LifecycleFocus = "Short-term Resale" | "Medium-term Hold" | "Long-term Retention";
+export type BrandStandardConstraints = "High Flexibility" | "Moderate Guidelines" | "Strict Vendor List";
+export type TimelineFlexibility = "Highly Flexible" | "Moderate Contingency" | "Fixed / Zero Tolerance";
+export type TargetValueAdd = "Max Capital Appreciation" | "Max Rental Yield" | "Balanced Return" | "Brand Flagship / Trophy";
 
 export interface ProjectInputs {
   // Context
@@ -76,6 +83,13 @@ export interface ProjectInputs {
   amenityFocus?: AmenityFocus;
   techIntegration?: TechIntegration;
   materialSourcing?: MaterialSourcing;
+  handoverCondition?: HandoverCondition;
+  brandedStatus?: BrandedStatus;
+  salesChannel?: SalesChannel;
+  lifecycleFocus?: LifecycleFocus;
+  brandStandardConstraints?: BrandStandardConstraints;
+  timelineFlexibility?: TimelineFlexibility;
+  targetValueAdd?: TargetValueAdd;
 }
 
 export interface NormalizedInputs {
@@ -110,6 +124,13 @@ export interface NormalizedInputs {
   fitoutRatio: number;
   procurementRiskMultiplier?: number;
   materialSourcingRiskMultiplier?: number;
+  handoverRiskMultiplier?: number;
+  brandedPremiumMultiplier?: number;
+  salesVelocityMultiplier?: number;
+  lifecycleOpexMultiplier?: number;
+  brandStandardMultiplier?: number;
+  timelineRiskMultiplier?: number;
+  targetValueMultiplier?: number;
 }
 
 export interface DimensionScores {

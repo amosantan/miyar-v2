@@ -267,6 +267,20 @@
       "when": 1772276368147,
       "tag": "0037_classy_romulus",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "5",
+      "when": 1772278450279,
+      "tag": "0038_dusty_azazel",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "5",
+      "when": 1772279215993,
+      "tag": "0039_warm_jackpot",
+      "breakpoints": true
     }
   ]
 }

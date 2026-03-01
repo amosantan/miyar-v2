@@ -176,6 +176,15 @@ export const predictiveRouter = router({
         trendDirection,
         marketCondition: input.marketCondition,
         horizonMonths: input.horizonMonths,
+        salesStrategy: project.salesStrategy,
+        targetYield: project.targetYield,
+        handoverCondition: project.handoverCondition,
+        brandedStatus: project.brandedStatus,
+        salesChannel: project.salesChannel,
+        lifecycleFocus: project.lifecycleFocus,
+        brandStandardConstraints: project.brandStandardConstraints,
+        timelineFlexibility: project.timelineFlexibility,
+        targetValueAdd: project.targetValueAdd,
       });
     }),
 

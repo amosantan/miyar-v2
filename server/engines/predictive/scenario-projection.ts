@@ -17,6 +17,13 @@ export interface ProjectionInput {
   currency?: string;
   salesStrategy?: string | null;
   targetYield?: string | null;
+  handoverCondition?: string | null;
+  brandedStatus?: string | null;
+  salesChannel?: string | null;
+  lifecycleFocus?: string | null;
+  brandStandardConstraints?: string | null;
+  timelineFlexibility?: string | null;
+  targetValueAdd?: string | null;
 }
 
 export interface ProjectionPoint {
@@ -122,6 +129,39 @@ export function projectScenarioCost(input: ProjectionInput): ScenarioProjection 
   } else if (input.salesStrategy === 'build_to_sell') {
     // BTS has higher market spec volatility
     highMultiplier += 0.05;
+  }
+
+  if (input.handoverCondition === 'Shell & Core') {
+    // Shell & Core has massive cost inflation risk if delays happen or material costs spike
+    highMultiplier += 0.10;
+    lowMultiplier -= 0.05;
+  } else if (input.handoverCondition === 'Fully Furnished') {
+    // Turnkey/Fully Furnished has much tighter predictable cost variance
+    highMultiplier -= 0.05;
+    lowMultiplier += 0.05;
+  }
+
+  // V6 Analytics spread adjusters
+  if (input.brandStandardConstraints === 'Strict Vendor List') {
+    // Sole-source supplier risk increases both the floor and ceiling of costs
+    highMultiplier += 0.10;
+    lowMultiplier += 0.05;
+  }
+
+  if (input.lifecycleFocus === 'Long-term Retention') {
+    // Higher initial Capex base requirement for durability
+    highMultiplier += 0.05;
+    lowMultiplier += 0.05;
+  }
+
+  if (input.timelineFlexibility === 'Fixed / Zero Tolerance') {
+    // Massive risk of expediting costs (air freight, overtime) if schedule slips
+    highMultiplier += 0.15;
+  }
+
+  if (input.targetValueAdd === 'Brand Flagship / Trophy') {
+    // Trophy assets often have elastic budgets to achieve the design vision, huge upward variance
+    highMultiplier += 0.20;
   }
 
   // Three scenarios: low, mid, high

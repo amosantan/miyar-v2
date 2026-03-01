@@ -181,5 +181,12 @@ export function normalizeInputs(
     fitoutRatio: computeFitoutRatio(inputs.totalFitoutArea, inputs.ctx03Gfa),
     procurementRiskMultiplier: inputs.procurementStrategy === 'Turnkey' ? 1.05 : inputs.procurementStrategy === 'Construction Management' ? 0.95 : 1.0,
     materialSourcingRiskMultiplier: inputs.materialSourcing === 'Local' ? 1.05 : (inputs.materialSourcing === 'Global Mix' || inputs.materialSourcing === 'Asian') ? 0.95 : inputs.materialSourcing === 'European' ? 0.98 : 1.0,
+    handoverRiskMultiplier: inputs.handoverCondition === 'Shell & Core' ? 1.15 : inputs.handoverCondition === 'Category A' ? 1.05 : inputs.handoverCondition === 'Fully Furnished' ? 0.85 : 1.0,
+    brandedPremiumMultiplier: inputs.brandedStatus === 'Fashion/Automotive Branded' ? 1.25 : inputs.brandedStatus === 'Hospitality Branded' ? 1.15 : 1.0,
+    salesVelocityMultiplier: inputs.salesChannel === 'Direct to VIP' ? 1.20 : inputs.salesChannel === 'International Roadshows' ? 1.10 : 1.0,
+    lifecycleOpexMultiplier: inputs.lifecycleFocus === 'Long-term Retention' ? 1.15 : inputs.lifecycleFocus === 'Short-term Resale' ? 0.90 : 1.0,
+    brandStandardMultiplier: inputs.brandStandardConstraints === 'Strict Vendor List' ? 1.25 : inputs.brandStandardConstraints === 'High Flexibility' ? 0.90 : 1.0,
+    timelineRiskMultiplier: inputs.timelineFlexibility === 'Fixed / Zero Tolerance' ? 1.30 : inputs.timelineFlexibility === 'Highly Flexible' ? 0.85 : 1.0,
+    targetValueMultiplier: inputs.targetValueAdd === 'Brand Flagship / Trophy' ? 1.30 : inputs.targetValueAdd === 'Max Capital Appreciation' ? 1.10 : inputs.targetValueAdd === 'Max Rental Yield' ? 0.95 : 1.0,
   };
 }

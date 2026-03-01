@@ -321,6 +321,43 @@ export const projects = mysqlTable("projects", {
     "Asian",
     "Global Mix",
   ]),
+  handoverCondition: mysqlEnum("handoverCondition", [
+    "Shell & Core",
+    "Category A",
+    "Category B",
+    "Fully Furnished",
+  ]),
+  brandedStatus: mysqlEnum("brandedStatus", [
+    "Unbranded",
+    "Hospitality Branded",
+    "Fashion/Automotive Branded",
+  ]),
+  salesChannel: mysqlEnum("salesChannel", [
+    "Local Brokerage",
+    "International Roadshows",
+    "Direct to VIP",
+  ]),
+  lifecycleFocus: mysqlEnum("lifecycleFocus", [
+    "Short-term Resale",
+    "Medium-term Hold",
+    "Long-term Retention",
+  ]),
+  brandStandardConstraints: mysqlEnum("brandStandardConstraints", [
+    "High Flexibility",
+    "Moderate Guidelines",
+    "Strict Vendor List",
+  ]),
+  timelineFlexibility: mysqlEnum("timelineFlexibility", [
+    "Highly Flexible",
+    "Moderate Contingency",
+    "Fixed / Zero Tolerance",
+  ]),
+  targetValueAdd: mysqlEnum("targetValueAdd", [
+    "Max Capital Appreciation",
+    "Max Rental Yield",
+    "Balanced Return",
+    "Brand Flagship / Trophy",
+  ]),
 
   // Expanded Inputs
   unitMix: json("unitMix"),

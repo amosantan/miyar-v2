@@ -16,6 +16,13 @@ export interface ComparableOutcome {
   geography?: string;
   targetYield?: string;
   salesStrategy?: string;
+  brandedStatus?: string;
+  handoverCondition?: string;
+  salesChannel?: string;
+  lifecycleFocus?: string;
+  brandStandardConstraints?: string;
+  timelineFlexibility?: string;
+  targetValueAdd?: string;
 }
 
 export interface VariableContribution {
@@ -46,15 +53,29 @@ function filterComparables(
   targetTier: string,
   targetGeography?: string,
   targetYield?: string,
-  targetSalesStrategy?: string
+  targetSalesStrategy?: string,
+  targetHandoverCondition?: string,
+  targetBrandedStatus?: string,
+  targetSalesChannel?: string,
+  targetLifecycleFocus?: string,
+  targetBrandStandardConstraints?: string,
+  targetTimelineFlexibility?: string,
+  targetTargetValueAdd?: string
 ): ComparableOutcome[] {
-  // Try ultra-specific match: typology + tier + geography + strategy + yield
+  // Try ultra-specific match: typology + tier + geography + strategy + yield + v5 features
   let filtered = outcomes.filter(o =>
     o.typology === targetTypology &&
     o.tier === targetTier &&
     (!targetGeography || o.geography === targetGeography) &&
     (!targetSalesStrategy || o.salesStrategy === targetSalesStrategy) &&
-    (!targetYield || o.targetYield === targetYield)
+    (!targetYield || o.targetYield === targetYield) &&
+    (!targetHandoverCondition || o.handoverCondition === targetHandoverCondition) &&
+    (!targetBrandedStatus || o.brandedStatus === targetBrandedStatus) &&
+    (!targetSalesChannel || o.salesChannel === targetSalesChannel) &&
+    (!targetLifecycleFocus || o.lifecycleFocus === targetLifecycleFocus) &&
+    (!targetBrandStandardConstraints || o.brandStandardConstraints === targetBrandStandardConstraints) &&
+    (!targetTimelineFlexibility || o.timelineFlexibility === targetTimelineFlexibility) &&
+    (!targetTargetValueAdd || o.targetValueAdd === targetTargetValueAdd)
   );
   if (filtered.length >= 3) return filtered;
 
@@ -115,7 +136,14 @@ export function predictOutcome(
     tier,
     options.geography,
     options.targetYield,
-    options.salesStrategy
+    options.salesStrategy,
+    (options as any).handoverCondition,
+    (options as any).brandedStatus,
+    (options as any).salesChannel,
+    (options as any).lifecycleFocus,
+    (options as any).brandStandardConstraints,
+    (options as any).timelineFlexibility,
+    (options as any).targetValueAdd
   );
 
   // Extract risk and success factors from variable contributions

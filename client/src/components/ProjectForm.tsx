@@ -591,6 +591,13 @@ export type FormData = {
   amenityFocus?: string;
   techIntegration?: string;
   materialSourcing?: string;
+  handoverCondition?: string;
+  brandedStatus?: string;
+  salesChannel?: string;
+  lifecycleFocus?: string;
+  brandStandardConstraints?: string;
+  timelineFlexibility?: string;
+  targetValueAdd?: string;
 };
 
 export type ProjectFormProps = {
@@ -1012,6 +1019,54 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
                   </Select>
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label>Branded Status</Label>
+                  <Select value={form.brandedStatus} onValueChange={(v) => set("brandedStatus", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select branding..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Unbranded">Unbranded</SelectItem>
+                      <SelectItem value="Hospitality Branded">Hospitality Branded</SelectItem>
+                      <SelectItem value="Fashion/Automotive Branded">Fashion/Automotive Branded</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Primary Sales Channel</Label>
+                  <Select value={form.salesChannel} onValueChange={(v) => set("salesChannel", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select channel..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Local Brokerage">Local Brokerage</SelectItem>
+                      <SelectItem value="International Roadshows">International Roadshows</SelectItem>
+                      <SelectItem value="Direct to VIP">Direct to VIP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label>Lifecycle Focus</Label>
+                  <Select value={form.lifecycleFocus} onValueChange={(v) => set("lifecycleFocus", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select lifecycle focus..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Short-term Resale">Short-term Resale (Flip)</SelectItem>
+                      <SelectItem value="Medium-term Hold">Medium-term Hold (3-7 yrs)</SelectItem>
+                      <SelectItem value="Long-term Retention">Long-term Retention (10+ yrs)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Brand Standard Constraints</Label>
+                  <Select value={form.brandStandardConstraints} onValueChange={(v) => set("brandStandardConstraints", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select constraints..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="High Flexibility">High Flexibility (No Mandates)</SelectItem>
+                      <SelectItem value="Moderate Guidelines">Moderate Guidelines</SelectItem>
+                      <SelectItem value="Strict Vendor List">Strict Vendor List (Tender Ready)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="space-y-2 mb-6">
                 <Label>Developer Guidelines & Target Audience</Label>
                 <Textarea
@@ -1301,6 +1356,43 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="space-y-2">
+                  <Label>Handover Condition</Label>
+                  <Select value={form.handoverCondition} onValueChange={(v) => set("handoverCondition", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select handover condition..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Shell & Core">Shell & Core</SelectItem>
+                      <SelectItem value="Category A">Category A</SelectItem>
+                      <SelectItem value="Category B">Category B (Tenant Fit-out)</SelectItem>
+                      <SelectItem value="Fully Furnished">Fully Furnished / Turnkey</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Timeline Flexibility</Label>
+                  <Select value={form.timelineFlexibility} onValueChange={(v) => set("timelineFlexibility", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select flexibility..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Highly Flexible">Highly Flexible</SelectItem>
+                      <SelectItem value="Moderate Contingency">Moderate Contingency</SelectItem>
+                      <SelectItem value="Fixed / Zero Tolerance">Fixed / Zero Tolerance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2 mb-6">
+                <Label>Target Value-Add Result</Label>
+                <Select value={form.targetValueAdd} onValueChange={(v) => set("targetValueAdd", v)}>
+                  <SelectTrigger><SelectValue placeholder="Select value-add target..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Max Capital Appreciation">Maximize Capital Appreciation</SelectItem>
+                    <SelectItem value="Max Rental Yield">Maximize Rental Yield</SelectItem>
+                    <SelectItem value="Balanced Return">Balanced Return Profiling</SelectItem>
+                    <SelectItem value="Brand Flagship / Trophy">Brand Flagship / Trophy Asset</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <OrdinalSlider
                 label="Supply Chain Reliability (EXE-01)"
