@@ -7,6 +7,7 @@
 import type { ProjectInputs } from "../../shared/miyar-types";
 import type { CategoryPricing } from "./pricing-engine";
 import { getPricingArea } from "./area-utils";
+import type { SpaceBenchmarkResult } from "./design/space-benchmarking";
 
 export interface PricingAnalytics {
   /** Weighted average AED/m² across all specified material types */
@@ -105,6 +106,15 @@ export interface DesignBriefData {
   };
   /** Phase 3: Structural cost analytics from material_constants */
   pricingAnalytics?: PricingAnalytics;
+  /** Phase 9: Space allocation analysis from floor plan + DLD benchmarks */
+  spaceAllocation?: {
+    efficiencyScore: number;
+    totalArea: number;
+    roomCount: number;
+    circulationPct: number;
+    rooms: { name: string; type: string; areaSqm: number; pctOfTotal: number; finishGrade: string }[];
+    recommendations: { roomType: string; currentPct: number; benchmarkPct: number; severity: string; advice: string }[];
+  };
 }
 
 const STYLE_MOOD_MAP: Record<string, { keywords: string[]; colors: string[]; texture: string; lighting: string; spatial: string }> = {
@@ -223,6 +233,10 @@ export function generateDesignBrief(
   areaSalePricePerSqm?: number,
   /** Phase B.3: Project purpose — affects material quality & durability recommendations */
   projectPurpose?: "sell_offplan" | "sell_ready" | "rent" | "mixed",
+  /** Phase 9: Floor plan analysis data */
+  floorPlanAnalysis?: any,
+  /** Phase 9: Space benchmark result */
+  spaceBenchmark?: SpaceBenchmarkResult,
 ): DesignBriefData {
   const style = inputs.des01Style || "Modern";
   const tier = inputs.mkt01Tier || "Upper-mid";
@@ -558,5 +572,28 @@ export function generateDesignBrief(
       }
     },
     pricingAnalytics,
+    // Phase 9: Space allocation section
+    ...(floorPlanAnalysis && spaceBenchmark ? {
+      spaceAllocation: {
+        efficiencyScore: spaceBenchmark.overallEfficiencyScore,
+        totalArea: floorPlanAnalysis.totalArea || 0,
+        roomCount: floorPlanAnalysis.rooms?.length || 0,
+        circulationPct: floorPlanAnalysis.circulationPct || 0,
+        rooms: (floorPlanAnalysis.rooms || []).map((r: any) => ({
+          name: r.name,
+          type: r.type,
+          areaSqm: r.areaSqm,
+          pctOfTotal: r.pctOfTotal || ((r.areaSqm / (floorPlanAnalysis.totalArea || 1)) * 100),
+          finishGrade: r.finishGrade || "standard",
+        })),
+        recommendations: spaceBenchmark.recommendations.map(rec => ({
+          roomType: rec.roomName,
+          currentPct: rec.currentPercent,
+          benchmarkPct: rec.benchmarkPercent,
+          severity: rec.severity,
+          advice: rec.action || `Adjust ${rec.roomName} from ${rec.currentPercent.toFixed(1)}% to ${rec.benchmarkPercent.toFixed(1)}%`,
+        })),
+      },
+    } : {}),
   };
 }

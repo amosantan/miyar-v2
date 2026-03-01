@@ -198,6 +198,10 @@ function projectToInputs(p: any): ProjectInputs {
 
     city: p.city ?? "Dubai",
     sustainCertTarget: p.sustainCertTarget || "silver",
+
+    // Phase 9: Will be populated during evaluation if floor plan analyzed
+    spaceEfficiencyScore: undefined,
+    spaceCriticalCount: undefined,
   };
 }
 
@@ -368,6 +372,70 @@ export const projectRouter = router({
         inputs.ctx04Location,
         inputs.mkt01Tier
       );
+
+      // Phase 9: Inject space efficiency from floor plan analysis
+      if (project.floorPlanAnalysis) {
+        try {
+          const { benchmarkSpaceRatios } = await import("../engines/design/space-benchmarking");
+          const analysis = typeof project.floorPlanAnalysis === "string"
+            ? JSON.parse(project.floorPlanAnalysis)
+            : project.floorPlanAnalysis;
+
+          // Get DLD area context for data-backed recommendations
+          let areaNameForBench = project.dldAreaName || inputs.ctx04Location || "Dubai";
+          let transCount = 0;
+          let saleP50: number | null = null;
+          if (project.dldAreaId) {
+            const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
+            if (dldBench) {
+              areaNameForBench = dldBench.areaName || areaNameForBench;
+              transCount = dldBench.transactionCount ? Number(dldBench.transactionCount) : 0;
+              saleP50 = dldBench.saleP50 ? Number(dldBench.saleP50) : null;
+            }
+          }
+
+          const spaceResult = benchmarkSpaceRatios(
+            analysis,
+            areaNameForBench,
+            transCount,
+            saleP50
+          );
+          inputs.spaceEfficiencyScore = spaceResult.overallEfficiencyScore;
+          inputs.spaceCriticalCount = spaceResult.totalCritical;
+          console.log(`[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`);
+
+          // Phase 9 Gap 6: Space-critical platform alert
+          if (spaceResult.totalCritical >= 2) {
+            try {
+              const { getDb: getDbFn } = await import("../db");
+              const { platformAlerts: platformAlertsTable } = await import("../../drizzle/schema");
+              const alertDb = await getDbFn();
+              if (alertDb) {
+                const criticalRooms = spaceResult.recommendations
+                  .filter(r => r.severity === "critical")
+                  .map(r => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`)
+                  .join(", ");
+                await alertDb.insert(platformAlertsTable).values({
+                  alertType: "space_critical",
+                  severity: "high",
+                  title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
+                  body: `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside DLD benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
+                  affectedProjectIds: [input.id],
+                  affectedCategories: ["space_planning", "floor_plan"],
+                  triggerData: { spaceResult } as any,
+                  suggestedAction: "Review floor plan allocations in Space Planner. Critical room ratios are correlated with lower sale prices in this area.",
+                  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                });
+                console.log(`[Phase9] Space-critical alert created for project ${input.id}`);
+              }
+            } catch (alertErr) {
+              console.warn("[Phase9] Space alert creation failed (non-blocking):", alertErr);
+            }
+          }
+        } catch (e) {
+          console.warn("[Evaluate] Space benchmarking failed (non-blocking):", e);
+        }
+      }
 
       // V4-11: Check if we have enough evidence for evidence-backed cost
       const evidenceRecords = await db.listEvidenceRecords({ projectId: input.id, limit: 500 });
@@ -546,7 +614,7 @@ export const projectRouter = router({
         for (const insight of insights) {
           await db.insertProjectInsight({
             projectId: input.id,
-            insightType: insight.type,
+            insightType: insight.type as any,
             severity: insight.severity,
             title: insight.title,
             body: insight.body,
@@ -654,6 +722,7 @@ export const projectRouter = router({
         materialLevel: project.des02MaterialLevel || 3,
         tier: project.mkt01Tier || "Upper-mid",
         horizon: project.ctx05Horizon || "12-24m",
+        spaceEfficiencyScore: (project as any).spaceEfficiencyScore || undefined,
       };
 
       const roiResult = computeRoi(roiInputs, coefficients);
@@ -897,6 +966,7 @@ export const projectRouter = router({
         materialLevel: project.des02MaterialLevel || 3,
         tier: project.mkt01Tier || "Upper-mid",
         horizon: project.ctx05Horizon || "12-24m",
+        spaceEfficiencyScore: (project as any).spaceEfficiencyScore || undefined,
       };
       const roiResult = computeRoi(roiInputs, coefficients);
 

@@ -24,6 +24,7 @@ const PERTURBABLE_FIELDS: { key: keyof ProjectInputs; step: number; type: "ordin
   { key: "exe03Approvals", step: 1, type: "ordinal" },
   { key: "exe04QaMaturity", step: 1, type: "ordinal" },
   { key: "fin01BudgetCap", step: 50, type: "numeric" },
+  { key: "spaceEfficiencyScore", step: 10, type: "numeric" },  // Phase 9: floor plan quality
 ];
 
 export function runSensitivityAnalysis(

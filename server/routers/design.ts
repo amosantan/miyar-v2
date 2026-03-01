@@ -192,6 +192,29 @@ export const designRouter = router({
       // Phase B.3: Look up DLD area median sale price (AED/sqm)
       const areaSaleMedian = await getAreaSaleMedianSqm(project.dldAreaId);
 
+      // Phase 9: Resolve floor plan analysis and space benchmark for spaceAllocation section
+      let floorPlanAnalysis: any = undefined;
+      let spaceBenchmarkResult: any = undefined;
+      if (project.floorPlanAnalysis) {
+        try {
+          floorPlanAnalysis = typeof project.floorPlanAnalysis === "string"
+            ? JSON.parse(project.floorPlanAnalysis)
+            : project.floorPlanAnalysis;
+          // Compute space benchmark if DLD area data is available
+          if (floorPlanAnalysis?.rooms?.length > 0 && project.dldAreaId) {
+            const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
+            if (dldBench) {
+              const areaName = dldBench.areaName || "Dubai";
+              const transCount = Number(dldBench.transactionCount) || 100;
+              const saleP50 = Number(dldBench.saleMedian) || 25000;
+              spaceBenchmarkResult = benchmarkSpaceRatios(floorPlanAnalysis, areaName, transCount, saleP50);
+            }
+          }
+        } catch (e) {
+          console.warn("[GenerateBrief] Floor plan analysis parsing failed:", e);
+        }
+      }
+
       const briefData = generateDesignBrief(
         { name: project.name, description: project.description },
         inputs,
@@ -200,6 +223,8 @@ export const designRouter = router({
         matConstants.length > 0 ? matConstants : undefined,
         areaSaleMedian, // DLD area median, replaces 25K fallback
         project.projectPurpose as any, // Purpose adjusts material tier
+        floorPlanAnalysis,       // Phase 9: floor plan data
+        spaceBenchmarkResult,    // Phase 9: space benchmark result
       );
 
       // Get latest version number
@@ -332,6 +357,7 @@ export const designRouter = router({
         boqFramework: brief.boqFramework as any,
         detailedBudget: (brief.detailedBudget ?? {}) as Record<string, unknown>,
         designerInstructions: brief.designerInstructions as any,
+        spaceAllocation: (brief as any).briefData?.spaceAllocation ?? (brief as any).spaceAllocation ?? undefined,
         version: brief.version,
         projectName: project?.name,
       });
@@ -1402,6 +1428,35 @@ export const designRouter = router({
         db.getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
         db.getDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
       ]);
+
+      // Phase 9: Compute space benchmark data for public share view
+      let spaceEfficiency: any = undefined;
+      if (project.floorPlanAnalysis) {
+        try {
+          const fpData = typeof project.floorPlanAnalysis === "string"
+            ? JSON.parse(project.floorPlanAnalysis)
+            : project.floorPlanAnalysis;
+          if (fpData?.rooms?.length > 0 && project.dldAreaId) {
+            const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
+            if (dldBench) {
+              const spaceResult = benchmarkSpaceRatios(
+                fpData,
+                dldBench.areaName || "Dubai",
+                Number(dldBench.transactionCount) || 100,
+                Number(dldBench.saleMedian) || 25000,
+              );
+              spaceEfficiency = {
+                efficiencyScore: spaceResult.overallEfficiencyScore,
+                criticalCount: spaceResult.totalCritical,
+                advisoryCount: spaceResult.totalAdvisory,
+                circulationPct: spaceResult.circulationWastePercent ?? 0,
+                recommendations: (spaceResult.recommendations ?? []).slice(0, 6),
+              };
+            }
+          }
+        } catch { /* skip if parsing fails */ }
+      }
+
       const totalFitoutBudget = (recs ?? []).reduce((s: number, r: any) => s + Number(r.budgetAllocation || 0), 0);
       const gfa = getPricingArea(project);
       const TIER_PREMIUM_PCT: Record<string, number> = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
@@ -1427,6 +1482,7 @@ export const designRouter = router({
           typology: benchmark.typology, location: benchmark.location, marketTier: benchmark.marketTier, dataYear: benchmark.dataYear,
         } : null,
         designTrends: trends, expiresAt: brief.shareExpiresAt?.toISOString(),
+        spaceEfficiency,
       };
     }),
 

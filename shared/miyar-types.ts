@@ -91,9 +91,13 @@ export interface ProjectInputs {
   timelineFlexibility?: TimelineFlexibility;
   targetValueAdd?: TargetValueAdd;
 
-  // Phase 8: Board overrrides
+  // Phase 8: Board overrides
   boardMaterialsCost?: number;
   boardMaintenanceVariance?: number;
+
+  // Phase 9: Space efficiency from floor plan analysis
+  spaceEfficiencyScore?: number;  // 0-100, from benchmarkSpaceRatios
+  spaceCriticalCount?: number;    // number of critical deviations
 }
 
 export interface NormalizedInputs {
@@ -135,6 +139,8 @@ export interface NormalizedInputs {
   brandStandardMultiplier?: number;
   timelineRiskMultiplier?: number;
   targetValueMultiplier?: number;
+  // Phase 9
+  spaceEfficiency_n: number;
 }
 
 export interface DimensionScores {

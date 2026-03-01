@@ -73,11 +73,12 @@ export function computeDifferentiationStrength(
   w: Record<string, number>
 ): number {
   const raw =
-    (w.str02 ?? 0.25) * n.str02_n +
+    (w.str02 ?? 0.20) * n.str02_n +
     (w.competitorInverse ?? 0.20) * (1 - n.mkt02_n) +
-    (w.des04 ?? 0.20) * n.des04_n +
-    (w.des02 ?? 0.20) * n.des02_n +
-    (w.des05 ?? 0.15) * n.des05_n;
+    (w.des04 ?? 0.15) * n.des04_n +
+    (w.des02 ?? 0.15) * n.des02_n +
+    (w.des05 ?? 0.15) * n.des05_n +
+    (w.spaceEfficiency ?? 0.15) * n.spaceEfficiency_n; // Phase 9
   return Math.max(0, Math.min(100, raw * 100));
 }
 
@@ -213,6 +214,18 @@ export function computePenalties(
     }
   }
 
+  // Phase 9: P8 - Critical space allocation deviations from floor plan analysis
+  if (inputs.spaceCriticalCount && inputs.spaceCriticalCount >= 2) {
+    penalties.push({
+      id: "P8",
+      trigger: "space_critical_deviations",
+      effect: penaltyConfig?.P8?.effect ?? -7,
+      flag: "SPACE_CRITICAL",
+      description: `Floor plan has ${inputs.spaceCriticalCount} critical room ratio deviations vs DLD benchmarks`,
+    });
+    riskFlags.push("SPACE_CRITICAL");
+  }
+
   return { penalties, riskFlags };
 }
 
@@ -280,6 +293,15 @@ export function generateConditionalActions(
       recommendation:
         "The current material board exceeds the maximum budget. Swap premium vendor items for approved market equivalents or increase Budget Cap.",
       variables: ["fin01BudgetCap", "brandStandardConstraints"],
+    });
+  }
+  // Phase 9: Space Efficiency
+  if (riskFlags.includes("SPACE_CRITICAL")) {
+    actions.push({
+      trigger: "SPACE_CRITICAL",
+      recommendation:
+        "Floor plan has critical space allocation deviations. Review room ratios in Space Planner — undersized rooms correlate with lower sale prices per DLD data.",
+      variables: ["spaceEfficiencyScore"],
     });
   }
 
@@ -395,8 +417,9 @@ export function computeVariableContributions(
       competitorInverse:
         (1 - n.mkt02_n) * (varWeights.ds?.competitorInverse ?? 0.20),
       des04_n: n.des04_n * (varWeights.ds?.des04 ?? 0.20),
-      des02_n: n.des02_n * (varWeights.ds?.des02 ?? 0.20),
+      des02_n: n.des02_n * (varWeights.ds?.des02 ?? 0.15),
       des05_n: n.des05_n * (varWeights.ds?.des05 ?? 0.15),
+      spaceEfficiency: n.spaceEfficiency_n * (varWeights.ds?.spaceEfficiency ?? 0.15), // Phase 9
     },
     er: {
       executionResilience:

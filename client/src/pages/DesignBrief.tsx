@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Palette, Package, DollarSign, Truck, CheckSquare, RefreshCw, History, ChevronRight, Download } from "lucide-react";
+import { FileText, Palette, Package, DollarSign, Truck, CheckSquare, RefreshCw, History, ChevronRight, Download, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 
 export default function DesignBrief() {
@@ -42,6 +42,8 @@ export default function DesignBrief() {
   const budgetGuardrails = brief?.budgetGuardrails as any;
   const procurement = brief?.procurementConstraints as any;
   const deliverables = brief?.deliverablesChecklist as any;
+  const briefFullData = brief?.briefData as any;
+  const spaceAllocation = briefFullData?.spaceAllocation as any;
 
   return (
     <div className="space-y-6">
@@ -260,6 +262,67 @@ export default function DesignBrief() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Phase 9: Space Allocation (if available) */}
+            {spaceAllocation && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><LayoutGrid className="h-5 w-5" /> Space Allocation Analysis</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Efficiency Score</p>
+                      <p className="font-medium text-lg">{spaceAllocation.efficiencyScore}/100</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total Area</p>
+                      <p className="font-medium">{spaceAllocation.totalArea?.toLocaleString()} sqft</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Rooms</p>
+                      <p className="font-medium">{spaceAllocation.roomCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Circulation</p>
+                      <p className="font-medium">{spaceAllocation.circulationPct?.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                  {spaceAllocation.rooms?.length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium mb-2">Room Breakdown</p>
+                        {spaceAllocation.rooms.map((room: any, i: number) => (
+                          <div key={i} className="flex items-center gap-3 text-sm">
+                            <span className="w-32 text-muted-foreground truncate">{room.name}</span>
+                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-primary/60 rounded-full" style={{ width: `${Math.min(100, (room.pctOfTotal || 0) * 3)}%` }} />
+                            </div>
+                            <span className="text-xs text-muted-foreground w-12 text-right">{room.pctOfTotal?.toFixed(1)}%</span>
+                            <Badge variant="outline" className="text-xs">{room.finishGrade || "—"}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {spaceAllocation.recommendations?.length > 0 && (
+                    <>
+                      <Separator />
+                      <p className="text-sm font-medium mb-2">DLD-Backed Recommendations</p>
+                      {spaceAllocation.recommendations.map((rec: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground mb-1">
+                          <Badge variant="outline" className={`text-xs shrink-0 mt-px ${rec.severity === "critical" ? "border-red-500/40 text-red-400" : "border-amber-500/40 text-amber-400"}`}>
+                            {rec.severity}
+                          </Badge>
+                          <span>{rec.advice}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Section 5: Procurement Constraints */}
@@ -389,6 +452,12 @@ export default function DesignBrief() {
                   <div>
                     <h4 className="font-semibold mb-1">6. Procurement</h4>
                     <p className="text-muted-foreground">{procurement.leadTimeWindow}</p>
+                  </div>
+                )}
+                {spaceAllocation && (
+                  <div>
+                    <h4 className="font-semibold mb-1">7. Space Allocation</h4>
+                    <p className="text-muted-foreground">Efficiency: {spaceAllocation.efficiencyScore}/100 · {spaceAllocation.roomCount} rooms · {spaceAllocation.circulationPct?.toFixed(1)}% circulation · {spaceAllocation.recommendations?.length || 0} recommendations</p>
                   </div>
                 )}
               </CardContent>

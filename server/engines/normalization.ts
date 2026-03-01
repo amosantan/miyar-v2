@@ -204,5 +204,9 @@ export function normalizeInputs(
     brandStandardMultiplier: inputs.brandStandardConstraints === 'Strict Vendor List' ? 1.25 : inputs.brandStandardConstraints === 'High Flexibility' ? 0.90 : 1.0,
     timelineRiskMultiplier: inputs.timelineFlexibility === 'Fixed / Zero Tolerance' ? 1.30 : inputs.timelineFlexibility === 'Highly Flexible' ? 0.85 : 1.0,
     targetValueMultiplier: inputs.targetValueAdd === 'Brand Flagship / Trophy' ? 1.30 : inputs.targetValueAdd === 'Max Capital Appreciation' ? 1.10 : inputs.targetValueAdd === 'Max Rental Yield' ? 0.95 : 1.0,
+    // Phase 9: Space efficiency from floor plan analysis (0-100 → 0-1, default 0.5 = neutral)
+    spaceEfficiency_n: inputs.spaceEfficiencyScore != null
+      ? normalizeBounded(inputs.spaceEfficiencyScore, 0, 100)
+      : 0.5,
   };
 }

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
     Building2, DollarSign, Leaf, TrendingUp, BarChart3,
-    AlertCircle, Loader2, ChevronRight, Globe, Lock, Shield,
+    AlertCircle, Loader2, ChevronRight, Globe, Lock, Shield, LayoutGrid,
 } from "lucide-react";
 
 function fmtAed(n: number): string {
@@ -229,6 +229,48 @@ export default function ShareView() {
                                 </CardContent>
                             </Card>
                         )}
+                    </div>
+                )}
+
+                {/* Space Planning Intelligence (Phase 9) */}
+                {(data as any).spaceEfficiency && (
+                    <div>
+                        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                            <LayoutGrid className="h-3.5 w-3.5" /> B½ · Space Planning Intelligence
+                        </h2>
+                        <Card>
+                            <CardContent className="pt-4 pb-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                                    {[
+                                        { label: "Efficiency", value: `${(data as any).spaceEfficiency.efficiencyScore}/100`, color: (data as any).spaceEfficiency.efficiencyScore >= 75 ? "text-emerald-400" : (data as any).spaceEfficiency.efficiencyScore >= 50 ? "text-amber-400" : "text-red-400" },
+                                        { label: "Critical Issues", value: String((data as any).spaceEfficiency.criticalCount), color: (data as any).spaceEfficiency.criticalCount > 0 ? "text-red-400" : "text-emerald-400" },
+                                        { label: "Advisory", value: String((data as any).spaceEfficiency.advisoryCount), color: "text-amber-400" },
+                                        { label: "Circulation", value: `${((data as any).spaceEfficiency.circulationPct ?? 0).toFixed(1)}%`, color: "text-muted-foreground" },
+                                    ].map(k => (
+                                        <div key={k.label} className="text-center">
+                                            <p className="text-[10px] text-muted-foreground">{k.label}</p>
+                                            <p className={`text-lg font-bold ${k.color}`}>{k.value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                {((data as any).spaceEfficiency.recommendations ?? []).length > 0 && (
+                                    <>
+                                        <Separator className="mb-3" />
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">DLD-Backed Recommendations</p>
+                                        <div className="space-y-1">
+                                            {((data as any).spaceEfficiency.recommendations ?? []).slice(0, 4).map((rec: any, i: number) => (
+                                                <div key={i} className="flex gap-2 items-start text-xs">
+                                                    <Badge variant={rec.severity === "critical" ? "destructive" : "outline"} className="text-[9px] shrink-0 mt-px">
+                                                        {rec.severity}
+                                                    </Badge>
+                                                    <span className="text-muted-foreground">{rec.action || rec.advice || rec.roomName}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
                     </div>
                 )}
 

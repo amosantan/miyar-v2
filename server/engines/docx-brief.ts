@@ -41,6 +41,14 @@ interface DesignBriefData {
     coordinationRequirements: string[];
     procurementAndLogistics: Record<string, unknown>;
   };
+  spaceAllocation?: {
+    efficiencyScore: number;
+    totalArea: number;
+    roomCount: number;
+    circulationPct: number;
+    rooms: { name: string; area: number; pctOfTotal: number; finishGrade: string }[];
+    recommendations: { roomType: string; severity: string; advice: string }[];
+  };
   version: number;
   projectName?: string;
 }
@@ -302,6 +310,55 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
     }
   }
   sections.push(spacer());
+
+  // ─── Section 7: Space Allocation Analysis (Phase 9) ──────────────────────
+  if (data.spaceAllocation) {
+    const space = data.spaceAllocation;
+    sections.push(heading("7. Space Allocation Analysis"));
+    sections.push(
+      twoColumnTable([
+        ["Overall Efficiency Score", `${space.efficiencyScore}/100`],
+        ["Total Analysed Area", `${space.totalArea?.toLocaleString()} sqft`],
+        ["Room Count", String(space.roomCount)],
+        ["Circulation Percentage", `${space.circulationPct?.toFixed(1)}%`],
+      ])
+    );
+
+    if (space.rooms && space.rooms.length > 0) {
+      sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "Room Breakdown:", bold: true, size: 22 })] }));
+      const roomTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            tableHeader: true,
+            children: [
+              new TableCell({ width: { size: 35, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "Room", bold: true, color: "ffffff", size: 20 })] })] }),
+              new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "Area (sqft)", bold: true, color: "ffffff", size: 20 })] })] }),
+              new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "% of Total", bold: true, color: "ffffff", size: 20 })] })] }),
+              new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "Grade", bold: true, color: "ffffff", size: 20 })] })] }),
+            ],
+          }),
+          ...space.rooms.map((room, i) => new TableRow({
+            children: [
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : undefined, children: [new Paragraph({ children: [new TextRun({ text: room.name, size: 20 })] })] }),
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : undefined, children: [new Paragraph({ children: [new TextRun({ text: String(Math.round(room.area)), size: 20 })] })] }),
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : undefined, children: [new Paragraph({ children: [new TextRun({ text: `${room.pctOfTotal?.toFixed(1)}%`, size: 20 })] })] }),
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : undefined, children: [new Paragraph({ children: [new TextRun({ text: room.finishGrade || "—", size: 20 })] })] }),
+            ],
+          })),
+        ],
+      });
+      sections.push(roomTable);
+    }
+
+    if (space.recommendations && space.recommendations.length > 0) {
+      sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "DLD-Backed Recommendations:", bold: true, size: 22 })] }));
+      for (const rec of space.recommendations) {
+        sections.push(bulletItem(`[${rec.severity?.toUpperCase()}] ${rec.advice}`));
+      }
+    }
+    sections.push(spacer());
+  }
 
   // ─── Section 6: Workflow & Execution Instructions ────────────────────────
   sections.push(heading("6. Workflow & Execution Instructions"));

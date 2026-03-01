@@ -24,6 +24,7 @@ export interface RoiInputs {
   materialLevel: number;    // 1-5
   tier: string;
   horizon: string;
+  spaceEfficiencyScore?: number;  // 0-100 from Phase 9 floor plan analysis
 }
 
 export interface RoiDriver {
@@ -207,6 +208,37 @@ export function computeRoi(inputs: RoiInputs, coefficients?: Partial<RoiCoeffici
       ],
     },
   ];
+
+  // Driver 6: Space Optimization Savings (Phase 9)
+  if (inputs.spaceEfficiencyScore !== undefined && inputs.spaceEfficiencyScore > 0) {
+    const spaceNorm = inputs.spaceEfficiencyScore / 100;
+    // High space efficiency means less wasted sqm → lower fitout costs
+    // A 10% improvement in efficiency can save 3-5% of fitout budget
+    const wastePct = Math.max(0, (1 - spaceNorm) * 0.08); // up to 8% waste
+    const optimizedWastePct = wastePct * 0.4; // MIYAR-optimized: 60% reduction in waste
+    const spaceSaving = inputs.budgetCap * (wastePct - optimizedWastePct);
+    const spaceHours = Math.round(spaceSaving / c.hourlyRate);
+
+    drivers.push({
+      name: "Space Efficiency Optimization",
+      description: `Floor plan analysis identifies ${((1 - spaceNorm) * 100).toFixed(0)}% potential space waste, reducible through room reallocation`,
+      hoursSaved: {
+        conservative: Math.round(spaceHours * c.conservativeMultiplier),
+        mid: spaceHours,
+        aggressive: Math.round(spaceHours * c.aggressiveMultiplier),
+      },
+      costAvoided: {
+        conservative: Math.round(spaceSaving * c.conservativeMultiplier),
+        mid: Math.round(spaceSaving),
+        aggressive: Math.round(spaceSaving * c.aggressiveMultiplier),
+      },
+      assumptions: [
+        `Space efficiency score: ${inputs.spaceEfficiencyScore}/100`,
+        `Potential waste: ${(wastePct * 100).toFixed(1)}% of budget`,
+        `MIYAR-optimized waste: ${(optimizedWastePct * 100).toFixed(1)}%`,
+      ],
+    });
+  }
 
   const totalHoursMid = drivers.reduce((s, d) => s + d.hoursSaved.mid, 0);
   const totalCostMid = drivers.reduce((s, d) => s + d.costAvoided.mid, 0);

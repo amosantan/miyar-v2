@@ -106,6 +106,17 @@ export function computeFiveLens(
     { variable: "des04Experience", label: "Experience Quality", value: project.des04Experience || 3, weight: 0.30, contribution: contributions.des04Experience?.contribution || 0 },
     { variable: "des05Sustainability", label: "Sustainability", value: project.des05Sustainability || 2, weight: 0.25, contribution: contributions.des05Sustainability?.contribution || 0 },
   ];
+  // Phase 9: Add space efficiency evidence when available
+  if ((project as any).spaceEfficiencyScore) {
+    brandEvidence.push({
+      variable: "spaceEfficiency",
+      label: "Floor Plan Efficiency",
+      value: Number((project as any).spaceEfficiencyScore),
+      weight: 0.15,
+      contribution: contributions.spaceEfficiency?.contribution || 0,
+      benchmarkRef: "DLD area benchmark comparison",
+    });
+  }
 
   const lenses: LensResult[] = [
     {

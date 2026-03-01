@@ -19,7 +19,7 @@ import {
     Wand2, Image, Loader2, AlertCircle, Sparkles, Palette, Camera, Eye, Clock, Hash,
     Plus, Package, Trash2, FileSpreadsheet, Lightbulb, DollarSign,
     AlertTriangle, ChevronUp, ChevronDown, FileText, Pencil, Save, X, Download,
-    Pin, PinOff, TrendingUp, Layers, BarChart3,
+    Pin, PinOff, TrendingUp, Layers, BarChart3, Home,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -106,6 +106,7 @@ function StudioOverviewTab({ projectId, onNavigate }: { projectId: number; onNav
                     { type: "mood" as const, icon: <Palette className="h-5 w-5" />, label: "Mood Board", desc: "Interior aesthetic direction" },
                     { type: "material_board" as const, icon: <Sparkles className="h-5 w-5" />, label: "Material Board", desc: "Curated finish palette" },
                     { type: "hero" as const, icon: <Camera className="h-5 w-5" />, label: "Hero Image", desc: "Marketing render" },
+                    { type: "hero" as const, icon: <Home className="h-5 w-5" />, label: "Room Render", desc: "Board-aware room visual" },
                 ].map(({ type, icon, label, desc }) => (
                     <Card key={type} className="design-studio-glass cursor-pointer group hover:border-primary/40 transition-all duration-300"
                         onClick={() => !generateMutation.isPending && quickGenerate(type)}>
@@ -206,12 +207,14 @@ function StudioOverviewTab({ projectId, onNavigate }: { projectId: number; onNav
 // ─── VISUALS TAB ─────────────────────────────────────────────────────────────
 
 function VisualsTab({ projectId }: { projectId: number }) {
-    const [genType, setGenType] = useState<"mood" | "material_board" | "hero">("mood");
+    const [genType, setGenType] = useState<"mood" | "material_board" | "hero" | "room_render">("mood");
     const [customPrompt, setCustomPrompt] = useState("");
     const [useCustom, setUseCustom] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>();
     const [previewVisual, setPreviewVisual] = useState<any>(null);
     const [pinDialogVisual, setPinDialogVisual] = useState<any>(null);
+    const [roomName, setRoomName] = useState("Master Bedroom");
+    const [roomSqm, setRoomSqm] = useState("35");
 
     const visuals = trpc.design.listVisuals.useQuery({ projectId }, { enabled: !!projectId });
     const templates = trpc.design.listPromptTemplates.useQuery({ type: genType });
@@ -237,7 +240,30 @@ function VisualsTab({ projectId }: { projectId: number }) {
         onError: (err) => toast.error("Pin failed", { description: err.message }),
     });
 
+    // Phase 9: Room render mutation (uses board-aware prompts)
+    const roomRenderMutation = trpc.design.generateRoomRender.useMutation({
+        onSuccess: (result: any) => {
+            if (result.status === "completed") {
+                toast.success("Room render generated", { description: `${roomName} visualization created` });
+            } else {
+                toast.error("Render failed", { description: result.error || "Unknown error" });
+            }
+            visuals.refetch();
+        },
+        onError: (err: any) => toast.error("Render failed", { description: err.message }),
+    });
+
     const handleGenerate = () => {
+        if (genType === "room_render") {
+            roomRenderMutation.mutate({
+                projectId,
+                roomName,
+                roomType: "bedroom",
+                roomSqm: Number(roomSqm) || 30,
+                finishGrade: "A",
+            });
+            return;
+        }
         generateMutation.mutate({
             projectId,
             type: genType,
@@ -256,6 +282,7 @@ function VisualsTab({ projectId }: { projectId: number }) {
         mood: "Mood Board",
         material_board: "Material Board",
         hero: "Marketing Hero",
+        room_render: "Room Render",
     };
 
     const statusColors: Record<string, string> = {
@@ -287,6 +314,7 @@ function VisualsTab({ projectId }: { projectId: number }) {
                                     <SelectItem value="mood">Mood Board</SelectItem>
                                     <SelectItem value="material_board">Material Board</SelectItem>
                                     <SelectItem value="hero">Marketing Hero</SelectItem>
+                                    <SelectItem value="room_render">Room Render (Board-Aware)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -315,12 +343,28 @@ function VisualsTab({ projectId }: { projectId: number }) {
                             </div>
                         )}
                     </div>
-                    {useCustom && (
+                    {useCustom && genType !== "room_render" && (
                         <Textarea value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
                             placeholder="Describe the visual you want to generate..." rows={3} />
                     )}
-                    <Button onClick={handleGenerate} disabled={generateMutation.isPending} className="w-full md:w-auto">
-                        {generateMutation.isPending ? (
+                    {genType === "room_render" && (
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                                <label className="text-sm font-medium mb-1 block">Room Name</label>
+                                <Input value={roomName} onChange={e => setRoomName(e.target.value)} placeholder="e.g. Master Bedroom" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium mb-1 block">Room Area (sqm)</label>
+                                <Input type="number" value={roomSqm} onChange={e => setRoomSqm(e.target.value)} placeholder="35" />
+                            </div>
+                            <p className="text-xs text-muted-foreground md:col-span-2">
+                                <Home className="inline h-3 w-3 mr-1" />
+                                Materials from your active board will be injected into the render prompt automatically.
+                            </p>
+                        </div>
+                    )}
+                    <Button onClick={handleGenerate} disabled={generateMutation.isPending || roomRenderMutation.isPending} className="w-full md:w-auto">
+                        {(generateMutation.isPending || roomRenderMutation.isPending) ? (
                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</>
                         ) : (
                             <><Wand2 className="mr-2 h-4 w-4" /> Generate {typeLabels[genType]}</>

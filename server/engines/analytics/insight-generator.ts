@@ -27,7 +27,8 @@ export type InsightType =
   | "positioning_gap"
   | "style_shift"
   | "brand_dominance"
-  | "spec_inflation";
+  | "spec_inflation"
+  | "space_optimization";
 
 export type InsightSeverity = "critical" | "warning" | "info";
 
@@ -86,6 +87,15 @@ export interface InsightInput {
     styleMentions?: Array<{ style: string; currentPeriod: number; previousPeriod: number; percentChange: number }>;
     brandShare?: Array<{ brand: string; category: string; sharePercentage: number }>;
     finishLevelInflation?: Array<{ finishLevel: string; category: string; percentChange: number; categoryAvgChange: number }>;
+  };
+
+  // Phase 9: Space analysis data
+  spaceAnalysis?: {
+    efficiencyScore: number;           // 0-100
+    criticalCount: number;             // rooms with critical deviations
+    advisoryCount: number;             // rooms with advisory deviations
+    circulationWastePercent: number;   // % wasted on circulation
+    recommendations: Array<{ roomName: string; severity: string; action: string }>;
   };
 }
 
@@ -381,6 +391,38 @@ function checkSpecInflation(input: InsightInput): GeneratedInsight | null {
   };
 }
 
+function checkSpaceOptimization(input: InsightInput): GeneratedInsight | null {
+  if (!input.spaceAnalysis) return null;
+
+  const { efficiencyScore, criticalCount, advisoryCount, circulationWastePercent, recommendations } = input.spaceAnalysis;
+
+  // Trigger on low efficiency or critical deviations
+  if (efficiencyScore >= 75 && criticalCount === 0) return null;
+
+  const severity: InsightSeverity = criticalCount >= 2 ? "critical" : criticalCount >= 1 || efficiencyScore < 50 ? "warning" : "info";
+
+  const topRecs = recommendations.filter(r => r.severity === "critical").slice(0, 3);
+  const roomNames = topRecs.map(r => r.roomName).join(", ");
+
+  return {
+    type: "space_optimization",
+    severity,
+    title: `Space optimization: efficiency score ${efficiencyScore}/100 with ${criticalCount} critical room deviations`,
+    body: null,
+    actionableRecommendation: null,
+    confidenceScore: 0.85, // floor plan analysis is high-confidence
+    triggerCondition: `Space efficiency <75 OR critical room count >= 1`,
+    dataPoints: {
+      efficiencyScore,
+      criticalCount,
+      advisoryCount,
+      circulationWastePercent,
+      flaggedRooms: roomNames,
+      topRecommendations: topRecs,
+    },
+  };
+}
+
 // ─── LLM Narrative Enrichment ────────────────────────────────────
 
 async function enrichWithLLM(insight: GeneratedInsight): Promise<GeneratedInsight> {
@@ -469,6 +511,7 @@ export async function generateInsights(
     checkStyleShift(input),
     checkBrandDominance(input),
     checkSpecInflation(input),
+    checkSpaceOptimization(input),
   ];
 
   const insights = checks.filter((i): i is GeneratedInsight => i !== null);

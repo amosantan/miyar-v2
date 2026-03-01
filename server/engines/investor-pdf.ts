@@ -8,83 +8,90 @@
  */
 
 export interface InvestorPdfInput {
-    projectName: string;
-    typology: string;
-    location: string;
-    tier: string;
-    style: string;
-    gfaSqm: number;
-    execSummary: string;
-    designDirection: Record<string, any>;
-    spaces: {
-        name: string;
-        budgetAed: number;
-        sqm: number;
-        pct: number;
-        styleDirection?: string;
-    }[];
-    materials: {
-        name: string;
-        brand: string;
-        price?: string;
-        room: string;
-    }[];
-    materialConstants: {
-        materialType: string;
-        costPerM2: number;
-        carbonIntensity: number;
-        sustainabilityGrade: string;
-    }[];
-    totalFitoutBudget: number;
-    costPerSqm: number;
+  projectName: string;
+  typology: string;
+  location: string;
+  tier: string;
+  style: string;
+  gfaSqm: number;
+  execSummary: string;
+  designDirection: Record<string, any>;
+  spaces: {
+    name: string;
+    budgetAed: number;
+    sqm: number;
+    pct: number;
+    styleDirection?: string;
+  }[];
+  materials: {
+    name: string;
+    brand: string;
+    price?: string;
+    room: string;
+  }[];
+  materialConstants: {
+    materialType: string;
+    costPerM2: number;
+    carbonIntensity: number;
     sustainabilityGrade: string;
-    salePremiumPct: number;
-    estimatedSalesPremiumAed: number;
-    benchmark?: {
-        costPerSqmLow?: number | null;
-        costPerSqmMid?: number | null;
-        costPerSqmHigh?: number | null;
-        typology?: string;
-        location?: string;
-        marketTier?: string;
-        dataYear?: number | null;
-    } | null;
-    designTrends?: {
-        trendName: string;
-        confidenceLevel: string;
-        trendCategory: string;
-        description?: string | null;
-    }[];
-    shareToken?: string;
+  }[];
+  totalFitoutBudget: number;
+  costPerSqm: number;
+  sustainabilityGrade: string;
+  salePremiumPct: number;
+  estimatedSalesPremiumAed: number;
+  benchmark?: {
+    costPerSqmLow?: number | null;
+    costPerSqmMid?: number | null;
+    costPerSqmHigh?: number | null;
+    typology?: string;
+    location?: string;
+    marketTier?: string;
+    dataYear?: number | null;
+  } | null;
+  designTrends?: {
+    trendName: string;
+    confidenceLevel: string;
+    trendCategory: string;
+    description?: string | null;
+  }[];
+  shareToken?: string;
+  spaceEfficiency?: {
+    efficiencyScore: number;
+    criticalCount: number;
+    advisoryCount: number;
+    circulationPct: number;
+    rooms: { name: string; currentPct: number; benchmarkPct: number; severity: string }[];
+  };
 }
 
 function fmtAed(n: number): string {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M AED`;
-    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K AED`;
-    return `${n.toLocaleString()} AED`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M AED`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K AED`;
+  return `${n.toLocaleString()} AED`;
 }
 
 function gradeColor(g: string): string {
-    return { A: "#10b981", B: "#22c55e", C: "#f59e0b", D: "#f97316", E: "#ef4444" }[g] ?? "#94a3b8";
+  return { A: "#10b981", B: "#22c55e", C: "#f59e0b", D: "#f97316", E: "#ef4444" }[g] ?? "#94a3b8";
 }
 
 function confColor(c: string): string {
-    return { established: "#10b981", emerging: "#8b5cf6", declining: "#ef4444" }[c] ?? "#94a3b8";
+  return { established: "#10b981", emerging: "#8b5cf6", declining: "#ef4444" }[c] ?? "#94a3b8";
 }
 
 export function generateInvestorPdfHtml(input: InvestorPdfInput): string {
-    const {
-        projectName, typology, location, tier, style, gfaSqm,
-        execSummary, designDirection, spaces, materials, materialConstants,
-        totalFitoutBudget, costPerSqm, sustainabilityGrade, salePremiumPct,
-        estimatedSalesPremiumAed, benchmark, designTrends, shareToken,
-    } = input;
+  const {
+    projectName, typology, location, tier, style, gfaSqm,
+    execSummary, designDirection, spaces, materials, materialConstants,
+    totalFitoutBudget, costPerSqm, sustainabilityGrade, salePremiumPct,
+    estimatedSalesPremiumAed, benchmark, designTrends, shareToken, spaceEfficiency,
+  } = input;
 
-    const watermark = `MYR-INV-${Date.now().toString(36).toUpperCase()}`;
-    const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const watermark = `MYR-INV-${Date.now().toString(36).toUpperCase()}`;
+  const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-    // ── Space budget bars ────────────────────────────────────────────────────
-    const spaceBars = spaces.slice(0, 12).map(s => `
+  // ── Space budget bars ────────────────────────────────────────────────────
+  const spaceBars = spaces.slice(0, 12).map(s => `
     <div class="bar-row">
       <span class="bar-label">${s.name}</span>
       <div class="bar-track">
@@ -95,8 +102,8 @@ export function generateInvestorPdfHtml(input: InvestorPdfInput): string {
     </div>
   `).join("");
 
-    // ── Material table ───────────────────────────────────────────────────────
-    const matRows = materials.slice(0, 16).map((m, i) => `
+  // ── Material table ───────────────────────────────────────────────────────
+  const matRows = materials.slice(0, 16).map((m, i) => `
     <tr class="${i % 2 === 0 ? "even" : ""}">
       <td>${m.name}</td>
       <td>${m.brand}</td>
@@ -105,8 +112,8 @@ export function generateInvestorPdfHtml(input: InvestorPdfInput): string {
     </tr>
   `).join("");
 
-    // ── Material constants table ─────────────────────────────────────────────
-    const constRows = materialConstants.slice(0, 9).map((c, i) => `
+  // ── Material constants table ─────────────────────────────────────────────
+  const constRows = materialConstants.slice(0, 9).map((c, i) => `
     <tr class="${i % 2 === 0 ? "even" : ""}">
       <td class="capitalize">${c.materialType}</td>
       <td>${c.costPerM2.toLocaleString()} AED</td>
@@ -115,8 +122,8 @@ export function generateInvestorPdfHtml(input: InvestorPdfInput): string {
     </tr>
   `).join("");
 
-    // ── Benchmark comparison ─────────────────────────────────────────────────
-    const bmSection = benchmark ? `
+  // ── Benchmark comparison ─────────────────────────────────────────────────
+  const bmSection = benchmark ? `
     <div class="panel">
       <div class="panel-title">Market Benchmark — ${benchmark.typology ?? typology} · ${benchmark.marketTier ?? tier}${benchmark.dataYear ? ` · ${benchmark.dataYear}` : ""}</div>
       <div class="kpi-grid">
@@ -128,8 +135,8 @@ export function generateInvestorPdfHtml(input: InvestorPdfInput): string {
     </div>
   ` : "";
 
-    // ── Design trends ────────────────────────────────────────────────────────
-    const trendRows = (designTrends ?? []).slice(0, 8).map(t => `
+  // ── Design trends ────────────────────────────────────────────────────────
+  const trendRows = (designTrends ?? []).slice(0, 8).map(t => `
     <div class="trend-row">
       <span class="conf-badge" style="background:${confColor(t.confidenceLevel)}">${t.confidenceLevel}</span>
       <span class="trend-name">${t.trendName}</span>
@@ -137,15 +144,15 @@ export function generateInvestorPdfHtml(input: InvestorPdfInput): string {
     </div>
   `).join("");
 
-    // ── Design direction pills ───────────────────────────────────────────────
-    const ddPills = Object.entries(designDirection ?? {}).slice(0, 6).map(([k, v]) => `
+  // ── Design direction pills ───────────────────────────────────────────────
+  const ddPills = Object.entries(designDirection ?? {}).slice(0, 6).map(([k, v]) => `
     <div class="dd-row">
       <span class="dd-key">${k.replace(/([A-Z])/g, " $1").trim()}</span>
       <span class="dd-val">${Array.isArray(v) ? (v as string[]).join(", ") : String(v)}</span>
     </div>
   `).join("");
 
-    return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -299,6 +306,32 @@ ${materials.length > 0 ? `
   ${spaceBars ? `<h3>Budget by Space</h3><div class="panel">${spaceBars}</div>` : ""}
   ${bmSection}
 </div>
+
+${spaceEfficiency ? `
+<!-- SECTION C½: SPACE PLANNING INTELLIGENCE -->
+<div class="section">
+  <h2>C½ · Space Planning Intelligence</h2>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Efficiency Score</div><div class="kpi-value" style="color:${spaceEfficiency.efficiencyScore >= 75 ? '#10b981' : spaceEfficiency.efficiencyScore >= 50 ? '#f59e0b' : '#ef4444'}">${spaceEfficiency.efficiencyScore}/100</div></div>
+    <div class="kpi"><div class="kpi-label">Critical Issues</div><div class="kpi-value" style="color:${spaceEfficiency.criticalCount > 0 ? '#ef4444' : '#10b981'}">${spaceEfficiency.criticalCount}</div></div>
+    <div class="kpi"><div class="kpi-label">Advisory Issues</div><div class="kpi-value" style="color:#f59e0b">${spaceEfficiency.advisoryCount}</div></div>
+    <div class="kpi"><div class="kpi-label">Circulation</div><div class="kpi-value">${spaceEfficiency.circulationPct?.toFixed(1)}%</div></div>
+  </div>
+  ${spaceEfficiency.rooms.length > 0 ? `
+  <h3>Room Allocation vs DLD Benchmark</h3>
+  <div class="panel">
+    ${spaceEfficiency.rooms.slice(0, 10).map(r => `
+    <div class="bar-row">
+      <span class="bar-label">${r.name}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${Math.min(r.currentPct, 100).toFixed(1)}%;background:${r.severity === 'critical' ? '#ef4444' : r.severity === 'advisory' ? '#f59e0b' : '#10b981'}"></div>
+      </div>
+      <span class="bar-pct">${r.currentPct?.toFixed(0)}%</span>
+      <span class="bar-amt" style="font-weight:400;color:#94a3b8">vs ${r.benchmarkPct?.toFixed(0)}%</span>
+    </div>`).join('')}
+  </div>` : ''}
+</div>
+` : ''}
 
 <!-- SECTION D: ROI BRIDGE -->
 <div class="section">

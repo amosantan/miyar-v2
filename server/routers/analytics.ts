@@ -369,7 +369,7 @@ export const analyticsRouter = router({
       for (const insight of generated) {
         await insertProjectInsight({
           projectId: input.projectId || null,
-          insightType: insight.type,
+          insightType: insight.type as any,
           severity: insight.severity,
           title: insight.title,
           body: insight.body,
