@@ -507,3 +507,213 @@ function validatedRecord(raw: any): Record<string, string> {
     }
     return result;
 }
+
+// ─── Section-Level AI Assist ─────────────────────────────────────────────────
+
+/** Fields belonging to each form section */
+const SECTION_FIELDS: Record<string, string[]> = {
+    context: [
+        "ctx01Typology", "ctx02Scale", "ctx03Gfa", "ctx04Location",
+        "ctx05Horizon", "city", "projectPurpose", "sustainCertTarget",
+    ],
+    strategy: [
+        "str01BrandClarity", "str02Differentiation", "str03BuyerMaturity",
+        "targetDemographic", "salesStrategy", "brandedStatus", "salesChannel",
+        "lifecycleFocus", "brandStandardConstraints", "developerType",
+    ],
+    market: [
+        "mkt01Tier", "mkt02Competitor", "mkt03Trend",
+        "competitiveDensity", "projectUsp", "targetYield",
+    ],
+    financial: [
+        "fin01BudgetCap", "fin02Flexibility", "fin03ShockTolerance", "fin04SalesPremium",
+        "procurementStrategy", "targetValueAdd", "timelineFlexibility",
+    ],
+    design: [
+        "des01Style", "des02MaterialLevel", "des03Complexity",
+        "des04Experience", "des05Sustainability", "materialSourcing",
+        "handoverCondition", "amenityFocus", "techIntegration",
+    ],
+    execution: [
+        "exe01SupplyChain", "exe02Contractor", "exe03Approvals", "exe04QaMaturity",
+    ],
+};
+
+export interface SectionSuggestion {
+    field: string;
+    value: any;
+    confidence: "high" | "medium" | "low";
+    reasoning: string;
+}
+
+export interface SectionSuggestResult {
+    suggestions: SectionSuggestion[];
+    sectionSummary: string;
+}
+
+/**
+ * Suggest values for a specific form section using current form state as context.
+ * Lightweight text-only AI call — no file processing.
+ */
+export async function suggestSectionFields(
+    section: string,
+    currentFormState: Record<string, any>,
+): Promise<SectionSuggestResult> {
+    const fields = SECTION_FIELDS[section];
+    if (!fields) {
+        return { suggestions: [], sectionSummary: "Unknown section." };
+    }
+
+    // Extract known values to give context
+    const knownValues: Record<string, any> = {};
+    for (const [key, value] of Object.entries(currentFormState)) {
+        if (value !== null && value !== undefined && value !== "" && value !== 0) {
+            knownValues[key] = value;
+        }
+    }
+
+    const sectionLabel = section.charAt(0).toUpperCase() + section.slice(1);
+
+    const prompt = `You are MIYAR's AI form assistant for UAE luxury real estate projects.
+
+The user is filling out the "${sectionLabel}" section of a project intake form.
+
+## Current Project State (already filled)
+${JSON.stringify(knownValues, null, 2)}
+
+## Fields to Suggest Values For
+Only suggest values for these fields: ${JSON.stringify(fields)}
+
+## Field Definitions
+- ctx01Typology: "Residential" | "Mixed-use" | "Hospitality" | "Office" | "Villa" | "Gated Community" | "Villa Development"
+- ctx02Scale: "Small" | "Medium" | "Large"
+- ctx03Gfa: number (gross floor area in sqm)
+- ctx04Location: "Prime" | "Secondary" | "Emerging"
+- ctx05Horizon: "0-12m" | "12-24m" | "24-36m" | "36m+"
+- city: "Dubai" | "Abu Dhabi"
+- projectPurpose: "sell_offplan" | "sell_ready" | "rent" | "mixed"
+- sustainCertTarget: "none" | "silver" | "gold" | "platinum"
+- str01BrandClarity: 1-5
+- str02Differentiation: 1-5
+- str03BuyerMaturity: 1-5
+- mkt01Tier: "Mid" | "Upper-mid" | "Luxury" | "Ultra-luxury"
+- mkt02Competitor: 1-5
+- mkt03Trend: 1-5
+- fin01BudgetCap: number (AED)
+- fin02Flexibility: 1-5
+- fin03ShockTolerance: 1-5
+- fin04SalesPremium: 1-5
+- des01Style: "Modern" | "Contemporary" | "Minimal" | "Classic" | "Fusion" | "Other"
+- des02MaterialLevel: 1-5
+- des03Complexity: 1-5
+- des04Experience: 1-5
+- des05Sustainability: 1-5
+- exe01SupplyChain: 1-5
+- exe02Contractor: 1-5
+- exe03Approvals: 1-5
+- exe04QaMaturity: 1-5
+- developerType: "Master Developer" | "Private/Boutique" | "Institutional Investor"
+- targetDemographic: "HNWI" | "Families" | "Young Professionals" | "Investors"
+- salesStrategy: "Sell Off-Plan" | "Sell on Completion" | "Build-to-Rent"
+- competitiveDensity: "Low" | "Moderate" | "Saturated"
+- projectUsp: "Location/Views" | "Amenities/Facilities" | "Price/Value" | "Design/Architecture"
+- targetYield: "< 5%" | "5-7%" | "7-9%" | "> 9%"
+- procurementStrategy: "Turnkey" | "Traditional" | "Construction Management"
+- materialSourcing: "Local" | "European" | "Asian" | "Global Mix"
+- handoverCondition: "Shell & Core" | "Category A" | "Category B" | "Fully Furnished"
+- brandedStatus: "Unbranded" | "Hospitality Branded" | "Fashion/Automotive Branded"
+- salesChannel: "Local Brokerage" | "International Roadshows" | "Direct to VIP"
+- lifecycleFocus: "Short-term Resale" | "Medium-term Hold" | "Long-term Retention"
+- brandStandardConstraints: "High Flexibility" | "Moderate Guidelines" | "Strict Vendor List"
+- amenityFocus: string (freeform)
+- techIntegration: string (freeform)
+- targetValueAdd: string (freeform)
+- timelineFlexibility: string (freeform)
+
+## Rules
+- Only suggest fields that DON'T already have meaningful values in the Current Project State
+- Base suggestions on UAE Dubai market context
+- Consider the relationships between fields (e.g., Luxury tier implies higher material level, more HNWI, etc.)
+- For ordinal 1-5 fields, always return an integer
+
+Return a JSON object with:
+1. "suggestions": array of { "field": string, "value": any, "confidence": "high"|"medium"|"low", "reasoning": string (under 25 words) }
+2. "sectionSummary": string (one sentence summarizing your assessment for this section)`;
+
+    const messages: Message[] = [
+        { role: "user", content: prompt },
+    ];
+
+    const SECTION_OUTPUT_SCHEMA = {
+        name: "section_suggestion",
+        schema: {
+            type: "object" as const,
+            properties: {
+                suggestions: {
+                    type: "array" as const,
+                    items: {
+                        type: "object" as const,
+                        properties: {
+                            field: { type: "string" as const },
+                            value: {},
+                            confidence: { type: "string" as const, enum: ["high", "medium", "low"] },
+                            reasoning: { type: "string" as const },
+                        },
+                        required: ["field", "value", "confidence", "reasoning"],
+                    },
+                },
+                sectionSummary: { type: "string" as const },
+            },
+            required: ["suggestions", "sectionSummary"],
+        },
+    };
+
+    try {
+        const response = await invokeLLM({
+            messages,
+            outputSchema: SECTION_OUTPUT_SCHEMA,
+            maxTokens: 4096,
+        });
+
+        const rawText = response.choices[0]?.message?.content;
+        if (!rawText || typeof rawText !== "string") {
+            return { suggestions: [], sectionSummary: "AI did not return a valid response." };
+        }
+
+        let parsed: any;
+        try {
+            parsed = JSON.parse(rawText);
+        } catch {
+            const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                parsed = JSON.parse(jsonMatch[0]);
+            } else {
+                return { suggestions: [], sectionSummary: "Failed to parse AI response." };
+            }
+        }
+
+        // Validate suggestions against section fields
+        const validSuggestions: SectionSuggestion[] = [];
+        if (Array.isArray(parsed.suggestions)) {
+            for (const s of parsed.suggestions) {
+                if (fields.includes(s.field) && s.value !== null && s.value !== undefined) {
+                    validSuggestions.push({
+                        field: s.field,
+                        value: s.value,
+                        confidence: ["high", "medium", "low"].includes(s.confidence) ? s.confidence : "low",
+                        reasoning: String(s.reasoning || ""),
+                    });
+                }
+            }
+        }
+
+        return {
+            suggestions: validSuggestions,
+            sectionSummary: parsed.sectionSummary || "",
+        };
+    } catch (err: any) {
+        console.error("[AI Section Assist] Error:", err.message);
+        return { suggestions: [], sectionSummary: `Error: ${err.message}` };
+    }
+}
+

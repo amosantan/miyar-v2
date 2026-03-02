@@ -144,4 +144,18 @@ export const intakeRouter = router({
             }
             return { linked: input.assetIds.length };
         }),
+
+    /**
+     * Suggest values for a specific form section based on current form state.
+     * Lightweight AI call — no file uploads, just text-based inference.
+     */
+    suggestSection: orgProcedure
+        .input(z.object({
+            section: z.enum(["context", "strategy", "market", "financial", "design", "execution"]),
+            currentFormState: z.record(z.string(), z.any()),
+        }))
+        .mutation(async ({ input }) => {
+            const { suggestSectionFields } = await import("../engines/intake/ai-intake-engine");
+            return suggestSectionFields(input.section, input.currentFormState);
+        }),
 });

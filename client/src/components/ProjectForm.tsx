@@ -30,8 +30,13 @@ import {
   AlertTriangle,
   Layers,
   Home,
+  Sparkles,
+  Check,
+  X,
+  Loader2,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { trpc } from "@/lib/trpc";
+import { useState, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { CITY_TIERS, DEFAULT_TIER, CERT_MULTIPLIERS, CERT_TO_DES05 } from "../../../server/engines/sustainability/sustainability-multipliers";
@@ -536,6 +541,263 @@ function FitoutAreaSummary({
   );
 }
 
+// ─── AI Section Assist ──────────────────────────────────────────────────────
+
+const SECTION_LABELS: Record<number, string> = {
+  0: "context",
+  1: "strategy",
+  2: "market",
+  3: "financial",
+  4: "design",
+  5: "execution",
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  ctx01Typology: "Typology",
+  ctx02Scale: "Scale",
+  ctx03Gfa: "GFA (sqm)",
+  ctx04Location: "Location Tier",
+  ctx05Horizon: "Project Horizon",
+  city: "City",
+  projectPurpose: "Project Purpose",
+  sustainCertTarget: "Sustainability Cert",
+  str01BrandClarity: "Brand Clarity",
+  str02Differentiation: "Differentiation",
+  str03BuyerMaturity: "Buyer Maturity",
+  targetDemographic: "Target Demographic",
+  salesStrategy: "Sales Strategy",
+  brandedStatus: "Branded Status",
+  salesChannel: "Sales Channel",
+  lifecycleFocus: "Lifecycle Focus",
+  brandStandardConstraints: "Brand Standards",
+  developerType: "Developer Type",
+  mkt01Tier: "Market Tier",
+  mkt02Competitor: "Competition Level",
+  mkt03Trend: "Trend Alignment",
+  competitiveDensity: "Competitive Density",
+  projectUsp: "Project USP",
+  targetYield: "Target Yield",
+  fin01BudgetCap: "Budget Cap (AED)",
+  fin02Flexibility: "Budget Flexibility",
+  fin03ShockTolerance: "Shock Tolerance",
+  fin04SalesPremium: "Sales Premium",
+  procurementStrategy: "Procurement Strategy",
+  targetValueAdd: "Target Value Add",
+  timelineFlexibility: "Timeline Flexibility",
+  des01Style: "Design Style",
+  des02MaterialLevel: "Material Level",
+  des03Complexity: "Complexity",
+  des04Experience: "Experience Level",
+  des05Sustainability: "Sustainability Rating",
+  materialSourcing: "Material Sourcing",
+  handoverCondition: "Handover Condition",
+  amenityFocus: "Amenity Focus",
+  techIntegration: "Tech Integration",
+  exe01SupplyChain: "Supply Chain",
+  exe02Contractor: "Contractor Quality",
+  exe03Approvals: "Approvals Complexity",
+  exe04QaMaturity: "QA Maturity",
+};
+
+interface AiSuggestion {
+  field: string;
+  value: any;
+  confidence: "high" | "medium" | "low";
+  reasoning: string;
+}
+
+function AiSectionAssist({
+  step,
+  form,
+  onAccept,
+}: {
+  step: number;
+  form: Record<string, any>;
+  onAccept: (field: string, value: any) => void;
+}) {
+  const section = SECTION_LABELS[step];
+  const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
+  const [summary, setSummary] = useState("");
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [accepted, setAccepted] = useState<Set<string>>(new Set());
+  const [showResults, setShowResults] = useState(false);
+
+  const mutation = trpc.intake.suggestSection.useMutation({
+    onSuccess: (data) => {
+      setSuggestions(data.suggestions || []);
+      setSummary(data.sectionSummary || "");
+      setShowResults(true);
+      setDismissed(new Set());
+      setAccepted(new Set());
+      if (data.suggestions?.length === 0) {
+        toast.info("No additional suggestions for this section.");
+      }
+    },
+    onError: (err) => {
+      toast.error(`AI Assist failed: ${err.message}`);
+    },
+  });
+
+  if (!section) return null; // No AI assist for Review step
+
+  const handleAsk = () => {
+    mutation.mutate({ section: section as any, currentFormState: form });
+  };
+
+  const handleAccept = (s: AiSuggestion) => {
+    onAccept(s.field, s.value);
+    setAccepted((prev) => new Set(Array.from(prev).concat(s.field)));
+    toast.success(`Set ${FIELD_LABELS[s.field] || s.field} to ${s.value}`);
+  };
+
+  const handleDismiss = (field: string) => {
+    setDismissed((prev) => new Set(Array.from(prev).concat(field)));
+  };
+
+  const handleAcceptAll = () => {
+    const remaining = suggestions.filter(
+      (s) => !dismissed.has(s.field) && !accepted.has(s.field)
+    );
+    for (const s of remaining) {
+      onAccept(s.field, s.value);
+    }
+    setAccepted(new Set(suggestions.map((s) => s.field)));
+    toast.success(`Applied ${remaining.length} suggestions.`);
+  };
+
+  const confColor = (c: string) =>
+    c === "high" ? "text-emerald-400 bg-emerald-400/10"
+      : c === "medium" ? "text-amber-400 bg-amber-400/10"
+        : "text-zinc-400 bg-zinc-400/10";
+
+  const visibleSuggestions = suggestions.filter(
+    (s) => !dismissed.has(s.field) && !accepted.has(s.field)
+  );
+
+  return (
+    <div>
+      {/* Ask AI Button */}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleAsk}
+        disabled={mutation.isPending}
+        className="gap-1.5 text-xs h-7 border-primary/30 text-primary hover:bg-primary/10"
+      >
+        {mutation.isPending ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Sparkles className="h-3 w-3" />
+        )}
+        {mutation.isPending ? "Thinking..." : "AI Assist"}
+      </Button>
+
+      {/* Suggestion Results */}
+      {showResults && suggestions.length > 0 && (
+        <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-primary/10">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-semibold text-primary">AI Suggestions</span>
+              {visibleSuggestions.length > 0 && (
+                <span className="text-[10px] text-muted-foreground">
+                  {visibleSuggestions.length} remaining
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              {visibleSuggestions.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAcceptAll}
+                  className="h-6 text-[10px] text-primary hover:bg-primary/10"
+                >
+                  Accept All
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowResults(false)}
+                className="h-6 w-6 text-muted-foreground"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Summary */}
+          {summary && (
+            <p className="px-3 py-1.5 text-[11px] text-muted-foreground border-b border-primary/10">
+              {summary}
+            </p>
+          )}
+
+          {/* Suggestion Rows */}
+          {visibleSuggestions.map((s) => (
+            <div
+              key={s.field}
+              className="flex items-center justify-between px-3 py-2 border-b border-primary/5 last:border-0 hover:bg-primary/5 transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-foreground">
+                    {FIELD_LABELS[s.field] || s.field}
+                  </span>
+                  <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${confColor(s.confidence)}`}>
+                    {s.confidence}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs text-primary font-semibold">
+                    {typeof s.value === "number" ? s.value.toLocaleString() : String(s.value)}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground truncate">
+                    — {s.reasoning}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 ml-2 shrink-0">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleAccept(s)}
+                  className="h-6 w-6 text-emerald-400 hover:bg-emerald-400/10"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDismiss(s.field)}
+                  className="h-6 w-6 text-muted-foreground hover:bg-destructive/10"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+
+          {/* All accepted/dismissed */}
+          {visibleSuggestions.length === 0 && (
+            <div className="px-3 py-3 text-center text-xs text-muted-foreground">
+              <Check className="h-4 w-4 inline mr-1 text-emerald-400" />
+              All suggestions handled.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Form Types ────────────────────────────────────────────────────────────
 
 export type FormData = {
@@ -776,13 +1038,22 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
       {/* Step Content */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            {(() => {
-              const Icon = STEPS[step].icon;
-              return <Icon className="h-5 w-5 text-primary" />;
-            })()}
-            {STEPS[step].label}
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              {(() => {
+                const Icon = STEPS[step].icon;
+                return <Icon className="h-5 w-5 text-primary" />;
+              })()}
+              {STEPS[step].label}
+            </CardTitle>
+            {step < 6 && (
+              <AiSectionAssist
+                step={step}
+                form={form as unknown as Record<string, any>}
+                onAccept={(field, value) => set(field as any, value)}
+              />
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">{STEPS[step].desc}</p>
         </CardHeader>
         <CardContent className="space-y-6">
