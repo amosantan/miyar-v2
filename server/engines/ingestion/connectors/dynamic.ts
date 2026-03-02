@@ -4,6 +4,60 @@ import { assignGrade, computeConfidence, isFirecrawlAvailable } from "../connect
 import { invokeLLM } from "../../../_core/llm";
 import { discoverLinks, DEFAULT_CRAWL_CONFIG, type CrawlConfig } from "../crawler";
 
+// ─── HTML Content Cleanup ────────────────────────────────────────
+
+/** Maximum chars to send to LLM for extraction */
+const LLM_SNIPPET_SIZE = 32_000;
+
+/**
+ * Clean raw HTML for LLM consumption:
+ * 1. Remove script, style, noscript, svg, path tags + content
+ * 2. Remove nav, footer, header, aside blocks
+ * 3. Prefer <main>, <article>, <div class="content"> when present
+ * 4. Strip remaining HTML tags
+ * 5. Collapse whitespace
+ */
+function cleanHtmlForLLM(html: string): string {
+    // Step 1: Remove invisible/non-content tags
+    let cleaned = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, "")
+        .replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, "")
+        .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, "")
+        .replace(/<!--[\s\S]*?-->/g, "");
+
+    // Step 2: Remove navigation/chrome
+    cleaned = cleaned
+        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+        .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
+        .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "");
+
+    // Step 3: Try to extract main content area
+    const mainMatch = cleaned.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
+        || cleaned.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
+        || cleaned.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
+        || cleaned.match(/<div[^>]*id="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
+        || cleaned.match(/<div[^>]*role="main"[^>]*>([\s\S]*?)<\/div>/i);
+
+    const contentArea = mainMatch ? mainMatch[1] : cleaned;
+
+    // Step 4: Strip remaining HTML tags
+    const text = contentArea
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/&[a-z]+;/gi, " ");
+
+    // Step 5: Collapse whitespace
+    return text.replace(/\s+/g, " ").trim();
+}
+
 // ─── LLM Prompts ────────────────────────────────────────────────
 
 const LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
@@ -53,7 +107,7 @@ Rules:
 - Common UAE material brands to recognize: RAK Ceramics, Porcelanosa, Grohe, Hansgrohe, Duravit, Villeroy & Boch, Hafele, Dornbracht, Miele, Gaggenau, Sub-Zero,DERA, Cosentino
 
 Content (truncated to 16000 chars):
-${contentSnippet.substring(0, 16000)}`;
+${contentSnippet.substring(0, LLM_SNIPPET_SIZE)}`;
 }
 
 /**
@@ -104,7 +158,7 @@ Rules:
 - If no interior design info found, return empty array []
 
 Content (truncated to 16000 chars):
-${contentSnippet.substring(0, 16000)}`;
+${contentSnippet.substring(0, LLM_SNIPPET_SIZE)}`;
 }
 
 /**
@@ -146,7 +200,7 @@ Rules:
 - If no relevant data found, return empty array []
 
 Content (truncated to 16000 chars):
-${contentSnippet.substring(0, 16000)}`;
+${contentSnippet.substring(0, LLM_SNIPPET_SIZE)}`;
 }
 
 /**
@@ -189,7 +243,7 @@ Rules:
 - If no relevant data found, return empty array []
 
 Content (truncated to 16000 chars):
-${contentSnippet.substring(0, 16000)}`;
+${contentSnippet.substring(0, LLM_SNIPPET_SIZE)}`;
 }
 
 // ─── Prompt selector ────────────────────────────────────────────
@@ -345,10 +399,7 @@ export class DynamicConnector extends BaseSourceConnector {
         }
 
         if (!this.shouldCrawl()) {
-            // Single-page mode — use Firecrawl or basic fetch
-            if (isFirecrawlAvailable()) {
-                return this.fetchWithFirecrawl();
-            }
+            // Single-page mode — use the full fallback chain
             return super.fetch();
         }
 
@@ -368,22 +419,24 @@ export class DynamicConnector extends BaseSourceConnector {
             if (visited.has(normalizedUrl)) continue;
             visited.add(normalizedUrl);
 
-            // Fetch this page (using Firecrawl if available)
+            // Fetch this page using the full fallback chain
+            // (Firecrawl → ScrapingDog → ScrapingAnt → Apify → Native)
             let payload: RawSourcePayload;
             try {
-                if (isFirecrawlAvailable()) {
-                    payload = await this.fetchWithFirecrawl(url);
-                } else {
-                    payload = await this.fetchBasic(url);
-                }
+                // Temporarily override sourceUrl for this page
+                const origUrl = this.sourceUrl;
+                this.sourceUrl = url;
+                payload = await super.fetch();
+                this.sourceUrl = origUrl;
             } catch (err) {
-                console.warn(`[DynamicConnector] Page fetch failed: ${url}`);
+                console.warn(`[DynamicConnector] Page fetch failed: ${url}`, err instanceof Error ? err.message : err);
                 pagesFailed++;
                 continue;
             }
 
             if (payload.error || (!payload.rawHtml && !payload.markdown) ||
                 ((payload.rawHtml?.length || 0) + (payload.markdown?.length || 0)) < 100) {
+                console.warn(`[DynamicConnector] Insufficient content for ${url}: ${(payload.rawHtml?.length || 0) + (payload.markdown?.length || 0)} chars`);
                 pagesFailed++;
                 continue;
             }
@@ -442,15 +495,16 @@ export class DynamicConnector extends BaseSourceConnector {
         if (isMarkdown) {
             textContent = content.trim();
         } else {
-            textContent = content
-                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-                .replace(/<[^>]+>/g, " ")
-                .replace(/\s+/g, " ")
-                .trim();
+            // Use robust HTML cleanup to extract meaningful text
+            textContent = cleanHtmlForLLM(content);
         }
 
-        if (textContent.length < 50) return [];
+        if (textContent.length < 50) {
+            console.warn(`[DynamicConnector] Content too short after cleanup for ${pageUrl}: ${textContent.length} chars`);
+            return [];
+        }
+
+        console.log(`[DynamicConnector] 📝 Sending ${Math.min(textContent.length, LLM_SNIPPET_SIZE)} chars to LLM for ${pageUrl}`);
 
         try {
             // Select prompt based on source type
