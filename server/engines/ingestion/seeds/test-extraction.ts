@@ -45,12 +45,15 @@ async function main() {
 
         try {
             const report = await runSingleConnector(connector, "manual");
+            const src = report.perSource?.[0];
             console.log(`\n   📊 Results:`);
-            console.log(`     Status: ${report.status}`);
-            console.log(`     Extracted: ${report.evidenceExtracted}`);
-            console.log(`     Created: ${report.evidenceCreated}`);
-            console.log(`     Skipped: ${report.evidenceSkipped}`);
-            if (report.error) console.log(`     Error: ${report.error}`);
+            console.log(`     Status: ${src?.status ?? "unknown"}`);
+            console.log(`     Extracted: ${src?.evidenceExtracted ?? 0}`);
+            console.log(`     Created: ${src?.evidenceCreated ?? 0}`);
+            console.log(`     Updated: ${src?.evidenceUpdated ?? 0}`);
+            console.log(`     Skipped: ${src?.evidenceSkipped ?? 0}`);
+            console.log(`     Outliers: ${src?.outliersFlagged ?? 0}`);
+            if (src?.error) console.log(`     Error: ${src.error}`);
         } catch (err: any) {
             console.error(`   ❌ Failed: ${err.message}`);
         }

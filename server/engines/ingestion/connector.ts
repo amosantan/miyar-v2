@@ -233,6 +233,20 @@ export function computeConfidence(
   return Math.min(CONFIDENCE_CAP, Math.max(CONFIDENCE_FLOOR, confidence));
 }
 
+// ─── Fallback Scraping API Helpers ───────────────────────────────
+
+function isScrapingDogAvailable(): boolean {
+  return !!process.env.SCRAPINGDOG_API_KEY;
+}
+
+function isScrapingAntAvailable(): boolean {
+  return !!process.env.SCRAPINGANT_API_KEY;
+}
+
+function isApifyAvailable(): boolean {
+  return !!process.env.APIFY_API_KEY;
+}
+
 // ─── Base Source Connector ────────────────────────────────────────
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -290,7 +304,180 @@ export abstract class BaseSourceConnector implements SourceConnector {
   }
 
   /**
-   * Basic HTTP fetch — used as fallback when Firecrawl is unavailable.
+   * Fetch using ScrapingDog API (fallback #1).
+   * Free tier: 1,000 requests/month.
+   * API: GET https://api.scrapingdog.com/scrape?api_key=KEY&url=URL&render=true
+   */
+  async fetchWithScrapingDog(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    const apiKey = process.env.SCRAPINGDOG_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("SCRAPINGDOG_API_KEY not set");
+    }
+
+    try {
+      console.log(`[Connector] 🐕 ScrapingDog scraping: ${targetUrl}`);
+      const apiUrl = `https://api.scrapingdog.com/scrape?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}&render=true`;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000); // 30s for proxy API
+
+      const response = await globalThis.fetch(apiUrl, {
+        signal: controller.signal,
+        headers: { "Accept": "text/html" },
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`ScrapingDog HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const rawHtml = await response.text();
+
+      if (rawHtml.length < 50) {
+        throw new Error("ScrapingDog returned insufficient content");
+      }
+
+      console.log(`[Connector] 🐕 ScrapingDog success: ${targetUrl} (${rawHtml.length} chars)`);
+
+      return {
+        url: targetUrl,
+        fetchedAt: new Date(),
+        rawHtml,
+        statusCode: 200,
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Connector] ScrapingDog error for ${targetUrl}: ${errorMsg}`);
+      throw err; // Let the failover chain handle it
+    }
+  }
+
+  /**
+   * Fetch using ScrapingAnt API (fallback #2).
+   * Free tier: 10,000 API credits.
+   * API: GET https://api.scrapingant.com/v2/general?url=URL&x-api-key=KEY
+   */
+  async fetchWithScrapingAnt(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    const apiKey = process.env.SCRAPINGANT_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("SCRAPINGANT_API_KEY not set");
+    }
+
+    try {
+      console.log(`[Connector] 🐜 ScrapingAnt scraping: ${targetUrl}`);
+      const apiUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(targetUrl)}&browser=true`;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000);
+
+      const response = await globalThis.fetch(apiUrl, {
+        signal: controller.signal,
+        headers: {
+          "x-api-key": apiKey,
+          "Accept": "text/html",
+        },
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`ScrapingAnt HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const rawHtml = await response.text();
+
+      if (rawHtml.length < 50) {
+        throw new Error("ScrapingAnt returned insufficient content");
+      }
+
+      console.log(`[Connector] 🐜 ScrapingAnt success: ${targetUrl} (${rawHtml.length} chars)`);
+
+      return {
+        url: targetUrl,
+        fetchedAt: new Date(),
+        rawHtml,
+        statusCode: 200,
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Connector] ScrapingAnt error for ${targetUrl}: ${errorMsg}`);
+      throw err;
+    }
+  }
+
+  /**
+   * Fetch using Apify Web Scraper Actor (fallback #3).
+   * Free tier: $5/month platform credits (~10,000 pages).
+   * Uses the cheerio-scraper actor for fast HTML extraction.
+   */
+  async fetchWithApify(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    const apiKey = process.env.APIFY_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("APIFY_API_KEY not set");
+    }
+
+    try {
+      console.log(`[Connector] 🐝 Apify scraping: ${targetUrl}`);
+
+      // Use Apify's web-scraper actor via REST API
+      const runUrl = `https://api.apify.com/v2/acts/apify~web-scraper/run-sync-get-dataset-items?token=${apiKey}`;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60_000); // 60s for actor run
+
+      const response = await globalThis.fetch(runUrl, {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startUrls: [{ url: targetUrl }],
+          pageFunction: `async function pageFunction(context) {
+            const { page, request } = context;
+            const html = await page.content();
+            return { url: request.url, html };
+          }`,
+          proxyConfiguration: { useApifyProxy: true },
+          maxPagesPerCrawl: 1,
+        }),
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`Apify HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const results = await response.json() as any[];
+      const rawHtml = results?.[0]?.html || "";
+
+      if (rawHtml.length < 50) {
+        throw new Error("Apify returned insufficient content");
+      }
+
+      console.log(`[Connector] 🐝 Apify success: ${targetUrl} (${rawHtml.length} chars)`);
+
+      return {
+        url: targetUrl,
+        fetchedAt: new Date(),
+        rawHtml,
+        statusCode: 200,
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Connector] Apify error for ${targetUrl}: ${errorMsg}`);
+      throw err;
+    }
+  }
+
+  /**
+   * Basic HTTP fetch — used as last resort when all APIs are unavailable.
    */
   async fetchBasic(url?: string): Promise<RawSourcePayload> {
     const targetUrl = url || this.sourceUrl;
@@ -366,20 +553,63 @@ export abstract class BaseSourceConnector implements SourceConnector {
   }
 
   /**
-   * Main fetch method. Uses Firecrawl when available, falls back to basic HTTP.
+   * Main fetch method with automatic failover chain:
+   *   Firecrawl → ScrapingDog → ScrapingAnt → Native fetch
+   *
+   * Each provider is attempted in order. If one fails or returns
+   * insufficient content, the next provider is tried automatically.
    */
   async fetch(): Promise<RawSourcePayload> {
     if (this.requestDelayMs && this.requestDelayMs > 0) {
       await new Promise(r => setTimeout(r, this.requestDelayMs));
     }
 
+    // Provider 1: Firecrawl (best quality — markdown + JS rendering)
     if (isFirecrawlAvailable()) {
-      return this.fetchWithFirecrawl();
+      try {
+        const result = await this.fetchWithFirecrawl();
+        if (!result.error && ((result.rawHtml?.length || 0) > 50 || (result.markdown?.length || 0) > 50)) {
+          return result;
+        }
+      } catch { /* fall through */ }
     }
 
+    // Provider 2: ScrapingDog (JS rendering, proxy rotation)
+    if (isScrapingDogAvailable()) {
+      try {
+        const result = await this.fetchWithScrapingDog();
+        if (!result.error && (result.rawHtml?.length || 0) > 50) {
+          return result;
+        }
+      } catch { /* fall through */ }
+    }
+
+    // Provider 3: ScrapingAnt (browser rendering, anti-bot bypass)
+    if (isScrapingAntAvailable()) {
+      try {
+        const result = await this.fetchWithScrapingAnt();
+        if (!result.error && (result.rawHtml?.length || 0) > 50) {
+          return result;
+        }
+      } catch { /* fall through */ }
+    }
+
+    // Provider 4: Apify (full browser Actor, proxy network)
+    if (isApifyAvailable()) {
+      try {
+        const result = await this.fetchWithApify();
+        if (!result.error && (result.rawHtml?.length || 0) > 50) {
+          return result;
+        }
+      } catch { /* fall through */ }
+    }
+
+    // Provider 5: Native fetch (last resort — no JS rendering)
+    console.log(`[Connector] 📡 Using native fetch for ${this.sourceUrl} (all API providers exhausted)`);
     return this.fetchBasic();
   }
 
   abstract extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
   abstract normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
 }
+

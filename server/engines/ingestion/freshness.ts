@@ -90,3 +90,71 @@ export function computeFreshness(
 export function getFreshnessWeight(captureDate: Date | string, referenceDate?: Date): number {
   return computeFreshness(captureDate, referenceDate).weight;
 }
+
+// ─── Source Freshness Analysis ───────────────────────────────────
+
+/**
+ * Identify source_registry IDs whose evidence records have gone stale.
+ * Returns IDs where >50% of records are "aging" or "stale".
+ * Used by the scheduler to auto-trigger re-scrapes.
+ */
+export async function getStaleSourceIds(
+  staleThresholdPct: number = 50
+): Promise<Array<{ sourceRegistryId: number; totalRecords: number; staleRecords: number; stalePct: number }>> {
+  // Lazy import to avoid circular dependency
+  const { getDb } = await import("../../db");
+  const { evidenceRecords } = await import("../../../drizzle/schema");
+
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all evidence records with sourceRegistryId
+  const allRecords = await db
+    .select({
+      id: evidenceRecords.id,
+      sourceRegistryId: evidenceRecords.sourceRegistryId,
+      captureDate: evidenceRecords.captureDate,
+    })
+    .from(evidenceRecords);
+
+  // Group by sourceRegistryId and compute staleness
+  const sourceStats = new Map<number, { total: number; stale: number }>();
+  const now = new Date();
+
+  for (const record of allRecords) {
+    if (!record.sourceRegistryId) continue;
+    const sid = record.sourceRegistryId;
+    if (!sourceStats.has(sid)) {
+      sourceStats.set(sid, { total: 0, stale: 0 });
+    }
+    const stats = sourceStats.get(sid)!;
+    stats.total++;
+
+    const freshness = computeFreshness(record.captureDate, now);
+    if (freshness.status === "aging" || freshness.status === "stale") {
+      stats.stale++;
+    }
+  }
+
+  // Return sources exceeding stale threshold
+  const staleSourceIds: Array<{
+    sourceRegistryId: number;
+    totalRecords: number;
+    staleRecords: number;
+    stalePct: number;
+  }> = [];
+
+  for (const [sid, stats] of Array.from(sourceStats.entries())) {
+    const stalePct = Math.round((stats.stale / stats.total) * 100);
+    if (stalePct >= staleThresholdPct && stats.total >= 3) {
+      staleSourceIds.push({
+        sourceRegistryId: sid,
+        totalRecords: stats.total,
+        staleRecords: stats.stale,
+        stalePct,
+      });
+    }
+  }
+
+  return staleSourceIds.sort((a, b) => b.stalePct - a.stalePct);
+}

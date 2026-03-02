@@ -9,14 +9,18 @@
  *   - Runs all 12 UAE connectors on schedule
  *   - Never crashes the server on failure
  *   - Exposes nextScheduledRun() for the status endpoint
+ *   - Weekly source discovery (Sundays 04:00 UTC)
+ *   - Freshness-triggered re-scraping (Wednesdays 06:00 UTC)
  */
 
 import cron, { type ScheduledTask } from "node-cron";
-import { runIngestion } from "./orchestrator";
-import { getDb } from "../../db";
+import { runIngestion, runSingleConnector } from "./orchestrator";
+import { getDb, listSourceRegistry } from "../../db";
 import { sourceRegistry } from "../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { DynamicConnector } from "./connectors/dynamic";
+import { getStaleSourceIds } from "./freshness";
+import { discoverNewSources, KNOWN_MISSING_SOURCES } from "./source-discovery";
 
 // Default: Monday at 06:00 UTC
 const DEFAULT_CRON = "0 0 6 * * 1";
@@ -56,6 +60,7 @@ export function getNextScheduledRun(): string | null {
 /**
  * Start the ingestion scheduler.
  * Reads active sources from DB, groups them by schedule, and creates separate crons.
+ * Also starts weekly source discovery and freshness-triggered re-scraping.
  */
 export async function startIngestionScheduler(): Promise<void> {
   stopIngestionScheduler();
@@ -94,11 +99,9 @@ export async function startIngestionScheduler(): Promise<void> {
         }
 
         isSchedulerRunning = true;
-        const startTime = new Date();
         console.log(`[Ingestion Scheduler] Starting batch for schedule "${schedule}" with ${sources.length} sources`);
 
         try {
-          // Staggered execution within the batch (spawn runIngestion per source, stagger by 30s)
           let idx = 0;
           for (const source of sources) {
             idx++;
@@ -141,8 +144,101 @@ export async function startIngestionScheduler(): Promise<void> {
     scheduledTasks.push(task);
   }
 
+  // ─── Weekly Source Discovery (Sundays 04:00 UTC) ───────────────
+  const discoveryTask = cron.schedule(
+    "0 0 4 * * 0", // Sunday 04:00 UTC
+    async () => {
+      console.log("[Ingestion Scheduler] 🔍 Running weekly source discovery...");
+      try {
+        const existingSources = await listSourceRegistry();
+        const formatted = existingSources.map((s: any) => ({
+          name: s.name,
+          url: s.url,
+          category: s.sourceType || "other",
+        }));
+
+        const result = await discoverNewSources({
+          existingSources: formatted,
+          coverageGaps: ["lighting fixtures", "kitchen appliances", "smart home systems", "sustainable materials"],
+        });
+        const total = result.discoveredSources.length + KNOWN_MISSING_SOURCES.length;
+
+        console.log(
+          `[Ingestion Scheduler] 🔍 Discovery complete: ${result.discoveredSources.length} AI-found + ` +
+          `${KNOWN_MISSING_SOURCES.length} pre-vetted = ${total} candidate sources`
+        );
+
+        for (const src of result.discoveredSources.slice(0, 5)) {
+          console.log(`[Ingestion Scheduler]   📌 ${src.name} (${src.url}) — ${src.rationale}`);
+        }
+      } catch (err) {
+        console.error("[Ingestion Scheduler] Source discovery failed:", err instanceof Error ? err.message : String(err));
+      }
+    },
+    { timezone: "UTC", name: "miyar-weekly-discovery" }
+  );
+  scheduledTasks.push(discoveryTask);
+
+  // ─── Freshness Re-scrape (Wednesdays 06:00 UTC) ───────────────
+  const freshnessTask = cron.schedule(
+    "0 0 6 * * 3", // Wednesday 06:00 UTC
+    async () => {
+      if (isSchedulerRunning) {
+        console.log("[Ingestion Scheduler] Skipping freshness re-scrape — scheduler already running");
+        return;
+      }
+
+      console.log("[Ingestion Scheduler] 🔄 Running freshness-triggered re-scrape...");
+      isSchedulerRunning = true;
+
+      try {
+        const staleIds = await getStaleSourceIds();
+        if (staleIds.length === 0) {
+          console.log("[Ingestion Scheduler] 🔄 No stale sources found — all data is fresh");
+          return;
+        }
+
+        console.log(`[Ingestion Scheduler] 🔄 Found ${staleIds.length} stale sources, re-scraping (max 5)...`);
+
+        const allSources = await db.select().from(sourceRegistry).where(eq(sourceRegistry.isActive, true));
+        const sourceMap = new Map(allSources.map((s: any) => [s.id, s]));
+        let processed = 0;
+
+        for (const staleId of staleIds.slice(0, 5)) {
+          const source = sourceMap.get(staleId) as any;
+          if (!source) continue;
+
+          try {
+            const connector = new DynamicConnector(source);
+            const report = await runSingleConnector(connector, "scheduled");
+            console.log(
+              `[Ingestion Scheduler] 🔄 Re-scraped ${source.name}: ` +
+              `${report.evidenceCreated} created, ${report.evidenceUpdated} updated`
+            );
+            processed++;
+          } catch (err) {
+            console.error(`[Ingestion Scheduler] Re-scrape failed for ${source.name}:`, err);
+          }
+
+          if (processed < Math.min(staleIds.length, 5)) {
+            await new Promise(r => setTimeout(r, 30_000));
+          }
+        }
+
+        console.log(`[Ingestion Scheduler] 🔄 Freshness re-scrape complete: ${processed} sources refreshed`);
+      } catch (err) {
+        console.error("[Ingestion Scheduler] Freshness re-scrape failed:", err instanceof Error ? err.message : String(err));
+      } finally {
+        isSchedulerRunning = false;
+      }
+    },
+    { timezone: "UTC", name: "miyar-freshness-rescrape" }
+  );
+  scheduledTasks.push(freshnessTask);
+
   console.log(
-    `[Ingestion Scheduler] Started ${scheduledTasks.length} cron jobs for ${activeSources.length} active sources.`
+    `[Ingestion Scheduler] Started ${scheduledTasks.length} cron jobs: ` +
+    `${activeSources.length} source schedules + weekly discovery + freshness re-scrape`
   );
 }
 
@@ -164,9 +260,10 @@ export function stopIngestionScheduler(): void {
 export function getSchedulerStatus() {
   return {
     active: scheduledTasks.length > 0,
-    cronExpression: `${activeSchedulesCount} configured schedules`,
+    cronExpression: `${activeSchedulesCount} source schedules + weekly discovery + freshness re-scrape`,
     nextScheduledRun: getNextScheduledRun(),
     lastScheduledRunAt: lastScheduledRunAt?.toISOString() ?? null,
     isCurrentlyRunning: isSchedulerRunning,
+    totalJobs: scheduledTasks.length,
   };
 }

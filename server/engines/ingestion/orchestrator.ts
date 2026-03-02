@@ -27,6 +27,7 @@ import {
 } from "../../db";
 import { generateBenchmarkProposals } from "./proposal-generator";
 import { triggerAlertEngine } from "../autonomous/alert-engine";
+import { validateEvidence, type QualityResult } from "./data-quality";
 import { detectPriceChange } from "./change-detector";
 import { detectTrends, type DataPoint } from "../analytics/trend-detection";
 import { evidenceRecords, ingestionRuns, sourceRegistry } from "../../../drizzle/schema";
@@ -44,7 +45,9 @@ export interface IngestionRunReport {
   sourcesSucceeded: number;
   sourcesFailed: number;
   evidenceCreated: number;
+  evidenceUpdated: number;
   evidenceSkipped: number;
+  outliersFlagged: number;
   errors: Array<{ sourceId: string; sourceName: string; error: string }>;
   perSource: Array<{
     sourceId: string;
@@ -52,7 +55,9 @@ export interface IngestionRunReport {
     status: "success" | "failed";
     evidenceExtracted: number;
     evidenceCreated: number;
+    evidenceUpdated: number;
     evidenceSkipped: number;
+    outliersFlagged: number;
     error?: string;
   }>;
 }
@@ -63,7 +68,9 @@ interface ConnectorResult {
   status: "success" | "failed";
   evidenceExtracted: number;
   evidenceCreated: number;
+  evidenceUpdated: number;
   evidenceSkipped: number;
+  outliersFlagged: number;
   error?: string;
 }
 
@@ -94,34 +101,124 @@ async function runWithConcurrencyLimit<T>(
   return results;
 }
 
-// ─── Duplicate Detection ─────────────────────────────────────────
+// ─── Upsert Engine ───────────────────────────────────────────────
+
+interface ExistingRecordMatch {
+  id: number;
+  recordId: string;
+  priceMin: string | null;
+  priceTypical: string | null;
+  priceMax: string | null;
+  confidenceScore: number;
+  captureDate: Date;
+  sourceRegistryId: number | null;
+  itemName: string;
+  category: string;
+  publisher: string | null;
+}
 
 /**
- * Check if an evidence record from the same source URL + item name
- * + capture date already exists. Uses sourceUrl + itemName + captureDate
- * as the composite uniqueness key.
+ * Find an existing evidence record by sourceUrl + itemName.
+ * Ignores captureDate so we can UPDATE existing records with new prices.
  */
-async function isDuplicate(
+async function findExistingRecord(
   sourceUrl: string,
-  itemName: string,
-  captureDate: Date
-): Promise<boolean> {
+  itemName: string
+): Promise<ExistingRecordMatch | null> {
   const db = await getDb();
-  if (!db) return false;
+  if (!db) return null;
 
   const existing = await db
-    .select({ id: evidenceRecords.id })
+    .select({
+      id: evidenceRecords.id,
+      recordId: evidenceRecords.recordId,
+      priceMin: evidenceRecords.priceMin,
+      priceTypical: evidenceRecords.priceTypical,
+      priceMax: evidenceRecords.priceMax,
+      confidenceScore: evidenceRecords.confidenceScore,
+      captureDate: evidenceRecords.captureDate,
+      sourceRegistryId: evidenceRecords.sourceRegistryId,
+      itemName: evidenceRecords.itemName,
+      category: evidenceRecords.category,
+      publisher: evidenceRecords.publisher,
+    })
     .from(evidenceRecords)
     .where(
       and(
         eq(evidenceRecords.sourceUrl, sourceUrl),
-        eq(evidenceRecords.itemName, itemName),
-        sql`DATE(${evidenceRecords.captureDate}) = DATE(${captureDate})`
+        eq(evidenceRecords.itemName, itemName)
       )
     )
+    .orderBy(sql`${evidenceRecords.captureDate} DESC`)
     .limit(1);
 
-  return existing.length > 0;
+  return existing.length > 0 ? (existing[0] as ExistingRecordMatch) : null;
+}
+
+/**
+ * Update an existing evidence record with new price data.
+ * Returns true if a meaningful price change was detected (>2% delta).
+ */
+async function updateExistingRecord(
+  existing: ExistingRecordMatch,
+  newData: {
+    priceMin: string | null;
+    priceTypical: string | null;
+    priceMax: string | null;
+    confidenceScore: number;
+    captureDate: Date;
+    extractedSnippet: string;
+    reliabilityGrade: string;
+    runId: string;
+    // Design intelligence fields
+    finishLevel?: string | null;
+    designStyle?: string | null;
+    brandsMentioned?: string[] | null;
+    materialSpec?: string | null;
+  }
+): Promise<{ priceChanged: boolean; changePct: number }> {
+  const db = await getDb();
+  if (!db) return { priceChanged: false, changePct: 0 };
+
+  // Detect price change magnitude
+  const oldPrice = existing.priceTypical ? parseFloat(existing.priceTypical) : null;
+  const newPrice = newData.priceTypical ? parseFloat(newData.priceTypical) : null;
+
+  let changePct = 0;
+  let priceChanged = false;
+
+  if (oldPrice !== null && newPrice !== null && oldPrice > 0) {
+    changePct = ((newPrice - oldPrice) / oldPrice) * 100;
+    priceChanged = Math.abs(changePct) > 2; // > 2% is a meaningful change
+  } else if ((oldPrice === null) !== (newPrice === null)) {
+    priceChanged = true; // One has price, other doesn't
+  }
+
+  // Build update payload — always update captureDate + confidence
+  const updatePayload: any = {
+    captureDate: newData.captureDate,
+    confidenceScore: Math.max(newData.confidenceScore, existing.confidenceScore),
+    extractedSnippet: newData.extractedSnippet,
+    runId: newData.runId,
+  };
+
+  // Only update prices if there's a real value to update with
+  if (newData.priceMin !== null) updatePayload.priceMin = newData.priceMin;
+  if (newData.priceTypical !== null) updatePayload.priceTypical = newData.priceTypical;
+  if (newData.priceMax !== null) updatePayload.priceMax = newData.priceMax;
+  if (newData.reliabilityGrade) updatePayload.reliabilityGrade = newData.reliabilityGrade;
+
+  // Design intelligence fields  
+  if (newData.finishLevel) updatePayload.finishLevel = newData.finishLevel;
+  if (newData.designStyle) updatePayload.designStyle = newData.designStyle;
+  if (newData.brandsMentioned) updatePayload.brandsMentioned = newData.brandsMentioned;
+  if (newData.materialSpec) updatePayload.materialSpec = newData.materialSpec;
+
+  await db.update(evidenceRecords)
+    .set(updatePayload)
+    .where(eq(evidenceRecords.id, existing.id));
+
+  return { priceChanged, changePct };
 }
 
 // ─── Category Mapping ────────────────────────────────────────────
@@ -203,7 +300,9 @@ export async function runIngestion(
           status: "failed",
           evidenceExtracted: 0,
           evidenceCreated: 0,
+          evidenceUpdated: 0,
           evidenceSkipped: 0,
+          outliersFlagged: 0,
           error: raw.error,
         };
       }
@@ -215,7 +314,9 @@ export async function runIngestion(
           status: "failed",
           evidenceExtracted: 0,
           evidenceCreated: 0,
+          evidenceUpdated: 0,
           evidenceSkipped: 0,
+          outliersFlagged: 0,
           error: raw.error || `HTTP ${raw.statusCode}`,
         };
       }
@@ -231,7 +332,9 @@ export async function runIngestion(
           status: "failed",
           evidenceExtracted: 0,
           evidenceCreated: 0,
+          evidenceUpdated: 0,
           evidenceSkipped: 0,
+          outliersFlagged: 0,
           error: `Extract failed: ${err instanceof Error ? err.message : String(err)}`,
         };
       }
@@ -243,9 +346,11 @@ export async function runIngestion(
       });
 
       let created = 0;
+      let updated = 0;
       let skipped = 0;
+      let outliers = 0;
 
-      // Step 3: Normalize and persist each evidence item
+      // Step 3: Normalize, validate, and upsert each evidence item
       for (const evidence of validExtracted) {
         try {
           // Normalize
@@ -280,61 +385,107 @@ export async function runIngestion(
             };
           }
 
-          // Duplicate detection
-          const captureDate = evidence.publishedDate || raw.fetchedAt;
-          const duplicate = await isDuplicate(
-            evidence.sourceUrl,
-            normalized.metric,
-            captureDate
-          );
+          // Data Quality Validation
+          const qualityResult = validateEvidence({
+            category: evidence.category,
+            itemName: normalized.metric,
+            value: normalized.value ?? null,
+            valueMax: normalized.valueMax ?? null,
+            unit: normalized.unit,
+            confidence: normalized.confidence,
+          });
 
-          if (duplicate) {
-            skipped++;
-            continue;
+          if (qualityResult.status === "outlier_flagged") {
+            outliers++;
+            // Reduce confidence for outliers but still persist
+            if (qualityResult.adjustedConfidence !== undefined) {
+              normalized.confidence = qualityResult.adjustedConfidence;
+            }
+            console.warn(`[Ingestion] 🚩 Outlier flagged: ${normalized.metric} = ${normalized.value} (${qualityResult.flags.join(", ")})`);
           }
 
-          // Persist to evidence_records
+          const captureDate = evidence.publishedDate || raw.fetchedAt;
+
           // Map category: use LLM-provided category if valid, otherwise fallback
           const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
           const evidenceCategory = validCategories.includes(evidence.category)
             ? evidence.category
             : mapCategory(evidence.category);
 
-          const { id: newRecordId } = await createEvidenceRecord({
-            recordId: generateRecordId(),
-            sourceRegistryId: typeof connector.sourceId === 'number' ? connector.sourceId : (parseInt(connector.sourceId) || undefined),
-            sourceUrl: evidence.sourceUrl,
-            category: evidenceCategory as any,
-            itemName: normalized.metric,
-            priceMin: normalized.value?.toString() ?? null,
-            priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
-            priceTypical: normalized.value?.toString() ?? null,
-            unit: normalized.unit || "unit",
-            currencyOriginal: "AED",
-            captureDate: captureDate,
-            reliabilityGrade: normalized.grade,
-            confidenceScore: Math.round(normalized.confidence * 100),
-            extractedSnippet: normalized.summary,
-            publisher: connector.sourceName,
-            title: evidence.title,
-            tags: normalized.tags,
-            notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine`,
-            runId: runId,
-            // V7: Design Intelligence Fields
-            finishLevel: (normalized.finishLevel as any) ?? null,
-            designStyle: normalized.designStyle ?? null,
-            brandsMentioned: normalized.brandsMentioned ?? null,
-            materialSpec: normalized.materialSpec ?? null,
-            intelligenceType: (normalized.intelligenceType as any) ?? "material_price",
-          });
+          const sourceRegistryId = typeof connector.sourceId === 'number'
+            ? connector.sourceId
+            : (parseInt(connector.sourceId) || undefined);
 
-          // Hand off to the intelligent change detector to log significant fluctuations
-          const insertedRecord = await getEvidenceRecordById(newRecordId);
-          if (insertedRecord) {
-            await detectPriceChange(insertedRecord);
+          // ─── UPSERT: Find existing record by sourceUrl + itemName ───
+          const existing = await findExistingRecord(
+            evidence.sourceUrl,
+            normalized.metric
+          );
+
+          if (existing) {
+            // UPDATE existing record
+            const { priceChanged } = await updateExistingRecord(existing, {
+              priceMin: normalized.value?.toString() ?? null,
+              priceTypical: normalized.value?.toString() ?? null,
+              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+              confidenceScore: Math.round(normalized.confidence * 100),
+              captureDate,
+              extractedSnippet: normalized.summary,
+              reliabilityGrade: normalized.grade,
+              runId,
+              finishLevel: (normalized.finishLevel as any) ?? null,
+              designStyle: normalized.designStyle ?? null,
+              brandsMentioned: normalized.brandsMentioned ?? null,
+              materialSpec: normalized.materialSpec ?? null,
+            });
+
+            // Detect price change on the updated record
+            if (priceChanged) {
+              const updatedRecord = await getEvidenceRecordById(existing.id);
+              if (updatedRecord) {
+                await detectPriceChange(updatedRecord);
+              }
+            }
+
+            updated++;
+          } else {
+            // INSERT new record
+            const { id: newRecordId } = await createEvidenceRecord({
+              recordId: generateRecordId(),
+              sourceRegistryId,
+              sourceUrl: evidence.sourceUrl,
+              category: evidenceCategory as any,
+              itemName: normalized.metric,
+              priceMin: normalized.value?.toString() ?? null,
+              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+              priceTypical: normalized.value?.toString() ?? null,
+              unit: normalized.unit || "unit",
+              currencyOriginal: "AED",
+              captureDate: captureDate,
+              reliabilityGrade: normalized.grade,
+              confidenceScore: Math.round(normalized.confidence * 100),
+              extractedSnippet: normalized.summary,
+              publisher: connector.sourceName,
+              title: evidence.title,
+              tags: normalized.tags,
+              notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
+              runId: runId,
+              // V7: Design Intelligence Fields
+              finishLevel: (normalized.finishLevel as any) ?? null,
+              designStyle: normalized.designStyle ?? null,
+              brandsMentioned: normalized.brandsMentioned ?? null,
+              materialSpec: normalized.materialSpec ?? null,
+              intelligenceType: (normalized.intelligenceType as any) ?? "material_price",
+            });
+
+            // Hand off to the intelligent change detector
+            const insertedRecord = await getEvidenceRecordById(newRecordId);
+            if (insertedRecord) {
+              await detectPriceChange(insertedRecord);
+            }
+
+            created++;
           }
-
-          created++;
         } catch (err) {
           // Individual record failure — continue with next
           console.error(`[Ingestion] Record persist failed for ${connector.sourceId}:`, err);
@@ -347,7 +498,9 @@ export async function runIngestion(
         status: "success",
         evidenceExtracted: validExtracted.length,
         evidenceCreated: created,
+        evidenceUpdated: updated,
         evidenceSkipped: skipped,
+        outliersFlagged: outliers,
       };
     } catch (err) {
       // Catch-all for any unhandled errors in the connector pipeline
@@ -357,7 +510,9 @@ export async function runIngestion(
         status: "failed",
         evidenceExtracted: 0,
         evidenceCreated: 0,
+        evidenceUpdated: 0,
         evidenceSkipped: 0,
+        outliersFlagged: 0,
         error: `Unhandled: ${err instanceof Error ? err.message : String(err)}`,
       };
     }
@@ -448,7 +603,9 @@ export async function runIngestion(
   const succeeded = connectorResults.filter((r) => r.status === "success").length;
   const failed = connectorResults.filter((r) => r.status === "failed").length;
   const totalCreated = connectorResults.reduce((sum, r) => sum + r.evidenceCreated, 0);
+  const totalUpdated = connectorResults.reduce((sum, r) => sum + r.evidenceUpdated, 0);
   const totalSkipped = connectorResults.reduce((sum, r) => sum + r.evidenceSkipped, 0);
+  const totalOutliers = connectorResults.reduce((sum, r) => sum + r.outliersFlagged, 0);
   const errors = connectorResults
     .filter((r) => r.status === "failed" && r.error)
     .map((r) => ({
@@ -471,14 +628,18 @@ export async function runIngestion(
         sourcesFailed: failed,
         recordsExtracted: connectorResults.reduce((sum, r) => sum + r.evidenceExtracted, 0),
         recordsInserted: totalCreated,
+        recordsUpdated: totalUpdated,
         duplicatesSkipped: totalSkipped,
+        outliersFlagged: totalOutliers,
         sourceBreakdown: connectorResults.map((r) => ({
           sourceId: r.sourceId,
           name: r.sourceName,
           status: r.status,
           extracted: r.evidenceExtracted,
           inserted: r.evidenceCreated,
+          updated: r.evidenceUpdated,
           duplicates: r.evidenceSkipped,
+          outliers: r.outliersFlagged,
           error: r.error || null,
         })),
         errorSummary: errors.length > 0 ? errors : null,
@@ -507,7 +668,9 @@ export async function runIngestion(
         sourcesSucceeded: succeeded,
         sourcesFailed: failed,
         evidenceCreated: totalCreated,
+        evidenceUpdated: totalUpdated,
         evidenceSkipped: totalSkipped,
+        outliersFlagged: totalOutliers,
       },
       sourcesProcessed: connectors.length,
       recordsExtracted: totalCreated,
@@ -522,7 +685,7 @@ export async function runIngestion(
 
   // V2-08: Auto-generate benchmark proposals after ingestion
   let proposalResult: { proposalsCreated: number } | null = null;
-  if (totalCreated > 0) {
+  if (totalCreated > 0 || totalUpdated > 0) {
     try {
       proposalResult = await generateBenchmarkProposals({
         actorId,
@@ -537,7 +700,7 @@ export async function runIngestion(
   }
 
   // V3-05: Auto-generate trend snapshots after ingestion
-  if (totalCreated > 0) {
+  if (totalCreated > 0 || totalUpdated > 0) {
     try {
       const db = await getDb();
       if (db) {
@@ -614,7 +777,7 @@ export async function runIngestion(
   }
 
   // V7: Auto-sync Evidence → Materials Library
-  if (totalCreated > 0) {
+  if (totalCreated > 0 || totalUpdated > 0) {
     try {
       const { syncEvidenceToMaterials } = await import("./evidence-to-materials");
       const materialSync = await syncEvidenceToMaterials(runId);
@@ -626,6 +789,8 @@ export async function runIngestion(
     }
   }
 
+  console.log(`[Ingestion] Run ${runId} complete: ${totalCreated} created, ${totalUpdated} updated, ${totalSkipped} skipped, ${totalOutliers} outliers flagged`);
+
   const report: IngestionRunReport = {
     runId,
     startedAt,
@@ -636,7 +801,9 @@ export async function runIngestion(
     sourcesSucceeded: succeeded,
     sourcesFailed: failed,
     evidenceCreated: totalCreated,
+    evidenceUpdated: totalUpdated,
     evidenceSkipped: totalSkipped,
+    outliersFlagged: totalOutliers,
     errors,
     perSource: connectorResults,
   };

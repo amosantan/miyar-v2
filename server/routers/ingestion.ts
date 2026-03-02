@@ -391,4 +391,159 @@ export const ingestionRouter = router({
       }
       return query;
     }),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Market Intelligence Engine V2 — New Endpoints
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * AI-powered source discovery — find new UAE market data sources.
+   * Returns candidate sources for admin review before adding to registry.
+   */
+  discoverSources: adminProcedure
+    .input(z.object({
+      coverageGaps: z.array(z.string()).optional(),
+    }).optional())
+    .mutation(async () => {
+      const { discoverNewSources, KNOWN_MISSING_SOURCES } = await import("../engines/ingestion/source-discovery");
+      const { listSourceRegistry } = await import("../db");
+
+      // Get existing sources
+      const existing = await listSourceRegistry();
+      const existingSources = existing.map((s: any) => ({
+        name: s.name,
+        url: s.baseUrl || "",
+        category: s.primaryCategory || "other",
+      }));
+
+      // Run AI discovery
+      const discovery = await discoverNewSources({
+        existingSources,
+        coverageGaps: [],
+      });
+
+      return {
+        aiDiscovered: discovery.discoveredSources,
+        knownMissing: KNOWN_MISSING_SOURCES,
+        analysisNotes: discovery.analysisNotes,
+      };
+    }),
+
+  /**
+   * Verify current database values against market reality.
+   * Samples evidence records and uses Gemini to cross-check pricing.
+   */
+  verifyData: adminProcedure
+    .input(z.object({
+      category: z.string().optional(),
+      limit: z.number().min(10).max(100).default(50),
+    }).optional())
+    .mutation(async ({ input }) => {
+      const { verifyDatabaseValues } = await import("../engines/ingestion/data-verifier");
+      const { listEvidenceRecords } = await import("../db");
+
+      const records = await listEvidenceRecords({
+        category: input?.category,
+        limit: input?.limit ?? 50,
+      });
+
+      const verificationRecords = records.map((r: any) => ({
+        id: r.id,
+        itemName: r.itemName,
+        category: r.category,
+        priceTypical: r.priceTypical,
+        unit: r.unit,
+        publisher: r.publisher,
+        captureDate: r.captureDate,
+      }));
+
+      return verifyDatabaseValues(verificationRecords);
+    }),
+
+  /**
+   * Analyze freshness across all sources — identify stale data.
+   * Returns sources that need re-scraping with detailed statistics.
+   */
+  freshnessAnalysis: protectedProcedure
+    .query(async () => {
+      const { getStaleSourceIds } = await import("../engines/ingestion/freshness");
+      const { listSourceRegistry } = await import("../db");
+
+      const staleSources = await getStaleSourceIds(50);
+      const allSources = await listSourceRegistry();
+      const sourceMap = new Map(allSources.map((s: any) => [s.id, s]));
+
+      return {
+        staleSources: staleSources.map((s) => ({
+          ...s,
+          sourceName: (sourceMap.get(s.sourceRegistryId) as any)?.name || "Unknown",
+          sourceUrl: (sourceMap.get(s.sourceRegistryId) as any)?.baseUrl || "",
+        })),
+        totalSources: allSources.length,
+        staleCount: staleSources.length,
+        healthPct: allSources.length > 0
+          ? Math.round(((allSources.length - staleSources.length) / allSources.length) * 100)
+          : 100,
+      };
+    }),
+
+  /**
+   * Extract design trends from a URL — design trend detection pipeline.
+   */
+  extractTrends: adminProcedure
+    .input(z.object({
+      url: z.string().url(),
+      sourceName: z.string().min(1),
+      content: z.string().min(50),
+    }))
+    .mutation(async ({ input }) => {
+      const { extractDesignTrends } = await import("../engines/ingestion/trend-extractor");
+      return extractDesignTrends({
+        content: input.content,
+        sourceName: input.sourceName,
+        sourceUrl: input.url,
+      });
+    }),
+
+  /**
+   * Auto-trigger re-scraping for sources with stale data.
+   * Gets stale sources → re-runs their connectors.
+   */
+  runStaleSources: adminProcedure
+    .mutation(async ({ ctx }) => {
+      const { getStaleSourceIds } = await import("../engines/ingestion/freshness");
+      const staleSources = await getStaleSourceIds(50);
+
+      if (staleSources.length === 0) {
+        return { message: "No stale sources found — all data is fresh!", rescrapeResults: [] };
+      }
+
+      // Run connectors for stale sources
+      const results = [];
+      for (const stale of staleSources.slice(0, 5)) { // Max 5 at a time
+        try {
+          const connector = getConnectorById(String(stale.sourceRegistryId));
+          if (connector) {
+            const report = await runSingleConnector(connector, "manual", ctx.user.id);
+            results.push({
+              sourceRegistryId: stale.sourceRegistryId,
+              stalePct: stale.stalePct,
+              result: report,
+            });
+          }
+        } catch (err) {
+          results.push({
+            sourceRegistryId: stale.sourceRegistryId,
+            stalePct: stale.stalePct,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      return {
+        message: `Re-scraped ${results.length} stale sources`,
+        rescrapeResults: results,
+      };
+    }),
 });
+

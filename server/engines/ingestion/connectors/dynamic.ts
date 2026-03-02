@@ -45,9 +45,12 @@ Rules:
 - Extract ALL priced items you can find, up to 50 maximum
 - Price MUST be a number in AED — skip items with no visible price
 - For price ranges like "85-110", set value=85 and valueMax=110
-- Convert known currencies to AED (USD×3.67, EUR×4.0)
-- Do NOT invent prices
-- Return empty array [] if no priced items found
+- Currency conversions: USD×3.67, EUR×4.0, GBP×4.65, SAR×0.98
+- Watch for common UAE price notations: "AED 150/sqm", "Dhs 150", "د.إ 150", "150 درهم"
+- If price says "excl. VAT" or "+ VAT", multiply by 1.05 (UAE 5% VAT)
+- If price is per sqft, convert to sqm by multiplying ×10.764 and set unit="sqm"
+- Do NOT invent prices — if no price is visible on the page, return []
+- Common UAE material brands to recognize: RAK Ceramics, Porcelanosa, Grohe, Hansgrohe, Duravit, Villeroy & Boch, Hafele, Dornbracht, Miele, Gaggenau, Sub-Zero,DERA, Cosentino
 
 Content (truncated to 16000 chars):
 ${contentSnippet.substring(0, 16000)}`;
@@ -82,12 +85,23 @@ Return a JSON array of objects with these EXACT fields:
 - materialSpec: string (specific materials mentioned, e.g. "Imported marble flooring, engineered oak, quartz countertops, European kitchen appliances")
 - category: string (main area — "floors", "walls", "sanitary", "kitchen", "joinery", "lighting", "ffe", "other")
 
+Finish level guide for UAE projects:
+- basic: Standard ceramic tiles, laminate counters, basic sanitaryware
+- standard: Porcelain tiles, quartz/granite counters, branded fittings (Grohe, Duravit)
+- premium: Imported stone, engineered hardwood, European brands (Hansgrohe, V&B, Miele)
+- luxury: Italian/Spanish marble, bespoke joinery, German appliances (Gaggenau, Sub-Zero, Bulthaup)
+- ultra_luxury: Rare stones (Calacatta, Onyx), custom designer fittings, smart home, art consulting
+
+UAE-specific brand recognition:
+- Developers: Emaar, DAMAC, Nakheel, Aldar, MERAAS, Sobha, Omniyat, FIVE Holdings, Select Group
+- Kitchen brands: Bulthaup, SieMatic, Poggenpohl, Poliform, Snaidero
+- Bathroom brands: Gessi, Axor, THG, Zucchetti, Fantini
+- Look for brochure language: "imported European finishes", "select materials", "designer kitchen"
+
 Rules:
-- ONE record per project/development (not per unit type)
-- Focus on WHAT MATERIALS and FINISHES are used, not the property itself
-- If the page describes kitchen specs, bathroom specs, floor specs — extract each as separate records
+- ONE record per project/development (not per unit type), but if the page describes kitchen specs + bathroom specs + floor specs separately, extract each as separate records
+- Focus on WHAT MATERIALS and FINISHES are used, not sale price or investment value
 - If no interior design info found, return empty array []
-- Look for words like: marble, granite, porcelain, hardwood, premium, luxury, European, imported, bespoke
 
 Content (truncated to 16000 chars):
 ${contentSnippet.substring(0, 16000)}`;
@@ -113,18 +127,22 @@ Geography: ${geography}${pageRef}${hintsFilter}
 FOCUS ON: price indices, construction cost benchmarks, market trends, supply/demand data, forecasts.
 
 Return a JSON array of objects with these EXACT fields:
-- title: string (statistic or finding name, e.g. "Average Fitout Cost - Luxury Residential")
-- rawText: string (the finding with context, max 500 chars)
+- title: string (statistic or finding name, e.g. "Average Fitout Cost - Luxury Residential Dubai Q4 2025")
+- rawText: string (the finding with context including period/quarter, max 500 chars)
 - value: number|null (numeric value in AED if applicable)
 - unit: string|null (e.g. "sqft", "sqm", "percent", "index", "AED/sqm")
 - trend: string|null (one of: "rising", "stable", "falling", or null if not a trend)
-- publishedDate: string|null (ISO date if found)
+- trendConfidence: string|null (one of: "confirmed" if multiple sources agree, "emerging" if single source/early signal, "speculative" if forecast/projection)
+- publishedDate: string|null (ISO date if found — include quarter: e.g. "2025-10-01" for Q4 2025)
 - category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
 
 Rules:
 - Extract ALL statistics, data points, and findings — up to 50 maximum
-- Include forecasts and projections with timeframe in rawText
-- Include percentage changes and growth rates
+- Always include the TIME PERIOD in the title (Q1/Q2/Q3/Q4 and year)
+- Include forecasts and projections — mark trendConfidence as "speculative" for predictions
+- Include percentage changes and growth rates (YoY, QoQ)
+- For comparisons (e.g. "Marble prices rose 12% YoY"), extract: value=12, unit="percent", trend="rising"
+- UAE-specific metrics to look for: DLD transaction volumes, RERA rental indices, construction cost per sqft, fitout cost benchmarks by tier, building permit counts
 - If no relevant data found, return empty array []
 
 Content (truncated to 16000 chars):
@@ -151,16 +169,23 @@ Geography: ${geography}${pageRef}${hintsFilter}
 FOCUS ON: building permits, construction statistics, cost indices, regulations, standards.
 
 Return a JSON array of objects with these EXACT fields:
-- title: string (data point, regulation, or statistic name)
-- rawText: string (description or finding, max 500 chars)
+- title: string (data point, regulation, or statistic name — include regulation code if visible)
+- rawText: string (description or finding, max 500 chars — include regulation numbers, dates, and authority)
 - value: number|null (numeric value if applicable)
 - unit: string|null (measurement unit)
 - publishedDate: string|null (ISO date if found)
 - category: string ("other" for most government data)
+- regulationCode: string|null (e.g. "DM/G-007", "RERA/2025/03", "ADQCC-123", "CMA-456" — extract if visible)
 
 Rules:
 - Extract data relevant to construction, interior design, and real estate
-- Include regulatory changes affecting building standards
+- Include regulatory changes affecting building standards or interior fitout:
+  - Dubai Municipality (DM) codes for fire safety, MEP, green building
+  - RERA/DLD regulations for handover standards and defect liability
+  - Abu Dhabi QCC (ADQCC) construction quality standards
+  - Civil Defense fire safety requirements (corridor widths, material classes)
+- Extract building permit statistics (count, value, area)
+- Include sustainability mandates (Al Sa'fat / Estidama ratings)
 - If no relevant data found, return empty array []
 
 Content (truncated to 16000 chars):
