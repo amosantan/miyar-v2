@@ -1,0 +1,146 @@
+# Phase C: Build Portfolio Page
+
+Build a first-class Portfolio management feature — the ability to create named portfolios, group projects into them, view cross-portfolio analytics, generate PDF reports, and receive portfolio-level alerts.
+
+## Current State
+
+**Already exists:**
+- [portfolio.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/portfolio.ts) — aggregation engine (distributions, heatmap, failure patterns, improvement levers)
+- [portfolio-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/portfolio-engine.ts) — LLM-powered executive briefing generator
+- [Portfolio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/admin/Portfolio.tsx) — admin page with charts, AI insights, project table
+- `trpc.admin.portfolio.overview` endpoint in [admin.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/admin.ts#L435-L500)
+
+**GAP:** All projects are analyzed as one flat group. No named portfolios, no CRUD, admin-only access.
+
+---
+
+## Proposed Changes
+
+### C1: Schema — Portfolio Tables
+
+#### [NEW] Portfolio tables in [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+
+```sql
+portfolios:
+  - id (serial PK)
+  - name (varchar 255)
+  - description (text, nullable)
+  - organizationId (int, FK → organizations)
+  - createdBy (int, FK → users)
+  - createdAt, updatedAt (timestamps)
+
+portfolioProjects:
+  - id (serial PK)
+  - portfolioId (int, FK → portfolios)
+  - projectId (int, FK → projects)
+  - addedAt (timestamp)
+  - note (text, nullable)
+```
+
+After adding: run `/db-migrate` workflow.
+
+---
+
+### C2: Extend Portfolio Engine
+
+#### [MODIFY] [portfolio.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/portfolio.ts)
+
+Add `computePortfolioSummary()` that wraps existing functions into a single typed output:
+- Total value, avg composite, avg risk, project count
+- Distributions, heatmap, failure patterns, improvement levers
+- Per-portfolio filtering (by portfolio ID)
+
+---
+
+### C3: Portfolio CRUD Router
+
+#### [NEW] [portfolio.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/portfolio.ts)
+
+Endpoints:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| [list](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1559-1569) | query | List all portfolios for current org |
+| `getById` | query | Get portfolio with projects + analytics |
+| [create](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#887-893) | mutation | Create named portfolio |
+| [update](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#193-198) | mutation | Rename / update description |
+| [delete](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#199-204) | mutation | Delete portfolio (unlinks projects) |
+| `addProject` | mutation | Add project to portfolio |
+| `removeProject` | mutation | Remove project from portfolio |
+| `analytics` | query | Full aggregation for a portfolio |
+| `generatePdf` | mutation | Generate portfolio PDF |
+
+Register in `server/routers/index.ts`.
+
+---
+
+### C4: Portfolio Page (First-Class)
+
+#### [MODIFY] [Portfolio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/admin/Portfolio.tsx)
+
+Transform from admin-only analytics view to full Portfolio management page:
+
+1. **Portfolio List View** — cards showing all portfolios with summary metrics
+2. **Create Portfolio** — modal with name + description
+3. **Portfolio Detail View** — selected portfolio showing:
+   - Summary cards (project count, avg score, avg risk)
+   - Add/remove projects via search
+   - Score distributions chart
+   - Compliance heatmap
+   - Failure patterns
+   - Improvement levers
+   - AI Executive Briefing
+   - Export PDF button
+4. **Project Table** — linking to individual project pages
+
+#### [MODIFY] [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx)
+
+Move "Portfolio" from admin section to main "Analysis" section in sidebar.
+
+#### [MODIFY] [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx)
+
+Update route from `/admin/portfolio` → `/portfolio` (keep old route as redirect).
+
+---
+
+### C5: Portfolio PDF Report
+
+#### [MODIFY] [pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts)
+
+Add `generatePortfolioPDFReport(portfolioId)`:
+- Portfolio name, description, date
+- Summary metrics table
+- Score distribution charts (embedded as HTML tables)
+- Risk heatmap
+- Failure patterns
+- Top improvement levers
+- Project breakdown table
+
+---
+
+### C6: Portfolio Alerts
+
+#### [MODIFY] [alert-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/alert-engine.ts)
+
+Add portfolio-level alert triggers:
+- Portfolio avg score drops below threshold (e.g. 50)
+- New failure pattern detected across ≥3 projects
+- Risk score exceeds threshold
+
+---
+
+## Verification Plan
+
+### Automated Tests
+```bash
+npx vitest run
+```
+- Existing 678 tests must still pass
+- New tests for portfolio CRUD operations
+- New tests for portfolio aggregation
+
+### Manual Verification
+1. Create a portfolio via the UI
+2. Add projects to it
+3. View analytics (distributions, heatmap, patterns)
+4. Generate PDF report
+5. Verify alert triggers fire on portfolio events

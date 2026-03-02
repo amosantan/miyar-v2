@@ -1,0 +1,48 @@
+# Market Intelligence & Evidence — Stitch Redesign
+
+Implement the premium Stitch design for the Market Intelligence & Evidence page, replacing the current functional-but-basic [DldInsights.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/market-intel/DldInsights.tsx).
+
+## Stitch Design Reference
+
+![Stitch Market Intelligence Design](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/stitch_market_intel.png)
+
+## Design Sections → Data Sources
+
+| Stitch Section | Data Source | Notes |
+|---|---|---|
+| **DLD Live Feed** (left overlay) | `trpc.marketIntel.evidence.list` | Latest evidence records, sorted by date |
+| **Market Status** ("Strong Bullish") | `trpc.analytics.getTrends` | Trend direction from analytics |
+| **Top Benchmarks** (right panel) | `trpc.design.getAreaBenchmarks` | Top 3 areas by sale P50 |
+| **Price/SqFt by Tier** (right panel) | `trpc.design.getAreaBenchmarks` | Grouped by tier from benchmark data |
+| **Yield Forecast** (right panel) | `trpc.design.getAreaBenchmarks` | Yield data from benchmarks |
+| **Dubai Map** (center) | Static map image + heatmap overlay | Decorative with data pins |
+| **Filters bar** | UI state | Asset class, timeframe toggles |
+
+## Proposed Changes
+
+### Client Pages
+
+#### [NEW] [MarketIntelligence.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/market-intel/MarketIntelligence.tsx)
+
+New premium page with the Stitch design pattern:
+- **Header**: "Market Intelligence & Evidence" + live sync indicator + region selector
+- **Filters Bar**: Asset class chips, timeframe selector, Map/Grid toggle
+- **Map Area** (left 60%): Dubai satellite map background with heatmap glow spots, data pins with tooltips, and DLD Live Feed glass panel overlay with latest evidence records
+- **Market Status** glass card: Bullish/Bearish indicator + 24h volume
+- **Right Panel** (right 40%): Top Benchmarks (top 3 areas), Price/SqFt by Tier bars, Yield Forecast chart
+- All data from existing tRPC queries — no new backend needed
+
+#### [MODIFY] [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx)
+
+- Add import for `MarketIntelligence`
+- Add route `/market-intelligence` for the new page
+
+> [!NOTE]
+> The existing [DldInsights.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/market-intel/DldInsights.tsx) stays untouched — the new page is an upgraded alternative at a new route.
+
+## Verification Plan
+
+### Browser Test
+- Navigate to `/market-intelligence` and verify the full layout renders
+- Check data loads in all sections (benchmarks, evidence records)
+- Verify responsive behavior and glass panel styling

@@ -1,0 +1,7 @@
+# V4 Adaptive Project Creator UI Verification Plan
+
+- [ ] Navigate to http://localhost:3003/projects/new
+- [ ] Fill Context form (Project Name, Typology: Residential, Scale, GFA)
+- [ ] Verify Unit Mix Builder appears for Residential typology
+- [ ] Verify Fitout Area Summary section is visible
+- [ ] Report results and take screenshots

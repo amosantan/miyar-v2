@@ -1,0 +1,27 @@
+# Tasks
+
+## Source-Type-Specific Extraction
+- [x] Add 5 new columns to evidence_records schema
+- [x] Run DB migration
+- [x] Fix broken CATEGORY_MAP in orchestrator
+- [x] Build 4 source-type-specific LLM prompts
+- [x] Update DynamicConnector to select prompt by sourceType
+- [x] Update normalize() to map new fields
+- [x] Fix extractedEvidenceSchema Zod category validator
+- [x] Build and deploy
+- [x] Verify with IKEA test: 16 records created ✅
+- [x] Re-scrape all 86 sources (514 records created) ✅
+
+## Strategic Data Utilization (Source-Type Intelligence)
+- [x] Update [proposal-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/proposal-generator.ts) to group benchmarks by `${category}:${finishLevel}:${unit}`
+- [x] Enhance Analytics Engine ([insight-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/analytics/insight-generator.ts)) to use `designStyle` and `brandsMentioned` for new triggers (e.g., `style_shift`, `brand_dominance`)
+- [x] Update Trend Detection to segment cost pressure metrics by `finishLevel`
+- [x] Adapt [server/routers/design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design-advisor.ts) to recommend materials based on `designStyle` and `finishLevel` correlations found in developer brochures
+- [x] Add macro market intelligence extraction points in [market-intelligence.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/market-intelligence.ts)
+
+## Phase 3: Expanding New Project Creation Flow
+- [x] Analyze common interior design briefing structures used by developers.
+- [x] Update database schema to support expanded project data (granular typologies, unit mixes, villa spaces, developer guidelines/target audience).
+- [x] Adapt the Project Creation UI in [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) to conditionally capture unit mix, villa spaces, and developer guidelines based on typology.
+- [x] Update [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx) to display the "Extended Brief".
+- [x] Ensure downstream engines can accept and utilize this additional project context by fixing types in [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) and [server/routers/project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts).

@@ -1,0 +1,44 @@
+# MIYAR Build Playbook — Execution Tracker
+
+## Phase A: Production Polish ✅
+- [x] A1–A5: All complete and verified
+
+## Phase B: Data Enrichment ✅
+- [x] B1–B5: All complete and verified
+
+## Pre-Phase C: Verification ✅
+- [x] 678/704 tests passing, DB healthy, all pages verified
+
+## Phase C: Build Portfolio Page ✅
+- [x] C1–C6: All complete and verified
+
+## Phase D: Risk & Economic Modeling ✅
+- [x] D1–D7: All complete and verified
+
+## Phase E: Cognitive Bias Detection ✅
+- [x] E1–E4: All complete and verified
+
+## Phase F: Monte Carlo & Time-Series ✅
+- [x] F1–F5: All complete and verified
+
+## Phase G: Customer Success ✅
+- [x] G1–G5: All complete and verified
+
+## Phase H: Digital Twin & Sustainability ✅
+- [x] H1–H5: All complete and verified
+
+---
+
+## P0 Ship-Blockers (Gap Analysis)
+- [x] P0-1: Generate DB migrations for 8 Phase D–H tables (`0032_woozy_retro_girl.sql`)
+- [x] P0-2: Push migrations to PlanetScale
+- [x] P0-3: Add auth guards ([RequireAuth](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx#4-23), [RequireAdmin](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx#24-49)) on frontend routes
+- [x] P0-4: TypeScript verify + commit & push (`aa58a91`)
+
+## P1 High Priority
+- [x] P1-1: Write unit tests for Monte Carlo engine (25 tests)
+- [x] P1-2: Write unit tests for Digital Twin engine (30 tests)
+- [x] P1-3: Add rate limiting on expensive mutations (`heavyProcedure`)
+- [x] P1-4: Set up CI/CD (GitHub Actions + test runner)
+- [x] P1-5: Add error tracking (Sentry)
+- [x] P1-6: Fix `any` type annotations in Phase D–H routers (27 fixes)

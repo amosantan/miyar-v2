@@ -11,12 +11,14 @@ import {
     Building2, Palette, Package, DollarSign, TrendingUp,
     Leaf, Wrench, ArrowLeft, Download, ChevronRight, Sparkles,
     AlertCircle, Loader2, Target, BarChart3, Globe, ExternalLink, Share2, FileText, Check,
-    MapPin, LayoutGrid,
+    MapPin, LayoutGrid, Calculator, Zap, Crown, Info,
 } from "lucide-react";
 import RoomCostWaterfall from "@/components/RoomCostWaterfall";
+import { Slider } from "@/components/ui/slider";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 
 function formatAed(amount: number) {
@@ -91,12 +93,54 @@ function InvestorSummaryContent() {
         { enabled: !!projectId },
     );
 
-    const hasData = !!brief?.briefData || (recs && recs.length > 0);
-
-    // Derived numbers
+    // Derived numbers (moved before Phase 10 hooks that depend on them)
     const totalFitoutBudget = recs?.reduce((s: number, r: any) => s + Number(r.budgetAllocation || 0), 0) ?? 0;
     const gfa = Number(project?.ctx03Gfa ?? 0);
     const costPerSqm = gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0;
+    const tier = project?.mkt01Tier ?? "Upper-mid";
+
+    // ── Phase 10: Sales Premium Sliders ─────────────────────────────────────
+    const [currentFitout, setCurrentFitout] = useState(costPerSqm > 0 ? costPerSqm : 1500);
+    const [proposedFitout, setProposedFitout] = useState(costPerSqm > 0 ? Math.round(costPerSqm * 1.5) : 3500);
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+    const [debouncedCurrent, setDebouncedCurrent] = useState(currentFitout);
+    const [debouncedProposed, setDebouncedProposed] = useState(proposedFitout);
+
+    // Sync initial slider values once costPerSqm loads
+    const hasInitRef = useRef(false);
+    useEffect(() => {
+        if (costPerSqm > 0 && !hasInitRef.current) {
+            hasInitRef.current = true;
+            setCurrentFitout(costPerSqm);
+            setProposedFitout(Math.round(costPerSqm * 1.5));
+            setDebouncedCurrent(costPerSqm);
+            setDebouncedProposed(Math.round(costPerSqm * 1.5));
+        }
+    }, [costPerSqm]);
+
+    const debounceFitout = useCallback((cur: number, prop: number) => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            setDebouncedCurrent(cur);
+            setDebouncedProposed(prop);
+        }, 300);
+    }, []);
+
+    const { data: valueAddResult, isLoading: valueAddLoading } = trpc.salesPremium.getValueAddBridge.useQuery(
+        { projectId, currentFitoutPerSqm: debouncedCurrent, proposedFitoutPerSqm: debouncedProposed },
+        { enabled: !!projectId && debouncedProposed > debouncedCurrent },
+    );
+
+    // Brand equity — estimate sale performance from DLD benchmark
+    const salePerformancePct = dldBenchmark?.saleP50 && costPerSqm > 0
+        ? Math.round(((costPerSqm / (dldBenchmark.saleP50 * 0.15)) - 1) * 100) // rough fitout-to-premium proxy
+        : 0;
+    const { data: brandEquityResult } = trpc.salesPremium.getBrandEquityForecast.useQuery(
+        { projectId, salePerformancePct: Math.max(0, salePerformancePct) },
+        { enabled: !!projectId && (tier === "Ultra-luxury" || project?.targetValueAdd === "Brand Flagship / Trophy") },
+    );
+
+    const hasData = !!brief?.briefData || (recs && recs.length > 0);
 
     // Extract design identity from brief
     const briefData = brief?.briefData as any;
@@ -124,8 +168,6 @@ function InvestorSummaryContent() {
         pct: totalFitoutBudget > 0 ? (Number(r.budgetAllocation || 0) / totalFitoutBudget) * 100 : 0,
     })).sort((a: { budget: number }, b: { budget: number }) => b.budget - a.budget);
 
-    // Sustainability from material constants — derive from tier
-    const tier = project?.mkt01Tier ?? "Upper-mid";
     const TIER_CARBON: Record<string, { grade: string; label: string }> = {
         "Entry": { grade: "B", label: "Standard" },
         "Mid": { grade: "B", label: "Standard" },
@@ -523,6 +565,192 @@ function InvestorSummaryContent() {
                                 </CardContent>
                             </Card>
                         </div>
+                    </div>
+
+                    {/* ── Section F: Sales Premium & Yield Predictor (Phase 10) ───── */}
+                    <div>
+                        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                            <Calculator className="h-3.5 w-3.5" /> F · Sales Premium & Yield Predictor
+                            <Badge variant="outline" className="text-[9px] ml-1">Phase 10</Badge>
+                        </h2>
+                        <Card>
+                            <CardContent className="pt-5 pb-4 space-y-5">
+                                {/* Sliders */}
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs text-muted-foreground">Current Fitout</label>
+                                            <span className="text-sm font-bold text-foreground font-mono">{currentFitout.toLocaleString()} AED/sqm</span>
+                                        </div>
+                                        <Slider
+                                            min={500}
+                                            max={15000}
+                                            step={100}
+                                            value={[currentFitout]}
+                                            onValueChange={([v]) => {
+                                                setCurrentFitout(v);
+                                                debounceFitout(v, proposedFitout);
+                                            }}
+                                            className="cursor-pointer"
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs text-muted-foreground">Proposed Fitout</label>
+                                            <span className="text-sm font-bold text-primary font-mono">{proposedFitout.toLocaleString()} AED/sqm</span>
+                                        </div>
+                                        <Slider
+                                            min={500}
+                                            max={15000}
+                                            step={100}
+                                            value={[proposedFitout]}
+                                            onValueChange={([v]) => {
+                                                setProposedFitout(v);
+                                                debounceFitout(currentFitout, v);
+                                            }}
+                                            className="cursor-pointer"
+                                        />
+                                    </div>
+                                </div>
+
+                                <Separator />
+
+                                {/* Results */}
+                                {valueAddLoading && (
+                                    <div className="flex items-center justify-center py-6">
+                                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                    </div>
+                                )}
+
+                                {!valueAddLoading && valueAddResult && (
+                                    <>
+                                        {/* Confidence badge */}
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className={`text-[10px] ${valueAddResult.confidence === "high" ? "border-emerald-500/40 text-emerald-400" :
+                                                valueAddResult.confidence === "medium" ? "border-amber-500/40 text-amber-400" :
+                                                    valueAddResult.confidence === "low" ? "border-orange-500/40 text-orange-400" :
+                                                        "border-red-500/40 text-red-400"
+                                                }`}>
+                                                {valueAddResult.confidence} confidence
+                                            </Badge>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="max-w-[250px] text-xs">
+                                                        Based on DLD transaction comparables in this area. High = 15+ transactions.
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            {valueAddResult.riskFlag && (
+                                                <Badge variant="destructive" className="text-[10px]">
+                                                    {valueAddResult.riskFlag.replace(/_/g, " ")}
+                                                </Badge>
+                                            )}
+                                        </div>
+
+                                        {/* Risk message */}
+                                        {valueAddResult.riskMessage && (
+                                            <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20">
+                                                <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                                <p className="text-xs text-amber-400/90">{valueAddResult.riskMessage}</p>
+                                            </div>
+                                        )}
+
+                                        {/* KPI cards */}
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            {[
+                                                {
+                                                    label: "Yield Uplift",
+                                                    value: `+${valueAddResult.yieldDelta.mid}pp`,
+                                                    sub: `${valueAddResult.yieldDelta.conservative}–${valueAddResult.yieldDelta.aggressive}pp range`,
+                                                    icon: <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />,
+                                                    color: "text-emerald-400",
+                                                },
+                                                {
+                                                    label: "Sale Premium",
+                                                    value: `+${valueAddResult.salePremiumPct.mid}%`,
+                                                    sub: formatAed(valueAddResult.salePremiumAed.mid),
+                                                    icon: <Target className="h-3.5 w-3.5 text-blue-400" />,
+                                                    color: "text-blue-400",
+                                                },
+                                                {
+                                                    label: "Payback Period",
+                                                    value: valueAddResult.paybackMonths.mid < 999 ? `${valueAddResult.paybackMonths.mid} mo` : "N/A",
+                                                    sub: valueAddResult.paybackMonths.mid < 999
+                                                        ? `${valueAddResult.paybackMonths.aggressive}–${valueAddResult.paybackMonths.conservative} mo range`
+                                                        : "No yield uplift",
+                                                    icon: <Zap className="h-3.5 w-3.5 text-amber-400" />,
+                                                    color: "text-amber-400",
+                                                },
+                                                {
+                                                    label: "Incremental Cost",
+                                                    value: formatAed(valueAddResult.incrementalFitoutCost),
+                                                    sub: `Fitout ratio: ${(valueAddResult.fitoutRatio * 100).toFixed(0)}%`,
+                                                    icon: <DollarSign className="h-3.5 w-3.5 text-violet-400" />,
+                                                    color: "text-violet-400",
+                                                },
+                                            ].map(kpi => (
+                                                <div key={kpi.label} className="p-3 rounded-lg bg-secondary/30 border border-border/30">
+                                                    <div className="flex items-center gap-1.5 mb-1">
+                                                        {kpi.icon}
+                                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
+                                                    </div>
+                                                    <p className={`text-xl font-bold ${kpi.color}`}>{kpi.value}</p>
+                                                    <p className="text-[10px] text-muted-foreground mt-0.5">{kpi.sub}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+
+                                {proposedFitout <= currentFitout && (
+                                    <p className="text-xs text-muted-foreground text-center py-4">
+                                        Set the proposed fitout above the current fitout to see yield predictions.
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Brand Equity Halo Panel */}
+                        {brandEquityResult && brandEquityResult.haloApplies && (
+                            <Card className="mt-3 border-amber-500/20">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm flex items-center gap-1.5">
+                                        <Crown className="h-3.5 w-3.5 text-amber-400" /> Brand Equity Halo Effect
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-center">
+                                            <p className="text-2xl font-bold text-amber-400">+{brandEquityResult.haloUpliftPct}%</p>
+                                            <p className="text-[10px] text-muted-foreground">Portfolio Halo</p>
+                                        </div>
+                                        <Separator orientation="vertical" className="h-10" />
+                                        <div className="flex-1">
+                                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                                {brandEquityResult.reasoning}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {brandEquityResult.portfolioImpactAed.mid > 0 && (
+                                        <div className="grid grid-cols-3 gap-2 pt-1">
+                                            {[
+                                                { label: "Small (500 sqm)", value: formatAed(brandEquityResult.portfolioImpactAed.conservative) },
+                                                { label: "Medium (2,000 sqm)", value: formatAed(brandEquityResult.portfolioImpactAed.mid) },
+                                                { label: "Large (5,000 sqm)", value: formatAed(brandEquityResult.portfolioImpactAed.aggressive) },
+                                            ].map(s => (
+                                                <div key={s.label} className="text-center p-2 rounded-md bg-amber-500/5 border border-amber-500/15">
+                                                    <p className="text-xs font-semibold text-foreground">{s.value}</p>
+                                                    <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
 
                     {/* ── Section E: DLD Market Context ───────────────────────────── */}

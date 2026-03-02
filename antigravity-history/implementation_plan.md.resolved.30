@@ -1,0 +1,79 @@
+# Phase E — Scale Features
+
+Build cross-project comparison, mobile-ready share links, and RICS-aligned cost classification for institutional credibility.
+
+---
+
+## E.1 · Portfolio Benchmarking Dashboard
+
+The existing [PortfolioPage.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/PortfolioPage.tsx) manages portfolios but lacks **cross-project comparison metrics**. Investors with 5–20 projects need side-by-side cost/sqm, MIYAR scores, and aggregate stats.
+
+### Proposed Changes
+
+#### [MODIFY] [PortfolioPage.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/PortfolioPage.tsx)
+- Add **comparison table** in [PortfolioDetail](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/PortfolioPage.tsx#235-677): project name | tier | city | typology | fitout budget | cost/sqm | MIYAR score | sustainability cert | status
+- Add **aggregate stats strip**: avg cost/sqm, best/worst MIYAR score, total portfolio GFA, total fitout budget
+- Add **"Export Portfolio Summary"** button → generates PDF with comparison table + radar overlay
+- Use existing `project.listWithScores` tRPC query (already returns `latestScore`)
+
+#### [NEW] [portfolio-pdf.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/portfolio-pdf.ts)
+- HTML template for portfolio summary PDF (table + aggregate stats)
+- Reuse `investor-pdf.ts` pattern — HTML blob → print-to-PDF
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+- New `listPortfolioSummary` procedure: returns projects with scores + city + cert target + cost/sqm for a portfolio
+
+---
+
+## E.2 · Mobile-Responsive Share Views
+
+[ShareView.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ShareView.tsx) uses `grid-cols-3` KPI strip and `md:grid-cols-2` layouts that don't render well on phones. Investors open share links on WhatsApp/iMessage → need first-class mobile experience.
+
+### Proposed Changes
+
+#### [MODIFY] [ShareView.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ShareView.tsx)
+- KPI strip: `grid-cols-3` → `grid-cols-1 sm:grid-cols-3` with stacked mobile layout
+- Budget bars: adjust label widths for small screens, add horizontal scroll for long lists
+- Add **sustainability cert badge** (city + tier from new fields)
+- Sticky header: add compact mobile padding, reduce font sizes
+- Add `<meta name="viewport">` and PWA-style meta (`apple-mobile-web-app-capable`)
+- Add document ID badge in footer for traceability
+- Overall: ensure all text readable at 375px width (iPhone SE minimum)
+
+---
+
+## E.3 · RICS Alignment Layer
+
+RICS (Royal Institution of Chartered Surveyors) NRM provides the standard cost classification used by UAE QS firms. Aligning MIYAR output to RICS NRM categories gives institutional credibility.
+
+### Proposed Changes
+
+#### [NEW] [rics-mapping.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/rics-mapping.ts)
+- Map MIYAR space types → RICS NRM element codes (Group 3: Internal Finishes, Group 5: FF&E, etc.)
+- Map material categories → RICS cost element subcodes
+- Export function: `mapToRics(spaceType, materialType) → { code, group, element }`
+
+#### [MODIFY] [BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx)
+- Add RICS code column in the material cost table (e.g., "3A — Wall Finishes")
+- Add "RICS NRM Aligned" badge in the budget section header
+
+#### [MODIFY] [Methodology.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Methodology.tsx)
+- Add "Cost Classification" section explaining RICS NRM alignment
+- Reference: NRM 1 (Order of Cost) and NRM 2 (Detailed Measurement)
+
+#### [MODIFY] [investor-pdf.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/investor-pdf.ts)
+- Add "RICS NRM Aligned" badge in the PDF budget section
+- Include RICS element codes in material cost breakdowns
+
+---
+
+## Verification Plan
+
+### Automated
+- TypeScript compile: zero new errors in modified files
+- Existing tests pass: `npm run test`
+
+### Manual
+- **E.1**: Create 3+ projects in a portfolio → verify comparison table shows correct data → export PDF → confirm layout
+- **E.2**: Open share link on iPhone (375px) → confirm KPI strip stacks, text readable, no horizontal overflow
+- **E.3**: Open BriefEditor → verify RICS codes appear next to materials → confirm PDF includes codes

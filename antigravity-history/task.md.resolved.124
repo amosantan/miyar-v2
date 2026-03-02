@@ -1,0 +1,47 @@
+# MIYAR V4 — The Fit-out Oracle: Task List
+
+## Phase A: Schema + Types + Area Utility
+- [ ] Add `totalFitoutArea`, `totalNonFinishArea`, `fitoutAreaVerified`, `projectArchetype` to [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- [ ] Add `pdf_extractions` table to [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- [ ] Extend `status` enum with `draft_area_verification`
+- [ ] Add `totalFitoutArea` to [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#16-55) in [miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts)
+- [ ] Add `ProjectArchetype` type to [miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts)
+- [ ] Create `server/engines/area-utils.ts` — `getPricingArea()`, `getStructuralArea()`
+- [ ] Add typed Zod schemas for `unitMix` and `villaSpaces` in [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+- [ ] Update `projectInputSchema` with new fields in [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+- [ ] Update [projectToInputs()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts#21-52) to include `totalFitoutArea`
+- [ ] Run `npm run db:push` to apply schema changes
+
+## Phase B: Adaptive Project Creator UI
+- [ ] Map typology → archetype in [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx)
+- [ ] Add Unit Mix Builder sub-form (residential archetype)
+- [ ] Add Room List Builder sub-form (villa archetype)
+- [ ] Add Shell & Core toggle (office archetype)
+- [ ] Auto-calculate `totalFitoutArea` from sub-forms
+- [ ] Show fitout area summary in Review step
+
+## Phase C: Engine Migration (50+ callsites)
+- [ ] Update [normalization.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts) — [deriveScaleBand()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts#25-31) uses `getPricingArea()`
+- [ ] Update [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) — [computeROI()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts#368-428) uses `getPricingArea()`
+- [ ] Update [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) — pricing uses fitout area
+- [ ] Update [bias-detector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts) — budget calc uses `getPricingArea()`
+- [ ] Update [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts) — AI prompts show both GFA + fitout area
+- [ ] Update [explainability.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/explainability.ts) — add `totalFitoutArea` label
+- [ ] Update [pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts) — show both GFA and Fitout Area
+- [ ] Update routers: [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts), [design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design-advisor.ts), [portfolio.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/portfolio.ts), [scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/scenario.ts), [predictive.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/predictive.ts), [seed.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/seed.ts)
+- [ ] Update 9 test files with `totalFitoutArea` in fixtures
+- [ ] Run `npm test` — all tests pass
+- [ ] Run `npx tsc --noEmit` — no type errors
+
+## Phase D: Verification Gate + PDF Extraction
+- [ ] Add `project.verifyAreas` tRPC mutation
+- [ ] Create `AreaVerification.tsx` page
+- [ ] Add Gemini vision PDF extraction engine
+- [ ] Create `PdfPreview.tsx` polygon viewer
+- [ ] Integration testing end-to-end
+
+## Verification
+- [ ] Create project with each archetype — verify conditional fields
+- [ ] Evaluate project — verify ROI uses fitout area
+- [ ] Generate design brief — verify pricing uses fitout area
+- [ ] Git commit + push

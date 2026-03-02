@@ -1,0 +1,41 @@
+# Phase F: Monte Carlo & Time-Series
+
+## Context
+
+No existing MC/TS code. Building on:
+- [cost-range.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/predictive/cost-range.ts) — P15/P50/P85/P95 weighted percentiles from evidence
+- [scenario-projection.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/predictive/scenario-projection.ts) — compounding cost projections (low/mid/high)
+- [stress-tester.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/risk/stress-tester.ts) — macro shock simulation
+
+## Proposed Changes
+
+### F1: Monte Carlo Simulation Engine
+#### [NEW] [monte-carlo.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/predictive/monte-carlo.ts)
+- `runMonteCarloSimulation(config)` — N iterations (default 10,000) of randomized cost projections
+- Input distributions: base cost (normal), trend rate (uniform), market factor (triangular), GFA variance (±5%)
+- Output: percentile distribution (P5, P10, P25, P50, P75, P90, P95), histogram buckets, confidence intervals, VaR (Value at Risk)
+- `runTimeSeriesProjection(config)` — monthly cost path for 1-60 months with confidence bands
+- Pure deterministic (seeded randomness with Math.random, no LLM)
+
+### F2: Schema Table
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- Add `monteCarloSimulations` table: [id](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-types.ts#26-33), `projectId`, `userId`, `iterations`, `p5/p10/p25/p50/p75/p90/p95`, `histogram` (JSON), `timeSeriesData` (JSON), `config` (JSON), `createdAt`
+
+### F3: Router Endpoints
+#### [MODIFY] [scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/scenario.ts)
+- `runMonteCarlo` mutation — accepts projectId + config, runs engine, persists results
+- `getSimulations` query — list simulations for a project
+- `getSimulation` query — get single simulation by ID
+
+### F4: Simulations Page
+#### [NEW] [Simulations.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Simulations.tsx)
+- Project selector + "Run Simulation" button with iteration count
+- **Distribution Chart**: histogram of outcome buckets with P50 line and VaR marker
+- **Time-Series Chart**: monthly cost path with P10/P50/P90 confidence bands (area chart)
+- **Key Metrics**: P50 cost, 90% CI range, VaR at 95%, probability of exceeding budget
+
+### F5: Route + Navigation
+#### [MODIFY] App.tsx + DashboardLayout.tsx
+
+## Verification Plan
+- `npx tsc --noEmit` — no new errors

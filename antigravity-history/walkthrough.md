@@ -1,0 +1,133 @@
+# UX Overhaul — Walkthrough
+
+## What Was Done
+
+### P0: Sidebar Simplification (Biggest Impact)
+
+**Before:** ~49 sidebar items visible to all users across 5 sections — Market Intelligence, Administration, Analysis, Design Enablement, and Market Intel internal tools all exposed.
+
+**After:** ~10 sidebar items for client users across 3 focused sections:
+
+| Section | Items |
+|---------|-------|
+| **Main** | Dashboard, Projects, New Project |
+| **Analysis** | Scenarios, Portfolio, Alerts |
+| **Market** | DLD Area Insights, Competitor Overview |
+
+Admin users still see full Market Intelligence + Administration sections behind role gate.
+
+#### Before vs After
+
+````carousel
+![Before — sidebar with ~49 items visible (conceptual)](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/.system_generated/click_feedback/click_feedback_1772357058429.png)
+<!-- slide -->
+![After — clean 10-item client sidebar](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/dashboard_desktop_1772357453226.png)
+````
+
+---
+
+### P0: Route Gating
+
+8 internal market-intel pages moved from `Protected` (any logged-in user) to `AdminOnly`:
+- Evidence Vault, Source Registry, Benchmark Proposals, Trend Tags
+- Intel Audit Log, Data Health, Ingestion Monitor, Analytics Intelligence
+
+DLD Insights + Competitors remain client-accessible.
+
+---
+
+### P0: Dashboard Quick Actions
+
+**Before:** Quick actions pointed to admin pages (ROI Configuration, Benchmark Versions, Portfolio Analytics).
+
+**After:** Quick actions reflect the actual client workflow:
+- **Create Project** → Start a new design evaluation
+- **Scenarios** → What-if analysis & comparisons
+- **DLD Insights** → UAE area benchmarks
+- **Portfolio** → Cross-project intelligence
+
+Also removed the hardcoded dummy bar chart from project rows (was showing fake static data).
+
+---
+
+### P1: Mobile Responsive CSS
+
+Enhanced [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css) with:
+- Tab lists now scroll horizontally instead of overflowing
+- Dialogs expand to full mobile width
+- Card content padding reduced on small screens
+- Badges wrap cleanly instead of truncating
+- Flex containers wrap instead of overflowing
+- Form grid stacks to single column on mobile
+
+---
+
+### P2: Consistent Page Headers & Loading States
+
+Created two reusable components:
+
+- [PageHeader.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/PageHeader.tsx) — Breadcrumb trail, icon, title, description, and action slot
+- [PageSkeleton.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/PageSkeleton.tsx) — Animated skeleton with configurable stat cards, table, and content blocks
+
+Applied to 6 key pages:
+
+| Page | Breadcrumb | Loading State |
+|------|-----------|---------------|
+| Dashboard | `Home` | — |
+| Projects | `Projects` | `PageSkeleton showTable` |
+| Scenarios | `Analysis → Scenarios` | — |
+| DLD Insights | `Market → DLD Insights` | `PageSkeleton statCards=4 showTable` |
+| Competitors | `Market → Competitors` | — |
+| Portfolio | `Analysis → Portfolio` | `PageSkeleton statCards=3 showContent` |
+
+---
+
+## Files Changed
+
+| File | What Changed |
+|------|-------------|
+| [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx) | Sidebar restructured to 10 client-facing items |
+| [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) | 8 market-intel routes gated to `AdminOnly` |
+| [Dashboard.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Dashboard.tsx) | Quick actions fixed, PageHeader applied |
+| [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css) | Mobile responsive enhancements |
+| [PageHeader.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/PageHeader.tsx) | **[NEW]** Reusable page header with breadcrumbs |
+| [PageSkeleton.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/PageSkeleton.tsx) | **[NEW]** Reusable loading skeleton |
+| [Projects.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Projects.tsx) | PageHeader + PageSkeleton applied |
+| [Scenarios.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Scenarios.tsx) | PageHeader applied |
+| [DldInsights.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/market-intel/DldInsights.tsx) | PageHeader + PageSkeleton applied |
+| [Competitors.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/market-intel/Competitors.tsx) | PageHeader applied |
+| [PortfolioPage.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/PortfolioPage.tsx) | PageHeader + PageSkeleton applied |
+
+## Verification
+
+- ✅ TypeScript: no new errors introduced (all errors are pre-existing in admin/seed files)
+- ✅ Git: committed as `666651f` and pushed to `main`
+- ✅ 11 files changed, 459 insertions, 250 deletions
+
+### P2: Error Boundaries for Project Sub-Pages
+
+Created [PageErrorBoundary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/PageErrorBoundary.tsx) — an in-page error card that shows "Something went wrong" with **Back to Projects** and **Try Again** buttons instead of crashing the whole app.
+
+Added `ProjectPage` wrapper in [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) and applied to all 12 project sub-routes:
+`ProjectDetail`, `EvidenceVault`, `DesignBrief`, `DesignStudio`, `Collaboration`, `DesignAdvisor`, `InvestorSummary`, `BriefEditor`, `Explainability`, `Outcomes`, `AreaVerification`, `SpacePlanner`
+
+---
+
+### P2: Title & Description Standardization
+
+Applied `PageHeader` to 3 more client-facing pages:
+
+| Page | Breadcrumb |
+|------|-----------|
+| Results | `Analysis → Results` |
+| Alerts | `Alerts` (renamed "Notification Centre") |
+| Scenario Comparison | `Analysis → Scenarios → Compare` |
+
+**Total pages with standardized PageHeader:** 9
+
+## Verification
+
+- ✅ TypeScript: no new errors (all errors pre-existing `any` types)
+- ✅ Commits: `666651f` (PageHeader + PageSkeleton) + `01cd872` (ErrorBoundary + title standardization)
+- ✅ All changes pushed to `main`
+- ✅ **All P0/P1/P2 tasks complete**

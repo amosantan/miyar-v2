@@ -1,0 +1,100 @@
+# Priority 4: Post-Mortem / Outcome Learning Engine Groundwork
+
+Bridge the gap between MIYAR's **predictions** and **reality** to enable self-correcting intelligence.
+
+## Existing Infrastructure (Already Built ✅)
+
+| Component | Status | What it does |
+|-----------|--------|-------------|
+| `project_outcomes` table | ✅ Schema ready | V5 fields: `actualTotalCost`, `actualFitoutCostPerSqm`, `projectDeliveredOnTime`, `reworkOccurred`, `clientSatisfactionScore`, `keyLessonsLearned` |
+| `outcome_comparisons` table | ✅ Schema ready | Stores cost/score/risk deltas, accuracy grades (A/B/C), learning signals |
+| [compareOutcomeToPrediction()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/outcome-comparator.ts#53-220) | ✅ Engine works | Computes deltas, assigns accuracy bands, generates learning signals |
+| `learningRouter.runComparison` | ✅ Wired | Looks up outcome + score matrix → runs comparator → saves to DB |
+| `learningRouter.getComparison` | ✅ Wired | Fetches latest comparison for a project |
+| `db.createProjectOutcome()` | ⚠️ Partial | Only accepts V2.13 fields (procurement, leadTimes, rfq) — missing V5 fields |
+
+## What's Missing
+
+1. **DB function** doesn't accept V5 fields (`actualTotalCost`, `reworkOccurred`, etc.)
+2. **No `submitPostMortem` mutation** — no validated entry point for the data
+3. **No auto-trigger** — after submitting an outcome, comparison should run automatically
+4. **No Evidence generation** — deltas should be logged as evidence records for downstream learning
+
+---
+
+## Proposed Changes
+
+### Database Layer
+
+---
+
+#### [MODIFY] [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts)
+
+Update [createProjectOutcome()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1147-1160) to accept V5 fields that already exist in the schema:
+
+```typescript
+export async function createProjectOutcome(data: {
+  projectId: number;
+  // V2.13 fields
+  procurementActualCosts?: unknown;
+  leadTimesActual?: unknown;
+  rfqResults?: unknown;
+  adoptionMetrics?: unknown;
+  // V5 fields
+  actualFitoutCostPerSqm?: string;
+  actualTotalCost?: string;
+  projectDeliveredOnTime?: boolean;
+  reworkOccurred?: boolean;
+  reworkCostAed?: string;
+  clientSatisfactionScore?: number;
+  tenderIterations?: number;
+  keyLessonsLearned?: string;
+  capturedBy?: number;
+})
+```
+
+---
+
+### Router Layer
+
+---
+
+#### [MODIFY] [learning.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/learning.ts)
+
+Add `submitPostMortem` mutation:
+
+1. Validate input with full Zod schema for all V5 outcome fields
+2. Call `db.createProjectOutcome()` with V5 data
+3. **Auto-trigger** [compareOutcomeToPrediction()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/outcome-comparator.ts#53-220) → save `outcome_comparisons`
+4. Generate evidence records from significant deltas (cost, risk, timeline)
+5. Audit log the submission
+6. Return the outcome + comparison + any learning signals
+
+Also add `getPostMortemStatus` query — returns whether a project has submitted outcomes and its accuracy grade.
+
+---
+
+### Evidence Generation Engine
+
+---
+
+#### [NEW] [post-mortem-evidence.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts)
+
+Convert outcome deltas into evidence records:
+
+- Cost delta > ±10% → evidence record tagged `handover` phase
+- Risk prediction miss → evidence record for ER dimension calibration
+- Timeline miss → evidence record for procurement/lead time adjustment
+
+These evidence records flow back into the scoring engine via existing ingestion pipeline.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- `npx vitest run` — 0 regressions
+- Test `submitPostMortem` with mock data → verify outcome created, comparison runs, evidence generated
+
+### Manual Verification
+- Submit a post-mortem via TRPC → verify `project_outcomes` + `outcome_comparisons` rows appear

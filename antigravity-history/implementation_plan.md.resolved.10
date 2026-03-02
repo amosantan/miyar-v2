@@ -1,0 +1,70 @@
+# Priority 2: Design Studio — Visual & Material Intelligence UI
+
+The existing backend (visual-gen, board-composer, Gemini image gen, materials catalog) is mature. The frontend has two separate, functional-but-basic pages ([VisualStudio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/VisualStudio.tsx) and [BoardComposer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BoardComposer.tsx)). This plan unifies them into a premium "Design Studio" experience.
+
+> [!IMPORTANT]
+> **Scope decision**: We are **refactoring/enhancing** the existing two pages into a single unified page, NOT building from scratch. All existing tRPC endpoints are reused. One new backend endpoint is added for pinning visuals to boards.
+
+## Proposed Changes
+
+### Backend — Design Router
+
+#### [MODIFY] [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+- Add `pinVisualToBoard` mutation — links a generated visual (asset) to a material board + records the link
+- Add `listPinnedVisuals` query — returns visuals pinned to a specific board
+- Add `unpinVisual` mutation — removes a pin
+
+---
+
+### Frontend — Design Studio Page
+
+#### [MODIFY] [DesignStudio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignStudio.tsx) (renamed from [VisualStudio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/VisualStudio.tsx))
+The unified page with 4 tabs:
+
+| Tab | Content | Source |
+|-----|---------|--------|
+| **Studio** | Hero overview — latest pinned mood board, key stats, quick-generate buttons | New |
+| **Visuals** | Full visual generation + gallery (current VisualStudio logic) | Refactored from [VisualStudio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/VisualStudio.tsx) |
+| **Materials** | Board composer + RFQ (current BoardComposer logic) | Refactored from [BoardComposer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BoardComposer.tsx) |
+| **Cost Overlay** | Live market pricing overlay on materials — uses V4 [getLiveCategoryPricing](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pricing-engine.ts#59-97) | New |
+
+**Key enhancements**:
+1. **Pin-to-Board**: From the Visuals tab, users can pin any completed visual to a material board — linking mood imagery to specific material selections
+2. **Live Cost Badges**: Material tiles show [(market-verified)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/scripts/apply-migrations.ts#5-54) pricing badges when V4 live pricing data is available
+3. **Premium visual gallery**: Cards get glassmorphism styling, hover zoom, image lightbox
+4. **Quick-generate bar**: One-click generation for mood/material/hero from the Studio overview tab
+5. **Cost Overlay tab**: Side-by-side view of material board items vs. live market benchmark prices
+
+#### [DELETE] [VisualStudio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/VisualStudio.tsx)
+Replaced by `DesignStudio.tsx`
+
+#### [DELETE] [BoardComposer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BoardComposer.tsx)
+Logic absorbed into `DesignStudio.tsx` Materials tab
+
+#### [MODIFY] [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx)
+- Replace routes `/projects/:id/visuals` and `/projects/:id/boards` with single `/projects/:id/design-studio`
+- Update imports
+
+#### [MODIFY] [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx)
+- Update sidebar nav: replace "Visual Studio" and "Board Composer" links with single "Design Studio" entry
+
+---
+
+### Frontend — Styling
+
+#### [MODIFY] [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css)
+- Add premium glassmorphism card styles
+- Add image gallery hover/zoom transitions
+- Add gradient accent for Design Studio header
+
+## Verification Plan
+
+### Automated Tests
+- `npx vitest run` — ensure existing tests still pass (backward compat)
+
+### Manual Verification
+- Navigate to `/projects/:id/design-studio` → verify all 4 tabs render
+- Generate a visual → verify it appears in gallery
+- Pin a visual to a board → verify it shows on the Materials tab
+- Check Cost Overlay tab shows live benchmark data
+- Old routes `/projects/:id/visuals` and `/projects/:id/boards` should 404 (replaced)

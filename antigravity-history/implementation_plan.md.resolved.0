@@ -1,0 +1,127 @@
+# Manus → Antigravity Migration Plan
+
+Comprehensive plan to decouple the Miyar V2 project from all Manus platform dependencies and make it fully self-contained.
+
+## Current State (Already Migrated)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| LLM | ✅ Gemini | [llm.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/llm.ts) fully converted |
+| Image Gen | ✅ Gemini Imagen | [imageGeneration.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/imageGeneration.ts) |
+| Notifications | ✅ Resend | [notification.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/notification.ts) |
+| Database | ✅ PlanetScale | 47 tables created, Drizzle ORM |
+| Local Auth | ✅ Built | [auth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/auth.ts) — login/register with JWT |
+| Login Page | ✅ Built | [Login.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Login.tsx) |
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Voice Transcription**: Currently uses `OPENAI_API_KEY` for Whisper API. Should we keep OpenAI Whisper, or migrate to Gemini's speech-to-text? Keeping OpenAI Whisper is simpler (it's battle-tested) but adds a second API dependency.
+
+> [!IMPORTANT]
+> **Google Maps**: The [map.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/map.ts) service proxies through Manus Forge. To migrate, you'll need a **Google Maps API key** (`GOOGLE_MAPS_API_KEY`). Do you already have one, or should we stub this out?
+
+> [!IMPORTANT]
+> **Data API**: The [dataApi.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/dataApi.ts) uses Manus Forge as a generic API proxy (YouTube search, etc). Is this feature actually used? If not, we can safely remove it.
+
+---
+
+## Proposed Changes
+
+### 1. Auth System Cleanup
+
+The current SDK ([sdk.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts)) has two interleaved concerns:
+1. **Manus OAuth** — [OAuthService](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#31-78), `WebDevAuthPublicService` endpoints, [getUserInfoWithJwt](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#235-258) → **REMOVE**
+2. **JWT Session management** — [signSession](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#181-199), [verifySession](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#200-234), [createSessionToken](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#162-180), [authenticateRequest](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#259-302) → **KEEP**
+
+#### [MODIFY] [sdk.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts)
+- Remove [OAuthService](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#31-78) class and all Manus OAuth endpoints
+- Remove imports of [manusTypes.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/types/manusTypes.ts)
+- Remove `ENV.oAuthServerUrl` / `ENV.appId` references
+- Keep [SDKServer](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#85-303) class with only: [createSessionToken](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#162-180), [signSession](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#181-199), [verifySession](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#200-234), [authenticateRequest](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#259-302)
+- Simplify [authenticateRequest](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts#259-302) — remove the OAuth-sync fallback (lines 274-288); if user not in DB, just throw
+
+#### [DELETE] [manusTypes.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/types/manusTypes.ts)
+- Manus protobuf-generated types — no longer needed
+
+#### [MODIFY] [env.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/env.ts)
+- Remove `oAuthServerUrl`, `appId`, `forgeApiUrl`, `forgeApiKey`
+- Add `GOOGLE_MAPS_API_KEY` (if maps will be used)
+- Keep `DATABASE_URL`, `cookieSecret` / `JWT_SECRET`, `isProduction`
+
+---
+
+### 2. Client — Remove Manus Branding
+
+#### [DELETE] [ManusDialog.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ManusDialog.tsx)
+- Manus-branded login dialog — replaced by [Login.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Login.tsx)
+
+#### [MODIFY] [useAuth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/_core/hooks/useAuth.ts)
+- Line 46: Change `"manus-runtime-user-info"` → `"miyar-user-info"`
+
+---
+
+### 3. Vite Config — Remove Manus Debug Collector
+
+#### [MODIFY] [vite.config.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/vite.config.ts)
+- Remove entire [vitePluginManusDebugCollector](file:///Users/amrosaleh/Maiyar/miyar-v2/vite.config.ts#70-151) function (lines 9–150)
+- Remove all log-related helper functions ([ensureLogDir](file:///Users/amrosaleh/Maiyar/miyar-v2/vite.config.ts#20-25), [trimLogFile](file:///Users/amrosaleh/Maiyar/miyar-v2/vite.config.ts#26-50), [writeToLogFile](file:///Users/amrosaleh/Maiyar/miyar-v2/vite.config.ts#51-69))
+- Remove Manus domains from `server.allowedHosts` (lines 173–177)
+- Keep `localhost` and `127.0.0.1` in allowedHosts
+
+#### [DELETE] [client/public/__manus__/](file:///Users/amrosaleh/Maiyar/miyar-v2/client/public/__manus__/)
+- Entire directory with [debug-collector.js](file:///Users/amrosaleh/Maiyar/miyar-v2/client/public/__manus__/debug-collector.js)
+
+---
+
+### 4. Server Utilities — Replace Forge Proxy
+
+#### [MODIFY] [map.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/map.ts)
+- Replace [getMapsConfig()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/map.ts#21-36) to use `GOOGLE_MAPS_API_KEY` env var directly
+- Replace `${baseUrl}/v1/maps/proxy${endpoint}` URL construction with direct Google Maps API URLs
+- Remove Forge-specific auth headers
+
+#### [MODIFY] [dataApi.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/dataApi.ts)
+- Check if [callDataApi](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/dataApi.ts#16-65) is used anywhere — if not, delete file
+- If used, refactor to use direct API calls
+
+---
+
+### 5. Voice Transcription (Decision Required)
+
+#### [MODIFY] [voiceTranscription.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/voiceTranscription.ts)
+- **Option A**: Keep as-is (OpenAI Whisper) — requires `OPENAI_API_KEY`
+- **Option B**: Migrate to Gemini speech-to-text
+
+---
+
+### 6. Cleanup
+
+#### [DELETE] [.manus/](file:///Users/amrosaleh/Maiyar/miyar-v2/.manus/)
+- Manus-specific configuration directory
+
+#### [NEW] [.env.example](file:///Users/amrosaleh/Maiyar/miyar-v2/.env.example)
+- Document all required environment variables for independent deployment
+
+---
+
+## Verification Plan
+
+### Automated Tests
+```bash
+# Run existing test suite (16 test files)
+cd /Users/amrosaleh/Maiyar/miyar-v2 && pnpm test
+```
+
+Key test files to verify don't break:
+- [server/auth.logout.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/auth.logout.test.ts) — auth flow
+- [server/engines/v2-resilience.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v2-resilience.test.ts) — LLM malformed JSON fallback
+- [server/engines/v3-analytics.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v3-analytics.test.ts) — analytics with LLM enrichment
+- All other engine tests should pass unchanged
+
+### Manual Verification
+1. **Start dev server**: `pnpm dev`
+2. **Register a new user** at `/login` (toggle to Register mode)
+3. **Login with that user** and verify dashboard loads
+4. **Check no console errors** related to Manus/OAuth/Forge
+5. **Verify no `__manus__` requests** in browser DevTools Network tab

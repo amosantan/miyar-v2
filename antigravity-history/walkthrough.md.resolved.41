@@ -1,0 +1,46 @@
+# DLD Data Integration — Full Walkthrough
+
+## Phase 1: Data Ingestion (`8827f7e`)
+
+| Dataset | Records | Key Metric |
+|---------|---------|-----------|
+| Transactions | 5,000 | `meter_sale_price` (AED/sqm) |
+| Rent Contracts | 5,000 | `rent_per_sqm` calculated |
+| Area Benchmarks | 117 | P25/P50/P75/yield/fitout |
+
+## Phase 2: Pipeline Wiring (`149ace3`)
+
+### 7 Gaps Fixed
+
+| # | Gap | Fix | File |
+|---|-----|-----|------|
+| 1 | `dldAreaId`/`projectPurpose` never saved | Added to Zod schema | [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) |
+| 2 | Brief always used 25K fallback | Calls [getAreaSaleMedianSqm()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#304-317) | [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) |
+| 3 | Scoring ignored DLD fitout | `expectedCost` = `recommendedFitoutMid` | [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) |
+| 4 | ROI ignored DLD yield | DLD fitout benchmark in context | [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) |
+| 5 | Investor Summary blank | `getProjectDldBenchmark` endpoint | [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) |
+| 6 | Purpose had no effect | Material tier ±1 based on purpose | [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) |
+| 7 | [projectToInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts#102-133) dropped DLD | Callers pass purpose through | Both routers |
+
+### How Purpose Affects Materials
+
+| Purpose | Material Tier Shift | Example (Luxury Tier) |
+|---------|-------------------|----------------------|
+| `sell_offplan` | +1 ↑ | Uses **Ultra-luxury** materials |
+| `sell_ready` | 0 (no change) | Uses **Luxury** materials |
+| [rent](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts#56-67) | -1 ↓ | Uses **Upper-mid** materials |
+| `mixed` | 0 (no change) | Uses **Luxury** materials |
+
+### Data Flow (Before → After)
+
+```
+BEFORE: Project → hardcoded 25K → generic materials → static scoring
+AFTER:  Project → DLD area lookup → area-specific pricing → purpose-adjusted materials → DLD-calibrated scoring
+```
+
+## Verification
+
+- ✅ Build passes (7.58s)
+- ✅ Pushed as `149ace3`
+- ✅ `salePriceSource` will show `"dld_transactions"` when project has `dldAreaId`
+- ✅ `expectedCost` log shows DLD fitout benchmark per area

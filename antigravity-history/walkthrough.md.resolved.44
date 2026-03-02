@@ -1,0 +1,48 @@
+# Phase C: Data Expansion — Walkthrough
+
+## What Was Built
+
+### C.1: SCAD PDF Material Index Scraper
+- **New file:** [scad-pdf-connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/scad-pdf-connector.ts)
+- Downloads SCAD Abu Dhabi construction material PDFs
+- Extracts text via `pdf-parse`, sends to Gemini for structured extraction
+- Outputs: material name, category, AED price, unit, index value, YoY change
+- Falls back to HTML publications page if PDF fetch fails
+- Registered as `scad-pdf-materials` in connector registry
+
+### C.2: Benchmark Seeder (58 → 2520 combos)
+- **New file:** [benchmark-seeder.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/benchmark-seeder.ts)
+- Cross-product: 7 typologies × 3 locations × 4 tiers × 5 levels × 6 room types
+- DLD-calibrated: uses median fitout from `getAllAreaBenchmarks()` as anchor
+- Multiplier stack: tier base → location → typology → material level → room type
+- Skips existing rows, labels all as `sourceType: "curated"`
+
+### C.3: Synthetic Gap-Filler
+- **New file:** [synthetic-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/synthetic-generator.ts)
+- Finds gaps after seeder completes
+- Interpolates from nearest real benchmark (same typology/diff location → same tier/diff typology → adjacent tier)
+- All rows labeled `sourceType: "synthetic"` with traceability in `sourceNote`
+
+### Admin Endpoints + UI
+- **Modified:** [admin.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/admin.ts) — added [seedBenchmarks](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/benchmark-seeder.ts#118-180) and [generateSyntheticBenchmarks](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/synthetic-generator.ts#88-161) mutations
+- **Modified:** [Benchmarks.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/admin/Benchmarks.tsx):
+  - Source type badges: 🟢 Curated, 🟡 Synthetic, 🔵 Client
+  - "Seed Benchmarks" + "Fill Gaps" admin buttons
+  - Source type summary counts
+  - Room type column + sourceNote hover tooltip
+
+## Verification
+- `npm run build` ✅ — all files compile cleanly
+- No new TypeScript errors introduced (pre-existing errors in `test-extraction.ts`, [seed.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/seed.ts) remain unchanged)
+
+## Files Changed
+
+| File | Action |
+|------|--------|
+| [server/engines/ingestion/connectors/scad-pdf-connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/scad-pdf-connector.ts) | NEW |
+| [server/engines/ingestion/connectors/index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/index.ts) | MODIFIED — registered SCAD PDF connector |
+| [server/engines/benchmark-seeder.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/benchmark-seeder.ts) | NEW |
+| [server/engines/synthetic-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/synthetic-generator.ts) | NEW |
+| [server/routers/admin.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/admin.ts) | MODIFIED — 2 new endpoints |
+| [client/src/pages/admin/Benchmarks.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/admin/Benchmarks.tsx) | MODIFIED — badges + buttons |
+| [todo.md](file:///Users/amrosaleh/Maiyar/miyar-v2/todo.md) | MODIFIED — Phase C tracking |

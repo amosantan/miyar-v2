@@ -1,0 +1,86 @@
+# Priority 3: RFQ & Tender Capabilities — Design Brief Pipeline
+
+The current [buildRFQPack()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#3-211) generates 6 hardcoded BOQ sections from raw `rooms + materials + finishSchedule` — it ignores the structured Design Brief entirely. This overhaul bridges the **Decision → Design Brief → Procurement** pipeline.
+
+## Proposed Changes
+
+### Engine Layer
+
+---
+
+#### [MODIFY] [rfq-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts)
+
+**Full rewrite** of [buildRFQPack](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#3-211) to accept a [DesignBriefData](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#10-70) parameter:
+
+1. **New signature**: [buildRFQPack(projectId, orgId, briefData, rooms?, materials?)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#3-211) — the Brief is now the primary input; rooms/materials are optional enrichment
+2. **Dynamic section generation**: derive BOQ sections from `briefData.boqFramework.coreAllocations[]` (each allocation → one RFQ section) instead of 6 hardcoded sections
+3. **Cost inheritance**: use `coreAllocations.estimatedCostLabel` to back-calculate unit rates when market-verified pricing exists
+4. **Material filtering**: validate materials against `briefData.materialSpecifications.approvedMaterials` and exclude items from `prohibitedMaterials`
+5. **Budget cap**: reference `briefData.detailedBudget.totalBudgetCap` for contingency calculations
+6. **Backward compatibility**: keep the old signature working via an overload — if no `briefData` is provided, fall back to current logic
+
+**New export**: `buildRFQFromBrief(projectId, orgId, briefData)` — clean API that only takes the Brief
+
+---
+
+#### [MODIFY] [board-composer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts)
+
+Enhance [generateRfqLines](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts#82-100) and [computeBoardSummary](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts#48-81):
+
+1. Add optional `briefConstraints` parameter to [generateRfqLines()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts#82-100) — annotates each line with [(market-verified)](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx#107-119) if the Brief confirms pricing, and adds `⚠ Not in approved list` notes for materials outside the Brief's `approvedMaterials`
+2. Add `budgetComplianceCheck` field to [BoardSummary](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts#23-33) — compares the board's total cost against the Brief's `totalBudgetCap`
+
+---
+
+### Router Layer
+
+---
+
+#### [MODIFY] [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+
+Add a new `generateRfqFromBrief` mutation:
+
+```typescript
+generateRfqFromBrief: protectedProcedure
+  .input(z.object({ projectId: z.number(), briefId: z.number() }))
+  .mutation(async ({ ctx, input }) => {
+    // 1. Fetch the Design Brief by ID
+    // 2. Call buildRFQFromBrief(projectId, orgId, briefData)
+    // 3. Insert rfq_line_items into DB
+    // 4. Return the generated pack with summary stats
+  })
+```
+
+Also enhance `boardSummary` to cross-reference Brief constraints when a `briefId` is provided.
+
+---
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+Update the legacy `design_brief` report path (lines 702-740):
+- After generating the Brief at line 730, call the new `buildRFQFromBrief()` to derive RFQ lines, replacing the old [buildRFQPack(project.id, orgId, finishSchedule, rooms, materials)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#3-211) call
+
+---
+
+### Database Layer
+
+---
+
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+
+Add two columns to `rfq_line_items`:
+
+- `briefId` (int, nullable) — links each RFQ line back to source Design Brief
+- `pricingSource` (varchar, nullable) — `"market-verified"` or `"estimated"`
+- Push schema with `drizzle-kit push`
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Run `npx vitest run` — confirm 0 regressions
+- New unit test: `buildRFQFromBrief` with mock [DesignBriefData](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#10-70) → verify sections match coreAllocations, materials filter against approved/prohibited lists
+
+### Manual Verification
+- Generate a Design Brief → click "Generate RFQ from Brief" → verify line items match the Brief's BOQ categories and cost bands

@@ -1,0 +1,14 @@
+# Tasks
+
+## Firecrawl Integration
+- [x] Integrate Firecrawl SDK into BaseSourceConnector
+- [x] Fix v4 API (scrape returns Document directly)
+- [x] Fix Vercel timeout (maxDuration=300s, pageBudget=3)
+- [x] Test Graniti UAE: 55K chars, 87 records ✅
+- [x] Run full local scrape across all 86 sources
+
+## Evidence → Materials Library Sync
+- [ ] Create `evidence-to-materials.ts` sync module
+- [ ] Hook into orchestrator post-ingestion
+- [ ] Build and deploy
+- [ ] Verify materials library updates after scrape

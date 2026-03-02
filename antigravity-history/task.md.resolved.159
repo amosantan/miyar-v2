@@ -1,0 +1,11 @@
+# Phase 9 Integration Audit — Gap Fixes
+
+## Completed
+- [x] **Gap 1: Scoring Engine** — DS dimension + P8 penalty + SPACE_CRITICAL action + normalization
+- [x] **Gap 2: Design Brief** — `spaceAllocation` section with rooms, efficiency, recommendations
+- [x] **Gap 3: Investor Summary** — Space Planning Intelligence card with KPIs + room chart
+- [x] **Gap 4: Design Studio** — Room Render type with board-aware prompts
+- [x] **Gap 5: Brief Editor** — `spaceAllocation` card in Budget tab + Summary tab
+- [x] **Gap 6: Platform Alerts** — `space_critical` alert on ≥2 critical deviations
+- [x] Fix [benchmarkSpaceRatios](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-benchmarking.ts#115-238) call signature
+- [x] Fix all lint errors

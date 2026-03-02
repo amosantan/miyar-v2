@@ -1,0 +1,198 @@
+# Source-Type-Specific Extraction System
+
+## Problem
+
+The current extraction pipeline uses **one generic LLM prompt** for all 86 sources:
+```
+"Extract evidence items... title, rawText, publishedDate, metric, value, unit"
+```
+
+This captures the **wrong data** from each source type:
+
+| Source Type | What We Get ❌ | What We Need ✅ |
+|---|---|---|
+| **Developers** (Emaar, DAMAC, Meraas) | Unit prices (AED 2.85M), bedroom counts | Finish specs, design trends, material brands, tier positioning |
+| **Material Suppliers** (Graniti, Porcelanosa) | Product names (good) but null prices | Product names + **AED prices** + specs |
+| **Research Reports** (JLL, RICS, Knight Frank) | 0-4 generic records | Market statistics, forecasts, cost indices |
+| **Government** (DLD, Dubai Statistics) | 0 records | Construction permits, cost indices, regulations |
+
+### Root Causes Found
+
+1. **Generic prompt** — asks for `metric` + `value` + `unit` which only works for pricing
+2. **CATEGORY_MAP** routes `material_cost` → `"other"` and `competitor_project` → `"other"` — so all categories collapse
+3. **evidence_records schema** has no fields for design intelligence (finish level, design style, brands)
+4. **No extraction mode differentiation** — same [extractFromContent()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts#227-297) for all source types
+
+---
+
+## Proposed Changes
+
+### 1. Evidence Records Schema — Add Design Intelligence Fields
+
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) (lines 1008-1058)
+
+Add 5 new columns to `evidence_records`:
+
+```diff
++ finishLevel: mysqlEnum("finishLevel", ["basic","standard","premium","luxury","ultra_luxury"]),
++ designStyle: varchar("designStyle", { length: 255 }),     // "Contemporary Italian", "Modern Arabic"
++ brandsMentioned: json("brandsMentioned"),                  // ["Grohe", "Porcelanosa", "Villeroy"]  
++ materialSpec: text("materialSpec"),                        // "Imported marble, European appliances"
++ intelligenceType: mysqlEnum("intelligenceType", [
++   "material_price", "finish_specification", "design_trend",
++   "market_statistic", "competitor_positioning", "regulation"
++ ]).default("material_price"),
+```
+
+> [!IMPORTANT]
+> These are additive columns (nullable) — no breaking changes. All existing records stay valid.
+
+---
+
+### 2. Fix Category Mapping
+
+#### [MODIFY] [orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts) (lines 127-149)
+
+Fix the broken CATEGORY_MAP that sends everything to `"other"`:
+
+```diff
+- material_cost: "other",
+- fitout_rate: "other",
+- market_trend: "other",
+- competitor_project: "other",
++ material_cost: "floors",      // default for materials, LLM refines per item
++ fitout_rate: "other",
++ market_trend: "other",        // reports stay as "other"
++ competitor_project: "other",  // design intel stays as "other"  
+```
+
+> [!NOTE]
+> The LLM prompt will set the correct category per-item now. The map is just a fallback.
+
+---
+
+### 3. Source-Type-Specific LLM Prompts (Core Change)
+
+#### [MODIFY] [dynamic.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts) (lines 7-49)
+
+Replace the single [buildDynamicPrompt()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts#13-50) with **4 specialized prompt builders**:
+
+#### Prompt A: `buildMaterialPricingPrompt()` 
+For: `supplier_catalog`, `manufacturer_catalog`, `retailer_listing`, `aggregator`
+
+```
+Extract products with EXACT AED prices from this supplier/retailer page.
+
+Return JSON array with:
+- title: product name with specification (e.g. "Calacatta Marble Tile 60x60cm")
+- rawText: product description or context
+- value: price in AED (number, NOT null — skip items without prices)
+- unit: "sqm", "piece", "unit", "m", "L", etc.
+- category: "floors"|"walls"|"sanitary"|"lighting"|"kitchen"|"hardware"|"ffe"
+- brand: manufacturer/brand name
+```
+
+#### Prompt B: `buildDeveloperIntelPrompt()`
+For: `developer_brochure`
+
+```
+Extract INTERIOR DESIGN intelligence from this developer/project page.
+Focus on: finish specifications, material brands, design aesthetic, quality tier.
+DO NOT extract property prices, bedroom counts, or unit sizes.
+
+Return JSON array with:
+- title: project name or development name
+- rawText: finish description (e.g. "Premium imported marble in living areas, Grohe fixtures")  
+- finishLevel: "basic"|"standard"|"premium"|"luxury"|"ultra_luxury"
+- designStyle: aesthetic description (e.g. "Contemporary Italian", "Modern Arabic", "Minimalist")
+- brands: array of brand names mentioned (e.g. ["Grohe", "Porcelanosa", "Miele"])
+- materialSpec: specific materials mentioned (e.g. "Calacatta marble, engineered oak, quartz countertops")
+- category: main focus area — "floors"|"walls"|"sanitary"|"kitchen"|"joinery"|"ffe"|"other"
+```
+
+#### Prompt C: `buildMarketResearchPrompt()`
+For: `industry_report`, `trade_publication`
+
+```
+Extract market intelligence and statistics from this research/report page.
+Focus on: price indices, market trends, supply/demand data, forecasts.
+
+Return JSON array with:
+- title: statistic or finding name
+- rawText: the finding or data point with context
+- value: numeric value if applicable (in AED)
+- unit: measurement unit
+- trend: "rising"|"stable"|"falling"|null
+- geography: specific area if mentioned (e.g. "Dubai Marina", "Abu Dhabi")
+```
+
+#### Prompt D: `buildGovernmentDataPrompt()`
+For: `government_tender`, `procurement_portal`
+
+```
+Extract construction/real estate data from this government source.
+Focus on: permits, regulations, cost indices, tenders, statistics.
+
+Return JSON array with:
+- title: data point or regulation name  
+- rawText: description or finding
+- value: numeric value if applicable
+- unit: measurement unit
+- effectiveDate: date if mentioned
+```
+
+---
+
+### 4. Update DynamicConnector to Use Source Type
+
+#### [MODIFY] [dynamic.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts)
+
+- [extractFromContent()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts#227-297) selects prompt based on `this.sourceType`
+- [normalize()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#110-111) maps new LLM fields (`finishLevel`, `designStyle`, `brands`, `materialSpec`) into evidence record
+
+---
+
+### 5. Migration Script
+
+#### [NEW] migration SQL
+
+```sql
+ALTER TABLE evidence_records
+  ADD COLUMN finishLevel ENUM('basic','standard','premium','luxury','ultra_luxury') NULL,
+  ADD COLUMN designStyle VARCHAR(255) NULL,
+  ADD COLUMN brandsMentioned JSON NULL,
+  ADD COLUMN materialSpec TEXT NULL,
+  ADD COLUMN intelligenceType ENUM('material_price','finish_specification','design_trend','market_statistic','competitor_positioning','regulation') DEFAULT 'material_price';
+```
+
+---
+
+## What Changes Per Source Type After This
+
+```mermaid
+graph TD
+    A[Source Registry<br/>86 sources] --> B{sourceType?}
+    B -->|supplier/manufacturer/retailer| C[Material Pricing Prompt<br/>Products + AED prices]
+    B -->|developer_brochure| D[Developer Intel Prompt<br/>Finishes + Design + Brands]
+    B -->|industry_report/trade_pub| E[Market Research Prompt<br/>Stats + Trends + Forecasts]
+    B -->|government_tender| F[Government Data Prompt<br/>Permits + Indices + Regs]
+    
+    C --> G[evidence_records<br/>+ priceMin/Max + unit]
+    D --> G
+    E --> G
+    F --> G
+    
+    G --> H[Materials Library Sync]
+    G --> I[Trend Detection]
+    G --> J[Benchmark Proposals]
+    G --> K[Alert Engine]
+```
+
+## Verification Plan
+
+### After Implementation:
+1. Re-scrape **Graniti UAE** → should get products + AED prices (not null)
+2. Re-scrape **DAMAC** → should get finish specs + design tier (not bedroom counts)
+3. Re-scrape **JLL MENA** → should get market statistics
+4. Check Materials Library → new items with correct categories
+5. Check Evidence Vault → records with `finishLevel`, `designStyle`, `brandsMentioned`

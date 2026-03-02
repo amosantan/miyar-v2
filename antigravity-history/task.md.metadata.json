@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_TASK",
+  "summary":  "UX overhaul task tracker. All phases complete: P0 (sidebar simplification, route gating, dashboard fixes), P1 (mobile responsive CSS), P2 (PageHeader, PageSkeleton, PageErrorBoundary, title standardization).",
+  "updatedAt":  "2026-03-01T12:43:20.859620Z",
+  "version":  "166"
+}

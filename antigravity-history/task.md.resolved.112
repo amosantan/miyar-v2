@@ -1,0 +1,8 @@
+# Phase C — Advanced DLD Analytics
+
+- [ ] C.1 — Wire [computeMarketPosition()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#252-301) into evaluate handler
+- [ ] C.2 — Expose over/under-spec risk flags in evaluation result
+- [ ] C.3 — Add DLD gross yield to ROI narrative
+- [ ] C.4 — Create DLD Insights Dashboard page
+- [ ] C.5 — Add route + sidebar entry
+- [ ] Build, commit, push

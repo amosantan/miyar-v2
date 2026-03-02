@@ -1,0 +1,23 @@
+# Restructure Design Brief for Dubai Market
+
+## Phase 1: Planning and Research
+- [x] Analyze current design brief generation in [server/engines/design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) and [server/engines/docx-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts).
+- [x] Analyze S3 HTML generation in [server/engines/pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts).
+- [x] Research Dubai-specific interior design brief needs (BOQ, detailed materials, workflows, cost allocation).
+- [x] Create [implementation_plan.md](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/implementation_plan.md) outlining structural overhaul.
+
+## Phase 2: Refactoring Design Brief Engine
+- [x] Overhaul [DesignBriefData](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#9-69) interface in [server/engines/design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts).
+- [x] Add `boqFramework` logic based on project GFA.
+- [x] Refine `materialSpecifications` to be explicit instructions rather than high-level guidance.
+- [x] Introduce `designerInstructions` tailored for Dubai (Municipality/Civil Defense approval processes, MEP coordination).
+
+### Phase 3: Export Adapters Update
+- [x] Modify DOCX generator API ([server/engines/docx-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts)) to read the new layout keys.
+- [x] Rewrite HTML generator code for PDF ([server/engines/pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts)) to render a nice UI table for the new brief instead of the validation matrices.
+
+### Phase 4: Final Wiring and Validation
+- [x] Unify the route handlers in [server/routers/project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) and [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) to supply new structure onto DOCX/HTML pipelines.
+- [x] Fix TypeScript type-check issues and Unit Tests in [server/engines/v28.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v28.test.ts). and [credibility-fixes.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/credibility-fixes.test.ts)) and fix typing issues from interface changes.
+- [ ] Verify HTML/PDF output structurally matches a standard Dubai interior design brief layout.
+- [ ] Summarize changes in [walkthrough.md](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/walkthrough.md).

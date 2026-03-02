@@ -1,0 +1,23 @@
+# MIYAR v3 — Phase D: Governance & Compliance
+
+## Phase A-C ✅ (complete)
+
+## Phase D: Governance & Compliance
+- [x] D.1 — Sustainability compliance checklists
+  - [x] Estidama Pearl Rating (Abu Dhabi) checklist engine
+  - [x] Al Sa'fat (Dubai) Green Building checklist engine
+  - [x] Auto-evaluate from digital twin data
+  - [x] Compliance tab in Sustainability UI
+  - [x] Tier badge display (Pearl 1-5 / Bronze-Platinum)
+- [x] D.2 — Audit trail enhancement
+  - [x] Filter by action type, entity type
+  - [x] Expandable details panel (JSON viewer)
+  - [x] CSV export button (client-side)
+  - [x] Structured action labels with icons
+- [x] D.3 — Methodology disclosure page
+  - [x] MIYAR Score explanation (5 dimensions)
+  - [x] Data sources disclosure (A/B/C grades)
+  - [x] AI usage & guardrails
+  - [x] Benchmark methodology
+  - [x] Public route /methodology (no auth)
+- [x] Build verification — zero Phase D errors

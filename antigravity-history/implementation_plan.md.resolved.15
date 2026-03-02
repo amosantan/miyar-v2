@@ -1,0 +1,126 @@
+# Phase D: Risk & Economic Modeling — V9
+
+> **Goal:** Wire existing risk/economic engines to the Scenarios UI and add a Risk Heatmap visualization.
+
+## Key Finding
+
+**Most engines already exist and are tested.** Phase D is primarily wiring work:
+
+| Engine | File | Status |
+|---|---|---|
+| Stress Tester | [server/engines/risk/stress-tester.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/risk/stress-tester.ts) | ✅ Built (4 conditions) |
+| Risk Evaluator | [server/engines/risk/risk-evaluator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/risk/risk-evaluator.ts) | ✅ Built (R=P×I×V/C, 8 domains) |
+| Cost Avoidance | [server/engines/economic/cost-avoidance.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/economic/cost-avoidance.ts) | ✅ Built |
+| Programme Acceleration | [server/engines/economic/programme-acceleration.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/economic/programme-acceleration.ts) | ✅ Built |
+| ROI Calculator | [server/engines/economic/roi-calculator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/economic/roi-calculator.ts) | ✅ Built (combines above) |
+| Scenario Ranking | [server/engines/autonomous/scenario-ranking.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/scenario-ranking.ts) | ✅ Built (50/30/20 weighted) |
+| Scenario Projection | [server/engines/predictive/scenario-projection.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/predictive/scenario-projection.ts) | ✅ Built (P15/P50/P85) |
+| Schema tables | `scenarioStressTests`, `riskSurfaceMaps`, `projectRoiModels` | ✅ In DB |
+| Scenario Router | [server/routers/scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/scenario.ts) | ✅ Built (list/create/delete/compare) |
+| Scenarios Page | [client/src/pages/Scenarios.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Scenarios.tsx) | ✅ 659 lines, radar chart, comparison |
+
+---
+
+## Proposed Changes
+
+### D1: Wire Stress Tests to Scenario Router
+
+#### [MODIFY] [scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/scenario.ts)
+
+Add `stressTest` mutation:
+- Accept `scenarioId` and `stressCondition` (one of 4 types)
+- Call [simulateStressTest()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/risk/stress-tester.ts#8-69) from existing engine
+- Persist result to `scenarioStressTests` table
+- Return stress test result
+
+Add `listStressTests` query:
+- Fetch all stress tests for a scenario
+
+---
+
+### D2: Wire Economic Models to Scenario Router
+
+#### [MODIFY] [scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/scenario.ts)
+
+Add `calculateRoi` mutation:
+- Accept project data (tier, scale, budget, GDV, complexity, service fee)
+- Call [calculateProjectRoi()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/economic/roi-calculator.ts#14-53) from existing engine
+- Persist result to `projectRoiModels` table
+- Return full ROI breakdown (cost avoidance + programme acceleration + net ROI)
+
+---
+
+### D3: Wire Risk Surface Map to Scenario Router
+
+#### [MODIFY] [scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/scenario.ts)
+
+Add `generateRiskSurface` mutation:
+- Accept `projectId` and project context (tier, horizon, location, complexity)
+- Evaluate across all 8 risk domains using [evaluateRiskSurface()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/risk/risk-evaluator.ts#19-88)
+- Persist each domain result to `riskSurfaceMaps` table
+- Return array of domain risk assessments
+
+Add `getRiskSurface` query to fetch persisted maps
+
+---
+
+### D4: Add Scenario Ranking Endpoint
+
+#### [MODIFY] [scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/scenario.ts)
+
+Add [rankScenarios](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/scenario-ranking.ts#14-42) query:
+- Build `ScenarioProfile[]` from existing scenarios + stress tests + ROI data
+- Call [rankScenarios()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/scenario-ranking.ts#14-42) from existing engine
+- Return ranked list with `strategicRankScore`
+
+---
+
+### D5: Stress Test UI Panel
+
+#### [MODIFY] [Scenarios.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Scenarios.tsx)
+
+Add new `StressTestPanel` component:
+- 4 stress condition buttons (cost_surge, demand_collapse, market_shift, data_disruption)
+- Run stress test per scenario → show resilience score, failure points
+- Color-coded results (green/yellow/red by resilience score)
+
+---
+
+### D6: Risk Heatmap Page
+
+#### [NEW] [RiskHeatmap.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/RiskHeatmap.tsx)
+
+New page at `/risk-heatmap`:
+- Select project → generate risk surface across 8 domains
+- Heatmap grid: domains × risk factors (P, I, V, C)
+- Color gradient (green → yellow → red) by composite score
+- Risk band badge per domain
+- Summary card with overall risk assessment
+
+#### [MODIFY] [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) — add route
+#### [MODIFY] [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx) — add nav link
+
+---
+
+### D7: ROI & Economic Panel in Scenarios Page
+
+#### [MODIFY] [Scenarios.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Scenarios.tsx)
+
+Add `EconomicPanel` component:
+- Calculate ROI button → show breakdown (rework avoided, acceleration value, net ROI %)
+- Scenario ranking table with strategic rank scores
+- Visual indicators for each scenario's economic profile
+
+---
+
+## Verification Plan
+
+### Automated
+- `npx tsc --noEmit` — zero new errors
+- Existing test suite passes (`pnpm vitest run`)
+
+### Manual
+- Stress test a scenario → verify result persists and displays
+- Generate risk surface for a project → verify heatmap renders
+- Calculate ROI → verify breakdown is accurate
+- Rank scenarios → verify ordering matches expected logic

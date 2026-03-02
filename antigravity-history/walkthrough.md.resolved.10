@@ -1,0 +1,45 @@
+# V4 Dynamic Pricing Engine — Walkthrough
+
+## Objective
+Bridge the **Live Market Ingestion (V2)** to the **Cost Models (V4)**, fulfilling the Master Plan mandate: *"Continuously update cost benchmarks from evidence."*
+
+## What Was Built
+
+### 1. Core Pricing Engine
+#### [NEW] [pricing-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pricing-engine.ts)
+- **[getLiveCategoryPricing(finishLevel)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pricing-engine.ts#59-97)** — queries all approved `benchmark_proposals` and returns a dictionary of live P25/P50/P75 prices keyed by evidence category (floors, walls, joinery, etc.)
+- **[syncMaterialsWithBenchmarks()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pricing-engine.ts#98-151)** — bulk-updates the `materials_catalog` table (`typicalCostLow`, `typicalCostHigh`) from approved benchmarks, mapping material tiers to evidence finish levels
+
+---
+
+### 2. Dynamic BOQ in Design Briefs
+#### [MODIFY] [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts)
+- [generateDesignBrief](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#165-393) now accepts an optional `livePricing` parameter
+- **Bottom-up BOQ**: When live pricing is available, each BOQ category cost is computed as `Σ(category_weighted_mean × GFA)` instead of a flat percentage of the budget cap
+- **Market-Verified Labels**: Cost bands and per-sqm targets display [(market-verified)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/scripts/apply-migrations.ts#5-54) when driven by live data
+- **Graceful Fallback**: If no approved benchmarks exist, the existing top-down percentage logic is used unchanged
+
+---
+
+### 3. Router Integration
+#### [MODIFY] [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+- The [createDesignBrief](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#663-669) mutation now calls [getLiveCategoryPricing()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pricing-engine.ts#59-97) before generating the brief, injecting live market data automatically
+
+#### [MODIFY] [admin.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/admin.ts)
+- **`admin.pricing.syncMaterials`** — admin mutation to force-sync material catalog pricing from approved benchmarks
+- **`admin.pricing.previewLive`** — admin query to preview current live market rates by finish level
+
+## Data Flow
+```mermaid
+graph LR
+    A["Evidence Records"] --> B["Benchmark Proposals"]
+    B -->|Approved| C["Pricing Engine"]
+    C -->|getLiveCategoryPricing| D["Design Brief BOQ"]
+    C -->|syncMaterialsWithBenchmarks| E["Materials Catalog"]
+    E --> F["RFQ Generator"]
+    D --> G["PDF/DOCX Export"]
+```
+
+## Validation
+- **17/17 v28 tests passed** — the optional `livePricing` parameter is backward-compatible
+- Changes committed and pushed as `d50035f` to [main](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/seeds/audit-evidence.ts#10-89)

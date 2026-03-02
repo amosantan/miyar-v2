@@ -1,0 +1,14 @@
+# Phase 9 Integration Audit & Enhancement Plan
+
+## Audit: What's wired?
+- [ ] Floor plan analysis → Scoring engine (SA/FF/MP/DS/ER)
+- [ ] Floor plan analysis → Design brief generation
+- [ ] Floor plan analysis → Investor summary
+- [ ] Space benchmarking → Brief Editor / Budget Calculator
+- [ ] Material-deterministic renders → Design Studio page
+- [ ] Space Planner → sidebar navigation
+- [ ] Floor plan upload → Project creation wizard
+- [ ] DLD benchmarks → Platform alerts
+
+## Enhancements identified
+- [ ] (TBD after audit)

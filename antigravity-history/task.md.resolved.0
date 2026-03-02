@@ -1,0 +1,45 @@
+# Manus → Antigravity Migration
+
+## Already Done
+- [x] Database tables created on PlanetScale (47 tables)
+- [x] LLM service migrated to Gemini ([server/_core/llm.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/llm.ts))
+- [x] Image generation migrated to Gemini Imagen ([server/_core/imageGeneration.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/imageGeneration.ts))
+- [x] Notification service migrated to Resend ([server/_core/notification.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/notification.ts))
+- [x] Local auth (login/register) routes built ([server/routers/auth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/auth.ts))
+- [x] Login page built ([client/src/pages/Login.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Login.tsx))
+- [x] OAuth routes gutted ([server/_core/oauth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/oauth.ts))
+- [x] Audit codebase for all Manus dependencies
+
+## Remaining Work
+
+### 1. Auth System — Remove Manus OAuth SDK
+- [ ] Refactor [server/_core/sdk.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts) to remove Manus OAuth (keep JWT session logic)
+- [ ] Delete [server/_core/types/manusTypes.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/types/manusTypes.ts)
+- [ ] Update [server/_core/context.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/context.ts) to use simplified auth
+- [ ] Clean up ENV vars: remove `oAuthServerUrl`, `appId`, `forgeApiUrl`, `forgeApiKey`
+
+### 2. Client — Remove Manus UI & References
+- [ ] Delete [client/src/components/ManusDialog.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ManusDialog.tsx)
+- [ ] Remove `manus-runtime-user-info` localStorage key in [useAuth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/_core/hooks/useAuth.ts)
+- [ ] Verify [ManusDialog](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ManusDialog.tsx#21-90) is not imported anywhere else
+
+### 3. Vite Config — Remove Manus Debug Collector
+- [ ] Remove [vitePluginManusDebugCollector](file:///Users/amrosaleh/Maiyar/miyar-v2/vite.config.ts#70-151) plugin from [vite.config.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/vite.config.ts)
+- [ ] Remove Manus domains from `server.allowedHosts`
+- [ ] Delete `client/public/__manus__/` directory
+
+### 4. Server Utilities — Replace Forge Proxy
+- [ ] Refactor `server/_core/dataApi.ts` (Manus Forge → direct API or remove)
+- [ ] Refactor `server/_core/map.ts` (Manus Forge proxy → Google Maps direct API key)
+
+### 5. Voice Transcription — Decide on Migration
+- [ ] `server/_core/voiceTranscription.ts` uses OpenAI Whisper — keep or migrate to Gemini
+
+### 6. Environment Config
+- [ ] Update `server/_core/env.ts` with clean env vars (remove Manus, keep needed)
+- [ ] Create `.env.example` with all required env vars documented
+
+### 7. Cleanup
+- [ ] Delete `.manus/` directory
+- [ ] Remove Manus references from report markdown files (optional)
+- [ ] Remove `create_all_tables.sql` and `execute_schema.py` from drizzle/ if still there

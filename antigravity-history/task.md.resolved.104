@@ -1,0 +1,82 @@
+# Design Intelligence Engine — Task Tracker
+
+Last updated: 2026-02-27
+
+---
+
+## Phase 1 — Audit & Connect ✅ COMPLETE
+- [x] 1.1 Audit existing router endpoints (designRouter + designAdvisorRouter confirmed registered)
+- [x] 1.2 Confirm DesignBrief, DesignAdvisor, DesignStudio pages are routed in App.tsx
+- [x] 1.3 Audit dead pages — confirmed all routes registered
+- [x] 1.4 Fix missing link: `material_constants` table was seeded but NEVER queried
+  - [x] Add [getMaterialConstants()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#2067-2073) + [getMaterialConstantByType()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#2074-2083) to [server/db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts)
+  - [x] Add `design.getMaterialConstants` tRPC endpoint
+  - [x] Add `design.calculateSpec` mutation (input: material types + areas → cost/carbon/sustainability grade/maintenance)
+
+**Commit:** `a6da478`
+
+---
+
+## Phase 2 — Investor Dashboard ✅ COMPLETE
+- [x] 2.1 New page: [client/src/pages/InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) (route: `/projects/:id/investor-summary`)
+- [x] 2.2 Section A — Design Identity (typology, style, tier, exec summary, design direction JSON)
+- [x] 2.3 Section B — Material Spec Panel (space recs + live AED/m² reference from `material_constants`)
+- [x] 2.4 Section C — Budget Synthesis (total fitout cost, cost/sqm, budget bar chart by space)
+- [x] 2.5 Section D — ROI Bridge (sustainability grade, maintenance indicator, sales premium by tier, net uplift)
+- [x] 2.6 Add "Investor View" button (violet) to [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx) header
+
+**Commit:** `a6da478`
+
+---
+
+## Phase 3 — Brief → Numbers ✅ COMPLETE
+- [x] 3.1 Enrich [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) engine with `pricingAnalytics` section
+  - [x] Add [PricingAnalytics](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#10-37) interface (costPerSqmAvg, totalFitoutCostAed, totalCarbonKg, avgMaintenanceFactor, sustainabilityGrade, materialBreakdown, designPremiumAed, designPremiumPct)
+  - [x] Add `TIER_MATERIAL_TYPES` + `TIER_PREMIUM_PCT` lookup maps
+  - [x] Accept optional `materialConstants[]` param in [generateDesignBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#207-497)
+  - [x] Compute + inject `pricingAnalytics` into brief return value
+- [x] 3.2 Update `generateBrief` router — fetch `matConstants` from DB, pass to engine
+- [x] 3.3 New page: [client/src/pages/BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx) (route: `/projects/:id/brief-editor`)
+  - [x] 9 material type toggles with area allocation sliders (% of GFA)
+  - [x] Live cost recalculation via `design.calculateSpec` useMutation (fires on every change)
+  - [x] Display: Total Fitout Cost, Sustainability Grade A–E, Maintenance Factor, Carbon kg CO₂
+  - [x] Per-material breakdown list with AED/m² badges
+  - [x] ROI Bridge panel + deep link to Investor Summary
+  - [x] UAE Market Constants reference table sidebar
+- [x] Add "Brief Editor" button (emerald, Calculator icon) to [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx) header
+
+**Commit:** `ca40d00`
+
+---
+
+## Phase 4 — Market Grounding ✅ COMPLETE
+- [x] 4.1 Connect `designTrends` table → `generateRecommendations` Gemini prompt
+  - [x] Add [getDesignTrends()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#2086-2105) to [server/db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) (filter by style/region, sort by mentionCount)
+  - [x] Fetch trends in [design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design-advisor.ts) router, pass as 5th arg to [generateDesignRecommendations()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts#36-68)
+  - [x] Add [buildTrendContext()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts#188-224) helper in [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts) (groups by category, established>emerging>declining)
+  - [x] Inject `## UAE Design Trends` block into Gemini prompt (conditionally, only if trends exist)
+- [x] 4.2 Overlay `benchmarkData` AED/sqm in BriefEditor
+  - [x] Add [getBenchmarkForProject()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#2106-2135) to [server/db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) (progressive fallback: exact → typology/tier → tier only)
+  - [x] Add `design.getBenchmarkForProject` tRPC endpoint (sqft→sqm conversion)
+  - [x] Render Market Benchmark card in BriefEditor sidebar (Low/Mid/High range + live estimate comparison)
+- [x] 4.3 Competitor context from `sourceRegistry`
+  - [x] Add [getActiveSourceRegistry()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#2136-2160) to [server/db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) (whitelisted, active, sorted by reliability A>B>C)
+  - [x] Add `design.getCompetitorContext` tRPC endpoint
+  - [x] Add `design.getDesignTrends` tRPC endpoint (project-level, style-filtered)
+  - [x] Add Section E — Market Intelligence in InvestorSummary (trend grid + data sources panel)
+
+**Commit:** `6278c62`
+
+---
+
+## Phase 5 — Export & Handover ⬜ NOT STARTED
+- [ ] 5.1 Enhance DOCX export (`docx-brief.ts`)
+  - Add material spec table with costs
+  - Add budget summary table
+  - Embed AI-generated images
+- [ ] 5.2 PDF Investor Report (`server/engines/investor-report-pdf.ts`)
+  - Design Identity + Visual renders + Material costs + ROI bridge + Market benchmarks
+  - Generate using `pdfkit` or `puppeteer`
+- [ ] 5.3 Shareable public link
+  - Endpoint: `design.createShareLink`
+  - Token-gated URL: `/share/:token` renders InvestorSummary without login

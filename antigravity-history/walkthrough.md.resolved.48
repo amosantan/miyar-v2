@@ -1,0 +1,60 @@
+# UI Redesign Walkthrough
+
+## What Changed
+
+Three files were modified to transform MIYAR from a teal-accented dark theme into a **premium gold/navy luxury design**:
+
+| File | Change |
+|------|--------|
+| [client/src/index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css) | Design system: gold palette, Manrope font, glassmorphism, 10+ animations |
+| [client/src/pages/Home.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Home.tsx) | Complete rewrite: 7 animated sections for pre-login homepage |
+| [client/src/components/DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx) | Gold sidebar logo, glassmorphism login card, styled top bar |
+
+---
+
+## Design System ([index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css))
+
+- **Primary color**: Teal → Warm Gold `#C9A96E`
+- **Font**: Inter → **Manrope** (Google Fonts)
+- **Background**: Deep Navy `#0A1628`
+- **Cards**: Charcoal `#111827` with glassmorphism blur
+- **New utilities**: `.glass-card`, `.glass-overlay`, `.text-gold-gradient`, `.bg-gold-gradient`
+- **Animations**: `fadeInUp`, `float`, `shimmer`, `pulse-gold`, `gradient-shift`, `scroll-hint`
+
+---
+
+## Homepage ([Home.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Home.tsx))
+
+Seven scroll-animated sections using `IntersectionObserver`:
+
+1. **Hero** — Full-viewport with animated gradient bg, gold "Design Intelligence" heading, V5 badge, floating stat cards (578K+, 150+, 38), dual CTAs
+2. **Features** — 6 glassmorphism cards: AI Design Brief, Live Cost Calculator, Investor PDF, MIYAR Score, Market Intelligence, Sustainability
+3. **How It Works** — 4-step timeline: Define → Analyze → Score → Export
+4. **Trust Signals** — DLD Data, Estidama/Al Sa'fat, RICS NRM with stats
+5. **App Preview** — 3D-perspective dashboard mockup with fake sidebar, KPIs, and chart
+6. **Version Changelog** — V5→V1 timeline with feature lists, V5 highlighted as current
+7. **Footer** — 3-column layout with brand, product links, market coverage
+
+Includes [AnimatedCounter](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Home.tsx#27-64) component for number-counting animation and [AnimatedSection](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Home.tsx#65-93) wrapper for scroll reveals.
+
+---
+
+## Homepage Screenshot
+
+![Redesigned MIYAR homepage with gold gradient hero, stat cards, and premium dark theme](/Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/homepage_full_redesign_1772211773365.png)
+
+---
+
+## Stitch Design References
+
+Mockups generated in [Stitch Project 11215202624286097747](https://stitch.withgoogle.com/project/11215202624286097747):
+- Landing page screen: `b1df75f72e6d4469a38322fef422e245`
+- Dashboard screen: `58a301ee7c03459893fe337d8f83c280`
+
+---
+
+## Verification
+
+- **TypeScript**: No new errors (all 65+ pre-existing in other files)
+- **Visual**: Homepage renders correctly with animations, gold palette, stat counters
+- **Git**: `feat: UI Redesign — gold/navy design system, premium homepage, sidebar & top bar refresh` → pushed to `main`

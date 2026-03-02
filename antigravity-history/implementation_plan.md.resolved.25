@@ -1,0 +1,128 @@
+# DLD Integration Wiring — Implementation Plan
+
+All DLD data is in the database (10K records, 117 benchmarks) but **none of it reaches the analysis pipeline**. This plan wires it into every component.
+
+## 7 Gaps Identified
+
+| # | Gap | Impact | Fix Location |
+|---|-----|--------|-------------|
+| 1 | `projectPurpose` + `dldAreaId`/`dldAreaName` not in Zod schema | Fields never saved to DB | [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) |
+| 2 | `generateBrief` caller never passes DLD data | Always uses 25K AED/sqm fallback | `design.ts:184` |
+| 3 | Scoring engine ignores DLD benchmarks | `budgetFit` uses static `expectedCost` only | `project.ts:243` |
+| 4 | ROI calculations ignore DLD yield data | No rental yield in ROI bridge | `project.ts:509` |
+| 5 | Investor Summary has no DLD exposure | Frontend has no area benchmark data | `InvestorSummary.tsx` |
+| 6 | `projectPurpose` not used in any logic | No fitout quality differentiation | [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) |
+| 7 | [projectToInputs()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts#20-51) missing DLD fields | DLD context lost in analysis chain | `project.ts:98`, `design.ts:20` |
+
+---
+
+## Proposed Changes
+
+### 1. Project Router — Save DLD Fields
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+Add to `projectInputSchema` (line 93):
+```diff
++ dldAreaId: z.number().nullable().optional(),
++ dldAreaName: z.string().optional(),
++ projectPurpose: z.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
+```
+
+---
+
+### 2. Design Brief — Wire DLD Area Median
+
+#### [MODIFY] [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+
+In `generateBrief` (line 184), add DLD lookup before calling [generateDesignBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#215-531):
+```typescript
+import { getAreaSaleMedianSqm } from "../engines/dld-analytics";
+
+// In generateBrief handler, before line 184:
+const areaSaleMedian = await getAreaSaleMedianSqm(project.dldAreaId);
+
+// Pass as 6th argument:
+const briefData = generateDesignBrief(
+  { name: project.name, description: project.description },
+  inputs, scoreResult, livePricing, matConstants,
+  areaSaleMedian, // ← NEW: DLD median sale price
+);
+```
+
+---
+
+### 3. Scoring Engine — DLD-Backed Expected Cost
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+In [evaluate](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts#413-483) handler (line 243), enhance `expectedCost` with DLD data:
+```typescript
+import { getAreaSaleMedianSqm } from "../engines/dld-analytics";
+import * as db from "../db";
+
+// After existing expectedCost lookup:
+let expectedCost = await db.getExpectedCost(...);
+
+// Override with DLD benchmark if available
+if (project.dldAreaId) {
+  const benchmark = await db.getDldAreaBenchmark(project.dldAreaId);
+  if (benchmark?.recommendedFitoutMid) {
+    expectedCost = Number(benchmark.recommendedFitoutMid);
+    // This makes budgetFit = userBudget / DLD-recommended fitout
+  }
+}
+```
+
+---
+
+### 4. ROI — Include DLD Rental Yield
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+In `roi` handler, add DLD yield data to ROI context. Pass area benchmark data alongside ROI inputs for yield-adjusted ROI.
+
+---
+
+### 5. ProjectToInputs — Include DLD Context
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) + [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+
+Both [projectToInputs()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts#20-51) functions need to pass through `dldAreaId`, `dldAreaName`, and `projectPurpose` so downstream engines can use them.
+
+---
+
+### 6. Design Brief — Project Purpose Logic
+
+#### [MODIFY] [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts)
+
+Add `projectPurpose` parameter. Adjust material recommendations:
+- `sell_offplan` → premium finishes, showroom quality
+- `sell_ready` → durable premium, market-competitive (default)
+- [rent](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts#56-67) → durability over luxury, cost-efficient
+- `mixed` → balanced approach
+
+---
+
+### 7. Investor Summary — Expose DLD Benchmarks
+
+#### [MODIFY] [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)
+
+Add tRPC call to `design.getAreaBenchmark` for the project's `dldAreaId`. Show:
+- Area median sale price (P50)
+- Gross rental yield
+- Recommended fitout range (low/mid/high)
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. Create a test project with `dldAreaId = 376` (Marsa Dubai), verify brief uses 15,914 AED/sqm (not 25K fallback)
+2. Run `/evaluate-project` workflow, verify `budgetFit` uses DLD-recommended fitout
+3. Check `salePriceSource` in design brief output is `"dld_transactions"` not `"hardcoded_fallback"`
+
+### Manual Verification
+1. Create project in UI → verify Purpose selector saves to DB
+2. Generate design brief → check pricing analytics shows DLD source
+3. Check Investor Summary → shows area benchmark card

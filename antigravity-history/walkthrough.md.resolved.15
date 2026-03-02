@@ -1,0 +1,106 @@
+# Priority 4: Post-Mortem / Outcome Learning Engine
+
+## What Changed
+
+Built the feedback loop that connects MIYAR's **predictions** to **reality**, enabling the system to track its own accuracy and generate self-correcting evidence.
+
+---
+
+### Data Flow
+
+```mermaid
+graph LR
+    A[User submits<br/>Post-Mortem] --> B[submitPostMortem<br/>mutation]
+    B --> C[Save to<br/>project_outcomes]
+    B --> D[Auto-run<br/>compareOutcomeToPrediction]
+    D --> E[Save to<br/>outcome_comparisons]
+    D --> F[Generate learning<br/>signals]
+    F --> G[Convert deltas to<br/>evidence records]
+    G --> H["Evidence tagged<br/>'handover' phase"]
+    H --> I[Feeds back into<br/>scoring pipeline]
+```
+
+---
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) | Updated [createProjectOutcome()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1147-1170) to accept V5 fields |
+| [post-mortem-evidence.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts) | **[NEW]** [generatePostMortemEvidence()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts#28-143) + [summarizeLearningSignals()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts#144-189) |
+| [learning.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/learning.ts) | Added `submitPostMortem` + `getPostMortemStatus` |
+
+---
+
+### Key Design Decisions
+
+1. **Auto-comparison on submit** — when a post-mortem is submitted, the comparison engine runs immediately (no manual step)
+2. **Evidence generation** — cost deltas >5%, risk mispredictions, and score misses each produce tagged evidence records at `handover` phase
+
+---
+
+### Notebook Name: **MIYAR UAE Market Intelligence & Design**
+- Topics Extracted: UAE Real Estate Market Dynamics, Construction Costs, Sustainable Building, Luxury Interior Design Trends, Procurement.
+- Use Cases: Real Estate Investment & Strategy, Project Budgeting & Execution Planning.
+
+### 4. Database Enrichment via NotebookLM Insights 🧠
+
+Leveraged the newly integrated NotebookLM library to extract structured, actionable market intelligence, which was immediately seeded into the application database:
+
+#### Luxury Interior Design & Construction Trends (Inserted into `trend_tags`)
+10 high-value UAE market trends were extracted and mapped to the exact database schema:
+- **Biophilic Design** (design_trend)
+- **AI-Powered Smart Homes** (technology)
+- **Ultra-Rare Marble** (material_trend)
+- **Wellness-Centric Layouts** (design_trend)
+- **Desert-Inspired Minimalism** (design_trend)
+- **Sustainable Luxury** (sustainability)
+- **Sensory-Rich Textures** (material_trend)
+- **Sculptural Lighting** (design_trend)
+- **Dual-Zone Kitchens** (design_trend)
+- **Contemporary Arabian Opulence** (design_trend)
+
+#### Construction Cost Benchmarks (Inserted into `benchmark_data`)
+5 highly realistic 2025-2026 UAE construction cost benchmarks were seeded:
+- **Residential Villa (Mid-Tier):** 300 - 500 AED/sqft (Standard Materials)
+- **Residential Villa (Luxury):** 900 - 1400 AED/sqft (Luxury Materials)
+- **Residential High Rise (Mid-Tier):** 350 - 700 AED/sqft (Standard Materials)
+- **Commercial (Premium):** 510 - 680 AED/sqft (Premium Materials)
+- **Commercial (Ultra Luxury):** 850 - 1500 AED/sqft (Luxury Materials)
+
+#### Phase 2: Competitor Intel & HNWI Preferences (Inserted into `competitor_projects` & `trend_tags`)
+Following the addition of new PDF reports and market resources by the user, a second extraction phase was executed:
+- **5 High-Net-Worth Individual (HNWI) Buyer Preferences** extracted and seeded as `trend_tags` (e.g., Branded Residences, Family-Sized Beachfront Villas, Integrated Wellness Facilities).
+- **Competitor Intelligence for 5 Top Developers** extracted:
+  - **Emaar** (Avg: 4134 AED/sqft; Focus: Nature-washed luxury, equestrian heritage, championship golf courses)
+  - **DAMAC** (Avg: 4053 AED/sqft; Focus: High-fashion branded partnerships, floating cinemas, wave simulators)
+  - **Sobha** (Avg: 3247 AED/sqft; Focus: Backward integration, bespoke bespoke interiors, green estates)
+  - **Aldar** (Avg: 2960 AED/sqft; Focus: Urban modern luxury, smart access, rooftop pools)
+  - **OMNIYAT** (Avg: 7695 AED/sqft; Focus: Ultra-rare materials like Black Zebra marble, Dorchester Collection management)
+  - *These competitor insights were seeded directly into `competitor_projects` to act as foundational market data for the Master Plan gap analysis engine.*
+
+*(Note: Granular material pricing by tier was postponed due to context limits and will be handled via the Analytics module in future iterations).*
+
+## Next Steps
+
+3. **Non-fatal comparison** — if no score matrix exists yet, the outcome still saves; comparison runs later via `runComparison`
+4. **"No automatic learning without validation"** — deltas are logged as evidence; benchmark/weight adjustments still require human approval through existing `getPendingBenchmarkSuggestions`
+
+---
+
+### Existing Infrastructure Leveraged
+
+The majority of the backend was already built:
+- `project_outcomes` table with V5 schema ✅
+- `outcome_comparisons` table with accuracy grading ✅
+- [compareOutcomeToPrediction()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/outcome-comparator.ts#53-220) engine ✅
+- `runComparison` mutation ✅
+
+We only needed to fill three gaps: DB function signature, evidence generation, and the entry-point mutation.
+
+---
+
+## Verification
+
+- **655 tests pass**, 27 pre-existing failures, **0 regressions**
+- Committed: `665a0dc` → pushed to [main](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/seed-notebook-insights.ts#20-115)

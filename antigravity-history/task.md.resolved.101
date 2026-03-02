@@ -1,0 +1,24 @@
+# Interior Design Evaluator Tasks
+
+## Phase 1: Database & Models
+- [ ] Create `designBriefs` table in [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- [ ] Create `designSpecifications` table in [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- [ ] Create `evaluationOutputs` table in [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- [ ] Apply migrations to PlanetScale
+
+## Phase 2: Engine Backend (`server/routers/design-evaluator.ts`)
+- [ ] Create new tRPC router `design-evaluator.ts`
+- [ ] Implement `evaluateBrief` endpoint (NotebookLM/Gemini integration to extract structured specs)
+- [ ] Implement `calculateAnalytics` endpoint (Pricing and material constants crossing)
+- [ ] Register router in [server/_core/index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/index.ts)
+
+## Phase 3: Developer & Designer UI (`client/src/pages/DesignEvaluator.tsx`)
+- [ ] Create input step (Brief, vision, target demographic form)
+- [ ] Create loading state showing AI progression
+- [ ] Create Output Dashboard (Designer View: Extracted specs, materials, brand tier)
+- [ ] Create Output Dashboard (Developer/Investor View: Cost per sqm, budget breakdown, structural analytics)
+- [ ] Add sidebar navigation link
+
+## Phase 4: Verification
+- [ ] Write unit test for `calculateAnalytics`
+- [ ] Manual E2E test of the full AI flow via UI

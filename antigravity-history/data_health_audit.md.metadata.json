@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_OTHER",
+  "summary":  "Comprehensive data health audit across all key tables in the MIYAR production database. Identifies 5 root causes for null/zero data: (1) placeholder competitor data, (2) trend snapshots missing percentChange because only ~2 ingestion runs have been done, (3) UI field name mismatches with DB columns, (4) zero project outcomes (expected — no projects completed yet), (5) zero trend tags (user hasn't created any). Cost Forecast tab is the one section working correctly because evidence_records has 1,493 real data points.",
+  "updatedAt":  "2026-02-25T16:07:42.765725Z"
+}

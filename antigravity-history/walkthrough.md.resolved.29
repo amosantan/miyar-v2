@@ -1,0 +1,33 @@
+# Ship-Blockers Walkthrough — P0 + P1 + P2
+
+## P0 — Ship-blockers (`aa58a91`) ✅
+- Migration [0032](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0032_woozy_retro_girl.sql) — 8 Phase D-H tables
+- [RouteGuards.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx) — [RequireAuth](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx#4-23) + [RequireAdmin](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx#24-49) wrapping all 57 routes
+
+## P1 — High Priority (`39fac3e`) ✅
+- **55 engine tests** — [monte-carlo.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/predictive/monte-carlo.test.ts) (25) + [digital-twin.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sustainability/digital-twin.test.ts) (30)
+- **Rate limiting** — [rate-limit.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/rate-limit.ts) + `heavyProcedure` in [trpc.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/trpc.ts)
+- **CI/CD** — [ci.yml](file:///Users/amrosaleh/Maiyar/miyar-v2/.github/workflows/ci.yml) (Node 20, tsc, vitest, build)
+- **Sentry** — [sentry.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sentry.ts) wired into [index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/index.ts) error handlers
+- **Type fixes** — 27 `any` annotations replaced across 3 Phase D-H routers
+
+## P2 — Medium Priority (`8434bf1`) ✅
+
+| Item | Status | Files |
+|------|--------|-------|
+| P2-1: Frontend tests | ⚠️ Deferred | npm token expired — run `npm install -D @testing-library/react jsdom` after fixing |
+| P2-2: Onboarding | ✅ | [OnboardingFlow.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/OnboardingFlow.tsx) |
+| P2-3: Command palette | ✅ | [CommandPalette.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/CommandPalette.tsx) — ⌘K shortcut |
+| P2-4: Data export | ✅ | [export.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/lib/export.ts) + [ExportBar.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ExportBar.tsx) |
+| P2-5: Historical tracking | ✅ | [0034_historical_tracking.sql](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0034_historical_tracking.sql) + `sustainabilitySnapshots` in [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) |
+| P2-6: DB indexes | ✅ | [0033_add_indexes.sql](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0033_add_indexes.sql) — 40+ indexes |
+| P2-7: Mobile responsive | ✅ | Mobile CSS in [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css) — 3 breakpoints |
+
+## Verification
+- **733/737** tests pass (4 pre-existing board-pdf failures)
+- All changes committed and pushed to `main`
+
+## Pending Actions
+1. **Apply migrations** — [0033_add_indexes.sql](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0033_add_indexes.sql) and [0034_historical_tracking.sql](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0034_historical_tracking.sql) need to be pushed to PlanetScale (CLI not available locally)
+2. **Fix npm token** — clear expired npm auth to unblock `@testing-library/react` install
+3. **Set secrets** — `DATABASE_URL` GitHub secret for CI, `SENTRY_DSN` env var for error tracking

@@ -1,0 +1,57 @@
+# Interior Design Evaluator Implementation Plan
+
+## Goal Description
+The core objective is to build a **Design Evaluator Engine** that bridges the gap between interior designers (vision, aesthetics, briefs) and developers/investors (numbers, budget, ROI, analytics). 
+
+Currently, MIYAR has disconnected pieces (market intelligence, sustainability data, materials database). This new feature will take a qualitative design brief (text, image insights), structure it into quantitative data (materials, finishes, brand tiers), and run structural analytics to generate a priced, evaluated output for the investor.
+
+## Proposed Changes
+
+### Database Layer ([drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts))
+We will introduce tables to support the evaluation workflow and persist the generated insights.
+
+#### [MODIFY] [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+*   **[NEW] `designBriefs` table**: Stores the raw input from the designer (vision statement, target demographic, style keywords).
+*   **[NEW] `designSpecifications` table**: Stores the AI-structured output (inferred brand tier, selected material mixes, space utilization requirements).
+*   **[NEW] `evaluationOutputs` table**: Stores the calculated financial and structural analytics (estimated cost per sqm, sustainability score, maintenance factor, market fit score).
+
+### Backend Engineering (AI Engine & Analytics)
+We will build a new tRPC router dedicated to processing briefs and calculating structural analytics.
+
+#### [NEW] `server/routers/design-evaluator.ts`
+*   `evaluateBrief`: A mutation endpoint that takes the text brief, calls the `notebookLM` or `gemini` MCP to extract structured specifications (brands, materials, space requirements) based on UAE market context.
+*   `calculateAnalytics`: A query/mutation endpoint that takes the specifications, crosses them with our existing `material_constants` and market data, and generates pricing and viability scores.
+
+#### [MODIFY] [server/_core/index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/index.ts)
+*   Register the new `designEvaluator` router into the main `appRouter`.
+
+### Frontend Engineering (User Experience)
+We will create a multi-step evaluation wizard and dashboard.
+
+#### [NEW] `client/src/pages/DesignEvaluator.tsx`
+*   **Step 1: Input Brief**: A rich form for designers to input their brief, target audience, and vision.
+*   **Step 2: AI Processing**: A loading state with micro-animations showing the AI structuring the brief into specifications.
+*   **Step 3: Output Dashboard**: A split view showing the structured design specs (for the designer) alongside the financial/structural analytics, budget breakdowns, and material costs (for the developer).
+
+#### [MODIFY] `client/src/components/Sidebar.tsx`
+*   Add a prominent link to the "Design Evaluator" tool in the navigation.
+
+## Verification Plan
+
+### Automated Tests
+1.  **Backend Logic Testing**:
+    *   Create `server/design-evaluator.test.ts`.
+    *   Write a unit test to mock an incoming "Luxury Minimalist" brief.
+    *   Verify that `calculateAnalytics` correctly applies the higher cost per sqm associated with premium materials (like stone/glass) from `material_constants` and outputs accurate structural analytics.
+    *   Command: `npx vitest run server/design-evaluator.test.ts`
+
+### Manual Verification
+1.  Log into the MIYAR application via `http://localhost:5000` or deployment URL.
+2.  Navigate to the new **"Design Evaluator"** page via the sidebar.
+3.  In the "Input Brief" step, paste a sample brief: *"High-end luxury minimalist apartment targeting European expats. Focus on marble, brass accents, extensive glass, and smart home tech."*
+4.  Click **"Evaluate Design"**.
+5.  Observe the processing state.
+6.  On the Output Dashboard, verify:
+    *   **Designer View**: The AI successfully categorized it into "Luxury" tier and selected appropriate materials (stone, metal, glass).
+    *   **Developer View**: The structural analytics show a realistic high-end estimated budget per square meter, factoring in the `material_constants` for the extracted materials.
+    *   **Metrics**: Check that the sustainability and maintenance factors reflect the chosen material mix.

@@ -1,0 +1,28 @@
+# DLD Integration Audit & Wiring
+
+## Audit: Is DLD data flowing correctly to every analysis?
+
+### A. Project Creation Pipeline
+- [x] `project.create` router saves `projectPurpose` + `dldAreaId` + `dldAreaName` to DB
+- [x] Columns exist in PlanetScale `projects` table
+
+### B. Design Brief ([design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts))
+- [x] [generateDesignBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#215-556) receives `areaSalePricePerSqm` from DLD
+- [x] Caller in [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) router looks up DLD area median via [getAreaSaleMedianSqm()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#304-317)
+- [x] [PricingAnalytics](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#10-45) returns `salePriceSource: "dld_transactions"` when DLD data used
+- [x] `fitoutRatio` + `overSpecWarning` calculated from real DLD data
+- [x] `projectPurpose` adjusts material tier (rent→-1, offplan→+1)
+
+### C. Scoring Engine ([scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts))
+- [x] FF (Financial Feasibility) uses DLD `recommendedFitoutMid` as `expectedCost`
+- [x] Scoring engine log confirms DLD benchmark usage
+
+### D. Investor Summary
+- [x] `getProjectDldBenchmark` endpoint returns area P50/yield/fitout for any project
+- [x] Data includes saleP25/P50/P75, grossYield, fitoutLow/Mid/High
+
+### E. tRPC Endpoints
+- [x] `getAreaBenchmarks` returns live data
+- [x] `getAreaBenchmark` returns single area
+- [x] `getDldDataStats` returns counts
+- [x] `getProjectDldBenchmark` returns project-specific benchmark

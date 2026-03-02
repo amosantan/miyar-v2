@@ -1,0 +1,18 @@
+# Market Intelligence Testing Plan
+
+## Checklist
+- [ ] Open http://localhost:3003/market-intelligence and wait 3s
+- [ ] Take initial screenshot
+- [ ] Click "Ultra-luxury" tier filter and wait 1s
+- [ ] Take screenshot (filtered view)
+- [ ] Click "Grid" button and wait 1s
+- [ ] Take screenshot (grid view)
+- [ ] Click back to "Map" and "All" tier
+- [ ] Take final screenshot
+- [ ] Verify console logs for any errors
+
+## Observations
+- Initial state:
+- Filtered state (Ultra-luxury):
+- Grid view state:
+- Reset state:

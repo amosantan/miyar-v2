@@ -1,0 +1,25 @@
+# MIYAR V9: Strategic Risk & Economic Modeling (Task List)
+
+## 🔴 PRIORITY 1 — DATABASE SCHEMA EXTENSIONS
+- [x] V9-01: Create `project_roi_models` table (to store Programme Acceleration, Cost Avoidance calculations)
+- [x] V9-02: Create `scenario_stress_tests` table (to store simulated macro-economic shocks)
+- [x] V9-03: Create `risk_surface_maps` table (to store aggregated PxIxV/C framework outputs)
+- [x] V9-04: Apply database migrations locally and check types
+
+## 🟠 PRIORITY 2 — ECONOMIC ROI ENGINE (BP 17)
+- [x] V9-05: Implement `server/engines/economic/cost-avoidance.ts` (calculate capital saved from design validation)
+- [x] V9-06: Implement `server/engines/economic/programme-acceleration.ts` (time-to-market financial quantification)
+- [x] V9-07: Implement `server/engines/economic/roi-calculator.ts` (aggregate the above)
+
+## 🟡 PRIORITY 3 — AGGREGATE RISK INTELLIGENCE (BP 35)
+- [x] V9-08: Implement `server/engines/risk/stress-tester.ts` (macro-economic shocks: supply chain shortages, inflation spikes)
+- [x] V9-09: Build the `R = (P × I × V) / C` scoring module (Probability, Impact, Vulnerability / Control)
+
+## 🟢 PRIORITY 4 — SCENARIO RANKING & TRPC LAYER (BP 21)
+- [x] V9-10: Implement `server/engines/autonomous/scenario-ranking.ts` (comparative heuristics algorithms)
+- [x] V9-11: Implement TRPC router `server/routers/economics.ts` or add to `project.ts` to expose these endpoints to the UI
+
+## 🔵 PRIORITY 5 — TESTING & VERIFICATION
+- [x] V9-12: Write deterministic unit tests for the ROI and Stress Testing engines (`server/engines/v9-economics.test.ts`)
+- [x] V9-13: Guarantee baseline passes (659 tests total passing)e tests pass
+- [x] V9-14: Generate V9 Phase Reality Report

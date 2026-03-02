@@ -1,0 +1,24 @@
+# MIYAR v4 — The Fit-Out Oracle
+
+## Phase 1: Architectural Hardening (Schema)
+- [x] Zod schemas for `unitMix` and `villaSpaces` (already exist)
+- [x] Add `totalFitoutArea`, `totalNonFinishArea`, `fitoutAreaVerified`, `projectArchetype` to projects (already exist)
+- [x] Create `pdf_extractions` table for area versioning / audit trail (already exists)
+
+## Phase 2: Adaptive Data Intake (UI)
+- [x] Archetype-aware wizard branching in [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) (already exists)
+- [x] Residential: Unit Mix Builder (already exists)
+- [x] Villa: Room List Builder (already exists)
+- [x] Office: Shell & Core toggle (already exists)
+- [x] Auto-calculate fit-out efficiency ratio (already exists)
+
+## Phase 3: Extraction & Verification
+- [x] Gemini Vision PDF extraction engine (already exists)
+- [x] tRPC procedures for extraction + verification (already exists)
+- [x] Verification UI page ([AreaVerification.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/AreaVerification.tsx)) (already exists)
+- [ ] `draft_area_verification` project state gate
+
+## Phase 4: Engine Migration
+- [ ] Migrate 50+ callsites from `ctx03Gfa` → `totalFitoutArea`
+- [ ] Update FF scoring lens
+- [ ] Room-level cost waterfall component

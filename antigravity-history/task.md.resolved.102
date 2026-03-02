@@ -1,0 +1,30 @@
+# Design Intelligence Engine Tasks
+
+## Phase 1 — Audit & Connect
+- [/] 1.1 Audit design router endpoints (generateBrief, generateRecommendations, getRfqLines, getLiveCategoryPricing)
+- [ ] 1.2 Confirm designRouter + designAdvisorRouter registered in server index
+- [ ] 1.3 Audit dead pages (DesignStudio, VisualStudio, BoardComposer, DesignBrief routing)
+- [ ] 1.4 Fix material_constants → designAdvisor cost injection
+
+## Phase 2 — Investor Dashboard
+- [ ] 2.1 New page: InvestorSummary.tsx (/projects/:id/investor-summary)
+- [ ] 2.2 Section A: Design Identity Card (from aiDesignBriefs)
+- [ ] 2.3 Section B: Material Spec Panel (spaceRecommendations + material_constants)
+- [ ] 2.4 Section C: Budget Synthesis (rfqLineItems + space budgets)
+- [ ] 2.5 Section D: ROI Bridge (projectRoiModels → sales premium / IRR)
+- [ ] 2.6 Wire navigation link in ProjectDetail tabs
+
+## Phase 3 — Brief → Numbers
+- [ ] 3.1 Enrich generateBrief with pricingAnalytics (estimatedCostPerSqm, materialCostBreakdown)
+- [ ] 3.2 New endpoint: design.calculateSpec
+- [ ] 3.3 BriefEditor page with real-time cost recalculation
+
+## Phase 4 — Market Grounding
+- [ ] 4.1 Connect designTrends → generateRecommendations prompt
+- [ ] 4.2 Overlay benchmarkData on cost/sqm display
+- [ ] 4.3 Competitor context in brief
+
+## Phase 5 — Export & Handover
+- [ ] 5.1 Enhance DOCX export (images + material cost table)
+- [ ] 5.2 PDF investor report
+- [ ] 5.3 Shareable public link

@@ -2,6 +2,9 @@
 
 > **This file is the single source of truth for any AI assistant working on this codebase.**
 > Read this entirely before making any changes. Every decision must align with the product principles below.
+>
+> **Current Phase:** Phase 9 complete. Building Phase 10 — Sales Premium & Yield Predictor Engine.
+> **Last Updated:** 02 March 2026
 
 ---
 
@@ -56,16 +59,17 @@ Every project gets a 5-dimension MIYAR Score (SA/FF/MP/DS/ER). Every score must 
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 18 + TypeScript + Wouter (routing) + TanStack Query |
-| **UI** | shadcn/ui + Lucide React + Tailwind CSS |
+| **Frontend** | React 19 + TypeScript + Wouter (routing) + TanStack Query |
+| **UI** | shadcn/ui + Lucide React + Tailwind 4 |
 | **API** | tRPC v11 (type-safe, end-to-end) |
-| **Backend** | Node.js / Express |
-| **Database** | PlanetScale (MySQL / Vitess) |
+| **Backend** | Node.js / Express 4 |
+| **Database** | TiDB (mysql2 driver) |
 | **ORM** | Drizzle ORM |
 | **AI** | Google Gemini (via `invokeLLM`) — generation + image synthesis |
-| **File Storage** | S3-compatible (via `storagePut`) |
+| **File Storage** | AWS S3 |
 | **Auth** | Session-based, org-scoped via `orgProcedure` |
 | **Export** | docx (Word), HTML blob (PDF via browser print), structured JSON |
+| **Hosting** | Vercel (frontend + API + cron jobs) |
 
 ---
 
@@ -77,13 +81,14 @@ Every project gets a 5-dimension MIYAR Score (SA/FF/MP/DS/ER). Every score must 
 | `server/db.ts` | All database query functions |
 | `server/routers/design.ts` | Main design intelligence API (brief, space recs, benchmarks, PDF export, share links) |
 | `server/routers/design-advisor.ts` | Gemini AI recommendation generation |
+| `server/routers/salesPremium.ts` | Phase 10 — Value-add bridge + brand equity forecasting (to be built) |
 | `server/engines/scoring.ts` | 5-dimension MIYAR Score (SA/FF/MP/DS/ER) |
 | `server/engines/design-brief.ts` | 7-section AI design brief generator |
 | `server/engines/investor-pdf.ts` | HTML PDF engine for investor brief |
 | `server/engines/docx-brief.ts` | DOCX Word document brief generator |
 | `server/engines/board-pdf.ts` | Material board HTML PDF generator |
 | `server/engines/pricing-engine.ts` | Live AED cost estimation from benchmark proposals |
-| `drizzle/schema.ts` | All 78 database table definitions |
+| `drizzle/schema.ts` | All 82+ database table definitions |
 
 ### Client
 | File | Purpose |

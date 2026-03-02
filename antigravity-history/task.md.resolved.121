@@ -1,0 +1,27 @@
+# Phase E — Scale Features — Task List
+
+## E.1 · Portfolio Benchmarking Dashboard
+- [x] Enrich portfolio router projectDetails with city/GFA/budget/certTarget
+- [x] Add aggregate stats (totalGfa, totalBudget, avgCostPerSqm, bestScore, worstScore)
+- [x] Add 6-card stats strip in PortfolioDetail
+- [x] Add 11-column comparison table (project, city, typology, tier, GFA, budget, cost/sqm, cert, score, status, remove)
+- [ ] Create portfolio-pdf.ts engine (deferred — future iteration)
+- [ ] Add "Export Portfolio Summary" button → PDF generation (deferred)
+
+## E.2 · Mobile-Responsive Share Views
+- [x] Make KPI strip responsive (grid-cols-1 sm:grid-cols-3, horizontal layout on mobile)
+- [x] Fix text sizing for narrow screens (text-xs sm:text-sm)
+- [x] Add sustainability cert badge (city + Estidama/Al Sa'fat tier)
+- [x] Add viewport meta tag + PWA-style meta
+- [x] Add document ID in footer
+- [x] Remove duplicate header/hero sections
+
+## E.3 · RICS Alignment Layer
+- [x] Create [rics-mapping.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/rics-mapping.ts) engine (30+ materials, 24 space types → NRM codes)
+- [x] Add RICS NRM code badges in BriefEditor breakdown rows
+- [x] Add RICS NRM Alignment section to Methodology.tsx
+- [ ] Add RICS codes to investor-pdf.ts (deferred)
+
+## Final
+- [x] TypeScript compile check — zero errors
+- [ ] Commit & push

@@ -31,7 +31,7 @@ Run `pnpm check` (tsc --noEmit) before declaring any task complete.
 
 ## Test Requirement
 Every new engine function requires unit tests.
-Run `pnpm test` to verify. Current baseline: 357 passing.
+Run `pnpm test` to verify. Current baseline: 476+ passing.
 
 ## Database Migrations
 Never manually edit schema without generating a migration: `pnpm db:push`

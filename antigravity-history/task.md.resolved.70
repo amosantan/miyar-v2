@@ -1,0 +1,27 @@
+# Data Population — Real UAE Market Intel
+
+## Phase 1: Competitor Data
+- [x] Clean placeholder competitor_entities and competitor_projects
+- [x] Seed real UAE developer entities (Emaar, DAMAC, Sobha, Nakheel, Meraas, etc.)
+- [x] Seed real competitor projects with unit counts, pricing, locations
+
+## Phase 2: Trend Snapshots
+- [x] Backfill `percentChange` / `previousMA` on existing trend snapshots
+- [x] Verify Analytics trends UI shows real values
+
+## Phase 3: Verification
+- [x] 10 developers, 40 projects, 24,548 total units
+- [x] 184 trend snapshots backfilled
+- [x] Run test suite — 655 pass, 0 regressions
+- [x] Committed `ba7e8b0` and pushed to main
+
+## Phase 4: NotebookLM Integration & Data Augmentation
+- [x] Add MIYAR NotebookLM to library
+- [x] Create seed script to populate data extracted from NotebookLM
+- [x] Query NotebookLM for top 10 luxury interior design trends and populate `trend_tags`
+- [x] Query NotebookLM for 5 realistic UAE construction cost benchmarks and populate `benchmark_data`
+- [x] User uploaded additional resources on Competitors, Concrete Costs, and HNWI preferences
+- [x] Query NotebookLM for new competitor insights (pricing psf, project specs)
+- [x] Query NotebookLM for HNWI buyer preferences
+- [x] Incorporate these insights back into the database via seeding
+- [x] Query NotebookLM for detailed material pricing by tier (Note: skipped due to context timeout, will retry in a future phase)

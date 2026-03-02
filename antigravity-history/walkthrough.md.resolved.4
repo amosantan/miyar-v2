@@ -1,0 +1,67 @@
+# Phase 1 Walkthrough — Smart Design Brain
+
+## What Was Built
+
+An AI-powered interior design advisor that breaks projects into individual spaces and generates per-space material, style, and budget recommendations using Gemini.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  PI[Project Inputs] --> SP[Space Program]
+  SP --> AI[AI Design Advisor<br/>Gemini LLM]
+  ML[(Material Library)] --> AI
+  AI --> REC[Per-Space<br/>Recommendations]
+  REC --> DB[(space_recommendations)]
+  REC --> BRIEF[AI Design Brief]
+  BRIEF --> DB2[(ai_design_briefs)]
+```
+
+## Files Created/Modified
+
+| File | Action | Description |
+|------|--------|-------------|
+| [design-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts) | NEW | 160-line type system: [SpaceRecommendation](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts#33-48), [KitchenSpec](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts#53-67), [BathroomSpec](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts#72-85), [AIDesignBrief](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts#102-143) |
+| [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts) | NEW | Core AI engine — Gemini prompts, material matching, kitchen/bath specialization, brief gen |
+| [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) | MODIFIED | 3 new tables: `space_recommendations`, `design_packages`, `ai_design_briefs` |
+| [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) | MODIFIED | 7 new CRUD functions for design data |
+| [design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design-advisor.ts) | NEW | TRPC router with 8 endpoints |
+| [routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts) | MODIFIED | Registered `designAdvisorRouter` |
+| [DesignAdvisor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignAdvisor.tsx) | NEW | Full-page dashboard with space cards, kitchen/bath specs, budget viz, brief viewer |
+| [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) | MODIFIED | Added `/projects/:id/design-advisor` route |
+
+## Key Capabilities
+
+- **Space-by-space AI recommendations** — style direction, color scheme, materials with prices
+- **Kitchen specialization** — layout type, cabinet style, countertop, backsplash, appliance level
+- **Bathroom specialization** — shower type, vanity, tiles, fixture finish/brand, luxury features  
+- **Material matching** — AI suggestions mapped to material library with fallback
+- **AI Design Brief** — Gemini-written professional brief for interior designers
+- **Budget allocation** — per-space and per-element breakdown with visualization
+
+## Test Results
+
+```
+✓ server/engines/design/ai-design-advisor.test.ts (13 tests) 13ms
+  - Space Program: 5 tests (residential/hospitality/commercial rooms, budget %, sqm sum)
+  - AI Recommendations: 7 tests (generation, material matching, kitchen, bathroom, fallback, error, empty library)
+  - AI Design Brief: 1 test (full brief generation)
+```
+
+## Migration
+
+```
+drizzle/0028_productive_spyke.sql
+```
+
+## Deployment
+
+1. `npx drizzle-kit push` — apply schema changes
+2. Deploy server — router is auto-registered
+3. Navigate to `/projects/:id/design-advisor` to use
+
+## What's Next (Phase 2-4)
+
+- **Phase 2**: Nano Banana API integration for per-space visual generation
+- **Phase 3**: Live data scraping (suppliers, trends, competitors, catalogs)
+- **Phase 4**: Customer dashboard + payments

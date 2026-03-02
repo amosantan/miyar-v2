@@ -1,0 +1,13 @@
+# Tasks
+
+## Source-Type-Specific Extraction
+- [x] Add 5 new columns to evidence_records schema
+- [x] Run DB migration
+- [x] Fix broken CATEGORY_MAP in orchestrator
+- [x] Build 4 source-type-specific LLM prompts
+- [x] Update DynamicConnector to select prompt by sourceType
+- [x] Update normalize() to map new fields
+- [x] Fix extractedEvidenceSchema Zod category validator (was dropping all items!)
+- [x] Build and deploy
+- [x] Verify with IKEA test: 16 records created ✅
+- [/] Re-scrape all 86 sources (running)

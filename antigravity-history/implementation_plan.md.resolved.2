@@ -1,0 +1,223 @@
+# MIYAR Intelligence Upgrade — Strategic Roadmap
+
+## Gap Analysis: What Exists vs What's Needed
+
+| Capability | What Exists | What's Missing |
+|---|---|---|
+| **Space breakdown** | [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts) — hardcoded rooms per typology with % allocations | AI-driven room sizing, per-space style/material recs, kitchen/bath specialization |
+| **Material selection** | `materialLibrary` table + [finish-schedule.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/finish-schedule.ts) — static lookup by tier/style | AI recommends best materials, live pricing, supplier comparison, alternatives |
+| **Design brief** | [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) — deterministic 7-section brief | AI-written narrative, per-space visual boards, actionable spec-level output |
+| **Image generation** | [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) — prompt builder for mood/material/hero boards | No actual Nano Banana API call, no per-space renders, no kitchen/bath visuals |
+| **Data collection** | Ingestion engine with 2 connectors | No supplier scraping, no trend scraping, no competitor finishes, no product catalogs |
+| **Customer dashboard** | None | Developer portal with project tracking, payments, report downloads |
+
+---
+
+## 4-Phase Roadmap
+
+```mermaid
+graph LR
+  P1["Phase 1<br/>Smart Design Brain<br/>🧠 AI Recommendations"]
+  P2["Phase 2<br/>Nano Banana<br/>🖼️ Visual Generation"]
+  P3["Phase 3<br/>Live Data<br/>📊 Scraping Pipeline"]
+  P4["Phase 4<br/>Customer Portal<br/>👤 Dashboard + Payments"]
+  P1 --> P2 --> P3 --> P4
+```
+
+---
+
+## Phase 1: Smart Design Brain (AI-Powered Recommendations)
+
+Transform the dumb rule engine into an AI that reasons about each space.
+
+### Core Concept
+
+```
+Developer Input → MIYAR AI Brain → Per-Space Recommendations
+                                   ├── Material suggestions (with prices)
+                                   ├── Style direction per room
+                                   ├── Budget allocation advice
+                                   ├── Kitchen layout recommendations
+                                   ├── Bathroom fixture packages
+                                   └── AI Design Brief for interior designers
+```
+
+### Proposed Changes
+
+---
+
+#### [NEW] [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts)
+
+The **core AI brain**. Uses Gemini to generate intelligent per-space design recommendations.
+
+**Input:** Project inputs + space program + material library + market data
+**Output:** Per-space recommendations with materials, styles, budget splits, and rationale
+
+```ts
+interface SpaceRecommendation {
+  roomId: string;
+  roomName: string;
+  styleDirection: string;          // "Warm Minimalism with brass accents"
+  materialPackage: MaterialRec[];  // Specific products from materialLibrary
+  budgetAllocation: number;        // AED
+  budgetBreakdown: { element: string; amount: number }[];
+  aiRationale: string;             // Why this recommends this style
+  alternatives: AlternativePackage[];
+  kitchenSpec?: KitchenSpec;       // Kitchen-specific
+  bathroomSpec?: BathroomSpec;     // Bathroom-specific
+}
+```
+
+**Kitchen specialization:**
+```ts
+interface KitchenSpec {
+  layoutType: "L-shape" | "U-shape" | "Island" | "Galley" | "Peninsula";
+  cabinetStyle: string;
+  countertopMaterial: string;
+  backsplash: string;
+  applianceLevel: "standard" | "premium" | "professional";
+  storageFeatures: string[];
+}
+```
+
+**Bathroom specialization:**
+```ts
+interface BathroomSpec {
+  showerType: "walk-in" | "enclosed" | "wet-room";
+  vanityStyle: string;
+  tilePattern: string;
+  fixtureFinish: string;
+  luxuryFeatures: string[];  // rain shower, freestanding tub, etc.
+}
+```
+
+---
+
+#### [MODIFY] [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts)
+
+Add **dynamic room generation** — instead of hardcoded rooms, use AI to suggest optimal room breakdown based on GFA, typology, and market tier. Keep rule-based as fallback.
+
+Add fields: `styleNotes`, `materialBudgetAed`, `specialElements`.
+
+---
+
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+
+New tables:
+- `space_recommendations` — AI-generated per-space recommendations (linked to project)
+- `design_packages` — saved material + style packages (reusable templates)
+- `kitchen_specs` + `bathroom_specs` — specialized space data
+
+Add to `materialLibrary`:
+- `imageUrl` — product image
+- `spec_sheet_url` — technical specification
+- `last_price_update` — when price was last verified
+
+---
+
+#### [NEW] [design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design-advisor.ts)
+
+New TRPC router:
+- `designAdvisor.generateRecommendations({ projectId })` — run AI for all spaces
+- `designAdvisor.getSpaceRecommendation({ projectId, roomId })` — get single space
+- `designAdvisor.swapMaterial({ projectId, roomId, element, newMaterialId })` — swap material
+- `designAdvisor.regenerateSpace({ projectId, roomId, prompt })` — refine with user input
+- `designAdvisor.generateDesignBrief({ projectId })` — AI-written design brief
+- `designAdvisor.getKitchenDesign({ projectId })` — kitchen specialization
+- `designAdvisor.getBathroomDesign({ projectId })` — bathroom specialization
+- `designAdvisor.getStandardPackages({ typology, tier })` — preset design templates
+
+---
+
+#### [MODIFY] [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts)
+
+Replace deterministic brief with AI-enhanced version:
+- Gemini writes the narrative sections
+- Includes per-space visual references
+- Links to specific materials with supplier info
+- Produces a document that interior designers can actually use
+
+---
+
+#### [NEW] [DesignAdvisor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignAdvisor.tsx)
+
+**Full-page design advisor dashboard** with:
+- Space-by-space cards (click to expand)
+- Material recommendations with images + prices
+- Kitchen/bathroom configurators
+- Budget allocation visualization
+- "Generate Design Brief" CTA
+- Style alternatives comparison
+
+---
+
+## Phase 2: Nano Banana Integration (Visual Generation)
+
+> [!IMPORTANT]
+> Requires: Nano Banana API key + pricing plan
+
+#### [NEW] [nano-banana-client.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts)
+
+API client for Nano Banana (Gemini 2.5 Flash Image / Gemini 3 Pro Image).
+
+- Per-space mood board generation
+- Material board with actual product swatches
+- Kitchen layout visualization
+- Bathroom render from specs
+- Hero marketing images
+- 2D-to-3D room visualization
+
+#### [MODIFY] [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts)
+
+Connect existing prompt builder to actual Nano Banana API. Add per-space prompt generation.
+
+---
+
+## Phase 3: Live Data Scraping Pipeline
+
+> [!IMPORTANT]  
+> Requires: Define target suppliers and data sources
+
+#### New Connectors to Build
+
+| Source | What to Scrape | Frequency |
+|--------|----------------|-----------|
+| **UAE Supplier Sites** (RAK, Porcelanosa, LUMINAIRE, etc.) | Product catalogs, prices, availability | Weekly |
+| **Pinterest** | Interior design trends, mood boards, style directions | Daily |
+| **Instagram/Behance** | Competitor project photos, finishes, design trends | Daily |
+| **Competitor Developer Sites** | Project finishes, material specs, pricing | Weekly |
+| **Brand Catalogs** (Kohler, Hansgrohe, Poliform, etc.) | Product specs, pricing, images | Monthly |
+
+Each connector: `server/engines/ingestion/connectors/<name>.ts`
+
+---
+
+## Phase 4: Customer Dashboard & Payments (Future)
+
+- Developer-facing portal with project management
+- Client preview links (share design direction with stakeholders)
+- Payment integration (Stripe/subscription)
+- PDF export of design packages
+
+---
+
+## Verification Plan
+
+### Phase 1
+
+- Unit tests for AI design advisor (mock Gemini responses)
+- Integration test: project → space program → recommendations → brief
+- Visual review of design advisor UI in browser
+- Test kitchen/bathroom specialization separately
+
+### Phase 2
+
+- Nano Banana API integration test
+- Image quality review (mood boards, material boards)
+- Storage and retrieval of generated visuals
+
+### Phase 3
+
+- Connector health monitoring (existing infra)
+- Data freshness validation
+- Price accuracy spot checks

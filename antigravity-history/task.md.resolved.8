@@ -1,0 +1,59 @@
+# Manus → Antigravity Migration
+
+## Already Done (Pre-migration)
+- [x] Database tables created on PlanetScale (47 tables)
+- [x] LLM service migrated to Gemini ([server/_core/llm.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/llm.ts))
+- [x] Image generation migrated to Gemini Imagen ([server/_core/imageGeneration.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/imageGeneration.ts))
+- [x] Notification service migrated to Resend ([server/_core/notification.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/notification.ts))
+- [x] Local auth (login/register) routes built ([server/routers/auth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/auth.ts))
+- [x] Login page built ([client/src/pages/Login.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Login.tsx))
+- [x] OAuth routes gutted ([server/_core/oauth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/oauth.ts))
+- [x] Audit codebase for all Manus dependencies
+
+## Migration Work (This Session)
+
+### 1. Auth System — Remove Manus OAuth SDK
+- [x] Refactor [server/_core/sdk.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts) to remove Manus OAuth (kept JWT session logic)
+- [x] Delete [server/_core/types/manusTypes.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/types/manusTypes.ts)
+- [x] Clean up ENV vars: removed `oAuthServerUrl`, `appId`, `forgeApiUrl`, `forgeApiKey`
+
+### 2. Client — Remove Manus UI & References
+- [x] Delete [client/src/components/ManusDialog.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ManusDialog.tsx)
+- [x] Rename `manus-runtime-user-info` → `miyar-user-info` in [useAuth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/_core/hooks/useAuth.ts)
+- [x] Verified ManusDialog not imported anywhere else
+- [x] Updated [client/src/components/Map.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/Map.tsx) (Forge proxy → direct Google Maps API)
+
+### 3. Vite Config — Remove Manus Debug Collector
+- [x] Removed `vitePluginManusDebugCollector` plugin from [vite.config.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/vite.config.ts)
+- [x] Removed Manus domains from `server.allowedHosts`
+- [x] Deleted `client/public/__manus__/` directory
+
+### 4. Server Utilities — Replace Forge Proxy
+- [x] Deleted [server/_core/dataApi.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/dataApi.ts) (unused)
+- [x] Refactored [server/_core/map.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/map.ts) (Forge proxy → direct Google Maps API key)
+
+### 5. Voice Transcription
+- [x] Decision: Kept OpenAI Whisper (battle-tested, no change needed)
+
+### 6. Environment Config
+- [x] Updated [server/_core/env.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/env.ts) with clean env vars
+- [x] Created [.env.example](file:///Users/amrosaleh/Maiyar/miyar-v2/.env.example) with all required env vars documented
+
+### 7. Cleanup
+- [x] Deleted `.manus/` directory
+- [x] Updated [notification.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/notification.ts) comment (removed Manus reference)
+- [x] Updated [auth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/oauth.ts) comment (removed Manus reference)
+
+## Phase 2: Material & Evidence Data Enrichment
+- [x] Research UAE market sources for stone, wood, tiles, and paint
+- [x] Map market data to Miyar tier systems (Luxury, Premium, Mid)
+- [x] Implement enriched seeding script ([scripts/seed-enriched.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/seed-enriched.ts))
+- [x] Execute seeding and verify database counts
+- [x] Visual verification in Material Library and Evidence Vault
+
+## Phase 3: DSC Price Data Integration
+- [x] Analyze `Dsc_Average_Construction_Material_Prices_*.csv` structure
+- [x] Create implementation plan for official benchmark integration
+- [x] Implement parser script for building/core raw materials
+- [x] Populate `evidence_records` with Q3 2024 official data
+- [x] Verify core material benchmarks in the Analytics Dashboard

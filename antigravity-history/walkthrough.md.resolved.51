@@ -1,0 +1,40 @@
+# V4 — The Fit-out Oracle: Walkthrough
+
+## Phase A & C: Schema + Engine Migration ✅
+
+Schema changes applied to PlanetScale. All engines migrated to use [getPricingArea()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) from [area-utils.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts). Tests passing (5 pre-existing failures unrelated to V4).
+
+---
+
+## Phase B: Adaptive Project Creator UI ✅
+
+### Changes Made
+
+**File:** [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx)
+
+Full rewrite (~800 lines) with 5 new components:
+
+| Component | Archetype | What it does |
+|-----------|-----------|--------------|
+| [getArchetype()](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#94-112) | All | Maps 7 typologies → 5 archetypes |
+| [UnitMixBuilder](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#133-249) | residential_multi, community, hospitality | Table: type, area, count, fitout toggle, auto-sum |
+| [RoomListBuilder](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#277-401) | single_villa | Floor-grouped rooms with villa presets (Majlis, Show Kitchen, etc.) |
+| [ShellCoreToggle](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#404-482) | office | Cat A/B binary + custom ratio slider |
+| [FitoutAreaSummary](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#485-539) | All | GFA vs Fitout Area badge with efficiency ratio validation |
+
+All sub-forms auto-calculate `totalFitoutArea` via `useMemo` and send it to the `project.create` mutation.
+
+### Verification
+
+- **TypeScript**: Zero new errors from the change
+- **Unit Mix Builder**: Renders correctly with add/remove rows, type dropdown, area/count inputs, fitout toggles, and auto-totaling summary
+
+### Screenshots
+
+![Unit Mix Builder — empty state](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/unit_mix_builder_empty_1772216835668.png)
+
+![Unit Mix Builder — 2 rows with auto-total](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/unit_mix_table_two_rows_1772216976450.png)
+
+### Browser Recording
+
+![Phase B verification recording](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/unit_mix_test_1772216416982.webp)

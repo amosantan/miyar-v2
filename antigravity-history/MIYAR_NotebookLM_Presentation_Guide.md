@@ -1,0 +1,50 @@
+# MIYAR App - NotebookLM Presentation Guide
+
+Since NotebookLM works best when provided with structured context, follow these steps to generate a professional presentation (or an Audio Overview) on **How to Use the MIYAR App** using your project files.
+
+## Step 1: Create the NotebookLM Project
+1. Go to [NotebookLM](https://notebooklm.google.com/).
+2. Click **New Notebook**.
+3. Name it **"MIYAR Decision Intelligence Platform - Training & Presentation"**.
+
+## Step 2: Upload Source Documents
+To give NotebookLM the most accurate understanding of MIYAR, upload the following markdown documents from your local `artifacts` folder:
+
+1. `master_plan_gap_analysis.md` (Provides the overall vision and capabilities)
+2. `v9_phase_reality_report.md` (Explains the strategic intelligence and economic modeling features)
+3. `v8_phase_reality_report.md` (Explains the evaluation engine and score matrix)
+4. `v7_phase_reality_report.md` (Explains the report generation features)
+5. `DFE_Reality_Report_Handover.md` (Explains the data ingestion and market intelligence)
+6. `future_phases_roadmap.md` (Provides the forward-looking roadmap for context)
+
+*Note: You can simply drag and drop these `.md` files directly into the NotebookLM source panel.*
+
+## Step 3: Use This Prompt to Generate the Presentation
+Once the sources are uploaded, copy and paste the following prompt into the NotebookLM chat box:
+
+> **PROMPT:**
+> "Act as a Senior Product Marketing Manager for 'MIYAR', a Decision Intelligence Platform for real estate developers. Based on the uploaded documentation, create a highly professional, slide-by-slide presentation titled 'How to Use the MIYAR Platform'. 
+> 
+> The intended audience is real estate executives, development directors, and investment managers. The presentation should be persuasive, clear, and focus on practical workflows.
+> 
+> For each slide, please provide:
+> 1. **Slide Title:** A strong, action-oriented title.
+> 2. **Key Message (The 'Why'):** One sentence summarizing the slide's core value.
+> 3. **Talking Points (The 'How'):** 3-4 bullet points explaining what the user actually does in the app (e.g., 'Upload the architectural brief', 'Adjust the budget parameters', 'Run the Evaluation Engine').
+> 4. **Visual Suggestion:** A brief description of what should be shown on the screen (e.g., 'Screenshot of the Project Dashboard showing the Risk vs. Alignment score').
+> 
+> Please structure the presentation as follows:
+> - **Slide 1-2:** Introduction & The MIYAR Advantage (What it is and why it matters).
+> - **Slide 3:** Step 1: Ingesting Market Intelligence (DFE).
+> - **Slide 4:** Step 2: Creating a Project & Setting Parameters.
+> - **Slide 5:** Step 3: Running the AI Evaluation & Scoring Engine.
+> - **Slide 6:** Step 4: Strategic & Economic Modeling (Scenario planning & ROI).
+> - **Slide 7:** Step 5: Generating Output Reports & Material Boards.
+> - **Slide 8:** Summary & Next Steps.
+> 
+> Keep the tone authoritative, innovative, and focused on risk-reduction and ROI maximization."
+
+## Step 4 (Optional): Generate an Audio Overview
+After generating the written presentation, you can also use NotebookLM's **Audio Overview** feature to generate a Deep Dive podcast automatically. 
+- Click on the **"Audio Overview"** play button at the top right of your sources panel.
+- The AI hosts will naturally discuss the MIYAR platform, its workflow, and its value proposition based on the uploaded V1-V9 documentation. It serves as an excellent audio companion for training new users or stakeholders!

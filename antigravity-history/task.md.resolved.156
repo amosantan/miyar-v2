@@ -1,0 +1,16 @@
+# MIYAR V4 — Fit-Out Oracle Implementation
+
+## V7 Phase 9: AI Design Visualization & Plan Intelligence
+
+### Pillar A: Material-Deterministic Renders
+- [x] 9.8 — Inject board materials into [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) prompt context
+- [x] 9.9 — Room-Specific Render Engine + [generateRoomRender](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#254-274) procedure
+
+### Pillar B: Data-Driven Floor Plan Intelligence
+- [x] 9.1 — Schema: `floorPlanAssetId` + `floorPlanAnalysis` on projects
+- [x] 9.2 — `uploadFloorPlan` procedure + upload dropzone in SpacePlanner page
+- [x] 9.3 — Gemini Vision Floor Plan Analyzer engine
+- [x] 9.4 — Space Ratio Benchmarking engine (DLD-backed)
+- [x] 9.5 — [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts) uses AI-extracted ratios (falls back to templates)
+- [x] 9.6 — Router: `analyzeFloorPlan` + `getSpaceBenchmark` procedures
+- [x] 9.7 — [SpacePlanner.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/SpacePlanner.tsx) page + route at `/projects/:id/space-planner`

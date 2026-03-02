@@ -1,0 +1,58 @@
+# MIYAR V4 — Fit-Out Oracle Implementation
+
+## Phase 1: Architectural Hardening (Database & Schema) (DONE)
+- [x] Add Zod schemas to `unitMix` and `villaSpaces`
+- [x] Add `totalFitoutArea` (decimal) and `isAreaVerified` (boolean) to `projects` table
+- [x] Add `officeFitoutCategory` (enum: catA, catB) and `officeCustomRatio` (decimal) to `projects` table
+- [x] Run `npm run db:push` to apply schema changes (Bypassed interactive prompt)
+
+## Phase 2: React Error Fix (ProjectDetail.tsx) (DONE)
+- [x] Fix "Objects are not valid as React child" crash caused by `unitMix` parsing errors.
+
+## Phase 3: Engine Migration (GFA → NFA) (DONE)
+- [x] Refactor pricing & cost calculations across all `server/engines/` and `server/routers/` to prefer `totalFitoutArea`.
+- [x] Implement runtime fallback logic: Use `totalFitoutArea` if `isAreaVerified` is true, otherwise fallback to `ctx03Gfa * 0.85` (Residential) or custom ratios.
+- [x] **Files Migrated**: `bias-detector.ts`, `space-program.ts`, `ai-design-advisor.ts`, `pdf-report.ts`, `project.ts`, `predictive.ts`, `design.ts`, `design-advisor.ts`.
+
+## Phase 4: New Component — RoomCostWaterfall (DONE)
+- [x] Create `RoomCostWaterfall.tsx` for Investor Summary
+- [x] Integrate into Budget Synthesis section
+- [x] Visualize data using Recharts stacking
+
+## Phase 5: Verification (DONE)
+- [x] Build check passes (minor existing unrelated type errors ignored)
+- [x] Verify schema changes applied (Drizzle Push succeeded)
+- [x] Handover and commit project NFA to master
+
+## V5 Phase 1: Database Schema Expansion
+- [x] Identify the exact file mapping to `schema.ts`.
+- [x] Add the 10 strictly typed `mysqlEnum` fields.
+- [x] Push schema to the database (`pnpm db:push`).
+- [x] Update tRPC validation schemas inside `server/routers/project.ts`.
+- [x] Update standard `ProjectInputs` type interfaces (client-side matching).
+
+## V5 Phase 2: Form Component Abstraction
+- [x] Extract `<ProjectForm />` out of `ProjectNew.tsx` into a reusable component
+- [x] Refactor `ProjectNew.tsx` to utilize it for creation
+
+### Phase 4: Enabling Project Editability [x]
+- [x] Integrate `ProjectForm.tsx` to `/project/:id` Settings tab
+- [x] Implement robust Drizzle `update` mutation handling with `ProjectForm`
+- [x] Build recalculation trigger banner when core assumptions change
+
+### Phase 5: Engine Diagnostics Wiring (V5 Analytics) [x]
+- [x] Wire `targetYield`, `salesStrategy` into `predictive.ts`
+- [x] Wire `procurementStrategy`, `materialSourcing` into `scoring.ts` (ER Score)
+- [x] Update `design-brief.ts` to surface `projectUsp` and `amenityFocus` in narrative generation
+- [x] End-to-end test of the full generation loop for a single project ensuring everything is working
+
+### Phase 6: Deep Analytics & Scope Refinement [/]
+- [ ] Add `handoverCondition`, `brandedStatus`, `salesChannel` to DB schema and types
+- [ ] Integrate new fields into `ProjectForm.tsx` wizard
+- [ ] Implement compounding risk penalties in `normalization.ts` (Time vs Sourcing, Demographic vs Material, etc.)
+- [ ] Implement robust strategic alignment penalties and execution resilience bonuses in `scoring.ts`
+- [ ] Deploy schema migrations
+
+### Phase 7: User Acceptance & Final Polish [ ]
+- [ ] Final visual QA on wizard forms
+- [ ] Push code to repository

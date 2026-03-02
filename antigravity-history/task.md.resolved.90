@@ -1,0 +1,48 @@
+# MIYAR Build Playbook — Execution Tracker
+
+## Phase A: Production Polish ✅
+- [x] A1–A5: All complete and verified
+
+## Phase B: Data Enrichment ✅
+- [x] B1–B5: All complete and verified
+
+## Pre-Phase C: Verification ✅
+- [x] 678/704 tests passing, DB healthy, all pages verified
+
+## Phase C: Build Portfolio Page ✅
+- [x] C1–C6: All complete and verified
+
+## Phase D: Risk & Economic Modeling (IN PROGRESS)
+- [x] D1: Wire stress tests to scenario router
+- [x] D2: Wire economic models (ROI) to scenario router
+- [x] D3: Wire risk surface map generation + persistence
+- [x] D4: Add scenario ranking endpoint
+- [x] D5: Stress test UI panel in Scenarios page
+- [x] D6: Build Risk Heatmap page (`/risk-heatmap`)
+- [x] D7: ROI & Economic panel in Scenarios page
+
+## Phase E: Cognitive Bias Detection
+- [x] E1: Fix missing [getUserBiasProfile](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1929-1935) + add [upsertBiasProfile](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1936-1977) in db.ts (already existed)
+- [x] E2: Add on-demand `scan` endpoint + `getAllActiveAlerts` to bias router
+- [x] E3: Create BiasInsights dashboard page
+- [x] E4: Wire route + nav link
+
+## Phase F: Monte Carlo & Time-Series
+- [x] F1: Create Monte Carlo simulation engine
+- [x] F2: Add monteCarloSimulations schema table
+- [x] F3: Add router endpoints (runMonteCarlo, getSimulations)
+- [x] F4: Create Simulations page with histogram + time-series charts
+- [x] F5: Wire route + nav link
+
+## Phase G: Customer Success
+- [x] G1: Create health score engine
+- [x] G2: Add customerHealthScores schema table
+- [x] G3: Add customer-success router with endpoints
+- [x] G4: Create CustomerSuccess dashboard page
+- [x] G5: Wire route + nav link
+
+## Phase H: Future
+- [ ] E: Cognitive Bias Detection
+- [ ] F: Monte Carlo & Time-Series
+- [ ] G: Customer Success
+- [ ] H: Digital Twin & Sustainability

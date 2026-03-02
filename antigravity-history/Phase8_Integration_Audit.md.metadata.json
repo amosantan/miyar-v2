@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary":  "Full integration audit of Phase 8 across 12 files, proving end-to-end connectivity from PDF ingestion through scoring engines to the UI. Includes a Mermaid diagram, line-by-line proof table, and data hierarchy confirmation.",
+  "updatedAt":  "2026-03-01T07:40:34.805807Z"
+}

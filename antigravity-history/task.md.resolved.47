@@ -1,0 +1,8 @@
+# Phase 2: Nano Banana Visual Generation
+
+## Tasks
+- [x] P2-01: Build [nano-banana-client.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts) — image generation via Gemini native API
+- [x] P2-02: Build per-space prompt templates (mood boards, material boards, kitchen, bathroom, hero)
+- [x] P2-03: Add TRPC endpoints for visual generation (generate per-space, get visuals, hero)
+- [x] P2-04: Add Visuals tab to DesignAdvisor.tsx with gallery and per-space generation
+- [x] P2-05: Test + verify (13/13 tests pass, committed + pushed)

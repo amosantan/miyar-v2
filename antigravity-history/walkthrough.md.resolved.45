@@ -1,0 +1,53 @@
+# Phase D: Governance & Compliance — Walkthrough
+
+## What Was Built
+
+### D.1 — Sustainability Compliance Checklists
+**Engine:** [compliance-checklists.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sustainability/compliance-checklists.ts)
+
+| Standard | Items | Coverage |
+|----------|-------|----------|
+| **Estidama Pearl** (Abu Dhabi UPC) | 20 | IDP, natural systems, livable buildings, water, energy, materials |
+| **Al Sa'fat** (Dubai Municipality) | 18 | Energy, water, materials/waste, indoor environment, MEP |
+
+- Auto-evaluates items from digital twin data (carbon, energy, water, glazing, renewables)
+- Manual items left as "pending" for specialist verification
+- Tier achievement: Pearl 1-5 / Bronze-Platinum
+
+**UI:** [Sustainability.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Sustainability.tsx) — new **Compliance** tab alongside Digital Twin, with:
+- Tier badges (🏛️ Pearl / 🏗️ Al Sa'fat)
+- Expandable category accordions with pass/fail/pending icons
+- Auto badge for machine-evaluated items
+
+**API:** `sustainability.evaluateCompliance` endpoint in [sustainability.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/sustainability.ts)
+
+---
+
+### D.2 — Audit Trail Enhancement
+**File:** [AuditLogs.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/admin/AuditLogs.tsx)
+
+| Feature | Details |
+|---------|---------|
+| **Filters** | Action type + entity type dropdowns, clear button, entry count |
+| **Details panel** | Click to expand — shows full JSON details in a code block |
+| **CSV export** | Client-side CSV generation with download prompt |
+| **Action icons** | Colored icons per action category (database, sparkles, shield, settings, alert) |
+
+---
+
+### D.3 — Methodology Disclosure Page
+**File:** [Methodology.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Methodology.tsx)
+
+Public page at `/methodology` (no auth) covering:
+- **MIYAR Score:** 5 dimensions (SA 25%, FF 25%, MP 20%, DS 15%, ER 15%)
+- **Data Sources:** Grade A/B/C with examples (DLD, SCAD, Bayut, JLL)
+- **AI Guardrails:** What Gemini generates vs what it cannot override
+- **Benchmark Methodology:** DLD calibration → cross-product seeding → synthetic gap-fill
+- **Sustainability:** Estidama + Al Sa'fat standards explained
+- **Disclaimers:** Standard legal/regulatory disclaimers
+
+**Route:** Added to [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) as public route
+
+## Verification
+- `npx tsc --noEmit` — **zero errors** in all Phase D files
+- Pre-existing errors in other admin pages unrelated to Phase D

@@ -1,0 +1,25 @@
+# MIYAR v3 — Phase C: Data Expansion
+
+## Phase A ✅ (complete)
+## Phase B ✅ (complete)
+
+## Phase C: Data Expansion
+- [ ] C.1 — SCAD PDF scraper for material index tables
+  - [ ] Add pdf-parse dependency
+  - [ ] Create `SCADPdfConnector` in connectors/index.ts
+  - [ ] Build table-to-benchmark pipeline (material → AED/unit)
+  - [ ] Register connector + test run
+- [ ] C.2 — Scale benchmarks from current count → 150+
+  - [ ] Audit current benchmark coverage gaps
+  - [ ] Build `benchmark-seeder.ts` engine to generate real-data-priority rows
+  - [ ] Seed cross-product: 7 typologies × 3 locations × 4 tiers × 5 materialLevels × key roomTypes
+  - [ ] Use DLD area data + evidence records as calibration source
+  - [ ] Add admin "Seed Benchmarks" button
+- [ ] C.3 — Synthetic data generator (labeled, gap-filling only)
+  - [ ] Build `synthetic-generator.ts` engine
+  - [ ] Generate benchmarks ONLY for combos with no real data
+  - [ ] Label all generated rows with `sourceType: "synthetic"` + `sourceNote`
+  - [ ] Add badge in Benchmarks UI for synthetic vs curated rows
+  - [ ] Admin endpoint to trigger gap-fill
+
+## Phase D-E: Planned (not started)

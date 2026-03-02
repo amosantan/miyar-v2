@@ -1,0 +1,59 @@
+# Priority 4: Post-Mortem / Outcome Learning Engine
+
+## What Changed
+
+Built the feedback loop that connects MIYAR's **predictions** to **reality**, enabling the system to track its own accuracy and generate self-correcting evidence.
+
+---
+
+### Data Flow
+
+```mermaid
+graph LR
+    A[User submits<br/>Post-Mortem] --> B[submitPostMortem<br/>mutation]
+    B --> C[Save to<br/>project_outcomes]
+    B --> D[Auto-run<br/>compareOutcomeToPrediction]
+    D --> E[Save to<br/>outcome_comparisons]
+    D --> F[Generate learning<br/>signals]
+    F --> G[Convert deltas to<br/>evidence records]
+    G --> H["Evidence tagged<br/>'handover' phase"]
+    H --> I[Feeds back into<br/>scoring pipeline]
+```
+
+---
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) | Updated [createProjectOutcome()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1147-1170) to accept V5 fields |
+| [post-mortem-evidence.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts) | **[NEW]** [generatePostMortemEvidence()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts#28-143) + [summarizeLearningSignals()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts#144-189) |
+| [learning.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/learning.ts) | Added `submitPostMortem` + `getPostMortemStatus` |
+
+---
+
+### Key Design Decisions
+
+1. **Auto-comparison on submit** — when a post-mortem is submitted, the comparison engine runs immediately (no manual step)
+2. **Evidence generation** — cost deltas >5%, risk mispredictions, and score misses each produce tagged evidence records at `handover` phase
+3. **Non-fatal comparison** — if no score matrix exists yet, the outcome still saves; comparison runs later via `runComparison`
+4. **"No automatic learning without validation"** — deltas are logged as evidence; benchmark/weight adjustments still require human approval through existing `getPendingBenchmarkSuggestions`
+
+---
+
+### Existing Infrastructure Leveraged
+
+The majority of the backend was already built:
+- `project_outcomes` table with V5 schema ✅
+- `outcome_comparisons` table with accuracy grading ✅
+- [compareOutcomeToPrediction()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/outcome-comparator.ts#53-220) engine ✅
+- `runComparison` mutation ✅
+
+We only needed to fill three gaps: DB function signature, evidence generation, and the entry-point mutation.
+
+---
+
+## Verification
+
+- **655 tests pass**, 27 pre-existing failures, **0 regressions**
+- Committed: `665a0dc` → pushed to `main`

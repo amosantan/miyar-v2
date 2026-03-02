@@ -1,0 +1,37 @@
+# DLD Integration Audit & Wiring
+
+## Audit: Is DLD data flowing correctly to every analysis?
+
+### A. Project Creation Pipeline
+- [ ] `project.create` router saves `projectPurpose` + `dldAreaId` to DB
+- [ ] Verify columns exist in PlanetScale `projects` table
+
+### B. Design Brief ([design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts))
+- [ ] [generateDesignBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#215-531) receives `areaSalePricePerSqm` from DLD
+- [ ] Caller in `design.ts` router actually looks up DLD area median
+- [ ] [PricingAnalytics](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#10-45) returns `salePriceSource: "dld"` when DLD data used
+- [ ] `fitoutRatio` + `overSpecWarning` calculated correctly
+
+### C. Scoring Engine ([scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts))
+- [ ] FF (Financial Feasibility) uses DLD sale price benchmarks
+- [ ] MP (Market Positioning) uses DLD area data for competitor comparison
+- [ ] DS (Design Suitability) considers `projectPurpose` (sell vs rent)
+- [ ] ER (Execution Risk) unchanged (no DLD dependency)
+- [ ] SA (Strategic Alignment) uses area market tier from DLD
+
+### D. Investor Summary (`InvestorSummary.tsx`)
+- [ ] ROI Bridge uses real rental yield from DLD (not hardcoded)
+- [ ] Market comparison section shows DLD area benchmarks
+- [ ] Sale price per sqm comes from DLD data
+
+### E. Space Recommendations
+- [ ] Budget allocation calibrated to area's recommended fitout band
+- [ ] Material tier adjusted by `projectPurpose`
+
+### F. Pricing Engine (`pricing-engine.ts`)
+- [ ] Uses DLD fitout calibration for budget validation
+
+### G. tRPC Endpoints
+- [ ] `getAreaBenchmarks` returns live data
+- [ ] `getAreaBenchmark` returns single area
+- [ ] `getDldDataStats` returns counts

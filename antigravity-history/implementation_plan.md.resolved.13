@@ -1,0 +1,73 @@
+# Phase A: Production Polish — Implementation Plan
+
+## Assessment: What's Already Done vs. What's Remaining
+
+After thorough codebase audit, **3 of 5 Phase A tasks are already structurally complete:**
+
+| Task | Planned | Actual Status |
+|------|---------|---------------|
+| A1: Ingestion Scheduler | Deploy as cron | ✅ **Already boots on server start** (`_core/index.ts:81`) using `node-cron` |
+| A2: NL Query UI | Add "Ask MIYAR" to Dashboard | 🟡 **Side panel exists** ([AiAssistantPanel.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/AiAssistantPanel.tsx) in `DashboardLayout:479`), but Dashboard itself lacks a prominent inline search bar |
+| A3: Alert Delivery | Wire email/webhook | ❌ **Alert engine runs every 15min** ([alert-scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/alert-scheduler.ts)) but only inserts DB rows — no email/webhook delivery |
+| A4: Post-Mortem | Submit first real one | ❌ **Router exists** (`learning.ts:60 submitPostMortem`) but 0 rows in `project_outcomes` |
+| A5: Gemini API Key | Ensure in all envs | ✅ **Already configured** (Design Advisor works) |
+
+## Remaining Work (3 Tasks)
+
+---
+
+### A2: Add Inline "Ask MIYAR" Search Bar to Dashboard
+
+#### [MODIFY] [Dashboard.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Dashboard.tsx)
+
+Add a prominent search/chat input directly in the Dashboard hero section (between the header and stats), so users see "Ask MIYAR anything..." without needing to find the side panel icon.
+
+- Import `trpc`, `useState`, `Sparkles`, `Search` icons
+- Add an `<Input>` with "Ask MIYAR about your projects..." placeholder
+- On submit, call `trpc.autonomous.nlQuery.useMutation()`
+- Show the response in an inline expandable card below the input
+- Keep the existing [AiAssistantPanel](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/AiAssistantPanel.tsx#8-70) side panel as the full chat experience
+
+---
+
+### A3: Wire Email Delivery for Alerts (Resend)
+
+#### [NEW] [alert-delivery.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/alert-delivery.ts)
+
+Create a new module that delivers alerts via email using the Resend API.
+
+- Export `deliverAlert(alert)` function
+- Check `RESEND_API_KEY` env var; skip if not set (graceful degradation)
+- Send formatted email for `critical` and `high` severity alerts
+- Log delivery status
+
+#### [MODIFY] [alert-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/alert-engine.ts)
+
+After inserting new alerts (line ~160), call `deliverAlert()` for each inserted alert.
+
+---
+
+### A4: Seed First Post-Mortem Outcome
+
+#### [NEW] [seed-first-postmortem.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/seed-first-postmortem.ts)
+
+Create a seed script that:
+1. Picks an existing evaluated project
+2. Inserts a realistic `projectOutcome` (predicted vs actual costs)
+3. Triggers the outcome comparator to generate `outcomeComparisons`
+4. Triggers the accuracy ledger to create a snapshot
+5. Activates the full V5 learning loop
+
+---
+
+## Verification Plan
+
+### Automated
+- `pnpm vitest run` — all 655+ tests pass
+- TypeScript compilation — no errors
+
+### Manual
+- Dashboard shows inline "Ask MIYAR" search bar
+- Typing a question returns a structured answer inline
+- Alert delivery: set `RESEND_API_KEY`, trigger a test alert, verify email
+- Post-mortem: verify `project_outcomes` has ≥1 row after seed script

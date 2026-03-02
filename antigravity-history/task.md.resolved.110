@@ -1,0 +1,24 @@
+# Phase B — DLD Integration (Remaining Items)
+
+## Completed
+- [x] B.1 — Schema & Ingestion (10K records)
+- [x] B.2 — Benchmark Computation (117 areas)
+- [x] B.3 — Pipeline Wiring (7 gaps fixed)
+
+## Remaining
+
+### B.4 — Investor Summary DLD Benchmark Card
+- [ ] Add `trpc.design.getProjectDldBenchmark` call in `InvestorSummary.tsx`
+- [ ] Show DLD Market Context card: area name, P50, yield, fitout band
+- [ ] Show project purpose label with impact description
+- [ ] Handle null state (no DLD area selected)
+
+### B.5 — Autonomous Design Brief DLD Integration
+- [ ] Pass DLD area median to `generateAutonomousDesignBrief()`
+- [ ] Include DLD benchmark data in the AI prompt context
+- [ ] Add project purpose to brief context
+
+### B.6 — Space Recommendations DLD Calibration
+- [ ] Pass DLD fitout band to space recommendation generation
+- [ ] Adjust per-room budget allocation using area's recommended fitout
+- [ ] Purpose-aware room-level material recommendations

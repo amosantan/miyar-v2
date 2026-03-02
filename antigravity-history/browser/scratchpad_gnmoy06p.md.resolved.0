@@ -1,0 +1,14 @@
+# MIYAR Application Testing Plan
+
+## Checklist
+- [ ] Navigate to http://localhost:3001
+- [ ] Login with amro@miyar.ai / Miyar@2025!
+- [ ] Verify Dashboard loading
+- [ ] Find "Ask MIYAR" search bar
+- [ ] Capture screenshots of Dashboard and search bar
+- [ ] Identify and capture dashboard data (metrics, charts, stats)
+- [ ] Report results
+
+## Notes
+- Primary login: amro@miyar.ai / Miyar@2025!
+- Backup login: admin@miyar.ai / admin123

@@ -1,0 +1,65 @@
+# MIYAR V4 — Phase A + Phase C Walkthrough
+
+## What Changed
+
+V4 shifts MIYAR's primary area metric from **GFA** (Gross Floor Area) to **Fit-out Area** for all pricing and scoring calculations, ensuring fitout costs exclude structural voids.
+
+### Phase A: Schema, Types & Area Utility
+
+| File | Change |
+|------|--------|
+| [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) | Added `totalFitoutArea`, `totalNonFinishArea`, `fitoutAreaVerified`, `projectArchetype` columns + `pdf_extractions` table |
+| [miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts) | Added `totalFitoutArea` to [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#17-57), [ProjectArchetype](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#9-10) type, `fitoutRatio` to [NormalizedInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#58-89) |
+| [area-utils.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts) | **NEW** — [getPricingArea()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17), [getStructuralArea()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#18-25), [computeFitoutRatio()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#26-41), archetype benchmarks |
+| [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) | Added V4 fields to `projectInputSchema` + [projectToInputs()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/seed.ts#39-73) |
+
+### Phase C: Engine Migration (5 engines + 5 routers)
+
+**Engines migrated to [getPricingArea()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17):**
+
+| Engine | Function | What Changed |
+|--------|----------|-------------|
+| [normalization.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts) | [deriveScaleBand()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts#26-34) | Uses fitout area; thresholds recalibrated (500/5000 sqm) |
+| [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) | [computeROI()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts#369-430) | Budget = fitoutArea × budgetCap |
+| [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) | [generateDesignBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#216-557) | GFA → fitout area for all cost calcs |
+| [bias-detector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts) | [detectOptimismBias()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts#34-118) | Budget ceiling uses fitout area |
+| [explainability.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/explainability.ts) | Variable mappings | `totalFitoutArea` added to labels + FF drivers |
+
+**Routers updated ([projectToInputs()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/seed.ts#39-73) + `totalFitoutArea` + `city` + `sustainCertTarget`):**
+- [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+- [design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design-advisor.ts)
+- [scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/scenario.ts)
+- [seed.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/seed.ts)
+- [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+### Test Fixes
+- Updated 2 test fixtures ([scoring.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.test.ts), [v15-e2e.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v15-e2e.test.ts)) with V4 fields
+- Fixed normalization range checks to exclude `fitoutRatio`/`sustainCertMultiplier`
+
+## Test Results
+
+```
+ Test Files  25 passed | 3 failed (pre-existing) | 1 skipped
+      Tests  732 passed | 5 failed (pre-existing) | 22 skipped
+```
+
+All 5 remaining failures are **pre-existing** (auth, board-pdf, connectors) — zero V4-introduced regressions.
+
+## Schema Migration (PlanetScale)
+
+Applied 6 statements directly via Node.js script (drizzle migration journal was stale):
+
+| # | Statement | Status |
+|---|-----------|--------|
+| 1 | `CREATE TABLE pdf_extractions` | ✅ Created |
+| 2 | `ALTER TABLE projects MODIFY status` (added `draft_area_verification`) | ✅ Applied |
+| 3 | `ALTER TABLE projects ADD totalFitoutArea decimal(12,2)` | ✅ Added |
+| 4 | `ALTER TABLE projects ADD totalNonFinishArea decimal(12,2)` | ✅ Added |
+| 5 | `ALTER TABLE projects ADD fitoutAreaVerified boolean` | ✅ Added |
+| 6 | `ALTER TABLE projects ADD projectArchetype enum(...)` | ✅ Added |
+
+## Remaining Work
+
+- [ ] **Phase B**: Adaptive Project Creator UI (archetype-based forms)
+- [ ] **Phase C**: Update `pdf-report.ts` to show both GFA and Fitout Area
+- [ ] **Phase D**: Verification Gate + PDF Extraction

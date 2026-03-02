@@ -1,0 +1,57 @@
+# V4 Predictive & Cost Modeling Engine
+
+Our objective is to fulfill Master Plan Priority 1: Connect the **Live Market Ingestion (V2)** to the **Cost Models (V4)**. By dynamically feeding live evidence (from `evidence_records` → `benchmark_proposals`) into our Design Briefs and Procurement modules, MIYAR will evolve from a static calculator into a truly predictive intelligence platform.
+
+## Proposed Changes
+
+### 1. The Dynamic Pricing Engine
+
+We will build a core engine that translates approved benchmark proposals into actionable pricing factors for projects and materials.
+
+#### [NEW] `server/engines/pricing-engine.ts`
+- **`getLiveCategoryPricing(finishLevel: string)`**: An engine function that queries `benchmark_proposals` (where `status = 'approved'`). It retrieves the P50 (typical) and P25-P75 (min/max spreads) for categories like `floors`, `walls`, `joinery`, `ffe`, filtering by the project's target `finishLevel`.
+- **`syncMaterialsWithBenchmarks()`**: A utility function that finds all items in the `materials` table, matches them to the relevant `benchmark_proposals` (by category and finish level), and updates their `priceAedMin` and `priceAedMax` automatically. This replaces static admin overrides with reality-based pricing.
+
+---
+
+### 2. Bridging to Layer C (The Design Brief)
+
+The Design Brief currently uses static formulas and target assumptions (e.g., assuming luxury is 3500-4500 AED/sqm). We will rewire this to use the dynamic engine.
+
+#### [MODIFY] `server/engines/design-brief.ts`
+- **Inject Dynamic Pricing**: Import `getLiveCategoryPricing` from the Pricing Engine.
+- **Dynamic BOQ Generation**: In `generateDesignBrief`, inside the `boq.coreAllocations` mapping, replace the hard-coded percentage logic (`percentage * project.fin01BudgetCap`) with bottom-up calculations based on the live dynamic pricing. 
+  - *Example*: `Civil & MEP Cost = GFA * live_pricing('civil', finishLevel)`
+- **Dynamic Detailed Budget**: Calculate `budget.costPerSqmTarget` dynamically by aggregating the live category prices rather than relying on a static band map. The `fin01BudgetCap` will simply serve as the client's cap, which we will now compare *against* the live predictive cost algorithm.
+
+---
+
+### 3. Synchronizing Down to Procurement
+
+The actual RFQ / Tender packages must reflect the live prices seamlessly.
+
+#### [MODIFY] `server/engines/design/rfq-generator.ts`
+- The `buildRFQPack` currently looks up `material.priceAedMin` and `priceAedMax`.
+- Because step 1 introduces `syncMaterialsWithBenchmarks()`, `rfq-generator.ts` will inherently pick up the dynamic rates without structural changes to how it calculates line totals. However, we will ensure it gracefully falls back to the dynamic pricing engine if a specific material ID lacks data.
+
+---
+
+### 4. Controller/Router Wiring
+
+#### [MODIFY] `server/routers/admin.ts`
+- Add a trpc mutation procedure `syncMaterialPricing` that triggers `syncMaterialsWithBenchmarks()`, allowing admins to force a synchronization after a major ingestion run.
+
+#### [MODIFY] `server/routers/design.ts` & `project.ts`
+- Pass the dynamic pricing context during the `createDesignBrief` and PDF export calls to ensure the Design Brief accurately reflects the snapshot of the market on the day of generation.
+
+## Verification Plan
+
+### Automated Tests
+- Create unit tests in `server/engines/pricing.test.ts` to mock `benchmark_proposals` and verify that `getLiveCategoryPricing` returns the correct aggregated AED figures.
+- Verify that `generateDesignBrief` accurately calculates BOQ totals bottom-up based on injected dynamic prices instead of the total budget top-down.
+
+### Manual Verification
+- Ingest a batch of Luxury marble evidence via the CLI.
+- Run the benchmark proposal generator and approve the proposals.
+- Trigger `syncMaterialPricing`.
+- Generate a Design Brief PDF for a Luxury project and verify that the target Budget and BOQ allocation mathematically align with the newly ingested marble data.

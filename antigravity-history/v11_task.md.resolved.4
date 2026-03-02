@@ -1,0 +1,11 @@
+# V11: Cognitive Bias Framework
+
+## Tasks
+- [x] V11-01: Define bias types, interfaces, and constants ([bias-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-types.ts))
+- [x] V11-02: Implement 7 bias detector functions ([bias-detector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts), `bias-history.ts`)
+- [x] V11-03: Add `bias_alerts` and `bias_profiles` tables to schema + DB functions
+- [x] V11-04: Create `biasRouter` TRPC endpoints ([bias.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/bias.ts))
+- [x] V11-05: Integrate bias detection into evaluation pipeline ([project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts))
+- [/] V11-06: Build [BiasAlerts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1875-1881) component and [BiasProfile](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts#1601-1602) dashboard page
+- [ ] V11-07: Integrate bias intervention into reports ([report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/report.ts), [ReportRenderer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ReportRenderer.tsx))
+- [ ] V11-08: Write test suite (`v11-bias.test.ts`, 25+ cases)

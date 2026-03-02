@@ -1,0 +1,46 @@
+# Phase 9 — Walkthrough: AI Design Visualization & Plan Intelligence
+
+**Commit:** `df1c418` — pushed to `main`
+**Files Changed:** 9 files, +10,483 lines
+**Build Status:** ✅ No new TypeScript errors
+
+---
+
+## What Was Built
+
+### Pillar A: Material-Deterministic Renders
+
+| File | Change |
+|------|--------|
+| [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) | **Full rewrite.** Added [buildBoardAwarePromptContext()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#91-152), [buildRoomPromptContext()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#155-182), [generateRoomRenderPrompt()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#254-274). Prompts now inject exact material names and suppliers from the board. |
+| [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) L370-400 | `generateVisual` now fetches the project's material board and calls [buildBoardAwarePromptContext()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#91-152) instead of generic [buildPromptContext()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#60-88) |
+| [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) L1411-1499 | New [generateRoomRender](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#254-274) procedure — renders a specific room using only materials relevant to that room type |
+
+**Before Phase 9:** Prompt said *"luxury living room in Dubai"*
+**After Phase 9:** Prompt says *"Flooring: RAK Ceramics Maximus by RAK Ceramics. Stone: Cosentino Dekton Trilium by Cosentino. Fixtures: Grohe Allure Brilliant by Grohe"*
+
+---
+
+### Pillar B: Floor Plan Intelligence
+
+| File | Change |
+|------|--------|
+| [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) L367-369 | Added `floorPlanAssetId` (FK) + `floorPlanAnalysis` (JSON) to projects table |
+| [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts) | **NEW.** Sends floor plan images to Gemini Vision. Extracts room names, types, sqm, finish grades. Returns [FloorPlanAnalysis](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts#36-47). |
+| [space-benchmarking.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-benchmarking.ts) | **NEW.** Compares AI-extracted room ratios against DLD-backed benchmarks per unit type (Studio/1BR/2BR/3BR/4BR+). Returns financial impact statements. |
+| [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts) | Upgraded to use `floorPlanAnalysis` when available. Falls back to templates. Added `source: "floor_plan" \| "template"` tracking. |
+| [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) L1501-1593 | Two new procedures: [analyzeFloorPlan](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts#89-198) (Gemini Vision) + `getSpaceBenchmark` (DLD-backed advice) |
+
+---
+
+## Verification
+
+- ✅ `npx tsc --noEmit` — zero new errors from Phase 9 files
+- ✅ `npx drizzle-kit push --force` — migration `0041_absurd_xavin.sql` applied
+- ✅ Git commit + push to `main` successful
+
+## Pending (UI)
+- 9.2: Floor plan upload dropzone in `ProjectForm.tsx` wizard
+- 9.7: `SpacePlanner.tsx` page for visualizing DLD-backed recommendations
+
+These UI components will be built when we reach the next UI pass. The backend APIs are fully ready.

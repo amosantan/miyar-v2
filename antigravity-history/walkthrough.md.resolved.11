@@ -1,0 +1,57 @@
+# Design Studio — Visual & Material Intelligence Hub
+
+## What Changed
+
+Unified the separate [VisualStudio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/VisualStudio.tsx) and [BoardComposer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BoardComposer.tsx) pages into a single premium **Design Studio** experience accessible at `/projects/:id/design-studio`.
+
+---
+
+### Backend — Pinning Endpoints
+
+#### [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts)
+- Added [deleteAssetLink(id)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#661-667) function for unpin support
+
+#### [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+3 new endpoints using the existing `asset_links` table:
+
+| Endpoint | Type | Purpose |
+|----------|------|---------|
+| `pinVisualToBoard` | mutation | Links a generated visual's asset to a material board |
+| `listPinnedVisuals` | query | Returns visuals pinned to a specific board |
+| `unpinVisual` | mutation | Removes a pin + audit log |
+
+---
+
+### Frontend — Unified Design Studio
+
+#### [DesignStudio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignStudio.tsx) (new, 540+ lines)
+
+| Tab | Features |
+|-----|----------|
+| **Studio** | Quick-generate cards (mood/material/hero), latest visual previews, 4 stat cards |
+| **Visuals** | Full generation controls (type, template/custom prompt), gallery with filter tabs, image lightbox, pin-to-board dialog |
+| **Materials** | Board CRUD, material add/edit/reorder, RFQ table, pinned visuals strip, recommendations, PDF export |
+| **Cost Overlay** | Live V4 market pricing by finish level, P25/P50/P75 cards per category, composite total |
+
+---
+
+### Routing & Navigation
+
+- [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx): Replaced `/visuals` + `/boards` routes → single `/design-studio`
+- [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx): Single "Design Studio" sidebar entry with `Layers` icon
+
+### Premium Styling
+
+[index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css) — 60 lines of premium CSS:
+- Glassmorphism cards with backdrop blur
+- Header gradient accent (navy → teal → navy)
+- Image gallery: hover zoom (1.06×) + overlay with eye icon
+- Tab bar with frosted glass effect
+
+---
+
+## Verification
+
+- **655 tests pass**, 27 pre-existing failures (DFE, auth, connectors), **0 regressions**
+- Core scoring tests: **17/17 pass**
+- Committed: `28ad045` → pushed to [main](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/seeds/run-full-scrape.ts#12-104)

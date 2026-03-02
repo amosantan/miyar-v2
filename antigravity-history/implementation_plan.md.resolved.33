@@ -1,0 +1,97 @@
+# Phase D: Verification Gate + PDF Extraction
+
+Add a verification step where users upload floor plan PDFs, extract room areas via Gemini Vision, compare against manually entered fitout areas, and confirm.
+
+## Proposed Changes
+
+### Backend Engine
+
+#### [NEW] `server/engines/pdf-extraction.ts` — Gemini vision extraction
+
+Sends floor plan images to Gemini via [invokeLLM](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/llm.ts#314-457) with vision. Extracts room names, areas, and confidence scores.
+
+- `extractRoomsFromImage(base64Data, mimeType, projectContext)` → `ExtractedRoom[]`
+- Prompt instructs Gemini to output structured JSON: `{rooms: [{name, areaSqm, confidence, polygon?}], totalArea}`
+- Uses `outputSchema` for structured JSON response
+- Returns array of `{name: string, areaSqm: number, confidence: number}`
+
+---
+
+### Backend Router
+
+#### [MODIFY] [server/routers/project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) — Add 3 new procedures
+
+**`project.extractAreas`** — Upload PDF, run Gemini vision, store result
+- Input: `{projectId, assetId}` (asset must already be uploaded via `design.uploadAsset`)
+- Fetches asset's `storageUrl`, sends to Gemini vision
+- Persists result in `pdf_extractions` table
+- Returns extracted rooms + totalArea
+
+**`project.verifyAreas`** — Confirm or reject extraction
+- Input: `{projectId, extractionId, action: "verify" | "reject", adjustedRooms?}`
+- If `verify`: updates `pdf_extractions.status` → `verified`, sets `projects.fitoutAreaVerified` → `true`
+- Optionally updates `projects.totalFitoutArea` with the verified value
+- If `reject`: marks extraction as `rejected`
+
+**`project.getExtractions`** — List all extractions for a project
+- Input: `{projectId}`
+- Returns all `pdf_extractions` rows for the project
+
+---
+
+### DB Layer
+
+#### [MODIFY] [server/db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) — Add CRUD for pdf_extractions
+
+- `createPdfExtraction(data)` → insert
+- `getPdfExtractionsByProject(projectId)` → select
+- `updatePdfExtraction(id, data)` → update status/verifiedBy/verifiedAt
+- `updateProjectVerification(projectId, {fitoutAreaVerified, totalFitoutArea})` → update projects
+
+---
+
+### Frontend Pages
+
+#### [NEW] `client/src/pages/AreaVerification.tsx`
+
+Route: `/projects/:id/verify-areas`
+
+Sections:
+1. **Upload** — Drag-and-drop PDF upload (reuses `design.uploadAsset` mutation with `category: "brief"`)
+2. **Extraction** — Click "Extract Areas" → calls `project.extractAreas`, shows loading spinner
+3. **Comparison Table** — Side-by-side: extracted rooms vs manually entered unit mix / villa rooms
+4. **Delta Summary** — Total extracted area vs `totalFitoutArea`, % difference, warning if >10%
+5. **Confirm** — "Verify Areas" button → calls `project.verifyAreas` with `action: "verify"`
+
+#### [NEW] `client/src/components/PdfPreview.tsx`
+
+Simple component showing:
+- Extracted room list as cards (name, area, confidence badge)
+- Total area summary
+- No polygon overlay needed for V1 (deferred — would require canvas rendering)
+
+---
+
+### Schema Change
+
+> [!NOTE]
+> The `pdf_extractions` table and `fitoutAreaVerified` column already exist from Phase A. **No schema migration needed.**
+
+The `project_assets.category` enum needs `"floorplan"` added — but we can use `"brief"` category for now to avoid a migration.
+
+---
+
+## Verification Plan
+
+### Automated
+```bash
+npx tsc --noEmit  # zero new errors
+npm test          # existing suite still passes
+```
+
+### Manual
+1. Navigate to `/projects/:id/verify-areas`
+2. Upload a floor plan image (PNG/JPG)
+3. Click "Extract Areas" — verify Gemini extracts rooms
+4. Review comparison table
+5. Click "Verify Areas" — confirm `fitoutAreaVerified` is set to `true` in DB

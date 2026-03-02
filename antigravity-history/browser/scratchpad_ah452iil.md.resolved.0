@@ -1,0 +1,14 @@
+# Task: Verify Market Intelligence Page
+
+## Plan
+- [ ] Open `http://localhost:3003/market-intelligence`
+- [ ] Wait for page load
+- [ ] Take screenshot and verify UI elements:
+    - [ ] "Market Intelligence & Evidence" header
+    - [ ] Dubai map background image
+    - [ ] DLD Live Feed glass panel
+    - [ ] Top Benchmarks section
+    - [ ] Price / SqFt by Tier section
+    - [ ] Yield Forecast chart
+- [ ] Check console logs for errors
+- [ ] Final screenshot

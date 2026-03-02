@@ -1,0 +1,96 @@
+# Design Intelligence Engine — Phase 1 & 2 Walkthrough
+
+## Phase 1 Audit — What We Found
+
+| Component | Status |
+|-----------|--------|
+| `designRouter` in [server/routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts) | ✅ Registered correctly |
+| `designAdvisorRouter` in [server/routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts) | ✅ Registered correctly |
+| [DesignBrief](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignBrief.tsx#12-402), [DesignAdvisor](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignAdvisor.tsx#621-628), `DesignStudio` pages | ✅ Routed in [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) |
+| `pricing-engine.ts` | ✅ Real (reads live benchmark proposals from DB) |
+| `nano-banana-client.ts` | ✅ Real (calls Gemini image API) |
+| [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) engine | ✅ Real (generates 7-section structured briefs) |
+| `material_constants` table | ❌ **SEEDED IN DB BUT NEVER QUERIED** — gap fixed below |
+
+## Phase 1 Fix — `material_constants` Bridge
+
+**Problem:** The `material_constants` table (9 materials, real AED/m² prices, carbon intensity, maintenance factors) existed in PlanetScale but was never imported or queried by any server code.
+
+**Fixes applied:**
+
+### [server/db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts)
+- Added `materialConstants` to the Drizzle import block
+- Added [getMaterialConstants()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#2066-2072) — returns all seeded material constants ordered by type
+- Added [getMaterialConstantByType(materialType)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#2073-2082) — lookup by material name
+
+### [server/routers/design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+- Added `design.getMaterialConstants` — query endpoint for frontend consumption
+- Added `design.calculateSpec` — full cost/carbon/maintenance/sustainability calculator:
+  - Input: `[{ materialType, areaM2 }]` array
+  - Output: `totalCostAed`, `totalCarbonKg`, `avgMaintenanceFactor`, `sustainabilityGrade (A–E)`, `costPerM2Avg`, per-line `breakdown[]`
+  - Matches materialType strings against the `material_constants` table; unknown types are skipped gracefully
+
+## Phase 2 — Investor Dashboard
+
+### New file: [client/src/pages/InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)
+
+The missing "investor-facing view" — a unified 4-section page that synthesizes data from design brief, space recommendations, and material constants:
+
+| Section | What it shows |
+|---------|---------------|
+| **A · Design Identity** | Typology, style, market tier, location + executive summary + design direction JSON |
+| **B · Material Specification** | Full material list from space recommendations + UAE market AED/m² reference table from `material_constants` |
+| **C · Budget Synthesis** | Total fitout budget, $/sqm, spaces covered + bar chart of budget allocation by space |
+| **D · ROI Bridge** | Sustainability grade, maintenance indicator, sales premium estimate (tier-based), net uplift calculation |
+
+### Route: [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx)
+Added: `/projects/:id/investor-summary` → [InvestorSummary](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx#402-409) (protected)
+
+### Navigation: [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx)
+Added **"Investor View"** button (violet) in the project header, next to the AI Design Advisor button.
+
+## TypeScript Status
+
+All lint errors resolved:
+- Removed non-existent `design.getRfqLines` call
+- Added explicit types to all implicit `any` callback parameters
+- Fixed `Record<string, number>` index lookup for tier premium
+- Added `Building2` to lucide-react imports in [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx)
+
+## Next Steps (Phase 4)
+
+- Market Grounding: connect `designTrends` → `generateRecommendations` Gemini prompt
+- Overlay `benchmarkData` AED/sqm on top of material_constants estimates
+- Competitor context in brief (top 3 from `sourceRegistry`)
+
+---
+
+## Phase 3 — Brief → Numbers
+
+### 3.1 [server/engines/design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts)
+- Added [PricingAnalytics](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#10-37) interface (costPerSqmAvg, totalFitoutCostAed, totalCarbonKg, avgMaintenanceFactor, sustainabilityGrade, materialBreakdown, designPremiumAed, designPremiumPct)
+- Added `TIER_MATERIAL_TYPES` map (which material types apply to Mid/Up-mid/Luxury/Ultra‑luxury)
+- Added optional `materialConstants` parameter to [generateDesignBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#207-497)
+- Computes `pricingAnalytics` block from material_constants and injects into the return value
+- Engine now returns 7 fields (was 6): added `pricingAnalytics?`
+
+### 3.2 [server/routers/design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+- Fetches `matConstants` from DB in `generateBrief` endpoint (after livePricing)
+- Passes to [generateDesignBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#207-497) so `pricingAnalytics` is populated in every new brief
+
+### 3.3 [client/src/pages/BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx) (new)
+- Route: `/projects/:id/brief-editor`
+- 9 material type toggles (stone, glass, steel, aluminum, concrete, ceramic, wood, paint, insulation)
+- Area allocation slider per material (1–40% of project GFA)
+- Live cost via `design.calculateSpec` mutation — fires on every user interaction
+- Displays: Total Fitout Cost, Sustainability Grade (A–E), Maintenance Factor, Carbon kg CO₂
+- Per-material breakdown table with AED/m² badges
+- ROI Bridge mini-panel with deep link to InvestorSummary
+- UAE Market Constants sidebar reference table
+
+### Navigation
+- **Brief Editor** button (emerald, Calculator icon) added to [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx) header
+- [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) route `/projects/:id/brief-editor` registered
+
+### Commit
+`ca40d00` — 5 files, 529 insertions

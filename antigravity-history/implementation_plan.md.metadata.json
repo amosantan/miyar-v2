@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary":  "Comprehensive UX overhaul plan for MIYAR covering 5 workstreams: navigation restructuring with role-based gating, page consolidation (64→~25 client-facing pages), guided workflow with onboarding, data quality fixes for broken/empty pages, and mobile responsiveness audit. Includes detailed page-by-page classification and sidebar restructuring.",
+  "updatedAt":  "2026-03-01T09:18:01.547809Z",
+  "version":  "40"
+}

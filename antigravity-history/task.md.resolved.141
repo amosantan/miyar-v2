@@ -1,0 +1,46 @@
+# MIYAR V4 — Fit-Out Oracle Implementation
+
+## Phase 1: Architectural Hardening (Database & Schema) (DONE)
+- [x] Add Zod schemas to `unitMix` and `villaSpaces`
+- [x] Add `totalFitoutArea` (decimal) and `isAreaVerified` (boolean) to `projects` table
+- [x] Add `officeFitoutCategory` (enum: catA, catB) and `officeCustomRatio` (decimal) to `projects` table
+- [x] Run `npm run db:push` to apply schema changes (Bypassed interactive prompt)
+
+## Phase 2: React Error Fix (ProjectDetail.tsx) (DONE)
+- [x] Fix "Objects are not valid as React child" crash caused by `unitMix` parsing errors.
+
+## Phase 3: Engine Migration (GFA → NFA) (DONE)
+- [x] Refactor pricing & cost calculations across all `server/engines/` and `server/routers/` to prefer `totalFitoutArea`.
+- [x] Implement runtime fallback logic: Use `totalFitoutArea` if `isAreaVerified` is true, otherwise fallback to `ctx03Gfa * 0.85` (Residential) or custom ratios.
+- [x] **Files Migrated**: `bias-detector.ts`, `space-program.ts`, `ai-design-advisor.ts`, `pdf-report.ts`, `project.ts`, `predictive.ts`, `design.ts`, `design-advisor.ts`.
+
+## Phase 4: New Component — RoomCostWaterfall (DONE)
+- [x] Create `RoomCostWaterfall.tsx` for Investor Summary
+- [x] Integrate into Budget Synthesis section
+- [x] Visualize data using Recharts stacking
+
+## Phase 5: Verification (DONE)
+- [x] Build check passes (minor existing unrelated type errors ignored)
+- [x] Verify schema changes applied (Drizzle Push succeeded)
+- [x] Handover and commit project NFA to master
+
+## V5 Phase 1: Database Schema Expansion
+- [x] Identify the exact file mapping to `schema.ts`.
+- [x] Add the 10 strictly typed `mysqlEnum` fields.
+- [x] Push schema to the database (`pnpm db:push`).
+- [x] Update tRPC validation schemas inside `server/routers/project.ts`.
+- [x] Update standard `ProjectInputs` type interfaces (client-side matching).
+
+## V5 Phase 2: Form Component Abstraction
+- [x] Extract `<ProjectForm />` out of `ProjectNew.tsx` into a reusable component
+- [x] Refactor `ProjectNew.tsx` to utilize it for creation
+
+## V5 Phase 3: Update Frontend Form Logic
+- [x] Modify `ProjectForm.tsx` to include the new concrete Select dropdowns in place of abstract sliders.
+- [x] Add the fields to the respective Steps (1-5).
+- [x] Ensure they are added to the Review Step component.
+
+## V5 Phase 4: Engine Diagnostics Wiring
+- [ ] Wire `targetYield`, `salesStrategy` into `predictive.ts`
+- [ ] Wire `procurementStrategy`, `materialSourcing` into `scoring.ts` (ER score)
+- [ ] Wire `targetDemographic` into `space-program.ts` or AI Context Injection

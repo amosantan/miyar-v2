@@ -1,0 +1,36 @@
+# Phase C Walkthrough: Portfolio Feature
+
+## Summary
+Implemented the Portfolio management feature for MIYAR — from database schema through full-stack CRUD to a user-facing page accessible at `/portfolio`.
+
+## Changes Made
+
+### C1: Schema Tables
+- Added `portfolios` table (id, name, description, organization_id, created_by, timestamps)
+- Added `portfolio_projects` junction table (portfolio_id, project_id, note, added_at)
+- Migration applied via `drizzle-kit push`
+
+### C2+C3: Portfolio Engine & CRUD Router
+- Created [portfolio.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/portfolio.ts) with 8 endpoints:
+  - [list](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1559-1569) — all org portfolios with project count + avg score/risk
+  - `getById` — full detail with analytics (distributions, heatmap, failure patterns, improvement levers)
+  - [create](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#161-167) / [update](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#193-198) / [delete](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#199-204) — standard CRUD
+  - `addProject` / `removeProject` — manage portfolio membership
+  - `availableProjects` — projects not yet in a portfolio
+- Registered in [routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts) as `portfolio`
+
+### C4: Portfolio Page
+- Created [PortfolioPage.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/PortfolioPage.tsx):
+  - **List View**: Portfolio cards with project count, avg score, delete. Create dialog.
+  - **Detail View**: Project table with scores, add/remove projects, failure patterns, improvement levers, score distributions.
+- Added route `/portfolio` in [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx)
+- Added sidebar nav link in [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx) under Analysis section
+
+## Verification
+- TypeScript compilation: ✅ No new errors (all existing errors are pre-existing in unrelated files)
+- Schema migration: ✅ `drizzle-kit push` applied cleanly
+- All lint errors in portfolio router fixed
+
+## Remaining (C5, C6)
+- **C5**: Portfolio-level PDF report generation
+- **C6**: Portfolio alerts wired to alert engine

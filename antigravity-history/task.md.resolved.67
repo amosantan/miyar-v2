@@ -1,0 +1,16 @@
+# Data Population — Real UAE Market Intel
+
+## Phase 1: Competitor Data
+- [ ] Clean placeholder competitor_entities and competitor_projects
+- [ ] Seed real UAE developer entities (Emaar, DAMAC, Sobha, Nakheel, Meraas, etc.)
+- [ ] Seed real competitor projects with unit counts, pricing, locations
+
+## Phase 2: Trend Snapshots
+- [ ] Backfill `percentChange` / `previousMA` on existing trend snapshots
+- [ ] Verify Analytics trends UI shows real values
+
+## Phase 3: Verification
+- [ ] Check Competitor Landscape page shows real data
+- [ ] Check Market Position Map has non-zero values
+- [ ] Run test suite — 0 regressions
+- [ ] Commit and push

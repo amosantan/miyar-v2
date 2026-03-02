@@ -1,0 +1,165 @@
+# V11: Behavioral Decision & Cognitive Bias Framework
+**Blueprint: BP 26 — Elevating MIYAR from a passive calculator to an active cognitive partner**
+
+The Cognitive Bias Framework detects patterns in user inputs that indicate known psychological biases (optimism bias, anchoring, confirmation bias, etc.) and generates mathematically-grounded intervention alerts. No competitor in the real estate decision space offers this.
+
+## Proposed Changes
+
+### Bias Detection Engine
+
+#### [NEW] [bias-detector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts)
+
+Pure deterministic engine. Takes [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#15-51) + [ScoreResult](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#112-126) + historical user data → outputs `BiasAlert[]`.
+
+**7 Bias Detectors:**
+
+| # | Bias | Rule | Example |
+|---|------|------|---------|
+| 1 | **Optimism Bias** | `mkt01Tier ∈ {Luxury, Ultra-luxury}` AND (`fin01BudgetCap < tierMedian × 0.7` OR `fin02Flexibility ≤ 2`) | User selects ultra-luxury but budget is 30%+ below market median |
+| 2 | **Anchoring Bias** | Across 3+ evaluations, user keeps `fin01BudgetCap` within ±5% despite score penalties | User stubbornly anchors to initial arbitrary budget despite red flags |
+| 3 | **Confirmation Bias** | User applies 2+ manual overrides that all increase scores, AND `compositeScore < 60` | Cherry-picking overrides to validate a weak project |
+| 4 | **Overconfidence** | `str01BrandClarity = 5` AND `str02Differentiation = 5` AND `mkt02Competitor ≤ 2` | "We're the best" while ignoring competitive pressure |
+| 5 | **Scope Creep** | `des03Complexity ≥ 4` AND `des04Experience ≥ 4` AND `ctx05Horizon ∈ {0-12m, 12-24m}` AND `exe01SupplyChain ≤ 2` | Complex design ambitions crammed into tight timeline with weak supply chain |
+| 6 | **Sunk Cost Fallacy** | Project re-evaluated 3+ times, each with lower score, but never abandoned | Refusing to stop a failing project |
+| 7 | **Clustering Illusion** | `mkt03Trend = 5` AND market data shows flat/declining trends | Seeing patterns in noise — overrating trend alignment |
+
+Each detector returns:
+```ts
+interface BiasAlert {
+  biasType: BiasType;          // e.g. "optimism_bias"
+  severity: "low" | "medium" | "high" | "critical";
+  confidence: number;          // 0-100
+  title: string;               // Human-readable title
+  description: string;         // What the math shows
+  intervention: string;        // Recommended corrective action
+  evidencePoints: EvidencePoint[];  // Variables that triggered this
+  mathExplanation: string;     // The formula/logic used
+}
+```
+
+#### [NEW] [bias-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-types.ts)
+
+Type definitions and constants for the bias framework.
+
+#### [NEW] [bias-history.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-history.ts)
+
+Functions to analyze user evaluation history for temporal biases (anchoring, sunk cost). Queries `score_matrices` table for repeated evaluations on same project.
+
+---
+
+### Database Schema
+
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+
+Add 2 new tables:
+
+```sql
+-- Stores detected biases per evaluation
+CREATE TABLE bias_alerts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  projectId INT NOT NULL,
+  scoreMatrixId INT,
+  userId INT NOT NULL,
+  orgId INT,
+  biasType ENUM('optimism_bias','anchoring_bias','confirmation_bias',
+                'overconfidence','scope_creep','sunk_cost','clustering_illusion') NOT NULL,
+  severity ENUM('low','medium','high','critical') NOT NULL,
+  confidence DECIMAL(5,2) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  intervention TEXT,
+  evidencePoints JSON,
+  mathExplanation TEXT,
+  dismissed BOOLEAN DEFAULT FALSE,
+  dismissedBy INT,
+  dismissedAt TIMESTAMP,
+  createdAt TIMESTAMP DEFAULT NOW()
+);
+
+-- Aggregated bias profile per user (for learning)
+CREATE TABLE bias_profiles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  userId INT NOT NULL,
+  orgId INT,
+  biasType VARCHAR(64) NOT NULL,
+  occurrenceCount INT DEFAULT 0,
+  lastDetectedAt TIMESTAMP,
+  avgSeverity DECIMAL(3,2),
+  trend ENUM('increasing','stable','decreasing') DEFAULT 'stable',
+  updatedAt TIMESTAMP DEFAULT NOW() ON UPDATE NOW(),
+  UNIQUE(userId, biasType)
+);
+```
+
+---
+
+### Server — TRPC Routes
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+Integrate bias detection into the evaluation pipeline. After `computeScoreMatrix()`, run `detectBiases()` and store results.
+
+#### [NEW] [bias.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/bias.ts)
+
+New TRPC router:
+- `bias.getAlerts({ projectId })` — get all bias alerts for a project
+- `bias.getUserProfile()` — get aggregated bias profile for current user
+- `bias.dismiss({ alertId })` — dismiss an alert (with audit log)
+- `bias.getInterventionReport({ projectId })` — generate a structured intervention report
+
+#### [MODIFY] [index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/index.ts)
+
+Register new `biasRouter`.
+
+---
+
+### Client — UI Components
+
+#### [NEW] [BiasAlerts.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/BiasAlerts.tsx)
+
+Alert banner component displayed on project detail / evaluation results. Shows a collapsible list of detected biases with severity badges, descriptions, and dismiss buttons.
+
+#### [NEW] [BiasProfile.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BiasProfile.tsx)
+
+Dashboard page showing the user's bias tendency profile over time with:
+- Radar chart of bias occurrences by type
+- Trend indicators (improving/worsening)
+- Top 3 most frequent biases
+
+#### [MODIFY] [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx)
+
+Add `<BiasAlerts />` component below evaluation results when biases are detected.
+
+#### [MODIFY] [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx)
+
+Add "Bias Intelligence" nav item under Analysis section.
+
+---
+
+### Report Integration
+
+#### [MODIFY] [report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/report.ts)
+
+Add a new `"bias_intervention"` section type to reports. When biases are detected, append an "Intervention Report" section listing all alerts.
+
+#### [MODIFY] [ReportRenderer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ReportRenderer.tsx)
+
+Add renderer for the `"bias_intervention"` section type.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [v11-bias.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v11-bias.test.ts)
+
+- Test each of the 7 detectors individually
+- Test edge cases (boundary values)
+- Test severity escalation logic
+- Test history-based detectors (anchoring, sunk cost)
+- Target: 25+ test cases, 100% detector coverage
+
+### Manual Verification
+
+Run via `npx vitest run v11-bias` to verify all tests pass. Then visually review in browser by creating a project with known bias-triggering inputs.

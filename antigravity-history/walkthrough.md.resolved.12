@@ -1,0 +1,61 @@
+# Priority 3: RFQ & Tender — Design Brief → Procurement Pipeline
+
+## What Changed
+
+Overhauled the RFQ generation to inherit data directly from the structured Design Brief, creating unbroken continuity: **MIYAR Decision → Design Brief → Procurement**.
+
+---
+
+### Schema
+
+| Column | Table | Purpose |
+|--------|-------|---------|
+| `brief_id` | `rfq_line_items` | Traces each RFQ line to its source Design Brief |
+| `pricing_source` | `rfq_line_items` | `"market-verified"` / `"estimated"` / `"manual"` |
+
+---
+
+### Engine — [rfq-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts)
+
+**New [buildRFQFromBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#144-352)** (primary API):
+- **Dynamic sections** from `boqFramework.coreAllocations[]` — no hardcoded BOQ structure
+- **Material filtering** against `materialSpecifications.approvedMaterials` / `prohibitedMaterials`
+- **Cost inheritance** — parses `estimatedCostLabel` for AED amounts and [(market-verified)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/scripts/apply-migrations.ts#5-54) flags
+- **Budget utilization** — compares grand total against `detailedBudget.totalBudgetCap`
+- Returns [RfqPackResult](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#30-47) with items + summary (totals, market-verified count, budget %)
+
+**Preserved [buildRFQPack()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#355-509)** for backward compatibility (legacy callers).
+
+---
+
+### Engine — [board-composer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts)
+
+- New [BriefConstraints](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts#7-14) interface for cross-referencing
+- [generateRfqLines(items, briefConstraints?)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts#109-142) — annotates lines with [(market-verified)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/scripts/apply-migrations.ts#5-54) and `⚠ Not in approved materials list`
+- [computeBoardSummary(items, briefConstraints?)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts#61-108) — adds `budgetComplianceCheck` (within/over budget status)
+
+---
+
+### Router — [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+
+New `generateRfqFromBrief` mutation:
+
+```
+input: { projectId, briefId }
+→ fetch Brief → reconstruct DesignBriefData → resolve materials
+→ buildRFQFromBrief() → persist rfq_line_items → audit log
+→ return { items, summary }
+```
+
+---
+
+### Legacy — [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+Updated the `design_brief` report path to create the Brief first, then generate RFQ as a follow-up step.
+
+---
+
+## Verification
+
+- **655 tests pass**, 27 pre-existing failures, **0 regressions**
+- Committed: `97310b1` → pushed to [main](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/seeds/diagnose-extraction.ts#8-95)

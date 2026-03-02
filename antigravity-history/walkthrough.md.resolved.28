@@ -1,0 +1,45 @@
+# P0 + P1 Ship-Blockers — Walkthrough
+
+## P0 — Ship-blockers (commit `aa58a91`)
+
+### P0-1/P0-2: Database Migrations
+- Generated migration [0032_woozy_retro_girl.sql](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0032_woozy_retro_girl.sql) for 8 missing tables
+- Pushed and applied to PlanetScale
+
+### P0-3: Frontend Auth Guards
+- Created [RouteGuards.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx) — [RequireAuth](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx#4-23) + [RequireAdmin](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx#24-49)
+- Wrapped all 57 routes in [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx): 3 public, 34 protected, 17 admin
+
+---
+
+## P1 — High Priority (commit `39fac3e`)
+
+### P1-1/P1-2: Unit Tests (55 total)
+
+| Suite | Tests | Key Coverage |
+|-------|-------|-------------|
+| [monte-carlo.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/predictive/monte-carlo.test.ts) | 25 | Percentiles, histograms, market conditions, budget cap, iteration bounds, volatility sensitivity, GFA scaling, trend projection |
+| [digital-twin.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sustainability/digital-twin.test.ts) | 30 | Carbon breakdown, energy loads, lifecycle cost, sub-scores, composite formula, location/spec/glazing impact, GFA scaling, recommendations |
+
+### P1-3: Rate Limiting
+- Created [rate-limit.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/rate-limit.ts) — sliding-window limiter per user+path
+- Exported `heavyProcedure` from [trpc.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/trpc.ts) — 5 req/min
+- Applied to: [runMonteCarlo](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/predictive/monte-carlo.ts#111-242), `computeTwin`, [calculateHealth](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/customer/health-score.ts#225-249)
+
+### P1-4: CI/CD
+- [ci.yml](file:///Users/amrosaleh/Maiyar/miyar-v2/.github/workflows/ci.yml) — GitHub Actions on push/PR to main
+- Steps: checkout → Node 20 → npm ci → tsc check → vitest → build
+
+### P1-5: Sentry Error Tracking
+- Created [sentry.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sentry.ts) — [initSentry()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sentry.ts#21-60), [captureException()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sentry.ts#61-75), [captureMessage()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sentry.ts#76-83)
+- Dynamic import (no crash if `@sentry/node` not installed), no-ops without `SENTRY_DSN`
+- Wired into [index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/index.ts) global error handlers
+
+### P1-6: Type Fixes
+- Replaced 27 explicit `any` annotations across 3 routers with proper types
+- Used TRPC inference for `ctx`/`input` params, inline record types for array operations
+
+## Verification
+- **55/55** new engine tests pass
+- **733/737** total tests pass (4 pre-existing failures in [board-pdf.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-pdf.test.ts))
+- All changes committed and pushed to `main`

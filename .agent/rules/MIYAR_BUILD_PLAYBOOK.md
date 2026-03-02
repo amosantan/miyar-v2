@@ -2,14 +2,14 @@
 <!-- This file is the single source of truth for how to build MIYAR. -->
 <!-- The agent MUST read this file at the start of every session involving MIYAR development. -->
 
-> **Last Updated:** 26 February 2026
-> **Status:** ~75–80% of core architecture complete. Entering enhancement & expansion phases.
+> **Last Updated:** 02 March 2026
+> **Status:** Phase 9 complete. Entering Phase 10 — Sales Premium & Yield Predictor Engine.
 
 ---
 
 ## Golden Rules
 
-1. **Always run tests before AND after any code change:** `pnpm vitest run` (655+ baseline).
+1. **Always run tests before AND after any code change:** `pnpm vitest run` (476+ baseline).
 2. **Never break deterministic scoring.** The 5-dimension engine (`scoring.ts`, `five-lens.ts`) is the foundation. Any change to weights, thresholds, or normalization MUST pass existing tests.
 3. **Schema changes require a migration.** Use `pnpm drizzle-kit generate` then `pnpm drizzle-kit push` (see `/db-migrate` workflow).
 4. **Commit granularly.** Prefix: `feat()`, `fix()`, `refactor()`, `data()`, `docs()`.
@@ -20,152 +20,91 @@
 
 ## Current State Snapshot
 
-### ✅ Working — Do Not Touch Without Tests
+### ✅ Complete — Do Not Touch Without Tests
 - Scoring Engine (`server/engines/scoring.ts`, `five-lens.ts`, `normalization.ts`)
 - Explainability (`server/engines/explainability.ts`)
 - PDF Reports (`server/engines/pdf-report.ts`)
 - Design Brief / DOCX (`server/engines/design-brief.ts`, `docx-brief.ts`)
 - Logic Registry (weights, thresholds, versions)
-- Evidence Vault (1,493 real records)
+- Evidence Vault + Evidence References + Evidence Chain Drawer
 - Source Registry + Ingestion Monitor (full CRUD + UI)
-- Ingestion Orchestrator (`server/engines/ingestion/orchestrator.ts`)
-- Cost Forecasting P15/P50/P85/P95
+- Ingestion Orchestrator + 12 UAE connectors + Vercel cron scheduler
+- Cost Forecasting P15/P50/P85/P95 (Monte Carlo)
 - Learning Loop (comparator → calibrator → ledger)
 - Auth & Multi-Tenancy (org isolation)
+- DLD Analytics Engine (578K+ records: transactions, rents, projects)
+- Benchmark pipeline (150+ benchmarks, SCAD scraper, synthetic generator)
+- Estidama/Al Sa'fat compliance checklists (38 checks) + certification-aware pricing
+- RICS NRM cost classification alignment (30+ materials, 24 space types)
+- Portfolio benchmarking dashboard (11-column comparison table)
+- Bias detection engine + bias alerts
+- Digital twin (embodied carbon, operational energy, lifecycle cost)
+- Autonomous alerts (price shocks, benchmark drift, portfolio risk)
+- Material Board Composer + Board PDF export
+- Investor PDF + DOCX + 7-day token share links
+- AI Design Visualization (mood board generation via Gemini image API)
+- Space Planning & Ratios engine (floor plan analysis → spatial psychology insights)
+- ROI engine extended with `spaceEfficiencyScore` (Phase 9)
 
-### 🟡 Enhancement Queue — Wire Up or Extend
-- **Trend Detection** → needs live ingestion runs (3+ cycles)
-- **Competitor Intelligence** → needs live sales data, currently NotebookLM-seeded
-- **NL Query Engine** → engine exists, needs "Ask MIYAR" UI on dashboard
-- **Alert Engine** → engine exists, needs email/Slack/webhook delivery
-- **Portfolio Engine** → engine exists, needs dedicated Portfolio page
-- **Benchmark Learning** → needs first real post-mortem submission
-- **Ingestion Scheduler** → needs deployment as cron/worker
+### 🔴 Next — Phase 10: Sales Premium & Yield Predictor Engine
+- `server/engines/value-add-engine.ts` — NEW: fitout investment → yield uplift formula
+- `server/routers/salesPremium.ts` — NEW: `getValueAddBridge`, `getBrandEquityForecast`
+- Phase 10 frontend panel on InvestorSummary (sliders + dynamic ROI bridge)
+- Brand-equity forecasting for Trophy Asset / halo-effect portfolio valuation
 
-### 🔴 Gaps — Must Be Built
-- Live UAE connectors (Bayut, PropertyFinder, DLD APIs)
-- Monte Carlo Simulation
-- Time-series material price forecasting
-- 6-month forward trend projection
-- 200+ benchmarks (currently 58)
+### 📋 Phases 11–12 Planned (do not build until Phase 10 is complete)
+- **Phase 11:** Developer Portfolio Optimization & Fleet Tracking (cross-project aggregation, supply chain vulnerability alerts, execution tracking with invoice ingestion)
+- **Phase 12:** Cognitive Bias & Decision Guardrails (anchoring/optimism alerts, 3-scenario auto-compromise before export)
 
 ---
 
-## Phased Build Plan
+## Active Build Plan
 
-### Phase A: Production Polish (1 week)
-> **Goal:** Make everything that EXISTS actually work end-to-end in production.
+### Phase 10: Sales Premium & Yield Predictor Engine
+> **Goal:** Prove to developers that investing in higher quality design directly pays off in final sale or rental yield.
 
 | # | Task | Files | Verification |
 |---|------|-------|-------------|
-| A1 | Deploy ingestion scheduler as cron/worker | `server/engines/ingestion/scheduler.ts` | Verify 3 automatic ingestion runs complete |
-| A2 | Wire NL Query UI — add "Ask MIYAR" search bar to Dashboard | `client/src/pages/Dashboard.tsx`, `server/engines/autonomous/nl-engine.ts` | User can type a question, get structured answer |
-| A3 | Wire alert delivery (email via Resend or SendGrid) | `server/engines/autonomous/alert-engine.ts` | Trigger a test alert, verify email receipt |
-| A4 | Submit first real post-mortem via API | `server/routers/learning.ts` → `submitPostMortem` | `project_outcomes` has ≥1 row, comparator runs |
-| A5 | Ensure Gemini API key is in all environments | Vercel env vars | Design Advisor returns results on production |
+| 10-1 | Build `value-add-engine.ts` — core formula: fitout investment → yield uplift curve using DLD comparables | `server/engines/value-add-engine.ts` (NEW) | Unit tests: given area median + current fitout AED/sqm → returns yield delta, sale premium, payback months |
+| 10-2 | Build `salesPremium` tRPC router with `getValueAddBridge` + `getBrandEquityForecast` endpoints | `server/routers/salesPremium.ts` (NEW) | Endpoints return structured data, registered in `server/routers.ts` |
+| 10-3 | Add `SalesPremiumPanel.tsx` to InvestorSummary — sliders for fitout investment delta, live yield recalc | `client/src/pages/InvestorSummary.tsx` | Slider moves → yield % and sale premium AED update in real time |
+| 10-4 | Brand-Equity Forecasting — Trophy Asset halo model | `server/engines/value-add-engine.ts` | Trophy/Ultra-luxury tier shows portfolio valuation uplift calculation |
+| 10-5 | Write Phase 10 Reality Report | `V10_PHASE_REALITY_REPORT.md` | All 10-1 to 10-4 items verified, tests passing |
 
-**How to execute each task:**
-1. Read the relevant skill file (e.g., `miyar-ingestion` for A1)
-2. Implement the change
-3. Run `/run-tests`
-4. Commit with descriptive message
-5. Push to main, verify Vercel deployment
-
----
-
-### Phase B: Data Enrichment (1 week)
-> **Goal:** Fill database gaps so the UI shows rich, real data everywhere.
-
-| # | Task | Target Table(s) | Source |
-|---|------|-----------------|--------|
-| B1 | Seed 200+ benchmarks covering all typologies & tiers | `benchmark_data` | NotebookLM + Turner & Townsend reports |
-| B2 | Add live UAE property connectors (Bayut scraper) | `evidence_records`, `source_registry` | Build new connector in `server/engines/ingestion/connectors/` |
-| B3 | Add PropertyFinder connector | `evidence_records` | Same pattern as Bayut |
-| B4 | Run 3+ ingestion cycles to self-populate trend data | `trend_snapshots` | Use scheduler from Phase A1 |
-| B5 | Seed 20+ competitor projects with real pricing | `competitor_projects` | NotebookLM or manual research |
+**Key assets already available:**
+- `dld-analytics.ts`: `computeYield()`, `computeMarketPosition()`, `getAreaSaleMedianSqm()`, `computeFitoutCalibration()` — reuse directly
+- 578K+ DLD records with `grossYield` and `absorptionRate` per area already computed
+- `roi.ts`: existing cost-avoidance ROI engine (platform ROI — different from fitout investment ROI)
+- Read `miyar-sales-premium` skill before starting
 
 **How to execute:**
-1. For connectors (B2, B3): extend the `BaseConnector` class in `server/engines/ingestion/connector.ts`
-2. Register in `source_registry` with connector type
-3. Test via ingestion monitor UI
-4. For seeding (B1, B5): create `scripts/seed-*.ts` scripts, run with `npx tsx`
+1. Read `.agent/skills/miyar-sales-premium/SKILL.md`
+2. Run `/run-tests` to confirm baseline (476+ passing)
+3. Build engine → router → frontend in sequence
+4. Run `/run-tests` after each step
+5. Commit: `feat(phase10): description`
+6. Push to main, verify Vercel build
 
 ---
 
-### Phase C: Build Portfolio Page (1 week)
-> **Goal:** Deliver a monetizable enterprise feature.
+### Phase 11: Developer Portfolio Optimization & Fleet Tracking
+> **Do not start until Phase 10 is complete and reality report is written.**
 
-| # | Task | Files |
+| # | Task | Notes |
 |---|------|-------|
-| C1 | Add `portfolios` and `portfolioProjects` tables | `drizzle/schema.ts` → migrate |
-| C2 | Extend `portfolio-engine.ts` with aggregation | `server/engines/portfolio.ts` |
-| C3 | Add portfolio CRUD endpoints | `server/routers/project.ts` or new `portfolio.ts` router |
-| C4 | Build `PortfolioView.tsx` page | `client/src/pages/` |
-| C5 | Add portfolio-level PDF report | `server/engines/pdf-report.ts` |
-| C6 | Wire portfolio alerts | `server/engines/autonomous/alert-engine.ts` |
+| 11-1 | Cross-project aggregation dashboard (10+ projects) | Extend existing `PortfolioPage.tsx` |
+| 11-2 | Systemic vulnerability alerts (supply chain at scale) | New alert type in `alert-engine.ts` |
+| 11-3 | Execution tracking — transition projects to "Execution" status, ingest real invoices | New project status + invoice ingestion pipeline |
 
 ---
 
-### Phase D: Risk & Economic Modeling — V9 (3 weeks)
-> **Blueprints:** BP 17, 21, 35
+### Phase 12: Cognitive Bias & Decision Guardrails
+> **Do not start until Phase 11 is complete.**
 
-| # | Task | Files |
+| # | Task | Notes |
 |---|------|-------|
-| D1 | Build `stress-test-engine.ts` | `server/engines/risk/` |
-| D2 | Implement Programme Acceleration Model | `server/engines/economic/` |
-| D3 | Implement Cost Avoidance Modeling | `server/engines/economic/` |
-| D4 | Build Risk Surface Map visualization | `client/src/pages/` → `RiskHeatmap.tsx` |
-| D5 | Advanced Scenario Ranking algorithm | `server/engines/autonomous/scenario-ranking.ts` |
-| D6 | Stress Test UI panel in Scenarios page | `client/src/pages/Scenarios.tsx` |
-
-**Schema tables already exist:** `scenarioStressTests`, `riskSurfaceMaps`, `projectRoiModels`
-
----
-
-### Phase E: Cognitive Bias Detection — V11 (2 weeks)
-> **Blueprint:** BP 26
-
-| # | Task | Files |
-|---|------|-------|
-| E1 | Extend bias detection engine | `server/engines/bias/` (2 files exist) |
-| E2 | Add bias triggers into scoring pipeline | `server/engines/scoring.ts` |
-| E3 | Build `BiasReport.tsx` UI panel | `client/src/pages/` |
-| E4 | Wire bias alerts to alert engine | `server/engines/autonomous/alert-engine.ts` |
-
-**Schema tables already exist:** `biasAlerts`, `biasProfiles`
-
----
-
-### Phase F: Monte Carlo & Time-Series — V4 Complete (2 weeks)
-
-| # | Task | Files |
-|---|------|-------|
-| F1 | Implement Monte Carlo simulation engine | `server/engines/predictive/monte-carlo.ts` (NEW) |
-| F2 | Build time-series material price forecasting | `server/engines/predictive/material-forecast.ts` (NEW) |
-| F3 | Add 6-month forward trend projection | `server/engines/analytics/trend-detection.ts` |
-| F4 | Monte Carlo UI visualization | `client/src/pages/Scenarios.tsx` |
-
----
-
-### Phase G: Customer Success — V12 (2 weeks)
-
-| # | Task | Files |
-|---|------|-------|
-| G1 | Add `clientHealthScores`, `interventionEvents` tables | `drizzle/schema.ts` |
-| G2 | Build health scoring engine | `server/engines/learning/` (NEW) |
-| G3 | Build admin `ClientHealth.tsx` dashboard | `client/src/pages/admin/` |
-| G4 | Quarterly PDF value realization reports | `server/engines/pdf-report.ts` |
-
----
-
-### Phase H: Digital Twin & Sustainability — V13 (4 weeks)
-
-| # | Task | Files |
-|---|------|-------|
-| H1 | Extend `materialsCatalog` with EPD fields | `drizzle/schema.ts` |
-| H2 | Build sustainability scoring engine | `server/engines/design/sustainability.ts` (NEW) |
-| H3 | Add sustainability gauge to Design Studio | `client/src/pages/DesignStudio.tsx` |
-| H4 | Integrate Estidama / Al Sa'fat standards | `server/engines/design/dm-compliance.ts` |
+| 12-1 | Anchoring & optimism alerts with data-backed severity levels | Extend existing `server/engines/bias/` |
+| 12-2 | 3-scenario auto-compromise before impossible brief export | Intercept export flow in `DesignBrief.tsx` / `InvestorSummary.tsx` |
 
 ---
 
@@ -173,22 +112,28 @@
 
 | Domain | Path |
 |--------|------|
-| Schema | `drizzle/schema.ts` (71 tables, 1704 lines) |
+| Schema | `drizzle/schema.ts` (82+ tables) |
 | Scoring | `server/engines/scoring.ts`, `five-lens.ts`, `normalization.ts` |
 | Ingestion | `server/engines/ingestion/` (orchestrator, connectors, scheduler, DFE) |
+| DLD Analytics | `server/engines/dld-analytics.ts` (computeYield, computeMarketPosition, getFitoutCalibration) |
 | Analytics | `server/engines/analytics/` (trend, competitor, insight, positioning) |
 | Learning | `server/engines/learning/` (comparator, calibrator, ledger, weight analyzer) |
-| Predictive | `server/engines/predictive/` (cost-range, outcome, scenario) |
+| Predictive | `server/engines/predictive/` (cost-range, outcome, scenario, monte-carlo) |
 | Autonomous | `server/engines/autonomous/` (alerts, NL, portfolio, docs, ranking) |
 | Design | `server/engines/design/` (advisor, RFQ, finish, space, compliance, palette) |
-| Risk | `server/engines/risk/` |
+| Risk | `server/engines/risk/` (risk-evaluator, stress-tester) |
+| Economics | `server/engines/economic/` (roi-calculator, cost-avoidance, programme-acceleration) + `server/routers/economics.ts` |
+| Procurement | `server/engines/procurement/` (vendor-matching — Phase 8) |
+| Customer | `server/engines/customer/` (health-score) |
 | Bias | `server/engines/bias/` |
-| Routers | `server/routers/` (17 files) |
-| Client Pages | `client/src/pages/` (23 core + 9 market-intel + 17 admin) |
-| Seeds | `scripts/seed-*.ts` |
-| Tests | `server/engines/*.test.ts` (24 files, 655+ tests) |
-| Skills | `.agent/skills/miyar-scoring/`, `miyar-ingestion/`, `miyar-analytics/` |
-| Workflows | `.agent/workflows/` (`/run-tests`, `/db-migrate`, `/ingestion-run`, `/evaluate-project`) |
+| Sustainability | `server/engines/sustainability/` (compliance-checklists, digital-twin, multipliers) |
+| ROI | `server/engines/roi.ts` (cost avoidance, Phase 9 space efficiency driver) |
+| Value-Add | `server/engines/value-add-engine.ts` (Phase 10 — to be built) |
+| Routers | `server/routers/` (20 files) |
+| Client Pages | `client/src/pages/` (32 pages) |
+| Tests | `server/engines/*.test.ts` (476+ tests) |
+| Skills | `.agent/skills/miyar-scoring/`, `miyar-ingestion/`, `miyar-analytics/`, `miyar-sales-premium/` |
+| Workflows | `.agent/workflows/` (`/run-tests`, `/db-migrate`, `/ingestion-run`, `/evaluate-project`, `/phase10-build`) |
 
 ---
 
@@ -202,7 +147,7 @@
 - [ ] Review schema for existing tables/columns before adding new ones
 
 ### Before Committing
-- [ ] All tests pass (655+ baseline, 0 new failures)
+- [ ] All tests pass (476+ baseline, 0 new failures)
 - [ ] No TypeScript errors
 - [ ] Commit message follows convention: `feat(domain): description`
 - [ ] Push to main and verify Vercel build

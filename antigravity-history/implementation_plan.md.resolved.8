@@ -1,0 +1,65 @@
+# Expanding New Project Creation Flow
+
+## Goal Description
+The current "Create New Project" flow is too rigid and selective. It limits input to basic context (Project Name, Description, Typology, GFA, Scale) and misses critical information developers typically prepare before engaging interior designers. 
+
+Based on research into real estate developer requirements for interior design briefs, we need to capture:
+1. **Granular Typologies:** specifically for "Villa", "Gated Community", and "Villa Development".
+2. **Detailed Unit Mixes & Spaces:** breakdown of unit types (1-bed, 2-bed, etc.) for multi-family, or specific interior spaces (majlis, maid's room, etc.) for villas.
+3. **Developer Brand & Target Audience:** The developer's brand positioning, target demographics, and specific design/brand guidelines.
+
+This plan details the full-stack changes required to expand the project creation flow to capture this vital intelligence and feed it into the MIYAR analytics and design advisor engines.
+
+## User Review Required
+> [!IMPORTANT]
+> Please review the proposed new database schema fields and UI flow below. Once approved, I will begin execution.
+
+## Proposed Changes
+
+### 1. Database Schema ([drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts))
+We need to expand the `projects` table to handle these new flexible, deep-dive inputs. We will utilize JSON fields to maintain flexibility.
+
+#### [MODIFY] [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- Update the `typology` validation (if constrained via Zod/Enum) to include `'villa'`, `'gated_community'`, and `'villa_development'`.
+- Add new columns to the `projects` table:
+  - `unitMix`: A JSON column to store unit breakdown (e.g., `{ "studio": 50, "1bed": 100, "2bed": 50 }`).
+  - `villaSpaces`: A JSON column to store specific space requirements (e.g., `["majlis", "driver_room", "dirty_kitchen"]`).
+  - `developerGuidelines`: A JSON column to store brand/target demographic intel (e.g., `{ "targetAudience": "Young Families", "brandPositioning": "Affordable Luxury", "stylePreference": "Contemporary" }`).
+
+### 2. Client-Side State and UI (`client/src/`)
+We need to update the project creation UI (likely a multi-step form or dialog) to accommodate conditional rendering based on selected typologies.
+
+#### [MODIFY] `client/src/components/` (Project Creation Form/Dialog)
+- **Step 1: Context:** Update the Typology dropdown to include the new options. 
+- **Step 2: Scale & Specs (Conditional):**
+  - *If Typology = Residential/Mixed-use:* Show a dynamic "Unit Mix" builder where the user can input counts for Studios, 1-Beds, 2-Beds, etc.
+  - *If Typology contains Villa:* Show a visual selector for requested interior spaces (Majlis, Study, Maid's Room, Driver's Room, separate wet/dry kitchens).
+- **Step 3: Developer Guidelines & Strategy:**
+  - Add text/pill inputs for Target Demographic (e.g., Millennials, Expats, Investors).
+  - Add inputs for Brand Positioning (Budget, Premium, Ultra-Luxury).
+  - Add optional text area for specific "Design Guidelines & Themes".
+
+### 3. Server Validation and API (`server/routers/project.ts` & `server/storage.ts`)
+Ensure the backend safely accepts and stores the new JSON payloads.
+
+#### [MODIFY] `shared/schema.ts` (if applicable) or `drizzle/schema.ts`
+- Update the `insertProjectSchema` Zod validations to allow and validate the new fields (`unitMix`, `villaSpaces`, `developerGuidelines`).
+
+#### [MODIFY] `server/storage.ts`
+- Ensure the `createProject` implementation maps these new JSON objects into the database correctly upon insertion.
+
+### 4. Downstream Engine Adaptation
+Once this data is captured, it represents a goldmine for the AI Design Advisor. 
+
+#### [MODIFY] `server/engines/design/ai-design-advisor.ts`
+- Update the AI prompt generation to heavily weight the `developerGuidelines` (target audience and brand positioning).
+- Feed the specific `unitMix` or `villaSpaces` into the context so the resulting design reports are directly tailored to the exact spaces the developer is building, rather than generic recommendations.
+
+## Verification Plan
+
+### Manual Verification
+- Launch the UI and navigate to the "New Project" flow.
+- Ensure "Villa" and "Gated Community" exist in the typology dropdown.
+- Verify conditional UI rendering: selecting Residential triggers Unit Mix inputs; selecting Villa triggers Space requirement inputs.
+- Submit a comprehensive new project and verify in the database that the JSON fields (`unitMix`, `villaSpaces`, `developerGuidelines`) are populated correctly.
+- Run a Design Advisor generation on the new project and confirm the output explicitly references the provided unit mix or target demographic.

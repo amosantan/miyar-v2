@@ -1,0 +1,26 @@
+# Phase E — Scale Features — Task List
+
+## E.1 · Portfolio Benchmarking Dashboard
+- [ ] Add `listPortfolioSummary` tRPC procedure (project.ts)
+- [ ] Add comparison table in PortfolioDetail (PortfolioPage.tsx)
+- [ ] Add aggregate stats strip (avg cost/sqm, best/worst score, total GFA)
+- [ ] Create portfolio-pdf.ts engine
+- [ ] Add "Export Portfolio Summary" button → PDF generation
+
+## E.2 · Mobile-Responsive Share Views
+- [ ] Make KPI strip responsive (grid-cols-1 sm:grid-cols-3)
+- [ ] Fix budget bars for narrow screens
+- [ ] Add sustainability cert badge (city + tier)
+- [ ] Add PWA-style meta tags
+- [ ] Verify at 375px (iPhone SE)
+
+## E.3 · RICS Alignment Layer
+- [ ] Create rics-mapping.ts (space → NRM element codes)
+- [ ] Add RICS code column in BriefEditor material table
+- [ ] Add "RICS NRM Aligned" badge in budget sections
+- [ ] Add RICS section to Methodology.tsx
+- [ ] Add RICS codes to investor-pdf.ts
+
+## Final
+- [ ] TypeScript compile check
+- [ ] Commit & push

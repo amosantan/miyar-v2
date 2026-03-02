@@ -221,3 +221,50 @@ export interface SensitivityEntry {
   scoreUp: number;
   scoreDown: number;
 }
+
+// ─── Phase 10: Sales Premium & Yield Predictor ──────────────────────────────
+
+export interface ScenarioRange {
+  conservative: number;
+  mid: number;
+  aggressive: number;
+}
+
+export interface ValueAddInputs {
+  currentFitoutPerSqm: number;    // AED/sqm — current or base fitout spend
+  proposedFitoutPerSqm: number;   // AED/sqm — proposed upgraded fitout spend
+  gfa: number;                     // total fitout area in sqm
+  saleMedianPerSqm: number;       // DLD area median sale price AED/sqm
+  rentMedianPerSqm?: number;      // DLD area median rent AED/sqm (annual)
+  tier: MarketTier;
+  handoverCondition?: HandoverCondition;
+  transactionCount: number;        // number of DLD comparables in area
+}
+
+export type ValueAddConfidence = "high" | "medium" | "low" | "insufficient";
+
+export interface ValueAddResult {
+  yieldDelta: ScenarioRange;            // percentage point increase in gross yield
+  salePremiumPct: ScenarioRange;        // % sale price uplift vs area median
+  salePremiumAed: ScenarioRange;        // absolute AED uplift on total sale value
+  paybackMonths: ScenarioRange;         // months to recover incremental fitout cost
+  incrementalFitoutCost: number;        // AED total incremental investment
+  fitoutRatio: number;                  // proposed fitout / sale price per sqm
+  confidence: ValueAddConfidence;
+  riskFlag: "OVER_SPEC" | "UNDER_SPEC" | "DIMINISHING_RETURNS" | null;
+  riskMessage: string | null;
+}
+
+export interface BrandEquityInputs {
+  tier: MarketTier;
+  targetValueAdd: TargetValueAdd;
+  salePerformancePct: number;     // % above area median this project is performing
+  brandedStatus: BrandedStatus;
+}
+
+export interface BrandEquityResult {
+  haloUpliftPct: number;          // uplift on developer's next project (clamped 0–8%)
+  haloApplies: boolean;           // whether the halo effect is active
+  reasoning: string;              // human-readable explanation
+  portfolioImpactAed: ScenarioRange; // estimated AED impact on next project at 3 GFA scenarios
+}

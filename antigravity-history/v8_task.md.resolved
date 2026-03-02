@@ -1,0 +1,55 @@
+# MIYAR V8 — DESIGN INTELLIGENCE LAYER TASK LIST
+
+## 🔴 PRIORITY 0 — MATERIAL LIBRARY DATABASE
+- [x] V8-00: Create `materialLibrary` table in `server/db/schema.ts` (Table 59)
+- [x] V8-00: Create `seed-material-library.mjs` script with provided seed data
+- [x] V8-09: Assert no floating point drift in RFQ totals (JSON structure for V8-04)
+- [x] V8-00: Generate and run migration 0025
+
+## 🟠 PRIORITY 1 — DESIGN VOCABULARY ENGINE
+- [x] V8-09: Unit tests for deterministic logic in [vocabulary.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/vocabulary.ts)
+- [x] V8-01: Implement [buildDesignVocabulary](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/vocabulary.ts#18-128) (deterministic logic)
+
+## 🟡 PRIORITY 2 — SPACE PROGRAMMING ENGINE
+- [x] V8-09: Write [server/engines/v8-design.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v8-design.test.ts)pace-program.ts`
+- [x] V8-09: Unit tests for [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts) and deterministic logic for fit-out budgets
+
+## 🟢 PRIORITY 3 — FINISH SCHEDULE & MATERIAL SELECTOR
+- [x] V8-03: Create `finishScheduleItems` table in schema (Table 60)
+- [x] V8-03: Generate and run migration 0026
+- [x] V8-03: Create [server/engines/design/finish-schedule.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/finish-schedule.ts)
+- [x] V8-03: Implement [buildFinishSchedule](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/finish-schedule.ts#4-97) (tier matching and fallback logic)
+- [x] V8-04: Create `projectColorPalettes` table in schema (Table 61)
+- [x] V8-04: Generate and run migration 0027
+- [x] V8-04: Create [server/engines/design/color-palette.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/color-palette.ts)
+- [x] V8-04: Implement [buildColorPalette](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/color-palette.ts#6-35) (invokeLLM for rationale only)
+- [x] V8-05: Create `rfqLineItems` table in schema (Table 62)
+- [x] V8-05: Generate and run migration 0028
+- [x] V8-05: Create [server/engines/design/rfq-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts)
+- [x] V8-05: Implement [buildRFQPack](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#3-211)
+
+## 🔵 PRIORITY 4 — DM/DDA COMPLIANCE CHECKLIST
+- [x] V8-06: Create `dmComplianceChecklists` table in schema (Table 63)
+- [x] V8-06: Generate and run migration 0029
+- [x] V8-06: Create [server/engines/design/dm-compliance.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/dm-compliance.ts)
+- [ ] V8-06: Implement `buildDMChecklist`
+
+## ⚪ PRIORITY 5 — DESIGN BRIEF DOCUMENT REBUILD
+- [x] V8-07: Update [server/engines/autonomous/document-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/document-generator.ts) for Design Vocabulary Narrative (Gemini prompts)
+- [x] V8-07: Build the final `designBriefs` record (store outputs of all engines)
+- [x] V8-07: Refactor [server/routers/project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) (specifically [generateDesignBrief](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/report.ts#87-120) mutation) pipeline
+- [x] V8-08: Ensure system still passes baseline. Baseline currently: 628 functions. [server/engines/pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts) (or new file)
+- [x] V8-09: Update [server/routers/design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) with newly assembled `generateBrief` execution pipeline
+
+## 🟣 PRIORITY 6 — TEST SUITE
+- [x] V8-10: Create `server/engines/design/vocabulary.test.ts` (20+ tests)
+- [x] V8-10: Create `server/engines/design/space-program.test.ts` (20+ tests)
+- [x] V8-10: Create `server/engines/design/finish-schedule.test.ts` (15+ tests)
+- [x] V8-10: Create `server/engines/design/color-palette.test.ts` (10+ tests)
+- [x] V8-10: Create `server/engines/design/rfq-generator.test.ts` (15+ tests)
+- [x] V8-10: Create `server/engines/design/dm-compliance.test.ts` (10+ tests)
+- [ ] Confirm ≥ 700 functions and 0 regressions
+- [ ] Confirm 0 TypeScript errors
+
+## ⚫ PRIORITY 7 — V8 PHASE REALITY REPORT
+- [x] V8-10: Generate [v8_phase_reality_report.md](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/v8_phase_reality_report.md) with all 7 requested sections

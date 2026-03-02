@@ -1,0 +1,81 @@
+# MIYAR V5: Project Creation & Analytics Enhancement Plan
+
+## Goal Description
+The user wants to upgrade the project intake flow ("V5") from relying heavily on abstract 1-5 sliders to using concrete, qualitative dropdown selections that make sense for UAE real estate developers. These concrete selections must wire deeply into the application's calculation engines (scoring, pricing, space programming). Furthermore, users need the ability to edit projects after creation to correct mistakes or run different scenarios without creating a new project from scratch.
+
+## 1. Enhancing the Form Inputs (Replacing Abstract with Concrete)
+
+Currently, sections like **Strategy**, **Market**, and **Execution** rely on 1-5 sliders (e.g., "Buyer Maturity: 3"). We will replace or augment these with hard market factors.
+
+### A. Context & General
+*   **New Field:** `developerType` (Dropdown)
+    *   *Options:* Master Developer (Emaar, Nakheel), Private/Boutique Developer, Institutional Investor.
+    *   *Engine Wiring:* Master developers benefit from economies of scale. We will introduce a `developerScaleMultiplier` in the pricing engine (e.g., Master = 0.90 cost, Boutique = 1.05 cost) to reflect real-world procurement power.
+
+### B. Strategy Section (Replacing STR sliders)
+*   **New Field:** `targetDemographic` (Dropdown)
+    *   *Options:* High-Net-Worth Individuals (HNWI), Families, Young Professionals/Expats, Investors (Yield-focused).
+    *   *Engine Wiring (`space-program.ts`):* Hard-codes requirements. "Families" forces larger maid/storage areas; "Young Professionals" forces co-working/amenity spaces.
+*   **New Field:** `salesStrategy` (Dropdown)
+    *   *Options:* Sell Off-Plan, Sell on Completion, Build-to-Rent.
+    *   *Engine Wiring:* "Sell Off-Plan" automatically elevates the required marketing/sample kit budget and raises the `des04Experience` requirement in the Scoring Engine.
+
+### C. Market Section (Replacing MKT sliders)
+*   **New Field:** `competitiveDensity` (Dropdown)
+    *   *Options:* Low (Monopoly/First-mover), Moderate, Saturated (High competition).
+    *   *Engine Wiring (`scoring.ts`):* If "Saturated", the baseline required for the `MP` (Market Positioning) score increases. You cannot score a high `MP` in a saturated market with a basic design.
+*   **New Field:** `projectUsp` (Unique Selling Proposition) (Dropdown)
+    *   *Options:* Location/Views, Amenities/Facilities, Price/Value, Architectural/Interior Design.
+    *   *Engine Wiring:* Tells the AI Design Advisor exactly what to focus on in the generated brief.
+
+### D. Financial Section
+*   **New Field:** `targetYield` (Dropdown)
+    *   *Options:* < 5%, 5-7%, 7-9%, > 9%.
+    *   *Engine Wiring (`predictive.ts`):* We can use this to reverse-engineer a maximum allowable fit-out budget cap to hit the target ROI, displaying a "Budget Warning" if the AI-recommended budget exceeds this cap.
+*   **New Field:** `procurementStrategy` (Dropdown)
+    *   *Options:* Turnkey (Design & Build), Traditional (Design-Bid-Build), Construction Management.
+    *   *Engine Wiring (`scoring.ts`):* Turnkey lowers Execution Risk (ER score improves) but applies a premium to the estimated Financial Feasibility (FF) cost.
+
+### E. Design Section
+*   **New Field:** `amenityFocus` (Dropdown)
+    *   *Options:* Wellness/Spa focus, F&B/Social focus, Minimal/Essential, Business/Co-working.
+    *   *Engine Wiring:* Injects directly into the Gemini Prompt for `ai-design-advisor.ts` to heavily bias the space recommendations toward these areas.
+*   **New Field:** `techIntegration` (Dropdown)
+    *   *Options:* Basic (Pre-wired), Smart Home Ready, Fully Integrated/AI-driven.
+    *   *Engine Wiring:* Adds a specific % multiplier to the MEP subset of the cost breakdown.
+
+### F. Execution Section (Replacing EXE sliders)
+*   **New Field:** `materialSourcing` (Dropdown)
+    *   *Options:* Predominantly Local (UAE/GCC), Predominantly European, Predominantly Asian, Global Mix.
+    *   *Engine Wiring:* "European" applies a +15% cost premium and +30% lead-time risk factor to the Execution Risk (ER) score. "Local" improves sustainability and speeds up delivery.
+
+---
+
+## 2. Enabling Project Editability
+
+Users currently cannot fix typos or change assumptions without starting over. We need to implement full CRUD for projects.
+
+### Step 1: Backend Updates
+*   We already have an existing updating capability via Drizzle ORM, but the `projectInputSchema` in `server/routers/project.ts` needs to be mirrored into a `projectUpdateSchema` that allows `partial()` fields so not all fields are heavily required during minor edits.
+*   We will add all the new V5 fields outlined above to Drizzle `schema.ts`.
+
+### Step 2: UI Updates (ProjectDetail view)
+*   Add a new **"Project Settings"** mode to the `ProjectDetail.tsx` page.
+*   Extract the core structural parts of `ProjectNew.tsx` into a reusable `<ProjectForm />` component.
+*   We will mount `<ProjectForm />` in `ProjectNew.tsx` (for creation) and in `ProjectDetail.tsx` (for editing), passing the existing project object as `defaultValues`.
+*   Clicking "Save" on the Settings tab will trigger the `trpc.project.update` mutation.
+
+### Step 3: Triggering Recalculations
+*   If a user changes a core parameter (e.g., changes `materialSourcing` from Local to European), the existing AI briefs and predictive scores become mathematically invalid.
+*   When the user saves structural data edits, we will either immediately re-trigger the generative steps or prompt the user with a "Data out of sync: Recalculate AI Brief" button in the summary header.
+
+## Verification Plan
+
+### Automated/Code Verification
+*   Execute `npm run db:push` to ensure all new schema fields integrate into PlanetScale seamlessly.
+*   Run `npm run check` to ensure no TypeScript interfaces are broken by the schema expansion.
+
+### Manual Testing
+1.  **Drizzle Alignment:** Check the PlanetScale dashboard to ensure columns like `target_demographic` and `sale_strategy` deployed properly.
+2.  **Verify Editability:** Open an existing project, navigate to the new Settings view, change the `materialSourcing` from "European" to "Local", and click Save. Refresh the page to ensure persistence.
+3.  **Verify Engine Wiring:** Observe the Investor Summary page after recalculating. Ensure the Execution Risk (ER) score improves and the cost estimate drops as a result of switching from European to Local sourcing.

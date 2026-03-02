@@ -1,0 +1,87 @@
+# Phase B — DLD Data Integration Walkthrough
+
+## Summary
+
+DLD (Dubai Land Department) data is now fully integrated across MIYAR's analysis pipeline. Starting from raw transaction/rent data, through benchmark computation, into every analysis engine and user-facing output.
+
+## Data Foundation (B.1–B.2)
+
+| Dataset | Records | Key Metric |
+|---------|---------|-----------|
+| DLD Transactions | 5,000 | `meter_sale_price` (AED/sqm) |
+| DLD Rent Contracts | 5,000 | `rent_per_sqm` calculated |
+| Area Benchmarks | 117 | P25/P50/P75/yield/fitout |
+
+## Pipeline Wiring (B.3) — `149ace3`
+
+Fixed 7 critical gaps where DLD data existed in DB but was **never reaching** the analysis:
+
+| Gap | Fix |
+|-----|-----|
+| `dldAreaId`/`projectPurpose` not saved | Added to Zod schema in [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) |
+| Design brief used 25K fallback | Calls [getAreaSaleMedianSqm()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#304-317) |
+| Scoring ignored DLD fitout | `expectedCost` = `recommendedFitoutMid` |
+| Investor Summary blank | `getProjectDldBenchmark` endpoint |
+| Purpose had no effect | Material tier ±1 based on purpose |
+
+## Frontend & AI Wiring (B.4–B.6) — `2efbdc8`
+
+### B.4: Investor Summary DLD Card
+
+[InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) now includes:
+- **DLD Market Context** card with area name, P50 sale price, gross yield, recommended fitout
+- **Fitout band indicator** showing project's cost/sqm relative to DLD recommended range
+- **Project purpose badge** (Off-Plan Sale, Ready Sale, Rental, Mixed)
+- Sale premium calculation uses **real DLD median** instead of hardcoded 25K
+
+### B.5: AI Brief DLD Context
+
+[ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts) — both Gemini prompts now include:
+```
+## DLD Area Market Context
+- Area: Marsa Dubai
+- Median Sale Price: 15,914 AED/sqm
+- Recommended Fitout: 2,864 AED/sqm
+- Gross Yield: 5.3%
+- Project Purpose: Rental investment (durability, cost-efficiency)
+```
+
+### B.6: Space Budget Calibration
+
+[generateDesignRecommendations()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts#36-104) overrides `totalFitoutBudgetAed` with `DLD recommendedFitoutMid × GFA` when area benchmark exists. Per-room budget allocations are now area-specific.
+
+### Purpose → Material Tier Mapping
+
+| Purpose | Material Shift | Example (Luxury Tier) |
+|---------|---------------|----------------------|
+| `sell_offplan` | +1 ↑ | → Ultra-luxury materials |
+| `sell_ready` | 0 | → Luxury materials |
+| [rent](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts#56-67) | -1 ↓ | → Upper-mid materials |
+| `mixed` | 0 | → Luxury materials |
+
+## Data Flow (Complete)
+
+```
+DLD JSON Files → Ingestion → dld_transactions + dld_rents
+                          → dld_area_benchmarks (117 areas)
+                                    ↓
+Project Creation ← dldAreaId + projectPurpose
+        ↓
+Design Brief ← getAreaSaleMedianSqm() → real AED/sqm
+        ↓
+Scoring ← recommendedFitoutMid → budgetFit calibration
+        ↓
+AI Advisor ← DLD context in Gemini prompt
+        ↓
+Space Recs ← DLD fitout × GFA → room budgets
+        ↓
+Investor Summary ← getProjectDldBenchmark → P50/yield/fitout card
+```
+
+## Verification
+
+- ✅ Build passes
+- ✅ Commits: `149ace3`, `2efbdc8`
+- ✅ `salePriceSource` shows `"dld_transactions"` when DLD area linked
+- ✅ Scoring log confirms DLD fitout benchmark usage
+- ✅ AI prompts include area-specific market context

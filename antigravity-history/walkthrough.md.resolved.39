@@ -1,0 +1,57 @@
+# Phase B.3 — DLD Analytics Engine Walkthrough
+
+## What Was Built
+
+### 1. DLD Projects Ingestion (`933a66e`)
+- Ingested **3,039 DLD-registered projects** from [Projects_2026-02-27.json](file:///Users/amrosaleh/Maiyar/miyar-v2/Projects_2026-02-27.json)
+- New `dld_projects` table with 28 columns (project name, area, developer, units, status, completion %)
+- [DldAreaSelect](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DldAreaSelect.tsx#18-124) searchable dropdown added to [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx)
+
+### 2. DLD Analytics Engine (`f6ab140`)
+
+#### 6 Calculation Methods in [dld-analytics.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts)
+
+| # | Method | What It Computes |
+|---|--------|-----------------|
+| 1 | [computeAreaPriceStats()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#87-197) | P25/P50/P75/mean AED/sqft per area from transactions |
+| 2 | [computeFitoutCalibration()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#200-226) | Recommended fitout budget ranges based on sale medians |
+| 3 | [computeYield()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#229-249) | Gross/net rental yield (UAE 22% operating cost default) |
+| 4 | Absorption Rate | Units sold / available (from DLD projects) |
+| 5 | [computeMarketPosition()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#252-301) | 0-1 score showing where fitout sits in market |
+| 6 | Over/Under-Spec Detection | Flags when fitout ratio exceeds tier norms |
+
+#### UAE Fitout Ratio Benchmarks Used
+| Tier | Min | Max | Typical |
+|------|-----|-----|---------|
+| Economy | 8% | 12% | 10% |
+| Mid | 12% | 18% | 15% |
+| Premium | 15% | 22% | 18% |
+| Luxury | 18% | 28% | 23% |
+| Ultra-luxury | 25% | 35% | 30% |
+
+#### Key Integration: design-brief.ts
+- **Before:** `const designPremiumAed = Math.round(gfa * 25000 * ...)` (hardcoded)
+- **After:** `const baseSalePrice = areaSalePricePerSqm ?? 25000` (DLD-backed with fallback)
+- New fields: `fitoutRatio`, `overSpecWarning`, `salePriceSource`, `areaSalePricePerSqm`
+
+### 3. Schema — 3 New Tables Created in PlanetScale
+
+| Table | Columns | Status |
+|-------|---------|--------|
+| `dld_transactions` | 17 | Created, awaiting data |
+| `dld_rents` | 15 | Created, awaiting data |
+| `dld_area_benchmarks` | 22 | Created, awaiting data |
+
+## Verification
+
+- ✅ Build passes (6.34s client, 10ms server)
+- ✅ All 3 PlanetScale tables created via migration script
+- ✅ 3,039 DLD projects ingested and verified
+- ✅ All tRPC endpoints compile and register
+
+## What's Next
+
+Awaiting user to provide DLD **Transactions** and **Rents** JSON files to:
+1. Run ingestion scripts
+2. Run [computeAreaPriceStats()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#87-197) to populate `dld_area_benchmarks`
+3. Wire real benchmarks into InvestorSummary UI
