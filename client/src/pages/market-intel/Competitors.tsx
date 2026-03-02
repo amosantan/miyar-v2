@@ -352,11 +352,47 @@ function ProjectForm({ entities, onSubmit, isLoading }: { entities: any[]; onSub
   );
 }
 
+/** Safely convert a DB value (string, object, array) to a displayable string */
+function safeString(v: any): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (Array.isArray(v)) return v.map(safeString).join(", ");
+  if (typeof v === "object") {
+    // Special handling for priceIndicators: { currency, min, max, per_unit }
+    if ("min" in v || "max" in v) {
+      const currency = v.currency || "AED";
+      const parts: string[] = [];
+      if (v.min) parts.push(`${currency} ${Number(v.min).toLocaleString()}`);
+      if (v.max) parts.push(`${currency} ${Number(v.max).toLocaleString()}`);
+      const range = parts.length === 2 ? `${parts[0]} – ${parts[1]}` : parts[0] || "";
+      if (v.per_unit) return `${range} ${v.per_unit}`;
+      return range;
+    }
+    return JSON.stringify(v);
+  }
+  return String(v);
+}
+
 function ProjectDetail({ project }: { project: any }) {
   const parseJson = (v: any) => {
     if (!v) return [];
     if (Array.isArray(v)) return v;
     try { return JSON.parse(v); } catch { return [v]; }
+  };
+
+  const renderArrayOrText = (v: any) => {
+    const arr = parseJson(v);
+    if (arr.length > 0) {
+      return (
+        <div className="flex flex-wrap gap-1">
+          {arr.map((item: any, i: number) => (
+            <Badge key={i} variant="outline" className="text-xs">{safeString(item)}</Badge>
+          ))}
+        </div>
+      );
+    }
+    return <p className="text-muted-foreground">{safeString(v)}</p>;
   };
 
   return (
@@ -374,30 +410,30 @@ function ProjectDetail({ project }: { project: any }) {
       {project.positioningKeywords && (
         <div>
           <h4 className="font-medium mb-1">Positioning Keywords</h4>
-          <div className="flex flex-wrap gap-1">{parseJson(project.positioningKeywords).map((k: string, i: number) => <Badge key={i} variant="secondary" className="text-xs">{k}</Badge>)}</div>
+          <div className="flex flex-wrap gap-1">{parseJson(project.positioningKeywords).map((k: string, i: number) => <Badge key={i} variant="secondary" className="text-xs">{safeString(k)}</Badge>)}</div>
         </div>
       )}
       {project.interiorStyleSignals && (
         <div>
           <h4 className="font-medium mb-1">Interior Style Signals</h4>
-          <div className="flex flex-wrap gap-1">{parseJson(project.interiorStyleSignals).map((k: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{k}</Badge>)}</div>
+          <div className="flex flex-wrap gap-1">{parseJson(project.interiorStyleSignals).map((k: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{safeString(k)}</Badge>)}</div>
         </div>
       )}
       {project.materialCues && (
         <div>
           <h4 className="font-medium mb-1">Material Cues</h4>
-          <div className="flex flex-wrap gap-1">{parseJson(project.materialCues).map((k: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{k}</Badge>)}</div>
+          <div className="flex flex-wrap gap-1">{parseJson(project.materialCues).map((k: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{safeString(k)}</Badge>)}</div>
         </div>
       )}
       {project.amenityList && (
         <div>
           <h4 className="font-medium mb-1">Amenities</h4>
-          <div className="flex flex-wrap gap-1">{parseJson(project.amenityList).map((k: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{k}</Badge>)}</div>
+          <div className="flex flex-wrap gap-1">{parseJson(project.amenityList).map((k: string, i: number) => <Badge key={i} variant="outline" className="text-xs">{safeString(k)}</Badge>)}</div>
         </div>
       )}
-      {project.salesMessaging && <div><h4 className="font-medium mb-1">Sales Messaging</h4><p className="text-muted-foreground">{project.salesMessaging}</p></div>}
-      {project.differentiationClaims && <div><h4 className="font-medium mb-1">Differentiation Claims</h4><p className="text-muted-foreground">{project.differentiationClaims}</p></div>}
-      {project.priceIndicators && <div><h4 className="font-medium mb-1">Price Indicators</h4><p className="text-muted-foreground">{project.priceIndicators}</p></div>}
+      {project.salesMessaging && <div><h4 className="font-medium mb-1">Sales Messaging</h4>{renderArrayOrText(project.salesMessaging)}</div>}
+      {project.differentiationClaims && <div><h4 className="font-medium mb-1">Differentiation Claims</h4>{renderArrayOrText(project.differentiationClaims)}</div>}
+      {project.priceIndicators && <div><h4 className="font-medium mb-1">Price Indicators</h4><p className="text-muted-foreground">{safeString(project.priceIndicators)}</p></div>}
       {project.sourceUrl && (
         <a href={project.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-xs">
           View Source <ExternalLink className="h-3 w-3" />
@@ -451,7 +487,7 @@ function ComparisonView({ data }: { data: any }) {
               <tr key={f.key} className="border-b border-border/30">
                 <td className="p-2 text-muted-foreground">{f.label}</td>
                 {data.projects.map((p: any) => (
-                  <td key={p.id} className="p-2">{p[f.key] || "—"}</td>
+                  <td key={p.id} className="p-2">{safeString(p[f.key]) || "—"}</td>
                 ))}
               </tr>
             ))}
