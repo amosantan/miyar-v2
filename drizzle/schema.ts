@@ -591,7 +591,7 @@ export const webhookConfigs = mysqlTable("webhook_configs", {
 export type WebhookConfig = typeof webhookConfigs.$inferSelect;
 export type InsertWebhookConfig = typeof webhookConfigs.$inferInsert;
 
-// ─── Project Assets (V2.8 — Evidence Vault) ────────────────────────────────
+// ─── Project Assets (V2.8 — Evidence Vault + MIYAR 2.0 AI Intake) ──────────
 export const projectAssets = mysqlTable("project_assets", {
   id: int("id").autoincrement().primaryKey(),
   projectId: int("projectId").notNull(),
@@ -614,9 +614,17 @@ export const projectAssets = mysqlTable("project_assets", {
     "mood_image",
     "material_board",
     "marketing_hero",
+    "floor_plan",
+    "voice_note",
     "generated",
     "other",
   ]).default("other").notNull(),
+  // MIYAR 2.0: AI Intake columns
+  assetType: mysqlEnum("assetType", [
+    "image", "pdf", "audio", "video", "url", "text_note",
+  ]).default("image"),
+  aiExtractionResult: json("aiExtractionResult"),  // what Gemini extracted from this asset
+  aiContributions: json("aiContributions"),          // which ProjectInputs fields this populated
   tags: json("tags"), // string[]
   notes: text("notes"),
   isClientVisible: boolean("isClientVisible").default(true).notNull(),
