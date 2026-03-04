@@ -142,7 +142,7 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
     const handleReset = () => resetMut.mutate({ projectId });
 
     const handleToggleFitOut = (roomId: number, currentState: boolean) => {
-        toggleFitOutMut.mutate({ roomId, isFitOut: !currentState });
+        toggleFitOutMut.mutate({ roomId, isFitOut: !currentState, projectId });
     };
 
     // ─── Block Builder Helpers ────────────────────────────────────────────
@@ -482,7 +482,7 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                                     {/* Delete */}
                                     <div className="flex justify-center opacity-0 group-hover:opacity-100 transition">
                                         <button
-                                            onClick={() => deleteRoomMut.mutate({ roomId: room.id })}
+                                            onClick={() => deleteRoomMut.mutate({ roomId: room.id, projectId })}
                                             disabled={deleteRoomMut.isPending}
                                             className="text-muted-foreground hover:text-destructive transition"
                                             title="Delete room"

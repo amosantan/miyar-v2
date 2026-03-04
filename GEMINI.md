@@ -192,6 +192,8 @@ Score range: 0–100 per dimension. Risk flags: `FIN_SEVERE`, `COMPLEXITY_MISMAT
 | Phase 10B | Sales Premium & Yield Predictor | ✅ Complete — committed `e06022c` |
 | **MIYAR 3.0 Phase A** | **Material Quantity Intelligence (MQI)** | ✅ Complete — committed `db74e06` |
 | **MIYAR 3.0 Phase B** | **Typology-Aware Space Program Intelligence** (fit-out vs shell & core, amenity taxonomy, DXF/DWG parsing) | ✅ Complete — committed `5ccc1ed` |
+| **Post-Phase-B Bug Fixes** | Gemini union type schema fix + Reset Defaults duplicate room fix | ✅ Fixed — committed `55c65ea` |
+| **Post-Phase-B Gap Fixes** | Mixed-use room template + mixed-use block builder UI | ✅ Fixed — committed `b327204` |
 
 ---
 

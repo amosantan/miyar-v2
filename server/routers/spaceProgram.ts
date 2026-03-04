@@ -18,6 +18,18 @@ const ROOM_CATEGORIES = [
     "utility", "amenity", "parking", "retail", "back_of_house", "other",
 ] as const;
 
+/**
+ * After any mutation that changes rooms, sync totalFitoutArea on the project.
+ * This keeps the scoring engine, ROI bridge, and AI Advisor in sync with Phase B.
+ */
+async function writeFitOutArea(projectId: number, orgId: number) {
+    const rooms = await db.getSpaceProgramRooms(projectId, orgId);
+    const fitOutSqm = rooms
+        .filter((r: any) => r.isFitOut)
+        .reduce((sum: number, r: any) => sum + Number(r.sqm), 0);
+    await db.updateProjectVerification(projectId, { totalFitoutArea: fitOutSqm });
+}
+
 export const spaceProgramRouter = router({
     /**
      * generate — Create space program from typology + GFA
@@ -79,6 +91,9 @@ export const spaceProgramRouter = router({
                     }
                 }
             }
+
+            // Sync totalFitoutArea on project for scoring engine + AI Advisor
+            await writeFitOutArea(input.projectId, orgId);
 
             return {
                 roomCount: result.rooms.length,
@@ -165,6 +180,9 @@ export const spaceProgramRouter = router({
                     }
                 }
             }
+
+            // Sync totalFitoutArea on project for scoring engine + AI Advisor
+            await writeFitOutArea(input.projectId, orgId);
 
             return {
                 roomCount: result.rooms.length,
@@ -271,9 +289,12 @@ export const spaceProgramRouter = router({
             z.object({
                 roomId: z.number(),
                 isFitOut: z.boolean(),
+                projectId: z.number(),
             })
         )
-        .mutation(async ({ input }) => {
+        .mutation(async ({ input, ctx }) => {
+            const orgId = (ctx as any).orgId;
+            if (!orgId) throw new Error("Organization context required");
             await db.updateSpaceProgramRoom(input.roomId, {
                 isFitOut: input.isFitOut,
                 fitOutOverridden: true,
@@ -281,6 +302,8 @@ export const spaceProgramRouter = router({
                     ? "Manually included in fit-out scope by developer"
                     : "Manually excluded from fit-out scope by developer",
             });
+            // Sync totalFitoutArea so scoring engine reflects the toggle
+            await writeFitOutArea(input.projectId, orgId);
             return { success: true };
         }),
 
@@ -334,6 +357,8 @@ export const spaceProgramRouter = router({
                 },
             ]);
 
+            // Sync totalFitoutArea
+            await writeFitOutArea(input.projectId, orgId);
             return { success: true, roomCode };
         }),
 
@@ -341,9 +366,13 @@ export const spaceProgramRouter = router({
      * deleteRoom — Remove a room from the space program
      */
     deleteRoom: orgProcedure
-        .input(z.object({ roomId: z.number() }))
-        .mutation(async ({ input }) => {
+        .input(z.object({ roomId: z.number(), projectId: z.number() }))
+        .mutation(async ({ input, ctx }) => {
+            const orgId = (ctx as any).orgId;
+            if (!orgId) throw new Error("Organization context required");
             await db.deleteSpaceProgramRoom(input.roomId);
+            // Sync totalFitoutArea after deletion
+            await writeFitOutArea(input.projectId, orgId);
             return { success: true };
         }),
 
@@ -399,6 +428,9 @@ export const spaceProgramRouter = router({
                     }
                 }
             }
+
+            // Sync totalFitoutArea for scoring engine
+            await writeFitOutArea(input.projectId, orgId);
 
             return {
                 roomCount: result.rooms.length,

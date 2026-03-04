@@ -41,6 +41,8 @@ It is NOT a property investment tool. It conforms to the developer, not the othe
 | **Phase 10B** | **Sales Premium & Yield Predictor Engine** (value-add engine, yield sliders, brand equity) | ✅ DONE — committed `e06022c` |
 | **MIYAR 3.0 Phase A** | **Material Quantity Intelligence (MQI)** — surface-area allocation, AI material splits, bottom-up costing, supplier price scraping, material-accurate renders | ✅ DONE — committed `db74e06` |
 | **MIYAR 3.0 Phase B** | **Typology-Aware Space Program Intelligence** — fit-out vs shell & core per typology, amenity sub-space taxonomy, DXF/DWG floor plan parsing, mixed-use block support | ✅ DONE — committed `5ccc1ed` |
+| **Post-Phase-B Bug Fixes** | (1) Gemini union type error in `material-quantity-engine.ts` — `["number","null"]` → `"number"`. (2) Reset Defaults duplicate rooms in `spaceProgram.ts` — filter overridden roomCodes before inserting defaults | ✅ DONE — committed `55c65ea` |
+| **Post-Phase-B Gap Fixes** | (3) Missing mixed-use room template in `typology-fitout-rules.ts` — 8-room template added. (4) No block builder UI for mixed-use in `SpaceProgramEditor.tsx` — Building Blocks form added (3 default blocks, GFA% → sqm) | ✅ DONE — committed `b327204` |
 
 ## Phase 10A — What to Build
 *Goal: Replace rigid form-first project creation with a flexible multimodal intake. Developer uploads images, voice, PDFs, supplier URLs — MIYAR auto-fills the existing ProjectInputs form. Form stays as source of truth, scoring engine unchanged.*

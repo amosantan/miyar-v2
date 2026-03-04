@@ -40,10 +40,23 @@ export async function generateDesignRecommendations(
     materialLibrary: any[],
     recentEvidence: any[] = [],
     designTrends: any[] = [],
+    storedRooms?: Room[],  // Phase B: pre-built from space_program_rooms (fit-out only)
 ): Promise<SpaceRecommendation[]> {
-    const spaceProgram = buildSpaceProgram(project);
-    const rooms = spaceProgram.rooms;
-    let totalBudget = spaceProgram.totalFitoutBudgetAed;
+    // Phase B: use stored space program rooms when available; fall back to template
+    let rooms: Room[];
+    let totalBudget: number;
+    if (storedRooms && storedRooms.length > 0) {
+        rooms = storedRooms;
+        const fitOutSqm = rooms.reduce((sum, r) => sum + r.sqm, 0);
+        const budgetCap = Number(project.fin01BudgetCap || 0);
+        const SQFT_TO_SQM = 10.764;
+        const FINISH_BUDGET_RATIO = 0.35;
+        totalBudget = fitOutSqm * budgetCap * SQFT_TO_SQM * FINISH_BUDGET_RATIO;
+    } else {
+        const spaceProgram = buildSpaceProgram(project);
+        rooms = spaceProgram.rooms;
+        totalBudget = spaceProgram.totalFitoutBudgetAed;
+    }
 
     // Phase B.6: Override total budget with DLD area-specific fitout recommendation
     if (project.dldAreaId) {

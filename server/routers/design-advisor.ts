@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, orgProcedure } from "../_core/trpc";
 import * as db from "../db";
 import { generateDesignRecommendations, generateAIDesignBrief } from "../engines/design/ai-design-advisor";
-import { buildSpaceProgram } from "../engines/design/space-program";
+import { buildSpaceProgram, type Room } from "../engines/design/space-program";
 import { getPricingArea } from "../engines/area-utils";
 import {
     generateSpaceVisual,
@@ -42,6 +42,38 @@ function projectToInputs(p: any) {
         add03DashboardExport: !!p.add03DashboardExport,
         city: p.city || "Dubai",
         sustainCertTarget: p.sustainCertTarget || "silver",
+    };
+}
+
+/**
+ * Phase B: Convert stored space_program_rooms into the legacy SpaceProgram format
+ * so AI Advisor and other engines that consume SpaceProgram keep working unchanged.
+ * Only fit-out rooms are included — shell & core rooms have no finish cost.
+ */
+function buildSpaceProgramFromStoredRooms(project: any, storedRooms: any[]) {
+    const fitOutRooms = storedRooms.filter((r: any) => r.isFitOut);
+    const fitOutSqm = fitOutRooms.reduce((sum: number, r: any) => sum + Number(r.sqm), 0);
+
+    // Budget based on fit-out area only (not full GFA)
+    const budgetCap = Number(project.fin01BudgetCap || 0);
+    const SQFT_TO_SQM = 10.764;
+    const FINISH_BUDGET_RATIO = 0.35;
+    const totalFitoutBudgetAed = fitOutSqm * budgetCap * SQFT_TO_SQM * FINISH_BUDGET_RATIO;
+
+    const rooms: Room[] = fitOutRooms.map((r: any) => ({
+        id: r.roomCode,
+        name: r.roomName,
+        sqm: Number(r.sqm),
+        budgetPct: r.budgetPct ? Number(r.budgetPct) : (fitOutRooms.length > 0 ? 1 / fitOutRooms.length : 0.1),
+        priority: (r.priority || "medium") as "high" | "medium" | "low",
+        finishGrade: (r.finishGrade || "B") as "A" | "B" | "C",
+    }));
+
+    return {
+        totalFitoutBudgetAed,
+        rooms,
+        totalAllocatedSqm: fitOutSqm,
+        source: "stored" as any,
     };
 }
 
@@ -101,9 +133,27 @@ export const designAdvisorRouter = router({
                 ? designTrends
                 : await db.getDesignTrends({ region: "UAE", limit: 20 });
 
+            // Phase B: read stored fit-out rooms to drive recommendations
+            const storedRooms = await db.getSpaceProgramRooms(input.projectId, ctx.orgId);
+            const fitOutStoredRooms: Room[] | undefined = storedRooms.length > 0
+                ? storedRooms
+                    .filter((r: any) => r.isFitOut)
+                    .map((r: any) => ({
+                        id: r.roomCode,
+                        name: r.roomName,
+                        sqm: Number(r.sqm),
+                        budgetPct: r.budgetPct ? Number(r.budgetPct) : 0.1,
+                        priority: (r.priority || "medium") as "high" | "medium" | "low",
+                        finishGrade: (r.finishGrade || "B") as "A" | "B" | "C",
+                    }))
+                : undefined;
+
             const recommendations = await generateDesignRecommendations(
-                project, inputs, materials, recentEvidence, trends,
+                project, inputs, materials, recentEvidence, trends, fitOutStoredRooms,
             );
+
+            // Clear previous recommendations before inserting fresh ones (prevents duplicates)
+            await db.clearSpaceRecommendations(input.projectId, ctx.orgId);
 
             for (const rec of recommendations) {
                 await db.createSpaceRecommendation({
@@ -146,6 +196,12 @@ export const designAdvisorRouter = router({
         .query(async ({ ctx, input }) => {
             const project = await db.getProjectById(input.projectId);
             if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+
+            // Phase B: use stored space program if available; fall back to legacy template
+            const storedRooms = await db.getSpaceProgramRooms(input.projectId, ctx.orgId);
+            if (storedRooms.length > 0) {
+                return buildSpaceProgramFromStoredRooms(project, storedRooms);
+            }
             return buildSpaceProgram(project);
         }),
 

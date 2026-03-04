@@ -2142,6 +2142,16 @@ export async function createSpaceRecommendation(data: typeof spaceRecommendation
   await db.insert(spaceRecommendations).values(data);
 }
 
+export async function clearSpaceRecommendations(projectId: number, orgId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(spaceRecommendations)
+    .where(and(
+      eq(spaceRecommendations.projectId, projectId),
+      eq(spaceRecommendations.orgId, orgId)
+    ));
+}
+
 export async function getSpaceRecommendations(projectId: number, orgId: number) {
   const db = await getDb();
   if (!db) return [];
