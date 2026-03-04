@@ -70,13 +70,26 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
   .cover .logo { font-size: 36px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 32px; }
   .cover .confidential { font-size: 10px; color: #999; margin-top: 40px; text-transform: uppercase; letter-spacing: 2px; }
   .cover .watermark { font-size: 8px; color: #ccc; margin-top: 8px; font-family: monospace; }
-  h2 { font-size: 16px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 6px; margin: 24px 0 12px; }
+  h2 { font-size: 16px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 6px; margin: 40px 0 14px; }
   h3 { font-size: 13px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 12px; color: #0f3460; margin: 14px 0 6px; }
   p { margin-bottom: 8px; }
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
-  th { background: #0f3460; color: #fff; padding: 8px 10px; text-align: left; font-weight: 600; }
-  td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; }
+  th { background: #0f3460; color: #fff; padding: 10px 16px; text-align: left; font-weight: 600; }
+  td { padding: 10px 16px; border-bottom: 1px solid #e0e0e0; }
   tr:nth-child(even) td { background: #f8f9fa; }
+  .content-wrapper { max-width: 900px; margin: 0 auto; padding: 0 48px; }
+  .brief-list { list-style: disc; padding-left: 24px; margin: 8px 0; }
+  .brief-list li { margin-bottom: 4px; font-size: 10px; line-height: 1.5; }
+  .color-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .color-chip { background: #f4f4f0; border: 1px solid #ddd; border-radius: 20px; padding: 4px 14px; font-size: 11px; color: #333; }
+  .boq-bar { height: 8px; border-radius: 4px; background: #4ecdc4; min-width: 4px; }
+  .boq-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .phase-header { font-size: 12px; font-weight: 700; color: #0f3460; margin: 14px 0 6px; border-left: 3px solid #4ecdc4; padding-left: 10px; }
+  .toc { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px 24px; margin: 24px 0 32px; }
+  .toc-title { font-size: 13px; font-weight: 700; color: #0f3460; margin-bottom: 10px; }
+  .toc a { color: #0f3460; text-decoration: none; font-size: 11px; display: block; padding: 3px 0; }
+  .toc a:hover { color: #4ecdc4; }
   .score-box { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: 700; font-size: 14px; }
   .status-badge { display: inline-block; padding: 6px 16px; border-radius: 4px; font-weight: 700; font-size: 12px; color: #fff; letter-spacing: 1px; }
   .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0; }
@@ -97,7 +110,7 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
   .roi-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
   .evidence-trace { background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px 12px; margin: 8px 0; font-size: 9px; font-family: monospace; color: #666; }
   .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
-  .section { page-break-inside: avoid; margin-bottom: 20px; }
+  .section { page-break-inside: avoid; margin-bottom: 28px; }
   .repro-meta { background: #f0f4f8; border: 1px solid #d0d7de; border-radius: 6px; padding: 10px 14px; margin: 16px auto; max-width: 400px; font-size: 9px; color: #444; text-align: left; }
   .repro-meta .label { font-weight: 600; color: #0f3460; display: inline-block; min-width: 120px; }
   .citation-ref { font-size: 8px; color: #0f3460; vertical-align: super; font-weight: 600; cursor: help; }
@@ -124,12 +137,7 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
 }
 
 function renderEvidenceReferences(refs?: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }>): string {
-  if (!refs || refs.length === 0) return `
-<div class="section">
-  <h2>Evidence References</h2>
-  <p style="font-size:10px; color:#666;">No evidence records linked to this project at the time of report generation.</p>
-</div>
-`;
+  if (!refs || refs.length === 0) return "";
   const rows = refs.map((r, i) => {
     const gradeColor = r.reliabilityGrade === 'A' ? '#2e7d32' : r.reliabilityGrade === 'B' ? '#f57c00' : '#c62828';
     return `<tr>
@@ -690,7 +698,7 @@ function parseMarkdownToHTML(markdown: string): string {
   }
   if (inList) parsedLines.push('</ul>');
 
-  return `<div class="section markdown-body">${parsedLines.join('\\n')}</div>`;
+  return `<div class="section markdown-body">${parsedLines.join("")}</div>`;
 }
 
 export function generateAutonomousBriefHTML(data: PDFReportInput): string {
@@ -701,7 +709,7 @@ export function generateAutonomousBriefHTML(data: PDFReportInput): string {
     contentHtml,
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
     htmlFooter(data.projectId, "autonomous_design_brief", watermark, data.benchmarkVersion, data.logicVersion),
-  ].join("\\n");
+  ].join("");
 }
 
 export function generateValidationSummaryHTML(data: PDFReportInput): string {
@@ -730,31 +738,59 @@ function renderDesignBrief(brief: any): string {
   const budget = brief.detailedBudget || {};
   const instructions = brief.designerInstructions || { phasedDeliverables: {} };
 
-  const boqRows = (boq.coreAllocations || []).map((b: any) => `
+  // Color palette chips
+  const colorChips = (narrative.colorPalette || []).map((c: string) =>
+    `<span class="color-chip">${c}</span>`
+  ).join("");
+
+  // BOQ rows with visual percentage bars
+  const boqRows = (boq.coreAllocations || []).map((b: any) => {
+    const pct = b.percentage || 0;
+    return `
     <tr>
       <td>${b.category || "—"}</td>
-      <td style="text-align:center;">${b.percentage || 0}%</td>
+      <td>
+        <div class="boq-bar-wrap">
+          <div class="boq-bar" style="width:${pct}%;"></div>
+          <span>${pct}%</span>
+        </div>
+      </td>
       <td style="text-align:right;">${b.estimatedCostLabel || "—"}</td>
       <td><span style="font-size: 10px; color: #666;">${b.notes || "—"}</span></td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
+
+  // Table of Contents
+  const toc = `
+  <div class="toc">
+    <div class="toc-title">Table of Contents</div>
+    <a href="#sec-narrative">1. Design Narrative & Positioning</a>
+    <a href="#sec-materials">2. Material Specifications</a>
+    <a href="#sec-boq">3. Target BOQ Framework</a>
+    <a href="#sec-budget">4. Detailed Budget Guardrails</a>
+    <a href="#sec-workflow">5. Workflow & Execution Instructions</a>
+    <a href="#sec-deliverables">6. Phased Deliverables</a>
+  </div>`;
 
   return `
+${toc}
+
 <div class="section">
-  <h2>Design Narrative & Positioning</h2>
+  <h2 id="sec-narrative">Design Narrative &amp; Positioning</h2>
   <p>${narrative.positioningStatement || "—"}</p>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
     <tr><td style="font-weight:bold;">Primary Style</td><td>${narrative.primaryStyle || "—"}</td></tr>
     <tr><td style="font-weight:bold;">Mood Keywords</td><td>${(narrative.moodKeywords || []).join(", ") || "—"}</td></tr>
-    <tr><td style="font-weight:bold;">Color Palette</td><td>${(narrative.colorPalette || []).join(", ") || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Color Palette</td><td><div class="color-chips">${colorChips || "—"}</div></td></tr>
     <tr><td style="font-weight:bold;">Texture Direction</td><td>${narrative.textureDirection || "—"}</td></tr>
     <tr><td style="font-weight:bold;">Lighting Approach</td><td>${narrative.lightingApproach || "—"}</td></tr>
   </table>
 </div>
 
 <div class="section">
-  <h2>Material Specifications</h2>
+  <h2 id="sec-materials">Material Specifications</h2>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
     <tr><td style="font-weight:bold;">Tier Requirement</td><td>${materials.tierRequirement || "—"}</td></tr>
@@ -763,31 +799,31 @@ function renderDesignBrief(brief: any): string {
   </table>
   
   <h3>Approved Materials (Primary)</h3>
-  <ul>${(materials.approvedMaterials || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.approvedMaterials || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
   
-  <h3>Approved Finishes & Textures</h3>
-  <ul>${(materials.finishesAndTextures || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <h3>Approved Finishes &amp; Textures</h3>
+  <ul class="brief-list">${(materials.finishesAndTextures || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
   
   <h3 style="color: #c62828;">Prohibited Materials (Value Engineering Flags)</h3>
-  <ul>${(materials.prohibitedMaterials || []).map((m: string) => `<li><span style="color: #c62828;">${m}</span></li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.prohibitedMaterials || []).map((m: string) => `<li><span style="color: #c62828;">${m}</span></li>`).join("")}</ul>
 </div>
 
 <div class="section">
-  <h2>Target BOQ Framework</h2>
+  <h2 id="sec-boq">Target BOQ Framework</h2>
   ${boq.totalEstimatedSqm ? `<p><strong>Total Estimated Project Area:</strong> ${boq.totalEstimatedSqm.toLocaleString()} Sqm</p>` : ""}
   <table>
     <tr>
       <th width="35%">Category</th>
-      <th width="15%" style="text-align:center;">Allocation</th>
+      <th width="20%">Allocation</th>
       <th width="20%" style="text-align:right;">Estimated Budget</th>
-      <th width="30%">Notes</th>
+      <th width="25%">Notes</th>
     </tr>
     ${boqRows || "<tr><td colspan='4'>No allocations available.</td></tr>"}
   </table>
 </div>
 
 <div class="section">
-  <h2>Detailed Budget Guardrails</h2>
+  <h2 id="sec-budget">Detailed Budget Guardrails</h2>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
     <tr><td style="font-weight:bold;">Cost Per Sqm Target</td><td>${budget.costPerSqmTarget || "—"}</td></tr>
@@ -798,35 +834,33 @@ function renderDesignBrief(brief: any): string {
   </table>
   
   <h3>Value Engineering Directives</h3>
-  <ul>${(budget.valueEngineeringMandates || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(budget.valueEngineeringMandates || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
 </div>
 
 <div class="section">
-  <h2>Workflow & Execution Instructions</h2>
+  <h2 id="sec-workflow">Workflow &amp; Execution Instructions</h2>
   <p><strong>Lead Time Window:</strong> ${(instructions.procurementAndLogistics || {}).leadTimeWindow || "—"}</p>
   
   <h3>Critical Path Procurement Items</h3>
-  <ul>${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
   
   <h3>Local Authority Approvals (Dubai)</h3>
-  <ul>${(instructions.authorityApprovals || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.authorityApprovals || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
   
   <h3>Contractor Coordination Requirements</h3>
-  <ul>${(instructions.coordinationRequirements || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
-  
-  <h3>Phased Deliverables</h3>
-  <div class="info-box">
-    <strong>Phase 1 — Concept & Schematic:</strong>
-    <ul>${(instructions.phasedDeliverables.conceptDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
-  </div>
-  <div class="info-box">
-    <strong>Phase 2 — Detailed Design:</strong>
-    <ul>${(instructions.phasedDeliverables.schematicDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
-  </div>
-  <div class="info-box">
-    <strong>Phase 3 — IFC & Tender:</strong>
-    <ul>${(instructions.phasedDeliverables.detailedDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
-  </div>
+  <ul class="brief-list">${(instructions.coordinationRequirements || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+</div>
+
+<div class="section">
+  <h2 id="sec-deliverables">Phased Deliverables</h2>
+  <h4 class="phase-header">Phase 1 — Concept &amp; Schematic</h4>
+  <ul class="brief-list">${(instructions.phasedDeliverables.conceptDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+
+  <h4 class="phase-header">Phase 2 — Detailed Design</h4>
+  <ul class="brief-list">${(instructions.phasedDeliverables.schematicDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+
+  <h4 class="phase-header">Phase 3 — IFC &amp; Tender</h4>
+  <ul class="brief-list">${(instructions.phasedDeliverables.detailedDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
 </div>
 `;
 }
@@ -835,11 +869,13 @@ export function generateDesignBriefHTML(data: PDFReportInput): string {
   const watermark = generateWatermark(data.projectId, "design_brief");
   return [
     htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, watermark),
+    `<div class="content-wrapper">`,
     renderDesignBrief(data.designBrief),
     renderEvidenceReferences(data.evidenceRefs),
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
+    `</div>`,
     htmlFooter(data.projectId, "design_brief", watermark, data.benchmarkVersion, data.logicVersion),
-  ].join("\\n");
+  ].join("");
 }
 
 export function generateFullReportHTML(data: PDFReportInput): string {
