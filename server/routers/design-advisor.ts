@@ -4,6 +4,7 @@ import * as db from "../db";
 import { generateDesignRecommendations, generateAIDesignBrief } from "../engines/design/ai-design-advisor";
 import { buildSpaceProgram, type Room } from "../engines/design/space-program";
 import { getPricingArea } from "../engines/area-utils";
+import { buildMaterialAllocationPromptClause, type MqiAllocation } from "../engines/visual-gen";
 import {
     generateSpaceVisual,
     generateHeroVisual,
@@ -291,6 +292,39 @@ export const designAdvisorRouter = router({
 
             const spaceRec = mapRecToSpace(rec);
             const projectCtx = buildProjectContext(project);
+
+            // Inject MQI material allocations into the render prompt so
+            // renders show actual specified materials (e.g. carpet tiles for OPN)
+            try {
+                const allocations = await db.getMaterialAllocations(input.projectId, ctx.orgId);
+                if (allocations && allocations.length > 0) {
+                    // Filter to target room for room-specific renders
+                    const roomAllocs: MqiAllocation[] = allocations
+                        .filter((a: any) => a.roomId === input.roomId)
+                        .map((a: any) => ({
+                            roomId: a.roomId,
+                            roomName: a.roomName,
+                            element: a.element,
+                            materialName: a.materialName,
+                            percentage: Number(a.percentage) || 100,
+                        }));
+                    // Fall back to all allocations for project-wide visuals
+                    const targetAllocs = roomAllocs.length > 0 ? roomAllocs : allocations.map((a: any) => ({
+                        roomId: a.roomId,
+                        roomName: a.roomName,
+                        element: a.element,
+                        materialName: a.materialName,
+                        percentage: Number(a.percentage) || 100,
+                    }));
+                    const clause = buildMaterialAllocationPromptClause(targetAllocs);
+                    if (clause) {
+                        (projectCtx as any).allocationClause = clause;
+                    }
+                }
+            } catch (e) {
+                console.warn('[DesignAdvisor] MQI allocation fetch failed, continuing without:', e);
+            }
+
             const result = await generateSpaceVisual(projectCtx, spaceRec as any, input.type as VisualType);
 
             await db.createGeneratedVisual({
