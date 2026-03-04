@@ -8,6 +8,7 @@ import type { ProjectInputs } from "../../shared/miyar-types";
 import type { CategoryPricing } from "./pricing-engine";
 import { getPricingArea } from "./area-utils";
 import type { SpaceBenchmarkResult } from "./design/space-benchmarking";
+import type { MaterialQuantityResult } from "./design/material-quantity-engine";
 
 export interface PricingAnalytics {
   /** Weighted average AED/m² across all specified material types */
@@ -114,6 +115,20 @@ export interface DesignBriefData {
     circulationPct: number;
     rooms: { name: string; type: string; areaSqm: number; pctOfTotal: number; finishGrade: string }[];
     recommendations: { roomType: string; currentPct: number; benchmarkPct: number; severity: string; advice: string }[];
+  };
+  /** Phase C: MQI cost summary — bottom-up finish costs from material allocations */
+  mqiSummary?: {
+    totalFinishCostMin: number;
+    totalFinishCostMax: number;
+    totalFinishCostMid: number;
+    budgetCapAed: number | null;
+    budgetUtilizationPct: number | null;
+    isOverBudget: boolean;
+    overBudgetByAed: number;
+    qualityLabel: string;
+    roomBreakdown: { roomId: string; roomName: string; roomCostMin: number; roomCostMax: number }[];
+    topMaterials: { materialName: string; totalAreaM2: number; totalCostMin: number; totalCostMax: number; pctOfTotalSurface: number }[];
+    generatedAt: string;
   };
 }
 
@@ -237,6 +252,8 @@ export function generateDesignBrief(
   floorPlanAnalysis?: any,
   /** Phase 9: Space benchmark result */
   spaceBenchmark?: SpaceBenchmarkResult,
+  /** Phase C: MQI cost summary from buildQuantityCostSummary() */
+  mqiData?: MaterialQuantityResult,
 ): DesignBriefData {
   const style = inputs.des01Style || "Modern";
   const tier = inputs.mkt01Tier || "Upper-mid";
@@ -593,6 +610,27 @@ export function generateDesignBrief(
           severity: rec.severity,
           advice: rec.action || `Adjust ${rec.roomName} from ${rec.currentPercent.toFixed(1)}% to ${rec.benchmarkPercent.toFixed(1)}%`,
         })),
+      },
+    } : {}),
+    // Phase C: MQI cost summary
+    ...(mqiData ? {
+      mqiSummary: {
+        totalFinishCostMin: mqiData.summary.totalFinishCostMin,
+        totalFinishCostMax: mqiData.summary.totalFinishCostMax,
+        totalFinishCostMid: mqiData.summary.totalFinishCostMid,
+        budgetCapAed: mqiData.summary.budgetCapAed,
+        budgetUtilizationPct: mqiData.summary.budgetUtilizationPct,
+        isOverBudget: mqiData.summary.isOverBudget,
+        overBudgetByAed: mqiData.summary.overBudgetByAed,
+        qualityLabel: mqiData.summary.qualityLabel,
+        roomBreakdown: mqiData.rooms.map(r => ({
+          roomId: r.roomId,
+          roomName: r.roomName,
+          roomCostMin: r.roomCostMin,
+          roomCostMax: r.roomCostMax,
+        })),
+        topMaterials: mqiData.summary.materialBreakdown.slice(0, 5),
+        generatedAt: mqiData.generatedAt,
       },
     } : {}),
   };

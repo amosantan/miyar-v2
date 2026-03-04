@@ -20,6 +20,8 @@ import { matchVendorsForProject } from "../engines/procurement/vendor-matching";
 import { generateImage } from "../_core/imageGeneration";
 import type { ProjectInputs } from "../../shared/miyar-types";
 import { generateDesignBriefDocx } from "../engines/docx-brief";
+import { calculateSurfaceAreas, buildQuantityCostSummary, type AllocationSlice, type AllocationResult as MqiAllocationResult } from "../engines/design/material-quantity-engine";
+import { buildSpaceProgram } from "../engines/design/space-program";
 import { nanoid } from "nanoid";
 
 function projectToInputs(p: any): ProjectInputs {
@@ -215,6 +217,71 @@ export const designRouter = router({
         }
       }
 
+      // Phase C: Fetch MQI cost data for brief enrichment
+      let mqiCostResult: import("../engines/design/material-quantity-engine").MaterialQuantityResult | undefined;
+      try {
+        const allocations = await db.getMaterialAllocations(input.projectId, ctx.user.orgId ?? 0);
+        if (allocations.length > 0) {
+          // Rebuild space program rooms for surface area calculation
+          const storedRooms = await db.getSpaceProgramRooms(input.projectId, ctx.user.orgId ?? 0);
+          let rooms;
+          if (storedRooms.length > 0) {
+            rooms = storedRooms
+              .filter((r: any) => r.isFitOut)
+              .map((r: any) => ({
+                id: r.roomCode as string,
+                name: r.roomName as string,
+                sqm: Number(r.sqm),
+                budgetPct: Number(r.budgetPct) || 0,
+                priority: (r.priority || "medium") as "high" | "medium" | "low",
+                finishGrade: (r.finishGrade || "B") as "A" | "B" | "C",
+              }));
+          } else {
+            const spaceProgram = buildSpaceProgram(project);
+            rooms = spaceProgram.rooms;
+          }
+
+          const surfaces = calculateSurfaceAreas(rooms);
+
+          // Reconstruct AllocationResult from stored DB allocations
+          const roomAllocMap = new Map<string, { roomId: string; floor: AllocationSlice[]; walls: AllocationSlice[]; ceiling: AllocationSlice[]; joinery: AllocationSlice[] }>();
+          for (const alloc of allocations) {
+            if (!roomAllocMap.has(alloc.roomId)) {
+              roomAllocMap.set(alloc.roomId, { roomId: alloc.roomId, floor: [], walls: [], ceiling: [], joinery: [] });
+            }
+            const room = roomAllocMap.get(alloc.roomId)!;
+            const slice: AllocationSlice = {
+              materialLibraryId: alloc.materialLibraryId,
+              materialName: alloc.materialName,
+              percentage: Number(alloc.allocationPct),
+              reasoning: alloc.aiReasoning || "",
+            };
+            const el = alloc.element as "floor" | "walls" | "ceiling" | "joinery";
+            if (room[el]) room[el].push(slice);
+          }
+
+          const allocationResult: MqiAllocationResult = {
+            rooms: Array.from(roomAllocMap.values()),
+            designRationale: "Reconstructed from stored allocations",
+            estimatedQualityLabel: "Stored",
+          };
+
+          const materialLibrary = await db.getMaterialLibrary();
+          mqiCostResult = buildQuantityCostSummary(
+            surfaces,
+            allocationResult,
+            materialLibrary as any,
+            {
+              fin01BudgetCap: project.fin01BudgetCap ? Number(project.fin01BudgetCap) : null,
+              ctx03Gfa: project.ctx03Gfa ? Number(project.ctx03Gfa) : null,
+            }
+          );
+          console.log(`[GenerateBrief] MQI data enrichment: ${mqiCostResult.rooms.length} rooms, mid cost AED ${mqiCostResult.summary.totalFinishCostMid.toFixed(0)}`);
+        }
+      } catch (e) {
+        console.warn("[GenerateBrief] MQI data fetch failed, continuing without:", e);
+      }
+
       const briefData = generateDesignBrief(
         { name: project.name, description: project.description },
         inputs,
@@ -225,6 +292,7 @@ export const designRouter = router({
         project.projectPurpose as any, // Purpose adjusts material tier
         floorPlanAnalysis,       // Phase 9: floor plan data
         spaceBenchmarkResult,    // Phase 9: space benchmark result
+        mqiCostResult,           // Phase C: MQI cost summary
       );
 
       // Get latest version number
@@ -238,8 +306,8 @@ export const designRouter = router({
         projectIdentity: briefData.projectIdentity,
         designNarrative: briefData.designNarrative,
         materialSpecifications: briefData.materialSpecifications,
-        boqFramework: briefData.boqFramework,
-        detailedBudget: briefData.detailedBudget,
+        boqFramework: { ...briefData.boqFramework, pricingAnalytics: briefData.pricingAnalytics },
+        detailedBudget: { ...briefData.detailedBudget, mqiSummary: briefData.mqiSummary, spaceAllocation: briefData.spaceAllocation },
         designerInstructions: briefData.designerInstructions,
         createdBy: ctx.user.id,
       });

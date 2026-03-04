@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Palette, Package, DollarSign, Truck, CheckSquare, RefreshCw, History, ChevronRight, Download, LayoutGrid } from "lucide-react";
+import { FileText, Palette, Package, DollarSign, Truck, CheckSquare, RefreshCw, History, ChevronRight, Download, LayoutGrid, Layers } from "lucide-react";
 import { toast } from "sonner";
 
 export default function DesignBrief() {
@@ -43,7 +43,9 @@ export default function DesignBrief() {
   const procurement = brief?.procurementConstraints as any;
   const deliverables = brief?.deliverablesChecklist as any;
   const briefFullData = brief?.briefData as any;
-  const spaceAllocation = briefFullData?.spaceAllocation as any;
+  const detailedBudgetData = brief?.detailedBudget as any;
+  const spaceAllocation = briefFullData?.spaceAllocation ?? detailedBudgetData?.spaceAllocation;
+  const mqiSummary = briefFullData?.mqiSummary ?? detailedBudgetData?.mqiSummary;
 
   return (
     <div className="space-y-6">
@@ -88,7 +90,7 @@ export default function DesignBrief() {
         </Card>
       ) : (
         <Tabs defaultValue="identity" className="space-y-4">
-          <TabsList className="grid grid-cols-7 w-full">
+          <TabsList className="flex w-full overflow-x-auto">
             <TabsTrigger value="identity">Identity</TabsTrigger>
             <TabsTrigger value="style">Style & Mood</TabsTrigger>
             <TabsTrigger value="materials">Materials</TabsTrigger>
@@ -323,6 +325,97 @@ export default function DesignBrief() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Phase C: MQI Cost Intelligence (if available) */}
+            {mqiSummary && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Layers className="h-5 w-5" /> MQI Cost Intelligence</CardTitle>
+                  <CardDescription>Bottom-up finish costs from material quantity allocations</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Finish Cost (Min)</p>
+                      <p className="font-medium">AED {Math.round(mqiSummary.totalFinishCostMin).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Finish Cost (Mid)</p>
+                      <p className="font-medium text-lg">AED {Math.round(mqiSummary.totalFinishCostMid).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Finish Cost (Max)</p>
+                      <p className="font-medium">AED {Math.round(mqiSummary.totalFinishCostMax).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Quality Label</p>
+                      <Badge variant="secondary">{mqiSummary.qualityLabel}</Badge>
+                    </div>
+                  </div>
+                  {mqiSummary.budgetUtilizationPct != null && (
+                    <>
+                      <Separator />
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-medium">Budget Utilization</p>
+                          <span className={`text-sm font-medium ${mqiSummary.isOverBudget ? 'text-red-400' : 'text-green-400'}`}>
+                            {mqiSummary.budgetUtilizationPct.toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="h-3 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${mqiSummary.isOverBudget ? 'bg-red-500' : 'bg-green-500'}`}
+                            style={{ width: `${Math.min(100, mqiSummary.budgetUtilizationPct)}%` }}
+                          />
+                        </div>
+                        {mqiSummary.isOverBudget && (
+                          <p className="text-xs text-red-400 mt-1">Over budget by AED {Math.round(mqiSummary.overBudgetByAed).toLocaleString()}</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  {mqiSummary.roomBreakdown?.length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium mb-2">Room Cost Breakdown</p>
+                        {mqiSummary.roomBreakdown.map((room: any, i: number) => (
+                          <div key={i} className="flex items-center gap-3 text-sm">
+                            <span className="w-32 text-muted-foreground truncate">{room.roomName}</span>
+                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary/60 rounded-full"
+                                style={{ width: `${Math.min(100, ((room.roomCostMax || 0) / (mqiSummary.totalFinishCostMax || 1)) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground w-40 text-right">
+                              AED {Math.round(room.roomCostMin).toLocaleString()} – {Math.round(room.roomCostMax).toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {mqiSummary.topMaterials?.length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium mb-2">Top Materials by Coverage</p>
+                        {mqiSummary.topMaterials.map((mat: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">{mat.materialName}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-muted-foreground">{mat.totalAreaM2?.toFixed(0)} m²</span>
+                              <Badge variant="outline" className="text-xs">{mat.pctOfTotalSurface?.toFixed(1)}%</Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Section 5: Procurement Constraints */}
@@ -458,6 +551,12 @@ export default function DesignBrief() {
                   <div>
                     <h4 className="font-semibold mb-1">7. Space Allocation</h4>
                     <p className="text-muted-foreground">Efficiency: {spaceAllocation.efficiencyScore}/100 · {spaceAllocation.roomCount} rooms · {spaceAllocation.circulationPct?.toFixed(1)}% circulation · {spaceAllocation.recommendations?.length || 0} recommendations</p>
+                  </div>
+                )}
+                {mqiSummary && (
+                  <div>
+                    <h4 className="font-semibold mb-1">8. MQI Cost Intelligence</h4>
+                    <p className="text-muted-foreground">Finish cost: AED {Math.round(mqiSummary.totalFinishCostMin).toLocaleString()} – {Math.round(mqiSummary.totalFinishCostMax).toLocaleString()} · {mqiSummary.roomBreakdown?.length || 0} rooms · {mqiSummary.qualityLabel}{mqiSummary.budgetUtilizationPct != null ? ` · ${mqiSummary.budgetUtilizationPct.toFixed(0)}% budget utilization` : ''}</p>
                   </div>
                 )}
               </CardContent>
