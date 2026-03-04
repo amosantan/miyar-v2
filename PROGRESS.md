@@ -45,6 +45,13 @@
 - [x] DXF file with closed polylines → rooms extracted with sqm from shoelace formula
 - [x] Mixed-use project: Residential block + Office block → each has independent fit-out rules
 
+### Post-Phase-B Bug Fixes
+
+| Bug | File | Fix | Status |
+|-----|------|-----|--------|
+| Reset Defaults creates duplicate rooms when overridden rooms exist | `server/routers/spaceProgram.ts` | After reset, fetch overridden roomCodes, filter them out of regenerated defaults before insertion | ✅ Fixed |
+| MQI `generateMaterialAllocations()` fails with Gemini 500 — union type `["number", "null"]` | `server/engines/design/material-quantity-engine.ts` | Changed all 4 `materialLibraryId` schema entries to `type: "number"` (not required, Gemini omits when null) | ✅ Fixed |
+
 ---
 
 ## ✅ MIYAR 3.0 Phase A — Material Quantity Intelligence (MQI) — COMPLETE

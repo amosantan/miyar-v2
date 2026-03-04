@@ -366,6 +366,10 @@ export const spaceProgramRouter = router({
             // Reset (preserves fitOutOverridden rooms)
             await db.resetSpaceProgramRooms(input.projectId, orgId, true);
 
+            // Fetch surviving overridden rooms to avoid duplicating their room codes
+            const overriddenRooms = await db.getSpaceProgramRooms(input.projectId, orgId);
+            const overriddenCodes = new Set(overriddenRooms.map((r: any) => r.roomCode));
+
             // Regenerate defaults
             const result = await extractSpaceProgram({
                 projectId: input.projectId,
@@ -374,8 +378,10 @@ export const spaceProgramRouter = router({
                 gfa,
             });
 
-            if (result.rooms.length > 0) {
-                await db.insertSpaceProgramRooms(result.rooms as any);
+            // Filter out rooms whose roomCode is already covered by an overridden room
+            const newRooms = result.rooms.filter((r) => !overriddenCodes.has(r.roomCode));
+            if (newRooms.length > 0) {
+                await db.insertSpaceProgramRooms(newRooms as any);
             }
 
             // Insert amenity sub-spaces

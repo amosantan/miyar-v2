@@ -307,7 +307,7 @@ RULES:
                                 items: {
                                     type: "object",
                                     properties: {
-                                        materialLibraryId: { type: ["number", "null"] },
+                                        materialLibraryId: { type: "number" },
                                         materialName: { type: "string" },
                                         percentage: { type: "number" },
                                         reasoning: { type: "string" },
@@ -320,7 +320,7 @@ RULES:
                                 items: {
                                     type: "object",
                                     properties: {
-                                        materialLibraryId: { type: ["number", "null"] },
+                                        materialLibraryId: { type: "number" },
                                         materialName: { type: "string" },
                                         percentage: { type: "number" },
                                         reasoning: { type: "string" },
@@ -333,7 +333,7 @@ RULES:
                                 items: {
                                     type: "object",
                                     properties: {
-                                        materialLibraryId: { type: ["number", "null"] },
+                                        materialLibraryId: { type: "number" },
                                         materialName: { type: "string" },
                                         percentage: { type: "number" },
                                         reasoning: { type: "string" },
@@ -346,7 +346,7 @@ RULES:
                                 items: {
                                     type: "object",
                                     properties: {
-                                        materialLibraryId: { type: ["number", "null"] },
+                                        materialLibraryId: { type: "number" },
                                         materialName: { type: "string" },
                                         percentage: { type: "number" },
                                         reasoning: { type: "string" },
