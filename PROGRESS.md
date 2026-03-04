@@ -75,7 +75,7 @@ Verified via `git stash` comparison — identical results before/after Phase A:
 | GAP 3: Conversational chat panel + `chat` tRPC procedure | ✅ Done | IntakeCanvas + intake.ts |
 | GAP 4: `fieldConfidence` + `fieldReasoning` props + colored dot indicators | ✅ Done | `client/src/components/ProjectForm.tsx` |
 | GAP 5: Assets tab on ProjectDetail with grid + modal | ✅ Done | `client/src/pages/ProjectDetail.tsx` |
-| Pass `fieldConfidence`/`fieldReasoning` from `ProjectNew.tsx` → `<ProjectForm />` | ⚠️ CHECK | One unchecked item in original task.md — verify in code |
+| Pass `fieldConfidence`/`fieldReasoning` from `ProjectNew.tsx` → `<ProjectForm />` | ✅ Done | Already passed at `ProjectNew.tsx:353-354` |
 | Remove old "Switch to form" toggle button | ⚠️ Low priority | Cosmetic only |
 
 ---
