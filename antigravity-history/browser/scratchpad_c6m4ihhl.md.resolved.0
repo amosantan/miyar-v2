@@ -1,0 +1,12 @@
+# Manual Browser Test Plan: Phase 10 — Sales Premium & Yield Predictor
+
+## Steps
+1. [ ] Navigate to `http://localhost:3000`
+2. [ ] Locate a project and open it (e.g., project ID `1`)
+3. [ ] Access "Investor Summary" page
+4. [ ] Verify "Section F: Sales Premium & Yield Predictor" presence
+5. [ ] Interact with sliders and observe KPI updates
+6. [ ] Capture screenshot of the new panel
+
+## Current Status
+- Starting the test.

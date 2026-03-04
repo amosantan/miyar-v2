@@ -6,7 +6,7 @@
  *
  * Flow: Upload assets → AI extracts → review pre-filled form → create project
  */
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { ProjectForm } from "@/components/ProjectForm";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -30,10 +30,11 @@ interface UploadedAsset {
   textContent?: string;
   preview?: string; // data URL for thumbnails
   file?: File; // retain file reference for upload
+  isFetching?: boolean; // true while scraping url
 }
 
 type IntakeMode = "intake" | "form";
-type IntakePhase = "upload" | "analyzing" | "review";
+type IntakePhase = "select" | "upload" | "analyzing" | "review";
 
 // ─── Confidence Badges ───────────────────────────────────────────────────────
 
@@ -65,9 +66,16 @@ function AssetThumbnail({ asset, onRemove }: { asset: UploadedAsset; onRemove: (
           <Icon className="w-5 h-5 text-white/50" />
         </div>
       )}
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-white/80 truncate">{asset.fileName}</p>
-        <p className="text-[10px] text-white/40 uppercase">{asset.type}</p>
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div>
+          <p className="text-xs text-white/80 truncate">{asset.fileName}</p>
+          <p className="text-[10px] text-white/40 uppercase">{asset.type}</p>
+        </div>
+        {asset.type === "url" && asset.isFetching && (
+          <span className="inline-flex items-center gap-1 text-[10px] text-white/40 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded">
+            <Loader2 className="w-3 h-3 animate-spin" /> Fetching...
+          </span>
+        )}
       </div>
       <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-white/40 hover:text-red-400 transition">
         <X className="w-3.5 h-3.5" />
@@ -83,18 +91,53 @@ export default function ProjectNew() {
   const createProject = trpc.project.create.useMutation();
   const processAssets = trpc.intake.processAssets.useMutation();
   const getUploadUrl = trpc.intake.getUploadUrl.useMutation();
+  const scrapeUrl = trpc.intake.scrapeUrl.useMutation();
+  const chatProcedure = trpc.intake.chat.useMutation();
 
   // Mode: AI intake vs manual form
   const [mode, setMode] = useState<IntakeMode>("intake");
-  const [phase, setPhase] = useState<IntakePhase>("upload");
+  const [phase, setPhase] = useState<IntakePhase>("select");
+  const [quickMode, setQuickMode] = useState(false);
 
   // Assets & description
   const [assets, setAssets] = useState<UploadedAsset[]>([]);
   const [description, setDescription] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [urlInput, setUrlInput] = useState("");
-
-  // Voice recording
   const [isRecording, setIsRecording] = useState(false);
+
+  // Chat State
+  const [messages, setMessages] = useState<{ role: "user" | "assistant", content: string }[]>([
+    { role: "assistant", content: "Hi! I'm MIYAR. Could you tell me about the project's typology, location, and key requirements?" }
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // ─── Chat Logic ────────────────────────────────────────────────────────
+
+  const handleSendChat = async () => {
+    if (!chatInput.trim() || chatProcedure.isPending) return;
+    const userMessage = chatInput;
+    setChatInput("");
+
+    setMessages(prev => [...prev, { role: "user", content: userMessage }]);
+
+    try {
+      const result = await chatProcedure.mutateAsync({
+        messages: [...messages, { role: "user", content: userMessage }]
+      });
+      setMessages(prev => [...prev, { role: "assistant", content: result.text }]);
+    } catch (e: any) {
+      toast.error(`Chat error: ${e.message}`);
+    }
+  };
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
@@ -106,8 +149,6 @@ export default function ProjectNew() {
   const [showConfidence, setShowConfidence] = useState(false);
 
   // ─── File Upload ─────────────────────────────────────────────────────────
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files) return;
@@ -161,15 +202,39 @@ export default function ProjectNew() {
 
   // ─── URL Input ───────────────────────────────────────────────────────────
 
-  const handleAddUrl = () => {
+  const handleAddUrl = async () => {
     if (!urlInput.trim()) return;
-    setAssets(prev => [...prev, {
-      type: "url",
-      fileName: urlInput,
-      url: urlInput,
-      textContent: undefined,
-    }]);
+    const url = urlInput;
     setUrlInput("");
+
+    // Create an ID to track this specific asset in state
+    const assetId = Date.now();
+
+    setAssets(prev => [...prev, {
+      id: assetId,
+      type: "url",
+      fileName: url,
+      url: url,
+      textContent: undefined,
+      isFetching: true,
+    }]);
+
+    try {
+      const result = await scrapeUrl.mutateAsync({ url });
+      setAssets(prev => prev.map(a =>
+        (a.id === assetId)
+          ? { ...a, isFetching: false, textContent: result.textContent, fileName: result.title || a.fileName }
+          : a
+      ));
+    } catch (e: any) {
+      // On failure, remove the fetching badge but keep the URL as an asset
+      setAssets(prev => prev.map(a =>
+        (a.id === assetId)
+          ? { ...a, isFetching: false }
+          : a
+      ));
+      toast.error(`Could not extract text from URL: ${e.message}`);
+    }
   };
 
   // ─── Voice Recording ────────────────────────────────────────────────────
@@ -214,24 +279,37 @@ export default function ProjectNew() {
   // ─── AI Processing ──────────────────────────────────────────────────────
 
   const handleAnalyze = async () => {
-    if (assets.length === 0 && !description.trim()) {
-      toast.error("Add at least one asset or describe your project");
+    if (assets.length === 0 && !description.trim() && messages.length <= 1) {
+      toast.error("Add at least one asset, describe your project, or chat with MIYAR");
       return;
     }
 
     setPhase("analyzing");
 
     try {
+      let freeformDescription = description;
+      if (messages.length > 1) { // more than just the initial prompt
+        const userNotes = messages
+          .filter(m => m.role === "user")
+          .map(m => `- ${m.content}`)
+          .join("\n");
+        if (userNotes) {
+          freeformDescription = `Developer notes:\n${userNotes}\n\n${description}`.trim();
+        }
+      }
+
+      const assetPayload = assets.map(a => ({
+        type: a.type,
+        url: a.url,
+        mimeType: a.mimeType,
+        textContent: a.textContent,
+        fileName: a.fileName,
+        assetId: a.id,
+      }));
+
       const result = await processAssets.mutateAsync({
-        assets: assets.map(a => ({
-          type: a.type,
-          url: a.url,
-          mimeType: a.mimeType,
-          textContent: a.textContent,
-          fileName: a.fileName,
-          assetId: a.id,
-        })),
-        freeformDescription: description || undefined,
+        assets: assetPayload,
+        freeformDescription: freeformDescription || undefined,
       });
 
       setIntakeResult(result);
@@ -270,9 +348,91 @@ export default function ProjectNew() {
         onSubmit={handleSubmit}
         isPending={createProject.isPending}
         submitLabel="Create Project"
-        onCancel={() => setLocation("/projects")}
-        initialData={prefillData}
+        onCancel={() => setPhase("upload")}
+        initialData={intakeResult?.projectData}
+        fieldConfidence={intakeResult?.confidence}
+        fieldReasoning={intakeResult?.reasoning}
       />
+    );
+  }
+
+  // ─── Render: Select Phase ────────────────────────────────────────────────
+
+  if (phase === "select") {
+    return (
+      <div className="max-w-4xl mx-auto py-12 px-4 space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-serif text-white">
+            How would you like to create this project?
+          </h1>
+          <p className="text-white/50">Choose your preferred workflow</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* AI-Guided */}
+          <Card
+            className="bg-white/[0.02] border-white/10 hover:border-emerald-500/30 hover:scale-[1.02] transition cursor-pointer group"
+            onClick={() => { setMode("intake"); setPhase("upload"); setQuickMode(false); }}
+          >
+            <CardContent className="p-6 space-y-4">
+              <div className="w-12 h-12 rounded-lg bg-emerald-950/50 flex items-center justify-center border border-emerald-800/30">
+                <Sparkles className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition">AI-Guided</h3>
+                <p className="text-sm text-white/50 mt-2">
+                  Upload images, PDFs, URLs, and voice notes. MIYAR fills the form for you based on visual and context analysis.
+                </p>
+              </div>
+              <div className="pt-4 flex items-center text-sm font-medium text-emerald-400/80 group-hover:text-emerald-400">
+                Start <ArrowRight className="w-4 h-4 ml-1" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Expert Mode */}
+          <Card
+            className="bg-white/[0.02] border-white/10 hover:border-emerald-500/30 hover:scale-[1.02] transition cursor-pointer group"
+            onClick={() => { setMode("form"); setQuickMode(false); }}
+          >
+            <CardContent className="p-6 space-y-4">
+              <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
+                <FileText className="w-6 h-6 text-white/60" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition">Expert Mode</h3>
+                <p className="text-sm text-white/50 mt-2">
+                  Jump straight to the 7-step form. AI Assist is still available on each section when you need it.
+                </p>
+              </div>
+              <div className="pt-4 flex items-center text-sm font-medium text-white/40 group-hover:text-emerald-400">
+                Start <ArrowRight className="w-4 h-4 ml-1" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Brief */}
+          <Card
+            className="bg-white/[0.02] border-white/10 hover:border-emerald-500/30 hover:scale-[1.02] transition cursor-pointer group"
+            onClick={() => { setMode("intake"); setPhase("upload"); setQuickMode(true); }}
+          >
+            <CardContent className="p-6 space-y-4">
+              <div className="w-12 h-12 rounded-lg bg-indigo-950/50 flex items-center justify-center border border-indigo-800/30">
+                <Mic className="w-6 h-6 text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-white group-hover:text-emerald-400 transition">Quick Brief</h3>
+                <p className="text-sm text-white/50 mt-2">
+                  Paste a paragraph or record a voice note. Get ~70% of the project parameters filled in 60 seconds.
+                </p>
+              </div>
+              <div className="pt-4 flex items-center text-sm font-medium text-indigo-400/80 group-hover:text-emerald-400">
+                Start <ArrowRight className="w-4 h-4 ml-1" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     );
   }
 
@@ -404,152 +564,211 @@ export default function ProjectNew() {
 
   // ─── Render: Upload Phase (Main Intake Canvas) ──────────────────────────
 
-  return (
-    <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-serif text-white">
-          Tell MIYAR about your project
-        </h1>
-        <p className="text-white/50 text-sm max-w-md mx-auto">
-          Drop files, paste URLs, record a voice note, or describe your vision.
-          MIYAR will auto-fill your project parameters.
-        </p>
-      </div>
+  if (phase === "upload") {
+    // Determine layout: Quick mode is single column, normal mode is 2-column with chat
+    const containerClasses = quickMode
+      ? "max-w-2xl mx-auto py-8 px-4"
+      : "max-w-6xl mx-auto py-8 px-4 grid grid-cols-1 lg:grid-cols-2 gap-8";
 
-      {/* Upload Zone */}
-      <Card
-        className="bg-white/[0.02] border-white/10 border-dashed hover:border-white/20 transition cursor-pointer"
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <CardContent className="py-12 text-center space-y-3">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-900/30 to-teal-900/30 border border-emerald-800/20 flex items-center justify-center">
-            <Upload className="w-7 h-7 text-emerald-400/70" />
+    return (
+      <div className={containerClasses}>
+        {/* Left Column (Uploads & Description) */}
+        <div className="space-y-6 flex flex-col h-full">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-serif text-white">Project Intake</h2>
+            <p className="text-white/50 text-sm">Upload context files or describe your project</p>
           </div>
-          <div>
-            <p className="text-sm text-white/70">Drop files here or click to browse</p>
-            <p className="text-xs text-white/30 mt-1">
-              📎 Images · 📄 PDFs · 🎤 Audio · 🎬 Video — up to 50MB each
-            </p>
+
+          <div className="flex-1 space-y-4">
+            {/* Upload Zone */}
+            {!quickMode && (
+              <Card
+                className="bg-white/[0.02] border-white/10 border-dashed hover:border-white/20 transition cursor-pointer"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <CardContent className="py-12 text-center space-y-3">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-900/30 to-teal-900/30 border border-emerald-800/20 flex items-center justify-center">
+                    <Upload className="w-7 h-7 text-emerald-400/70" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-white/70">Drop files here or click to browse</p>
+                    <p className="text-xs text-white/30 mt-1">
+                      📎 Images · 📄 PDFs · 🎤 Audio · 🎬 Video — up to 50MB each
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,application/pdf,audio/*,video/*"
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+
+            {/* Uploaded Assets */}
+            {assets.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs text-white/40 uppercase tracking-wider">{assets.length} asset{assets.length !== 1 ? "s" : ""} added</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {assets.map((asset, i) => (
+                    <AssetThumbnail key={i} asset={asset} onRemove={() => removeAsset(i)} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* URL Input */}
+            {!quickMode && (
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <input
+                    type="url"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddUrl()}
+                    placeholder="Paste supplier or reference URL..."
+                    className="w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/20"
+                  />
+                </div>
+                <Button variant="outline" size="sm" onClick={handleAddUrl} disabled={!urlInput.trim()}>
+                  Add URL
+                </Button>
+              </div>
+            )}
+
+            {/* Description */}
+            <div>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={`Describe your project vision...\n\nExample: "50 luxury apartments in Dubai Marina, Japandi-style interiors, targeting HNWI buyers, 150M AED budget, Ultra-luxury tier"`}
+                className="w-full h-32 p-4 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/20 resize-none"
+              />
+            </div>
+
+            {/* Voice Recorder */}
+            <div className="flex items-center justify-center">
+              <Button
+                variant={isRecording ? "destructive" : "outline"}
+                onClick={toggleRecording}
+                className={`gap-2 ${isRecording ? "animate-pulse" : ""}`}
+              >
+                {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isRecording ? "Stop Recording" : "Record Voice Note"}
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/*,application/pdf,audio/*,video/*"
-        className="hidden"
-        onChange={(e) => handleFiles(e.target.files)}
-      />
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-4 border-t border-white/5">
+            <Button
+              variant="ghost"
+              onClick={() => { setPhase("select"); setMode("intake"); setAssets([]); setDescription(""); setMessages([{ role: "assistant", content: "Hi! I'm MIYAR. Could you tell me about the project's typology, location, and key requirements?" }]); }}
+              className="text-white/40 hover:text-white/60 text-xs"
+            >
+              ← Back to Selection
+            </Button>
 
-      {/* Uploaded Assets */}
-      {assets.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs text-white/40 uppercase tracking-wider">{assets.length} asset{assets.length !== 1 ? "s" : ""} added</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {assets.map((asset, i) => (
-              <AssetThumbnail key={i} asset={asset} onRemove={() => removeAsset(i)} />
-            ))}
+            <Button
+              onClick={handleAnalyze}
+              disabled={processAssets.isPending || (assets.length === 0 && !description && messages.length <= 1)}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20"
+            >
+              {processAssets.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              {processAssets.isPending ? "Analyzing Context..." : "Analyze & Prefill"}
+            </Button>
           </div>
         </div>
-      )}
 
-      {/* URL Input */}
-      <div className="flex gap-2">
-        <div className="flex-1 relative">
-          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-          <input
-            type="url"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAddUrl()}
-            placeholder="Paste supplier or reference URL..."
-            className="w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/20"
-          />
-        </div>
-        <Button variant="outline" size="sm" onClick={handleAddUrl} disabled={!urlInput.trim()}>
-          Add URL
-        </Button>
+        {/* Right Column (Chat Interface) */}
+        {!quickMode && (
+          <div className="flex flex-col bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden h-[calc(100vh-12rem)] sticky top-24">
+            <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-white/[0.01]">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-sm font-medium text-white">MIYAR Intake Assistant</h3>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-lg p-3 text-sm ${msg.role === "user"
+                    ? "bg-emerald-500/20 text-emerald-100 border border-emerald-500/30"
+                    : "bg-white/5 text-white/80 border border-white/10"
+                    }`}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {chatProcedure.isPending && (
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] rounded-lg p-3 text-sm bg-white/5 text-white/80 border border-white/10 flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin text-white/50" /> Thinking...
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <div className="p-3 border-t border-white/10 bg-white/[0.01]">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSendChat()}
+                  placeholder="Chat to provide context..."
+                  className="w-full bg-white/5 border border-white/10 rounded-lg pl-3 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-white/20"
+                  disabled={chatProcedure.isPending}
+                />
+                <button
+                  onClick={handleSendChat}
+                  disabled={!chatInput.trim() || chatProcedure.isPending}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-white/10 text-white/50 hover:text-white transition disabled:opacity-50"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+    );
+  }
 
-      {/* Description */}
-      <div>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder={`Describe your project vision...\n\nExample: "50 luxury apartments in Dubai Marina, Japandi-style interiors, targeting HNWI buyers, 150M AED budget, Ultra-luxury tier"`}
-          className="w-full h-32 p-4 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/20 resize-none"
-        />
-      </div>
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-      {/* Voice Recorder */}
-      <div className="flex items-center justify-center">
-        <Button
-          variant={isRecording ? "destructive" : "outline"}
-          onClick={toggleRecording}
-          className={`gap-2 ${isRecording ? "animate-pulse" : ""}`}
-        >
-          {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          {isRecording ? "Stop Recording" : "Record Voice Note"}
-        </Button>
-      </div>
+  function inferAssetType(mimeType: string): UploadedAsset["type"] {
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType === "application/pdf") return "pdf";
+    if (mimeType.startsWith("audio/")) return "audio";
+    if (mimeType.startsWith("video/")) return "video";
+    return "pdf"; // default for unknown file types
+  }
 
-      {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t border-white/5">
-        <Button
-          variant="ghost"
-          onClick={() => setMode("form")}
-          className="text-white/40 hover:text-white/60 text-xs"
-        >
-          Skip to Manual Form →
-        </Button>
+  function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+  }
 
-        <Button
-          onClick={handleAnalyze}
-          disabled={phase === "analyzing" || (assets.length === 0 && !description.trim())}
-          className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 px-6"
-        >
-          {phase === "analyzing" ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Analyzing...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" /> Analyze & Auto-Fill
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function inferAssetType(mimeType: string): UploadedAsset["type"] {
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType === "application/pdf") return "pdf";
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (mimeType.startsWith("video/")) return "video";
-  return "pdf"; // default for unknown file types
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.readAsDataURL(file);
-  });
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.readAsDataURL(blob);
-  });
+  function blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  }
 }

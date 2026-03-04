@@ -1,0 +1,21 @@
+# Market Intelligence Engine — Full Upgrade
+
+## Phase 1 — Data Integrity
+- [ ] Module A: Upsert Engine (orchestrator.ts — replace isDuplicate with upsert)
+- [ ] Module E: Data Quality Validation (new data-quality.ts)
+- [ ] Module D: Freshness-Triggered Re-scrape (scheduler.ts + freshness.ts)
+
+## Phase 2 — Intelligence Expansion
+- [ ] Module C: Missing High-Value Sources (uae-sources.ts — 10+ new sources)
+- [ ] Module F: Design Trend Intelligence (new trend-extractor.ts)
+- [ ] Module G: Developer Project Intelligence (dynamic.ts + orchestrator.ts)
+
+## Phase 3 — Self-Evolving Intelligence
+- [ ] Module B: Source Discovery Engine (new source-discovery.ts)
+- [ ] Module H: DB Value Cross-Verification (new data-verifier.ts)
+
+## Verification
+- [ ] TypeScript compilation zero errors
+- [ ] Existing tests still pass
+- [ ] New intelligence tests pass
+- [ ] Commit and push

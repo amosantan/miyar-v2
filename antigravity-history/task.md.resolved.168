@@ -1,0 +1,12 @@
+# MIYAR 2.0 — Intelligent Intake System
+
+## Planning & Analysis
+- [/] Deep analysis of current project creation flow (NewProject page, form wizard)
+- [ ] Map all downstream consumers of ProjectInputs (engines, routers, pages)
+- [ ] Audit existing AI capabilities (Gemini, image analysis, floor plan, voice)
+- [ ] Audit file storage (S3 integration, evidence records)
+- [ ] Create comprehensive implementation plan with all connected files
+- [ ] Get user approval on plan
+
+## Phase 10 (Sales Premium) — Deferred
+- [ ] Decide whether Phase 10 builds before or after 2.0 intake

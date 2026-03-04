@@ -1,28 +1,32 @@
-# UX Overhaul — Task Tracker
+# Phase 10A Gap-Fill
 
-## P0 — Navigation Restructuring
-- [x] Simplify sidebar: ~49 items → ~10 for clients
-- [x] Move market-intel internal pages to admin-only sidebar
-- [x] Gate 8 market-intel routes as `AdminOnly` in `App.tsx`
-- [x] Keep DLD Insights + Competitors as client-accessible
-- [x] Update `activeMenuItem` lookup
-- [x] Verify in browser — confirmed working
+## GAP 1 — URL Scraping Before Gemini Analysis
+- [x] Add `scrapeUrl` tRPC procedure to `server/routers/intake.ts`
+- [x] Update `handleAddUrl` in `client/src/pages/ProjectNew.tsx` to handle scraping
+- [x] Update URL asset `textContent` field with scraped text
 
-## P0 — Fix Broken Pages & Dashboard
-- [x] Fix Dashboard quick actions (was pointing to admin pages)
-- [x] Remove hardcoded dummy chart from project rows
-- [x] Review Competitors page — functional, data-dependent
-- [x] Add error boundary for project pages
+## GAP 2 — Three-Card Path Selector on Entry
+- [x] Add `phase: "select" | "upload" | "analyzing" | "review"` state to `ProjectNew.tsx`
+- [x] Create entry screen (`phase === "select"`) with 3 cards
+- [x] Wire card clicks: Expert -> `mode="form"`, AI/Quick -> `mode="intake", phase="upload"`
+- [x] Implement Quick Brief mode logic (conditionally hide drag/drop & URL on upload screen)s
+- [ ] Remove old "Switch to form" toggle button
 
-## P1 — Mobile Responsiveness
-- [x] Enhanced mobile CSS: tabs scroll, dialog fullwidth, badge wrap
-- [x] Form field stacking on mobile
-- [x] Flex container wrapping
-- [x] Card padding reduction
+## GAP 3 — Conversational Chat in Intake Canvas
+- [x] Create `chat` tRPC procedure in `server/routers/intake.ts` using MIYAR Chat Prompt
+- [x] Call `invokeLLM` with history context
+- [x] In `ProjectNew.tsx`, add `messages` state and chat UI widget for conversational mode
+- [x] Aggregate chat messages into `freeformDescription` before calling `processAssets`cription` on "Analyze"
 
-## P2 — Polish
-- [x] Create reusable `PageHeader` component with breadcrumbs
-- [x] Apply `PageHeader` to key pages (Dashboard, Projects, Scenarios, Portfolio, DLD, Competitors)
-- [x] Create reusable `PageSkeleton` loading component
-- [x] Add error boundary wrapper for project sub-pages
-- [x] Standardize page titles and descriptions (Results, Alerts, ScenarioComparison)
+## GAP 4 — Per-Field Confidence Indicators on ProjectForm
+- [x] Extend `initialData` prop type on `ProjectForm.tsx` to include `fieldConfidence` and `fieldReasoning`
+- [x] Pass these from `ProjectNew.tsx` when rendering `<ProjectForm />`
+- [x] In `ProjectForm.tsx`, display a small tooltip or badge next to fields that were AI-populated (check if `fieldConfidence[fieldName]` exists)y, ctx04Location, fin01BudgetCap, ctx03Gfa)
+- [ ] Pass `fieldConfidence` and `fieldReasoning` from `ProjectNew.tsx` to `ProjectForm.tsx`
+
+## GAP 5 — Assets Tab on ProjectDetail Page
+- [x] Create `Assets` tab within `ProjectDetail.tsx` (next to Overview, Evaluation, etc.)
+- [x] Render a grid/list of `project_assets` filtering by `projectId`
+- [x] Build an Asset Modal that opens on click:
+  - left side: Original file preview
+  - right side: `extracted_information` JSON viewers`

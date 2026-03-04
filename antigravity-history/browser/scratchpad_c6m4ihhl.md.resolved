@@ -1,0 +1,15 @@
+# Manual Browser Test Plan: Phase 10 — Sales Premium & Yield Predictor
+
+## Steps
+1. [x] Navigate to `http://localhost:3000`
+2. [/] Locate a project and open it (e.g., project ID `1`) - *Struggling to create a project, Project 1 not found. Wizard Step 1 is flaky.*
+3. [ ] Access "Investor Summary" page
+4. [ ] Verify "Section F: Sales Premium & Yield Predictor" presence
+5. [ ] Interact with sliders and observe KPI updates
+6. [ ] Capture screenshot of the new panel
+
+## Current Status
+- Navigated to `localhost:3000`.
+- Found no projects. Attempted to create a "Phase 10 Test" project multiple times.
+- Step 1 of the Project Wizard seems to have validation issues or re-rendering state wipes.
+- Currently waiting for the Projects list to load to see if any of my creation attempts succeeded.

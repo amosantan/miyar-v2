@@ -1,0 +1,20 @@
+# Scraping Pipeline Fix — All Issues
+
+## P0: Critical Fixes
+- [x] HTML cleanup before LLM extraction (strip scripts/styles/nav, 32K snippet)
+- [x] Fix fetchWithFirecrawl error path (throw instead of silent fallback)
+- [x] Fix DynamicConnector crawl mode (use super.fetch() for full chain)
+
+## P1: Reliability Fixes
+- [x] ScrapingDog: add `dynamic=true` + 45s timeout
+- [x] Firecrawl credit caching (skip for 6h when exhausted)
+- [x] ScrapingAnt promoted to #2 in chain (most reliable)
+
+## P2: New Capabilities
+- [x] ParseHub API integration as fallback #5
+- [ ] ArchDaily → RSS feed URL in DB (manual DB update needed)
+- [x] Add PARSEHUB_API_KEY to .env + Vercel
+
+## Verification
+- [x] Re-run scrape-audit.ts — HTML cleanup works, Firecrawl cache works
+- [x] Commit and push (`79f0e66`)

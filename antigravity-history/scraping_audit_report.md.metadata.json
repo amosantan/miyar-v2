@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_OTHER",
+  "summary":  "Comprehensive live scraping audit report for MIYAR's Market Intelligence Engine. Documents the testing of 8 sources, identifies 6 critical issues, and provides prioritized recommendations for fixing scraping, extraction, and source quality.",
+  "updatedAt":  "2026-03-02T13:58:06.479814Z"
+}

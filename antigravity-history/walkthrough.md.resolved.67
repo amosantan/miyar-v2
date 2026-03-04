@@ -1,0 +1,2556 @@
+# Market Intelligence Engine V2 — Complete Walkthrough
+
+## Overview
+
+Upgraded MIYAR's market intelligence from a simple scrape-and-insert pipeline to a **self-maintaining, self-evolving intelligence engine** in two phases.
+
+---
+
+## Phase A — Core Engine (8 Modules)
+
+| Module | File | What It Does |
+|--------|------|-------------|
+| Upsert Engine | [orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts) | Updates existing records instead of skipping duplicates |
+| Data Quality | [data-quality.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/data-quality.ts) | UAE price range validation, outlier flagging |
+| Freshness Triggers | [freshness.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/freshness.ts) | `getStaleSourceIds()` for auto re-scrape |
+| Source Discovery | [source-discovery.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/source-discovery.ts) | AI discovery + 12 pre-vetted UAE sources |
+| Design Trends | [trend-extractor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/trend-extractor.ts) | Gemini-powered trend extraction |
+| Developer Intel | [trend-extractor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/trend-extractor.ts) | Interior spec extraction from brochures |
+| Data Verifier | [data-verifier.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/data-verifier.ts) | AI cross-checks prices against market reality |
+| API Endpoints | [ingestion.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/ingestion.ts) | 5 new tRPC endpoints |
+
+---
+
+## Phase B — Resilience & Automation
+
+### 1. Fallback Scraping APIs
+**File:** [connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts)
+
+```diff:connector.ts
+/**
+ * MIYAR V2 — Source Connector Interface & Base Class
+ *
+ * All UAE source connectors implement SourceConnector.
+ * BaseSourceConnector provides shared fetch logic with timeout,
+ * retry (exponential backoff, max 3 attempts), and error capture.
+ *
+ * Supports Firecrawl for JavaScript-rendered pages when
+ * FIRECRAWL_API_KEY is set in environment.
+ *
+ * LLM is permitted ONLY for:
+ *   - Extracting structured data from unstructured HTML
+ *   - Normalizing free-text into metric/value/unit/summary
+ *   - Generating evidence summary narrative
+ *
+ * LLM must NOT be used for: scoring, weighting, ranking,
+ * deciding confidence levels, or any numerical computation.
+ */
+
+import { z } from "zod";
+// @ts-ignore
+import robotsParser from "robots-parser";
+
+// ─── Constants & Resilience Data ─────────────────────────────────
+
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+];
+
+const CAPTCHA_INDICATORS = ["cf-browser-verification", "g-recaptcha", "px-captcha", "Please verify you are a human"];
+const PAYWALL_INDICATORS = ["subscribe to read", "premium content", "paywall"];
+
+function getRandomUserAgent() {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+const robotsCache = new Map<string, ReturnType<typeof robotsParser>>();
+
+async function checkRobotsTxt(targetUrl: string, userAgent: string): Promise<boolean> {
+  try {
+    const urlObj = new URL(targetUrl);
+    const origin = urlObj.origin;
+    let robots = robotsCache.get(origin);
+
+    if (!robots) {
+      const robotsUrl = `${origin}/robots.txt`;
+      const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
+      if (res.ok) {
+        const text = await res.text();
+        robots = robotsParser(robotsUrl, text);
+      } else {
+        robots = robotsParser(robotsUrl, "");
+      }
+      robotsCache.set(origin, robots);
+    }
+
+    return robots.isAllowed(targetUrl, userAgent) !== false;
+  } catch (err) {
+    return true; // fail open
+  }
+}
+
+// ─── Firecrawl Client (lazy-loaded) ─────────────────────────────
+
+let _firecrawlClient: any = null;
+let _firecrawlInitPromise: Promise<any> | null = null;
+
+async function getFirecrawlClient(): Promise<any | null> {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  if (!apiKey) return null;
+
+  if (!_firecrawlClient && !_firecrawlInitPromise) {
+    _firecrawlInitPromise = (async () => {
+      try {
+        const mod = await import("@mendable/firecrawl-js");
+        const FirecrawlApp = mod.default;
+        _firecrawlClient = new FirecrawlApp({ apiKey });
+      } catch (err) {
+        console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
+      }
+      return _firecrawlClient;
+    })();
+  }
+
+  if (_firecrawlInitPromise) await _firecrawlInitPromise;
+  return _firecrawlClient;
+}
+
+/** Check if Firecrawl is available */
+export function isFirecrawlAvailable(): boolean {
+  return !!process.env.FIRECRAWL_API_KEY;
+}
+
+// ─── Types ───────────────────────────────────────────────────────
+
+export interface SourceConnector {
+  sourceId: string;
+  sourceName: string;
+  sourceUrl: string;
+  /** Optional: set by orchestrator before fetch to enable incremental ingestion */
+  lastSuccessfulFetch?: Date;
+  /** Optional: artificial delay applied before the specific request fires */
+  requestDelayMs?: number;
+  fetch(): Promise<RawSourcePayload>;
+  extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
+  normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
+}
+
+export interface RawSourcePayload {
+  url: string;
+  fetchedAt: Date;
+  rawHtml?: string;
+  rawJson?: object;
+  /** Markdown content from Firecrawl (cleaner than HTML for LLM) */
+  markdown?: string;
+  statusCode: number;
+  error?: string;
+}
+
+export interface ExtractedEvidence {
+  title: string;
+  rawText: string;
+  publishedDate?: Date;
+  category: string;
+  geography: string;
+  sourceUrl: string;
+}
+
+export interface NormalizedEvidenceInput {
+  metric: string;
+  value: number | null;
+  valueMax?: number | null;
+  unit: string | null;
+  confidence: number;
+  grade: "A" | "B" | "C";
+  summary: string;
+  tags: string[];
+  brand?: string | null;
+  // V7: Design Intelligence Fields
+  finishLevel?: string | null;
+  designStyle?: string | null;
+  brandsMentioned?: string[] | null;
+  materialSpec?: string | null;
+  intelligenceType?: string;
+}
+
+// ─── Zod Schemas (runtime validation) ────────────────────────────
+
+export const rawSourcePayloadSchema = z.object({
+  url: z.string().url(),
+  fetchedAt: z.date(),
+  rawHtml: z.string().optional(),
+  rawJson: z.record(z.string(), z.unknown()).optional(),
+  markdown: z.string().optional(),
+  statusCode: z.number().int(),
+  error: z.string().optional(),
+});
+
+export const extractedEvidenceSchema = z.object({
+  title: z.string().min(1),
+  rawText: z.string().min(1),
+  publishedDate: z.date().optional(),
+  category: z.string().min(1), // Accept any category — validated at orchestrator level
+  geography: z.string().min(1),
+  sourceUrl: z.string().url(),
+});
+
+export const normalizedEvidenceInputSchema = z.object({
+  metric: z.string().min(1),
+  value: z.number().nullable(),
+  unit: z.string().nullable(),
+  confidence: z.number().min(0).max(1),
+  grade: z.enum(["A", "B", "C"]),
+  summary: z.string().min(1),
+  tags: z.array(z.string()),
+});
+
+// ─── Deterministic Grade Assignment ──────────────────────────────
+
+const GRADE_A_SOURCE_IDS = new Set([
+  "emaar-properties", "damac-properties", "nakheel-properties",
+  "rics-market-reports", "jll-mena-research", "dubai-statistics-center",
+  "dubai-pulse-materials", "scad-abu-dhabi", "dld-transactions",
+  "aldar-properties", "cbre-uae-research", "knight-frank-uae", "savills-me-research",
+]);
+
+const GRADE_B_SOURCE_IDS = new Set([
+  "rak-ceramics-uae", "porcelanosa-uae", "hafele-uae",
+  "gems-building-materials", "dragon-mart-dubai", "property-monitor-dubai",
+]);
+
+const GRADE_C_SOURCE_IDS = new Set(["dera-interiors"]);
+
+export function assignGrade(sourceId: string): "A" | "B" | "C" {
+  if (GRADE_A_SOURCE_IDS.has(sourceId)) return "A";
+  if (GRADE_B_SOURCE_IDS.has(sourceId)) return "B";
+  if (GRADE_C_SOURCE_IDS.has(sourceId)) return "C";
+  return "C";
+}
+
+// ─── Deterministic Confidence Rules ──────────────────────────────
+
+const BASE_CONFIDENCE: Record<string, number> = { A: 0.85, B: 0.70, C: 0.55 };
+const RECENCY_BONUS = 0.10;
+const STALENESS_PENALTY = -0.15;
+const CONFIDENCE_CAP = 1.0;
+const CONFIDENCE_FLOOR = 0.20;
+
+export function computeConfidence(
+  grade: "A" | "B" | "C",
+  publishedDate: Date | undefined,
+  fetchedAt: Date
+): number {
+  let confidence = BASE_CONFIDENCE[grade];
+
+  if (!publishedDate) {
+    confidence += STALENESS_PENALTY;
+  } else {
+    const daysSincePublished = Math.floor(
+      (fetchedAt.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (daysSincePublished <= 90) {
+      confidence += RECENCY_BONUS;
+    } else if (daysSincePublished > 365) {
+      confidence += STALENESS_PENALTY;
+    }
+  }
+
+  return Math.min(CONFIDENCE_CAP, Math.max(CONFIDENCE_FLOOR, confidence));
+}
+
+// ─── Base Source Connector ────────────────────────────────────────
+
+const FETCH_TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 3;
+const BASE_BACKOFF_MS = 1_000;
+
+export abstract class BaseSourceConnector implements SourceConnector {
+  abstract sourceId: string;
+  abstract sourceName: string;
+  abstract sourceUrl: string;
+  lastSuccessfulFetch?: Date;
+  requestDelayMs?: number;
+
+  /**
+   * Fetch using Firecrawl's headless browser API.
+   * Renders JavaScript, bypasses bot protection, returns clean markdown.
+   */
+  async fetchWithFirecrawl(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    const client = await getFirecrawlClient();
+
+    if (!client) {
+      return this.fetchBasic(targetUrl);
+    }
+
+    try {
+      console.log(`[Connector] 🔥 Firecrawl scraping: ${targetUrl}`);
+      // v4 SDK: scrape() returns Document directly (no success wrapper)
+      const doc: any = await client.scrape(targetUrl, {
+        formats: ["markdown", "html"],
+      });
+
+      const markdown = doc?.markdown || "";
+      const html = doc?.html || "";
+
+      if (markdown.length < 50 && html.length < 50) {
+        console.warn(`[Connector] Firecrawl returned too little content for ${targetUrl}, falling back`);
+        return this.fetchBasic(targetUrl);
+      }
+
+      console.log(`[Connector] 🔥 Firecrawl success: ${targetUrl} (${markdown.length} chars md, ${html.length} chars html)`);
+
+      return {
+        url: targetUrl,
+        fetchedAt: new Date(),
+        rawHtml: html,
+        markdown,
+        statusCode: doc?.metadata?.statusCode || 200,
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Connector] Firecrawl error for ${targetUrl}: ${errorMsg}, falling back`);
+      return this.fetchBasic(targetUrl);
+    }
+  }
+
+  /**
+   * Basic HTTP fetch — used as fallback when Firecrawl is unavailable.
+   */
+  async fetchBasic(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    let lastError: string | undefined;
+    const userAgent = getRandomUserAgent();
+
+    const isAllowed = await checkRobotsTxt(targetUrl, userAgent);
+    if (!isAllowed) {
+      return { url: targetUrl, fetchedAt: new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
+    }
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+        const response = await globalThis.fetch(targetUrl, {
+          signal: controller.signal,
+          headers: {
+            "User-Agent": userAgent,
+            "Accept": "text/html,application/json,application/xml;q=0.9,*/*;q=0.8",
+          },
+        });
+
+        clearTimeout(timeout);
+
+        const contentType = response.headers.get("content-type") || "";
+        let rawHtml: string | undefined;
+        let rawJson: object | undefined;
+
+        if (contentType.includes("application/json")) {
+          rawJson = await response.json() as object;
+        } else {
+          rawHtml = await response.text();
+
+          if (CAPTCHA_INDICATORS.some(ind => rawHtml!.includes(ind))) {
+            throw new Error("CAPTCHA challenge detected on page");
+          }
+          if (PAYWALL_INDICATORS.some(ind => rawHtml!.toLowerCase().includes(ind))) {
+            throw new Error("Paywall detected on page content");
+          }
+
+          if (rawHtml.trim().startsWith("{") || rawHtml.trim().startsWith("[")) {
+            try { rawJson = JSON.parse(rawHtml); } catch { /* Keep as HTML */ }
+          }
+        }
+
+        return {
+          url: targetUrl,
+          fetchedAt: new Date(),
+          rawHtml,
+          rawJson,
+          statusCode: response.status,
+          error: response.ok ? undefined : `HTTP ${response.status} ${response.statusText}`,
+        };
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        lastError = errorMsg;
+
+        if (attempt < MAX_RETRIES) {
+          const backoffMs = BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        }
+      }
+    }
+
+    return {
+      url: targetUrl,
+      fetchedAt: new Date(),
+      statusCode: 0,
+      error: `Failed after ${MAX_RETRIES} attempts: ${lastError}`,
+    };
+  }
+
+  /**
+   * Main fetch method. Uses Firecrawl when available, falls back to basic HTTP.
+   */
+  async fetch(): Promise<RawSourcePayload> {
+    if (this.requestDelayMs && this.requestDelayMs > 0) {
+      await new Promise(r => setTimeout(r, this.requestDelayMs));
+    }
+
+    if (isFirecrawlAvailable()) {
+      return this.fetchWithFirecrawl();
+    }
+
+    return this.fetchBasic();
+  }
+
+  abstract extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
+  abstract normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
+}
+===
+/**
+ * MIYAR V2 — Source Connector Interface & Base Class
+ *
+ * All UAE source connectors implement SourceConnector.
+ * BaseSourceConnector provides shared fetch logic with timeout,
+ * retry (exponential backoff, max 3 attempts), and error capture.
+ *
+ * Supports Firecrawl for JavaScript-rendered pages when
+ * FIRECRAWL_API_KEY is set in environment.
+ *
+ * LLM is permitted ONLY for:
+ *   - Extracting structured data from unstructured HTML
+ *   - Normalizing free-text into metric/value/unit/summary
+ *   - Generating evidence summary narrative
+ *
+ * LLM must NOT be used for: scoring, weighting, ranking,
+ * deciding confidence levels, or any numerical computation.
+ */
+
+import { z } from "zod";
+// @ts-ignore
+import robotsParser from "robots-parser";
+
+// ─── Constants & Resilience Data ─────────────────────────────────
+
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+];
+
+const CAPTCHA_INDICATORS = ["cf-browser-verification", "g-recaptcha", "px-captcha", "Please verify you are a human"];
+const PAYWALL_INDICATORS = ["subscribe to read", "premium content", "paywall"];
+
+function getRandomUserAgent() {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+const robotsCache = new Map<string, ReturnType<typeof robotsParser>>();
+
+async function checkRobotsTxt(targetUrl: string, userAgent: string): Promise<boolean> {
+  try {
+    const urlObj = new URL(targetUrl);
+    const origin = urlObj.origin;
+    let robots = robotsCache.get(origin);
+
+    if (!robots) {
+      const robotsUrl = `${origin}/robots.txt`;
+      const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
+      if (res.ok) {
+        const text = await res.text();
+        robots = robotsParser(robotsUrl, text);
+      } else {
+        robots = robotsParser(robotsUrl, "");
+      }
+      robotsCache.set(origin, robots);
+    }
+
+    return robots.isAllowed(targetUrl, userAgent) !== false;
+  } catch (err) {
+    return true; // fail open
+  }
+}
+
+// ─── Firecrawl Client (lazy-loaded) ─────────────────────────────
+
+let _firecrawlClient: any = null;
+let _firecrawlInitPromise: Promise<any> | null = null;
+
+async function getFirecrawlClient(): Promise<any | null> {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  if (!apiKey) return null;
+
+  if (!_firecrawlClient && !_firecrawlInitPromise) {
+    _firecrawlInitPromise = (async () => {
+      try {
+        const mod = await import("@mendable/firecrawl-js");
+        const FirecrawlApp = mod.default;
+        _firecrawlClient = new FirecrawlApp({ apiKey });
+      } catch (err) {
+        console.warn("[Connector] Firecrawl SDK not available, falling back to basic fetch");
+      }
+      return _firecrawlClient;
+    })();
+  }
+
+  if (_firecrawlInitPromise) await _firecrawlInitPromise;
+  return _firecrawlClient;
+}
+
+/** Check if Firecrawl is available */
+export function isFirecrawlAvailable(): boolean {
+  return !!process.env.FIRECRAWL_API_KEY;
+}
+
+// ─── Types ───────────────────────────────────────────────────────
+
+export interface SourceConnector {
+  sourceId: string;
+  sourceName: string;
+  sourceUrl: string;
+  /** Optional: set by orchestrator before fetch to enable incremental ingestion */
+  lastSuccessfulFetch?: Date;
+  /** Optional: artificial delay applied before the specific request fires */
+  requestDelayMs?: number;
+  fetch(): Promise<RawSourcePayload>;
+  extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
+  normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
+}
+
+export interface RawSourcePayload {
+  url: string;
+  fetchedAt: Date;
+  rawHtml?: string;
+  rawJson?: object;
+  /** Markdown content from Firecrawl (cleaner than HTML for LLM) */
+  markdown?: string;
+  statusCode: number;
+  error?: string;
+}
+
+export interface ExtractedEvidence {
+  title: string;
+  rawText: string;
+  publishedDate?: Date;
+  category: string;
+  geography: string;
+  sourceUrl: string;
+}
+
+export interface NormalizedEvidenceInput {
+  metric: string;
+  value: number | null;
+  valueMax?: number | null;
+  unit: string | null;
+  confidence: number;
+  grade: "A" | "B" | "C";
+  summary: string;
+  tags: string[];
+  brand?: string | null;
+  // V7: Design Intelligence Fields
+  finishLevel?: string | null;
+  designStyle?: string | null;
+  brandsMentioned?: string[] | null;
+  materialSpec?: string | null;
+  intelligenceType?: string;
+}
+
+// ─── Zod Schemas (runtime validation) ────────────────────────────
+
+export const rawSourcePayloadSchema = z.object({
+  url: z.string().url(),
+  fetchedAt: z.date(),
+  rawHtml: z.string().optional(),
+  rawJson: z.record(z.string(), z.unknown()).optional(),
+  markdown: z.string().optional(),
+  statusCode: z.number().int(),
+  error: z.string().optional(),
+});
+
+export const extractedEvidenceSchema = z.object({
+  title: z.string().min(1),
+  rawText: z.string().min(1),
+  publishedDate: z.date().optional(),
+  category: z.string().min(1), // Accept any category — validated at orchestrator level
+  geography: z.string().min(1),
+  sourceUrl: z.string().url(),
+});
+
+export const normalizedEvidenceInputSchema = z.object({
+  metric: z.string().min(1),
+  value: z.number().nullable(),
+  unit: z.string().nullable(),
+  confidence: z.number().min(0).max(1),
+  grade: z.enum(["A", "B", "C"]),
+  summary: z.string().min(1),
+  tags: z.array(z.string()),
+});
+
+// ─── Deterministic Grade Assignment ──────────────────────────────
+
+const GRADE_A_SOURCE_IDS = new Set([
+  "emaar-properties", "damac-properties", "nakheel-properties",
+  "rics-market-reports", "jll-mena-research", "dubai-statistics-center",
+  "dubai-pulse-materials", "scad-abu-dhabi", "dld-transactions",
+  "aldar-properties", "cbre-uae-research", "knight-frank-uae", "savills-me-research",
+]);
+
+const GRADE_B_SOURCE_IDS = new Set([
+  "rak-ceramics-uae", "porcelanosa-uae", "hafele-uae",
+  "gems-building-materials", "dragon-mart-dubai", "property-monitor-dubai",
+]);
+
+const GRADE_C_SOURCE_IDS = new Set(["dera-interiors"]);
+
+export function assignGrade(sourceId: string): "A" | "B" | "C" {
+  if (GRADE_A_SOURCE_IDS.has(sourceId)) return "A";
+  if (GRADE_B_SOURCE_IDS.has(sourceId)) return "B";
+  if (GRADE_C_SOURCE_IDS.has(sourceId)) return "C";
+  return "C";
+}
+
+// ─── Deterministic Confidence Rules ──────────────────────────────
+
+const BASE_CONFIDENCE: Record<string, number> = { A: 0.85, B: 0.70, C: 0.55 };
+const RECENCY_BONUS = 0.10;
+const STALENESS_PENALTY = -0.15;
+const CONFIDENCE_CAP = 1.0;
+const CONFIDENCE_FLOOR = 0.20;
+
+export function computeConfidence(
+  grade: "A" | "B" | "C",
+  publishedDate: Date | undefined,
+  fetchedAt: Date
+): number {
+  let confidence = BASE_CONFIDENCE[grade];
+
+  if (!publishedDate) {
+    confidence += STALENESS_PENALTY;
+  } else {
+    const daysSincePublished = Math.floor(
+      (fetchedAt.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (daysSincePublished <= 90) {
+      confidence += RECENCY_BONUS;
+    } else if (daysSincePublished > 365) {
+      confidence += STALENESS_PENALTY;
+    }
+  }
+
+  return Math.min(CONFIDENCE_CAP, Math.max(CONFIDENCE_FLOOR, confidence));
+}
+
+// ─── Fallback Scraping API Helpers ───────────────────────────────
+
+function isScrapingDogAvailable(): boolean {
+  return !!process.env.SCRAPINGDOG_API_KEY;
+}
+
+function isScrapingAntAvailable(): boolean {
+  return !!process.env.SCRAPINGANT_API_KEY;
+}
+
+// ─── Base Source Connector ────────────────────────────────────────
+
+const FETCH_TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 3;
+const BASE_BACKOFF_MS = 1_000;
+
+export abstract class BaseSourceConnector implements SourceConnector {
+  abstract sourceId: string;
+  abstract sourceName: string;
+  abstract sourceUrl: string;
+  lastSuccessfulFetch?: Date;
+  requestDelayMs?: number;
+
+  /**
+   * Fetch using Firecrawl's headless browser API.
+   * Renders JavaScript, bypasses bot protection, returns clean markdown.
+   */
+  async fetchWithFirecrawl(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    const client = await getFirecrawlClient();
+
+    if (!client) {
+      return this.fetchBasic(targetUrl);
+    }
+
+    try {
+      console.log(`[Connector] 🔥 Firecrawl scraping: ${targetUrl}`);
+      // v4 SDK: scrape() returns Document directly (no success wrapper)
+      const doc: any = await client.scrape(targetUrl, {
+        formats: ["markdown", "html"],
+      });
+
+      const markdown = doc?.markdown || "";
+      const html = doc?.html || "";
+
+      if (markdown.length < 50 && html.length < 50) {
+        console.warn(`[Connector] Firecrawl returned too little content for ${targetUrl}, falling back`);
+        return this.fetchBasic(targetUrl);
+      }
+
+      console.log(`[Connector] 🔥 Firecrawl success: ${targetUrl} (${markdown.length} chars md, ${html.length} chars html)`);
+
+      return {
+        url: targetUrl,
+        fetchedAt: new Date(),
+        rawHtml: html,
+        markdown,
+        statusCode: doc?.metadata?.statusCode || 200,
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Connector] Firecrawl error for ${targetUrl}: ${errorMsg}, falling back`);
+      return this.fetchBasic(targetUrl);
+    }
+  }
+
+  /**
+   * Fetch using ScrapingDog API (fallback #1).
+   * Free tier: 1,000 requests/month.
+   * API: GET https://api.scrapingdog.com/scrape?api_key=KEY&url=URL&render=true
+   */
+  async fetchWithScrapingDog(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    const apiKey = process.env.SCRAPINGDOG_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("SCRAPINGDOG_API_KEY not set");
+    }
+
+    try {
+      console.log(`[Connector] 🐕 ScrapingDog scraping: ${targetUrl}`);
+      const apiUrl = `https://api.scrapingdog.com/scrape?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}&render=true`;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000); // 30s for proxy API
+
+      const response = await globalThis.fetch(apiUrl, {
+        signal: controller.signal,
+        headers: { "Accept": "text/html" },
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`ScrapingDog HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const rawHtml = await response.text();
+
+      if (rawHtml.length < 50) {
+        throw new Error("ScrapingDog returned insufficient content");
+      }
+
+      console.log(`[Connector] 🐕 ScrapingDog success: ${targetUrl} (${rawHtml.length} chars)`);
+
+      return {
+        url: targetUrl,
+        fetchedAt: new Date(),
+        rawHtml,
+        statusCode: 200,
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Connector] ScrapingDog error for ${targetUrl}: ${errorMsg}`);
+      throw err; // Let the failover chain handle it
+    }
+  }
+
+  /**
+   * Fetch using ScrapingAnt API (fallback #2).
+   * Free tier: 10,000 API credits.
+   * API: GET https://api.scrapingant.com/v2/general?url=URL&x-api-key=KEY
+   */
+  async fetchWithScrapingAnt(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    const apiKey = process.env.SCRAPINGANT_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("SCRAPINGANT_API_KEY not set");
+    }
+
+    try {
+      console.log(`[Connector] 🐜 ScrapingAnt scraping: ${targetUrl}`);
+      const apiUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(targetUrl)}&browser=true`;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000);
+
+      const response = await globalThis.fetch(apiUrl, {
+        signal: controller.signal,
+        headers: {
+          "x-api-key": apiKey,
+          "Accept": "text/html",
+        },
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`ScrapingAnt HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const rawHtml = await response.text();
+
+      if (rawHtml.length < 50) {
+        throw new Error("ScrapingAnt returned insufficient content");
+      }
+
+      console.log(`[Connector] 🐜 ScrapingAnt success: ${targetUrl} (${rawHtml.length} chars)`);
+
+      return {
+        url: targetUrl,
+        fetchedAt: new Date(),
+        rawHtml,
+        statusCode: 200,
+      };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Connector] ScrapingAnt error for ${targetUrl}: ${errorMsg}`);
+      throw err;
+    }
+  }
+
+  /**
+   * Basic HTTP fetch — used as last resort when all APIs are unavailable.
+   */
+  async fetchBasic(url?: string): Promise<RawSourcePayload> {
+    const targetUrl = url || this.sourceUrl;
+    let lastError: string | undefined;
+    const userAgent = getRandomUserAgent();
+
+    const isAllowed = await checkRobotsTxt(targetUrl, userAgent);
+    if (!isAllowed) {
+      return { url: targetUrl, fetchedAt: new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
+    }
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+        const response = await globalThis.fetch(targetUrl, {
+          signal: controller.signal,
+          headers: {
+            "User-Agent": userAgent,
+            "Accept": "text/html,application/json,application/xml;q=0.9,*/*;q=0.8",
+          },
+        });
+
+        clearTimeout(timeout);
+
+        const contentType = response.headers.get("content-type") || "";
+        let rawHtml: string | undefined;
+        let rawJson: object | undefined;
+
+        if (contentType.includes("application/json")) {
+          rawJson = await response.json() as object;
+        } else {
+          rawHtml = await response.text();
+
+          if (CAPTCHA_INDICATORS.some(ind => rawHtml!.includes(ind))) {
+            throw new Error("CAPTCHA challenge detected on page");
+          }
+          if (PAYWALL_INDICATORS.some(ind => rawHtml!.toLowerCase().includes(ind))) {
+            throw new Error("Paywall detected on page content");
+          }
+
+          if (rawHtml.trim().startsWith("{") || rawHtml.trim().startsWith("[")) {
+            try { rawJson = JSON.parse(rawHtml); } catch { /* Keep as HTML */ }
+          }
+        }
+
+        return {
+          url: targetUrl,
+          fetchedAt: new Date(),
+          rawHtml,
+          rawJson,
+          statusCode: response.status,
+          error: response.ok ? undefined : `HTTP ${response.status} ${response.statusText}`,
+        };
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        lastError = errorMsg;
+
+        if (attempt < MAX_RETRIES) {
+          const backoffMs = BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        }
+      }
+    }
+
+    return {
+      url: targetUrl,
+      fetchedAt: new Date(),
+      statusCode: 0,
+      error: `Failed after ${MAX_RETRIES} attempts: ${lastError}`,
+    };
+  }
+
+  /**
+   * Main fetch method with automatic failover chain:
+   *   Firecrawl → ScrapingDog → ScrapingAnt → Native fetch
+   *
+   * Each provider is attempted in order. If one fails or returns
+   * insufficient content, the next provider is tried automatically.
+   */
+  async fetch(): Promise<RawSourcePayload> {
+    if (this.requestDelayMs && this.requestDelayMs > 0) {
+      await new Promise(r => setTimeout(r, this.requestDelayMs));
+    }
+
+    // Provider 1: Firecrawl (best quality — markdown + JS rendering)
+    if (isFirecrawlAvailable()) {
+      try {
+        const result = await this.fetchWithFirecrawl();
+        if (!result.error && ((result.rawHtml?.length || 0) > 50 || (result.markdown?.length || 0) > 50)) {
+          return result;
+        }
+      } catch { /* fall through */ }
+    }
+
+    // Provider 2: ScrapingDog (JS rendering, proxy rotation)
+    if (isScrapingDogAvailable()) {
+      try {
+        const result = await this.fetchWithScrapingDog();
+        if (!result.error && (result.rawHtml?.length || 0) > 50) {
+          return result;
+        }
+      } catch { /* fall through */ }
+    }
+
+    // Provider 3: ScrapingAnt (browser rendering, anti-bot bypass)
+    if (isScrapingAntAvailable()) {
+      try {
+        const result = await this.fetchWithScrapingAnt();
+        if (!result.error && (result.rawHtml?.length || 0) > 50) {
+          return result;
+        }
+      } catch { /* fall through */ }
+    }
+
+    // Provider 4: Native fetch (last resort — no JS rendering)
+    console.log(`[Connector] 📡 Using native fetch for ${this.sourceUrl} (no API providers available)`);
+    return this.fetchBasic();
+  }
+
+  abstract extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
+  abstract normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
+}
+
+```
+
+**Failover chain:**
+```
+🔥 Firecrawl (primary — markdown + JS rendering)
+    ↓ fails
+🐕 ScrapingDog (1,000 free/month — JS rendering + proxy)
+    ↓ fails
+🐜 ScrapingAnt (10,000 free credits — browser rendering)
+    ↓ fails
+📡 Native fetch (last resort — no JS rendering)
+```
+
+| Provider | Free Tier | Env Var |
+|----------|----------|---------|
+| Firecrawl | 500 pages/month | `FIRECRAWL_API_KEY` |
+| ScrapingDog | 1,000 requests/month | `SCRAPINGDOG_API_KEY` |
+| ScrapingAnt | 10,000 API credits | `SCRAPINGANT_API_KEY` |
+
+### 2. Scheduler Upgrade
+**File:** [scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts)
+
+```diff:scheduler.ts
+/**
+ * MIYAR V2-07 — Ingestion Scheduler
+ *
+ * Uses node-cron v4 to schedule automatic ingestion runs.
+ * Default: Monday 06:00 UTC (configurable via INGESTION_CRON_SCHEDULE env var).
+ *
+ * The scheduler:
+ *   - Starts on server boot
+ *   - Runs all 12 UAE connectors on schedule
+ *   - Never crashes the server on failure
+ *   - Exposes nextScheduledRun() for the status endpoint
+ */
+
+import cron, { type ScheduledTask } from "node-cron";
+import { runIngestion } from "./orchestrator";
+import { getDb } from "../../db";
+import { sourceRegistry } from "../../../drizzle/schema";
+import { eq } from "drizzle-orm";
+import { DynamicConnector } from "./connectors/dynamic";
+
+// Default: Monday at 06:00 UTC
+const DEFAULT_CRON = "0 0 6 * * 1";
+
+let scheduledTasks: ScheduledTask[] = [];
+let lastScheduledRunAt: Date | null = null;
+let isSchedulerRunning = false;
+let activeSchedulesCount = 0;
+
+/**
+ * Get the global fallback cron expression (from env or default).
+ */
+export function getCronExpression(): string {
+  return process.env.INGESTION_CRON_SCHEDULE || DEFAULT_CRON;
+}
+
+/**
+ * Compute the next scheduled run time.
+ * In a multi-cron setup, we look at the earliest next run across all tasks.
+ */
+export function getNextScheduledRun(): string | null {
+  if (scheduledTasks.length === 0) return null;
+  let earliest: Date | null = null;
+
+  for (const task of scheduledTasks) {
+    try {
+      const nextDate = task.getNextRun();
+      if (nextDate) {
+        if (!earliest || nextDate < earliest) earliest = nextDate;
+      }
+    } catch { }
+  }
+
+  return earliest ? earliest.toISOString() : null;
+}
+
+/**
+ * Start the ingestion scheduler.
+ * Reads active sources from DB, groups them by schedule, and creates separate crons.
+ */
+export async function startIngestionScheduler(): Promise<void> {
+  stopIngestionScheduler();
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Ingestion Scheduler] DB not available yet, cannot start multi-scheduler.");
+    return;
+  }
+
+  const activeSources = await db.select().from(sourceRegistry).where(eq(sourceRegistry.isActive, true));
+
+  // Group by schedule
+  const sourcesBySchedule: Record<string, typeof activeSources> = {};
+  const fallbackSchedule = getCronExpression();
+
+  for (const source of activeSources) {
+    const schedule = source.scrapeSchedule && cron.validate(source.scrapeSchedule)
+      ? source.scrapeSchedule
+      : fallbackSchedule;
+
+    if (!sourcesBySchedule[schedule]) {
+      sourcesBySchedule[schedule] = [];
+    }
+    sourcesBySchedule[schedule].push(source);
+  }
+
+  activeSchedulesCount = Object.keys(sourcesBySchedule).length;
+
+  for (const [schedule, sources] of Object.entries(sourcesBySchedule)) {
+    const task = cron.schedule(
+      schedule,
+      async () => {
+        if (isSchedulerRunning) {
+          console.log(`[Ingestion Scheduler] Skipping runs for schedule "${schedule}" — previous run still in progress`);
+          return;
+        }
+
+        isSchedulerRunning = true;
+        const startTime = new Date();
+        console.log(`[Ingestion Scheduler] Starting batch for schedule "${schedule}" with ${sources.length} sources`);
+
+        try {
+          // Staggered execution within the batch (spawn runIngestion per source, stagger by 30s)
+          let idx = 0;
+          for (const source of sources) {
+            idx++;
+            console.log(`[Ingestion Scheduler] [${idx}/${sources.length}] Queuing source ${source.name}...`);
+            const connector = new DynamicConnector(source);
+
+            try {
+              const report = await runIngestion([connector], "scheduled");
+              console.log(
+                `[Ingestion Scheduler] Source ${source.name} complete: ` +
+                `${report.evidenceCreated} records created (${report.durationMs}ms)`
+              );
+            } catch (err) {
+              console.error(`[Ingestion Scheduler] Individual run failed for ${source.name}:`, err);
+            }
+
+            lastScheduledRunAt = new Date();
+
+            // Stagger next run in same schedule by 30 seconds
+            if (idx < sources.length) {
+              await new Promise(r => setTimeout(r, 30_000));
+            }
+          }
+          console.log(`[Ingestion Scheduler] Batch for schedule "${schedule}" completed successfully.`);
+        } catch (error) {
+          console.error(
+            `[Ingestion Scheduler] Batch failed for schedule "${schedule}":`,
+            error instanceof Error ? error.message : String(error)
+          );
+        } finally {
+          isSchedulerRunning = false;
+        }
+      },
+      {
+        timezone: "UTC",
+        name: `miyar-ingestion-${schedule.replace(/\s+/g, "-")}`,
+      }
+    );
+
+    scheduledTasks.push(task);
+  }
+
+  console.log(
+    `[Ingestion Scheduler] Started ${scheduledTasks.length} cron jobs for ${activeSources.length} active sources.`
+  );
+}
+
+/**
+ * Stop the ingestion scheduler.
+ */
+export function stopIngestionScheduler(): void {
+  for (const task of scheduledTasks) {
+    task.stop();
+  }
+  scheduledTasks = [];
+  activeSchedulesCount = 0;
+  console.log("[Ingestion Scheduler] Stopped all scheduled tasks");
+}
+
+/**
+ * Get scheduler status for the API.
+ */
+export function getSchedulerStatus() {
+  return {
+    active: scheduledTasks.length > 0,
+    cronExpression: `${activeSchedulesCount} configured schedules`,
+    nextScheduledRun: getNextScheduledRun(),
+    lastScheduledRunAt: lastScheduledRunAt?.toISOString() ?? null,
+    isCurrentlyRunning: isSchedulerRunning,
+  };
+}
+===
+/**
+ * MIYAR V2-07 — Ingestion Scheduler
+ *
+ * Uses node-cron v4 to schedule automatic ingestion runs.
+ * Default: Monday 06:00 UTC (configurable via INGESTION_CRON_SCHEDULE env var).
+ *
+ * The scheduler:
+ *   - Starts on server boot
+ *   - Runs all 12 UAE connectors on schedule
+ *   - Never crashes the server on failure
+ *   - Exposes nextScheduledRun() for the status endpoint
+ *   - Weekly source discovery (Sundays 04:00 UTC)
+ *   - Freshness-triggered re-scraping (Wednesdays 06:00 UTC)
+ */
+
+import cron, { type ScheduledTask } from "node-cron";
+import { runIngestion, runSingleConnector } from "./orchestrator";
+import { getDb, listSourceRegistry } from "../../db";
+import { sourceRegistry } from "../../../drizzle/schema";
+import { eq } from "drizzle-orm";
+import { DynamicConnector } from "./connectors/dynamic";
+import { getStaleSourceIds } from "./freshness";
+import { discoverNewSources, KNOWN_MISSING_SOURCES } from "./source-discovery";
+
+// Default: Monday at 06:00 UTC
+const DEFAULT_CRON = "0 0 6 * * 1";
+
+let scheduledTasks: ScheduledTask[] = [];
+let lastScheduledRunAt: Date | null = null;
+let isSchedulerRunning = false;
+let activeSchedulesCount = 0;
+
+/**
+ * Get the global fallback cron expression (from env or default).
+ */
+export function getCronExpression(): string {
+  return process.env.INGESTION_CRON_SCHEDULE || DEFAULT_CRON;
+}
+
+/**
+ * Compute the next scheduled run time.
+ * In a multi-cron setup, we look at the earliest next run across all tasks.
+ */
+export function getNextScheduledRun(): string | null {
+  if (scheduledTasks.length === 0) return null;
+  let earliest: Date | null = null;
+
+  for (const task of scheduledTasks) {
+    try {
+      const nextDate = task.getNextRun();
+      if (nextDate) {
+        if (!earliest || nextDate < earliest) earliest = nextDate;
+      }
+    } catch { }
+  }
+
+  return earliest ? earliest.toISOString() : null;
+}
+
+/**
+ * Start the ingestion scheduler.
+ * Reads active sources from DB, groups them by schedule, and creates separate crons.
+ * Also starts weekly source discovery and freshness-triggered re-scraping.
+ */
+export async function startIngestionScheduler(): Promise<void> {
+  stopIngestionScheduler();
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Ingestion Scheduler] DB not available yet, cannot start multi-scheduler.");
+    return;
+  }
+
+  const activeSources = await db.select().from(sourceRegistry).where(eq(sourceRegistry.isActive, true));
+
+  // Group by schedule
+  const sourcesBySchedule: Record<string, typeof activeSources> = {};
+  const fallbackSchedule = getCronExpression();
+
+  for (const source of activeSources) {
+    const schedule = source.scrapeSchedule && cron.validate(source.scrapeSchedule)
+      ? source.scrapeSchedule
+      : fallbackSchedule;
+
+    if (!sourcesBySchedule[schedule]) {
+      sourcesBySchedule[schedule] = [];
+    }
+    sourcesBySchedule[schedule].push(source);
+  }
+
+  activeSchedulesCount = Object.keys(sourcesBySchedule).length;
+
+  for (const [schedule, sources] of Object.entries(sourcesBySchedule)) {
+    const task = cron.schedule(
+      schedule,
+      async () => {
+        if (isSchedulerRunning) {
+          console.log(`[Ingestion Scheduler] Skipping runs for schedule "${schedule}" — previous run still in progress`);
+          return;
+        }
+
+        isSchedulerRunning = true;
+        console.log(`[Ingestion Scheduler] Starting batch for schedule "${schedule}" with ${sources.length} sources`);
+
+        try {
+          let idx = 0;
+          for (const source of sources) {
+            idx++;
+            console.log(`[Ingestion Scheduler] [${idx}/${sources.length}] Queuing source ${source.name}...`);
+            const connector = new DynamicConnector(source);
+
+            try {
+              const report = await runIngestion([connector], "scheduled");
+              console.log(
+                `[Ingestion Scheduler] Source ${source.name} complete: ` +
+                `${report.evidenceCreated} records created (${report.durationMs}ms)`
+              );
+            } catch (err) {
+              console.error(`[Ingestion Scheduler] Individual run failed for ${source.name}:`, err);
+            }
+
+            lastScheduledRunAt = new Date();
+
+            // Stagger next run in same schedule by 30 seconds
+            if (idx < sources.length) {
+              await new Promise(r => setTimeout(r, 30_000));
+            }
+          }
+          console.log(`[Ingestion Scheduler] Batch for schedule "${schedule}" completed successfully.`);
+        } catch (error) {
+          console.error(
+            `[Ingestion Scheduler] Batch failed for schedule "${schedule}":`,
+            error instanceof Error ? error.message : String(error)
+          );
+        } finally {
+          isSchedulerRunning = false;
+        }
+      },
+      {
+        timezone: "UTC",
+        name: `miyar-ingestion-${schedule.replace(/\s+/g, "-")}`,
+      }
+    );
+
+    scheduledTasks.push(task);
+  }
+
+  // ─── Weekly Source Discovery (Sundays 04:00 UTC) ───────────────
+  const discoveryTask = cron.schedule(
+    "0 0 4 * * 0", // Sunday 04:00 UTC
+    async () => {
+      console.log("[Ingestion Scheduler] 🔍 Running weekly source discovery...");
+      try {
+        const existingSources = await listSourceRegistry();
+        const formatted = existingSources.map((s: any) => ({
+          name: s.name,
+          url: s.url,
+          category: s.sourceType || "other",
+        }));
+
+        const result = await discoverNewSources({
+          existingSources: formatted,
+          coverageGaps: ["lighting fixtures", "kitchen appliances", "smart home systems", "sustainable materials"],
+        });
+        const total = result.discoveredSources.length + KNOWN_MISSING_SOURCES.length;
+
+        console.log(
+          `[Ingestion Scheduler] 🔍 Discovery complete: ${result.discoveredSources.length} AI-found + ` +
+          `${KNOWN_MISSING_SOURCES.length} pre-vetted = ${total} candidate sources`
+        );
+
+        for (const src of result.discoveredSources.slice(0, 5)) {
+          console.log(`[Ingestion Scheduler]   📌 ${src.name} (${src.url}) — ${src.rationale}`);
+        }
+      } catch (err) {
+        console.error("[Ingestion Scheduler] Source discovery failed:", err instanceof Error ? err.message : String(err));
+      }
+    },
+    { timezone: "UTC", name: "miyar-weekly-discovery" }
+  );
+  scheduledTasks.push(discoveryTask);
+
+  // ─── Freshness Re-scrape (Wednesdays 06:00 UTC) ───────────────
+  const freshnessTask = cron.schedule(
+    "0 0 6 * * 3", // Wednesday 06:00 UTC
+    async () => {
+      if (isSchedulerRunning) {
+        console.log("[Ingestion Scheduler] Skipping freshness re-scrape — scheduler already running");
+        return;
+      }
+
+      console.log("[Ingestion Scheduler] 🔄 Running freshness-triggered re-scrape...");
+      isSchedulerRunning = true;
+
+      try {
+        const staleIds = await getStaleSourceIds();
+        if (staleIds.length === 0) {
+          console.log("[Ingestion Scheduler] 🔄 No stale sources found — all data is fresh");
+          return;
+        }
+
+        console.log(`[Ingestion Scheduler] 🔄 Found ${staleIds.length} stale sources, re-scraping (max 5)...`);
+
+        const allSources = await db.select().from(sourceRegistry).where(eq(sourceRegistry.isActive, true));
+        const sourceMap = new Map(allSources.map((s: any) => [s.id, s]));
+        let processed = 0;
+
+        for (const staleId of staleIds.slice(0, 5)) {
+          const source = sourceMap.get(staleId) as any;
+          if (!source) continue;
+
+          try {
+            const connector = new DynamicConnector(source);
+            const report = await runSingleConnector(connector, "scheduled");
+            console.log(
+              `[Ingestion Scheduler] 🔄 Re-scraped ${source.name}: ` +
+              `${report.evidenceCreated} created, ${report.evidenceUpdated} updated`
+            );
+            processed++;
+          } catch (err) {
+            console.error(`[Ingestion Scheduler] Re-scrape failed for ${source.name}:`, err);
+          }
+
+          if (processed < Math.min(staleIds.length, 5)) {
+            await new Promise(r => setTimeout(r, 30_000));
+          }
+        }
+
+        console.log(`[Ingestion Scheduler] 🔄 Freshness re-scrape complete: ${processed} sources refreshed`);
+      } catch (err) {
+        console.error("[Ingestion Scheduler] Freshness re-scrape failed:", err instanceof Error ? err.message : String(err));
+      } finally {
+        isSchedulerRunning = false;
+      }
+    },
+    { timezone: "UTC", name: "miyar-freshness-rescrape" }
+  );
+  scheduledTasks.push(freshnessTask);
+
+  console.log(
+    `[Ingestion Scheduler] Started ${scheduledTasks.length} cron jobs: ` +
+    `${activeSources.length} source schedules + weekly discovery + freshness re-scrape`
+  );
+}
+
+/**
+ * Stop the ingestion scheduler.
+ */
+export function stopIngestionScheduler(): void {
+  for (const task of scheduledTasks) {
+    task.stop();
+  }
+  scheduledTasks = [];
+  activeSchedulesCount = 0;
+  console.log("[Ingestion Scheduler] Stopped all scheduled tasks");
+}
+
+/**
+ * Get scheduler status for the API.
+ */
+export function getSchedulerStatus() {
+  return {
+    active: scheduledTasks.length > 0,
+    cronExpression: `${activeSchedulesCount} source schedules + weekly discovery + freshness re-scrape`,
+    nextScheduledRun: getNextScheduledRun(),
+    lastScheduledRunAt: lastScheduledRunAt?.toISOString() ?? null,
+    isCurrentlyRunning: isSchedulerRunning,
+    totalJobs: scheduledTasks.length,
+  };
+}
+```
+
+| Job | Schedule | What It Does |
+|-----|----------|------------|
+| Source ingestion | Per-source cron | Normal data collection |
+| **Weekly Discovery** | **Sun 04:00 UTC** | AI discovers new UAE data sources |
+| **Freshness Re-scrape** | **Wed 06:00 UTC** | Auto re-scrapes sources with >50% stale data |
+
+### 3. Prompt Accuracy Audit
+**File:** [dynamic.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts)
+
+```diff:dynamic.ts
+import { BaseSourceConnector } from "../connector";
+import type { RawSourcePayload, ExtractedEvidence, NormalizedEvidenceInput } from "../connector";
+import { assignGrade, computeConfidence, isFirecrawlAvailable } from "../connector";
+import { invokeLLM } from "../../../_core/llm";
+import { discoverLinks, DEFAULT_CRAWL_CONFIG, type CrawlConfig } from "../crawler";
+
+// ─── LLM Prompts ────────────────────────────────────────────────
+
+const LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
+You extract structured evidence from website content of UAE construction/real estate websites.
+Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
+
+// ─── Source-type-specific prompt builders ────────────────────────
+
+/**
+ * PROMPT A: Material Pricing — for supplier/manufacturer/retailer sources
+ * Extracts: product names + AED prices + categories + brands
+ */
+function buildMaterialPricingPrompt(
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    const hintsFilter = hints ? `\nEXTRACTION HINTS: ${hints}` : "";
+    const pageRef = pageUrl ? `\nPage URL: ${pageUrl}` : "";
+
+    return `Extract products with prices from this ${sourceName} supplier/retailer page.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+IMPORTANT: Extract EXACT AED prices. If price is shown, include it. Skip items with no price.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (product name with specification, e.g. "Calacatta Marble Tile 60x60cm")
+- rawText: string (product description or context, max 500 chars)
+- value: number (price in AED — REQUIRED, skip items without price)
+- valueMax: number|null (max price if a range is shown, e.g. for "85-110 AED/sqm" value=85, valueMax=110)
+- unit: string (REQUIRED — "sqm", "piece", "unit", "m", "L", "set", etc.)
+- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
+- brand: string|null (manufacturer/brand name if visible)
+- publishedDate: string|null (ISO date if found)
+
+Rules:
+- Extract ALL priced items you can find, up to 50 maximum
+- Price MUST be a number in AED — skip items with no visible price
+- For price ranges like "85-110", set value=85 and valueMax=110
+- Convert known currencies to AED (USD×3.67, EUR×4.0)
+- Do NOT invent prices
+- Return empty array [] if no priced items found
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16000)}`;
+}
+
+/**
+ * PROMPT B: Developer Intelligence — for developer_brochure sources
+ * Extracts: finish specs, design styles, brands, quality tier
+ */
+function buildDeveloperIntelPrompt(
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    const hintsFilter = hints ? `\nEXTRACTION HINTS: ${hints}` : "";
+    const pageRef = pageUrl ? `\nPage URL: ${pageUrl}` : "";
+
+    return `Extract INTERIOR DESIGN intelligence from this ${sourceName} developer/project website.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: finish specifications, material brands used, design aesthetic, quality tier.
+DO NOT extract: property prices, bedroom counts, unit sizes, payment plans, or sales offers.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (project/development name)
+- rawText: string (description of finishes and design, max 500 chars)
+- finishLevel: string (one of: "basic", "standard", "premium", "luxury", "ultra_luxury")
+- designStyle: string (aesthetic description, e.g. "Contemporary Italian", "Modern Arabic", "Minimalist Scandinavian", "Classic European")
+- brands: string[] (brand names mentioned, e.g. ["Grohe", "Porcelanosa", "Miele", "Villeroy & Boch"])
+- materialSpec: string (specific materials mentioned, e.g. "Imported marble flooring, engineered oak, quartz countertops, European kitchen appliances")
+- category: string (main area — "floors", "walls", "sanitary", "kitchen", "joinery", "lighting", "ffe", "other")
+
+Rules:
+- ONE record per project/development (not per unit type)
+- Focus on WHAT MATERIALS and FINISHES are used, not the property itself
+- If the page describes kitchen specs, bathroom specs, floor specs — extract each as separate records
+- If no interior design info found, return empty array []
+- Look for words like: marble, granite, porcelain, hardwood, premium, luxury, European, imported, bespoke
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16000)}`;
+}
+
+/**
+ * PROMPT C: Market Research — for industry_report/trade_publication sources
+ * Extracts: market statistics, trends, forecasts, cost benchmarks
+ */
+function buildMarketResearchPrompt(
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    const hintsFilter = hints ? `\nEXTRACTION HINTS: ${hints}` : "";
+    const pageRef = pageUrl ? `\nPage URL: ${pageUrl}` : "";
+
+    return `Extract market intelligence and construction/real estate statistics from this ${sourceName} report.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: price indices, construction cost benchmarks, market trends, supply/demand data, forecasts.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (statistic or finding name, e.g. "Average Fitout Cost - Luxury Residential")
+- rawText: string (the finding with context, max 500 chars)
+- value: number|null (numeric value in AED if applicable)
+- unit: string|null (e.g. "sqft", "sqm", "percent", "index", "AED/sqm")
+- trend: string|null (one of: "rising", "stable", "falling", or null if not a trend)
+- publishedDate: string|null (ISO date if found)
+- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
+
+Rules:
+- Extract ALL statistics, data points, and findings — up to 50 maximum
+- Include forecasts and projections with timeframe in rawText
+- Include percentage changes and growth rates
+- If no relevant data found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16000)}`;
+}
+
+/**
+ * PROMPT D: Government Data — for government_tender/procurement sources
+ * Extracts: permits, regulations, cost indices, tenders
+ */
+function buildGovernmentDataPrompt(
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    const hintsFilter = hints ? `\nEXTRACTION HINTS: ${hints}` : "";
+    const pageRef = pageUrl ? `\nPage URL: ${pageUrl}` : "";
+
+    return `Extract construction and real estate data from this ${sourceName} government source.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: building permits, construction statistics, cost indices, regulations, standards.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (data point, regulation, or statistic name)
+- rawText: string (description or finding, max 500 chars)
+- value: number|null (numeric value if applicable)
+- unit: string|null (measurement unit)
+- publishedDate: string|null (ISO date if found)
+- category: string ("other" for most government data)
+
+Rules:
+- Extract data relevant to construction, interior design, and real estate
+- Include regulatory changes affecting building standards
+- If no relevant data found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16000)}`;
+}
+
+// ─── Prompt selector ────────────────────────────────────────────
+
+type SourceTypeKey = "supplier_catalog" | "manufacturer_catalog" | "retailer_listing" | "aggregator" |
+    "developer_brochure" | "industry_report" | "trade_publication" |
+    "government_tender" | "procurement_portal" | "other";
+
+function selectPrompt(
+    sourceType: string,
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    switch (sourceType) {
+        case "supplier_catalog":
+        case "manufacturer_catalog":
+        case "retailer_listing":
+        case "aggregator":
+            return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+        case "developer_brochure":
+            return buildDeveloperIntelPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+        case "industry_report":
+        case "trade_publication":
+            return buildMarketResearchPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+        case "government_tender":
+        case "procurement_portal":
+            return buildGovernmentDataPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+        default:
+            // Fallback: use material pricing as default
+            return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    }
+}
+
+// ─── Intelligence type mapping ──────────────────────────────────
+
+function getIntelligenceType(sourceType: string): string {
+    switch (sourceType) {
+        case "supplier_catalog":
+        case "manufacturer_catalog":
+        case "retailer_listing":
+        case "aggregator":
+            return "material_price";
+        case "developer_brochure":
+            return "finish_specification";
+        case "industry_report":
+        case "trade_publication":
+            return "market_statistic";
+        case "government_tender":
+        case "procurement_portal":
+            return "regulation";
+        default:
+            return "material_price";
+    }
+}
+
+// ─── Source types that benefit from multi-page crawling ──────────
+
+const CRAWLABLE_TYPES = new Set([
+    "supplier_catalog",
+    "manufacturer_catalog",
+    "retailer_listing",
+    "aggregator",
+]);
+
+export class DynamicConnector extends BaseSourceConnector {
+    sourceId: string;
+    sourceName: string;
+    sourceUrl: string;
+    category: string;
+    geography: string;
+
+    scrapeMethod: string;
+    extractionHints: string;
+    defaultUnit: string = "unit";
+    defaultTags: string[] = [];
+
+    private sourceType: string;
+    private crawlConfig: CrawlConfig;
+
+    /** Accumulates extracted evidence from all crawled pages */
+    private _allPageEvidence: ExtractedEvidence[] = [];
+    private _crawled = false;
+
+    constructor(config: {
+        id: number | string;
+        name: string;
+        url: string;
+        sourceType?: string;
+        region?: string;
+        scrapeMethod?: string;
+        extractionHints?: string;
+        lastSuccessfulFetch?: Date | null;
+        requestDelayMs?: number;
+        scrapeConfig?: any;
+    }) {
+        super();
+        this.sourceId = String(config.id);
+        this.sourceName = config.name;
+        this.sourceUrl = config.url;
+
+        const typeCategoryMap: Record<string, string> = {
+            supplier_catalog: "floors",
+            manufacturer_catalog: "floors",
+            retailer_listing: "floors",
+            developer_brochure: "other",
+            industry_report: "other",
+            government_tender: "other",
+            trade_publication: "other",
+            aggregator: "floors",
+            other: "other"
+        };
+
+        this.sourceType = config.sourceType || "other";
+        this.category = typeCategoryMap[this.sourceType] || "other";
+        this.geography = config.region || "UAE";
+        this.scrapeMethod = config.scrapeMethod || "html_llm";
+        this.extractionHints = config.extractionHints || "";
+
+        if (config.lastSuccessfulFetch) {
+            this.lastSuccessfulFetch = new Date(config.lastSuccessfulFetch);
+        }
+
+        const userCrawl = config.scrapeConfig?.crawl || {};
+        this.crawlConfig = {
+            ...DEFAULT_CRAWL_CONFIG,
+            requestDelayMs: config.requestDelayMs || DEFAULT_CRAWL_CONFIG.requestDelayMs,
+            ...userCrawl,
+        };
+
+        if (config.requestDelayMs) {
+            this.requestDelayMs = config.requestDelayMs;
+        }
+    }
+
+    shouldCrawl(): boolean {
+        return CRAWLABLE_TYPES.has(this.sourceType) && this.crawlConfig.maxDepth > 0;
+    }
+
+    /**
+     * Fetch with multi-page crawling for catalog sources.
+     * Uses Firecrawl when available for JS-rendered pages.
+     */
+    async fetch(): Promise<RawSourcePayload> {
+        const localBudget = process.env.LOCAL_PAGE_BUDGET
+            ? parseInt(process.env.LOCAL_PAGE_BUDGET, 10)
+            : undefined;
+
+        if (localBudget) {
+            this.crawlConfig = { ...this.crawlConfig, pageBudget: localBudget };
+        }
+
+        if (!this.shouldCrawl()) {
+            // Single-page mode — use Firecrawl or basic fetch
+            if (isFirecrawlAvailable()) {
+                return this.fetchWithFirecrawl();
+            }
+            return super.fetch();
+        }
+
+        // Multi-page crawl mode (BFS)
+        console.log(`[DynamicConnector] 🕷️  Crawling ${this.sourceName} (max ${this.crawlConfig.pageBudget} pages, depth ${this.crawlConfig.maxDepth})`);
+
+        const visited = new Set<string>();
+        const queue: Array<{ url: string; depth: number }> = [{ url: this.sourceUrl, depth: 0 }];
+        const allEvidence: ExtractedEvidence[] = [];
+        let pagesProcessed = 0;
+        let pagesFailed = 0;
+
+        while (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
+            const { url, depth } = queue.shift()!;
+            const normalizedUrl = url.replace(/\/$/, "");
+
+            if (visited.has(normalizedUrl)) continue;
+            visited.add(normalizedUrl);
+
+            // Fetch this page (using Firecrawl if available)
+            let payload: RawSourcePayload;
+            try {
+                if (isFirecrawlAvailable()) {
+                    payload = await this.fetchWithFirecrawl(url);
+                } else {
+                    payload = await this.fetchBasic(url);
+                }
+            } catch (err) {
+                console.warn(`[DynamicConnector] Page fetch failed: ${url}`);
+                pagesFailed++;
+                continue;
+            }
+
+            if (payload.error || (!payload.rawHtml && !payload.markdown) ||
+                ((payload.rawHtml?.length || 0) + (payload.markdown?.length || 0)) < 100) {
+                pagesFailed++;
+                continue;
+            }
+
+            pagesProcessed++;
+
+            // Extract evidence from this page using LLM
+            try {
+                const content = payload.markdown || payload.rawHtml || "";
+                const evidence = await this.extractFromContent(content, url, !!payload.markdown);
+                if (evidence.length > 0) {
+                    console.log(`[DynamicConnector]   📄 ${url} → ${evidence.length} items`);
+                    allEvidence.push(...evidence);
+                }
+            } catch (err) {
+                console.warn(`[DynamicConnector]   ⚠️  Extraction failed for ${url}`);
+            }
+
+            // Discover internal links if within depth limit (use HTML for link discovery)
+            if (depth < this.crawlConfig.maxDepth && payload.rawHtml) {
+                const links = discoverLinks(payload.rawHtml, url, this.crawlConfig);
+                for (const link of links) {
+                    const normLink = link.replace(/\/$/, "");
+                    if (!visited.has(normLink) && !queue.some(q => q.url.replace(/\/$/, "") === normLink)) {
+                        queue.push({ url: link, depth: depth + 1 });
+                    }
+                }
+            }
+
+            // Rate limit between pages
+            if (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
+                await new Promise(r => setTimeout(r, this.crawlConfig.requestDelayMs));
+            }
+        }
+
+        console.log(`[DynamicConnector] 🕷️  Crawl complete: ${pagesProcessed} pages, ${allEvidence.length} items extracted, ${pagesFailed} failed`);
+
+        this._allPageEvidence = allEvidence;
+        this._crawled = true;
+
+        return {
+            url: this.sourceUrl,
+            rawHtml: `<!-- Crawled ${pagesProcessed} pages, ${allEvidence.length} items extracted -->`,
+            statusCode: 200,
+            fetchedAt: new Date(),
+        };
+    }
+
+    /**
+     * Extract evidence from content using LLM.
+     * Uses source-type-specific prompts for targeted extraction.
+     */
+    private async extractFromContent(content: string, pageUrl: string, isMarkdown: boolean): Promise<ExtractedEvidence[]> {
+        let textContent: string;
+
+        if (isMarkdown) {
+            textContent = content.trim();
+        } else {
+            textContent = content
+                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+                .replace(/<[^>]+>/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        if (textContent.length < 50) return [];
+
+        try {
+            // Select prompt based on source type
+            const prompt = selectPrompt(
+                this.sourceType,
+                this.sourceName,
+                this.geography,
+                textContent,
+                this.extractionHints,
+                pageUrl,
+            );
+
+            const response = await invokeLLM({
+                messages: [
+                    { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT },
+                    { role: "user", content: prompt }
+                ],
+                response_format: { type: "json_object" }
+            });
+
+            const resText = typeof response.choices[0]?.message?.content === "string"
+                ? response.choices[0].message.content : "";
+
+            if (!resText) return [];
+
+            const parsed = JSON.parse(resText);
+            const items = Array.isArray(parsed) ? parsed : (parsed.items || parsed.data || []);
+            if (!Array.isArray(items)) return [];
+
+            const intelligenceType = getIntelligenceType(this.sourceType);
+
+            return items
+                .filter((item: any) => item && typeof item.title === "string" && item.title.length > 0)
+                .slice(0, 50)
+                .map((item: any) => ({
+                    title: String(item.title).substring(0, 255),
+                    rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
+                    publishedDate: item.publishedDate ? new Date(item.publishedDate) : undefined,
+                    category: item.category || this.category,
+                    geography: this.geography,
+                    sourceUrl: pageUrl,
+                    // Material pricing fields
+                    _llmMetric: String(item.metric || item.title || "").substring(0, 255),
+                    _llmValue: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
+                    _llmValueMax: typeof item.valueMax === "number" && isFinite(item.valueMax) ? item.valueMax : null,
+                    _llmUnit: typeof item.unit === "string" ? item.unit : null,
+                    _llmBrand: typeof item.brand === "string" ? item.brand : null,
+                    // Design intelligence fields
+                    _llmFinishLevel: typeof item.finishLevel === "string" ? item.finishLevel : null,
+                    _llmDesignStyle: typeof item.designStyle === "string" ? item.designStyle : null,
+                    _llmBrands: Array.isArray(item.brands) ? item.brands : null,
+                    _llmMaterialSpec: typeof item.materialSpec === "string" ? item.materialSpec : null,
+                    _llmIntelligenceType: intelligenceType,
+                } as any));
+        } catch (err) {
+            console.error(`[DynamicConnector] LLM extraction failed for ${pageUrl}:`, err);
+            return [];
+        }
+    }
+
+    /**
+     * Called by orchestrator after fetch().
+     * For multi-page crawls, returns pre-accumulated evidence.
+     * For single-page, runs LLM extraction on fetched content.
+     */
+    async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
+        if (this._crawled && this._allPageEvidence.length > 0) {
+            const evidence = [...this._allPageEvidence];
+            this._allPageEvidence = [];
+            this._crawled = false;
+            return evidence;
+        }
+
+        // Single-page extraction — prefer markdown over HTML
+        const content = raw.markdown || raw.rawHtml || JSON.stringify(raw.rawJson || {});
+        if (!content || content.length < 50) return [];
+
+        const isMarkdown = !!raw.markdown;
+        return this.extractFromContent(
+            isMarkdown ? content : (raw.rawHtml ? content : `<pre>${content}</pre>`),
+            raw.url,
+            isMarkdown,
+        );
+    }
+
+    async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+        const grade = assignGrade(this.sourceId);
+        const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+        const llmEvidence = evidence as any;
+
+        return {
+            metric: llmEvidence._llmMetric || evidence.title,
+            value: llmEvidence._llmValue ?? null,
+            valueMax: llmEvidence._llmValueMax ?? null,
+            unit: llmEvidence._llmUnit ?? this.defaultUnit,
+            confidence,
+            grade,
+            summary: (evidence.rawText || "").replace(/\s+/g, " ").trim().substring(0, 500),
+            tags: this.defaultTags,
+            brand: llmEvidence._llmBrand ?? null,
+            // Design intelligence fields
+            finishLevel: llmEvidence._llmFinishLevel ?? null,
+            designStyle: llmEvidence._llmDesignStyle ?? null,
+            brandsMentioned: llmEvidence._llmBrands ?? null,
+            materialSpec: llmEvidence._llmMaterialSpec ?? null,
+            intelligenceType: llmEvidence._llmIntelligenceType ?? "material_price",
+        };
+    }
+}
+===
+import { BaseSourceConnector } from "../connector";
+import type { RawSourcePayload, ExtractedEvidence, NormalizedEvidenceInput } from "../connector";
+import { assignGrade, computeConfidence, isFirecrawlAvailable } from "../connector";
+import { invokeLLM } from "../../../_core/llm";
+import { discoverLinks, DEFAULT_CRAWL_CONFIG, type CrawlConfig } from "../crawler";
+
+// ─── LLM Prompts ────────────────────────────────────────────────
+
+const LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
+You extract structured evidence from website content of UAE construction/real estate websites.
+Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
+
+// ─── Source-type-specific prompt builders ────────────────────────
+
+/**
+ * PROMPT A: Material Pricing — for supplier/manufacturer/retailer sources
+ * Extracts: product names + AED prices + categories + brands
+ */
+function buildMaterialPricingPrompt(
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    const hintsFilter = hints ? `\nEXTRACTION HINTS: ${hints}` : "";
+    const pageRef = pageUrl ? `\nPage URL: ${pageUrl}` : "";
+
+    return `Extract products with prices from this ${sourceName} supplier/retailer page.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+IMPORTANT: Extract EXACT AED prices. If price is shown, include it. Skip items with no price.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (product name with specification, e.g. "Calacatta Marble Tile 60x60cm")
+- rawText: string (product description or context, max 500 chars)
+- value: number (price in AED — REQUIRED, skip items without price)
+- valueMax: number|null (max price if a range is shown, e.g. for "85-110 AED/sqm" value=85, valueMax=110)
+- unit: string (REQUIRED — "sqm", "piece", "unit", "m", "L", "set", etc.)
+- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
+- brand: string|null (manufacturer/brand name if visible)
+- publishedDate: string|null (ISO date if found)
+
+Rules:
+- Extract ALL priced items you can find, up to 50 maximum
+- Price MUST be a number in AED — skip items with no visible price
+- For price ranges like "85-110", set value=85 and valueMax=110
+- Currency conversions: USD×3.67, EUR×4.0, GBP×4.65, SAR×0.98
+- Watch for common UAE price notations: "AED 150/sqm", "Dhs 150", "د.إ 150", "150 درهم"
+- If price says "excl. VAT" or "+ VAT", multiply by 1.05 (UAE 5% VAT)
+- If price is per sqft, convert to sqm by multiplying ×10.764 and set unit="sqm"
+- Do NOT invent prices — if no price is visible on the page, return []
+- Common UAE material brands to recognize: RAK Ceramics, Porcelanosa, Grohe, Hansgrohe, Duravit, Villeroy & Boch, Hafele, Dornbracht, Miele, Gaggenau, Sub-Zero,DERA, Cosentino
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16000)}`;
+}
+
+/**
+ * PROMPT B: Developer Intelligence — for developer_brochure sources
+ * Extracts: finish specs, design styles, brands, quality tier
+ */
+function buildDeveloperIntelPrompt(
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    const hintsFilter = hints ? `\nEXTRACTION HINTS: ${hints}` : "";
+    const pageRef = pageUrl ? `\nPage URL: ${pageUrl}` : "";
+
+    return `Extract INTERIOR DESIGN intelligence from this ${sourceName} developer/project website.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: finish specifications, material brands used, design aesthetic, quality tier.
+DO NOT extract: property prices, bedroom counts, unit sizes, payment plans, or sales offers.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (project/development name)
+- rawText: string (description of finishes and design, max 500 chars)
+- finishLevel: string (one of: "basic", "standard", "premium", "luxury", "ultra_luxury")
+- designStyle: string (aesthetic description, e.g. "Contemporary Italian", "Modern Arabic", "Minimalist Scandinavian", "Classic European")
+- brands: string[] (brand names mentioned, e.g. ["Grohe", "Porcelanosa", "Miele", "Villeroy & Boch"])
+- materialSpec: string (specific materials mentioned, e.g. "Imported marble flooring, engineered oak, quartz countertops, European kitchen appliances")
+- category: string (main area — "floors", "walls", "sanitary", "kitchen", "joinery", "lighting", "ffe", "other")
+
+Finish level guide for UAE projects:
+- basic: Standard ceramic tiles, laminate counters, basic sanitaryware
+- standard: Porcelain tiles, quartz/granite counters, branded fittings (Grohe, Duravit)
+- premium: Imported stone, engineered hardwood, European brands (Hansgrohe, V&B, Miele)
+- luxury: Italian/Spanish marble, bespoke joinery, German appliances (Gaggenau, Sub-Zero, Bulthaup)
+- ultra_luxury: Rare stones (Calacatta, Onyx), custom designer fittings, smart home, art consulting
+
+UAE-specific brand recognition:
+- Developers: Emaar, DAMAC, Nakheel, Aldar, MERAAS, Sobha, Omniyat, FIVE Holdings, Select Group
+- Kitchen brands: Bulthaup, SieMatic, Poggenpohl, Poliform, Snaidero
+- Bathroom brands: Gessi, Axor, THG, Zucchetti, Fantini
+- Look for brochure language: "imported European finishes", "select materials", "designer kitchen"
+
+Rules:
+- ONE record per project/development (not per unit type), but if the page describes kitchen specs + bathroom specs + floor specs separately, extract each as separate records
+- Focus on WHAT MATERIALS and FINISHES are used, not sale price or investment value
+- If no interior design info found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16000)}`;
+}
+
+/**
+ * PROMPT C: Market Research — for industry_report/trade_publication sources
+ * Extracts: market statistics, trends, forecasts, cost benchmarks
+ */
+function buildMarketResearchPrompt(
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    const hintsFilter = hints ? `\nEXTRACTION HINTS: ${hints}` : "";
+    const pageRef = pageUrl ? `\nPage URL: ${pageUrl}` : "";
+
+    return `Extract market intelligence and construction/real estate statistics from this ${sourceName} report.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: price indices, construction cost benchmarks, market trends, supply/demand data, forecasts.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (statistic or finding name, e.g. "Average Fitout Cost - Luxury Residential Dubai Q4 2025")
+- rawText: string (the finding with context including period/quarter, max 500 chars)
+- value: number|null (numeric value in AED if applicable)
+- unit: string|null (e.g. "sqft", "sqm", "percent", "index", "AED/sqm")
+- trend: string|null (one of: "rising", "stable", "falling", or null if not a trend)
+- trendConfidence: string|null (one of: "confirmed" if multiple sources agree, "emerging" if single source/early signal, "speculative" if forecast/projection)
+- publishedDate: string|null (ISO date if found — include quarter: e.g. "2025-10-01" for Q4 2025)
+- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
+
+Rules:
+- Extract ALL statistics, data points, and findings — up to 50 maximum
+- Always include the TIME PERIOD in the title (Q1/Q2/Q3/Q4 and year)
+- Include forecasts and projections — mark trendConfidence as "speculative" for predictions
+- Include percentage changes and growth rates (YoY, QoQ)
+- For comparisons (e.g. "Marble prices rose 12% YoY"), extract: value=12, unit="percent", trend="rising"
+- UAE-specific metrics to look for: DLD transaction volumes, RERA rental indices, construction cost per sqft, fitout cost benchmarks by tier, building permit counts
+- If no relevant data found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16000)}`;
+}
+
+/**
+ * PROMPT D: Government Data — for government_tender/procurement sources
+ * Extracts: permits, regulations, cost indices, tenders
+ */
+function buildGovernmentDataPrompt(
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    const hintsFilter = hints ? `\nEXTRACTION HINTS: ${hints}` : "";
+    const pageRef = pageUrl ? `\nPage URL: ${pageUrl}` : "";
+
+    return `Extract construction and real estate data from this ${sourceName} government source.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: building permits, construction statistics, cost indices, regulations, standards.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (data point, regulation, or statistic name — include regulation code if visible)
+- rawText: string (description or finding, max 500 chars — include regulation numbers, dates, and authority)
+- value: number|null (numeric value if applicable)
+- unit: string|null (measurement unit)
+- publishedDate: string|null (ISO date if found)
+- category: string ("other" for most government data)
+- regulationCode: string|null (e.g. "DM/G-007", "RERA/2025/03", "ADQCC-123", "CMA-456" — extract if visible)
+
+Rules:
+- Extract data relevant to construction, interior design, and real estate
+- Include regulatory changes affecting building standards or interior fitout:
+  - Dubai Municipality (DM) codes for fire safety, MEP, green building
+  - RERA/DLD regulations for handover standards and defect liability
+  - Abu Dhabi QCC (ADQCC) construction quality standards
+  - Civil Defense fire safety requirements (corridor widths, material classes)
+- Extract building permit statistics (count, value, area)
+- Include sustainability mandates (Al Sa'fat / Estidama ratings)
+- If no relevant data found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, 16000)}`;
+}
+
+// ─── Prompt selector ────────────────────────────────────────────
+
+type SourceTypeKey = "supplier_catalog" | "manufacturer_catalog" | "retailer_listing" | "aggregator" |
+    "developer_brochure" | "industry_report" | "trade_publication" |
+    "government_tender" | "procurement_portal" | "other";
+
+function selectPrompt(
+    sourceType: string,
+    sourceName: string,
+    geography: string,
+    contentSnippet: string,
+    hints?: string,
+    pageUrl?: string,
+): string {
+    switch (sourceType) {
+        case "supplier_catalog":
+        case "manufacturer_catalog":
+        case "retailer_listing":
+        case "aggregator":
+            return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+        case "developer_brochure":
+            return buildDeveloperIntelPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+        case "industry_report":
+        case "trade_publication":
+            return buildMarketResearchPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+        case "government_tender":
+        case "procurement_portal":
+            return buildGovernmentDataPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+        default:
+            // Fallback: use material pricing as default
+            return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    }
+}
+
+// ─── Intelligence type mapping ──────────────────────────────────
+
+function getIntelligenceType(sourceType: string): string {
+    switch (sourceType) {
+        case "supplier_catalog":
+        case "manufacturer_catalog":
+        case "retailer_listing":
+        case "aggregator":
+            return "material_price";
+        case "developer_brochure":
+            return "finish_specification";
+        case "industry_report":
+        case "trade_publication":
+            return "market_statistic";
+        case "government_tender":
+        case "procurement_portal":
+            return "regulation";
+        default:
+            return "material_price";
+    }
+}
+
+// ─── Source types that benefit from multi-page crawling ──────────
+
+const CRAWLABLE_TYPES = new Set([
+    "supplier_catalog",
+    "manufacturer_catalog",
+    "retailer_listing",
+    "aggregator",
+]);
+
+export class DynamicConnector extends BaseSourceConnector {
+    sourceId: string;
+    sourceName: string;
+    sourceUrl: string;
+    category: string;
+    geography: string;
+
+    scrapeMethod: string;
+    extractionHints: string;
+    defaultUnit: string = "unit";
+    defaultTags: string[] = [];
+
+    private sourceType: string;
+    private crawlConfig: CrawlConfig;
+
+    /** Accumulates extracted evidence from all crawled pages */
+    private _allPageEvidence: ExtractedEvidence[] = [];
+    private _crawled = false;
+
+    constructor(config: {
+        id: number | string;
+        name: string;
+        url: string;
+        sourceType?: string;
+        region?: string;
+        scrapeMethod?: string;
+        extractionHints?: string;
+        lastSuccessfulFetch?: Date | null;
+        requestDelayMs?: number;
+        scrapeConfig?: any;
+    }) {
+        super();
+        this.sourceId = String(config.id);
+        this.sourceName = config.name;
+        this.sourceUrl = config.url;
+
+        const typeCategoryMap: Record<string, string> = {
+            supplier_catalog: "floors",
+            manufacturer_catalog: "floors",
+            retailer_listing: "floors",
+            developer_brochure: "other",
+            industry_report: "other",
+            government_tender: "other",
+            trade_publication: "other",
+            aggregator: "floors",
+            other: "other"
+        };
+
+        this.sourceType = config.sourceType || "other";
+        this.category = typeCategoryMap[this.sourceType] || "other";
+        this.geography = config.region || "UAE";
+        this.scrapeMethod = config.scrapeMethod || "html_llm";
+        this.extractionHints = config.extractionHints || "";
+
+        if (config.lastSuccessfulFetch) {
+            this.lastSuccessfulFetch = new Date(config.lastSuccessfulFetch);
+        }
+
+        const userCrawl = config.scrapeConfig?.crawl || {};
+        this.crawlConfig = {
+            ...DEFAULT_CRAWL_CONFIG,
+            requestDelayMs: config.requestDelayMs || DEFAULT_CRAWL_CONFIG.requestDelayMs,
+            ...userCrawl,
+        };
+
+        if (config.requestDelayMs) {
+            this.requestDelayMs = config.requestDelayMs;
+        }
+    }
+
+    shouldCrawl(): boolean {
+        return CRAWLABLE_TYPES.has(this.sourceType) && this.crawlConfig.maxDepth > 0;
+    }
+
+    /**
+     * Fetch with multi-page crawling for catalog sources.
+     * Uses Firecrawl when available for JS-rendered pages.
+     */
+    async fetch(): Promise<RawSourcePayload> {
+        const localBudget = process.env.LOCAL_PAGE_BUDGET
+            ? parseInt(process.env.LOCAL_PAGE_BUDGET, 10)
+            : undefined;
+
+        if (localBudget) {
+            this.crawlConfig = { ...this.crawlConfig, pageBudget: localBudget };
+        }
+
+        if (!this.shouldCrawl()) {
+            // Single-page mode — use Firecrawl or basic fetch
+            if (isFirecrawlAvailable()) {
+                return this.fetchWithFirecrawl();
+            }
+            return super.fetch();
+        }
+
+        // Multi-page crawl mode (BFS)
+        console.log(`[DynamicConnector] 🕷️  Crawling ${this.sourceName} (max ${this.crawlConfig.pageBudget} pages, depth ${this.crawlConfig.maxDepth})`);
+
+        const visited = new Set<string>();
+        const queue: Array<{ url: string; depth: number }> = [{ url: this.sourceUrl, depth: 0 }];
+        const allEvidence: ExtractedEvidence[] = [];
+        let pagesProcessed = 0;
+        let pagesFailed = 0;
+
+        while (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
+            const { url, depth } = queue.shift()!;
+            const normalizedUrl = url.replace(/\/$/, "");
+
+            if (visited.has(normalizedUrl)) continue;
+            visited.add(normalizedUrl);
+
+            // Fetch this page (using Firecrawl if available)
+            let payload: RawSourcePayload;
+            try {
+                if (isFirecrawlAvailable()) {
+                    payload = await this.fetchWithFirecrawl(url);
+                } else {
+                    payload = await this.fetchBasic(url);
+                }
+            } catch (err) {
+                console.warn(`[DynamicConnector] Page fetch failed: ${url}`);
+                pagesFailed++;
+                continue;
+            }
+
+            if (payload.error || (!payload.rawHtml && !payload.markdown) ||
+                ((payload.rawHtml?.length || 0) + (payload.markdown?.length || 0)) < 100) {
+                pagesFailed++;
+                continue;
+            }
+
+            pagesProcessed++;
+
+            // Extract evidence from this page using LLM
+            try {
+                const content = payload.markdown || payload.rawHtml || "";
+                const evidence = await this.extractFromContent(content, url, !!payload.markdown);
+                if (evidence.length > 0) {
+                    console.log(`[DynamicConnector]   📄 ${url} → ${evidence.length} items`);
+                    allEvidence.push(...evidence);
+                }
+            } catch (err) {
+                console.warn(`[DynamicConnector]   ⚠️  Extraction failed for ${url}`);
+            }
+
+            // Discover internal links if within depth limit (use HTML for link discovery)
+            if (depth < this.crawlConfig.maxDepth && payload.rawHtml) {
+                const links = discoverLinks(payload.rawHtml, url, this.crawlConfig);
+                for (const link of links) {
+                    const normLink = link.replace(/\/$/, "");
+                    if (!visited.has(normLink) && !queue.some(q => q.url.replace(/\/$/, "") === normLink)) {
+                        queue.push({ url: link, depth: depth + 1 });
+                    }
+                }
+            }
+
+            // Rate limit between pages
+            if (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
+                await new Promise(r => setTimeout(r, this.crawlConfig.requestDelayMs));
+            }
+        }
+
+        console.log(`[DynamicConnector] 🕷️  Crawl complete: ${pagesProcessed} pages, ${allEvidence.length} items extracted, ${pagesFailed} failed`);
+
+        this._allPageEvidence = allEvidence;
+        this._crawled = true;
+
+        return {
+            url: this.sourceUrl,
+            rawHtml: `<!-- Crawled ${pagesProcessed} pages, ${allEvidence.length} items extracted -->`,
+            statusCode: 200,
+            fetchedAt: new Date(),
+        };
+    }
+
+    /**
+     * Extract evidence from content using LLM.
+     * Uses source-type-specific prompts for targeted extraction.
+     */
+    private async extractFromContent(content: string, pageUrl: string, isMarkdown: boolean): Promise<ExtractedEvidence[]> {
+        let textContent: string;
+
+        if (isMarkdown) {
+            textContent = content.trim();
+        } else {
+            textContent = content
+                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+                .replace(/<[^>]+>/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        if (textContent.length < 50) return [];
+
+        try {
+            // Select prompt based on source type
+            const prompt = selectPrompt(
+                this.sourceType,
+                this.sourceName,
+                this.geography,
+                textContent,
+                this.extractionHints,
+                pageUrl,
+            );
+
+            const response = await invokeLLM({
+                messages: [
+                    { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT },
+                    { role: "user", content: prompt }
+                ],
+                response_format: { type: "json_object" }
+            });
+
+            const resText = typeof response.choices[0]?.message?.content === "string"
+                ? response.choices[0].message.content : "";
+
+            if (!resText) return [];
+
+            const parsed = JSON.parse(resText);
+            const items = Array.isArray(parsed) ? parsed : (parsed.items || parsed.data || []);
+            if (!Array.isArray(items)) return [];
+
+            const intelligenceType = getIntelligenceType(this.sourceType);
+
+            return items
+                .filter((item: any) => item && typeof item.title === "string" && item.title.length > 0)
+                .slice(0, 50)
+                .map((item: any) => ({
+                    title: String(item.title).substring(0, 255),
+                    rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
+                    publishedDate: item.publishedDate ? new Date(item.publishedDate) : undefined,
+                    category: item.category || this.category,
+                    geography: this.geography,
+                    sourceUrl: pageUrl,
+                    // Material pricing fields
+                    _llmMetric: String(item.metric || item.title || "").substring(0, 255),
+                    _llmValue: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
+                    _llmValueMax: typeof item.valueMax === "number" && isFinite(item.valueMax) ? item.valueMax : null,
+                    _llmUnit: typeof item.unit === "string" ? item.unit : null,
+                    _llmBrand: typeof item.brand === "string" ? item.brand : null,
+                    // Design intelligence fields
+                    _llmFinishLevel: typeof item.finishLevel === "string" ? item.finishLevel : null,
+                    _llmDesignStyle: typeof item.designStyle === "string" ? item.designStyle : null,
+                    _llmBrands: Array.isArray(item.brands) ? item.brands : null,
+                    _llmMaterialSpec: typeof item.materialSpec === "string" ? item.materialSpec : null,
+                    _llmIntelligenceType: intelligenceType,
+                } as any));
+        } catch (err) {
+            console.error(`[DynamicConnector] LLM extraction failed for ${pageUrl}:`, err);
+            return [];
+        }
+    }
+
+    /**
+     * Called by orchestrator after fetch().
+     * For multi-page crawls, returns pre-accumulated evidence.
+     * For single-page, runs LLM extraction on fetched content.
+     */
+    async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
+        if (this._crawled && this._allPageEvidence.length > 0) {
+            const evidence = [...this._allPageEvidence];
+            this._allPageEvidence = [];
+            this._crawled = false;
+            return evidence;
+        }
+
+        // Single-page extraction — prefer markdown over HTML
+        const content = raw.markdown || raw.rawHtml || JSON.stringify(raw.rawJson || {});
+        if (!content || content.length < 50) return [];
+
+        const isMarkdown = !!raw.markdown;
+        return this.extractFromContent(
+            isMarkdown ? content : (raw.rawHtml ? content : `<pre>${content}</pre>`),
+            raw.url,
+            isMarkdown,
+        );
+    }
+
+    async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
+        const grade = assignGrade(this.sourceId);
+        const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+        const llmEvidence = evidence as any;
+
+        return {
+            metric: llmEvidence._llmMetric || evidence.title,
+            value: llmEvidence._llmValue ?? null,
+            valueMax: llmEvidence._llmValueMax ?? null,
+            unit: llmEvidence._llmUnit ?? this.defaultUnit,
+            confidence,
+            grade,
+            summary: (evidence.rawText || "").replace(/\s+/g, " ").trim().substring(0, 500),
+            tags: this.defaultTags,
+            brand: llmEvidence._llmBrand ?? null,
+            // Design intelligence fields
+            finishLevel: llmEvidence._llmFinishLevel ?? null,
+            designStyle: llmEvidence._llmDesignStyle ?? null,
+            brandsMentioned: llmEvidence._llmBrands ?? null,
+            materialSpec: llmEvidence._llmMaterialSpec ?? null,
+            intelligenceType: llmEvidence._llmIntelligenceType ?? "material_price",
+        };
+    }
+}
+```
+
+**Improvements per prompt:**
+
+| Prompt | Key Improvements |
+|--------|-----------------|
+| A: Material Pricing | VAT handling (×1.05), sqft→sqm conversion, UAE currency notations (Dhs, د.إ), 13+ brand names |
+| B: Developer Intel | Finish-level guide (basic→ultra_luxury), UAE developer names, kitchen/bathroom brand lists |
+| C: Market Research | Trend confidence (confirmed/emerging/speculative), quarter attribution, UAE metrics (DLD, RERA) |
+| D: Government Data | DM/RERA/ADQCC regulation code extraction, sustainability mandates (Al Sa'fat, Estidama) |
+
+---
+
+## Verification
+
+| Check | Result |
+|-------|--------|
+| TypeScript compilation | ✅ Zero new errors (1 pre-existing: pdf-parse in unrelated file) |
+| Test suite | ✅ 56/56 tests pass |
+
+---
+
+## Setup Required
+
+Add these to your `.env` to enable fallback scrapers:
+```
+SCRAPINGDOG_API_KEY=your_key_here
+SCRAPINGANT_API_KEY=your_key_here
+```

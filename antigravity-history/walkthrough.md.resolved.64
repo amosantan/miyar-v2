@@ -1,0 +1,79 @@
+# MIYAR 2.0 — Intelligent Intake System
+
+## What Was Built
+
+Replaced the 29-line manual project form wrapper with a full AI-powered multimodal intake system.
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| [ai-intake-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts) | Core AI engine — processes images, PDFs, audio, video, URLs, text through Gemini |
+| [intake.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/intake.ts) | tRPC router with 5 endpoints (upload, record, list, process, link) |
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) | Added `assetType`, `aiExtractionResult`, `aiContributions` columns + `floor_plan`, `voice_note` categories |
+| [routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts) | Registered intake router |
+| [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) | Rewrote from 29 → 340 lines with AI intake canvas |
+
+---
+
+## AI Intake Engine Architecture
+
+```mermaid
+graph TD
+    A[User Inputs] --> B{Asset Type}
+    B -->|Images| C[Gemini Vision via image_url]
+    B -->|PDFs| D[Gemini file_url]
+    B -->|Audio/Video| E[Gemini file_url + transcription]
+    B -->|URLs| F[Text extraction]
+    B -->|Text/Voice| G[Direct text analysis]
+    C & D & E & F & G --> H[processIntakeAssets]
+    H --> I{Floor Plan?}
+    I -->|Yes| J[analyzeFloorPlan reuse]
+    I -->|No| K[Skip]
+    J & K --> L[Gemini + outputSchema]
+    L --> M[IntakeResult]
+    M --> N[suggestedInputs + confidence + reasoning]
+```
+
+Key design decisions:
+- **Pure function** — no DB imports, no side effects in the engine
+- **Reuses [analyzeFloorPlan()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts#89-198)** for floor plan images/PDFs
+- **Validates all enums** against ProjectInputs constraints before returning
+- **Per-field confidence** (high/medium/low) with reasoning explanations
+
+---
+
+## Browser Verification
+
+````carousel
+![Empty MIYAR 2.0 intake page — all 7 UI elements present](/Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/empty_intake_page_1772447264606.png)
+<!-- slide -->
+![Intake page with test description typed](/Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/intake_page_with_input_1772447295675.png)
+````
+
+All 7 UI elements verified:
+- ✅ "Tell MIYAR about your project" heading
+- ✅ Drag-and-drop upload zone (images, PDFs, audio, video)
+- ✅ URL paste input
+- ✅ Project description textarea with example
+- ✅ Voice recorder button
+- ✅ "Analyze & Auto-Fill" gradient button
+- ✅ "Skip to Manual Form" bypass
+
+---
+
+## What's Next
+
+| Phase | Status |
+|-------|--------|
+| 2.0-A: Schema + Upload | ✅ Done |
+| 2.0-B: AI Intake Engine | ✅ Done |
+| 2.0-C: Intake Router | ✅ Done |
+| 2.0-D: NewProject UI | ✅ Done |
+| 2.0-E: AI Assist on ProjectForm | 🔲 Next |
+| 2.0-F: Chat Refinement (fast-follow) | 🔲 Deferred |

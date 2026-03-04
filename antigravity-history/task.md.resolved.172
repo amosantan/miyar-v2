@@ -1,0 +1,33 @@
+# MIYAR 2.0 — Intelligent Intake System
+
+## Phase 2.0-A: Schema Extension + Upload Endpoint
+- [ ] Add `aiExtractionResult`, `aiContributions`, `assetType` to `project_assets`
+- [ ] Run `db:push` to apply schema changes
+- [ ] Create `server/routers/intake.ts` with `getUploadUrl` + `uploadAsset`
+- [ ] Register intake router in [server/routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts)
+
+## Phase 2.0-B: AI Intake Engine
+- [ ] Create `server/engines/intake/ai-intake-engine.ts`
+- [ ] Create `server/engines/intake/url-scraper.ts`
+- [ ] Create `server/engines/intake/ai-intake-engine.test.ts`
+- [ ] Verify all tests pass
+
+## Phase 2.0-C: Intake Router (Full)
+- [ ] Add `processAssets` mutation to intake router
+- [ ] Add `applyIntakeSuggestions` mutation
+- [ ] Integration test with real Gemini
+
+## Phase 2.0-D: NewProject Rewrite
+- [ ] Rewrite `NewProject.tsx` with upload canvas + text area
+- [ ] Add voice recorder (MediaRecorder API)
+- [ ] "Analyze & Auto-Fill" flow → pre-filled ProjectForm
+- [ ] Confidence badges (green/yellow) on AI-populated fields
+- [ ] "Skip to Manual Form" bypass
+
+## Phase 2.0-E: AI Assist on Existing Form
+- [ ] Add "✨ AI Assist" button per section in ProjectForm.tsx
+- [ ] Per-section AI suggestions from uploaded assets
+
+## Phase 2.0-F: Fast Follow (defer)
+- [ ] `refineWithChat` conversational refinement
+- [ ] Asset gallery on ProjectDetail.tsx

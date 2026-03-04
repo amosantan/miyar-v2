@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useParams, useLocation } from "wouter";
@@ -17,6 +18,7 @@ import {
   Zap, ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Info,
   TrendingUp, TrendingDown, BarChart3, Shield, Target, Lightbulb,
   Download, ChevronRight, Loader2, Sparkles, Building2, Calculator,
+  Link, FileText,
 } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import {
@@ -382,8 +384,11 @@ function ProjectDetailContent() {
   const { data: roiData } = trpc.project.roi.useQuery({ projectId });
   const { data: fiveLensData } = trpc.project.fiveLens.useQuery({ projectId });
   const { data: intelligenceData } = trpc.project.intelligence.useQuery({ projectId });
+  const { data: assets, isLoading: assetsLoading } = trpc.intake.listAssets.useQuery({ projectId });
   const { data: benchmarks } = trpc.admin.benchmarks.list.useQuery();
   const { data: activeAlerts = [] } = trpc.autonomous.getAlerts.useQuery({ status: "active" });
+
+  const [selectedAsset, setSelectedAsset] = useState<any>(null);
 
   const projectAlerts = activeAlerts.filter((a: any) =>
     a.affectedProjectIds &&
@@ -597,6 +602,7 @@ function ProjectDetailContent() {
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="bg-secondary/50 flex-wrap">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="assets">Assets</TabsTrigger>
             <TabsTrigger value="explainability">Why This Score?</TabsTrigger>
             <TabsTrigger value="risk">Risk & Actions</TabsTrigger>
             <TabsTrigger value="five-lens">5-Lens</TabsTrigger>
@@ -690,6 +696,58 @@ function ProjectDetailContent() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* ─── Assets Tab ──────────────────────────────────────────────── */}
+          <TabsContent value="assets" className="space-y-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Project Assets
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">Source materials and extracted intelligence</p>
+              </CardHeader>
+              <CardContent>
+                {assetsLoading ? (
+                  <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                ) : !assets || assets.length === 0 ? (
+                  <div className="text-center p-8 text-muted-foreground border border-dashed border-border/50 rounded-lg bg-secondary/10">
+                    No assets attached to this project.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {assets.map((asset: any) => (
+                      <Card
+                        key={asset.id}
+                        className="cursor-pointer hover:border-primary/50 transition bg-secondary/20 shadow-none border border-border/50"
+                        onClick={() => setSelectedAsset(asset)}
+                      >
+                        <CardContent className="p-4 flex flex-col items-center text-center gap-3">
+                          {asset.assetType === 'url' ? (
+                            <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                              <Link className="h-5 w-5 text-blue-400" />
+                            </div>
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                              <FileText className="h-5 w-5 text-emerald-400" />
+                            </div>
+                          )}
+                          <div className="w-full">
+                            <p className="text-sm font-medium text-foreground truncate w-full" title={asset.originalFilename}>{asset.originalFilename}</p>
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1.5">
+                              <span className="uppercase">{asset.assetType || 'unknown'}</span>
+                              <span className="w-1 h-1 rounded-full bg-border" />
+                              <span>{asset.fileSizeBytes ? (asset.fileSizeBytes / 1024).toFixed(0) + ' KB' : 'N/A'}</span>
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ─── Explainability Tab ────────────────────────────────────── */}
@@ -1337,6 +1395,50 @@ function ProjectDetailContent() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Asset Viewer Modal */}
+      {selectedAsset && (
+        <Dialog open={!!selectedAsset} onOpenChange={(open) => !open && setSelectedAsset(null)}>
+          <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 overflow-hidden bg-background border-border/50">
+            <DialogHeader className="p-4 border-b shrink-0 bg-secondary/30">
+              <DialogTitle className="text-base font-medium flex items-center gap-2">
+                {selectedAsset.assetType === 'url' ? <Link className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                {selectedAsset.originalFilename}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-2">
+              <div className="border-r border-border/50 p-6 overflow-y-auto bg-black/20">
+                <h3 className="text-sm border-b border-border/50 pb-2 mb-4 font-semibold text-muted-foreground flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Original Content
+                </h3>
+                {selectedAsset.assetType === 'url' || selectedAsset.assetType === 'text' ? (
+                  <div className="text-xs text-foreground/80 whitespace-pre-wrap font-mono leading-relaxed bg-black/40 p-4 rounded-lg border border-border/50">
+                    {selectedAsset.textContent || "No text content available."}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center p-12 text-muted-foreground text-sm border border-dashed border-border/50 rounded-lg bg-black/20">Preview not available for {selectedAsset.assetType}</div>
+                )}
+              </div>
+              <div className="p-6 overflow-y-auto bg-primary/5">
+                <h3 className="text-sm border-b border-primary/20 pb-2 mb-4 font-semibold text-emerald-400 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Extracted Information
+                </h3>
+                {selectedAsset.extractedInformation ? (
+                  <pre className="text-xs text-foreground/90 whitespace-pre-wrap font-mono leading-relaxed bg-black/40 p-4 rounded-lg border border-border/50">
+                    {typeof selectedAsset.extractedInformation === 'string'
+                      ? selectedAsset.extractedInformation
+                      : JSON.stringify(selectedAsset.extractedInformation, null, 2)}
+                  </pre>
+                ) : (
+                  <div className="text-sm text-muted-foreground border border-dashed border-border/50 rounded-lg p-12 flex items-center justify-center bg-black/20">No structured data extracted.</div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

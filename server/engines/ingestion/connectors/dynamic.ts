@@ -17,7 +17,7 @@ const LLM_SNIPPET_SIZE = 32_000;
  * 4. Strip remaining HTML tags
  * 5. Collapse whitespace
  */
-function cleanHtmlForLLM(html: string): string {
+export function cleanHtmlForLLM(html: string): string {
     // Step 1: Remove invisible/non-content tags
     let cleaned = html
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")

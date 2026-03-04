@@ -1,0 +1,20 @@
+# Market Intelligence Engine — Phase B
+
+## Fallback Scraping APIs
+- [x] Add ScrapingDog + ScrapingAnt fetch methods to BaseSourceConnector
+- [x] Auto-failover chain: Firecrawl → ScrapingDog → ScrapingAnt → native fetch
+- [x] Track which provider succeeded per request (emoji-prefixed console logs)
+
+## Scheduler Upgrade
+- [x] Weekly Source Discovery job (Sundays 04:00 UTC)
+- [x] Freshness Re-scrape job (Wednesdays 06:00 UTC)
+
+## Prompt Accuracy Audit
+- [x] Audit & fix Material Pricing prompt — added VAT handling, UAE currency notations, brand recognition
+- [x] Audit & fix Developer Intel prompt — added finish-level guide, UAE brand lists
+- [x] Audit & fix Market Research prompt — added trend confidence, period attribution, UAE metrics
+- [x] Audit & fix Government Data prompt — added DM/RERA/ADQCC codes, sustainability mandates
+
+## Verification
+- [x] TypeScript compilation check — zero new errors
+- [x] Test suite passes — 56/56 tests pass

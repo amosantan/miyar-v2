@@ -157,31 +157,22 @@ export default function Home() {
 
   const versions = [
     {
-      ver: "5.0", title: "The Authority Engine", date: "February 2026", current: true,
+      ver: "2.0", title: "Design Intelligence", date: "March 2026", current: true,
       items: [
-        "Direct API connection to Dubai Land Department",
-        "Multi-asset portfolio comparison engine",
-        "Enhanced Sustainability score compliance",
-        "RICS NRM cost alignment (30+ codes)",
-        "City-aware certification pricing",
-        "Mobile-responsive share views",
+        "Intelligent Project Intake (Files, URL, Chat)",
+        "Deterministic 5-Dimension MIYAR Scoring",
+        "Live UAE Market Benchmarking & AI Design Advisor",
+        "Cognitive Bias Alerts & Automated Explainability",
+        "Investor-Ready PDF & DOCX Generation",
+        "Public Shareable Project Links",
       ],
     },
     {
-      ver: "4.0", title: "Evidence & Prediction", date: "January 2026",
+      ver: "1.0", title: "Foundation & Feasibility", date: "2025",
       items: [
-        "Gemini AI Pro Integration for design logic",
-        "Institutional-grade PDF export formatting",
-        "Predictive Cost Range Engine (P15–P95)",
-        "Evidence Vault with provenance tracking",
-      ],
-    },
-    {
-      ver: "3.0", title: "Market Intelligence", date: "December 2025",
-      items: [
-        "Live material cost tracking for UAE market",
-        "Market ingestion pipeline with 5 connector types",
-        "Trend analysis & competitor landscape",
+        "Initial proof-of-concept for real estate evaluation",
+        "Manual data entry and basic cost estimations",
+        "Static reporting and static capability benchmarks",
       ],
     },
   ];

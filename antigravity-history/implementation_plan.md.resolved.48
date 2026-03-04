@@ -1,0 +1,41 @@
+# Phase 10A Gap-Fill Implementation Plan
+
+## Goal Description
+Implement the remaining 5 gaps in the Phase 10A Intelligent Project Intake system. This includes adding URL scraping capability before Gemini analysis, a new three-card project entry path selector, a conversational chat panel inside the intake canvas, per-field AI confidence indicators on the project form for critical fields, and an Assets tab on the project detail view to show uploaded intake assets and their AI analysis summaries.
+
+## Proposed Changes
+
+### Server & AI Core
+
+#### [MODIFY] server/routers/intake.ts
+- Add `scrapeUrl` orgProcedure that takes a URL, initializes a simple BaseSourceConnector (or minimally extended crawler), calls [fetchBasic()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#598-673), strips HTML, and returns the top 8000 characters of clean text, title, and domain.
+- Add `chat` orgProcedure that takes user message and previous messages, calls `invokeLLM` with a conversational system prompt to act as an assistant to a real estate developer, and returns a 2-3 sentence max response acknowledging the message and asking for missing constraints.
+
+---
+
+### Client Application
+
+#### [MODIFY] client/src/pages/ProjectNew.tsx
+- **Gap 1 (Scraping):** Update `handleAddUrl` to immediately call `trpc.intake.scrapeUrl` after an asset is added. Show a "Fetching..." indicator on the asset and update its `textContent` locally upon success. Avoid blocking execution if scraping fails.
+- **Gap 2 (Path Selector):** Refactor component state to introduce `phase` with values `"select" | "upload" | "analyzing" | "review"`. If `phase === "select"`, render 3 cards: AI-Guided, Expert Mode, Quick Brief. Handle the corresponding context setup (e.g., `quickMode` boolean flag) and transitions across modes.
+- **Gap 3 (Chat):** In the "upload" phase, render a simple chat timeline and input box below the intake dropzone. Keep track of `chatMessages` locally. When "Analyze" is clicked, aggregate the chat messages into a string formatted like `Developer notes:\n- [message 1]\n- [message 2]` and pass it as the `freeformDescription` to `processAssets()`.
+- **Gap 4 (Confidence Passing):** Ensure `fieldConfidence` and `fieldReasoning` returned from the `processIntakeAssets` workflow are preserved through the analyzing → review → form transition in `ProjectNew.tsx` and passed as props to the `<ProjectForm />` component.
+
+#### [MODIFY] client/src/components/ProjectForm.tsx
+- **Gap 4 (Confidence Indicators):** Extend the `initialData` interface to accept `fieldConfidence` and `fieldReasoning` objects that map keys to values (e.g. `Record<string, number>`).
+- Enhance critical fields (`mkt01Tier`, `des01Style`, `des02MaterialLevel`, `des03Complexity`, `ctx04Location`, `fin01BudgetCap`, `ctx03Gfa`) to accept and display an indicator next to the label (🟢 >=0.8, 🟡 >=0.5, 🔴 <0.5) featuring a Shadcn Tooltip displaying the `fieldReasoning`.
+
+#### [MODIFY] client/src/pages/ProjectDetail.tsx
+- **Gap 5 (Assets Tab):** Add an 'Assets' tab alongside the 'Evidence' tab. Fetch assets via `trpc.intake.listAssets.useQuery({ projectId })`. Display a grid of cards showing image previews or relevant file type icons, name, type, and an "Analyzed" or "Pending" status badge depending on the `aiExtractionResult` field. When clicked, open a dialog containing the `aiExtractionResult` metrics and fields contributed. (The [+ Add Assets] button is skipped for this build).
+
+## Verification Plan
+
+### Automated Tests
+- Run `pnpm test` to verify that there are zero regressions on existing systems.
+
+### Manual Verification
+- **URL Scraping:** Paste a common URL (e.g. `minotti.com`) into the UI, ensuring that `textContent` fetches and Gemini subsequently extracts details successfully.
+- **Three-Card Path:** Verify default loading view shows three cards. Select all options, specifically checking `Quick Brief` simplifies the view correctly.
+- **Chat:** Send context via the new Chat box. Press Analyze. Observe that the chat context successfully affected the AI's brief.
+- **Confidence Indicators:** Proceed to form review and examine critical fields. Verify dots show right colors and hover tooltip opens.
+- **Assets Tab:** Create an intake. View project details page, locate Assets tab, view generated asset grid, and click into the analysis modal successfully.

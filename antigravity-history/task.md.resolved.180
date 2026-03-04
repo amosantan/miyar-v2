@@ -1,0 +1,20 @@
+# Live Scraping Audit & Monitoring
+
+## Phase 1: Database State Check
+- [/] Query source registry — how many sources, which are active
+- [ ] Query evidence records — how many records exist, when last scraped
+- [ ] Identify data gaps
+
+## Phase 2: Live Scraping Test
+- [ ] Test scraping 3-5 sources manually via Firecrawl
+- [ ] Test sub-page navigation and extraction
+- [ ] Monitor extraction quality (prices found, accuracy)
+- [ ] Test fallback chain (ScrapingDog, ScrapingAnt, Apify)
+
+## Phase 3: Source Quality Assessment
+- [ ] Grade each source: working / partial / broken
+- [ ] Identify sources needing replacement
+- [ ] Recommend new high-value sources
+
+## Phase 4: Report & Recommendations
+- [ ] Document findings in scraping audit report

@@ -1,0 +1,2885 @@
+# Market Intelligence Engine V2 — Walkthrough
+
+## Overview
+
+Upgraded MIYAR's market intelligence layer from a simple scrape-and-insert pipeline to a self-maintaining, self-evolving intelligence engine. The upgrade spans **8 modules** across 3 phases.
+
+---
+
+## Architecture
+
+```mermaid
+graph TD
+    A["Scheduler / API Call"] --> B["Orchestrator V2"]
+    B --> C{"findExistingRecord?"}
+    C -->|"Found"| D["updateExistingRecord"]
+    C -->|"Not Found"| E["createEvidenceRecord"]
+    D --> F["detectPriceChange"]
+    E --> F
+    B --> G["Data Quality Validator"]
+    G --> H{"Outlier?"}
+    H -->|"Yes"| I["Flag + Reduce Confidence"]
+    H -->|"No"| J["Pass Through"]
+    
+    K["Freshness Monitor"] --> L{"Stale Sources?"}
+    L -->|"Yes"| A
+    
+    M["Source Discovery AI"] --> N["Candidate Sources"]
+    N --> O["Admin Review"]
+    O --> A
+    
+    P["Design Trend Extractor"] --> Q["designTrends Table"]
+    R["Developer Intel Extractor"] --> S["evidence_records"]
+    T["Data Verifier"] --> U["Verification Report"]
+```
+
+---
+
+## Changes Made
+
+### Phase 1 — Data Integrity
+
+#### Module A: Upsert Engine
+**File:** [orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts)
+
+```diff:orchestrator.ts
+/**
+ * MIYAR V2 — Ingestion Orchestrator
+ *
+ * Central orchestrator that manages connector execution, queuing,
+ * and result persistence. Executes connectors in parallel (max 3
+ * concurrent), handles failures gracefully, detects duplicates,
+ * and logs all events to the audit log.
+ */
+
+import { randomUUID } from "crypto";
+import type {
+  SourceConnector,
+  ExtractedEvidence,
+  NormalizedEvidenceInput,
+} from "./connector";
+import {
+  extractedEvidenceSchema,
+  normalizedEvidenceInputSchema,
+} from "./connector";
+import {
+  createEvidenceRecord,
+  createIntelligenceAuditEntry,
+  insertConnectorHealth,
+  insertTrendSnapshot,
+  getDb,
+  getEvidenceRecordById
+} from "../../db";
+import { generateBenchmarkProposals } from "./proposal-generator";
+import { triggerAlertEngine } from "../autonomous/alert-engine";
+import { detectPriceChange } from "./change-detector";
+import { detectTrends, type DataPoint } from "../analytics/trend-detection";
+import { evidenceRecords, ingestionRuns, sourceRegistry } from "../../../drizzle/schema";
+import { and, eq, sql } from "drizzle-orm";
+
+// ─── Types ───────────────────────────────────────────────────────
+
+export interface IngestionRunReport {
+  runId: string;
+  startedAt: Date;
+  completedAt: Date;
+  durationMs: number;
+  triggeredBy: "manual" | "scheduled" | "api";
+  sourcesAttempted: number;
+  sourcesSucceeded: number;
+  sourcesFailed: number;
+  evidenceCreated: number;
+  evidenceSkipped: number;
+  errors: Array<{ sourceId: string; sourceName: string; error: string }>;
+  perSource: Array<{
+    sourceId: string;
+    sourceName: string;
+    status: "success" | "failed";
+    evidenceExtracted: number;
+    evidenceCreated: number;
+    evidenceSkipped: number;
+    error?: string;
+  }>;
+}
+
+interface ConnectorResult {
+  sourceId: string;
+  sourceName: string;
+  status: "success" | "failed";
+  evidenceExtracted: number;
+  evidenceCreated: number;
+  evidenceSkipped: number;
+  error?: string;
+}
+
+// ─── Concurrency Limiter ─────────────────────────────────────────
+
+const MAX_CONCURRENT = 3;
+
+async function runWithConcurrencyLimit<T>(
+  tasks: Array<() => Promise<T>>,
+  limit: number
+): Promise<T[]> {
+  const results: T[] = [];
+  let index = 0;
+
+  async function runNext(): Promise<void> {
+    while (index < tasks.length) {
+      const currentIndex = index++;
+      results[currentIndex] = await tasks[currentIndex]();
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(limit, tasks.length) },
+    () => runNext()
+  );
+
+  await Promise.all(workers);
+  return results;
+}
+
+// ─── Duplicate Detection ─────────────────────────────────────────
+
+/**
+ * Check if an evidence record from the same source URL + item name
+ * + capture date already exists. Uses sourceUrl + itemName + captureDate
+ * as the composite uniqueness key.
+ */
+async function isDuplicate(
+  sourceUrl: string,
+  itemName: string,
+  captureDate: Date
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const existing = await db
+    .select({ id: evidenceRecords.id })
+    .from(evidenceRecords)
+    .where(
+      and(
+        eq(evidenceRecords.sourceUrl, sourceUrl),
+        eq(evidenceRecords.itemName, itemName),
+        sql`DATE(${evidenceRecords.captureDate}) = DATE(${captureDate})`
+      )
+    )
+    .limit(1);
+
+  return existing.length > 0;
+}
+
+// ─── Category Mapping ────────────────────────────────────────────
+
+/** Map connector evidence categories to evidence_records table enum values */
+const CATEGORY_MAP: Record<string, string> = {
+  material_cost: "floors",         // LLM now sets correct category per-item
+  fitout_rate: "other",
+  market_trend: "other",
+  competitor_project: "other",
+  floors: "floors",
+  walls: "walls",
+  ceilings: "ceilings",
+  joinery: "joinery",
+  lighting: "lighting",
+  sanitary: "sanitary",
+  kitchen: "kitchen",
+  hardware: "hardware",
+  ffe: "ffe",
+  other: "other",
+};
+
+function mapCategory(category: string): string {
+  return CATEGORY_MAP[category] || "other";
+}
+
+// ─── Record ID Generator ─────────────────────────────────────────
+
+let recordCounter = 0;
+
+function generateRecordId(): string {
+  recordCounter++;
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).substring(2, 6);
+  return `MYR-PE-${ts}-${rand}`.toUpperCase();
+}
+
+// ─── Orchestrator ────────────────────────────────────────────────
+
+export async function runIngestion(
+  connectors: SourceConnector[],
+  triggeredBy: "manual" | "scheduled" | "api" = "manual",
+  actorId?: number
+): Promise<IngestionRunReport> {
+  const runId = `ING-${randomUUID().substring(0, 8)}`;
+  const startedAt = new Date();
+
+  const connectorResults: ConnectorResult[] = [];
+
+  // V3-03: Load lastSuccessfulFetch from sourceRegistry for each connector
+  try {
+    const db = await getDb();
+    if (db) {
+      for (const connector of connectors) {
+        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch })
+          .from(sourceRegistry)
+          .where(eq(sourceRegistry.name, connector.sourceId))
+          .limit(1);
+        if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
+          connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[Ingestion] Failed to load lastSuccessfulFetch:", err);
+  }
+
+  // Build tasks for parallel execution
+  const tasks = connectors.map((connector) => async (): Promise<ConnectorResult> => {
+    try {
+      // Step 1: Fetch
+      const raw = await connector.fetch();
+
+      if (raw.error && raw.statusCode === 0) {
+        // Total fetch failure (network error, timeout)
+        return {
+          sourceId: connector.sourceId,
+          sourceName: connector.sourceName,
+          status: "failed",
+          evidenceExtracted: 0,
+          evidenceCreated: 0,
+          evidenceSkipped: 0,
+          error: raw.error,
+        };
+      }
+
+      if (raw.statusCode >= 400) {
+        return {
+          sourceId: connector.sourceId,
+          sourceName: connector.sourceName,
+          status: "failed",
+          evidenceExtracted: 0,
+          evidenceCreated: 0,
+          evidenceSkipped: 0,
+          error: raw.error || `HTTP ${raw.statusCode}`,
+        };
+      }
+
+      // Step 2: Extract
+      let extracted: ExtractedEvidence[];
+      try {
+        extracted = await connector.extract(raw);
+      } catch (err) {
+        return {
+          sourceId: connector.sourceId,
+          sourceName: connector.sourceName,
+          status: "failed",
+          evidenceExtracted: 0,
+          evidenceCreated: 0,
+          evidenceSkipped: 0,
+          error: `Extract failed: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+
+      // Validate extracted evidence
+      const validExtracted = extracted.filter((e) => {
+        const result = extractedEvidenceSchema.safeParse(e);
+        return result.success;
+      });
+
+      let created = 0;
+      let skipped = 0;
+
+      // Step 3: Normalize and persist each evidence item
+      for (const evidence of validExtracted) {
+        try {
+          // Normalize
+          let normalized: NormalizedEvidenceInput;
+          try {
+            normalized = await connector.normalize(evidence);
+          } catch (err) {
+            // Safe fallback for malformed normalization
+            normalized = {
+              metric: evidence.title,
+              value: null,
+              unit: null,
+              confidence: 0.20,
+              grade: "C",
+              summary: evidence.rawText.substring(0, 500),
+              tags: [],
+            };
+          }
+
+          // Validate normalized output
+          const validationResult = normalizedEvidenceInputSchema.safeParse(normalized);
+          if (!validationResult.success) {
+            // Use safe fallback
+            normalized = {
+              metric: evidence.title || "Unknown metric",
+              value: null,
+              unit: null,
+              confidence: 0.20,
+              grade: "C",
+              summary: evidence.rawText.substring(0, 500) || "Extraction failed",
+              tags: [],
+            };
+          }
+
+          // Duplicate detection
+          const captureDate = evidence.publishedDate || raw.fetchedAt;
+          const duplicate = await isDuplicate(
+            evidence.sourceUrl,
+            normalized.metric,
+            captureDate
+          );
+
+          if (duplicate) {
+            skipped++;
+            continue;
+          }
+
+          // Persist to evidence_records
+          // Map category: use LLM-provided category if valid, otherwise fallback
+          const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
+          const evidenceCategory = validCategories.includes(evidence.category)
+            ? evidence.category
+            : mapCategory(evidence.category);
+
+          const { id: newRecordId } = await createEvidenceRecord({
+            recordId: generateRecordId(),
+            sourceRegistryId: typeof connector.sourceId === 'number' ? connector.sourceId : (parseInt(connector.sourceId) || undefined),
+            sourceUrl: evidence.sourceUrl,
+            category: evidenceCategory as any,
+            itemName: normalized.metric,
+            priceMin: normalized.value?.toString() ?? null,
+            priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+            priceTypical: normalized.value?.toString() ?? null,
+            unit: normalized.unit || "unit",
+            currencyOriginal: "AED",
+            captureDate: captureDate,
+            reliabilityGrade: normalized.grade,
+            confidenceScore: Math.round(normalized.confidence * 100),
+            extractedSnippet: normalized.summary,
+            publisher: connector.sourceName,
+            title: evidence.title,
+            tags: normalized.tags,
+            notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine`,
+            runId: runId,
+            // V7: Design Intelligence Fields
+            finishLevel: (normalized.finishLevel as any) ?? null,
+            designStyle: normalized.designStyle ?? null,
+            brandsMentioned: normalized.brandsMentioned ?? null,
+            materialSpec: normalized.materialSpec ?? null,
+            intelligenceType: (normalized.intelligenceType as any) ?? "material_price",
+          });
+
+          // Hand off to the intelligent change detector to log significant fluctuations
+          const insertedRecord = await getEvidenceRecordById(newRecordId);
+          if (insertedRecord) {
+            await detectPriceChange(insertedRecord);
+          }
+
+          created++;
+        } catch (err) {
+          // Individual record failure — continue with next
+          console.error(`[Ingestion] Record persist failed for ${connector.sourceId}:`, err);
+        }
+      }
+
+      return {
+        sourceId: connector.sourceId,
+        sourceName: connector.sourceName,
+        status: "success",
+        evidenceExtracted: validExtracted.length,
+        evidenceCreated: created,
+        evidenceSkipped: skipped,
+      };
+    } catch (err) {
+      // Catch-all for any unhandled errors in the connector pipeline
+      return {
+        sourceId: connector.sourceId,
+        sourceName: connector.sourceName,
+        status: "failed",
+        evidenceExtracted: 0,
+        evidenceCreated: 0,
+        evidenceSkipped: 0,
+        error: `Unhandled: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  });
+
+  // Execute with concurrency limit
+  const results = await runWithConcurrencyLimit(tasks, MAX_CONCURRENT);
+  connectorResults.push(...results);
+
+  // V3-02: Record connector health for each connector
+  for (const result of connectorResults) {
+    try {
+      const healthStatus = result.status === "success"
+        ? (result.evidenceCreated > 0 ? "success" : "partial")
+        : "failed";
+
+      let errorType: string | null = null;
+      if (result.error) {
+        if (result.error.includes("ENOTFOUND") || result.error.includes("DNS") || result.error.includes("resolve")) {
+          errorType = "dns_failure";
+        } else if (result.error.includes("timeout") || result.error.includes("ETIMEDOUT")) {
+          errorType = "timeout";
+        } else if (result.error.includes("HTTP")) {
+          errorType = "http_error";
+        } else if (result.error.includes("Extract") || result.error.includes("parse")) {
+          errorType = "parse_error";
+        } else if (result.error.includes("LLM") || result.error.includes("invokeLLM")) {
+          errorType = "llm_error";
+        } else {
+          errorType = "unknown";
+        }
+      }
+
+      await insertConnectorHealth({
+        runId,
+        sourceId: result.sourceId,
+        sourceName: result.sourceName,
+        status: healthStatus as any,
+        httpStatusCode: null,
+        responseTimeMs: null,
+        recordsExtracted: result.evidenceExtracted,
+        recordsInserted: result.evidenceCreated,
+        duplicatesSkipped: result.evidenceSkipped,
+        errorMessage: result.error || null,
+        errorType,
+      });
+    } catch (err) {
+      console.error(`[Ingestion] Failed to record health for ${result.sourceId}:`, err);
+    }
+  }
+
+  // V3-03: Update lastSuccessfulFetch and DFE health metrics for all connectors
+  try {
+    const db = await getDb();
+    if (db) {
+      for (const result of connectorResults) {
+        // Get current consecutive failures to increment
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures })
+          .from(sourceRegistry).where(eq(sourceRegistry.name, result.sourceId)).limit(1);
+
+        const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
+        const isSuccess = result.status === "success";
+        const statusEnum = isSuccess ? (result.evidenceExtracted > 0 ? "success" : "partial") : "failed";
+
+        const updates: any = {
+          lastScrapedAt: new Date(),
+          lastScrapedStatus: statusEnum,
+          lastRecordCount: result.evidenceCreated,
+          consecutiveFailures: isSuccess ? 0 : currentFailures + 1,
+        };
+        if (isSuccess) {
+          updates.lastSuccessfulFetch = new Date();
+        }
+
+        await db.update(sourceRegistry)
+          .set(updates)
+          .where(eq(sourceRegistry.name, result.sourceId));
+      }
+    }
+  } catch (err) {
+    console.warn("[Ingestion] Failed to update sourceRegistry metrics:", err);
+  }
+
+  const completedAt = new Date();
+  const durationMs = completedAt.getTime() - startedAt.getTime();
+
+  // Aggregate results
+  const succeeded = connectorResults.filter((r) => r.status === "success").length;
+  const failed = connectorResults.filter((r) => r.status === "failed").length;
+  const totalCreated = connectorResults.reduce((sum, r) => sum + r.evidenceCreated, 0);
+  const totalSkipped = connectorResults.reduce((sum, r) => sum + r.evidenceSkipped, 0);
+  const errors = connectorResults
+    .filter((r) => r.status === "failed" && r.error)
+    .map((r) => ({
+      sourceId: r.sourceId,
+      sourceName: r.sourceName,
+      error: r.error!,
+    }));
+
+  // Persist ingestion run record
+  try {
+    const db = await getDb();
+    if (db) {
+      await db.insert(ingestionRuns).values({
+        runId,
+        trigger: triggeredBy,
+        triggeredBy: actorId ?? null,
+        status: failed === connectors.length ? "failed" : "completed",
+        totalSources: connectors.length,
+        sourcesSucceeded: succeeded,
+        sourcesFailed: failed,
+        recordsExtracted: connectorResults.reduce((sum, r) => sum + r.evidenceExtracted, 0),
+        recordsInserted: totalCreated,
+        duplicatesSkipped: totalSkipped,
+        sourceBreakdown: connectorResults.map((r) => ({
+          sourceId: r.sourceId,
+          name: r.sourceName,
+          status: r.status,
+          extracted: r.evidenceExtracted,
+          inserted: r.evidenceCreated,
+          duplicates: r.evidenceSkipped,
+          error: r.error || null,
+        })),
+        errorSummary: errors.length > 0 ? errors : null,
+        startedAt,
+        completedAt,
+        durationMs,
+      });
+    }
+  } catch (err) {
+    console.error("[Ingestion] Failed to persist ingestion run:", err);
+  }
+
+  // Log to intelligence audit log
+  try {
+    await createIntelligenceAuditEntry({
+      runType: "price_extraction",
+      runId: runId,
+      actor: actorId ?? null,
+      inputSummary: {
+        triggeredBy,
+        connectorCount: connectors.length,
+        connectorIds: connectors.map((c) => c.sourceId),
+      },
+      outputSummary: {
+        sourcesAttempted: connectors.length,
+        sourcesSucceeded: succeeded,
+        sourcesFailed: failed,
+        evidenceCreated: totalCreated,
+        evidenceSkipped: totalSkipped,
+      },
+      sourcesProcessed: connectors.length,
+      recordsExtracted: totalCreated,
+      errors: failed,
+      errorDetails: errors.length > 0 ? errors : null,
+      startedAt: startedAt,
+      completedAt: completedAt,
+    });
+  } catch (err) {
+    console.error("[Ingestion] Failed to log audit entry:", err);
+  }
+
+  // V2-08: Auto-generate benchmark proposals after ingestion
+  let proposalResult: { proposalsCreated: number } | null = null;
+  if (totalCreated > 0) {
+    try {
+      proposalResult = await generateBenchmarkProposals({
+        actorId,
+        ingestionRunId: runId,
+      });
+      console.log(
+        `[Ingestion] Post-run proposal generation: ${proposalResult.proposalsCreated} proposals created`
+      );
+    } catch (err) {
+      console.error("[Ingestion] Post-run proposal generation failed:", err);
+    }
+  }
+
+  // V3-05: Auto-generate trend snapshots after ingestion
+  if (totalCreated > 0) {
+    try {
+      const db = await getDb();
+      if (db) {
+        // Get distinct category/geography combos from recent evidence
+        const recentEvidence = await db.select().from(evidenceRecords)
+          .orderBy(sql`${evidenceRecords.createdAt} DESC`)
+          .limit(500);
+
+        // Group by category:finishLevel
+        const categoryGroups = new Map<string, { category: string; points: DataPoint[] }>();
+        for (const record of recentEvidence) {
+          const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
+          if (value === null || isNaN(value)) continue;
+          const date = record.captureDate || record.createdAt;
+          if (!date) continue;
+          const category = record.category || "other";
+          const finishLevel = record.finishLevel?.toLowerCase() || "standard";
+          const metric = `${category}:${finishLevel}`;
+          const grade = (record.reliabilityGrade as "A" | "B" | "C") || "C";
+
+          if (!categoryGroups.has(metric)) categoryGroups.set(metric, { category, points: [] });
+          categoryGroups.get(metric)!.points.push({
+            date: new Date(date),
+            value,
+            grade,
+            sourceId: record.sourceRegistryId ? String(record.sourceRegistryId) : "unknown",
+            recordId: record.id,
+          });
+        }
+
+        let trendsGenerated = 0;
+        for (const [metric, group] of Array.from(categoryGroups.entries())) {
+          if (group.points.length < 2) continue;
+          const trend = await detectTrends(metric, group.category, "UAE", group.points, {
+            generateNarrative: group.points.length >= 5,
+          });
+          await insertTrendSnapshot({
+            metric: trend.metric,
+            category: trend.category,
+            geography: trend.geography,
+            dataPointCount: trend.dataPointCount,
+            gradeACount: trend.gradeACount,
+            gradeBCount: trend.gradeBCount,
+            gradeCCount: trend.gradeCCount,
+            uniqueSources: trend.uniqueSources,
+            dateRangeStart: trend.dateRange?.start || null,
+            dateRangeEnd: trend.dateRange?.end || null,
+            currentMA: trend.currentMA !== null ? String(trend.currentMA) : null,
+            previousMA: trend.previousMA !== null ? String(trend.previousMA) : null,
+            percentChange: trend.percentChange !== null ? String(trend.percentChange) : null,
+            direction: trend.direction,
+            anomalyCount: trend.anomalies.length,
+            anomalyDetails: trend.anomalies.length > 0 ? trend.anomalies : null,
+            confidence: trend.confidence,
+            narrative: trend.narrative,
+            movingAverages: trend.movingAverages.length > 0 ? trend.movingAverages : null,
+            ingestionRunId: runId,
+          });
+          trendsGenerated++;
+        }
+        console.log(`[Ingestion] Post-run trend detection: ${trendsGenerated} trend snapshots created`);
+      }
+    } catch (err) {
+      console.error("[Ingestion] Post-run trend detection failed:", err);
+    }
+  }
+
+  // V6: Autonomous Alert Generation
+  try {
+    const alerts = await triggerAlertEngine();
+    console.log(`[Ingestion] Post-run alert generation: ${alerts.length} new alerts created`);
+  } catch (err) {
+    console.error("[Ingestion] Post-run alert generation failed:", err);
+  }
+
+  // V7: Auto-sync Evidence → Materials Library
+  if (totalCreated > 0) {
+    try {
+      const { syncEvidenceToMaterials } = await import("./evidence-to-materials");
+      const materialSync = await syncEvidenceToMaterials(runId);
+      console.log(
+        `[Ingestion] Post-run materials sync: ${materialSync.created} created, ${materialSync.updated} updated, ${materialSync.skipped} skipped`
+      );
+    } catch (err) {
+      console.error("[Ingestion] Post-run materials sync failed:", err);
+    }
+  }
+
+  const report: IngestionRunReport = {
+    runId,
+    startedAt,
+    completedAt,
+    durationMs,
+    triggeredBy,
+    sourcesAttempted: connectors.length,
+    sourcesSucceeded: succeeded,
+    sourcesFailed: failed,
+    evidenceCreated: totalCreated,
+    evidenceSkipped: totalSkipped,
+    errors,
+    perSource: connectorResults,
+  };
+
+  return report;
+}
+
+/**
+ * Run a single connector by sourceId.
+ */
+export async function runSingleConnector(
+  connector: SourceConnector,
+  triggeredBy: "manual" | "scheduled" | "api" = "manual",
+  actorId?: number
+): Promise<IngestionRunReport> {
+  return runIngestion([connector], triggeredBy, actorId);
+}
+
+/**
+ * Run a connector for testing purposes only. Does not save to the database.
+ * Returns the raw payload size and up to 5 extracted valid records.
+ */
+export async function testScrape(connector: SourceConnector) {
+  const startedAt = new Date();
+
+  const raw = await connector.fetch();
+  if (raw.error) {
+    return { success: false, error: raw.error, statusCode: raw.statusCode };
+  }
+
+  const extracted = await connector.extract(raw);
+  const normalizedRecords = [];
+
+  for (const evidence of extracted) {
+    if (!extractedEvidenceSchema.safeParse(evidence).success) continue;
+    try {
+      const normalized = await connector.normalize(evidence);
+      if (normalizedEvidenceInputSchema.safeParse(normalized).success) {
+        normalizedRecords.push(normalized);
+      }
+    } catch { }
+  }
+
+  return {
+    success: true,
+    statusCode: raw.statusCode,
+    rawPayloadSize: (raw.rawHtml?.length || 0) + JSON.stringify(raw.rawJson || {}).length,
+    extractedCount: extracted.length,
+    validNormalizedCount: normalizedRecords.length,
+    previewRecords: normalizedRecords.slice(0, 5),
+    durationMs: new Date().getTime() - startedAt.getTime()
+  };
+}
+===
+/**
+ * MIYAR V2 — Ingestion Orchestrator
+ *
+ * Central orchestrator that manages connector execution, queuing,
+ * and result persistence. Executes connectors in parallel (max 3
+ * concurrent), handles failures gracefully, detects duplicates,
+ * and logs all events to the audit log.
+ */
+
+import { randomUUID } from "crypto";
+import type {
+  SourceConnector,
+  ExtractedEvidence,
+  NormalizedEvidenceInput,
+} from "./connector";
+import {
+  extractedEvidenceSchema,
+  normalizedEvidenceInputSchema,
+} from "./connector";
+import {
+  createEvidenceRecord,
+  createIntelligenceAuditEntry,
+  insertConnectorHealth,
+  insertTrendSnapshot,
+  getDb,
+  getEvidenceRecordById
+} from "../../db";
+import { generateBenchmarkProposals } from "./proposal-generator";
+import { triggerAlertEngine } from "../autonomous/alert-engine";
+import { validateEvidence, type QualityResult } from "./data-quality";
+import { detectPriceChange } from "./change-detector";
+import { detectTrends, type DataPoint } from "../analytics/trend-detection";
+import { evidenceRecords, ingestionRuns, sourceRegistry } from "../../../drizzle/schema";
+import { and, eq, sql } from "drizzle-orm";
+
+// ─── Types ───────────────────────────────────────────────────────
+
+export interface IngestionRunReport {
+  runId: string;
+  startedAt: Date;
+  completedAt: Date;
+  durationMs: number;
+  triggeredBy: "manual" | "scheduled" | "api";
+  sourcesAttempted: number;
+  sourcesSucceeded: number;
+  sourcesFailed: number;
+  evidenceCreated: number;
+  evidenceUpdated: number;
+  evidenceSkipped: number;
+  outliersFlagged: number;
+  errors: Array<{ sourceId: string; sourceName: string; error: string }>;
+  perSource: Array<{
+    sourceId: string;
+    sourceName: string;
+    status: "success" | "failed";
+    evidenceExtracted: number;
+    evidenceCreated: number;
+    evidenceUpdated: number;
+    evidenceSkipped: number;
+    outliersFlagged: number;
+    error?: string;
+  }>;
+}
+
+interface ConnectorResult {
+  sourceId: string;
+  sourceName: string;
+  status: "success" | "failed";
+  evidenceExtracted: number;
+  evidenceCreated: number;
+  evidenceUpdated: number;
+  evidenceSkipped: number;
+  outliersFlagged: number;
+  error?: string;
+}
+
+// ─── Concurrency Limiter ─────────────────────────────────────────
+
+const MAX_CONCURRENT = 3;
+
+async function runWithConcurrencyLimit<T>(
+  tasks: Array<() => Promise<T>>,
+  limit: number
+): Promise<T[]> {
+  const results: T[] = [];
+  let index = 0;
+
+  async function runNext(): Promise<void> {
+    while (index < tasks.length) {
+      const currentIndex = index++;
+      results[currentIndex] = await tasks[currentIndex]();
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(limit, tasks.length) },
+    () => runNext()
+  );
+
+  await Promise.all(workers);
+  return results;
+}
+
+// ─── Upsert Engine ───────────────────────────────────────────────
+
+interface ExistingRecordMatch {
+  id: number;
+  recordId: string;
+  priceMin: string | null;
+  priceTypical: string | null;
+  priceMax: string | null;
+  confidenceScore: number;
+  captureDate: Date;
+  sourceRegistryId: number | null;
+  itemName: string;
+  category: string;
+  publisher: string | null;
+}
+
+/**
+ * Find an existing evidence record by sourceUrl + itemName.
+ * Ignores captureDate so we can UPDATE existing records with new prices.
+ */
+async function findExistingRecord(
+  sourceUrl: string,
+  itemName: string
+): Promise<ExistingRecordMatch | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const existing = await db
+    .select({
+      id: evidenceRecords.id,
+      recordId: evidenceRecords.recordId,
+      priceMin: evidenceRecords.priceMin,
+      priceTypical: evidenceRecords.priceTypical,
+      priceMax: evidenceRecords.priceMax,
+      confidenceScore: evidenceRecords.confidenceScore,
+      captureDate: evidenceRecords.captureDate,
+      sourceRegistryId: evidenceRecords.sourceRegistryId,
+      itemName: evidenceRecords.itemName,
+      category: evidenceRecords.category,
+      publisher: evidenceRecords.publisher,
+    })
+    .from(evidenceRecords)
+    .where(
+      and(
+        eq(evidenceRecords.sourceUrl, sourceUrl),
+        eq(evidenceRecords.itemName, itemName)
+      )
+    )
+    .orderBy(sql`${evidenceRecords.captureDate} DESC`)
+    .limit(1);
+
+  return existing.length > 0 ? (existing[0] as ExistingRecordMatch) : null;
+}
+
+/**
+ * Update an existing evidence record with new price data.
+ * Returns true if a meaningful price change was detected (>2% delta).
+ */
+async function updateExistingRecord(
+  existing: ExistingRecordMatch,
+  newData: {
+    priceMin: string | null;
+    priceTypical: string | null;
+    priceMax: string | null;
+    confidenceScore: number;
+    captureDate: Date;
+    extractedSnippet: string;
+    reliabilityGrade: string;
+    runId: string;
+    // Design intelligence fields
+    finishLevel?: string | null;
+    designStyle?: string | null;
+    brandsMentioned?: string[] | null;
+    materialSpec?: string | null;
+  }
+): Promise<{ priceChanged: boolean; changePct: number }> {
+  const db = await getDb();
+  if (!db) return { priceChanged: false, changePct: 0 };
+
+  // Detect price change magnitude
+  const oldPrice = existing.priceTypical ? parseFloat(existing.priceTypical) : null;
+  const newPrice = newData.priceTypical ? parseFloat(newData.priceTypical) : null;
+
+  let changePct = 0;
+  let priceChanged = false;
+
+  if (oldPrice !== null && newPrice !== null && oldPrice > 0) {
+    changePct = ((newPrice - oldPrice) / oldPrice) * 100;
+    priceChanged = Math.abs(changePct) > 2; // > 2% is a meaningful change
+  } else if ((oldPrice === null) !== (newPrice === null)) {
+    priceChanged = true; // One has price, other doesn't
+  }
+
+  // Build update payload — always update captureDate + confidence
+  const updatePayload: any = {
+    captureDate: newData.captureDate,
+    confidenceScore: Math.max(newData.confidenceScore, existing.confidenceScore),
+    extractedSnippet: newData.extractedSnippet,
+    runId: newData.runId,
+  };
+
+  // Only update prices if there's a real value to update with
+  if (newData.priceMin !== null) updatePayload.priceMin = newData.priceMin;
+  if (newData.priceTypical !== null) updatePayload.priceTypical = newData.priceTypical;
+  if (newData.priceMax !== null) updatePayload.priceMax = newData.priceMax;
+  if (newData.reliabilityGrade) updatePayload.reliabilityGrade = newData.reliabilityGrade;
+
+  // Design intelligence fields  
+  if (newData.finishLevel) updatePayload.finishLevel = newData.finishLevel;
+  if (newData.designStyle) updatePayload.designStyle = newData.designStyle;
+  if (newData.brandsMentioned) updatePayload.brandsMentioned = newData.brandsMentioned;
+  if (newData.materialSpec) updatePayload.materialSpec = newData.materialSpec;
+
+  await db.update(evidenceRecords)
+    .set(updatePayload)
+    .where(eq(evidenceRecords.id, existing.id));
+
+  return { priceChanged, changePct };
+}
+
+// ─── Category Mapping ────────────────────────────────────────────
+
+/** Map connector evidence categories to evidence_records table enum values */
+const CATEGORY_MAP: Record<string, string> = {
+  material_cost: "floors",         // LLM now sets correct category per-item
+  fitout_rate: "other",
+  market_trend: "other",
+  competitor_project: "other",
+  floors: "floors",
+  walls: "walls",
+  ceilings: "ceilings",
+  joinery: "joinery",
+  lighting: "lighting",
+  sanitary: "sanitary",
+  kitchen: "kitchen",
+  hardware: "hardware",
+  ffe: "ffe",
+  other: "other",
+};
+
+function mapCategory(category: string): string {
+  return CATEGORY_MAP[category] || "other";
+}
+
+// ─── Record ID Generator ─────────────────────────────────────────
+
+let recordCounter = 0;
+
+function generateRecordId(): string {
+  recordCounter++;
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).substring(2, 6);
+  return `MYR-PE-${ts}-${rand}`.toUpperCase();
+}
+
+// ─── Orchestrator ────────────────────────────────────────────────
+
+export async function runIngestion(
+  connectors: SourceConnector[],
+  triggeredBy: "manual" | "scheduled" | "api" = "manual",
+  actorId?: number
+): Promise<IngestionRunReport> {
+  const runId = `ING-${randomUUID().substring(0, 8)}`;
+  const startedAt = new Date();
+
+  const connectorResults: ConnectorResult[] = [];
+
+  // V3-03: Load lastSuccessfulFetch from sourceRegistry for each connector
+  try {
+    const db = await getDb();
+    if (db) {
+      for (const connector of connectors) {
+        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch })
+          .from(sourceRegistry)
+          .where(eq(sourceRegistry.name, connector.sourceId))
+          .limit(1);
+        if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
+          connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[Ingestion] Failed to load lastSuccessfulFetch:", err);
+  }
+
+  // Build tasks for parallel execution
+  const tasks = connectors.map((connector) => async (): Promise<ConnectorResult> => {
+    try {
+      // Step 1: Fetch
+      const raw = await connector.fetch();
+
+      if (raw.error && raw.statusCode === 0) {
+        // Total fetch failure (network error, timeout)
+        return {
+          sourceId: connector.sourceId,
+          sourceName: connector.sourceName,
+          status: "failed",
+          evidenceExtracted: 0,
+          evidenceCreated: 0,
+          evidenceUpdated: 0,
+          evidenceSkipped: 0,
+          outliersFlagged: 0,
+          error: raw.error,
+        };
+      }
+
+      if (raw.statusCode >= 400) {
+        return {
+          sourceId: connector.sourceId,
+          sourceName: connector.sourceName,
+          status: "failed",
+          evidenceExtracted: 0,
+          evidenceCreated: 0,
+          evidenceUpdated: 0,
+          evidenceSkipped: 0,
+          outliersFlagged: 0,
+          error: raw.error || `HTTP ${raw.statusCode}`,
+        };
+      }
+
+      // Step 2: Extract
+      let extracted: ExtractedEvidence[];
+      try {
+        extracted = await connector.extract(raw);
+      } catch (err) {
+        return {
+          sourceId: connector.sourceId,
+          sourceName: connector.sourceName,
+          status: "failed",
+          evidenceExtracted: 0,
+          evidenceCreated: 0,
+          evidenceUpdated: 0,
+          evidenceSkipped: 0,
+          outliersFlagged: 0,
+          error: `Extract failed: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+
+      // Validate extracted evidence
+      const validExtracted = extracted.filter((e) => {
+        const result = extractedEvidenceSchema.safeParse(e);
+        return result.success;
+      });
+
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+      let outliers = 0;
+
+      // Step 3: Normalize, validate, and upsert each evidence item
+      for (const evidence of validExtracted) {
+        try {
+          // Normalize
+          let normalized: NormalizedEvidenceInput;
+          try {
+            normalized = await connector.normalize(evidence);
+          } catch (err) {
+            // Safe fallback for malformed normalization
+            normalized = {
+              metric: evidence.title,
+              value: null,
+              unit: null,
+              confidence: 0.20,
+              grade: "C",
+              summary: evidence.rawText.substring(0, 500),
+              tags: [],
+            };
+          }
+
+          // Validate normalized output
+          const validationResult = normalizedEvidenceInputSchema.safeParse(normalized);
+          if (!validationResult.success) {
+            // Use safe fallback
+            normalized = {
+              metric: evidence.title || "Unknown metric",
+              value: null,
+              unit: null,
+              confidence: 0.20,
+              grade: "C",
+              summary: evidence.rawText.substring(0, 500) || "Extraction failed",
+              tags: [],
+            };
+          }
+
+          // Data Quality Validation
+          const qualityResult = validateEvidence({
+            category: evidence.category,
+            itemName: normalized.metric,
+            value: normalized.value ?? null,
+            valueMax: normalized.valueMax ?? null,
+            unit: normalized.unit,
+            confidence: normalized.confidence,
+          });
+
+          if (qualityResult.status === "outlier_flagged") {
+            outliers++;
+            // Reduce confidence for outliers but still persist
+            if (qualityResult.adjustedConfidence !== undefined) {
+              normalized.confidence = qualityResult.adjustedConfidence;
+            }
+            console.warn(`[Ingestion] 🚩 Outlier flagged: ${normalized.metric} = ${normalized.value} (${qualityResult.flags.join(", ")})`);
+          }
+
+          const captureDate = evidence.publishedDate || raw.fetchedAt;
+
+          // Map category: use LLM-provided category if valid, otherwise fallback
+          const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
+          const evidenceCategory = validCategories.includes(evidence.category)
+            ? evidence.category
+            : mapCategory(evidence.category);
+
+          const sourceRegistryId = typeof connector.sourceId === 'number'
+            ? connector.sourceId
+            : (parseInt(connector.sourceId) || undefined);
+
+          // ─── UPSERT: Find existing record by sourceUrl + itemName ───
+          const existing = await findExistingRecord(
+            evidence.sourceUrl,
+            normalized.metric
+          );
+
+          if (existing) {
+            // UPDATE existing record
+            const { priceChanged } = await updateExistingRecord(existing, {
+              priceMin: normalized.value?.toString() ?? null,
+              priceTypical: normalized.value?.toString() ?? null,
+              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+              confidenceScore: Math.round(normalized.confidence * 100),
+              captureDate,
+              extractedSnippet: normalized.summary,
+              reliabilityGrade: normalized.grade,
+              runId,
+              finishLevel: (normalized.finishLevel as any) ?? null,
+              designStyle: normalized.designStyle ?? null,
+              brandsMentioned: normalized.brandsMentioned ?? null,
+              materialSpec: normalized.materialSpec ?? null,
+            });
+
+            // Detect price change on the updated record
+            if (priceChanged) {
+              const updatedRecord = await getEvidenceRecordById(existing.id);
+              if (updatedRecord) {
+                await detectPriceChange(updatedRecord);
+              }
+            }
+
+            updated++;
+          } else {
+            // INSERT new record
+            const { id: newRecordId } = await createEvidenceRecord({
+              recordId: generateRecordId(),
+              sourceRegistryId,
+              sourceUrl: evidence.sourceUrl,
+              category: evidenceCategory as any,
+              itemName: normalized.metric,
+              priceMin: normalized.value?.toString() ?? null,
+              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+              priceTypical: normalized.value?.toString() ?? null,
+              unit: normalized.unit || "unit",
+              currencyOriginal: "AED",
+              captureDate: captureDate,
+              reliabilityGrade: normalized.grade,
+              confidenceScore: Math.round(normalized.confidence * 100),
+              extractedSnippet: normalized.summary,
+              publisher: connector.sourceName,
+              title: evidence.title,
+              tags: normalized.tags,
+              notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
+              runId: runId,
+              // V7: Design Intelligence Fields
+              finishLevel: (normalized.finishLevel as any) ?? null,
+              designStyle: normalized.designStyle ?? null,
+              brandsMentioned: normalized.brandsMentioned ?? null,
+              materialSpec: normalized.materialSpec ?? null,
+              intelligenceType: (normalized.intelligenceType as any) ?? "material_price",
+            });
+
+            // Hand off to the intelligent change detector
+            const insertedRecord = await getEvidenceRecordById(newRecordId);
+            if (insertedRecord) {
+              await detectPriceChange(insertedRecord);
+            }
+
+            created++;
+          }
+        } catch (err) {
+          // Individual record failure — continue with next
+          console.error(`[Ingestion] Record persist failed for ${connector.sourceId}:`, err);
+        }
+      }
+
+      return {
+        sourceId: connector.sourceId,
+        sourceName: connector.sourceName,
+        status: "success",
+        evidenceExtracted: validExtracted.length,
+        evidenceCreated: created,
+        evidenceUpdated: updated,
+        evidenceSkipped: skipped,
+        outliersFlagged: outliers,
+      };
+    } catch (err) {
+      // Catch-all for any unhandled errors in the connector pipeline
+      return {
+        sourceId: connector.sourceId,
+        sourceName: connector.sourceName,
+        status: "failed",
+        evidenceExtracted: 0,
+        evidenceCreated: 0,
+        evidenceUpdated: 0,
+        evidenceSkipped: 0,
+        outliersFlagged: 0,
+        error: `Unhandled: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  });
+
+  // Execute with concurrency limit
+  const results = await runWithConcurrencyLimit(tasks, MAX_CONCURRENT);
+  connectorResults.push(...results);
+
+  // V3-02: Record connector health for each connector
+  for (const result of connectorResults) {
+    try {
+      const healthStatus = result.status === "success"
+        ? (result.evidenceCreated > 0 ? "success" : "partial")
+        : "failed";
+
+      let errorType: string | null = null;
+      if (result.error) {
+        if (result.error.includes("ENOTFOUND") || result.error.includes("DNS") || result.error.includes("resolve")) {
+          errorType = "dns_failure";
+        } else if (result.error.includes("timeout") || result.error.includes("ETIMEDOUT")) {
+          errorType = "timeout";
+        } else if (result.error.includes("HTTP")) {
+          errorType = "http_error";
+        } else if (result.error.includes("Extract") || result.error.includes("parse")) {
+          errorType = "parse_error";
+        } else if (result.error.includes("LLM") || result.error.includes("invokeLLM")) {
+          errorType = "llm_error";
+        } else {
+          errorType = "unknown";
+        }
+      }
+
+      await insertConnectorHealth({
+        runId,
+        sourceId: result.sourceId,
+        sourceName: result.sourceName,
+        status: healthStatus as any,
+        httpStatusCode: null,
+        responseTimeMs: null,
+        recordsExtracted: result.evidenceExtracted,
+        recordsInserted: result.evidenceCreated,
+        duplicatesSkipped: result.evidenceSkipped,
+        errorMessage: result.error || null,
+        errorType,
+      });
+    } catch (err) {
+      console.error(`[Ingestion] Failed to record health for ${result.sourceId}:`, err);
+    }
+  }
+
+  // V3-03: Update lastSuccessfulFetch and DFE health metrics for all connectors
+  try {
+    const db = await getDb();
+    if (db) {
+      for (const result of connectorResults) {
+        // Get current consecutive failures to increment
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures })
+          .from(sourceRegistry).where(eq(sourceRegistry.name, result.sourceId)).limit(1);
+
+        const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
+        const isSuccess = result.status === "success";
+        const statusEnum = isSuccess ? (result.evidenceExtracted > 0 ? "success" : "partial") : "failed";
+
+        const updates: any = {
+          lastScrapedAt: new Date(),
+          lastScrapedStatus: statusEnum,
+          lastRecordCount: result.evidenceCreated,
+          consecutiveFailures: isSuccess ? 0 : currentFailures + 1,
+        };
+        if (isSuccess) {
+          updates.lastSuccessfulFetch = new Date();
+        }
+
+        await db.update(sourceRegistry)
+          .set(updates)
+          .where(eq(sourceRegistry.name, result.sourceId));
+      }
+    }
+  } catch (err) {
+    console.warn("[Ingestion] Failed to update sourceRegistry metrics:", err);
+  }
+
+  const completedAt = new Date();
+  const durationMs = completedAt.getTime() - startedAt.getTime();
+
+  // Aggregate results
+  const succeeded = connectorResults.filter((r) => r.status === "success").length;
+  const failed = connectorResults.filter((r) => r.status === "failed").length;
+  const totalCreated = connectorResults.reduce((sum, r) => sum + r.evidenceCreated, 0);
+  const totalUpdated = connectorResults.reduce((sum, r) => sum + r.evidenceUpdated, 0);
+  const totalSkipped = connectorResults.reduce((sum, r) => sum + r.evidenceSkipped, 0);
+  const totalOutliers = connectorResults.reduce((sum, r) => sum + r.outliersFlagged, 0);
+  const errors = connectorResults
+    .filter((r) => r.status === "failed" && r.error)
+    .map((r) => ({
+      sourceId: r.sourceId,
+      sourceName: r.sourceName,
+      error: r.error!,
+    }));
+
+  // Persist ingestion run record
+  try {
+    const db = await getDb();
+    if (db) {
+      await db.insert(ingestionRuns).values({
+        runId,
+        trigger: triggeredBy,
+        triggeredBy: actorId ?? null,
+        status: failed === connectors.length ? "failed" : "completed",
+        totalSources: connectors.length,
+        sourcesSucceeded: succeeded,
+        sourcesFailed: failed,
+        recordsExtracted: connectorResults.reduce((sum, r) => sum + r.evidenceExtracted, 0),
+        recordsInserted: totalCreated,
+        recordsUpdated: totalUpdated,
+        duplicatesSkipped: totalSkipped,
+        outliersFlagged: totalOutliers,
+        sourceBreakdown: connectorResults.map((r) => ({
+          sourceId: r.sourceId,
+          name: r.sourceName,
+          status: r.status,
+          extracted: r.evidenceExtracted,
+          inserted: r.evidenceCreated,
+          updated: r.evidenceUpdated,
+          duplicates: r.evidenceSkipped,
+          outliers: r.outliersFlagged,
+          error: r.error || null,
+        })),
+        errorSummary: errors.length > 0 ? errors : null,
+        startedAt,
+        completedAt,
+        durationMs,
+      });
+    }
+  } catch (err) {
+    console.error("[Ingestion] Failed to persist ingestion run:", err);
+  }
+
+  // Log to intelligence audit log
+  try {
+    await createIntelligenceAuditEntry({
+      runType: "price_extraction",
+      runId: runId,
+      actor: actorId ?? null,
+      inputSummary: {
+        triggeredBy,
+        connectorCount: connectors.length,
+        connectorIds: connectors.map((c) => c.sourceId),
+      },
+      outputSummary: {
+        sourcesAttempted: connectors.length,
+        sourcesSucceeded: succeeded,
+        sourcesFailed: failed,
+        evidenceCreated: totalCreated,
+        evidenceUpdated: totalUpdated,
+        evidenceSkipped: totalSkipped,
+        outliersFlagged: totalOutliers,
+      },
+      sourcesProcessed: connectors.length,
+      recordsExtracted: totalCreated,
+      errors: failed,
+      errorDetails: errors.length > 0 ? errors : null,
+      startedAt: startedAt,
+      completedAt: completedAt,
+    });
+  } catch (err) {
+    console.error("[Ingestion] Failed to log audit entry:", err);
+  }
+
+  // V2-08: Auto-generate benchmark proposals after ingestion
+  let proposalResult: { proposalsCreated: number } | null = null;
+  if (totalCreated > 0 || totalUpdated > 0) {
+    try {
+      proposalResult = await generateBenchmarkProposals({
+        actorId,
+        ingestionRunId: runId,
+      });
+      console.log(
+        `[Ingestion] Post-run proposal generation: ${proposalResult.proposalsCreated} proposals created`
+      );
+    } catch (err) {
+      console.error("[Ingestion] Post-run proposal generation failed:", err);
+    }
+  }
+
+  // V3-05: Auto-generate trend snapshots after ingestion
+  if (totalCreated > 0 || totalUpdated > 0) {
+    try {
+      const db = await getDb();
+      if (db) {
+        // Get distinct category/geography combos from recent evidence
+        const recentEvidence = await db.select().from(evidenceRecords)
+          .orderBy(sql`${evidenceRecords.createdAt} DESC`)
+          .limit(500);
+
+        // Group by category:finishLevel
+        const categoryGroups = new Map<string, { category: string; points: DataPoint[] }>();
+        for (const record of recentEvidence) {
+          const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
+          if (value === null || isNaN(value)) continue;
+          const date = record.captureDate || record.createdAt;
+          if (!date) continue;
+          const category = record.category || "other";
+          const finishLevel = record.finishLevel?.toLowerCase() || "standard";
+          const metric = `${category}:${finishLevel}`;
+          const grade = (record.reliabilityGrade as "A" | "B" | "C") || "C";
+
+          if (!categoryGroups.has(metric)) categoryGroups.set(metric, { category, points: [] });
+          categoryGroups.get(metric)!.points.push({
+            date: new Date(date),
+            value,
+            grade,
+            sourceId: record.sourceRegistryId ? String(record.sourceRegistryId) : "unknown",
+            recordId: record.id,
+          });
+        }
+
+        let trendsGenerated = 0;
+        for (const [metric, group] of Array.from(categoryGroups.entries())) {
+          if (group.points.length < 2) continue;
+          const trend = await detectTrends(metric, group.category, "UAE", group.points, {
+            generateNarrative: group.points.length >= 5,
+          });
+          await insertTrendSnapshot({
+            metric: trend.metric,
+            category: trend.category,
+            geography: trend.geography,
+            dataPointCount: trend.dataPointCount,
+            gradeACount: trend.gradeACount,
+            gradeBCount: trend.gradeBCount,
+            gradeCCount: trend.gradeCCount,
+            uniqueSources: trend.uniqueSources,
+            dateRangeStart: trend.dateRange?.start || null,
+            dateRangeEnd: trend.dateRange?.end || null,
+            currentMA: trend.currentMA !== null ? String(trend.currentMA) : null,
+            previousMA: trend.previousMA !== null ? String(trend.previousMA) : null,
+            percentChange: trend.percentChange !== null ? String(trend.percentChange) : null,
+            direction: trend.direction,
+            anomalyCount: trend.anomalies.length,
+            anomalyDetails: trend.anomalies.length > 0 ? trend.anomalies : null,
+            confidence: trend.confidence,
+            narrative: trend.narrative,
+            movingAverages: trend.movingAverages.length > 0 ? trend.movingAverages : null,
+            ingestionRunId: runId,
+          });
+          trendsGenerated++;
+        }
+        console.log(`[Ingestion] Post-run trend detection: ${trendsGenerated} trend snapshots created`);
+      }
+    } catch (err) {
+      console.error("[Ingestion] Post-run trend detection failed:", err);
+    }
+  }
+
+  // V6: Autonomous Alert Generation
+  try {
+    const alerts = await triggerAlertEngine();
+    console.log(`[Ingestion] Post-run alert generation: ${alerts.length} new alerts created`);
+  } catch (err) {
+    console.error("[Ingestion] Post-run alert generation failed:", err);
+  }
+
+  // V7: Auto-sync Evidence → Materials Library
+  if (totalCreated > 0 || totalUpdated > 0) {
+    try {
+      const { syncEvidenceToMaterials } = await import("./evidence-to-materials");
+      const materialSync = await syncEvidenceToMaterials(runId);
+      console.log(
+        `[Ingestion] Post-run materials sync: ${materialSync.created} created, ${materialSync.updated} updated, ${materialSync.skipped} skipped`
+      );
+    } catch (err) {
+      console.error("[Ingestion] Post-run materials sync failed:", err);
+    }
+  }
+
+  console.log(`[Ingestion] Run ${runId} complete: ${totalCreated} created, ${totalUpdated} updated, ${totalSkipped} skipped, ${totalOutliers} outliers flagged`);
+
+  const report: IngestionRunReport = {
+    runId,
+    startedAt,
+    completedAt,
+    durationMs,
+    triggeredBy,
+    sourcesAttempted: connectors.length,
+    sourcesSucceeded: succeeded,
+    sourcesFailed: failed,
+    evidenceCreated: totalCreated,
+    evidenceUpdated: totalUpdated,
+    evidenceSkipped: totalSkipped,
+    outliersFlagged: totalOutliers,
+    errors,
+    perSource: connectorResults,
+  };
+
+  return report;
+}
+
+/**
+ * Run a single connector by sourceId.
+ */
+export async function runSingleConnector(
+  connector: SourceConnector,
+  triggeredBy: "manual" | "scheduled" | "api" = "manual",
+  actorId?: number
+): Promise<IngestionRunReport> {
+  return runIngestion([connector], triggeredBy, actorId);
+}
+
+/**
+ * Run a connector for testing purposes only. Does not save to the database.
+ * Returns the raw payload size and up to 5 extracted valid records.
+ */
+export async function testScrape(connector: SourceConnector) {
+  const startedAt = new Date();
+
+  const raw = await connector.fetch();
+  if (raw.error) {
+    return { success: false, error: raw.error, statusCode: raw.statusCode };
+  }
+
+  const extracted = await connector.extract(raw);
+  const normalizedRecords = [];
+
+  for (const evidence of extracted) {
+    if (!extractedEvidenceSchema.safeParse(evidence).success) continue;
+    try {
+      const normalized = await connector.normalize(evidence);
+      if (normalizedEvidenceInputSchema.safeParse(normalized).success) {
+        normalizedRecords.push(normalized);
+      }
+    } catch { }
+  }
+
+  return {
+    success: true,
+    statusCode: raw.statusCode,
+    rawPayloadSize: (raw.rawHtml?.length || 0) + JSON.stringify(raw.rawJson || {}).length,
+    extractedCount: extracted.length,
+    validNormalizedCount: normalizedRecords.length,
+    previewRecords: normalizedRecords.slice(0, 5),
+    durationMs: new Date().getTime() - startedAt.getTime()
+  };
+}
+```
+
+- Replaced `isDuplicate()` (skip if same sourceUrl + itemName + DATE(captureDate)) with [findExistingRecord()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts#120-157) + [updateExistingRecord()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts#158-223) — now **updates prices** instead of skipping
+- Price change detection triggers on **both** new and updated records
+- Reports now track `evidenceUpdated` and `outliersFlagged`
+
+#### Module E: Data Quality Validation
+**File:** [data-quality.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/data-quality.ts) `[NEW]`
+
+- UAE-specific price range rules for all 10 material categories
+- Flags outliers without rejecting — reduces `confidence` score instead
+- [validateEvidence()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/data-quality.ts#87-171) runs before every persist in the orchestrator
+
+#### Module D: Freshness Triggers
+**File:** [freshness.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/freshness.ts)
+
+```diff:freshness.ts
+/**
+ * MIYAR V2-09 — Evidence Freshness Module
+ *
+ * Computes freshness status for evidence records based on capture date.
+ * Used for:
+ *   - UI badge coloring (green/amber/red)
+ *   - Weight multiplier in proposal generation
+ *
+ * Freshness tiers:
+ *   - FRESH:  ≤ 3 months old  → weight 1.00 (green badge)
+ *   - AGING:  3-12 months old → weight 0.75 (amber badge)
+ *   - STALE:  > 12 months old → weight 0.50 (red badge)
+ */
+
+// ─── Named Constants ─────────────────────────────────────────────
+
+/** Maximum age in days for "fresh" status */
+export const FRESHNESS_FRESH_DAYS = 90;
+
+/** Maximum age in days for "aging" status (beyond this = stale) */
+export const FRESHNESS_AGING_DAYS = 365;
+
+/** Weight multiplier for fresh evidence (≤ 3 months) */
+export const FRESHNESS_WEIGHT_FRESH = 1.0;
+
+/** Weight multiplier for aging evidence (3-12 months) */
+export const FRESHNESS_WEIGHT_AGING = 0.75;
+
+/** Weight multiplier for stale evidence (> 12 months) */
+export const FRESHNESS_WEIGHT_STALE = 0.50;
+
+// ─── Types ───────────────────────────────────────────────────────
+
+export type FreshnessStatus = "fresh" | "aging" | "stale";
+
+export interface FreshnessInfo {
+  status: FreshnessStatus;
+  weight: number;
+  ageDays: number;
+  badgeColor: "green" | "amber" | "red";
+}
+
+// ─── Computation ─────────────────────────────────────────────────
+
+/**
+ * Compute freshness status for a given capture date.
+ *
+ * @param captureDate - The date the evidence was captured
+ * @param referenceDate - Optional reference date (defaults to now)
+ * @returns FreshnessInfo with status, weight, age, and badge color
+ */
+export function computeFreshness(
+  captureDate: Date | string,
+  referenceDate?: Date
+): FreshnessInfo {
+  const capture = captureDate instanceof Date ? captureDate : new Date(captureDate);
+  const ref = referenceDate ?? new Date();
+  const ageDays = Math.max(0, Math.floor((ref.getTime() - capture.getTime()) / (24 * 60 * 60 * 1000)));
+
+  if (ageDays <= FRESHNESS_FRESH_DAYS) {
+    return {
+      status: "fresh",
+      weight: FRESHNESS_WEIGHT_FRESH,
+      ageDays,
+      badgeColor: "green",
+    };
+  }
+
+  if (ageDays <= FRESHNESS_AGING_DAYS) {
+    return {
+      status: "aging",
+      weight: FRESHNESS_WEIGHT_AGING,
+      ageDays,
+      badgeColor: "amber",
+    };
+  }
+
+  return {
+    status: "stale",
+    weight: FRESHNESS_WEIGHT_STALE,
+    ageDays,
+    badgeColor: "red",
+  };
+}
+
+/**
+ * Get the freshness weight multiplier for a given capture date.
+ * Convenience function for use in proposal generation.
+ */
+export function getFreshnessWeight(captureDate: Date | string, referenceDate?: Date): number {
+  return computeFreshness(captureDate, referenceDate).weight;
+}
+===
+/**
+ * MIYAR V2-09 — Evidence Freshness Module
+ *
+ * Computes freshness status for evidence records based on capture date.
+ * Used for:
+ *   - UI badge coloring (green/amber/red)
+ *   - Weight multiplier in proposal generation
+ *
+ * Freshness tiers:
+ *   - FRESH:  ≤ 3 months old  → weight 1.00 (green badge)
+ *   - AGING:  3-12 months old → weight 0.75 (amber badge)
+ *   - STALE:  > 12 months old → weight 0.50 (red badge)
+ */
+
+// ─── Named Constants ─────────────────────────────────────────────
+
+/** Maximum age in days for "fresh" status */
+export const FRESHNESS_FRESH_DAYS = 90;
+
+/** Maximum age in days for "aging" status (beyond this = stale) */
+export const FRESHNESS_AGING_DAYS = 365;
+
+/** Weight multiplier for fresh evidence (≤ 3 months) */
+export const FRESHNESS_WEIGHT_FRESH = 1.0;
+
+/** Weight multiplier for aging evidence (3-12 months) */
+export const FRESHNESS_WEIGHT_AGING = 0.75;
+
+/** Weight multiplier for stale evidence (> 12 months) */
+export const FRESHNESS_WEIGHT_STALE = 0.50;
+
+// ─── Types ───────────────────────────────────────────────────────
+
+export type FreshnessStatus = "fresh" | "aging" | "stale";
+
+export interface FreshnessInfo {
+  status: FreshnessStatus;
+  weight: number;
+  ageDays: number;
+  badgeColor: "green" | "amber" | "red";
+}
+
+// ─── Computation ─────────────────────────────────────────────────
+
+/**
+ * Compute freshness status for a given capture date.
+ *
+ * @param captureDate - The date the evidence was captured
+ * @param referenceDate - Optional reference date (defaults to now)
+ * @returns FreshnessInfo with status, weight, age, and badge color
+ */
+export function computeFreshness(
+  captureDate: Date | string,
+  referenceDate?: Date
+): FreshnessInfo {
+  const capture = captureDate instanceof Date ? captureDate : new Date(captureDate);
+  const ref = referenceDate ?? new Date();
+  const ageDays = Math.max(0, Math.floor((ref.getTime() - capture.getTime()) / (24 * 60 * 60 * 1000)));
+
+  if (ageDays <= FRESHNESS_FRESH_DAYS) {
+    return {
+      status: "fresh",
+      weight: FRESHNESS_WEIGHT_FRESH,
+      ageDays,
+      badgeColor: "green",
+    };
+  }
+
+  if (ageDays <= FRESHNESS_AGING_DAYS) {
+    return {
+      status: "aging",
+      weight: FRESHNESS_WEIGHT_AGING,
+      ageDays,
+      badgeColor: "amber",
+    };
+  }
+
+  return {
+    status: "stale",
+    weight: FRESHNESS_WEIGHT_STALE,
+    ageDays,
+    badgeColor: "red",
+  };
+}
+
+/**
+ * Get the freshness weight multiplier for a given capture date.
+ * Convenience function for use in proposal generation.
+ */
+export function getFreshnessWeight(captureDate: Date | string, referenceDate?: Date): number {
+  return computeFreshness(captureDate, referenceDate).weight;
+}
+
+// ─── Source Freshness Analysis ───────────────────────────────────
+
+/**
+ * Identify source_registry IDs whose evidence records have gone stale.
+ * Returns IDs where >50% of records are "aging" or "stale".
+ * Used by the scheduler to auto-trigger re-scrapes.
+ */
+export async function getStaleSourceIds(
+  staleThresholdPct: number = 50
+): Promise<Array<{ sourceRegistryId: number; totalRecords: number; staleRecords: number; stalePct: number }>> {
+  // Lazy import to avoid circular dependency
+  const { getDb } = await import("../../db");
+  const { evidenceRecords } = await import("../../../drizzle/schema");
+
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all evidence records with sourceRegistryId
+  const allRecords = await db
+    .select({
+      id: evidenceRecords.id,
+      sourceRegistryId: evidenceRecords.sourceRegistryId,
+      captureDate: evidenceRecords.captureDate,
+    })
+    .from(evidenceRecords);
+
+  // Group by sourceRegistryId and compute staleness
+  const sourceStats = new Map<number, { total: number; stale: number }>();
+  const now = new Date();
+
+  for (const record of allRecords) {
+    if (!record.sourceRegistryId) continue;
+    const sid = record.sourceRegistryId;
+    if (!sourceStats.has(sid)) {
+      sourceStats.set(sid, { total: 0, stale: 0 });
+    }
+    const stats = sourceStats.get(sid)!;
+    stats.total++;
+
+    const freshness = computeFreshness(record.captureDate, now);
+    if (freshness.status === "aging" || freshness.status === "stale") {
+      stats.stale++;
+    }
+  }
+
+  // Return sources exceeding stale threshold
+  const staleSourceIds: Array<{
+    sourceRegistryId: number;
+    totalRecords: number;
+    staleRecords: number;
+    stalePct: number;
+  }> = [];
+
+  for (const [sid, stats] of Array.from(sourceStats.entries())) {
+    const stalePct = Math.round((stats.stale / stats.total) * 100);
+    if (stalePct >= staleThresholdPct && stats.total >= 3) {
+      staleSourceIds.push({
+        sourceRegistryId: sid,
+        totalRecords: stats.total,
+        staleRecords: stats.stale,
+        stalePct,
+      });
+    }
+  }
+
+  return staleSourceIds.sort((a, b) => b.stalePct - a.stalePct);
+}
+```
+
+- Added [getStaleSourceIds()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/freshness.ts#96-161) — finds sources where >50% of records are aging/stale
+- Used by `runStaleSources` endpoint to auto-trigger re-scraping
+
+---
+
+### Phase 2 — Intelligence Expansion
+
+#### Module C: New UAE Sources (12 pre-vetted)
+**File:** [source-discovery.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/source-discovery.ts) `[NEW]`
+
+Pre-vetted sources ready to add:
+
+| Source | Category | Data Types |
+|--------|----------|-----------|
+| Porcelanosa UAE | Material Supplier | Tiles, sanitary, kitchens |
+| Al Murad UAE | Material Supplier | Tiles, stone, sanitary |
+| Dubai Pulse (DERA) | Government | Building permits, statistics |
+| Dezeen ME | Design Trend | Trends, projects, innovations |
+| CID Middle East | Design Trend | Trends, briefs, awards |
+| Aldar Properties | Developer | Portfolios, specs, pricing |
+| Nakheel Projects | Developer | Community specs, pricing |
+| MERAAS / Dubai Holding | Developer | Luxury projects, brand partnerships |
+| Hansgrohe AE | Material Supplier | Sanitary, bathroom fittings |
+| Artemide AE | Material Supplier | Lighting fixtures |
+| Bulthaup UAE | Material Supplier | Luxury kitchens |
+| ArchDaily ME | Design Trend | Architecture, material specs |
+
+#### Module F & G: Design Trend + Developer Intelligence
+**File:** [trend-extractor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/trend-extractor.ts) `[NEW]`
+
+- [extractDesignTrends()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/trend-extractor.ts#80-147) — Gemini-powered extraction across 6 categories (material, color, style, spatial, technology, sustainability) with UAE relevance scoring
+- [extractDeveloperIntelligence()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/trend-extractor.ts#177-218) — Parses developer project pages for interior specs, finish levels, brands, and fitout cost estimates
+
+---
+
+### Phase 3 — Self-Evolving System
+
+#### Module B: AI Source Discovery
+**File:** [source-discovery.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/source-discovery.ts)
+
+- [discoverNewSources()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/source-discovery.ts#80-137) uses Gemini to analyze existing registry and suggest complementary sources
+- Deduplicates against existing sources before returning candidates
+
+#### Module H: Database Value Verifier
+**File:** [data-verifier.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/data-verifier.ts) `[NEW]`
+
+- [verifyDatabaseValues()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/data-verifier.ts#77-178) — samples up to 50 records, asks Gemini to cross-check against UAE market reality
+- Returns verified/suspect/invalid status with suggested price ranges
+
+---
+
+### API Endpoints (5 New)
+**File:** [ingestion.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/ingestion.ts)
+
+```diff:ingestion.ts
+/**
+ * MIYAR V2-05 — Ingestion Router
+ *
+ * tRPC endpoints for the Live Market Ingestion Engine:
+ *   - ingestion.runAll: Run all 12 UAE connectors (admin-only)
+ *   - ingestion.runSource: Run a single connector by sourceId (admin-only)
+ *   - ingestion.getHistory: List past ingestion runs (paginated)
+ *   - ingestion.getStatus: Current ingestion status + next scheduled run
+ *   - ingestion.getRunDetail: Get detailed breakdown for a specific run
+ *   - ingestion.getAvailableSources: List all registered connector IDs
+ */
+
+import { z } from "zod";
+import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { runIngestion, runSingleConnector } from "../engines/ingestion/orchestrator";
+import {
+  getAllConnectors,
+  getConnectorById,
+  ALL_CONNECTORS,
+} from "../engines/ingestion/connectors/index";
+import { getDb, getConnectorHealthByRun, getConnectorHealthHistory, getConnectorHealthSummary } from "../db";
+import { ingestionRuns, connectorHealth, sourceRegistry, designTrends } from "../../drizzle/schema";
+import { desc, eq, sql } from "drizzle-orm";
+import { getSchedulerStatus } from "../engines/ingestion/scheduler";
+import { DynamicConnector } from "../engines/ingestion/connectors/dynamic";
+import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
+
+export const ingestionRouter = router({
+  /**
+   * Run all 12 UAE source connectors.
+   * Admin-only. Returns full IngestionRunReport.
+   */
+  runAll: adminProcedure
+    .mutation(async ({ ctx }) => {
+      const connectors = getAllConnectors();
+      const report = await runIngestion(connectors, "manual", ctx.user.id);
+      return report;
+    }),
+
+  /**
+   * Run a single connector by sourceId.
+   * Admin-only. Returns IngestionRunReport for that one source.
+   */
+  runSource: adminProcedure
+    .input(z.object({
+      sourceId: z.string().min(1),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const connector = getConnectorById(input.sourceId);
+      if (!connector) {
+        throw new Error(`Unknown source connector: ${input.sourceId}. Available: ${Object.keys(ALL_CONNECTORS).join(", ")}`);
+      }
+      const report = await runSingleConnector(connector, "manual", ctx.user.id);
+      return report;
+    }),
+
+  /**
+   * List past ingestion runs (paginated, newest first).
+   */
+  getHistory: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(20),
+      offset: z.number().min(0).default(0),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return { runs: [], total: 0 };
+
+      const limit = input?.limit ?? 20;
+      const offset = input?.offset ?? 0;
+
+      const runs = await db
+        .select()
+        .from(ingestionRuns)
+        .orderBy(desc(ingestionRuns.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Get total count
+      const allRuns = await db.select({ id: ingestionRuns.id }).from(ingestionRuns);
+      const total = allRuns.length;
+
+      return { runs, total };
+    }),
+
+  /**
+   * Get current ingestion status: last run info + next scheduled run time.
+   */
+  getStatus: protectedProcedure
+    .query(async () => {
+      const db = await getDb();
+      if (!db) {
+        return {
+          lastRun: null,
+          totalRuns: 0,
+          totalRecordsIngested: 0,
+          availableSources: Object.keys(ALL_CONNECTORS).length,
+          scheduledCron: null,
+          nextScheduledRun: null,
+        };
+      }
+
+      // Get last run
+      const lastRuns = await db
+        .select()
+        .from(ingestionRuns)
+        .orderBy(desc(ingestionRuns.createdAt))
+        .limit(1);
+
+      const lastRun = lastRuns.length > 0 ? lastRuns[0] : null;
+
+      // Get total counts
+      const allRuns = await db.select().from(ingestionRuns);
+      const totalRuns = allRuns.length;
+      const totalRecordsIngested = allRuns.reduce(
+        (sum: number, r: any) => sum + (r.recordsInserted ?? 0),
+        0
+      );
+
+      // Get scheduler info
+      const scheduler = getSchedulerStatus();
+
+      return {
+        lastRun: lastRun
+          ? {
+            runId: lastRun.runId,
+            status: lastRun.status,
+            trigger: lastRun.trigger,
+            totalSources: lastRun.totalSources,
+            sourcesSucceeded: lastRun.sourcesSucceeded,
+            sourcesFailed: lastRun.sourcesFailed,
+            recordsInserted: lastRun.recordsInserted,
+            duplicatesSkipped: lastRun.duplicatesSkipped,
+            startedAt: lastRun.startedAt,
+            completedAt: lastRun.completedAt,
+            durationMs: lastRun.durationMs,
+          }
+          : null,
+        totalRuns,
+        totalRecordsIngested,
+        availableSources: Object.keys(ALL_CONNECTORS).length,
+        scheduler,
+      };
+    }),
+
+  /**
+   * Get detailed breakdown for a specific ingestion run.
+   */
+  getRunDetail: protectedProcedure
+    .input(z.object({ runId: z.string() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return null;
+
+      const runs = await db
+        .select()
+        .from(ingestionRuns)
+        .where(eq(ingestionRuns.runId, input.runId))
+        .limit(1);
+
+      return runs.length > 0 ? runs[0] : null;
+    }),
+
+  /**
+   * List all available source connector IDs with metadata.
+   */
+  getAvailableSources: protectedProcedure
+    .query(() => {
+      const connectors = getAllConnectors();
+      return connectors.map((c) => ({
+        sourceId: c.sourceId,
+        sourceName: c.sourceName,
+        sourceUrl: c.sourceUrl,
+      }));
+    }),
+
+  // ─── V3-02: Connector Health Endpoints ─────────────────────────
+
+  /**
+   * Get connector health records for a specific ingestion run.
+   */
+  getRunHealth: protectedProcedure
+    .input(z.object({ runId: z.string() }))
+    .query(async ({ input }) => {
+      return getConnectorHealthByRun(input.runId);
+    }),
+
+  /**
+   * Get health history for a specific connector (last 30 records).
+   */
+  getSourceHealth: protectedProcedure
+    .input(z.object({
+      sourceId: z.string(),
+      limit: z.number().min(1).max(100).default(30),
+    }))
+    .query(async ({ input }) => {
+      return getConnectorHealthHistory(input.sourceId, input.limit);
+    }),
+
+  /**
+   * Get health summary across all connectors (last 30 days).
+   * Returns aggregated success rates and response times.
+   */
+  getHealthSummary: protectedProcedure
+    .query(async () => {
+      const records = await getConnectorHealthSummary();
+
+      // Aggregate by sourceId
+      const bySource = new Map<string, {
+        sourceId: string;
+        sourceName: string;
+        totalRuns: number;
+        successes: number;
+        partials: number;
+        failures: number;
+        avgResponseMs: number | null;
+        totalExtracted: number;
+        totalInserted: number;
+        lastStatus: string;
+        lastRunAt: Date | null;
+        lastError: string | null;
+      }>();
+
+      for (const r of records) {
+        const existing = bySource.get(r.sourceId) || {
+          sourceId: r.sourceId,
+          sourceName: r.sourceName,
+          totalRuns: 0,
+          successes: 0,
+          partials: 0,
+          failures: 0,
+          avgResponseMs: null,
+          totalExtracted: 0,
+          totalInserted: 0,
+          lastStatus: r.status,
+          lastRunAt: r.createdAt,
+          lastError: null,
+        };
+
+        existing.totalRuns++;
+        if (r.status === "success") existing.successes++;
+        else if (r.status === "partial") existing.partials++;
+        else existing.failures++;
+
+        existing.totalExtracted += r.recordsExtracted;
+        existing.totalInserted += r.recordsInserted;
+
+        if (r.responseTimeMs) {
+          existing.avgResponseMs = existing.avgResponseMs
+            ? Math.round((existing.avgResponseMs + r.responseTimeMs) / 2)
+            : r.responseTimeMs;
+        }
+
+        // Track latest status and error
+        if (!existing.lastRunAt || r.createdAt > existing.lastRunAt) {
+          existing.lastStatus = r.status;
+          existing.lastRunAt = r.createdAt;
+          existing.lastError = r.errorMessage;
+        }
+
+        bySource.set(r.sourceId, existing);
+      }
+
+      return Array.from(bySource.values()).map((s) => ({
+        ...s,
+        successRate: s.totalRuns > 0
+          ? Math.round(((s.successes + s.partials) / s.totalRuns) * 100)
+          : 0,
+      }));
+    }),
+
+  // ─── Source Registry Management ──────────────────────────────
+
+  /**
+   * List all sources from source_registry with health info.
+   */
+  listSources: protectedProcedure
+    .input(z.object({
+      activeOnly: z.boolean().default(true),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const filter = input?.activeOnly !== false ? eq(sourceRegistry.isActive, true) : undefined;
+      const sources = filter
+        ? await db.select().from(sourceRegistry).where(filter).orderBy(desc(sourceRegistry.updatedAt))
+        : await db.select().from(sourceRegistry).orderBy(desc(sourceRegistry.updatedAt));
+      return sources;
+    }),
+
+  /**
+   * Create a new source in the registry.
+   */
+  createSource: adminProcedure
+    .input(z.object({
+      name: z.string().min(1).max(255),
+      url: z.string().url(),
+      sourceType: z.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
+      reliabilityDefault: z.enum(["A", "B", "C"]).default("B"),
+      region: z.string().default("UAE"),
+      scrapeMethod: z.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+      scrapeSchedule: z.string().optional(),
+      extractionHints: z.string().optional(),
+      notes: z.string().optional(),
+      requestDelayMs: z.number().default(2000),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      const [result] = await db.insert(sourceRegistry).values({
+        name: input.name,
+        url: input.url,
+        sourceType: input.sourceType,
+        reliabilityDefault: input.reliabilityDefault,
+        region: input.region,
+        scrapeMethod: input.scrapeMethod,
+        scrapeSchedule: input.scrapeSchedule,
+        extractionHints: input.extractionHints,
+        notes: input.notes,
+        requestDelayMs: input.requestDelayMs,
+        isActive: true,
+        isWhitelisted: true,
+        addedBy: ctx.user.id,
+        lastScrapedStatus: "never",
+        lastRecordCount: 0,
+        consecutiveFailures: 0,
+      });
+      return { id: result.insertId, name: input.name };
+    }),
+
+  /**
+   * Toggle source active/inactive.
+   */
+  toggleSource: adminProcedure
+    .input(z.object({ id: z.number(), isActive: z.boolean() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq(sourceRegistry.id, input.id));
+      return { id: input.id, isActive: input.isActive };
+    }),
+
+  /**
+   * Run a single DB-registered source via DynamicConnector.
+   */
+  runRegisteredSource: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      const [source] = await db.select().from(sourceRegistry).where(eq(sourceRegistry.id, input.id)).limit(1);
+      if (!source) throw new Error("Source not found");
+      const connector = new DynamicConnector(source);
+      const report = await runIngestion([connector], "manual", ctx.user.id);
+      // Update lastScrapedAt + status
+      await db.update(sourceRegistry).set({
+        lastScrapedAt: new Date(),
+        lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
+        lastRecordCount: report.evidenceCreated,
+        consecutiveFailures: report.sourcesFailed > 0
+          ? sql`${sourceRegistry.consecutiveFailures} + 1`
+          : 0,
+      }).where(eq(sourceRegistry.id, input.id));
+      return report;
+    }),
+
+  /**
+   * Seed all UAE sources into source_registry.
+   */
+  seedSources: adminProcedure
+    .mutation(async () => {
+      return seedUAESources();
+    }),
+
+  // ─── Design Trends ──────────────────────────────────────────
+
+  /**
+   * List detected design trends, ordered by mention count.
+   */
+  getTrends: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      category: z.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional(),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      let query = db.select().from(designTrends).orderBy(desc(designTrends.mentionCount)).limit(input?.limit ?? 50);
+      if (input?.category) {
+        query = query.where(eq(designTrends.trendCategory, input.category)) as any;
+      }
+      return query;
+    }),
+});
+===
+/**
+ * MIYAR V2-05 — Ingestion Router
+ *
+ * tRPC endpoints for the Live Market Ingestion Engine:
+ *   - ingestion.runAll: Run all 12 UAE connectors (admin-only)
+ *   - ingestion.runSource: Run a single connector by sourceId (admin-only)
+ *   - ingestion.getHistory: List past ingestion runs (paginated)
+ *   - ingestion.getStatus: Current ingestion status + next scheduled run
+ *   - ingestion.getRunDetail: Get detailed breakdown for a specific run
+ *   - ingestion.getAvailableSources: List all registered connector IDs
+ */
+
+import { z } from "zod";
+import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { runIngestion, runSingleConnector } from "../engines/ingestion/orchestrator";
+import {
+  getAllConnectors,
+  getConnectorById,
+  ALL_CONNECTORS,
+} from "../engines/ingestion/connectors/index";
+import { getDb, getConnectorHealthByRun, getConnectorHealthHistory, getConnectorHealthSummary } from "../db";
+import { ingestionRuns, connectorHealth, sourceRegistry, designTrends } from "../../drizzle/schema";
+import { desc, eq, sql } from "drizzle-orm";
+import { getSchedulerStatus } from "../engines/ingestion/scheduler";
+import { DynamicConnector } from "../engines/ingestion/connectors/dynamic";
+import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
+
+export const ingestionRouter = router({
+  /**
+   * Run all 12 UAE source connectors.
+   * Admin-only. Returns full IngestionRunReport.
+   */
+  runAll: adminProcedure
+    .mutation(async ({ ctx }) => {
+      const connectors = getAllConnectors();
+      const report = await runIngestion(connectors, "manual", ctx.user.id);
+      return report;
+    }),
+
+  /**
+   * Run a single connector by sourceId.
+   * Admin-only. Returns IngestionRunReport for that one source.
+   */
+  runSource: adminProcedure
+    .input(z.object({
+      sourceId: z.string().min(1),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const connector = getConnectorById(input.sourceId);
+      if (!connector) {
+        throw new Error(`Unknown source connector: ${input.sourceId}. Available: ${Object.keys(ALL_CONNECTORS).join(", ")}`);
+      }
+      const report = await runSingleConnector(connector, "manual", ctx.user.id);
+      return report;
+    }),
+
+  /**
+   * List past ingestion runs (paginated, newest first).
+   */
+  getHistory: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(20),
+      offset: z.number().min(0).default(0),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return { runs: [], total: 0 };
+
+      const limit = input?.limit ?? 20;
+      const offset = input?.offset ?? 0;
+
+      const runs = await db
+        .select()
+        .from(ingestionRuns)
+        .orderBy(desc(ingestionRuns.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Get total count
+      const allRuns = await db.select({ id: ingestionRuns.id }).from(ingestionRuns);
+      const total = allRuns.length;
+
+      return { runs, total };
+    }),
+
+  /**
+   * Get current ingestion status: last run info + next scheduled run time.
+   */
+  getStatus: protectedProcedure
+    .query(async () => {
+      const db = await getDb();
+      if (!db) {
+        return {
+          lastRun: null,
+          totalRuns: 0,
+          totalRecordsIngested: 0,
+          availableSources: Object.keys(ALL_CONNECTORS).length,
+          scheduledCron: null,
+          nextScheduledRun: null,
+        };
+      }
+
+      // Get last run
+      const lastRuns = await db
+        .select()
+        .from(ingestionRuns)
+        .orderBy(desc(ingestionRuns.createdAt))
+        .limit(1);
+
+      const lastRun = lastRuns.length > 0 ? lastRuns[0] : null;
+
+      // Get total counts
+      const allRuns = await db.select().from(ingestionRuns);
+      const totalRuns = allRuns.length;
+      const totalRecordsIngested = allRuns.reduce(
+        (sum: number, r: any) => sum + (r.recordsInserted ?? 0),
+        0
+      );
+
+      // Get scheduler info
+      const scheduler = getSchedulerStatus();
+
+      return {
+        lastRun: lastRun
+          ? {
+            runId: lastRun.runId,
+            status: lastRun.status,
+            trigger: lastRun.trigger,
+            totalSources: lastRun.totalSources,
+            sourcesSucceeded: lastRun.sourcesSucceeded,
+            sourcesFailed: lastRun.sourcesFailed,
+            recordsInserted: lastRun.recordsInserted,
+            duplicatesSkipped: lastRun.duplicatesSkipped,
+            startedAt: lastRun.startedAt,
+            completedAt: lastRun.completedAt,
+            durationMs: lastRun.durationMs,
+          }
+          : null,
+        totalRuns,
+        totalRecordsIngested,
+        availableSources: Object.keys(ALL_CONNECTORS).length,
+        scheduler,
+      };
+    }),
+
+  /**
+   * Get detailed breakdown for a specific ingestion run.
+   */
+  getRunDetail: protectedProcedure
+    .input(z.object({ runId: z.string() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return null;
+
+      const runs = await db
+        .select()
+        .from(ingestionRuns)
+        .where(eq(ingestionRuns.runId, input.runId))
+        .limit(1);
+
+      return runs.length > 0 ? runs[0] : null;
+    }),
+
+  /**
+   * List all available source connector IDs with metadata.
+   */
+  getAvailableSources: protectedProcedure
+    .query(() => {
+      const connectors = getAllConnectors();
+      return connectors.map((c) => ({
+        sourceId: c.sourceId,
+        sourceName: c.sourceName,
+        sourceUrl: c.sourceUrl,
+      }));
+    }),
+
+  // ─── V3-02: Connector Health Endpoints ─────────────────────────
+
+  /**
+   * Get connector health records for a specific ingestion run.
+   */
+  getRunHealth: protectedProcedure
+    .input(z.object({ runId: z.string() }))
+    .query(async ({ input }) => {
+      return getConnectorHealthByRun(input.runId);
+    }),
+
+  /**
+   * Get health history for a specific connector (last 30 records).
+   */
+  getSourceHealth: protectedProcedure
+    .input(z.object({
+      sourceId: z.string(),
+      limit: z.number().min(1).max(100).default(30),
+    }))
+    .query(async ({ input }) => {
+      return getConnectorHealthHistory(input.sourceId, input.limit);
+    }),
+
+  /**
+   * Get health summary across all connectors (last 30 days).
+   * Returns aggregated success rates and response times.
+   */
+  getHealthSummary: protectedProcedure
+    .query(async () => {
+      const records = await getConnectorHealthSummary();
+
+      // Aggregate by sourceId
+      const bySource = new Map<string, {
+        sourceId: string;
+        sourceName: string;
+        totalRuns: number;
+        successes: number;
+        partials: number;
+        failures: number;
+        avgResponseMs: number | null;
+        totalExtracted: number;
+        totalInserted: number;
+        lastStatus: string;
+        lastRunAt: Date | null;
+        lastError: string | null;
+      }>();
+
+      for (const r of records) {
+        const existing = bySource.get(r.sourceId) || {
+          sourceId: r.sourceId,
+          sourceName: r.sourceName,
+          totalRuns: 0,
+          successes: 0,
+          partials: 0,
+          failures: 0,
+          avgResponseMs: null,
+          totalExtracted: 0,
+          totalInserted: 0,
+          lastStatus: r.status,
+          lastRunAt: r.createdAt,
+          lastError: null,
+        };
+
+        existing.totalRuns++;
+        if (r.status === "success") existing.successes++;
+        else if (r.status === "partial") existing.partials++;
+        else existing.failures++;
+
+        existing.totalExtracted += r.recordsExtracted;
+        existing.totalInserted += r.recordsInserted;
+
+        if (r.responseTimeMs) {
+          existing.avgResponseMs = existing.avgResponseMs
+            ? Math.round((existing.avgResponseMs + r.responseTimeMs) / 2)
+            : r.responseTimeMs;
+        }
+
+        // Track latest status and error
+        if (!existing.lastRunAt || r.createdAt > existing.lastRunAt) {
+          existing.lastStatus = r.status;
+          existing.lastRunAt = r.createdAt;
+          existing.lastError = r.errorMessage;
+        }
+
+        bySource.set(r.sourceId, existing);
+      }
+
+      return Array.from(bySource.values()).map((s) => ({
+        ...s,
+        successRate: s.totalRuns > 0
+          ? Math.round(((s.successes + s.partials) / s.totalRuns) * 100)
+          : 0,
+      }));
+    }),
+
+  // ─── Source Registry Management ──────────────────────────────
+
+  /**
+   * List all sources from source_registry with health info.
+   */
+  listSources: protectedProcedure
+    .input(z.object({
+      activeOnly: z.boolean().default(true),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const filter = input?.activeOnly !== false ? eq(sourceRegistry.isActive, true) : undefined;
+      const sources = filter
+        ? await db.select().from(sourceRegistry).where(filter).orderBy(desc(sourceRegistry.updatedAt))
+        : await db.select().from(sourceRegistry).orderBy(desc(sourceRegistry.updatedAt));
+      return sources;
+    }),
+
+  /**
+   * Create a new source in the registry.
+   */
+  createSource: adminProcedure
+    .input(z.object({
+      name: z.string().min(1).max(255),
+      url: z.string().url(),
+      sourceType: z.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
+      reliabilityDefault: z.enum(["A", "B", "C"]).default("B"),
+      region: z.string().default("UAE"),
+      scrapeMethod: z.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+      scrapeSchedule: z.string().optional(),
+      extractionHints: z.string().optional(),
+      notes: z.string().optional(),
+      requestDelayMs: z.number().default(2000),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      const [result] = await db.insert(sourceRegistry).values({
+        name: input.name,
+        url: input.url,
+        sourceType: input.sourceType,
+        reliabilityDefault: input.reliabilityDefault,
+        region: input.region,
+        scrapeMethod: input.scrapeMethod,
+        scrapeSchedule: input.scrapeSchedule,
+        extractionHints: input.extractionHints,
+        notes: input.notes,
+        requestDelayMs: input.requestDelayMs,
+        isActive: true,
+        isWhitelisted: true,
+        addedBy: ctx.user.id,
+        lastScrapedStatus: "never",
+        lastRecordCount: 0,
+        consecutiveFailures: 0,
+      });
+      return { id: result.insertId, name: input.name };
+    }),
+
+  /**
+   * Toggle source active/inactive.
+   */
+  toggleSource: adminProcedure
+    .input(z.object({ id: z.number(), isActive: z.boolean() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq(sourceRegistry.id, input.id));
+      return { id: input.id, isActive: input.isActive };
+    }),
+
+  /**
+   * Run a single DB-registered source via DynamicConnector.
+   */
+  runRegisteredSource: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      const [source] = await db.select().from(sourceRegistry).where(eq(sourceRegistry.id, input.id)).limit(1);
+      if (!source) throw new Error("Source not found");
+      const connector = new DynamicConnector(source);
+      const report = await runIngestion([connector], "manual", ctx.user.id);
+      // Update lastScrapedAt + status
+      await db.update(sourceRegistry).set({
+        lastScrapedAt: new Date(),
+        lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
+        lastRecordCount: report.evidenceCreated,
+        consecutiveFailures: report.sourcesFailed > 0
+          ? sql`${sourceRegistry.consecutiveFailures} + 1`
+          : 0,
+      }).where(eq(sourceRegistry.id, input.id));
+      return report;
+    }),
+
+  /**
+   * Seed all UAE sources into source_registry.
+   */
+  seedSources: adminProcedure
+    .mutation(async () => {
+      return seedUAESources();
+    }),
+
+  // ─── Design Trends ──────────────────────────────────────────
+
+  /**
+   * List detected design trends, ordered by mention count.
+   */
+  getTrends: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      category: z.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional(),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      let query = db.select().from(designTrends).orderBy(desc(designTrends.mentionCount)).limit(input?.limit ?? 50);
+      if (input?.category) {
+        query = query.where(eq(designTrends.trendCategory, input.category)) as any;
+      }
+      return query;
+    }),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Market Intelligence Engine V2 — New Endpoints
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * AI-powered source discovery — find new UAE market data sources.
+   * Returns candidate sources for admin review before adding to registry.
+   */
+  discoverSources: adminProcedure
+    .input(z.object({
+      coverageGaps: z.array(z.string()).optional(),
+    }).optional())
+    .mutation(async () => {
+      const { discoverNewSources, KNOWN_MISSING_SOURCES } = await import("../engines/ingestion/source-discovery");
+      const { listSourceRegistry } = await import("../db");
+
+      // Get existing sources
+      const existing = await listSourceRegistry();
+      const existingSources = existing.map((s: any) => ({
+        name: s.name,
+        url: s.baseUrl || "",
+        category: s.primaryCategory || "other",
+      }));
+
+      // Run AI discovery
+      const discovery = await discoverNewSources({
+        existingSources,
+        coverageGaps: [],
+      });
+
+      return {
+        aiDiscovered: discovery.discoveredSources,
+        knownMissing: KNOWN_MISSING_SOURCES,
+        analysisNotes: discovery.analysisNotes,
+      };
+    }),
+
+  /**
+   * Verify current database values against market reality.
+   * Samples evidence records and uses Gemini to cross-check pricing.
+   */
+  verifyData: adminProcedure
+    .input(z.object({
+      category: z.string().optional(),
+      limit: z.number().min(10).max(100).default(50),
+    }).optional())
+    .mutation(async ({ input }) => {
+      const { verifyDatabaseValues } = await import("../engines/ingestion/data-verifier");
+      const { listEvidenceRecords } = await import("../db");
+
+      const records = await listEvidenceRecords({
+        category: input?.category,
+        limit: input?.limit ?? 50,
+      });
+
+      const verificationRecords = records.map((r: any) => ({
+        id: r.id,
+        itemName: r.itemName,
+        category: r.category,
+        priceTypical: r.priceTypical,
+        unit: r.unit,
+        publisher: r.publisher,
+        captureDate: r.captureDate,
+      }));
+
+      return verifyDatabaseValues(verificationRecords);
+    }),
+
+  /**
+   * Analyze freshness across all sources — identify stale data.
+   * Returns sources that need re-scraping with detailed statistics.
+   */
+  freshnessAnalysis: protectedProcedure
+    .query(async () => {
+      const { getStaleSourceIds } = await import("../engines/ingestion/freshness");
+      const { listSourceRegistry } = await import("../db");
+
+      const staleSources = await getStaleSourceIds(50);
+      const allSources = await listSourceRegistry();
+      const sourceMap = new Map(allSources.map((s: any) => [s.id, s]));
+
+      return {
+        staleSources: staleSources.map((s) => ({
+          ...s,
+          sourceName: (sourceMap.get(s.sourceRegistryId) as any)?.name || "Unknown",
+          sourceUrl: (sourceMap.get(s.sourceRegistryId) as any)?.baseUrl || "",
+        })),
+        totalSources: allSources.length,
+        staleCount: staleSources.length,
+        healthPct: allSources.length > 0
+          ? Math.round(((allSources.length - staleSources.length) / allSources.length) * 100)
+          : 100,
+      };
+    }),
+
+  /**
+   * Extract design trends from a URL — design trend detection pipeline.
+   */
+  extractTrends: adminProcedure
+    .input(z.object({
+      url: z.string().url(),
+      sourceName: z.string().min(1),
+      content: z.string().min(50),
+    }))
+    .mutation(async ({ input }) => {
+      const { extractDesignTrends } = await import("../engines/ingestion/trend-extractor");
+      return extractDesignTrends({
+        content: input.content,
+        sourceName: input.sourceName,
+        sourceUrl: input.url,
+      });
+    }),
+
+  /**
+   * Auto-trigger re-scraping for sources with stale data.
+   * Gets stale sources → re-runs their connectors.
+   */
+  runStaleSources: adminProcedure
+    .mutation(async ({ ctx }) => {
+      const { getStaleSourceIds } = await import("../engines/ingestion/freshness");
+      const staleSources = await getStaleSourceIds(50);
+
+      if (staleSources.length === 0) {
+        return { message: "No stale sources found — all data is fresh!", rescrapeResults: [] };
+      }
+
+      // Run connectors for stale sources
+      const results = [];
+      for (const stale of staleSources.slice(0, 5)) { // Max 5 at a time
+        try {
+          const connector = getConnectorById(String(stale.sourceRegistryId));
+          if (connector) {
+            const report = await runSingleConnector(connector, "manual", ctx.user.id);
+            results.push({
+              sourceRegistryId: stale.sourceRegistryId,
+              stalePct: stale.stalePct,
+              result: report,
+            });
+          }
+        } catch (err) {
+          results.push({
+            sourceRegistryId: stale.sourceRegistryId,
+            stalePct: stale.stalePct,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      return {
+        message: `Re-scraped ${results.length} stale sources`,
+        rescrapeResults: results,
+      };
+    }),
+});
+
+```
+
+| Endpoint | Type | Access | Purpose |
+|----------|------|--------|---------|
+| `ingestion.discoverSources` | Mutation | Admin | AI-powered source discovery |
+| `ingestion.verifyData` | Mutation | Admin | Cross-check DB values against market |
+| `ingestion.freshnessAnalysis` | Query | Protected | Identify stale sources |
+| `ingestion.extractTrends` | Mutation | Admin | Design trend extraction from URL |
+| `ingestion.runStaleSources` | Mutation | Admin | Auto re-scrape stale sources |
+
+---
+
+## Validation
+
+- **TypeScript compilation:** ✅ Zero new errors from any of the 6 new files or modified files
+- **Pre-existing errors:** Unrelated client-side `TS7006` implicit any types and old seed scripts
+- **Fixed:** [test-extraction.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/seeds/test-extraction.ts) updated to use new [IngestionRunReport](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts#38-64) shape with `perSource` access pattern

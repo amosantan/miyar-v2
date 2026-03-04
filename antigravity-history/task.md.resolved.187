@@ -1,0 +1,29 @@
+# Phase 10A Gap-Fill
+
+## GAP 1 — URL Scraping Before Gemini Analysis
+- [x] Add `scrapeUrl` tRPC procedure to [server/routers/intake.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/intake.ts)
+- [x] Update [handleAddUrl](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#205-239) in [client/src/pages/ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) to handle scraping
+- [x] Update URL asset `textContent` field with scraped text
+
+## GAP 2 — Three-Card Path Selector on Entry
+- [x] Add `phase: "select" | "upload" | "analyzing" | "review"` state to [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx)
+- [x] Create entry screen (`phase === "select"`) with 3 cards
+- [x] Wire card clicks: Expert -> `mode="form"`, AI/Quick -> `mode="intake", phase="upload"`
+- [x] Implement Quick Brief mode logic (conditionally hide drag/drop & URL on upload screen)s
+- [ ] Remove old "Switch to form" toggle button
+
+## GAP 3 — Conversational Chat in Intake Canvas
+- [x] Create `chat` tRPC procedure in [server/routers/intake.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/intake.ts) using MIYAR Chat Prompt
+- [x] Call [invokeLLM](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/llm.ts#314-457) with history context
+- [x] In [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx), add `messages` state and chat UI widget for conversational mode
+- [x] Aggregate chat messages into `freeformDescription` before calling `processAssets`cription` on "Analyze"
+
+## GAP 4 — Per-Field Confidence Indicators on ProjectForm
+- [ ] Extend `initialData` prop type on `ProjectForm.tsx` to include `fieldConfidence` and `fieldReasoning`
+- [ ] Add visual indicators (colored dots) and tooltips to critical fields in `ProjectForm.tsx` (mkt01Tier, des01Style, des02MaterialLevel, des03Complexity, ctx04Location, fin01BudgetCap, ctx03Gfa)
+- [ ] Pass `fieldConfidence` and `fieldReasoning` from [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) to `ProjectForm.tsx`
+
+## GAP 5 — Assets Tab on ProjectDetail Page
+- [ ] Add "Assets" tab to `ProjectDetail.tsx`
+- [ ] Fetch and display intake assets using `trpc.intake.listAssets.useQuery`
+- [ ] Implement modal dialog to show asset details, AI analysis summary, and `aiContributions`

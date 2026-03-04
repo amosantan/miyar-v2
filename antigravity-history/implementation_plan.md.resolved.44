@@ -1,0 +1,345 @@
+# Market Intelligence Engine — Full Upgrade Plan
+
+> **Goal:** Make MIYAR's market data comprehensive, always up-to-date, and self-correcting — covering prices, trends, designs, and developer projects.
+
+## Current State (What Already Works)
+
+| Layer | Status | Detail |
+|-------|--------|--------|
+| 23 Connectors | ✅ | 22 HTML + 1 PDF (SCAD) |
+| [DynamicConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts#235-538) | ✅ | 4 prompt types: pricing, developer, market research, government |
+| Orchestrator | ✅ | Parallel (max 3), duplicate detection (sourceUrl + itemName + captureDate) |
+| Scheduler | ✅ | Per-source cron via `source_registry.scrapeSchedule` |
+| Firecrawl SDK | ✅ | Used for JS-rendered sources (Bayut, PropertyFinder) |
+| Freshness | ✅ | green/amber/red badges + weight multipliers |
+| Source Registry | ✅ | DB-driven, 54+ columns, supports dynamic connectors |
+
+## User Review Required
+
+> [!IMPORTANT]  
+> This is a large upgrade with 8 modules across 3 phases. I recommend implementing **Phase 1 first** (upsert + quality + freshness) since these fix fundamental data integrity issues. Phases 2 and 3 add new intelligence capabilities. Please confirm the priority order.
+
+> [!WARNING]  
+> The Source Discovery Engine (Module B) will use Firecrawl search + Gemini to find new websites automatically. This needs the `FIRECRAWL_API_KEY` env var set. Please confirm you have an active Firecrawl plan with search credits.
+
+---
+
+## Phase 1 — Data Integrity (Modules A, E, D)
+
+### Module A: Upsert Engine
+
+**Problem:** Orchestrator currently does insert-or-skip. Same item, new price → skipped as duplicate.  
+**Solution:** Change to insert-or-update. When match found, update price fields + log a `price_change_event`.
+
+#### [MODIFY] [orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts)
+
+Replace [isDuplicate()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts#99-126) with `upsertEvidence()`:
+
+```diff
+-// If duplicate, skip
+-if (await isDuplicate(sourceUrl, itemName, captureDate)) {
+-  skipped++;
+-  continue;
+-}
+-// Insert new record
+-await db.insert(evidenceRecords).values(record);
++// Upsert: find existing record by sourceUrl + itemName
++const existing = await findExistingRecord(sourceUrl, itemName);
++if (existing) {
++  // Update prices + captureDate, log price change
++  await updateExistingRecord(existing, record);
++  updated++;
++} else {
++  await db.insert(evidenceRecords).values(record);
++  created++;
++}
+```
+
+Key functions to add:
+- `findExistingRecord(sourceUrl, itemName)` — Find by source + item (ignoring date)
+- `updateExistingRecord(existing, newData)` — Update price fields, bump `captureDate`, create `price_change_event` if delta > 2%
+- `logPriceChange(existing, newData)` — Insert into `price_change_events` table when price changes significantly
+
+Report fields to update: `evidenceUpdated` count alongside `evidenceCreated` and `evidenceSkipped`.
+
+---
+
+### Module E: Data Quality Validation
+
+**Problem:** No validation that LLM-extracted prices are reasonable.  
+**Solution:** Post-extraction validation layer with configurable rules.
+
+#### [NEW] [data-quality.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/data-quality.ts)
+
+```typescript
+interface QualityRule {
+  category: string;
+  metric: string;        // regex or exact match
+  minValue: number;
+  maxValue: number;
+  unit: string;
+}
+
+// Example rules:
+// Marble tiles: 50-2000 AED/sqm
+// Fitout luxury: 500-5000 AED/sqft
+// Kitchen fittings: 500-500000 AED/set
+
+function validateEvidence(record: NormalizedEvidenceInput): QualityResult
+function flagOutlier(record, reason): void
+```
+
+- Configurable per-category price ranges based on `benchmarkData` table
+- Auto-flag outliers (don't reject — flag for review)
+- Add `qualityStatus` field tracking: [valid](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts#500-510), `outlier_flagged`, `rejected`
+
+#### [MODIFY] [orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts)
+
+- Call `validateEvidence()` after normalization, before upsert
+- Records with `outlier_flagged` still get inserted but with a flag
+
+---
+
+### Module D: Freshness-Triggered Re-scrape
+
+**Problem:** Sources only re-scrape on cron schedule, not when data goes stale.  
+**Solution:** Check freshness after each run, auto-queue stale sources for immediate re-scrape.
+
+#### [MODIFY] [scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts)
+
+Add `checkAndTriggerStaleRefresh()`:
+- After each cron run completes, query `evidence_records` for items where `captureDate` > 90 days
+- Group by `sourceRegistryId`
+- For any source with >50% stale records, auto-queue a re-scrape
+- Cap at 3 auto-triggered re-scrapes per day to avoid API abuse
+
+#### [MODIFY] [freshness.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/freshness.ts)
+
+Add `getStaleSourceIds()` — returns sourceRegistryIds that need re-scraping based on evidence freshness distribution.
+
+---
+
+## Phase 2 — Intelligence Expansion (Modules C, F, G)
+
+### Module C: Missing High-Value Sources
+
+**Problem:** Key UAE data sources are not in the system.  
+**Solution:** Seed 10+ new sources into `source_registry` via `seedUAESources()`.
+
+#### [MODIFY] [uae-sources.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/seeds/uae-sources.ts)
+
+Add these sources (all use [DynamicConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts#235-538) — no new code-level connectors needed):
+
+| Source | Type | Grade | URL | What It Gives |
+|--------|------|-------|-----|---------------|
+| **RERA Rental Index** | `government_tender` | A | dubailand.gov.ae | Rental benchmarks by area |
+| **ValuStrat** | `industry_report` | A | valustrat.com/insights | Property indices, price/sqft |
+| **Cushman & Wakefield** | `industry_report` | A | cushmanwakefield.com/en/uae | Construction cost forecasts |
+| **Colliers UAE** | `industry_report` | A | colliers.com/en-ae/research | Market outlook reports |
+| **Dubizzle Property** | `aggregator` | B | dubizzle.com/property | Listing prices |
+| **ACE Hardware UAE** | `retailer_listing` | B | aceuae.com | Hardware/accessories prices |
+| **Al Jazeera Paints** | `manufacturer_catalog` | B | aljazeerapaints.com | Paint prices by type |
+| **Grohe UAE** | `manufacturer_catalog` | B | grohe.ae | Sanitary ware prices |
+| **Sobha Realty** | `developer_brochure` | A | sobharealty.com | Luxury fitout specs |
+| **Meraas** | `developer_brochure` | A | meraas.com | Design-led projects |
+| **AW Rostamani** | `developer_brochure` | B | awrostamani.com | Mid-premium specs |
+
+Each gets registered with appropriate `sourceType`, `extractionHints`, and `scrapeSchedule`.
+
+---
+
+### Module F: Design Trend Intelligence Pipeline
+
+**Problem:** `design_trends` table exists but is sparsely populated.  
+**Solution:** Enhance the extraction pipeline to detect and persist trend signals.
+
+#### [NEW] [trend-extractor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/trend-extractor.ts)
+
+Post-processing step that runs after each ingestion:
+1. Scan all newly inserted/updated `evidence_records` for trend signals
+2. Use Gemini to classify: material trends, style trends, color trends, sustainability signals
+3. Upsert into `design_trends` table with `mentionCount` increment
+4. Link to `evidence_records` via `sourceRegistryId`
+5. Set `confidence` (established/emerging/declining) based on mention velocity
+
+```typescript
+async function extractTrendsFromEvidence(
+  records: EvidenceRecord[],
+  runId: string
+): Promise<{ trendsCreated: number; trendsUpdated: number }>
+```
+
+#### [MODIFY] [orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts)
+
+After all connectors complete, call `extractTrendsFromEvidence()` on newly created/updated records.
+
+---
+
+### Module G: Developer Project Intelligence
+
+**Problem:** Developer brochure sources exist as connector type but aren't being systematically scraped for interior design intelligence.  
+**Solution:** Dedicated enrichment for developer projects that extracts fitout specs, brands, design styles.
+
+#### [MODIFY] [dynamic.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts)
+
+Add **Prompt E: Developer Brochure Deep Scrape**:
+- When `sourceType === "developer_brochure"` and Firecrawl is available
+- Crawl the developer site deeper (pageBudget: 5, maxDepth: 2)
+- Follow links containing: "projects", "residences", "gallery", "specifications", "features"
+- Extract: project name, finish level, brand list, design style, material specs per room
+- Write to both `evidence_records` (as `intelligenceType: "finish_specification"`) AND `competitor_projects`
+
+#### [MODIFY] [orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts)
+
+After developer brochure extraction, also upsert into `competitor_projects`:
+- Match by `projectName` + `competitorId`
+- Update: `interiorStyleSignals`, `materialCues`, `positioningKeywords`, `brandsMentioned`
+
+---
+
+## Phase 3 — Self-Evolving Intelligence (Modules B, H)
+
+### Module B: Source Discovery Engine
+
+**Problem:** New UAE suppliers, developer launches, research reports appear constantly – no automated discovery.  
+**Solution:** AI + Firecrawl search to discover, evaluate, and auto-register new sources.
+
+#### [NEW] [source-discovery.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/source-discovery.ts)
+
+```typescript
+interface DiscoveredSource {
+  url: string;
+  name: string;
+  sourceType: string;
+  grade: "A" | "B" | "C";
+  reason: string;
+  testScrapeResult?: { recordCount: number; sampleItems: string[] };
+}
+
+async function discoverNewSources(
+  category: "material_pricing" | "market_trends" | "developer_projects" | "design_inspiration"
+): Promise<DiscoveredSource[]>
+```
+
+**Flow:**
+1. Build search queries per category:
+   - Pricing: `"UAE marble supplier price list AED 2025"`, `"Dubai building materials wholesale price"`
+   - Trends: `"UAE interior design trends 2026"`, `"Dubai luxury residential design report"`
+   - Developers: `"Dubai new luxury project launch 2026 interior specifications"`
+2. Call Firecrawl search API for each query (limit: 10 results)
+3. Filter out already-registered URLs (check `source_registry.url`)
+4. For new URLs: test-scrape (1 page, extract up to 5 items)
+5. Use Gemini to evaluate: "Is this a reliable UAE market data source? Grade A/B/C?"
+6. Return candidates for admin review OR auto-register Grade A/B sources
+
+#### [MODIFY] [ingestion.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/ingestion.ts)
+
+Add endpoints:
+- `discoverSources` — Run source discovery (admin-only, returns candidates)
+- `approveDiscoveredSource` — Register a discovered source
+
+#### [MODIFY] [scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts)
+
+Add optional monthly source discovery cron (1st of each month).
+
+---
+
+### Module H: DB Value Cross-Verification
+
+**Problem:** Existing `evidence_records` values may have drifted from reality.  
+**Solution:** Periodic verification that compares DB values against fresh scrapes.
+
+#### [NEW] [data-verifier.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/data-verifier.ts)
+
+```typescript
+interface VerificationResult {
+  recordId: string;
+  itemName: string;
+  dbValue: number;
+  freshValue: number | null;
+  deltaPct: number;
+  status: "confirmed" | "drifted" | "source_unavailable";
+}
+
+async function verifyExistingRecords(
+  category?: string,
+  limit?: number
+): Promise<VerificationResult[]>
+```
+
+**Flow:**
+1. Take a random sample of evidence_records (50 per run)
+2. Re-fetch the `sourceUrl` for each record
+3. Re-run LLM extraction on fresh content
+4. Compare: if delta > 15%, flag as "drifted" + trigger upsert
+5. If source returns 404/403, flag as "source_unavailable"
+6. Log all results to `intelligence_audit_log`
+
+#### [MODIFY] [ingestion.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/ingestion.ts)
+
+Add `verifyData` endpoint for manual trigger.
+
+#### [MODIFY] [scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts)
+
+Add bi-weekly verification cron (1st and 15th).
+
+---
+
+## Proposed Changes Summary
+
+### Phase 1 (Data Integrity)
+
+| File | Change |
+|------|--------|
+| [server/engines/ingestion/orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts) | Replace [isDuplicate](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts#99-126) with `upsertEvidence`, add quality validation call |
+| `server/engines/ingestion/data-quality.ts` | **[NEW]** Quality rules, outlier flagging |
+| [server/engines/ingestion/freshness.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/freshness.ts) | Add `getStaleSourceIds()` |
+| [server/engines/ingestion/scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts) | Add stale-refresh trigger after cron runs |
+
+### Phase 2 (Intelligence Expansion)
+
+| File | Change |
+|------|--------|
+| [server/engines/ingestion/seeds/uae-sources.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/seeds/uae-sources.ts) | Add 10+ new UAE sources |
+| `server/engines/ingestion/trend-extractor.ts` | **[NEW]** Post-ingestion trend detection + `design_trends` upsert |
+| [server/engines/ingestion/connectors/dynamic.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts) | Enhance developer brochure crawling depth + competitor_projects upsert |
+| [server/engines/ingestion/orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts) | Call trend extractor + competitor project writer after extraction |
+
+### Phase 3 (Self-Evolving)
+
+| File | Change |
+|------|--------|
+| `server/engines/ingestion/source-discovery.ts` | **[NEW]** AI + Firecrawl source discovery engine |
+| `server/engines/ingestion/data-verifier.ts` | **[NEW]** Cross-verification of existing DB values |
+| [server/routers/ingestion.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/ingestion.ts) | Add `discoverSources`, `approveDiscoveredSource`, `verifyData` endpoints |
+| [server/engines/ingestion/scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts) | Add monthly discovery cron + bi-weekly verification cron |
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+Extend existing test files:
+
+```bash
+# Run existing connector + resilience tests
+npx vitest run server/engines/v2-connectors.test.ts
+npx vitest run server/engines/v2-resilience.test.ts
+```
+
+Add new test file:
+
+#### [NEW] `server/engines/v2-intelligence.test.ts`
+
+- **Upsert tests:** Insert record → re-run with different price → verify record updated + `price_change_event` created
+- **Quality validation tests:** Pass valid/outlier values → verify correct flagging
+- **Freshness trigger tests:** Set records to 100-day-old captureDate → verify `getStaleSourceIds()` returns them
+- **Trend extractor tests:** Pass mock evidence records → verify `design_trends` upserts
+
+### Manual Verification
+
+1. **Upsert:** Run `ingestion.runSource({ sourceId: "rak-ceramics-uae" })` twice → check DB for updated records instead of duplicates
+2. **Source Discovery:** Run `ingestion.discoverSources({ category: "material_pricing" })` → verify candidates returned
+3. **Data Verification:** Run `ingestion.verifyData({ limit: 5 })` → check verification results
+4. **TypeScript compilation:** `npx tsc --noEmit` — zero errors

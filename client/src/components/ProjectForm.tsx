@@ -59,21 +59,42 @@ const ordinalLabels: Record<number, string> = {
   5: "Very High",
 };
 
+function FieldBadge({ name, conf, reason }: { name: string, conf?: Record<string, any>, reason?: Record<string, any> }) {
+  const c = conf?.[name];
+  if (!c) return null;
+  const color = c === "high" ? "text-emerald-500 bg-emerald-500/10" : c === "medium" ? "text-amber-500 bg-amber-500/10" : "text-zinc-500 bg-zinc-500/10";
+  return (
+    <span title={reason?.[name]} className={`ml-2 text-[9px] inline-flex items-center font-semibold uppercase px-1.5 py-0.5 rounded cursor-help ${color}`}>
+      <Sparkles className="h-2.5 w-2.5 mr-1" />
+      {c}
+    </span>
+  );
+}
+
 function OrdinalSlider({
   label,
   tooltip,
   value,
   onChange,
+  field,
+  fieldConfidence,
+  fieldReasoning
 }: {
   label: string;
   tooltip: string;
   value: number;
   onChange: (v: number) => void;
+  field?: string;
+  fieldConfidence?: Record<string, any>;
+  fieldReasoning?: Record<string, any>;
 }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium text-foreground">{label}</Label>
+        <div className="flex items-center">
+          <Label className="text-sm font-medium text-foreground">{label}</Label>
+          {field && <FieldBadge name={field} conf={fieldConfidence} reason={fieldReasoning} />}
+        </div>
         <span className="text-xs text-primary font-medium px-2 py-0.5 rounded bg-primary/10">
           {value} — {ordinalLabels[value]}
         </span>
@@ -864,13 +885,15 @@ export type FormData = {
 
 export type ProjectFormProps = {
   initialData?: Partial<FormData>;
+  fieldConfidence?: Record<string, "high" | "medium" | "low">;
+  fieldReasoning?: Record<string, string>;
   onSubmit: (data: any) => Promise<void>;
   isPending?: boolean;
   submitLabel?: string;
   onCancel?: () => void;
 };
 
-export function ProjectForm({ initialData, onSubmit, isPending = false, submitLabel = "Create Project", onCancel }: ProjectFormProps) {
+export function ProjectForm({ initialData, fieldConfidence, fieldReasoning, onSubmit, isPending = false, submitLabel = "Create Project", onCancel }: ProjectFormProps) {
   const [step, setStep] = useState(0);
 
   const [form, setForm] = useState<FormData>(() => ({
@@ -1079,7 +1102,7 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Typology</Label>
+                  <Label>Typology<FieldBadge name={"ctx01Typology"} conf={fieldConfidence} reason={fieldReasoning} /></Label>
                   <Select
                     value={form.ctx01Typology}
                     onValueChange={(v) => set("ctx01Typology", v)}
@@ -1099,7 +1122,7 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Scale</Label>
+                  <Label>Scale<FieldBadge name={"ctx02Scale"} conf={fieldConfidence} reason={fieldReasoning} /></Label>
                   <Select
                     value={form.ctx02Scale}
                     onValueChange={(v) => set("ctx02Scale", v)}
@@ -1117,7 +1140,7 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>GFA (sqm)</Label>
+                  <Label>GFA (sqm)<FieldBadge name={"ctx03Gfa"} conf={fieldConfidence} reason={fieldReasoning} /></Label>
                   <Input
                     type="number"
                     placeholder="e.g., 500000"
@@ -1131,7 +1154,7 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Location Tier</Label>
+                  <Label>Location Tier<FieldBadge name={"ctx04Location"} conf={fieldConfidence} reason={fieldReasoning} /></Label>
                   <Select
                     value={form.ctx04Location}
                     onValueChange={(v) => set("ctx04Location", v)}
@@ -1147,7 +1170,7 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
                   </Select>
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Dubai Area (DLD)</Label>
+                  <Label>Dubai Area (DLD)<FieldBadge name={"dldAreaId"} conf={fieldConfidence} reason={fieldReasoning} /></Label>
                   <DldAreaSelect
                     value={form.dldAreaId}
                     onChange={(areaId, areaName) => {
@@ -1352,6 +1375,7 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
                 tooltip="How clearly defined is the project's brand identity and narrative?"
                 value={form.str01BrandClarity}
                 onChange={(v) => set("str01BrandClarity", v)}
+                field="str01BrandClarity" fieldConfidence={fieldConfidence} fieldReasoning={fieldReasoning}
               />
               <OrdinalSlider
                 label="Differentiation Strategy (STR-02)"
@@ -1457,7 +1481,7 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Budget Cap (AED per sqm)</Label>
+                <Label>Budget Cap (AED per sqm)<FieldBadge name={"fin01BudgetCap"} conf={fieldConfidence} reason={fieldReasoning} /></Label>
                 <Input
                   type="number"
                   placeholder="e.g., 400"
@@ -1528,7 +1552,7 @@ export function ProjectForm({ initialData, onSubmit, isPending = false, submitLa
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Design Style (DES-01)</Label>
+                <Label>Design Style (DES-01)<FieldBadge name={"des01Style"} conf={fieldConfidence} reason={fieldReasoning} /></Label>
                 <Select
                   value={form.des01Style}
                   onValueChange={(v) => set("des01Style", v)}

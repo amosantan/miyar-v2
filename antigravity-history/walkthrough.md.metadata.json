@@ -1,6 +1,6 @@
 {
   "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
-  "summary":  "UX overhaul walkthrough: P0 sidebar simplification (~49→10 items), route gating (8 pages admin-only), dashboard quick actions fix, dummy chart removal, P1 mobile CSS enhancements. Verified with browser screenshots.",
-  "updatedAt":  "2026-03-01T09:33:38.539093Z",
-  "version":  "60"
+  "summary":  "Walkthrough of the scraping pipeline overhaul: 6-provider fallback chain, HTML cleanup, Firecrawl credit caching, ParseHub integration. Documents what works, what remains, and the next critical step (sub-page crawling).",
+  "updatedAt":  "2026-03-02T14:22:52.107428Z",
+  "version":  "68"
 }

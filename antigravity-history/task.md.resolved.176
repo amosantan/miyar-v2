@@ -1,0 +1,20 @@
+# Market Intelligence Engine — Full Upgrade
+
+## Phase 1 — Data Integrity
+- [x] Module A: Upsert Engine (orchestrator.ts — replace isDuplicate with upsert)
+- [x] Module E: Data Quality Validation (new data-quality.ts)
+- [x] Module D: Freshness-Triggered Re-scraping (freshness.ts — getStaleSourceIds)
+
+## Phase 2 — Intelligence Expansion
+- [x] Module C: New UAE Sources (source-discovery.ts — 12 pre-vetted sources + AI discovery)
+- [x] Module F: Design Trend Detection (trend-extractor.ts)
+- [x] Module G: Developer Project Intelligence (trend-extractor.ts — extractDeveloperIntelligence)
+
+## Phase 3 — Self-Evolving System
+- [x] Module B: AI-Powered Source Discovery (source-discovery.ts)
+- [x] Module H: Database Value Verifier (data-verifier.ts)
+
+## Wiring
+- [/] Add tRPC endpoints in ingestion.ts for discovery, verification, freshness analysis
+- [ ] Update scheduler with freshness-triggered re-scraping
+- [ ] TypeScript compilation check
