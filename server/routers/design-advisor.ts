@@ -200,6 +200,9 @@ export const designAdvisorRouter = router({
             // Phase B: use stored space program if available; fall back to legacy template
             const storedRooms = await db.getSpaceProgramRooms(input.projectId, ctx.orgId);
             if (storedRooms.length > 0) {
+                // Gap 1: Clear stale space_recommendations so AI Advisor
+                // doesn't show old template rooms alongside stored Phase B rooms
+                await db.clearSpaceRecommendations(input.projectId, ctx.orgId);
                 return buildSpaceProgramFromStoredRooms(project, storedRooms);
             }
             return buildSpaceProgram(project);

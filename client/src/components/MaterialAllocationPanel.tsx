@@ -305,7 +305,7 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
                                                             </div>
                                                             <div className="flex justify-between mt-0.5">
                                                                 <span className="text-[10px] text-muted-foreground">
-                                                                    {alloc.actualAreaM2?.toFixed(1)} m²
+                                                                    {alloc.surfaceAreaM2?.toFixed(1)} m²
                                                                 </span>
                                                                 <span className="text-[10px] text-muted-foreground">
                                                                     {fmtAed(alloc.totalCostMin || 0)}–

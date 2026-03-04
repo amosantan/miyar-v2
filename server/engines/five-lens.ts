@@ -55,9 +55,50 @@ export function computeFiveLens(
   scoreMatrix: ScoreMatrix,
   benchmarks: BenchmarkData[]
 ): FiveLensOutput {
-  const contributions = (scoreMatrix.variableContributions || {}) as Record<string, any>;
+  const rawContrib = (scoreMatrix.variableContributions || {}) as Record<string, any>;
   const penalties = (scoreMatrix.penalties || []) as any[];
   const penaltyNames = penalties.map((p: any) => p.name || p.type || "Unknown");
+
+  // Gap 3: Remap scoring engine's internal contribution keys to project field names.
+  // Scoring engine stores: { sa: { str01_n: 0.12 }, ff: { budgetFit: 0.15 }, ... }
+  // 5-Lens expects: contributions.mkt01Tier?.contribution etc.
+  // This mapping bridges the gap.
+  const CONTRIB_MAP: Record<string, [string, string]> = {
+    // [projectFieldName]: [dimension, scoringKey]
+    mkt01Tier: ["mp", "marketFit"],
+    mkt02Competitor: ["mp", "differentiationPressure"],
+    mkt03Trend: ["mp", "trendFit"],
+    str03BuyerMaturity: ["sa", "str03_n"],
+    fin01BudgetCap: ["ff", "budgetFit"],
+    fin02Flexibility: ["ff", "fin02_n"],
+    fin03ShockTolerance: ["ff", "costStability"],
+    fin04SalesPremium: ["ff", "executionResilience"],
+    str01BrandClarity: ["sa", "str01_n"],
+    str02Differentiation: ["sa", "compatVisionMarket"],
+    des01Style: ["sa", "compatVisionDesign"],
+    exe01SupplyChain: ["er", "supplyChainInverse"],
+    exe02Contractor: ["er", "executionResilience"],
+    exe03Approvals: ["er", "approvalsInverse"],
+    exe04QaMaturity: ["er", "complexityInverse"],
+    des02MaterialLevel: ["ds", "des02_n"],
+    des03Complexity: ["ds", "str02_n"],
+    des04Experience: ["ds", "des04_n"],
+    des05Sustainability: ["ds", "des05_n"],
+    spaceEfficiency: ["ds", "spaceEfficiency"],
+  };
+
+  function getContribution(fieldName: string): number {
+    const mapping = CONTRIB_MAP[fieldName];
+    if (!mapping) return 0;
+    const [dim, key] = mapping;
+    return Number(rawContrib[dim]?.[key]) || 0;
+  }
+
+  const contributions = new Proxy({} as Record<string, any>, {
+    get(_target, prop: string) {
+      return { contribution: getContribution(prop) };
+    },
+  });
 
   // Lens 1: Market Fit
   const mpScore = Number(scoreMatrix.mpScore);

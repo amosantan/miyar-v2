@@ -570,6 +570,25 @@ export function buildQuantityCostSummary(
                         unitCostMin = Number(libEntry.priceAedMin) || 0;
                         unitCostMax = Number(libEntry.priceAedMax) || 0;
                     }
+                } else {
+                    // Gap 5a: Fallback — match by element category when Gemini
+                    // returned a generic name without a library ID.
+                    // Uses .toLowerCase() on both sides to avoid case-sensitivity misses.
+                    const categoryMap: Record<string, string[]> = {
+                        floor: ["flooring"],
+                        walls: ["wall_paint", "wall_tile"],
+                        ceiling: ["ceiling"],
+                        joinery: ["joinery"],
+                    };
+                    const elKey = elDef.name.toLowerCase();
+                    const cats = categoryMap[elKey] || [];
+                    const fallback = materialLibrary.find(
+                        (m) => cats.includes((m.category || "").toLowerCase())
+                    );
+                    if (fallback) {
+                        unitCostMin = Number(fallback.priceAedMin) || 0;
+                        unitCostMax = Number(fallback.priceAedMax) || 0;
+                    }
                 }
 
                 const sliceCostMin = actualAreaM2 * unitCostMin;

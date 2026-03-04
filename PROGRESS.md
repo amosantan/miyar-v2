@@ -54,6 +54,17 @@
 | Mixed-use projects fall through to residential room template | `server/engines/design/typology-fitout-rules.ts` | Added mixed-use template: lobby 10%, retail 30%, residential 25%, F&B 10%, amenities 5%, corridors 8%, parking 7%, utility 5% | ✅ Fixed |
 | No UI to define blocks for multi-block mixed-use projects | `client/src/components/SpaceProgramEditor.tsx` | Added block builder form in empty state for mixed-use typology — each block gets name, typology, GFA%. `handleGenerate` passes blocks to mutation | ✅ Fixed |
 
+### Post-Phase-B Integration Gap Fixes
+
+| Gap | File | Fix | Status |
+|-----|------|-----|--------|
+| Gap 1: AI Advisor stale rows | `server/routers/design-advisor.ts` | Clear `space_recommendations` in `getSpaceProgram` when stored rooms exist | ✅ Fixed |
+| Gap 2: `totalFitoutArea` stale on read | `server/routers/spaceProgram.ts` | Sync `totalFitoutArea` via `updateProjectVerification` in `getForProject` read path | ✅ Fixed |
+| Gap 3: 5-Lens contributions all 0.00 | `server/engines/five-lens.ts` | Proxy-based remapper from scoring engine keys (`str01_n`, `budgetFit`) to project field names (`mkt01Tier`, `fin01BudgetCap`) | ✅ Fixed |
+| Gap 4: ROI rework/variance ≈ 0 AED | `server/engines/roi.ts` | Compute `totalBudget = budgetCap × gfa` (prefers fitOutArea via `getPricingArea`) for Drivers 3/4/6 | ✅ Fixed |
+| Gap 5a: AMN/BTH show 0 AED | `server/engines/design/material-quantity-engine.ts` | Category-based fallback when `materialLibraryId` is null — matches element category (floor→flooring, walls→wall_paint/wall_tile etc.) with `.toLowerCase()` normalization | ✅ Fixed |
+| Gap 5b: Blank sqm for ALL rooms | `client/src/components/MaterialAllocationPanel.tsx` | Field name mismatch: `alloc.actualAreaM2` → `alloc.surfaceAreaM2` | ✅ Fixed |
+
 ---
 
 ## ✅ MIYAR 3.0 Phase A — Material Quantity Intelligence (MQI) — COMPLETE

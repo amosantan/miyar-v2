@@ -229,6 +229,10 @@ export const spaceProgramRouter = router({
                 blockMap.get(key)!.push(room);
             }
 
+            // Gap 2: Sync totalFitoutArea on read so scoring engine, ROI,
+            // and AI Advisor always see the current fit-out area
+            await db.updateProjectVerification(input.projectId, { totalFitoutArea: fitOutSqm });
+
             return {
                 rooms: roomsWithSubSpaces,
                 blocks: Array.from(blockMap.entries()).map(([name, blockRooms]) => ({

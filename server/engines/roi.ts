@@ -95,16 +95,20 @@ export function computeRoi(inputs: RoiInputs, coefficients?: Partial<RoiCoeffici
   const tenderHours = tenderReduced * 40;
   const tenderCost = tenderReduced * c.tenderIterationCost;
 
+  // Gap 4: budgetCap is AED/sqm rate — compute total budget for rework/variance.
+  // inputs.gfa is already getPricingArea() which prefers fitOutArea over GFA.
+  const totalBudget = inputs.budgetCap * inputs.gfa;
+
   // Driver 3: Rework Probability Reduction
   const baseReworkPct = c.reworkCostPct * (1 + riskNorm);
   const reducedReworkPct = baseReworkPct * (1 - scoreNorm * 0.5);
-  const reworkSaving = inputs.budgetCap * (baseReworkPct - reducedReworkPct);
+  const reworkSaving = totalBudget * (baseReworkPct - reducedReworkPct);
   const reworkHours = reworkSaving / c.hourlyRate;
 
   // Driver 4: Budget Variance Risk Reduction
   const baseVariance = c.budgetVarianceMultiplier * (1 + complexityNorm * 0.5);
   const reducedVariance = baseVariance * (1 - confNorm * 0.4);
-  const varianceSaving = inputs.budgetCap * (baseVariance - reducedVariance);
+  const varianceSaving = totalBudget * (baseVariance - reducedVariance);
   const varianceHours = varianceSaving / c.hourlyRate;
 
   // Driver 5: Time-to-Brief Acceleration
@@ -166,7 +170,7 @@ export function computeRoi(inputs: RoiInputs, coefficients?: Partial<RoiCoeffici
         aggressive: Math.round(reworkSaving * c.aggressiveMultiplier),
       },
       assumptions: [
-        `Budget cap: AED ${inputs.budgetCap.toLocaleString()}`,
+        `Total fit-out budget: AED ${totalBudget.toLocaleString()} (${inputs.budgetCap} AED/sqm × ${inputs.gfa.toLocaleString()} sqm)`,
         `Base rework rate: ${(baseReworkPct * 100).toFixed(1)}%`,
         `MIYAR-validated rate: ${(reducedReworkPct * 100).toFixed(1)}%`,
       ],
@@ -185,7 +189,7 @@ export function computeRoi(inputs: RoiInputs, coefficients?: Partial<RoiCoeffici
         aggressive: Math.round(varianceSaving * c.aggressiveMultiplier),
       },
       assumptions: [
-        `Budget cap: AED ${inputs.budgetCap.toLocaleString()}`,
+        `Total fit-out budget: AED ${totalBudget.toLocaleString()}`,
         `Variance reduced by ${((baseVariance - reducedVariance) * 100).toFixed(1)} percentage points`,
       ],
     },
@@ -216,7 +220,7 @@ export function computeRoi(inputs: RoiInputs, coefficients?: Partial<RoiCoeffici
     // A 10% improvement in efficiency can save 3-5% of fitout budget
     const wastePct = Math.max(0, (1 - spaceNorm) * 0.08); // up to 8% waste
     const optimizedWastePct = wastePct * 0.4; // MIYAR-optimized: 60% reduction in waste
-    const spaceSaving = inputs.budgetCap * (wastePct - optimizedWastePct);
+    const spaceSaving = totalBudget * (wastePct - optimizedWastePct);
     const spaceHours = Math.round(spaceSaving / c.hourlyRate);
 
     drivers.push({
