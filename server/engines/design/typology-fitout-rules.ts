@@ -178,6 +178,20 @@ export function getDefaultRoomTemplate(typology: string): SpaceProgramRoomTempla
         ];
     }
 
+    // Mixed-Use — composite template (when blocks are NOT defined, single-block fallback)
+    if (t === "mixed-use" || t === "mixed_use") {
+        return [
+            { roomCode: "LBY", roomName: "Main Lobby / Atrium", category: "lobby", pctOfGfa: 0.10, finishGrade: "A", priority: "high", budgetPct: 0.22, ...getFitOutTag(t, "lobby") },
+            { roomCode: "RTL", roomName: "Retail Units", category: "retail", pctOfGfa: 0.30, finishGrade: "B", priority: "medium", budgetPct: 0.08, ...getFitOutTag(t, "retail") },
+            { roomCode: "RES", roomName: "Residential Units", category: "living", pctOfGfa: 0.25, finishGrade: "A", priority: "high", budgetPct: 0.28, ...getFitOutTag(t, "living") },
+            { roomCode: "FBB", roomName: "F&B / Restaurant", category: "fb_restaurant", pctOfGfa: 0.10, finishGrade: "A", priority: "high", budgetPct: 0.15, ...getFitOutTag(t, "fb_restaurant") },
+            { roomCode: "AMN", roomName: "Amenities", category: "amenity", pctOfGfa: 0.05, finishGrade: "A", priority: "high", budgetPct: 0.10, ...getFitOutTag(t, "amenity") },
+            { roomCode: "COR", roomName: "Corridors / Circulation", category: "corridor", pctOfGfa: 0.08, finishGrade: "B", priority: "medium", budgetPct: 0.05, ...getFitOutTag(t, "corridor") },
+            { roomCode: "PKG", roomName: "Parking", category: "parking", pctOfGfa: 0.07, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t, "parking") },
+            { roomCode: "UTL", roomName: "Utility / Services", category: "utility", pctOfGfa: 0.05, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t, "utility") },
+        ];
+    }
+
     // Default: Residential (all fit-out)
     return [
         { roomCode: "LVG", roomName: "Living & Dining", category: "living", pctOfGfa: 0.28, finishGrade: "A", priority: "high", budgetPct: 0.28, ...getFitOutTag("residential", "living") },

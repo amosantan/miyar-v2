@@ -51,6 +51,8 @@
 |-----|------|-----|--------|
 | Reset Defaults creates duplicate rooms when overridden rooms exist | `server/routers/spaceProgram.ts` | After reset, fetch overridden roomCodes, filter them out of regenerated defaults before insertion | ✅ Fixed |
 | MQI `generateMaterialAllocations()` fails with Gemini 500 — union type `["number", "null"]` | `server/engines/design/material-quantity-engine.ts` | Changed all 4 `materialLibraryId` schema entries to `type: "number"` (not required, Gemini omits when null) | ✅ Fixed |
+| Mixed-use projects fall through to residential room template | `server/engines/design/typology-fitout-rules.ts` | Added mixed-use template: lobby 10%, retail 30%, residential 25%, F&B 10%, amenities 5%, corridors 8%, parking 7%, utility 5% | ✅ Fixed |
+| No UI to define blocks for multi-block mixed-use projects | `client/src/components/SpaceProgramEditor.tsx` | Added block builder form in empty state for mixed-use typology — each block gets name, typology, GFA%. `handleGenerate` passes blocks to mutation | ✅ Fixed |
 
 ---
 

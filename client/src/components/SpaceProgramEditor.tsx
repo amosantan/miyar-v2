@@ -62,6 +62,13 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [activeBlock, setActiveBlock] = useState<string>("Main");
 
+    // ─── Block Builder State (mixed-use) ──────────────────────────────
+    const [blockDefs, setBlockDefs] = useState<Array<{ blockName: string; blockTypology: string; gfaPct: number }>>([
+        { blockName: "Residential Tower", blockTypology: "residential", gfaPct: 50 },
+        { blockName: "Office Tower", blockTypology: "commercial", gfaPct: 35 },
+        { blockName: "Retail Podium", blockTypology: "retail", gfaPct: 15 },
+    ]);
+
     // ─── Queries ──────────────────────────────────────────────────────────
     const { data, isLoading, refetch } = trpc.spaceProgram.getForProject.useQuery(
         { projectId },
@@ -114,11 +121,40 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
     });
 
     // ─── Helpers ──────────────────────────────────────────────────────────
-    const handleGenerate = () => generateMut.mutate({ projectId });
+    const isMixedUse = (project?.ctx01Typology || "").toLowerCase().replace(/[\s_]/g, "-") === "mixed-use";
+    const totalGfa = Number(project?.ctx03Gfa) || 0;
+
+    const handleGenerate = () => {
+        if (isMixedUse && blockDefs.length > 1) {
+            const totalPct = blockDefs.reduce((s, b) => s + b.gfaPct, 0);
+            generateMut.mutate({
+                projectId,
+                blocks: blockDefs.map((b) => ({
+                    blockName: b.blockName,
+                    blockTypology: b.blockTypology,
+                    gfaSqm: totalGfa > 0 ? (totalGfa * b.gfaPct) / totalPct : 1000,
+                })),
+            });
+        } else {
+            generateMut.mutate({ projectId });
+        }
+    };
     const handleReset = () => resetMut.mutate({ projectId });
 
     const handleToggleFitOut = (roomId: number, currentState: boolean) => {
         toggleFitOutMut.mutate({ roomId, isFitOut: !currentState });
+    };
+
+    // ─── Block Builder Helpers ────────────────────────────────────────────
+    const addBlock = () => {
+        setBlockDefs([...blockDefs, { blockName: `Block ${blockDefs.length + 1}`, blockTypology: "residential", gfaPct: 10 }]);
+    };
+    const removeBlock = (i: number) => {
+        if (blockDefs.length <= 2) return;
+        setBlockDefs(blockDefs.filter((_, idx) => idx !== i));
+    };
+    const updateBlock = (i: number, field: string, value: string | number) => {
+        setBlockDefs(blockDefs.map((b, idx) => idx === i ? { ...b, [field]: value } : b));
     };
 
     // ─── Empty State ──────────────────────────────────────────────────────
@@ -139,9 +175,76 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                         No Space Program Yet
                     </h3>
                     <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                        Generate a space program from your project typology to see room breakdowns,
-                        fit-out vs shell & core classifications, and budget distributions.
+                        {isMixedUse
+                            ? "Define your building blocks below, then generate a space program with per-block typology rules."
+                            : "Generate a space program from your project typology to see room breakdowns, fit-out vs shell & core classifications, and budget distributions."
+                        }
                     </p>
+
+                    {/* Block Builder (mixed-use only) */}
+                    {isMixedUse && (
+                        <div className="max-w-lg mx-auto mb-6 text-left">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                                    <Building2 className="h-4 w-4 text-primary" />
+                                    Building Blocks
+                                </h4>
+                                <Button variant="outline" size="sm" onClick={addBlock} className="gap-1 text-xs h-7">
+                                    <Plus className="h-3 w-3" /> Add Block
+                                </Button>
+                            </div>
+                            <div className="space-y-2">
+                                {blockDefs.map((block, i) => (
+                                    <div key={i} className="grid grid-cols-[1fr_120px_70px_32px] gap-2 items-center">
+                                        <input
+                                            type="text"
+                                            value={block.blockName}
+                                            onChange={(e) => updateBlock(i, "blockName", e.target.value)}
+                                            className="px-2.5 py-1.5 rounded-md bg-secondary border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                            placeholder="Block name"
+                                        />
+                                        <select
+                                            value={block.blockTypology}
+                                            onChange={(e) => updateBlock(i, "blockTypology", e.target.value)}
+                                            className="px-2 py-1.5 rounded-md bg-secondary border border-border text-xs text-foreground"
+                                        >
+                                            <option value="residential">Residential</option>
+                                            <option value="commercial">Office</option>
+                                            <option value="retail">Retail</option>
+                                            <option value="hospitality">Hospitality</option>
+                                            <option value="restaurant">Restaurant</option>
+                                            <option value="clinic_medical">Clinic</option>
+                                        </select>
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="number"
+                                                value={block.gfaPct}
+                                                onChange={(e) => updateBlock(i, "gfaPct", Number(e.target.value) || 0)}
+                                                min={1}
+                                                max={100}
+                                                className="w-full px-2 py-1.5 rounded-md bg-secondary border border-border text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-primary"
+                                            />
+                                            <span className="text-xs text-muted-foreground">%</span>
+                                        </div>
+                                        <button
+                                            onClick={() => removeBlock(i)}
+                                            disabled={blockDefs.length <= 2}
+                                            className="text-muted-foreground hover:text-destructive disabled:opacity-30 transition p-1"
+                                            title="Remove block"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            {totalGfa > 0 && (
+                                <div className="mt-2 text-[10px] text-muted-foreground">
+                                    GFA: {totalGfa.toLocaleString()} sqm — {blockDefs.map((b) => `${b.blockName}: ${((totalGfa * b.gfaPct) / blockDefs.reduce((s, x) => s + x.gfaPct, 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })} sqm`).join(" · ")}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <Button
                         onClick={handleGenerate}
                         disabled={generateMut.isPending}
@@ -249,8 +352,8 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                             key={block.blockName}
                             onClick={() => setActiveBlock(block.blockName)}
                             className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${activeBlock === block.blockName
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground"
                                 }`}
                         >
                             <Building2 className="h-3 w-3 inline mr-1.5" />
@@ -350,10 +453,10 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                                         <Badge
                                             variant="outline"
                                             className={`text-[10px] px-1.5 py-0 ${room.priority === "high"
-                                                    ? "text-rose-400 border-rose-500/30"
-                                                    : room.priority === "medium"
-                                                        ? "text-blue-400 border-blue-500/30"
-                                                        : "text-muted-foreground border-border/30"
+                                                ? "text-rose-400 border-rose-500/30"
+                                                : room.priority === "medium"
+                                                    ? "text-blue-400 border-blue-500/30"
+                                                    : "text-muted-foreground border-border/30"
                                                 }`}
                                         >
                                             {room.priority}
