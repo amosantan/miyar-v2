@@ -540,6 +540,7 @@ export const reportInstances = mysqlTable("report_instances", {
     "rfq_pack",
     "full_report",
     "marketing_prelaunch",
+    "autonomous_design_brief",
   ]).notNull(),
   fileUrl: text("fileUrl"),
   bundleUrl: text("bundleUrl"),
