@@ -1,0 +1,122 @@
+# MIYAR 3.0 — Live Progress Tracker
+
+> **This file is the live source of truth for what is done vs. pending.**
+> **Every task must update this file before marking complete. No exceptions.**
+>
+> Last Updated: 04 March 2026
+
+---
+
+## ✅ MIYAR 3.0 Phase A — Material Quantity Intelligence (MQI) — COMPLETE
+
+### Phase A Build Tasks
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| A1 | DB Schema: `material_allocations` table (`mysqlTable`) | ✅ Done | `drizzle/schema.ts` |
+| A2 | DB Schema: `material_supplier_sources` table (`mysqlTable`) | ✅ Done | Same migration run |
+| A3 | Run `drizzle-kit push` — verify 85 tables | ✅ Done | `drizzle-kit push --force` applied |
+| A4 | `calculateSurfaceAreas(rooms)` — deterministic math engine | ✅ Done | `server/engines/design/material-quantity-engine.ts` |
+| A5 | `generateMaterialAllocations()` — Gemini suggestion engine | ✅ Done | Same file. Gemini suggests ONLY — no pricing in LLM |
+| A6 | `buildQuantityCostSummary()` — pure TypeScript cost math | ✅ Done | Same file |
+| A7 | `server/routers/materialQuantity.ts` — 6 tRPC procedures | ✅ Done | generate, getForProject, updateAllocation, lockAllocations, addSupplierSource, scrapeSupplierSource |
+| A8 | Upgrade `scrapeUrl` in `intake.ts`: `fetchBasic()` → `DynamicConnector` | ✅ Done | `server/routers/intake.ts` |
+| A9 | `buildMaterialAllocationPromptClause()` helper in `visual-gen.ts` | ✅ Done | Natural language clause for image prompts |
+| A10 | Wire `boardMaterialsCost` ← `totalFinishCostMid` on generate | ✅ Done | In materialQuantity router |
+| A11 | `client/src/components/MaterialAllocationPanel.tsx` | ✅ Done | Bar charts, AED totals, budget gap/surplus |
+| A12 | Add "Material Cost" tab to `ProjectDetail.tsx` | ✅ Done | After Assets tab (Phase 10A) |
+| A13 | Supplier admin UI — add/scrape supplier URLs | ✅ Done | In MaterialAllocationPanel |
+| A14 | Unit tests for `calculateSurfaceAreas()` | ✅ Done | 5 tests in `v30-mqi.test.ts` |
+| A15 | Unit tests for `buildQuantityCostSummary()` | ✅ Done | 5 tests in `v30-mqi.test.ts` |
+| A16 | `pnpm test` passes — new baseline recorded | ✅ Done | 770 pass / 8 fail (pre-existing) / 22 skip = 800 total |
+| A17 | Budget formula fix — named constants | ✅ Done | `SQFT_TO_SQM=10.764`, `FINISH_BUDGET_RATIO=0.35` |
+| A18 | Update `PROGRESS.md` + `miyar-memory.md` + `GEMINI.md` | ✅ Done | This update |
+| A19 | Seed 5 UAE supplier sources | ✅ Done | `npx tsx -r dotenv/config drizzle/seed-materials.ts` |
+
+**Phase A Acceptance Criteria — ALL MET:**
+- [x] 100sqm apartment: floor ~100m², walls ~230–260m², ceiling ~95m²
+- [x] All allocation percentages sum to 100% per surface
+- [x] Wet room walls always `wall_tile`, never `wall_paint`
+- [x] `totalFinishCostMid` writes to `boardMaterialsCost` and affects FF score
+- [x] Visual gen prompts include material allocation clause
+- [x] Supplier scrape uses `DynamicConnector` (not `fetchBasic`)
+- [x] Budget gap/surplus shown in AED and %
+
+### Test Count Explanation (655 → 800)
+
+The baseline increased from 655 to 800 (145 new tests) due to:
+- **Phase 10A** tests committed with structure reorganization: `v10-sales-premium.test.ts` (24), `credibility-fixes.test.ts` (15)
+- **Phase 10B** ingestion tests: `dfe-test-suite.test.ts` (56)
+- **Phase 9** tests: `digital-twin.test.ts` (30)
+- **Phase A (MQI)**: `v30-mqi.test.ts` (10)
+- Other test files reorganized during structure cleanup: ~10 additional
+
+### Pre-existing Failures (8 — NOT Phase A regressions)
+
+Verified via `git stash` comparison — identical results before/after Phase A:
+- `auth.test.ts` (2) — bcrypt tests require live DB session
+- `board-pdf.test.ts` (2) — `renderBoardAnnex` function not yet exported
+- `v2-connectors.test.ts` (1) — `getAllConnectors` registry test
+- `v9-space.test.ts` (3) — `require('./normalization')` module resolution
+
+22 tests are **skipped** (not failed) in `market-intelligence.test.ts` — intentionally skipped.
+
+---
+
+## ✅ Completed Phases
+
+### Phase 10A — Intelligent Project Intake
+**Commit:** Uncommitted (changes in working tree) — needs commit
+
+| Task | Status | Notes |
+|------|--------|-------|
+| GAP 1: `scrapeUrl` tRPC procedure + URL input with Fetching indicator | ✅ Done | `server/routers/intake.ts` |
+| GAP 2: Three-card path selector (AI-Guided / Expert / Quick Brief) | ✅ Done | `client/src/pages/ProjectNew.tsx` |
+| GAP 3: Conversational chat panel + `chat` tRPC procedure | ✅ Done | IntakeCanvas + intake.ts |
+| GAP 4: `fieldConfidence` + `fieldReasoning` props + colored dot indicators | ✅ Done | `client/src/components/ProjectForm.tsx` |
+| GAP 5: Assets tab on ProjectDetail with grid + modal | ✅ Done | `client/src/pages/ProjectDetail.tsx` |
+| Pass `fieldConfidence`/`fieldReasoning` from `ProjectNew.tsx` → `<ProjectForm />` | ⚠️ CHECK | One unchecked item in original task.md — verify in code |
+| Remove old "Switch to form" toggle button | ⚠️ Low priority | Cosmetic only |
+
+---
+
+### Phase 10B — Sales Premium & Yield Predictor
+**Commit:** `e06022c` ✅ Fully committed
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `server/engines/value-add-engine.ts` — ROI bridge formulas | ✅ Done | 312 lines |
+| `server/routers/salesPremium.ts` — `getValueAddBridge` + `getBrandEquityForecast` | ✅ Done | |
+| InvestorSummary Section F — dual yield sliders | ✅ Done | `client/src/pages/InvestorSummary.tsx` |
+
+---
+
+### MIYAR 2.0 — Phases 1–9
+**Status:** ✅ All complete. See `.agent/rules/miyar-memory.md` for full phase history.
+
+---
+
+## 📋 Agent File Update Log
+
+> Every session should append a line here when files are updated.
+
+| Date | Session Task | Files Updated |
+|------|-------------|---------------|
+| 2026-03-04 | MIYAR 3.0 versioning + MQI design | `GEMINI.md`, `miyar-memory.md`, `coding-conventions.md`, `run-tests.md`, `db-migrate.md`, created `miyar-materials/SKILL.md`, `miyar3-phase-a-build.md`, `miyar3-phase-a-mqi.md` (prompt), `PROGRESS.md` (this file), `.agent/rules/update-protocol.md` |
+| 2026-03-04 | Phase A build (MQI engine + visual gen) | `material-quantity-engine.ts`, `space-program.ts`, `v30-mqi.test.ts`, `visual-gen.ts`, `nano-banana-client.ts`, `design.ts`, `intake.ts`, `materialQuantity.ts`, `MaterialAllocationPanel.tsx`, `ProjectDetail.tsx`, `schema.ts`, `db.ts`, `routers.ts`, `seed-materials.ts` |
+| 2026-03-04 | Phase A closure — fixes + audit | `material-quantity-engine.ts` (budget fix), `space-program.ts` (budget fix), `v30-mqi.test.ts` (test update), `visual-gen.ts` (allocationClause), `nano-banana-client.ts` (allocationClause), `design.ts` (MQI fetch), `intake.ts` (DynamicConnector), `PROGRESS.md`, `miyar-memory.md`, `GEMINI.md` |
+
+---
+
+## 🔢 System Stats Snapshot
+
+| Metric | Value | As Of |
+|--------|-------|-------|
+| DB Tables | 85 | Phase A |
+| Tests | 770 passing (800 total, 8 pre-existing fail, 22 skip) | Phase A |
+| Server Routers | 23 (added `materialQuantity`) | Phase A |
+| Engine Modules | 78+ | Phase A |
+| tRPC Endpoints | 136+ (added 6 MQI endpoints) | Phase A |
+| DLD Records | 578K+ | Phase B |
+
+> Update these numbers after each phase in this file AND in `miyar-memory.md`.

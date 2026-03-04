@@ -39,7 +39,7 @@ It is NOT a property investment tool. It conforms to the developer, not the othe
 |-------|------|--------|
 | **Phase 10A** | **Intelligent Project Intake** (multimodal: images/voice/URL/PDF → form auto-fill) | ⚠️ 95% done — 1 item uncommitted, needs commit |
 | **Phase 10B** | **Sales Premium & Yield Predictor Engine** (value-add engine, yield sliders, brand equity) | ✅ DONE — committed `e06022c` |
-| **MIYAR 3.0 Phase A** | **Material Quantity Intelligence (MQI)** — surface-area allocation, AI material splits, bottom-up costing, supplier price scraping, material-accurate renders | 🔴 NEXT |
+| **MIYAR 3.0 Phase A** | **Material Quantity Intelligence (MQI)** — surface-area allocation, AI material splits, bottom-up costing, supplier price scraping, material-accurate renders | ✅ DONE — pending commit |
 
 ## Phase 10A — What to Build
 *Goal: Replace rigid form-first project creation with a flexible multimodal intake. Developer uploads images, voice, PDFs, supplier URLs — MIYAR auto-fills the existing ProjectInputs form. Form stays as source of truth, scoring engine unchanged.*
@@ -202,14 +202,14 @@ The `cleanHtmlForLLM()` function + 6-provider fallback is NOW working properly. 
 4. All tRPC procedures must use `orgProcedure` — never `publicProcedure`
 5. All scoring is deterministic — `calculateProjectScore()` must never call any LLM
 
-## System Stats (as of Phase 10A — MIYAR 3.0)
-- Database: 82+ tables, TiDB (mysql2), Drizzle ORM
+## System Stats (as of Phase A — MIYAR 3.0)
+- Database: 85 tables, TiDB (mysql2), Drizzle ORM
 - Tech Stack: React 19 + Tailwind 4 + Express 4 + tRPC 11 + Drizzle ORM + AWS S3 + Vercel + Gemini 2.5 Flash
-- Tests: 655+ passing (vitest)
-- Server routers: 22
-- Engine modules: 77+
+- Tests: 770 passing / 800 total (8 pre-existing fail, 22 skip) (vitest)
+- Server routers: 23 (added `materialQuantity`)
+- Engine modules: 78+
 - Client pages: 32+
-- tRPC endpoints: 130+
+- tRPC endpoints: 136+ (added 6 MQI endpoints)
 - DLD records ingested: 578K+
 - Compliance checks: 38 (20 Estidama + 18 Al Sa'fat)
 - GitHub: https://github.com/amosantan/miyar-v2

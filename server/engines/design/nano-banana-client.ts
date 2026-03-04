@@ -43,6 +43,8 @@ interface ProjectContext {
     tier: string;
     style: string;
     gfa: number;
+    /** Optional MQI allocation clause from buildMaterialAllocationPromptClause() */
+    allocationClause?: string | null;
 }
 
 function buildRoomMoodBoardPrompt(ctx: ProjectContext, rec: SpaceRecommendation): string {
@@ -64,7 +66,7 @@ The mood board should include:
 - Lighting atmosphere references
 - Spatial arrangement concepts
 
-Professional architectural presentation style. Clean white background with elegant grid layout. No text overlays. High-end design magazine quality.`;
+Professional architectural presentation style. Clean white background with elegant grid layout. No text overlays. High-end design magazine quality.${ctx.allocationClause || ''}`;
 }
 
 function buildRoomRenderPrompt(ctx: ProjectContext, rec: SpaceRecommendation): string {
@@ -79,7 +81,7 @@ Design style: ${rec.styleDirection}
 Colors: ${rec.colorScheme}
 Materials: ${materials || "Premium finishes"}
 
-Show a beautifully designed space with natural daylight from large windows. Include contemporary furniture appropriate for the ${ctx.tier} market segment. Warm, inviting atmosphere. Professional architectural visualization quality. Camera at eye level with slight wide-angle lens. No people in the image.`;
+Show a beautifully designed space with natural daylight from large windows. Include contemporary furniture appropriate for the ${ctx.tier} market segment. Warm, inviting atmosphere. Professional architectural visualization quality. Camera at eye level with slight wide-angle lens. No people in the image.${ctx.allocationClause || ''}`;
 }
 
 function buildMaterialBoardPrompt(ctx: ProjectContext, rec: SpaceRecommendation): string {
@@ -100,7 +102,7 @@ Present as a flat-lay product photography board:
 - 6-8 material samples visible
 - Professional product photography lighting
 - No text labels, just the materials themselves
-- Architectural specification board style`;
+- Architectural specification board style${ctx.allocationClause || ''}`;
 }
 
 function buildKitchenRenderPrompt(ctx: ProjectContext, rec: SpaceRecommendation, kitchen: KitchenSpec): string {

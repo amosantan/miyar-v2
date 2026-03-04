@@ -1,32 +1,50 @@
-# Phase 10A Gap-Fill
+# MIYAR 3.0 Phase A — MQI Build Task Tracker
 
-## GAP 1 — URL Scraping Before Gemini Analysis
-- [x] Add `scrapeUrl` tRPC procedure to `server/routers/intake.ts`
-- [x] Update `handleAddUrl` in `client/src/pages/ProjectNew.tsx` to handle scraping
-- [x] Update URL asset `textContent` field with scraped text
+## Step 1 — DB Schema
+- [ ] Add `material_allocations` table to `drizzle/schema.ts`
+- [ ] Add `material_supplier_sources` table to `drizzle/schema.ts`
+- [ ] Run `pnpm db:push` — verify tables created
 
-## GAP 2 — Three-Card Path Selector on Entry
-- [x] Add `phase: "select" | "upload" | "analyzing" | "review"` state to `ProjectNew.tsx`
-- [x] Create entry screen (`phase === "select"`) with 3 cards
-- [x] Wire card clicks: Expert -> `mode="form"`, AI/Quick -> `mode="intake", phase="upload"`
-- [x] Implement Quick Brief mode logic (conditionally hide drag/drop & URL on upload screen)s
-- [ ] Remove old "Switch to form" toggle button
+## Step 2 — Core Engine (`material-quantity-engine.ts`)
+- [ ] Create `calculateSurfaceAreas()` — pure deterministic math
+- [ ] Write unit tests for `calculateSurfaceAreas()` immediately
+- [ ] Create `generateMaterialAllocations()` — Gemini suggestion engine
+- [ ] Create `buildQuantityCostSummary()` — pure cost math
+- [ ] Write unit tests for `buildQuantityCostSummary()`
 
-## GAP 3 — Conversational Chat in Intake Canvas
-- [x] Create `chat` tRPC procedure in `server/routers/intake.ts` using MIYAR Chat Prompt
-- [x] Call `invokeLLM` with history context
-- [x] In `ProjectNew.tsx`, add `messages` state and chat UI widget for conversational mode
-- [x] Aggregate chat messages into `freeformDescription` before calling `processAssets`cription` on "Analyze"
+## Step 3 — Router (`materialQuantity.ts`)
+- [ ] Create `generate` procedure
+- [ ] Create `getForProject` procedure
+- [ ] Create `updateAllocation` procedure
+- [ ] Create `lockAllocations` procedure
+- [ ] Create `addSupplierSource` procedure
+- [ ] Create `scrapeSupplierSource` procedure
+- [ ] Register router in `server/routers.ts`
+- [ ] Upgrade `scrapeUrl` in `intake.ts` to use `DynamicConnector`
 
-## GAP 4 — Per-Field Confidence Indicators on ProjectForm
-- [x] Extend `initialData` prop type on `ProjectForm.tsx` to include `fieldConfidence` and `fieldReasoning`
-- [x] Pass these from `ProjectNew.tsx` when rendering `<ProjectForm />`
-- [x] In `ProjectForm.tsx`, display a small tooltip or badge next to fields that were AI-populated (check if `fieldConfidence[fieldName]` exists)y, ctx04Location, fin01BudgetCap, ctx03Gfa)
-- [ ] Pass `fieldConfidence` and `fieldReasoning` from `ProjectNew.tsx` to `ProjectForm.tsx`
+## Step 4 — Visual Generation Extension
+- [ ] Add `buildMaterialAllocationPromptClause()` to `visual-gen.ts`
+- [ ] Extend `nano-banana-client.ts` with `allocationClause` parameter
+- [ ] Update `design.ts` router to pass allocation clause when MQI data exists
 
-## GAP 5 — Assets Tab on ProjectDetail Page
-- [x] Create `Assets` tab within `ProjectDetail.tsx` (next to Overview, Evaluation, etc.)
-- [x] Render a grid/list of `project_assets` filtering by `projectId`
-- [x] Build an Asset Modal that opens on click:
-  - left side: Original file preview
-  - right side: `extracted_information` JSON viewers`
+## Step 5 — Wire `boardMaterialsCost`
+- [ ] Write `totalFinishCostMid` to project's `boardMaterialsCost` in `generate` procedure
+
+## Step 6 — Frontend Panel (`MaterialAllocationPanel.tsx`)
+- [ ] Budget status card
+- [ ] Room accordion with per-surface bar charts
+- [ ] Edit mode with linked sliders
+- [ ] Lock/Unlock + Re-run AI + Export BOQ placeholder
+
+## Step 7 — ProjectDetail Tab
+- [ ] Add "Material Cost" tab after "Assets" tab
+
+## Step 8 — Supplier Admin UI
+- [ ] Supplier sources table + Add Source form + Scrape Now button
+- [ ] Seed 5 default supplier sources
+
+## Step 9 — Final Verification
+- [ ] `pnpm test` passes — record new baseline (670+)
+- [ ] `pnpm check` — zero TypeScript errors
+- [ ] Update `PROGRESS.md` + `miyar-memory.md` + `GEMINI.md`
+- [ ] Commit: `feat: MIYAR 3.0 Phase A — Material Quantity Intelligence`

@@ -69,6 +69,8 @@ import {
   dldRents,
   dldAreaBenchmarks,
   pdfExtractions,
+  materialAllocations,
+  materialSupplierSources,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2414,4 +2416,102 @@ export async function updateProjectVerification(
   if (data.fitoutAreaVerified !== undefined) updates.fitoutAreaVerified = data.fitoutAreaVerified;
   if (data.totalFitoutArea !== undefined) updates.totalFitoutArea = String(data.totalFitoutArea);
   return db.update(projects).set(updates).where(eq(projects.id, projectId));
+}
+
+// ─── MIYAR 3.0 Phase A — Material Quantity Intelligence ────────────────────
+
+export async function getMaterialAllocations(projectId: number, organizationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(materialAllocations)
+    .where(and(
+      eq(materialAllocations.projectId, projectId),
+      eq(materialAllocations.organizationId, organizationId)
+    ))
+    .orderBy(materialAllocations.roomId, materialAllocations.element);
+}
+
+export async function insertMaterialAllocations(data: (typeof materialAllocations.$inferInsert)[]) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.length === 0) return;
+  return db.insert(materialAllocations).values(data);
+}
+
+export async function deleteMaterialAllocations(projectId: number, organizationId: number, excludeLockedIds?: number[]) {
+  const db = await getDb();
+  if (!db) return;
+  const conditions = [
+    eq(materialAllocations.projectId, projectId),
+    eq(materialAllocations.organizationId, organizationId),
+  ];
+  if (excludeLockedIds && excludeLockedIds.length > 0) {
+    // Only delete non-locked allocations
+    conditions.push(eq(materialAllocations.isLocked, false));
+  }
+  return db.delete(materialAllocations).where(and(...conditions));
+}
+
+export async function updateMaterialAllocation(
+  id: number,
+  data: Partial<{
+    allocationPct: string;
+    surfaceAreaM2: string;
+    unitCostMin: string;
+    unitCostMax: string;
+    totalCostMin: string;
+    totalCostMax: string;
+    isLocked: boolean;
+  }>
+) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(materialAllocations).set(data as any).where(eq(materialAllocations.id, id));
+}
+
+export async function lockMaterialAllocations(projectId: number, organizationId: number, isLocked: boolean) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(materialAllocations)
+    .set({ isLocked })
+    .where(and(
+      eq(materialAllocations.projectId, projectId),
+      eq(materialAllocations.organizationId, organizationId)
+    ));
+}
+
+export async function getMaterialSupplierSources(organizationId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  if (organizationId) {
+    return db.select().from(materialSupplierSources)
+      .where(and(
+        eq(materialSupplierSources.isActive, true),
+        eq(materialSupplierSources.organizationId, organizationId)
+      ))
+      .orderBy(materialSupplierSources.supplierName);
+  }
+  return db.select().from(materialSupplierSources)
+    .where(eq(materialSupplierSources.isActive, true))
+    .orderBy(materialSupplierSources.supplierName);
+}
+
+export async function insertMaterialSupplierSource(data: typeof materialSupplierSources.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(materialSupplierSources).values(data);
+  return { id: Number(result.insertId) };
+}
+
+export async function updateMaterialSupplierSource(
+  id: number,
+  data: Partial<{
+    lastScrapedAt: Date;
+    lastPriceAedMin: string;
+    lastPriceAedMax: string;
+  }>
+) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(materialSupplierSources).set(data as any).where(eq(materialSupplierSources.id, id));
 }

@@ -27,11 +27,15 @@ import type { FloorPlanAnalysis } from "./floor-plan-analyzer";
  */
 export function buildSpaceProgram(project: any): SpaceProgram {
     const gfa = getPricingArea(project); // V4: uses fitout area when available
-    const budgetCap = Number(project.fin01BudgetCap || 0); // AED/sqm
+    const budgetCap = Number(project.fin01BudgetCap || 0); // AED/sqft (total construction cost)
     const typology = (project.ctx01Typology || "Residential").toLowerCase();
 
-    // totalFitoutBudgetAed = GFA × budgetCap × 10.764 × 0.35
-    const totalFitoutBudgetAed = gfa * budgetCap * 10.764 * 0.35;
+    // fin01BudgetCap is AED/sqft — total construction cost per sqft
+    // SQFT_TO_SQM: 1 sqm ≈ 10.764 sqft (area conversion)
+    // FINISH_BUDGET_RATIO: finishes ≈ 35% of total construction cost (UAE market data)
+    const SQFT_TO_SQM = 10.764;
+    const FINISH_BUDGET_RATIO = 0.35;
+    const totalFitoutBudgetAed = gfa * budgetCap * SQFT_TO_SQM * FINISH_BUDGET_RATIO;
 
     // ─── Phase 9: Use AI-extracted floor plan data when available ─────────
     if (project.floorPlanAnalysis) {

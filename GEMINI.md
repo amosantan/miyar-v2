@@ -1,18 +1,58 @@
-# MIYAR — Gemini Project Intelligence File
+# MIYAR 3.0 — Gemini Project Intelligence File
 
 > **This file is the single source of truth for any AI assistant working on this codebase.**
 > Read this entirely before making any changes. Every decision must align with the product principles below.
 >
-> **Current Phase:** Phase 9 complete. Building Phase 10 — Sales Premium & Yield Predictor Engine.
-> **Last Updated:** 02 March 2026
+> **Current Version:** MIYAR 3.0
+> **Active Phase:** MIYAR 3.0 Phase A — Material Quantity Intelligence (MQI)
+> **Last Updated:** 04 March 2026
 
 ---
 
-## What Is MIYAR?
+## ⚡ MANDATORY: Do This Before ANY Work
 
-**MIYAR** (مِعيار — Arabic for "standard" or "benchmark") is an AI-powered **Design Intelligence Engine** for the UAE luxury real estate and interior design market.
+**Every session, every task, no exceptions:**
 
-It helps developers, investors, and interior designers make faster, better-informed decisions about high-value property fitouts and design briefs — backed by live UAE market data, Gemini AI, and a deterministic scoring framework.
+1. Read `.agent/rules/miyar-memory.md` — current phase status, what's built, what's next, immutable rules
+2. Read `.agent/rules/coding-conventions.md` — LLM boundary rules, type safety, test baseline
+3. Read `PROGRESS.md` (this folder root) — live task tracker showing exactly what is done vs pending
+
+**Before working on a specific domain, also read the relevant skill:**
+- Materials / MQI / surface areas / allocations → `.agent/skills/miyar-materials/SKILL.md`
+- Scoring engine / normalization / explainability → `.agent/skills/miyar-scoring/SKILL.md`
+- Intake / multimodal upload / Gemini analysis → `.agent/skills/miyar-intake/SKILL.md`
+- Ingestion / scraping / connectors / orchestrator → `.agent/skills/miyar-ingestion/SKILL.md`
+- Sales premium / yield / brand equity → `.agent/skills/miyar-sales-premium/SKILL.md`
+
+**Before starting a build phase, read the workflow:**
+- MIYAR 3.0 Phase A (MQI) → `.agent/workflows/miyar3-phase-a-build.md`
+- DB schema changes → `.agent/workflows/db-migrate.md`
+- Running tests → `.agent/workflows/run-tests.md`
+
+---
+
+## ⚡ MANDATORY: Do This After ANY Task Completes
+
+**Every task, no exceptions:**
+
+1. Update `PROGRESS.md` — mark completed items, add any new discovered items
+2. Update `.agent/rules/miyar-memory.md` — if phase status changed, files were added, or stats changed
+3. Update `GEMINI.md` (this file) — if "Active Phase" or "Current Version" changed
+4. If a new engine, router, or major file was created — add a row to the Architecture tables below
+5. Run `pnpm test` — record new test count in `PROGRESS.md`
+6. Commit with format: `feat: MIYAR 3.0 Phase X — Short description`
+
+**If you skip these updates, the next session starts with wrong context and breaks the build chain.**
+
+---
+
+## What Is MIYAR 3.0?
+
+**MIYAR** (مِعيار — Arabic for "standard" or "benchmark") is the UAE Design Decision Intelligence Platform — the Bloomberg terminal of design decisions for property developers.
+
+**MIYAR 2.0** (Phases 1–9) was a scoring and validation engine: developer fills forms, system scores them.
+
+**MIYAR 3.0** (Phase 10A onwards) conforms to the developer: they express their vision naturally (images, voice, chat, supplier links), the system understands it, prices it from the ground up, and tells them whether it's buildable before a single AED is committed.
 
 ---
 
@@ -133,25 +173,35 @@ Score range: 0–100 per dimension. Risk flags: `FIN_SEVERE`, `COMPLEXITY_MISMAT
 
 ---
 
-## AI Integration
+## MIYAR 3.0 Phase Status
 
-- **Model:** Gemini 2.0 Flash (via `invokeLLM` wrapper)
-- **Key prompts:** Design brief generation, space recommendations, design advisor, trend synthesis
-- **Image generation:** Gemini image API (via `visual-gen.ts`)
-- **Trend injection:** `buildTrendContext()` in `ai-design-advisor.ts` injects UAE market trends into every Gemini prompt
-- **Guardrails:** AI output is always validated against market constants; cost numbers are overridden by DB data
+| Phase | Name | Status |
+|-------|------|--------|
+| Phases 1–9 | MIYAR 2.0 full platform | ✅ Complete |
+| Phase 10A | Intelligent Project Intake (multimodal → form auto-fill) | ✅ Complete — committed |
+| Phase 10B | Sales Premium & Yield Predictor | ✅ Complete — committed `e06022c` |
+| **MIYAR 3.0 Phase A** | **Material Quantity Intelligence (MQI)** | ✅ Complete — pending commit |
 
 ---
 
-## Coding Conventions
+## AI Integration
 
-- All new tRPC procedures go in `server/routers/` — use `orgProcedure` for authenticated, `publicProcedure` for public endpoints
-- All new DB queries go in `server/db.ts` as named exported async functions
-- Schema changes: edit `drizzle/schema.ts` → run `npm run db:push` (uses drizzle-kit generate + migrate)
-- Currency: always AED, always format with `toLocaleString()`, use `fmtAed()` helper for M/K abbreviation
-- All export engines go in `server/engines/` — HTML-template approach preferred (see `board-pdf.ts`, `investor-pdf.ts`)
-- Client pages use `trpc.[router].[procedure].useQuery/useMutation` — never raw fetch
-- `publicProcedure` must be explicitly imported in any router file that uses it
+- **Model:** Gemini 2.5 Flash (via `invokeLLM` wrapper in `server/_core/llm.ts`)
+- **Key uses:** Design brief, space recommendations, intake analysis, material allocation suggestions, design advisor, trend synthesis, supplier price extraction
+- **Image generation:** Gemini image API (via `visual-gen.ts` + `nano-banana-client.ts`)
+- **LLM boundary:** Gemini suggests and translates. It NEVER scores, prices, or calculates. See `.agent/rules/coding-conventions.md` for full rules.
+- **Guardrails:** Cost numbers always come from `material_library`, `benchmarkData`, `evidenceRecords` — never from AI output
+
+---
+
+## Coding Conventions (Summary — full rules in `.agent/rules/coding-conventions.md`)
+
+- All new tRPC procedures: `server/routers/` — always use `orgProcedure` (never `publicProcedure` for org data)
+- All new DB queries: `server/db.ts` as named exported async functions
+- Schema changes: edit `drizzle/schema.ts` → run `pnpm db:push` — always use `mysqlTable` (TiDB, not pgTable)
+- Currency: always AED. Use `fmtAed()` helper for M/K formatting
+- Test baseline: 770+ passing (800 total including 8 pre-existing fail + 22 skip). Run `pnpm test` before and after every change
+- TypeScript: run `pnpm check` before declaring any task complete — zero errors required
 
 ---
 
@@ -159,5 +209,6 @@ Score range: 0–100 per dimension. Risk flags: `FIN_SEVERE`, `COMPLEXITY_MISMAT
 
 - Branch: `main`
 - Remote: `https://github.com/amosantan/miyar-v2`
-- Commit style: `feat: Phase N — Short description` (see existing commits for pattern)
-- After schema changes: always run `npm run db:push` and confirm columns with `SHOW COLUMNS FROM table_name`
+- Commit style: `feat: MIYAR 3.0 Phase X — Short description`
+- After schema changes: run `pnpm db:push`
+- After any phase: update `PROGRESS.md` + `miyar-memory.md` + this file

@@ -1,17 +1,23 @@
-# MIYAR — Coding Conventions
+# MIYAR 3.0 — Coding Conventions
 
 ## LLM Boundary (CRITICAL — never violate)
-LLM is permitted ONLY for:
-- Extracting structured data from unstructured HTML (ingestion connectors)
-- Generating narrative summary text (trend reports, insight bodies)
+LLM (Gemini) is permitted ONLY for:
+- Extracting structured data from unstructured HTML (ingestion connectors, supplier scraping)
+- Generating narrative summary text (trend reports, insight bodies, design briefs)
+- Multimodal intake analysis: interpreting images/PDFs/audio/URLs → form field suggestions with confidence scores
+- Design advisor: per-room material, style, and spatial recommendations
+- Material allocation suggestions: Gemini suggests material splits per surface (e.g. 65% marble / 35% timber) — these are SUGGESTIONS only, developer can override, cost math runs separately in TypeScript
+- Conversational chat: intake assistant responding to developer messages (max 2–3 sentences)
+- Supplier price extraction: parsing scraped HTML → extracting AED price ranges
 
 LLM is NEVER used for:
-- Scoring, weighting, or ranking
-- Confidence computation or grade assignment
-- Any numerical calculation or aggregation
-- Benchmark values or threshold decisions
+- Scoring, weighting, or ranking (scoring engine is always deterministic TypeScript)
+- Grade assignment (A/B/C finish grades are rule-based, not AI)
+- Any numerical calculation or aggregation (cost totals, surface areas, yield math = pure TypeScript)
+- Benchmark values or threshold decisions (Logic Registry only)
+- Overriding explicit developer inputs (fin01BudgetCap, ctx03Gfa, city — developer owns these always)
 
-All scoring, normalization, statistics, and thresholds are DETERMINISTIC engines.
+All scoring, normalization, statistics, surface area calculations, and cost math are DETERMINISTIC engines. Gemini provides SUGGESTIONS and TRANSLATIONS — never final computed values.
 
 ## Logic Registry Rule
 NEVER hardcode scoring weights or decision thresholds.
@@ -31,7 +37,7 @@ Run `pnpm check` (tsc --noEmit) before declaring any task complete.
 
 ## Test Requirement
 Every new engine function requires unit tests.
-Run `pnpm test` to verify. Current baseline: 476+ passing.
+Run `pnpm test` to verify. Current baseline: 655+ passing (as of MIYAR 3.0 Phase 10A).
 
 ## Database Migrations
 Never manually edit schema without generating a migration: `pnpm db:push`

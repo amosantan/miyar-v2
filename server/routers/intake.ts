@@ -9,7 +9,6 @@ import { router, orgProcedure } from "../_core/trpc";
 import { storagePut } from "../storage";
 import * as db from "../db";
 import { processIntakeAssets, type IntakeAsset, type IntakeResult } from "../engines/intake/ai-intake-engine";
-import { BaseSourceConnector, type RawSourcePayload } from "../engines/ingestion/connector";
 import { cleanHtmlForLLM } from "../engines/ingestion/connectors/dynamic";
 import crypto from "crypto";
 
@@ -159,22 +158,30 @@ export const intakeRouter = router({
 
     /**
      * Scrape a URL for intake analysis.
+     * Uses DynamicConnector for full fallback chain (Firecrawl → ScrapingDog → native).
      */
     scrapeUrl: orgProcedure
         .input(z.object({ url: z.string().url() }))
         .mutation(async ({ input }) => {
-            class MinimalConnector extends BaseSourceConnector {
-                sourceId = "intake_scrape";
-                sourceName = "Intake Scraper";
-                sourceUrl = input.url;
-                async extract(raw: RawSourcePayload) { return []; }
-                async normalize(ev: any) { return {} as any; }
+            const { DynamicConnector } = await import("../engines/ingestion/connectors/dynamic");
+
+            const connector = new DynamicConnector({
+                id: "intake_scrape",
+                name: "Intake Scraper",
+                url: input.url,
+                sourceType: "other",
+                region: "UAE",
+            });
+
+            let result;
+            try {
+                result = await connector.fetch();
+            } catch {
+                // If DynamicConnector fails, fall back to fetchBasic
+                result = await connector.fetchBasic();
             }
 
-            const connector = new MinimalConnector();
-            const result = await connector.fetchBasic();
-
-            // If fetch fails, we just return empty string, don't throw to avoid crashing the client
+            // If fetch fails, return empty string
             if (result.error || (!result.markdown && !result.rawHtml)) {
                 return {
                     textContent: "",

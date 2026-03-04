@@ -2147,3 +2147,53 @@ export const pdfExtractions = mysqlTable("pdf_extractions", {
 
 export type PdfExtraction = typeof pdfExtractions.$inferSelect;
 export type InsertPdfExtraction = typeof pdfExtractions.$inferInsert;
+
+// ─── MIYAR 3.0 Phase A — Material Quantity Intelligence ─────────────────────
+
+export const materialAllocations = mysqlTable("material_allocations", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("projectId").notNull(),
+  organizationId: int("organizationId").notNull(),
+  roomId: varchar("roomId", { length: 20 }).notNull(),
+  roomName: varchar("roomName", { length: 100 }).notNull(),
+  element: mysqlEnum("element", [
+    "floor", "walls", "ceiling", "joinery", "hardware"
+  ]).notNull(),
+  materialLibraryId: int("materialLibraryId"),
+  materialName: varchar("materialName", { length: 300 }).notNull(),
+  allocationPct: decimal("allocationPct", { precision: 5, scale: 2 }).notNull(),
+  surfaceAreaM2: decimal("surfaceAreaM2", { precision: 10, scale: 2 }).notNull(),
+  unitCostMin: decimal("unitCostMin", { precision: 10, scale: 2 }),
+  unitCostMax: decimal("unitCostMax", { precision: 10, scale: 2 }),
+  totalCostMin: decimal("totalCostMin", { precision: 12, scale: 2 }),
+  totalCostMax: decimal("totalCostMax", { precision: 12, scale: 2 }),
+  aiReasoning: text("aiReasoning"),
+  isLocked: boolean("isLocked").default(false).notNull(),
+  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MaterialAllocation = typeof materialAllocations.$inferSelect;
+export type InsertMaterialAllocation = typeof materialAllocations.$inferInsert;
+
+export const materialSupplierSources = mysqlTable("material_supplier_sources", {
+  id: int("id").primaryKey().autoincrement(),
+  organizationId: int("organizationId"),
+  supplierName: varchar("supplierName", { length: 200 }).notNull(),
+  supplierUrl: text("supplierUrl").notNull(),
+  materialCategory: mysqlEnum("materialCategory", [
+    "flooring", "wall_paint", "wall_tile", "ceiling",
+    "joinery", "sanitaryware", "fittings", "lighting", "hardware", "specialty"
+  ]).notNull(),
+  tier: mysqlEnum("tier", ["affordable", "mid", "premium", "ultra"]).notNull(),
+  notes: text("notes"),
+  lastScrapedAt: timestamp("lastScrapedAt"),
+  lastPriceAedMin: decimal("lastPriceAedMin", { precision: 10, scale: 2 }),
+  lastPriceAedMax: decimal("lastPriceAedMax", { precision: 10, scale: 2 }),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MaterialSupplierSource = typeof materialSupplierSources.$inferSelect;
+export type InsertMaterialSupplierSource = typeof materialSupplierSources.$inferInsert;

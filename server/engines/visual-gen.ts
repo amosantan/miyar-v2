@@ -290,3 +290,60 @@ export function validatePrompt(prompt: string): { valid: boolean; reason?: strin
 
   return { valid: true };
 }
+
+// ─── MQI Allocation → Prompt Clause (Phase A — Material Quantity Intelligence) ─
+
+/**
+ * Material allocation data from MQI engine.
+ * Each row represents one material → surface → room assignment.
+ */
+export interface MqiAllocation {
+  roomId: string;
+  roomName: string;
+  element: string;         // "floor" | "walls" | "ceiling" | "joinery"
+  materialName: string;
+  percentage: number;
+}
+
+/**
+ * Build a material allocation prompt clause from MQI data.
+ * Converts MQI allocations into a structured string the visual generator can
+ * inject into mood board, render, and material board prompts.
+ *
+ * Returns `null` if allocations are empty — callers should skip injection.
+ *
+ * Example output:
+ *   MATERIAL ALLOCATION (use EXACT materials per surface):
+ *   Living & Dining — Floor: Calacatta Marble (60%), Natural Oak Timber (40%); Walls: Venetian Plaster (100%)
+ *   Master Bedroom — Floor: Natural Oak Timber (100%); Ceiling: Basic Gypsum Board (100%)
+ */
+export function buildMaterialAllocationPromptClause(
+  allocations: MqiAllocation[]
+): string | null {
+  if (!allocations || allocations.length === 0) return null;
+
+  // Group by room
+  const roomMap = new Map<string, Map<string, { name: string; pct: number }[]>>();
+
+  for (const a of allocations) {
+    const roomKey = a.roomName || a.roomId;
+    if (!roomMap.has(roomKey)) roomMap.set(roomKey, new Map());
+    const elementMap = roomMap.get(roomKey)!;
+    if (!elementMap.has(a.element)) elementMap.set(a.element, []);
+    elementMap.get(a.element)!.push({ name: a.materialName, pct: a.percentage });
+  }
+
+  const lines: string[] = [];
+  for (const [room, elements] of Array.from(roomMap.entries())) {
+    const parts: string[] = [];
+    for (const [element, mats] of Array.from(elements.entries())) {
+      const matList = mats
+        .map((m) => `${m.name} (${m.pct}%)`)
+        .join(", ");
+      parts.push(`${element.charAt(0).toUpperCase() + element.slice(1)}: ${matList}`);
+    }
+    lines.push(`${room} — ${parts.join("; ")}`);
+  }
+
+  return `\nMATERIAL ALLOCATION (use EXACT materials per surface):\n${lines.join("\n")}`;
+}

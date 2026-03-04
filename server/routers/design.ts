@@ -12,7 +12,7 @@ import { getAreaSaleMedianSqm } from "../engines/dld-analytics";
 import { getLiveCategoryPricing } from "../engines/pricing-engine";
 import { getPricingArea } from "../engines/area-utils";
 import { buildRFQFromBrief } from "../engines/design/rfq-generator";
-import { buildPromptContext, buildBoardAwarePromptContext, buildRoomPromptContext, interpolateTemplate, generateDefaultPrompt, generateRoomRenderPrompt, validatePrompt } from "../engines/visual-gen";
+import { buildPromptContext, buildBoardAwarePromptContext, buildRoomPromptContext, interpolateTemplate, generateDefaultPrompt, generateRoomRenderPrompt, validatePrompt, buildMaterialAllocationPromptClause, type MqiAllocation } from "../engines/visual-gen";
 import { analyzeFloorPlan as runFloorPlanAnalysis } from "../engines/design/floor-plan-analyzer";
 import { benchmarkSpaceRatios } from "../engines/design/space-benchmarking";
 import { computeBoardSummary, generateRfqLines } from "../engines/board-composer";
@@ -423,6 +423,27 @@ export const designRouter = router({
         console.log(`[Visual] Using board-aware context with ${enrichedMaterials.length} materials for project ${input.projectId}`);
       } else {
         context = buildPromptContext(inputs);
+      }
+
+      // Phase A (MQI): Fetch material allocations and inject allocationClause
+      try {
+        const allocations = await db.getMaterialAllocations(input.projectId, ctx.user.orgId ?? 0);
+        if (allocations && allocations.length > 0) {
+          const mqiAllocs: MqiAllocation[] = allocations.map((a: any) => ({
+            roomId: a.roomId,
+            roomName: a.roomName,
+            element: a.element,
+            materialName: a.materialName,
+            percentage: Number(a.percentage) || 100,
+          }));
+          const clause = buildMaterialAllocationPromptClause(mqiAllocs);
+          if (clause) {
+            context.materialSpec = (context.materialSpec || '') + clause;
+            console.log(`[Visual] Injected MQI allocation clause with ${mqiAllocs.length} allocations`);
+          }
+        }
+      } catch (e) {
+        console.warn('[Visual] MQI allocation fetch failed, continuing without:', e);
       }
 
       // Build prompt
