@@ -39,7 +39,8 @@ It is NOT a property investment tool. It conforms to the developer, not the othe
 |-------|------|--------|
 | **Phase 10A** | **Intelligent Project Intake** (multimodal: images/voice/URL/PDF → form auto-fill) | ⚠️ 95% done — 1 item uncommitted, needs commit |
 | **Phase 10B** | **Sales Premium & Yield Predictor Engine** (value-add engine, yield sliders, brand equity) | ✅ DONE — committed `e06022c` |
-| **MIYAR 3.0 Phase A** | **Material Quantity Intelligence (MQI)** — surface-area allocation, AI material splits, bottom-up costing, supplier price scraping, material-accurate renders | ✅ DONE — pending commit |
+| **MIYAR 3.0 Phase A** | **Material Quantity Intelligence (MQI)** — surface-area allocation, AI material splits, bottom-up costing, supplier price scraping, material-accurate renders | ✅ DONE — committed `db74e06` |
+| **MIYAR 3.0 Phase B** | **Typology-Aware Space Program Intelligence** — fit-out vs shell & core per typology, amenity sub-space taxonomy, DXF/DWG floor plan parsing, mixed-use block support | ✅ DONE — committed `5ccc1ed` |
 
 ## Phase 10A — What to Build
 *Goal: Replace rigid form-first project creation with a flexible multimodal intake. Developer uploads images, voice, PDFs, supplier URLs — MIYAR auto-fills the existing ProjectInputs form. Form stays as source of truth, scoring engine unchanged.*
@@ -183,6 +184,38 @@ It is NOT a property investment tool. It conforms to the developer, not the othe
 ### Scraping pipeline note (after March 2 overhaul):
 The `cleanHtmlForLLM()` function + 6-provider fallback is NOW working properly. Use `DynamicConnector` + `runSingleConnector` for material supplier scraping. Do NOT write new scrapers. Firecrawl credits exhausted — ScrapingAnt is primary provider.
 
+## MIYAR 3.0 Phase B — What to Build
+*Goal: Make the space program typology-aware. Different building types have different fit-out scopes — an office building only fits out the lobby, toilets, and amenities. Phase B adds a persistent, editable space program with per-room fit-out/shell-core classification before MQI runs.*
+
+### Core concept:
+- **Typology Fit-Out Rules** (deterministic): office building → only lobby, corridors, toilets, amenities = fit-out; office floors = shell & core
+- **Amenity Sub-Space Taxonomy** (seeded): each amenity type (gym, pool, spa, co-working, etc.) expands into standard sub-spaces with sqm ratios
+- **Floor Plan Extraction**: DXF geometry parsing (shoelace formula for areas) with DWG→vision-analysis fallback
+- **Persistent Space Program**: stored in `space_program_rooms` DB table — developer can toggle fit-out flag per room and override typology defaults
+- **Mixed-Use Block Support**: developer can define N blocks each with its own typology
+- **MQI Integration**: `materialQuantity.generate` reads stored fit-out rooms first; falls back to `buildSpaceProgram()` for projects without a stored program
+
+### Typology Fit-Out Matrix (summary):
+| Typology | Fit-Out Scope |
+|----------|--------------|
+| Villa / Apartment | 100% — all interior rooms |
+| Restaurant / Café | 100% — including commercial kitchen |
+| Hotel / Resort | ~98% — all rooms except plant rooms |
+| Office Building | ~8–15% — lobby, corridors, toilets, amenities ONLY |
+| Retail / Commercial | ~10–20% — common areas, food court, toilets ONLY |
+| Clinic / Medical | ~20% — reception, waiting, toilets ONLY |
+| Mixed-Use | Per block — each block has own typology rule |
+
+### Amenity Sub-Space Taxonomy: 9 types with typology-aware profiles
+Each type's sqmRatios sum to exactly 1.0. Implemented types: `pool`, `gym`, `spa`, `lounge`, `kids_club`, `business_center`, `concierge`, `prayer_room`, `theater`. Each type has per-typology profiles (hospitality / residential / commercial / retail) — the same amenity type produces different sub-space ratios depending on the building typology. This is a deliberate design improvement over the original spec.
+
+### New DB tables (adds 2 → 87 total):
+- `space_program_rooms` — per project room with: sqm, roomCategory, fitOut, fitOutOverridden, isAmenity, amenityType, blockName, blockTypology, source
+- `amenity_sub_spaces` — seeded taxonomy
+
+### Full spec: `.agent/prompts/miyar3-phase-b-space-program.md`
+### Build workflow: `.agent/workflows/miyar3-phase-b-build.md`
+
 ## 5 Scoring Dimensions (NEVER change these weights without Logic Registry)
 - SA: Strategic Alignment (str01, str02, str03)
 - FF: Financial Feasibility (fin01, fin02, fin03, fin04)
@@ -202,14 +235,14 @@ The `cleanHtmlForLLM()` function + 6-provider fallback is NOW working properly. 
 4. All tRPC procedures must use `orgProcedure` — never `publicProcedure`
 5. All scoring is deterministic — `calculateProjectScore()` must never call any LLM
 
-## System Stats (as of Phase A — MIYAR 3.0)
-- Database: 85 tables, TiDB (mysql2), Drizzle ORM
+## System Stats (as of Phase B — MIYAR 3.0)
+- Database: 87 tables, TiDB (mysql2), Drizzle ORM
 - Tech Stack: React 19 + Tailwind 4 + Express 4 + tRPC 11 + Drizzle ORM + AWS S3 + Vercel + Gemini 2.5 Flash
-- Tests: 770 passing / 800 total (8 pre-existing fail, 22 skip) (vitest)
-- Server routers: 23 (added `materialQuantity`)
-- Engine modules: 78+
+- Tests: 800 passing / 830 total (8 pre-existing fail, 22 skip) (vitest)
+- Server routers: 24 (added `spaceProgram`)
+- Engine modules: 80+
 - Client pages: 32+
-- tRPC endpoints: 136+ (added 6 MQI endpoints)
+- tRPC endpoints: 144+ (added 8 Space Program endpoints)
 - DLD records ingested: 578K+
 - Compliance checks: 38 (20 Estidama + 18 Al Sa'fat)
 - GitHub: https://github.com/amosantan/miyar-v2

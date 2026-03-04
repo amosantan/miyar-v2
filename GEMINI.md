@@ -4,7 +4,7 @@
 > Read this entirely before making any changes. Every decision must align with the product principles below.
 >
 > **Current Version:** MIYAR 3.0
-> **Active Phase:** MIYAR 3.0 Phase A — Material Quantity Intelligence (MQI)
+> **Active Phase:** Next phase TBD — Phase B complete ✅
 > **Last Updated:** 04 March 2026
 
 ---
@@ -25,6 +25,7 @@
 - Sales premium / yield / brand equity → `.agent/skills/miyar-sales-premium/SKILL.md`
 
 **Before starting a build phase, read the workflow:**
+- MIYAR 3.0 Phase B (Space Program) → `.agent/workflows/miyar3-phase-b-build.md`
 - MIYAR 3.0 Phase A (MQI) → `.agent/workflows/miyar3-phase-a-build.md`
 - DB schema changes → `.agent/workflows/db-migrate.md`
 - Running tests → `.agent/workflows/run-tests.md`
@@ -121,14 +122,21 @@ Every project gets a 5-dimension MIYAR Score (SA/FF/MP/DS/ER). Every score must 
 | `server/db.ts` | All database query functions |
 | `server/routers/design.ts` | Main design intelligence API (brief, space recs, benchmarks, PDF export, share links) |
 | `server/routers/design-advisor.ts` | Gemini AI recommendation generation |
-| `server/routers/salesPremium.ts` | Phase 10 — Value-add bridge + brand equity forecasting (to be built) |
+| `server/routers/salesPremium.ts` | Phase 10B — Value-add bridge + brand equity forecasting (`getValueAddBridge`, `getBrandEquityForecast`) |
 | `server/engines/scoring.ts` | 5-dimension MIYAR Score (SA/FF/MP/DS/ER) |
 | `server/engines/design-brief.ts` | 7-section AI design brief generator |
 | `server/engines/investor-pdf.ts` | HTML PDF engine for investor brief |
 | `server/engines/docx-brief.ts` | DOCX Word document brief generator |
 | `server/engines/board-pdf.ts` | Material board HTML PDF generator |
 | `server/engines/pricing-engine.ts` | Live AED cost estimation from benchmark proposals |
-| `drizzle/schema.ts` | All 82+ database table definitions |
+| `server/engines/design/material-quantity-engine.ts` | Phase A — `calculateSurfaceAreas`, `generateMaterialAllocations`, `buildQuantityCostSummary` |
+| `server/routers/materialQuantity.ts` | Phase A — 6 MQI endpoints: generate, getForProject, updateAllocation, lockAllocations, addSupplierSource, scrapeSupplierSource |
+| `server/engines/design/typology-fitout-rules.ts` | Phase B — deterministic fit-out/shell-core matrix per typology and room category |
+| `server/engines/design/amenity-taxonomy.ts` | Phase B — 9 amenity types with sub-space sqm ratios (seeded constants) |
+| `server/engines/intake/dwg-parser.ts` | Phase B — DXF geometry extraction + DWG→vision fallback |
+| `server/engines/design/space-program-extractor.ts` | Phase B — orchestrator: file/GFA → SpaceProgramRoom[] with fit-out tags |
+| `server/routers/spaceProgram.ts` | Phase B — 8 endpoints: generate, extractFromFile, getForProject, updateRoom, toggleFitOut, addRoom, deleteRoom, resetToTypologyDefaults |
+| `drizzle/schema.ts` | All 87 database table definitions |
 
 ### Client
 | File | Purpose |
@@ -139,6 +147,8 @@ Every project gets a 5-dimension MIYAR Score (SA/FF/MP/DS/ER). Every score must 
 | `client/src/pages/DesignBrief.tsx` | 7-section AI design brief viewer + DOCX export |
 | `client/src/pages/ShareView.tsx` | **Public** (no auth) read-only investor brief at `/share/:token` |
 | `client/src/pages/BoardComposer.tsx` | Material board builder + PDF export |
+| `client/src/components/MaterialAllocationPanel.tsx` | Phase A — MQI UI: budget card, room accordion, allocation bars, edit mode with linked sliders |
+| `client/src/components/SpaceProgramEditor.tsx` | Phase B — room table, fit-out toggles, amenity sub-space accordion, mixed-use block tabs |
 
 ---
 
@@ -180,7 +190,8 @@ Score range: 0–100 per dimension. Risk flags: `FIN_SEVERE`, `COMPLEXITY_MISMAT
 | Phases 1–9 | MIYAR 2.0 full platform | ✅ Complete |
 | Phase 10A | Intelligent Project Intake (multimodal → form auto-fill) | ✅ Complete — committed |
 | Phase 10B | Sales Premium & Yield Predictor | ✅ Complete — committed `e06022c` |
-| **MIYAR 3.0 Phase A** | **Material Quantity Intelligence (MQI)** | ✅ Complete — pending commit |
+| **MIYAR 3.0 Phase A** | **Material Quantity Intelligence (MQI)** | ✅ Complete — committed `db74e06` |
+| **MIYAR 3.0 Phase B** | **Typology-Aware Space Program Intelligence** (fit-out vs shell & core, amenity taxonomy, DXF/DWG parsing) | ✅ Complete — committed `5ccc1ed` |
 
 ---
 
@@ -200,7 +211,7 @@ Score range: 0–100 per dimension. Risk flags: `FIN_SEVERE`, `COMPLEXITY_MISMAT
 - All new DB queries: `server/db.ts` as named exported async functions
 - Schema changes: edit `drizzle/schema.ts` → run `pnpm db:push` — always use `mysqlTable` (TiDB, not pgTable)
 - Currency: always AED. Use `fmtAed()` helper for M/K formatting
-- Test baseline: 770+ passing (800 total including 8 pre-existing fail + 22 skip). Run `pnpm test` before and after every change
+- Test baseline: 800 passing / 830 total (8 pre-existing fail, 22 skip). Run `pnpm test` before and after every change
 - TypeScript: run `pnpm check` before declaring any task complete — zero errors required
 
 ---

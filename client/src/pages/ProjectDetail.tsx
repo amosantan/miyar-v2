@@ -3,6 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { ProjectForm } from "@/components/ProjectForm";
 import { EvidenceReferencesPanel } from "@/components/EvidenceReferencesPanel";
 import MaterialAllocationPanel from "@/components/MaterialAllocationPanel";
+import SpaceProgramEditor from "@/components/SpaceProgramEditor";
 import PredictivePanel from "@/components/PredictivePanel";
 import BiasAlerts from "@/components/BiasAlerts";
 import { Button } from "@/components/ui/button";
@@ -610,6 +611,7 @@ function ProjectDetailContent() {
             <TabsTrigger value="roi">ROI Impact</TabsTrigger>
             <TabsTrigger value="intelligence">Intelligence</TabsTrigger>
             <TabsTrigger value="evidence">Evidence</TabsTrigger>
+            <TabsTrigger value="spaceProgram">Space Program</TabsTrigger>
             <TabsTrigger value="materials">Material Cost</TabsTrigger>
             <TabsTrigger value="predictive">Predictive</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -1188,6 +1190,11 @@ function ProjectDetailContent() {
           {/* ─── Evidence Tab ────────────────────────────────────────────── */}
           <TabsContent value="evidence" className="space-y-4">
             <EvidenceReferencesPanel projectId={projectId} />
+          </TabsContent>
+
+          {/* ─── Space Program Tab ────────────────────────────────────── */}
+          <TabsContent value="spaceProgram" className="space-y-4">
+            <SpaceProgramEditor projectId={projectId} />
           </TabsContent>
 
           {/* ─── Material Cost Tab ──────────────────────────────────────── */}

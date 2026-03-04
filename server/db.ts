@@ -71,6 +71,8 @@ import {
   pdfExtractions,
   materialAllocations,
   materialSupplierSources,
+  spaceProgramRooms,
+  amenitySubSpaces,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2514,4 +2516,114 @@ export async function updateMaterialSupplierSource(
   const db = await getDb();
   if (!db) return;
   return db.update(materialSupplierSources).set(data as any).where(eq(materialSupplierSources.id, id));
+}
+
+// ─── MIYAR 3.0 Phase B — Space Program Intelligence ────────────────────────
+
+export async function getSpaceProgramRooms(projectId: number, organizationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(spaceProgramRooms)
+    .where(and(
+      eq(spaceProgramRooms.projectId, projectId),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    ))
+    .orderBy(spaceProgramRooms.sortOrder);
+}
+
+export async function insertSpaceProgramRooms(data: (typeof spaceProgramRooms.$inferInsert)[]) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.length === 0) return;
+  return db.insert(spaceProgramRooms).values(data);
+}
+
+export async function updateSpaceProgramRoom(
+  id: number,
+  data: Partial<{
+    roomName: string;
+    category: string;
+    sqm: string;
+    floorLevel: string | null;
+    isFitOut: boolean;
+    fitOutOverridden: boolean;
+    fitOutReason: string | null;
+    finishGrade: string;
+    priority: string;
+    budgetPct: string | null;
+    sortOrder: number;
+    blockName: string;
+    blockTypology: string;
+  }>
+) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(spaceProgramRooms).set(data as any).where(eq(spaceProgramRooms.id, id));
+}
+
+export async function deleteSpaceProgramRoom(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  // Also delete associated amenity sub-spaces
+  await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, id));
+  return db.delete(spaceProgramRooms).where(eq(spaceProgramRooms.id, id));
+}
+
+export async function getAmenitySubSpacesForRoom(spaceProgramRoomId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(amenitySubSpaces)
+    .where(eq(amenitySubSpaces.spaceProgramRoomId, spaceProgramRoomId));
+}
+
+export async function insertAmenitySubSpaces(data: (typeof amenitySubSpaces.$inferInsert)[]) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.length === 0) return;
+  return db.insert(amenitySubSpaces).values(data);
+}
+
+export async function resetSpaceProgramRooms(
+  projectId: number,
+  organizationId: number,
+  preserveOverridden: boolean = true
+) {
+  const db = await getDb();
+  if (!db) return;
+
+  if (preserveOverridden) {
+    // Only delete rooms where fitOutOverridden = false (developer hasn't manually toggled)
+    // First, clean up amenity sub-spaces for non-overridden rooms
+    const nonOverridden = await db.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms)
+      .where(and(
+        eq(spaceProgramRooms.projectId, projectId),
+        eq(spaceProgramRooms.organizationId, organizationId),
+        eq(spaceProgramRooms.fitOutOverridden, false)
+      ));
+    const idsToDelete = nonOverridden.map((r: { id: number }) => r.id);
+    if (idsToDelete.length > 0) {
+      for (const roomId of idsToDelete) {
+        await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, roomId));
+      }
+      await db.delete(spaceProgramRooms).where(and(
+        eq(spaceProgramRooms.projectId, projectId),
+        eq(spaceProgramRooms.organizationId, organizationId),
+        eq(spaceProgramRooms.fitOutOverridden, false)
+      ));
+    }
+  } else {
+    // Full wipe — delete all rooms and sub-spaces for this project
+    const allRooms = await db.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms)
+      .where(and(
+        eq(spaceProgramRooms.projectId, projectId),
+        eq(spaceProgramRooms.organizationId, organizationId)
+      ));
+    for (const room of allRooms) {
+      await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, room.id));
+    }
+    await db.delete(spaceProgramRooms).where(and(
+      eq(spaceProgramRooms.projectId, projectId),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    ));
+  }
 }

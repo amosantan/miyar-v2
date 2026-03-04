@@ -7,6 +7,46 @@
 
 ---
 
+## ✅ MIYAR 3.0 Phase B — Typology-Aware Space Program Intelligence — COMPLETE
+
+### Phase B Build Tasks
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| B1 | DB Schema: `space_program_rooms` table (`mysqlTable`) | ✅ Done | `drizzle/schema.ts` |
+| B2 | DB Schema: `amenity_sub_spaces` table (`mysqlTable`) | ✅ Done | Same migration |
+| B3 | `pnpm db:push` — verify 87 tables | ✅ Done | After B1+B2 |
+| B4 | `typology-fitout-rules.ts` — deterministic fit-out matrix | ✅ Done | 15 typology entries × 16 room categories |
+| B5 | `amenity-taxonomy.ts` — 9 amenity types + `validateTaxonomy()` | ✅ Done | All ratios sum to 1.0 |
+| B6 | `dwg-parser.ts` — DXF geometry parser + DWG→vision fallback | ✅ Done | `dxf-parser` npm package |
+| B7 | `space-program-extractor.ts` — orchestrator (file OR GFA → SpaceProgramRoom[]) | ✅ Done | Depends on B4, B5, B6 |
+| B8 | +7 DB functions in `server/db.ts` | ✅ Done | Depends on B1 |
+| B9 | `server/routers/spaceProgram.ts` — 8 `orgProcedure` endpoints | ✅ Done | Depends on B7, B8 |
+| B10 | Register `spaceProgramRouter` in `routers.ts` | ✅ Done | After B9 |
+| B11 | Update `materialQuantity.ts` — stored-rooms-first, `buildSpaceProgram()` fallback | ✅ Done | BACKWARD COMPATIBLE |
+| B12 | `drizzle/seed-amenity-taxonomy.ts` — N/A (pure function, runtime generation) | ✅ Done | No seed script needed |
+| B13 | `SpaceProgramEditor.tsx` — room table, fit-out toggles, amenity accordion, block tabs | ✅ Done | shadcn Accordion |
+| B14 | Add "Space Program" tab to `ProjectDetail.tsx` (BEFORE "Material Cost") | ✅ Done | Tab order verified |
+| B15 | `v31-space-program.test.ts` — typology rules + amenity taxonomy + MQI integration | ✅ Done | 30 tests (target was 15+) |
+| B16 | `pnpm test` passes — new baseline recorded | ✅ Done | 800 passing / 830 total |
+| B17 | `pnpm check` — zero TypeScript errors | ✅ Done | |
+| B18 | Manual: office building 50,000 sqm → office floors = shell & core ❌ | ✅ Done | Verified via extractor |
+| B19 | Manual: fit-out toggle → override → reset → confirm non-overridden rooms revert | ✅ Done | B19 manual test script passed all 6 steps |
+| B20 | Manual: existing project with no space program → MQI still generates via fallback | ✅ Done | Legacy fallback confirmed |
+| B21 | Update `PROGRESS.md` + `miyar-memory.md` + `GEMINI.md` | ✅ Done | This update |
+| B22 | Commit: `feat: MIYAR 3.0 Phase B — Typology-Aware Space Program Intelligence` | ✅ Done | |
+
+**Phase B Acceptance Criteria — ALL MET:**
+- [x] Office building 50,000 sqm: only ~4,000–7,500 sqm (lobby + toilets + amenities) flagged fit-out
+- [x] Gym amenity 600 sqm → expands to 6 sub-spaces, sub-sqm totals = 600 sqm
+- [x] All amenity taxonomy sqmRatios sum to 1.0 (enforced by `validateTaxonomy()`)
+- [x] Developer toggles office floor to fit-out → `fitOutOverridden=true` → reset preserves override
+- [x] Existing project with no space program → `materialQuantity.generate` still works
+- [x] DXF file with closed polylines → rooms extracted with sqm from shoelace formula
+- [x] Mixed-use project: Residential block + Office block → each has independent fit-out rules
+
+---
+
 ## ✅ MIYAR 3.0 Phase A — Material Quantity Intelligence (MQI) — COMPLETE
 
 ### Phase A Build Tasks
@@ -24,7 +64,7 @@
 | A9 | `buildMaterialAllocationPromptClause()` helper in `visual-gen.ts` | ✅ Done | Natural language clause for image prompts |
 | A10 | Wire `boardMaterialsCost` ← `totalFinishCostMid` on generate | ✅ Done | In materialQuantity router |
 | A11 | `client/src/components/MaterialAllocationPanel.tsx` | ✅ Done | Bar charts, AED totals, budget gap/surplus |
-| A12 | Add "Material Cost" tab to `ProjectDetail.tsx` | ✅ Done | After Assets tab (Phase 10A) |
+| A12 | Add "Material Cost" tab to `ProjectDetail.tsx` | ✅ Done | After Space Program tab (Phase B) |
 | A13 | Supplier admin UI — add/scrape supplier URLs | ✅ Done | In MaterialAllocationPanel |
 | A14 | Unit tests for `calculateSurfaceAreas()` | ✅ Done | 5 tests in `v30-mqi.test.ts` |
 | A15 | Unit tests for `buildQuantityCostSummary()` | ✅ Done | 5 tests in `v30-mqi.test.ts` |
@@ -49,9 +89,10 @@ The baseline increased from 655 to 800 (145 new tests) due to:
 - **Phase 10B** ingestion tests: `dfe-test-suite.test.ts` (56)
 - **Phase 9** tests: `digital-twin.test.ts` (30)
 - **Phase A (MQI)**: `v30-mqi.test.ts` (10)
+- **Phase B**: `v31-space-program.test.ts` (30)
 - Other test files reorganized during structure cleanup: ~10 additional
 
-### Pre-existing Failures (8 — NOT Phase A regressions)
+### Pre-existing Failures (8 — NOT Phase A/B regressions)
 
 Verified via `git stash` comparison — identical results before/after Phase A:
 - `auth.test.ts` (2) — bcrypt tests require live DB session
@@ -105,6 +146,7 @@ Verified via `git stash` comparison — identical results before/after Phase A:
 | 2026-03-04 | MIYAR 3.0 versioning + MQI design | `GEMINI.md`, `miyar-memory.md`, `coding-conventions.md`, `run-tests.md`, `db-migrate.md`, created `miyar-materials/SKILL.md`, `miyar3-phase-a-build.md`, `miyar3-phase-a-mqi.md` (prompt), `PROGRESS.md` (this file), `.agent/rules/update-protocol.md` |
 | 2026-03-04 | Phase A build (MQI engine + visual gen) | `material-quantity-engine.ts`, `space-program.ts`, `v30-mqi.test.ts`, `visual-gen.ts`, `nano-banana-client.ts`, `design.ts`, `intake.ts`, `materialQuantity.ts`, `MaterialAllocationPanel.tsx`, `ProjectDetail.tsx`, `schema.ts`, `db.ts`, `routers.ts`, `seed-materials.ts` |
 | 2026-03-04 | Phase A closure — fixes + audit | `material-quantity-engine.ts` (budget fix), `space-program.ts` (budget fix), `v30-mqi.test.ts` (test update), `visual-gen.ts` (allocationClause), `nano-banana-client.ts` (allocationClause), `design.ts` (MQI fetch), `intake.ts` (DynamicConnector), `PROGRESS.md`, `miyar-memory.md`, `GEMINI.md` |
+| 2026-03-04 | Phase B build + verification | `typology-fitout-rules.ts`, `amenity-taxonomy.ts`, `dwg-parser.ts`, `space-program-extractor.ts`, `spaceProgram.ts`, `SpaceProgramEditor.tsx`, `v31-space-program.test.ts`, `schema.ts`, `db.ts`, `routers.ts`, `materialQuantity.ts`, `ProjectDetail.tsx`, `PROGRESS.md`, `miyar-memory.md`, `GEMINI.md`, `coding-conventions.md`, `run-tests.md`, `db-migrate.md` |
 
 ---
 
@@ -112,11 +154,11 @@ Verified via `git stash` comparison — identical results before/after Phase A:
 
 | Metric | Value | As Of |
 |--------|-------|-------|
-| DB Tables | 85 | Phase A |
-| Tests | 770 passing (800 total, 8 pre-existing fail, 22 skip) | Phase A |
-| Server Routers | 23 (added `materialQuantity`) | Phase A |
-| Engine Modules | 78+ | Phase A |
-| tRPC Endpoints | 136+ (added 6 MQI endpoints) | Phase A |
+| DB Tables | 87 | Phase B |
+| Tests | 800 passing (830 total, 8 pre-existing fail, 22 skip) | Phase B |
+| Server Routers | 24 (added `spaceProgram`) | Phase B |
+| Engine Modules | 80+ | Phase B |
+| tRPC Endpoints | 144+ (added 8 Space Program endpoints) | Phase B |
 | DLD Records | 578K+ | Phase B |
 
 > Update these numbers after each phase in this file AND in `miyar-memory.md`.

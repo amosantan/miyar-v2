@@ -25,6 +25,7 @@ import { sustainabilityRouter } from "./routers/sustainability";
 import { salesPremiumRouter } from "./routers/salesPremium";
 import { intakeRouter } from "./routers/intake";
 import { materialQuantityRouter } from "./routers/materialQuantity";
+import { spaceProgramRouter } from "./routers/spaceProgram";
 
 export const appRouter = router({
   system: systemRouter,
@@ -51,6 +52,7 @@ export const appRouter = router({
   salesPremium: salesPremiumRouter,
   intake: intakeRouter,
   materialQuantity: materialQuantityRouter,
+  spaceProgram: spaceProgramRouter,
 });
 
 export type AppRouter = typeof appRouter;

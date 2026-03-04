@@ -44,12 +44,32 @@ export const materialQuantityRouter = router({
             const project = await db.getProjectById(input.projectId);
             if (!project) throw new Error("Project not found");
 
-            // 2. Build space program
-            const spaceProgram = buildSpaceProgram(project);
+            // 2. Build space program — Phase B fit-out aware
+            // Try persisted space program first (Phase B), fall back to legacy (Phase A)
+            const storedRooms = await db.getSpaceProgramRooms(input.projectId, orgId);
+
+            let rooms;
+            if (storedRooms.length > 0) {
+                // Phase B: use persisted rooms, filter to fit-out only
+                rooms = storedRooms
+                    .filter((r: any) => r.isFitOut)
+                    .map((r: any) => ({
+                        id: r.roomCode as string,
+                        name: r.roomName as string,
+                        sqm: Number(r.sqm),
+                        budgetPct: Number(r.budgetPct) || 0,
+                        priority: (r.priority || "medium") as "high" | "medium" | "low",
+                        finishGrade: (r.finishGrade || "B") as "A" | "B" | "C",
+                    }));
+            } else {
+                // Phase A fallback: use in-memory space program (all rooms = fit-out)
+                const spaceProgram = buildSpaceProgram(project);
+                rooms = spaceProgram.rooms;
+            }
 
             // 3. Calculate surface areas (pure math)
             const surfaces = calculateSurfaceAreas(
-                spaceProgram.rooms,
+                rooms,
                 input.ceilingHeightM
             );
 
@@ -93,7 +113,7 @@ export const materialQuantityRouter = router({
                 project,
                 surfaces,
                 materialLibrary as any,
-                spaceProgram.rooms,
+                rooms,
                 lockedAllocations.length > 0 ? lockedAllocations : undefined
             );
 

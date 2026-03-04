@@ -2197,3 +2197,55 @@ export const materialSupplierSources = mysqlTable("material_supplier_sources", {
 
 export type MaterialSupplierSource = typeof materialSupplierSources.$inferSelect;
 export type InsertMaterialSupplierSource = typeof materialSupplierSources.$inferInsert;
+
+// ─── MIYAR 3.0 Phase B — Typology-Aware Space Program Intelligence ──────────
+
+export const spaceProgramRooms = mysqlTable("space_program_rooms", {
+  id: int("id").primaryKey().autoincrement(),
+  projectId: int("projectId").notNull(),
+  organizationId: int("organizationId").notNull(),
+  roomCode: varchar("roomCode", { length: 20 }).notNull(),
+  roomName: varchar("roomName", { length: 100 }).notNull(),
+  category: mysqlEnum("category", [
+    "lobby", "corridor", "office_floor", "guest_room", "suite",
+    "fb_restaurant", "bathroom", "kitchen", "bedroom", "living",
+    "utility", "amenity", "parking", "retail", "back_of_house", "other",
+  ]).notNull(),
+  sqm: decimal("sqm", { precision: 10, scale: 2 }).notNull(),
+  floorLevel: varchar("floorLevel", { length: 20 }),
+  source: mysqlEnum("source", [
+    "typology_default", "user_manual", "file_extraction",
+  ]).notNull().default("typology_default"),
+  isFitOut: boolean("isFitOut").default(true).notNull(),
+  fitOutOverridden: boolean("fitOutOverridden").default(false).notNull(),
+  fitOutReason: text("fitOutReason"),
+  finishGrade: mysqlEnum("finishGrade", ["A", "B", "C"]).notNull().default("B"),
+  priority: mysqlEnum("priority", ["high", "medium", "low"]).notNull().default("medium"),
+  budgetPct: decimal("budgetPct", { precision: 5, scale: 4 }),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  blockName: varchar("blockName", { length: 100 }).default("Main").notNull(),
+  blockTypology: varchar("blockTypology", { length: 50 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SpaceProgramRoom = typeof spaceProgramRooms.$inferSelect;
+export type InsertSpaceProgramRoom = typeof spaceProgramRooms.$inferInsert;
+
+export const amenitySubSpaces = mysqlTable("amenity_sub_spaces", {
+  id: int("id").primaryKey().autoincrement(),
+  spaceProgramRoomId: int("spaceProgramRoomId").notNull(),
+  subSpaceName: varchar("subSpaceName", { length: 100 }).notNull(),
+  subSpaceType: mysqlEnum("subSpaceType", [
+    "pool", "gym", "spa", "lounge", "kids_club",
+    "business_center", "concierge", "prayer_room", "theater",
+  ]).notNull(),
+  sqm: decimal("sqm", { precision: 10, scale: 2 }).notNull(),
+  pctOfParent: decimal("pctOfParent", { precision: 5, scale: 2 }).notNull(),
+  isFitOut: boolean("isFitOut").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AmenitySubSpace = typeof amenitySubSpaces.$inferSelect;
+export type InsertAmenitySubSpace = typeof amenitySubSpaces.$inferInsert;
