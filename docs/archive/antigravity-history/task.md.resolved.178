@@ -1,0 +1,20 @@
+# Market Intelligence Engine — Phase B
+
+## Fallback Scraping APIs
+- [/] Add ScrapingDog + ScrapingAnt fetch methods to BaseSourceConnector
+- [ ] Auto-failover chain: Firecrawl → ScrapingDog → ScrapingAnt → native fetch
+- [ ] Track which provider succeeded per request
+
+## Scheduler Upgrade
+- [ ] Weekly Source Discovery job (Sundays 04:00 UTC)
+- [ ] Freshness Re-scrape job (Wednesdays 06:00 UTC)
+
+## Prompt Accuracy Audit
+- [ ] Audit & fix Material Pricing prompt (Prompt A)
+- [ ] Audit & fix Developer Intel prompt (Prompt B)
+- [ ] Audit & fix Market Research prompt (Prompt C)
+- [ ] Audit & fix Government Data prompt (Prompt D)
+
+## Verification
+- [ ] TypeScript compilation check
+- [ ] Test suite passes

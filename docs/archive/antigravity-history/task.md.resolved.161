@@ -1,0 +1,13 @@
+# Phase 9 Integration Audit — Task Tracker
+
+- [x] **Gap A**: `generateBrief` — pass floorPlanAnalysis + spaceBenchmark data
+- [x] **Gap B**: DOCX export — add Section 7 (Space Allocation Analysis)
+- [x] **Gap C**: Investor PDF — add spaceEfficiency to interface + C½ HTML section
+- [x] **Gap D**: ShareView — resolveShareLink returns space data + UI section
+- [x] **Gap E**: ROI engine — 6th driver "Space Efficiency Optimization"
+- [x] **Gap F**: Sensitivity analysis — `spaceEfficiencyScore` as perturbable variable
+- [x] **Gap G**: Five-lens — space efficiency evidence in Brand/Vision lens
+- [x] **Gap H**: Insight generator — `space_optimization` insight type + check
+- [ ] **Gap I**: BriefEditor per-room costs (deferred — lower priority)
+- [x] **Gap J**: Tests — [v9-space.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v9-space.test.ts) covering benchmarking + normalization
+- [ ] Verify build passes with no type errors

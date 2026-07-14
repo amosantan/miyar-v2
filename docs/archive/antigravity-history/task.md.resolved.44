@@ -1,0 +1,11 @@
+# Phase 1: Smart Design Brain
+
+## Tasks
+- [x] P1-01: Define types — [SpaceRecommendation](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts#33-48), [KitchenSpec](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts#53-67), [BathroomSpec](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts#72-85), design package interfaces
+- [/] P1-02: Build AI Design Advisor engine (`ai-design-advisor.ts`) with Gemini integration
+- [ ] P1-03: Upgrade [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts) with dynamic fields + kitchen/bath specializations
+- [ ] P1-04: Add schema tables (`space_recommendations`, `design_packages`, `kitchen_specs`, `bathroom_specs`)
+- [ ] P1-05: Create `designAdvisor` TRPC router with all endpoints
+- [ ] P1-06: Upgrade [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) to AI-enhanced brief generation
+- [ ] P1-07: Build `DesignAdvisor.tsx` full-page dashboard UI
+- [ ] P1-08: Write tests + verify

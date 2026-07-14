@@ -1,0 +1,79 @@
+# Phase A.3 — Evidence Chain Click-Through
+
+**Goal:** Let investors click any cost number and trace it back to a named, dated, graded source — the #1 feature for "lender-grade" trust.
+
+---
+
+## Context
+
+The full data chain already exists in the DB:
+
+```
+benchmarkData (AED/sqm) ← evidence_records (price, snippet, date) ← source_registry (name, URL, grade)
+```
+
+**What exists (server):**
+- `evidenceRecords` — 1,493 records with `sourceRegistryId` FK, `priceMin/Typical/Max`, `extractedSnippet`, `reliabilityGrade`, `captureDate`, `itemName`, `category`
+- `sourceRegistry` — 24 columns: `name`, `url`, `reliabilityDefault` (A/B/C), `sourceType`, `lastSuccessfulFetch`
+- `db.listEvidenceRecords(filters)` — filters by category, reliabilityGrade, evidencePhase
+- `db.getEvidenceRecordById(id)` — single record lookup
+- `db.getSourceRegistryById(id)` — single source lookup
+
+**What's missing (client):**
+No UI surfaces this provenance chain. An investor sees "AED 4,200/sqm" but can't click it to see where that number comes from.
+
+---
+
+## Proposed Changes
+
+### Component: Reusable Evidence Panel
+
+#### [NEW] [client/src/components/EvidenceReferencesPanel.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/EvidenceReferencesPanel.tsx)
+
+> **Note:** A component with this name already exists — check if it already serves this purpose. If it does, enhance it. If not, create a new `EvidenceChainPanel.tsx`.
+
+A slide-out panel / drawer component that shows the provenance chain when an investor clicks a cost number. Contains:
+- **Header:** Item name, category badge, reliability grade (A/B/C color-coded)
+- **Price Evidence:** Min/Typical/Max AED with date captured
+- **Extracted Snippet:** The raw text from the source where the price was found
+- **Source Card:** Source name, URL (clickable), source type badge, last scraped date
+- **Freshness indicator:** Green/amber/red based on `captureDate` age
+
+---
+
+### Component: Server Endpoints
+
+#### [MODIFY] [server/routers/design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+
+Add one new endpoint:
+
+- `design.getEvidenceForCategory` — Given a category (e.g. "floors", "walls") and optional project context, returns the top evidence records with their source info joined. This powers the "click a number → see evidence" flow.
+
+---
+
+### Component: Client Integration Points
+
+#### [MODIFY] [client/src/pages/BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx)
+
+- Add clickable AED/m² values in the material breakdown
+- Each material row gains a small "evidence" icon button
+- Clicking opens the EvidenceChainPanel for that material category
+
+#### [MODIFY] [client/src/pages/InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)
+
+- In Section B (Material Specification) and Section C (Budget Synthesis), add "📎 Source" links
+- Clicking opens the evidence panel showing the provenance for that cost tier/category
+
+---
+
+## Verification Plan
+
+### Automated
+- Run `vite build` to confirm no TypeScript errors: `PATH="~/.nvm/versions/node/v22.22.0/bin:$PATH" npm run build`
+
+### Manual (User)
+1. Navigate to BriefEditor for any project with generated recommendations
+2. Click any material's AED/m² value → evidence panel should slide open
+3. Verify: evidence record shows price range, snippet, source name + URL, reliability grade
+4. Navigate to InvestorSummary → click any "📎 Source" link → same panel
+5. Close panel → verify it dismisses cleanly

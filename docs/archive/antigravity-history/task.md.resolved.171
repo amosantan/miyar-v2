@@ -1,0 +1,22 @@
+# Phase 10: Sales Premium & Yield Predictor Engine
+
+## Pre-flight
+- [x] Confirm test baseline (760 passing)
+- [x] Review [dld-analytics.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts) — reuse [computeYield()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#229-249), [computeMarketPosition()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#252-301)
+
+## 1. Types & Engine
+- [x] Add types to [shared/miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts)
+- [x] Create [server/engines/value-add-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/value-add-engine.ts)
+- [x] Create [server/engines/v10-sales-premium.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v10-sales-premium.test.ts) (24 tests passing)
+
+## 2. Router
+- [x] Create [server/routers/salesPremium.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/salesPremium.ts)
+- [x] Register in [server/routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts)
+
+## 3. Frontend
+- [x] Add Sales Premium panel to [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)
+
+## 4. Verification & Handover
+- [x] Phase 10 tests pass (24/24)
+- [ ] Manual browser test
+- [ ] Create V10 walkthrough

@@ -1,0 +1,69 @@
+# Auto-Sync Evidence Vault → Materials Library
+
+## Problem
+- **Materials Library**: 44 static, hardcoded items (from [seed-material-library.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db/seed-material-library.ts))
+- **Evidence Vault**: 400+ live scraped records with real AED prices from Firecrawl
+- **These are completely disconnected** — no data flows from Evidence to Materials
+- Materials Library is used in **design boards** (mood boards, material specifications)
+- Scoring/analysis uses Evidence Vault directly, but design workflows use Materials Library
+
+## Solution
+Add a **post-ingestion sync step** that automatically creates/updates Materials Library entries from new Evidence Vault data after each scrape run.
+
+## How it works
+
+```mermaid
+graph LR
+    A[Firecrawl Scrape] --> B[Evidence Vault]
+    B --> C[Evidence-to-Material Sync]
+    C --> D[Materials Library]
+    D --> E[Design Boards]
+    B --> F[Scoring & Analysis]
+```
+
+## Proposed Changes
+
+### Ingestion Engine
+
+#### [NEW] [evidence-to-materials.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/evidence-to-materials.ts)
+Post-ingestion step that:
+1. Queries new `evidence_records` with `category = 'material_cost'` from the current run
+2. Groups by material name (normalizes "Marble Tile 60x60" variants)
+3. For each unique material:
+   - If exists in `materials_catalog` → **update** cost range with latest prices
+   - If new → **insert** into `materials_catalog` with category, tier, price range
+4. Maps evidence categories to materials schema categories:
+   - `tile`, `stone`, `wood`, `metal`, `glass`, `paint`, `furniture`, `fixture`, etc.
+5. Auto-assigns tier based on price:
+   - economy: <50 AED/sqm
+   - mid: 50-200 AED/sqm
+   - premium: 200-500 AED/sqm
+   - luxury: 500-1000 AED/sqm
+   - ultra_luxury: >1000 AED/sqm
+
+#### [MODIFY] [orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts)
+- Call the sync function after each ingestion run completes
+- Log how many materials were created/updated
+
+---
+
+## Does Materials Library Affect Scoring?
+
+**No.** The scoring engine (`server/engines/`) does NOT reference `materials_catalog`. Scoring uses:
+- Evidence Records directly
+- Benchmark Proposals
+- Trend Tags
+
+However, the Materials Library **does affect**:
+- **Design Boards** (mood boards use materials from the catalog)
+- **Cost Estimation** (when users build material specs, they pick from the library)
+- **Reports** (material specifications reference catalog items)
+
+So keeping it synced means **designers see real market prices** when selecting materials.
+
+## Verification Plan
+
+### Automated Tests
+- Run scrape on Graniti UAE → verify new materials appear in Materials Library
+- Check that price ranges match evidence data
+- Verify deduplication (same material from multiple sources)

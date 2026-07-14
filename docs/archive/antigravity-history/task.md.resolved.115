@@ -1,0 +1,24 @@
+# MIYAR v3 — Phase C: Data Expansion
+
+## Phase A ✅ (complete)
+## Phase B ✅ (complete)
+
+## Phase C: Data Expansion
+- [x] C.1 — SCAD PDF scraper for material index tables
+  - [x] Add pdf-parse dependency
+  - [x] Create [SCADPdfConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/scad-pdf-connector.ts#63-235) in [scad-pdf-connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/scad-pdf-connector.ts)
+  - [x] Build table-to-benchmark pipeline (material → AED/unit via Gemini)
+  - [x] Register connector in `ALL_CONNECTORS` registry
+- [x] C.2 — Scale benchmarks from current count → 150+
+  - [x] Build [benchmark-seeder.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/benchmark-seeder.ts) engine (DLD-calibrated cross-product)
+  - [x] 7 typologies × 3 locations × 4 tiers × 5 materialLevels × 6 roomTypes = 2520 combos
+  - [x] Admin endpoint `admin.seedBenchmarks`
+- [x] C.3 — Synthetic data generator (labeled, gap-filling only)
+  - [x] Build [synthetic-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/synthetic-generator.ts) engine (neighbor interpolation)
+  - [x] Label all rows `sourceType: "synthetic"` + `sourceNote`
+  - [x] Admin endpoint `admin.generateSyntheticBenchmarks`
+  - [x] Add sourceType badge in Benchmarks UI (green/amber/blue)
+  - [x] Add "Seed Benchmarks" and "Fill Gaps" admin buttons
+- [/] Build verification
+
+## Phase D-E: Planned (not started)

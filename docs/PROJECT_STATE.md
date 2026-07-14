@@ -5,8 +5,8 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-14
-- Commit: `422fbe0`
-- Branch: `main`
+- Commit: `d8e5782` plus uncommitted repository-organization changes
+- Branch: `codex/loop-engineering-architecture`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 
@@ -27,17 +27,19 @@ This is the canonical location for current observed repository facts. It is not 
 - Domain engines: `server/engines/`
 - Database helpers: `server/db.ts`
 - Shared contracts: `shared/`
-- Historical documentation: `docs/reports/` and `antigravity-history/`
+- Serverless source entry: `server/serverless/index.ts`
+- Historical documentation: `docs/archive/` and `.agent/archive/`
+- Project artifacts: `docs/artifacts/`
 
 ## Health Observation
 
 At the observation above:
 
-| Command | Result | Evidence summary |
-|---|---|---|
-| `pnpm test` | FAIL | 799 passed, 9 failed, 22 skipped out of 830 tests |
-| `pnpm check` | FAIL | TypeScript errors in client pages, ingestion utilities, and server router contracts |
-| `pnpm build` | NOT CERTIFIED | Not used to override the red mandatory health gates |
+| Command      | Result | Evidence summary                                                                    |
+| ------------ | ------ | ----------------------------------------------------------------------------------- |
+| `pnpm test`  | FAIL   | 799 passed, 9 failed, 22 skipped out of 830 tests                                   |
+| `pnpm check` | FAIL   | TypeScript errors in client pages, ingestion utilities, and server router contracts |
+| `pnpm build` | PASS   | Client, Node server, and Vercel API bundle built after repository reorganization    |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
@@ -52,7 +54,7 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
 ## Working Tree Caution
 
-The observed worktree included user-owned uncommitted migration metadata, migration files, documents, spreadsheets, and local artifacts. Agents must inspect `git status` and preserve unrelated work. Untracked does not mean disposable.
+The observed worktree includes user-owned migration `0044` files and metadata that were not modified by the organization task. Local Word/Excel working artifacts now live under ignored `docs/artifacts/` categories, and the local PlanetScale CLI lives under ignored `.local/bin/`. Agents must continue to inspect `git status`; untracked does not mean disposable.
 
 ## Environment Uncertainties
 

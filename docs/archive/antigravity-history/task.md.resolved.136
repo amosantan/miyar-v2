@@ -1,0 +1,28 @@
+# MIYAR V4 — Fit-Out Oracle Implementation
+
+## Phase 1: Bug Fix — UnitMix React Child Error
+- [x] Fix "Objects are not valid as React child" error in [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx)
+- [x] Add safe JSON parsing with try/catch for unitMix and villaSpaces
+- [x] Wrap all rendered values with `String()` to prevent object rendering
+- [x] Correct units from sqft to sqm in Project Parameters display
+- [x] Add Fit-out Area display to Project Parameters
+
+## Phase 2: Schema Hardening
+- [x] Add `officeFitoutCategory` column to [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- [x] Add `officeCustomRatio` column to [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- [x] Add fields to `projectInputSchema` in [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+- [x] Add decimal-to-string conversion in create/update mutations
+- [ ] Push schema changes to DB (`npm run db:push`)
+
+## Phase 3: Engine Migration (GFA → NFA)
+- [/] Identify all files referencing `ctx03Gfa` for pricing
+- [ ] Migrate server engines to use [getPricingArea()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) instead of `ctx03Gfa`
+- [ ] Migrate client components that display area-based pricing
+
+## Phase 4: New Component — RoomCostWaterfall
+- [ ] Create `RoomCostWaterfall.tsx` for Investor Summary
+
+## Phase 5: Verification
+- [ ] Build check passes
+- [ ] Verify schema changes applied
+- [ ] Smoke test project creation and detail view

@@ -1,0 +1,16 @@
+# Priority 4: Post-Mortem / Outcome Learning Engine
+
+## Phase 1: DB Layer
+- [x] Update [createProjectOutcome()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1147-1170) in [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) to accept V5 fields
+
+## Phase 2: Evidence Generation Engine
+- [x] Create [post-mortem-evidence.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts) — convert deltas to evidence records
+
+## Phase 3: Router — learning.ts
+- [x] Add `submitPostMortem` mutation (validate → save → compare → evidence → audit)
+- [x] Add `getPostMortemStatus` query
+- [x] Auto-trigger `runComparison` after submission
+
+## Phase 4: Verification
+- [x] Run test suite — 655 pass, 0 regressions
+- [x] Commit (`665a0dc`) and push

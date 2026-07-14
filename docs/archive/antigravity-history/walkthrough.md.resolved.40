@@ -1,0 +1,56 @@
+# DLD Data Integration — Walkthrough
+
+## Overview
+
+Integrated Dubai Land Department transaction and rental data into MIYAR to power real estate analytics and interior design intelligence.
+
+## Data Ingested
+
+| Dataset | Records | Key Fields |
+|---------|---------|-----------|
+| **Transactions** | 5,000 | `meter_sale_price` (AED/sqm), `reg_type_en` (Off-Plan/Existing), `area_name_en`, `rooms_en` |
+| **Rent Contracts** | 5,000 | `annual_amount` (AED), `actual_area` (sqm), `ejari_property_sub_type_en`, `contract_reg_type_en` |
+| **Area Benchmarks** | 117 | P25/P50/P75, yield, recommended fitout bands — computed from above |
+
+### Top Areas by Benchmark Data
+
+| Area | P50 (AED/sqm) | Yield | Fitout Mid |
+|------|--------------|-------|-----------|
+| Marsa Dubai | 15,914 | 6.8% | 2,864 |
+| Burj Khalifa | 20,609 | 16.3% | 3,710 |
+| Business Bay | 20,451 | 5.5% | 3,681 |
+| Al Thanyah Fifth | 9,993 | 10.9% | 1,799 |
+| Al Warsan First | 6,250 | 25.2% | 1,125 |
+
+## Schema Changes
+
+### Modified Tables
+
+- [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts): `dld_transactions` (23 cols), `dld_rents` (22 cols), `dld_area_benchmarks` (22 cols) — all corrected from sqft→sqm
+- `projects`: Added `project_purpose` ENUM (`sell_offplan`, `sell_ready`, `rent`, `mixed`)
+
+### Key Correction: sqft → sqm
+
+DLD's `meter_sale_price` is **AED per sqm**, not per sqft. All schema columns, analytics engine methods, and comments updated.
+
+## Code Changes
+
+### [dld-analytics.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts)
+- All `pricePerSqft` → `pricePerSqm`, `rentPerSqft` → `rentPerSqm`
+- [getAreaSaleMedianSqm()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#304-317) simplified: returns DLD data directly (no sqft→sqm conversion)
+- [FitoutCalibration](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#41-54) interface: `saleMedianPerSqm`, `lowAedPerSqm`, etc.
+
+### [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx)
+- Added **Project Purpose** selector in Context step (4 options with fitout quality descriptions)
+
+### [ingest-dld-data.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/ingest-dld-data.ts)
+- Comprehensive ingestion script: drops/recreates tables, adds `project_purpose` column, batch-inserts 10K records, computes 117 area benchmarks
+
+## Verification
+
+- ✅ Build passes (6.50s)
+- ✅ 5,000 transactions ingested with 100% field coverage
+- ✅ 5,000 rent contracts ingested (rent_per_sqm calculated for 4,381 with valid area)
+- ✅ 117 area benchmarks computed and stored
+- ✅ `project_purpose` column added to projects table
+- ✅ Pushed as `8827f7e`

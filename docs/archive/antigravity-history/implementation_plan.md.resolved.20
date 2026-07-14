@@ -1,0 +1,21 @@
+# P0 Ship-Blockers: Migrations + Auth Guards
+
+## P0-1: Generate DB Migrations
+Run `npx drizzle-kit generate` to create migration SQL for 8 new tables:
+- `riskSurfaceMaps`, `stressTestResults`, `biasProfiles`, `biasAlerts`
+- `portfolioProjects`, `monteCarloSimulations`, `customerHealthScores`, `digitalTwinModels`
+
+## P0-2: Push Migrations to PlanetScale
+Run `npx drizzle-kit push` to apply migration to live database.
+
+## P0-3: Frontend Auth Guards
+#### [NEW] `RequireAuth.tsx` — Redirects unauthenticated users to `/login`
+#### [NEW] `RequireAdmin.tsx` — Checks `user.role === 'admin'`, redirects to `/dashboard` if not
+#### [MODIFY] [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) — Wrap protected routes with `<RequireAuth>`, wrap `/admin/*` with `<RequireAdmin>`
+
+> [!NOTE]
+> Backend admin procedures are already secured via `adminProcedure` in [trpc.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/trpc.ts). This P0 adds the **frontend** guard so users see proper redirects instead of broken/empty pages.
+
+## P0-4: Verify + Commit
+- `npx tsc --noEmit` 
+- Commit & push

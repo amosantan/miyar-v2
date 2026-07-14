@@ -1,0 +1,61 @@
+# V11: Cognitive Bias Framework — Walkthrough
+
+MIYAR now detects 7 cognitive biases in user inputs and provides mathematically-grounded intervention alerts. No competitor offers this.
+
+## What Was Built
+
+### Engine (3 new files)
+| File | Purpose |
+|------|---------|
+| [bias-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-types.ts) | Types, constants, UAE tier benchmarks |
+| [bias-detector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts) | 7 pure detectors + main [detectBiases()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts#545-581) |
+| [v11-bias.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v11-bias.test.ts) | 32 test cases |
+
+### 7 Detectors
+
+| # | Bias | Trigger Summary | Severity Range |
+|---|------|-----------------|----------------|
+| 1 | ☀️ Optimism | Luxury tier + budget 30%+ below median | medium–critical |
+| 2 | ⚓ Anchoring | Budget ±5% static across 3+ evaluations | medium–critical |
+| 3 | 🔍 Confirmation | Multiple positive overrides on sub-65 score | medium–critical |
+| 4 | 🎯 Overconfidence | Max brand/diff (5/5) + low competitor (≤2) | medium–critical |
+| 5 | 📐 Scope Creep | High complexity + tight timeline + weak supply chain | medium–high |
+| 6 | 💸 Sunk Cost | 3+ declining evaluations, score < 60 | medium–critical |
+| 7 | 🎲 Clustering Illusion | Trend ≥4 vs evidence-based trend gap ≥2 | medium–high |
+
+### Database (2 new tables)
+- `bias_alerts` — per-evaluation bias detections with evidence, intervention, math explanation
+- `bias_profiles` — aggregated per-user bias tendencies with trend tracking
+
+### API (1 new router)
+[bias.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/bias.ts): 5 endpoints (`getAlerts`, `getActiveAlerts`, [dismiss](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1901-1908), `getProfile`, `getInterventionReport`)
+
+### Pipeline Integration
+[project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts): [evaluate](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/risk/risk-evaluator.ts#19-88) mutation now runs [detectBiases()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts#545-581) after scoring, stores results, updates profiles. Non-blocking (try/catch).
+
+### Frontend (1 new component)
+[BiasAlerts.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/BiasAlerts.tsx): Severity-colored cards with expandable evidence, math explanations, intervention recommendations, and dismiss buttons. Integrated into Risk & Actions tab of [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx).
+
+## Test Results
+
+```
+✓ 32 tests passed (0 failed) in 12ms
+
+Optimism Bias: 4/4 ✓
+Anchoring Bias: 3/3 ✓
+Confirmation Bias: 4/4 ✓
+Overconfidence: 4/4 ✓
+Scope Creep: 3/3 ✓
+Sunk Cost: 4/4 ✓
+Clustering Illusion: 4/4 ✓
+Integration: 6/6 ✓
+```
+
+## Deployment Steps
+
+1. Run migration: `npx drizzle-kit push` (or apply [drizzle/0027_fixed_masque.sql](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0027_fixed_masque.sql))
+2. Rebuild API bundle: `npm run build`
+3. Deploy to Vercel
+
+## Deferred
+- V11-07: Report integration (bias section in PDF reports) — can be added incrementally

@@ -1,0 +1,37 @@
+# UI Redesign — Task List
+
+## 1 · Design System Foundation
+- [x] Update CSS variables in [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css) (gold/navy/champagne palette)
+- [x] Add Manrope font import
+- [x] Add glassmorphism utility classes
+- [x] Add animation keyframes (fadeInUp, slideIn, float, shimmer, pulse-gold, gradient-shift, scroll-hint)
+- [x] Update `--primary` to gold `#C9A96E`
+- [x] Add `.text-gold-gradient`, `.bg-gold-gradient` utility classes
+- [x] Add stagger delay helpers (`.delay-100` through `.delay-700`)
+
+## 2 · Homepage Redesign ([Home.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Home.tsx))
+- [x] Section 1: Animated hero with gradient bg + floating stats + V5 badge
+- [x] Section 2: 6 glassmorphism feature cards with hover effects
+- [x] Section 3: 4-step "How It Works" horizontal timeline
+- [x] Section 4: Trust signals with animated counters (DLD, Estidama, RICS)
+- [x] Section 5: 3D perspective dashboard preview with fake chart
+- [x] Section 6: Version changelog (V5→V1 timeline with feature lists)
+- [x] Section 7: Premium footer with 3-column layout
+- [x] Fixed nav bar with glassmorphism
+- [x] AnimatedCounter + AnimatedSection (IntersectionObserver) components
+
+## 3 · Sidebar & Top Bar ([DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx))
+- [x] Gold gradient MIYAR logo with مِعيار subtitle
+- [x] Gold accent on hover/active states
+- [x] Glassmorphism login card (unauthenticated state)
+- [x] Top bar: gold-bordered search (⌘K), navy background
+
+## 4 · Dashboard Enhancement
+- [x] Gold KPI card styling propagated via CSS variables
+- [x] Chart colors updated to gold spectrum
+
+## 5 · Verification
+- [x] TypeScript compile check (no new errors)
+- [x] Visual verification via browser screenshot
+- [x] Git commit: `feat: UI Redesign — gold/navy design system, premium homepage, sidebar & top bar refresh`
+- [x] Git push to main

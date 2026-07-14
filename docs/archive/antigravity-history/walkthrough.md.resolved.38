@@ -1,0 +1,124 @@
+# MIYAR v3 — Session Walkthrough
+
+## Commits This Session
+
+| Commit | Description |
+|--------|-------------|
+| `0ee48a3` | Fix Vercel deployment: sonner toast API + ShareView type annotations |
+| `b1fb85c` | Project memory: GEMINI.md, PROGRESS.md, TODO.md |
+| `37ff78b` | **Phase A.3 — Evidence Chain Click-Through** |
+| `e0ae186` | **Phase A.4 — Data Freshness Badges** |
+| `34c2ad6` | **Phase B.2 — Connector Health Dashboard** |
+
+---
+
+## Phase A.3 — Evidence Chain Click-Through
+
+### What Was Built
+
+**Goal:** Let investors click any cost number and trace it back to a named, dated, graded source.
+
+| Layer | File | What |
+|-------|------|------|
+| DB | [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) | [getEvidenceWithSources()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#2172-2220) — JOIN evidence_records + source_registry |
+| API | [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) | `design.getEvidenceChain` query endpoint |
+| Component | [EvidenceChainDrawer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/EvidenceChainDrawer.tsx) | 230-line slide-out Sheet with full provenance cards |
+| Integration | [BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx) | 📎 on every AED/m² badge |
+| Integration | [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) | "📎 View Evidence Chain" on Section B header |
+
+### Each Evidence Card Shows
+
+1. **Item name** + spec class
+2. **Reliability grade** badge (A = green, B = amber, C = red)
+3. **Price range grid**: Low / Typical / High in AED
+4. **Extracted evidence snippet** (the raw text from the source)
+5. **Source provenance**: name, type, URL link, freshness indicator
+6. **Record ID + capture date**
+
+### Verification
+
+- `vite build` ✅ (6.06s)
+- Pushed to main `37ff78b`
+
+---
+
+## Key Audit Finding
+
+**Phase A.1 (Ask MIYAR NL Query) and A.2 (Stress Test Visualization) were already fully built.** The Dashboard has a working search bar wired to [nl-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/nl-engine.ts) (Text→SQL→Execute→Interpret pipeline), and the Scenarios page has stress test mutations with resilience scores. Both were skipped as already complete.
+
+---
+
+## Phase A.4 — Data Freshness Badges
+
+### What Was Built
+
+**Goal:** Show investors at a glance whether market data is current, aging, or stale.
+
+| Layer | File | What |
+|-------|------|------|
+| DB | [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) | [getConnectorHealthSummary()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1731-1741) + [getIngestionRunHistory()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1752-1759) (both pre-existing) |
+| API | [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) | `design.getDataFreshness` endpoint — overall health + per-source freshness |
+| Component | [DataFreshnessBanner.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DataFreshnessBanner.tsx) | 200-line expandable banner with dot indicators |
+| Integration | [Dashboard.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Dashboard.tsx) | Compact strip between header and Ask MIYAR |
+| Integration | [BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx) | Sidebar below UAE Market Constants title |
+| Integration | [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) | Expanded view in Section E (Market Intelligence) |
+
+### Freshness Indicators
+
+- 🟢 **Fresh** (≤7 days) — data updated within the last week
+- 🟡 **Aging** (8–30 days) — data still usable but getting old
+- 🔴 **Stale** (>30 days) — data needs refresh, investor should be aware
+
+### Verification
+
+- `vite build` ✅ (6.09s)
+- Pushed to main `e0ae186`
+
+---
+
+## Phase A Summary
+
+| Phase A Item | Status |
+|-------------|--------|
+| A.1 Ask MIYAR NL Query | ✅ Already built (Dashboard search bar) |
+| A.2 Stress Test Visualization | ✅ Already built (Scenarios page) |
+| A.3 Evidence Chain Click-Through | ✅ Built this session (`37ff78b`) |
+| A.4 Data Freshness Badges | ✅ Built this session (`e0ae186`) |
+
+**Phase A is complete.** All "Wire What We Have" items are done.
+
+---
+
+## Phase B — Data Multiplier
+
+### B.1: Scheduler — Already Coded ✅
+
+The ingestion scheduler (173 lines, [server/engines/ingestion/scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts)) is fully built:
+- Uses `node-cron` with per-source configurable schedules
+- Reads active sources from DB, groups by schedule, creates separate cron jobs
+- Staggered execution (30s between sources)
+- Already wired to boot at `server/_core/index.ts:101`
+
+> [!IMPORTANT]
+> Won't work on Vercel serverless — needs a persistent server (Railway, Cloud Run, or Render) to keep the cron running.
+
+### B.2: Connector Health Dashboard — Shipped (`34c2ad6`)
+
+| Layer | File | What |
+|-------|------|------|
+| Page | [ConnectorHealth.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/admin/ConnectorHealth.tsx) | 340-line admin dashboard |
+| Route | `/admin/connector-health` via App.tsx | AdminOnly protected |
+| Nav | DashboardLayout sidebar | Activity icon |
+
+Features:
+- 5 pipeline status cards (scheduler state, total runs, records ingested, sources, next run)
+- Per-source health grid with expandable rows (status, success rate, response time, error detail)
+- Recent runs timeline (ID, trigger type, source stats, duration)
+- Run All Sources button + per-source re-run button
+- Wires all 7 existing ingestion router endpoints
+
+## Next Steps
+
+- **Phase B.3:** DLD (Dubai Pulse) API connector (needs API key)
+- **Phase C:** Data Expansion (SCAD scraper, benchmark scaling)
+- **Phase D:** Governance & Compliance (sustainability checklists, audit trail)

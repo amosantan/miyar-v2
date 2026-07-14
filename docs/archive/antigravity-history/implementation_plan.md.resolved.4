@@ -1,0 +1,45 @@
+# Integrate Firecrawl for Intelligent Web Scraping
+
+## Problem
+Current scraper uses `globalThis.fetch()` (basic HTTP GET) which **cannot render JavaScript**. Modern e-commerce sites like Graniti UAE load products via React/JS — so we only get empty HTML shells. Result: 3 items from a site with 100+ products.
+
+## Solution
+Integrate **Firecrawl** (`@mendable/firecrawl-js`) — a headless browser API that:
+- ✅ Renders JavaScript (SPAs, React, Next.js)
+- ✅ Bypasses Cloudflare/bot protection
+- ✅ Returns clean markdown (perfect for LLM extraction)
+- ✅ Built-in multi-page crawling with link discovery
+- ✅ Free tier: 500 credits/month
+
+## Proposed Changes
+
+### Ingestion Engine
+
+#### [MODIFY] [connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts)
+- Add `fetchWithFirecrawl()` method to [BaseSourceConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#215-316)
+- Falls back to basic [fetch()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#74-75) if Firecrawl API key is not set
+- Returns rendered HTML/markdown content
+
+#### [MODIFY] [dynamic.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts)
+- Use Firecrawl's `scrapeUrl()` for single-page sources
+- Use Firecrawl's `crawlUrl()` for catalog/retailer sources (multi-page)
+- Process markdown content (cleaner than HTML for LLM)
+- Increase content window to 16KB (markdown is more compact)
+
+---
+
+### Environment
+
+- Add `FIRECRAWL_API_KEY` env var (get from [firecrawl.dev](https://firecrawl.dev))
+- Add to Vercel environment variables
+
+### Dependencies
+
+- `@mendable/firecrawl-js` npm package
+
+## Verification Plan
+
+### Automated Tests
+- Run single source scrape on Graniti UAE, expect 50+ items
+- Run single source scrape on IKEA UAE, expect products with prices
+- Compare old vs new item counts

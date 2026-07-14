@@ -126,18 +126,18 @@ Product success should be measured by outcomes rather than feature count:
 
 ## Decision Authority
 
-| Decision | Authority |
-|---|---|
-| Narrative, extraction, design suggestion | AI-assisted with human review |
-| Calculation, score, quantity, range | Deterministic versioned code |
-| Benchmark/evidence promotion | Governed human/admin workflow |
-| Project input and override | Authorized project user |
-| Compliance interpretation | Qualified professional using MIYAR evidence |
-| Production release or migration | Authorized engineering/operations owner |
+| Decision                                 | Authority                                   |
+| ---------------------------------------- | ------------------------------------------- |
+| Narrative, extraction, design suggestion | AI-assisted with human review               |
+| Calculation, score, quantity, range      | Deterministic versioned code                |
+| Benchmark/evidence promotion             | Governed human/admin workflow               |
+| Project input and override               | Authorized project user                     |
+| Compliance interpretation                | Qualified professional using MIYAR evidence |
+| Production release or migration          | Authorized engineering/operations owner     |
 
 ## Product Documentation
 
 - Current architecture: `docs/ARCHITECTURE.md`
 - Current verified implementation state: `docs/PROJECT_STATE.md`
 - Current and future priorities: `docs/ROADMAP.md`
-- Historical phase claims: `docs/reports/` and `antigravity-history/`
+- Historical phase claims: `docs/archive/` and `.agent/archive/`

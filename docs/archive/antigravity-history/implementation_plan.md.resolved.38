@@ -1,0 +1,200 @@
+# Phase 9: AI Design Visualization & Plan Intelligence
+
+## Problem Statement
+
+MIYAR currently generates **generic mood boards and renders** that say "luxury living room in Dubai" without referencing the actual materials a user selected in Phase 8. Developers who are experienced in the market will immediately see this as superficial — they know what Calacatta marble looks like vs. Bianco Statuario. If the render shows the wrong stone, trust is broken.
+
+Similarly, the space planning engine ([space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts)) uses **hardcoded room-ratio templates** (e.g., "Living & Dining = 28% of GFA"). It doesn't analyze the developer's actual floor plan. A developer who uploads a plan for a 3-bedroom in Business Bay expects MIYAR to say *"Your master suite is 14% of NFA — projects in this area with 18%+ master suites sell for 8% more per sqft based on 847 DLD transactions"*, not generic advice about room percentages.
+
+**Phase 9 bridges the gap between financial modeling and physical reality.**
+
+---
+
+## Pillar A: Material-Deterministic Visual Generation
+
+### A.1 — Inject Board Materials into Visual Prompts
+
+> [!IMPORTANT]
+> This is the highest-impact change. The current [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) [buildPromptContext()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#19-47) uses `inputs.des01Style` and `inputs.mkt01Tier` — generic labels. It must instead pull the **exact material names, brands, and finishes** from the project's active Material Board.
+
+#### [MODIFY] [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts)
+
+- Extend [PromptContext](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#9-18) interface to include:
+  - `boardMaterials: BoardMaterialSpec[]` — array of `{ name, category, brand, tier, finish }` from the active board
+  - `carbonGrade: string` — sustainability grade (A–E) derived from board's average embodied carbon
+  - `brandStandard: string` — the project's `brandStandardConstraints` value
+- Add new function `buildBoardAwarePromptContext(project, boardMaterials)` that:
+  1. Fetches material board items for the project
+  2. Groups them by room/category (flooring, walls, fixtures, lighting)
+  3. Builds a material specification string like: *"Flooring: Cosentino Dekton Trilium (large format porcelain), Walls: Venetian plaster in warm ivory, Fixtures: Grohe Allure Brilliant in brushed nickel"*
+- Modify [generateDefaultPrompt()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#59-72) to inject the material specification string into every prompt type (mood, material_board, hero)
+
+#### [MODIFY] [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) — `generateVisual` procedure (L345)
+
+- Before generating the visual, fetch the project's active Material Board via `db.getMaterialBoardsByProject()`
+- If a board exists, call `buildBoardAwarePromptContext()` instead of the generic [buildPromptContext()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#19-47)
+- Pass the enriched prompt to Gemini Image API
+
+---
+
+### A.2 — Room-Specific Render Generation
+
+#### [NEW] [room-render-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/room-render-engine.ts)
+
+Create a new engine that generates renders **per room** rather than generic whole-project visuals:
+
+1. Accept a `roomId` from the space program (e.g., `LVG` = Living & Dining)
+2. Filter the board materials to only those relevant to that room's category
+3. Build a hyper-specific prompt: *"Photorealistic interior render of a 45 sqm Living & Dining room in a Luxury residential apartment, Business Bay, Dubai. Flooring: RAK Ceramics Maximus large-format tiles in Sahara Beige (1200x600mm). Wall finish: Farrow & Ball 'Jitney' textured lime wash. Ceiling: recessed LED cove lighting with warm 3000K. Furniture: contemporary Italian modular sofa in cream bouclé fabric. Window treatment: floor-to-ceiling sheer linen panels. Design style: Contemporary Minimal."*
+4. Include the room's budget allocation from the space program so the render matches the spend tier
+
+#### [MODIFY] [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+
+- Add new procedure `generateRoomRender` that accepts `{ projectId, roomId }` and calls the room render engine
+
+---
+
+## Pillar B: Data-Driven Floor Plan Intelligence
+
+### B.1 — Floor Plan Upload & Storage
+
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) — `projects` table
+
+- Add `floorPlanAssetId: int("floorPlanAssetId")` — FK to `project_assets`
+- Add `floorPlanAnalysis: json("floorPlanAnalysis")` — stores the AI-extracted room breakdown
+
+#### [MODIFY] [ProjectForm.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx)
+
+- Add a "Floor Plan Upload" step to the project wizard (Step 2, after Basic Info)
+- Accept PDF or image (JPG/PNG) uploads
+- Display a preview thumbnail after upload
+- Store via existing `project_assets` table + `storagePut()`
+
+---
+
+### B.2 — Gemini Vision Floor Plan Analyzer
+
+> [!IMPORTANT]
+> This is where MIYAR stops being generic. Instead of using hardcoded room ratios, we send the actual floor plan image to Gemini Vision and ask it to measure rooms, identify spaces, and calculate ratios.
+
+#### [NEW] [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts)
+
+Create a new engine that:
+
+1. Takes the uploaded floor plan image/PDF
+2. Sends it to **Gemini 2.0 Flash** with a structured extraction prompt:
+   - *"Analyze this architectural floor plan. Identify every room/space. For each, estimate: room name, approximate area in sqm, percentage of total floor area, room type (bedroom, bathroom, living, kitchen, corridor, balcony, utility). Return as JSON array."*
+3. Returns a structured `FloorPlanAnalysis`:
+   ```typescript
+   interface FloorPlanAnalysis {
+     rooms: Array<{
+       name: string;
+       type: "bedroom" | "bathroom" | "living" | "kitchen" | "corridor" | "balcony" | "utility" | "office" | "lobby" | "other";
+       estimatedSqm: number;
+       percentOfTotal: number;
+       finishGrade: "A" | "B" | "C";
+     }>;
+     totalEstimatedSqm: number;
+     bedroomCount: number;
+     bathroomCount: number;
+     balconyPercentage: number;
+     circulationPercentage: number;
+   }
+   ```
+4. Stores the result in `projects.floorPlanAnalysis`
+
+---
+
+### B.3 — Space Ratio Benchmarking Engine
+
+> [!CAUTION]
+> This is the feature that separates MIYAR from every other tool. Generic advice like "your kitchen is small" is worthless. Data-driven advice like *"In Business Bay, 3-bedroom apartments with kitchen areas >10% of NFA sell for 12% more (based on 412 DLD transactions, 2023-2025)"* is **priceless**.
+
+#### [NEW] [space-benchmarking.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-benchmarking.ts)
+
+Create a new engine that:
+
+1. Takes the AI-extracted `FloorPlanAnalysis` and the project's `dldAreaId`
+2. Fetches DLD area benchmarks (`saleP50`, `transactionCount`, `grossYield`) for the project's area
+3. Compares each room's ratio against **statistical benchmarks per area and typology**
+4. Generates actionable intelligence recommendations:
+   - Which rooms are undersized vs. comparable sold units
+   - Which rooms are oversized (wasting budget)
+   - Specific % adjustments with projected financial impact (tied to DLD sale price data)
+5. Returns `SpaceBenchmarkResult`:
+   ```typescript
+   interface SpaceBenchmarkResult {
+     recommendations: Array<{
+       roomName: string;
+       currentPercent: number;
+       benchmarkPercent: number;  // area-specific average
+       delta: number;            // positive = oversized, negative = undersized
+       financialImpact: string;  // "Increasing master suite by 15% → +8% sale price (based on 847 transactions)"
+       severity: "critical" | "advisory" | "optimal";
+       dataSource: string;       // "DLD Business Bay, 2023-2025, n=847"
+     }>;
+     overallEfficiencyScore: number;  // 0-100
+     circulationWastePercent: number;
+     balconyToLivingRatio: number;
+   }
+   ```
+
+#### [MODIFY] [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts)
+
+- Replace hardcoded room ratios with AI-extracted ratios when `floorPlanAnalysis` is available
+- Fall back to hardcoded ratios only when no floor plan is uploaded
+
+---
+
+### B.4 — Space Intelligence Router & UI
+
+#### [MODIFY] [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+
+- Add `analyzeFloorPlan` procedure: accepts `{ projectId }`, reads the uploaded plan asset, runs Gemini Vision analysis, stores result
+- Add `getSpaceBenchmark` procedure: accepts `{ projectId }`, returns the space benchmarking result with DLD-backed recommendations
+
+#### [NEW] [SpacePlanner.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/SpacePlanner.tsx)
+
+- New page accessible from the project detail sidebar
+- Shows the uploaded floor plan with an overlay of room labels + percentages
+- Below it, displays the DLD-backed recommendations with severity indicators
+- Financial impact cards: "If you make these 3 changes, projected sale price increases by +X%"
+
+---
+
+## Sub-Task Checklist
+
+| # | Task | Pillar | Dependencies | Complexity |
+|---|------|--------|-------------|------------|
+| 9.1 | Schema: Add `floorPlanAssetId` + `floorPlanAnalysis` to projects | B | None | Low |
+| 9.2 | Floor Plan Upload in `ProjectForm.tsx` wizard | B | 9.1 | Medium |
+| 9.3 | Gemini Vision Floor Plan Analyzer engine | B | 9.1, 9.2 | High |
+| 9.4 | Space Ratio Benchmarking engine (DLD-backed) | B | 9.3 | High |
+| 9.5 | Update [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts) to use AI-extracted ratios | B | 9.3 | Medium |
+| 9.6 | Router: `analyzeFloorPlan` + `getSpaceBenchmark` | B | 9.3, 9.4 | Medium |
+| 9.7 | UI: `SpacePlanner.tsx` page | B | 9.6 | Medium |
+| 9.8 | Inject Board Materials into [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) prompts | A | Phase 8 ✅ | Medium |
+| 9.9 | Room-Specific Render Engine + `generateRoomRender` procedure | A | 9.5, 9.8 | High |
+
+**Recommended execution order:** 9.1 → 9.2 → 9.3 → 9.8 → 9.4 → 9.5 → 9.6 → 9.9 → 9.7
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+1. **`npm run check`** — TypeScript compilation must pass after all changes
+2. **Schema migration:** `npm run db:push` — verify new columns exist with `SHOW COLUMNS FROM projects LIKE 'floorPlan%'`
+
+### Browser Tests
+
+3. **Floor Plan Upload:** Navigate to `/projects/new`, upload a sample floor plan image, verify it appears in `project_assets` table
+4. **Space Analysis:** After upload, trigger `analyzeFloorPlan`, verify `floorPlanAnalysis` JSON is populated in the project row
+5. **Visual Generation:** Generate a mood board for a project WITH a material board — verify the prompt contains actual material names (check server logs)
+6. **Room Render:** Generate a room-specific render and verify the prompt references only that room's materials
+
+### Manual Verification
+
+7. **User review:** The user should upload a real floor plan from one of their projects and review the AI-extracted room breakdown for accuracy
+8. **DLD recommendations:** The user should verify the financial impact projections against their market knowledge

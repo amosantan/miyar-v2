@@ -1,6 +1,0 @@
-# Task: Verify Market Intelligence UI
-
-- [ ] Navigate to http://localhost:3003/market-intelligence
-- [ ] Wait 3 seconds for rendering
-- [ ] Capture screenshot
-- [ ] Record screenshot path

@@ -1,0 +1,87 @@
+# Phase B: Adaptive Project Creator UI
+
+## Goal
+Replace the freetext unit-mix/villa-spaces fields in [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) with **structured area-entry sub-forms** that auto-calculate `totalFitoutArea` based on the project archetype. Each archetype shows different relevant fields.
+
+---
+
+## Proposed Changes
+
+### Typology → Archetype Mapping
+
+| Typology | Archetype | Sub-form |
+|----------|-----------|----------|
+| Residential, Mixed-use, Gated Community | `residential_multi` | Unit Mix Builder |
+| Villa, Villa Development | `single_villa` | Room List Builder |
+| Office | `office` | Shell & Core Toggle |
+| Hospitality | `hospitality` | Unit Mix Builder (BOH/FOH variant) |
+
+---
+
+### [MODIFY] [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx)
+
+#### 1. Auto-derive archetype from typology
+Add a `getArchetype(typology)` helper that maps the 7 typologies to 5 archetypes. Set `projectArchetype` in form state whenever typology changes.
+
+#### 2. Unit Mix Builder (residential_multi)
+Replaces the freetext `unitMix` textarea:
+- Table with rows: Unit Type (e.g. "Studio", "1BR", "2BR"), Area (sqm), Count, Include in Fitout (checkbox)
+- Add/Remove row buttons
+- Auto-sum: `totalFitoutArea = Σ (areaSqm × count)` for included units
+- Apply archetype efficiency ratio from `ARCHETYPE_EFFICIENCY`
+
+#### 3. Room List Builder (single_villa)
+Replaces the freetext `villaSpaces` textarea:
+- Grouped by floor (e.g. Ground, First, Basement)
+- Each room: Name, Area (sqm)
+- Common villa presets: Majlis, Show Kitchen, Master Suite, Guest Suite, Maid's Room, etc.
+- Auto-sum per floor + total
+
+#### 4. Shell & Core Toggle (office)
+- Binary: "Cat A (Shell & Core)" vs "Cat B (Full Fitout)"
+- Cat A: fitout ratio = 0.35 of GFA (lobbies, washrooms, lift lobbies only)
+- Cat B: fitout ratio = 0.70 of GFA (full tenant fitout)
+- Simple slider for custom ratio override
+
+#### 5. Fitout Area Summary (all archetypes)
+In the Context step (step 0), after the archetype sub-form:
+- Show calculated `totalFitoutArea` with unit breakdown
+- Show fitout ratio badge (colored: green if within benchmark, amber if outside)
+- Show "GFA" vs "Fitout Area" side-by-side
+
+#### 6. Review Step Update
+- Add "Fitout Area" and "Fitout Ratio" rows to the review grid
+- Flag efficiency warnings
+
+#### 7. Form Data & Submission
+- Add `totalFitoutArea`, `totalNonFinishArea`, `projectArchetype` to form state
+- `totalFitoutArea` is auto-calculated (not manually entered)
+- Submit sends structured `unitMix` (as JSON array), `villaSpaces` (as JSON array), plus V4 fields to the `project.create` mutation
+
+---
+
+### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+Minor fix: the `create` mutation needs to handle string-serialized `unitMix` and `villaSpaces` from the form (the schema already accepts arrays, but the form was sending strings).
+
+---
+
+## Verification Plan
+
+### Automated Tests
+```bash
+# Existing test suite — confirm no regressions
+npx vitest run
+```
+
+### Browser Verification
+1. Navigate to `/projects/new`
+2. Select **Residential** typology → verify Unit Mix Builder appears with add/remove rows
+3. Enter 3 unit types with areas → verify fitout area auto-calculates
+4. Switch to **Villa** typology → verify Room List Builder replaces Unit Mix
+5. Switch to **Office** → verify Shell & Core toggle appears
+6. Complete all 7 steps → verify Review step shows both GFA and Fitout Area
+7. Create project → verify `totalFitoutArea` and `projectArchetype` are saved in DB
+
+### Manual Verification
+- User deploys to staging and creates a project with each typology to verify conditional fields

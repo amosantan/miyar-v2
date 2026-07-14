@@ -1,0 +1,19 @@
+# Phase 9 Deep Integration Audit — All Gaps
+
+## P0 — Critical
+- [/] **Gap A**: `generateBrief` doesn't pass floor plan data to engine
+- [ ] **Gap B**: DOCX export ignores space data
+- [ ] **Gap C**: Investor PDF export has zero Phase 9 data
+
+## P1 — High
+- [ ] **Gap D**: ShareView missing Phase 9 data
+
+## P2 — Medium
+- [ ] **Gap J**: No Phase 9 tests
+- [ ] **Gap E**: ROI engine ignores space efficiency
+- [ ] **Gap H**: Insight generator ignores space data
+
+## P3 — Lower
+- [ ] **Gap F**: Sensitivity analysis ignores space efficiency
+- [ ] **Gap G**: Five-Lens ignores space data
+- [ ] **Gap I**: BriefEditor per-room costs

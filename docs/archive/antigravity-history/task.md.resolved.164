@@ -1,0 +1,27 @@
+# UX Overhaul — Task Tracker
+
+## P0 — Navigation Restructuring
+- [x] Simplify sidebar: ~49 items → ~10 for clients
+- [x] Move market-intel internal pages to admin-only sidebar
+- [x] Gate 8 market-intel routes as [AdminOnly](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx#82-94) in [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx)
+- [x] Keep DLD Insights + Competitors as client-accessible
+- [x] Update `activeMenuItem` lookup
+- [x] Verify in browser — confirmed working
+
+## P0 — Fix Broken Pages & Dashboard
+- [x] Fix Dashboard quick actions (was pointing to admin pages)
+- [x] Remove hardcoded dummy chart from project rows
+- [x] Review Competitors page — functional, data-dependent
+- [ ] Add error boundary for project pages (other devs' projects)
+
+## P1 — Mobile Responsiveness
+- [x] Enhanced mobile CSS: tabs scroll, dialog fullwidth, badge wrap
+- [x] Form field stacking on mobile
+- [x] Flex container wrapping
+- [x] Card padding reduction
+- [ ] Verify mobile responsiveness in browser
+
+## P2 — Polish
+- [ ] Consistent page headers with breadcrumbs
+- [ ] Loading skeleton states
+- [ ] Standardized terminology

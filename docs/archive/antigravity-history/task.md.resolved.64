@@ -1,0 +1,26 @@
+# Priority 3: RFQ & Tender — Design Brief Pipeline
+
+## Phase 1: Schema
+- [x] Add `briefId` and `pricingSource` columns to `rfq_line_items`
+- [x] Push schema with `drizzle-kit push`
+
+## Phase 2: Engine — rfq-generator.ts
+- [x] Add [buildRFQFromBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#144-352) — generates sections from `boqFramework.coreAllocations`
+- [x] Add material filtering from `materialSpecifications` (approved/prohibited)
+- [x] Add cost inheritance from `detailedBudget.totalBudgetCap`
+- [x] Keep backward-compatible [buildRFQPack()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#355-509) overload
+
+## Phase 3: Engine — board-composer.ts
+- [x] Add `briefConstraints` parameter to [generateRfqLines()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts#82-100)
+- [x] Add `budgetComplianceCheck` to [BoardSummary](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/board-composer.ts#31-46)
+
+## Phase 4: Router — design.ts
+- [x] Add `generateRfqFromBrief` mutation endpoint
+- [x] Import [buildRFQFromBrief](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts#144-352) and [DesignBriefData](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#10-70) type
+
+## Phase 5: Router — project.ts (legacy path)
+- [x] Update legacy `design_brief` report to create Brief first, then generate RFQ
+
+## Phase 6: Verification
+- [x] Run full test suite — 655 pass, 0 regressions
+- [x] Commit (`97310b1`) and push

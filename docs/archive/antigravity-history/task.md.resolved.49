@@ -1,0 +1,29 @@
+# Phase 3: Live Data Scraping Pipeline
+
+## Stream 1 — Supplier Price Sources
+- [x] Create source seeder script with 22 UAE sources
+- [x] Build multi-page crawler with depth/budget limits
+- [ ] Seed sources into source_registry table (run seeder after deploy)
+
+## Stream 2 — Competitor Intelligence
+- [x] Create competitor scraper connector (DynamicConnector handles this)
+- [x] Add developer sources (Emaar, DAMAC, Aldar, Sobha, Ellington)
+
+## Stream 3 — Design Trend Detection
+- [x] Add `design_trends` table to schema
+- [x] Create trend detection from trade publications (Dezeen, ArchDaily, CID)
+- [x] Push schema migration
+
+## Stream 4 — Source Management TRPC
+- [x] listSources endpoint
+- [x] createSource endpoint
+- [x] toggleSource endpoint
+- [x] runRegisteredSource endpoint (scrape now)
+- [x] seedSources endpoint
+- [x] getTrends endpoint
+
+## Build & Deploy
+- [x] Build passes
+- [x] Schema migration pushed to PlanetScale
+- [x] Committed and pushed to GitHub
+- [ ] Seed sources via the app (after Vercel deploys)

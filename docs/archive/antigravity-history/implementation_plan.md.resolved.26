@@ -1,0 +1,71 @@
+# Phase C — Advanced DLD Analytics
+
+Wire existing DLD engine methods into live analysis + build a DLD Insights Dashboard.
+
+## Scope
+
+| # | Item | Status | Work |
+|---|------|--------|------|
+| C.1 | Market Positioning Score | Engine exists, never called | Wire into [evaluate](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts#413-483) + expose via endpoint |
+| C.2 | Over/Under-Spec Detection | Inside [computeMarketPosition()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#252-301) | Wire risk flags into scoring + brief |
+| C.3 | Rental Yield in ROI | [computeYield()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#229-249) exists | Wire into `roi` handler narrative |
+| C.4 | DLD Insights Dashboard | Nothing exists | New page + endpoint |
+| C.5 | Area Comparison Endpoint | Nothing exists | New endpoint for dashboard |
+
+---
+
+## Proposed Changes
+
+### C.1 + C.2: Market Position + Spec Risk in Evaluate
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+In [evaluate](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts#413-483) handler, after scoring, call [computeMarketPosition()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#252-301) and return spec risk flags alongside score result:
+```typescript
+import { computeMarketPosition } from "../engines/dld-analytics";
+
+// After scoring completes:
+if (project.dldAreaId) {
+  const benchmark = await db.getDldAreaBenchmark(project.dldAreaId);
+  if (benchmark) {
+    const marketPos = computeMarketPosition(
+      expectedCost, Number(benchmark.saleP50),
+      inputs.mkt01Tier.toLowerCase(), 
+      Number(benchmark.saleP25), Number(benchmark.saleP75)
+    );
+    // Attach to evaluation result
+  }
+}
+```
+
+### C.3: Rental Yield in ROI
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+In `roi` handler, add DLD gross yield to ROI narrative when project has `dldAreaId`.
+
+### C.4 + C.5: DLD Insights Dashboard
+
+#### [NEW] [DldInsights.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DldInsights.tsx)
+
+New page at `/market/dld-insights` showing:
+- **Area benchmarks table** (all 117 areas, sortable)
+- **Top areas by yield** bar chart
+- **Price distribution** P25/P50/P75 visual per area
+- **Dataset stats** (transaction count, rent count, last updated)
+
+#### [MODIFY] [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+
+Add `getAreaComparison` endpoint that returns all area benchmarks with computed fields.
+
+#### [MODIFY] [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) + [Sidebar.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/Sidebar.tsx)
+
+Add route + nav entry for DLD Insights.
+
+---
+
+## Verification
+
+- Run [evaluate](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts#413-483) on project with `dldAreaId` → verify market position + spec flags in response
+- Visit `/market/dld-insights` → verify all 117 areas render with sortable data
+- Generate ROI for rental project → verify yield appears in narrative

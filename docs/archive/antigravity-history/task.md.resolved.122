@@ -1,0 +1,38 @@
+# UI Redesign — Task List
+
+## 1 · Design System Foundation
+- [ ] Update CSS variables in `index.css` (gold/navy/champagne palette)
+- [ ] Add Manrope font import
+- [ ] Add glassmorphism utility classes
+- [ ] Add animation keyframes (fadeInUp, slideIn, float, shimmer)
+- [ ] Update `--primary` to gold `#C9A96E`
+
+## 2 · Homepage Redesign ([Home.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Home.tsx))
+- [ ] Section 1: Animated hero with gradient bg + floating stats
+- [ ] Section 2: 6 glassmorphism feature cards with hover effects
+- [ ] Section 3: 4-step "How It Works" horizontal timeline
+- [ ] Section 4: Dashboard preview mockup (3D perspective)
+- [ ] Section 5: UAE market trust signals + animated counters
+- [ ] Section 6: Version changelog (V5→V1 timeline)
+- [ ] Section 7: Premium footer
+- [ ] Generate feature card preview images
+
+## 3 · Sidebar Streamlining ([DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx))
+- [ ] Reduce nav groups from 5 to 4 (merge Analysis + Market Intel)
+- [ ] Update gold accent styling (logo, active state, hover)
+- [ ] Add collapsible group animations
+- [ ] Update user avatar section with role badge
+
+## 4 · Dashboard Enhancement ([Dashboard.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Dashboard.tsx))
+- [ ] Add welcome banner with gradient
+- [ ] Redesign KPI cards with glassmorphism
+- [ ] Update Recent Projects table styling
+- [ ] Add quick action buttons row
+- [ ] Add score trend chart styling
+
+## 5 · Verification
+- [ ] Check responsive breakpoints (375px, 768px, 1440px)
+- [ ] Verify animation performance
+- [ ] Test homepage public access
+- [ ] TypeScript compile check
+- [ ] Commit & push

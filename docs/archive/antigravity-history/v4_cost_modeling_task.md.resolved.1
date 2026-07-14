@@ -1,0 +1,19 @@
+## Phase 1: Planning and Research
+- [x] Analyze `evidence_records` and `benchmark_proposals` to understand live market data flow.
+- [x] Analyze [server/engines/design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) BOQ cost generation logic.
+- [x] Analyze [server/engines/design/rfq-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/rfq-generator.ts) material pricing logic.
+- [x] Create [v4_cost_modeling_implementation_plan.md](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/v4_cost_modeling_implementation_plan.md) outlining dynamic pricing engine.
+
+## Phase 2: Building the Dynamic Pricing Engine
+- [/] Create `server/engines/pricing-engine.ts`.
+- [/] Implement `getLiveCategoryPricing(finishLevel: string)` to query approved `benchmark_proposals`.
+- [/] Implement `syncMaterialsWithBenchmarks()` to bulk-update `materials.priceAedMin` and `priceAedMax` from approved benchmarks.
+
+## Phase 3: Wiring Market Data to Output Briefs
+- [ ] Refactor [server/engines/design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) to calculate `boq.coreAllocations` bottom-up using dynamic prices from `getLiveCategoryPricing`.
+- [ ] Ensure `budget.costPerSqmTarget` is derived from real dynamic prices rather than static mappings.
+
+## Phase 4: Procurement Sync and Testing
+- [ ] Add `syncMaterialPricing` TRPC endpoint in [server/routers/admin.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/admin.ts).
+- [ ] Create unit tests in `server/engines/pricing.test.ts` to validate bottom-up BOQ aggregations.
+- [ ] Validate standard vs luxury dynamic ranges in a generated Design Brief.

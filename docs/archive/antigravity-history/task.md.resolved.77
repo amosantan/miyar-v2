@@ -1,0 +1,46 @@
+# MIYAR Build Playbook — Execution Tracker
+
+## Phase A: Production Polish ✅
+- [x] A1: Deploy ingestion scheduler as cron/worker *(already boots on server start)*
+- [x] A2: Wire NL Query UI — add "Ask MIYAR" search bar to Dashboard ✅
+- [x] A3: Wire alert delivery (email via Resend) ✅
+- [x] A4: Submit first real post-mortem via seed script ✅
+- [x] A5: Ensure Gemini API key is in all environments *(already configured)*
+
+## Phase B: Data Enrichment ✅
+- [x] B1: Seed 200+ benchmarks covering all typologies & tiers ✅ (162 new, ~220+ total)
+- [x] B2: Add live UAE property connectors (Bayut) ✅
+- [x] B3: Add PropertyFinder connector ✅
+- [x] B4: Run trend snapshots backfill (504 snapshots, 32 distinct metrics) ✅
+- [x] B5: Seed 20+ competitor projects *(45 exist from prior seed)* ✅
+
+## Pre-Phase C: Verification ✅
+- [x] Test suite: 678 pass / 4 pre-existing failures (auth + board-pdf)
+- [x] Fixed DFE test suite: category mapping expectations aligned to implementation
+- [x] Fixed v2-connectors test: connector count 12 → ≥12 (now 22)
+- [x] Dev server starts without errors (16 cron jobs, 86 active sources)
+- [x] Dashboard loads with Ask MIYAR search bar ✅
+- [x] DB verified: 220 benchmarks, 504 trends, 45 competitors, 15 entities, 1 outcome
+- [x] Source Registry: 86 sources, 9 types, Bayut + PropertyFinder confirmed ✅
+- [x] Ingestion Monitor: 22 connectors, 352 runs, 1429 records ✅
+- [x] Benchmark Proposals page showing data ✅
+- [x] Competitors page showing OMNIYAT, Sobha, Aldar, DAMAC ✅
+- [x] Trend Tags: 15 tags visible ✅
+
+## Phase C: Build Portfolio Page
+- [ ] C1–C6: Portfolio tables, engine, page, PDF, alerts
+
+## Phase D: Risk & Economic Modeling (V9)
+- [ ] D1–D6: Stress test engine, acceleration model, risk heatmap
+
+## Phase E: Cognitive Bias Detection (V11)
+- [ ] E1–E4: Bias engine, scoring triggers, UI, alerts
+
+## Phase F: Monte Carlo & Time-Series (V4 Complete)
+- [ ] F1–F4: Monte Carlo, material forecast, trend projection
+
+## Phase G: Customer Success (V12)
+- [ ] G1–G4: Health scores, intervention, dashboard, reports
+
+## Phase H: Digital Twin & Sustainability (V13)
+- [ ] H1–H4: EPD fields, sustainability engine, gauge, standards

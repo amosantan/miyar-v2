@@ -1,0 +1,36 @@
+# MIYAR 2.0 — Intelligent Intake System
+
+## Phase 2.0-A: Schema Extension + Upload Endpoint
+- [x] Add `assetType`, `aiExtractionResult`, `aiContributions` columns to `project_assets`
+- [x] Add `floor_plan`, `voice_note` to category enum
+- [x] Create intake router with `getUploadUrl` and `recordAsset` endpoints
+
+## Phase 2.0-B: AI Intake Engine
+- [x] Create [server/engines/intake/ai-intake-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts)
+- [x] Multimodal processing: images, PDFs, audio, video, URLs, text
+- [x] Floor plan detection + reuse of [analyzeFloorPlan()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts#89-198)
+- [x] Per-field confidence and reasoning
+- [x] Validate all outputs against ProjectInputs enums
+
+## Phase 2.0-C: Intake Router
+- [x] `processAssets` endpoint calling AI engine
+- [x] `listAssets` and `linkAssetsToProject` endpoints
+- [x] Register in [routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts)
+
+## Phase 2.0-D: NewProject Rewrite
+- [x] Drag-and-drop upload zone
+- [x] URL paste input
+- [x] Voice recorder (MediaRecorder API)
+- [x] Freeform text description
+- [x] Analyze & Auto-Fill button → AI processing → review phase
+- [x] Confidence badges and detected insights display
+- [x] Skip to Manual Form bypass
+- [x] Browser verification passed
+
+## Phase 2.0-E: AI Assist on ProjectForm
+- [ ] Per-section "Ask AI" buttons on ProjectForm wizard
+- [ ] AI suggest values for individual fields
+- [ ] Confidence badges on AI-populated form fields
+
+## Phase 2.0-F: Chat Refinement (fast-follow, deferred)
+- [ ] `refineWithChat` — interactive chat to iterate on AI suggestions

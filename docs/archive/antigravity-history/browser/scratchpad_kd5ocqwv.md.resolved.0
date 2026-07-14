@@ -1,0 +1,13 @@
+# Task: Test MIYAR 2.0 AI Assist in ProjectForm
+
+## Plan
+- [ ] Navigate to `http://localhost:3000/projects/new`
+- [ ] Click "Skip to Manual Form"
+- [ ] Verify "AI Assist" button in the CardHeader of Step 1 (Context)
+- [ ] Take screenshot of the button
+- [ ] Click "AI Assist" and wait for response
+- [ ] Take screenshot of the result (suggestions panel or loading state)
+- [ ] Report findings
+
+## Progress Tracking
+- 2026-03-02: Initialized plan.

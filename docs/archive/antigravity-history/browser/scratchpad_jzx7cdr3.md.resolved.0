@@ -1,0 +1,15 @@
+# MIYAR 2.0 Intelligent Intake Verification Plan
+
+- [ ] Navigate to http://localhost:3000/projects/new
+- [ ] Handle login if prompted (amos@miyar.io / test123)
+- [ ] Verify UI elements:
+    - [ ] "Tell MIYAR about your project" heading
+    - [ ] Drag-and-drop upload zone
+    - [ ] URL input field
+    - [ ] Project description text area
+    - [ ] "Record Voice Note" button
+    - [ ] "Analyze & Auto-Fill" button
+    - [ ] "Skip to Manual Form" option
+- [ ] Take screenshot of the empty page
+- [ ] Input "Luxury villa in Dubai Marina" and take screenshot
+- [ ] Report results

@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_OTHER",
+  "summary":  "MIYAR V4 'Fit-out Oracle' deep gap analysis report. Covers Phase A (Adaptive Project Creator) — identifies unitMix/villaSpaces JSON stubs, missing totalFitoutArea column, archetype mapping gaps. Phase B (PDF Extraction) — recommends Gemini vision over pdf-lib, two-pass extraction pipeline, confidence scoring. Phase C (Verification Gate) — identifies missing status enum value, proposes AreaVerification.tsx page. Phase D (Analytics Engine) — maps 50+ ctx03Gfa callsites, identifies ROI/scoring/normalization migration needs. Includes full impact map across schema, engines, routers, frontend, and 9 test files. Provides enhanced implementation order (~12 days) and 5 additional feature recommendations.",
+  "updatedAt":  "2026-02-27T17:41:35.300619Z"
+}

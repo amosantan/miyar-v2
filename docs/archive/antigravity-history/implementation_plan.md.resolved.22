@@ -1,0 +1,149 @@
+# MIYAR Design Intelligence Engine — Strategic Roadmap
+
+## Reality Check (What Already Exists)
+
+After a deep codebase audit, the app already has substantial design infrastructure that is **scattered and disconnected**:
+
+| What Exists | Where |
+|---|---|
+| AI space recommendations (per room, with materials + budget) | [DesignAdvisor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignAdvisor.tsx) + `design-advisor.ts` |
+| 7-section structured design brief (with DOCX export) | [DesignBrief.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignBrief.tsx) + `design-brief` engine |
+| Per-room visual generation (mood boards, renders, material boards) | [DesignAdvisor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignAdvisor.tsx) → Visuals tab |
+| RFQ line item builder | `rfq-generator` engine + `rfqLineItems` table |
+| Procurement pricing engine | [pricing-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pricing-engine.ts) |
+| Board composer with material catalog | `board-composer` engine + `materialLibrary` table |
+| ROI models table | `projectRoiModels` table |
+| Finish schedule items | `finishScheduleItems` table |
+
+**The core problem:** These features are all project-scoped but **never surfaced together** in a coherent investor-facing output. An investor sees no single view that unifies: *design vision → material spec → cost analytics → ROI*.
+
+---
+
+## Strategic Phasing
+
+```
+Phase 1 (Week 1-2): Audit & Connect     — Fix broken wiring, activate dormant features
+Phase 2 (Week 2-3): Investor Dashboard  — Build the unified investor output view
+Phase 3 (Week 3-4): Brief → Numbers     — Connect design brief to live pricing analytics
+Phase 4 (Month 2):  Market Grounding    — Tie specs to UAE market intelligence data
+Phase 5 (Month 2+): Export & Handover   — Full deliverable package for investor or designer
+```
+
+---
+
+## Phase 1 — Audit & Connect Dormant Features
+> **Goal:** Understand what's wired and working vs. broken/stub. Activate existing engines.
+
+### Tasks
+
+#### 1.1 — Audit existing routers for stub vs. live endpoints
+- [ ] Test `design.generateBrief` in production — does it actually call Gemini?
+- [ ] Test `designAdvisor.generateRecommendations` — does the `nano-banana-client` produce real data?
+- [ ] Test `design.getRfqLines` / `buildRFQFromBrief` — does it produce line items?
+- [ ] Test `getLiveCategoryPricing` — is it hitting real price data or returning stubs?
+
+#### 1.2 — Fix wiring in [server/_core/index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/index.ts)
+- [ ] Confirm `designRouter` and `designAdvisorRouter` are registered and accessible via tRPC client
+
+#### 1.3 — Identify dead pages
+- [ ] Check if `DesignStudio.tsx`, `VisualStudio.tsx`, `BoardComposer.tsx` are routed and accessible
+- [ ] Check if [DesignBrief.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignBrief.tsx) route `/projects/:id/brief` is registered in the router
+
+#### 1.4 — Fix the missing link: `material_constants` → `designAdvisor`
+- [ ] The `material_constants` table (seeded with 9 material types + pricing) is not yet referenced by the `designAdvisor` engine
+- [ ] **Fix:** When generating space recommendations, cross-reference selected materials with `material_constants` to inject real `costPerM2` values
+
+---
+
+## Phase 2 — Investor Dashboard (The Key Missing Piece)
+> **Goal:** Build a single "Investor View" page that unifies design output into numbers an investor can act on.
+
+### The Core Insight
+Right now design output lives inside [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx) tabs. **An investor visiting a project sees scores and charts, not design + budget synthesis.** We need a dedicated view.
+
+### Tasks
+
+#### 2.1 — New page: `client/src/pages/InvestorSummary.tsx`
+- [ ] Route: `/projects/:id/investor-summary`
+- [ ] **Section A — Design Identity Card**: Pull from `aiDesignBriefs` → show style, tier, target demographic, positioning statement
+- [ ] **Section B — Material Spec Panel**: Pull from `spaceRecommendations` + `material_constants` → show material mix with real AED/m² costs
+- [ ] **Section C — Budget Synthesis**: Pull from `rfqLineItems` + space budget allocations → show total fitout cost with breakdown by category
+- [ ] **Section D — ROI Bridge**: Pull/compute from `projectRoiModels` → show how design tier assumptions affect projected sales premium and IRR
+
+#### 2.2 — Navigation link in `Sidebar.tsx` or within [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx)
+- [ ] Add "Investor View" tab or sidebar link for every project with a generated brief
+
+---
+
+## Phase 3 — Brief → Numbers (Closing the Loop)
+> **Goal:** Make the design brief the **source of truth** for cost analytics instead of a disconnected output.
+
+### Tasks
+
+#### 3.1 — Enrich `generateBrief` engine output with cost data
+- [ ] **[MODIFY] [server/engines/design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts)**: After generating style/material guidance, run `calculateMaterialCost()` using `material_constants` and space areas to add a `pricingAnalytics` section to the brief JSON
+- [ ] Fields: `estimatedCostPerSqm`, `totalFitoutCost`, `materialCostBreakdown[]`, `premiumPotential`
+
+#### 3.2 — Bidirectional brief editing
+- [ ] **[NEW] `client/src/pages/BriefEditor.tsx`**: Allow designers to adjust material tier (e.g., upgrade "gypsum" to "stone") and see the cost delta recalculate in real time
+- [ ] Connect to `calculateAnalytics` tRPC procedure (to be created in `design-evaluator.ts`)
+
+#### 3.3 — New endpoint: `design.calculateSpec`
+- [ ] **[NEW] endpoint in [server/routers/design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)**
+- [ ] Input: `projectId`, array of `{ materialType, areaM2 }` 
+- [ ] Logic: Cross-reference with `material_constants` table, apply `maintenanceFactor` + `carbonIntensity`
+- [ ] Output: `{ totalCostAed, carbonKg, sustainabilityGrade, maintenanceCostYear }`
+
+---
+
+## Phase 4 — Market Grounding (UAE Context)
+> **Goal:** Anchor design specs to real UAE market intelligence data (prices, trends, competitors).
+
+### Tasks
+
+#### 4.1 — Connect `designTrends` to recommendations
+- [ ] **[MODIFY] `design-advisor.ts` → [generateRecommendations](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sustainability/digital-twin.ts#320-365)**: Query `designTrends` (populated by ingestion) and inject trending styles/materials as bias signals into the Gemini prompt
+
+#### 4.2 — Connect `market_intelligence` to budget benchmarks
+- [ ] When showing cost per sqm, overlay it against the market benchmark stored in `benchmarkData` for the same `mkt01Tier` and `ctx04Location` combination
+
+#### 4.3 — Competitor intelligence in brief
+- [ ] Surface top 3 comparable projects from `sourceRegistry` with similar style + tier as a "Competitor Context" section in the brief
+
+---
+
+## Phase 5 — Export & Handover Package
+> **Goal:** Produce a single downloadable package that gives the investor or designer everything they need.
+
+### Tasks
+
+#### 5.1 — Enhance DOCX export ([docx-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts))
+- [ ] Currently outputs 7-section text brief
+- [ ] **Add**: Material spec table with costs, budget summary table, AI-generated images embedded
+
+#### 5.2 — PDF Investor Report
+- [ ] **[NEW] `server/engines/investor-report-pdf.ts`**: Generate a polished PDF using `pdfkit` or `puppeteer` containing: Design Identity + Visual renders + Material costs + ROI bridge + Market benchmarks
+
+#### 5.3 — Shareable link
+- [ ] **[NEW] endpoint**: `design.createShareLink` — generates a public (or token-gated) URL for `/share/:token` that renders the investor summary view without requiring login
+
+---
+
+## Recommended Approach
+
+> [!IMPORTANT]
+> **Don't build new — connect existing.** 80% of the code is already written. The highest-ROI work is Phase 1 (audit what's broken) and Phase 2 (the Investor Dashboard). Phase 3 closes the design-to-numbers loop.
+
+**Suggested 2-sprint execution order:**
+1. **Sprint 1**: Phase 1 + Phase 2 (2 weeks)
+2. **Sprint 2**: Phase 3 + Phase 4 (2 weeks)
+3. **Sprint 3**: Phase 5 + polish (1 week)
+
+## Verification Plan
+
+### Per Phase
+- **Phase 1**: `npx vitest run` with no new failures. All audited endpoints return non-stub data in Postman/curl.
+- **Phase 2**: Navigate to `/projects/:id/investor-summary`, verify all 4 sections render with real data.
+- **Phase 3**: Change material tier in `BriefEditor`, verify cost recalculates in < 1s.
+- **Phase 4**: Seed 3 `designTrends` records, regenerate recommendations, verify trend-influenced output.
+- **Phase 5**: Download DOCX and PDF — verify images + tables render cleanly.

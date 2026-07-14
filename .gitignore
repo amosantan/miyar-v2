@@ -17,6 +17,7 @@ build/
 # IDE and editor files
 .vscode/
 .idea/
+.obsidian/
 *.swp
 *.swo
 *~
@@ -100,6 +101,9 @@ jspm_packages/
 # Temporary folders
 tmp/
 temp/
+.local/
+.~lock.*
+*.timestamp-*.mjs
 
 # Database
 *.db
@@ -110,3 +114,7 @@ temp/
 .webdev/
 .vercel
 api-build/
+
+# Local business artifacts (use Git LFS or explicit force-add after review)
+docs/artifacts/**/*.docx
+docs/artifacts/**/*.xlsx

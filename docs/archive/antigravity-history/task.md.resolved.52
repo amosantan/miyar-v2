@@ -1,0 +1,11 @@
+# Tasks
+
+## Source-Type-Specific Extraction
+- [ ] Add 5 new columns to evidence_records schema
+- [ ] Run DB migration
+- [ ] Fix broken CATEGORY_MAP in orchestrator
+- [ ] Build 4 source-type-specific LLM prompts
+- [ ] Update DynamicConnector to select prompt by sourceType
+- [ ] Update normalize() to map new fields
+- [ ] Build and deploy
+- [ ] Re-scrape test sources to verify

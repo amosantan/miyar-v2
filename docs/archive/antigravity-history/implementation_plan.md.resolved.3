@@ -1,0 +1,147 @@
+# Phase 3: Live Data Scraping Pipeline
+
+Fully automated market intelligence pipeline that scrapes supplier prices, competitor projects, design trends, and benchmarks from UAE market sources — feeding the MIYAR scoring and recommendation engines.
+
+## Existing Infrastructure (Already Built)
+
+The ingestion engine is already robust:
+- [connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts) — [BaseSourceConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#215-316) with retry, backoff, robots.txt
+- [connectors/dynamic.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts) — [DynamicConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts#47-177) reads config from `source_registry` DB table
+- [orchestrator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/orchestrator.ts) — Parallel execution, dedup, evidence persistence
+- [scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts) — Per-source cron scheduling via `source_registry.scrapeSchedule`
+- `source_registry` table — Full DFE config (method, hints, headers, schedule, health tracking)
+
+**What's needed:** Seed real sources, add specialized extractors, build management UI, add multi-page crawling.
+
+---
+
+## Proposed Changes
+
+### Stream 1 — Supplier Price Sources (seed 15+ UAE sources)
+
+#### [NEW] Source Seeder Script
+`server/engines/ingestion/seeds/uae-sources.ts`
+
+Seed the `source_registry` table with real UAE supplier/material sources:
+
+| Source | Type | Category | Schedule |
+|--------|------|----------|----------|
+| granitiuae.com | supplier_catalog | tiles, sanitary, outdoor | Weekly |
+| rakceramics.com | manufacturer_catalog | ceramics, tiles | Weekly |
+| porcelanosa.com/ae | manufacturer_catalog | tiles, bathroom | Weekly |
+| hafele.ae | supplier_catalog | hardware, kitchen fittings | Bi-weekly |
+| ikea.com/ae | retailer_listing | furniture, kitchen, bathroom | Weekly |
+| acemart.ae | retailer_listing | building materials | Weekly |
+| danube.com | retailer_listing | building materials, tools | Weekly |
+| homes-r-us.com | retailer_listing | furniture, FF&E | Bi-weekly |
+| pansidubai.com | supplier_catalog | marble, stone | Monthly |
+| leminar.com | supplier_catalog | MEP, HVAC | Monthly |
+| al-futtaim.com | retailer_listing | multi-brand retail | Monthly |
+| dragonmart.ae | retailer_listing | wholesale materials | Weekly |
+| gems-bm.com | supplier_catalog | building materials | Weekly |
+
+Each entry includes `extractionHints` tailored to the site's HTML structure (e.g., product cards, price selectors, material categories).
+
+#### [NEW] Multi-Page Crawler
+`server/engines/ingestion/crawler.ts`
+
+Sites like granitiuae.com have hundreds of product pages. The current connector fetches only the homepage. This adds:
+- **URL Discovery** — Extract internal product/category links from the fetched page
+- **Depth-Limited Crawl** — Follow up to `maxDepth` (default 2) levels of product pages
+- **Rate Limiting** — Configurable `requestDelayMs` per source (from `source_registry`)
+- **Page Budget** — Max pages per crawl session (default 20) to control LLM costs
+
+---
+
+### Stream 2 — Competitor Intelligence
+
+#### [NEW] Competitor Scraper Connectors
+`server/engines/ingestion/connectors/competitor.ts`
+
+Specialized extractor for UAE developer brochures/project pages:
+
+| Source | Data Extracted |
+|--------|----------------|
+| emaar.com | Project specs, pricing tiers, material lists |
+| damac.com | Finishing specs, design themes |
+| aldar.com | Project portfolios, specification sheets |
+| sobha.com | Interior design descriptions, material quality |
+| ellington.com | Design philosophy, material brands used |
+| omniyat.com | Ultra-luxury specifications |
+
+LLM extraction prompts tuned to extract:
+- **Design tier** (standard/premium/ultra-luxury)
+- **Material brands** mentioned
+- **FF&E specifications** (kitchens, bathrooms)
+- **Price per sqft** (if disclosed)
+
+---
+
+### Stream 3 — Design Trend Detection
+
+#### [NEW] Trend Scraper
+`server/engines/ingestion/connectors/trends.ts`
+
+Scrapes design publications and social feeds for trend signals:
+
+| Source | Type | Focus |
+|--------|------|-------|
+| dezeen.com/tag/dubai | trade_publication | Architecture trends |
+| archdaily.com/tag/uae | trade_publication | Design trends |
+| designboom.com | trade_publication | Material innovation |
+| commercialinteriordesign.com | industry_report | UAE interior trends |
+| Instagram hashtags (#dubaiinteriors, #uaeinteriordesign) | aggregator | Visual trends |
+
+LLM prompt extracts: **trend name**, **confidence** (emerging/established/declining), **material references**, **style classification** (modern/classical/biophilic/etc.)
+
+#### [NEW] Design Trend Schema
+[drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) — new `design_trends` table
+
+```sql
+design_trends (
+  id, trendName, trendCategory,
+  confidenceLevel (emerging/established/declining),
+  sourceUrl, description, relatedMaterials JSON,
+  firstSeenAt, lastSeenAt, mentionCount
+)
+```
+
+---
+
+### Stream 4 — Source Management UI
+
+#### [MODIFY] Source Registry Admin Page
+`client/src/pages/SourceRegistry.tsx` (already exists)
+
+Enhance with:
+- **Add Source** form (URL, type, schedule, extraction hints)
+- **Health Dashboard** — green/amber/red status per source, last scraped, record count
+- **Manual Trigger** — "Scrape Now" button per source
+- **Crawl Log Viewer** — See last extraction results
+
+---
+
+### [MODIFY] Scheduler Enhancement
+[server/engines/ingestion/scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts)
+
+Currently runs all sources on the same schedule. Enhancement:
+- Already reads per-source `scrapeSchedule` from DB ✅
+- Add **stale source alerting** — flag sources with 3+ consecutive failures
+- Add **auto-disable** — pause sources after 5 consecutive failures + notification
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. `npx vitest run server/engines/ingestion/` — existing tests pass
+2. New test: `crawler.test.ts` — verify multi-page crawl respects depth/page budget
+3. New test: `competitor.test.ts` — verify LLM prompt templates produce valid output
+4. New test: `seed.test.ts` — verify seeder creates correct source_registry entries
+
+### Manual Verification
+1. Run seeder → verify 15+ sources in `source_registry` table
+2. Trigger manual scrape of granitiuae.com → verify evidence records created
+3. Trigger competitor scrape → verify design tier/material extraction
+4. Check scheduler picks up new sources with their custom schedules
+5. Verify Source Registry UI shows health status

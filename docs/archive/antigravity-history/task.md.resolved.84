@@ -1,0 +1,28 @@
+# MIYAR Build Playbook — Execution Tracker
+
+## Phase A: Production Polish ✅
+- [x] A1–A5: All complete and verified
+
+## Phase B: Data Enrichment ✅
+- [x] B1–B5: All complete and verified
+
+## Pre-Phase C: Verification ✅
+- [x] 678/704 tests passing, DB healthy, all pages verified
+
+## Phase C: Build Portfolio Page ✅
+- [x] C1–C6: All complete and verified
+
+## Phase D: Risk & Economic Modeling (IN PROGRESS)
+- [x] D1: Wire stress tests to scenario router
+- [x] D2: Wire economic models (ROI) to scenario router
+- [x] D3: Wire risk surface map generation + persistence
+- [x] D4: Add scenario ranking endpoint
+- [x] D5: Stress test UI panel in Scenarios page
+- [x] D6: Build Risk Heatmap page (`/risk-heatmap`)
+- [x] D7: ROI & Economic panel in Scenarios page
+
+## Phase E–H: Future
+- [ ] E: Cognitive Bias Detection
+- [ ] F: Monte Carlo & Time-Series
+- [ ] G: Customer Success
+- [ ] H: Digital Twin & Sustainability

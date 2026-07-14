@@ -1,0 +1,15 @@
+# MIYAR 2.0 Intelligent Intake Verification
+
+## Task Checklist
+- [ ] Open `http://localhost:3000/projects/new`
+- [ ] Verify page elements:
+    - [ ] Heading: "Tell MIYAR about your project"
+    - [ ] Upload zone: "Drop files here or click to browse"
+    - [ ] URL paste input
+    - [ ] Textarea for vision
+    - [ ] "Record Voice Note" button
+    - [ ] "Analyze & Auto-Fill" button (disabled)
+    - [ ] "Skip to Manual Form →" link
+- [ ] Capture screenshot
+- [ ] Check console logs for errors
+- [ ] Final report

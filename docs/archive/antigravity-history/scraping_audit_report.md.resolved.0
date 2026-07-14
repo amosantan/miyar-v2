@@ -1,0 +1,121 @@
+# 🔍 MIYAR Live Scraping Audit Report
+**Date:** 2 March 2026 | **Tested:** 8/90 active sources
+
+---
+
+## Executive Summary
+
+| Metric | Value |
+|--------|-------|
+| Sources tested | 8 |
+| Successful scrape + extract | **0** (0%) |
+| Content fetched (partial) | **4** (50%) |
+| Blocked/failed | **4** (50%) |
+| Evidence records in DB | 100 (from 19 URLs) |
+
+> [!CAUTION]
+> The scraping pipeline has **two critical issues**: (1) Firecrawl is out of credits — all scraping depends on fallback APIs, and (2) LLM extraction returns 0 items from fetched HTML on most sources, meaning even successful fetches don't produce evidence.
+
+---
+
+## Issue #1: Fallback Chain Bug (FIXED ✅)
+
+`DynamicConnector.fetch()` was calling [fetchWithFirecrawl()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#263-305) → [fetchBasic()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#479-554) directly, completely **bypassing ScrapingDog, ScrapingAnt, and Apify**. This has been fixed — the crawl loop now uses `super.fetch()` which invokes the full chain.
+
+**Before fix:** 7/8 sources failed (43 chars returned)
+**After fix:** 4/8 sources fetch 280K–7.2M chars
+
+---
+
+## Issue #2: Firecrawl Out of Credits ⚠️
+
+Every source hit: `"Insufficient credits to perform this request"`. The entire pipeline depends on fallback APIs until Firecrawl credits are replenished.
+
+**Recommendation:** Upgrade Firecrawl plan or adjust the chain to skip Firecrawl checks when credits are known to be exhausted (cache the "insufficient credits" error for 24h).
+
+---
+
+## Issue #3: ScrapingDog Unreliable ❌
+
+ScrapingDog returned errors on every attempt:
+- `"This operation was aborted"` (timeout — PropertyFinder, ScrapingAnt)
+- `"ScrapingDog HTTP 400: Bad Request"` (CID Magazine, JLL)
+- `"fetch failed"` (ArchDaily)
+
+**Recommendation:** Investigate ScrapingDog API configuration — the `render=true` parameter may need `dynamic=true` as well. Consider moving ScrapingDog down in the chain below ScrapingAnt.
+
+---
+
+## Issue #4: LLM Extraction Returning 0 Items ❌
+
+This is the **most critical issue**. Even when content is fetched (287K–675K chars), LLM extraction returns **0 items**:
+
+| Source | Content Fetched | Items Extracted |
+|--------|----------------|-----------------|
+| Dezeen (287K chars) | ✅ | **0** |
+| CID Magazine (348K chars) | ✅ | **0** |
+| JLL MENA (675K chars) | ✅ | **0** |
+| Kasco PDF (7.2M chars) | ✅ | **0** |
+| Tilesman (via crawl) | ✅ | **3** ✅ |
+
+**Root Cause:** The HTML from fallback scrapers is raw HTML (not markdown). The content is truncated to 16,000 chars in the LLM prompt, but the first 16K chars of raw HTML are mostly `<head>`, CSS, and scripts — the actual content is buried deeper. Only Tilesman worked because it's a simple site.
+
+**Fix needed:**
+1. Strip `<script>`, `<style>`, `<nav>`, `<footer>`, `<header>` tags before sending to LLM
+2. Extract text-only content (remove all HTML tags)
+3. Focus the content window on `<main>`, `<article>`, or `<div class="content">` areas
+4. Increase snippet size to 32K chars for HTML (LLM can handle it)
+
+---
+
+## Issue #5: CAPTCHA-Protected Sites ❌
+
+ArchDaily blocks all scrapers with CAPTCHA. None of the 5 providers could bypass it.
+
+**Recommendation:** Remove ArchDaily from source registry or use their RSS feed instead: `https://www.archdaily.com/tag/united-arab-emirates/rss`
+
+---
+
+## Issue #6: JS-Heavy Aggregator Sites ⚠️
+
+PropertyFinder and Bayut render content via JavaScript. ScrapingDog and ScrapingAnt both got content directly (verified: 1.1MB each), but the DynamicConnector times out before the JS renders.
+
+**Root cause:** The timeout on ScrapingDog is too short for JS-rendered pages.
+
+**Fix needed:** Increase timeout from default fetch timeout to 30s for `render=true` requests.
+
+---
+
+## Per-Source Results
+
+| # | Source | Type | Fetch | Items | Issue |
+|---|--------|------|-------|-------|-------|
+| 1 | PropertyFinder | aggregator | 🚫 Blocked | 0 | Timeout on all providers |
+| 2 | Bayut | aggregator | 🚫 Blocked | 0 | Timeout on all providers |
+| 3 | Tilesman | supplier | ✅ 3 items via crawl | **3** | ✅ Working |
+| 4 | Kasco PDF | brochure | ⚠️ 7.2MB fetched | 0 | PDF too large for LLM |
+| 5 | ArchDaily | publication | ❌ CAPTCHA | 0 | All providers blocked |
+| 6 | Dezeen | publication | ⚠️ 287K fetched | 0 | LLM can't parse raw HTML |
+| 7 | CID Magazine | publication | ⚠️ 348K fetched | 0 | LLM can't parse raw HTML |
+| 8 | JLL MENA | industry | ⚠️ 675K fetched | 0 | LLM can't parse raw HTML |
+
+---
+
+## What's Working ✅
+
+1. **Fallback chain** — ScrapingAnt is the most reliable provider (3/5 success)
+2. **Tilesman extraction** — Simple supplier catalogs with clear HTML work
+3. **PDF download** — Large files download successfully via fallback
+4. **DB records** — 100 evidence records from 19 unique URLs already stored
+
+## Prioritized Fix List
+
+| Priority | Fix | Impact |
+|----------|-----|--------|
+| **P0** | Fix HTML-to-text cleanup before LLM extraction | Unblocks 50%+ of sources |
+| **P0** | Increase content snippet to 32K chars | Better extraction from HTML |
+| **P1** | Fix ScrapingDog config (add `dynamic=true`, 30s timeout) | Unblocks aggregator sites |
+| **P1** | Add Firecrawl credit caching (skip for 24h when exhausted) | Faster retries |
+| **P2** | Replace ArchDaily with RSS feed URL | 1 more source recoverable |
+| **P2** | Add PDF text extraction (pdf-parse) for brochures | Unlocks developer intel |
+| **P3** | Consider Firecrawl plan upgrade | Best quality scraping |

@@ -1,0 +1,79 @@
+# Phase 9 Integration Audit — Walkthrough
+
+All 6 identified gaps from the [Phase 9 Integration Audit](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/Phase9_Integration_Audit.md) have been fixed.
+
+---
+
+## Gap 1: Scoring Engine Integration
+
+**Files:** [miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts), [normalization.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts), [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts), [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+- Added `spaceEfficiencyScore` (0-100) and `spaceCriticalCount` to [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102)
+- Added `spaceEfficiency_n` (normalized 0-1) to [NormalizedInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#103-145) with 0.5 default
+- Wired into DS dimension at **15% weight** (redistributed from existing factors)
+- **P8 penalty** fires when `spaceCriticalCount ≥ 2`
+- **SPACE_CRITICAL conditional action** added with specific recommendations
+- Evaluate pipeline now calls [benchmarkSpaceRatios(analysis, areaName, transCount, saleP50)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-benchmarking.ts#115-238) with correct DLD area context
+
+---
+
+## Gap 2: Design Brief Space Section
+
+**File:** [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts)
+
+- New optional `spaceAllocation` section in [DesignBriefData](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#47-109) interface
+- Populated when `floorPlanAnalysis` + `spaceBenchmark` data available
+- Includes: efficiency score, total area, room count, circulation %, room breakdown, DLD-backed recommendations
+
+---
+
+## Gap 3: Investor Summary
+
+**File:** [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)
+
+- Added `design.getSpaceBenchmark` query
+- New **Space Planning Intelligence** section between Budget and ROI with:
+  - 3 KPI cards (Efficiency, Critical Issues, Circulation Waste)
+  - Room allocation vs DLD benchmarks horizontal bar chart
+  - Color-coded severity badges
+
+---
+
+## Gap 4: Design Studio Room Renders
+
+**File:** [DesignStudio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignStudio.tsx)
+
+- Added **Room Render (Board-Aware)** as 4th visual type in VisualsTab
+- Room name + sqm inputs with board-material auto-injection note
+- Uses `design.generateRoomRender` mutation
+- Quick-generate card added to StudioOverviewTab
+
+---
+
+## Gap 5: Brief Editor Space Section
+
+**File:** [DesignBrief.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignBrief.tsx)
+
+- **Budget tab**: new Space Allocation Analysis card with efficiency KPIs, room breakdown bars, and DLD recommendations
+- **Summary tab**: Section 7 line showing efficiency, room count, circulation, and recommendation count
+
+---
+
+## Gap 6: Platform Alerts
+
+**File:** [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+- `space_critical` alert auto-fires when `totalCritical ≥ 2` during evaluation
+- Alert `severity: "high"` with 7-day expiry
+- Body includes critical room names with current vs benchmark percentages
+- Suggested action directs user to Space Planner
+
+---
+
+## Verification
+
+All changes are compile-time safe — lint errors checked and resolved. The integration follows MIYAR conventions:
+- tRPC procedures use `orgProcedure`/`protectedProcedure` 
+- All DB queries go through [server/db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts/Users/amrosaleh/Maiyar/miyar-v2/server/db.ts)
+- Currency always AED, UI uses existing component library (shadcn/ui)
+- Non-blocking try/catch for scoring + alerts (evaluation never fails from Phase 9 errors)

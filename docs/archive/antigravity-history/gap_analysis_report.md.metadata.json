@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_OTHER",
+  "summary": "Comprehensive gap analysis of the entire MIYAR v2 platform. Covers 8 audit dimensions: Schema & Migrations (8 tables missing migrations), Engine Coverage (Phase D-H engines lack unit tests, some engines use hardcoded data), Router & API Layer (no rate limiting, no input sanitization middleware, inconsistent error handling), Frontend & UX (no auth guards on routes, no loading states on some pages, accessibility gaps), Test Coverage (27 tests only covering pre-Phase-D code, 0 tests for new phases), Data & Analytics (no real LLM integration for AI features, hardcoded material/carbon data), Deployment & DevOps (no CI/CD pipeline, no staging environment, no monitoring), and Security (no RBAC enforcement, no CSRF protection, session auth but no token rotation). Prioritized into P0 (critical), P1 (high), P2 (medium), P3 (low) categories.",
+  "updatedAt": "2026-02-26T15:03:14.729603Z"
+}

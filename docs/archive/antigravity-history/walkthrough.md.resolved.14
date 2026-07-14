@@ -1,0 +1,93 @@
+# Priority 4: Post-Mortem / Outcome Learning Engine
+
+## What Changed
+
+Built the feedback loop that connects MIYAR's **predictions** to **reality**, enabling the system to track its own accuracy and generate self-correcting evidence.
+
+---
+
+### Data Flow
+
+```mermaid
+graph LR
+    A[User submits<br/>Post-Mortem] --> B[submitPostMortem<br/>mutation]
+    B --> C[Save to<br/>project_outcomes]
+    B --> D[Auto-run<br/>compareOutcomeToPrediction]
+    D --> E[Save to<br/>outcome_comparisons]
+    D --> F[Generate learning<br/>signals]
+    F --> G[Convert deltas to<br/>evidence records]
+    G --> H["Evidence tagged<br/>'handover' phase"]
+    H --> I[Feeds back into<br/>scoring pipeline]
+```
+
+---
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) | Updated [createProjectOutcome()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1147-1170) to accept V5 fields |
+| [post-mortem-evidence.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts) | **[NEW]** [generatePostMortemEvidence()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts#28-143) + [summarizeLearningSignals()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/post-mortem-evidence.ts#144-189) |
+| [learning.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/learning.ts) | Added `submitPostMortem` + `getPostMortemStatus` |
+
+---
+
+### Key Design Decisions
+
+1. **Auto-comparison on submit** — when a post-mortem is submitted, the comparison engine runs immediately (no manual step)
+2. **Evidence generation** — cost deltas >5%, risk mispredictions, and score misses each produce tagged evidence records at `handover` phase
+
+---
+
+### Notebook Name: **MIYAR UAE Market Intelligence & Design**
+- Topics Extracted: UAE Real Estate Market Dynamics, Construction Costs, Sustainable Building, Luxury Interior Design Trends, Procurement.
+- Use Cases: Real Estate Investment & Strategy, Project Budgeting & Execution Planning.
+
+### 4. Database Enrichment via NotebookLM Insights 🧠
+
+Leveraged the newly integrated NotebookLM library to extract structured, actionable market intelligence, which was immediately seeded into the application database:
+
+#### Luxury Interior Design & Construction Trends (Inserted into `trend_tags`)
+10 high-value UAE market trends were extracted and mapped to the exact database schema:
+- **Biophilic Design** (design_trend)
+- **AI-Powered Smart Homes** (technology)
+- **Ultra-Rare Marble** (material_trend)
+- **Wellness-Centric Layouts** (design_trend)
+- **Desert-Inspired Minimalism** (design_trend)
+- **Sustainable Luxury** (sustainability)
+- **Sensory-Rich Textures** (material_trend)
+- **Sculptural Lighting** (design_trend)
+- **Dual-Zone Kitchens** (design_trend)
+- **Contemporary Arabian Opulence** (design_trend)
+
+#### Construction Cost Benchmarks (Inserted into `benchmark_data`)
+5 highly realistic 2025-2026 UAE construction cost benchmarks were seeded:
+- **Residential Villa (Mid-Tier):** 300 - 500 AED/sqft (Standard Materials)
+- **Residential Villa (Luxury):** 900 - 1400 AED/sqft (Luxury Materials)
+- **Residential High Rise (Mid-Tier):** 350 - 700 AED/sqft (Standard Materials)
+- **Commercial (Premium):** 510 - 680 AED/sqft (Premium Materials)
+- **Commercial (Ultra Luxury):** 850 - 1500 AED/sqft (Luxury Materials)
+
+## Next Steps
+
+3. **Non-fatal comparison** — if no score matrix exists yet, the outcome still saves; comparison runs later via `runComparison`
+4. **"No automatic learning without validation"** — deltas are logged as evidence; benchmark/weight adjustments still require human approval through existing `getPendingBenchmarkSuggestions`
+
+---
+
+### Existing Infrastructure Leveraged
+
+The majority of the backend was already built:
+- `project_outcomes` table with V5 schema ✅
+- `outcome_comparisons` table with accuracy grading ✅
+- [compareOutcomeToPrediction()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/outcome-comparator.ts#53-220) engine ✅
+- `runComparison` mutation ✅
+
+We only needed to fill three gaps: DB function signature, evidence generation, and the entry-point mutation.
+
+---
+
+## Verification
+
+- **655 tests pass**, 27 pre-existing failures, **0 regressions**
+- Committed: `665a0dc` → pushed to [main](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/backfill-trends.ts#21-94)

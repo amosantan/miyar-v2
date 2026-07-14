@@ -1,0 +1,10 @@
+# Task Checklist - UI Verification
+
+- [ ] Verify Dashboard loads at http://localhost:3000/dashboard
+- [ ] Verify sidebar sections: Main, Analysis, Market
+- [ ] Confirm Admin/Market Intelligence sections are hidden
+- [ ] Verify Dashboard Quick Actions: Create Project, Scenarios, DLD Insights, Portfolio
+- [ ] Capture Desktop screenshot of Dashboard
+- [ ] Capture Mobile screenshot of Dashboard (375x667)
+- [ ] Verify /projects loads
+- [ ] Verify /market-intel/dld-insights loads

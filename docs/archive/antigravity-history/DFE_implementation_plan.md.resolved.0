@@ -1,0 +1,61 @@
+# Data Freshness Engine (DFE) Implementation Plan
+
+## Goal Description
+Upgrade the ingestion engine by replacing ad-hoc scraping with a systematic, multi-channel data operations layer. The engine will keep material prices, benchmarks, competitor intelligence, and market indices current automatically and transparently.
+
+## Proposed Changes
+
+### 1. Database Schema Updates
+- Add fields to `source_registry`:
+  - `scrapeConfig` (json)
+  - `scrapeSchedule` (varchar)
+  - `scrapeMethod` (enum: html_llm, html_rules, json_api, rss_feed, csv_upload, email_forward)
+  - `scrapeHeaders` (json)
+  - `extractionHints` (text)
+  - `priceFieldMapping` (json)
+  - `lastScrapedAt` (timestamp)
+  - `lastScrapedStatus` (enum: success, partial, failed, never)
+  - `lastRecordCount` (int)
+  - `consecutiveFailures` (int)
+  - `requestDelayMs` (int)
+- New table: `price_change_events` (`itemName`, `category`, `sourceId`, `previousPrice`, `newPrice`, `changePct`, `changeDirection`, [severity](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/market-intel/AnalyticsDashboard.tsx#424-429), `detectedAt`).
+
+### 2. Admin Source Manager UI (DFE-01 & DFE-02)
+- Update source creation/edition form to capture all new configuration fields.
+- Dynamic fields based on source type.
+- Add "Test Scrape" and "Scrape Now" buttons.
+- Display scheduling and failure status.
+- Add 38 new sources to reach a total of 50 UAE data sources.
+
+### 3. CSV/Excel Pipeline (DFE-03 & DFE-04)
+- Create `server/engines/ingestion/csv-pipeline.ts`.
+- Support [.csv](file:///Users/amrosaleh/Downloads/miyar-v2-csv-backup/users.csv), `.xlsx`, `.tsv`.
+- Implement column mapping UI and preview functionality.
+- Detect duplicates.
+- Implement downloadable MIYAR Evidence Template and bulk upload endpoint.
+
+### 4. Intelligent Change Detection (DFE-05 & DFE-06)
+- Create `server/engines/ingestion/change-detector.ts` to detect significant price changes.
+- Insert change records to `price_change_events`.
+- Trigger `cost_pressure` insights.
+- Provide a "Data Health" dashboard showing Category Freshness, Source Health, Price Change Feed, and Coverage Gaps.
+
+### 5. Enhanced Scheduler & Scraping Resilience (DFE-07 & DFE-08)
+- Update [scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/learning/scheduler.ts) to read active sources and spawn separate cron jobs per unique schedule.
+- Implement staggered execution (30s) within batches.
+- Apply resilience mechanisms: `robots.txt` compliance, configurable rate limiting (`requestDelayMs`), CAPTCHA detection, paywall detection, and user-agent rotation.
+
+### 6. Test Suite & Report (DFE-09)
+- Reach 620 passing tests.
+- Resolve any TypeScript errors.
+- Resulting exactly in 53 active tables.
+
+## Verification Plan
+
+### Automated Tests
+- Unit/Integration tests covering the CSV pipeline, change detector logic, `robots.txt` compliance, paywall, and CAPTCHA handling. 
+- E2E test verifying a complete CSV data upload triggering price analytics and insight creation.
+
+### Manual Verification
+- Review Admin UI components: Source Manager, Test Scrapes, Data Health Dashboard, and Excel template exports/imports.
+- Validate the expected Database schema structure and the 50 seeded data sources.

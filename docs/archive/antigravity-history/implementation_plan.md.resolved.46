@@ -1,0 +1,115 @@
+# Scraping Pipeline Fix — All Issues
+
+Comprehensive fixes for all 6 issues found during the live scraping audit. Goal: get from 0/8 success to 6+/8 success.
+
+## Re: Firecrawl Plan Upgrade
+
+> [!TIP]
+> **Don't upgrade Firecrawl right now.** You already have 4 fallback APIs (ScrapingDog, ScrapingAnt, Apify, and now ParseHub). Once these fixes are applied, ScrapingAnt alone should handle most sources. If after testing you still need better quality (markdown output), then consider the $19/mo Firecrawl Hobby plan. But let's see the results first.
+
+## Proposed Changes
+
+### P0: HTML Content Cleanup for LLM Extraction
+
+The #1 issue — LLM gets raw HTML with scripts/styles/nav/footer taking up the first 16K chars, so the actual content is never seen.
+
+#### [MODIFY] [dynamic.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts)
+
+- Add `cleanHtmlForLLM()` function that:
+  1. Removes `<script>`, `<style>`, `<noscript>`, `<svg>`, `<path>` tags and their content
+  2. Removes `<nav>`, `<footer>`, `<header>`, `<aside>` tags
+  3. Focuses on `<main>`, `<article>`, `<div class="content">` areas when present
+  4. Strips remaining HTML tags to produce clean text
+  5. Collapses whitespace
+- Increase content snippet from 16,000 to 32,000 chars (Gemini Flash handles this fine)
+- Apply `cleanHtmlForLLM()` in [extractFromContent()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts#434-512) before sending to LLM
+
+---
+
+### P1: Fix ScrapingDog Configuration
+
+#### [MODIFY] [connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts)
+
+- Add `dynamic=true` parameter to ScrapingDog API URL for JS rendering
+- Increase ScrapingDog timeout from 30s → 45s
+
+---
+
+### P1: Firecrawl Credit Caching
+
+#### [MODIFY] [connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts)
+
+- Add a module-level `firecrawlExhausted` flag + timestamp
+- When Firecrawl returns "Insufficient credits", set the flag
+- In [isFirecrawlAvailable()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#93-97), return `false` if exhausted flag is set and < 6 hours old
+- This skips Firecrawl entirely when credits are exhausted, making all scrapes 2-3s faster
+
+---
+
+### P2: ParseHub Integration (for recurring JS-heavy sources)
+
+#### [MODIFY] [connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts)
+
+ParseHub works differently — you pre-configure scrape templates in their UI, then run them via API. It's ideal for **recurring scrapes** of JS-heavy sites like PropertyFinder/Bayut.
+
+- Add `isParseHubAvailable()` helper
+- Add `fetchWithParseHub()` method that:
+  1. Runs existing ParseHub project via `POST /api/v2/projects/{token}/run`
+  2. Polls for completion (with 60s timeout)
+  3. Fetches results via `GET /api/v2/runs/{run_token}/data`
+- Add ParseHub as fallback #5 in the chain (before native fetch)
+- Store `PARSEHUB_API_KEY` and optionally `PARSEHUB_PROJECT_TOKEN` in env
+
+> [!NOTE]
+> ParseHub requires creating scrape projects via their desktop app or web UI first. For now, we add the API integration so it's ready when you create projects for PropertyFinder, Bayut, etc.
+
+---
+
+### P2: Replace ArchDaily with RSS Feed
+
+#### [MODIFY] Source registry in database
+
+- Update ArchDaily source URL from `https://www.archdaily.com/tag/united-arab-emirates` to `https://www.archdaily.com/tag/united-arab-emirates/rss` (RSS feed bypasses CAPTCHA)
+
+---
+
+### P0: Fix fetchWithFirecrawl Error Path
+
+#### [MODIFY] [connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts)
+
+- Change [fetchWithFirecrawl()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#263-305) error handling: instead of falling back to [fetchBasic()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#479-554), **throw** the error so the main [fetch()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts#334-434) chain can try ScrapingDog/ScrapingAnt/Apify
+- This ensures the full chain is always used even when called from [fetchWithFirecrawl()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#263-305) directly
+
+---
+
+### Environment Variables
+
+#### [MODIFY] [.env](file:///Users/amrosaleh/Maiyar/miyar-v2/.env) + Vercel
+
+- Add `PARSEHUB_API_KEY=toJLiLaOHvXq`
+
+---
+
+## Verification Plan
+
+### Automated Test — Re-run scrape-audit.ts
+
+After all changes, re-run the audit script to verify improvement:
+
+```bash
+cd /Users/amrosaleh/Maiyar/miyar-v2
+LOCAL_PAGE_BUDGET=1 npx tsx server/engines/ingestion/scrape-audit.ts
+```
+
+**Expected results:**
+- Dezeen, CID Magazine, JLL MENA: should now extract items (HTML cleanup fix)
+- PropertyFinder/Bayut: may remain blocked (JS-heavy, needs ParseHub projects)
+- ArchDaily: should work after RSS URL change
+- Firecrawl credit cache: verify it skips Firecrawl quickly without "Insufficient credits" log spam
+
+### Direct API Test
+
+```bash
+# Test ScrapingDog with dynamic=true
+npx tsx -e 'import "dotenv/config"; const r = await fetch(`https://api.scrapingdog.com/scrape?api_key=${process.env.SCRAPINGDOG_API_KEY}&url=https://www.bayut.com&render=true&dynamic=true`, {signal: AbortSignal.timeout(45000)}); console.log("Status:", r.status, "Len:", (await r.text()).length);'
+```

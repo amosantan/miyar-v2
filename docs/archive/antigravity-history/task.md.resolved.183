@@ -1,0 +1,28 @@
+# Phase 10A Gap-Fill
+
+## GAP 1 — URL Scraping Before Gemini Analysis
+- [ ] Add `scrapeUrl` tRPC procedure to [server/routers/intake.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/intake.ts)
+- [ ] Update `handleAddUrl` in [client/src/pages/ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) to handle scraping
+- [ ] Update URL asset `textContent` field with scraped text
+
+## GAP 2 — Three-Card Path Selector on Entry
+- [ ] Add `phase: "select" | "upload" | "analyzing" | "review"` state to `ProjectNew.tsx`
+- [ ] Render a three-card selector in `ProjectNew.tsx` for phase "select": AI-Guided, Expert Mode, Quick Brief
+- [ ] Implement state changes and `quickMode` flag logic for the 3 path options
+- [ ] Remove old "Switch to form" toggle button
+
+## GAP 3 — Conversational Chat in Intake Canvas
+- [ ] Add chat UI panel to `ProjectNew.tsx` in `mode === "intake"` and `phase === "upload"`
+- [ ] Add `chat` tRPC procedure to [server/routers/intake.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/intake.ts)
+- [ ] Implement chat component state updates and integration with `freeformDescription` on "Analyze"
+
+## GAP 4 — Per-Field Confidence Indicators on ProjectForm
+- [ ] Extend `initialData` prop type on `ProjectForm.tsx` to include `fieldConfidence` and `fieldReasoning`
+- [ ] Add visual indicators (colored dots) and tooltips to critical fields in `ProjectForm.tsx` (mkt01Tier, des01Style, des02MaterialLevel, des03Complexity, ctx04Location, fin01BudgetCap, ctx03Gfa)
+- [ ] Pass `fieldConfidence` and `fieldReasoning` from `ProjectNew.tsx` to `ProjectForm.tsx`
+
+## GAP 5 — Assets Tab on ProjectDetail Page
+- [ ] Add "Assets" tab to `ProjectDetail.tsx`
+- [ ] Fetch and display intake assets using `trpc.intake.listAssets.useQuery`
+- [ ] Implement modal dialog to show asset details, AI analysis summary, and `aiContributions`
+- [ ] Add "[+ Add Assets]" button navigating back to `ProjectNew.tsx`

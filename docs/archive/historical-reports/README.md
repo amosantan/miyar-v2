@@ -4,13 +4,13 @@
 
 MIYAR has extensive phase reports, implementation plans, browser scratchpads, technical blueprints, and handover documents. They preserve valuable design history but often describe different commits, paths, test counts, database counts, providers, or roadmap states.
 
-This directory establishes the archive policy without moving legacy files and breaking existing references.
+This directory contains historical build, phase, progress, and version reports after the repository organization migration.
 
 ## Existing Historical Collections
 
-- `docs/reports/`: dated/versioned build and phase reality reports.
-- `antigravity-history/`: implementation plans, reports, scratchpads, historical blueprints, task files, and supporting research.
-- `.agent/prompts/` and older `.agent/workflows/`: phase-specific execution material; current only when explicitly selected and revalidated.
+- `docs/archive/historical-reports/`: dated/versioned build, phase, progress, and version reports.
+- `docs/archive/antigravity-history/`: imported implementation plans, reports, scratchpads, historical blueprints, task files, and supporting research.
+- `.agent/archive/`: superseded phase prompts, rules, and workflows.
 - Git history: authoritative record of file changes and commits.
 
 ## Authority Rule
@@ -58,17 +58,15 @@ Historical snapshot: accurate only for the recorded commit/environment.
 Verify against docs/PROJECT_STATE.md and the live repository before use.
 ```
 
-## Migration Policy
+## Migration Record
 
-Legacy files may be physically moved into this directory only in a dedicated documentation migration that:
+The 2026-07-14 organization migration:
 
-1. Builds a path/reference inventory.
-2. Updates internal links and tooling references.
-3. Preserves Git history or provides an index mapping old to new paths.
-4. Scans for credentials and sensitive data.
-5. Verifies active agent instructions no longer import them implicitly.
-
-Until then, their current locations are intentional compatibility archives.
+1. Moved root `antigravity-history/` to `docs/archive/antigravity-history/` with Git history preserved.
+2. Consolidated `docs/reports/` into this directory.
+3. Moved completed agent material to `.agent/archive/`.
+4. Updated active repository references to the new canonical archive paths.
+5. Left historical file contents unchanged; old internal paths are snapshot evidence, not active links.
 
 ## Retention
 

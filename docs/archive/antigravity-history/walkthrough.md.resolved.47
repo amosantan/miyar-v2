@@ -1,0 +1,58 @@
+# Phase E — Scale Features — Walkthrough
+
+## Summary
+Implemented three scaling features: portfolio cross-project benchmarking, mobile-responsive share views, and RICS NRM cost alignment.
+
+---
+
+## E.1 · Portfolio Benchmarking Dashboard
+
+### Changes
+- **[portfolio.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/portfolio.ts)** — Enriched `getById` projectDetails with `city`, `gfa`, `budgetCap`, `typology`, `location`, `sustainCertTarget`. Added aggregate analytics: `totalGfa`, `totalBudget`, `avgCostPerSqm`, `bestScore`, `worstScore`.
+- **[PortfolioPage.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/PortfolioPage.tsx)** — Replaced 4-card summary strip with 6-card benchmarking strip (Projects, Avg Score, Best/Worst, Total GFA, Total Budget, Avg Cost/sqm). Replaced simple project list with 11-column comparison table.
+
+### Comparison Table Columns
+| Project | City | Typology | Tier | GFA (sqm) | Budget (AED) | Cost/sqm | Cert | Score | Status | Remove |
+
+---
+
+## E.2 · Mobile-Responsive Share Views
+
+### Changes
+- **[ShareView.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ShareView.tsx)** — KPI strip stacks vertically on mobile (`grid-cols-1 sm:grid-cols-3`). Text sizes responsive (`text-xs sm:text-sm`). Added sustainability cert badge (Estidama/Al Sa'fat). Added viewport meta tag. Added document ID in footer. Fixed duplicate header/hero.
+
+### Mobile Layout
+- KPI cards: horizontal layout on mobile (label → value inline), vertical on desktop
+- Grids: single-column on mobile, multi-column on desktop
+- Header: "Shared Brief" text hidden on small screens
+
+---
+
+## E.3 · RICS NRM Alignment Layer
+
+### Changes
+- **[rics-mapping.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/rics-mapping.ts)** [NEW] — Maps 30+ MIYAR material categories and 24 space types to RICS NRM element codes (Groups 2–8). Supports exact match, keyword fuzzy match, and space-type fallback.
+- **[BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx)** — Added NRM code badges in breakdown rows (e.g. "NRM 3A" next to stone).
+- **[Methodology.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Methodology.tsx)** — Added "RICS NRM Cost Alignment" section with Group 2/3/5/8 explanations.
+
+### NRM Element Coverage
+
+| MIYAR Material | NRM Code | Element |
+|---------------|----------|---------|
+| stone/marble/tile | 3A | Floor/Wall Finishes |
+| paint/wallpaper | 3B | Wall Finishes |
+| joinery/furniture | 3D | Fittings & Equipment |
+| steel/aluminum | 3E | Metalwork |
+| lighting | 5H | Electrical — Lighting |
+| glass | 2G | Windows & Glazing |
+
+---
+
+## Verification
+- **TypeScript**: Zero compilation errors
+- **Commit**: `c8ae34f` — `feat: Phase E — Portfolio benchmarking table, mobile ShareView, RICS NRM alignment`
+- **Files**: 6 changed (+390, -103), 1 new
+
+## Deferred Items
+- Portfolio PDF export engine (`portfolio-pdf.ts`)
+- RICS codes in investor PDF export (`investor-pdf.ts`)

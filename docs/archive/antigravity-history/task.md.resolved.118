@@ -1,0 +1,22 @@
+# Sustainability Certification Integration — Task List
+
+## Phases A–D ✅ (complete)
+
+## Sustainability Certification Integration
+- [ ] Schema: Add `city` and `sustainCertTarget` columns to `projects`
+- [ ] Types: Update `ProjectInputs` in [miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts)
+- [ ] Project router: Accept new fields, auto-derive `des05Sustainability`
+- [ ] Project form: Add city selector (Step 0), replace DES-05 slider with tier picker (Step 4)
+- [ ] Sustainability multipliers engine: `sustainability-multipliers.ts`
+- [ ] Pricing engine: Apply cert multiplier to P25/P50/P75
+- [ ] Scoring: DS dimension — add `des05_n` weight
+- [ ] Scoring: ER dimension — increase risk for Pearl 4+ / Platinum
+- [ ] Scoring: FF dimension — adjust expectedCost by multiplier
+- [ ] Scoring: New penalty P6 — `SUSTAIN_UNDERFUNDED`
+- [ ] Normalization: Add `sustainCertMultiplier` to NormalizedInputs
+- [ ] Design brief: Inject tier-specific sustainability requirements
+- [ ] Compliance: Auto-select checklist by city
+- [ ] Sustainability UI: Auto-filter by city
+- [ ] Review step: Show cert target and cost premium
+- [ ] Build verification
+- [ ] Commit & push

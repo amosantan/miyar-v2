@@ -1,0 +1,21 @@
+# Tasks
+
+## Source-Type-Specific Extraction
+- [x] Add 5 new columns to evidence_records schema
+- [x] Run DB migration
+- [x] Fix broken CATEGORY_MAP in orchestrator
+- [x] Build 4 source-type-specific LLM prompts
+- [x] Update DynamicConnector to select prompt by sourceType
+- [x] Update normalize() to map new fields
+- [x] Fix extractedEvidenceSchema Zod category validator
+- [x] Build and deploy
+- [x] Verify with IKEA test: 16 records created ✅
+- [x] Re-scrape all 86 sources (514 records created) ✅
+
+## Strategic Data Utilization (Source-Type Intelligence)
+- [ ] Update [proposal-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/proposal-generator.ts) to group benchmarks by `${category}:${finishLevel}:${unit}`
+- [ ] Enhance Analytics Engine (`insight-generator.ts`) to use `designStyle` and `brandsMentioned` for new triggers (e.g., `style_shift`, `brand_dominance`)
+- [ ] Update Trend Detection to segment cost pressure metrics by `finishLevel`
+- [ ] Adapt [server/routers/design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design-advisor.ts) to recommend materials based on `designStyle` and `finishLevel` correlations found in developer brochures
+- [ ] Add macro market intelligence extraction points in [market-intelligence.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/market-intelligence.ts)
+- [ ] Run [v3-analytics.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v3-analytics.test.ts) and verify benchmark grouping works properly

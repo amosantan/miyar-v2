@@ -1,0 +1,41 @@
+# Phase G: Customer Success
+
+## Context
+Greenfield build. Existing data to leverage:
+- `auditLogs` — tracks all user actions with timestamps
+- [getProjectsByUser](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#168-173) — project counts
+- Score matrices, bias alerts, simulations — feature adoption signals
+
+## Proposed Changes
+
+### G1: Health Score Engine
+#### [NEW] [health-score.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/customer/health-score.ts)
+- `calculateHealthScore(metrics)` — composite 0-100 score from 4 dimensions:
+  - **Engagement** (30%): login frequency, actions/week, days since last action
+  - **Adoption** (25%): features used (evaluations, scenarios, simulations, bias scans, portfolios)
+  - **Quality** (25%): avg project score, bias remediation rate, % evaluated projects
+  - **Velocity** (20%): projects created/month, evaluations/month growth trend
+- Returns: composite score, dimension breakdown, health tier (Thriving/Healthy/At Risk/Churning), recommendations
+
+### G2: Schema Table
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- Add `customerHealthScores` table: userId, orgId, compositeScore, engagement/adoption/quality/velocity scores, healthTier, recommendations (JSON), metrics (JSON), createdAt
+
+### G3: Router Endpoints
+#### [NEW] [customer-success.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/customer-success.ts)
+- `calculateHealth` mutation — gathers metrics from audit logs + projects + evaluations, runs engine, persists
+- `getHealth` query — latest health score for user
+- `getActivityFeed` query — recent audit log entries formatted for display
+
+### G4: Customer Success Page
+#### [NEW] [CustomerSuccess.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/CustomerSuccess.tsx)
+- Health score gauge (0-100 with color tier)
+- 4-dimension breakdown cards (Engagement, Adoption, Quality, Velocity)
+- Recommendations list
+- Recent activity feed from audit logs
+
+### G5: Route + Navigation
+#### [MODIFY] App.tsx + DashboardLayout.tsx
+
+## Verification Plan
+- `npx tsc --noEmit` — no new errors

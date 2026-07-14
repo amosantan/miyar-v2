@@ -1,0 +1,31 @@
+# UX Overhaul — Task Tracker
+
+## 🔴 P0: Navigation Restructuring
+- [ ] Simplify sidebar — client view down to ~12 items
+- [ ] Move Market Intelligence pages to admin-only (routes + sidebar)
+- [ ] Consolidate analysis items — remove niche pages from sidebar
+- [ ] Remove dev/placeholder pages from sidebar (ComponentShowcase, Methodology)
+
+## 🔴 P0: Fix Broken Pages
+- [ ] Competitors page — show graceful state when no data
+- [ ] Analytics Intelligence — move to admin-only
+- [ ] Projects list — fix "unexpected error" for other devs' projects
+- [ ] Results/Reports — auto-select project or show picker
+
+## 🟡 P1: Dashboard Redesign
+- [ ] Quick actions section (Create, Evaluate, Brief, Share)
+- [ ] Project status badges (Draft → Evaluated → Brief Ready)
+- [ ] Guided 4-step workflow indicator
+- [ ] Empty state for zero projects
+
+## 🟡 P1: Mobile Responsiveness
+- [ ] Tables — horizontal scroll containers
+- [ ] Cards — responsive grid classes
+- [ ] Project detail tabs — scrollable on mobile
+- [ ] Forms — full-width on mobile
+
+## 🟢 P2: Polish
+- [ ] Consistent page headers
+- [ ] Empty states for all major pages
+- [ ] Error boundaries — friendly cards
+- [ ] Breadcrumbs on project subpages

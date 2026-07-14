@@ -1,0 +1,25 @@
+# Phase 3: Live Data Scraping Pipeline
+
+## Stream 1 — Supplier Price Sources
+- [ ] Create source seeder script with 15+ UAE sources
+- [ ] Build multi-page crawler with depth/budget limits
+- [ ] Seed sources into source_registry table
+
+## Stream 2 — Competitor Intelligence
+- [ ] Create competitor scraper connector
+- [ ] Add developer sources (Emaar, DAMAC, Aldar, etc.)
+
+## Stream 3 — Design Trend Detection
+- [ ] Add `design_trends` table to schema
+- [ ] Create trend scraper connector
+- [ ] Push schema migration
+
+## Stream 4 — Source Management UI
+- [ ] Enhance SourceRegistry page with health dashboard
+- [ ] Add "Scrape Now" manual trigger
+- [ ] Add source creation form
+
+## Scheduler & Verification
+- [ ] Add stale source alerting
+- [ ] Test seeder + manual scrape
+- [ ] Create walkthrough

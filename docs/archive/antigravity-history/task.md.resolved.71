@@ -1,0 +1,33 @@
+# MIYAR Build Playbook — Execution Tracker
+
+## Phase A: Production Polish (Current)
+- [/] A1: Deploy ingestion scheduler as cron/worker
+- [ ] A2: Wire NL Query UI — add "Ask MIYAR" search bar to Dashboard
+- [ ] A3: Wire alert delivery (email via Resend/SendGrid)
+- [ ] A4: Submit first real post-mortem via API
+- [ ] A5: Ensure Gemini API key is in all environments
+
+## Phase B: Data Enrichment
+- [ ] B1: Seed 200+ benchmarks covering all typologies & tiers
+- [ ] B2: Add live UAE property connectors (Bayut scraper)
+- [ ] B3: Add PropertyFinder connector
+- [ ] B4: Run 3+ ingestion cycles to self-populate trend data
+- [ ] B5: Seed 20+ competitor projects with real pricing
+
+## Phase C: Build Portfolio Page
+- [ ] C1–C6: Portfolio tables, engine, page, PDF, alerts
+
+## Phase D: Risk & Economic Modeling (V9)
+- [ ] D1–D6: Stress test engine, acceleration model, risk heatmap
+
+## Phase E: Cognitive Bias Detection (V11)
+- [ ] E1–E4: Bias engine, scoring triggers, UI, alerts
+
+## Phase F: Monte Carlo & Time-Series (V4 Complete)
+- [ ] F1–F4: Monte Carlo, material forecast, trend projection
+
+## Phase G: Customer Success (V12)
+- [ ] G1–G4: Health scores, intervention, dashboard, reports
+
+## Phase H: Digital Twin & Sustainability (V13)
+- [ ] H1–H4: EPD fields, sustainability engine, gauge, standards

@@ -1,0 +1,44 @@
+# Implementation Plan - CSV Data Recovery
+
+Restore historical data from the Manus database to the Miyar V2 platform using CSV backups.
+
+## Goals
+- Populate `source_registry` with ~100+ unique high-quality sources.
+- Restore `competitor_entities` and `competitor_projects` for market intelligence.
+- Backfill `evidence_records` and `materials_catalog`.
+- Ensure data integrity and deduplication.
+
+## User Review Required
+> [!IMPORTANT]
+> The CSV backups contain many duplicates (e.g., [source_registry.csv](file:///Users/amrosaleh/Downloads/miyar-v2-csv-backup/source_registry.csv) has IDs like 30001, 60001 with near-identical entries).
+> I will implement a deduplication strategy:
+> - **Source Registry**: Deduplicate by `url` and `name`.
+> - **Competitor Entities**: Deduplicate by `name`.
+> - **Materials**: Deduplicate by `name`.
+
+## Proposed Changes
+
+### [NEW] [import-csv-backups.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/import-csv-backups.ts)
+A flexible ingestion script to handle the recovery process for multiple tables.
+
+#### Restoration Order:
+1. `users` (to map createdBy/updatedBy)
+2. `source_registry` (Foundation for evidence)
+3. `competitor_entities`
+4. `competitor_projects`
+5. `materials_catalog`
+6. `evidence_records`
+7. `benchmark_categories` & `benchmark_data`
+
+## Verification Plan
+
+### Automated Tests
+- Script will report:
+    - Number of rows read per CSV.
+    - Number of unique items inserted.
+    - Number of duplicates skipped.
+
+### Manual Verification
+- Verify source counts in the Intelligence Dashboard.
+- Checks Competitor list for restored entries.
+- Verify Material Library size (expecting >100 entries after full recovery).

@@ -1,0 +1,193 @@
+# Phase 9 Integration Audit — Full Honest Assessment
+
+## What Phase 9 Does Right ✅
+
+| Feature | Engine File | Wired To |
+|---------|------------|----------|
+| Floor plan AI analysis | [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts) | `design.analyzeFloorPlan` tRPC ✅ |
+| Space benchmarking (DLD) | [space-benchmarking.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-benchmarking.ts) | `design.getSpaceBenchmark` + `project.evaluate` ✅ |
+| Space program builder | [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts) | `designAdvisor.getSpaceProgram` + `project.evaluate` ✅ |
+| Visual gen (board-aware) | [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) | `design.generateVisual` + `design.generateRoomRender` ✅ |
+| Scoring DS dimension | `scoring.ts` | Space efficiency 15% weight + P8 penalty ✅ |
+| Investor Summary | [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) | Space Planning Intelligence section ✅ |
+| Design Brief (data) | [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) | `spaceAllocation` section populated ✅ |
+| Platform alerts | [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) | `space_critical` alert on ≥2 deviations ✅ |
+
+---
+
+## Critical Gaps Found 🔴
+
+### Gap A — `generateBrief` doesn't pass floor plan data to engine
+
+**Severity: 🔴 Critical — Space section will NEVER populate**
+
+The `generateBrief` tRPC at [design.ts:195](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts#L195) calls:
+```ts
+generateDesignBrief(project, inputs, scoreResult, livePricing, ...)
+```
+But it **never passes** `floorPlanAnalysis` or `spaceBenchmark` — the two parameters we added. So the `spaceAllocation` section in the brief data will **always be undefined**.
+
+#### Fix
+Pass `project.floorPlanAnalysis` and call [benchmarkSpaceRatios()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-benchmarking.ts#115-238) inside `generateBrief`, then pass results to [generateDesignBrief()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts#226-600).
+
+---
+
+### Gap B — DOCX export ignores space data
+
+**Severity: 🔴 Critical — Board-ready output missing space section**
+
+[docx-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts) generates Word documents from brief data. It receives `projectIdentity`, `designNarrative`, `materialSpecifications`, `boqFramework`, `detailedBudget`, `designerInstructions` — but does NOT render the `spaceAllocation` section. The exported DOCX will be missing the space data that appears in the UI.
+
+#### Fix
+Add `spaceAllocation` section to DOCX template, rendering efficiency metrics, room breakdown table, and recommendations.
+
+---
+
+### Gap C — Investor PDF export has zero Phase 9 data
+
+**Severity: 🟠 High — PDF export is outdated**
+
+[investor-pdf.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/investor-pdf.ts) generates the HTML-based investor brief PDF. The web UI ([InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)) now shows space planning intelligence, but the **exported PDF** will not include it.
+
+#### Fix
+Add space efficiency section to investor PDF HTML template.
+
+---
+
+### Gap D — ShareView has zero Phase 9 data
+
+**Severity: 🟠 High — Public share links missing space data**
+
+[ShareView.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ShareView.tsx) renders the public (no-auth) investor brief at `/share/:token`. It doesn't query or render any space planning data. Investors receiving share links see a less complete picture than logged-in users.
+
+#### Fix
+Add space benchmark query and rendering to ShareView.
+
+---
+
+### Gap E — ROI engine ignores space efficiency
+
+**Severity: 🟡 Medium — ROI calculations don't factor floor plan quality**
+
+[roi.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/roi.ts) computes ROI projections. Properties with well-optimized floor plans (high space efficiency) should have higher expected returns, but the ROI engine doesn't reference `spaceEfficiencyScore` at all.
+
+#### Fix
+Add space efficiency as a ROI multiplier — high efficiency (>80) boosts projected sale value by 2-5%.
+
+---
+
+### Gap F — Sensitivity analysis ignores space efficiency
+
+**Severity: 🟡 Medium — What-if scenarios blind to space data**
+
+[sensitivity.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sensitivity.ts) runs sensitivity/scenario analysis but doesn't include `spaceEfficiencyScore` as a variable. Users can't model "what if we improved the floor plan."
+
+#### Fix
+Add `spaceEfficiencyScore` as a sensitivity variable (range 40-95).
+
+---
+
+### Gap G — Five-Lens analysis ignores space data
+
+**Severity: 🟡 Medium**
+
+[five-lens.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/five-lens.ts) computes 5-lens positioning but doesn't incorporate floor plan quality.
+
+#### Fix
+Add space efficiency as a factor in the "Design Quality" or "Market Positioning" lens.
+
+---
+
+### Gap H — Analytics/Insight generator ignores space data
+
+**Severity: 🟡 Medium — AI insights miss floor plan issues**
+
+The [insight-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/analytics/insight-generator.ts) generates project insights but has zero space-related insight types. Even when a project has critical space deviations, no insights are generated about it.
+
+#### Fix
+Add `space_optimization` insight type: "Floor plan analysis shows 3 critical room deviations from DLD benchmarks. Reallocating master bedroom area could improve efficiency score from 62 to 78."
+
+---
+
+### Gap I — BriefEditor has zero Phase 9 data
+
+**Severity: 🟡 Medium — Cost calculator blind to space breakdown**
+
+[BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx) is the material-by-material cost calculator. It doesn't reference floor plan analysis or space benchmarks, so costs aren't broken down by actual room sizes.
+
+#### Fix
+Add space allocation breakdown to the brief editor showing per-room costs based on actual floor plan analysis.
+
+---
+
+### Gap J — No Phase 9 tests
+
+**Severity: 🟡 Medium — No test coverage for any Phase 9 engine**
+
+The existing [v8-design.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v8-design.test.ts) tests vocabulary + space program + RFQ, but there are **no tests** for:
+- [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts) (JSON parsing, room validation)
+- [space-benchmarking.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-benchmarking.ts) (DLD benchmark comparison, severity classification)
+- [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) (board-aware prompt building, room prompt context)
+- Scoring integration (DS dimension with space efficiency)
+- Normalization (spaceEfficiency_n calculation)
+
+#### Fix
+Create `v9-space.test.ts` covering benchmarking, normalization, and scoring integration.
+
+---
+
+## Enhancement Opportunities 🚀
+
+### 1. Floor Plan Multi-Analysis (compare revisions)
+Allow uploading multiple floor plan revisions and comparing space efficiency across versions.
+
+### 2. AI Room Recommendation from Space Benchmark
+When a room is flagged as critically under/oversized, use Gemini to suggest specific layout modifications with square meters.
+
+### 3. Space Optimization Scenario Mode
+Add a scenario type "Space Optimization" that auto-generates a floor plan improvement proposal and recalculates the full scoring/ROI.
+
+### 4. Material Board → Finish Schedule Auto-Wire
+When a material board is finalized, auto-generate a finish schedule using the actual floor plan rooms instead of templates.
+
+### 5. DM Compliance + Floor Plan Cross-Check
+Cross-reference floor plan rooms against Dubai Municipality compliance (e.g., minimum bathroom sizes, corridor widths).
+
+---
+
+## Proposed Fix Priority
+
+| Priority | Gap | Impact | Effort |
+|----------|-----|--------|--------|
+| **P0** | A — `generateBrief` missing floor plan data | Space section never populates in brief | 20 min |
+| **P1** | B — DOCX export | Board-ready exports incomplete | 30 min |
+| **P1** | C — Investor PDF export | PDF exports incomplete | 30 min |
+| **P1** | D — ShareView | Public share links incomplete | 20 min |
+| **P2** | J — Tests | No safety net for regressions | 45 min |
+| **P2** | E — ROI engine | ROI ignores space quality | 20 min |
+| **P2** | H — Insight generator | AI insights miss space issues | 20 min |
+| **P3** | F — Sensitivity analysis | What-if blind to space | 15 min |
+| **P3** | G — Five-Lens | Position analysis incomplete | 15 min |
+| **P3** | I — BriefEditor per-room costs | Cost calculator limited | 30 min |
+
+---
+
+## Verification Plan
+
+### Automated Tests
+```bash
+# Run existing tests to ensure no regressions
+cd /Users/amrosaleh/Maiyar/miyar-v2 && npx vitest run server/engines/v8-design.test.ts
+cd /Users/amrosaleh/Maiyar/miyar-v2 && npx vitest run server/engines/scoring.test.ts
+
+# Run new Phase 9 tests after creating them
+cd /Users/amrosaleh/Maiyar/miyar-v2 && npx vitest run server/engines/v9-space.test.ts
+```
+
+### Manual Verification
+1. Create a project with a floor plan image → run "Analyze Floor Plan" → verify rooms extracted
+2. Run "Evaluate" → check scoring includes space efficiency in DS dimension
+3. Generate Design Brief → verify Budget tab shows Space Allocation card
+4. Export DOCX → verify space section appears in Word document
+5. Open Investor Summary → verify Space Planning Intelligence section
+6. Generate room render → verify board materials injected in prompt

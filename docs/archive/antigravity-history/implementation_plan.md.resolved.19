@@ -1,0 +1,41 @@
+# Phase H: Digital Twin & Sustainability
+
+## Context
+Greenfield build. Only existing sustainability data: `des05Sustainability` (1-4 scale).
+This phase creates a digital twin model for buildings, computing embodied carbon, operational energy, material lifecycle, and a composite sustainability score.
+
+## Proposed Changes
+
+### H1: Digital Twin Engine
+#### [NEW] [digital-twin.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sustainability/digital-twin.ts)
+- `computeDigitalTwin(config)` — takes GFA, floors, material mix, location, spec level
+- **Embodied Carbon** (kgCO₂e): per-material carbon intensity × quantity estimates
+- **Operational Energy** (kWh/yr): cooling/heating load based on GFA, glazing ratio, insulation
+- **Lifecycle Cost** (30yr): construction + maintenance + energy + end-of-life
+- **Sustainability Score** (0-100): weighted composite of carbon efficiency, energy rating, material circularity, water efficiency
+- Material database: concrete, steel, glass, aluminum, timber, stone, gypsum
+- Returns: scores, carbon breakdown, lifecycle timeline, recommendations
+
+### H2: Schema Tables
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- Add `digitalTwinModels` table: projectId, userId, sustainabilityScore, embodiedCarbon, operationalEnergy, lifecycleCost, carbonBreakdown (JSON), lifecycle (JSON), config (JSON)
+
+### H3: Router Endpoints
+#### [NEW] [sustainability.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/sustainability.ts)
+- `computeTwin` mutation — runs engine, persists
+- `getTwinModels` query — list by project
+- `getLatestTwin` query — latest for a project
+
+### H4: Sustainability Dashboard
+#### [NEW] [Sustainability.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Sustainability.tsx)
+- Sustainability score gauge (0-100)
+- Embodied carbon waterfall chart (by material)
+- Lifecycle cost timeline (30yr projection)
+- Key metrics: kgCO₂e/m², kWh/m²/yr, lifecycle ₿/m²
+- Recommendations for improvement
+
+### H5: Route + Navigation
+#### [MODIFY] App.tsx + DashboardLayout.tsx
+
+## Verification
+- `npx tsc --noEmit` — no new errors

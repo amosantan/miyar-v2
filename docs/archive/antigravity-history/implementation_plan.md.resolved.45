@@ -1,0 +1,88 @@
+# Market Intelligence Engine — Phase B: Fallback Scrapers, Weekly Discovery, Prompt Audit
+
+## Goal
+
+Complete the remaining gaps in the Market Intelligence Engine:
+1. **Fallback scraping APIs** — 2-3 free-tier alternatives to Firecrawl with auto-failover
+2. **Weekly source discovery** — scheduler automatically discovers new sources
+3. **Freshness-triggered re-scraping** — scheduler re-scrapes stale sources
+4. **Prompt accuracy audit** — verify extraction prompts are precise and complete
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Fallback API Keys Required** — The three recommended free-tier scraping APIs each need an API key set in your `.env`. You'll need to sign up for (free) accounts:
+> - **ScrapingDog** — 1,000 free requests/month → [scrapingdog.com](https://www.scrapingdog.com)
+> - **ScrapingAnt** — 10,000 free API credits → [scrapingant.com](https://scrapingant.com)  
+> - **WebScraping.AI** — 2,000 free calls/month → [webscraping.ai](https://webscraping.ai)
+>
+> If you prefer different providers, let me know.
+
+---
+
+## Proposed Changes
+
+### Scraping Fallback Chain
+
+#### [MODIFY] [connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts)
+
+Add a **multi-provider fetch chain** with automatic failover:
+
+```
+Firecrawl (primary) → ScrapingDog → ScrapingAnt → Native fetch (last resort)
+```
+
+- Add `fetchWithScrapingDog()` and `fetchWithScrapingAnt()` methods to [BaseSourceConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#242-386)
+- Modify [fetch()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connector.ts#368-382) to try providers in order, failing over automatically
+- Track which provider succeeded per request for monitoring
+- Env vars: `SCRAPINGDOG_API_KEY`, `SCRAPINGANT_API_KEY`
+
+---
+
+### Scheduler Upgrade
+
+#### [MODIFY] [scheduler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/scheduler.ts)
+
+Add two new scheduled jobs:
+
+1. **Weekly Source Discovery** (Sundays 04:00 UTC) — calls [discoverNewSources()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/source-discovery.ts#80-137) and logs candidates
+2. **Freshness Re-scrape** (Wednesdays 06:00 UTC) — calls [getStaleSourceIds()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/freshness.ts#96-161) and re-runs stale connectors
+
+---
+
+### Prompt Accuracy Fixes
+
+#### [MODIFY] [dynamic.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts)
+
+Audit and fix all 4 extraction prompts:
+
+- **Prompt A (Material Pricing):** Add explicit AED formatting rules, handle multi-currency edge cases
+- **Prompt B (Developer Intel):** Add explicit brand detection rules for UAE-specific brands (DAMAC finishes, Emaar specs)
+- **Prompt C (Market Research):** Add trend confidence classification, year/quarter attribution
+- **Prompt D (Government Data):** Add DM regulation number extraction, compliance code references
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+Run existing test suite:
+```bash
+cd /Users/amrosaleh/Maiyar/miyar-v2 && npx vitest run server/engines/ingestion/dfe-test-suite.test.ts
+```
+
+Run TypeScript compilation:
+```bash
+cd /Users/amrosaleh/Maiyar/miyar-v2 && npx tsc --noEmit 2>&1 | grep -E "connector|scheduler|dynamic|source-discovery|data-verifier|trend-extractor|data-quality|freshness|orchestrator"
+```
+
+### Manual Verification
+
+After deployment, the user can verify via admin UI:
+
+1. **Fallback scrapers:** Set `FIRECRAWL_API_KEY` to an invalid value → run ingestion → verify it falls through to ScrapingDog/ScrapingAnt → check logs for `[Connector] 🐕` or `[Connector] 🐜` prefixes
+2. **Weekly discovery:** Check scheduler status shows 3 cron jobs (source crons + discovery + freshness)
+3. **Stale re-scrape:** Call `ingestion.runStaleSources` from admin → verify it triggers connectors

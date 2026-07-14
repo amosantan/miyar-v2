@@ -1,0 +1,55 @@
+# Phase 8: Real-World Procurement & Material Intelligence Implementation Plan
+
+The objective of Phase 8 is to move MIYAR from estimating generic material concepts (e.g., "Premium Stone") to specifying precise, real-world supplier catalogs (e.g., "Cosentino Silestone") while tying these physical materials directly to the deep analytics we built in Phase 6 (Brand Standards, Lifecycle OPEX).
+
+## User Review Required
+> [!IMPORTANT]
+> This phase transforms how materials are modeled. Please review the proposed new schema fields (`embodiedCarbon`, `maintenanceFactor`, `brandStandardApproval`) to ensure they align with the business goals for OPEX profiling and vendor matching.
+
+## Proposed Changes
+
+### Database Schema
+#### [MODIFY] [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+Add the following columns to the `materialsCatalog` (drizzle/schema.ts) table:
+- `embodiedCarbon`: `decimal("embodiedCarbon", { precision: 10, scale: 4 })` - Tracks kg CO2e per unit.
+- `maintenanceFactor`: `decimal("maintenanceFactor", { precision: 6, scale: 4 })` - Tracks annual OPEX as a percentage of install cost (e.g., 0.05 = 5%).
+- `brandStandardApproval`: `mysqlEnum("brandStandardApproval", ["open_market", "approved_vendor", "preferred_brand"])` - Maps to the project's strictness level. 
+  - `preferred_brand` items are mandatory when the project demands "Strict Vendor List".
+  - `approved_vendor` items can be used for "Moderate Guidelines".
+  - `open_market` are highly flexible items.
+
+### Seed Data
+#### [NEW] `server/engines/ingestion/seeds/supplier-catalogs.ts`
+- Create a seed script that ingests 20-30 real-world UAE supplier items into `materialsCatalog` (e.g., specific tiles from RAK Ceramics, stone from Cosentino, fixtures from Grohe).
+- Populate their real-world prices, lead times, brand standard approval tiers, maintenance factors, and carbon footprints.
+
+### TRPC Routers & Services
+#### [MODIFY] [server/routers/design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+- Update the Zod schemas for `createMaterial` / `updateMaterial` / `listMaterials` to include the new fields.
+- Update `recommendMaterials` (the auto-BoQ generator used in [BoardComposer](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BoardComposer.tsx#20-577)) to use a new **Vendor Matching Engine** instead of just basic tier matching.
+
+#### [NEW] `server/engines/procurement/vendor-matching.ts`
+Create an engine logic file that takes a `projectId`:
+- Reads the project's `brandStandardConstraints` (from Phase 6).
+- If constraint is "Strict Vendor List": strictly returns materials where `brandStandardApproval` = "preferred_brand".
+- If constraint is "Moderate Guidelines": returns "preferred_brand" and "approved_vendor".
+- If "High Flexibility": allows all materials, but favors the cheapest or most readily available depending on `timelineFlexibility`.
+
+### UI Integration
+#### [MODIFY] [client/src/pages/BoardComposer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BoardComposer.tsx)
+- Enhance the materials table and RFQ-Ready view.
+- Add columns/badges for `OPEX/yr` (Maintenance) and `Carbon` (CO2e).
+- Display a "Verified Brand" badge for materials that meet strict brand standards.
+- Ensure the "Quick Start: Add Recommended Materials" explicitly states if it's applying "Strict Vendor Matching" filters based on the project settings.
+
+## Verification Plan
+
+### Automated Tests
+- Run `npm run check` to verify TypeScript types alignment across Zod schemas, DB types, and React props.
+- Run `npm run dx` (or local standard seed/test scripts) to populate the new catalog.
+
+### Manual Verification
+1. Click "New Project", set **Brand Standard Constraints** to **"Strict Vendor List"**.
+2. Navigate to "Boards" and click "New Board".
+3. Check the "Recommended Materials" list — verify that ONLY items seeded as `preferred_brand` appear.
+4. Verify the RFQ PDF export correctly includes the specific supplier names and real-world OPEX/Carbon footprints.

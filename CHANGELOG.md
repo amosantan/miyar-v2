@@ -2,7 +2,7 @@
 
 Notable user-facing, architectural, operational, security, data, and compatibility changes are recorded here using `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, and `Security` categories. Dates use `YYYY-MM-DD`.
 
-Do not fabricate historical releases. Older phase evidence remains in `docs/reports/`, `antigravity-history/`, and Git history.
+Do not fabricate historical releases. Older phase evidence remains in `docs/archive/`, `.agent/archive/`, and Git history.
 
 ## Unreleased
 
@@ -36,4 +36,4 @@ Do not fabricate historical releases. Older phase evidence remains in `docs/repo
 
 ## Historical Releases
 
-Overlapping historical phase/version reports have not been rewritten here. Consult `docs/VERSION_HISTORY.md`, `docs/reports/`, `antigravity-history/`, and Git log as commit-specific evidence rather than current state.
+Overlapping historical phase/version reports have not been rewritten here. Consult `docs/archive/historical-reports/VERSION_HISTORY.md`, `docs/archive/`, and Git log as commit-specific evidence rather than current state.

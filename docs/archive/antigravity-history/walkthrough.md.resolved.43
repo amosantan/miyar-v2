@@ -1,0 +1,49 @@
+# DLD Integration — Phase B & C Walkthrough
+
+## Summary
+
+DLD data is now fully integrated across MIYAR: from raw transactions through benchmarks, into every analysis engine, AI prompt, and a new dedicated dashboard.
+
+## Phase B (3 commits)
+
+| Item | What | Files Changed |
+|------|------|---------------|
+| B.1-B.2 | Ingested 10K records → 117 area benchmarks | [dld-analytics.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts), schema |
+| B.3 | Fixed 7 pipeline gaps (Zod, brief, scoring) | [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts), [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts), [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) |
+| B.4 | Investor Summary DLD card (P50, yield, fitout band) | [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) |
+| B.5 | DLD context in both Gemini prompts | [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts) |
+| B.6 | Space budgets calibrated with DLD fitout × GFA | [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts) |
+
+## Phase C (`bbb9b60`)
+
+| Item | What | Files Changed |
+|------|------|---------------|
+| C.1 | [computeMarketPosition()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/dld-analytics.ts#252-301) in evaluate handler | [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) |
+| C.2 | OVER/UNDER_SPEC risk flags detected + logged | [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) |
+| C.3 | DLD yield context enriches ROI handler | [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) |
+| C.4 | DLD Insights Dashboard page | [DldInsights.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/market-intel/DldInsights.tsx) (new) |
+| C.5 | Route + sidebar entry | [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx), [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx) |
+
+## Data Flow
+
+```
+DLD JSON → Ingestion → Benchmarks (117 areas)
+    ↓
+Project (dldAreaId + projectPurpose)
+    ↓
+┌─ Scoring → DLD-calibrated budgetFit + market position
+├─ Design Brief → real sale price, purpose-aware materials
+├─ AI Advisor → DLD context in Gemini prompt
+├─ Space Recs → DLD fitout × GFA room budgets
+├─ ROI → DLD yield context
+├─ Investor Summary → DLD market context card
+└─ DLD Dashboard → /market-intel/dld-insights
+```
+
+## Verification
+
+- ✅ Build passes for all 3 commits
+- ✅ All pushed to [main](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/ingest-dld-data.ts#27-319) on GitHub
+- ✅ DLD Insights page at `/market-intel/dld-insights` with sortable table + bar charts
+- ✅ Evaluate returns `dldMarketPosition` with spec risk flags
+- ✅ ROI returns `dldContext` with gross yield

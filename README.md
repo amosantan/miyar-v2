@@ -36,19 +36,22 @@ See [Architecture](docs/ARCHITECTURE.md) for the full system map.
 
 ## Repository Layout
 
-| Path | Purpose |
-|---|---|
-| `client/src/` | React pages, components, hooks, contexts, and client utilities |
-| `server/routers/` | Authenticated tRPC API surface |
-| `server/engines/` | Scoring, intelligence, design, prediction, ingestion, reporting, and learning |
-| `server/db.ts` | Database access helpers |
-| `drizzle/schema.ts` | Canonical database schema |
-| `shared/` | Shared types, constants, and errors |
-| `scripts/` | Imports, migrations, backfills, and seeding |
-| `docs/` | Current product, architecture, operations, loops, and decisions |
-| `.agent/skills/` | Domain instructions loaded on demand |
-| `.agent/state/` | Current task, known failures, and handover log |
-| `antigravity-history/` | Historical evidence; not current authority |
+| Path                 | Purpose                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| `client/src/`        | React pages, components, hooks, contexts, and client utilities                        |
+| `server/routers/`    | Authenticated tRPC API surface                                                        |
+| `server/engines/`    | Scoring, intelligence, design, prediction, ingestion, reporting, and learning         |
+| `server/serverless/` | Source entry for the generated Vercel API bundle                                      |
+| `server/db.ts`       | Database access helpers                                                               |
+| `drizzle/schema.ts`  | Canonical database schema                                                             |
+| `shared/`            | Shared types, constants, and errors                                                   |
+| `scripts/`           | Imports, migrations, backfills, and seeding                                           |
+| `docs/`              | Current product, architecture, operations, loops, and decisions                       |
+| `docs/artifacts/`    | Organized project briefs, financial models, QA documents, prompts, and report samples |
+| `docs/archive/`      | Historical reports, plans, agent traces, and superseded specifications                |
+| `.agent/skills/`     | Domain instructions loaded on demand                                                  |
+| `.agent/state/`      | Current task, known failures, and handover log                                        |
+| `.agent/archive/`    | Superseded phase prompts, rules, and workflows; not current authority                 |
 
 ## Prerequisites
 
@@ -73,15 +76,15 @@ For detailed setup and troubleshooting, see the [local-development runbook](docs
 
 ## Standard Commands
 
-| Command | Purpose |
-|---|---|
-| `pnpm dev` | Start the development server with Vite integration |
-| `pnpm check` | Run TypeScript without emitting files |
-| `pnpm test` | Run the complete Vitest suite |
-| `pnpm vitest run <file>` | Run a targeted test file |
-| `pnpm build` | Build client, Node server, and serverless API bundle |
-| `pnpm db:push` | Generate and apply Drizzle migrations to the configured target |
-| `pnpm format` | Format the repository with Prettier |
+| Command                  | Purpose                                                        |
+| ------------------------ | -------------------------------------------------------------- |
+| `pnpm dev`               | Start the development server with Vite integration             |
+| `pnpm check`             | Run TypeScript without emitting files                          |
+| `pnpm test`              | Run the complete Vitest suite                                  |
+| `pnpm vitest run <file>` | Run a targeted test file                                       |
+| `pnpm build`             | Build client, Node server, and serverless API bundle           |
+| `pnpm db:push`           | Generate and apply Drizzle migrations to the configured target |
+| `pnpm format`            | Format the repository with Prettier                            |
 
 Do not apply migrations to a shared environment without explicit authorization. Follow the [database migration runbook](docs/runbooks/database-migration.md).
 
@@ -115,7 +118,7 @@ Current authority is deliberately separated:
 - Security and data handling: `docs/SECURITY.md`
 - Ownership and approval roles: `docs/OWNERSHIP.md`
 - Active long-running task: `.agent/state/CURRENT_TASK.md`
-- Historical evidence: Git, `docs/reports/`, and `antigravity-history/`
+- Historical evidence: Git, `docs/archive/`, and `.agent/archive/`
 
 Historical reports may contain old paths, commands, test counts, or roadmap states. They must be verified against the current checkout before use.
 

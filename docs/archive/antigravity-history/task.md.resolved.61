@@ -1,0 +1,25 @@
+# Priority 2: Design Studio — Visual & Material Intelligence UI
+
+## Phase 1: Backend — Pinning Endpoints
+- [/] Add `pinVisualToBoard` mutation to [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) router
+- [ ] Add `listPinnedVisuals` query to [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) router
+- [ ] Add `unpinVisual` mutation to [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) router
+
+## Phase 2: Unified Design Studio Page
+- [ ] Create `DesignStudio.tsx` with 4 tabs: Studio, Visuals, Materials, Cost Overlay
+- [ ] Migrate VisualStudio logic into Visuals tab
+- [ ] Migrate BoardComposer logic into Materials tab
+- [ ] Build Studio overview tab with pinned visuals + quick-generate
+- [ ] Build Cost Overlay tab with live V4 pricing
+
+## Phase 3: Routing & Navigation
+- [ ] Update [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) — replace old routes with `/projects/:id/design-studio`
+- [ ] Update [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx) — replace nav entries
+
+## Phase 4: Premium Styling
+- [ ] Add glassmorphism, hover effects, and gradient accents to [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css)
+
+## Phase 5: Cleanup & Verification
+- [ ] Delete [VisualStudio.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/VisualStudio.tsx) and [BoardComposer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BoardComposer.tsx)
+- [ ] Run tests to verify backward compatibility
+- [ ] Commit and push

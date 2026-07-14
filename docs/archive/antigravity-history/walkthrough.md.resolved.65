@@ -1,0 +1,53 @@
+# MIYAR 2.0 — Intelligent Intake System Walkthrough
+
+## What Was Built
+
+A complete AI-powered project intake system replacing manual form entry with multimodal AI analysis + per-section AI suggestions.
+
+---
+
+## Phase 2.0-A–D: Intelligent Intake Canvas
+
+| Component | File | What |
+|-----------|------|------|
+| Schema | [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) | Extended `project_assets` with `assetType`, `aiExtractionResult`, `aiContributions` |
+| Engine | [server/engines/intake/ai-intake-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts) | Multimodal Gemini processing (images, PDFs, audio, video, URLs, text) |
+| Router | [server/routers/intake.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/intake.ts) | 5 endpoints: upload, record, list, process, link assets |
+| UI | [client/src/pages/ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) | Drag-drop upload, URL input, voice recording, AI review phase |
+
+## Phase 2.0-E: AI Assist on ProjectForm (This Session)
+
+Added per-section AI Assist buttons to the 7-step ProjectForm wizard.
+
+### Backend
+- **[suggestSectionFields()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts#554-719)** in [ai-intake-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts) — Maps 6 sections to their fields, calls `invokeLLM` with section-focused prompt, returns `SectionSuggestion[]` with value, confidence, and reasoning per field
+- **[suggestSection](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts#554-719)** endpoint in [intake.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/intake.ts) — Takes `section` name + `currentFormState`, returns suggestions
+
+### Frontend
+- **[AiSectionAssist](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx#609-800)** component (225 lines) in [ProjectForm.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx):
+  - ✨ Sparkle button in CardHeader for steps 0–5 (not Review)
+  - Per-field Accept ✓ / Dismiss ✕ with confidence badges (HIGH/MEDIUM/LOW)
+  - "Accept All" batch action
+  - Loading state ("Thinking...") + toast notifications
+
+### Verification
+
+````carousel
+![AI Assist button in Context step header](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/project_form_ai_assist_button_1772448078826.png)
+<!-- slide -->
+![AI Suggestions panel with GFA recommendation](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/project_form_ai_suggestions_panel_1772448125455.png)
+````
+
+- ✅ TypeScript compilation: zero errors
+- ✅ Browser test: button renders, AI responds with UAE-contextual suggestions
+- ✅ Committed (`a508972`) and pushed to `main`
+
+---
+
+## Files Changed
+
+| File | Lines | Change |
+|------|-------|--------|
+| [server/engines/intake/ai-intake-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts) | +214 | [suggestSectionFields()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts#554-719) function + types |
+| [server/routers/intake.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/intake.ts) | +14 | [suggestSection](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts#554-719) endpoint |
+| [client/src/components/ProjectForm.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx) | +275 | [AiSectionAssist](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx#609-800) component + CardHeader integration |

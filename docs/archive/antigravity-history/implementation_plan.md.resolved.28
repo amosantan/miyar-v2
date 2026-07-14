@@ -1,0 +1,63 @@
+# Phase D: Governance & Compliance — Implementation Plan
+
+Add UAE-specific sustainability compliance checklists, enhance audit trails, and create a methodology disclosure page.
+
+## Proposed Changes
+
+### D.1: Sustainability Compliance Checklists (Estidama + Al Sa'fat)
+
+#### [NEW] [compliance-checklists.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sustainability/compliance-checklists.ts)
+- **Estidama Pearl Rating System** (Abu Dhabi): checklist items for Pearl 1-5 tiers covering energy, water, materials, livable buildings
+- **Al Sa'fat** (Dubai): Green Building Regulations checklist — Bronze/Silver/Gold/Platinum tiers covering glazing, insulation, water fixtures, MEP efficiency
+- Each checklist item: `{ id, category, requirement, tier, autoEvaluated, pass/fail/na }`
+- Auto-evaluates items from digital twin data (carbon, energy, water scores)
+- Returns compliance summary: tier achieved, items passed/failed/pending
+
+#### [MODIFY] [Sustainability.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Sustainability.tsx)
+- Add "Compliance" tab alongside existing digital twin results
+- Render Estidama + Al Sa'fat checklists as accordion cards with pass/fail badges
+- Show achieved tier badge (e.g. "Pearl 2" / "Al Sa'fat Silver")
+
+#### [MODIFY] [sustainability router](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers) (or create new)
+- Add `sustainability.evaluateCompliance` endpoint
+
+---
+
+### D.2: Audit Trail Enhancement
+
+#### [MODIFY] [AuditLogs.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/admin/AuditLogs.tsx)
+- Add filter by action type, entity type, date range
+- Expand details panel (JSON details viewer on click)
+- Add CSV export button
+- Show structured action labels (icon + color per action category)
+
+#### [MODIFY] [admin.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/admin.ts)
+- Add `auditLogs.export` endpoint returning CSV
+- Add filter params: `actionType`, `entityType`, `fromDate`, `toDate`
+
+---
+
+### D.3: Methodology Disclosure Page
+
+#### [NEW] [Methodology.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Methodology.tsx)
+- Public-facing page (no auth required) explaining:
+  - MIYAR Score: 5 dimensions (SA/FF/MP/DS/ER) with weight explanations
+  - Data sources: list from sourceRegistry with reliability grades
+  - AI usage: Gemini role, guardrails, where AI generates vs where data overrides
+  - Benchmark methodology: cost bands, DLD calibration, synthetic labeling
+  - Sustainability: digital twin model, ICE v3 carbon factors
+- Professional layout — suitable for investor/board presentations
+
+#### [MODIFY] [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx)
+- Add route `/methodology` (public, no auth)
+
+## Verification Plan
+
+### Automated
+- `npm run build` — TypeScript compilation passes
+- Verify compliance evaluator returns valid checklist for test project
+
+### Manual
+- Open `/sustainability` → compute twin → check compliance tab shows Estidama + Al Sa'fat
+- Open `/admin/audit-logs` → verify filters, expand details, CSV export
+- Open `/methodology` → verify public access, content accuracy

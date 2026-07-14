@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary":  "Implementation plan for recovering historical Manus database data from CSV backups. Focuses on deduplication and restoring key tables like `source_registry`, `competitor_entities`, and `evidence_records`.",
+  "updatedAt":  "2026-02-23T18:21:22.458504Z"
+}

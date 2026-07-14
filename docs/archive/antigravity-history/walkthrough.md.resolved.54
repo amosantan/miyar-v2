@@ -1,0 +1,45 @@
+# Market Intelligence & Evidence — Stitch Redesign Walkthrough
+
+## What Was Built
+
+A premium Market Intelligence & Evidence page implementing the Stitch design: dark-themed interactive Dubai map with gold heatmaps, DLD live feed overlay, top benchmarks, price-per-sqft by tier, and yield forecast chart.
+
+## Files Changed
+
+| File | Action |
+|------|--------|
+| [MarketIntelligence.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/market-intel/MarketIntelligence.tsx) | **NEW** — 476 lines |
+| [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) | Added import + route `/market-intelligence` |
+| [dubai-map.jpg](file:///Users/amrosaleh/Maiyar/miyar-v2/client/public/dubai-map.jpg) | **NEW** — Dubai satellite map |
+
+## Design Sections & Data Sources
+
+| Section | Data Source | Live Values |
+|---|---|---|
+| DLD Live Feed | `trpc.marketIntel.evidence.list` | 1,569 records |
+| Top Benchmarks | `trpc.design.getAreaBenchmarks` | Trade Center First, World Islands |
+| Price by Tier | Computed from benchmarks | Ultra-Lux: AED 22,455, Luxury: AED 11,696 |
+| Yield Forecast | Computed from gross yield | SVG trend lines |
+| Market Status | Static | "Strong Bullish" + record count |
+
+## Verification
+
+### Stitch Design vs Implementation
+
+````carousel
+![Stitch Design](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/stitch_market_intel.png)
+<!-- slide -->
+![Implementation](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/market_intelligence_verification_1772222673938.png)
+````
+
+### Browser Recording
+![Market Intelligence Page](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/market_intel_screenshot_1772222653930.webp)
+
+### Results
+- ✅ All 7 design sections rendered correctly
+- ✅ Real data from existing APIs (no new backend needed)
+- ✅ Zero console errors
+- ✅ Glassmorphism, heatmap, SVG trend lines work
+
+## Git
+- Commit `5fcf454` — pushed to `main`

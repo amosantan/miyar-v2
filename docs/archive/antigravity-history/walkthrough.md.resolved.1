@@ -1,0 +1,55 @@
+# Manus → Antigravity Migration Walkthrough
+
+## Summary
+
+Removed all Manus platform dependencies from the Miyar V2 codebase. The app is now fully self-contained and ready for independent deployment.
+
+## Changes Made
+
+### Files Modified (8)
+
+| File | Change |
+|------|--------|
+| [sdk.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sdk.ts) | Stripped Manus OAuth (`OAuthService`, `WebDevAuthPublicService`). Kept JWT session management |
+| [env.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/env.ts) | Removed `oAuthServerUrl`, `appId`, `forgeApiUrl`, `forgeApiKey`. Added `googleMapsApiKey` |
+| [vite.config.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/vite.config.ts) | Removed ~140 lines of Manus debug collector + Manus domain allowlist |
+| [map.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/map.ts) | Forge proxy → direct `maps.googleapis.com` |
+| [Map.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/Map.tsx) | Forge proxy → direct Google Maps JS API |
+| [useAuth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/_core/hooks/useAuth.ts) | `manus-runtime-user-info` → `miyar-user-info` |
+| [notification.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/notification.ts) | Removed Manus reference in JSDoc |
+| [auth.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/auth.ts) | Updated "legacy manus login" comment |
+
+### Files Deleted (5)
+
+| Path | Reason |
+|------|--------|
+| [server/_core/types/manusTypes.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/types/manusTypes.ts) | Manus protobuf-generated types |
+| [client/src/components/ManusDialog.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ManusDialog.tsx) | Manus-branded login dialog |
+| [server/_core/dataApi.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/dataApi.ts) | Manus Forge proxy (unused) |
+| `client/public/__manus__/` | Manus debug collector script |
+| `.manus/` | Manus platform config directory |
+
+### Files Created (1)
+
+| Path | Purpose |
+|------|---------|
+| [.env.example](file:///Users/amrosaleh/Maiyar/miyar-v2/.env.example) | Documents all env vars for deployment |
+
+## External API Dependencies
+
+| Service | API | Env Var |
+|---------|-----|---------|
+| LLM | Google Gemini | `GEMINI_API_KEY` |
+| Image Gen | Google Imagen | `GEMINI_API_KEY` |
+| Voice | OpenAI Whisper | `OPENAI_API_KEY` |
+| Email | Resend | `RESEND_API_KEY` |
+| Database | PlanetScale | `DATABASE_URL` |
+| Maps | Google Maps | `GOOGLE_MAPS_API_KEY` |
+| Storage | AWS S3 | `AWS_*` vars |
+
+## Next Steps
+
+1. **Install dependencies**: `pnpm install`
+2. **Set env vars**: Copy [.env.example](file:///Users/amrosaleh/Maiyar/miyar-v2/.env.example) → [.env](file:///Users/amrosaleh/Maiyar/miyar-v2/.env) and fill in values
+3. **Run dev server**: `pnpm dev`
+4. **Test auth**: Register at `/login`, verify dashboard loads

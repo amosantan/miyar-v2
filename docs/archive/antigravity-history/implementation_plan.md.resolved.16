@@ -1,0 +1,42 @@
+# Phase E: Cognitive Bias Detection
+
+## Existing Foundation
+
+| Layer | Status | Detail |
+|---|---|---|
+| Engine | ✅ Complete | 7 detectors in [bias-detector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts) (584 lines) |
+| Types | ✅ Complete | [bias-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-types.ts) (108 lines) |
+| Router | ✅ Mostly done | 5 endpoints in [bias.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/bias.ts) |
+| Schema | ✅ Complete | `biasAlerts` + `biasProfiles` tables |
+| Component | ✅ Done | [BiasAlerts.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/BiasAlerts.tsx) embedded in ProjectDetail |
+| Integration | ✅ Done | [detectBiases()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts#545-581) called during project evaluation |
+
+## Gaps to Fill
+
+### E1: Fix [getUserBiasProfile](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1929-1935) DB function
+#### [MODIFY] [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts)
+- Add [getUserBiasProfile(userId)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1929-1935) — queries `biasProfiles` table
+- Add [upsertBiasProfile(userId, biasType, severity)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1936-1977) — increments occurrence count, updates trend
+
+### E2: Add on-demand bias scan endpoint
+#### [MODIFY] [bias.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/bias.ts)
+- Add `scan` mutation: takes `projectId`, loads inputs + latest scoreMatrix, builds [DetectorContext](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-types.ts#57-68), runs [detectBiases()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts#545-581), persists to `biasAlerts`, updates `biasProfiles`
+- This enables bias checking without re-evaluating the whole project
+
+### E3: Create Bias Dashboard page
+#### [NEW] [BiasInsights.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BiasInsights.tsx)
+- Full page at `/bias-insights` with:
+  - **User Bias Profile**: radar chart of 7 bias types (occurrence frequency)
+  - **Active Alerts Across Projects**: grouped by severity, dismissible
+  - **On-Demand Scan**: select a project and run bias detection
+  - **Bias Trend Timeline**: simple bars showing bias frequency over time
+
+### E4: Wire route + navigation
+#### [MODIFY] [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx)
+- Add route `/bias-insights`
+#### [MODIFY] [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx)
+- Add nav link under Analysis section
+
+## Verification Plan
+- `npx tsc --noEmit` — no new errors
+- Verify router endpoints compile and match schema

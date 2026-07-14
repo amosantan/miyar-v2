@@ -1,0 +1,40 @@
+# Phase 9 Integration Audit — Walkthrough
+
+## Summary
+
+Audited and fixed **10 integration gaps** across the MIYAR codebase to ensure Phase 9 floor plan analysis, space benchmarking, and DLD-backed intelligence data flows correctly through every output, calculation, and analytics engine.
+
+---
+
+## Changes Made
+
+### Gap A — Design Brief Generation
+**[design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)**: `generateBrief` now parses `floorPlanAnalysis` from the project, calls `benchmarkSpaceRatios()`, and passes results to `generateDesignBrief()` so briefs include space allocation analysis.
+
+### Gap B — DOCX Export
+**[docx-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts)**: Added **Section 7 — Space Allocation Analysis** with room table, efficiency score, and recommendations. Wired through `exportBriefDocx` mutation.
+
+### Gap C — Investor PDF
+**[investor-pdf.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/investor-pdf.ts)**: Extended [InvestorPdfInput](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/investor-pdf.ts#10-67) with `spaceEfficiency`. Added **Section C½** to HTML template showing KPIs + room allocation bars vs DLD benchmarks.
+
+### Gap D — Public Share View
+- **[design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)**: `resolveShareLink` now computes space efficiency data from floor plan + DLD benchmarks.
+- **[ShareView.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ShareView.tsx)**: New **B½ · Space Planning Intelligence** section with efficiency KPIs + DLD-backed recommendations.
+
+### Gap E — ROI Engine
+**[roi.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/roi.ts)**: Added 6th driver **"Space Efficiency Optimization"** modeling fitout cost savings. **[project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)**: Both `roi` query and `generateReport` now pass `spaceEfficiencyScore`.
+
+### Gap F — Sensitivity Analysis
+**[sensitivity.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sensitivity.ts)**: Added `spaceEfficiencyScore` as perturbable field (step: 10).
+
+### Gap G — Five-Lens Framework
+**[five-lens.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/five-lens.ts)**: "Floor Plan Efficiency" evidence added to Brand/Vision lens.
+
+### Gap H — Insight Generator
+**[insight-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/analytics/insight-generator.ts)**: Added `space_optimization` as 9th insight type with `spaceAnalysis` input.
+
+### Gap J — Tests
+**[v9-space.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v9-space.test.ts)**: 7 test cases for benchmarking + normalization.
+
+## Deferred
+- **Gap I** (BriefEditor per-room costs): Lower priority.

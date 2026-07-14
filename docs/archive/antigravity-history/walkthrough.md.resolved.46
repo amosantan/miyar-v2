@@ -1,0 +1,55 @@
+# Sustainability Certification Integration — Walkthrough
+
+## What Changed
+
+Customers can now choose a **specific sustainability certification target** during project creation, with the system **auto-detecting** which certification applies based on city. This choice ripples through pricing, scoring, and compliance.
+
+---
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) | Added `city` (enum) and `sustain_cert_target` (varchar) columns |
+| [miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts) | Added [ProjectCity](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#9-10), `city`, `sustainCertTarget`, `sustainCertMultiplier` |
+| [sustainability-multipliers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sustainability/sustainability-multipliers.ts) | **[NEW]** Central multiplier engine with research-backed cost premiums |
+| [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) | Accepts `city`/`sustainCertTarget`, auto-derives `des05Sustainability` |
+| [normalization.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts) | `budgetFit` adjusted by cert multiplier, `sustainCertMultiplier` in output |
+| [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) | DS+des05_n (15%), ER+certRisk (10%), P6 `SUSTAIN_UNDERFUNDED` penalty |
+| [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) | City selector, cert tier picker with premium badge, review step update |
+| [sustainability.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/sustainability.ts) | Compliance auto-filters by project city, returns `certSystem` |
+
+---
+
+## Key Decisions
+
+### Certification Tier ↔ Cost Multiplier (research-backed)
+
+| Tier | Multiplier | Source |
+|------|-----------|--------|
+| Pearl 1 / Bronze | ×1.03 | Minimum mandatory — basic low-VOC, local sourcing |
+| Pearl 2 / Silver | ×1.07 | Silver mandatory in Dubai; higher recycled content |
+| Pearl 3 / Gold | ×1.12 | 20%+ recycled/reclaimed, advanced water systems |
+| Pearl 4 | ×1.16 | Circularity requirements, on-site energy |
+| Pearl 5 / Platinum | ×1.22 | Near net-zero, full lifecycle optimization |
+
+### Scoring Impact
+
+- **DS (Differentiation Strength):** `des05_n` now contributes 15% — higher sustainability = stronger differentiation
+- **ER (Execution Risk):** `certRisk` adds 10% weight — Pearl 4+ / Platinum increases procurement complexity
+- **FF (Financial Feasibility):** `budgetFit` calculated against cert-adjusted expected cost — underfunded budgets penalized
+- **P6 Penalty:** -6 points + `SUSTAIN_UNDERFUNDED` flag when budget can't cover cert premium
+
+### Backward Compatibility
+- `des05Sustainability` still exists as 1–5 int, auto-derived from tier selection
+- Existing projects default to `city=Dubai`, `sustainCertTarget=silver`
+
+---
+
+## Verification
+
+| Check | Result |
+|-------|--------|
+| TypeScript compile (modified files) | ✅ Zero errors |
+| DB migration (PlanetScale) | ✅ Both columns added and verified |
+| Git commit & push | ✅ Pushed to `main` |

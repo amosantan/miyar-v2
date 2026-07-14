@@ -1,0 +1,19 @@
+# Phase 9 — Integration Gap Fixes
+
+## Gap 1: Scoring Engine — DS Dimension + Space Efficiency
+- [ ] Add space efficiency sub-factor to DS score in `scoring.ts`
+
+## Gap 2: Design Brief — Space Allocation Section
+- [ ] Add space program data to design brief generation in `design-brief.ts`
+
+## Gap 3: Investor Summary — Space Efficiency Card
+- [ ] Add space efficiency section to `InvestorSummary.tsx`
+
+## Gap 4: Design Studio — Room-Specific Render UI
+- [ ] Wire [generateRoomRender](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#254-274) into `DesignStudio.tsx`
+
+## Gap 5: Brief Editor — DLD Space Benchmark Guidance
+- [ ] Show DLD-optimal room allocations in `BriefEditor.tsx`
+
+## Gap 6: Platform Alerts — Space Deviation Warnings
+- [ ] Fire alert when floor plan has critical space deviations

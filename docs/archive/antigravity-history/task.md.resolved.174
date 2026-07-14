@@ -1,0 +1,28 @@
+# MIYAR 2.0 — Intelligent Intake System
+
+## Phase 2.0-A: Schema Extension
+- [x] Extend `project_assets` table with `assetType`, `aiExtractionResult`, `aiContributions`
+- [x] Add `floor_plan` and `voice_note` to category enum
+
+## Phase 2.0-B: AI Intake Engine
+- [x] Create [ai-intake-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts) — multimodal asset processing via Gemini
+- [x] Reuse `analyzeFloorPlan()` for floor plan detection
+- [x] Validate all outputs against `ProjectInputs` enum constraints
+
+## Phase 2.0-C: Intake Router
+- [x] `getUploadUrl`, `recordAsset`, `listAssets`, `processAssets`, `linkAssetsToProject`
+
+## Phase 2.0-D: ProjectNew Rewrite
+- [x] Drag-and-drop upload zone, URL input, voice recording, text description
+- [x] AI review phase with confidence badges, insights, warnings
+- [x] "Skip to Manual Form" fallback
+
+## Phase 2.0-E: AI Assist on ProjectForm
+- [x] [suggestSectionFields()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts#554-719) engine function (6 sections mapped to fields)
+- [x] [suggestSection](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/intake/ai-intake-engine.ts#554-719) endpoint in intake router
+- [x] [AiSectionAssist](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx#609-800) component in ProjectForm.tsx (sparkle button in header)
+- [x] Per-field accept/dismiss, confidence badges, reasoning, Accept All
+- [x] Browser verified + committed + pushed
+
+## Phase 2.0-F: Chat Refinement (deferred)
+- [ ] Interactive chat to refine AI suggestions

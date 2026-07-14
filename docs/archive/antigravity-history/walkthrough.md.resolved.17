@@ -1,0 +1,44 @@
+# MIYAR Build Playbook — Execution Walkthrough
+
+## Phase A: Production Polish ✅ (`e686640`)
+| Task | What Was Done |
+|------|---------------|
+| A1 | Ingestion scheduler already boots on server start |
+| A2 | Inline "Ask MIYAR" search bar on Dashboard hero |
+| A3 | [alert-delivery.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/alert-delivery.ts) — Resend email for critical/high alerts |
+| A4 | [seed-first-postmortem.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/seed-first-postmortem.ts) — seeded "Al Wasl Residences" outcome |
+| A5 | Gemini API key already configured |
+
+## Phase B: Data Enrichment ✅ (`a0ebd86`)
+
+### B1: 162 Benchmarks Seeded
+- **Script**: [seed-comprehensive-benchmarks.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/seed-comprehensive-benchmarks.ts)
+- Coverage: 9 typologies × 5 tiers × 20 UAE locations × 10 room types
+- Includes realistic cost matrices, selling prices, absorption rates, competitive density
+
+### B2-B3: Bayut + PropertyFinder Connectors
+- **Modified**: [connectors/index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/index.ts)
+- [BayutListingsConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/index.ts#708-764) (#21) — Firecrawl-first, 2s rate limit, price-per-sqft normalization
+- [PropertyFinderListingsConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/index.ts#767-820) (#22) — same pattern
+- Both registered in connector registry and `SOURCE_URLS`
+- **Source registry**: [uae-sources.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/seeds/uae-sources.ts) updated with listing aggregator entries
+
+### B4: 312 Trend Snapshots Backfill
+- **Script**: [seed-trend-backfill.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/seed-trend-backfill.ts)
+- 24 metrics × 13 weekly snapshots (3 months)
+- Categories: `material_cost`, `fitout_rate`, `market_trend`, `property_price`
+
+### B5: 39 Competitor Projects
+- Already seeded via [seed-uae-market-data.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/seed-uae-market-data.ts) (10 developers × 3-8 projects each)
+
+## Database State After Phase A+B
+| Table | Rows Added |
+|-------|-----------|
+| `benchmark_data` | +162 (curated, 2025) |
+| `trend_snapshots` | +312 (3-month history) |
+| `project_outcomes` | +1 (V5 learning loop) |
+| `competitor_projects` | 39 (already existed) |
+| Connectors | 22 total (was 20) |
+
+## Next → Phase C: Build Portfolio Page
+C1-C6: Portfolio tables, engine, CRUD endpoints, page, PDF report, alerts

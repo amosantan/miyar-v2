@@ -93,7 +93,7 @@ async function main() {
 
     // 4. Load JSON
     console.log("\n📂 Loading Projects JSON...");
-    const jsonPath = resolve(__dirname, "../Projects_2026-02-27.json");
+    const jsonPath = resolve(__dirname, "../data/exports/Projects_2026-02-27.json");
     const data = JSON.parse(readFileSync(jsonPath, "utf-8"));
     console.log(`📊 ${data.length} DLD projects found`);
 

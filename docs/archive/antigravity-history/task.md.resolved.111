@@ -1,0 +1,12 @@
+# Phase B — DLD Integration ✅ Complete
+
+- [x] B.1 — Schema & Ingestion (10K records)
+- [x] B.2 — Benchmark Computation (117 areas)
+- [x] B.3 — Pipeline Wiring (7 gaps: Zod, design brief, scoring, ROI)
+- [x] B.4 — Investor Summary DLD card (P50, yield, fitout band)
+- [x] B.5 — AI Brief DLD context (Gemini prompts + project purpose)
+- [x] B.6 — Space budget calibrated with DLD fitout × GFA
+
+## Commits
+- `149ace3` — B.1-3 pipeline wiring
+- `2efbdc8` — B.4-6 frontend + AI wiring

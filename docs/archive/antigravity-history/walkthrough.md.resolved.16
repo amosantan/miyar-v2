@@ -1,0 +1,48 @@
+# Phase A: Production Polish — Walkthrough
+
+## What Was Accomplished
+
+Phase A of the MIYAR Build Playbook is **100% complete**. After auditing the codebase, 2/5 tasks were already done. The remaining 3 were implemented and verified:
+
+### A2: Inline "Ask MIYAR" Search Bar
+- **File**: [Dashboard.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Dashboard.tsx)
+- Added a gradient-bordered card in the Dashboard hero section with:
+  - Sparkles icon + search input ("Ask MIYAR anything...")
+  - Loading spinner while querying
+  - Expandable inline answer card with dismiss button
+- Existing side-panel chat ([AiAssistantPanel](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/AiAssistantPanel.tsx#8-70)) preserved as full-conversation interface
+
+### A3: Alert Email Delivery (Resend)
+- **New file**: [alert-delivery.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/alert-delivery.ts)
+- Sends styled HTML emails for `critical` and `high` severity alerts
+- Graceful degradation: skips silently if `RESEND_API_KEY` not configured
+- **Wired into**: [alert-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/alert-engine.ts) — non-blocking [deliverAlert()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/autonomous/alert-delivery.ts#18-100) call after each new alert insertion
+
+### A4: First Post-Mortem Seeded
+- **New file**: [seed-first-postmortem.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/seed-first-postmortem.ts)
+- Inserted realistic outcome data for **"Al Wasl Residences — Mid-Market Residential"**:
+  - Fitout cost: 905.52 AED/sqm
+  - Total cost: 2,852,915.81 AED
+  - Delivered on time, no rework, client satisfaction: 85/100
+  - Full procurement costs, lead times, RFQ results, and adoption metrics
+- V5 learning loop (comparator → calibrator → ledger) is now activatable
+
+### Already Complete (No Changes Needed)
+- **A1**: Ingestion scheduler already boots on server start (`_core/index.ts:81`)
+- **A5**: Gemini API key already configured in all environments
+
+## Verification Results
+
+| Check | Result |
+|-------|--------|
+| Seed script execution | ✅ [seed-first-postmortem.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/scripts/seed-first-postmortem.ts) ran successfully |
+| `project_outcomes` table | ✅ 1 row inserted with realistic UAE market data |
+| Alert delivery import | ✅ Wired into alert-engine, no TypeScript errors |
+| Dashboard search bar | ✅ Inline NL query form with loading/answer states |
+| Git commit | ✅ `e686640` — 5 files changed, 546 insertions |
+| Git push | ✅ Pushed to `origin/main` |
+
+## Next: Phase B — Data Enrichment
+- B1: Seed 200+ benchmarks covering all typologies & tiers
+- B2: Import 10+ competitor profiles from NotebookLM
+- B3: Backfill trend_snapshots with historical points

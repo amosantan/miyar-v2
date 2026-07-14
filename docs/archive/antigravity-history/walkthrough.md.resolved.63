@@ -1,0 +1,71 @@
+# Phase 10 — Sales Premium & Yield Predictor Engine
+
+## What Was Built
+
+Phase 10 adds a deterministic engine that quantifies the financial return of upgrading fitout quality in UAE real estate projects. It answers the core investor question: *"If I spend +X AED/sqm on better finishes, how much does my yield increase and sale price improve?"*
+
+### Files Created / Modified
+
+| File | Action | Purpose |
+|------|--------|---------|
+| [miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts) | Modified | Added [ValueAddInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#233-243), [ValueAddResult](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#246-257), [BrandEquityInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#258-264), [BrandEquityResult](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#265-271), [ScenarioRange](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#227-232) |
+| [value-add-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/value-add-engine.ts) | New | Pure deterministic engine — zero DB imports, conservative/mid/aggressive |
+| [v10-sales-premium.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v10-sales-premium.test.ts) | New | 24 test cases covering engine edge cases |
+| [salesPremium.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/salesPremium.ts) | New | tRPC router: `getValueAddBridge` + `getBrandEquityForecast` |
+| [routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts) | Modified | Registered `salesPremiumRouter` (router #23) |
+| [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) | Modified | New Section F with interactive sliders and brand equity panel |
+
+---
+
+## Engine Design
+
+### [computeValueAddBridge(inputs)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/value-add-engine.ts#90-220) → [ValueAddResult](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#246-257)
+- **Yield Delta**: Percentage point increase in gross rental yield from upgrading fitout
+- **Sale Premium**: % and AED uplift vs area median based on fitout ratio bands
+- **Payback Period**: Months to recover incremental fitout cost from rental premium
+- **Confidence**: Derived from DLD transaction count (high ≥15, medium 8-14, low 3-7, insufficient <3)
+- **Risk Flags**: `UNDER_SPEC`, `DIMINISHING_RETURNS` (over-spec at >28% fitout ratio)
+
+### [computeBrandEquityForecast(inputs)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/value-add-engine.ts#223-293) → [BrandEquityResult](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#265-271)
+- **Halo Effect**: Trophy/Ultra-luxury branded projects at >10% outperformance generate 3-8% portfolio uplift
+- **Formula**: [(salePerformancePct - 10) × 0.35](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/llm.ts#35-43), clamped at 8%, + 15% brand bonus for branded
+- **Portfolio Impact**: AED estimates at small/medium/large next-project scenarios
+
+---
+
+## Testing
+
+```
+✓ server/engines/v10-sales-premium.test.ts (24 tests) 3ms
+  - deriveConfidence: 4 tests
+  - computeValueAddBridge: 11 tests
+  - computeBrandEquityForecast: 9 tests
+```
+
+All tests pass. Full suite: 784 tests, no Phase 10 regressions.
+
+---
+
+## Frontend
+
+**Section F: Sales Premium & Yield Predictor** added to Investor Summary page:
+
+- Two interactive range sliders (current vs proposed fitout AED/sqm)
+- 300ms debounced live queries to `salesPremium.getValueAddBridge`
+- 4 KPI cards: Yield Uplift, Sale Premium, Payback Period, Incremental Cost
+- Confidence badge with tooltip explanation
+- Risk flag warnings (amber alert panel)
+- Brand Equity Halo panel (only shows for Trophy/Ultra-luxury branded projects)
+- Auto-initializes sliders from project's computed costPerSqm
+
+---
+
+## Architecture Compliance
+
+| Principle | ✅ Compliance |
+|-----------|--------------|
+| Pure functions only | Engine has zero DB imports |
+| Three scenarios | Conservative/mid/aggressive everywhere |
+| AED everywhere | All monetary outputs in AED |
+| No LLM in calculations | Fully deterministic math |
+| Confidence levels | Derived from DLD transaction count |

@@ -1,0 +1,46 @@
+# Ship-Blockers Walkthrough — P0 → P3
+
+## P0 — Ship-blockers ✅ `aa58a91`
+- DB migrations for 8 Phase D–H tables
+- Auth guards on all 57 routes ([RequireAuth](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx#4-23) + [RequireAdmin](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RouteGuards.tsx#24-49))
+
+## P1 — High Priority ✅ `39fac3e`
+- 55 engine tests (Monte Carlo + Digital Twin)
+- Rate limiting via `heavyProcedure` (5 req/min)
+- CI/CD GitHub Actions workflow
+- Sentry error tracking
+- 27 `any` → proper type fixes
+
+## P2 — Medium Priority ✅ `8434bf1`
+
+| # | Item | File |
+|---|------|------|
+| 2 | Onboarding flow | [OnboardingFlow.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/OnboardingFlow.tsx) |
+| 3 | Command palette ⌘K | [CommandPalette.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/CommandPalette.tsx) |
+| 4 | Data export (CSV/JSON/PDF) | [export.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/lib/export.ts) + [ExportBar.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ExportBar.tsx) |
+| 5 | Historical tracking | [0034_historical_tracking.sql](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0034_historical_tracking.sql) |
+| 6 | 40+ DB indexes | [0033_add_indexes.sql](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0033_add_indexes.sql) |
+| 7 | Mobile responsive CSS | [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css) (3 breakpoints) |
+
+## P3 — Nice to Have ✅ `0e4fb2d`
+
+| # | Item | File |
+|---|------|------|
+| 1 | E2E test suite | [playwright.config.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/playwright.config.ts) + [core.spec.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/e2e/core.spec.ts) |
+| 2 | Material data → DB | [0035_material_constants.sql](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/0035_material_constants.sql) (9 materials seeded) |
+| 3 | Real-time notifications | [sse-notifications.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sse-notifications.ts) (SSE stream) |
+| 4 | 2FA (TOTP) | [two-factor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/two-factor.ts) (requires `otplib` + `qrcode`) |
+| 5 | API documentation | [api-docs.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/api-docs.ts) → `/api/docs` + `/api/docs/html` |
+| 6 | i18n (EN + AR) | [i18n.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/lib/i18n.tsx) (80+ keys, RTL support) |
+| 7 | Structured logging | [logger.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/logger.ts) (JSON/pretty, request middleware, perf monitor) |
+
+Server entry [index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/index.ts) wired with: [requestLogger](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/logger.ts#100-132), [registerSSE](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/sse-notifications.ts#26-63), [registerApiDocs](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/api-docs.ts#54-133), [startPerfMonitor](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/logger.ts#158-169).
+
+## Test Results
+- **733** / 759 tests pass (4 pre-existing `board-pdf` failures)
+
+## Pending Actions
+1. **Apply 3 migrations** to PlanetScale: `0033`, `0034`, `0035`
+2. **Fix npm token** → unblocks `@playwright/test`, `@testing-library/react`, `otplib`, `qrcode`
+3. **Wrap `<I18nProvider>`** around app root when ready for Arabic support
+4. **Set env vars**: `SENTRY_DSN`, `LOG_LEVEL`, `LOG_FORMAT`

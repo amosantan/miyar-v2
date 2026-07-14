@@ -1,0 +1,47 @@
+# Phase 9 — Walkthrough: AI Design Visualization & Plan Intelligence
+
+**Commits:** `df1c418` + `4150e1b` — pushed to `main`
+**Build Status:** ✅ No new TypeScript errors
+
+---
+
+## Pillar A: Material-Deterministic Renders
+
+| File | Change |
+|------|--------|
+| [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) | Rewrite with [buildBoardAwarePromptContext()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#91-152), [buildRoomPromptContext()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#155-182), [generateRoomRenderPrompt()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#254-274) — prompts inject exact material names & suppliers |
+| [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) | `generateVisual` fetches board materials; new [generateRoomRender](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts#254-274) procedure |
+
+---
+
+## Pillar B: Floor Plan Intelligence
+
+| File | Change |
+|------|--------|
+| [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) | `floorPlanAssetId` + `floorPlanAnalysis` on projects |
+| [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts) | **NEW** — Gemini Vision extracts rooms with sqm, types, finish grades |
+| [space-benchmarking.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-benchmarking.ts) | **NEW** — DLD-backed room ratio comparison with financial impact statements |
+| [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts) | Uses AI-extracted ratios when available, falls back to templates |
+| [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) | `uploadFloorPlan`, `analyzeFloorPlan`, `getSpaceBenchmark` procedures |
+
+---
+
+## UI Components (Completed)
+
+| File | What It Does |
+|------|-------------|
+| [SpacePlanner.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/SpacePlanner.tsx) | **NEW** — Full page with drag-drop upload, AI analysis trigger, room breakdown table, DLD-backed recommendations |
+| [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) | Route added at `/projects/:id/space-planner` |
+
+### SpacePlanner Features:
+- **Upload zone**: Drag-drop or click, supports PNG/JPG/WebP/PDF up to 20MB
+- **AI analysis**: One-click Gemini Vision extraction → room table with types, areas, finish grades
+- **DLD benchmarks**: Efficiency score (0-100), critical/advisory/optimal counts, per-room recommendations with financial impact
+- **Replace flow**: Re-upload replaces existing floor plan and re-links
+
+---
+
+## All Phase 9 Sub-Tasks: ✅ Complete
+
+All 9 sub-tasks from the implementation plan are now done:
+9.1–9.9 covering schema, engines, router procedures, and UI.

@@ -1,0 +1,30 @@
+# Phase 10: Sales Premium & Yield Predictor Engine
+
+## 1. Engine & Types Layer
+- [ ] Add `ValueAddInputs`, `ValueAddResult`, `BrandEquityInputs`, `BrandEquityResult` to [shared/miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts)
+- [ ] Create `server/engines/value-add-engine.ts`
+- [ ] Implement `computeValueAddBridge()` deterministic math
+- [ ] Implement `computeBrandEquityForecast()` halo logic
+- [ ] Create `server/engines/v10-sales-premium.test.ts`
+- [ ] Write unit tests for all required scenarios (Category A vs Fully Furnished, Over-spec thresholds, Trophy/Ultra-luxury halo handling, missing stats edge-cases)
+
+## 2. API / Router Layer
+- [ ] Create `server/routers/salesPremium.ts` utilizing `value-add-engine.ts` and `dld-analytics.ts`
+- [ ] Implement `getValueAddBridge` (query, protected)
+- [ ] Implement `getBrandEquityForecast` (query, protected)
+- [ ] Register `salesPremiumRouter` in [server/routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts)
+
+## 3. Frontend / UI Layer
+- [ ] Update [client/src/pages/InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)
+- [ ] Add Section F: Sales Premium & Yield Predictor
+- [ ] Add slider for Current Fitout (AED/sqm)
+- [ ] Add slider for Proposed Fitout (AED/sqm) with debounce (300ms)
+- [ ] Integrate `trpc.salesPremium.getValueAddBridge` live recalc
+- [ ] Display yield delta, sale price premium, and payback months
+- [ ] Integrate brand equity halo panel for Trophy/Ultra-luxury tiers
+
+## 4. Verification & Handover
+- [ ] Run `pnpm vitest run` (baseline 476+ plus new tests must pass)
+- [ ] Run `pnpm check` (zero TS errors)
+- [ ] Browser test: UI sliders in InvestorSummary
+- [ ] Write `V10_PHASE_REALITY_REPORT.md`

@@ -1,0 +1,124 @@
+# Sustainability Certification Integration — Full System Impact
+
+## Goal
+Allow customers to **choose a sustainability certification target** (Estidama Pearl 1–5 or Al Sa'fat Bronze–Platinum) during project creation, **auto-detected by city**, and have this choice ripple through pricing, scoring, analysis, compliance, and design briefs.
+
+## User Review Required
+
+> [!IMPORTANT]
+> This adds **2 new columns** to the `projects` table (`city`, `sustainCertTarget`) and modifies how `des05Sustainability` is interpreted. Existing projects default to Pearl 1 / Bronze (minimum mandatory).
+
+> [!WARNING]
+> The pricing engine multiplier (3–22%) affects every cost estimate system-wide. All existing project analyses will not retroactively change unless re-evaluated.
+
+---
+
+## Proposed Changes
+
+### Schema & Types
+
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+Add 2 new columns to `projects` table:
+- `city`: enum `["Dubai", "Abu Dhabi"]` — determines which certification system applies
+- `sustainCertTarget`: varchar — stores tier target (e.g. `"pearl_3"`, `"gold"`)
+
+#### [MODIFY] [miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts)
+Add `city` and `sustainCertTarget` to `ProjectInputs` type.
+
+---
+
+### Project Creation (Client + Server)
+
+#### [MODIFY] [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx)
+**Step 0 (Context):** Add **City** dropdown ([Dubai](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/index.ts#517-542) / `Abu Dhabi`).
+
+**Step 4 (Design):** Replace the generic DES-05 1–5 slider with:
+- Auto-detect certification system from city (Dubai → Al Sa'fat, Abu Dhabi → Estidama)
+- Show certification tier picker:
+  - **Dubai:** Bronze / Silver ✱ / Gold / Platinum (Silver marked as mandatory minimum)
+  - **Abu Dhabi:** Pearl 1 ✱ / Pearl 2 / Pearl 3 / Pearl 4 / Pearl 5 (Pearl 1 marked mandatory)
+- Show cost impact badge: e.g. "+12% material premium"
+- Keep `des05Sustainability` as derived 1–5 value (backward compatible mapping)
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+Accept `city` and `sustainCertTarget` in create/update procedures. Auto-derive `des05Sustainability` from tier:
+
+```
+pearl_1/bronze → des05=1, pearl_2/silver → des05=2, pearl_3/gold → des05=3, pearl_4 → des05=4, pearl_5/platinum → des05=5
+```
+
+---
+
+### Pricing Engine
+
+#### [NEW] [sustainability-multipliers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sustainability/sustainability-multipliers.ts)
+Central multiplier lookup:
+
+| Tier | Multiplier | Mapping |
+|------|-----------|---------|
+| Pearl 1 / Bronze | ×1.03 | des05=1 |
+| Pearl 2 / Silver | ×1.07 | des05=2 |
+| Pearl 3 / Gold | ×1.12 | des05=3 |
+| Pearl 4 | ×1.16 | des05=4 |
+| Pearl 5 / Platinum | ×1.22 | des05=5 |
+
+Exports: `getCertMultiplier(tier: string): number` and `getCertLabel(city, tier): string`
+
+#### [MODIFY] [pricing-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pricing-engine.ts)
+[getLiveCategoryPricing()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pricing-engine.ts#59-97) applies sustainability multiplier to P25/P50/P75 when tier is provided.
+
+#### [MODIFY] [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+Pass `sustainCertTarget` to pricing calls so multiplier is applied to budget calculations.
+
+---
+
+### Scoring Engine
+
+#### [MODIFY] [normalization.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts)
+Add `sustainCertMultiplier` to `NormalizedInputs`. Used in:
+- `budgetFit` — adjust `expectedCost` by multiplier before comparison
+- New `sustainabilityFit` — how well budget accounts for certification costs
+
+#### [MODIFY] [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts)
+- **DS dimension:** Add `des05_n` as a weighted factor (currently missing — only `str02`, `mkt02`, `des04`, `des02` are used)
+- **ER dimension:** Higher tiers add execution risk (Pearl 4+ = specialized procurement)
+- **FF dimension:** Factor in cost multiplier — budget should account for certification premium
+- **New penalty P6:** If `budgetCap` is too low for the selected certification tier → flag `SUSTAIN_UNDERFUNDED`
+
+---
+
+### Design Brief & Compliance
+
+#### [MODIFY] [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts)
+Inject specific certification requirements into Section 7 (Sustainability). Reference exact tier requirements instead of generic sustainability notes.
+
+#### [MODIFY] [compliance-checklists.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sustainability/compliance-checklists.ts)
+Auto-select checklist based on project city. Only show Estidama for Abu Dhabi projects, Al Sa'fat for Dubai projects.
+
+#### [MODIFY] [sustainability.ts (router)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/sustainability.ts)
+Use project's `city` and `sustainCertTarget` to auto-configure compliance evaluation.
+
+---
+
+### Review Page & Analytics
+
+#### [MODIFY] [ProjectNew.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx) (Step 6 Review)
+Show selected certification target and estimated cost premium in review summary.
+
+#### [MODIFY] [Sustainability.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Sustainability.tsx)
+Auto-filter to show only the relevant certification (Estidama OR Al Sa'fat based on city).
+
+---
+
+## Verification Plan
+
+### Automated
+- `npx tsc --noEmit` — zero new errors
+- Existing scoring tests still pass
+
+### Manual
+1. Create a Dubai project → see Al Sa'fat tier picker, Silver marked mandatory
+2. Create Abu Dhabi project → see Estidama Pearl picker, Pearl 1 mandatory
+3. Switch tiers → observe cost premium badge update
+4. Run evaluation → verify FF score penalizes underfunded sustainability budgets
+5. View Sustainability page → only relevant certification shown

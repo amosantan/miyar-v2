@@ -1,0 +1,79 @@
+# Phase C: Data Expansion — Implementation Plan
+
+Scale MIYAR benchmarks from current count to 150+ with real data priority, add SCAD PDF material index extraction, and build a labeled synthetic generator for gap-filling.
+
+## Proposed Changes
+
+### C.1: SCAD PDF Material Index Scraper
+
+Enhanced PDF connector that downloads SCAD publications, extracts material price tables via Gemini, and creates benchmark-ready evidence records.
+
+#### [NEW] [scad-pdf-connector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/scad-pdf-connector.ts)
+- Dedicated PDF connector that fetches SCAD publication PDFs
+- Uses `pdf-parse` to extract text from PDF tables
+- Sends to Gemini for structured extraction: material name, price (AED), unit, year
+- Outputs normalized evidence records to `evidence_records` table
+- Tagged: `government`, `statistics`, `abu-dhabi`, `material-index`
+
+#### [MODIFY] [index.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/index.ts)
+- Register `SCADPdfConnector` alongside existing [SCADConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/index.ts#544-569)
+- Add `"scad-pdf-materials"` to `SOURCE_URLS` and `ALL_CONNECTORS`
+
+---
+
+### C.2: Benchmark Scaling (58 → 150+)
+
+Automated seeder that generates benchmarks for every typology × location × tier × materialLevel combination using real DLD data as calibration.
+
+#### [NEW] [benchmark-seeder.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/benchmark-seeder.ts)
+- Cross-product generator: 7 typologies × 3 locations × 4 tiers × 5 material levels = 420 combos
+- For each combo, calculates cost bands from:
+  1. DLD area benchmarks (recommended fitout ranges)
+  2. Evidence records (material prices from connectors)
+  3. Calibration tables (`materialConstants`)
+- Labels all rows `sourceType: "curated"` with `sourceNote` tracing origin
+- Skips combos that already have a benchmark row
+- Room-type expansion: `General`, `Living`, `Kitchen`, `Bathroom`, `Bedroom`, `Lobby`
+
+#### [MODIFY] [admin.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/admin.ts)
+- Add `admin.seedBenchmarks` mutation — triggers the seeder
+- Returns count of new rows created
+
+---
+
+### C.3: Synthetic Data Generator (Gap-Fill Only)
+
+For any remaining combos after C.2, generate synthetic benchmarks using interpolation + Gemini estimation, always clearly labeled.
+
+#### [NEW] [synthetic-generator.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/synthetic-generator.ts)
+- Identifies combos with no benchmark row after seeder has run
+- For each gap:
+  - Interpolates from nearest-neighbor real benchmarks (same typology/different tier, or same tier/different location)
+  - Applies multiplier bands from `materialConstants`
+- All rows: `sourceType: "synthetic"`, `sourceNote: "Gap-filled by interpolation from [sources]"`
+- Admin endpoint: `admin.generateSyntheticBenchmarks`
+
+#### [MODIFY] [Benchmarks.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/admin/Benchmarks.tsx)
+- Add badge column showing `sourceType` (Curated / Synthetic / Client)
+- Synthetic rows get amber badge, curated get green, client_provided get blue
+- Add "Seed Benchmarks" and "Fill Gaps" buttons in admin toolbar
+
+---
+
+### Update todo.md
+
+#### [MODIFY] [todo.md](file:///Users/amrosaleh/Maiyar/miyar-v2/todo.md)
+- Update Phase Summary to reflect Phase C progress
+- Mark v3 Phase A+B as complete
+
+## Verification Plan
+
+### Automated
+- `npm run build` — TypeScript compilation passes
+- Run seeder: `admin.seedBenchmarks` → verify row count > 150
+- Run gap-fill: `admin.generateSyntheticBenchmarks` → verify all combos covered
+- Query: `SELECT COUNT(*), sourceType FROM benchmark_data GROUP BY sourceType`
+
+### Manual
+- Open `/admin/benchmarks` → verify badge colors for source types
+- Open SCAD connector in ingestion monitor → verify extraction outputs

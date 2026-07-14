@@ -44,7 +44,7 @@ calculation     extraction    pipelines    generation
 The repository supports two backend entry patterns:
 
 - `server/_core/index.ts`: full Node/Express server, Vite integration in development, static serving in production, scheduled services, SSE, cron endpoint, and tRPC.
-- `api-src/index.ts`: serverless Express/tRPC entry compiled to `api/index.js` for Vercel-style deployment.
+- `server/serverless/index.ts`: serverless Express/tRPC source entry compiled to `api/index.js` for Vercel-style deployment.
 
 The client builds from `client/` through Vite. Generated output goes to `dist/`, with paths adjusted for the deployment environment.
 
@@ -210,15 +210,15 @@ Follow `docs/loops/report-visual-qa.md`.
 
 ## External Integrations
 
-| Integration | Purpose | Failure posture |
-|---|---|---|
-| Gemini | Extraction, narratives, recommendations, visuals | Validate/parse; expose unavailable state; never fabricate |
-| OpenAI | Optional voice transcription | Feature degrades when absent |
-| AWS S3 | Asset and generated-output storage | Preserve access scope; handle upload failure |
-| Google Maps | Geocoding/location support | Optional/degraded behavior |
-| Firecrawl and source tooling | Web ingestion | Audit source and fallback; respect constraints |
-| Email provider | Notifications | Best-effort where appropriate; observable failure |
-| DLD/other data sources | Market intelligence | Preserve provenance, freshness, and governance |
+| Integration                  | Purpose                                          | Failure posture                                           |
+| ---------------------------- | ------------------------------------------------ | --------------------------------------------------------- |
+| Gemini                       | Extraction, narratives, recommendations, visuals | Validate/parse; expose unavailable state; never fabricate |
+| OpenAI                       | Optional voice transcription                     | Feature degrades when absent                              |
+| AWS S3                       | Asset and generated-output storage               | Preserve access scope; handle upload failure              |
+| Google Maps                  | Geocoding/location support                       | Optional/degraded behavior                                |
+| Firecrawl and source tooling | Web ingestion                                    | Audit source and fallback; respect constraints            |
+| Email provider               | Notifications                                    | Best-effort where appropriate; observable failure         |
+| DLD/other data sources       | Market intelligence                              | Preserve provenance, freshness, and governance            |
 
 ## Observability and Operations
 

@@ -1,0 +1,56 @@
+# Phase 8: Real-World Procurement & Full Analytics Integration Implementation Plan
+
+The objective of Phase 8 is to deeply integrate the existing material grabbing system (Evidence-to-Materials API) into the core workflow of MIYAR. We will move beyond generic estimates to specify precise, real-world supplier catalogs (e.g., "Cosentino Silestone"), and critically, we will wire these live material prices and data points directly into the Decision Making, Scoring, and Predictive Engine algorithms.
+
+## User Review Required
+> [!IMPORTANT]
+> This phase transforms how the application calculates costs and scores. Please confirm if you want the "Bottom-Up" Board estimates to completely *override* the top-down generic AI estimates in the Investor Summary when a Board is present.
+
+## Proposed Changes
+
+### 1. Database Schema
+#### [MODIFY] [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+Add the following columns to the `materialsCatalog` table:
+- `embodiedCarbon`: `decimal("embodiedCarbon", { precision: 10, scale: 4 })` - Tracks kg CO2e per unit.
+- `maintenanceFactor`: `decimal("maintenanceFactor", { precision: 6, scale: 4 })` - Tracks annual OPEX as a percentage of install cost.
+- `brandStandardApproval`: `mysqlEnum("brandStandardApproval", ["open_market", "approved_vendor", "preferred_brand"])` - Maps to project strictness.
+
+### 2. Live API & Ingestion Upgrades
+#### [MODIFY] [server/engines/ingestion/evidence-to-materials.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/evidence-to-materials.ts)
+- Upgrade the existing material grabbing API logic to also extract and populate the new `brandStandardApproval`, `embodiedCarbon`, and `maintenanceFactor` fields from scraped descriptions or default them based on `materialConstants`.
+- Provide an on-demand TRPC endpoint ([routers/ingestion.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/ingestion.ts)) to allow users to trigger a manual "Refresh Market Prices from Vault" for their project materials.
+
+### 3. Vendor Matching & Auto-BoQ
+#### [MODIFY] [server/routers/design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts)
+#### [NEW] `server/engines/procurement/vendor-matching.ts`
+- Create an engine that takes a `projectId`, reads its `brandStandardConstraints` (from Phase 6), and strictly returns compliant materials.
+  - "Strict Vendor List": Returns `preferred_brand`.
+  - "Moderate Guidelines": Returns `preferred_brand` and `approved_vendor`.
+- Update the `recommendMaterials` algorithm in [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) to use this vendor matcher, directly assigning live-grabbed materials to the user's project board.
+
+### 4. Deep Engine Integration (Calculation & Decision Making)
+#### [MODIFY] [server/engines/predictive/scenario-projection.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/predictive/scenario-projection.ts)
+- **Bottom-Up Pricing Override:** Update the Cost Projection engine. If a project has an attached Material Board, replace abstract tier-based generic estimations with the exact aggregated sum of `typicalCostHigh` and `typicalCostLow` from the `materialsCatalog` entries.
+- Calculate literal Lifecycle OPEX variance based on the specific `maintenanceFactor` of chosen items.
+#### [MODIFY] [server/engines/scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts)
+- **Financial Feasibility (FF):** Grade the project's FF score based on the delta between the requested `fin01BudgetCap` and the actual live total cost of the selected catalog materials.
+- **Design Suitability (DS):** Adjust score based on whether the selected catalog items breach `brandStandardConstraints`.
+
+### 5. UI Integration
+#### [MODIFY] [client/src/pages/BoardComposer.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BoardComposer.tsx)
+- Enhance the RFQ-Ready table to show Live Pricing from the API grabbing system.
+- Add OPEX/yr and Carbon summary indicators.
+#### [MODIFY] [client/src/pages/InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)
+- Update the Budget Synthesis and Dashboard to visually indicate when costs are "Live Market Verified" (bottom-up board data) vs. "AI Forecasted" (top-down generic).
+
+## Verification Plan
+
+### Automated Tests
+- Run `npm run check` to verify TypeScript types alignment across Zod schemas, DB types, and React props.
+- Run `npm run dx` (or local standard seed/test scripts) to populate the new catalog.
+
+### Manual Verification
+1. Click "New Project", set **Brand Standard Constraints** to **"Strict Vendor List"**.
+2. Navigate to "Boards" and click "New Board".
+3. Check the "Recommended Materials" list — verify that ONLY items seeded as `preferred_brand` appear.
+4. Verify the RFQ PDF export correctly includes the specific supplier names and real-world OPEX/Carbon footprints.

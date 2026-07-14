@@ -1,0 +1,158 @@
+# MIYAR 2.0 — Intelligent Intake System
+
+> **Goal:** Replace the 50-field manual form with a multimodal AI intake — drop files, paste URLs, or describe your project. MIYAR translates everything into structured [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102). The form becomes a review checkpoint, not a data entry burden.
+
+---
+
+## Codebase Audit Results
+
+The original plan flagged 5 "must build" gaps. **3 of 5 already exist:**
+
+| Component | Original Status | Actual Status |
+|-----------|----------------|---------------|
+| S3 upload infrastructure | ❌ Missing | ✅ [storage.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/storage.ts) — [storagePut()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/storage.ts#42-81), [storageGet()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/storage.ts#82-99), presigned URLs |
+| `project_assets` table | ❌ Missing | ✅ [schema.ts:595](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts#L595-L627) — 13 columns, 12 categories |
+| Multimodal LLM | ✅ Ready | ✅ [llm.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/llm.ts) — `image_url`, `file_url` (PDF, audio, video) |
+| Floor plan analyzer | ✅ Ready | ✅ [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts) — [analyzeFloorPlan()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts#89-198) |
+| AI Intake Engine | ❌ Must build | ❌ Must build |
+
+**What's truly new:** AI Intake Engine, Intake Router, NewProject UI, AI Assist buttons.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Schema extension needed.** The existing `project_assets` table lacks `aiExtractionResult` and `aiContributions` columns. We'll add 2 columns via ALTER TABLE. No data loss, no migration risk.
+
+> [!IMPORTANT]
+> **Voice input scope.** Browser `MediaRecorder` → Gemini audio/mp4 is trivial. Recommend including it in Phase 2.0-A as a P0 since it's ~20 lines of code on top of the existing `file_url` support. Agree?
+
+> [!IMPORTANT]
+> **Chat refinement (`refineWithChat`) scope.** This is the most complex feature. Recommend deferring to Phase 2.0-F (fast follow) and shipping the core upload → auto-fill → review flow first. Agree?
+
+---
+
+## Build Sequence
+
+### Phase 2.0-A: Schema Extension + Upload Endpoint (~30 min)
+
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+- Add `aiExtractionResult` (JSON) and `aiContributions` (JSON) columns to `project_assets`
+- Add `assetType` enum column: `image`, [pdf](file:///Users/amrosaleh/Maiyar/miyar-v2/docs/miyar-assets.s3.eu-north-1.amazonaws.com_reports_4_design_brief-3NdcfMJN.html_X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA5WPGPNOICU4GX7OZ%252F20260225%252Feu-north-1%252Fs3%252Faws4_request&X-Amz-Date=20260225T.pdf), `audio`, `video`, `url`, `text_note`
+
+#### [NEW] `server/routers/intake.ts`
+- `getUploadUrl` — generates presigned S3 upload URL using existing [storagePut()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/storage.ts#42-81)
+- `uploadAsset` — stores asset record in `project_assets` after client uploads to S3
+
+---
+
+### Phase 2.0-B: AI Intake Engine (~2 hours)
+
+#### [NEW] `server/engines/intake/ai-intake-engine.ts`
+Core function: `processIntakeAssets(assets[], existingInputs?) → IntakeResult`
+
+- Calls `invokeLLM` with multimodal content (images + PDFs + text)
+- Uses `outputSchema` to force typed JSON matching `Partial<ProjectInputs>`
+- Reuses [analyzeFloorPlan()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts#89-198) from [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts) when floor plans detected
+- Returns per-field `confidence` (high/medium/low) and `reasoning`
+
+```typescript
+interface IntakeResult {
+  suggestedInputs: Partial<ProjectInputs>;
+  confidence: Record<string, 'high' | 'medium' | 'low'>;
+  reasoning: Record<string, string>;
+  extractedInsights: { detectedStyle, detectedMaterials, detectedTier, ... };
+  warnings: string[];
+}
+```
+
+#### [NEW] `server/engines/intake/url-scraper.ts`
+- Fetches URL content → Gemini extracts supplier info, material tiers, pricing signals
+- Reuses crawler patterns from [crawler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/crawler.ts)
+
+#### [NEW] `server/engines/intake/ai-intake-engine.test.ts`
+- Unit tests for intake processing with mock assets
+- Test per-field confidence mapping
+- Test floor plan detection and delegation
+- Test URL scraping extraction
+
+---
+
+### Phase 2.0-C: Intake Router (Full) (~1 hour)
+
+#### [MODIFY] `server/routers/intake.ts`
+- `processAssets` — accepts assets array, stores in DB, calls AI engine, returns `IntakeResult`
+- `applyIntakeSuggestions` — merges AI suggestions into project draft
+- Register in [routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts)
+
+---
+
+### Phase 2.0-D: NewProject Rewrite (~3 hours)
+
+#### [MODIFY] [NewProject.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/NewProject.tsx) — full UI rewrite
+**Default view: "Talk to MIYAR"**
+- Drag-and-drop upload zone (images, PDFs, audio, video)
+- URL paste input (supplier/competitor sites)
+- Free-text description box ("50 luxury apartments in Dubai Marina, Japandi...")
+- Voice recorder using browser `MediaRecorder` API
+- "Analyze & Auto-Fill ✨" button → calls `intake.processAssets`
+- After AI processes → transitions to existing [ProjectForm.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx) with fields pre-filled
+- "Skip to Manual Form →" bypass link
+
+**Pre-filled form enhancements:**
+- Green badges on high-confidence AI-populated fields
+- Yellow badges on medium-confidence fields needing review
+- "Why this value?" tooltip per field showing AI reasoning
+- Asset thumbnails in sidebar panel
+
+---
+
+### Phase 2.0-E: AI Assist on Existing Form (~1 hour)
+
+#### [MODIFY] [ProjectForm.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx)
+- Add small "✨ AI Assist" button per section
+- Button calls `intake.processAssets` with uploaded assets scoped to that section
+- Suggests values for that section based on already-entered data
+
+---
+
+### Phase 2.0-F: Fast Follow (defer)
+- `refineWithChat` — conversational refinement of suggestions
+- Asset gallery on [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx)
+
+---
+
+## What Does NOT Change
+
+| Layer | Status |
+|-------|--------|
+| [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102) struct | **Unchanged** |
+| All 40+ scoring/analysis engines | **Unchanged** |
+| [ProjectForm.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx) 7-step wizard | **Enhanced** (AI pre-fill + badges) |
+| All 23 existing routers | **Unchanged** |
+| All 82+ DB tables | **Unchanged** (2 columns added to `project_assets`) |
+
+---
+
+## Verification Plan
+
+### Automated Tests
+```bash
+# Run AI Intake Engine unit tests
+npx vitest run server/engines/intake/ai-intake-engine.test.ts
+
+# Full regression suite
+npx vitest run
+```
+
+### Manual Verification
+1. Navigate to `http://localhost:3000/projects/new`
+2. Verify "Talk to MIYAR" canvas appears with upload zone and text area
+3. Upload a mood board image → verify AI extracts style, tier, material suggestions
+4. Upload a floor plan PDF → verify [analyzeFloorPlan()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts#89-198) runs and populates room data
+5. Paste a supplier URL → verify material/pricing extraction
+6. Type a project description → verify AI fills relevant fields
+7. Click "Analyze & Auto-Fill" → verify form transitions with green/yellow confidence badges
+8. Verify "Skip to Manual Form" still works (existing flow unchanged)
+9. Complete project creation → verify all engines receive valid [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102)

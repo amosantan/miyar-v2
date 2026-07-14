@@ -118,7 +118,7 @@ async function main() {
 
     // ─── Step 3: Ingest Transactions ──────────────────────────────────────
     console.log("\n📥 Loading Transactions JSON...");
-    const txnPath = resolve(__dirname, "../Transactions_2026-02-27.json");
+    const txnPath = resolve(__dirname, "../data/exports/Transactions_2026-02-27.json");
     const transactions = JSON.parse(readFileSync(txnPath, "utf-8"));
     console.log(`  Total records: ${transactions.length}`);
 
@@ -162,7 +162,7 @@ async function main() {
 
     // ─── Step 4: Ingest Rents ─────────────────────────────────────────────
     console.log("\n📥 Loading Rent Contracts JSON...");
-    const rentPath = resolve(__dirname, "../Rent_Contracts_2026-02-27.json");
+    const rentPath = resolve(__dirname, "../data/exports/Rent_Contracts_2026-02-27.json");
     const rents = JSON.parse(readFileSync(rentPath, "utf-8"));
     console.log(`  Total records: ${rents.length}`);
 

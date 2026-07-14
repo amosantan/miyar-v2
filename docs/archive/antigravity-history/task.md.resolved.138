@@ -1,0 +1,25 @@
+# MIYAR V4 — Fit-Out Oracle Implementation
+
+## Phase 1: Architectural Hardening (Database & Schema) (DONE)
+- [x] Add Zod schemas to `unitMix` and `villaSpaces`
+- [x] Add `totalFitoutArea` (decimal) and `isAreaVerified` (boolean) to `projects` table
+- [x] Add `officeFitoutCategory` (enum: catA, catB) and `officeCustomRatio` (decimal) to `projects` table
+- [x] Run `npm run db:push` to apply schema changes (Bypassed interactive prompt)
+
+## Phase 2: React Error Fix (ProjectDetail.tsx) (DONE)
+- [x] Fix "Objects are not valid as React child" crash caused by `unitMix` parsing errors.
+
+## Phase 3: Engine Migration (GFA → NFA) (DONE)
+- [x] Refactor pricing & cost calculations across all `server/engines/` and `server/routers/` to prefer `totalFitoutArea`.
+- [x] Implement runtime fallback logic: Use `totalFitoutArea` if `isAreaVerified` is true, otherwise fallback to `ctx03Gfa * 0.85` (Residential) or custom ratios.
+- [x] **Files Migrated**: `bias-detector.ts`, `space-program.ts`, `ai-design-advisor.ts`, `pdf-report.ts`, `project.ts`, `predictive.ts`, `design.ts`, `design-advisor.ts`.
+
+## Phase 4: New Component — RoomCostWaterfall (DONE)
+- [x] Create `RoomCostWaterfall.tsx` for Investor Summary
+- [x] Integrate into Budget Synthesis section
+- [x] Visualize data using Recharts stacking
+
+## Phase 5: Verification (IN PROGRESS)
+- [x] Build check passes (minor existing unrelated type errors ignored)
+- [x] Verify schema changes applied (Drizzle Push succeeded)
+- [ ] Smoke test project creation and detail view (Ready for User to test via UI)

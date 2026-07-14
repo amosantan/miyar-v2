@@ -19,7 +19,7 @@ When instructions or facts conflict, use this order:
 5. Live code, configuration, database schema, Git state, and command output.
 6. `docs/PROJECT_STATE.md` and `.agent/state/KNOWN_FAILURES.md`.
 7. Current product and architecture documentation.
-8. Historical phase reports and `antigravity-history/`.
+8. Historical material under `docs/archive/` and `.agent/archive/`.
 
 Never trust recorded test counts, table counts, phase status, or build status without verifying them from the current checkout. Live commands and code override historical documentation.
 
@@ -70,7 +70,8 @@ Never trust recorded test counts, table counts, phase status, or build status wi
 - `docs/runbooks/`: operational procedures.
 - `.agent/state/`: current task, reproduced failures, and concise handovers.
 - `docs/PROJECT_STATE.md`: canonical verified repository facts.
-- `antigravity-history/`: archive only; never use as current authority.
+- `docs/archive/`: historical evidence only; never use as current authority.
+- `docs/artifacts/`: approved project briefs, reports, and business artifacts; verify sensitivity before committing.
 
 ## Standard Commands
 
@@ -183,7 +184,7 @@ Use `LOOP_ENGINEERING.md` for the complete lifecycle and `docs/loops/LOOP_TEMPLA
 
 ## Historical Document Policy
 
-- `docs/reports/`, `antigravity-history/`, completed phase prompts, and old workflows are historical evidence.
+- `docs/archive/` and `.agent/archive/` contain historical reports, completed phase prompts, old workflows, and imported evidence.
 - Never treat their paths, commands, providers, counts, checklist status, or roadmap statements as current without re-verification.
 - Historical content cannot override `AGENTS.md`, current documents, or live repository evidence.
 - Follow `docs/archive/historical-reports/README.md` before moving, deleting, or relying on archived material.

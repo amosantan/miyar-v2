@@ -1,0 +1,57 @@
+# Phase 2: Nano Banana Visual Generation — Walkthrough
+
+## What Was Built
+
+Per-space **AI-powered visual generation** integrated into the Design Advisor. Users can generate mood boards, material boards, room renders, kitchen renders, bathroom renders, color palettes, and hero marketing images — all driven by the existing AI design recommendations.
+
+## Files Created / Modified
+
+### New File
+
+#### [nano-banana-client.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts)
+7 prompt templates tailored to space-specific design context:
+
+| Template | Purpose |
+|----------|---------|
+| [buildRoomMoodBoardPrompt](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts#48-69) | Grid layout with swatches, furniture, lighting |
+| [buildRoomRenderPrompt](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts#70-84) | Photorealistic interior visualization |
+| [buildMaterialBoardPrompt](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts#85-105) | Flat-lay product photography of materials |
+| [buildKitchenRenderPrompt](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts#106-123) | Kitchen-specific render using [KitchenSpec](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts#53-67) |
+| [buildBathroomRenderPrompt](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts#124-142) | Bathroom-specific render using [BathroomSpec](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/design-types.ts#72-85) |
+| [buildHeroImagePrompt](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts#143-150) | Marketing hero image for the project |
+| [buildColorPalettePrompt](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts#151-161) | 5-7 color swatch palette visualization |
+
+Each prompt injects project context (tier, location, typology) and space-specific data (materials, colors, specifications).
+
+### Modified Files
+
+#### [design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design-advisor.ts)
+3 new TRPC endpoints:
+- `generateVisual` — Generate a single visual for a specific room (mood board, material board, room render, etc.)
+- [generateHero](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/nano-banana-client.ts#210-223) — Generate a hero marketing image for the project
+- `getVisuals` — Retrieve all generated visuals for a project
+
+#### [DesignAdvisor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignAdvisor.tsx)
+New **🎨 Visuals** tab with:
+- **Hero Image** section with generate button and image display
+- **Per-Space Visuals** — each room shows context-aware generate buttons (kitchen rooms get "kitchen render", bathroom rooms get "bathroom render")
+- **Visual Gallery** grid showing generated images with type badges
+
+## Architecture
+
+```mermaid
+graph TD
+  A["DesignAdvisor.tsx"] -->|TRPC| B["design-advisor.ts"]
+  B -->|generateVisual| C["nano-banana-client.ts"]
+  C -->|prompt template| D["generateImage()"]
+  D -->|Gemini Imagen 3 API| E["Image Response"]
+  E -->|base64 → S3| F["storagePut()"]
+  F -->|URL| G["generated_visuals table"]
+```
+
+## Verification
+
+- ✅ All **13/13** unit tests pass
+- ✅ Committed as `7e598f7` and pushed to `main`
+- ✅ No type errors in the router
+- ✅ Existing Phase 1 endpoints unchanged

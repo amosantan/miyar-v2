@@ -1,0 +1,52 @@
+# V4: The Fit-out Oracle — Complete Walkthrough
+
+## Summary
+
+V4 transforms MIYAR's pricing model from GFA-based to **fitout-area-based**, with archetype-specific project configuration, engine-wide migration, and a Gemini Vision verification gate. **27 files changed, 11,258 additions.**
+
+## Phase A: Schema + Types + Area Utility ✅
+- Added `totalFitoutArea`, `totalNonFinishArea`, `fitoutAreaVerified`, `projectArchetype` to `projects`
+- Created `pdf_extractions` table for Vision AI results
+- Built [area-utils.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts) — `getPricingArea()`, `getStructuralArea()`, `computeFitoutRatio()`
+
+## Phase B: Adaptive Project Creator ✅
+- Typology → archetype mapping with conditional sub-forms:
+  - **Residential Multi** → Unit Mix Builder table
+  - **Villa** → Room List Builder by floor
+  - **Office** → Shell & Core toggle
+- Auto-calculates fitout area from sub-form inputs
+
+## Phase C: Engine Migration ✅
+- Updated 50+ callsites across scoring, normalization, design-brief, bias-detector, explainability, pdf-report, and all routers
+- 9 test files updated with `totalFitoutArea` fixtures — 732 tests pass
+
+## Phase D: Verification Gate + PDF Extraction ✅
+- [pdf-extraction.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-extraction.ts) — Gemini Vision engine
+- [AreaVerification.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/AreaVerification.tsx) — Upload → Extract → Compare → Verify
+- [PdfPreview.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/PdfPreview.tsx) — Room cards with confidence badges
+
+## Bug Fix
+- Fixed [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx): `unitMix`/`villaSpaces` JSON objects were being rendered directly as React children → now display as structured tables
+
+## Verification Results
+
+### Browser Tests
+| Test | Result |
+|------|--------|
+| Create project with Residential archetype | ✅ Unit Mix Builder appeared, fitout area calculated |
+| Evaluate project | ✅ Composite 58.0, ROI 141K AED using fitout area |
+| Generate Design Brief | ✅ Identity section shows fitout area |
+| ProjectDetail renders unitMix as table | ✅ No React crash |
+
+### TypeScript
+- 72 total errors (all pre-existing), zero from V4
+
+### Project detail page after fix:
+![V4 Project Detail](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/v4_project_detail_verified.png)
+
+### Browser recording of verification flow:
+![V4 Verification Flow](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/v4_project_detail_fix_1772221510094.webp)
+
+## Git
+- Commit: `514db24` — `feat: V4 — The Fit-out Oracle (Phases A–D)`
+- Pushed to `main` on `amosantan/miyar-v2`

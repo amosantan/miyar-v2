@@ -1,0 +1,86 @@
+# UX Overhaul — Walkthrough
+
+## What Was Done
+
+### P0: Sidebar Simplification (Biggest Impact)
+
+**Before:** ~49 sidebar items visible to all users across 5 sections — Market Intelligence, Administration, Analysis, Design Enablement, and Market Intel internal tools all exposed.
+
+**After:** ~10 sidebar items for client users across 3 focused sections:
+
+| Section | Items |
+|---------|-------|
+| **Main** | Dashboard, Projects, New Project |
+| **Analysis** | Scenarios, Portfolio, Alerts |
+| **Market** | DLD Area Insights, Competitor Overview |
+
+Admin users still see full Market Intelligence + Administration sections behind role gate.
+
+#### Before vs After
+
+````carousel
+![Before — sidebar with ~49 items visible (conceptual)](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/.system_generated/click_feedback/click_feedback_1772357058429.png)
+<!-- slide -->
+![After — clean 10-item client sidebar](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/dashboard_desktop_1772357453226.png)
+````
+
+---
+
+### P0: Route Gating
+
+8 internal market-intel pages moved from [Protected](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx#71-81) (any logged-in user) to [AdminOnly](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx#82-94):
+- Evidence Vault, Source Registry, Benchmark Proposals, Trend Tags
+- Intel Audit Log, Data Health, Ingestion Monitor, Analytics Intelligence
+
+DLD Insights + Competitors remain client-accessible.
+
+---
+
+### P0: Dashboard Quick Actions
+
+**Before:** Quick actions pointed to admin pages (ROI Configuration, Benchmark Versions, Portfolio Analytics).
+
+**After:** Quick actions reflect the actual client workflow:
+- **Create Project** → Start a new design evaluation
+- **Scenarios** → What-if analysis & comparisons
+- **DLD Insights** → UAE area benchmarks
+- **Portfolio** → Cross-project intelligence
+
+Also removed the hardcoded dummy bar chart from project rows (was showing fake static data).
+
+---
+
+### P1: Mobile Responsive CSS
+
+Enhanced [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css) with:
+- Tab lists now scroll horizontally instead of overflowing
+- Dialogs expand to full mobile width
+- Card content padding reduced on small screens
+- Badges wrap cleanly instead of truncating
+- Flex containers wrap instead of overflowing
+- Form grid stacks to single column on mobile
+
+---
+
+## Files Changed
+
+| File | What Changed |
+|------|-------------|
+| [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx) | Sidebar nav arrays restructured, rendering rewritten |
+| [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) | 8 market-intel routes changed to [AdminOnly](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx#82-94) |
+| [Dashboard.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Dashboard.tsx) | Quick actions fixed, dummy chart removed |
+| [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css) | Mobile responsive enhancements |
+
+## Verification
+
+- ✅ Browser tested: sidebar shows 10 items for non-admin user
+- ✅ Dashboard loads with correct quick actions
+- ✅ Projects and DLD Insights pages load successfully
+- ✅ TypeScript check: no new errors introduced
+- ✅ Mobile view verified at 375×667
+
+## Remaining P2 Items
+- Consistent page headers with breadcrumbs
+- Loading skeleton states for all pages
+- Error boundaries for project pages from other developers
+- Standardized terminology across pages

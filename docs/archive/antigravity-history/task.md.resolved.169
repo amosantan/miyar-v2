@@ -1,0 +1,34 @@
+# Phase 10: Sales Premium & Yield Predictor Engine
+
+## Pre-flight
+- [ ] Confirm test baseline (476+)
+- [ ] Review `dld-analytics.ts` — reuse `computeYield()`, `computeMarketPosition()`
+
+## 1. Types & Engine
+- [ ] Add types to [shared/miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts)
+- [ ] Create `server/engines/value-add-engine.ts`
+- [ ] Create `server/engines/v10-sales-premium.test.ts`
+
+## 2. Router
+- [ ] Create `server/routers/salesPremium.ts`
+- [ ] Register in [server/routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts)
+
+## 3. Frontend
+- [ ] Add Sales Premium panel to `InvestorSummary.tsx`
+
+## 4. Verification & Handover
+- [ ] All tests pass (476+ baseline + new)
+- [ ] TypeScript check clean
+- [ ] Browser test slider interaction
+- [ ] Write `V10_PHASE_REALITY_REPORT.md`
+- [ ] Commit + push
+
+---
+
+# MIYAR 2.0: Intelligent Intake (after Phase 10)
+- [ ] Schema: `project_assets` table
+- [ ] File upload infrastructure (S3)
+- [ ] AI Intake Engine
+- [ ] Intake Router
+- [ ] Frontend redesign (NewProject.tsx)
+- [ ] AI Assist buttons on existing form

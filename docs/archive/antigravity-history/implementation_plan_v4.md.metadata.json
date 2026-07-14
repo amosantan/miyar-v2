@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary":  "MIYAR V4 'The Fit-out Oracle' implementation plan. Covers 4 phases: A (Schema + Types + area-utils), B (Adaptive Project Creator UI), C (50+ callsite migration from GFA to fitout area), D (Verification Gate). Lists all files to create/modify with specific changes, plus verification plan with automated tests and manual checks.",
+  "updatedAt":  "2026-02-27T17:48:34.597528Z"
+}

@@ -1,0 +1,77 @@
+# Phase 3: Live Data Scraping Pipeline — Walkthrough
+
+## What Was Built
+
+### 1. Source Seeder — 22 UAE Market Sources
+[uae-sources.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/seeds/uae-sources.ts)
+
+Seeds the `source_registry` table with real UAE sources across 4 categories:
+
+| Category | Sources | Examples |
+|----------|---------|----------|
+| **Supplier Catalogs** | 7 | Graniti UAE, RAK Ceramics, Porcelanosa, Hafele, GEMS |
+| **Retailer Listings** | 5 | IKEA UAE, Danube Home, Dragon Mart, ACE Hardware |
+| **Developer Brochures** | 5 | Emaar, DAMAC, Aldar, Sobha, Ellington |
+| **Trade Publications** | 5 | CBRE, Knight Frank, JLL, Dezeen, ArchDaily |
+
+Each source includes tailored `extractionHints` that guide the LLM to extract the right data (prices, materials, design tiers, trend signals).
+
+---
+
+### 2. Multi-Page Crawler
+[crawler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/crawler.ts)
+
+The existing connectors only fetch the homepage. The crawler adds:
+- **URL discovery** — extracts internal product/category links from HTML
+- **Depth-limited crawl** — follows links up to `maxDepth` levels (default: 2)
+- **Page budget** — stops after `pageBudget` pages (default: 20) to control LLM costs
+- **Rate limiting** — configurable delay between requests per `source_registry.requestDelayMs`
+
+---
+
+### 3. Design Trends Schema
+[schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) — new `design_trends` table
+
+Tracks interior design trends with fields:
+- `trendName`, `trendCategory` (style/material/color/layout/technology/sustainability)
+- `confidenceLevel` (emerging/established/declining)
+- `styleClassification` (modern, classical, biophilic, japandi, etc.)
+- `relatedMaterials` (JSON array of material names)
+- `mentionCount`, `firstSeenAt`, `lastSeenAt` for trend tracking over time
+
+---
+
+### 4. TRPC Endpoints
+[ingestion.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/ingestion.ts) — 6 new endpoints:
+
+| Endpoint | Type | Purpose |
+|----------|------|---------|
+| `listSources` | Query | List all source_registry entries |
+| [createSource](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts#1223-1229) | Mutation | Add a new source (admin) |
+| `toggleSource` | Mutation | Enable/disable a source |
+| `runRegisteredSource` | Mutation | "Scrape Now" for a DB source |
+| `seedSources` | Mutation | Run the 22-source UAE seeder |
+| `getTrends` | Query | List design trends by category |
+
+---
+
+## How It Works
+
+```mermaid
+graph LR
+    A[Source Registry DB] --> B[Scheduler]
+    B --> C[DynamicConnector]
+    C --> D[Fetch HTML]
+    D --> E[LLM Extraction]
+    E --> F[Evidence Records]
+    F --> G[Scoring Engine]
+    G --> H[Design Advisor]
+```
+
+The scheduler reads active sources from `source_registry`, creates per-source cron jobs, and runs [DynamicConnector](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/connectors/dynamic.ts#47-177) instances that fetch, extract via LLM, and persist to `evidence_records`.
+
+## Next Steps
+
+1. **Seed sources** — After Vercel deploys, trigger `ingestion.seedSources` to populate the registry
+2. **Test scrape** — Use `ingestion.runRegisteredSource` to test individual sources
+3. **Build Source Management UI** — Visual dashboard for source health, manual triggers

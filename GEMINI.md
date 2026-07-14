@@ -23,4 +23,4 @@ If this file, Gemini memory, a historical report, or conversation context confli
 - Validate structured model output and expose parse, confidence, and insufficiency states.
 - Never send secrets or unrelated organization data to a model provider.
 
-Historical Gemini project context remains available through Git history and `antigravity-history/`; it is not loaded as current authority.
+Historical Gemini project context remains available through Git history and `docs/archive/`; it is not loaded as current authority.

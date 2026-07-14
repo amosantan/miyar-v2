@@ -1,0 +1,144 @@
+# MIYAR UI Redesign — Premium Interior Design Experience
+
+## Goal
+
+Transform MIYAR from a functional dark-themed dashboard into a **premium interior design intelligence platform** that feels like a luxury hotel lobby meets a Bloomberg terminal. Update the pre-login homepage to showcase real app capabilities and add a version changelog. Streamline the dashboard sidebar for easier navigation.
+
+## Design References (Stitch Mockups)
+
+- **Homepage**: [Stitch Project](https://stitch.withgoogle.com/project/11215202624286097747) — Screen `b1df75f72e6d4469a38322fef422e245`
+- **Dashboard**: Screen `58a301ee7c03459893fe337d8f83c280`
+
+## Design System
+
+| Token | Current | New |
+|-------|---------|-----|
+| **Primary** | Generic blue | Warm Gold `#C9A96E` |
+| **Background** | `--background` dark | Deep Navy `#0A1628` |
+| **Card BG** | `--card` | Charcoal `#111827` with glass blur |
+| **Accent** | Generic | Champagne `#E8D5B7` |
+| **Font** | System default | **Manrope** (Google Fonts) |
+| **Border radius** | Mixed | `12px` (cards), `8px` (buttons) |
+| **Glassmorphism** | None | `backdrop-filter: blur(16px)` + `bg-opacity-60` |
+
+---
+
+## Proposed Changes
+
+### 1 · Design System Foundation
+
+#### [MODIFY] [index.css](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/index.css)
+- Replace CSS variables for dark theme with new luxury palette
+- Add gold/navy/champagne tokens: `--miyar-gold`, `--miyar-navy`, `--miyar-champagne`
+- Add Manrope font import from Google Fonts
+- Add glassmorphism utility classes: `.glass-card`, `.glass-overlay`
+- Add animation keyframes: `fadeInUp`, `slideIn`, `float`, `shimmer`, `countUp`
+- Add responsive utilities for mobile-first approach
+
+---
+
+### 2 · Homepage Redesign
+
+#### [MODIFY] [Home.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Home.tsx)
+
+Complete rewrite with 7 sections:
+
+**Section 1 — Hero (full viewport)**
+- Animated gradient background with subtle marble-texture overlay
+- Large MIYAR logo with Arabic مِعيار subtitle
+- Tagline: "Design Intelligence for UAE Luxury Real Estate"
+- Animated floating stats (578K+ DLD Transactions, 150+ Benchmarks, 38 Compliance)
+- Two CTAs: "Get Started" (gold solid) + "Watch Demo" (outlined)
+- Scroll indicator animation at bottom
+
+**Section 2 — Feature Showcase (6 cards)**
+- Glassmorphism cards in 3×2 grid (responsive: 1col mobile, 2col tablet)
+- Cards: AI Design Brief, Live Cost Calculator, Investor PDF Export, MIYAR Score, Market Intelligence, Sustainability Compliance
+- Hover animations: scale + glow + icon pulse
+- Each card shows a mini-preview image (generated via generate_image tool)
+
+**Section 3 — How It Works (4 steps)**
+- Horizontal timeline with animated connecting lines
+- Steps: Define Project → AI Analysis → Review & Compare → Export & Share
+- Each step has an animated icon and description
+- Number circles with gold gradient
+
+**Section 4 — App Preview**
+- Dashboard screenshot in a 3D perspective frame with drop shadow
+- Floating annotation cards pointing to key features
+- "See it in action" caption with fade-in animation
+
+**Section 5 — UAE Market Data Badge**
+- Trust signals: "Powered by DLD Transaction Data", "Estidama & Al Sa'fat Certified", "RICS NRM Aligned"
+- Animated counter for key stats
+
+**Section 6 — Version Changelog**
+- Vertical timeline with version badges (V5 current → V1 foundation)
+- V5 "The Authority Engine": DLD analytics, sustainability certification, RICS alignment, portfolio benchmarking
+- Expandable feature lists per version
+- Latest version highlighted with gold border and "Current" badge
+
+**Section 7 — Footer**
+- Premium footer with gold MIYAR logo
+- "Powered by Gemini AI + Live UAE Market Data"
+- Links: Methodology, Privacy, Terms, Contact
+- Social/contact info
+
+---
+
+### 3 · Dashboard Sidebar Streamlining
+
+#### [MODIFY] [DashboardLayout.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/DashboardLayout.tsx)
+
+**Current:** 5 nav groups with 40+ items — overwhelming.
+
+**New streamlined groups:**
+
+| Group | Items (reduced) |
+|-------|----------------|
+| **Main** | Dashboard, Projects, New Project |
+| **Intelligence** | Portfolio, Market Insights, Sustainability, Ask MIYAR |
+| **Design** (project-scoped) | AI Advisor, Brief Editor, Investor Summary, Design Studio |
+| **Market Data** | Evidence Vault, Source Registry, DLD Insights |
+| **Admin** (admin-only) | Benchmarks, Connectors, Materials, Audit, Settings |
+
+Other changes:
+- Gold MIYAR logo in sidebar header
+- Collapsible group headers with smooth animations
+- Active item: gold accent bar on left border
+- User avatar with role badge (Admin/User)
+- Gold accent on hover states
+
+---
+
+### 4 · Dashboard Page Enhancement
+
+#### [MODIFY] [Dashboard.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/Dashboard.tsx)
+
+- Welcome banner with gradient background and user name
+- "Ask MIYAR" search bar prominently centered
+- 4 KPI cards with glassmorphism: Active Projects, Avg Score, Data Sources, Portfolio Value
+- Recent Projects table with score badges, tier colors, status pills
+- Quick action buttons: New Project, Generate Brief, Export
+- Data freshness banner with live DLD sync status
+- Score trend chart (line chart with gold line)
+
+---
+
+## Verification Plan
+
+### Visual Verification
+- Compare rendered output against Stitch mockups
+- Check responsive breakpoints: 375px (mobile), 768px (tablet), 1440px (desktop)
+- Verify animations run at 60fps
+- Dark mode consistency across all pages
+
+### Functional Testing
+- Homepage loads without auth (public route)
+- "Get Started" → login flow
+- Sidebar navigation works on all breakpoints
+- Dashboard data loads correctly after login
+- Version changelog displays all 5 versions
+
+> [!IMPORTANT]
+> This is a frontend-only change. No backend or API modifications needed. The design system changes will propagate to all existing pages automatically through CSS variable updates.

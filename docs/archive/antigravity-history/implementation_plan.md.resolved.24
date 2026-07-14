@@ -1,0 +1,207 @@
+# DLD Transaction & Rent Integration — Implementation Plan
+
+## Goal
+
+Replace MIYAR's hardcoded/seeded price assumptions with real DLD transaction and rental data, enabling defensible market benchmarks, accurate ROI calculations, and fitout-to-sale calibration for interior design decisions.
+
+---
+
+## 6 Calculation Methods
+
+### 1. Median Sale Price per Area (AED/sqft)
+**Formula:** Group transactions by `area_name_en` + `property_type`, compute P25 / P50 (median) / P75 / mean.
+
+```
+Per area:
+  median_price_sqft = PERCENTILE(transaction_amount / property_size, 0.50)
+  p25_price_sqft = PERCENTILE(..., 0.25)
+  p75_price_sqft = PERCENTILE(..., 0.75)
+  yoy_change = (current_year_median - prev_year_median) / prev_year_median
+  transaction_volume = COUNT(transactions in last 12 months)
+```
+
+**Integration points:**
+- `benchmarkData.avgSellingPrice` → auto-populate from DLD medians
+- `design-brief.ts:402` → replace hardcoded `AED 25K/sqm` with area-specific median
+- [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) FF dimension → use real market price for budgetFit calculation
+
+---
+
+### 2. Fitout-to-Sale Ratio
+**Formula:** What % of sale price should be allocated to interior fitout.
+
+```
+fitout_ratio = fitout_cost_per_sqm / sale_price_per_sqm
+
+Industry benchmarks (UAE luxury):
+  Economy:      8-12%
+  Mid-range:    12-18%
+  Premium:      15-22%
+  Luxury:       18-28%
+  Ultra-luxury: 25-35%
+```
+
+**Integration points:**
+- New `computeFitoutRatio()` function in `pricing-engine.ts`
+- `design-brief.ts` → add fitout ratio recommendation to Section 7 (Budget)
+- [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) Section C → display fitout ratio with market benchmark
+
+---
+
+### 3. Gross & Net Rental Yield
+**Formula:** Annual rental income / property purchase price.
+
+```
+gross_yield = (annual_rent / sale_price) × 100
+net_yield = ((annual_rent - operating_costs) / sale_price) × 100
+
+Operating cost estimate: 20-25% of gross rent (service charges + maintenance)
+```
+
+**Integration points:**
+- [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) Section D (ROI Bridge) → add yield card with real data
+- `investor-pdf.ts` → add yield section to exported PDF
+- New column in `benchmarkData`: `avgRentalYield`
+
+---
+
+### 4. Absorption Rate by Area
+**Formula:** How fast units sell in a given area.
+
+```
+absorption_rate = units_sold_in_period / total_available_units
+months_of_supply = total_available_units / avg_monthly_sales
+
+From DLD data:
+  units_sold = COUNT(transactions WHERE type='Sales' in last 12mo)
+  available_units = SUM(dld_projects.no_of_units WHERE status='ACTIVE')
+```
+
+**Integration points:**
+- `benchmarkData.absorptionRate` → auto-populate from DLD calculations
+- [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) MP dimension (Market Positioning) → use real absorption data
+- [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) → add market velocity indicator
+
+---
+
+### 5. Market Positioning Score
+**Formula:** Where your fitout budget sits vs the market.
+
+```
+market_position = (your_cost_per_sqm - area_p25) / (area_p75 - area_p25)
+
+Result interpretation:
+  < 0.0  → Below market (under-specification risk)
+  0.0-0.3 → Economy segment
+  0.3-0.7 → Mid-market
+  0.7-1.0 → Premium
+  > 1.0  → Above market (over-specification risk)
+```
+
+**Integration points:**
+- [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) DS dimension (Design Suitability) → calibrate against real price bands
+- `design-brief.ts` → add market positioning note to brief
+- `BriefEditor.tsx` → visual indicator showing where user's budget sits
+
+---
+
+### 6. Over/Under-Specification Detection
+**Formula:** Flag when fitout budget is misaligned with sale market.
+
+```
+IF fitout_ratio > tier_max_ratio:
+  ⚠️ OVER_SPEC: "Fitout at {ratio}% of sale price exceeds {tier} norm of {max}%"
+IF fitout_ratio < tier_min_ratio:
+  ⚠️ UNDER_SPEC: "Fitout at {ratio}% may not meet {tier} buyer expectations"
+```
+
+**Integration points:**
+- [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) `detectRiskFlags()` → new `FITOUT_MISMATCH` risk flag
+- `biasAlerts` table → auto-generate bias alert for specification mismatch
+- [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) → show warning badge in Section C
+
+---
+
+## Schema Changes
+
+### `dld_transactions` table (new)
+| Column | Type | Source |
+|--------|------|--------|
+| `transaction_id` | bigint | DLD `trans_group_id` |
+| `transaction_type` | varchar(50) | Sales/Mortgage/Gift |
+| `property_type` | varchar(100) | Villa/Apartment/Land |
+| `area_name_en` | varchar(200) | Area name |
+| `area_id` | int | DLD area ID |
+| `amount` | decimal(14,2) | Transaction amount AED |
+| `property_size_sqft` | decimal(10,2) | Property size |
+| `price_per_sqft` | decimal(10,2) | **Calculated:** amount / size |
+| `transaction_date` | date | Date of transaction |
+| `rooms` | varchar(20) | Bedroom count |
+| `project_name` | varchar(300) | Project name |
+
+### `dld_rents` table (new)
+| Column | Type | Source |
+|--------|------|--------|
+| `contract_id` | bigint | Ejari contract ID |
+| `area_name_en` | varchar(200) | Area name |
+| `area_id` | int | DLD area ID |
+| `annual_amount` | decimal(12,2) | Annual rent AED |
+| `property_type` | varchar(100) | Villa/Apartment |
+| `rooms` | varchar(20) | Bedroom count |
+| `property_size_sqft` | decimal(10,2) | Size |
+| `rent_per_sqft` | decimal(10,2) | **Calculated** |
+| `contract_start` | date | Lease start |
+| `contract_end` | date | Lease end |
+
+### `dld_area_benchmarks` table (new — materialized calculations)
+| Column | Type | Description |
+|--------|------|-------------|
+| `area_id` | int | DLD area |
+| `property_type` | varchar | Apartment/Villa |
+| `period` | varchar(10) | "2025-Q1" |
+| `sale_p25` | decimal | 25th percentile AED/sqft |
+| `sale_p50` | decimal | Median AED/sqft |
+| `sale_p75` | decimal | 75th percentile |
+| `sale_mean` | decimal | Mean |
+| `transaction_count` | int | Volume |
+| `yoy_change_pct` | decimal | Year-over-year % |
+| `rent_p50` | decimal | Median annual rent/sqft |
+| `gross_yield` | decimal | Median gross yield % |
+| `absorption_rate` | decimal | Units sold / available |
+
+---
+
+## Code Integration Map (10 files, 12 changes)
+
+| File | Change | Priority |
+|------|--------|----------|
+| [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts) | Add 3 new tables | P0 |
+| `scripts/migrate-dld-transactions.ts` | Ingestion + calculations | P0 |
+| `server/engines/dld-analytics.ts` | **[NEW]** Core calculation engine | P0 |
+| [server/db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) | Query functions for DLD analytics | P0 |
+| [server/routers/design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) | tRPC endpoints for area benchmarks | P1 |
+| `server/engines/design-brief.ts:402` | Replace hardcoded 25K with real median | P1 |
+| [server/engines/pricing-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pricing-engine.ts) | Add fitout ratio calculation | P1 |
+| [server/engines/scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) | Wire real data into FF/DS/MP dimensions | P1 |
+| [client/src/pages/InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) | Add yield + market position cards | P2 |
+| [client/src/pages/BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx) | Fitout ratio indicator | P2 |
+
+---
+
+## Verification Plan
+
+### Automated
+- `vite build` passes
+- Migration script inserts all records with calculated fields
+- DLD analytics engine returns correct P25/P50/P75 for known areas (e.g., Business Bay)
+
+### Manual
+- InvestorSummary shows real AED/sqft from DLD data
+- Design Brief budget uses area-specific median instead of hardcoded 25K
+- Fitout ratio warning appears when budget is misaligned
+- Yield card displays in ROI section with real rental data
+
+---
+
+> [!IMPORTANT]
+> **Blocked on user:** We need the DLD Transactions and Rents JSON files to proceed with ingestion. The schema, calculation engine, and integration code can be built now; data population happens once files are provided.

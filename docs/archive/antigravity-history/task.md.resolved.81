@@ -1,0 +1,25 @@
+# MIYAR Build Playbook — Execution Tracker
+
+## Phase A: Production Polish ✅
+- [x] A1–A5: All complete and verified
+
+## Phase B: Data Enrichment ✅
+- [x] B1–B5: All complete and verified
+
+## Pre-Phase C: Verification ✅
+- [x] 678/704 tests passing, DB healthy, all pages verified
+
+## Phase C: Build Portfolio Page (IN PROGRESS)
+- [x] C1: Add `portfolios` + `portfolioProjects` schema tables + migration
+- [x] C2: Extend portfolio engine with per-portfolio aggregation
+- [x] C3: Build portfolio CRUD router (list, create, update, delete, add/remove projects)
+- [x] C4: Transform Portfolio page (list view, detail view, add/remove projects)
+- [x] C5: Add portfolio-level PDF report
+- [x] C6: Wire portfolio alerts to alert engine
+
+## Phase D–H: Future
+- [ ] D: Risk & Economic Modeling
+- [ ] E: Cognitive Bias Detection
+- [ ] F: Monte Carlo & Time-Series
+- [ ] G: Customer Success
+- [ ] H: Digital Twin & Sustainability

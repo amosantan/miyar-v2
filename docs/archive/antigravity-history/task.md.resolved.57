@@ -1,0 +1,23 @@
+# Restructure Design Brief for Dubai Market
+
+## Phase 1: Planning and Research
+- [x] Analyze current design brief generation in [server/engines/design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) and [server/engines/docx-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts).
+- [x] Analyze S3 HTML generation in [server/engines/pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts).
+- [x] Research Dubai-specific interior design brief needs (BOQ, detailed materials, workflows, cost allocation).
+- [x] Create [implementation_plan.md](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/implementation_plan.md) outlining structural overhaul.
+
+## Phase 2: Refactoring Design Brief Engine
+- [ ] Overhaul [DesignBriefData](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts#29-40) interface in [server/engines/design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts).
+- [ ] Add `boqFramework` logic based on project GFA.
+- [ ] Refine `materialSpecifications` to be explicit instructions rather than high-level guidance.
+- [ ] Introduce `designerInstructions` tailored for Dubai (Municipality/Civil Defense approval processes, MEP coordination).
+
+## Phase 3: Export Adapters
+- [ ] Update [generateDesignBriefDocx](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts#112-387) in [server/engines/docx-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts) to export the new [DesignBriefData](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts#29-40) sections accurately.
+- [ ] Rewrite [generateDesignBriefHTML](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts#718-736) in [server/engines/pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts) to output the actual interior design brief, not just the scoring validation results.
+- [ ] Ensure [server/routers/project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) properly passes the right [DesignBriefData](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/docx-brief.ts#29-40) to the HTML PDF generator.
+
+## Phase 4: Testing & Validation
+- [ ] Run `vitest` unit tests (especially [v28.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v28.test.ts) and [credibility-fixes.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/credibility-fixes.test.ts)) and fix typing issues from interface changes.
+- [ ] Verify HTML/PDF output structurally matches a standard Dubai interior design brief layout.
+- [ ] Summarize changes in [walkthrough.md](file:///Users/amrosaleh/.gemini/antigravity/brain/7c19b7ce-bcbf-4927-9935-14273b999ad2/walkthrough.md).

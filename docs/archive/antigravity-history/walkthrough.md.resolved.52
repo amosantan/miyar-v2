@@ -1,0 +1,45 @@
+# Phase D: Verification Gate + PDF Extraction — Walkthrough
+
+## What Was Built
+
+Phase D adds a **verification step** to the V4 Fit-out Oracle: users can upload floor plans, let Gemini Vision extract room areas, compare them against manual entries, and confirm.
+
+## Files Created / Modified
+
+### New Files
+| File | Purpose |
+|------|---------|
+| [pdf-extraction.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-extraction.ts) | Gemini Vision engine — extracts rooms with areas + confidence from floor plan images |
+| [AreaVerification.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/AreaVerification.tsx) | Full page: upload → extract → compare → verify/reject |
+| [PdfPreview.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/PdfPreview.tsx) | Room card viewer with confidence badges, category colors, and delta comparison |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) | Added `pdfExtractions` import + 5 CRUD functions |
+| [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) | Added 3 procedures: `extractAreas`, `verifyAreas`, `getExtractions` |
+| [App.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/App.tsx) | Added `/projects/:id/verify-areas` route |
+
+## Key Design Decisions
+
+- **Gemini Vision + structured JSON output**: Uses `outputSchema` for reliable parsing of room data
+- **Upload-first pattern**: Floor plans are uploaded as project assets first (via existing `design.uploadAsset`), then extracted — keeping the asset for future reference
+- **Delta comparison**: When manual fitout area exists, shows % difference with red/amber/green thresholds (>10%, >5%, ≤5%)
+- **Verification flag**: Sets `fitoutAreaVerified = true` on the project, enabling downstream engines to trust the area
+
+## Verification
+
+```
+npx tsc --noEmit → 72 errors (all pre-existing), zero from Phase D files
+```
+
+No errors from: [pdf-extraction.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-extraction.ts), [AreaVerification.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/AreaVerification.tsx), [PdfPreview.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/PdfPreview.tsx), [db.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/db.ts) additions, [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) additions.
+
+## V4 Status
+
+| Phase | Status |
+|-------|--------|
+| A — Schema + Type Foundation | ✅ Complete |
+| B — Adaptive Project Creator | ✅ Complete |
+| C — Engine Migration + PDF Report | ✅ Complete |
+| **D — Verification Gate + PDF Extraction** | **✅ Complete** |

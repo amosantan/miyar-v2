@@ -1,0 +1,62 @@
+# Phase 10: Sales Premium & Yield Predictor Engine Implementation Plan
+
+Phase 10 aims to prove to developers that investing in higher quality design directly pays off in final sale or rental yields. It will consist of a pure functional engine, tRPC access, and a new interactive UI section on the Investor Summary page.
+
+## Proposed Changes
+
+---
+
+### Shared Domain
+#### [MODIFY] [shared/miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts)
+Add types for the new engine:
+- `ValueAddInputs`, `ValueAddResult`
+- `BrandEquityInputs`, `BrandEquityResult`
+
+---
+
+### Core Intelligence Engines
+#### [NEW] [server/engines/value-add-engine.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/value-add-engine.ts)
+Develop pure functions for computing yield offsets and brand-equity premiums, implementing deterministic logic (no database lookups internally):
+- `computeValueAddBridge(inputs: ValueAddInputs): ValueAddResult`
+- `computeBrandEquityForecast(inputs: BrandEquityInputs): BrandEquityResult`
+Will structure results in 3 scenarios (conservative, mid, aggressive) and define confidence levels using DLD comparables counts.
+
+---
+
+### Router Layer
+#### [NEW] [server/routers/salesPremium.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/salesPremium.ts)
+Expose the value-add calculations via a tRPC router:
+- `getValueAddBridge`: Queries existing `getAreaSaleMedianSqm()` and formatting inputs for `computeValueAddBridge()`.
+- `getBrandEquityForecast`: Proxies requests to `computeBrandEquityForecast()`.
+#### [MODIFY] [server/routers.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers.ts)
+Register `salesPremium` logic to the main `appRouter`.
+
+---
+
+### Client Layer
+#### [MODIFY] [client/src/pages/InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)
+Add "Section F: Sales Premium" with:
+- Interactive sliders for proposed vs standard fitout investment (AED/sqm).
+- Yield metrics display (yield delta, sale price premium, payback months).
+- Sub-panel for Brand Equity Forecast (halo uplift for Ultra-luxury / Trophy flagships).
+- Utilizes `useQuery` from the `salesPremium` tRPC router, debouncing the inputs at 300ms.
+
+---
+
+### Verification Artifacts
+#### [NEW] [server/engines/v10-sales-premium.test.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/v10-sales-premium.test.ts)
+Robust suite validating pure engine math (e.g., verifying limits to over-spec, handling missing areas). 
+#### [NEW] [V10_PHASE_REALITY_REPORT.md](file:///Users/amrosaleh/Maiyar/miyar-v2/V10_PHASE_REALITY_REPORT.md)
+End of phase reality report evaluating the outcome of the implementation.
+
+## Verification Plan
+
+### Automated Tests
+1. **TypeScript Checker**: Execute `pnpm check`. Must return 0 errors.
+2. **Vitest Engine Assertions**: Execute `pnpm vitest run`. Ensure baseline of 476+ tests pass successfully, plus the new `v10-sales-premium.test.ts`.
+
+### Manual Verification
+1. Open the internal Browser testing tool targeting `http://localhost:3000`.
+2. Navigate to a designated project's `InvestorSummary` page.
+3. Validate presence of Section F.
+4. Drag the *Proposed Fitout* slider and ensure live results (Yield %, ROI period, etc) respond smoothly and accurately natively via tRPC query execution.

@@ -1,0 +1,324 @@
+# MIYAR 2.0 — Intelligent Intake System
+
+> **Vision:** Stop asking developers to fill 50 form fields. Let them dump what they have — images, PDFs, voice, URLs, text. MIYAR translates it into structured [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102). The form becomes a review checkpoint, not a data entry burden.
+
+---
+
+## The Core Insight
+
+```
+Today:       Developer → 50 form fields → Score
+MIYAR 2.0:   Developer → freeform assets → AI translation → form review → Score
+```
+
+**Every engine, every router, every scoring function stays identical.** The [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102) contract is sacred. What changes is how that contract gets populated — and the developer's experience of doing so.
+
+---
+
+## Deep Codebase Wiring Audit
+
+### How Data Flows Today
+
+```mermaid
+graph TD
+    A["ProjectForm.tsx<br/>7-step wizard, ~50 fields"] -->|"trpc.project.create"| B["project.ts router<br/>projectInputSchema"]
+    B -->|"stores in DB"| C["projects table<br/>42 columns"]
+    C -->|"projectToInputs()"| D["ProjectInputs struct<br/>shared/miyar-types.ts"]
+    D --> E["scoring.ts + five-lens.ts<br/>5-dimension MIYAR Score"]
+    D --> F["normalization.ts<br/>Derived multipliers"]
+    D --> G["explainability.ts<br/>Why scores are what they are"]
+    D --> H["sensitivity.ts<br/>What-if analysis"]
+    D --> I["scenario.ts<br/>Alternative configurations"]
+    D --> J["design-brief.ts<br/>7-section AI brief"]
+    D --> K["ai-design-advisor.ts<br/>Per-space recommendations"]
+    D --> L["visual-gen.ts<br/>Mood board + renders"]
+    D --> M["pdf-report.ts<br/>Board-ready exports"]
+    D --> N["bias-detector.ts<br/>Anchoring/optimism alerts"]
+    D --> O["roi.ts + economics router<br/>Platform ROI"]
+```
+
+### Files That Consume [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102) (19 engines)
+
+| Engine | What It Needs From Inputs |
+|--------|--------------------------|
+| [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) | All 50 fields → composite score |
+| [five-lens.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/five-lens.ts) | SA/FF/MP/DS/ER dimension calculations |
+| [normalization.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts) | Scale band, budget class, derived multipliers |
+| [explainability.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/explainability.ts) | Score drivers + penalty explanations |
+| [sensitivity.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/sensitivity.ts) | Variable perturbation for what-if |
+| [scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scenario.ts) | Override subsets for comparisons |
+| [design-brief.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design-brief.ts) | Style, tier, location → 7-section brief |
+| [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts) | Per-space Gemini recommendations |
+| [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) | Prompt context for image generation |
+| [pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts) | All fields for board-ready exports |
+| [bias-detector.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/bias/bias-detector.ts) | Detects unrealistic optimism |
+| [area-utils.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts) | GFA calculations |
+
+> [!IMPORTANT]
+> **None of these engines change.** The AI Intake Engine outputs the same [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102) struct. The form still validates manually. The scoring engine receives identical data.
+
+### Existing AI Infrastructure (Already Built, Ready to Reuse)
+
+| Capability | File | What It Does |
+|-----------|------|-------------|
+| LLM wrapper | [llm.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/llm.ts) | `invokeLLM` — supports `image_url`, `file_url` (PDF, audio, video) natively |
+| Floor plan analysis | [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts) | Gemini Vision → room breakdown, areas, spatial ratios |
+| PDF extraction | [pdf-extraction.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-extraction.ts) | Gemini Vision → room extraction from floor plans |
+| Design advisor | [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts) | Gemini → per-space material recommendations |
+| Visual generation | [visual-gen.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/visual-gen.ts) | Project data → mood board and render prompts |
+| Structured JSON output | [llm.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/_core/llm.ts) | `outputSchema` forces Gemini to return typed JSON |
+
+### What's Missing (Must Be Built)
+
+| Gap | Why It's Needed |
+|-----|----------------|
+| **File upload infrastructure** | No server-side S3 SDK. Need upload → signed URL → store pipeline |
+| **AI Intake Engine** | New engine that processes multimodal assets → [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102) |
+| **Project assets table** | Permanent storage of uploaded files (images, PDFs, voice) on the project |
+| **Intake router** | New tRPC router exposing the AI intake workflow |
+| **Intake UI** | Canvas-style upload zone + chat interface on the New Project page |
+
+---
+
+## Proposed Architecture
+
+### Three Paths, One Destination
+
+```mermaid
+graph LR
+    subgraph "Path 1: Talk to MIYAR"
+        A1["Drop files<br/>Paste URLs<br/>Type/speak vision"] --> B1
+    end
+    subgraph "Path 2: Expert Mode"
+        A2["7-step form<br/>(existing)"] --> C["ProjectInputs"]
+    end
+    subgraph "Path 3: Quick Brief"
+        A3["Voice note / paragraph<br/>+ AI fills rest"] --> B1
+    end
+    B1["AI Intake Engine<br/>(Gemini multimodal)"] --> C
+    C --> D["Review Form<br/>(always checkpoint)"]
+    D --> E["Scoring Engine<br/>(unchanged)"]
+```
+
+### New Components
+
+---
+
+#### 1. Schema: `project_assets` Table
+
+```sql
+-- NEW TABLE: permanent asset storage per project
+CREATE TABLE project_assets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  projectId INT NOT NULL,           -- FK to projects
+  organizationId INT NOT NULL,
+  assetType ENUM('image','pdf','audio','video','url','text_note') NOT NULL,
+  fileName VARCHAR(500),
+  fileUrl TEXT,                      -- S3 signed URL or external URL
+  fileKey VARCHAR(512),             -- S3 key for internal files
+  fileMimeType VARCHAR(128),
+  fileSizeBytes INT,
+  aiExtractionResult JSON,          -- what Gemini extracted from this asset
+  aiContributions JSON,             -- which ProjectInputs fields this asset populated
+  uploadedAt TIMESTAMP DEFAULT NOW(),
+  uploadedBy INT
+);
+```
+
+> [!NOTE]
+> Assets are stored permanently on the project — not just used for form-filling. They become the project's evidence base referenced by design briefs, investor summaries, and reports.
+
+---
+
+#### 2. Engine: `server/engines/intake/ai-intake-engine.ts` [NEW]
+
+Pure function pattern (consistent with all existing engines):
+
+```typescript
+interface IntakeAsset {
+  type: 'image' | 'pdf' | 'audio' | 'video' | 'url' | 'text_note';
+  url: string;
+  mimeType?: string;
+  textContent?: string;  // for URLs: scraped content; for text_note: raw text
+}
+
+interface IntakeResult {
+  suggestedInputs: Partial<ProjectInputs>;  // AI-populated fields
+  confidence: Record<string, 'high' | 'medium' | 'low'>;  // per-field confidence
+  reasoning: Record<string, string>;  // why each field was set
+  extractedInsights: {
+    detectedStyle?: string;
+    detectedMaterials?: string[];
+    detectedBrands?: string[];
+    detectedTier?: string;
+    detectedTypology?: string;
+    floorPlanAnalysis?: FloorPlanAnalysis;
+    supplierInfo?: { name: string; url: string; materials: string[] }[];
+  };
+  warnings: string[];
+}
+
+// Main function — processes all assets and returns field suggestions
+async function processIntakeAssets(
+  assets: IntakeAsset[],
+  existingInputs?: Partial<ProjectInputs>
+): Promise<IntakeResult>
+```
+
+**Key design decisions:**
+- Calls `invokeLLM` with multimodal content (images + PDFs + text)
+- Uses `outputSchema` to force Gemini into a typed JSON response matching [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102) fields
+- Reuses [analyzeFloorPlan()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts#89-198) from [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts) when PDFs/images of floor plans are detected
+- Each field gets a confidence level — UI shows green (high), yellow (medium), red (low)
+- Returns reasoning per field — so the review form can show "This was set because your mood board shows Japandi-style interiors"
+
+---
+
+#### 3. Engine: `server/engines/intake/url-scraper.ts` [NEW]
+
+Handles supplier/competitor URL extraction:
+
+```typescript
+async function scrapeSupplierUrl(url: string): Promise<{
+  supplierName: string;
+  products: { name: string; category: string; priceRange?: string }[];
+  materialTier: string;
+  sourcingOrigin: string;
+}>
+```
+
+Reuses concepts from existing ingestion connectors ([server/engines/ingestion/crawler.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/ingestion/crawler.ts)) but tailored for single-URL extraction.
+
+---
+
+#### 4. Router: `server/routers/intake.ts` [NEW]
+
+```typescript
+intakeRouter = router({
+  // Upload assets and get AI suggestions
+  processAssets: orgProcedure
+    .input(z.object({
+      projectId: z.number().optional(),  // existing project or new
+      assets: z.array(assetSchema),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // 1. Store assets in project_assets table
+      // 2. Call processIntakeAssets() engine
+      // 3. Return IntakeResult
+    }),
+
+  // Get upload URL for file
+  getUploadUrl: orgProcedure
+    .input(z.object({ fileName: z.string(), contentType: z.string() }))
+    .mutation(async ({ input }) => {
+      // Generate presigned S3 upload URL
+    }),
+
+  // Chat-style interaction for refining suggestions
+  refineWithChat: orgProcedure
+    .input(z.object({
+      projectId: z.number(),
+      message: z.string(),
+      currentInputs: z.record(z.any()),
+    }))
+    .mutation(async ({ input }) => {
+      // Gemini conversation that updates ProjectInputs
+    }),
+})
+```
+
+---
+
+#### 5. Frontend: Redesigned New Project Experience
+
+##### Option A — "Talk to MIYAR" (default for new users)
+
+**File:** `client/src/pages/NewProject.tsx` — full rewrite
+
+```
+┌─────────────────────────────────────────────────┐
+│  MIYAR 2.0 — New Project                        │
+│                                                  │
+│  ┌─────────────────────────────────────────────┐ │
+│  │  Drop files here or paste URLs              │ │
+│  │  📎 Images · 📄 PDFs · 🎤 Voice · 🔗 URLs  │ │
+│  │                                              │ │
+│  │  [Upload Files]  [Paste URL]  [Record Voice] │ │
+│  └─────────────────────────────────────────────┘ │
+│                                                  │
+│  💬 Or tell us about your project:              │
+│  ┌─────────────────────────────────────────────┐ │
+│  │  "50 luxury apartments in Dubai Marina,      │ │
+│  │   Japandi style, targeting HNWI buyers..."   │ │
+│  └─────────────────────────────────────────────┘ │
+│                                                  │
+│  [Analyze & Auto-Fill ✨]                       │
+│                                                  │
+│  ─── OR ───                                     │
+│  [Skip to Manual Form →]                        │
+└─────────────────────────────────────────────────┘
+```
+
+After AI processes, transitions to the existing 7-step form, but **pre-filled** with:
+- Green badges on AI-populated fields (high confidence)
+- Yellow badges on fields needing review
+- "Why this value?" tooltips showing AI reasoning
+- Uploaded assets visible as thumbnails in a sidebar panel
+
+##### Option B — Expert Mode (unchanged)
+
+Same 7-step wizard as today. But each section gets a small "AI Assist" button that can:
+- Auto-fill just that section from uploaded assets or typed description
+- Suggest a value based on the data already entered
+
+##### Option C — Quick Brief
+
+Text area or voice recorder → AI fills 60-70% → developer completes remaining fields manually.
+
+---
+
+## Build Sequence
+
+| Phase | What | Key Files | Dependencies |
+|-------|------|-----------|-------------|
+| **2.0-A** | Schema + File Upload Infrastructure | [drizzle/schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts), `server/routers/intake.ts` (getUploadUrl) | S3 credentials in [.env](file:///Users/amrosaleh/Maiyar/miyar-v2/.env) |
+| **2.0-B** | AI Intake Engine | `server/engines/intake/ai-intake-engine.ts`, `url-scraper.ts` | Existing `invokeLLM`, [floor-plan-analyzer.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/floor-plan-analyzer.ts) |
+| **2.0-C** | Intake Router (full) | `server/routers/intake.ts` (processAssets, refineWithChat) | 2.0-A + 2.0-B |
+| **2.0-D** | Frontend — Upload + AI canvas | `client/src/pages/NewProject.tsx` rewrite | 2.0-C, existing [ProjectForm.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx) unchanged |
+| **2.0-E** | AI Assist buttons on existing form | [client/src/components/ProjectForm.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx) enhancements | 2.0-B |
+| **2.0-F** | Asset gallery on project detail | [client/src/pages/ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx) | 2.0-A |
+
+> [!WARNING]
+> **Phase 10 (Sales Premium)** should be built **before** MIYAR 2.0. The 2.0 intake system is a product philosophy shift — it benefits from having all downstream engines fully operational first. Phase 10 adds ~4 files; MIYAR 2.0 touches ~15+ files.
+
+---
+
+## What Does NOT Change
+
+| Layer | Status |
+|-------|--------|
+| [shared/miyar-types.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts) — [ProjectInputs](file:///Users/amrosaleh/Maiyar/miyar-v2/shared/miyar-types.ts#36-102) struct | **Unchanged** |
+| [server/engines/scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) — scoring engine | **Unchanged** |
+| [server/engines/five-lens.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/five-lens.ts) — 5 dimensions | **Unchanged** |
+| [server/engines/normalization.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts) — derived multipliers | **Unchanged** |
+| [server/routers/project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts) — create/evaluate | **Unchanged** (receives same `projectInputSchema`) |
+| [ProjectForm.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/ProjectForm.tsx) — 7-step wizard | **Enhanced** (AI Assist buttons + pre-fill badges) |
+| All 20 existing routers | **Unchanged** |
+| All 40+ existing engines | **Unchanged** |
+| All 82+ DB tables | **Unchanged** (1 new table added) |
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **S3 setup**: MIYAR currently has no server-side S3 SDK. We need AWS S3 credentials for file storage. Alternatively, we could use Vercel Blob Storage which requires zero AWS config. Which do you prefer?
+
+> [!IMPORTANT]
+> **Phase sequencing**: I recommend building Phase 10 first (4 files, ~2 sessions), then starting MIYAR 2.0. Reason: the Sales Premium engine adds value to the Investor Summary immediately, and MIYAR 2.0 benefits from having all downstream engines complete. Do you agree?
+
+> [!IMPORTANT]
+> **Voice input**: Browser native `MediaRecorder` API can capture audio → send to Gemini as `file_url` with `audio/mp4` mime type. Gemini transcribes and interprets natively. No third-party speech-to-text needed. Is voice input a P0 or can it come later?
+
+> [!IMPORTANT]
+> **Scope check**: Should the chat refinement feature (Path 3 — "refineWithChat") be in the initial release, or can it come as a fast follow? It's the most complex piece and could delay the core upload → auto-fill flow.

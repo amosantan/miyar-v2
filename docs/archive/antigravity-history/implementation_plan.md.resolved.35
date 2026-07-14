@@ -1,0 +1,125 @@
+# MIYAR v4 — The Fit-Out Oracle: Implementation Plan
+
+## Current State (Already Implemented)
+
+After codebase analysis, **significant V4 infrastructure already exists**:
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| [UnitMixBuilder](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#133-249) | ✅ Working | `ProjectNew.tsx:133–248` |
+| [RoomListBuilder](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#277-401) (Villa floors) | ✅ Working | `ProjectNew.tsx:277–400` |
+| [ShellCoreToggle](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#404-482) (Office Cat A/B) | ✅ Working | `ProjectNew.tsx:404–481` |
+| [FitoutAreaSummary](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#485-539) badge | ✅ Working | `ProjectNew.tsx:485–538` |
+| [getArchetype()](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#94-112) mapping | ✅ Working | `ProjectNew.tsx:94–111` |
+| `computedFitoutArea` auto-calc | ✅ Working | `ProjectNew.tsx:640–673` |
+| Zod schemas (`unitMixItemSchema`, `villaSpaceSchema`) | ✅ Working | `project.ts:65–78` |
+| DB columns (`totalFitoutArea`, `fitoutAreaVerified`, `projectArchetype`) | ✅ In schema | `schema.ts:181–184` |
+| `pdf_extractions` table | ✅ In schema | `schema.ts:2010+` |
+| [area-utils.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts) ([getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17), [computeFitoutRatio](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#26-41)) | ✅ Working | [area-utils.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts) |
+| [AreaVerification.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/AreaVerification.tsx) page | ✅ Working | [AreaVerification.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/AreaVerification.tsx) |
+
+> [!IMPORTANT]
+> The framework is in place. The work ahead is **bug fixes, missing features, and engine migration** — not a ground-up build.
+
+---
+
+## Phase 1: Critical Bug Fix — "Objects are not valid as React child"
+
+The user reported a crash when opening a newly created project:
+
+```
+Error: Objects are not valid as a React child 
+(found: object with keys {count, areaSqm, unitType, includeInFitout})
+```
+
+**Root cause**: `unitMix` JSON (array of objects) is being rendered directly as text somewhere in [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx) or [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) instead of being mapped to JSX elements.
+
+### Proposed Changes
+
+#### [MODIFY] [ProjectDetail.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectDetail.tsx)
+
+- Find where `project.unitMix` is rendered and guard against raw object rendering
+- If displayed in a summary section, render as a formatted table (Unit Type / Area / Count)
+- Apply same fix to `project.villaSpaces` if rendered directly
+
+#### [MODIFY] [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx)
+
+- Same pattern: find any `{project.unitMix}` or `{project.villaSpaces}` expressions and replace with safe renderers
+
+---
+
+## Phase 2: Remaining Schema & Typing Gaps
+
+#### [MODIFY] [schema.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/drizzle/schema.ts)
+
+- Add `totalNonFinishArea` column if missing (already in Zod but need to confirm DB column exists)
+- Add `officeFitoutCategory` (enum: `cat_a`/`cat_b`) and `officeCustomRatio` (decimal) to `projects` — currently these are computed client-side but lost after creation
+
+#### [MODIFY] [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)
+
+- Persist `officeFitoutCategory` and `officeCustomRatio` in create mutation
+- Add `fitoutAreaVerified` flag to create mutation (default `false`)
+- Ensure [update](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/ProjectNew.tsx#151-156) mutation also handles `totalFitoutArea` / `fitoutAreaVerified` fields
+
+---
+
+## Phase 3: Engine Migration (GFA → NFA)
+
+24 server files and 6 client files reference `ctx03Gfa`. The [area-utils.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts) abstraction ([getPricingArea()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17)) already exists but is only used in [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts).
+
+#### Migration Strategy
+
+All files should use [getPricingArea(inputs)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) instead of `inputs.ctx03Gfa` for financial calculations:
+
+| File | Current Usage | Change |
+|------|--------------|--------|
+| [scoring.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/scoring.ts) | ✅ Uses [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) | No change |
+| [normalization.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts) | `ctx03Gfa` directly | Switch to [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) |
+| [explainability.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/explainability.ts) | `ctx03Gfa` directly | Switch to [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) |
+| [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts) | `ctx03Gfa` for room allocation | Switch to [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) |
+| [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts) | `ctx03Gfa` in prompts | Switch to [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) |
+| [pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts) | `ctx03Gfa` in report | Show both GFA and fitout area |
+| `roi.ts` (via [project.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/project.ts)) | `gfa: project.ctx03Gfa` | Switch to [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) |
+| [design.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/design.ts) | Multiple references | Switch pricing to fitout area |
+| [scenario.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/scenario.ts) | `ctx03Gfa` | Switch to [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) |
+| [portfolio.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/routers/portfolio.ts) | `ctx03Gfa` | Switch to [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) |
+| [BriefEditor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/BriefEditor.tsx) | `ctx03Gfa` for cost/sqm | Switch to fitout area |
+| [InvestorSummary.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/InvestorSummary.tsx) | `ctx03Gfa` | Show both, price on fitout |
+| [DesignAdvisor.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/pages/DesignAdvisor.tsx) | `ctx03Gfa` | Switch to fitout area |
+
+#### [MODIFY] [normalization.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/normalization.ts)
+#### [MODIFY] [explainability.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/explainability.ts)
+#### [MODIFY] [space-program.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/space-program.ts)
+#### [MODIFY] [ai-design-advisor.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/design/ai-design-advisor.ts)
+#### [MODIFY] [pdf-report.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/pdf-report.ts)
+
+- Import [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) from [area-utils.ts](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts)
+- Replace all financial `ctx03Gfa` references with [getPricingArea(inputs)](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17)
+- Keep [getStructuralArea()](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#18-25) for scale classification and structural comparisons
+
+---
+
+## Phase 4: Room-Level Cost Waterfall
+
+#### [NEW] [RoomCostWaterfall.tsx](file:///Users/amrosaleh/Maiyar/miyar-v2/client/src/components/RoomCostWaterfall.tsx)
+
+New component for the Investor Summary showing per-room cost breakdown:
+- Horizontal waterfall chart showing each room's contribution to total budget
+- Example: "Majlis: 18% · Master Suite: 15% · Show Kitchen: 12%..."
+- Uses `unitMix` or `villaSpaces` JSON + budget per sqm to compute
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. `npm run build` — no TypeScript errors
+2. Create a project with each typology (Residential, Villa, Office) → verify no crash
+3. Open each created project → verify no "Objects as React child" error
+4. Evaluate a project → verify [getPricingArea](file:///Users/amrosaleh/Maiyar/miyar-v2/server/engines/area-utils.ts#9-17) returns `totalFitoutArea` when set
+
+### Manual Verification
+1. Browser test: Create Residential project with Unit Mix → confirm area summary shows correct fitout area
+2. Browser test: Create Villa project with rooms → confirm floor-by-floor area totals
+3. Browser test: Create Office project with Shell & Core toggle → confirm Cat A/B ratio persistence
+4. Open project detail → confirm no crash, unit mix renders as table

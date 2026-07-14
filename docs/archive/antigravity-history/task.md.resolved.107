@@ -1,0 +1,22 @@
+# DLD Transaction & Rent Integration — Research and Planning
+
+## Phase 1: Research & Analysis
+- [x] Research real estate analytics calculation methods (AED/sqft, yield, fitout ratios)
+- [x] Full codebase scan: identify all integration points
+- [x] Create implementation plan with calculations + integration map
+
+## Phase 2: Schema & Ingestion (after user provides JSON files)
+- [/] Create `dld_transactions` table
+- [/] Create `dld_rents` table
+- [ ] Build ingestion scripts for both datasets (blocked on JSON files)
+
+## Phase 3: Calculation Engine
+- [/] Build DLD analytics engine (median/avg price per area, yield calc, fitout ratio)
+- [ ] Wire calculations into existing benchmarkData
+- [/] Integrate with scoring engine (FF, DS, MP dimensions)
+
+## Phase 4: UI Integration
+- [ ] Area comparison panel with real transaction benchmarks
+- [ ] Investor Summary with real market comps
+- [ ] Design Brief with fitout calibration recommendations
+- [ ] Over-specification warnings in project evaluation
