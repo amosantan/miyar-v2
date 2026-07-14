@@ -1,5 +1,7 @@
 # MASTER STRATEGIC BUILD PLAN — MIYAR PLATFORM
 
+> Historical strategy document. Current product boundaries, architecture, priorities, and verified state live in `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, and `docs/PROJECT_STATE.md`.
+
 **Instruction Type:** Knowledge Alignment Only — Do Not Execute  
 **Purpose:** Full system development roadmap and architectural intent  
 **Execution:** Phase-by-phase prompts will be issued separately  

@@ -1,5 +1,7 @@
 # MIYAR 3.0 — Project Memory
 
+> Historical phase memory. It preserves earlier intent and implementation notes but is not current repository state or task authority. Follow `AGENTS.md`, `docs/PROJECT_STATE.md`, `docs/ROADMAP.md`, and `.agent/state/` first; reverify every count, path, phase claim, and command below.
+
 ## Versioning
 - **MIYAR 2.0** = everything built through Phase 9 (scoring, market intelligence, design visualization)
 - **MIYAR 3.0** = all new development from Phase 10A onwards. This is a fundamentally different product:

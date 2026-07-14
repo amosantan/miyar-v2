@@ -13,7 +13,7 @@
 
 ## Step 1: Schema + DB (MUST do first)
 
-Add three new tables to `server/db/schema.ts`:
+Historical instruction: the current canonical schema path is `drizzle/schema.ts`. Add three new tables there only if this legacy phase task is explicitly reactivated and revalidated:
 - `project_assets`
 - `intake_conversations`
 - `intake_form_suggestions`

@@ -37,7 +37,7 @@ Run `pnpm check` (tsc --noEmit) before declaring any task complete.
 
 ## Test Requirement
 Every new engine function requires unit tests.
-Run `pnpm test` to verify. Current baseline: 800 passing / 830 total (8 pre-existing fail, 22 skip) as of MIYAR 3.0 Phase B.
+Use `docs/VERIFICATION.md` and run the current relevant checks. Never trust a recorded test count; current observed health and reproduced failures live in `docs/PROJECT_STATE.md` and `.agent/state/KNOWN_FAILURES.md`.
 
 ## Database Migrations
-Never manually edit schema without generating a migration: `pnpm db:push`
+Schema changes follow `docs/loops/schema-migration.md` and `docs/runbooks/database-migration.md`. Confirm the exact target before any command that can apply a migration.

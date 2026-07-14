@@ -9,7 +9,9 @@ description: Mandatory file update protocol — must be followed after every tas
 
 ---
 
-## The Chain of Truth
+## Historical Chain of Truth
+
+> This synchronization model is retained for historical context. `AGENTS.md` now defines the canonical state model: durable rules in `AGENTS.md`, verified facts in `docs/PROJECT_STATE.md`, active work in `.agent/state/CURRENT_TASK.md`, and history in Git/`.agent/state/WORKLOG.md`. Do not duplicate new changing statistics across the legacy files below.
 
 These 3 files form the chain of truth. They must always be in sync:
 

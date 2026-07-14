@@ -90,7 +90,7 @@ Must contain:
 - [ ] Dev server running without errors: `pnpm dev`
 - [ ] InvestorSummary `/projects/:id/investor-summary` — slider interaction works
 - [ ] Commit: `feat(phase10): Sales Premium & Yield Predictor Engine`
-- [ ] Push to main, verify Vercel build passes
+- [ ] Prepare review/release evidence; push to a protected branch or deploy only with explicit authorization
 - [ ] Update `miyar-memory.md` — mark Phase 10 complete, set Phase 11 as NEXT
 
 ---

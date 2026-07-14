@@ -1,7 +1,8 @@
-# MIYAR 3.0 — Live Progress Tracker
+# MIYAR 3.0 — Historical Progress Snapshot
 
-> **This file is the live source of truth for what is done vs. pending.**
-> **Every task must update this file before marking complete. No exceptions.**
+> **Historical snapshot only. Do not use this file as current task state or repository health.**
+> Current verified facts live in `docs/PROJECT_STATE.md`, current/future priorities in `docs/ROADMAP.md`, and active long-running work in `.agent/state/CURRENT_TASK.md`.
+> Recorded counts, completion claims, paths, and commands below apply only to their historical observation and must be reverified.
 >
 > Last Updated: 04 March 2026
 

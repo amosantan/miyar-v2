@@ -1,0 +1,17 @@
+# Agent Worklog
+
+Append concise handovers for material work that spans sessions. Git remains the detailed change history. Do not paste secrets, full logs, or duplicate commit diffs.
+
+| Date | Task | Terminal state | Evidence | Remaining risk / next action |
+|---|---|---|---|---|
+| 2026-07-14 | Establish shared Codex/Claude loop-engineering foundation | PASS | Canonical contract, lifecycle, state, verification, template, and initial runbooks created; documentation checks passed | Complete the full documentation architecture |
+| 2026-07-14 | Complete MIYAR documentation architecture | PASS | Human onboarding, product, architecture, roadmap, project state, verification, security, ADRs, six specialized loops, six runbooks, canonical agent state, and archive policy created; required-file, relative-link, authority, size, and diff checks passed | Use the relevant loop on the next engineering task; remediate the recorded red repository baseline |
+| 2026-07-14 | Align architecture exactly with attached loop-engineering research | PASS | `AGENTS.md` contract is 189 lines; seven loop contracts pass the required schema; all required files and relative links pass; CI YAML parses and is fail-closed; `git diff --check` passes | Existing application type/test failures remain recorded in `KNOWN_FAILURES.md`; fix them in separate bugfix loops |
+
+## Entry Rules
+
+- Use one row per meaningful handover, not per command.
+- Link or name the task/commit and verification evidence.
+- Use only named terminal states: `PASS`, `FAILED`, `BLOCKED`, `NEEDS_HUMAN`, `CANCELLED`.
+- Record unresolved risks and the exact next action.
+- Never rewrite past entries to make a result appear successful.

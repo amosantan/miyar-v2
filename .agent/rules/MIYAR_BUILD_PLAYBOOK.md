@@ -1,6 +1,6 @@
 # MIYAR Build Playbook — Permanent Agent Rules
-<!-- This file is the single source of truth for how to build MIYAR. -->
-<!-- The agent MUST read this file at the start of every session involving MIYAR development. -->
+<!-- Historical phase playbook. AGENTS.md is the canonical cross-agent contract. -->
+<!-- Read this file only when its phase context is relevant, and verify all recorded state against the live repository. -->
 
 > **Last Updated:** 02 March 2026
 > **Status:** Phase 9 complete. Entering Phase 10 — Sales Premium & Yield Predictor Engine.
@@ -9,9 +9,9 @@
 
 ## Golden Rules
 
-1. **Always run tests before AND after any code change:** `pnpm vitest run` (476+ baseline).
+1. **Verify before and after changes:** use the risk-based matrix in `docs/VERIFICATION.md`; never trust a recorded historical count.
 2. **Never break deterministic scoring.** The 5-dimension engine (`scoring.ts`, `five-lens.ts`) is the foundation. Any change to weights, thresholds, or normalization MUST pass existing tests.
-3. **Schema changes require a migration.** Use `pnpm drizzle-kit generate` then `pnpm drizzle-kit push` (see `/db-migrate` workflow).
+3. **Schema changes require a migration.** Follow `docs/loops/schema-migration.md` and `docs/runbooks/database-migration.md`.
 4. **Commit granularly.** Prefix: `feat()`, `fix()`, `refactor()`, `data()`, `docs()`.
 5. **Consult NotebookLM** for UAE market data before hardcoding values. Use the `miyar-uae-market-intelligence-` notebook ID.
 6. **Read relevant skills** before working on specific domains: `miyar-scoring`, `miyar-ingestion`, `miyar-analytics`.
@@ -83,7 +83,7 @@
 3. Build engine → router → frontend in sequence
 4. Run `/run-tests` after each step
 5. Commit: `feat(phase10): description`
-6. Push to main, verify Vercel build
+6. Use a review branch; push/deploy only when explicitly authorized, then follow the release loop
 
 ---
 
@@ -143,14 +143,14 @@
 - [ ] Read this playbook
 - [ ] Read relevant skill file(s)
 - [ ] Check current test baseline: `pnpm vitest run`
-- [ ] Check database state via PlanetScale queries
+- [ ] Confirm the exact configured database target without exposing credentials
 - [ ] Review schema for existing tables/columns before adding new ones
 
 ### Before Committing
-- [ ] All tests pass (476+ baseline, 0 new failures)
+- [ ] Required current verification gates pass; report any existing failures honestly
 - [ ] No TypeScript errors
 - [ ] Commit message follows convention: `feat(domain): description`
-- [ ] Push to main and verify Vercel build
+- [ ] Review branch/release evidence prepared; protected-branch push and deployment require authorization
 
 ### After Completing a Phase
 - [ ] Update this playbook with completion status
