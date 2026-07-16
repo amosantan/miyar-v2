@@ -5,7 +5,7 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-16
-- Commit: `a7b1510` plus uncommitted baseline-recovery, runtime-safety, tenant-guard, client-performance, generated-bundle, and migration-0044 changes
+- Commit: `db36254` plus uncommitted runtime-safety, tenant-guard, client-performance, generated-bundle, and migration-0044 changes
 - Branch: `codex/loop-engineering-architecture`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
@@ -65,7 +65,7 @@ The observed worktree includes user-owned migration `0044` files and metadata th
 
 - CI has been changed to use pnpm and the committed pnpm lockfile.
 - TypeScript, tests, and build are configured as fail-closed mandatory gates.
-- The observed TypeScript, test, and build gates are green. `KF-001` through `KF-005` remain recorded as resolved pending an authorized fixing commit.
+- The observed TypeScript, test, and build gates are green. Baseline failures `KF-001` through `KF-005` were fixed in `db36254` and removed from the open-failure register.
 
 ## Authorization Foundation
 

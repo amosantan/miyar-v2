@@ -181,7 +181,7 @@ Rules:
 - Expected artifacts: Green type gate and closed `KF-001`.
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
-- Completion evidence: All 52 diagnostics were resolved by typed shared entity contracts, ingestion narrowing, decimal serialization, and current design-brief persistence shape; `pnpm check`, the safe full suite, build, and authorization audit pass.
+- Completion evidence: Fixing commit `db36254`; all 52 diagnostics were resolved by typed shared entity contracts, ingestion narrowing, decimal serialization, and current design-brief persistence shape; `pnpm check`, the safe full suite, build, and authorization audit pass.
 - Lessons: `LES-013`
 
 ### TR-07 — Repair unambiguous baseline tests
@@ -200,7 +200,7 @@ Rules:
 - Expected artifacts: Correct test harnesses and updated known-failure evidence.
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
-- Completion evidence: Authentication mocks include `getDb`, normalization tests use the valid static import, and the safe full suite passes without connecting to a database.
+- Completion evidence: Fixing commit `db36254`; authentication mocks include `getDb`, normalization tests use the valid static import, and the safe full suite passes without connecting to a database.
 
 ### TR-08 — Decide ambiguous baseline contracts
 
@@ -237,7 +237,7 @@ Rules:
 - Expected artifacts: Green test gate; closed `KF-002` through `KF-005` as applicable.
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
-- Completion evidence: SCAD uses the typed ESM PDF parser, RICS recency is deterministic with 90/91-day coverage, empty space analysis is neutral, and design briefs always render the board annex; targeted and full tests plus PDF visual QA pass.
+- Completion evidence: Fixing commit `db36254`; SCAD uses the typed ESM PDF parser, RICS recency is deterministic with 90/91-day coverage, empty space analysis is neutral, and design briefs always render the board annex; targeted and full tests plus PDF visual QA pass.
 
 ### TR-10 — Certify report integrity and visual rendering
 

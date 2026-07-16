@@ -57,7 +57,8 @@ Resolve all 52 reproduced TypeScript diagnostics and all nine reproduced test fa
 - Targeted SCAD connector tests: PASS for typed PDF extraction, parser cleanup, and HTML fallback.
 - Populated and empty design-brief PDFs rendered as two-page A4 artifacts and all four PNG pages passed visual inspection for annex content, clipping, spacing, disclaimer, provenance, and footer.
 - Scoped `git diff --check` excluding the recorded user-owned dirty files: PASS.
-- No commit, push, deployment, migration application, or shared database action was performed.
+- Fixing commit: `db36254`.
+- No migration application or shared database action was performed.
 
 ## Next Action
 
