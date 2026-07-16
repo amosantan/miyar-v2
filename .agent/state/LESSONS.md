@@ -168,3 +168,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The same callback set compiles with zero diagnostics without callback-level `any`, ignores, or weakening strict mode.
 - Reuse rule: When many tRPC consumers simultaneously lose inference, inspect the earliest `any` boundary before annotating individual callbacks; publish concrete cross-layer types from `shared/`.
 - Supersedes / related: Extends `LES-004`; applies to future router and database contract work.
+
+### LES-014 — Composite authorization belongs at the mutation boundary
+
+- Date / roadmap step: 2026-07-16 / `TR-03`
+- Context: Design routes linked projects, scenarios, briefs, visuals, assets, boards, comments, and polymorphic targets.
+- Observed: Router guards prevented ordinary cross-organization IDs, but independent review found check-then-write windows and legacy inconsistent associations.
+- Cause: Raw insert/update helpers carried authorized IDs without revalidating every related resource in the same database operation.
+- Fix or decision: Use closed typed resolvers at the router boundary and organization-locked transactions or predicates at the database boundary; validate both ends of polymorphic links and optional scenario associations on creation and read.
+- Proof: Zero TR-03 inventory rows, 68 passing authorization tests, safe full suite and builds, and final independent review `APPROVED_NO_OBJECTION`.
+- Reuse rule: For multi-resource operations, authorization is complete only when every ownership claim is revalidated at the final read/write boundary; a prior router check alone is not sufficient evidence.
+- Supersedes / related: Extends `LES-007` and `LES-008`; applies to `TR-04`.

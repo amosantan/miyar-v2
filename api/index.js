@@ -1,7 +1,5 @@
 var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -9,17 +7,98 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-var __copyProps = (to, from, except, desc12) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc12 = __getOwnPropDesc(from, key)) || desc12.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // drizzle/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  accuracySnapshots: () => accuracySnapshots,
+  aiDesignBriefs: () => aiDesignBriefs,
+  amenitySubSpaces: () => amenitySubSpaces,
+  assetLinks: () => assetLinks,
+  auditLogs: () => auditLogs,
+  benchmarkCategories: () => benchmarkCategories,
+  benchmarkData: () => benchmarkData,
+  benchmarkProposals: () => benchmarkProposals,
+  benchmarkSnapshots: () => benchmarkSnapshots,
+  benchmarkSuggestions: () => benchmarkSuggestions,
+  benchmarkVersions: () => benchmarkVersions,
+  biasAlerts: () => biasAlerts,
+  biasProfiles: () => biasProfiles,
+  comments: () => comments,
+  competitorEntities: () => competitorEntities,
+  competitorProjects: () => competitorProjects,
+  connectorHealth: () => connectorHealth,
+  customerHealthScores: () => customerHealthScores,
+  decisionPatterns: () => decisionPatterns,
+  designBriefs: () => designBriefs,
+  designPackages: () => designPackages,
+  designTrends: () => designTrends,
+  digitalTwinModels: () => digitalTwinModels,
+  directionCandidates: () => directionCandidates,
+  dldAreaBenchmarks: () => dldAreaBenchmarks,
+  dldProjects: () => dldProjects,
+  dldRents: () => dldRents,
+  dldTransactions: () => dldTransactions,
+  dmComplianceChecklists: () => dmComplianceChecklists,
+  entityTags: () => entityTags,
+  evidenceRecords: () => evidenceRecords,
+  evidenceReferences: () => evidenceReferences,
+  finishScheduleItems: () => finishScheduleItems,
+  generatedVisuals: () => generatedVisuals,
+  ingestionRuns: () => ingestionRuns,
+  intelligenceAuditLog: () => intelligenceAuditLog,
+  logicChangeLog: () => logicChangeLog,
+  logicThresholds: () => logicThresholds,
+  logicVersions: () => logicVersions,
+  logicWeights: () => logicWeights,
+  materialAllocations: () => materialAllocations,
+  materialBoards: () => materialBoards,
+  materialConstants: () => materialConstants,
+  materialLibrary: () => materialLibrary,
+  materialSupplierSources: () => materialSupplierSources,
+  materialsCatalog: () => materialsCatalog,
+  materialsToBoards: () => materialsToBoards,
+  modelVersions: () => modelVersions,
+  monteCarloSimulations: () => monteCarloSimulations,
+  nlQueryLog: () => nlQueryLog,
+  organizationInvites: () => organizationInvites,
+  organizationMembers: () => organizationMembers,
+  organizations: () => organizations,
+  outcomeComparisons: () => outcomeComparisons,
+  overrideRecords: () => overrideRecords,
+  pdfExtractions: () => pdfExtractions,
+  platformAlerts: () => platformAlerts,
+  portfolioProjects: () => portfolioProjects,
+  portfolios: () => portfolios,
+  priceChangeEvents: () => priceChangeEvents,
+  projectAssets: () => projectAssets,
+  projectColorPalettes: () => projectColorPalettes,
+  projectInsights: () => projectInsights,
+  projectIntelligence: () => projectIntelligence,
+  projectOutcomes: () => projectOutcomes,
+  projectPatternMatches: () => projectPatternMatches,
+  projectRoiModels: () => projectRoiModels,
+  projects: () => projects,
+  promptTemplates: () => promptTemplates,
+  reportInstances: () => reportInstances,
+  rfqLineItems: () => rfqLineItems,
+  riskSurfaceMaps: () => riskSurfaceMaps,
+  roiConfigs: () => roiConfigs,
+  scenarioComparisons: () => scenarioComparisons,
+  scenarioInputs: () => scenarioInputs,
+  scenarioOutputs: () => scenarioOutputs,
+  scenarioStressTests: () => scenarioStressTests,
+  scenarios: () => scenarios,
+  scoreMatrices: () => scoreMatrices,
+  sourceRegistry: () => sourceRegistry,
+  spaceProgramRooms: () => spaceProgramRooms,
+  spaceRecommendations: () => spaceRecommendations,
+  sustainabilitySnapshots: () => sustainabilitySnapshots,
+  trendSnapshots: () => trendSnapshots,
+  trendTags: () => trendTags,
+  users: () => users,
+  webhookConfigs: () => webhookConfigs
+});
 import {
   int,
   bigint,
@@ -32,7 +111,7 @@ import {
   boolean,
   json
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -244,10 +323,108 @@ var init_schema = __esm({
       add01SampleKit: boolean("add01SampleKit").default(false),
       add02PortfolioMode: boolean("add02PortfolioMode").default(false),
       add03DashboardExport: boolean("add03DashboardExport").default(true),
+      // --- V5: Concrete Analytics Inputs ---
+      developerType: mysqlEnum("developerType", [
+        "Master Developer",
+        "Private/Boutique",
+        "Institutional Investor"
+      ]),
+      targetDemographic: mysqlEnum("targetDemographic", [
+        "HNWI",
+        "Families",
+        "Young Professionals",
+        "Investors"
+      ]),
+      salesStrategy: mysqlEnum("salesStrategy", [
+        "Sell Off-Plan",
+        "Sell on Completion",
+        "Build-to-Rent"
+      ]),
+      competitiveDensity: mysqlEnum("competitiveDensity", [
+        "Low",
+        "Moderate",
+        "Saturated"
+      ]),
+      projectUsp: mysqlEnum("projectUsp", [
+        "Location/Views",
+        "Amenities/Facilities",
+        "Price/Value",
+        "Design/Architecture"
+      ]),
+      targetYield: mysqlEnum("targetYield", [
+        "< 5%",
+        "5-7%",
+        "7-9%",
+        "> 9%"
+      ]),
+      procurementStrategy: mysqlEnum("procurementStrategy", [
+        "Turnkey",
+        "Traditional",
+        "Construction Management"
+      ]),
+      amenityFocus: mysqlEnum("amenityFocus", [
+        "Wellness/Spa",
+        "F&B/Social",
+        "Minimal/Essential",
+        "Business/Co-working"
+      ]),
+      techIntegration: mysqlEnum("techIntegration", [
+        "Basic",
+        "Smart Home Ready",
+        "Fully Integrated"
+      ]),
+      materialSourcing: mysqlEnum("materialSourcing", [
+        "Local",
+        "European",
+        "Asian",
+        "Global Mix"
+      ]),
+      handoverCondition: mysqlEnum("handoverCondition", [
+        "Shell & Core",
+        "Category A",
+        "Category B",
+        "Fully Furnished"
+      ]),
+      brandedStatus: mysqlEnum("brandedStatus", [
+        "Unbranded",
+        "Hospitality Branded",
+        "Fashion/Automotive Branded"
+      ]),
+      salesChannel: mysqlEnum("salesChannel", [
+        "Local Brokerage",
+        "International Roadshows",
+        "Direct to VIP"
+      ]),
+      lifecycleFocus: mysqlEnum("lifecycleFocus", [
+        "Short-term Resale",
+        "Medium-term Hold",
+        "Long-term Retention"
+      ]),
+      brandStandardConstraints: mysqlEnum("brandStandardConstraints", [
+        "High Flexibility",
+        "Moderate Guidelines",
+        "Strict Vendor List"
+      ]),
+      timelineFlexibility: mysqlEnum("timelineFlexibility", [
+        "Highly Flexible",
+        "Moderate Contingency",
+        "Fixed / Zero Tolerance"
+      ]),
+      targetValueAdd: mysqlEnum("targetValueAdd", [
+        "Max Capital Appreciation",
+        "Max Rental Yield",
+        "Balanced Return",
+        "Brand Flagship / Trophy"
+      ]),
       // Expanded Inputs
       unitMix: json("unitMix"),
       villaSpaces: json("villaSpaces"),
       developerGuidelines: json("developerGuidelines"),
+      // Phase 9: Floor Plan Intelligence
+      floorPlanAssetId: int("floorPlanAssetId"),
+      // FK to project_assets
+      floorPlanAnalysis: json("floorPlanAnalysis"),
+      // AI-extracted room breakdown
       modelVersionId: int("modelVersionId"),
       benchmarkVersionId: int("benchmarkVersionId"),
       createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -389,7 +566,8 @@ var init_schema = __esm({
         "design_brief",
         "rfq_pack",
         "full_report",
-        "marketing_prelaunch"
+        "marketing_prelaunch",
+        "autonomous_design_brief"
       ]).notNull(),
       fileUrl: text("fileUrl"),
       bundleUrl: text("bundleUrl"),
@@ -449,9 +627,24 @@ var init_schema = __esm({
         "mood_image",
         "material_board",
         "marketing_hero",
+        "floor_plan",
+        "voice_note",
         "generated",
         "other"
       ]).default("other").notNull(),
+      // MIYAR 2.0: AI Intake columns
+      assetType: mysqlEnum("assetType", [
+        "image",
+        "pdf",
+        "audio",
+        "video",
+        "url",
+        "text_note"
+      ]).default("image"),
+      aiExtractionResult: json("aiExtractionResult"),
+      // what Gemini extracted from this asset
+      aiContributions: json("aiContributions"),
+      // which ProjectInputs fields this populated
       tags: json("tags"),
       // string[]
       notes: text("notes"),
@@ -572,6 +765,9 @@ var init_schema = __esm({
       leadTimeBand: mysqlEnum("leadTimeBand", ["short", "medium", "long", "critical"]).default("medium"),
       regionAvailability: json("regionAvailability"),
       // string[]
+      embodiedCarbon: decimal("embodiedCarbon", { precision: 10, scale: 4 }),
+      maintenanceFactor: decimal("maintenanceFactor", { precision: 6, scale: 4 }),
+      brandStandardApproval: mysqlEnum("brandStandardApproval", ["open_market", "approved_vendor", "preferred_brand"]).default("open_market").notNull(),
       supplierName: varchar("supplierName", { length: 255 }),
       supplierContact: varchar("supplierContact", { length: 255 }),
       supplierUrl: text("supplierUrl"),
@@ -1768,6 +1964,122 @@ var init_schema = __esm({
       verifiedAt: timestamp("verifiedAt"),
       createdAt: timestamp("createdAt").defaultNow().notNull()
     });
+    materialAllocations = mysqlTable("material_allocations", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("projectId").notNull(),
+      organizationId: int("organizationId").notNull(),
+      roomId: varchar("roomId", { length: 20 }).notNull(),
+      roomName: varchar("roomName", { length: 100 }).notNull(),
+      element: mysqlEnum("element", [
+        "floor",
+        "walls",
+        "ceiling",
+        "joinery",
+        "hardware"
+      ]).notNull(),
+      materialLibraryId: int("materialLibraryId"),
+      materialName: varchar("materialName", { length: 300 }).notNull(),
+      allocationPct: decimal("allocationPct", { precision: 5, scale: 2 }).notNull(),
+      surfaceAreaM2: decimal("surfaceAreaM2", { precision: 10, scale: 2 }).notNull(),
+      unitCostMin: decimal("unitCostMin", { precision: 10, scale: 2 }),
+      unitCostMax: decimal("unitCostMax", { precision: 10, scale: 2 }),
+      totalCostMin: decimal("totalCostMin", { precision: 12, scale: 2 }),
+      totalCostMax: decimal("totalCostMax", { precision: 12, scale: 2 }),
+      aiReasoning: text("aiReasoning"),
+      isLocked: boolean("isLocked").default(false).notNull(),
+      generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    materialSupplierSources = mysqlTable("material_supplier_sources", {
+      id: int("id").primaryKey().autoincrement(),
+      organizationId: int("organizationId"),
+      supplierName: varchar("supplierName", { length: 200 }).notNull(),
+      supplierUrl: text("supplierUrl").notNull(),
+      materialCategory: mysqlEnum("materialCategory", [
+        "flooring",
+        "wall_paint",
+        "wall_tile",
+        "ceiling",
+        "joinery",
+        "sanitaryware",
+        "fittings",
+        "lighting",
+        "hardware",
+        "specialty"
+      ]).notNull(),
+      tier: mysqlEnum("tier", ["affordable", "mid", "premium", "ultra"]).notNull(),
+      notes: text("notes"),
+      lastScrapedAt: timestamp("lastScrapedAt"),
+      lastPriceAedMin: decimal("lastPriceAedMin", { precision: 10, scale: 2 }),
+      lastPriceAedMax: decimal("lastPriceAedMax", { precision: 10, scale: 2 }),
+      isActive: boolean("isActive").default(true).notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    spaceProgramRooms = mysqlTable("space_program_rooms", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("projectId").notNull(),
+      organizationId: int("organizationId").notNull(),
+      roomCode: varchar("roomCode", { length: 20 }).notNull(),
+      roomName: varchar("roomName", { length: 100 }).notNull(),
+      category: mysqlEnum("category", [
+        "lobby",
+        "corridor",
+        "office_floor",
+        "guest_room",
+        "suite",
+        "fb_restaurant",
+        "bathroom",
+        "kitchen",
+        "bedroom",
+        "living",
+        "utility",
+        "amenity",
+        "parking",
+        "retail",
+        "back_of_house",
+        "other"
+      ]).notNull(),
+      sqm: decimal("sqm", { precision: 10, scale: 2 }).notNull(),
+      floorLevel: varchar("floorLevel", { length: 20 }),
+      source: mysqlEnum("source", [
+        "typology_default",
+        "user_manual",
+        "file_extraction"
+      ]).notNull().default("typology_default"),
+      isFitOut: boolean("isFitOut").default(true).notNull(),
+      fitOutOverridden: boolean("fitOutOverridden").default(false).notNull(),
+      fitOutReason: text("fitOutReason"),
+      finishGrade: mysqlEnum("finishGrade", ["A", "B", "C"]).notNull().default("B"),
+      priority: mysqlEnum("priority", ["high", "medium", "low"]).notNull().default("medium"),
+      budgetPct: decimal("budgetPct", { precision: 5, scale: 4 }),
+      sortOrder: int("sortOrder").default(0).notNull(),
+      blockName: varchar("blockName", { length: 100 }).default("Main").notNull(),
+      blockTypology: varchar("blockTypology", { length: 50 }).notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
+    amenitySubSpaces = mysqlTable("amenity_sub_spaces", {
+      id: int("id").primaryKey().autoincrement(),
+      spaceProgramRoomId: int("spaceProgramRoomId").notNull(),
+      subSpaceName: varchar("subSpaceName", { length: 100 }).notNull(),
+      subSpaceType: mysqlEnum("subSpaceType", [
+        "pool",
+        "gym",
+        "spa",
+        "lounge",
+        "kids_club",
+        "business_center",
+        "concierge",
+        "prayer_room",
+        "theater"
+      ]).notNull(),
+      sqm: decimal("sqm", { precision: 10, scale: 2 }).notNull(),
+      pctOfParent: decimal("pctOfParent", { precision: 5, scale: 2 }).notNull(),
+      isFitOut: boolean("isFitOut").default(true).notNull(),
+      createdAt: timestamp("createdAt").defaultNow().notNull(),
+      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+    });
   }
 });
 
@@ -1794,9 +2106,12 @@ var db_exports = {};
 __export(db_exports, {
   addLogicChangeLogEntry: () => addLogicChangeLogEntry,
   addMaterialToBoard: () => addMaterialToBoard,
+  addMaterialToBoardForOrg: () => addMaterialToBoardForOrg,
   archiveLogicVersion: () => archiveLogicVersion,
+  clearSpaceRecommendations: () => clearSpaceRecommendations,
   createAiDesignBrief: () => createAiDesignBrief,
   createAssetLink: () => createAssetLink,
+  createAssetLinkForOrg: () => createAssetLinkForOrg,
   createAuditLog: () => createAuditLog,
   createBenchmark: () => createBenchmark,
   createBenchmarkCategory: () => createBenchmarkCategory,
@@ -1807,25 +2122,30 @@ __export(db_exports, {
   createBiasAlert: () => createBiasAlert,
   createBiasAlerts: () => createBiasAlerts,
   createComment: () => createComment,
+  createCommentForOrg: () => createCommentForOrg,
   createCompetitorEntity: () => createCompetitorEntity,
   createCompetitorProject: () => createCompetitorProject,
   createDesignBrief: () => createDesignBrief,
+  createDesignBriefForOrg: () => createDesignBriefForOrg,
   createDesignPackage: () => createDesignPackage,
   createDirection: () => createDirection,
   createEntityTag: () => createEntityTag,
   createEvidenceRecord: () => createEvidenceRecord,
   createEvidenceReference: () => createEvidenceReference,
   createGeneratedVisual: () => createGeneratedVisual,
+  createGeneratedVisualForOrg: () => createGeneratedVisualForOrg,
   createIntelligenceAuditEntry: () => createIntelligenceAuditEntry,
   createLogicVersion: () => createLogicVersion,
   createMaterial: () => createMaterial,
   createMaterialBoard: () => createMaterialBoard,
+  createMaterialBoardForOrg: () => createMaterialBoardForOrg,
   createModelVersion: () => createModelVersion,
   createOverrideRecord: () => createOverrideRecord,
   createPdfExtraction: () => createPdfExtraction,
   createPriceChangeEvent: () => createPriceChangeEvent,
   createProject: () => createProject,
   createProjectAsset: () => createProjectAsset,
+  createProjectAssetForOrg: () => createProjectAssetForOrg,
   createProjectIntelligence: () => createProjectIntelligence,
   createProjectOutcome: () => createProjectOutcome,
   createPromptTemplate: () => createPromptTemplate,
@@ -1841,6 +2161,7 @@ __export(db_exports, {
   createTrendTag: () => createTrendTag,
   createWebhookConfig: () => createWebhookConfig,
   deleteAssetLink: () => deleteAssetLink,
+  deleteAssetLinkForOrg: () => deleteAssetLinkForOrg,
   deleteBenchmark: () => deleteBenchmark,
   deleteBenchmarkCategory: () => deleteBenchmarkCategory,
   deleteCompetitorEntity: () => deleteCompetitorEntity,
@@ -1850,11 +2171,15 @@ __export(db_exports, {
   deleteEvidenceRecord: () => deleteEvidenceRecord,
   deleteEvidenceReference: () => deleteEvidenceReference,
   deleteMaterial: () => deleteMaterial,
+  deleteMaterialAllocations: () => deleteMaterialAllocations,
   deleteMaterialBoard: () => deleteMaterialBoard,
+  deleteMaterialBoardForOrg: () => deleteMaterialBoardForOrg,
   deleteProject: () => deleteProject,
   deleteProjectAsset: () => deleteProjectAsset,
+  deleteProjectAssetForOrg: () => deleteProjectAssetForOrg,
   deleteScenario: () => deleteScenario,
   deleteSourceRegistryEntry: () => deleteSourceRegistryEntry,
+  deleteSpaceProgramRoom: () => deleteSpaceProgramRoom,
   deleteTrendTag: () => deleteTrendTag,
   deleteWebhookConfig: () => deleteWebhookConfig,
   dismissBiasAlert: () => dismissBiasAlert,
@@ -1867,6 +2192,7 @@ __export(db_exports, {
   getActiveSourceRegistry: () => getActiveSourceRegistry,
   getActiveWebhookConfigs: () => getActiveWebhookConfigs,
   getAiDesignBrief: () => getAiDesignBrief,
+  getAiDesignBriefById: () => getAiDesignBriefById,
   getAiDesignBriefByShareToken: () => getAiDesignBriefByShareToken,
   getAllAreaBenchmarks: () => getAllAreaBenchmarks,
   getAllBenchmarkCategories: () => getAllBenchmarkCategories,
@@ -1881,7 +2207,9 @@ __export(db_exports, {
   getAllRoiConfigs: () => getAllRoiConfigs,
   getAllScoreMatrices: () => getAllScoreMatrices,
   getAllWebhookConfigs: () => getAllWebhookConfigs,
+  getAmenitySubSpacesForRoom: () => getAmenitySubSpacesForRoom,
   getAnomalies: () => getAnomalies,
+  getAssetLinkById: () => getAssetLinkById,
   getAssetLinksByAsset: () => getAssetLinksByAsset,
   getAssetLinksByEntity: () => getAssetLinksByEntity,
   getAuditLogs: () => getAuditLogs,
@@ -1930,12 +2258,15 @@ __export(db_exports, {
   getLogicThresholds: () => getLogicThresholds,
   getLogicVersionById: () => getLogicVersionById,
   getLogicWeights: () => getLogicWeights,
+  getMaterialAllocations: () => getMaterialAllocations,
   getMaterialBoardById: () => getMaterialBoardById,
   getMaterialBoardsByProject: () => getMaterialBoardsByProject,
   getMaterialById: () => getMaterialById,
   getMaterialConstantByType: () => getMaterialConstantByType,
   getMaterialConstants: () => getMaterialConstants,
   getMaterialLibrary: () => getMaterialLibrary,
+  getMaterialSupplierSources: () => getMaterialSupplierSources,
+  getMaterialToBoardById: () => getMaterialToBoardById,
   getMaterialsByBoard: () => getMaterialsByBoard,
   getOverridesByProject: () => getOverridesByProject,
   getPdfExtractionById: () => getPdfExtractionById,
@@ -1950,8 +2281,11 @@ __export(db_exports, {
   getProjectOutcomes: () => getProjectOutcomes,
   getProjectsByOrg: () => getProjectsByOrg,
   getProjectsByUser: () => getProjectsByUser,
+  getPromptTemplateById: () => getPromptTemplateById,
   getPublishedLogicVersion: () => getPublishedLogicVersion,
+  getReportById: () => getReportById,
   getReportsByProject: () => getReportsByProject,
+  getScenarioById: () => getScenarioById,
   getScenarioComparisonById: () => getScenarioComparisonById,
   getScenarioInput: () => getScenarioInput,
   getScenarioOutput: () => getScenarioOutput,
@@ -1959,6 +2293,7 @@ __export(db_exports, {
   getScoreMatricesByProject: () => getScoreMatricesByProject,
   getScoreMatrixById: () => getScoreMatrixById,
   getSourceRegistryById: () => getSourceRegistryById,
+  getSpaceProgramRooms: () => getSpaceProgramRooms,
   getSpaceRecommendations: () => getSpaceRecommendations,
   getTaggedEntities: () => getTaggedEntities,
   getTrendHistory: () => getTrendHistory,
@@ -1967,12 +2302,17 @@ __export(db_exports, {
   getUserByEmail: () => getUserByEmail,
   getUserByOpenId: () => getUserByOpenId,
   getUserOverrideStats: () => getUserOverrideStats,
+  insertAmenitySubSpaces: () => insertAmenitySubSpaces,
   insertConnectorHealth: () => insertConnectorHealth,
   insertDmComplianceChecklist: () => insertDmComplianceChecklist,
   insertFinishScheduleItem: () => insertFinishScheduleItem,
+  insertMaterialAllocations: () => insertMaterialAllocations,
+  insertMaterialSupplierSource: () => insertMaterialSupplierSource,
   insertProjectColorPalette: () => insertProjectColorPalette,
   insertProjectInsight: () => insertProjectInsight,
   insertRfqLineItem: () => insertRfqLineItem,
+  insertRfqLineItemForOrg: () => insertRfqLineItemForOrg,
+  insertSpaceProgramRooms: () => insertSpaceProgramRooms,
   insertTrendSnapshot: () => insertTrendSnapshot,
   listAllOutcomes: () => listAllOutcomes,
   listBenchmarkProposals: () => listBenchmarkProposals,
@@ -1988,10 +2328,14 @@ __export(db_exports, {
   listScenarioOutputs: () => listScenarioOutputs,
   listSourceRegistry: () => listSourceRegistry,
   listTrendTags: () => listTrendTags,
+  lockMaterialAllocations: () => lockMaterialAllocations,
   publishBenchmarkVersion: () => publishBenchmarkVersion,
   publishLogicVersion: () => publishLogicVersion,
   removeMaterialFromBoard: () => removeMaterialFromBoard,
+  removeMaterialFromBoardForOrg: () => removeMaterialFromBoardForOrg,
   reorderBoardTiles: () => reorderBoardTiles,
+  reorderBoardTilesForOrg: () => reorderBoardTilesForOrg,
+  resetSpaceProgramRooms: () => resetSpaceProgramRooms,
   reviewBenchmarkProposal: () => reviewBenchmarkProposal,
   reviewBenchmarkSuggestion: () => reviewBenchmarkSuggestion,
   setLogicThresholds: () => setLogicThresholds,
@@ -1999,20 +2343,28 @@ __export(db_exports, {
   updateAiDesignBriefShareToken: () => updateAiDesignBriefShareToken,
   updateBenchmarkCategory: () => updateBenchmarkCategory,
   updateBoardTile: () => updateBoardTile,
+  updateBoardTileForOrg: () => updateBoardTileForOrg,
   updateCompetitorEntity: () => updateCompetitorEntity,
   updateCompetitorProject: () => updateCompetitorProject,
   updateGeneratedVisual: () => updateGeneratedVisual,
+  updateGeneratedVisualForOrg: () => updateGeneratedVisualForOrg,
   updateInsightStatus: () => updateInsightStatus,
   updateMaterial: () => updateMaterial,
+  updateMaterialAllocation: () => updateMaterialAllocation,
   updateMaterialBoard: () => updateMaterialBoard,
+  updateMaterialSupplierSource: () => updateMaterialSupplierSource,
   updatePdfExtraction: () => updatePdfExtraction,
   updateProject: () => updateProject,
   updateProjectApprovalState: () => updateProjectApprovalState,
+  updateProjectApprovalStateForOrg: () => updateProjectApprovalStateForOrg,
   updateProjectAsset: () => updateProjectAsset,
+  updateProjectAssetForOrg: () => updateProjectAssetForOrg,
+  updateProjectForOrg: () => updateProjectForOrg,
   updateProjectVerification: () => updateProjectVerification,
   updatePromptTemplate: () => updatePromptTemplate,
   updateRoiConfig: () => updateRoiConfig,
   updateSourceRegistryEntry: () => updateSourceRegistryEntry,
+  updateSpaceProgramRoom: () => updateSpaceProgramRoom,
   updateWebhookConfig: () => updateWebhookConfig,
   upsertAreaBenchmark: () => upsertAreaBenchmark,
   upsertBiasProfile: () => upsertBiasProfile,
@@ -2134,6 +2486,12 @@ async function updateProject(id, data) {
   if (!db) throw new Error("DB not available");
   await db.update(projects).set(data).where(eq(projects.id, id));
 }
+async function updateProjectForOrg(id, orgId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(projects).set(data).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
+}
 async function deleteProject(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -2187,6 +2545,12 @@ async function getScenariosByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(scenarios).where(eq(scenarios.projectId, projectId));
+}
+async function getScenarioById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(scenarios).where(eq(scenarios.id, id)).limit(1);
+  return rows[0];
 }
 async function deleteScenario(id) {
   const db = await getDb();
@@ -2420,6 +2784,12 @@ async function getAllReports() {
   if (!db) return [];
   return db.select().from(reportInstances).orderBy(desc(reportInstances.generatedAt));
 }
+async function getReportById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(reportInstances).where(eq(reportInstances.id, id)).limit(1);
+  return rows[0];
+}
 async function createAuditLog(data) {
   try {
     const db = await getDb();
@@ -2458,6 +2828,16 @@ async function createProjectAsset(data) {
   const result = await db.insert(projectAssets).values(data);
   return { id: Number(result[0].insertId) };
 }
+async function createProjectAssetForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    const result = await tx.insert(projectAssets).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
 async function getProjectAssets(projectId, category) {
   const db = await getDb();
   if (!db) return [];
@@ -2476,10 +2856,36 @@ async function deleteProjectAsset(id) {
   if (!db) throw new Error("DB not available");
   await db.delete(projectAssets).where(eq(projectAssets.id, id));
 }
+async function deleteProjectAssetForOrg(id, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(projectAssets).where(and(
+    eq(projectAssets.id, id),
+    sql`exists (
+      select 1 from ${projects}
+      where ${projects.id} = ${projectAssets.projectId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
+}
 async function updateProjectAsset(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(projectAssets).set(data).where(eq(projectAssets.id, id));
+}
+async function updateProjectAssetForOrg(id, orgId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(projectAssets).set(data).where(and(
+    eq(projectAssets.id, id),
+    sql`exists (
+      select 1 from ${projects}
+      where ${projects.id} = ${projectAssets.projectId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 async function createAssetLink(data) {
   const db = await getDb();
@@ -2487,10 +2893,41 @@ async function createAssetLink(data) {
   const result = await db.insert(assetLinks).values(data);
   return { id: Number(result[0].insertId) };
 }
+async function createAssetLinkForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const source = await tx.select({ projectId: projectAssets.projectId }).from(projectAssets).innerJoin(projects, eq(projects.id, projectAssets.projectId)).where(and(eq(projectAssets.id, data.assetId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!source[0]) return null;
+    let target = [];
+    if (data.linkType === "evaluation") {
+      target = await tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq(projects.id, scoreMatrices.projectId)).where(and(eq(scoreMatrices.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "report") {
+      target = await tx.select({ projectId: reportInstances.projectId }).from(reportInstances).innerJoin(projects, eq(projects.id, reportInstances.projectId)).where(and(eq(reportInstances.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "scenario") {
+      target = await tx.select({ projectId: scenarios.projectId }).from(scenarios).innerJoin(projects, eq(projects.id, scenarios.projectId)).where(and(eq(scenarios.id, data.linkId), eq(scenarios.orgId, orgId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "material_board") {
+      target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "design_brief") {
+      target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).innerJoin(projects, eq(projects.id, designBriefs.projectId)).where(and(eq(designBriefs.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "visual") {
+      target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq(projects.id, generatedVisuals.projectId)).where(and(eq(generatedVisuals.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    }
+    if (!target[0] || target[0].projectId !== source[0].projectId) return null;
+    const result = await tx.insert(assetLinks).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
 async function getAssetLinksByAsset(assetId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(assetLinks).where(eq(assetLinks.assetId, assetId));
+}
+async function getAssetLinkById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(assetLinks).where(eq(assetLinks.id, id)).limit(1);
+  return rows[0];
 }
 async function getAssetLinksByEntity(linkType, linkId) {
   const db = await getDb();
@@ -2505,11 +2942,56 @@ async function deleteAssetLink(id) {
   await db.delete(assetLinks).where(eq(assetLinks.id, id));
   return { success: true };
 }
+async function deleteAssetLinkForOrg(id, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const links = await tx.select({
+      id: assetLinks.id,
+      linkType: assetLinks.linkType,
+      linkId: assetLinks.linkId,
+      projectId: projectAssets.projectId
+    }).from(assetLinks).innerJoin(projectAssets, eq(projectAssets.id, assetLinks.assetId)).innerJoin(projects, eq(projects.id, projectAssets.projectId)).where(and(eq(assetLinks.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
+    const link = links[0];
+    if (!link) return false;
+    let target = [];
+    if (link.linkType === "material_board") {
+      target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "evaluation") {
+      target = await tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq(projects.id, scoreMatrices.projectId)).where(and(eq(scoreMatrices.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "report") {
+      target = await tx.select({ projectId: reportInstances.projectId }).from(reportInstances).innerJoin(projects, eq(projects.id, reportInstances.projectId)).where(and(eq(reportInstances.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "scenario") {
+      target = await tx.select({ projectId: scenarios.projectId }).from(scenarios).innerJoin(projects, eq(projects.id, scenarios.projectId)).where(and(eq(scenarios.id, link.linkId), eq(scenarios.orgId, orgId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "design_brief") {
+      target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).innerJoin(projects, eq(projects.id, designBriefs.projectId)).where(and(eq(designBriefs.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "visual") {
+      target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq(projects.id, generatedVisuals.projectId)).where(and(eq(generatedVisuals.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    }
+    if (!target[0] || target[0].projectId !== link.projectId) return false;
+    const result = await tx.delete(assetLinks).where(eq(assetLinks.id, id));
+    return Number(result[0].affectedRows) === 1;
+  });
+}
 async function createDesignBrief(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.insert(designBriefs).values(data);
   return { id: Number(result[0].insertId) };
+}
+async function createDesignBriefForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    if (data.scenarioId !== null && data.scenarioId !== void 0) {
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))).limit(1).for("update");
+      if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
+    }
+    const result = await tx.insert(designBriefs).values(data);
+    return { id: Number(result[0].insertId) };
+  });
 }
 async function getDesignBriefsByProject(projectId) {
   const db = await getDb();
@@ -2534,6 +3016,20 @@ async function createGeneratedVisual(data) {
   const result = await db.insert(generatedVisuals).values(data);
   return { id: Number(result[0].insertId) };
 }
+async function createGeneratedVisualForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    if (data.scenarioId !== null && data.scenarioId !== void 0) {
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))).limit(1).for("update");
+      if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
+    }
+    const result = await tx.insert(generatedVisuals).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
 async function getGeneratedVisualsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
@@ -2543,6 +3039,19 @@ async function updateGeneratedVisual(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(generatedVisuals).set(data).where(eq(generatedVisuals.id, id));
+}
+async function updateGeneratedVisualForOrg(id, orgId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(generatedVisuals).set(data).where(and(
+    eq(generatedVisuals.id, id),
+    sql`exists (
+      select 1 from ${projects}
+      where ${projects.id} = ${generatedVisuals.projectId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 async function getGeneratedVisualById(id) {
   const db = await getDb();
@@ -2555,6 +3064,20 @@ async function createMaterialBoard(data) {
   if (!db) throw new Error("DB not available");
   const result = await db.insert(materialBoards).values(data);
   return { id: Number(result[0].insertId) };
+}
+async function createMaterialBoardForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    if (data.scenarioId !== null && data.scenarioId !== void 0) {
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))).limit(1).for("update");
+      if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
+    }
+    const result = await tx.insert(materialBoards).values(data);
+    return { id: Number(result[0].insertId) };
+  });
 }
 async function getMaterialBoardsByProject(projectId) {
   const db = await getDb();
@@ -2577,6 +3100,24 @@ async function deleteMaterialBoard(id) {
   if (!db) throw new Error("DB not available");
   await db.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
   await db.delete(materialBoards).where(eq(materialBoards.id, id));
+}
+async function deleteMaterialBoardForOrg(id, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1);
+    if (!boardRows[0]) return false;
+    await tx.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
+    const result = await tx.delete(materialBoards).where(and(
+      eq(materialBoards.id, id),
+      sql`exists (
+        select 1 from ${projects}
+        where ${projects.id} = ${materialBoards.projectId}
+          and ${projects.orgId} = ${orgId}
+      )`
+    ));
+    return Number(result[0].affectedRows) === 1;
+  });
 }
 async function getAllMaterials(category, tier) {
   const db = await getDb();
@@ -2614,15 +3155,46 @@ async function addMaterialToBoard(data) {
   const result = await db.insert(materialsToBoards).values(data);
   return { id: Number(result[0].insertId) };
 }
+async function addMaterialToBoardForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, data.boardId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    const result = await tx.insert(materialsToBoards).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
 async function getMaterialsByBoard(boardId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(materialsToBoards).where(eq(materialsToBoards.boardId, boardId)).orderBy(materialsToBoards.sortOrder);
 }
+async function getMaterialToBoardById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(materialsToBoards).where(eq(materialsToBoards.id, id)).limit(1);
+  return rows[0];
+}
 async function removeMaterialFromBoard(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(materialsToBoards).where(eq(materialsToBoards.id, id));
+}
+async function removeMaterialFromBoardForOrg(id, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(materialsToBoards).where(and(
+    eq(materialsToBoards.id, id),
+    sql`exists (
+      select 1
+      from ${materialBoards}
+      inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
+      where ${materialBoards.id} = ${materialsToBoards.boardId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 async function updateBoardTile(id, data) {
   const db = await getDb();
@@ -2638,12 +3210,56 @@ async function updateBoardTile(id, data) {
     await db.update(materialsToBoards).set(updates).where(eq(materialsToBoards.id, id));
   }
 }
+async function updateBoardTileForOrg(id, orgId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updates = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== void 0));
+  if (Object.keys(updates).length === 0) return true;
+  const result = await db.update(materialsToBoards).set(updates).where(and(
+    eq(materialsToBoards.id, id),
+    sql`exists (
+      select 1
+      from ${materialBoards}
+      inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
+      where ${materialBoards.id} = ${materialsToBoards.boardId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
+}
 async function reorderBoardTiles(boardId, orderedIds) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   for (let i = 0; i < orderedIds.length; i++) {
     await db.update(materialsToBoards).set({ sortOrder: i }).where(eq(materialsToBoards.id, orderedIds[i]));
   }
+}
+async function reorderBoardTilesForOrg(boardId, orderedIds, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, boardId), eq(projects.orgId, orgId))).limit(1);
+    if (!boardRows[0]) return false;
+    if (orderedIds.length > 0) {
+      const joins = await tx.select({ id: materialsToBoards.id }).from(materialsToBoards).where(and(eq(materialsToBoards.boardId, boardId), inArray(materialsToBoards.id, orderedIds)));
+      if (joins.length !== orderedIds.length) return false;
+    }
+    for (let i = 0; i < orderedIds.length; i++) {
+      const result = await tx.update(materialsToBoards).set({ sortOrder: i }).where(and(
+        eq(materialsToBoards.id, orderedIds[i]),
+        eq(materialsToBoards.boardId, boardId),
+        sql`exists (
+          select 1
+          from ${materialBoards}
+          inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
+          where ${materialBoards.id} = ${materialsToBoards.boardId}
+            and ${projects.orgId} = ${orgId}
+        )`
+      ));
+      if (Number(result[0].affectedRows) !== 1) throw new Error("Board tile reorder lost authorization");
+    }
+    return true;
+  });
 }
 async function getAllPromptTemplates(type, orgId) {
   const db = await getDb();
@@ -2656,6 +3272,12 @@ async function getAllPromptTemplates(type, orgId) {
     query = query.where(and(...conditions));
   }
   return query.orderBy(desc(promptTemplates.createdAt));
+}
+async function getPromptTemplateById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(promptTemplates).where(eq(promptTemplates.id, id)).limit(1);
+  return rows[0];
 }
 async function getActivePromptTemplate(type, orgId) {
   const db = await getDb();
@@ -2683,6 +3305,30 @@ async function createComment(data) {
   const result = await db.insert(comments).values(data);
   return { id: Number(result[0].insertId) };
 }
+async function createCommentForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    if (data.entityType === "general") {
+      if (data.entityId !== null && data.entityId !== void 0) return null;
+    } else {
+      if (data.entityId === null || data.entityId === void 0) return null;
+      let target = [];
+      if (data.entityType === "design_brief") {
+        target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).where(eq(designBriefs.id, data.entityId)).limit(1).for("update");
+      } else if (data.entityType === "material_board") {
+        target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards).where(eq(materialBoards.id, data.entityId)).limit(1).for("update");
+      } else if (data.entityType === "visual") {
+        target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).where(eq(generatedVisuals.id, data.entityId)).limit(1).for("update");
+      }
+      if (!target[0] || target[0].projectId !== data.projectId) return null;
+    }
+    const result = await tx.insert(comments).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
 async function getCommentsByEntity(projectId, entityType, entityId) {
   const db = await getDb();
   if (!db) return [];
@@ -2702,6 +3348,12 @@ async function updateProjectApprovalState(projectId, approvalState) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(projects).set({ approvalState }).where(eq(projects.id, projectId));
+}
+async function updateProjectApprovalStateForOrg(projectId, orgId, approvalState) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(projects).set({ approvalState }).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
 }
 async function getPublishedLogicVersion() {
   const db = await getDb();
@@ -3421,6 +4073,17 @@ async function insertRfqLineItem(data) {
   if (!db) return;
   return db.insert(rfqLineItems).values(data);
 }
+async function insertRfqLineItemForOrg(data, orgId) {
+  if (data.organizationId !== orgId) return false;
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return false;
+    await tx.insert(rfqLineItems).values(data);
+    return true;
+  });
+}
 async function insertDmComplianceChecklist(data) {
   const db = await getDb();
   if (!db) return;
@@ -3517,6 +4180,14 @@ async function createSpaceRecommendation(data) {
   if (!db) return;
   await db.insert(spaceRecommendations).values(data);
 }
+async function clearSpaceRecommendations(projectId, orgId) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(spaceRecommendations).where(and(
+    eq(spaceRecommendations.projectId, projectId),
+    eq(spaceRecommendations.orgId, orgId)
+  ));
+}
 async function getSpaceRecommendations(projectId, orgId) {
   const db = await getDb();
   if (!db) return [];
@@ -3561,6 +4232,12 @@ async function getAiDesignBrief(projectId) {
   if (!db) return null;
   const results = await db.select().from(aiDesignBriefs).where(eq(aiDesignBriefs.projectId, projectId)).orderBy(desc(aiDesignBriefs.generatedAt)).limit(1);
   return results[0] || null;
+}
+async function getAiDesignBriefById(id) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(aiDesignBriefs).where(eq(aiDesignBriefs.id, id)).limit(1);
+  return rows[0] || null;
 }
 async function updateAiDesignBriefShareToken(briefId, token, expiresAt) {
   const db = await getDb();
@@ -3613,6 +4290,7 @@ async function getEvidenceWithSources(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
+  conditions.push(eq(evidenceRecords.orgId, filters.orgId));
   if (filters.category) conditions.push(eq(evidenceRecords.category, filters.category));
   if (filters.projectId) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
   conditions.push(sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`);
@@ -3691,6 +4369,137 @@ async function updateProjectVerification(projectId, data) {
   if (data.totalFitoutArea !== void 0) updates.totalFitoutArea = String(data.totalFitoutArea);
   return db.update(projects).set(updates).where(eq(projects.id, projectId));
 }
+async function getMaterialAllocations(projectId, organizationId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(materialAllocations).where(and(
+    eq(materialAllocations.projectId, projectId),
+    eq(materialAllocations.organizationId, organizationId)
+  )).orderBy(materialAllocations.roomId, materialAllocations.element);
+}
+async function insertMaterialAllocations(data) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.length === 0) return;
+  return db.insert(materialAllocations).values(data);
+}
+async function deleteMaterialAllocations(projectId, organizationId, excludeLockedIds) {
+  const db = await getDb();
+  if (!db) return;
+  const conditions = [
+    eq(materialAllocations.projectId, projectId),
+    eq(materialAllocations.organizationId, organizationId)
+  ];
+  if (excludeLockedIds && excludeLockedIds.length > 0) {
+    conditions.push(eq(materialAllocations.isLocked, false));
+  }
+  return db.delete(materialAllocations).where(and(...conditions));
+}
+async function updateMaterialAllocation(id, data) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(materialAllocations).set(data).where(eq(materialAllocations.id, id));
+}
+async function lockMaterialAllocations(projectId, organizationId, isLocked) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(materialAllocations).set({ isLocked }).where(and(
+    eq(materialAllocations.projectId, projectId),
+    eq(materialAllocations.organizationId, organizationId)
+  ));
+}
+async function getMaterialSupplierSources(organizationId) {
+  const db = await getDb();
+  if (!db) return [];
+  if (organizationId) {
+    return db.select().from(materialSupplierSources).where(and(
+      eq(materialSupplierSources.isActive, true),
+      eq(materialSupplierSources.organizationId, organizationId)
+    )).orderBy(materialSupplierSources.supplierName);
+  }
+  return db.select().from(materialSupplierSources).where(eq(materialSupplierSources.isActive, true)).orderBy(materialSupplierSources.supplierName);
+}
+async function insertMaterialSupplierSource(data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(materialSupplierSources).values(data);
+  return { id: Number(result.insertId) };
+}
+async function updateMaterialSupplierSource(id, data) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(materialSupplierSources).set(data).where(eq(materialSupplierSources.id, id));
+}
+async function getSpaceProgramRooms(projectId, organizationId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(spaceProgramRooms).where(and(
+    eq(spaceProgramRooms.projectId, projectId),
+    eq(spaceProgramRooms.organizationId, organizationId)
+  )).orderBy(spaceProgramRooms.sortOrder);
+}
+async function insertSpaceProgramRooms(data) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.length === 0) return;
+  return db.insert(spaceProgramRooms).values(data);
+}
+async function updateSpaceProgramRoom(id, data) {
+  const db = await getDb();
+  if (!db) return;
+  return db.update(spaceProgramRooms).set(data).where(eq(spaceProgramRooms.id, id));
+}
+async function deleteSpaceProgramRoom(id) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, id));
+  return db.delete(spaceProgramRooms).where(eq(spaceProgramRooms.id, id));
+}
+async function getAmenitySubSpacesForRoom(spaceProgramRoomId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, spaceProgramRoomId));
+}
+async function insertAmenitySubSpaces(data) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.length === 0) return;
+  return db.insert(amenitySubSpaces).values(data);
+}
+async function resetSpaceProgramRooms(projectId, organizationId, preserveOverridden = true) {
+  const db = await getDb();
+  if (!db) return;
+  if (preserveOverridden) {
+    const nonOverridden = await db.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(
+      eq(spaceProgramRooms.projectId, projectId),
+      eq(spaceProgramRooms.organizationId, organizationId),
+      eq(spaceProgramRooms.fitOutOverridden, false)
+    ));
+    const idsToDelete = nonOverridden.map((r) => r.id);
+    if (idsToDelete.length > 0) {
+      for (const roomId of idsToDelete) {
+        await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, roomId));
+      }
+      await db.delete(spaceProgramRooms).where(and(
+        eq(spaceProgramRooms.projectId, projectId),
+        eq(spaceProgramRooms.organizationId, organizationId),
+        eq(spaceProgramRooms.fitOutOverridden, false)
+      ));
+    }
+  } else {
+    const allRooms = await db.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(
+      eq(spaceProgramRooms.projectId, projectId),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    ));
+    for (const room of allRooms) {
+      await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, room.id));
+    }
+    await db.delete(spaceProgramRooms).where(and(
+      eq(spaceProgramRooms.projectId, projectId),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    ));
+  }
+}
 var _db;
 var init_db = __esm({
   "server/db.ts"() {
@@ -3715,7 +4524,88 @@ var init_area_utils = __esm({
   }
 });
 
+// server/storage.ts
+var storage_exports = {};
+__export(storage_exports, {
+  storageGet: () => storageGet,
+  storagePut: () => storagePut
+});
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Buffer as Buffer2 } from "node:buffer";
+import process2 from "node:process";
+function getS3Client() {
+  const region = process2.env.AWS_REGION || "us-east-1";
+  const accessKeyId = process2.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process2.env.AWS_SECRET_ACCESS_KEY;
+  const bucketName = process2.env.AWS_S3_BUCKET;
+  if (!accessKeyId || !secretAccessKey || !bucketName) {
+    if (process2.env.NODE_ENV === "production") {
+      console.warn("Missing AWS S3 credentials");
+    }
+  }
+  const client = new S3Client({
+    region,
+    credentials: accessKeyId && secretAccessKey ? {
+      accessKeyId,
+      secretAccessKey
+    } : void 0
+  });
+  return { client, bucketName };
+}
+function normalizeKey(relKey) {
+  return relKey.replace(/^\/+/, "");
+}
+async function storagePut(relKey, data, contentType = "application/octet-stream") {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
+    const dataUrl = `data:${contentType};base64,${b64}`;
+    return { key, url: dataUrl };
+  }
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    Body: typeof data === "string" ? Buffer2.from(data, "utf-8") : data,
+    ContentType: contentType
+  });
+  await client.send(command);
+  const getCommand = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  });
+  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  return { key, url };
+}
+async function storageGet(relKey) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    return { key, url: `/uploads/${key}` };
+  }
+  const getCommand = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  });
+  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  return { key, url };
+}
+var init_storage = __esm({
+  "server/storage.ts"() {
+    "use strict";
+  }
+});
+
 // server/_core/llm.ts
+var llm_exports = {};
+__export(llm_exports, {
+  invokeLLM: () => invokeLLM
+});
 async function invokeLLM(params) {
   assertApiKey();
   const {
@@ -3937,6 +4827,171 @@ var init_llm = __esm({
     assertApiKey = () => {
       if (!process.env.GEMINI_API_KEY) {
         throw new Error("GEMINI_API_KEY is not configured in the environment");
+      }
+    };
+  }
+});
+
+// server/engines/design/space-benchmarking.ts
+var space_benchmarking_exports = {};
+__export(space_benchmarking_exports, {
+  benchmarkSpaceRatios: () => benchmarkSpaceRatios
+});
+function benchmarkSpaceRatios(analysis, areaName, transactionCount = 0, saleP50 = null) {
+  if (analysis.rooms.length === 0) {
+    return {
+      recommendations: [],
+      overallEfficiencyScore: 50,
+      circulationWastePercent: Math.round(analysis.circulationPercentage * 10) / 10,
+      balconyToLivingRatio: 0,
+      totalCritical: 0,
+      totalAdvisory: 0,
+      totalOptimal: 0,
+      unitType: analysis.unitType,
+      areaName
+    };
+  }
+  const bedroomCount = analysis.bedroomCount;
+  let benchmarkKey = "3BR";
+  if (bedroomCount === 0) benchmarkKey = "Studio";
+  else if (bedroomCount === 1) benchmarkKey = "1BR";
+  else if (bedroomCount === 2) benchmarkKey = "2BR";
+  else if (bedroomCount === 3) benchmarkKey = "3BR";
+  else benchmarkKey = "4BR+";
+  const benchmarks = RESIDENTIAL_BENCHMARKS[benchmarkKey] || RESIDENTIAL_BENCHMARKS["3BR"];
+  const dataSource = transactionCount > 0 ? `DLD ${areaName}, 2023-2025, n=${transactionCount}` : `MIYAR UAE benchmark (${areaName})`;
+  const recommendations = [];
+  const roomsByType = /* @__PURE__ */ new Map();
+  for (const room of analysis.rooms) {
+    const type = room.type;
+    if (!roomsByType.has(type)) roomsByType.set(type, { totalPercent: 0, rooms: [] });
+    const entry = roomsByType.get(type);
+    entry.totalPercent += room.percentOfTotal;
+    entry.rooms.push(room);
+  }
+  for (const [roomType, benchmark] of Object.entries(benchmarks)) {
+    const actual = roomsByType.get(roomType);
+    const currentPercent = actual?.totalPercent || 0;
+    const delta = currentPercent - benchmark.optimalPercent;
+    const absDelta = Math.abs(delta);
+    let severity2 = "optimal";
+    if (absDelta > benchmark.tolerancePct * 2) severity2 = "critical";
+    else if (absDelta > benchmark.tolerancePct) severity2 = "advisory";
+    const priceImpact = delta * benchmark.priceImpactPerPct;
+    const impactDirection = priceImpact > 0 ? "+" : "";
+    const impactAbs = Math.abs(priceImpact);
+    let financialImpact = "";
+    let action = "";
+    if (severity2 === "optimal") {
+      financialImpact = `${roomType} ratio is within optimal range for ${areaName}`;
+      action = "No changes needed \u2014 this space allocation matches market expectations";
+    } else if (delta < 0) {
+      const increaseBy = Math.round(absDelta);
+      financialImpact = saleP50 ? `Increasing ${roomType} area by ${increaseBy}% of NFA \u2192 projected +${impactAbs.toFixed(1)}% sale price uplift (${dataSource})` : `${roomType} is ${increaseBy}% below optimal for ${benchmarkKey} units in ${areaName} \u2014 historically correlated with ${impactAbs.toFixed(1)}% lower sale prices`;
+      action = `Consider increasing ${roomType} allocation from ${currentPercent.toFixed(1)}% to ${benchmark.optimalPercent}% of NFA`;
+    } else {
+      const decreaseBy = Math.round(absDelta);
+      if (benchmark.priceImpactPerPct < 0) {
+        financialImpact = `Excess ${roomType} space (${decreaseBy}% over optimal) is unproductive area that dilutes usable NFA without price benefit (${dataSource})`;
+        action = `Reduce ${roomType} from ${currentPercent.toFixed(1)}% to ${benchmark.optimalPercent}% \u2014 reallocate to living/bedroom space`;
+      } else {
+        financialImpact = `${roomType} is ${decreaseBy}% above market average \u2014 diminishing returns beyond ${benchmark.optimalPercent + benchmark.tolerancePct}% (${dataSource})`;
+        action = `${roomType} at ${currentPercent.toFixed(1)}% exceeds typical allocation. Consider redistributing excess to other high-impact rooms`;
+      }
+    }
+    const roomLabel = actual?.rooms.map((r) => r.name).join(", ") || roomType;
+    recommendations.push({
+      roomName: roomLabel,
+      roomType,
+      currentPercent: Math.round(currentPercent * 10) / 10,
+      benchmarkPercent: benchmark.optimalPercent,
+      delta: Math.round(delta * 10) / 10,
+      financialImpact,
+      severity: severity2,
+      dataSource,
+      action
+    });
+  }
+  const severityOrder = { critical: 0, advisory: 1, optimal: 2 };
+  recommendations.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  const totalCritical = recommendations.filter((r) => r.severity === "critical").length;
+  const totalAdvisory = recommendations.filter((r) => r.severity === "advisory").length;
+  const totalOptimal = recommendations.filter((r) => r.severity === "optimal").length;
+  const total = recommendations.length;
+  const efficiencyScore = total > 0 ? Math.round((totalOptimal * 100 + totalAdvisory * 60 + totalCritical * 20) / total) : 50;
+  const balconyPct = roomsByType.get("balcony")?.totalPercent || 0;
+  const livingPct = roomsByType.get("living")?.totalPercent || 0;
+  const balconyToLivingRatio = livingPct > 0 ? Math.round(balconyPct / livingPct * 100) / 100 : 0;
+  return {
+    recommendations,
+    overallEfficiencyScore: Math.max(0, Math.min(100, efficiencyScore)),
+    circulationWastePercent: Math.round(analysis.circulationPercentage * 10) / 10,
+    balconyToLivingRatio,
+    totalCritical,
+    totalAdvisory,
+    totalOptimal,
+    unitType: analysis.unitType,
+    areaName
+  };
+}
+var RESIDENTIAL_BENCHMARKS;
+var init_space_benchmarking = __esm({
+  "server/engines/design/space-benchmarking.ts"() {
+    "use strict";
+    RESIDENTIAL_BENCHMARKS = {
+      // Studio apartments
+      "Studio": {
+        living: { optimalPercent: 55, tolerancePct: 5, priceImpactPerPct: 0.8, priority: "high" },
+        kitchen: { optimalPercent: 12, tolerancePct: 3, priceImpactPerPct: 0.5, priority: "medium" },
+        bathroom: { optimalPercent: 10, tolerancePct: 2, priceImpactPerPct: 0.3, priority: "medium" },
+        balcony: { optimalPercent: 10, tolerancePct: 3, priceImpactPerPct: 0.6, priority: "medium" },
+        corridor: { optimalPercent: 8, tolerancePct: 3, priceImpactPerPct: -0.5, priority: "low" },
+        storage: { optimalPercent: 3, tolerancePct: 2, priceImpactPerPct: 0.2, priority: "low" }
+      },
+      // 1-Bedroom
+      "1BR": {
+        bedroom: { optimalPercent: 22, tolerancePct: 3, priceImpactPerPct: 0.7, priority: "high" },
+        living: { optimalPercent: 30, tolerancePct: 4, priceImpactPerPct: 0.9, priority: "high" },
+        kitchen: { optimalPercent: 10, tolerancePct: 2, priceImpactPerPct: 0.5, priority: "high" },
+        bathroom: { optimalPercent: 9, tolerancePct: 2, priceImpactPerPct: 0.3, priority: "medium" },
+        balcony: { optimalPercent: 10, tolerancePct: 3, priceImpactPerPct: 0.6, priority: "medium" },
+        corridor: { optimalPercent: 10, tolerancePct: 3, priceImpactPerPct: -0.5, priority: "low" },
+        dressing: { optimalPercent: 4, tolerancePct: 2, priceImpactPerPct: 0.4, priority: "medium" }
+      },
+      // 2-Bedroom
+      "2BR": {
+        bedroom: { optimalPercent: 26, tolerancePct: 3, priceImpactPerPct: 0.6, priority: "high" },
+        living: { optimalPercent: 26, tolerancePct: 4, priceImpactPerPct: 1, priority: "high" },
+        kitchen: { optimalPercent: 9, tolerancePct: 2, priceImpactPerPct: 0.6, priority: "high" },
+        bathroom: { optimalPercent: 10, tolerancePct: 2, priceImpactPerPct: 0.3, priority: "medium" },
+        balcony: { optimalPercent: 9, tolerancePct: 3, priceImpactPerPct: 0.7, priority: "high" },
+        corridor: { optimalPercent: 12, tolerancePct: 3, priceImpactPerPct: -0.4, priority: "low" },
+        dressing: { optimalPercent: 4, tolerancePct: 2, priceImpactPerPct: 0.3, priority: "medium" }
+      },
+      // 3-Bedroom (+Maid)
+      "3BR": {
+        bedroom: { optimalPercent: 28, tolerancePct: 3, priceImpactPerPct: 0.5, priority: "high" },
+        living: { optimalPercent: 22, tolerancePct: 3, priceImpactPerPct: 1.2, priority: "high" },
+        dining: { optimalPercent: 6, tolerancePct: 2, priceImpactPerPct: 0.4, priority: "medium" },
+        kitchen: { optimalPercent: 8, tolerancePct: 2, priceImpactPerPct: 0.7, priority: "high" },
+        bathroom: { optimalPercent: 11, tolerancePct: 2, priceImpactPerPct: 0.3, priority: "medium" },
+        balcony: { optimalPercent: 8, tolerancePct: 3, priceImpactPerPct: 0.8, priority: "high" },
+        corridor: { optimalPercent: 10, tolerancePct: 3, priceImpactPerPct: -0.3, priority: "low" },
+        maid: { optimalPercent: 3, tolerancePct: 1, priceImpactPerPct: 0.5, priority: "medium" },
+        dressing: { optimalPercent: 4, tolerancePct: 2, priceImpactPerPct: 0.4, priority: "medium" }
+      },
+      // 4+ Bedroom / Penthouse
+      "4BR+": {
+        bedroom: { optimalPercent: 30, tolerancePct: 4, priceImpactPerPct: 0.4, priority: "high" },
+        living: { optimalPercent: 20, tolerancePct: 3, priceImpactPerPct: 1.5, priority: "high" },
+        dining: { optimalPercent: 6, tolerancePct: 2, priceImpactPerPct: 0.5, priority: "medium" },
+        kitchen: { optimalPercent: 7, tolerancePct: 2, priceImpactPerPct: 0.8, priority: "high" },
+        bathroom: { optimalPercent: 12, tolerancePct: 2, priceImpactPerPct: 0.3, priority: "medium" },
+        balcony: { optimalPercent: 7, tolerancePct: 3, priceImpactPerPct: 1, priority: "high" },
+        corridor: { optimalPercent: 8, tolerancePct: 3, priceImpactPerPct: -0.3, priority: "low" },
+        maid: { optimalPercent: 3, tolerancePct: 1, priceImpactPerPct: 0.4, priority: "medium" },
+        dressing: { optimalPercent: 5, tolerancePct: 2, priceImpactPerPct: 0.5, priority: "high" },
+        office: { optimalPercent: 4, tolerancePct: 2, priceImpactPerPct: 0.3, priority: "medium" }
       }
     };
   }
@@ -4655,7 +5710,29 @@ function buildSpaceProgram(project) {
   const gfa = getPricingArea(project);
   const budgetCap = Number(project.fin01BudgetCap || 0);
   const typology = (project.ctx01Typology || "Residential").toLowerCase();
-  const totalFitoutBudgetAed = gfa * budgetCap * 10.764 * 0.35;
+  const SQFT_TO_SQM = 10.764;
+  const FINISH_BUDGET_RATIO = 0.35;
+  const totalFitoutBudgetAed = gfa * budgetCap * SQFT_TO_SQM * FINISH_BUDGET_RATIO;
+  if (project.floorPlanAnalysis) {
+    const analysis = typeof project.floorPlanAnalysis === "string" ? JSON.parse(project.floorPlanAnalysis) : project.floorPlanAnalysis;
+    if (analysis.rooms && analysis.rooms.length > 0) {
+      const rooms2 = analysis.rooms.map((r, i) => ({
+        id: r.type.substring(0, 3).toUpperCase() + (i + 1),
+        name: r.name,
+        sqm: r.estimatedSqm,
+        budgetPct: getBudgetPctByFinishGrade(r.finishGrade, r.percentOfTotal),
+        priority: r.finishGrade === "A" ? "high" : r.finishGrade === "B" ? "medium" : "low",
+        finishGrade: r.finishGrade
+      }));
+      const totalAllocatedSqm2 = rooms2.reduce((sum, r) => sum + r.sqm, 0);
+      return {
+        totalFitoutBudgetAed,
+        rooms: rooms2,
+        totalAllocatedSqm: totalAllocatedSqm2,
+        source: "floor_plan"
+      };
+    }
+  }
   let baseRooms = [];
   if (typology === "hospitality") {
     baseRooms = [
@@ -4700,8 +5777,13 @@ function buildSpaceProgram(project) {
   return {
     totalFitoutBudgetAed,
     rooms,
-    totalAllocatedSqm
+    totalAllocatedSqm,
+    source: "template"
   };
+}
+function getBudgetPctByFinishGrade(grade2, areaPct) {
+  const multiplier = grade2 === "A" ? 1.3 : grade2 === "B" ? 1 : 0.7;
+  return Math.round(areaPct * multiplier * 100) / 1e4;
 }
 var init_space_program = __esm({
   "server/engines/design/space-program.ts"() {
@@ -5724,6 +6806,165 @@ var init_monte_carlo = __esm({
   }
 });
 
+// server/engines/design/floor-plan-analyzer.ts
+async function analyzeFloorPlan(imageUrl, mimeType = "image/jpeg") {
+  let imageBuffer;
+  try {
+    const response = await fetch(imageUrl, {
+      signal: AbortSignal.timeout(3e4)
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    imageBuffer = Buffer.from(await response.arrayBuffer());
+  } catch (err) {
+    throw new Error(
+      `Failed to fetch floor plan image: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+  const base64Image = imageBuffer.toString("base64");
+  const result = await invokeLLM({
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert architectural analyzer. Extract room data from floor plans with extreme precision. Return ONLY valid JSON."
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: FLOOR_PLAN_PROMPT },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${base64Image}`
+            }
+          }
+        ]
+      }
+    ],
+    response_format: { type: "json_object" }
+  });
+  const content = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
+  if (!content) {
+    throw new Error("Gemini returned empty response for floor plan analysis");
+  }
+  const parsed = JSON.parse(content);
+  if (!parsed.rooms || !Array.isArray(parsed.rooms) || parsed.rooms.length === 0) {
+    throw new Error("Gemini could not identify any rooms in the floor plan");
+  }
+  const rooms = parsed.rooms.filter((r) => r.name && r.estimatedSqm > 0).map((r) => ({
+    name: String(r.name).substring(0, 100),
+    type: validateRoomType(r.type),
+    estimatedSqm: Math.round(Number(r.estimatedSqm) * 100) / 100,
+    percentOfTotal: Math.round(Number(r.percentOfTotal) * 100) / 100,
+    finishGrade: ["A", "B", "C"].includes(r.finishGrade) ? r.finishGrade : "B"
+  }));
+  const totalSqm = rooms.reduce((sum, r) => sum + r.estimatedSqm, 0);
+  for (const room of rooms) {
+    room.percentOfTotal = Math.round(room.estimatedSqm / totalSqm * 1e4) / 100;
+  }
+  return {
+    rooms,
+    totalEstimatedSqm: Math.round(totalSqm * 100) / 100,
+    bedroomCount: Number(parsed.bedroomCount) || rooms.filter((r) => r.type === "bedroom").length,
+    bathroomCount: Number(parsed.bathroomCount) || rooms.filter((r) => r.type === "bathroom").length,
+    balconyPercentage: Math.round(
+      rooms.filter((r) => r.type === "balcony").reduce((sum, r) => sum + r.percentOfTotal, 0) * 100
+    ) / 100,
+    circulationPercentage: Math.round(
+      rooms.filter((r) => r.type === "corridor").reduce((sum, r) => sum + r.percentOfTotal, 0) * 100
+    ) / 100,
+    unitType: String(parsed.unitType || deriveUnitType(rooms)),
+    analysisConfidence: validateConfidence(parsed.analysisConfidence),
+    rawNotes: String(parsed.rawNotes || "").substring(0, 500)
+  };
+}
+function validateRoomType(type) {
+  const normalized = String(type).toLowerCase().replace(/\s+/g, "_");
+  if (VALID_ROOM_TYPES.includes(normalized)) return normalized;
+  if (/bed|master|guest.*room/.test(normalized)) return "bedroom";
+  if (/bath|wc|toilet|shower|ensuite/.test(normalized)) return "bathroom";
+  if (/living|lounge|family/.test(normalized)) return "living";
+  if (/dining/.test(normalized)) return "dining";
+  if (/kitchen|pantry/.test(normalized)) return "kitchen";
+  if (/corridor|hall|entry|foyer|circulation/.test(normalized)) return "corridor";
+  if (/balcony|terrace|patio/.test(normalized)) return "balcony";
+  if (/maid|helper|staff/.test(normalized)) return "maid";
+  if (/laundry|wash/.test(normalized)) return "laundry";
+  if (/dress|walk.*in|closet|wardrobe/.test(normalized)) return "dressing";
+  if (/store|storage/.test(normalized)) return "storage";
+  if (/office|study|work/.test(normalized)) return "office";
+  return "other";
+}
+function validateConfidence(val) {
+  if (val === "high" || val === "medium" || val === "low") return val;
+  return "medium";
+}
+function deriveUnitType(rooms) {
+  const bedrooms = rooms.filter((r) => r.type === "bedroom").length;
+  const hasMaid = rooms.some((r) => r.type === "maid");
+  if (bedrooms === 0) return "Studio";
+  return `${bedrooms}BR${hasMaid ? "+Maid" : ""}`;
+}
+var FLOOR_PLAN_PROMPT, VALID_ROOM_TYPES;
+var init_floor_plan_analyzer = __esm({
+  "server/engines/design/floor-plan-analyzer.ts"() {
+    "use strict";
+    init_llm();
+    FLOOR_PLAN_PROMPT = `You are MIYAR, a UAE real estate intelligence engine analyzing an architectural floor plan.
+
+Your task is to identify every room/space in this floor plan and estimate their areas.
+
+RULES:
+- Identify EVERY distinct room, including corridors, balconies, utility rooms, maid's rooms, laundry, dressing rooms, and storage
+- Estimate each room's area in square meters based on the plan proportions
+- If dimensions are labeled on the plan, use those exact measurements
+- If no dimensions are labeled, estimate based on typical UAE residential proportions
+- Calculate each room's percentage of the total floor area
+- Determine the unit type (e.g., "3BR+Maid", "2BR", "Studio", "Penthouse", "4BR Duplex")
+- Assign a finish grade: Grade A for primary/showcase rooms (living, master, kitchen), Grade B for secondary rooms, Grade C for utility/service areas
+- Be as specific as possible with room names (e.g., "Master Bedroom" not just "Bedroom", "Guest Bathroom" not just "Bathroom")
+
+Return ONLY valid JSON with this exact structure:
+{
+  "rooms": [
+    {
+      "name": "Living & Dining",
+      "type": "living",
+      "estimatedSqm": 42.5,
+      "percentOfTotal": 28.3,
+      "finishGrade": "A"
+    }
+  ],
+  "totalEstimatedSqm": 150.0,
+  "bedroomCount": 3,
+  "bathroomCount": 2,
+  "balconyPercentage": 8.5,
+  "circulationPercentage": 12.0,
+  "unitType": "3BR+Maid",
+  "analysisConfidence": "high",
+  "rawNotes": "Plan shows recessed balcony with city views. Kitchen is semi-open to living area."
+}
+
+Analyze the floor plan now.`;
+    VALID_ROOM_TYPES = [
+      "bedroom",
+      "bathroom",
+      "living",
+      "dining",
+      "kitchen",
+      "corridor",
+      "balcony",
+      "utility",
+      "office",
+      "lobby",
+      "storage",
+      "maid",
+      "laundry",
+      "dressing",
+      "other"
+    ];
+  }
+});
+
 // server/engines/board-pdf.ts
 var board_pdf_exports = {};
 __export(board_pdf_exports, {
@@ -5994,7 +7235,8 @@ function generateInvestorPdfHtml(input) {
     estimatedSalesPremiumAed,
     benchmark,
     designTrends: designTrends2,
-    shareToken
+    shareToken,
+    spaceEfficiency
   } = input;
   const watermark = `MYR-INV-${Date.now().toString(36).toUpperCase()}`;
   const date = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -6203,6 +7445,32 @@ ${materials.length > 0 ? `
   ${bmSection}
 </div>
 
+${spaceEfficiency ? `
+<!-- SECTION C\xBD: SPACE PLANNING INTELLIGENCE -->
+<div class="section">
+  <h2>C\xBD \xB7 Space Planning Intelligence</h2>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Efficiency Score</div><div class="kpi-value" style="color:${spaceEfficiency.efficiencyScore >= 75 ? "#10b981" : spaceEfficiency.efficiencyScore >= 50 ? "#f59e0b" : "#ef4444"}">${spaceEfficiency.efficiencyScore}/100</div></div>
+    <div class="kpi"><div class="kpi-label">Critical Issues</div><div class="kpi-value" style="color:${spaceEfficiency.criticalCount > 0 ? "#ef4444" : "#10b981"}">${spaceEfficiency.criticalCount}</div></div>
+    <div class="kpi"><div class="kpi-label">Advisory Issues</div><div class="kpi-value" style="color:#f59e0b">${spaceEfficiency.advisoryCount}</div></div>
+    <div class="kpi"><div class="kpi-label">Circulation</div><div class="kpi-value">${spaceEfficiency.circulationPct?.toFixed(1)}%</div></div>
+  </div>
+  ${spaceEfficiency.rooms.length > 0 ? `
+  <h3>Room Allocation vs DLD Benchmark</h3>
+  <div class="panel">
+    ${spaceEfficiency.rooms.slice(0, 10).map((r) => `
+    <div class="bar-row">
+      <span class="bar-label">${r.name}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${Math.min(r.currentPct, 100).toFixed(1)}%;background:${r.severity === "critical" ? "#ef4444" : r.severity === "advisory" ? "#f59e0b" : "#10b981"}"></div>
+      </div>
+      <span class="bar-pct">${r.currentPct?.toFixed(0)}%</span>
+      <span class="bar-amt" style="font-weight:400;color:#94a3b8">vs ${r.benchmarkPct?.toFixed(0)}%</span>
+    </div>`).join("")}
+  </div>` : ""}
+</div>
+` : ""}
+
 <!-- SECTION D: ROI BRIDGE -->
 <div class="section">
   <h2>D \xB7 ROI Bridge</h2>
@@ -6326,7 +7594,31 @@ function computeConfidence2(grade2, publishedDate, fetchedAt) {
   }
   return Math.min(CONFIDENCE_CAP, Math.max(CONFIDENCE_FLOOR, confidence));
 }
-var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, robotsCache, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, BASE_CONFIDENCE, RECENCY_BONUS, STALENESS_PENALTY, CONFIDENCE_CAP, CONFIDENCE_FLOOR, FETCH_TIMEOUT_MS, MAX_RETRIES, BASE_BACKOFF_MS, BaseSourceConnector;
+function markFirecrawlExhausted() {
+  firecrawlExhaustedAt = Date.now();
+  console.log(`[Connector] \u{1F525} Firecrawl credits exhausted \u2014 skipping for 6 hours`);
+}
+function isFirecrawlCreditExhausted() {
+  if (!firecrawlExhaustedAt) return false;
+  if (Date.now() - firecrawlExhaustedAt > FIRECRAWL_EXHAUST_TTL_MS) {
+    firecrawlExhaustedAt = null;
+    return false;
+  }
+  return true;
+}
+function isScrapingDogAvailable() {
+  return !!process.env.SCRAPINGDOG_API_KEY;
+}
+function isScrapingAntAvailable() {
+  return !!process.env.SCRAPINGANT_API_KEY;
+}
+function isApifyAvailable() {
+  return !!process.env.APIFY_API_KEY;
+}
+function isParseHubAvailable() {
+  return !!process.env.PARSEHUB_API_KEY;
+}
+var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, robotsCache, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, BASE_CONFIDENCE, RECENCY_BONUS, STALENESS_PENALTY, CONFIDENCE_CAP, CONFIDENCE_FLOOR, firecrawlExhaustedAt, FIRECRAWL_EXHAUST_TTL_MS, FETCH_TIMEOUT_MS, MAX_RETRIES, BASE_BACKOFF_MS, BaseSourceConnector;
 var init_connector = __esm({
   "server/engines/ingestion/connector.ts"() {
     "use strict";
@@ -6398,6 +7690,8 @@ var init_connector = __esm({
     STALENESS_PENALTY = -0.15;
     CONFIDENCE_CAP = 1;
     CONFIDENCE_FLOOR = 0.2;
+    firecrawlExhaustedAt = null;
+    FIRECRAWL_EXHAUST_TTL_MS = 6 * 60 * 60 * 1e3;
     FETCH_TIMEOUT_MS = 15e3;
     MAX_RETRIES = 3;
     BASE_BACKOFF_MS = 1e3;
@@ -6412,7 +7706,7 @@ var init_connector = __esm({
         const targetUrl = url || this.sourceUrl;
         const client = await getFirecrawlClient();
         if (!client) {
-          return this.fetchBasic(targetUrl);
+          throw new Error("Firecrawl client not available");
         }
         try {
           console.log(`[Connector] \u{1F525} Firecrawl scraping: ${targetUrl}`);
@@ -6422,8 +7716,8 @@ var init_connector = __esm({
           const markdown = doc?.markdown || "";
           const html = doc?.html || "";
           if (markdown.length < 50 && html.length < 50) {
-            console.warn(`[Connector] Firecrawl returned too little content for ${targetUrl}, falling back`);
-            return this.fetchBasic(targetUrl);
+            console.warn(`[Connector] Firecrawl returned too little content for ${targetUrl}`);
+            throw new Error("Firecrawl returned insufficient content");
           }
           console.log(`[Connector] \u{1F525} Firecrawl success: ${targetUrl} (${markdown.length} chars md, ${html.length} chars html)`);
           return {
@@ -6436,11 +7730,226 @@ var init_connector = __esm({
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.warn(`[Connector] Firecrawl error for ${targetUrl}: ${errorMsg}, falling back`);
-          return this.fetchBasic(targetUrl);
+          if (errorMsg.includes("Insufficient credits") || errorMsg.includes("insufficient credit")) {
+            markFirecrawlExhausted();
+          }
+          throw err;
         }
       }
       /**
-       * Basic HTTP fetch — used as fallback when Firecrawl is unavailable.
+       * Fetch using ScrapingDog API (fallback #1).
+       * Free tier: 1,000 requests/month.
+       * API: GET https://api.scrapingdog.com/scrape?api_key=KEY&url=URL&render=true
+       */
+      async fetchWithScrapingDog(url) {
+        const targetUrl = url || this.sourceUrl;
+        const apiKey = process.env.SCRAPINGDOG_API_KEY;
+        if (!apiKey) {
+          throw new Error("SCRAPINGDOG_API_KEY not set");
+        }
+        try {
+          console.log(`[Connector] \u{1F415} ScrapingDog scraping: ${targetUrl}`);
+          const apiUrl = `https://api.scrapingdog.com/scrape?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}&render=true&dynamic=true`;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 45e3);
+          const response = await globalThis.fetch(apiUrl, {
+            signal: controller.signal,
+            headers: { "Accept": "text/html" }
+          });
+          clearTimeout(timeout);
+          if (!response.ok) {
+            throw new Error(`ScrapingDog HTTP ${response.status}: ${response.statusText}`);
+          }
+          const rawHtml = await response.text();
+          if (rawHtml.length < 50) {
+            throw new Error("ScrapingDog returned insufficient content");
+          }
+          console.log(`[Connector] \u{1F415} ScrapingDog success: ${targetUrl} (${rawHtml.length} chars)`);
+          return {
+            url: targetUrl,
+            fetchedAt: /* @__PURE__ */ new Date(),
+            rawHtml,
+            statusCode: 200
+          };
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.warn(`[Connector] ScrapingDog error for ${targetUrl}: ${errorMsg}`);
+          throw err;
+        }
+      }
+      /**
+       * Fetch using ScrapingAnt API (fallback #2).
+       * Free tier: 10,000 API credits.
+       * API: GET https://api.scrapingant.com/v2/general?url=URL&x-api-key=KEY
+       */
+      async fetchWithScrapingAnt(url) {
+        const targetUrl = url || this.sourceUrl;
+        const apiKey = process.env.SCRAPINGANT_API_KEY;
+        if (!apiKey) {
+          throw new Error("SCRAPINGANT_API_KEY not set");
+        }
+        try {
+          console.log(`[Connector] \u{1F41C} ScrapingAnt scraping: ${targetUrl}`);
+          const apiUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(targetUrl)}&browser=true`;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 3e4);
+          const response = await globalThis.fetch(apiUrl, {
+            signal: controller.signal,
+            headers: {
+              "x-api-key": apiKey,
+              "Accept": "text/html"
+            }
+          });
+          clearTimeout(timeout);
+          if (!response.ok) {
+            throw new Error(`ScrapingAnt HTTP ${response.status}: ${response.statusText}`);
+          }
+          const rawHtml = await response.text();
+          if (rawHtml.length < 50) {
+            throw new Error("ScrapingAnt returned insufficient content");
+          }
+          console.log(`[Connector] \u{1F41C} ScrapingAnt success: ${targetUrl} (${rawHtml.length} chars)`);
+          return {
+            url: targetUrl,
+            fetchedAt: /* @__PURE__ */ new Date(),
+            rawHtml,
+            statusCode: 200
+          };
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.warn(`[Connector] ScrapingAnt error for ${targetUrl}: ${errorMsg}`);
+          throw err;
+        }
+      }
+      /**
+       * Fetch using Apify Web Scraper Actor (fallback #3).
+       * Free tier: $5/month platform credits (~10,000 pages).
+       * Uses the cheerio-scraper actor for fast HTML extraction.
+       */
+      async fetchWithApify(url) {
+        const targetUrl = url || this.sourceUrl;
+        const apiKey = process.env.APIFY_API_KEY;
+        if (!apiKey) {
+          throw new Error("APIFY_API_KEY not set");
+        }
+        try {
+          console.log(`[Connector] \u{1F41D} Apify scraping: ${targetUrl}`);
+          const runUrl = `https://api.apify.com/v2/acts/apify~web-scraper/run-sync-get-dataset-items?token=${apiKey}`;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 6e4);
+          const response = await globalThis.fetch(runUrl, {
+            method: "POST",
+            signal: controller.signal,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              startUrls: [{ url: targetUrl }],
+              pageFunction: `async function pageFunction(context) {
+            const { page, request } = context;
+            const html = await page.content();
+            return { url: request.url, html };
+          }`,
+              proxyConfiguration: { useApifyProxy: true },
+              maxPagesPerCrawl: 1
+            })
+          });
+          clearTimeout(timeout);
+          if (!response.ok) {
+            throw new Error(`Apify HTTP ${response.status}: ${response.statusText}`);
+          }
+          const results = await response.json();
+          const rawHtml = results?.[0]?.html || "";
+          if (rawHtml.length < 50) {
+            throw new Error("Apify returned insufficient content");
+          }
+          console.log(`[Connector] \u{1F41D} Apify success: ${targetUrl} (${rawHtml.length} chars)`);
+          return {
+            url: targetUrl,
+            fetchedAt: /* @__PURE__ */ new Date(),
+            rawHtml,
+            statusCode: 200
+          };
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.warn(`[Connector] Apify error for ${targetUrl}: ${errorMsg}`);
+          throw err;
+        }
+      }
+      /**
+       * Fetch using ParseHub API (fallback #5).
+       * ParseHub is project-based — it requires pre-configured scrape templates.
+       * For ad-hoc URLs, it uses the generic web-scraper project if available.
+       * Free tier: 200 pages per run, 5 projects.
+       * API: POST https://www.parsehub.com/api/v2/projects/{token}/run
+       */
+      async fetchWithParseHub(url) {
+        const targetUrl = url || this.sourceUrl;
+        const apiKey = process.env.PARSEHUB_API_KEY;
+        const projectToken = process.env.PARSEHUB_PROJECT_TOKEN;
+        if (!apiKey) {
+          throw new Error("PARSEHUB_API_KEY not set");
+        }
+        if (!projectToken) {
+          throw new Error("PARSEHUB_PROJECT_TOKEN not set \u2014 ParseHub requires pre-configured projects");
+        }
+        try {
+          console.log(`[Connector] \u{1F537} ParseHub scraping: ${targetUrl}`);
+          const runResponse = await globalThis.fetch(
+            `https://www.parsehub.com/api/v2/projects/${projectToken}/run`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded; charset=utf-8" },
+              body: new URLSearchParams({
+                api_key: apiKey,
+                start_url: targetUrl
+              }).toString(),
+              signal: AbortSignal.timeout(15e3)
+            }
+          );
+          if (!runResponse.ok) {
+            throw new Error(`ParseHub run failed: HTTP ${runResponse.status}`);
+          }
+          const runData = await runResponse.json();
+          const runToken = runData?.run_token;
+          if (!runToken) {
+            throw new Error("ParseHub didn't return a run_token");
+          }
+          let dataReady = false;
+          const pollStart = Date.now();
+          while (!dataReady && Date.now() - pollStart < 9e4) {
+            await new Promise((r) => setTimeout(r, 5e3));
+            const statusRes = await globalThis.fetch(
+              `https://www.parsehub.com/api/v2/runs/${runToken}?api_key=${apiKey}`,
+              { signal: AbortSignal.timeout(1e4) }
+            );
+            const statusData = await statusRes.json();
+            dataReady = statusData?.data_ready === true || statusData?.status === "complete";
+          }
+          if (!dataReady) {
+            throw new Error("ParseHub run timed out waiting for data");
+          }
+          const dataRes = await globalThis.fetch(
+            `https://www.parsehub.com/api/v2/runs/${runToken}/data?api_key=${apiKey}`,
+            { signal: AbortSignal.timeout(15e3) }
+          );
+          const rawData = await dataRes.text();
+          if (rawData.length < 50) {
+            throw new Error("ParseHub returned insufficient data");
+          }
+          console.log(`[Connector] \u{1F537} ParseHub success: ${targetUrl} (${rawData.length} chars)`);
+          return {
+            url: targetUrl,
+            fetchedAt: /* @__PURE__ */ new Date(),
+            rawHtml: rawData,
+            statusCode: 200
+          };
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.warn(`[Connector] ParseHub error for ${targetUrl}: ${errorMsg}`);
+          throw err;
+        }
+      }
+      /**
+       * Basic HTTP fetch — used as last resort when all APIs are unavailable.
        */
       async fetchBasic(url) {
         const targetUrl = url || this.sourceUrl;
@@ -6507,18 +8016,682 @@ var init_connector = __esm({
         };
       }
       /**
-       * Main fetch method. Uses Firecrawl when available, falls back to basic HTTP.
+       * Main fetch method with automatic failover chain:
+       *   Firecrawl → ScrapingDog → ScrapingAnt → Apify → ParseHub → Native fetch
+       *
+       * Each provider is attempted in order. If one fails or returns
+       * insufficient content, the next provider is tried automatically.
        */
       async fetch() {
         if (this.requestDelayMs && this.requestDelayMs > 0) {
           await new Promise((r) => setTimeout(r, this.requestDelayMs));
         }
-        if (isFirecrawlAvailable()) {
-          return this.fetchWithFirecrawl();
+        if (isFirecrawlAvailable() && !isFirecrawlCreditExhausted()) {
+          try {
+            const result = await this.fetchWithFirecrawl();
+            if (!result.error && ((result.rawHtml?.length || 0) > 50 || (result.markdown?.length || 0) > 50)) {
+              return result;
+            }
+          } catch {
+          }
         }
+        if (isScrapingAntAvailable()) {
+          try {
+            const result = await this.fetchWithScrapingAnt();
+            if (!result.error && (result.rawHtml?.length || 0) > 50) {
+              return result;
+            }
+          } catch {
+          }
+        }
+        if (isScrapingDogAvailable()) {
+          try {
+            const result = await this.fetchWithScrapingDog();
+            if (!result.error && (result.rawHtml?.length || 0) > 50) {
+              return result;
+            }
+          } catch {
+          }
+        }
+        if (isApifyAvailable()) {
+          try {
+            const result = await this.fetchWithApify();
+            if (!result.error && (result.rawHtml?.length || 0) > 50) {
+              return result;
+            }
+          } catch {
+          }
+        }
+        if (isParseHubAvailable()) {
+          try {
+            const result = await this.fetchWithParseHub();
+            if (!result.error && (result.rawHtml?.length || 0) > 50) {
+              return result;
+            }
+          } catch {
+          }
+        }
+        console.log(`[Connector] \u{1F4E1} Using native fetch for ${this.sourceUrl} (all API providers exhausted)`);
         return this.fetchBasic();
       }
     };
+  }
+});
+
+// server/engines/ingestion/crawler.ts
+function discoverLinks(html, baseUrl, config) {
+  const base = new URL(baseUrl);
+  const seen = /* @__PURE__ */ new Set();
+  const results = [];
+  const hrefRegex = /href=["']([^"']+)["']/gi;
+  let match;
+  while ((match = hrefRegex.exec(html)) !== null) {
+    try {
+      const href = match[1];
+      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
+        continue;
+      }
+      const resolved = new URL(href, baseUrl);
+      if (resolved.hostname !== base.hostname) continue;
+      const normalized = `${resolved.origin}${resolved.pathname}`.replace(/\/$/, "");
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      const excluded = config.excludePatterns.some((pattern) => {
+        try {
+          return new RegExp(pattern, "i").test(normalized);
+        } catch {
+          return false;
+        }
+      });
+      if (excluded) continue;
+      if (config.includePatterns.length > 0) {
+        const included = config.includePatterns.some((pattern) => {
+          try {
+            return new RegExp(pattern, "i").test(normalized);
+          } catch {
+            return false;
+          }
+        });
+        if (!included) continue;
+      }
+      results.push(normalized);
+    } catch {
+    }
+  }
+  return results;
+}
+var DEFAULT_CRAWL_CONFIG;
+var init_crawler = __esm({
+  "server/engines/ingestion/crawler.ts"() {
+    "use strict";
+    init_connector();
+    init_connector();
+    init_llm();
+    DEFAULT_CRAWL_CONFIG = {
+      maxDepth: 1,
+      pageBudget: 3,
+      requestDelayMs: 1e3,
+      includePatterns: [],
+      excludePatterns: [
+        "\\.pdf$",
+        "\\.jpg$",
+        "\\.png$",
+        "\\.gif$",
+        "\\.svg$",
+        "/cart",
+        "/checkout",
+        "/login",
+        "/register",
+        "/account",
+        "/privacy",
+        "/terms",
+        "/cookie",
+        "/sitemap\\.xml",
+        "#",
+        "mailto:",
+        "tel:",
+        "javascript:"
+      ],
+      linkHints: ""
+    };
+  }
+});
+
+// server/engines/ingestion/connectors/dynamic.ts
+var dynamic_exports = {};
+__export(dynamic_exports, {
+  DynamicConnector: () => DynamicConnector,
+  cleanHtmlForLLM: () => cleanHtmlForLLM
+});
+function cleanHtmlForLLM(html) {
+  let cleaned = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, "").replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, "").replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, "").replace(/<!--[\s\S]*?-->/g, "");
+  cleaned = cleaned.replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "").replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "").replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "").replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "");
+  const mainMatch = cleaned.match(/<main[^>]*>([\s\S]*?)<\/main>/i) || cleaned.match(/<article[^>]*>([\s\S]*?)<\/article>/i) || cleaned.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i) || cleaned.match(/<div[^>]*id="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i) || cleaned.match(/<div[^>]*role="main"[^>]*>([\s\S]*?)<\/div>/i);
+  const contentArea = mainMatch ? mainMatch[1] : cleaned;
+  const text2 = contentArea.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&[a-z]+;/gi, " ");
+  return text2.replace(/\s+/g, " ").trim();
+}
+function buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
+  const hintsFilter = hints ? `
+EXTRACTION HINTS: ${hints}` : "";
+  const pageRef = pageUrl ? `
+Page URL: ${pageUrl}` : "";
+  return `Extract products with prices from this ${sourceName} supplier/retailer page.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+IMPORTANT: Extract EXACT AED prices. If price is shown, include it. Skip items with no price.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (product name with specification, e.g. "Calacatta Marble Tile 60x60cm")
+- rawText: string (product description or context, max 500 chars)
+- value: number (price in AED \u2014 REQUIRED, skip items without price)
+- valueMax: number|null (max price if a range is shown, e.g. for "85-110 AED/sqm" value=85, valueMax=110)
+- unit: string (REQUIRED \u2014 "sqm", "piece", "unit", "m", "L", "set", etc.)
+- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
+- brand: string|null (manufacturer/brand name if visible)
+- publishedDate: string|null (ISO date if found)
+
+Rules:
+- Extract ALL priced items you can find, up to 50 maximum
+- Price MUST be a number in AED \u2014 skip items with no visible price
+- For price ranges like "85-110", set value=85 and valueMax=110
+- Currency conversions: USD\xD73.67, EUR\xD74.0, GBP\xD74.65, SAR\xD70.98
+- Watch for common UAE price notations: "AED 150/sqm", "Dhs 150", "\u062F.\u0625 150", "150 \u062F\u0631\u0647\u0645"
+- If price says "excl. VAT" or "+ VAT", multiply by 1.05 (UAE 5% VAT)
+- If price is per sqft, convert to sqm by multiplying \xD710.764 and set unit="sqm"
+- Do NOT invent prices \u2014 if no price is visible on the page, return []
+- Common UAE material brands to recognize: RAK Ceramics, Porcelanosa, Grohe, Hansgrohe, Duravit, Villeroy & Boch, Hafele, Dornbracht, Miele, Gaggenau, Sub-Zero,DERA, Cosentino
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, LLM_SNIPPET_SIZE)}`;
+}
+function buildDeveloperIntelPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
+  const hintsFilter = hints ? `
+EXTRACTION HINTS: ${hints}` : "";
+  const pageRef = pageUrl ? `
+Page URL: ${pageUrl}` : "";
+  return `Extract INTERIOR DESIGN intelligence from this ${sourceName} developer/project website.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: finish specifications, material brands used, design aesthetic, quality tier.
+DO NOT extract: property prices, bedroom counts, unit sizes, payment plans, or sales offers.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (project/development name)
+- rawText: string (description of finishes and design, max 500 chars)
+- finishLevel: string (one of: "basic", "standard", "premium", "luxury", "ultra_luxury")
+- designStyle: string (aesthetic description, e.g. "Contemporary Italian", "Modern Arabic", "Minimalist Scandinavian", "Classic European")
+- brands: string[] (brand names mentioned, e.g. ["Grohe", "Porcelanosa", "Miele", "Villeroy & Boch"])
+- materialSpec: string (specific materials mentioned, e.g. "Imported marble flooring, engineered oak, quartz countertops, European kitchen appliances")
+- category: string (main area \u2014 "floors", "walls", "sanitary", "kitchen", "joinery", "lighting", "ffe", "other")
+
+Finish level guide for UAE projects:
+- basic: Standard ceramic tiles, laminate counters, basic sanitaryware
+- standard: Porcelain tiles, quartz/granite counters, branded fittings (Grohe, Duravit)
+- premium: Imported stone, engineered hardwood, European brands (Hansgrohe, V&B, Miele)
+- luxury: Italian/Spanish marble, bespoke joinery, German appliances (Gaggenau, Sub-Zero, Bulthaup)
+- ultra_luxury: Rare stones (Calacatta, Onyx), custom designer fittings, smart home, art consulting
+
+UAE-specific brand recognition:
+- Developers: Emaar, DAMAC, Nakheel, Aldar, MERAAS, Sobha, Omniyat, FIVE Holdings, Select Group
+- Kitchen brands: Bulthaup, SieMatic, Poggenpohl, Poliform, Snaidero
+- Bathroom brands: Gessi, Axor, THG, Zucchetti, Fantini
+- Look for brochure language: "imported European finishes", "select materials", "designer kitchen"
+
+Rules:
+- ONE record per project/development (not per unit type), but if the page describes kitchen specs + bathroom specs + floor specs separately, extract each as separate records
+- Focus on WHAT MATERIALS and FINISHES are used, not sale price or investment value
+- If no interior design info found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, LLM_SNIPPET_SIZE)}`;
+}
+function buildMarketResearchPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
+  const hintsFilter = hints ? `
+EXTRACTION HINTS: ${hints}` : "";
+  const pageRef = pageUrl ? `
+Page URL: ${pageUrl}` : "";
+  return `Extract market intelligence and construction/real estate statistics from this ${sourceName} report.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: price indices, construction cost benchmarks, market trends, supply/demand data, forecasts.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (statistic or finding name, e.g. "Average Fitout Cost - Luxury Residential Dubai Q4 2025")
+- rawText: string (the finding with context including period/quarter, max 500 chars)
+- value: number|null (numeric value in AED if applicable)
+- unit: string|null (e.g. "sqft", "sqm", "percent", "index", "AED/sqm")
+- trend: string|null (one of: "rising", "stable", "falling", or null if not a trend)
+- trendConfidence: string|null (one of: "confirmed" if multiple sources agree, "emerging" if single source/early signal, "speculative" if forecast/projection)
+- publishedDate: string|null (ISO date if found \u2014 include quarter: e.g. "2025-10-01" for Q4 2025)
+- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
+
+Rules:
+- Extract ALL statistics, data points, and findings \u2014 up to 50 maximum
+- Always include the TIME PERIOD in the title (Q1/Q2/Q3/Q4 and year)
+- Include forecasts and projections \u2014 mark trendConfidence as "speculative" for predictions
+- Include percentage changes and growth rates (YoY, QoQ)
+- For comparisons (e.g. "Marble prices rose 12% YoY"), extract: value=12, unit="percent", trend="rising"
+- UAE-specific metrics to look for: DLD transaction volumes, RERA rental indices, construction cost per sqft, fitout cost benchmarks by tier, building permit counts
+- If no relevant data found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, LLM_SNIPPET_SIZE)}`;
+}
+function buildGovernmentDataPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
+  const hintsFilter = hints ? `
+EXTRACTION HINTS: ${hints}` : "";
+  const pageRef = pageUrl ? `
+Page URL: ${pageUrl}` : "";
+  return `Extract construction and real estate data from this ${sourceName} government source.
+Geography: ${geography}${pageRef}${hintsFilter}
+
+FOCUS ON: building permits, construction statistics, cost indices, regulations, standards.
+
+Return a JSON array of objects with these EXACT fields:
+- title: string (data point, regulation, or statistic name \u2014 include regulation code if visible)
+- rawText: string (description or finding, max 500 chars \u2014 include regulation numbers, dates, and authority)
+- value: number|null (numeric value if applicable)
+- unit: string|null (measurement unit)
+- publishedDate: string|null (ISO date if found)
+- category: string ("other" for most government data)
+- regulationCode: string|null (e.g. "DM/G-007", "RERA/2025/03", "ADQCC-123", "CMA-456" \u2014 extract if visible)
+
+Rules:
+- Extract data relevant to construction, interior design, and real estate
+- Include regulatory changes affecting building standards or interior fitout:
+  - Dubai Municipality (DM) codes for fire safety, MEP, green building
+  - RERA/DLD regulations for handover standards and defect liability
+  - Abu Dhabi QCC (ADQCC) construction quality standards
+  - Civil Defense fire safety requirements (corridor widths, material classes)
+- Extract building permit statistics (count, value, area)
+- Include sustainability mandates (Al Sa'fat / Estidama ratings)
+- If no relevant data found, return empty array []
+
+Content (truncated to 16000 chars):
+${contentSnippet.substring(0, LLM_SNIPPET_SIZE)}`;
+}
+function selectPrompt(sourceType, sourceName, geography, contentSnippet, hints, pageUrl) {
+  switch (sourceType) {
+    case "supplier_catalog":
+    case "manufacturer_catalog":
+    case "retailer_listing":
+    case "aggregator":
+      return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    case "developer_brochure":
+      return buildDeveloperIntelPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    case "industry_report":
+    case "trade_publication":
+      return buildMarketResearchPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    case "government_tender":
+    case "procurement_portal":
+      return buildGovernmentDataPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+    default:
+      return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
+  }
+}
+function getIntelligenceType(sourceType) {
+  switch (sourceType) {
+    case "supplier_catalog":
+    case "manufacturer_catalog":
+    case "retailer_listing":
+    case "aggregator":
+      return "material_price";
+    case "developer_brochure":
+      return "finish_specification";
+    case "industry_report":
+    case "trade_publication":
+      return "market_statistic";
+    case "government_tender":
+    case "procurement_portal":
+      return "regulation";
+    default:
+      return "material_price";
+  }
+}
+var LLM_SNIPPET_SIZE, LLM_EXTRACTION_SYSTEM_PROMPT, CRAWLABLE_TYPES, DynamicConnector;
+var init_dynamic = __esm({
+  "server/engines/ingestion/connectors/dynamic.ts"() {
+    "use strict";
+    init_connector();
+    init_connector();
+    init_llm();
+    init_crawler();
+    LLM_SNIPPET_SIZE = 32e3;
+    LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
+You extract structured evidence from website content of UAE construction/real estate websites.
+Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
+    CRAWLABLE_TYPES = /* @__PURE__ */ new Set([
+      "supplier_catalog",
+      "manufacturer_catalog",
+      "retailer_listing",
+      "aggregator"
+    ]);
+    DynamicConnector = class extends BaseSourceConnector {
+      sourceId;
+      sourceName;
+      sourceUrl;
+      category;
+      geography;
+      scrapeMethod;
+      extractionHints;
+      defaultUnit = "unit";
+      defaultTags = [];
+      sourceType;
+      crawlConfig;
+      /** Accumulates extracted evidence from all crawled pages */
+      _allPageEvidence = [];
+      _crawled = false;
+      constructor(config) {
+        super();
+        this.sourceId = String(config.id);
+        this.sourceName = config.name;
+        this.sourceUrl = config.url;
+        const typeCategoryMap = {
+          supplier_catalog: "floors",
+          manufacturer_catalog: "floors",
+          retailer_listing: "floors",
+          developer_brochure: "other",
+          industry_report: "other",
+          government_tender: "other",
+          trade_publication: "other",
+          aggregator: "floors",
+          other: "other"
+        };
+        this.sourceType = config.sourceType || "other";
+        this.category = typeCategoryMap[this.sourceType] || "other";
+        this.geography = config.region || "UAE";
+        this.scrapeMethod = config.scrapeMethod || "html_llm";
+        this.extractionHints = config.extractionHints || "";
+        if (config.lastSuccessfulFetch) {
+          this.lastSuccessfulFetch = new Date(config.lastSuccessfulFetch);
+        }
+        const userCrawl = config.scrapeConfig?.crawl || {};
+        this.crawlConfig = {
+          ...DEFAULT_CRAWL_CONFIG,
+          requestDelayMs: config.requestDelayMs || DEFAULT_CRAWL_CONFIG.requestDelayMs,
+          ...userCrawl
+        };
+        if (config.requestDelayMs) {
+          this.requestDelayMs = config.requestDelayMs;
+        }
+      }
+      shouldCrawl() {
+        return CRAWLABLE_TYPES.has(this.sourceType) && this.crawlConfig.maxDepth > 0;
+      }
+      /**
+       * Fetch with multi-page crawling for catalog sources.
+       * Uses Firecrawl when available for JS-rendered pages.
+       */
+      async fetch() {
+        const localBudget = process.env.LOCAL_PAGE_BUDGET ? parseInt(process.env.LOCAL_PAGE_BUDGET, 10) : void 0;
+        if (localBudget) {
+          this.crawlConfig = { ...this.crawlConfig, pageBudget: localBudget };
+        }
+        if (!this.shouldCrawl()) {
+          return super.fetch();
+        }
+        console.log(`[DynamicConnector] \u{1F577}\uFE0F  Crawling ${this.sourceName} (max ${this.crawlConfig.pageBudget} pages, depth ${this.crawlConfig.maxDepth})`);
+        const visited = /* @__PURE__ */ new Set();
+        const queue = [{ url: this.sourceUrl, depth: 0 }];
+        const allEvidence = [];
+        let pagesProcessed = 0;
+        let pagesFailed = 0;
+        while (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
+          const { url, depth } = queue.shift();
+          const normalizedUrl = url.replace(/\/$/, "");
+          if (visited.has(normalizedUrl)) continue;
+          visited.add(normalizedUrl);
+          let payload;
+          try {
+            const origUrl = this.sourceUrl;
+            this.sourceUrl = url;
+            payload = await super.fetch();
+            this.sourceUrl = origUrl;
+          } catch (err) {
+            console.warn(`[DynamicConnector] Page fetch failed: ${url}`, err instanceof Error ? err.message : err);
+            pagesFailed++;
+            continue;
+          }
+          if (payload.error || !payload.rawHtml && !payload.markdown || (payload.rawHtml?.length || 0) + (payload.markdown?.length || 0) < 100) {
+            console.warn(`[DynamicConnector] Insufficient content for ${url}: ${(payload.rawHtml?.length || 0) + (payload.markdown?.length || 0)} chars`);
+            pagesFailed++;
+            continue;
+          }
+          pagesProcessed++;
+          try {
+            const content = payload.markdown || payload.rawHtml || "";
+            const evidence = await this.extractFromContent(content, url, !!payload.markdown);
+            if (evidence.length > 0) {
+              console.log(`[DynamicConnector]   \u{1F4C4} ${url} \u2192 ${evidence.length} items`);
+              allEvidence.push(...evidence);
+            }
+          } catch (err) {
+            console.warn(`[DynamicConnector]   \u26A0\uFE0F  Extraction failed for ${url}`);
+          }
+          if (depth < this.crawlConfig.maxDepth && payload.rawHtml) {
+            const links = discoverLinks(payload.rawHtml, url, this.crawlConfig);
+            for (const link of links) {
+              const normLink = link.replace(/\/$/, "");
+              if (!visited.has(normLink) && !queue.some((q) => q.url.replace(/\/$/, "") === normLink)) {
+                queue.push({ url: link, depth: depth + 1 });
+              }
+            }
+          }
+          if (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
+            await new Promise((r) => setTimeout(r, this.crawlConfig.requestDelayMs));
+          }
+        }
+        console.log(`[DynamicConnector] \u{1F577}\uFE0F  Crawl complete: ${pagesProcessed} pages, ${allEvidence.length} items extracted, ${pagesFailed} failed`);
+        this._allPageEvidence = allEvidence;
+        this._crawled = true;
+        return {
+          url: this.sourceUrl,
+          rawHtml: `<!-- Crawled ${pagesProcessed} pages, ${allEvidence.length} items extracted -->`,
+          statusCode: 200,
+          fetchedAt: /* @__PURE__ */ new Date()
+        };
+      }
+      /**
+       * Extract evidence from content using LLM.
+       * Uses source-type-specific prompts for targeted extraction.
+       */
+      async extractFromContent(content, pageUrl, isMarkdown) {
+        let textContent;
+        if (isMarkdown) {
+          textContent = content.trim();
+        } else {
+          textContent = cleanHtmlForLLM(content);
+        }
+        if (textContent.length < 50) {
+          console.warn(`[DynamicConnector] Content too short after cleanup for ${pageUrl}: ${textContent.length} chars`);
+          return [];
+        }
+        console.log(`[DynamicConnector] \u{1F4DD} Sending ${Math.min(textContent.length, LLM_SNIPPET_SIZE)} chars to LLM for ${pageUrl}`);
+        try {
+          const prompt = selectPrompt(
+            this.sourceType,
+            this.sourceName,
+            this.geography,
+            textContent,
+            this.extractionHints,
+            pageUrl
+          );
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT },
+              { role: "user", content: prompt }
+            ],
+            response_format: { type: "json_object" }
+          });
+          const resText = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
+          if (!resText) return [];
+          const parsed = JSON.parse(resText);
+          const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.data || [];
+          if (!Array.isArray(items)) return [];
+          const intelligenceType = getIntelligenceType(this.sourceType);
+          return items.filter((item) => item && typeof item.title === "string" && item.title.length > 0).slice(0, 50).map((item) => ({
+            title: String(item.title).substring(0, 255),
+            rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
+            publishedDate: item.publishedDate ? new Date(item.publishedDate) : void 0,
+            category: item.category || this.category,
+            geography: this.geography,
+            sourceUrl: pageUrl,
+            // Material pricing fields
+            _llmMetric: String(item.metric || item.title || "").substring(0, 255),
+            _llmValue: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
+            _llmValueMax: typeof item.valueMax === "number" && isFinite(item.valueMax) ? item.valueMax : null,
+            _llmUnit: typeof item.unit === "string" ? item.unit : null,
+            _llmBrand: typeof item.brand === "string" ? item.brand : null,
+            // Design intelligence fields
+            _llmFinishLevel: typeof item.finishLevel === "string" ? item.finishLevel : null,
+            _llmDesignStyle: typeof item.designStyle === "string" ? item.designStyle : null,
+            _llmBrands: Array.isArray(item.brands) ? item.brands : null,
+            _llmMaterialSpec: typeof item.materialSpec === "string" ? item.materialSpec : null,
+            _llmIntelligenceType: intelligenceType
+          }));
+        } catch (err) {
+          console.error(`[DynamicConnector] LLM extraction failed for ${pageUrl}:`, err);
+          return [];
+        }
+      }
+      /**
+       * Called by orchestrator after fetch().
+       * For multi-page crawls, returns pre-accumulated evidence.
+       * For single-page, runs LLM extraction on fetched content.
+       */
+      async extract(raw) {
+        if (this._crawled && this._allPageEvidence.length > 0) {
+          const evidence = [...this._allPageEvidence];
+          this._allPageEvidence = [];
+          this._crawled = false;
+          return evidence;
+        }
+        const content = raw.markdown || raw.rawHtml || JSON.stringify(raw.rawJson || {});
+        if (!content || content.length < 50) return [];
+        const isMarkdown = !!raw.markdown;
+        return this.extractFromContent(
+          isMarkdown ? content : raw.rawHtml ? content : `<pre>${content}</pre>`,
+          raw.url,
+          isMarkdown
+        );
+      }
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          valueMax: llmEvidence._llmValueMax ?? null,
+          unit: llmEvidence._llmUnit ?? this.defaultUnit,
+          confidence,
+          grade: grade2,
+          summary: (evidence.rawText || "").replace(/\s+/g, " ").trim().substring(0, 500),
+          tags: this.defaultTags,
+          brand: llmEvidence._llmBrand ?? null,
+          // Design intelligence fields
+          finishLevel: llmEvidence._llmFinishLevel ?? null,
+          designStyle: llmEvidence._llmDesignStyle ?? null,
+          brandsMentioned: llmEvidence._llmBrands ?? null,
+          materialSpec: llmEvidence._llmMaterialSpec ?? null,
+          intelligenceType: llmEvidence._llmIntelligenceType ?? "material_price"
+        };
+      }
+    };
+  }
+});
+
+// server/engines/ingestion/freshness.ts
+var freshness_exports = {};
+__export(freshness_exports, {
+  FRESHNESS_AGING_DAYS: () => FRESHNESS_AGING_DAYS,
+  FRESHNESS_FRESH_DAYS: () => FRESHNESS_FRESH_DAYS,
+  FRESHNESS_WEIGHT_AGING: () => FRESHNESS_WEIGHT_AGING,
+  FRESHNESS_WEIGHT_FRESH: () => FRESHNESS_WEIGHT_FRESH,
+  FRESHNESS_WEIGHT_STALE: () => FRESHNESS_WEIGHT_STALE,
+  computeFreshness: () => computeFreshness,
+  getFreshnessWeight: () => getFreshnessWeight,
+  getStaleSourceIds: () => getStaleSourceIds
+});
+function computeFreshness(captureDate, referenceDate) {
+  const capture = captureDate instanceof Date ? captureDate : new Date(captureDate);
+  const ref = referenceDate ?? /* @__PURE__ */ new Date();
+  const ageDays = Math.max(0, Math.floor((ref.getTime() - capture.getTime()) / (24 * 60 * 60 * 1e3)));
+  if (ageDays <= FRESHNESS_FRESH_DAYS) {
+    return {
+      status: "fresh",
+      weight: FRESHNESS_WEIGHT_FRESH,
+      ageDays,
+      badgeColor: "green"
+    };
+  }
+  if (ageDays <= FRESHNESS_AGING_DAYS) {
+    return {
+      status: "aging",
+      weight: FRESHNESS_WEIGHT_AGING,
+      ageDays,
+      badgeColor: "amber"
+    };
+  }
+  return {
+    status: "stale",
+    weight: FRESHNESS_WEIGHT_STALE,
+    ageDays,
+    badgeColor: "red"
+  };
+}
+function getFreshnessWeight(captureDate, referenceDate) {
+  return computeFreshness(captureDate, referenceDate).weight;
+}
+async function getStaleSourceIds(staleThresholdPct = 50) {
+  const { getDb: getDb2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+  const { evidenceRecords: evidenceRecords2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+  const db = await getDb2();
+  if (!db) return [];
+  const allRecords = await db.select({
+    id: evidenceRecords2.id,
+    sourceRegistryId: evidenceRecords2.sourceRegistryId,
+    captureDate: evidenceRecords2.captureDate
+  }).from(evidenceRecords2);
+  const sourceStats = /* @__PURE__ */ new Map();
+  const now = /* @__PURE__ */ new Date();
+  for (const record of allRecords) {
+    if (!record.sourceRegistryId) continue;
+    const sid = record.sourceRegistryId;
+    if (!sourceStats.has(sid)) {
+      sourceStats.set(sid, { total: 0, stale: 0 });
+    }
+    const stats = sourceStats.get(sid);
+    stats.total++;
+    const freshness = computeFreshness(record.captureDate, now);
+    if (freshness.status === "aging" || freshness.status === "stale") {
+      stats.stale++;
+    }
+  }
+  const staleSourceIds = [];
+  for (const [sid, stats] of Array.from(sourceStats.entries())) {
+    const stalePct = Math.round(stats.stale / stats.total * 100);
+    if (stalePct >= staleThresholdPct && stats.total >= 3) {
+      staleSourceIds.push({
+        sourceRegistryId: sid,
+        totalRecords: stats.total,
+        staleRecords: stats.stale,
+        stalePct
+      });
+    }
+  }
+  return staleSourceIds.sort((a, b) => b.stalePct - a.stalePct);
+}
+var FRESHNESS_FRESH_DAYS, FRESHNESS_AGING_DAYS, FRESHNESS_WEIGHT_FRESH, FRESHNESS_WEIGHT_AGING, FRESHNESS_WEIGHT_STALE;
+var init_freshness = __esm({
+  "server/engines/ingestion/freshness.ts"() {
+    "use strict";
+    FRESHNESS_FRESH_DAYS = 90;
+    FRESHNESS_AGING_DAYS = 365;
+    FRESHNESS_WEIGHT_FRESH = 1;
+    FRESHNESS_WEIGHT_AGING = 0.75;
+    FRESHNESS_WEIGHT_STALE = 0.5;
   }
 });
 
@@ -6527,7 +8700,7 @@ var evidence_to_materials_exports = {};
 __export(evidence_to_materials_exports, {
   syncEvidenceToMaterials: () => syncEvidenceToMaterials
 });
-import { eq as eq6, desc as desc4 } from "drizzle-orm";
+import { eq as eq7, desc as desc4 } from "drizzle-orm";
 function detectTier(priceMin, priceMax, unit) {
   const price = priceMax || priceMin || 0;
   if (unit === "sqm" || unit === "m\xB2" || unit === "sqft" || unit === "L") {
@@ -6546,9 +8719,11 @@ function detectTier(priceMin, priceMax, unit) {
 async function syncEvidenceToMaterials(runId, limit = 500) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  const constants = await getMaterialConstants();
+  const constantsMap = new Map(constants.map((c) => [c.materialType, c]));
   let evidence;
   if (runId) {
-    evidence = await db.select().from(evidenceRecords).where(eq6(evidenceRecords.runId, runId)).limit(limit);
+    evidence = await db.select().from(evidenceRecords).where(eq7(evidenceRecords.runId, runId)).limit(limit);
   } else {
     evidence = await db.select().from(evidenceRecords).orderBy(desc4(evidenceRecords.createdAt)).limit(limit);
   }
@@ -6611,6 +8786,16 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
         unit = "sqm";
       }
       const tier = detectTier(priceMin, priceMax, unit);
+      const fallbackConstant = constantsMap.get(catalogCategory);
+      const defaultMaintenance = fallbackConstant ? parseFloat(String(fallbackConstant.maintenanceFactor)) : 0.05;
+      const defaultCarbon = fallbackConstant ? parseFloat(String(fallbackConstant.carbonIntensity)) : 15;
+      let brandApproval = "open_market";
+      const isKnownBrand = /cosentino|rak|grohe|kohler|marazzi|hansgrohe|flos|knoll/.test(nameLower) || /cosentino|rak|grohe|kohler|marazzi|hansgrohe|flos|knoll/.test(record.publisher?.toLowerCase() || "");
+      if (isKnownBrand) {
+        brandApproval = "preferred_brand";
+      } else if (tier === "luxury" || tier === "ultra_luxury") {
+        brandApproval = "approved_vendor";
+      }
       const normalizedName = normalizeProductName(record.itemName);
       const existingMatch = existingByName.get(normalizedName);
       if (existingMatch) {
@@ -6622,8 +8807,11 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
           await db.update(materialsCatalog).set({
             typicalCostLow: String(effectiveLow),
             typicalCostHigh: String(effectiveHigh),
+            maintenanceFactor: String(defaultMaintenance),
+            embodiedCarbon: String(defaultCarbon),
+            brandStandardApproval: brandApproval,
             notes: `Updated from market data ${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}. ${record.publisher || ""}`
-          }).where(eq6(materialsCatalog.id, existingMatch.id));
+          }).where(eq7(materialsCatalog.id, existingMatch.id));
           updated++;
         } else {
           skipped++;
@@ -6639,6 +8827,9 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
           typicalCostLow: effectiveLow ? String(effectiveLow) : null,
           typicalCostHigh: effectiveHigh ? String(effectiveHigh) : null,
           costUnit,
+          maintenanceFactor: String(defaultMaintenance),
+          embodiedCarbon: String(defaultCarbon),
+          brandStandardApproval: brandApproval,
           supplierName: (record.publisher || "Market Data").substring(0, 255),
           supplierUrl: record.sourceUrl?.substring(0, 500) || null,
           regionAvailability: ["UAE"],
@@ -6664,6 +8855,7 @@ var init_evidence_to_materials = __esm({
     "use strict";
     init_db();
     init_schema();
+    init_db();
     EVIDENCE_TO_CATALOG_CATEGORY = {
       floors: "tile",
       // most floor evidence is tile/stone
@@ -6686,186 +8878,1078 @@ var init_evidence_to_materials = __esm({
   }
 });
 
-// server/engines/ingestion/connectors/scad-pdf-connector.ts
-var scad_pdf_connector_exports = {};
-__export(scad_pdf_connector_exports, {
-  SCADPdfConnector: () => SCADPdfConnector
+// server/engines/ingestion/source-discovery.ts
+var source_discovery_exports = {};
+__export(source_discovery_exports, {
+  KNOWN_MISSING_SOURCES: () => KNOWN_MISSING_SOURCES,
+  discoverNewSources: () => discoverNewSources
 });
-var SCAD_PDF_URLS, SCAD_PUBLICATIONS_URL, EXTRACTION_PROMPT2, SCADPdfConnector;
-var init_scad_pdf_connector = __esm({
-  "server/engines/ingestion/connectors/scad-pdf-connector.ts"() {
+async function askLLM(prompt) {
+  const result = await invokeLLM({
+    messages: [{ role: "user", content: prompt }]
+  });
+  const content = result.choices?.[0]?.message?.content;
+  return typeof content === "string" ? content : JSON.stringify(content);
+}
+async function discoverNewSources(options) {
+  const existingList = options.existingSources.map((s) => `- ${s.name} (${s.category}): ${s.url}`).join("\n");
+  const gapsList = options.coverageGaps.length > 0 ? options.coverageGaps.join(", ") : "General expansion needed across all categories";
+  const prompt = DISCOVERY_PROMPT.replace("{existingSources}", existingList).replace("{coverageGaps}", gapsList);
+  try {
+    const response = await askLLM(prompt);
+    const jsonMatch = response.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      return {
+        discoveredSources: [],
+        searchQueries: [],
+        analysisNotes: "AI response did not contain valid JSON array."
+      };
+    }
+    const parsed = JSON.parse(jsonMatch[0]);
+    const existingUrls = new Set(options.existingSources.map((s) => s.url.toLowerCase().replace(/\/$/, "")));
+    const validSources = parsed.filter((s) => {
+      const normalizedUrl = s.url?.toLowerCase().replace(/\/$/, "");
+      return normalizedUrl && !existingUrls.has(normalizedUrl) && s.name && s.category;
+    });
+    return {
+      discoveredSources: validSources,
+      searchQueries: [
+        "UAE luxury interior design material suppliers 2025",
+        "Dubai developer project brochure fitout specifications",
+        "UAE construction cost benchmark AED per sqm",
+        "Dubai design trends luxury residential 2025",
+        "MENA building materials wholesale pricing"
+      ],
+      analysisNotes: `Discovered ${validSources.length} unique new sources from ${parsed.length} candidates.`
+    };
+  } catch (err) {
+    return {
+      discoveredSources: [],
+      searchQueries: [],
+      analysisNotes: `Discovery failed: ${err instanceof Error ? err.message : String(err)}`
+    };
+  }
+}
+var DISCOVERY_PROMPT, KNOWN_MISSING_SOURCES;
+var init_source_discovery = __esm({
+  "server/engines/ingestion/source-discovery.ts"() {
     "use strict";
-    init_connector();
     init_llm();
-    SCAD_PDF_URLS = [
-      "https://www.scad.gov.ae/Release%20Documents/Construction%20Cost%20Index%20Report%20Q4%202024_EN.pdf",
-      "https://www.scad.gov.ae/Release%20Documents/Construction%20Material%20Prices%202024_EN.pdf"
+    DISCOVERY_PROMPT = `You are MIYAR's Market Intelligence Source Discovery Engine for the UAE luxury real estate and interior design market.
+
+Your task: Analyze the existing source registry and suggest NEW, complementary data sources that would fill coverage gaps.
+
+**Existing Sources:**
+{existingSources}
+
+**Categories needing more coverage:**
+{coverageGaps}
+
+**Discover sources that provide:**
+1. Material pricing data (tiles, marble, sanitary ware, lighting, joinery, hardware, kitchen)
+2. UAE developer project portfolios with interior design specifications
+3. Design trend signals (international and UAE-specific)
+4. Construction cost benchmarks (fitout rates, MEP rates)
+5. Government data (DLD transactions, building permits, regulations)
+6. Supplier catalogs with AED pricing
+
+**Rules:**
+- Only suggest UAE-specific or UAE-relevant sources
+- Prefer sources with machine-readable content (structured pages, not just PDFs)
+- Include the full URL to the most data-rich page
+- Justify why each source adds value vs existing coverage
+- Suggest at least 5 and at most 15 sources
+
+Return as JSON array:
+[{
+  "name": "Source Name",
+  "url": "https://...",
+  "category": "material_supplier" | "developer" | "market_research" | "government" | "design_trend" | "auction_platform",
+  "dataTypes": ["material_prices", "project_specs", "market_trends"],
+  "estimatedReliability": "A" | "B" | "C",
+  "rationale": "Why this source is valuable",
+  "suggestedFrequency": "weekly" | "biweekly" | "monthly"
+}]`;
+    KNOWN_MISSING_SOURCES = [
+      {
+        name: "Porcelanosa UAE",
+        url: "https://www.porcelanosa.com/ae/",
+        category: "material_supplier",
+        dataTypes: ["tiles", "sanitary", "kitchens", "countertops"],
+        estimatedReliability: "B",
+        rationale: "Major European tile/bath brand with UAE showrooms, structured product catalog with pricing tiers",
+        suggestedFrequency: "monthly"
+      },
+      {
+        name: "Al Murad UAE",
+        url: "https://www.almurad.com/",
+        category: "material_supplier",
+        dataTypes: ["tiles", "stone", "sanitary", "bathroom_fittings"],
+        estimatedReliability: "B",
+        rationale: "Largest UAE-based tile & stone retailer, multiple branches, competitive pricing benchmark",
+        suggestedFrequency: "biweekly"
+      },
+      {
+        name: "DERA (Dubai Economic & Regulatory Authority)",
+        url: "https://www.dubaipulse.gov.ae/",
+        category: "government",
+        dataTypes: ["building_permits", "construction_statistics", "economic_indicators"],
+        estimatedReliability: "A",
+        rationale: "Dubai government open data portal with construction activity indicators",
+        suggestedFrequency: "monthly"
+      },
+      {
+        name: "Dezeen Middle East",
+        url: "https://www.dezeen.com/tag/united-arab-emirates/",
+        category: "design_trend",
+        dataTypes: ["design_trends", "project_showcases", "material_innovations"],
+        estimatedReliability: "B",
+        rationale: "Leading global design publication with dedicated UAE/ME content section",
+        suggestedFrequency: "weekly"
+      },
+      {
+        name: "Commercial Interior Design (CID) ME",
+        url: "https://www.commercialinteriordesign.com/",
+        category: "design_trend",
+        dataTypes: ["design_trends", "project_briefs", "supplier_news", "awards"],
+        estimatedReliability: "B",
+        rationale: "Middle East's premier interiors magazine, covers luxury hospitality & residential projects",
+        suggestedFrequency: "weekly"
+      },
+      {
+        name: "Aldar Properties",
+        url: "https://www.aldar.com/en/explore-aldar/businesses/aldar-development",
+        category: "developer",
+        dataTypes: ["project_portfolios", "interior_specifications", "pricing_ranges"],
+        estimatedReliability: "A",
+        rationale: "Abu Dhabi's largest developer, complements Dubai-focused Emaar/DAMAC/Nakheel data",
+        suggestedFrequency: "biweekly"
+      },
+      {
+        name: "Nakheel Projects",
+        url: "https://www.nakheel.com/en/communities",
+        category: "developer",
+        dataTypes: ["project_portfolios", "community_specs", "pricing_ranges"],
+        estimatedReliability: "A",
+        rationale: "Major Dubai developer (Palm Jumeirah, Dragon City), interior design specs in brochures",
+        suggestedFrequency: "biweekly"
+      },
+      {
+        name: "MERAAS / Dubai Holding",
+        url: "https://www.meraas.com/en",
+        category: "developer",
+        dataTypes: ["luxury_projects", "interior_design_specs", "brand_partnerships"],
+        estimatedReliability: "A",
+        rationale: "Dubai Holding subsidiary behind City Walk, Bluewaters \u2014 ultra-luxury segment data",
+        suggestedFrequency: "biweekly"
+      },
+      {
+        name: "Hansgrohe Middle East",
+        url: "https://www.hansgrohe.ae/",
+        category: "material_supplier",
+        dataTypes: ["sanitary_pricing", "bathroom_fittings", "luxury_taps"],
+        estimatedReliability: "B",
+        rationale: "Premium bathroom fittings brand, structured product catalog with UAE pricing",
+        suggestedFrequency: "monthly"
+      },
+      {
+        name: "Artemide Middle East",
+        url: "https://www.artemide.com/en-ae",
+        category: "material_supplier",
+        dataTypes: ["lighting_fixtures", "designer_lighting", "architectural_lighting"],
+        estimatedReliability: "B",
+        rationale: "Italian luxury lighting brand with UAE presence, prices designer lighting fixtures",
+        suggestedFrequency: "monthly"
+      },
+      {
+        name: "Bulthaup UAE",
+        url: "https://www.bulthaup.com/en-ae/",
+        category: "material_supplier",
+        dataTypes: ["kitchen_systems", "luxury_kitchens", "countertops"],
+        estimatedReliability: "B",
+        rationale: "Ultra-luxury German kitchen brand, relevant price data for top-tier fitout benchmarks",
+        suggestedFrequency: "monthly"
+      },
+      {
+        name: "ArchDaily Middle East",
+        url: "https://www.archdaily.com/tag/united-arab-emirates",
+        category: "design_trend",
+        dataTypes: ["architectural_trends", "project_specs", "material_innovations"],
+        estimatedReliability: "B",
+        rationale: "World's most-visited architecture portal, UAE project archives with material specs",
+        suggestedFrequency: "weekly"
+      }
     ];
-    SCAD_PUBLICATIONS_URL = "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx";
-    EXTRACTION_PROMPT2 = `You are a data extraction engine for MIYAR, a UAE real estate intelligence platform.
+  }
+});
 
-Extract material price data from this SCAD (Statistics Centre Abu Dhabi) PDF text.
-Focus on: construction materials, building materials, finishing materials, and their price indices.
+// server/engines/ingestion/data-verifier.ts
+var data_verifier_exports = {};
+__export(data_verifier_exports, {
+  verifyDatabaseValues: () => verifyDatabaseValues
+});
+async function askLLM2(prompt) {
+  const result = await invokeLLM({
+    messages: [{ role: "user", content: prompt }]
+  });
+  const content = result.choices?.[0]?.message?.content;
+  return typeof content === "string" ? content : JSON.stringify(content);
+}
+async function verifyDatabaseValues(records) {
+  const toCheck = records.filter((r) => r.priceTypical !== null);
+  const noPrice = records.filter((r) => r.priceTypical === null);
+  if (toCheck.length === 0) {
+    return {
+      verifiedAt: /* @__PURE__ */ new Date(),
+      totalChecked: records.length,
+      verified: 0,
+      suspect: 0,
+      invalid: 0,
+      noPrice: noPrice.length,
+      results: noPrice.map((r) => ({
+        recordId: r.id,
+        itemName: r.itemName,
+        status: "no_price",
+        reason: "Record has no price value to verify"
+      }))
+    };
+  }
+  const sample = toCheck.slice(0, 50);
+  const itemsList = sample.map(
+    (r) => `ID: ${r.id} | "${r.itemName}" (${r.category}) | ${r.priceTypical} AED/${r.unit} | Source: ${r.publisher || "Unknown"} | Captured: ${r.captureDate.toISOString().split("T")[0]}`
+  ).join("\n");
+  const prompt = VERIFY_PROMPT.replace("{items}", itemsList);
+  try {
+    const response = await askLLM2(prompt);
+    const jsonMatch = response.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      return {
+        verifiedAt: /* @__PURE__ */ new Date(),
+        totalChecked: records.length,
+        verified: 0,
+        suspect: 0,
+        invalid: 0,
+        noPrice: noPrice.length,
+        results: []
+      };
+    }
+    const aiResults = JSON.parse(jsonMatch[0]);
+    const allResults = [
+      ...aiResults.map((r) => ({
+        ...r,
+        confidenceAdjustment: r.status === "suspect" ? -20 : r.status === "invalid" ? -50 : 0
+      })),
+      ...noPrice.map((r) => ({
+        recordId: r.id,
+        itemName: r.itemName,
+        status: "no_price",
+        reason: "No price value"
+      }))
+    ];
+    return {
+      verifiedAt: /* @__PURE__ */ new Date(),
+      totalChecked: records.length,
+      verified: aiResults.filter((r) => r.status === "verified").length,
+      suspect: aiResults.filter((r) => r.status === "suspect").length,
+      invalid: aiResults.filter((r) => r.status === "invalid").length,
+      noPrice: noPrice.length,
+      results: allResults
+    };
+  } catch (err) {
+    return {
+      verifiedAt: /* @__PURE__ */ new Date(),
+      totalChecked: records.length,
+      verified: 0,
+      suspect: 0,
+      invalid: 0,
+      noPrice: noPrice.length,
+      results: []
+    };
+  }
+}
+var VERIFY_PROMPT;
+var init_data_verifier = __esm({
+  "server/engines/ingestion/data-verifier.ts"() {
+    "use strict";
+    init_llm();
+    VERIFY_PROMPT = `You are a UAE interior design and construction cost expert. Verify these material/fitout prices against current UAE market reality (2025-2026).
 
-Return a JSON array of objects with these exact fields:
-- materialName: string (e.g. "Portland Cement", "Steel Reinforcement Bar", "Ceramic Tiles 30x30")
-- category: string (one of: "cement", "steel", "aggregate", "timber", "tiles", "glass", "paint", "insulation", "plumbing", "electrical", "stone", "other")
-- priceAed: number|null (price in AED per unit, null if only index given)
-- unit: string (e.g. "ton", "kg", "sqm", "piece", "bag", "meter", "cubic_meter")
-- indexValue: number|null (price index value if available, base=100)
-- yearQuarter: string|null (e.g. "2024-Q4", "2024")
-- changePercent: number|null (year-over-year % change if stated)
+For each item, determine if the price is reasonable for the UAE market:
+- "verified" = price is within expected market range
+- "suspect" = price seems too high or too low but possible in edge cases
+- "invalid" = price is clearly wrong (order of magnitude off, or nonsensical)
 
-Rules:
-- Extract up to 30 items
-- Only real data from the PDF \u2014 do NOT invent values
-- If a row has an index but no absolute AED price, still include it with priceAed: null
-- Return [] if no material data found
+**Items to verify:**
+{items}
 
-PDF text content:
+Return JSON array:
+[{
+  "recordId": 123,
+  "itemName": "...",
+  "status": "verified" | "suspect" | "invalid",
+  "reason": "Brief explanation",
+  "suggestedRange": { "min": 100, "max": 500 }
+}]`;
+  }
+});
+
+// server/engines/ingestion/trend-extractor.ts
+var trend_extractor_exports = {};
+__export(trend_extractor_exports, {
+  extractDesignTrends: () => extractDesignTrends,
+  extractDeveloperIntelligence: () => extractDeveloperIntelligence
+});
+async function askLLM3(prompt) {
+  const result = await invokeLLM({
+    messages: [{ role: "user", content: prompt }]
+  });
+  const content = result.choices?.[0]?.message?.content;
+  return typeof content === "string" ? content : JSON.stringify(content);
+}
+async function extractDesignTrends(options) {
+  const { content, sourceName, sourceUrl } = options;
+  const truncatedContent = content.substring(0, 8e3);
+  const prompt = TREND_EXTRACTION_PROMPT.replace("{sourceName}", sourceName).replace("{sourceUrl}", sourceUrl).replace("{content}", truncatedContent);
+  try {
+    const response = await askLLM3(prompt);
+    const jsonMatch = response.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      return {
+        trends: [],
+        totalArticlesAnalyzed: 1,
+        extractedAt: /* @__PURE__ */ new Date()
+      };
+    }
+    const rawTrends = JSON.parse(jsonMatch[0]);
+    const trends = rawTrends.filter((t2) => t2.trendName && t2.category && t2.description).map((t2) => ({
+      trendName: t2.trendName,
+      category: t2.category,
+      confidence: t2.confidence || "speculative",
+      relevanceToUAE: t2.relevanceToUAE || "medium",
+      description: t2.description,
+      relatedMaterials: t2.relatedMaterials || [],
+      relatedBrands: t2.relatedBrands || [],
+      sourceUrl,
+      sourceName
+    }));
+    return {
+      trends,
+      totalArticlesAnalyzed: 1,
+      extractedAt: /* @__PURE__ */ new Date()
+    };
+  } catch (err) {
+    return {
+      trends: [],
+      totalArticlesAnalyzed: 1,
+      extractedAt: /* @__PURE__ */ new Date()
+    };
+  }
+}
+async function extractDeveloperIntelligence(options) {
+  const { content, sourceName, sourceUrl } = options;
+  const truncatedContent = content.substring(0, 8e3);
+  const prompt = DEVELOPER_INTEL_PROMPT.replace("{sourceName}", sourceName).replace("{sourceUrl}", sourceUrl).replace("{content}", truncatedContent);
+  try {
+    const response = await askLLM3(prompt);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    return null;
+  }
+}
+var TREND_EXTRACTION_PROMPT, DEVELOPER_INTEL_PROMPT;
+var init_trend_extractor = __esm({
+  "server/engines/ingestion/trend-extractor.ts"() {
+    "use strict";
+    init_llm();
+    TREND_EXTRACTION_PROMPT = `You are MIYAR's Design Trend Intelligence Engine, specializing in UAE luxury interior design.
+
+Analyze the following article/content and extract design trends relevant to the UAE luxury real estate market.
+
+**Source:** {sourceName} ({sourceUrl})
+**Content:**
+{content}
+
+**Extract trends in these categories:**
+- material: New or trending material choices (marble types, tiles, wood species, metals)
+- color: Color palette shifts (earth tones, bold colors, neutrals)
+- style: Design style movements (minimalism, maximalism, japandi, biophilic)
+- spatial: Space planning trends (open plan, flexible spaces, wellness rooms)
+- technology: Smart home, lighting tech, material innovations
+- sustainability: Green materials, EPD considerations, LEED/Estidama alignment
+
+**Rules:**
+- Focus on trends relevant to UAE/GCC luxury residential and hospitality
+- Rate UAE relevance: "high" (already seen in Dubai projects), "medium" (adopted in similar markets), "low" (global only)
+- Classify confidence: "established" (widely adopted), "emerging" (growing), "declining" (fading), "speculative" (very new)
+- Include specific material/brand names when mentioned
+
+Return JSON array:
+[{
+  "trendName": "...",
+  "category": "material" | "color" | "style" | "spatial" | "technology" | "sustainability",
+  "confidence": "established" | "emerging" | "declining" | "speculative",
+  "relevanceToUAE": "high" | "medium" | "low",
+  "description": "2-3 sentence description",
+  "relatedMaterials": ["material1", "material2"],
+  "relatedBrands": ["brand1", "brand2"]
+}]`;
+    DEVELOPER_INTEL_PROMPT = `You are MIYAR's Developer Project Intelligence Engine for UAE real estate.
+
+Analyze this developer's project page/brochure content and extract:
+1. Project name, location, and developer
+2. Interior design specifications (material types, finish levels, brands)
+3. Approximate fitout spec level (basic/standard/premium/luxury/ultra_luxury)
+4. Key interior features mentioned
+5. Any pricing or cost information
+
+**Source:** {sourceName} ({sourceUrl})
+**Content:**
+{content}
+
+Return JSON:
+{
+  "projectName": "...",
+  "developer": "...",
+  "location": "...",
+  "finishLevel": "basic" | "standard" | "premium" | "luxury" | "ultra_luxury",
+  "interiorSpecs": [
+    { "area": "kitchen" | "bathroom" | "living" | "bedroom" | "common", "materials": ["..."], "brands": ["..."], "notes": "..." }
+  ],
+  "designStyle": "...",
+  "keyFeatures": ["..."],
+  "estimatedFitoutRange": { "min": 0, "max": 0, "unit": "AED/sqft" }
+}`;
+  }
+});
+
+// server/engines/intake/ai-intake-engine.ts
+var ai_intake_engine_exports = {};
+__export(ai_intake_engine_exports, {
+  processIntakeAssets: () => processIntakeAssets,
+  suggestSectionFields: () => suggestSectionFields
+});
+function isFloorPlanAsset(asset) {
+  const urlLower = (asset.url || "").toLowerCase();
+  const hasFloorPlanKeyword = /floor.?plan|layout|blueprint|plan.?view/i.test(urlLower);
+  return hasFloorPlanKeyword && (asset.type === "image" || asset.type === "pdf");
+}
+async function processIntakeAssets(assets, existingInputs) {
+  if (assets.length === 0) {
+    return {
+      suggestedInputs: {},
+      confidence: {},
+      reasoning: {},
+      extractedInsights: {},
+      warnings: ["No assets provided for analysis."]
+    };
+  }
+  let floorPlanAnalysis;
+  const floorPlanAssets = assets.filter(isFloorPlanAsset);
+  if (floorPlanAssets.length > 0) {
+    try {
+      const fpAsset = floorPlanAssets[0];
+      floorPlanAnalysis = await analyzeFloorPlan(
+        fpAsset.url,
+        fpAsset.mimeType || "image/jpeg"
+      );
+    } catch (err) {
+      console.warn("[AI Intake] Floor plan analysis failed:", err.message);
+    }
+  }
+  const contentParts = [];
+  let contextText = "Analyze the following project assets and extract structured parameters:\n\n";
+  if (existingInputs && Object.keys(existingInputs).length > 0) {
+    contextText += `The user has already entered these values (do NOT override unless you have strong contradictory evidence):
+${JSON.stringify(existingInputs, null, 2)}
+
 `;
-    SCADPdfConnector = class extends BaseSourceConnector {
-      sourceId = "scad-pdf-materials";
-      sourceName = "SCAD Abu Dhabi \u2014 Material Price Index (PDF)";
-      sourceUrl = SCAD_PUBLICATIONS_URL;
-      /**
-       * Fetch: download PDF(s) and extract text via pdf-parse.
-       * Falls back to publications page HTML if PDF fetch fails.
-       */
-      async fetch() {
-        let allText = "";
-        for (const pdfUrl of SCAD_PDF_URLS) {
-          try {
-            const response = await fetch(pdfUrl, {
-              headers: {
-                "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform; +https://miyar.ai)",
-                "Accept": "application/pdf"
-              },
-              signal: AbortSignal.timeout(3e4)
-            });
-            if (!response.ok) {
-              console.warn(`[SCAD PDF] HTTP ${response.status} for ${pdfUrl}`);
-              continue;
-            }
-            const buffer = Buffer.from(await response.arrayBuffer());
-            let pdfParse;
-            try {
-              pdfParse = (await import("pdf-parse")).default;
-            } catch {
-              console.error("[SCAD PDF] pdf-parse not available \u2014 run: npm install pdf-parse");
-              continue;
-            }
-            const parsed = await pdfParse(buffer);
-            if (parsed.text && parsed.text.length > 100) {
-              allText += `
---- Source: ${pdfUrl} ---
-${parsed.text}
+  }
+  if (floorPlanAnalysis) {
+    contextText += `Floor plan analysis already performed. Results:
+${JSON.stringify(floorPlanAnalysis, null, 2)}
+
 `;
-              console.log(`[SCAD PDF] Extracted ${parsed.text.length} chars from ${pdfUrl} (${parsed.numpages} pages)`);
-            }
-          } catch (err) {
-            console.warn(`[SCAD PDF] Failed to fetch/parse ${pdfUrl}:`, err instanceof Error ? err.message : String(err));
-          }
-        }
-        if (allText.length < 100) {
-          try {
-            const htmlResp = await fetch(this.sourceUrl, {
-              headers: { "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform)" },
-              signal: AbortSignal.timeout(15e3)
-            });
-            if (htmlResp.ok) {
-              allText = await htmlResp.text();
-            }
-          } catch {
-          }
-        }
-        return {
-          url: SCAD_PDF_URLS[0] || this.sourceUrl,
-          rawHtml: allText,
-          // Using rawHtml field for the extracted text
-          fetchedAt: /* @__PURE__ */ new Date(),
-          statusCode: allText.length > 100 ? 200 : 0
-        };
-      }
-      /**
-       * Extract: send PDF text to Gemini for structured material price extraction.
-       */
-      async extract(raw) {
-        const text2 = raw.rawHtml || "";
-        if (!text2 || text2.length < 100) return [];
-        const truncated = text2.substring(0, 15e3);
-        try {
-          const response = await invokeLLM({
-            messages: [
-              {
-                role: "system",
-                content: "You extract structured data from SCAD Abu Dhabi construction material publications. Return ONLY valid JSON. No markdown fences."
-              },
-              {
-                role: "user",
-                content: EXTRACTION_PROMPT2 + truncated
-              }
-            ],
-            response_format: { type: "json_object" }
+  }
+  contentParts.push({ type: "text", text: contextText });
+  let assetIndex = 0;
+  for (const asset of assets) {
+    assetIndex++;
+    switch (asset.type) {
+      case "image":
+        if (asset.url) {
+          contentParts.push({
+            type: "image_url",
+            image_url: { url: asset.url, detail: "high" }
           });
-          const content = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
-          if (!content) return [];
-          const parsed = JSON.parse(content);
-          const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.materials || parsed.data || [];
-          if (!Array.isArray(items)) return [];
-          return items.filter((item) => item && typeof item.materialName === "string" && item.materialName.length > 0).slice(0, 30).map((item) => ({
-            title: `SCAD Material Index \u2014 ${item.materialName}`,
-            rawText: [
-              item.materialName,
-              item.priceAed ? `AED ${item.priceAed}/${item.unit}` : null,
-              item.indexValue ? `Index: ${item.indexValue}` : null,
-              item.changePercent ? `YoY: ${item.changePercent > 0 ? "+" : ""}${item.changePercent}%` : null,
-              item.yearQuarter
-            ].filter(Boolean).join(" | "),
-            publishedDate: void 0,
-            category: "material_cost",
-            geography: "Abu Dhabi",
-            sourceUrl: raw.url,
-            // Pass through structured data for normalize()
-            _scadItem: item
-          }));
-        } catch (err) {
-          console.error("[SCAD PDF] LLM extraction failed:", err instanceof Error ? err.message : String(err));
-          return [];
+          contentParts.push({
+            type: "text",
+            text: `[Asset ${assetIndex}: Image \u2014 analyze for style, materials, tier, and design direction]`
+          });
         }
-      }
-      /**
-       * Normalize: convert extracted items into evidence record format.
-       */
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-        const scadItem = evidence._scadItem;
-        const metric = scadItem ? `${scadItem.materialName} (${scadItem.category})` : evidence.title;
-        const value = scadItem?.priceAed ?? scadItem?.indexValue ?? null;
-        const unit = scadItem?.unit ?? "unit";
-        const tags = [
-          "government",
-          "statistics",
-          "abu-dhabi",
-          "material-index",
-          "scad",
-          scadItem?.category
-        ].filter(Boolean);
-        const summaryParts = [evidence.rawText];
-        if (scadItem?.changePercent != null) {
-          summaryParts.push(`Year-over-year change: ${scadItem.changePercent > 0 ? "+" : ""}${scadItem.changePercent}%`);
+        break;
+      case "pdf":
+        if (asset.url) {
+          contentParts.push({
+            type: "file_url",
+            file_url: {
+              url: asset.url,
+              mime_type: "application/pdf"
+            }
+          });
+          contentParts.push({
+            type: "text",
+            text: `[Asset ${assetIndex}: PDF document \u2014 extract project specifications, budgets, and design parameters]`
+          });
         }
+        break;
+      case "audio":
+        if (asset.url) {
+          const mimeType = MIME_TO_FILE_TYPE[asset.mimeType || "audio/mp4"] || "audio/mp4";
+          contentParts.push({
+            type: "file_url",
+            file_url: { url: asset.url, mime_type: mimeType }
+          });
+          contentParts.push({
+            type: "text",
+            text: `[Asset ${assetIndex}: Voice recording \u2014 transcribe and extract project vision, style preferences, budget mentions]`
+          });
+        }
+        break;
+      case "video":
+        if (asset.url) {
+          contentParts.push({
+            type: "file_url",
+            file_url: { url: asset.url, mime_type: "video/mp4" }
+          });
+          contentParts.push({
+            type: "text",
+            text: `[Asset ${assetIndex}: Video \u2014 analyze for design references, walkthrough data, material specifications]`
+          });
+        }
+        break;
+      case "url":
+        if (asset.textContent) {
+          contentParts.push({
+            type: "text",
+            text: `[Asset ${assetIndex}: Web URL <${asset.url}>]
+Extracted content:
+${asset.textContent.slice(0, 5e3)}`
+          });
+        } else {
+          contentParts.push({
+            type: "text",
+            text: `[Asset ${assetIndex}: Web URL <${asset.url}> \u2014 analyze if this is a supplier, competitor, or reference project]`
+          });
+        }
+        break;
+      case "text_note":
+        if (asset.textContent) {
+          contentParts.push({
+            type: "text",
+            text: `[Asset ${assetIndex}: User's project description]
+"${asset.textContent}"`
+          });
+        }
+        break;
+    }
+  }
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: contentParts }
+  ];
+  const response = await invokeLLM({
+    messages,
+    outputSchema: INTAKE_OUTPUT_SCHEMA,
+    maxTokens: 8192
+  });
+  const rawText = response.choices[0]?.message?.content;
+  if (!rawText || typeof rawText !== "string") {
+    return {
+      suggestedInputs: {},
+      confidence: {},
+      reasoning: {},
+      extractedInsights: {},
+      warnings: ["AI did not return a valid response."]
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
         return {
-          metric,
-          value,
-          unit,
-          confidence,
-          grade: grade2,
-          summary: summaryParts.join(" \u2014 ").substring(0, 500),
-          tags
+          suggestedInputs: {},
+          confidence: {},
+          reasoning: {},
+          extractedInsights: {},
+          warnings: ["Failed to parse AI response as JSON."]
         };
       }
+    } else {
+      return {
+        suggestedInputs: {},
+        confidence: {},
+        reasoning: {},
+        extractedInsights: {},
+        warnings: ["AI response was not valid JSON."]
+      };
+    }
+  }
+  const result = {
+    suggestedInputs: validateSuggestedInputs(parsed.suggestedInputs || {}),
+    confidence: validatedRecord(parsed.confidence || {}),
+    reasoning: validatedRecord(parsed.reasoning || {}),
+    extractedInsights: {
+      ...parsed.extractedInsights || {},
+      floorPlanAnalysis
+    },
+    warnings: Array.isArray(parsed.warnings) ? parsed.warnings : []
+  };
+  if (floorPlanAnalysis) {
+    if (floorPlanAnalysis.totalEstimatedSqm && !result.suggestedInputs.ctx03Gfa) {
+      result.suggestedInputs.ctx03Gfa = floorPlanAnalysis.totalEstimatedSqm;
+      result.confidence["ctx03Gfa"] = "medium";
+      result.reasoning["ctx03Gfa"] = "Estimated from floor plan analysis";
+    }
+    if (floorPlanAnalysis.bedroomCount && !result.extractedInsights.detectedScale) {
+      result.extractedInsights.detectedScale = floorPlanAnalysis.bedroomCount >= 4 ? "large" : "medium";
+    }
+  }
+  return result;
+}
+function validateSuggestedInputs(raw) {
+  const result = {};
+  if (raw.ctx01Typology && VALID_TYPOLOGIES.includes(raw.ctx01Typology)) {
+    result.ctx01Typology = raw.ctx01Typology;
+  }
+  if (raw.ctx02Scale && VALID_SCALES.includes(raw.ctx02Scale)) {
+    result.ctx02Scale = raw.ctx02Scale;
+  }
+  if (raw.ctx04Location && VALID_LOCATIONS.includes(raw.ctx04Location)) {
+    result.ctx04Location = raw.ctx04Location;
+  }
+  if (raw.ctx05Horizon && VALID_HORIZONS.includes(raw.ctx05Horizon)) {
+    result.ctx05Horizon = raw.ctx05Horizon;
+  }
+  if (raw.mkt01Tier && VALID_TIERS.includes(raw.mkt01Tier)) {
+    result.mkt01Tier = raw.mkt01Tier;
+  }
+  if (raw.des01Style && VALID_STYLES.includes(raw.des01Style)) {
+    result.des01Style = raw.des01Style;
+  }
+  const ordinalFields = [
+    "str01BrandClarity",
+    "str02Differentiation",
+    "str03BuyerMaturity",
+    "mkt02Competitor",
+    "mkt03Trend",
+    "fin02Flexibility",
+    "fin03ShockTolerance",
+    "fin04SalesPremium",
+    "des02MaterialLevel",
+    "des03Complexity",
+    "des04Experience",
+    "des05Sustainability",
+    "exe01SupplyChain",
+    "exe02Contractor",
+    "exe03Approvals",
+    "exe04QaMaturity"
+  ];
+  for (const field of ordinalFields) {
+    const val = Number(raw[field]);
+    if (!isNaN(val) && val >= 1 && val <= 5) {
+      result[field] = Math.round(val);
+    }
+  }
+  if (typeof raw.ctx03Gfa === "number" && raw.ctx03Gfa > 0) {
+    result.ctx03Gfa = raw.ctx03Gfa;
+  }
+  if (typeof raw.totalFitoutArea === "number" && raw.totalFitoutArea > 0) {
+    result.totalFitoutArea = raw.totalFitoutArea;
+  }
+  if (typeof raw.fin01BudgetCap === "number" && raw.fin01BudgetCap > 0) {
+    result.fin01BudgetCap = raw.fin01BudgetCap;
+  }
+  if (raw.city === "Dubai" || raw.city === "Abu Dhabi") {
+    result.city = raw.city;
+  }
+  const v5Enums = {
+    developerType: ["Master Developer", "Private/Boutique", "Institutional Investor"],
+    targetDemographic: ["HNWI", "Families", "Young Professionals", "Investors"],
+    salesStrategy: ["Sell Off-Plan", "Sell on Completion", "Build-to-Rent"],
+    competitiveDensity: ["Low", "Moderate", "Saturated"],
+    projectUsp: ["Location/Views", "Amenities/Facilities", "Price/Value", "Design/Architecture"],
+    targetYield: ["< 5%", "5-7%", "7-9%", "> 9%"],
+    procurementStrategy: ["Turnkey", "Traditional", "Construction Management"],
+    materialSourcing: ["Local", "European", "Asian", "Global Mix"],
+    handoverCondition: ["Shell & Core", "Category A", "Category B", "Fully Furnished"],
+    brandedStatus: ["Unbranded", "Hospitality Branded", "Fashion/Automotive Branded"]
+  };
+  for (const [field, validValues] of Object.entries(v5Enums)) {
+    if (raw[field] && validValues.includes(raw[field])) {
+      result[field] = raw[field];
+    }
+  }
+  return result;
+}
+function validatedRecord(raw) {
+  if (!raw || typeof raw !== "object") return {};
+  const result = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === "string") {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+async function suggestSectionFields(section, currentFormState) {
+  const fields = SECTION_FIELDS[section];
+  if (!fields) {
+    return { suggestions: [], sectionSummary: "Unknown section." };
+  }
+  const knownValues = {};
+  for (const [key, value] of Object.entries(currentFormState)) {
+    if (value !== null && value !== void 0 && value !== "" && value !== 0) {
+      knownValues[key] = value;
+    }
+  }
+  const sectionLabel = section.charAt(0).toUpperCase() + section.slice(1);
+  const prompt = `You are MIYAR's AI form assistant for UAE luxury real estate projects.
+
+The user is filling out the "${sectionLabel}" section of a project intake form.
+
+## Current Project State (already filled)
+${JSON.stringify(knownValues, null, 2)}
+
+## Fields to Suggest Values For
+Only suggest values for these fields: ${JSON.stringify(fields)}
+
+## Field Definitions
+- ctx01Typology: "Residential" | "Mixed-use" | "Hospitality" | "Office" | "Villa" | "Gated Community" | "Villa Development"
+- ctx02Scale: "Small" | "Medium" | "Large"
+- ctx03Gfa: number (gross floor area in sqm)
+- ctx04Location: "Prime" | "Secondary" | "Emerging"
+- ctx05Horizon: "0-12m" | "12-24m" | "24-36m" | "36m+"
+- city: "Dubai" | "Abu Dhabi"
+- projectPurpose: "sell_offplan" | "sell_ready" | "rent" | "mixed"
+- sustainCertTarget: "none" | "silver" | "gold" | "platinum"
+- str01BrandClarity: 1-5
+- str02Differentiation: 1-5
+- str03BuyerMaturity: 1-5
+- mkt01Tier: "Mid" | "Upper-mid" | "Luxury" | "Ultra-luxury"
+- mkt02Competitor: 1-5
+- mkt03Trend: 1-5
+- fin01BudgetCap: number (AED)
+- fin02Flexibility: 1-5
+- fin03ShockTolerance: 1-5
+- fin04SalesPremium: 1-5
+- des01Style: "Modern" | "Contemporary" | "Minimal" | "Classic" | "Fusion" | "Other"
+- des02MaterialLevel: 1-5
+- des03Complexity: 1-5
+- des04Experience: 1-5
+- des05Sustainability: 1-5
+- exe01SupplyChain: 1-5
+- exe02Contractor: 1-5
+- exe03Approvals: 1-5
+- exe04QaMaturity: 1-5
+- developerType: "Master Developer" | "Private/Boutique" | "Institutional Investor"
+- targetDemographic: "HNWI" | "Families" | "Young Professionals" | "Investors"
+- salesStrategy: "Sell Off-Plan" | "Sell on Completion" | "Build-to-Rent"
+- competitiveDensity: "Low" | "Moderate" | "Saturated"
+- projectUsp: "Location/Views" | "Amenities/Facilities" | "Price/Value" | "Design/Architecture"
+- targetYield: "< 5%" | "5-7%" | "7-9%" | "> 9%"
+- procurementStrategy: "Turnkey" | "Traditional" | "Construction Management"
+- materialSourcing: "Local" | "European" | "Asian" | "Global Mix"
+- handoverCondition: "Shell & Core" | "Category A" | "Category B" | "Fully Furnished"
+- brandedStatus: "Unbranded" | "Hospitality Branded" | "Fashion/Automotive Branded"
+- salesChannel: "Local Brokerage" | "International Roadshows" | "Direct to VIP"
+- lifecycleFocus: "Short-term Resale" | "Medium-term Hold" | "Long-term Retention"
+- brandStandardConstraints: "High Flexibility" | "Moderate Guidelines" | "Strict Vendor List"
+- amenityFocus: string (freeform)
+- techIntegration: string (freeform)
+- targetValueAdd: string (freeform)
+- timelineFlexibility: string (freeform)
+
+## Rules
+- Only suggest fields that DON'T already have meaningful values in the Current Project State
+- Base suggestions on UAE Dubai market context
+- Consider the relationships between fields (e.g., Luxury tier implies higher material level, more HNWI, etc.)
+- For ordinal 1-5 fields, always return an integer
+
+Return a JSON object with:
+1. "suggestions": array of { "field": string, "value": any, "confidence": "high"|"medium"|"low", "reasoning": string (under 25 words) }
+2. "sectionSummary": string (one sentence summarizing your assessment for this section)`;
+  const messages = [
+    { role: "user", content: prompt }
+  ];
+  const SECTION_OUTPUT_SCHEMA = {
+    name: "section_suggestion",
+    schema: {
+      type: "object",
+      properties: {
+        suggestions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              field: { type: "string" },
+              value: {},
+              confidence: { type: "string", enum: ["high", "medium", "low"] },
+              reasoning: { type: "string" }
+            },
+            required: ["field", "value", "confidence", "reasoning"]
+          }
+        },
+        sectionSummary: { type: "string" }
+      },
+      required: ["suggestions", "sectionSummary"]
+    }
+  };
+  try {
+    const response = await invokeLLM({
+      messages,
+      outputSchema: SECTION_OUTPUT_SCHEMA,
+      maxTokens: 4096
+    });
+    const rawText = response.choices[0]?.message?.content;
+    if (!rawText || typeof rawText !== "string") {
+      return { suggestions: [], sectionSummary: "AI did not return a valid response." };
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        return { suggestions: [], sectionSummary: "Failed to parse AI response." };
+      }
+    }
+    const validSuggestions = [];
+    if (Array.isArray(parsed.suggestions)) {
+      for (const s of parsed.suggestions) {
+        if (fields.includes(s.field) && s.value !== null && s.value !== void 0) {
+          validSuggestions.push({
+            field: s.field,
+            value: s.value,
+            confidence: ["high", "medium", "low"].includes(s.confidence) ? s.confidence : "low",
+            reasoning: String(s.reasoning || "")
+          });
+        }
+      }
+    }
+    return {
+      suggestions: validSuggestions,
+      sectionSummary: parsed.sectionSummary || ""
+    };
+  } catch (err) {
+    console.error("[AI Section Assist] Error:", err.message);
+    return { suggestions: [], sectionSummary: `Error: ${err.message}` };
+  }
+}
+var SYSTEM_PROMPT, INTAKE_OUTPUT_SCHEMA, MIME_TO_FILE_TYPE, VALID_TYPOLOGIES, VALID_SCALES, VALID_LOCATIONS, VALID_HORIZONS, VALID_TIERS, VALID_STYLES, SECTION_FIELDS;
+var init_ai_intake_engine = __esm({
+  "server/engines/intake/ai-intake-engine.ts"() {
+    "use strict";
+    init_llm();
+    init_floor_plan_analyzer();
+    SYSTEM_PROMPT = `You are MIYAR's AI Intake Engine \u2014 a specialized assistant for UAE luxury real estate and interior design projects.
+
+Your task: Analyze uploaded assets (images, PDFs, voice recordings, URLs, text descriptions) and extract structured project parameters for a design intelligence evaluation.
+
+## Output Structure
+You MUST return a JSON object with these fields:
+
+### suggestedInputs (Partial<ProjectInputs>)
+Only include fields where you have evidence. Use these exact field names:
+- ctx01Typology: "residential_multi" | "residential_single" | "hospitality" | "office" | "mixed_use" | "retail" | "community"
+- ctx02Scale: "small" | "medium" | "large" | "mega"
+- ctx03Gfa: number (gross floor area in sqm)
+- totalFitoutArea: number (sqm)
+- ctx04Location: "prime" | "secondary" | "emerging" | "suburban"
+- ctx05Horizon: "12_months" | "18_months" | "24_plus"
+- city: "Dubai" | "Abu Dhabi"
+- sustainCertTarget: "None" | "Estidama 1 Pearl" | "Estidama 2 Pearl" | "LEED Silver" | "LEED Gold" | "LEED Platinum" | "BREEAM Good" | "BREEAM Excellent"
+- str01BrandClarity: 1-5 (brand clarity)
+- str02Differentiation: 1-5 (differentiation intent)
+- str03BuyerMaturity: 1-5 (buyer sophistication)
+- mkt01Tier: "Mid" | "Upper-mid" | "Luxury" | "Ultra-luxury"
+- mkt02Competitor: 1-5 (competitive pressure)
+- mkt03Trend: 1-5 (trend alignment)
+- fin01BudgetCap: number (AED)
+- fin02Flexibility: 1-5
+- fin03ShockTolerance: 1-5
+- fin04SalesPremium: 1-5
+- des01Style: "Modern" | "Contemporary" | "Minimal" | "Classic" | "Fusion" | "Other"
+- des02MaterialLevel: 1-5
+- des03Complexity: 1-5
+- des04Experience: 1-5
+- des05Sustainability: 1-5
+- developerType: "Master Developer" | "Private/Boutique" | "Institutional Investor"
+- targetDemographic: "HNWI" | "Families" | "Young Professionals" | "Investors"
+- salesStrategy: "Sell Off-Plan" | "Sell on Completion" | "Build-to-Rent"
+- competitiveDensity: "Low" | "Moderate" | "Saturated"
+- projectUsp: "Location/Views" | "Amenities/Facilities" | "Price/Value" | "Design/Architecture"
+- targetYield: "< 5%" | "5-7%" | "7-9%" | "> 9%"
+- procurementStrategy: "Turnkey" | "Traditional" | "Construction Management"
+- materialSourcing: "Local" | "European" | "Asian" | "Global Mix"
+- handoverCondition: "Shell & Core" | "Category A" | "Category B" | "Fully Furnished"
+- brandedStatus: "Unbranded" | "Hospitality Branded" | "Fashion/Automotive Branded"
+
+### confidence
+For each field in suggestedInputs, rate your confidence:
+- "high": Clear evidence from assets (text mentions, visible in images, stated in audio)
+- "medium": Reasonable inference from context
+- "low": Best guess based on limited evidence
+
+### reasoning
+For each field, explain WHY you set this value. Keep it under 30 words per field.
+
+### extractedInsights
+- detectedStyle: The interior design style detected (e.g., "Japandi", "Art Deco", "Biophilic")
+- detectedMaterials: Array of material types spotted (e.g., ["marble", "brushed brass", "teak"])
+- detectedBrands: Array of brand names mentioned
+- detectedTier: The luxury tier detected
+- detectedTypology: The project type
+- detectedLocation: The location if mentioned
+- detectedScale: The project scale
+- projectDescription: A 1-2 sentence summary of what this project appears to be
+
+### warnings
+Array of any issues or missing information noticed.
+
+## Context
+- Default city: Dubai. Default currency: AED.
+- UAE market context: use Dubai/UAE assumptions for all unknowns.
+- If a mood board shows high-end finishes (marble, brass, exotic woods), infer Luxury or Ultra-luxury.
+- If budget numbers are mentioned, always interpret in AED unless explicitly stated otherwise.
+- For floor plans, extract room counts and estimate areas.
+`;
+    INTAKE_OUTPUT_SCHEMA = {
+      name: "intake_result",
+      schema: {
+        type: "object",
+        properties: {
+          suggestedInputs: {
+            type: "object",
+            description: "Partial ProjectInputs \u2014 only include fields with evidence"
+          },
+          confidence: {
+            type: "object",
+            description: "Confidence level per field: high, medium, or low"
+          },
+          reasoning: {
+            type: "object",
+            description: "Brief explanation per field (under 30 words each)"
+          },
+          extractedInsights: {
+            type: "object",
+            properties: {
+              detectedStyle: { type: "string" },
+              detectedMaterials: { type: "array", items: { type: "string" } },
+              detectedBrands: { type: "array", items: { type: "string" } },
+              detectedTier: { type: "string" },
+              detectedTypology: { type: "string" },
+              detectedLocation: { type: "string" },
+              detectedScale: { type: "string" },
+              projectDescription: { type: "string" }
+            }
+          },
+          warnings: {
+            type: "array",
+            items: { type: "string" }
+          }
+        },
+        required: ["suggestedInputs", "confidence", "reasoning", "extractedInsights", "warnings"]
+      }
+    };
+    MIME_TO_FILE_TYPE = {
+      "audio/mpeg": "audio/mpeg",
+      "audio/mp3": "audio/mpeg",
+      "audio/wav": "audio/wav",
+      "audio/mp4": "audio/mp4",
+      "audio/m4a": "audio/mp4",
+      "application/pdf": "application/pdf",
+      "video/mp4": "video/mp4"
+    };
+    VALID_TYPOLOGIES = [
+      "residential_multi",
+      "residential_single",
+      "hospitality",
+      "office",
+      "mixed_use",
+      "retail",
+      "community"
+    ];
+    VALID_SCALES = ["small", "medium", "large", "mega"];
+    VALID_LOCATIONS = ["prime", "secondary", "emerging", "suburban"];
+    VALID_HORIZONS = ["12_months", "18_months", "24_plus"];
+    VALID_TIERS = ["Mid", "Upper-mid", "Luxury", "Ultra-luxury"];
+    VALID_STYLES = ["Modern", "Contemporary", "Minimal", "Classic", "Fusion", "Other"];
+    SECTION_FIELDS = {
+      context: [
+        "ctx01Typology",
+        "ctx02Scale",
+        "ctx03Gfa",
+        "ctx04Location",
+        "ctx05Horizon",
+        "city",
+        "projectPurpose",
+        "sustainCertTarget"
+      ],
+      strategy: [
+        "str01BrandClarity",
+        "str02Differentiation",
+        "str03BuyerMaturity",
+        "targetDemographic",
+        "salesStrategy",
+        "brandedStatus",
+        "salesChannel",
+        "lifecycleFocus",
+        "brandStandardConstraints",
+        "developerType"
+      ],
+      market: [
+        "mkt01Tier",
+        "mkt02Competitor",
+        "mkt03Trend",
+        "competitiveDensity",
+        "projectUsp",
+        "targetYield"
+      ],
+      financial: [
+        "fin01BudgetCap",
+        "fin02Flexibility",
+        "fin03ShockTolerance",
+        "fin04SalesPremium",
+        "procurementStrategy",
+        "targetValueAdd",
+        "timelineFlexibility"
+      ],
+      design: [
+        "des01Style",
+        "des02MaterialLevel",
+        "des03Complexity",
+        "des04Experience",
+        "des05Sustainability",
+        "materialSourcing",
+        "handoverCondition",
+        "amenityFocus",
+        "techIntegration"
+      ],
+      execution: [
+        "exe01SupplyChain",
+        "exe02Contractor",
+        "exe03Approvals",
+        "exe04QaMaturity"
+      ]
     };
   }
 });
@@ -7400,6 +10484,9 @@ init_area_utils();
 function normalizeOrdinal(value) {
   return Math.max(0, Math.min(1, (value - 1) / 4));
 }
+function normalizeBounded(value, min, max) {
+  return Math.max(0, Math.min(1, (value - min) / (max - min)));
+}
 function deriveScaleBand(gfa, totalFitoutArea) {
   const area = totalFitoutArea ?? gfa;
   if (!area || area < 500) return "Small";
@@ -7486,12 +10573,20 @@ function normalizeInputs(inputs, expectedCost) {
   const exe02_n = normalizeOrdinal(inputs.exe02Contractor);
   const exe03_n = normalizeOrdinal(inputs.exe03Approvals);
   const exe04_n = normalizeOrdinal(inputs.exe04QaMaturity);
-  const executionResilience = (exe02_n + exe04_n) / 2;
+  let executionResilience = (exe02_n + exe04_n) / 2;
   const differentiationPressure = (mkt02_n + str02_n) / 2;
-  const budgetFit = computeBudgetFit(inputs.fin01BudgetCap, expectedCost);
+  let finalExpectedCost = expectedCost;
+  if (inputs.boardMaterialsCost && inputs.boardMaterialsCost > 0) {
+    const area = inputs.totalFitoutArea || inputs.ctx03Gfa || 1;
+    finalExpectedCost = inputs.boardMaterialsCost / area;
+  }
+  if (inputs.boardMaintenanceVariance) {
+    const variancePenalty = Math.max(0, Math.min(0.2, inputs.boardMaintenanceVariance / 100));
+    executionResilience = Math.max(0, executionResilience - variancePenalty);
+  }
   const costVolatility = (1 - exe01_n) * 0.5 + (1 - fin03_n) * 0.5;
   const sustainCertMultiplier = getCertMultiplier(inputs.sustainCertTarget || "silver");
-  const adjustedExpectedCost = expectedCost * sustainCertMultiplier;
+  const adjustedExpectedCost = finalExpectedCost * sustainCertMultiplier;
   return {
     str01_n,
     str02_n,
@@ -7520,31 +10615,52 @@ function normalizeInputs(inputs, expectedCost) {
     compatVisionDesign: computeCompatVisionDesign(inputs.str02Differentiation, inputs.des01Style),
     costVolatility,
     sustainCertMultiplier,
-    fitoutRatio: computeFitoutRatio(inputs.totalFitoutArea, inputs.ctx03Gfa)
+    fitoutRatio: computeFitoutRatio(inputs.totalFitoutArea, inputs.ctx03Gfa),
+    procurementRiskMultiplier: inputs.procurementStrategy === "Turnkey" ? 1.05 : inputs.procurementStrategy === "Construction Management" ? 0.95 : 1,
+    materialSourcingRiskMultiplier: inputs.materialSourcing === "Local" ? 1.05 : inputs.materialSourcing === "Global Mix" || inputs.materialSourcing === "Asian" ? 0.95 : inputs.materialSourcing === "European" ? 0.98 : 1,
+    handoverRiskMultiplier: inputs.handoverCondition === "Shell & Core" ? 1.15 : inputs.handoverCondition === "Category A" ? 1.05 : inputs.handoverCondition === "Fully Furnished" ? 0.85 : 1,
+    brandedPremiumMultiplier: inputs.brandedStatus === "Fashion/Automotive Branded" ? 1.25 : inputs.brandedStatus === "Hospitality Branded" ? 1.15 : 1,
+    salesVelocityMultiplier: inputs.salesChannel === "Direct to VIP" ? 1.2 : inputs.salesChannel === "International Roadshows" ? 1.1 : 1,
+    lifecycleOpexMultiplier: inputs.lifecycleFocus === "Long-term Retention" ? 1.15 : inputs.lifecycleFocus === "Short-term Resale" ? 0.9 : 1,
+    brandStandardMultiplier: inputs.brandStandardConstraints === "Strict Vendor List" ? 1.25 : inputs.brandStandardConstraints === "High Flexibility" ? 0.9 : 1,
+    timelineRiskMultiplier: inputs.timelineFlexibility === "Fixed / Zero Tolerance" ? 1.3 : inputs.timelineFlexibility === "Highly Flexible" ? 0.85 : 1,
+    targetValueMultiplier: inputs.targetValueAdd === "Brand Flagship / Trophy" ? 1.3 : inputs.targetValueAdd === "Max Capital Appreciation" ? 1.1 : inputs.targetValueAdd === "Max Rental Yield" ? 0.95 : 1,
+    // Phase 9: Space efficiency from floor plan analysis (0-100 → 0-1, default 0.5 = neutral)
+    spaceEfficiency_n: inputs.spaceEfficiencyScore != null ? normalizeBounded(inputs.spaceEfficiencyScore, 0, 100) : 0.5
   };
 }
 
 // server/engines/scoring.ts
 init_area_utils();
 function computeStrategicAlignment(n, w) {
-  const raw = (w.str01 ?? 0.35) * n.str01_n + (w.str03 ?? 0.25) * n.str03_n + (w.compatVisionMarket ?? 0.25) * n.compatVisionMarket + (w.compatVisionDesign ?? 0.15) * n.compatVisionDesign;
+  let raw = (w.str01 ?? 0.35) * n.str01_n + (w.str03 ?? 0.25) * n.str03_n + (w.compatVisionMarket ?? 0.25) * n.compatVisionMarket + (w.compatVisionDesign ?? 0.15) * n.compatVisionDesign;
+  if (n.brandedPremiumMultiplier) raw *= n.brandedPremiumMultiplier;
+  if (n.targetValueMultiplier) raw *= n.targetValueMultiplier;
   return Math.max(0, Math.min(100, raw * 100));
 }
 function computeFinancialFeasibility(n, w) {
-  const raw = (w.budgetFit ?? 0.45) * n.budgetFit + (w.fin02 ?? 0.2) * n.fin02_n + (w.executionResilience ?? 0.2) * n.executionResilience + (w.costStability ?? 0.15) * (1 - n.costVolatility);
+  let raw = (w.budgetFit ?? 0.45) * n.budgetFit + (w.fin02 ?? 0.2) * n.fin02_n + (w.executionResilience ?? 0.2) * n.executionResilience + (w.costStability ?? 0.15) * (1 - n.costVolatility);
+  if (n.salesVelocityMultiplier) raw *= n.salesVelocityMultiplier;
+  if (n.brandStandardMultiplier) raw *= 1 / n.brandStandardMultiplier;
+  if (n.lifecycleOpexMultiplier) raw *= 1 / n.lifecycleOpexMultiplier;
   return Math.max(0, Math.min(100, raw * 100));
 }
 function computeMarketPositioning(n, w) {
-  const raw = (w.marketFit ?? 0.35) * n.marketFit + (w.differentiationPressure ?? 0.25) * n.differentiationPressure + (w.des04 ?? 0.2) * n.des04_n + (w.trendFit ?? 0.2) * n.trendFit;
+  let raw = (w.marketFit ?? 0.35) * n.marketFit + (w.differentiationPressure ?? 0.25) * n.differentiationPressure + (w.des04 ?? 0.2) * n.des04_n + (w.trendFit ?? 0.2) * n.trendFit;
+  if (n.brandedPremiumMultiplier) raw *= n.brandedPremiumMultiplier;
   return Math.max(0, Math.min(100, raw * 100));
 }
 function computeDifferentiationStrength(n, w) {
-  const raw = (w.str02 ?? 0.25) * n.str02_n + (w.competitorInverse ?? 0.2) * (1 - n.mkt02_n) + (w.des04 ?? 0.2) * n.des04_n + (w.des02 ?? 0.2) * n.des02_n + (w.des05 ?? 0.15) * n.des05_n;
+  const raw = (w.str02 ?? 0.2) * n.str02_n + (w.competitorInverse ?? 0.2) * (1 - n.mkt02_n) + (w.des04 ?? 0.15) * n.des04_n + (w.des02 ?? 0.15) * n.des02_n + (w.des05 ?? 0.15) * n.des05_n + (w.spaceEfficiency ?? 0.15) * n.spaceEfficiency_n;
   return Math.max(0, Math.min(100, raw * 100));
 }
 function computeExecutionRisk(n, w) {
   const certRisk = n.sustainCertMultiplier > 1.1 ? (n.sustainCertMultiplier - 1) * 2 : 0;
-  const raw = (w.executionResilience ?? 0.3) * n.executionResilience + (w.supplyChainInverse ?? 0.25) * (1 - n.exe01_n) + (w.complexityInverse ?? 0.2) * (1 - n.des03_n) + (w.approvalsInverse ?? 0.15) * (1 - n.exe03_n) + (w.certRisk ?? 0.1) * certRisk;
+  let raw = (w.executionResilience ?? 0.3) * n.executionResilience + (w.supplyChainInverse ?? 0.25) * (1 - n.exe01_n) + (w.complexityInverse ?? 0.2) * (1 - n.des03_n) + (w.approvalsInverse ?? 0.15) * (1 - n.exe03_n) + (w.certRisk ?? 0.1) * certRisk;
+  if (n.procurementRiskMultiplier) raw *= n.procurementRiskMultiplier;
+  if (n.materialSourcingRiskMultiplier) raw *= n.materialSourcingRiskMultiplier;
+  if (n.handoverRiskMultiplier) raw *= 1 / n.handoverRiskMultiplier;
+  if (n.timelineRiskMultiplier) raw *= 1 / n.timelineRiskMultiplier;
   return Math.max(0, Math.min(100, raw * 100));
 }
 function computePenalties(inputs, n, penaltyConfig) {
@@ -7620,6 +10736,31 @@ function computePenalties(inputs, n, penaltyConfig) {
     });
     riskFlags.push("SUSTAIN_UNDERFUNDED");
   }
+  if (inputs.boardMaterialsCost && inputs.fin01BudgetCap) {
+    const area = inputs.totalFitoutArea || inputs.ctx03Gfa || 1;
+    const totalBudgetCap = inputs.fin01BudgetCap * area;
+    if (inputs.boardMaterialsCost > totalBudgetCap * 1.1) {
+      penalties.push({
+        id: "P7",
+        trigger: "board_budget_breach",
+        effect: -15,
+        // Severe penalty: the actual physical items selected cost more than the cap
+        flag: "BOARD_BUDGET_BREACH",
+        description: "Live material board costs exceed project budget cap by >10%"
+      });
+      riskFlags.push("BOARD_BUDGET_BREACH");
+    }
+  }
+  if (inputs.spaceCriticalCount && inputs.spaceCriticalCount >= 2) {
+    penalties.push({
+      id: "P8",
+      trigger: "space_critical_deviations",
+      effect: penaltyConfig?.P8?.effect ?? -7,
+      flag: "SPACE_CRITICAL",
+      description: `Floor plan has ${inputs.spaceCriticalCount} critical room ratio deviations vs DLD benchmarks`
+    });
+    riskFlags.push("SPACE_CRITICAL");
+  }
   return { penalties, riskFlags };
 }
 function generateConditionalActions(dimensions, riskFlags) {
@@ -7664,6 +10805,20 @@ function generateConditionalActions(dimensions, riskFlags) {
       trigger: "SUSTAIN_UNDERFUNDED",
       recommendation: "Increase budget cap to account for sustainability certification material premium, or lower certification target tier.",
       variables: ["fin01BudgetCap", "sustainCertTarget"]
+    });
+  }
+  if (riskFlags.includes("BOARD_BUDGET_BREACH")) {
+    actions.push({
+      trigger: "BOARD_BUDGET_BREACH",
+      recommendation: "The current material board exceeds the maximum budget. Swap premium vendor items for approved market equivalents or increase Budget Cap.",
+      variables: ["fin01BudgetCap", "brandStandardConstraints"]
+    });
+  }
+  if (riskFlags.includes("SPACE_CRITICAL")) {
+    actions.push({
+      trigger: "SPACE_CRITICAL",
+      recommendation: "Floor plan has critical space allocation deviations. Review room ratios in Space Planner \u2014 undersized rooms correlate with lower sale prices per DLD data.",
+      variables: ["spaceEfficiencyScore"]
     });
   }
   return actions;
@@ -7719,8 +10874,10 @@ function computeVariableContributions(n, varWeights) {
       str02_n: n.str02_n * (varWeights.ds?.str02 ?? 0.25),
       competitorInverse: (1 - n.mkt02_n) * (varWeights.ds?.competitorInverse ?? 0.2),
       des04_n: n.des04_n * (varWeights.ds?.des04 ?? 0.2),
-      des02_n: n.des02_n * (varWeights.ds?.des02 ?? 0.2),
-      des05_n: n.des05_n * (varWeights.ds?.des05 ?? 0.15)
+      des02_n: n.des02_n * (varWeights.ds?.des02 ?? 0.15),
+      des05_n: n.des05_n * (varWeights.ds?.des05 ?? 0.15),
+      spaceEfficiency: n.spaceEfficiency_n * (varWeights.ds?.spaceEfficiency ?? 0.15)
+      // Phase 9
     },
     er: {
       executionResilience: n.executionResilience * (varWeights.er?.executionResilience ?? 0.3),
@@ -7826,7 +10983,9 @@ var PERTURBABLE_FIELDS = [
   { key: "exe02Contractor", step: 1, type: "ordinal" },
   { key: "exe03Approvals", step: 1, type: "ordinal" },
   { key: "exe04QaMaturity", step: 1, type: "ordinal" },
-  { key: "fin01BudgetCap", step: 50, type: "numeric" }
+  { key: "fin01BudgetCap", step: 50, type: "numeric" },
+  { key: "spaceEfficiencyScore", step: 10, type: "numeric" }
+  // Phase 9: floor plan quality
 ];
 function runSensitivityAnalysis(baseInputs, config) {
   const baseResult = evaluate(baseInputs, config);
@@ -7998,13 +11157,26 @@ function htmlHeader(title, subtitle, projectName, watermark) {
   .cover .logo { font-size: 36px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 32px; }
   .cover .confidential { font-size: 10px; color: #999; margin-top: 40px; text-transform: uppercase; letter-spacing: 2px; }
   .cover .watermark { font-size: 8px; color: #ccc; margin-top: 8px; font-family: monospace; }
-  h2 { font-size: 16px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 6px; margin: 24px 0 12px; }
+  h2 { font-size: 16px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 6px; margin: 40px 0 14px; }
   h3 { font-size: 13px; color: #0f3460; margin: 16px 0 8px; }
+  h4 { font-size: 12px; color: #0f3460; margin: 14px 0 6px; }
   p { margin-bottom: 8px; }
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
-  th { background: #0f3460; color: #fff; padding: 8px 10px; text-align: left; font-weight: 600; }
-  td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; }
+  th { background: #0f3460; color: #fff; padding: 10px 16px; text-align: left; font-weight: 600; }
+  td { padding: 10px 16px; border-bottom: 1px solid #e0e0e0; }
   tr:nth-child(even) td { background: #f8f9fa; }
+  .content-wrapper { max-width: 900px; margin: 0 auto; padding: 0 48px; }
+  .brief-list { list-style: disc; padding-left: 24px; margin: 8px 0; }
+  .brief-list li { margin-bottom: 4px; font-size: 10px; line-height: 1.5; }
+  .color-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .color-chip { background: #f4f4f0; border: 1px solid #ddd; border-radius: 20px; padding: 4px 14px; font-size: 11px; color: #333; }
+  .boq-bar { height: 8px; border-radius: 4px; background: #4ecdc4; min-width: 4px; }
+  .boq-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .phase-header { font-size: 12px; font-weight: 700; color: #0f3460; margin: 14px 0 6px; border-left: 3px solid #4ecdc4; padding-left: 10px; }
+  .toc { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px 24px; margin: 24px 0 32px; }
+  .toc-title { font-size: 13px; font-weight: 700; color: #0f3460; margin-bottom: 10px; }
+  .toc a { color: #0f3460; text-decoration: none; font-size: 11px; display: block; padding: 3px 0; }
+  .toc a:hover { color: #4ecdc4; }
   .score-box { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: 700; font-size: 14px; }
   .status-badge { display: inline-block; padding: 6px 16px; border-radius: 4px; font-weight: 700; font-size: 12px; color: #fff; letter-spacing: 1px; }
   .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0; }
@@ -8025,7 +11197,7 @@ function htmlHeader(title, subtitle, projectName, watermark) {
   .roi-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
   .evidence-trace { background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px 12px; margin: 8px 0; font-size: 9px; font-family: monospace; color: #666; }
   .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
-  .section { page-break-inside: avoid; margin-bottom: 20px; }
+  .section { page-break-inside: avoid; margin-bottom: 28px; }
   .repro-meta { background: #f0f4f8; border: 1px solid #d0d7de; border-radius: 6px; padding: 10px 14px; margin: 16px auto; max-width: 400px; font-size: 9px; color: #444; text-align: left; }
   .repro-meta .label { font-weight: 600; color: #0f3460; display: inline-block; min-width: 120px; }
   .citation-ref { font-size: 8px; color: #0f3460; vertical-align: super; font-weight: 600; cursor: help; }
@@ -8051,12 +11223,7 @@ function htmlHeader(title, subtitle, projectName, watermark) {
 `;
 }
 function renderEvidenceReferences(refs) {
-  if (!refs || refs.length === 0) return `
-<div class="section">
-  <h2>Evidence References</h2>
-  <p style="font-size:10px; color:#666;">No evidence records linked to this project at the time of report generation.</p>
-</div>
-`;
+  if (!refs || refs.length === 0) return "";
   const rows = refs.map((r, i) => {
     const gradeColor2 = r.reliabilityGrade === "A" ? "#2e7d32" : r.reliabilityGrade === "B" ? "#f57c00" : "#c62828";
     return `<tr>
@@ -8548,7 +11715,7 @@ function parseMarkdownToHTML(markdown) {
     }
   }
   if (inList) parsedLines.push("</ul>");
-  return `<div class="section markdown-body">${parsedLines.join("\\n")}</div>`;
+  return `<div class="section markdown-body">${parsedLines.join("")}</div>`;
 }
 function generateAutonomousBriefHTML(data) {
   const watermark = generateWatermark(data.projectId, "autonomous_design_brief");
@@ -8558,7 +11725,7 @@ function generateAutonomousBriefHTML(data) {
     contentHtml,
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
     htmlFooter(data.projectId, "autonomous_design_brief", watermark, data.benchmarkVersion, data.logicVersion)
-  ].join("\\n");
+  ].join("");
 }
 function generateValidationSummaryHTML(data) {
   const watermark = generateWatermark(data.projectId, "validation_summary");
@@ -8583,30 +11750,53 @@ function renderDesignBrief(brief) {
   const boq = brief.boqFramework || { coreAllocations: [] };
   const budget = brief.detailedBudget || {};
   const instructions = brief.designerInstructions || { phasedDeliverables: {} };
-  const boqRows = (boq.coreAllocations || []).map((b) => `
+  const colorChips = (narrative.colorPalette || []).map(
+    (c) => `<span class="color-chip">${c}</span>`
+  ).join("");
+  const boqRows = (boq.coreAllocations || []).map((b) => {
+    const pct = b.percentage || 0;
+    return `
     <tr>
       <td>${b.category || "\u2014"}</td>
-      <td style="text-align:center;">${b.percentage || 0}%</td>
+      <td>
+        <div class="boq-bar-wrap">
+          <div class="boq-bar" style="width:${pct}%;"></div>
+          <span>${pct}%</span>
+        </div>
+      </td>
       <td style="text-align:right;">${b.estimatedCostLabel || "\u2014"}</td>
       <td><span style="font-size: 10px; color: #666;">${b.notes || "\u2014"}</span></td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
+  const toc = `
+  <div class="toc">
+    <div class="toc-title">Table of Contents</div>
+    <a href="#sec-narrative">1. Design Narrative & Positioning</a>
+    <a href="#sec-materials">2. Material Specifications</a>
+    <a href="#sec-boq">3. Target BOQ Framework</a>
+    <a href="#sec-budget">4. Detailed Budget Guardrails</a>
+    <a href="#sec-workflow">5. Workflow & Execution Instructions</a>
+    <a href="#sec-deliverables">6. Phased Deliverables</a>
+  </div>`;
   return `
+${toc}
+
 <div class="section">
-  <h2>Design Narrative & Positioning</h2>
+  <h2 id="sec-narrative">Design Narrative &amp; Positioning</h2>
   <p>${narrative.positioningStatement || "\u2014"}</p>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
     <tr><td style="font-weight:bold;">Primary Style</td><td>${narrative.primaryStyle || "\u2014"}</td></tr>
     <tr><td style="font-weight:bold;">Mood Keywords</td><td>${(narrative.moodKeywords || []).join(", ") || "\u2014"}</td></tr>
-    <tr><td style="font-weight:bold;">Color Palette</td><td>${(narrative.colorPalette || []).join(", ") || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Color Palette</td><td><div class="color-chips">${colorChips || "\u2014"}</div></td></tr>
     <tr><td style="font-weight:bold;">Texture Direction</td><td>${narrative.textureDirection || "\u2014"}</td></tr>
     <tr><td style="font-weight:bold;">Lighting Approach</td><td>${narrative.lightingApproach || "\u2014"}</td></tr>
   </table>
 </div>
 
 <div class="section">
-  <h2>Material Specifications</h2>
+  <h2 id="sec-materials">Material Specifications</h2>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
     <tr><td style="font-weight:bold;">Tier Requirement</td><td>${materials.tierRequirement || "\u2014"}</td></tr>
@@ -8615,31 +11805,31 @@ function renderDesignBrief(brief) {
   </table>
   
   <h3>Approved Materials (Primary)</h3>
-  <ul>${(materials.approvedMaterials || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.approvedMaterials || []).map((m) => `<li>${m}</li>`).join("")}</ul>
   
-  <h3>Approved Finishes & Textures</h3>
-  <ul>${(materials.finishesAndTextures || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <h3>Approved Finishes &amp; Textures</h3>
+  <ul class="brief-list">${(materials.finishesAndTextures || []).map((m) => `<li>${m}</li>`).join("")}</ul>
   
   <h3 style="color: #c62828;">Prohibited Materials (Value Engineering Flags)</h3>
-  <ul>${(materials.prohibitedMaterials || []).map((m) => `<li><span style="color: #c62828;">${m}</span></li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.prohibitedMaterials || []).map((m) => `<li><span style="color: #c62828;">${m}</span></li>`).join("")}</ul>
 </div>
 
 <div class="section">
-  <h2>Target BOQ Framework</h2>
+  <h2 id="sec-boq">Target BOQ Framework</h2>
   ${boq.totalEstimatedSqm ? `<p><strong>Total Estimated Project Area:</strong> ${boq.totalEstimatedSqm.toLocaleString()} Sqm</p>` : ""}
   <table>
     <tr>
       <th width="35%">Category</th>
-      <th width="15%" style="text-align:center;">Allocation</th>
+      <th width="20%">Allocation</th>
       <th width="20%" style="text-align:right;">Estimated Budget</th>
-      <th width="30%">Notes</th>
+      <th width="25%">Notes</th>
     </tr>
     ${boqRows || "<tr><td colspan='4'>No allocations available.</td></tr>"}
   </table>
 </div>
 
 <div class="section">
-  <h2>Detailed Budget Guardrails</h2>
+  <h2 id="sec-budget">Detailed Budget Guardrails</h2>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
     <tr><td style="font-weight:bold;">Cost Per Sqm Target</td><td>${budget.costPerSqmTarget || "\u2014"}</td></tr>
@@ -8650,35 +11840,33 @@ function renderDesignBrief(brief) {
   </table>
   
   <h3>Value Engineering Directives</h3>
-  <ul>${(budget.valueEngineeringMandates || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(budget.valueEngineeringMandates || []).map((m) => `<li>${m}</li>`).join("")}</ul>
 </div>
 
 <div class="section">
-  <h2>Workflow & Execution Instructions</h2>
+  <h2 id="sec-workflow">Workflow &amp; Execution Instructions</h2>
   <p><strong>Lead Time Window:</strong> ${(instructions.procurementAndLogistics || {}).leadTimeWindow || "\u2014"}</p>
   
   <h3>Critical Path Procurement Items</h3>
-  <ul>${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m) => `<li>${m}</li>`).join("")}</ul>
   
   <h3>Local Authority Approvals (Dubai)</h3>
-  <ul>${(instructions.authorityApprovals || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.authorityApprovals || []).map((m) => `<li>${m}</li>`).join("")}</ul>
   
   <h3>Contractor Coordination Requirements</h3>
-  <ul>${(instructions.coordinationRequirements || []).map((m) => `<li>${m}</li>`).join("")}</ul>
-  
-  <h3>Phased Deliverables</h3>
-  <div class="info-box">
-    <strong>Phase 1 \u2014 Concept & Schematic:</strong>
-    <ul>${(instructions.phasedDeliverables.conceptDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
-  </div>
-  <div class="info-box">
-    <strong>Phase 2 \u2014 Detailed Design:</strong>
-    <ul>${(instructions.phasedDeliverables.schematicDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
-  </div>
-  <div class="info-box">
-    <strong>Phase 3 \u2014 IFC & Tender:</strong>
-    <ul>${(instructions.phasedDeliverables.detailedDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
-  </div>
+  <ul class="brief-list">${(instructions.coordinationRequirements || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+</div>
+
+<div class="section">
+  <h2 id="sec-deliverables">Phased Deliverables</h2>
+  <h4 class="phase-header">Phase 1 \u2014 Concept &amp; Schematic</h4>
+  <ul class="brief-list">${(instructions.phasedDeliverables.conceptDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+
+  <h4 class="phase-header">Phase 2 \u2014 Detailed Design</h4>
+  <ul class="brief-list">${(instructions.phasedDeliverables.schematicDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+
+  <h4 class="phase-header">Phase 3 \u2014 IFC &amp; Tender</h4>
+  <ul class="brief-list">${(instructions.phasedDeliverables.detailedDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
 </div>
 `;
 }
@@ -8686,11 +11874,14 @@ function generateDesignBriefHTML(data) {
   const watermark = generateWatermark(data.projectId, "design_brief");
   return [
     htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, watermark),
+    `<div class="content-wrapper">`,
     renderDesignBrief(data.designBrief),
+    renderBoardAnnex(data.boardSummaries),
     renderEvidenceReferences(data.evidenceRefs),
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
+    `</div>`,
     htmlFooter(data.projectId, "design_brief", watermark, data.benchmarkVersion, data.logicVersion)
-  ].join("\\n");
+  ].join("");
 }
 function generateFullReportHTML(data) {
   const watermark = generateWatermark(data.projectId, "full_report");
@@ -9099,7 +12290,7 @@ var TIER_PREMIUM_PCT = {
   "Luxury": 18,
   "Ultra-luxury": 30
 };
-function generateDesignBrief2(project, inputs, scoreResult, livePricing, materialConstants2, areaSalePricePerSqm, projectPurpose) {
+function generateDesignBrief2(project, inputs, scoreResult, livePricing, materialConstants2, areaSalePricePerSqm, projectPurpose, floorPlanAnalysis, spaceBenchmark, mqiData) {
   const style = inputs.des01Style || "Modern";
   const tier = inputs.mkt01Tier || "Upper-mid";
   const mood = STYLE_MOOD_MAP[style] || STYLE_MOOD_MAP.Other;
@@ -9161,6 +12352,12 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
   positioningParts.push(`located in a ${inputs.ctx04Location.toLowerCase()} area of Dubai,`);
   positioningParts.push(`${purposeLabel[purpose] || purposeLabel.sell_ready},`);
   positioningParts.push(`embracing a ${style.toLowerCase()} design language.`);
+  if (inputs.projectUsp) {
+    positioningParts.push(`Its primary Unique Selling Proposition (USP) is anchored in ${inputs.projectUsp.toLowerCase()}.`);
+  }
+  if (inputs.amenityFocus) {
+    positioningParts.push(`The amenity programming prioritizes ${inputs.amenityFocus.toLowerCase()} spaces.`);
+  }
   if (effectiveMaterialTier !== tier) {
     positioningParts.push(`Material specifications adjusted to ${effectiveMaterialTier.toLowerCase()} quality level based on project purpose.`);
   }
@@ -9379,65 +12576,56 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
         importDependencies: importDeps
       }
     },
-    pricingAnalytics
+    pricingAnalytics,
+    // Phase 9: Space allocation section
+    ...floorPlanAnalysis && spaceBenchmark ? {
+      spaceAllocation: {
+        efficiencyScore: spaceBenchmark.overallEfficiencyScore,
+        totalArea: floorPlanAnalysis.totalArea || 0,
+        roomCount: floorPlanAnalysis.rooms?.length || 0,
+        circulationPct: floorPlanAnalysis.circulationPct || 0,
+        rooms: (floorPlanAnalysis.rooms || []).map((r) => ({
+          name: r.name,
+          type: r.type,
+          areaSqm: r.areaSqm,
+          pctOfTotal: r.pctOfTotal || r.areaSqm / (floorPlanAnalysis.totalArea || 1) * 100,
+          finishGrade: r.finishGrade || "standard"
+        })),
+        recommendations: spaceBenchmark.recommendations.map((rec) => ({
+          roomType: rec.roomName,
+          currentPct: rec.currentPercent,
+          benchmarkPct: rec.benchmarkPercent,
+          severity: rec.severity,
+          advice: rec.action || `Adjust ${rec.roomName} from ${rec.currentPercent.toFixed(1)}% to ${rec.benchmarkPercent.toFixed(1)}%`
+        }))
+      }
+    } : {},
+    // Phase C: MQI cost summary
+    ...mqiData ? {
+      mqiSummary: {
+        totalFinishCostMin: mqiData.summary.totalFinishCostMin,
+        totalFinishCostMax: mqiData.summary.totalFinishCostMax,
+        totalFinishCostMid: mqiData.summary.totalFinishCostMid,
+        budgetCapAed: mqiData.summary.budgetCapAed,
+        budgetUtilizationPct: mqiData.summary.budgetUtilizationPct,
+        isOverBudget: mqiData.summary.isOverBudget,
+        overBudgetByAed: mqiData.summary.overBudgetByAed,
+        qualityLabel: mqiData.summary.qualityLabel,
+        roomBreakdown: mqiData.rooms.map((r) => ({
+          roomId: r.roomId,
+          roomName: r.roomName,
+          roomCostMin: r.roomCostMin,
+          roomCostMax: r.roomCostMax
+        })),
+        topMaterials: mqiData.summary.materialBreakdown.slice(0, 5),
+        generatedAt: mqiData.generatedAt
+      }
+    } : {}
   };
 }
 
-// server/storage.ts
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { Buffer as Buffer2 } from "node:buffer";
-import process2 from "node:process";
-function getS3Client() {
-  const region = process2.env.AWS_REGION || "us-east-1";
-  const accessKeyId = process2.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process2.env.AWS_SECRET_ACCESS_KEY;
-  const bucketName = process2.env.AWS_S3_BUCKET;
-  if (!accessKeyId || !secretAccessKey || !bucketName) {
-    if (process2.env.NODE_ENV === "production") {
-      console.warn("Missing AWS S3 credentials");
-    }
-  }
-  const client = new S3Client({
-    region,
-    credentials: accessKeyId && secretAccessKey ? {
-      accessKeyId,
-      secretAccessKey
-    } : void 0
-  });
-  return { client, bucketName };
-}
-function normalizeKey(relKey) {
-  return relKey.replace(/^\/+/, "");
-}
-async function storagePut(relKey, data, contentType = "application/octet-stream") {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
-    const dataUrl = `data:${contentType};base64,${b64}`;
-    return { key, url: dataUrl };
-  }
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-    Body: typeof data === "string" ? Buffer2.from(data, "utf-8") : data,
-    ContentType: contentType
-  });
-  await client.send(command);
-  const getCommand = new GetObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  });
-  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
-  return { key, url };
-}
-
 // server/routers/project.ts
+init_storage();
 import { nanoid } from "nanoid";
 
 // server/engines/roi.ts
@@ -9492,13 +12680,14 @@ function computeRoi(inputs, coefficients) {
   const tenderReduced = Math.max(1, Math.round(baseTenderIterations * scoreNorm * 0.6));
   const tenderHours = tenderReduced * 40;
   const tenderCost = tenderReduced * c.tenderIterationCost;
+  const totalBudget = inputs.budgetCap * inputs.gfa;
   const baseReworkPct = c.reworkCostPct * (1 + riskNorm);
   const reducedReworkPct = baseReworkPct * (1 - scoreNorm * 0.5);
-  const reworkSaving = inputs.budgetCap * (baseReworkPct - reducedReworkPct);
+  const reworkSaving = totalBudget * (baseReworkPct - reducedReworkPct);
   const reworkHours = reworkSaving / c.hourlyRate;
   const baseVariance = c.budgetVarianceMultiplier * (1 + complexityNorm * 0.5);
   const reducedVariance = baseVariance * (1 - confNorm * 0.4);
-  const varianceSaving = inputs.budgetCap * (baseVariance - reducedVariance);
+  const varianceSaving = totalBudget * (baseVariance - reducedVariance);
   const varianceHours = varianceSaving / c.hourlyRate;
   const baseWeeks = horizonWeeks(inputs.horizon);
   const accelerationWeeks = Math.round(c.timeAccelerationWeeks * scoreNorm * tm * 0.5);
@@ -9557,7 +12746,7 @@ function computeRoi(inputs, coefficients) {
         aggressive: Math.round(reworkSaving * c.aggressiveMultiplier)
       },
       assumptions: [
-        `Budget cap: AED ${inputs.budgetCap.toLocaleString()}`,
+        `Total fit-out budget: AED ${totalBudget.toLocaleString()} (${inputs.budgetCap} AED/sqm \xD7 ${inputs.gfa.toLocaleString()} sqm)`,
         `Base rework rate: ${(baseReworkPct * 100).toFixed(1)}%`,
         `MIYAR-validated rate: ${(reducedReworkPct * 100).toFixed(1)}%`
       ]
@@ -9576,7 +12765,7 @@ function computeRoi(inputs, coefficients) {
         aggressive: Math.round(varianceSaving * c.aggressiveMultiplier)
       },
       assumptions: [
-        `Budget cap: AED ${inputs.budgetCap.toLocaleString()}`,
+        `Total fit-out budget: AED ${totalBudget.toLocaleString()}`,
         `Variance reduced by ${((baseVariance - reducedVariance) * 100).toFixed(1)} percentage points`
       ]
     },
@@ -9599,6 +12788,32 @@ function computeRoi(inputs, coefficients) {
       ]
     }
   ];
+  if (inputs.spaceEfficiencyScore !== void 0 && inputs.spaceEfficiencyScore > 0) {
+    const spaceNorm = inputs.spaceEfficiencyScore / 100;
+    const wastePct = Math.max(0, (1 - spaceNorm) * 0.08);
+    const optimizedWastePct = wastePct * 0.4;
+    const spaceSaving = totalBudget * (wastePct - optimizedWastePct);
+    const spaceHours = Math.round(spaceSaving / c.hourlyRate);
+    drivers.push({
+      name: "Space Efficiency Optimization",
+      description: `Floor plan analysis identifies ${((1 - spaceNorm) * 100).toFixed(0)}% potential space waste, reducible through room reallocation`,
+      hoursSaved: {
+        conservative: Math.round(spaceHours * c.conservativeMultiplier),
+        mid: spaceHours,
+        aggressive: Math.round(spaceHours * c.aggressiveMultiplier)
+      },
+      costAvoided: {
+        conservative: Math.round(spaceSaving * c.conservativeMultiplier),
+        mid: Math.round(spaceSaving),
+        aggressive: Math.round(spaceSaving * c.aggressiveMultiplier)
+      },
+      assumptions: [
+        `Space efficiency score: ${inputs.spaceEfficiencyScore}/100`,
+        `Potential waste: ${(wastePct * 100).toFixed(1)}% of budget`,
+        `MIYAR-optimized waste: ${(optimizedWastePct * 100).toFixed(1)}%`
+      ]
+    });
+  }
   const totalHoursMid = drivers.reduce((s, d) => s + d.hoursSaved.mid, 0);
   const totalCostMid = drivers.reduce((s, d) => s + d.costAvoided.mid, 0);
   return {
@@ -9648,9 +12863,43 @@ function overallGradeFromScore(score) {
   return "Not Validated";
 }
 function computeFiveLens(project, scoreMatrix, benchmarks) {
-  const contributions = scoreMatrix.variableContributions || {};
+  const rawContrib = scoreMatrix.variableContributions || {};
   const penalties = scoreMatrix.penalties || [];
   const penaltyNames = penalties.map((p) => p.name || p.type || "Unknown");
+  const CONTRIB_MAP = {
+    // [projectFieldName]: [dimension, scoringKey]
+    mkt01Tier: ["mp", "marketFit"],
+    mkt02Competitor: ["mp", "differentiationPressure"],
+    mkt03Trend: ["mp", "trendFit"],
+    str03BuyerMaturity: ["sa", "str03_n"],
+    fin01BudgetCap: ["ff", "budgetFit"],
+    fin02Flexibility: ["ff", "fin02_n"],
+    fin03ShockTolerance: ["ff", "costStability"],
+    fin04SalesPremium: ["ff", "executionResilience"],
+    str01BrandClarity: ["sa", "str01_n"],
+    str02Differentiation: ["sa", "compatVisionMarket"],
+    des01Style: ["sa", "compatVisionDesign"],
+    exe01SupplyChain: ["er", "supplyChainInverse"],
+    exe02Contractor: ["er", "executionResilience"],
+    exe03Approvals: ["er", "approvalsInverse"],
+    exe04QaMaturity: ["er", "complexityInverse"],
+    des02MaterialLevel: ["ds", "des02_n"],
+    des03Complexity: ["ds", "str02_n"],
+    des04Experience: ["ds", "des04_n"],
+    des05Sustainability: ["ds", "des05_n"],
+    spaceEfficiency: ["ds", "spaceEfficiency"]
+  };
+  function getContribution(fieldName) {
+    const mapping = CONTRIB_MAP[fieldName];
+    if (!mapping) return 0;
+    const [dim, key] = mapping;
+    return Number(rawContrib[dim]?.[key]) || 0;
+  }
+  const contributions = new Proxy({}, {
+    get(_target, prop) {
+      return { contribution: getContribution(prop) };
+    }
+  });
   const mpScore = Number(scoreMatrix.mpScore);
   const marketEvidence = [
     { variable: "mkt01Tier", label: "Market Tier", value: project.mkt01Tier || "Upper-mid", weight: 0.35, contribution: contributions.mkt01Tier?.contribution || 0 },
@@ -9689,6 +12938,16 @@ function computeFiveLens(project, scoreMatrix, benchmarks) {
     { variable: "des04Experience", label: "Experience Quality", value: project.des04Experience || 3, weight: 0.3, contribution: contributions.des04Experience?.contribution || 0 },
     { variable: "des05Sustainability", label: "Sustainability", value: project.des05Sustainability || 2, weight: 0.25, contribution: contributions.des05Sustainability?.contribution || 0 }
   ];
+  if (project.spaceEfficiencyScore) {
+    brandEvidence.push({
+      variable: "spaceEfficiency",
+      label: "Floor Plan Efficiency",
+      value: Number(project.spaceEfficiencyScore),
+      weight: 0.15,
+      contribution: contributions.spaceEfficiency?.contribution || 0,
+      benchmarkRef: "DLD area benchmark comparison"
+    });
+  }
   const lenses = [
     {
       lensId: 1,
@@ -10309,6 +13568,32 @@ function checkSpecInflation(input) {
     }
   };
 }
+function checkSpaceOptimization(input) {
+  if (!input.spaceAnalysis) return null;
+  const { efficiencyScore, criticalCount, advisoryCount, circulationWastePercent, recommendations } = input.spaceAnalysis;
+  if (efficiencyScore >= 75 && criticalCount === 0) return null;
+  const severity2 = criticalCount >= 2 ? "critical" : criticalCount >= 1 || efficiencyScore < 50 ? "warning" : "info";
+  const topRecs = recommendations.filter((r) => r.severity === "critical").slice(0, 3);
+  const roomNames = topRecs.map((r) => r.roomName).join(", ");
+  return {
+    type: "space_optimization",
+    severity: severity2,
+    title: `Space optimization: efficiency score ${efficiencyScore}/100 with ${criticalCount} critical room deviations`,
+    body: null,
+    actionableRecommendation: null,
+    confidenceScore: 0.85,
+    // floor plan analysis is high-confidence
+    triggerCondition: `Space efficiency <75 OR critical room count >= 1`,
+    dataPoints: {
+      efficiencyScore,
+      criticalCount,
+      advisoryCount,
+      circulationWastePercent,
+      flaggedRooms: roomNames,
+      topRecommendations: topRecs
+    }
+  };
+}
 async function enrichWithLLM(insight) {
   const prompt = `You are a UAE real estate analytics advisor. Generate a brief insight body and actionable recommendation.
 
@@ -10374,7 +13659,8 @@ async function generateInsights(input, options = {}) {
     checkPositioningGap(input),
     checkStyleShift(input),
     checkBrandDominance(input),
-    checkSpecInflation(input)
+    checkSpecInflation(input),
+    checkSpaceOptimization(input)
   ];
   const insights = checks.filter((i) => i !== null);
   if (shouldEnrich) {
@@ -10578,10 +13864,10 @@ async function evaluateAlerts(params) {
         // We'll fetch active of this type and filter by JS equality
       )
     );
-    const isDuplicate2 = existing.some(
+    const isDuplicate = existing.some(
       (e) => JSON.stringify(e.affectedProjectIds) === JSON.stringify(alert.affectedProjectIds)
     );
-    if (!isDuplicate2) {
+    if (!isDuplicate) {
       const [result] = await db.insert(platformAlerts).values(alert);
       const inserted = { ...alert, id: result.insertId };
       insertedAlerts.push(inserted);
@@ -10742,6 +14028,24 @@ var projectInputSchema = z3.object({
   add01SampleKit: z3.boolean().default(false),
   add02PortfolioMode: z3.boolean().default(false),
   add03DashboardExport: z3.boolean().default(true),
+  // V5: Concrete Analytics Inputs
+  developerType: z3.enum(["Master Developer", "Private/Boutique", "Institutional Investor"]).optional(),
+  targetDemographic: z3.enum(["HNWI", "Families", "Young Professionals", "Investors"]).optional(),
+  salesStrategy: z3.enum(["Sell Off-Plan", "Sell on Completion", "Build-to-Rent"]).optional(),
+  competitiveDensity: z3.enum(["Low", "Moderate", "Saturated"]).optional(),
+  projectUsp: z3.enum(["Location/Views", "Amenities/Facilities", "Price/Value", "Design/Architecture"]).optional(),
+  targetYield: z3.enum(["< 5%", "5-7%", "7-9%", "> 9%"]).optional(),
+  procurementStrategy: z3.enum(["Turnkey", "Traditional", "Construction Management"]).optional(),
+  amenityFocus: z3.enum(["Wellness/Spa", "F&B/Social", "Minimal/Essential", "Business/Co-working"]).optional(),
+  techIntegration: z3.enum(["Basic", "Smart Home Ready", "Fully Integrated"]).optional(),
+  materialSourcing: z3.enum(["Local", "European", "Asian", "Global Mix"]).optional(),
+  handoverCondition: z3.enum(["Shell & Core", "Category A", "Category B", "Fully Furnished"]).optional(),
+  brandedStatus: z3.enum(["Unbranded", "Hospitality Branded", "Fashion/Automotive Branded"]).optional(),
+  salesChannel: z3.enum(["Local Brokerage", "International Roadshows", "Direct to VIP"]).optional(),
+  lifecycleFocus: z3.enum(["Short-term Resale", "Medium-term Hold", "Long-term Retention"]).optional(),
+  brandStandardConstraints: z3.enum(["High Flexibility", "Moderate Guidelines", "Strict Vendor List"]).optional(),
+  timelineFlexibility: z3.enum(["Highly Flexible", "Moderate Contingency", "Fixed / Zero Tolerance"]).optional(),
+  targetValueAdd: z3.enum(["Max Capital Appreciation", "Max Rental Yield", "Balanced Return", "Brand Flagship / Trophy"]).optional(),
   unitMix: z3.array(unitMixItemSchema).optional(),
   villaSpaces: z3.array(villaSpaceSchema).optional(),
   developerGuidelines: z3.any().optional(),
@@ -10783,8 +14087,29 @@ function projectToInputs(p) {
     add01SampleKit: p.add01SampleKit ?? false,
     add02PortfolioMode: p.add02PortfolioMode ?? false,
     add03DashboardExport: p.add03DashboardExport ?? true,
+    // V5 Concrete Analytics
+    developerType: p.developerType,
+    targetDemographic: p.targetDemographic,
+    salesStrategy: p.salesStrategy,
+    competitiveDensity: p.competitiveDensity,
+    projectUsp: p.projectUsp,
+    targetYield: p.targetYield,
+    procurementStrategy: p.procurementStrategy,
+    amenityFocus: p.amenityFocus,
+    techIntegration: p.techIntegration,
+    materialSourcing: p.materialSourcing,
+    handoverCondition: p.handoverCondition,
+    brandedStatus: p.brandedStatus,
+    salesChannel: p.salesChannel,
+    lifecycleFocus: p.lifecycleFocus,
+    brandStandardConstraints: p.brandStandardConstraints,
+    timelineFlexibility: p.timelineFlexibility,
+    targetValueAdd: p.targetValueAdd,
     city: p.city ?? "Dubai",
-    sustainCertTarget: p.sustainCertTarget || "silver"
+    sustainCertTarget: p.sustainCertTarget || "silver",
+    // Phase 9: Will be populated during evaluation if floor plan analyzed
+    spaceEfficiencyScore: void 0,
+    spaceCriticalCount: void 0
   };
 }
 var projectRouter = router({
@@ -10897,11 +14222,86 @@ var projectRouter = router({
         console.log(`[Evaluate] Using DLD fitout benchmark: ${expectedCost} AED/sqm for area ${project.dldAreaName || project.dldAreaId}`);
       }
     }
+    const boards = await getMaterialBoardsByProject(input.id);
+    if (boards && boards.length > 0) {
+      const activeBoard = boards[0];
+      const boardMaterials = await getMaterialsByBoard(activeBoard.id);
+      let totalLow = 0;
+      let totalHigh = 0;
+      let totalVariance = 0;
+      for (const bm of boardMaterials) {
+        const mat = await getMaterialById(bm.materialId);
+        if (mat) {
+          const qty = Number(bm.quantity) || 1;
+          totalLow += (Number(mat.typicalCostLow) || 0) * qty;
+          totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
+          const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+          totalVariance += (matMaint - 0.05) * 100;
+        }
+      }
+      if (totalHigh > 0) {
+        inputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+        inputs.boardMaintenanceVariance = totalVariance;
+        console.log(`[Evaluate] Using vendor cost override: ${inputs.boardMaterialsCost} AED for project ${input.id}`);
+      }
+    }
     const benchmarks = await getBenchmarks(
       inputs.ctx01Typology,
       inputs.ctx04Location,
       inputs.mkt01Tier
     );
+    if (project.floorPlanAnalysis) {
+      try {
+        const { benchmarkSpaceRatios: benchmarkSpaceRatios2 } = await Promise.resolve().then(() => (init_space_benchmarking(), space_benchmarking_exports));
+        const analysis = typeof project.floorPlanAnalysis === "string" ? JSON.parse(project.floorPlanAnalysis) : project.floorPlanAnalysis;
+        let areaNameForBench = project.dldAreaName || inputs.ctx04Location || "Dubai";
+        let transCount = 0;
+        let saleP50 = null;
+        if (project.dldAreaId) {
+          const dldBench = await getDldAreaBenchmark(project.dldAreaId);
+          if (dldBench) {
+            areaNameForBench = dldBench.areaName || areaNameForBench;
+            transCount = dldBench.transactionCount ? Number(dldBench.transactionCount) : 0;
+            saleP50 = dldBench.saleP50 ? Number(dldBench.saleP50) : null;
+          }
+        }
+        const spaceResult = benchmarkSpaceRatios2(
+          analysis,
+          areaNameForBench,
+          transCount,
+          saleP50
+        );
+        inputs.spaceEfficiencyScore = spaceResult.overallEfficiencyScore;
+        inputs.spaceCriticalCount = spaceResult.totalCritical;
+        console.log(`[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`);
+        if (spaceResult.totalCritical >= 2) {
+          try {
+            const { getDb: getDbFn } = await Promise.resolve().then(() => (init_db(), db_exports));
+            const { platformAlerts: platformAlertsTable } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+            const alertDb = await getDbFn();
+            if (alertDb) {
+              const criticalRooms = spaceResult.recommendations.filter((r) => r.severity === "critical").map((r) => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`).join(", ");
+              await alertDb.insert(platformAlertsTable).values({
+                alertType: "space_critical",
+                severity: "high",
+                title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
+                body: `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside DLD benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
+                affectedProjectIds: [input.id],
+                affectedCategories: ["space_planning", "floor_plan"],
+                triggerData: { spaceResult },
+                suggestedAction: "Review floor plan allocations in Space Planner. Critical room ratios are correlated with lower sale prices in this area.",
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
+              });
+              console.log(`[Phase9] Space-critical alert created for project ${input.id}`);
+            }
+          } catch (alertErr) {
+            console.warn("[Phase9] Space alert creation failed (non-blocking):", alertErr);
+          }
+        }
+      } catch (e) {
+        console.warn("[Evaluate] Space benchmarking failed (non-blocking):", e);
+      }
+    }
     const evidenceRecords2 = await listEvidenceRecords({ projectId: input.id, limit: 500 });
     const budgetFitMethod = evidenceRecords2.length >= 20 ? "evidence_backed" : "benchmark_static";
     const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
@@ -11134,7 +14534,8 @@ var projectRouter = router({
       complexity: project.des03Complexity || 3,
       materialLevel: project.des02MaterialLevel || 3,
       tier: project.mkt01Tier || "Upper-mid",
-      horizon: project.ctx05Horizon || "12-24m"
+      horizon: project.ctx05Horizon || "12-24m",
+      spaceEfficiencyScore: project.spaceEfficiencyScore || void 0
     };
     const roiResult = computeRoi(roiInputs, coefficients);
     let dldContext = null;
@@ -11185,6 +14586,28 @@ var projectRouter = router({
     const scenarioInputs2 = { ...baseInputs, ...template.overrides };
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) throw new Error("No active model version");
+    const boards = await getMaterialBoardsByProject(input.projectId);
+    if (boards && boards.length > 0) {
+      const activeBoard = boards[0];
+      const boardMaterials = await getMaterialsByBoard(activeBoard.id);
+      let totalLow = 0;
+      let totalHigh = 0;
+      let totalVariance = 0;
+      for (const bm of boardMaterials) {
+        const mat = await getMaterialById(bm.materialId);
+        if (mat) {
+          const qty = Number(bm.quantity) || 1;
+          totalLow += (Number(mat.typicalCostLow) || 0) * qty;
+          totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
+          const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+          totalVariance += (matMaint - 0.05) * 100;
+        }
+      }
+      if (totalHigh > 0) {
+        scenarioInputs2.boardMaterialsCost = (totalLow + totalHigh) / 2;
+        scenarioInputs2.boardMaintenanceVariance = totalVariance;
+      }
+    }
     const expectedCost = await getExpectedCost(scenarioInputs2.ctx01Typology, scenarioInputs2.ctx04Location, scenarioInputs2.mkt01Tier);
     const benchmarks = await getBenchmarks(scenarioInputs2.ctx01Typology, scenarioInputs2.ctx04Location, scenarioInputs2.mkt01Tier);
     const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
@@ -11233,6 +14656,28 @@ var projectRouter = router({
     const inputs = projectToInputs(project);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) throw new Error("No active model version");
+    const boards = await getMaterialBoardsByProject(input.projectId);
+    if (boards && boards.length > 0) {
+      const activeBoard = boards[0];
+      const boardMaterials = await getMaterialsByBoard(activeBoard.id);
+      let totalLow = 0;
+      let totalHigh = 0;
+      let totalVariance = 0;
+      for (const bm of boardMaterials) {
+        const mat = await getMaterialById(bm.materialId);
+        if (mat) {
+          const qty = Number(bm.quantity) || 1;
+          totalLow += (Number(mat.typicalCostLow) || 0) * qty;
+          totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
+          const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+          totalVariance += (matMaint - 0.05) * 100;
+        }
+      }
+      if (totalHigh > 0) {
+        inputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+        inputs.boardMaintenanceVariance = totalVariance;
+      }
+    }
     const expectedCost = await getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
     const benchmarks = await getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
     const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
@@ -11279,7 +14724,8 @@ var projectRouter = router({
       complexity: project.des03Complexity || 3,
       materialLevel: project.des02MaterialLevel || 3,
       tier: project.mkt01Tier || "Upper-mid",
-      horizon: project.ctx05Horizon || "12-24m"
+      horizon: project.ctx05Horizon || "12-24m",
+      spaceEfficiencyScore: project.spaceEfficiencyScore || void 0
     };
     const roiResult = computeRoi(roiInputs, coefficients);
     const roi = input.reportType === "full_report" ? computeROI(inputs, scoreResult.compositeScore, 15e4) : void 0;
@@ -11356,9 +14802,9 @@ var projectRouter = router({
     }
     let boardSummaries = [];
     try {
-      const boards = await getMaterialBoardsByProject(input.projectId);
+      const boards2 = await getMaterialBoardsByProject(input.projectId);
       const { computeBoardSummary: computeBoardSummary2 } = await Promise.resolve().then(() => (init_board_composer(), board_composer_exports));
-      for (const board of boards) {
+      for (const board of boards2) {
         const boardMaterials = await getMaterialsByBoard(board.id);
         const items = [];
         for (const bm of boardMaterials) {
@@ -13312,12 +16758,11 @@ var seedRouter = router({
           projectId,
           version: 1,
           projectIdentity: briefData.projectIdentity,
-          positioningStatement: briefData.positioningStatement,
-          styleMood: briefData.styleMood,
-          materialGuidance: briefData.materialGuidance,
-          budgetGuardrails: briefData.budgetGuardrails,
-          procurementConstraints: briefData.procurementConstraints,
-          deliverablesChecklist: briefData.deliverablesChecklist,
+          designNarrative: briefData.designNarrative,
+          materialSpecifications: briefData.materialSpecifications,
+          boqFramework: briefData.boqFramework,
+          detailedBudget: briefData.detailedBudget,
+          designerInstructions: briefData.designerInstructions,
           createdBy: ctx.user.id
         });
         const catalog = await getAllMaterials();
@@ -13548,12 +16993,28 @@ var seedRouter = router({
 // server/routers/design.ts
 import { z as z6 } from "zod";
 init_db();
-import { TRPCError as TRPCError5 } from "@trpc/server";
+init_storage();
+import { TRPCError as TRPCError9 } from "@trpc/server";
 init_dld_analytics();
 init_area_utils();
 init_rfq_generator();
 
 // server/engines/visual-gen.ts
+var CATEGORY_DISPLAY = {
+  tile: "Flooring/Tiling",
+  stone: "Stone (Wall/Floor)",
+  wood: "Wood/Timber",
+  metal: "Metal Hardware",
+  fabric: "Soft Furnishings",
+  glass: "Glass/Mirrors",
+  paint: "Paint/Coating",
+  wallpaper: "Wall Covering",
+  lighting: "Lighting",
+  furniture: "Furniture",
+  fixture: "Sanitaryware/Fixtures",
+  accessory: "Accessories/Hardware",
+  other: "Other Finishes"
+};
 function buildPromptContext(inputs) {
   const materialLevelMap = {
     1: "basic/economy",
@@ -13577,26 +17038,110 @@ function buildPromptContext(inputs) {
     accentColor: inputs.des01Style === "Minimal" ? "warm brass" : "deep emerald"
   };
 }
+function buildBoardAwarePromptContext(inputs, boardMaterials, brandStandardConstraints) {
+  const base = buildPromptContext(inputs);
+  if (!boardMaterials || boardMaterials.length === 0) {
+    return base;
+  }
+  const grouped = /* @__PURE__ */ new Map();
+  for (const mat of boardMaterials) {
+    const category = mat.category || "other";
+    if (!grouped.has(category)) grouped.set(category, []);
+    grouped.get(category).push(mat);
+  }
+  const specParts = [];
+  for (const [category, mats] of Array.from(grouped.entries())) {
+    const categoryLabel = CATEGORY_DISPLAY[category] || category;
+    const matNames = mats.map((m) => {
+      const supplier = m.supplierName && m.supplierName !== "TBD" && m.supplierName !== "Market Data" ? ` by ${m.supplierName}` : "";
+      return `${m.name}${supplier}`;
+    }).join(", ");
+    specParts.push(`${categoryLabel}: ${matNames}`);
+  }
+  const materialSpec = specParts.join(". ");
+  const carbons = boardMaterials.map((m) => m.embodiedCarbon).filter((c) => c != null && c > 0);
+  let carbonGrade = "C";
+  if (carbons.length > 0) {
+    const avg = carbons.reduce((a, b) => a + b, 0) / carbons.length;
+    if (avg < 5) carbonGrade = "A";
+    else if (avg < 15) carbonGrade = "B";
+    else if (avg < 30) carbonGrade = "C";
+    else if (avg < 50) carbonGrade = "D";
+    else carbonGrade = "E";
+  }
+  return {
+    ...base,
+    materialSpec,
+    carbonGrade,
+    brandStandard: brandStandardConstraints || void 0,
+    materialCount: String(boardMaterials.length)
+  };
+}
+function buildRoomPromptContext(inputs, roomName, roomType, roomSqm, boardMaterials, brandStandardConstraints) {
+  const roomCategories = getRoomRelevantCategories(roomType);
+  const filteredMaterials = boardMaterials.filter(
+    (m) => roomCategories.includes(m.category)
+  );
+  const materialsToUse = filteredMaterials.length > 0 ? filteredMaterials : boardMaterials;
+  const context = buildBoardAwarePromptContext(inputs, materialsToUse, brandStandardConstraints);
+  context.typology = `${roomSqm} sqm ${roomName} in a ${inputs.ctx01Typology} unit`;
+  return context;
+}
+function getRoomRelevantCategories(roomType) {
+  switch (roomType) {
+    case "bathroom":
+      return ["tile", "stone", "fixture", "glass", "accessory", "lighting"];
+    case "kitchen":
+      return ["stone", "tile", "metal", "fixture", "accessory", "lighting"];
+    case "bedroom":
+    case "living":
+    case "dining":
+      return ["wood", "stone", "tile", "fabric", "lighting", "furniture", "paint", "wallpaper"];
+    case "corridor":
+    case "lobby":
+      return ["tile", "stone", "lighting", "paint", "wallpaper"];
+    case "balcony":
+      return ["tile", "stone", "furniture"];
+    default:
+      return ["tile", "stone", "wood", "paint", "lighting"];
+  }
+}
 function interpolateTemplate(template, context) {
   let result = template;
   for (const [key, value] of Object.entries(context)) {
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
+    if (typeof value === "string") {
+      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
+    }
   }
   return result;
 }
 function generateDefaultPrompt(type, context) {
+  const materialClause = context.materialSpec ? `
+
+MATERIAL SPECIFICATION (use these EXACT materials in the render):
+${context.materialSpec}` : "";
+  const carbonClause = context.carbonGrade ? ` Sustainability grade: ${context.carbonGrade}.` : "";
+  const brandClause = context.brandStandard ? ` Brand standard: ${context.brandStandard}.` : "";
   switch (type) {
     case "mood":
-      return `Create a sophisticated interior design mood board for a ${context.tier} ${context.typology} project in ${context.location}. Design style: ${context.style}. Material level: ${context.materialLevel}. The mood board should convey the project's design direction through carefully curated images of materials, textures, colors, lighting, and spatial arrangements. Professional presentation with clean layout.`;
+      return `Create a sophisticated interior design mood board for a ${context.tier} ${context.typology} project in ${context.location}. Design style: ${context.style}. Material level: ${context.materialLevel}.${carbonClause}${brandClause} The mood board should convey the project's design direction through carefully curated images of materials, textures, colors, lighting, and spatial arrangements. Professional presentation with clean layout.${materialClause}`;
     case "material_board":
-      return `Generate a detailed material and finish board for a ${context.tier} ${context.typology} interior. Style: ${context.style}. Show 8 key material swatches arranged in a professional grid: natural stone, wood flooring, metal hardware, fabric upholstery, wall finish, ceiling treatment, lighting fixture, and accent piece. Each swatch labeled with material name. Clean white background, architectural presentation style.`;
+      return `Generate a detailed material and finish board for a ${context.tier} ${context.typology} interior. Style: ${context.style}.${carbonClause}${brandClause} Show ${context.materialCount || "8"} key material swatches arranged in a professional grid. Each swatch labeled with exact material name and supplier. Clean white background, architectural presentation style.${materialClause}`;
     case "hero":
-      return `Create a photorealistic marketing hero image for a ${context.tier} ${context.typology} development in ${context.location}. Show a stunning interior living space with ${context.style} design aesthetic. Natural light streaming through floor-to-ceiling windows. High-end ${context.materialLevel} finishes and designer furniture. Aspirational lifestyle photography, warm color temperature, professional real estate marketing quality.`;
+      return `Create a photorealistic marketing hero image for a ${context.tier} ${context.typology} development in ${context.location}. Show a stunning interior living space with ${context.style} design aesthetic.${carbonClause}${brandClause} Natural light streaming through floor-to-ceiling windows. Aspirational lifestyle photography, warm color temperature, professional real estate marketing quality.${materialClause}`;
   }
+}
+function generateRoomRenderPrompt(context, roomName, roomSqm, finishGrade) {
+  const gradeLabel = finishGrade === "A" ? "premium showcase-quality" : finishGrade === "B" ? "high-quality standard" : "functional utility-grade";
+  const materialClause = context.materialSpec ? `
+
+MATERIAL SPECIFICATION (use these EXACT materials in the render):
+${context.materialSpec}` : "";
+  return `Create a photorealistic interior render of a ${roomSqm} sqm ${roomName} in a ${context.tier} ${context.typology} in ${context.location}. Design style: ${context.style}. Finish grade: ${gradeLabel}. This is a ${context.tier} project \u2014 every detail must reflect the quality tier. Natural lighting, professional architectural photography quality, 8K resolution feel. Show furniture placement, material textures, and lighting design.${materialClause}`;
 }
 function validatePrompt(prompt) {
   if (prompt.length < 20) return { valid: false, reason: "Prompt too short \u2014 minimum 20 characters" };
-  if (prompt.length > 2e3) return { valid: false, reason: "Prompt too long \u2014 maximum 2000 characters" };
+  if (prompt.length > 4e3) return { valid: false, reason: "Prompt too long \u2014 maximum 4000 characters" };
   const blockedTerms = ["nsfw", "explicit", "violent", "weapon", "gore"];
   const lower = prompt.toLowerCase();
   for (const term of blockedTerms) {
@@ -13604,11 +17149,100 @@ function validatePrompt(prompt) {
   }
   return { valid: true };
 }
+function buildMaterialAllocationPromptClause(allocations) {
+  if (!allocations || allocations.length === 0) return null;
+  const roomMap = /* @__PURE__ */ new Map();
+  for (const a of allocations) {
+    const roomKey = a.roomName || a.roomId;
+    if (!roomMap.has(roomKey)) roomMap.set(roomKey, /* @__PURE__ */ new Map());
+    const elementMap = roomMap.get(roomKey);
+    if (!elementMap.has(a.element)) elementMap.set(a.element, []);
+    elementMap.get(a.element).push({ name: a.materialName, pct: a.percentage });
+  }
+  const lines = [];
+  for (const [room, elements] of Array.from(roomMap.entries())) {
+    const parts = [];
+    for (const [element, mats] of Array.from(elements.entries())) {
+      const matList = mats.map((m) => `${m.name} (${m.pct}%)`).join(", ");
+      parts.push(`${element.charAt(0).toUpperCase() + element.slice(1)}: ${matList}`);
+    }
+    lines.push(`${room} \u2014 ${parts.join("; ")}`);
+  }
+  return `
+MATERIAL ALLOCATION (use EXACT materials per surface):
+${lines.join("\n")}`;
+}
 
 // server/routers/design.ts
+init_floor_plan_analyzer();
+init_space_benchmarking();
 init_board_composer();
 
+// server/engines/procurement/vendor-matching.ts
+init_db();
+init_schema();
+import { and as and3, eq as eq6 } from "drizzle-orm";
+async function matchVendorsForProject(options) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const projectRows = await db.select().from(projects).where(and3(
+    eq6(projects.id, options.projectId),
+    eq6(projects.orgId, options.orgId)
+  )).limit(1);
+  if (projectRows.length === 0) throw new Error(`Project ${options.projectId} not found`);
+  const project = projectRows[0];
+  const constraints = project.brandStandardConstraints || "none";
+  let allowedStatuses = ["open_market", "approved_vendor", "preferred_brand"];
+  if (constraints === "strict_vendor_list") {
+    allowedStatuses = ["preferred_brand"];
+  } else if (constraints === "moderate_guidelines") {
+    allowedStatuses = ["approved_vendor", "preferred_brand"];
+  } else if (constraints === "open_market" || constraints === "none") {
+    allowedStatuses = ["open_market", "approved_vendor", "preferred_brand"];
+  }
+  const allMaterials = await db.select().from(materialsCatalog).where(eq6(materialsCatalog.isActive, true));
+  let matchedMaterials = allMaterials.filter(
+    (m) => allowedStatuses.includes(m.brandStandardApproval || "open_market")
+  );
+  if (options.category) {
+    matchedMaterials = matchedMaterials.filter((m) => m.category === options.category);
+  }
+  const targetTier = options.tier || project.mkt01Tier || "upper_mid";
+  const tierMap = {
+    "Economy": ["economy"],
+    "Mid": ["economy", "mid"],
+    "Upper-mid": ["mid", "premium"],
+    "Luxury": ["premium", "luxury"],
+    "Ultra-luxury": ["luxury", "ultra_luxury"],
+    // Handle camel/snake case variants
+    "economy": ["economy"],
+    "mid": ["economy", "mid"],
+    "upper_mid": ["mid", "premium"],
+    "luxury": ["premium", "luxury"],
+    "ultra_luxury": ["luxury", "ultra_luxury"]
+  };
+  const allowedTiers = tierMap[targetTier] || ["mid", "premium"];
+  matchedMaterials = matchedMaterials.filter((m) => allowedTiers.includes(m.tier));
+  matchedMaterials.sort((a, b) => {
+    const scoreMap = {
+      "preferred_brand": 3,
+      "approved_vendor": 2,
+      "open_market": 1
+    };
+    const aScore = scoreMap[a.brandStandardApproval || "open_market"] || 1;
+    const bScore = scoreMap[b.brandStandardApproval || "open_market"] || 1;
+    if (aScore !== bScore) {
+      return bScore - aScore;
+    }
+    const aCarbon = parseFloat(String(a.embodiedCarbon || "999"));
+    const bCarbon = parseFloat(String(b.embodiedCarbon || "999"));
+    return aCarbon - bCarbon;
+  });
+  return matchedMaterials.slice(0, options.maxItems || 20);
+}
+
 // server/_core/imageGeneration.ts
+init_storage();
 import { Buffer as Buffer3 } from "buffer";
 async function generateImage(options) {
   if (!process.env.GEMINI_API_KEY) {
@@ -13917,6 +17551,51 @@ async function generateDesignBriefDocx(data) {
     }
   }
   sections.push(spacer());
+  if (data.spaceAllocation) {
+    const space = data.spaceAllocation;
+    sections.push(heading("7. Space Allocation Analysis"));
+    sections.push(
+      twoColumnTable([
+        ["Overall Efficiency Score", `${space.efficiencyScore}/100`],
+        ["Total Analysed Area", `${space.totalArea?.toLocaleString()} sqft`],
+        ["Room Count", String(space.roomCount)],
+        ["Circulation Percentage", `${space.circulationPct?.toFixed(1)}%`]
+      ])
+    );
+    if (space.rooms && space.rooms.length > 0) {
+      sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "Room Breakdown:", bold: true, size: 22 })] }));
+      const roomTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            tableHeader: true,
+            children: [
+              new TableCell({ width: { size: 35, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "Room", bold: true, color: "ffffff", size: 20 })] })] }),
+              new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "Area (sqft)", bold: true, color: "ffffff", size: 20 })] })] }),
+              new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "% of Total", bold: true, color: "ffffff", size: 20 })] })] }),
+              new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "Grade", bold: true, color: "ffffff", size: 20 })] })] })
+            ]
+          }),
+          ...space.rooms.map((room, i) => new TableRow({
+            children: [
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ children: [new TextRun({ text: room.name, size: 20 })] })] }),
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ children: [new TextRun({ text: String(Math.round(room.area)), size: 20 })] })] }),
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ children: [new TextRun({ text: `${room.pctOfTotal?.toFixed(1)}%`, size: 20 })] })] }),
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ children: [new TextRun({ text: room.finishGrade || "\u2014", size: 20 })] })] })
+            ]
+          }))
+        ]
+      });
+      sections.push(roomTable);
+    }
+    if (space.recommendations && space.recommendations.length > 0) {
+      sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "DLD-Backed Recommendations:", bold: true, size: 22 })] }));
+      for (const rec of space.recommendations) {
+        sections.push(bulletItem(`[${rec.severity?.toUpperCase()}] ${rec.advice}`));
+      }
+    }
+    sections.push(spacer());
+  }
   sections.push(heading("6. Workflow & Execution Instructions"));
   const pLogic = instructions.procurementAndLogistics ?? {};
   sections.push(labelValue("Lead Time Window", pLogic.leadTimeWindow ?? "\u2014"));
@@ -14041,8 +17720,700 @@ async function generateDesignBriefDocx(data) {
   return Buffer.from(buffer);
 }
 
+// server/engines/design/material-quantity-engine.ts
+init_llm();
+var ASPECT_RATIOS = {
+  // Living / Dining / Lobby
+  LVG: 1.6,
+  DIN: 1.6,
+  LBY: 1.6,
+  // Master bedroom
+  MBR: 1.4,
+  // Secondary bedrooms
+  BD2: 1.3,
+  BD3: 1.3,
+  BD4: 1.3,
+  // Kitchen
+  KIT: 1.4,
+  // Bathrooms / Ensuite (near-square)
+  BTH: 1,
+  MEN: 1,
+  ENS: 1,
+  // Corridors / Hallways (long and narrow)
+  COR: 2.5,
+  ENT: 2.5,
+  HAL: 2.5,
+  // Office / Meeting
+  OFC: 1.5,
+  MET: 1.5,
+  OPN: 1.5,
+  // Back-of-house / Utility
+  BOH: 1.8,
+  UTL: 1.8,
+  // Hospitality
+  GRM: 1.4,
+  GRS: 1.5,
+  FBB: 1.6,
+  RCP: 1.5,
+  BRK: 1.4
+};
+var DEFAULT_ASPECT_RATIO = 1.4;
+var DEFAULT_CEILING_HEIGHT = 2.8;
+function calculateSurfaceAreas(rooms, ceilingHeightM) {
+  const height = ceilingHeightM ?? DEFAULT_CEILING_HEIGHT;
+  const clampedHeight = Math.max(2.4, Math.min(5, height));
+  if (clampedHeight !== height) {
+    console.warn(
+      `[MQI] Ceiling height ${height}m outside valid range [2.4, 5.0]. Clamped to ${clampedHeight}m.`
+    );
+  }
+  return rooms.map((room) => {
+    if (room.sqm <= 0) {
+      return {
+        roomId: room.id,
+        roomName: room.name,
+        floorM2: 0,
+        wallM2: 0,
+        ceilingM2: 0
+      };
+    }
+    const ratio = ASPECT_RATIOS[room.id] ?? DEFAULT_ASPECT_RATIO;
+    const sqm = room.sqm;
+    const floorM2 = sqm;
+    const sideA = Math.sqrt(sqm * ratio);
+    const sideB = Math.sqrt(sqm / ratio);
+    const perimeter = 2 * (sideA + sideB);
+    const rawWallM2 = perimeter * clampedHeight;
+    const wallM2 = rawWallM2 * 0.85;
+    const ceilingM2 = sqm * 0.95;
+    const wallFloorRatio = wallM2 / floorM2;
+    if (wallFloorRatio < 1.5 || wallFloorRatio > 3.5) {
+      console.warn(
+        `[MQI] Room ${room.id} wall/floor ratio ${wallFloorRatio.toFixed(2)} outside expected range [1.5, 3.5]`
+      );
+    }
+    return {
+      roomId: room.id,
+      roomName: room.name,
+      floorM2: Number(floorM2.toFixed(2)),
+      wallM2: Number(wallM2.toFixed(2)),
+      ceilingM2: Number(ceilingM2.toFixed(2))
+    };
+  });
+}
+var WET_ROOM_IDS = /* @__PURE__ */ new Set(["BTH", "MEN", "ENS", "KIT"]);
+async function generateMaterialAllocations(project, surfaces, materialLibrary2, rooms, existingLockedAllocations) {
+  const roomGradeMap = new Map(rooms.map((r) => [r.id, r.finishGrade]));
+  const lockedMap = /* @__PURE__ */ new Map();
+  if (existingLockedAllocations?.length) {
+    for (const locked of existingLockedAllocations) {
+      lockedMap.set(`${locked.roomId}:${locked.element}`, locked.allocations);
+    }
+  }
+  const gradeCRooms = surfaces.filter(
+    (s) => roomGradeMap.get(s.roomId) === "C"
+  );
+  const nonGradeCRooms = surfaces.filter(
+    (s) => roomGradeMap.get(s.roomId) !== "C"
+  );
+  const roomsForGemini = nonGradeCRooms.filter((s) => {
+    const elements = ["floor", "walls", "ceiling", "joinery"];
+    return elements.some((el) => !lockedMap.has(`${s.roomId}:${el}`));
+  });
+  const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
+  const projectStyle = (project.des01Style || "modern").toLowerCase();
+  const filteredLibrary = materialLibrary2.filter(
+    (m) => (m.tier === projectTier || m.tier === adjacentTier(projectTier)) && (m.style === projectStyle || m.style === "all")
+  );
+  const roomDescriptions = roomsForGemini.map((s) => {
+    const grade2 = roomGradeMap.get(s.roomId) || "B";
+    const isWet = WET_ROOM_IDS.has(s.roomId);
+    const elements = ["floor", "walls", "ceiling", "joinery"].filter((el) => !lockedMap.has(`${s.roomId}:${el}`));
+    return `- ${s.roomId} "${s.roomName}": floor=${s.floorM2}m\xB2, walls=${s.wallM2}m\xB2, ceiling=${s.ceilingM2}m\xB2, grade=${grade2}, wet=${isWet}, elements_needed=[${elements.join(",")}]`;
+  }).join("\n");
+  const libraryDescriptions = filteredLibrary.slice(0, 60).map(
+    (m) => `id=${m.id} category=${m.category} tier=${m.tier} style=${m.style} brand="${m.brand}" product="${m.productName}" AED_min=${m.priceAedMin} AED_max=${m.priceAedMax} unit=${m.unitLabel}`
+  ).join("\n");
+  const systemPrompt = `You are a UAE interior design cost consultant. Your job is to suggest how the surfaces of a project should be split across materials, based on the project's design style, market tier, and available material library.
+
+PROJECT:
+- Typology: ${project.ctx01Typology || "Residential"}
+- Style: ${project.des01Style || "Modern"}
+- Market Tier: ${projectTier}
+- Material Level: ${project.des02MaterialLevel || 3}/5
+- Purpose: ${project.projectPurpose || "Residential development"}
+
+ROOMS AND SURFACES (only rooms that need new allocations):
+${roomDescriptions}
+
+AVAILABLE MATERIAL LIBRARY (filtered to matching tier and style):
+${libraryDescriptions}
+
+RULES:
+1. For each room \xD7 element, provide 1 OR 2 materials with percentages summing to exactly 100.
+2. MAXIMUM 2 materials per surface \u2014 never return 3 or more.
+3. Use materials from the library when possible (reference by materialLibraryId). If no exact match, use a generic name and set materialLibraryId to null.
+4. Grade A rooms get premium finishes. Grade B rooms get mid-range.
+5. Wet room walls (BTH, MEN, ENS, KIT where wet=true) MUST use wall_tile, NEVER wall_paint or stone.
+6. Ceiling is almost always single material (gypsum or plaster). Only split ceiling if Grade A + ultra tier.
+7. For each allocation, write one sentence of reasoning (max 15 words).
+8. Never suggest materials that conflict with UAE climate (e.g. solid wood flooring in wet areas).
+9. Only provide allocations for the elements listed in elements_needed for each room.`;
+  const outputSchema = {
+    name: "material_allocations",
+    schema: {
+      type: "object",
+      properties: {
+        rooms: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              roomId: { type: "string" },
+              floor: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              walls: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              ceiling: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              joinery: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              }
+            },
+            required: ["roomId"]
+          }
+        },
+        designRationale: { type: "string" },
+        estimatedQualityLabel: { type: "string" }
+      },
+      required: ["rooms", "designRationale", "estimatedQualityLabel"]
+    }
+  };
+  let geminiResult;
+  if (roomsForGemini.length === 0) {
+    geminiResult = {
+      rooms: [],
+      designRationale: "All rooms are utility-grade or locked \u2014 deterministic allocation applied.",
+      estimatedQualityLabel: "Standard Utility"
+    };
+  } else {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: "Generate material allocations for all listed rooms. Return structured JSON."
+        }
+      ],
+      outputSchema
+    });
+    const rawContent = response.choices[0]?.message?.content;
+    const text2 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    geminiResult = JSON.parse(text2);
+  }
+  for (const room of geminiResult.rooms) {
+    for (const element of ["floor", "walls", "ceiling", "joinery"]) {
+      const slices = room[element];
+      if (!slices || slices.length === 0) continue;
+      if (slices.length > 2) {
+        slices.sort((a, b) => b.percentage - a.percentage);
+        slices.length = 2;
+      }
+      const sum = slices.reduce((s, sl) => s + sl.percentage, 0);
+      if (Math.abs(sum - 100) > 0.01) {
+        const scale = 100 / sum;
+        for (const sl of slices) {
+          sl.percentage = Number((sl.percentage * scale).toFixed(2));
+        }
+        const newSum = slices.reduce((s, sl) => s + sl.percentage, 0);
+        if (Math.abs(newSum - 100) > 0.01) {
+          slices[0].percentage += 100 - newSum;
+        }
+      }
+    }
+  }
+  for (const surface of gradeCRooms) {
+    const cheapFloor = materialLibrary2.find(
+      (m) => m.category === "flooring" && m.tier === "affordable"
+    );
+    const isWet = WET_ROOM_IDS.has(surface.roomId);
+    const cheapWall = materialLibrary2.find(
+      (m) => m.category === (isWet ? "wall_tile" : "wall_paint") && (m.tier === "affordable" || m.tier === "mid")
+    );
+    const cheapCeiling = materialLibrary2.find(
+      (m) => m.category === "ceiling" && (m.tier === "affordable" || m.tier === "mid")
+    );
+    geminiResult.rooms.push({
+      roomId: surface.roomId,
+      floor: [
+        {
+          materialLibraryId: cheapFloor?.id ?? null,
+          materialName: cheapFloor?.productName || "Basic Ceramic Tile",
+          percentage: 100,
+          reasoning: "Grade C utility room \u2014 affordable single material."
+        }
+      ],
+      walls: [
+        {
+          materialLibraryId: cheapWall?.id ?? null,
+          materialName: cheapWall?.productName || (isWet ? "Standard Ceramic Wall Tile" : "Standard Emulsion Paint"),
+          percentage: 100,
+          reasoning: isWet ? "Wet utility room \u2014 affordable wall tile." : "Grade C \u2014 standard paint."
+        }
+      ],
+      ceiling: [
+        {
+          materialLibraryId: cheapCeiling?.id ?? null,
+          materialName: cheapCeiling?.productName || "Basic Gypsum Board",
+          percentage: 100,
+          reasoning: "Grade C \u2014 basic gypsum ceiling."
+        }
+      ],
+      joinery: []
+    });
+  }
+  for (const [key, lockedSlices] of Array.from(lockedMap.entries())) {
+    const [roomId, element] = key.split(":");
+    let room = geminiResult.rooms.find((r) => r.roomId === roomId);
+    if (!room) {
+      room = { roomId, floor: [], walls: [], ceiling: [], joinery: [] };
+      geminiResult.rooms.push(room);
+    }
+    room[element] = lockedSlices;
+  }
+  return geminiResult;
+}
+function adjacentTier(tier) {
+  if (tier === "ultra") return "premium";
+  if (tier === "premium") return "mid";
+  if (tier === "mid") return "affordable";
+  return "mid";
+}
+function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, project) {
+  const materialLibraryMap = new Map(materialLibrary2.map((m) => [m.id, m]));
+  const roomBreakdowns = [];
+  const materialTotals = /* @__PURE__ */ new Map();
+  let totalFloorM2 = 0;
+  let totalWallM2 = 0;
+  let totalCeilingM2 = 0;
+  for (const surface of surfaces) {
+    const roomAllocation = allocations.rooms.find(
+      (r) => r.roomId === surface.roomId
+    );
+    totalFloorM2 += surface.floorM2;
+    totalWallM2 += surface.wallM2;
+    totalCeilingM2 += surface.ceilingM2;
+    const elements = [];
+    const elementDefs = [
+      { name: "floor", areaM2: surface.floorM2 },
+      { name: "walls", areaM2: surface.wallM2 },
+      { name: "ceiling", areaM2: surface.ceilingM2 },
+      { name: "joinery", areaM2: 0 }
+      // Joinery doesn't have a simple surface area
+    ];
+    let roomCostMin = 0;
+    let roomCostMax = 0;
+    for (const elDef of elementDefs) {
+      const slices = roomAllocation?.[elDef.name];
+      if (!slices || slices.length === 0) continue;
+      let elementCostMin = 0;
+      let elementCostMax = 0;
+      const allocationDetails = [];
+      for (const slice of slices) {
+        const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
+        let unitCostMin = 0;
+        let unitCostMax = 0;
+        if (slice.materialLibraryId) {
+          const libEntry = materialLibraryMap.get(slice.materialLibraryId);
+          if (libEntry) {
+            unitCostMin = Number(libEntry.priceAedMin) || 0;
+            unitCostMax = Number(libEntry.priceAedMax) || 0;
+          }
+        } else {
+          const categoryMap = {
+            floor: ["flooring"],
+            walls: ["wall_paint", "wall_tile"],
+            ceiling: ["ceiling"],
+            joinery: ["joinery"]
+          };
+          const elKey = elDef.name.toLowerCase();
+          const cats = categoryMap[elKey] || [];
+          const fallback = materialLibrary2.find(
+            (m) => cats.includes((m.category || "").toLowerCase())
+          );
+          if (fallback) {
+            unitCostMin = Number(fallback.priceAedMin) || 0;
+            unitCostMax = Number(fallback.priceAedMax) || 0;
+          }
+        }
+        const sliceCostMin = actualAreaM2 * unitCostMin;
+        const sliceCostMax = actualAreaM2 * unitCostMax;
+        elementCostMin += sliceCostMin;
+        elementCostMax += sliceCostMax;
+        allocationDetails.push({
+          materialLibraryId: slice.materialLibraryId,
+          materialName: slice.materialName,
+          percentage: slice.percentage,
+          actualAreaM2: Number(actualAreaM2.toFixed(2)),
+          unitCostMin,
+          unitCostMax,
+          totalCostMin: Number(sliceCostMin.toFixed(2)),
+          totalCostMax: Number(sliceCostMax.toFixed(2)),
+          reasoning: slice.reasoning
+        });
+        const existing = materialTotals.get(slice.materialName) || {
+          totalAreaM2: 0,
+          totalCostMin: 0,
+          totalCostMax: 0
+        };
+        existing.totalAreaM2 += actualAreaM2;
+        existing.totalCostMin += sliceCostMin;
+        existing.totalCostMax += sliceCostMax;
+        materialTotals.set(slice.materialName, existing);
+      }
+      elements.push({
+        element: elDef.name,
+        surfaceAreaM2: elDef.areaM2,
+        allocations: allocationDetails,
+        elementCostMin: Number(elementCostMin.toFixed(2)),
+        elementCostMax: Number(elementCostMax.toFixed(2))
+      });
+      roomCostMin += elementCostMin;
+      roomCostMax += elementCostMax;
+    }
+    roomBreakdowns.push({
+      roomId: surface.roomId,
+      roomName: surface.roomName,
+      floorM2: surface.floorM2,
+      wallM2: surface.wallM2,
+      ceilingM2: surface.ceilingM2,
+      elements,
+      roomCostMin: Number(roomCostMin.toFixed(2)),
+      roomCostMax: Number(roomCostMax.toFixed(2))
+    });
+  }
+  const totalSurfaceM2 = totalFloorM2 + totalWallM2 + totalCeilingM2;
+  const totalFinishCostMin = roomBreakdowns.reduce(
+    (s, r) => s + r.roomCostMin,
+    0
+  );
+  const totalFinishCostMax = roomBreakdowns.reduce(
+    (s, r) => s + r.roomCostMax,
+    0
+  );
+  const totalFinishCostMid = (totalFinishCostMin + totalFinishCostMax) / 2;
+  const SQFT_TO_SQM = 10.764;
+  const FINISH_BUDGET_RATIO = 0.35;
+  const budgetCapPerSqft = Number(project.fin01BudgetCap) || 0;
+  const gfa = Number(project.ctx03Gfa) || 0;
+  const budgetCapAed = budgetCapPerSqft > 0 && gfa > 0 ? budgetCapPerSqft * gfa * SQFT_TO_SQM * FINISH_BUDGET_RATIO : null;
+  const budgetUtilizationPct = budgetCapAed && budgetCapAed > 0 ? Number((totalFinishCostMid / budgetCapAed * 100).toFixed(1)) : null;
+  const isOverBudget = budgetCapAed ? totalFinishCostMid > budgetCapAed : false;
+  const overBudgetByAed = isOverBudget ? Number((totalFinishCostMid - (budgetCapAed || 0)).toFixed(2)) : 0;
+  const materialBreakdown = Array.from(materialTotals.entries()).map(([name, totals]) => ({
+    materialName: name,
+    totalAreaM2: Number(totals.totalAreaM2.toFixed(2)),
+    totalCostMin: Number(totals.totalCostMin.toFixed(2)),
+    totalCostMax: Number(totals.totalCostMax.toFixed(2)),
+    pctOfTotalSurface: totalSurfaceM2 > 0 ? Number((totals.totalAreaM2 / totalSurfaceM2 * 100).toFixed(1)) : 0
+  })).sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
+  return {
+    rooms: roomBreakdowns,
+    summary: {
+      totalFloorM2: Number(totalFloorM2.toFixed(2)),
+      totalWallM2: Number(totalWallM2.toFixed(2)),
+      totalCeilingM2: Number(totalCeilingM2.toFixed(2)),
+      totalSurfaceM2: Number(totalSurfaceM2.toFixed(2)),
+      materialBreakdown,
+      totalFinishCostMin: Number(totalFinishCostMin.toFixed(2)),
+      totalFinishCostMax: Number(totalFinishCostMax.toFixed(2)),
+      totalFinishCostMid: Number(totalFinishCostMid.toFixed(2)),
+      budgetCapAed,
+      budgetUtilizationPct,
+      isOverBudget,
+      overBudgetByAed,
+      qualityLabel: allocations.estimatedQualityLabel || "Standard"
+    },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+
 // server/routers/design.ts
+init_space_program();
 import { nanoid as nanoid2 } from "nanoid";
+
+// server/_core/public-share-access.ts
+init_db();
+import { TRPCError as TRPCError5 } from "@trpc/server";
+var PUBLIC_SHARE_NOT_FOUND_MESSAGE = "Share link not found or expired";
+function shareNotFound() {
+  throw new TRPCError5({
+    code: "NOT_FOUND",
+    message: PUBLIC_SHARE_NOT_FOUND_MESSAGE
+  });
+}
+async function requireActivePublicShare(token, options = {}) {
+  const lookupBrief = options.lookupBrief ?? getAiDesignBriefByShareToken;
+  const lookupProject = options.lookupProject ?? getProjectById;
+  const now = options.now ?? (() => /* @__PURE__ */ new Date());
+  const brief = await lookupBrief(token);
+  if (!brief) {
+    return shareNotFound();
+  }
+  const project = await lookupProject(brief.projectId);
+  const expiresAt = brief.shareExpiresAt ? new Date(brief.shareExpiresAt).getTime() : Number.NaN;
+  const nowTime = now().getTime();
+  if (!project || brief.orgId === null || project.orgId === null || brief.orgId !== project.orgId || !Number.isFinite(expiresAt) || expiresAt <= nowTime) {
+    return shareNotFound();
+  }
+  return { brief, project };
+}
+
+// server/_core/design-resource-access.ts
+init_db();
+import { TRPCError as TRPCError8 } from "@trpc/server";
+
+// server/_core/project-access.ts
+init_db();
+import { TRPCError as TRPCError6 } from "@trpc/server";
+async function requireProjectForOrg(projectId, orgId, lookup = getProjectById) {
+  const project = await lookup(projectId);
+  if (!project || project.orgId !== orgId) {
+    throw new TRPCError6({ code: "NOT_FOUND", message: "Project not found" });
+  }
+  return project;
+}
+
+// server/_core/resource-access.ts
+init_db();
+import { TRPCError as TRPCError7 } from "@trpc/server";
+var DEFAULT_NOT_FOUND_MESSAGE = "Resource not found";
+function notFound(message = DEFAULT_NOT_FOUND_MESSAGE) {
+  throw new TRPCError7({ code: "NOT_FOUND", message });
+}
+async function requireAuthorizedProject(projectId, orgId, lookupProject, notFoundMessage) {
+  try {
+    return await requireProjectForOrg(projectId, orgId, lookupProject);
+  } catch (error) {
+    if (error instanceof TRPCError7 && error.code === "NOT_FOUND") {
+      return notFound(notFoundMessage);
+    }
+    throw error;
+  }
+}
+async function requireProjectResourceForOrg(resourceId, orgId, options) {
+  const resource = await options.lookupResource(resourceId);
+  if (!resource) {
+    return notFound(options.notFoundMessage);
+  }
+  const project = await requireAuthorizedProject(
+    options.getProjectId(resource),
+    orgId,
+    options.lookupProject ?? getProjectById,
+    options.notFoundMessage
+  );
+  return { resource, project };
+}
+async function requireNestedProjectResourceForOrg(resourceId, orgId, options) {
+  const resource = await options.lookupResource(resourceId);
+  if (!resource) {
+    return notFound(options.notFoundMessage);
+  }
+  const parent = await options.lookupParent(options.getParentId(resource));
+  if (!parent) {
+    return notFound(options.notFoundMessage);
+  }
+  const project = await requireAuthorizedProject(
+    options.getProjectId(parent),
+    orgId,
+    options.lookupProject ?? getProjectById,
+    options.notFoundMessage
+  );
+  return { resource, parent, project };
+}
+async function requireOrgResourceForOrg(resourceId, orgId, options) {
+  const resource = await options.lookupResource(resourceId);
+  if (!resource || options.getOrgId(resource) !== orgId) {
+    return notFound(options.notFoundMessage);
+  }
+  return resource;
+}
+async function requireProjectOrgResourceForOrg(resourceId, orgId, options) {
+  const resource = await options.lookupResource(resourceId);
+  if (!resource || options.getOrgId(resource) !== orgId) {
+    return notFound(options.notFoundMessage);
+  }
+  const project = await requireAuthorizedProject(
+    options.getProjectId(resource),
+    orgId,
+    options.lookupProject ?? getProjectById,
+    options.notFoundMessage
+  );
+  return { resource, project };
+}
+function createPolymorphicResourceAuthorizer(registry, notFoundMessage = DEFAULT_NOT_FOUND_MESSAGE) {
+  const closedRegistry = Object.freeze({ ...registry });
+  return async function requirePolymorphicResourceForOrg(type, id, orgId) {
+    if (!Object.prototype.hasOwnProperty.call(closedRegistry, type)) {
+      return notFound(notFoundMessage);
+    }
+    const resolver = closedRegistry[type];
+    const value = await resolver(id, orgId);
+    return { type, value };
+  };
+}
+
+// server/_core/design-resource-access.ts
+var notFound2 = () => {
+  throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+};
+function requireDesignProject(projectId, orgId) {
+  return requireProjectForOrg(projectId, orgId);
+}
+function requireDesignAsset(assetId, orgId) {
+  return requireProjectResourceForOrg(assetId, orgId, {
+    lookupResource: getProjectAssetById,
+    getProjectId: (asset) => asset.projectId
+  });
+}
+function requireDesignBrief(briefId, orgId) {
+  return requireProjectResourceForOrg(briefId, orgId, {
+    lookupResource: getDesignBriefById,
+    getProjectId: (brief) => brief.projectId
+  });
+}
+function requireDesignVisual(visualId, orgId) {
+  return requireProjectResourceForOrg(visualId, orgId, {
+    lookupResource: getGeneratedVisualById,
+    getProjectId: (visual) => visual.projectId
+  });
+}
+function requireDesignBoard(boardId, orgId) {
+  return requireProjectResourceForOrg(boardId, orgId, {
+    lookupResource: getMaterialBoardById,
+    getProjectId: (board) => board.projectId
+  });
+}
+function requireDesignBoardJoin(joinId, orgId) {
+  return requireNestedProjectResourceForOrg(joinId, orgId, {
+    lookupResource: getMaterialToBoardById,
+    getParentId: (join) => join.boardId,
+    lookupParent: getMaterialBoardById,
+    getProjectId: (board) => board.projectId
+  });
+}
+function requireDesignScenario(scenarioId, orgId) {
+  return requireProjectOrgResourceForOrg(scenarioId, orgId, {
+    lookupResource: getScenarioById,
+    getProjectId: (scenario) => scenario.projectId,
+    getOrgId: (scenario) => scenario.orgId
+  });
+}
+function requireDesignReport(reportId, orgId) {
+  return requireProjectResourceForOrg(reportId, orgId, {
+    lookupResource: getReportById,
+    getProjectId: (report) => report.projectId
+  });
+}
+function requireDesignEvaluation(evaluationId, orgId) {
+  return requireProjectResourceForOrg(evaluationId, orgId, {
+    lookupResource: getScoreMatrixById,
+    getProjectId: (evaluation) => evaluation.projectId
+  });
+}
+function requireDesignPromptTemplate(templateId, orgId) {
+  return requireOrgResourceForOrg(templateId, orgId, {
+    lookupResource: getPromptTemplateById,
+    getOrgId: (template) => template.orgId
+  });
+}
+function requireDesignAssetLink(linkId, orgId) {
+  return requireNestedProjectResourceForOrg(linkId, orgId, {
+    lookupResource: getAssetLinkById,
+    getParentId: (link) => link.assetId,
+    lookupParent: getProjectAssetById,
+    getProjectId: (asset) => asset.projectId
+  });
+}
+var requireDesignLinkTarget = createPolymorphicResourceAuthorizer({
+  evaluation: requireDesignEvaluation,
+  report: requireDesignReport,
+  scenario: requireDesignScenario,
+  material_board: requireDesignBoard,
+  design_brief: requireDesignBrief,
+  visual: requireDesignVisual
+});
+var requireDesignCommentTarget = createPolymorphicResourceAuthorizer({
+  design_brief: requireDesignBrief,
+  material_board: requireDesignBoard,
+  visual: requireDesignVisual
+});
+function requireSameDesignProject(expectedProjectId, actualProjectId) {
+  if (expectedProjectId !== actualProjectId) {
+    return notFound2();
+  }
+}
+function requireScopedDesignMutation(succeeded) {
+  if (!succeeded) {
+    return notFound2();
+  }
+}
+function requireScopedDesignInsert(value) {
+  if (value === null || value === void 0) {
+    return notFound2();
+  }
+  return value;
+}
+async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
+  if (scenarioId === null || scenarioId === void 0) return;
+  const scenario = await requireDesignScenario(scenarioId, orgId);
+  requireSameDesignProject(projectId, scenario.project.id);
+}
+
+// server/routers/design.ts
 function projectToInputs4(p) {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
@@ -14079,10 +18450,11 @@ function projectToInputs4(p) {
 }
 var designRouter = router({
   // ─── Evidence Vault ─────────────────────────────────────────────────────────
-  listAssets: protectedProcedure.input(z6.object({ projectId: z6.number(), category: z6.string().optional() })).query(async ({ input }) => {
+  listAssets: orgProcedure.input(z6.object({ projectId: z6.number(), category: z6.string().optional() })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
     return getProjectAssets(input.projectId, input.category);
   }),
-  uploadAsset: protectedProcedure.input(z6.object({
+  uploadAsset: orgProcedure.input(z6.object({
     projectId: z6.number(),
     filename: z6.string(),
     mimeType: z6.string(),
@@ -14092,11 +18464,12 @@ var designRouter = router({
     notes: z6.string().optional(),
     isClientVisible: z6.boolean().default(true)
   })).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
     const buffer = Buffer.from(input.base64Data, "base64");
     const suffix = Math.random().toString(36).slice(2, 10);
     const storagePath = `projects/${input.projectId}/assets/${suffix}-${input.filename}`;
     const { url } = await storagePut(storagePath, buffer, input.mimeType);
-    const result = await createProjectAsset({
+    const result = requireScopedDesignInsert(await createProjectAssetForOrg({
       projectId: input.projectId,
       filename: input.filename,
       mimeType: input.mimeType,
@@ -14108,8 +18481,9 @@ var designRouter = router({
       tags: input.tags || [],
       notes: input.notes,
       isClientVisible: input.isClientVisible
-    });
+    }, ctx.orgId));
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "asset.upload",
       entityType: "project_asset",
@@ -14118,11 +18492,11 @@ var designRouter = router({
     });
     return { id: result.id, url };
   }),
-  deleteAsset: protectedProcedure.input(z6.object({ assetId: z6.number() })).mutation(async ({ ctx, input }) => {
-    const asset = await getProjectAssetById(input.assetId);
-    if (!asset) throw new TRPCError5({ code: "NOT_FOUND", message: "Asset not found" });
-    await deleteProjectAsset(input.assetId);
+  deleteAsset: orgProcedure.input(z6.object({ assetId: z6.number() })).mutation(async ({ ctx, input }) => {
+    const { resource: asset } = await requireDesignAsset(input.assetId, ctx.orgId);
+    requireScopedDesignMutation(await deleteProjectAssetForOrg(input.assetId, ctx.orgId));
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "asset.delete",
       entityType: "project_asset",
@@ -14131,34 +18505,47 @@ var designRouter = router({
     });
     return { success: true };
   }),
-  updateAsset: protectedProcedure.input(z6.object({
+  updateAsset: orgProcedure.input(z6.object({
     assetId: z6.number(),
     category: z6.string().optional(),
     tags: z6.array(z6.string()).optional(),
     notes: z6.string().optional(),
     isClientVisible: z6.boolean().optional()
   })).mutation(async ({ ctx, input }) => {
+    await requireDesignAsset(input.assetId, ctx.orgId);
     const { assetId, ...updates } = input;
-    await updateProjectAsset(assetId, updates);
+    requireScopedDesignMutation(await updateProjectAssetForOrg(assetId, ctx.orgId, updates));
     return { success: true };
   }),
-  linkAsset: protectedProcedure.input(z6.object({
+  linkAsset: orgProcedure.input(z6.object({
     assetId: z6.number(),
     linkType: z6.enum(["evaluation", "report", "scenario", "material_board", "design_brief", "visual"]),
     linkId: z6.number()
-  })).mutation(async ({ input }) => {
-    return createAssetLink(input);
+  })).mutation(async ({ ctx, input }) => {
+    const asset = await requireDesignAsset(input.assetId, ctx.orgId);
+    const target = await requireDesignLinkTarget(input.linkType, input.linkId, ctx.orgId);
+    requireSameDesignProject(asset.project.id, target.value.project.id);
+    return requireScopedDesignInsert(await createAssetLinkForOrg(input, ctx.orgId));
   }),
-  getAssetLinks: protectedProcedure.input(z6.object({ assetId: z6.number() })).query(async ({ input }) => {
-    return getAssetLinksByAsset(input.assetId);
+  getAssetLinks: orgProcedure.input(z6.object({ assetId: z6.number() })).query(async ({ ctx, input }) => {
+    const asset = await requireDesignAsset(input.assetId, ctx.orgId);
+    const links = await getAssetLinksByAsset(input.assetId);
+    for (const link of links) {
+      const target = await requireDesignLinkTarget(link.linkType, link.linkId, ctx.orgId);
+      requireSameDesignProject(asset.project.id, target.value.project.id);
+    }
+    return links;
   }),
   // ─── Design Brief Generator ─────────────────────────────────────────────────
-  generateBrief: protectedProcedure.input(z6.object({ projectId: z6.number(), scenarioId: z6.number().optional() })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError5({ code: "NOT_FOUND", message: "Project not found" });
+  generateBrief: orgProcedure.input(z6.object({ projectId: z6.number(), scenarioId: z6.number().optional() })).mutation(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    if (input.scenarioId !== void 0) {
+      const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
+      requireSameDesignProject(project.id, scenario.project.id);
+    }
     const scores = await getScoreMatricesByProject(input.projectId);
     const latest = scores[0];
-    if (!latest) throw new TRPCError5({ code: "PRECONDITION_FAILED", message: "Project must be evaluated first" });
+    if (!latest) throw new TRPCError9({ code: "PRECONDITION_FAILED", message: "Project must be evaluated first" });
     const inputs = projectToInputs4(project);
     const scoreResult = {
       compositeScore: Number(latest.compositeScore),
@@ -14181,6 +18568,79 @@ var designRouter = router({
     const livePricing = await getLiveCategoryPricing(targetFinish);
     const matConstants = await getMaterialConstants();
     const areaSaleMedian = await getAreaSaleMedianSqm(project.dldAreaId);
+    let floorPlanAnalysis = void 0;
+    let spaceBenchmarkResult = void 0;
+    if (project.floorPlanAnalysis) {
+      try {
+        floorPlanAnalysis = typeof project.floorPlanAnalysis === "string" ? JSON.parse(project.floorPlanAnalysis) : project.floorPlanAnalysis;
+        if (floorPlanAnalysis?.rooms?.length > 0 && project.dldAreaId) {
+          const dldBench = await getDldAreaBenchmark(project.dldAreaId);
+          if (dldBench) {
+            const areaName = dldBench.areaName || "Dubai";
+            const transCount = Number(dldBench.transactionCount) || 100;
+            const saleP50 = Number(dldBench.saleMedian) || 25e3;
+            spaceBenchmarkResult = benchmarkSpaceRatios(floorPlanAnalysis, areaName, transCount, saleP50);
+          }
+        }
+      } catch (e) {
+        console.warn("[GenerateBrief] Floor plan analysis parsing failed:", e);
+      }
+    }
+    let mqiCostResult;
+    try {
+      const allocations = await getMaterialAllocations(input.projectId, ctx.orgId);
+      if (allocations.length > 0) {
+        const storedRooms = await getSpaceProgramRooms(input.projectId, ctx.orgId);
+        let rooms;
+        if (storedRooms.length > 0) {
+          rooms = storedRooms.filter((r) => r.isFitOut).map((r) => ({
+            id: r.roomCode,
+            name: r.roomName,
+            sqm: Number(r.sqm),
+            budgetPct: Number(r.budgetPct) || 0,
+            priority: r.priority || "medium",
+            finishGrade: r.finishGrade || "B"
+          }));
+        } else {
+          const spaceProgram = buildSpaceProgram(project);
+          rooms = spaceProgram.rooms;
+        }
+        const surfaces = calculateSurfaceAreas(rooms);
+        const roomAllocMap = /* @__PURE__ */ new Map();
+        for (const alloc of allocations) {
+          if (!roomAllocMap.has(alloc.roomId)) {
+            roomAllocMap.set(alloc.roomId, { roomId: alloc.roomId, floor: [], walls: [], ceiling: [], joinery: [] });
+          }
+          const room = roomAllocMap.get(alloc.roomId);
+          const slice = {
+            materialLibraryId: alloc.materialLibraryId,
+            materialName: alloc.materialName,
+            percentage: Number(alloc.allocationPct),
+            reasoning: alloc.aiReasoning || ""
+          };
+          const el = alloc.element;
+          if (room[el]) room[el].push(slice);
+        }
+        const allocationResult = {
+          rooms: Array.from(roomAllocMap.values()),
+          designRationale: "Reconstructed from stored allocations",
+          estimatedQualityLabel: "Stored"
+        };
+        const materialLibrary2 = await getMaterialLibrary();
+        mqiCostResult = buildQuantityCostSummary(
+          surfaces,
+          allocationResult,
+          materialLibrary2,
+          {
+            fin01BudgetCap: project.fin01BudgetCap ? Number(project.fin01BudgetCap) : null,
+            ctx03Gfa: project.ctx03Gfa ? Number(project.ctx03Gfa) : null
+          }
+        );
+        console.log(`[GenerateBrief] MQI data enrichment: ${mqiCostResult.rooms.length} rooms, mid cost AED ${mqiCostResult.summary.totalFinishCostMid.toFixed(0)}`);
+      }
+    } catch (e) {
+      console.warn("[GenerateBrief] MQI data fetch failed, continuing without:", e);
+    }
     const briefData = generateDesignBrief2(
       { name: project.name, description: project.description },
       inputs,
@@ -14189,24 +18649,31 @@ var designRouter = router({
       matConstants.length > 0 ? matConstants : void 0,
       areaSaleMedian,
       // DLD area median, replaces 25K fallback
-      project.projectPurpose
+      project.projectPurpose,
       // Purpose adjusts material tier
+      floorPlanAnalysis,
+      // Phase 9: floor plan data
+      spaceBenchmarkResult,
+      // Phase 9: space benchmark result
+      mqiCostResult
+      // Phase C: MQI cost summary
     );
     const existing = await getDesignBriefsByProject(input.projectId);
     const nextVersion = existing.length > 0 ? existing[0].version + 1 : 1;
-    const result = await createDesignBrief({
+    const result = requireScopedDesignInsert(await createDesignBriefForOrg({
       projectId: input.projectId,
       scenarioId: input.scenarioId,
       version: nextVersion,
       projectIdentity: briefData.projectIdentity,
       designNarrative: briefData.designNarrative,
       materialSpecifications: briefData.materialSpecifications,
-      boqFramework: briefData.boqFramework,
-      detailedBudget: briefData.detailedBudget,
+      boqFramework: { ...briefData.boqFramework, pricingAnalytics: briefData.pricingAnalytics },
+      detailedBudget: { ...briefData.detailedBudget, mqiSummary: briefData.mqiSummary, spaceAllocation: briefData.spaceAllocation },
       designerInstructions: briefData.designerInstructions,
       createdBy: ctx.user.id
-    });
+    }, ctx.orgId));
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "design_brief.generate",
       entityType: "design_brief",
@@ -14215,24 +18682,33 @@ var designRouter = router({
     });
     return { id: result.id, version: nextVersion, data: briefData };
   }),
-  listBriefs: protectedProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ input }) => {
-    return getDesignBriefsByProject(input.projectId);
+  listBriefs: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const briefs = await getDesignBriefsByProject(input.projectId);
+    for (const brief of briefs) {
+      await requireMatchingDesignScenario(brief.scenarioId, brief.projectId, ctx.orgId);
+    }
+    return briefs;
   }),
-  getBrief: protectedProcedure.input(z6.object({ briefId: z6.number() })).query(async ({ input }) => {
-    return getDesignBriefById(input.briefId);
+  getBrief: orgProcedure.input(z6.object({ briefId: z6.number() })).query(async ({ ctx, input }) => {
+    const { resource } = await requireDesignBrief(input.briefId, ctx.orgId);
+    await requireMatchingDesignScenario(resource.scenarioId, resource.projectId, ctx.orgId);
+    return resource;
   }),
-  getLatestBrief: protectedProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ input }) => {
-    return getLatestDesignBrief(input.projectId);
+  getLatestBrief: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const brief = await getLatestDesignBrief(input.projectId);
+    if (brief) await requireMatchingDesignScenario(brief.scenarioId, brief.projectId, ctx.orgId);
+    return brief;
   }),
   // ─── RFQ from Brief (V4 Pipeline) ─────────────────────────────────────────
-  generateRfqFromBrief: protectedProcedure.input(z6.object({
+  generateRfqFromBrief: orgProcedure.input(z6.object({
     projectId: z6.number(),
     briefId: z6.number()
   })).mutation(async ({ ctx, input }) => {
-    const brief = await getDesignBriefById(input.briefId);
-    if (!brief) throw new TRPCError5({ code: "NOT_FOUND", message: "Design Brief not found" });
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError5({ code: "NOT_FOUND", message: "Project not found" });
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    const { resource: brief, project: briefProject } = await requireDesignBrief(input.briefId, ctx.orgId);
+    requireSameDesignProject(project.id, briefProject.id);
     const briefData = {
       projectIdentity: brief.projectIdentity,
       designNarrative: brief.designNarrative,
@@ -14253,15 +18729,16 @@ var designRouter = router({
     }));
     const result = buildRFQFromBrief(
       input.projectId,
-      project.orgId || 1,
+      ctx.orgId,
       briefData,
       input.briefId,
       materialList
     );
     for (const item of result.items) {
-      await insertRfqLineItem(item);
+      requireScopedDesignMutation(await insertRfqLineItemForOrg(item, ctx.orgId));
     }
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "rfq.generate_from_brief",
       entityType: "design_brief",
@@ -14276,10 +18753,8 @@ var designRouter = router({
     });
     return result;
   }),
-  exportBriefDocx: protectedProcedure.input(z6.object({ briefId: z6.number() })).mutation(async ({ input }) => {
-    const brief = await getDesignBriefById(input.briefId);
-    if (!brief) throw new Error("Design brief not found");
-    const project = await getProjectById(brief.projectId);
+  exportBriefDocx: orgProcedure.input(z6.object({ briefId: z6.number() })).mutation(async ({ ctx, input }) => {
+    const { resource: brief, project } = await requireDesignBrief(input.briefId, ctx.orgId);
     const docxBuffer = await generateDesignBriefDocx({
       projectIdentity: brief.projectIdentity ?? {},
       designNarrative: brief.designNarrative ?? {},
@@ -14287,6 +18762,7 @@ var designRouter = router({
       boqFramework: brief.boqFramework,
       detailedBudget: brief.detailedBudget ?? {},
       designerInstructions: brief.designerInstructions,
+      spaceAllocation: brief.briefData?.spaceAllocation ?? brief.spaceAllocation ?? void 0,
       version: brief.version,
       projectName: project?.name
     });
@@ -14295,15 +18771,22 @@ var designRouter = router({
     return { url };
   }),
   // ─── Visual Generation (nano banana) ────────────────────────────────────────
-  generateVisual: protectedProcedure.input(z6.object({
+  generateVisual: orgProcedure.input(z6.object({
     projectId: z6.number(),
     type: z6.enum(["mood", "material_board", "hero"]),
     scenarioId: z6.number().optional(),
     customPrompt: z6.string().optional(),
     templateId: z6.number().optional()
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError5({ code: "NOT_FOUND", message: "Project not found" });
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    let selectedTemplate;
+    if (input.scenarioId !== void 0) {
+      const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
+      requireSameDesignProject(project.id, scenario.project.id);
+    }
+    if (input.templateId !== void 0) {
+      selectedTemplate = await requireDesignPromptTemplate(input.templateId, ctx.orgId);
+    }
     let inputs = projectToInputs4(project);
     if (input.scenarioId) {
       const scenarioInput = await getScenarioInput(input.scenarioId);
@@ -14312,33 +18795,77 @@ var designRouter = router({
         inputs = { ...inputs, ...overrides };
       }
     }
-    const context = buildPromptContext(inputs);
+    let context;
+    const boards = await getMaterialBoardsByProject(input.projectId);
+    if (boards && boards.length > 0) {
+      const activeBoard = boards[0];
+      const boardMaterials = await getMaterialsByBoard(activeBoard.id);
+      const enrichedMaterials = [];
+      for (const bm of boardMaterials) {
+        const mat = await getMaterialById(bm.materialId);
+        if (mat) {
+          enrichedMaterials.push({
+            name: mat.name,
+            category: mat.category,
+            tier: mat.tier,
+            supplierName: mat.supplierName,
+            costUnit: mat.costUnit,
+            costLow: Number(mat.typicalCostLow) || 0,
+            costHigh: Number(mat.typicalCostHigh) || 0,
+            embodiedCarbon: mat.embodiedCarbon ? parseFloat(String(mat.embodiedCarbon)) : null,
+            maintenanceFactor: mat.maintenanceFactor ? parseFloat(String(mat.maintenanceFactor)) : null,
+            brandStandardApproval: mat.brandStandardApproval || null
+          });
+        }
+      }
+      context = buildBoardAwarePromptContext(inputs, enrichedMaterials, project.brandStandardConstraints);
+      console.log(`[Visual] Using board-aware context with ${enrichedMaterials.length} materials for project ${input.projectId}`);
+    } else {
+      context = buildPromptContext(inputs);
+    }
+    try {
+      const allocations = await getMaterialAllocations(input.projectId, ctx.orgId);
+      if (allocations && allocations.length > 0) {
+        const mqiAllocs = allocations.map((a) => ({
+          roomId: a.roomId,
+          roomName: a.roomName,
+          element: a.element,
+          materialName: a.materialName,
+          percentage: Number(a.percentage) || 100
+        }));
+        const clause = buildMaterialAllocationPromptClause(mqiAllocs);
+        if (clause) {
+          context.materialSpec = (context.materialSpec || "") + clause;
+          console.log(`[Visual] Injected MQI allocation clause with ${mqiAllocs.length} allocations`);
+        }
+      }
+    } catch (e) {
+      console.warn("[Visual] MQI allocation fetch failed, continuing without:", e);
+    }
     let prompt;
     if (input.customPrompt) {
       prompt = input.customPrompt;
-    } else if (input.templateId) {
-      const templates = await getAllPromptTemplates(input.type, ctx.user.orgId ?? void 0);
-      const tmpl = templates.find((t2) => t2.id === input.templateId);
-      prompt = tmpl ? interpolateTemplate(tmpl.templateText, context) : generateDefaultPrompt(input.type, context);
+    } else if (selectedTemplate) {
+      prompt = interpolateTemplate(selectedTemplate.templateText, context);
     } else {
-      const tmpl = await getActivePromptTemplate(input.type, ctx.user.orgId ?? void 0);
+      const tmpl = await getActivePromptTemplate(input.type, ctx.orgId);
       prompt = tmpl ? interpolateTemplate(tmpl.templateText, context) : generateDefaultPrompt(input.type, context);
     }
     const validation = validatePrompt(prompt);
     if (!validation.valid) {
-      throw new TRPCError5({ code: "BAD_REQUEST", message: validation.reason });
+      throw new TRPCError9({ code: "BAD_REQUEST", message: validation.reason });
     }
-    const visualResult = await createGeneratedVisual({
+    const visualResult = requireScopedDesignInsert(await createGeneratedVisualForOrg({
       projectId: input.projectId,
       scenarioId: input.scenarioId,
       type: input.type,
       promptJson: { prompt, context, templateId: input.templateId },
       status: "generating",
       createdBy: ctx.user.id
-    });
+    }, ctx.orgId));
     try {
       const { url } = await generateImage({ prompt });
-      const assetResult = await createProjectAsset({
+      const assetResult = requireScopedDesignInsert(await createProjectAssetForOrg({
         projectId: input.projectId,
         filename: `${input.type}-${Date.now()}.png`,
         mimeType: "image/png",
@@ -14347,12 +18874,13 @@ var designRouter = router({
         storageUrl: url,
         uploadedBy: ctx.user.id,
         category: input.type === "mood" ? "mood_image" : input.type === "material_board" ? "material_board" : "marketing_hero"
-      });
-      await updateGeneratedVisual(visualResult.id, {
+      }, ctx.orgId));
+      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
         status: "completed",
         imageAssetId: assetResult.id
-      });
+      }));
       await createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "visual.generate",
         entityType: "generated_visual",
@@ -14361,19 +18889,22 @@ var designRouter = router({
       });
       return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" };
     } catch (error) {
-      await updateGeneratedVisual(visualResult.id, {
+      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
         status: "failed",
         errorMessage: error.message || "Image generation failed"
-      });
+      }));
       return { id: visualResult.id, assetId: null, url: null, status: "failed", error: error.message };
     }
   }),
-  listVisuals: protectedProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ input }) => {
+  listVisuals: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
     const visuals = await getGeneratedVisualsByProject(input.projectId);
     const enriched = await Promise.all(visuals.map(async (v) => {
+      await requireMatchingDesignScenario(v.scenarioId, v.projectId, ctx.orgId);
       let imageUrl = null;
       if (v.imageAssetId) {
-        const asset = await getProjectAssetById(v.imageAssetId);
+        const { resource: asset, project: assetProject } = await requireDesignAsset(v.imageAssetId, ctx.orgId);
+        requireSameDesignProject(input.projectId, assetProject.id);
         imageUrl = asset?.storageUrl ?? null;
       }
       return { ...v, imageUrl };
@@ -14381,48 +18912,37 @@ var designRouter = router({
     return enriched;
   }),
   // V4-05: Attach a completed visual's asset to a report/pack as an evidence reference
-  attachVisualToPack: protectedProcedure.input(z6.object({
+  attachVisualToPack: orgProcedure.input(z6.object({
     visualId: z6.number(),
     targetType: z6.enum(["report", "design_brief", "material_board", "pack_section"]),
     targetId: z6.number(),
     sectionLabel: z6.string().optional()
-  })).mutation(async ({ ctx, input }) => {
-    const visual = await getGeneratedVisualById(input.visualId);
-    if (!visual || !visual.imageAssetId) {
-      throw new TRPCError5({ code: "NOT_FOUND", message: "Visual not found or has no image" });
-    }
-    await createEvidenceReference({
-      evidenceRecordId: visual.imageAssetId,
-      // asset ID as evidence
-      targetType: input.targetType,
-      targetId: input.targetId,
-      sectionLabel: input.sectionLabel || `Visual #${visual.id}`,
-      citationText: `AI-generated ${visual.type} visual (prompt: ${(visual.promptJson?.prompt || "").slice(0, 100)}...)`
+  })).mutation(async () => {
+    throw new TRPCError9({
+      code: "PRECONDITION_FAILED",
+      message: "Visual attachments are unavailable until a typed attachment model is configured"
     });
-    await createAuditLog({
-      userId: ctx.user.id,
-      action: "visual.attach_to_pack",
-      entityType: "generated_visual",
-      entityId: visual.id,
-      details: { targetType: input.targetType, targetId: input.targetId }
-    });
-    return { success: true };
   }),
   // ─── Pin Visuals to Material Boards (V4) ────────────────────────────────────
-  pinVisualToBoard: protectedProcedure.input(z6.object({
+  pinVisualToBoard: orgProcedure.input(z6.object({
     visualId: z6.number(),
     boardId: z6.number()
   })).mutation(async ({ ctx, input }) => {
-    const visual = await getGeneratedVisualById(input.visualId);
+    const { resource: visual, project: visualProject } = await requireDesignVisual(input.visualId, ctx.orgId);
     if (!visual || !visual.imageAssetId) {
-      throw new TRPCError5({ code: "NOT_FOUND", message: "Visual not found or has no image" });
+      throw new TRPCError9({ code: "NOT_FOUND", message: "Visual not found or has no image" });
     }
-    const link = await createAssetLink({
+    const { project: boardProject } = await requireDesignBoard(input.boardId, ctx.orgId);
+    const { project: assetProject } = await requireDesignAsset(visual.imageAssetId, ctx.orgId);
+    requireSameDesignProject(visualProject.id, boardProject.id);
+    requireSameDesignProject(visualProject.id, assetProject.id);
+    const link = requireScopedDesignInsert(await createAssetLinkForOrg({
       assetId: visual.imageAssetId,
       linkType: "material_board",
       linkId: input.boardId
-    });
+    }, ctx.orgId));
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "visual.pin_to_board",
       entityType: "generated_visual",
@@ -14431,10 +18951,12 @@ var designRouter = router({
     });
     return { success: true, linkId: link.id };
   }),
-  listPinnedVisuals: protectedProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ input }) => {
+  listPinnedVisuals: orgProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ ctx, input }) => {
+    const { project: boardProject } = await requireDesignBoard(input.boardId, ctx.orgId);
     const links = await getAssetLinksByEntity("material_board", input.boardId);
     const pinned = await Promise.all(links.map(async (link) => {
-      const asset = await getProjectAssetById(link.assetId);
+      const { resource: asset, project: assetProject } = await requireDesignAsset(link.assetId, ctx.orgId);
+      requireSameDesignProject(boardProject.id, assetProject.id);
       return {
         linkId: link.id,
         assetId: link.assetId,
@@ -14445,9 +18967,16 @@ var designRouter = router({
     }));
     return pinned;
   }),
-  unpinVisual: protectedProcedure.input(z6.object({ linkId: z6.number() })).mutation(async ({ ctx, input }) => {
-    await deleteAssetLink(input.linkId);
+  unpinVisual: orgProcedure.input(z6.object({ linkId: z6.number() })).mutation(async ({ ctx, input }) => {
+    const authorizedLink = await requireDesignAssetLink(input.linkId, ctx.orgId);
+    if (authorizedLink.resource.linkType !== "material_board") {
+      throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    const target = await requireDesignLinkTarget(authorizedLink.resource.linkType, authorizedLink.resource.linkId, ctx.orgId);
+    requireSameDesignProject(authorizedLink.project.id, target.value.project.id);
+    requireScopedDesignMutation(await deleteAssetLinkForOrg(input.linkId, ctx.orgId));
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "visual.unpin_from_board",
       entityType: "asset_link",
@@ -14456,12 +18985,17 @@ var designRouter = router({
     return { success: true };
   }),
   // ─── Material Board Composer ────────────────────────────────────────────────
-  createBoard: protectedProcedure.input(z6.object({
+  createBoard: orgProcedure.input(z6.object({
     projectId: z6.number(),
     boardName: z6.string(),
     scenarioId: z6.number().optional(),
     materialIds: z6.array(z6.number()).optional()
   })).mutation(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    if (input.scenarioId !== void 0) {
+      const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
+      requireSameDesignProject(project.id, scenario.project.id);
+    }
     const materials = [];
     if (input.materialIds && input.materialIds.length > 0) {
       for (const id of input.materialIds) {
@@ -14469,19 +19003,20 @@ var designRouter = router({
         if (mat) materials.push(mat);
       }
     }
-    const boardResult = await createMaterialBoard({
+    const boardResult = requireScopedDesignInsert(await createMaterialBoardForOrg({
       projectId: input.projectId,
       scenarioId: input.scenarioId,
       boardName: input.boardName,
       boardJson: materials,
       createdBy: ctx.user.id
-    });
+    }, ctx.orgId));
     if (input.materialIds) {
       for (const materialId of input.materialIds) {
-        await addMaterialToBoard({ boardId: boardResult.id, materialId });
+        requireScopedDesignInsert(await addMaterialToBoardForOrg({ boardId: boardResult.id, materialId }, ctx.orgId));
       }
     }
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "board.create",
       entityType: "material_board",
@@ -14490,12 +19025,17 @@ var designRouter = router({
     });
     return { id: boardResult.id };
   }),
-  listBoards: protectedProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ input }) => {
-    return getMaterialBoardsByProject(input.projectId);
+  listBoards: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const boards = await getMaterialBoardsByProject(input.projectId);
+    for (const board of boards) {
+      await requireMatchingDesignScenario(board.scenarioId, board.projectId, ctx.orgId);
+    }
+    return boards;
   }),
-  getBoard: protectedProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ input }) => {
-    const board = await getMaterialBoardById(input.boardId);
-    if (!board) throw new TRPCError5({ code: "NOT_FOUND" });
+  getBoard: orgProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ ctx, input }) => {
+    const { resource: board } = await requireDesignBoard(input.boardId, ctx.orgId);
+    await requireMatchingDesignScenario(board.scenarioId, board.projectId, ctx.orgId);
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const materialDetails = [];
     for (const bm of boardMaterials) {
@@ -14504,28 +19044,32 @@ var designRouter = router({
     }
     return { board, materials: materialDetails };
   }),
-  addMaterialToBoard: protectedProcedure.input(z6.object({
+  addMaterialToBoard: orgProcedure.input(z6.object({
     boardId: z6.number(),
     materialId: z6.number(),
     quantity: z6.number().optional(),
     unitOfMeasure: z6.string().optional(),
     notes: z6.string().optional()
-  })).mutation(async ({ input }) => {
-    return addMaterialToBoard({
+  })).mutation(async ({ ctx, input }) => {
+    await requireDesignBoard(input.boardId, ctx.orgId);
+    return requireScopedDesignInsert(await addMaterialToBoardForOrg({
       boardId: input.boardId,
       materialId: input.materialId,
       quantity: input.quantity ? String(input.quantity) : void 0,
       unitOfMeasure: input.unitOfMeasure,
       notes: input.notes
-    });
+    }, ctx.orgId));
   }),
-  removeMaterialFromBoard: protectedProcedure.input(z6.object({ joinId: z6.number() })).mutation(async ({ input }) => {
-    await removeMaterialFromBoard(input.joinId);
+  removeMaterialFromBoard: orgProcedure.input(z6.object({ joinId: z6.number() })).mutation(async ({ ctx, input }) => {
+    await requireDesignBoardJoin(input.joinId, ctx.orgId);
+    requireScopedDesignMutation(await removeMaterialFromBoardForOrg(input.joinId, ctx.orgId));
     return { success: true };
   }),
-  deleteBoard: protectedProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
-    await deleteMaterialBoard(input.boardId);
+  deleteBoard: orgProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
+    await requireDesignBoard(input.boardId, ctx.orgId);
+    requireScopedDesignMutation(await deleteMaterialBoardForOrg(input.boardId, ctx.orgId));
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "board.delete",
       entityType: "material_board",
@@ -14533,7 +19077,7 @@ var designRouter = router({
     });
     return { success: true };
   }),
-  updateBoardTile: protectedProcedure.input(z6.object({
+  updateBoardTile: orgProcedure.input(z6.object({
     joinId: z6.number(),
     specNotes: z6.string().nullish(),
     costBandOverride: z6.string().nullish(),
@@ -14541,28 +19085,35 @@ var designRouter = router({
     unitOfMeasure: z6.string().nullish(),
     notes: z6.string().nullish()
   })).mutation(async ({ ctx, input }) => {
+    await requireDesignBoardJoin(input.joinId, ctx.orgId);
     const { joinId, ...rest } = input;
-    await updateBoardTile(joinId, {
+    requireScopedDesignMutation(await updateBoardTileForOrg(joinId, ctx.orgId, {
       specNotes: rest.specNotes ?? void 0,
       costBandOverride: rest.costBandOverride ?? void 0,
       quantity: rest.quantity !== void 0 && rest.quantity !== null ? String(rest.quantity) : void 0,
       unitOfMeasure: rest.unitOfMeasure ?? void 0,
       notes: rest.notes ?? void 0
-    });
+    }));
     return { success: true };
   }),
-  reorderBoardTiles: protectedProcedure.input(z6.object({
+  reorderBoardTiles: orgProcedure.input(z6.object({
     boardId: z6.number(),
     orderedJoinIds: z6.array(z6.number())
-  })).mutation(async ({ input }) => {
-    await reorderBoardTiles(input.boardId, input.orderedJoinIds);
+  })).mutation(async ({ ctx, input }) => {
+    const board = await requireDesignBoard(input.boardId, ctx.orgId);
+    if (new Set(input.orderedJoinIds).size !== input.orderedJoinIds.length) {
+      throw new TRPCError9({ code: "BAD_REQUEST", message: "Board tile identifiers must be unique" });
+    }
+    for (const joinId of input.orderedJoinIds) {
+      const join = await requireDesignBoardJoin(joinId, ctx.orgId);
+      requireSameDesignProject(board.project.id, join.project.id);
+      if (join.parent.id !== input.boardId) throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    requireScopedDesignMutation(await reorderBoardTilesForOrg(input.boardId, input.orderedJoinIds, ctx.orgId));
     return { success: true };
   }),
-  exportBoardPdf: protectedProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
-    const board = await getMaterialBoardById(input.boardId);
-    if (!board) throw new TRPCError5({ code: "NOT_FOUND" });
-    const project = await getProjectById(board.projectId);
-    if (!project) throw new TRPCError5({ code: "NOT_FOUND" });
+  exportBoardPdf: orgProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
+    const { resource: board, project } = await requireDesignBoard(input.boardId, ctx.orgId);
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const items = [];
     for (const bm of boardMaterials) {
@@ -14606,6 +19157,7 @@ var designRouter = router({
       console.warn("[Board PDF] S3 upload failed:", e);
     }
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "board.export_pdf",
       entityType: "material_board",
@@ -14614,7 +19166,8 @@ var designRouter = router({
     });
     return { fileUrl, html };
   }),
-  boardSummary: protectedProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ input }) => {
+  boardSummary: orgProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ ctx, input }) => {
+    await requireDesignBoard(input.boardId, ctx.orgId);
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const items = [];
     for (const bm of boardMaterials) {
@@ -14639,11 +19192,25 @@ var designRouter = router({
       rfqLines: generateRfqLines(items)
     };
   }),
-  recommendMaterials: protectedProcedure.input(z6.object({ projectId: z6.number(), maxItems: z6.number().default(10) })).query(async ({ input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError5({ code: "NOT_FOUND" });
-    const catalog = await getAllMaterials();
-    return recommendMaterials(catalog, project.mkt01Tier || "Upper-mid", input.maxItems);
+  recommendMaterials: orgProcedure.input(z6.object({ projectId: z6.number(), maxItems: z6.number().default(10) })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const matched = await matchVendorsForProject({
+      projectId: input.projectId,
+      orgId: ctx.orgId,
+      maxItems: input.maxItems
+    });
+    return matched.map((m) => ({
+      materialId: m.id,
+      name: m.name,
+      category: m.category,
+      tier: m.tier,
+      costLow: Number(m.typicalCostLow) || 0,
+      costHigh: Number(m.typicalCostHigh) || 0,
+      costUnit: m.costUnit || "AED/unit",
+      leadTimeDays: m.leadTimeDays || 30,
+      leadTimeBand: m.leadTimeBand || "medium",
+      supplierName: m.supplierName || "TBD"
+    }));
   }),
   // ─── Materials Catalog ──────────────────────────────────────────────────────
   listMaterials: protectedProcedure.input(z6.object({ category: z6.string().optional(), tier: z6.string().optional() })).query(async ({ input }) => {
@@ -14662,6 +19229,9 @@ var designRouter = router({
     leadTimeDays: z6.number().optional(),
     leadTimeBand: z6.enum(["short", "medium", "long", "critical"]).default("medium"),
     regionAvailability: z6.array(z6.string()).optional(),
+    embodiedCarbon: z6.number().optional(),
+    maintenanceFactor: z6.number().optional(),
+    brandStandardApproval: z6.enum(["open_market", "approved_vendor", "preferred_brand"]).default("open_market"),
     supplierName: z6.string().optional(),
     supplierContact: z6.string().optional(),
     supplierUrl: z6.string().optional(),
@@ -14671,6 +19241,8 @@ var designRouter = router({
       ...input,
       typicalCostLow: input.typicalCostLow ? String(input.typicalCostLow) : void 0,
       typicalCostHigh: input.typicalCostHigh ? String(input.typicalCostHigh) : void 0,
+      embodiedCarbon: input.embodiedCarbon ? String(input.embodiedCarbon) : void 0,
+      maintenanceFactor: input.maintenanceFactor ? String(input.maintenanceFactor) : void 0,
       createdBy: ctx.user.id
     });
     return result;
@@ -14680,6 +19252,9 @@ var designRouter = router({
     name: z6.string().optional(),
     typicalCostLow: z6.number().optional(),
     typicalCostHigh: z6.number().optional(),
+    embodiedCarbon: z6.number().optional(),
+    maintenanceFactor: z6.number().optional(),
+    brandStandardApproval: z6.enum(["open_market", "approved_vendor", "preferred_brand"]).optional(),
     leadTimeDays: z6.number().optional(),
     supplierName: z6.string().optional(),
     notes: z6.string().optional()
@@ -14688,6 +19263,8 @@ var designRouter = router({
     const mapped = { ...updates };
     if (updates.typicalCostLow !== void 0) mapped.typicalCostLow = String(updates.typicalCostLow);
     if (updates.typicalCostHigh !== void 0) mapped.typicalCostHigh = String(updates.typicalCostHigh);
+    if (updates.embodiedCarbon !== void 0) mapped.embodiedCarbon = String(updates.embodiedCarbon);
+    if (updates.maintenanceFactor !== void 0) mapped.maintenanceFactor = String(updates.maintenanceFactor);
     await updateMaterial(id, mapped);
     return { success: true };
   }),
@@ -14719,38 +19296,56 @@ var designRouter = router({
     return { success: true };
   }),
   // ─── Collaboration & Comments ───────────────────────────────────────────────
-  addComment: protectedProcedure.input(z6.object({
+  addComment: orgProcedure.input(z6.object({
     projectId: z6.number(),
     entityType: z6.enum(["design_brief", "material_board", "visual", "general"]),
     entityId: z6.number().optional(),
     content: z6.string().min(1)
   })).mutation(async ({ ctx, input }) => {
-    return createComment({
+    await requireDesignProject(input.projectId, ctx.orgId);
+    if (input.entityType === "general") {
+      if (input.entityId !== void 0) throw new TRPCError9({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
+    } else {
+      if (input.entityId === void 0) throw new TRPCError9({ code: "BAD_REQUEST", message: "Entity comments require a target" });
+      const target = await requireDesignCommentTarget(input.entityType, input.entityId, ctx.orgId);
+      requireSameDesignProject(input.projectId, target.value.project.id);
+    }
+    return requireScopedDesignInsert(await createCommentForOrg({
       projectId: input.projectId,
       entityType: input.entityType,
       entityId: input.entityId,
       userId: ctx.user.id,
       content: input.content
-    });
+    }, ctx.orgId));
   }),
-  listComments: protectedProcedure.input(z6.object({
+  listComments: orgProcedure.input(z6.object({
     projectId: z6.number(),
     entityType: z6.string().optional(),
     entityId: z6.number().optional()
-  })).query(async ({ input }) => {
+  })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    if (input.entityType === "general" && input.entityId !== void 0) {
+      throw new TRPCError9({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
+    }
+    if (input.entityType && input.entityType !== "general" && input.entityId !== void 0) {
+      const target = await requireDesignCommentTarget(input.entityType, input.entityId, ctx.orgId);
+      requireSameDesignProject(input.projectId, target.value.project.id);
+    }
     if (input.entityType) {
       return getCommentsByEntity(input.projectId, input.entityType, input.entityId);
     }
     return getCommentsByProject(input.projectId);
   }),
   // ─── Approval Gates ─────────────────────────────────────────────────────────
-  updateApprovalState: protectedProcedure.input(z6.object({
+  updateApprovalState: orgProcedure.input(z6.object({
     projectId: z6.number(),
     approvalState: z6.enum(["draft", "review", "approved_rfq", "approved_marketing"]),
     rationale: z6.string().optional()
   })).mutation(async ({ ctx, input }) => {
-    await updateProjectApprovalState(input.projectId, input.approvalState);
+    await requireDesignProject(input.projectId, ctx.orgId);
+    requireScopedDesignMutation(await updateProjectApprovalStateForOrg(input.projectId, ctx.orgId, input.approvalState));
     await createAuditLog({
+      orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "approval.update",
       entityType: "project",
@@ -14852,8 +19447,7 @@ var designRouter = router({
     projectId: z6.number(),
     limit: z6.number().min(1).max(50).default(20)
   })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
     const style = project.des01Style ?? void 0;
     const trends = await getDesignTrends({
       styleClassification: style,
@@ -14870,8 +19464,7 @@ var designRouter = router({
    * typology + location + tier, with progressive fallback.
    */
   getBenchmarkForProject: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
     const typology = project.ctx01Typology ?? "Residential";
     const location = project.ctx04Location ?? "Secondary";
     const tier = project.mkt01Tier ?? "Upper-mid";
@@ -14931,9 +19524,8 @@ var designRouter = router({
     return { transactionCount, rentCount };
   }),
   /** Returns DLD benchmark data for a project's saved area — used by Investor Summary */
-  getProjectDldBenchmark: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) return null;
+  getProjectDldBenchmark: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (!project.dldAreaId) return null;
     const benchmark = await getDldAreaBenchmark(project.dldAreaId);
     return benchmark ? {
@@ -15007,8 +19599,10 @@ var designRouter = router({
     category: z6.string().optional(),
     projectId: z6.number().optional(),
     limit: z6.number().min(1).max(50).default(20)
-  })).query(async ({ input }) => {
+  })).query(async ({ ctx, input }) => {
+    if (input.projectId !== void 0) await requireDesignProject(input.projectId, ctx.orgId);
     const results = await getEvidenceWithSources({
+      orgId: ctx.orgId,
       category: input.category,
       projectId: input.projectId,
       limit: input.limit
@@ -15021,10 +19615,9 @@ var designRouter = router({
   // ─── Phase 5: Export & Handover ─────────────────────────────────────────────
   exportInvestorPdf: orgProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
     const { generateInvestorPdfHtml: generateInvestorPdfHtml2 } = await Promise.resolve().then(() => (init_investor_pdf(), investor_pdf_exports));
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
     const [brief, recs, materialConsts, benchmark, trends] = await Promise.all([
-      getAiDesignBrief(input.projectId),
+      getLatestAiDesignBrief(input.projectId, ctx.orgId),
       getSpaceRecommendations(input.projectId, ctx.orgId),
       getMaterialConstants(),
       getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
@@ -15088,9 +19681,8 @@ var designRouter = router({
     return { html, projectName: project.name ?? "Project" };
   }),
   createShareLink: orgProcedure.input(z6.object({ projectId: z6.number(), expiryDays: z6.number().min(1).max(90).default(7) })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
-    const brief = await getAiDesignBrief(input.projectId);
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const brief = await getLatestAiDesignBrief(input.projectId, ctx.orgId);
     if (!brief) throw new Error("Generate a design brief first before sharing");
     const token = nanoid2(32);
     const expiresAt = /* @__PURE__ */ new Date();
@@ -15099,16 +19691,37 @@ var designRouter = router({
     return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
   }),
   resolveShareLink: publicProcedure.input(z6.object({ token: z6.string().min(8).max(64) })).query(async ({ input }) => {
-    const brief = await getAiDesignBriefByShareToken(input.token);
-    if (!brief) throw new Error("Share link not found or expired");
-    if (brief.shareExpiresAt && new Date(brief.shareExpiresAt) < /* @__PURE__ */ new Date()) throw new Error("This share link has expired");
-    const project = await getProjectById(brief.projectId);
-    if (!project) throw new Error("Project not found");
+    const { brief, project } = await requireActivePublicShare(input.token);
     const [recs, benchmark, trends] = await Promise.all([
-      getSpaceRecommendations(brief.projectId, project.orgId ?? 0),
+      getSpaceRecommendations(brief.projectId, brief.orgId),
       getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
       getDesignTrends({ styleClassification: project.des01Style ?? void 0, region: "UAE", limit: 8 })
     ]);
+    let spaceEfficiency = void 0;
+    if (project.floorPlanAnalysis) {
+      try {
+        const fpData = typeof project.floorPlanAnalysis === "string" ? JSON.parse(project.floorPlanAnalysis) : project.floorPlanAnalysis;
+        if (fpData?.rooms?.length > 0 && project.dldAreaId) {
+          const dldBench = await getDldAreaBenchmark(project.dldAreaId);
+          if (dldBench) {
+            const spaceResult = benchmarkSpaceRatios(
+              fpData,
+              dldBench.areaName || "Dubai",
+              Number(dldBench.transactionCount) || 100,
+              Number(dldBench.saleMedian) || 25e3
+            );
+            spaceEfficiency = {
+              efficiencyScore: spaceResult.overallEfficiencyScore,
+              criticalCount: spaceResult.totalCritical,
+              advisoryCount: spaceResult.totalAdvisory,
+              circulationPct: spaceResult.circulationWastePercent ?? 0,
+              recommendations: (spaceResult.recommendations ?? []).slice(0, 6)
+            };
+          }
+        }
+      } catch {
+      }
+    }
     const totalFitoutBudget = (recs ?? []).reduce((s, r) => s + Number(r.budgetAllocation || 0), 0);
     const gfa = getPricingArea(project);
     const TIER_PREMIUM_PCT2 = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
@@ -15143,8 +19756,170 @@ var designRouter = router({
         dataYear: benchmark.dataYear
       } : null,
       designTrends: trends,
-      expiresAt: brief.shareExpiresAt?.toISOString()
+      expiresAt: brief.shareExpiresAt?.toISOString(),
+      spaceEfficiency
     };
+  }),
+  // ─── Phase 9: Room-Specific Render ─────────────────────────────────────────
+  generateRoomRender: orgProcedure.input(z6.object({
+    projectId: z6.number(),
+    roomName: z6.string(),
+    roomType: z6.string(),
+    roomSqm: z6.number(),
+    finishGrade: z6.enum(["A", "B", "C"]).default("A")
+  })).mutation(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    const inputs = projectToInputs4(project);
+    const boards = await getMaterialBoardsByProject(input.projectId);
+    const enrichedMaterials = [];
+    if (boards && boards.length > 0) {
+      const boardMaterials = await getMaterialsByBoard(boards[0].id);
+      for (const bm of boardMaterials) {
+        const mat = await getMaterialById(bm.materialId);
+        if (mat) {
+          enrichedMaterials.push({
+            name: mat.name,
+            category: mat.category,
+            tier: mat.tier,
+            supplierName: mat.supplierName,
+            costUnit: mat.costUnit,
+            costLow: Number(mat.typicalCostLow) || 0,
+            costHigh: Number(mat.typicalCostHigh) || 0,
+            embodiedCarbon: mat.embodiedCarbon ? parseFloat(String(mat.embodiedCarbon)) : null,
+            maintenanceFactor: mat.maintenanceFactor ? parseFloat(String(mat.maintenanceFactor)) : null,
+            brandStandardApproval: mat.brandStandardApproval || null
+          });
+        }
+      }
+    }
+    const context = buildRoomPromptContext(
+      inputs,
+      input.roomName,
+      input.roomType,
+      input.roomSqm,
+      enrichedMaterials,
+      project.brandStandardConstraints
+    );
+    const prompt = generateRoomRenderPrompt(context, input.roomName, input.roomSqm, input.finishGrade);
+    const validation = validatePrompt(prompt);
+    if (!validation.valid) throw new TRPCError9({ code: "BAD_REQUEST", message: validation.reason });
+    const visualResult = requireScopedDesignInsert(await createGeneratedVisualForOrg({
+      projectId: input.projectId,
+      type: "room_render",
+      promptJson: { prompt, context, roomName: input.roomName, roomType: input.roomType },
+      status: "generating",
+      createdBy: ctx.user.id
+    }, ctx.orgId));
+    try {
+      const { url } = await generateImage({ prompt });
+      const assetResult = requireScopedDesignInsert(await createProjectAssetForOrg({
+        projectId: input.projectId,
+        filename: `room-render-${input.roomName.replace(/\s+/g, "-")}-${Date.now()}.png`,
+        mimeType: "image/png",
+        sizeBytes: 0,
+        storagePath: `projects/${input.projectId}/visuals/room-${Date.now()}.png`,
+        storageUrl: url,
+        uploadedBy: ctx.user.id,
+        category: "mood_image"
+      }, ctx.orgId));
+      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "completed", imageAssetId: assetResult.id }));
+      return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" };
+    } catch (error) {
+      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "failed", errorMessage: error.message }));
+      return { id: visualResult.id, assetId: null, url: null, status: "failed", error: error.message };
+    }
+  }),
+  // ─── Phase 9: Floor Plan Upload ────────────────────────────────────────────
+  uploadFloorPlan: orgProcedure.input(z6.object({
+    projectId: z6.number(),
+    filename: z6.string(),
+    mimeType: z6.string(),
+    base64Data: z6.string()
+  })).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const buffer = Buffer.from(input.base64Data, "base64");
+    const suffix = Math.random().toString(36).slice(2, 10);
+    const storagePath = `projects/${input.projectId}/floor-plans/${suffix}-${input.filename}`;
+    const { url } = await storagePut(storagePath, buffer, input.mimeType);
+    const result = requireScopedDesignInsert(await createProjectAssetForOrg({
+      projectId: input.projectId,
+      filename: input.filename,
+      mimeType: input.mimeType,
+      sizeBytes: buffer.length,
+      storagePath,
+      storageUrl: url,
+      uploadedBy: ctx.user.id,
+      category: "other"
+    }, ctx.orgId));
+    requireScopedDesignMutation(await updateProjectForOrg(input.projectId, ctx.orgId, {
+      floorPlanAssetId: result.id
+    }));
+    await createAuditLog({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "floor_plan.upload",
+      entityType: "project",
+      entityId: input.projectId,
+      details: { assetId: result.id, filename: input.filename }
+    });
+    console.log(`[FloorPlan] Uploaded floor plan for project ${input.projectId}: ${url}`);
+    return { assetId: result.id, url };
+  }),
+  // ─── Phase 9: Floor Plan Analysis ──────────────────────────────────────────
+  analyzeFloorPlan: orgProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    if (!project.floorPlanAssetId) {
+      throw new TRPCError9({ code: "BAD_REQUEST", message: "No floor plan uploaded for this project" });
+    }
+    const { resource: asset, project: assetProject } = await requireDesignAsset(project.floorPlanAssetId, ctx.orgId);
+    requireSameDesignProject(project.id, assetProject.id);
+    if (!asset || !asset.storageUrl) {
+      throw new TRPCError9({ code: "NOT_FOUND", message: "Floor plan asset not found or has no URL" });
+    }
+    console.log(`[FloorPlan] Analyzing floor plan for project ${input.projectId}: ${asset.storageUrl}`);
+    const analysis = await analyzeFloorPlan(asset.storageUrl, asset.mimeType);
+    requireScopedDesignMutation(await updateProjectForOrg(input.projectId, ctx.orgId, {
+      floorPlanAnalysis: analysis,
+      // Also update totalFitoutArea if not already set
+      ...!project.totalFitoutArea || Number(project.totalFitoutArea) === 0 ? {
+        totalFitoutArea: String(analysis.totalEstimatedSqm)
+      } : {}
+    }));
+    await createAuditLog({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "floor_plan.analyze",
+      entityType: "project",
+      entityId: input.projectId,
+      details: {
+        roomCount: analysis.rooms.length,
+        totalSqm: analysis.totalEstimatedSqm,
+        unitType: analysis.unitType,
+        confidence: analysis.analysisConfidence
+      }
+    });
+    return analysis;
+  }),
+  // ─── Phase 9: Space Benchmarking ───────────────────────────────────────────
+  getSpaceBenchmark: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    if (!project.floorPlanAnalysis) {
+      throw new TRPCError9({ code: "BAD_REQUEST", message: "Floor plan has not been analyzed yet. Upload a floor plan and run analysis first." });
+    }
+    const analysis = project.floorPlanAnalysis;
+    let areaName = project.dldAreaName || project.ctx04Location || "Dubai";
+    let transactionCount = 0;
+    let saleP50 = null;
+    if (project.dldAreaId) {
+      const benchmark = await getDldAreaBenchmark(project.dldAreaId);
+      if (benchmark) {
+        areaName = benchmark.areaNameEn || areaName;
+        transactionCount = Number(benchmark.saleTransactionCount) || 0;
+        saleP50 = benchmark.saleP50 ? Number(benchmark.saleP50) : null;
+      }
+    }
+    const result = benchmarkSpaceRatios(analysis, areaName, transactionCount, saleP50);
+    return result;
   })
 });
 
@@ -15608,6 +20383,7 @@ function generateLearningReport(outcomes, predictions) {
 }
 
 // server/routers/intelligence.ts
+init_storage();
 import { nanoid as nanoid3 } from "nanoid";
 var intelligenceRouter = router({
   // ─── V2.10: Logic Registry ──────────────────────────────────────────────────
@@ -15962,6 +20738,7 @@ var intelligenceRouter = router({
     ).mutation(async ({ input, ctx }) => {
       const id = await createProjectOutcome({
         ...input,
+        actualFitoutCostPerSqm: input.actualFitoutCostPerSqm?.toString(),
         capturedBy: ctx.user.id
       });
       return { id };
@@ -16047,480 +20824,8 @@ function computeDeltas(baseline, compared) {
 // server/routers/market-intelligence.ts
 import { z as z9 } from "zod";
 init_db();
+init_dynamic();
 import { nanoid as nanoid4 } from "nanoid";
-
-// server/engines/ingestion/connectors/dynamic.ts
-init_connector();
-init_connector();
-init_llm();
-
-// server/engines/ingestion/crawler.ts
-init_connector();
-init_connector();
-init_llm();
-var DEFAULT_CRAWL_CONFIG = {
-  maxDepth: 1,
-  pageBudget: 3,
-  requestDelayMs: 1e3,
-  includePatterns: [],
-  excludePatterns: [
-    "\\.pdf$",
-    "\\.jpg$",
-    "\\.png$",
-    "\\.gif$",
-    "\\.svg$",
-    "/cart",
-    "/checkout",
-    "/login",
-    "/register",
-    "/account",
-    "/privacy",
-    "/terms",
-    "/cookie",
-    "/sitemap\\.xml",
-    "#",
-    "mailto:",
-    "tel:",
-    "javascript:"
-  ],
-  linkHints: ""
-};
-function discoverLinks(html, baseUrl, config) {
-  const base = new URL(baseUrl);
-  const seen = /* @__PURE__ */ new Set();
-  const results = [];
-  const hrefRegex = /href=["']([^"']+)["']/gi;
-  let match;
-  while ((match = hrefRegex.exec(html)) !== null) {
-    try {
-      const href = match[1];
-      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
-        continue;
-      }
-      const resolved = new URL(href, baseUrl);
-      if (resolved.hostname !== base.hostname) continue;
-      const normalized = `${resolved.origin}${resolved.pathname}`.replace(/\/$/, "");
-      if (seen.has(normalized)) continue;
-      seen.add(normalized);
-      const excluded = config.excludePatterns.some((pattern) => {
-        try {
-          return new RegExp(pattern, "i").test(normalized);
-        } catch {
-          return false;
-        }
-      });
-      if (excluded) continue;
-      if (config.includePatterns.length > 0) {
-        const included = config.includePatterns.some((pattern) => {
-          try {
-            return new RegExp(pattern, "i").test(normalized);
-          } catch {
-            return false;
-          }
-        });
-        if (!included) continue;
-      }
-      results.push(normalized);
-    } catch {
-    }
-  }
-  return results;
-}
-
-// server/engines/ingestion/connectors/dynamic.ts
-var LLM_EXTRACTION_SYSTEM_PROMPT = `You are a data extraction engine for the MIYAR real estate intelligence platform.
-You extract structured evidence from website content of UAE construction/real estate websites.
-Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
-function buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
-  const hintsFilter = hints ? `
-EXTRACTION HINTS: ${hints}` : "";
-  const pageRef = pageUrl ? `
-Page URL: ${pageUrl}` : "";
-  return `Extract products with prices from this ${sourceName} supplier/retailer page.
-Geography: ${geography}${pageRef}${hintsFilter}
-
-IMPORTANT: Extract EXACT AED prices. If price is shown, include it. Skip items with no price.
-
-Return a JSON array of objects with these EXACT fields:
-- title: string (product name with specification, e.g. "Calacatta Marble Tile 60x60cm")
-- rawText: string (product description or context, max 500 chars)
-- value: number (price in AED \u2014 REQUIRED, skip items without price)
-- valueMax: number|null (max price if a range is shown, e.g. for "85-110 AED/sqm" value=85, valueMax=110)
-- unit: string (REQUIRED \u2014 "sqm", "piece", "unit", "m", "L", "set", etc.)
-- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
-- brand: string|null (manufacturer/brand name if visible)
-- publishedDate: string|null (ISO date if found)
-
-Rules:
-- Extract ALL priced items you can find, up to 50 maximum
-- Price MUST be a number in AED \u2014 skip items with no visible price
-- For price ranges like "85-110", set value=85 and valueMax=110
-- Convert known currencies to AED (USD\xD73.67, EUR\xD74.0)
-- Do NOT invent prices
-- Return empty array [] if no priced items found
-
-Content (truncated to 16000 chars):
-${contentSnippet.substring(0, 16e3)}`;
-}
-function buildDeveloperIntelPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
-  const hintsFilter = hints ? `
-EXTRACTION HINTS: ${hints}` : "";
-  const pageRef = pageUrl ? `
-Page URL: ${pageUrl}` : "";
-  return `Extract INTERIOR DESIGN intelligence from this ${sourceName} developer/project website.
-Geography: ${geography}${pageRef}${hintsFilter}
-
-FOCUS ON: finish specifications, material brands used, design aesthetic, quality tier.
-DO NOT extract: property prices, bedroom counts, unit sizes, payment plans, or sales offers.
-
-Return a JSON array of objects with these EXACT fields:
-- title: string (project/development name)
-- rawText: string (description of finishes and design, max 500 chars)
-- finishLevel: string (one of: "basic", "standard", "premium", "luxury", "ultra_luxury")
-- designStyle: string (aesthetic description, e.g. "Contemporary Italian", "Modern Arabic", "Minimalist Scandinavian", "Classic European")
-- brands: string[] (brand names mentioned, e.g. ["Grohe", "Porcelanosa", "Miele", "Villeroy & Boch"])
-- materialSpec: string (specific materials mentioned, e.g. "Imported marble flooring, engineered oak, quartz countertops, European kitchen appliances")
-- category: string (main area \u2014 "floors", "walls", "sanitary", "kitchen", "joinery", "lighting", "ffe", "other")
-
-Rules:
-- ONE record per project/development (not per unit type)
-- Focus on WHAT MATERIALS and FINISHES are used, not the property itself
-- If the page describes kitchen specs, bathroom specs, floor specs \u2014 extract each as separate records
-- If no interior design info found, return empty array []
-- Look for words like: marble, granite, porcelain, hardwood, premium, luxury, European, imported, bespoke
-
-Content (truncated to 16000 chars):
-${contentSnippet.substring(0, 16e3)}`;
-}
-function buildMarketResearchPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
-  const hintsFilter = hints ? `
-EXTRACTION HINTS: ${hints}` : "";
-  const pageRef = pageUrl ? `
-Page URL: ${pageUrl}` : "";
-  return `Extract market intelligence and construction/real estate statistics from this ${sourceName} report.
-Geography: ${geography}${pageRef}${hintsFilter}
-
-FOCUS ON: price indices, construction cost benchmarks, market trends, supply/demand data, forecasts.
-
-Return a JSON array of objects with these EXACT fields:
-- title: string (statistic or finding name, e.g. "Average Fitout Cost - Luxury Residential")
-- rawText: string (the finding with context, max 500 chars)
-- value: number|null (numeric value in AED if applicable)
-- unit: string|null (e.g. "sqft", "sqm", "percent", "index", "AED/sqm")
-- trend: string|null (one of: "rising", "stable", "falling", or null if not a trend)
-- publishedDate: string|null (ISO date if found)
-- category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
-
-Rules:
-- Extract ALL statistics, data points, and findings \u2014 up to 50 maximum
-- Include forecasts and projections with timeframe in rawText
-- Include percentage changes and growth rates
-- If no relevant data found, return empty array []
-
-Content (truncated to 16000 chars):
-${contentSnippet.substring(0, 16e3)}`;
-}
-function buildGovernmentDataPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
-  const hintsFilter = hints ? `
-EXTRACTION HINTS: ${hints}` : "";
-  const pageRef = pageUrl ? `
-Page URL: ${pageUrl}` : "";
-  return `Extract construction and real estate data from this ${sourceName} government source.
-Geography: ${geography}${pageRef}${hintsFilter}
-
-FOCUS ON: building permits, construction statistics, cost indices, regulations, standards.
-
-Return a JSON array of objects with these EXACT fields:
-- title: string (data point, regulation, or statistic name)
-- rawText: string (description or finding, max 500 chars)
-- value: number|null (numeric value if applicable)
-- unit: string|null (measurement unit)
-- publishedDate: string|null (ISO date if found)
-- category: string ("other" for most government data)
-
-Rules:
-- Extract data relevant to construction, interior design, and real estate
-- Include regulatory changes affecting building standards
-- If no relevant data found, return empty array []
-
-Content (truncated to 16000 chars):
-${contentSnippet.substring(0, 16e3)}`;
-}
-function selectPrompt(sourceType, sourceName, geography, contentSnippet, hints, pageUrl) {
-  switch (sourceType) {
-    case "supplier_catalog":
-    case "manufacturer_catalog":
-    case "retailer_listing":
-    case "aggregator":
-      return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
-    case "developer_brochure":
-      return buildDeveloperIntelPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
-    case "industry_report":
-    case "trade_publication":
-      return buildMarketResearchPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
-    case "government_tender":
-    case "procurement_portal":
-      return buildGovernmentDataPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
-    default:
-      return buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl);
-  }
-}
-function getIntelligenceType(sourceType) {
-  switch (sourceType) {
-    case "supplier_catalog":
-    case "manufacturer_catalog":
-    case "retailer_listing":
-    case "aggregator":
-      return "material_price";
-    case "developer_brochure":
-      return "finish_specification";
-    case "industry_report":
-    case "trade_publication":
-      return "market_statistic";
-    case "government_tender":
-    case "procurement_portal":
-      return "regulation";
-    default:
-      return "material_price";
-  }
-}
-var CRAWLABLE_TYPES = /* @__PURE__ */ new Set([
-  "supplier_catalog",
-  "manufacturer_catalog",
-  "retailer_listing",
-  "aggregator"
-]);
-var DynamicConnector = class extends BaseSourceConnector {
-  sourceId;
-  sourceName;
-  sourceUrl;
-  category;
-  geography;
-  scrapeMethod;
-  extractionHints;
-  defaultUnit = "unit";
-  defaultTags = [];
-  sourceType;
-  crawlConfig;
-  /** Accumulates extracted evidence from all crawled pages */
-  _allPageEvidence = [];
-  _crawled = false;
-  constructor(config) {
-    super();
-    this.sourceId = String(config.id);
-    this.sourceName = config.name;
-    this.sourceUrl = config.url;
-    const typeCategoryMap = {
-      supplier_catalog: "floors",
-      manufacturer_catalog: "floors",
-      retailer_listing: "floors",
-      developer_brochure: "other",
-      industry_report: "other",
-      government_tender: "other",
-      trade_publication: "other",
-      aggregator: "floors",
-      other: "other"
-    };
-    this.sourceType = config.sourceType || "other";
-    this.category = typeCategoryMap[this.sourceType] || "other";
-    this.geography = config.region || "UAE";
-    this.scrapeMethod = config.scrapeMethod || "html_llm";
-    this.extractionHints = config.extractionHints || "";
-    if (config.lastSuccessfulFetch) {
-      this.lastSuccessfulFetch = new Date(config.lastSuccessfulFetch);
-    }
-    const userCrawl = config.scrapeConfig?.crawl || {};
-    this.crawlConfig = {
-      ...DEFAULT_CRAWL_CONFIG,
-      requestDelayMs: config.requestDelayMs || DEFAULT_CRAWL_CONFIG.requestDelayMs,
-      ...userCrawl
-    };
-    if (config.requestDelayMs) {
-      this.requestDelayMs = config.requestDelayMs;
-    }
-  }
-  shouldCrawl() {
-    return CRAWLABLE_TYPES.has(this.sourceType) && this.crawlConfig.maxDepth > 0;
-  }
-  /**
-   * Fetch with multi-page crawling for catalog sources.
-   * Uses Firecrawl when available for JS-rendered pages.
-   */
-  async fetch() {
-    const localBudget = process.env.LOCAL_PAGE_BUDGET ? parseInt(process.env.LOCAL_PAGE_BUDGET, 10) : void 0;
-    if (localBudget) {
-      this.crawlConfig = { ...this.crawlConfig, pageBudget: localBudget };
-    }
-    if (!this.shouldCrawl()) {
-      if (isFirecrawlAvailable()) {
-        return this.fetchWithFirecrawl();
-      }
-      return super.fetch();
-    }
-    console.log(`[DynamicConnector] \u{1F577}\uFE0F  Crawling ${this.sourceName} (max ${this.crawlConfig.pageBudget} pages, depth ${this.crawlConfig.maxDepth})`);
-    const visited = /* @__PURE__ */ new Set();
-    const queue = [{ url: this.sourceUrl, depth: 0 }];
-    const allEvidence = [];
-    let pagesProcessed = 0;
-    let pagesFailed = 0;
-    while (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
-      const { url, depth } = queue.shift();
-      const normalizedUrl = url.replace(/\/$/, "");
-      if (visited.has(normalizedUrl)) continue;
-      visited.add(normalizedUrl);
-      let payload;
-      try {
-        if (isFirecrawlAvailable()) {
-          payload = await this.fetchWithFirecrawl(url);
-        } else {
-          payload = await this.fetchBasic(url);
-        }
-      } catch (err) {
-        console.warn(`[DynamicConnector] Page fetch failed: ${url}`);
-        pagesFailed++;
-        continue;
-      }
-      if (payload.error || !payload.rawHtml && !payload.markdown || (payload.rawHtml?.length || 0) + (payload.markdown?.length || 0) < 100) {
-        pagesFailed++;
-        continue;
-      }
-      pagesProcessed++;
-      try {
-        const content = payload.markdown || payload.rawHtml || "";
-        const evidence = await this.extractFromContent(content, url, !!payload.markdown);
-        if (evidence.length > 0) {
-          console.log(`[DynamicConnector]   \u{1F4C4} ${url} \u2192 ${evidence.length} items`);
-          allEvidence.push(...evidence);
-        }
-      } catch (err) {
-        console.warn(`[DynamicConnector]   \u26A0\uFE0F  Extraction failed for ${url}`);
-      }
-      if (depth < this.crawlConfig.maxDepth && payload.rawHtml) {
-        const links = discoverLinks(payload.rawHtml, url, this.crawlConfig);
-        for (const link of links) {
-          const normLink = link.replace(/\/$/, "");
-          if (!visited.has(normLink) && !queue.some((q) => q.url.replace(/\/$/, "") === normLink)) {
-            queue.push({ url: link, depth: depth + 1 });
-          }
-        }
-      }
-      if (queue.length > 0 && pagesProcessed < this.crawlConfig.pageBudget) {
-        await new Promise((r) => setTimeout(r, this.crawlConfig.requestDelayMs));
-      }
-    }
-    console.log(`[DynamicConnector] \u{1F577}\uFE0F  Crawl complete: ${pagesProcessed} pages, ${allEvidence.length} items extracted, ${pagesFailed} failed`);
-    this._allPageEvidence = allEvidence;
-    this._crawled = true;
-    return {
-      url: this.sourceUrl,
-      rawHtml: `<!-- Crawled ${pagesProcessed} pages, ${allEvidence.length} items extracted -->`,
-      statusCode: 200,
-      fetchedAt: /* @__PURE__ */ new Date()
-    };
-  }
-  /**
-   * Extract evidence from content using LLM.
-   * Uses source-type-specific prompts for targeted extraction.
-   */
-  async extractFromContent(content, pageUrl, isMarkdown) {
-    let textContent;
-    if (isMarkdown) {
-      textContent = content.trim();
-    } else {
-      textContent = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    }
-    if (textContent.length < 50) return [];
-    try {
-      const prompt = selectPrompt(
-        this.sourceType,
-        this.sourceName,
-        this.geography,
-        textContent,
-        this.extractionHints,
-        pageUrl
-      );
-      const response = await invokeLLM({
-        messages: [
-          { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT },
-          { role: "user", content: prompt }
-        ],
-        response_format: { type: "json_object" }
-      });
-      const resText = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
-      if (!resText) return [];
-      const parsed = JSON.parse(resText);
-      const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.data || [];
-      if (!Array.isArray(items)) return [];
-      const intelligenceType = getIntelligenceType(this.sourceType);
-      return items.filter((item) => item && typeof item.title === "string" && item.title.length > 0).slice(0, 50).map((item) => ({
-        title: String(item.title).substring(0, 255),
-        rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
-        publishedDate: item.publishedDate ? new Date(item.publishedDate) : void 0,
-        category: item.category || this.category,
-        geography: this.geography,
-        sourceUrl: pageUrl,
-        // Material pricing fields
-        _llmMetric: String(item.metric || item.title || "").substring(0, 255),
-        _llmValue: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
-        _llmValueMax: typeof item.valueMax === "number" && isFinite(item.valueMax) ? item.valueMax : null,
-        _llmUnit: typeof item.unit === "string" ? item.unit : null,
-        _llmBrand: typeof item.brand === "string" ? item.brand : null,
-        // Design intelligence fields
-        _llmFinishLevel: typeof item.finishLevel === "string" ? item.finishLevel : null,
-        _llmDesignStyle: typeof item.designStyle === "string" ? item.designStyle : null,
-        _llmBrands: Array.isArray(item.brands) ? item.brands : null,
-        _llmMaterialSpec: typeof item.materialSpec === "string" ? item.materialSpec : null,
-        _llmIntelligenceType: intelligenceType
-      }));
-    } catch (err) {
-      console.error(`[DynamicConnector] LLM extraction failed for ${pageUrl}:`, err);
-      return [];
-    }
-  }
-  /**
-   * Called by orchestrator after fetch().
-   * For multi-page crawls, returns pre-accumulated evidence.
-   * For single-page, runs LLM extraction on fetched content.
-   */
-  async extract(raw) {
-    if (this._crawled && this._allPageEvidence.length > 0) {
-      const evidence = [...this._allPageEvidence];
-      this._allPageEvidence = [];
-      this._crawled = false;
-      return evidence;
-    }
-    const content = raw.markdown || raw.rawHtml || JSON.stringify(raw.rawJson || {});
-    if (!content || content.length < 50) return [];
-    const isMarkdown = !!raw.markdown;
-    return this.extractFromContent(
-      isMarkdown ? content : raw.rawHtml ? content : `<pre>${content}</pre>`,
-      raw.url,
-      isMarkdown
-    );
-  }
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      valueMax: llmEvidence._llmValueMax ?? null,
-      unit: llmEvidence._llmUnit ?? this.defaultUnit,
-      confidence,
-      grade: grade2,
-      summary: (evidence.rawText || "").replace(/\s+/g, " ").trim().substring(0, 500),
-      tags: this.defaultTags,
-      brand: llmEvidence._llmBrand ?? null,
-      // Design intelligence fields
-      finishLevel: llmEvidence._llmFinishLevel ?? null,
-      designStyle: llmEvidence._llmDesignStyle ?? null,
-      brandsMentioned: llmEvidence._llmBrands ?? null,
-      materialSpec: llmEvidence._llmMaterialSpec ?? null,
-      intelligenceType: llmEvidence._llmIntelligenceType ?? "material_price"
-    };
-  }
-};
 
 // server/engines/ingestion/orchestrator.ts
 init_connector();
@@ -16529,46 +20834,8 @@ import { randomUUID as randomUUID2 } from "crypto";
 
 // server/engines/ingestion/proposal-generator.ts
 init_db();
+init_freshness();
 import { randomUUID } from "crypto";
-
-// server/engines/ingestion/freshness.ts
-var FRESHNESS_FRESH_DAYS = 90;
-var FRESHNESS_AGING_DAYS = 365;
-var FRESHNESS_WEIGHT_FRESH = 1;
-var FRESHNESS_WEIGHT_AGING = 0.75;
-var FRESHNESS_WEIGHT_STALE = 0.5;
-function computeFreshness(captureDate, referenceDate) {
-  const capture = captureDate instanceof Date ? captureDate : new Date(captureDate);
-  const ref = referenceDate ?? /* @__PURE__ */ new Date();
-  const ageDays = Math.max(0, Math.floor((ref.getTime() - capture.getTime()) / (24 * 60 * 60 * 1e3)));
-  if (ageDays <= FRESHNESS_FRESH_DAYS) {
-    return {
-      status: "fresh",
-      weight: FRESHNESS_WEIGHT_FRESH,
-      ageDays,
-      badgeColor: "green"
-    };
-  }
-  if (ageDays <= FRESHNESS_AGING_DAYS) {
-    return {
-      status: "aging",
-      weight: FRESHNESS_WEIGHT_AGING,
-      ageDays,
-      badgeColor: "amber"
-    };
-  }
-  return {
-    status: "stale",
-    weight: FRESHNESS_WEIGHT_STALE,
-    ageDays,
-    badgeColor: "red"
-  };
-}
-function getFreshnessWeight(captureDate, referenceDate) {
-  return computeFreshness(captureDate, referenceDate).weight;
-}
-
-// server/engines/ingestion/proposal-generator.ts
 async function generateBenchmarkProposals(options = {}) {
   const { category, minEvidenceCount = 3, actorId, ingestionRunId } = options;
   const runId = `PROP-${randomUUID().substring(0, 8)}`;
@@ -16693,6 +20960,101 @@ async function generateBenchmarkProposals(options = {}) {
     groupsAnalyzed: groups.size,
     totalEvidence: evidence.length,
     proposals
+  };
+}
+
+// server/engines/ingestion/data-quality.ts
+var QUALITY_RULES = [
+  // Flooring
+  { category: "floors", minValue: 15, maxValue: 5e3, unit: "sqm", description: "Floor materials AED/sqm" },
+  { category: "floors", minValue: 1, maxValue: 500, unit: "sqft", description: "Floor materials AED/sqft" },
+  { category: "floors", minValue: 5, maxValue: 2e3, unit: "piece", description: "Floor tiles per piece" },
+  // Walls
+  { category: "walls", minValue: 10, maxValue: 3e3, unit: "sqm", description: "Wall materials AED/sqm" },
+  { category: "walls", minValue: 5, maxValue: 500, unit: "sqft", description: "Wall materials AED/sqft" },
+  { category: "walls", minValue: 20, maxValue: 800, unit: "L", description: "Paint per litre" },
+  // Ceilings
+  { category: "ceilings", minValue: 30, maxValue: 2e3, unit: "sqm", description: "Ceiling materials AED/sqm" },
+  // Sanitary ware
+  { category: "sanitary", minValue: 50, maxValue: 8e4, unit: "piece", description: "Sanitary fixtures per piece" },
+  { category: "sanitary", minValue: 50, maxValue: 8e4, unit: "unit", description: "Sanitary fixtures per unit" },
+  { category: "sanitary", minValue: 100, maxValue: 2e5, unit: "set", description: "Sanitary sets" },
+  // Kitchen
+  { category: "kitchen", minValue: 200, maxValue: 5e5, unit: "set", description: "Kitchen sets" },
+  { category: "kitchen", minValue: 50, maxValue: 1e5, unit: "unit", description: "Kitchen appliances per unit" },
+  { category: "kitchen", minValue: 100, maxValue: 5e4, unit: "piece", description: "Kitchen items per piece" },
+  { category: "kitchen", minValue: 200, maxValue: 1e4, unit: "m", description: "Kitchen countertops per meter" },
+  // Hardware
+  { category: "hardware", minValue: 5, maxValue: 2e4, unit: "piece", description: "Hardware items per piece" },
+  { category: "hardware", minValue: 5, maxValue: 2e4, unit: "unit", description: "Hardware items per unit" },
+  { category: "hardware", minValue: 10, maxValue: 5e4, unit: "set", description: "Hardware sets" },
+  // Joinery
+  { category: "joinery", minValue: 500, maxValue: 5e4, unit: "unit", description: "Joinery per unit (doors, cabinets)" },
+  { category: "joinery", minValue: 200, maxValue: 1e4, unit: "sqm", description: "Joinery per sqm" },
+  { category: "joinery", minValue: 200, maxValue: 1e4, unit: "m", description: "Joinery per linear meter" },
+  // Lighting
+  { category: "lighting", minValue: 20, maxValue: 2e5, unit: "piece", description: "Lighting fixtures per piece" },
+  { category: "lighting", minValue: 20, maxValue: 2e5, unit: "unit", description: "Lighting fixtures per unit" },
+  // FF&E
+  { category: "ffe", minValue: 100, maxValue: 5e5, unit: "unit", description: "FF&E per unit" },
+  { category: "ffe", minValue: 100, maxValue: 5e5, unit: "piece", description: "FF&E per piece" },
+  { category: "ffe", minValue: 50, maxValue: 1e4, unit: "sqm", description: "FF&E per sqm (carpets, rugs)" },
+  // Fitout rates (other)
+  { category: "other", minValue: 100, maxValue: 15e3, unit: "sqft", description: "Fitout rates AED/sqft" },
+  { category: "other", minValue: 500, maxValue: 5e4, unit: "sqm", description: "Fitout rates AED/sqm" }
+];
+function validateEvidence(record) {
+  const flags = [];
+  if (record.value === null || record.value === void 0) {
+    return { status: "missing_value", flags: ["no_price_value"] };
+  }
+  if (record.value <= 0) {
+    flags.push("non_positive_value");
+    return {
+      status: "outlier_flagged",
+      flags,
+      adjustedConfidence: Math.max(record.confidence * 0.5, 0.1)
+    };
+  }
+  const matchingRules = QUALITY_RULES.filter(
+    (rule) => rule.category === record.category && rule.unit === (record.unit || "unit") && (!rule.itemPattern || rule.itemPattern.test(record.itemName))
+  );
+  if (matchingRules.length === 0) {
+    return { status: "valid", flags: [] };
+  }
+  let passedAnyRule = false;
+  for (const rule of matchingRules) {
+    if (record.value >= rule.minValue && record.value <= rule.maxValue) {
+      passedAnyRule = true;
+      if (record.valueMax !== null && record.valueMax !== void 0) {
+        if (record.valueMax < record.value) {
+          flags.push("max_less_than_min");
+        }
+        if (record.valueMax > rule.maxValue * 1.5) {
+          flags.push("value_max_extreme");
+        }
+      }
+      break;
+    }
+  }
+  if (!passedAnyRule) {
+    const rule = matchingRules[0];
+    if (record.value < rule.minValue) {
+      flags.push(`below_minimum: ${record.value} < ${rule.minValue} ${rule.unit} (${rule.description})`);
+    }
+    if (record.value > rule.maxValue) {
+      flags.push(`above_maximum: ${record.value} > ${rule.maxValue} ${rule.unit} (${rule.description})`);
+    }
+    return {
+      status: "outlier_flagged",
+      flags,
+      adjustedConfidence: Math.max(record.confidence * 0.3, 0.1)
+    };
+  }
+  return {
+    status: flags.length > 0 ? "outlier_flagged" : "valid",
+    flags,
+    adjustedConfidence: flags.length > 0 ? record.confidence * 0.8 : void 0
   };
 }
 
@@ -16956,7 +21318,7 @@ async function detectTrends(metric, category, geography, points, options) {
 
 // server/engines/ingestion/orchestrator.ts
 init_schema();
-import { and as and3, eq as eq7, sql as sql3 } from "drizzle-orm";
+import { and as and4, eq as eq8, sql as sql3 } from "drizzle-orm";
 var MAX_CONCURRENT = 3;
 async function runWithConcurrencyLimit(tasks, limit) {
   const results = [];
@@ -16974,17 +21336,58 @@ async function runWithConcurrencyLimit(tasks, limit) {
   await Promise.all(workers);
   return results;
 }
-async function isDuplicate(sourceUrl, itemName, captureDate) {
+async function findExistingRecord(sourceUrl, itemName) {
   const db = await getDb();
-  if (!db) return false;
-  const existing = await db.select({ id: evidenceRecords.id }).from(evidenceRecords).where(
-    and3(
-      eq7(evidenceRecords.sourceUrl, sourceUrl),
-      eq7(evidenceRecords.itemName, itemName),
-      sql3`DATE(${evidenceRecords.captureDate}) = DATE(${captureDate})`
+  if (!db) return null;
+  const existing = await db.select({
+    id: evidenceRecords.id,
+    recordId: evidenceRecords.recordId,
+    priceMin: evidenceRecords.priceMin,
+    priceTypical: evidenceRecords.priceTypical,
+    priceMax: evidenceRecords.priceMax,
+    confidenceScore: evidenceRecords.confidenceScore,
+    captureDate: evidenceRecords.captureDate,
+    sourceRegistryId: evidenceRecords.sourceRegistryId,
+    itemName: evidenceRecords.itemName,
+    category: evidenceRecords.category,
+    publisher: evidenceRecords.publisher
+  }).from(evidenceRecords).where(
+    and4(
+      eq8(evidenceRecords.sourceUrl, sourceUrl),
+      eq8(evidenceRecords.itemName, itemName)
     )
-  ).limit(1);
-  return existing.length > 0;
+  ).orderBy(sql3`${evidenceRecords.captureDate} DESC`).limit(1);
+  return existing.length > 0 ? existing[0] : null;
+}
+async function updateExistingRecord(existing, newData) {
+  const db = await getDb();
+  if (!db) return { priceChanged: false, changePct: 0 };
+  const oldPrice = existing.priceTypical ? parseFloat(existing.priceTypical) : null;
+  const newPrice = newData.priceTypical ? parseFloat(newData.priceTypical) : null;
+  let changePct = 0;
+  let priceChanged = false;
+  if (oldPrice !== null && newPrice !== null && oldPrice > 0) {
+    changePct = (newPrice - oldPrice) / oldPrice * 100;
+    priceChanged = Math.abs(changePct) > 2;
+  } else if (oldPrice === null !== (newPrice === null)) {
+    priceChanged = true;
+  }
+  const updatePayload = {
+    captureDate: newData.captureDate,
+    confidenceScore: Math.max(newData.confidenceScore, existing.confidenceScore),
+    extractedSnippet: newData.extractedSnippet,
+    runId: newData.runId
+  };
+  if (newData.priceMin !== null) updatePayload.priceMin = newData.priceMin;
+  if (newData.priceTypical !== null) updatePayload.priceTypical = newData.priceTypical;
+  if (newData.priceMax !== null) updatePayload.priceMax = newData.priceMax;
+  if (newData.reliabilityGrade) updatePayload.reliabilityGrade = newData.reliabilityGrade;
+  if (newData.finishLevel) updatePayload.finishLevel = newData.finishLevel;
+  if (newData.designStyle) updatePayload.designStyle = newData.designStyle;
+  if (newData.brandsMentioned) updatePayload.brandsMentioned = newData.brandsMentioned;
+  if (newData.materialSpec) updatePayload.materialSpec = newData.materialSpec;
+  await db.update(evidenceRecords).set(updatePayload).where(eq8(evidenceRecords.id, existing.id));
+  return { priceChanged, changePct };
 }
 var CATEGORY_MAP = {
   material_cost: "floors",
@@ -17021,7 +21424,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const connector of connectors) {
-        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq7(sourceRegistry.name, connector.sourceId)).limit(1);
+        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq8(sourceRegistry.name, connector.sourceId)).limit(1);
         if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
           connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
         }
@@ -17040,7 +21443,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           status: "failed",
           evidenceExtracted: 0,
           evidenceCreated: 0,
+          evidenceUpdated: 0,
           evidenceSkipped: 0,
+          outliersFlagged: 0,
           error: raw.error
         };
       }
@@ -17051,7 +21456,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           status: "failed",
           evidenceExtracted: 0,
           evidenceCreated: 0,
+          evidenceUpdated: 0,
           evidenceSkipped: 0,
+          outliersFlagged: 0,
           error: raw.error || `HTTP ${raw.statusCode}`
         };
       }
@@ -17065,7 +21472,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           status: "failed",
           evidenceExtracted: 0,
           evidenceCreated: 0,
+          evidenceUpdated: 0,
           evidenceSkipped: 0,
+          outliersFlagged: 0,
           error: `Extract failed: ${err instanceof Error ? err.message : String(err)}`
         };
       }
@@ -17074,7 +21483,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         return result.success;
       });
       let created = 0;
+      let updated = 0;
       let skipped = 0;
+      let outliers = 0;
       for (const evidence of validExtracted) {
         try {
           let normalized;
@@ -17103,50 +21514,85 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
               tags: []
             };
           }
-          const captureDate = evidence.publishedDate || raw.fetchedAt;
-          const duplicate = await isDuplicate(
-            evidence.sourceUrl,
-            normalized.metric,
-            captureDate
-          );
-          if (duplicate) {
-            skipped++;
-            continue;
+          const qualityResult = validateEvidence({
+            category: evidence.category,
+            itemName: normalized.metric,
+            value: normalized.value ?? null,
+            valueMax: normalized.valueMax ?? null,
+            unit: normalized.unit,
+            confidence: normalized.confidence
+          });
+          if (qualityResult.status === "outlier_flagged") {
+            outliers++;
+            if (qualityResult.adjustedConfidence !== void 0) {
+              normalized.confidence = qualityResult.adjustedConfidence;
+            }
+            console.warn(`[Ingestion] \u{1F6A9} Outlier flagged: ${normalized.metric} = ${normalized.value} (${qualityResult.flags.join(", ")})`);
           }
+          const captureDate = evidence.publishedDate || raw.fetchedAt;
           const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
           const evidenceCategory = validCategories.includes(evidence.category) ? evidence.category : mapCategory(evidence.category);
-          const { id: newRecordId } = await createEvidenceRecord({
-            recordId: generateRecordId(),
-            sourceRegistryId: typeof connector.sourceId === "number" ? connector.sourceId : parseInt(connector.sourceId) || void 0,
-            sourceUrl: evidence.sourceUrl,
-            category: evidenceCategory,
-            itemName: normalized.metric,
-            priceMin: normalized.value?.toString() ?? null,
-            priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
-            priceTypical: normalized.value?.toString() ?? null,
-            unit: normalized.unit || "unit",
-            currencyOriginal: "AED",
-            captureDate,
-            reliabilityGrade: normalized.grade,
-            confidenceScore: Math.round(normalized.confidence * 100),
-            extractedSnippet: normalized.summary,
-            publisher: connector.sourceName,
-            title: evidence.title,
-            tags: normalized.tags,
-            notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine`,
-            runId,
-            // V7: Design Intelligence Fields
-            finishLevel: normalized.finishLevel ?? null,
-            designStyle: normalized.designStyle ?? null,
-            brandsMentioned: normalized.brandsMentioned ?? null,
-            materialSpec: normalized.materialSpec ?? null,
-            intelligenceType: normalized.intelligenceType ?? "material_price"
-          });
-          const insertedRecord = await getEvidenceRecordById(newRecordId);
-          if (insertedRecord) {
-            await detectPriceChange(insertedRecord);
+          const sourceRegistryId = typeof connector.sourceId === "number" ? connector.sourceId : parseInt(connector.sourceId) || void 0;
+          const existing = await findExistingRecord(
+            evidence.sourceUrl,
+            normalized.metric
+          );
+          if (existing) {
+            const { priceChanged } = await updateExistingRecord(existing, {
+              priceMin: normalized.value?.toString() ?? null,
+              priceTypical: normalized.value?.toString() ?? null,
+              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+              confidenceScore: Math.round(normalized.confidence * 100),
+              captureDate,
+              extractedSnippet: normalized.summary,
+              reliabilityGrade: normalized.grade,
+              runId,
+              finishLevel: normalized.finishLevel ?? null,
+              designStyle: normalized.designStyle ?? null,
+              brandsMentioned: normalized.brandsMentioned ?? null,
+              materialSpec: normalized.materialSpec ?? null
+            });
+            if (priceChanged) {
+              const updatedRecord = await getEvidenceRecordById(existing.id);
+              if (updatedRecord) {
+                await detectPriceChange(updatedRecord);
+              }
+            }
+            updated++;
+          } else {
+            const { id: newRecordId } = await createEvidenceRecord({
+              recordId: generateRecordId(),
+              sourceRegistryId,
+              sourceUrl: evidence.sourceUrl,
+              category: evidenceCategory,
+              itemName: normalized.metric,
+              priceMin: normalized.value?.toString() ?? null,
+              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+              priceTypical: normalized.value?.toString() ?? null,
+              unit: normalized.unit || "unit",
+              currencyOriginal: "AED",
+              captureDate,
+              reliabilityGrade: normalized.grade,
+              confidenceScore: Math.round(normalized.confidence * 100),
+              extractedSnippet: normalized.summary,
+              publisher: connector.sourceName,
+              title: evidence.title,
+              tags: normalized.tags,
+              notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
+              runId,
+              // V7: Design Intelligence Fields
+              finishLevel: normalized.finishLevel ?? null,
+              designStyle: normalized.designStyle ?? null,
+              brandsMentioned: normalized.brandsMentioned ?? null,
+              materialSpec: normalized.materialSpec ?? null,
+              intelligenceType: normalized.intelligenceType ?? "material_price"
+            });
+            const insertedRecord = await getEvidenceRecordById(newRecordId);
+            if (insertedRecord) {
+              await detectPriceChange(insertedRecord);
+            }
+            created++;
           }
-          created++;
         } catch (err) {
           console.error(`[Ingestion] Record persist failed for ${connector.sourceId}:`, err);
         }
@@ -17157,7 +21603,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         status: "success",
         evidenceExtracted: validExtracted.length,
         evidenceCreated: created,
-        evidenceSkipped: skipped
+        evidenceUpdated: updated,
+        evidenceSkipped: skipped,
+        outliersFlagged: outliers
       };
     } catch (err) {
       return {
@@ -17166,7 +21614,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         status: "failed",
         evidenceExtracted: 0,
         evidenceCreated: 0,
+        evidenceUpdated: 0,
         evidenceSkipped: 0,
+        outliersFlagged: 0,
         error: `Unhandled: ${err instanceof Error ? err.message : String(err)}`
       };
     }
@@ -17213,7 +21663,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const result of connectorResults) {
-        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq7(sourceRegistry.name, result.sourceId)).limit(1);
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq8(sourceRegistry.name, result.sourceId)).limit(1);
         const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
         const isSuccess = result.status === "success";
         const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
@@ -17226,7 +21676,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         if (isSuccess) {
           updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
         }
-        await db.update(sourceRegistry).set(updates).where(eq7(sourceRegistry.name, result.sourceId));
+        await db.update(sourceRegistry).set(updates).where(eq8(sourceRegistry.name, result.sourceId));
       }
     }
   } catch (err) {
@@ -17237,7 +21687,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
   const succeeded = connectorResults.filter((r) => r.status === "success").length;
   const failed = connectorResults.filter((r) => r.status === "failed").length;
   const totalCreated = connectorResults.reduce((sum, r) => sum + r.evidenceCreated, 0);
+  const totalUpdated = connectorResults.reduce((sum, r) => sum + r.evidenceUpdated, 0);
   const totalSkipped = connectorResults.reduce((sum, r) => sum + r.evidenceSkipped, 0);
+  const totalOutliers = connectorResults.reduce((sum, r) => sum + r.outliersFlagged, 0);
   const errors = connectorResults.filter((r) => r.status === "failed" && r.error).map((r) => ({
     sourceId: r.sourceId,
     sourceName: r.sourceName,
@@ -17256,14 +21708,18 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         sourcesFailed: failed,
         recordsExtracted: connectorResults.reduce((sum, r) => sum + r.evidenceExtracted, 0),
         recordsInserted: totalCreated,
+        recordsUpdated: totalUpdated,
         duplicatesSkipped: totalSkipped,
+        outliersFlagged: totalOutliers,
         sourceBreakdown: connectorResults.map((r) => ({
           sourceId: r.sourceId,
           name: r.sourceName,
           status: r.status,
           extracted: r.evidenceExtracted,
           inserted: r.evidenceCreated,
+          updated: r.evidenceUpdated,
           duplicates: r.evidenceSkipped,
+          outliers: r.outliersFlagged,
           error: r.error || null
         })),
         errorSummary: errors.length > 0 ? errors : null,
@@ -17290,7 +21746,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         sourcesSucceeded: succeeded,
         sourcesFailed: failed,
         evidenceCreated: totalCreated,
-        evidenceSkipped: totalSkipped
+        evidenceUpdated: totalUpdated,
+        evidenceSkipped: totalSkipped,
+        outliersFlagged: totalOutliers
       },
       sourcesProcessed: connectors.length,
       recordsExtracted: totalCreated,
@@ -17303,7 +21761,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     console.error("[Ingestion] Failed to log audit entry:", err);
   }
   let proposalResult = null;
-  if (totalCreated > 0) {
+  if (totalCreated > 0 || totalUpdated > 0) {
     try {
       proposalResult = await generateBenchmarkProposals({
         actorId,
@@ -17316,7 +21774,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
       console.error("[Ingestion] Post-run proposal generation failed:", err);
     }
   }
-  if (totalCreated > 0) {
+  if (totalCreated > 0 || totalUpdated > 0) {
     try {
       const db = await getDb();
       if (db) {
@@ -17382,7 +21840,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
   } catch (err) {
     console.error("[Ingestion] Post-run alert generation failed:", err);
   }
-  if (totalCreated > 0) {
+  if (totalCreated > 0 || totalUpdated > 0) {
     try {
       const { syncEvidenceToMaterials: syncEvidenceToMaterials2 } = await Promise.resolve().then(() => (init_evidence_to_materials(), evidence_to_materials_exports));
       const materialSync = await syncEvidenceToMaterials2(runId);
@@ -17393,6 +21851,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
       console.error("[Ingestion] Post-run materials sync failed:", err);
     }
   }
+  console.log(`[Ingestion] Run ${runId} complete: ${totalCreated} created, ${totalUpdated} updated, ${totalSkipped} skipped, ${totalOutliers} outliers flagged`);
   const report = {
     runId,
     startedAt,
@@ -17403,7 +21862,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     sourcesSucceeded: succeeded,
     sourcesFailed: failed,
     evidenceCreated: totalCreated,
+    evidenceUpdated: totalUpdated,
     evidenceSkipped: totalSkipped,
+    outliersFlagged: totalOutliers,
     errors,
     perSource: connectorResults
   };
@@ -17546,7 +22007,7 @@ async function processCsvUpload(buffer, sourceId, addedByUserId) {
 init_db();
 init_schema();
 import "dotenv/config";
-import { eq as eq8 } from "drizzle-orm";
+import { eq as eq9 } from "drizzle-orm";
 var UAE_SOURCES = [
   // ── Supplier Catalogs ─────────────────────────────────────────
   {
@@ -17855,7 +22316,7 @@ async function seedUAESources() {
   const errors = [];
   for (const source of UAE_SOURCES) {
     try {
-      const existing = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq8(sourceRegistry.url, source.url)).limit(1);
+      const existing = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq9(sourceRegistry.url, source.url)).limit(1);
       if (existing.length > 0) {
         console.log(`[Seeder] Skipping "${source.name}" \u2014 already exists (id=${existing[0].id})`);
         skipped++;
@@ -18760,6 +23221,181 @@ import { z as z10 } from "zod";
 // server/engines/ingestion/connectors/index.ts
 init_connector();
 init_llm();
+
+// server/engines/ingestion/connectors/scad-pdf-connector.ts
+init_connector();
+init_llm();
+import { PDFParse } from "pdf-parse";
+var SCAD_PDF_URLS = [
+  "https://www.scad.gov.ae/Release%20Documents/Construction%20Cost%20Index%20Report%20Q4%202024_EN.pdf",
+  "https://www.scad.gov.ae/Release%20Documents/Construction%20Material%20Prices%202024_EN.pdf"
+];
+var SCAD_PUBLICATIONS_URL = "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx";
+var EXTRACTION_PROMPT2 = `You are a data extraction engine for MIYAR, a UAE real estate intelligence platform.
+
+Extract material price data from this SCAD (Statistics Centre Abu Dhabi) PDF text.
+Focus on: construction materials, building materials, finishing materials, and their price indices.
+
+Return a JSON array of objects with these exact fields:
+- materialName: string (e.g. "Portland Cement", "Steel Reinforcement Bar", "Ceramic Tiles 30x30")
+- category: string (one of: "cement", "steel", "aggregate", "timber", "tiles", "glass", "paint", "insulation", "plumbing", "electrical", "stone", "other")
+- priceAed: number|null (price in AED per unit, null if only index given)
+- unit: string (e.g. "ton", "kg", "sqm", "piece", "bag", "meter", "cubic_meter")
+- indexValue: number|null (price index value if available, base=100)
+- yearQuarter: string|null (e.g. "2024-Q4", "2024")
+- changePercent: number|null (year-over-year % change if stated)
+
+Rules:
+- Extract up to 30 items
+- Only real data from the PDF \u2014 do NOT invent values
+- If a row has an index but no absolute AED price, still include it with priceAed: null
+- Return [] if no material data found
+
+PDF text content:
+`;
+var SCADPdfConnector = class extends BaseSourceConnector {
+  sourceId = "scad-pdf-materials";
+  sourceName = "SCAD Abu Dhabi \u2014 Material Price Index (PDF)";
+  sourceUrl = SCAD_PUBLICATIONS_URL;
+  /**
+   * Fetch: download PDF(s) and extract text via pdf-parse.
+   * Falls back to publications page HTML if PDF fetch fails.
+   */
+  async fetch() {
+    let allText = "";
+    for (const pdfUrl of SCAD_PDF_URLS) {
+      try {
+        const response = await fetch(pdfUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform; +https://miyar.ai)",
+            "Accept": "application/pdf"
+          },
+          signal: AbortSignal.timeout(3e4)
+        });
+        if (!response.ok) {
+          console.warn(`[SCAD PDF] HTTP ${response.status} for ${pdfUrl}`);
+          continue;
+        }
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const parser = new PDFParse({ data: buffer });
+        try {
+          const parsed = await parser.getText();
+          if (parsed.text && parsed.text.length > 100) {
+            allText += `
+--- Source: ${pdfUrl} ---
+${parsed.text}
+`;
+            console.log(`[SCAD PDF] Extracted ${parsed.text.length} chars from ${pdfUrl} (${parsed.total} pages)`);
+          }
+        } finally {
+          await parser.destroy();
+        }
+      } catch (err) {
+        console.warn(`[SCAD PDF] Failed to fetch/parse ${pdfUrl}:`, err instanceof Error ? err.message : String(err));
+      }
+    }
+    if (allText.length < 100) {
+      try {
+        const htmlResp = await fetch(this.sourceUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform)" },
+          signal: AbortSignal.timeout(15e3)
+        });
+        if (htmlResp.ok) {
+          allText = await htmlResp.text();
+        }
+      } catch {
+      }
+    }
+    return {
+      url: SCAD_PDF_URLS[0] || this.sourceUrl,
+      rawHtml: allText,
+      // Using rawHtml field for the extracted text
+      fetchedAt: /* @__PURE__ */ new Date(),
+      statusCode: allText.length > 100 ? 200 : 0
+    };
+  }
+  /**
+   * Extract: send PDF text to Gemini for structured material price extraction.
+   */
+  async extract(raw) {
+    const text2 = raw.rawHtml || "";
+    if (!text2 || text2.length < 100) return [];
+    const truncated = text2.substring(0, 15e3);
+    try {
+      const response = await invokeLLM({
+        messages: [
+          {
+            role: "system",
+            content: "You extract structured data from SCAD Abu Dhabi construction material publications. Return ONLY valid JSON. No markdown fences."
+          },
+          {
+            role: "user",
+            content: EXTRACTION_PROMPT2 + truncated
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+      const content = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
+      if (!content) return [];
+      const parsed = JSON.parse(content);
+      const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.materials || parsed.data || [];
+      if (!Array.isArray(items)) return [];
+      return items.filter((item) => item && typeof item.materialName === "string" && item.materialName.length > 0).slice(0, 30).map((item) => ({
+        title: `SCAD Material Index \u2014 ${item.materialName}`,
+        rawText: [
+          item.materialName,
+          item.priceAed ? `AED ${item.priceAed}/${item.unit}` : null,
+          item.indexValue ? `Index: ${item.indexValue}` : null,
+          item.changePercent ? `YoY: ${item.changePercent > 0 ? "+" : ""}${item.changePercent}%` : null,
+          item.yearQuarter
+        ].filter(Boolean).join(" | "),
+        publishedDate: void 0,
+        category: "material_cost",
+        geography: "Abu Dhabi",
+        sourceUrl: raw.url,
+        // Pass through structured data for normalize()
+        _scadItem: item
+      }));
+    } catch (err) {
+      console.error("[SCAD PDF] LLM extraction failed:", err instanceof Error ? err.message : String(err));
+      return [];
+    }
+  }
+  /**
+   * Normalize: convert extracted items into evidence record format.
+   */
+  async normalize(evidence) {
+    const grade2 = assignGrade(this.sourceId);
+    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+    const scadItem = evidence._scadItem;
+    const metric = scadItem ? `${scadItem.materialName} (${scadItem.category})` : evidence.title;
+    const value = scadItem?.priceAed ?? scadItem?.indexValue ?? null;
+    const unit = scadItem?.unit ?? "unit";
+    const tags = [
+      "government",
+      "statistics",
+      "abu-dhabi",
+      "material-index",
+      "scad",
+      scadItem?.category
+    ].filter(Boolean);
+    const summaryParts = [evidence.rawText];
+    if (scadItem?.changePercent != null) {
+      summaryParts.push(`Year-over-year change: ${scadItem.changePercent > 0 ? "+" : ""}${scadItem.changePercent}%`);
+    }
+    return {
+      metric,
+      value,
+      unit,
+      confidence,
+      grade: grade2,
+      summary: summaryParts.join(" \u2014 ").substring(0, 500),
+      tags
+    };
+  }
+};
+
+// server/engines/ingestion/connectors/index.ts
 var SOURCE_URLS = {
   "rak-ceramics-uae": "https://www.rakceramics.com/",
   "dera-interiors": "https://derainteriors.ae/",
@@ -19399,10 +24035,7 @@ var ALL_CONNECTORS = {
   "bayut-listings": () => new BayutListingsConnector(),
   "propertyfinder-listings": () => new PropertyFinderListingsConnector(),
   // V6: PDF-based connectors
-  "scad-pdf-materials": () => {
-    const { SCADPdfConnector: SCADPdfConnector2 } = (init_scad_pdf_connector(), __toCommonJS(scad_pdf_connector_exports));
-    return new SCADPdfConnector2();
-  }
+  "scad-pdf-materials": () => new SCADPdfConnector()
 };
 function getConnectorById(sourceId) {
   const factory = ALL_CONNECTORS[sourceId];
@@ -19415,13 +24048,16 @@ function getAllConnectors() {
 // server/routers/ingestion.ts
 init_db();
 init_schema();
-import { desc as desc5, eq as eq10, sql as sql4 } from "drizzle-orm";
+import { desc as desc5, eq as eq11, sql as sql4 } from "drizzle-orm";
 
 // server/engines/ingestion/scheduler.ts
 import cron from "node-cron";
 init_db();
 init_schema();
-import { eq as eq9 } from "drizzle-orm";
+init_dynamic();
+init_freshness();
+init_source_discovery();
+import { eq as eq10 } from "drizzle-orm";
 var scheduledTasks = [];
 var lastScheduledRunAt = null;
 var isSchedulerRunning = false;
@@ -19443,14 +24079,16 @@ function getNextScheduledRun() {
 function getSchedulerStatus() {
   return {
     active: scheduledTasks.length > 0,
-    cronExpression: `${activeSchedulesCount} configured schedules`,
+    cronExpression: `${activeSchedulesCount} source schedules + weekly discovery + freshness re-scrape`,
     nextScheduledRun: getNextScheduledRun(),
     lastScheduledRunAt: lastScheduledRunAt?.toISOString() ?? null,
-    isCurrentlyRunning: isSchedulerRunning
+    isCurrentlyRunning: isSchedulerRunning,
+    totalJobs: scheduledTasks.length
   };
 }
 
 // server/routers/ingestion.ts
+init_dynamic();
 var ingestionRouter = router({
   /**
    * Run all 12 UAE source connectors.
@@ -19541,7 +24179,7 @@ var ingestionRouter = router({
   getRunDetail: protectedProcedure.input(z10.object({ runId: z10.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
-    const runs = await db.select().from(ingestionRuns).where(eq10(ingestionRuns.runId, input.runId)).limit(1);
+    const runs = await db.select().from(ingestionRuns).where(eq11(ingestionRuns.runId, input.runId)).limit(1);
     return runs.length > 0 ? runs[0] : null;
   }),
   /**
@@ -19623,7 +24261,7 @@ var ingestionRouter = router({
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
-    const filter = input?.activeOnly !== false ? eq10(sourceRegistry.isActive, true) : void 0;
+    const filter = input?.activeOnly !== false ? eq11(sourceRegistry.isActive, true) : void 0;
     const sources = filter ? await db.select().from(sourceRegistry).where(filter).orderBy(desc5(sourceRegistry.updatedAt)) : await db.select().from(sourceRegistry).orderBy(desc5(sourceRegistry.updatedAt));
     return sources;
   }),
@@ -19670,7 +24308,7 @@ var ingestionRouter = router({
   toggleSource: adminProcedure.input(z10.object({ id: z10.number(), isActive: z10.boolean() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq10(sourceRegistry.id, input.id));
+    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq11(sourceRegistry.id, input.id));
     return { id: input.id, isActive: input.isActive };
   }),
   /**
@@ -19679,7 +24317,7 @@ var ingestionRouter = router({
   runRegisteredSource: adminProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    const [source] = await db.select().from(sourceRegistry).where(eq10(sourceRegistry.id, input.id)).limit(1);
+    const [source] = await db.select().from(sourceRegistry).where(eq11(sourceRegistry.id, input.id)).limit(1);
     if (!source) throw new Error("Source not found");
     const connector = new DynamicConnector(source);
     const report = await runIngestion([connector], "manual", ctx.user.id);
@@ -19688,7 +24326,7 @@ var ingestionRouter = router({
       lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
       lastRecordCount: report.evidenceCreated,
       consecutiveFailures: report.sourcesFailed > 0 ? sql4`${sourceRegistry.consecutiveFailures} + 1` : 0
-    }).where(eq10(sourceRegistry.id, input.id));
+    }).where(eq11(sourceRegistry.id, input.id));
     return report;
   }),
   /**
@@ -19709,9 +24347,133 @@ var ingestionRouter = router({
     if (!db) return [];
     let query = db.select().from(designTrends).orderBy(desc5(designTrends.mentionCount)).limit(input?.limit ?? 50);
     if (input?.category) {
-      query = query.where(eq10(designTrends.trendCategory, input.category));
+      query = query.where(eq11(designTrends.trendCategory, input.category));
     }
     return query;
+  }),
+  // ═══════════════════════════════════════════════════════════════════
+  // Market Intelligence Engine V2 — New Endpoints
+  // ═══════════════════════════════════════════════════════════════════
+  /**
+   * AI-powered source discovery — find new UAE market data sources.
+   * Returns candidate sources for admin review before adding to registry.
+   */
+  discoverSources: adminProcedure.input(z10.object({
+    coverageGaps: z10.array(z10.string()).optional()
+  }).optional()).mutation(async () => {
+    const { discoverNewSources: discoverNewSources2, KNOWN_MISSING_SOURCES: KNOWN_MISSING_SOURCES2 } = await Promise.resolve().then(() => (init_source_discovery(), source_discovery_exports));
+    const { listSourceRegistry: listSourceRegistry2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+    const existing = await listSourceRegistry2();
+    const existingSources = existing.map((s) => ({
+      name: s.name,
+      url: s.baseUrl || "",
+      category: s.primaryCategory || "other"
+    }));
+    const discovery = await discoverNewSources2({
+      existingSources,
+      coverageGaps: []
+    });
+    return {
+      aiDiscovered: discovery.discoveredSources,
+      knownMissing: KNOWN_MISSING_SOURCES2,
+      analysisNotes: discovery.analysisNotes
+    };
+  }),
+  /**
+   * Verify current database values against market reality.
+   * Samples evidence records and uses Gemini to cross-check pricing.
+   */
+  verifyData: adminProcedure.input(z10.object({
+    category: z10.string().optional(),
+    limit: z10.number().min(10).max(100).default(50)
+  }).optional()).mutation(async ({ input }) => {
+    const { verifyDatabaseValues: verifyDatabaseValues2 } = await Promise.resolve().then(() => (init_data_verifier(), data_verifier_exports));
+    const { listEvidenceRecords: listEvidenceRecords2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+    const records = await listEvidenceRecords2({
+      category: input?.category,
+      limit: input?.limit ?? 50
+    });
+    const verificationRecords = records.map((r) => ({
+      id: r.id,
+      itemName: r.itemName,
+      category: r.category,
+      priceTypical: r.priceTypical,
+      unit: r.unit,
+      publisher: r.publisher,
+      captureDate: r.captureDate
+    }));
+    return verifyDatabaseValues2(verificationRecords);
+  }),
+  /**
+   * Analyze freshness across all sources — identify stale data.
+   * Returns sources that need re-scraping with detailed statistics.
+   */
+  freshnessAnalysis: protectedProcedure.query(async () => {
+    const { getStaleSourceIds: getStaleSourceIds2 } = await Promise.resolve().then(() => (init_freshness(), freshness_exports));
+    const { listSourceRegistry: listSourceRegistry2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+    const staleSources = await getStaleSourceIds2(50);
+    const allSources = await listSourceRegistry2();
+    const sourceMap = new Map(allSources.map((s) => [s.id, s]));
+    return {
+      staleSources: staleSources.map((s) => ({
+        ...s,
+        sourceName: sourceMap.get(s.sourceRegistryId)?.name || "Unknown",
+        sourceUrl: sourceMap.get(s.sourceRegistryId)?.baseUrl || ""
+      })),
+      totalSources: allSources.length,
+      staleCount: staleSources.length,
+      healthPct: allSources.length > 0 ? Math.round((allSources.length - staleSources.length) / allSources.length * 100) : 100
+    };
+  }),
+  /**
+   * Extract design trends from a URL — design trend detection pipeline.
+   */
+  extractTrends: adminProcedure.input(z10.object({
+    url: z10.string().url(),
+    sourceName: z10.string().min(1),
+    content: z10.string().min(50)
+  })).mutation(async ({ input }) => {
+    const { extractDesignTrends: extractDesignTrends2 } = await Promise.resolve().then(() => (init_trend_extractor(), trend_extractor_exports));
+    return extractDesignTrends2({
+      content: input.content,
+      sourceName: input.sourceName,
+      sourceUrl: input.url
+    });
+  }),
+  /**
+   * Auto-trigger re-scraping for sources with stale data.
+   * Gets stale sources → re-runs their connectors.
+   */
+  runStaleSources: adminProcedure.mutation(async ({ ctx }) => {
+    const { getStaleSourceIds: getStaleSourceIds2 } = await Promise.resolve().then(() => (init_freshness(), freshness_exports));
+    const staleSources = await getStaleSourceIds2(50);
+    if (staleSources.length === 0) {
+      return { message: "No stale sources found \u2014 all data is fresh!", rescrapeResults: [] };
+    }
+    const results = [];
+    for (const stale of staleSources.slice(0, 5)) {
+      try {
+        const connector = getConnectorById(String(stale.sourceRegistryId));
+        if (connector) {
+          const report = await runSingleConnector(connector, "manual", ctx.user.id);
+          results.push({
+            sourceRegistryId: stale.sourceRegistryId,
+            stalePct: stale.stalePct,
+            result: report
+          });
+        }
+      } catch (err) {
+        results.push({
+          sourceRegistryId: stale.sourceRegistryId,
+          stalePct: stale.stalePct,
+          error: err instanceof Error ? err.message : String(err)
+        });
+      }
+    }
+    return {
+      message: `Re-scraped ${results.length} stale sources`,
+      rescrapeResults: results
+    };
   })
 });
 
@@ -19966,7 +24728,7 @@ async function analyseCompetitorLandscape(projects2, options = {}) {
 
 // server/routers/analytics.ts
 init_schema();
-import { and as and4, eq as eq11, isNotNull } from "drizzle-orm";
+import { and as and5, eq as eq12, isNotNull } from "drizzle-orm";
 var analyticsRouter = router({
   getTrends: protectedProcedure.input(
     z11.object({
@@ -20014,8 +24776,8 @@ var analyticsRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
-      and4(
-        eq11(evidenceRecords.category, input.category),
+      and5(
+        eq12(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -20053,7 +24815,7 @@ var analyticsRouter = router({
       sourceUrl: competitorProjects.sourceUrl,
       completenessScore: competitorProjects.completenessScore,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq11(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq12(competitorProjects.competitorId, competitorEntities.id));
     const projects2 = dbProjects.map((p) => {
       let pricePerSqft;
       if (p.priceIndicators && typeof p.priceIndicators === "object") {
@@ -20089,8 +24851,8 @@ var analyticsRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     const records = await db.select().from(evidenceRecords).where(
-      and4(
-        eq11(evidenceRecords.category, input.category),
+      and5(
+        eq12(evidenceRecords.category, input.category),
         isNotNull(evidenceRecords.priceMin)
       )
     );
@@ -20192,7 +24954,7 @@ var analyticsRouter = router({
       projectName: competitorProjects.projectName,
       totalUnits: competitorProjects.totalUnits,
       entityName: competitorEntities.name
-    }).from(competitorProjects).leftJoin(competitorEntities, eq11(competitorProjects.competitorId, competitorEntities.id));
+    }).from(competitorProjects).leftJoin(competitorEntities, eq12(competitorProjects.competitorId, competitorEntities.id));
     let competitorLandscape;
     if (dbProjects.length > 0) {
       const compProjects = dbProjects.map((p) => ({
@@ -20260,7 +25022,7 @@ var analyticsRouter = router({
 import { z as z12 } from "zod";
 init_db();
 init_area_utils();
-import { TRPCError as TRPCError6 } from "@trpc/server";
+import { TRPCError as TRPCError10 } from "@trpc/server";
 
 // server/engines/predictive/cost-range.ts
 function weightedPercentile(values, percentile3) {
@@ -20392,8 +25154,12 @@ function predictCostRange(evidence, trends, options = {}) {
 }
 
 // server/engines/predictive/outcome-prediction.ts
-function filterComparables(outcomes, targetTypology, targetTier, targetGeography) {
+function filterComparables(outcomes, targetTypology, targetTier, targetGeography, targetYield, targetSalesStrategy, targetHandoverCondition, targetBrandedStatus, targetSalesChannel, targetLifecycleFocus, targetBrandStandardConstraints, targetTimelineFlexibility, targetTargetValueAdd) {
   let filtered = outcomes.filter(
+    (o) => o.typology === targetTypology && o.tier === targetTier && (!targetGeography || o.geography === targetGeography) && (!targetSalesStrategy || o.salesStrategy === targetSalesStrategy) && (!targetYield || o.targetYield === targetYield) && (!targetHandoverCondition || o.handoverCondition === targetHandoverCondition) && (!targetBrandedStatus || o.brandedStatus === targetBrandedStatus) && (!targetSalesChannel || o.salesChannel === targetSalesChannel) && (!targetLifecycleFocus || o.lifecycleFocus === targetLifecycleFocus) && (!targetBrandStandardConstraints || o.brandStandardConstraints === targetBrandStandardConstraints) && (!targetTimelineFlexibility || o.timelineFlexibility === targetTimelineFlexibility) && (!targetTargetValueAdd || o.targetValueAdd === targetTargetValueAdd)
+  );
+  if (filtered.length >= 3) return filtered;
+  filtered = outcomes.filter(
     (o) => o.typology === targetTypology && o.tier === targetTier && (!targetGeography || o.geography === targetGeography)
   );
   if (filtered.length >= 5) return filtered;
@@ -20410,7 +25176,21 @@ function filterComparables(outcomes, targetTypology, targetTier, targetGeography
 function predictOutcome(compositeScore, outcomes, variableContributions, options = {}) {
   const typology = options.typology || "Residential";
   const tier = options.tier || "Mid";
-  const comparables = filterComparables(outcomes, typology, tier, options.geography);
+  const comparables = filterComparables(
+    outcomes,
+    typology,
+    tier,
+    options.geography,
+    options.targetYield,
+    options.salesStrategy,
+    options.handoverCondition,
+    options.brandedStatus,
+    options.salesChannel,
+    options.lifecycleFocus,
+    options.brandStandardConstraints,
+    options.timelineFlexibility,
+    options.targetValueAdd
+  );
   const contributions = Object.entries(variableContributions).map(([variable, data]) => ({
     variable,
     contribution: data.contribution,
@@ -20488,9 +25268,11 @@ function projectScenarioCost(input) {
     trendDirection,
     marketCondition,
     horizonMonths,
-    currency = "AED"
+    currency = "AED",
+    boardMaterialsCost,
+    boardMaintenanceVariance = 0
   } = input;
-  const safeCost = baseCostPerSqm || 0;
+  const safeCost = boardMaterialsCost ? boardMaterialsCost / (gfa || 1) : baseCostPerSqm || 0;
   const safeGfa = gfa || 0;
   const safeTrend = trendDirection === "insufficient_data" ? 0 : trendPercentChange;
   const safeHorizon = Math.max(1, Math.min(horizonMonths || 18, 120));
@@ -20510,9 +25292,50 @@ function projectScenarioCost(input) {
       };
     });
   }
+  let highMultiplier = 1.15;
+  let lowMultiplier = 0.9;
+  if (input.targetYield === "aggressive_yield") {
+    highMultiplier = 1.25;
+    lowMultiplier = 0.85;
+  } else if (input.targetYield === "stable_long_term" || input.targetYield === "capital_preservation") {
+    highMultiplier = 1.1;
+    lowMultiplier = 0.95;
+  }
+  if (input.salesStrategy === "build_to_rent") {
+    highMultiplier = Math.max(1.05, highMultiplier - 0.05);
+  } else if (input.salesStrategy === "build_to_sell") {
+    highMultiplier += 0.05;
+  }
+  if (input.handoverCondition === "Shell & Core") {
+    highMultiplier += 0.1;
+    lowMultiplier -= 0.05;
+  } else if (input.handoverCondition === "Fully Furnished") {
+    highMultiplier -= 0.05;
+    lowMultiplier += 0.05;
+  }
+  if (input.brandStandardConstraints === "Strict Vendor List") {
+    highMultiplier += 0.1;
+    lowMultiplier += 0.05;
+  }
+  if (input.lifecycleFocus === "Long-term Retention") {
+    highMultiplier += 0.05;
+    lowMultiplier += 0.05;
+  }
+  if (input.timelineFlexibility === "Fixed / Zero Tolerance") {
+    highMultiplier += 0.15;
+  }
+  if (input.targetValueAdd === "Brand Flagship / Trophy") {
+    highMultiplier += 0.2;
+  }
+  if (boardMaterialsCost) {
+    highMultiplier = Math.max(1.05, highMultiplier - 0.1);
+    lowMultiplier = Math.min(0.95, lowMultiplier + 0.05);
+    highMultiplier += boardMaintenanceVariance / 100;
+    lowMultiplier += boardMaintenanceVariance / 100;
+  }
   const midProjections = computeProjections(safeCost);
-  const lowProjections = computeProjections(safeCost * 0.9);
-  const highProjections = computeProjections(safeCost * 1.15);
+  const lowProjections = computeProjections(safeCost * lowMultiplier);
+  const highProjections = computeProjections(safeCost * highMultiplier);
   return {
     baseCostPerSqm: safeCost,
     baseTotalCost: Math.round(safeCost * safeGfa * 100) / 100,
@@ -20603,7 +25426,7 @@ var predictiveRouter = router({
     geography: z12.string().optional()
   })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError6({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError10({ code: "NOT_FOUND" });
     const projectEvidence = await listEvidenceRecords({ projectId: input.projectId, limit: 500 });
     const allEvidence = await listEvidenceRecords({ limit: 1e3 });
     const toDataPoint = (e) => ({
@@ -20637,7 +25460,7 @@ var predictiveRouter = router({
    */
   getOutcomePrediction: protectedProcedure.input(z12.object({ projectId: z12.number() })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError6({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError10({ code: "NOT_FOUND" });
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
     if (!latest) {
@@ -20660,13 +25483,17 @@ var predictiveRouter = router({
         decisionStatus: sm.decisionStatus,
         typology: proj.ctx01Typology || "Residential",
         tier: proj.mkt01Tier || "Mid",
-        geography: proj.ctx04Location || void 0
+        geography: proj.ctx04Location || void 0,
+        targetYield: proj.targetYield || void 0,
+        salesStrategy: proj.salesStrategy || void 0
       });
     }
     return predictOutcome(compositeScore, outcomes, variableContributions, {
       typology: project.ctx01Typology || "Residential",
       tier: project.mkt01Tier || "Mid",
-      geography: project.ctx04Location || void 0
+      geography: project.ctx04Location || void 0,
+      targetYield: project.targetYield || void 0,
+      salesStrategy: project.salesStrategy || void 0
     });
   }),
   /**
@@ -20674,7 +25501,7 @@ var predictiveRouter = router({
    */
   getProjectPatterns: protectedProcedure.input(z12.object({ projectId: z12.number() })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError6({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError10({ code: "NOT_FOUND" });
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
     if (!latest) return [];
@@ -20698,7 +25525,7 @@ var predictiveRouter = router({
     marketCondition: z12.enum(["tight", "balanced", "soft"]).default("balanced")
   })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError6({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError10({ code: "NOT_FOUND" });
     const gfa = getPricingArea(project);
     const budgetCap = Number(project.fin01BudgetCap) || 0;
     const budgetPerSqm = gfa > 0 ? budgetCap / gfa : 0;
@@ -20710,13 +25537,48 @@ var predictiveRouter = router({
       trendPercentChange = Number(bestTrend.percentChange) || 0;
       trendDirection = bestTrend.direction || "insufficient_data";
     }
+    let boardMaterialsCost;
+    let boardMaintenanceVariance = 0;
+    const boards = await getMaterialBoardsByProject(input.projectId);
+    if (boards && boards.length > 0) {
+      const activeBoard = boards[0];
+      const boardMaterials = await getMaterialsByBoard(activeBoard.id);
+      let totalLow = 0;
+      let totalHigh = 0;
+      let totalVariance = 0;
+      for (const bm of boardMaterials) {
+        const mat = await getMaterialById(bm.materialId);
+        if (mat) {
+          const qty = Number(bm.quantity) || 1;
+          totalLow += (Number(mat.typicalCostLow) || 0) * qty;
+          totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
+          const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+          totalVariance += (matMaint - 0.05) * 100;
+        }
+      }
+      if (totalHigh > 0) {
+        boardMaterialsCost = (totalLow + totalHigh) / 2;
+        boardMaintenanceVariance = totalVariance;
+      }
+    }
     return projectScenarioCost({
       baseCostPerSqm: budgetPerSqm,
       gfa,
       trendPercentChange,
       trendDirection,
       marketCondition: input.marketCondition,
-      horizonMonths: input.horizonMonths
+      horizonMonths: input.horizonMonths,
+      salesStrategy: project.salesStrategy,
+      targetYield: project.targetYield,
+      handoverCondition: project.handoverCondition,
+      brandedStatus: project.brandedStatus,
+      salesChannel: project.salesChannel,
+      lifecycleFocus: project.lifecycleFocus,
+      brandStandardConstraints: project.brandStandardConstraints,
+      timelineFlexibility: project.timelineFlexibility,
+      targetValueAdd: project.targetValueAdd,
+      boardMaterialsCost,
+      boardMaintenanceVariance
     });
   }),
   /**
@@ -20757,8 +25619,8 @@ var predictiveRouter = router({
 import { z as z13 } from "zod";
 init_db();
 init_schema();
-import { TRPCError as TRPCError7 } from "@trpc/server";
-import { eq as eq12, desc as desc6 } from "drizzle-orm";
+import { TRPCError as TRPCError11 } from "@trpc/server";
+import { eq as eq13, desc as desc6 } from "drizzle-orm";
 
 // server/engines/learning/outcome-comparator.ts
 function compareOutcomeToPrediction(params) {
@@ -21023,19 +25885,20 @@ var learningRouter = router({
   }),
   getPendingLogicProposals: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(logicChangeLog).where(eq12(logicChangeLog.status, "proposed")).orderBy(desc6(logicChangeLog.createdAt));
+    return await ormDb.select().from(logicChangeLog).where(eq13(logicChangeLog.status, "proposed")).orderBy(desc6(logicChangeLog.createdAt));
   }),
   getPendingBenchmarkSuggestions: protectedProcedure.query(async () => {
     const ormDb = await getDb();
-    return await ormDb.select().from(benchmarkSuggestions).where(eq12(benchmarkSuggestions.status, "pending")).orderBy(desc6(benchmarkSuggestions.createdAt));
+    return await ormDb.select().from(benchmarkSuggestions).where(eq13(benchmarkSuggestions.status, "pending")).orderBy(desc6(benchmarkSuggestions.createdAt));
   }),
-  getComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ input }) => {
+  getComparison: orgProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const ormDb = await getDb();
-    const rows = await ormDb.select().from(outcomeComparisons).where(eq12(outcomeComparisons.projectId, input.projectId)).orderBy(desc6(outcomeComparisons.comparedAt)).limit(1);
+    const rows = await ormDb.select().from(outcomeComparisons).where(eq13(outcomeComparisons.projectId, input.projectId)).orderBy(desc6(outcomeComparisons.comparedAt)).limit(1);
     return rows[0] || null;
   }),
   // ─── Post-Mortem / Handover (V4) ────────────────────────────────────────
-  submitPostMortem: protectedProcedure.input(z13.object({
+  submitPostMortem: orgProcedure.input(z13.object({
     projectId: z13.number(),
     // Actual costs
     actualTotalCost: z13.string().optional(),
@@ -21054,8 +25917,7 @@ var learningRouter = router({
     // Lessons
     keyLessonsLearned: z13.string().optional()
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError7({ code: "NOT_FOUND", message: "Project not found" });
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const outcomeId = await createProjectOutcome({
       projectId: input.projectId,
       actualTotalCost: input.actualTotalCost,
@@ -21076,8 +25938,8 @@ var learningRouter = router({
     let evidenceGenerated = 0;
     try {
       const ormDb = await getDb();
-      const outcomes = await ormDb.select().from(projectOutcomes).where(eq12(projectOutcomes.projectId, input.projectId)).orderBy(desc6(projectOutcomes.capturedAt)).limit(1);
-      const matrices = await ormDb.select().from(scoreMatrices).where(eq12(scoreMatrices.projectId, input.projectId)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
+      const outcomes = await ormDb.select().from(projectOutcomes).where(eq13(projectOutcomes.projectId, input.projectId)).orderBy(desc6(projectOutcomes.capturedAt)).limit(1);
+      const matrices = await ormDb.select().from(scoreMatrices).where(eq13(scoreMatrices.projectId, input.projectId)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
       if (outcomes.length > 0 && matrices.length > 0) {
         const outcome = outcomes[0];
         const scoreMatrix = matrices[0];
@@ -21199,10 +26061,11 @@ var learningRouter = router({
       evidenceGenerated
     };
   }),
-  getPostMortemStatus: protectedProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ input }) => {
+  getPostMortemStatus: orgProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const ormDb = await getDb();
-    const outcomes = await ormDb.select().from(projectOutcomes).where(eq12(projectOutcomes.projectId, input.projectId)).orderBy(desc6(projectOutcomes.capturedAt)).limit(1);
-    const comparisons = await ormDb.select().from(outcomeComparisons).where(eq12(outcomeComparisons.projectId, input.projectId)).orderBy(desc6(outcomeComparisons.comparedAt)).limit(1);
+    const outcomes = await ormDb.select().from(projectOutcomes).where(eq13(projectOutcomes.projectId, input.projectId)).orderBy(desc6(projectOutcomes.capturedAt)).limit(1);
+    const comparisons = await ormDb.select().from(outcomeComparisons).where(eq13(outcomeComparisons.projectId, input.projectId)).orderBy(desc6(outcomeComparisons.comparedAt)).limit(1);
     return {
       hasOutcome: outcomes.length > 0,
       outcome: outcomes[0] || null,
@@ -21212,20 +26075,19 @@ var learningRouter = router({
       learningSummary: comparisons[0]?.learningSignals ? summarizeLearningSignals(comparisons[0].learningSignals) : null
     };
   }),
-  runComparison: protectedProcedure.input(z13.object({ projectId: z13.number() })).mutation(async ({ input }) => {
+  runComparison: orgProcedure.input(z13.object({ projectId: z13.number() })).mutation(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const ormDb = await getDb();
-    const outcomes = await ormDb.select().from(projectOutcomes).where(eq12(projectOutcomes.projectId, input.projectId)).limit(1);
+    const outcomes = await ormDb.select().from(projectOutcomes).where(eq13(projectOutcomes.projectId, input.projectId)).limit(1);
     if (!outcomes.length) {
-      throw new TRPCError7({ code: "NOT_FOUND", message: "No outcome found for project" });
+      throw new TRPCError11({ code: "NOT_FOUND", message: "No outcome found for project" });
     }
     const outcome = outcomes[0];
-    const matrices = await ormDb.select().from(scoreMatrices).where(eq12(scoreMatrices.projectId, input.projectId)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
+    const matrices = await ormDb.select().from(scoreMatrices).where(eq13(scoreMatrices.projectId, input.projectId)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
     if (!matrices.length) {
-      throw new TRPCError7({ code: "NOT_FOUND", message: "No score matrix found for project" });
+      throw new TRPCError11({ code: "NOT_FOUND", message: "No score matrix found for project" });
     }
     const scoreMatrix = matrices[0];
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError7({ code: "NOT_FOUND", message: "Project not found" });
     const projectEvidence = await listEvidenceRecords({ projectId: input.projectId, limit: 500 });
     const allEvidence = await listEvidenceRecords({ limit: 1e3 });
     const toDataPoint = (e) => ({
@@ -21294,8 +26156,8 @@ var learningRouter = router({
 import { z as z14 } from "zod";
 init_db();
 init_schema();
-import { eq as eq14, and as and5, desc as desc8, sql as sql7 } from "drizzle-orm";
-import { TRPCError as TRPCError8 } from "@trpc/server";
+import { eq as eq15, and as and6, desc as desc8, sql as sql7 } from "drizzle-orm";
+import { TRPCError as TRPCError12 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
 init_llm();
@@ -21429,17 +26291,17 @@ ${JSON.stringify(truncatedData, null, 2)}` }
 init_llm();
 init_db();
 init_schema();
-import { eq as eq13, desc as desc7 } from "drizzle-orm";
+import { eq as eq14, desc as desc7 } from "drizzle-orm";
 async function generatePortfolioInsights() {
   const db = await getDb();
   if (!db) throw new Error("Database error");
-  const allProjects = await db.select().from(projects).where(eq13(projects.status, "evaluated"));
+  const allProjects = await db.select().from(projects).where(eq14(projects.status, "evaluated"));
   if (allProjects.length === 0) {
     return "No evaluated projects available for portfolio analysis.";
   }
   const portfolioProjects2 = [];
   for (const p of allProjects) {
-    const scores = await db.select().from(scoreMatrices).where(eq13(scoreMatrices.projectId, p.id)).orderBy(desc7(scoreMatrices.computedAt)).limit(1);
+    const scores = await db.select().from(scoreMatrices).where(eq14(scoreMatrices.projectId, p.id)).orderBy(desc7(scoreMatrices.computedAt)).limit(1);
     if (scores.length > 0) {
       const s = scores[0];
       portfolioProjects2.push({
@@ -21522,14 +26384,14 @@ var autonomousRouter = router({
     if (!db) return [];
     let conditions = [];
     const targetStatus = input?.status || "active";
-    conditions.push(eq14(platformAlerts.status, targetStatus));
+    conditions.push(eq15(platformAlerts.status, targetStatus));
     if (input?.severity) {
-      conditions.push(eq14(platformAlerts.severity, input.severity));
+      conditions.push(eq15(platformAlerts.severity, input.severity));
     }
     if (input?.type) {
-      conditions.push(eq14(platformAlerts.alertType, input.type));
+      conditions.push(eq15(platformAlerts.alertType, input.type));
     }
-    return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc8(platformAlerts.createdAt));
+    return db.select().from(platformAlerts).where(conditions.length > 0 ? and6(...conditions) : void 0).orderBy(desc8(platformAlerts.createdAt));
   }),
   acknowledgeAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -21538,7 +26400,7 @@ var autonomousRouter = router({
       status: "acknowledged",
       acknowledgedBy: ctx.user.id,
       acknowledgedAt: /* @__PURE__ */ new Date()
-    }).where(eq14(platformAlerts.id, input.id));
+    }).where(eq15(platformAlerts.id, input.id));
     return { success: true };
   }),
   resolveAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
@@ -21546,22 +26408,22 @@ var autonomousRouter = router({
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
       status: "resolved"
-    }).where(eq14(platformAlerts.id, input.id));
+    }).where(eq15(platformAlerts.id, input.id));
     return { success: true };
   }),
   nlQuery: protectedProcedure.input(z14.object({ query: z14.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError8({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
+    if (!db) throw new TRPCError12({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
     const recentQueries = await db.select({ count: sql7`count(*)` }).from(nlQueryLog).where(
-      and5(
-        eq14(nlQueryLog.userId, ctx.user.id),
+      and6(
+        eq15(nlQueryLog.userId, ctx.user.id),
         sql7`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
     );
     const count2 = Number(recentQueries[0]?.count || 0);
     if (count2 >= 20) {
-      throw new TRPCError8({
+      throw new TRPCError12({
         code: "TOO_MANY_REQUESTS",
         message: "Natural language query limit: 20 queries/hour"
       });
@@ -21583,8 +26445,8 @@ var autonomousRouter = router({
 init_db();
 import { z as z15 } from "zod";
 init_schema();
-import { TRPCError as TRPCError9 } from "@trpc/server";
-import { eq as eq15, and as and6 } from "drizzle-orm";
+import { TRPCError as TRPCError13 } from "@trpc/server";
+import { eq as eq16, and as and7 } from "drizzle-orm";
 import { nanoid as nanoid5 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z15.object({
@@ -21593,10 +26455,10 @@ var organizationRouter = router({
     domain: z15.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
-    const existing = await db.select().from(organizations).where(eq15(organizations.slug, input.slug)).limit(1);
+    if (!db) throw new TRPCError13({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
+    const existing = await db.select().from(organizations).where(eq16(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
-      throw new TRPCError9({ code: "CONFLICT", message: "Slug is already taken" });
+      throw new TRPCError13({ code: "CONFLICT", message: "Slug is already taken" });
     }
     const [orgResult] = await db.insert(organizations).values({
       name: input.name,
@@ -21610,7 +26472,7 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: "admin"
     });
-    await db.update(users).set({ orgId }).where(eq15(users.id, ctx.user.id));
+    await db.update(users).set({ orgId }).where(eq16(users.id, ctx.user.id));
     return { success: true, orgId };
   }),
   myOrgs: protectedProcedure.query(async ({ ctx }) => {
@@ -21619,7 +26481,7 @@ var organizationRouter = router({
     const result = await db.select({
       org: organizations,
       role: organizationMembers.role
-    }).from(organizationMembers).innerJoin(organizations, eq15(organizations.id, organizationMembers.orgId)).where(eq15(organizationMembers.userId, ctx.user.id));
+    }).from(organizationMembers).innerJoin(organizations, eq16(organizations.id, organizationMembers.orgId)).where(eq16(organizationMembers.userId, ctx.user.id));
     return result;
   }),
   inviteMember: orgProcedure.input(z15.object({
@@ -21627,10 +26489,10 @@ var organizationRouter = router({
     role: z15.enum(["admin", "member", "viewer"])
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and6(eq15(organizationMembers.orgId, ctx.orgId), eq15(organizationMembers.userId, ctx.user.id))).limit(1);
+    if (!db) throw new TRPCError13({ code: "INTERNAL_SERVER_ERROR" });
+    const myMembership = await db.select().from(organizationMembers).where(and7(eq16(organizationMembers.orgId, ctx.orgId), eq16(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
-      throw new TRPCError9({ code: "FORBIDDEN", message: "Only admins can invite members" });
+      throw new TRPCError13({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
     const token = nanoid5(32);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
@@ -21646,18 +26508,18 @@ var organizationRouter = router({
   }),
   acceptInvite: protectedProcedure.input(z15.object({ token: z15.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR" });
-    const inviteResult = await db.select().from(organizationInvites).where(eq15(organizationInvites.token, input.token)).limit(1);
+    if (!db) throw new TRPCError13({ code: "INTERNAL_SERVER_ERROR" });
+    const inviteResult = await db.select().from(organizationInvites).where(eq16(organizationInvites.token, input.token)).limit(1);
     const invite = inviteResult[0];
-    if (!invite) throw new TRPCError9({ code: "NOT_FOUND", message: "Invalid invite token" });
-    if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError9({ code: "BAD_REQUEST", message: "Invite expired" });
+    if (!invite) throw new TRPCError13({ code: "NOT_FOUND", message: "Invalid invite token" });
+    if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError13({ code: "BAD_REQUEST", message: "Invite expired" });
     await db.insert(organizationMembers).values({
       orgId: invite.orgId,
       userId: ctx.user.id,
       role: invite.role
     });
-    await db.update(users).set({ orgId: invite.orgId }).where(eq15(users.id, ctx.user.id));
-    await db.delete(organizationInvites).where(eq15(organizationInvites.id, invite.id));
+    await db.update(users).set({ orgId: invite.orgId }).where(eq16(users.id, ctx.user.id));
+    await db.delete(organizationInvites).where(eq16(organizationInvites.id, invite.id));
     return { success: true, orgId: invite.orgId };
   })
 });
@@ -21892,7 +26754,7 @@ init_space_program();
 init_area_utils();
 var KITCHEN_ROOMS = ["KIT"];
 var BATHROOM_ROOMS = ["MEN", "BTH", "ENS"];
-var WET_ROOM_IDS = [...KITCHEN_ROOMS, ...BATHROOM_ROOMS, "UTL"];
+var WET_ROOM_IDS2 = [...KITCHEN_ROOMS, ...BATHROOM_ROOMS, "UTL"];
 var TIER_PRICE_MULTIPLIERS = {
   "Entry": 0.5,
   "Mid": 0.7,
@@ -21900,10 +26762,21 @@ var TIER_PRICE_MULTIPLIERS = {
   "Luxury": 1.6,
   "Ultra-luxury": 2.8
 };
-async function generateDesignRecommendations(project, inputs, materialLibrary2, recentEvidence = [], designTrends2 = []) {
-  const spaceProgram = buildSpaceProgram(project);
-  const rooms = spaceProgram.rooms;
-  let totalBudget = spaceProgram.totalFitoutBudgetAed;
+async function generateDesignRecommendations(project, inputs, materialLibrary2, recentEvidence = [], designTrends2 = [], storedRooms) {
+  let rooms;
+  let totalBudget;
+  if (storedRooms && storedRooms.length > 0) {
+    rooms = storedRooms;
+    const fitOutSqm = rooms.reduce((sum, r) => sum + r.sqm, 0);
+    const budgetCap = Number(project.fin01BudgetCap || 0);
+    const SQFT_TO_SQM = 10.764;
+    const FINISH_BUDGET_RATIO = 0.35;
+    totalBudget = fitOutSqm * budgetCap * SQFT_TO_SQM * FINISH_BUDGET_RATIO;
+  } else {
+    const spaceProgram = buildSpaceProgram(project);
+    rooms = spaceProgram.rooms;
+    totalBudget = spaceProgram.totalFitoutBudgetAed;
+  }
   if (project.dldAreaId) {
     const { getDldAreaBenchmark: getDldAreaBenchmark2 } = await Promise.resolve().then(() => (init_db(), db_exports));
     const benchmark = await getDldAreaBenchmark2(project.dldAreaId);
@@ -22358,7 +27231,7 @@ The mood board should include:
 - Lighting atmosphere references
 - Spatial arrangement concepts
 
-Professional architectural presentation style. Clean white background with elegant grid layout. No text overlays. High-end design magazine quality.`;
+Professional architectural presentation style. Clean white background with elegant grid layout. No text overlays. High-end design magazine quality.${ctx.allocationClause || ""}`;
 }
 function buildRoomRenderPrompt(ctx, rec) {
   const materials = rec.materialPackage.slice(0, 4).map((m) => m.productName).join(", ");
@@ -22368,7 +27241,7 @@ Design style: ${rec.styleDirection}
 Colors: ${rec.colorScheme}
 Materials: ${materials || "Premium finishes"}
 
-Show a beautifully designed space with natural daylight from large windows. Include contemporary furniture appropriate for the ${ctx.tier} market segment. Warm, inviting atmosphere. Professional architectural visualization quality. Camera at eye level with slight wide-angle lens. No people in the image.`;
+Show a beautifully designed space with natural daylight from large windows. Include contemporary furniture appropriate for the ${ctx.tier} market segment. Warm, inviting atmosphere. Professional architectural visualization quality. Camera at eye level with slight wide-angle lens. No people in the image.${ctx.allocationClause || ""}`;
 }
 function buildMaterialBoardPrompt(ctx, rec) {
   const materialDetails = rec.materialPackage.map((m) => `${m.element}: ${m.productName} (${m.brand}) \u2014 ${m.priceRangeAed}`).join("\n");
@@ -22385,7 +27258,7 @@ Present as a flat-lay product photography board:
 - 6-8 material samples visible
 - Professional product photography lighting
 - No text labels, just the materials themselves
-- Architectural specification board style`;
+- Architectural specification board style${ctx.allocationClause || ""}`;
 }
 function buildKitchenRenderPrompt(ctx, rec, kitchen) {
   return `Create a photorealistic kitchen interior render for a ${ctx.tier} ${ctx.typology} home in ${ctx.location}.
@@ -22523,6 +27396,28 @@ function projectToInputs5(p) {
     sustainCertTarget: p.sustainCertTarget || "silver"
   };
 }
+function buildSpaceProgramFromStoredRooms(project, storedRooms) {
+  const fitOutRooms = storedRooms.filter((r) => r.isFitOut);
+  const fitOutSqm = fitOutRooms.reduce((sum, r) => sum + Number(r.sqm), 0);
+  const budgetCap = Number(project.fin01BudgetCap || 0);
+  const SQFT_TO_SQM = 10.764;
+  const FINISH_BUDGET_RATIO = 0.35;
+  const totalFitoutBudgetAed = fitOutSqm * budgetCap * SQFT_TO_SQM * FINISH_BUDGET_RATIO;
+  const rooms = fitOutRooms.map((r) => ({
+    id: r.roomCode,
+    name: r.roomName,
+    sqm: Number(r.sqm),
+    budgetPct: r.budgetPct ? Number(r.budgetPct) : fitOutRooms.length > 0 ? 1 / fitOutRooms.length : 0.1,
+    priority: r.priority || "medium",
+    finishGrade: r.finishGrade || "B"
+  }));
+  return {
+    totalFitoutBudgetAed,
+    rooms,
+    totalAllocatedSqm: fitOutSqm,
+    source: "stored"
+  };
+}
 function buildProjectContext(project) {
   return {
     projectName: project.name || "Untitled",
@@ -22566,13 +27461,24 @@ var designAdvisorRouter = router({
       limit: 20
     });
     const trends = designTrends2.length > 0 ? designTrends2 : await getDesignTrends({ region: "UAE", limit: 20 });
+    const storedRooms = await getSpaceProgramRooms(input.projectId, ctx.orgId);
+    const fitOutStoredRooms = storedRooms.length > 0 ? storedRooms.filter((r) => r.isFitOut).map((r) => ({
+      id: r.roomCode,
+      name: r.roomName,
+      sqm: Number(r.sqm),
+      budgetPct: r.budgetPct ? Number(r.budgetPct) : 0.1,
+      priority: r.priority || "medium",
+      finishGrade: r.finishGrade || "B"
+    })) : void 0;
     const recommendations = await generateDesignRecommendations(
       project,
       inputs,
       materials,
       recentEvidence,
-      trends
+      trends,
+      fitOutStoredRooms
     );
+    await clearSpaceRecommendations(input.projectId, ctx.orgId);
     for (const rec of recommendations) {
       await createSpaceRecommendation({
         projectId: input.projectId,
@@ -22604,6 +27510,11 @@ var designAdvisorRouter = router({
   getSpaceProgram: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
     const project = await getProjectById(input.projectId);
     if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const storedRooms = await getSpaceProgramRooms(input.projectId, ctx.orgId);
+    if (storedRooms.length > 0) {
+      await clearSpaceRecommendations(input.projectId, ctx.orgId);
+      return buildSpaceProgramFromStoredRooms(project, storedRooms);
+    }
     return buildSpaceProgram(project);
   }),
   generateDesignBrief: orgProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
@@ -22667,6 +27578,31 @@ var designAdvisorRouter = router({
     if (!rec) throw new Error("Space recommendation not found \u2014 generate recommendations first");
     const spaceRec = mapRecToSpace(rec);
     const projectCtx = buildProjectContext(project);
+    try {
+      const allocations = await getMaterialAllocations(input.projectId, ctx.orgId);
+      if (allocations && allocations.length > 0) {
+        const roomAllocs = allocations.filter((a) => a.roomId === input.roomId).map((a) => ({
+          roomId: a.roomId,
+          roomName: a.roomName,
+          element: a.element,
+          materialName: a.materialName,
+          percentage: Number(a.percentage) || 100
+        }));
+        const targetAllocs = roomAllocs.length > 0 ? roomAllocs : allocations.map((a) => ({
+          roomId: a.roomId,
+          roomName: a.roomName,
+          element: a.element,
+          materialName: a.materialName,
+          percentage: Number(a.percentage) || 100
+        }));
+        const clause = buildMaterialAllocationPromptClause(targetAllocs);
+        if (clause) {
+          projectCtx.allocationClause = clause;
+        }
+      }
+    } catch (e) {
+      console.warn("[DesignAdvisor] MQI allocation fetch failed, continuing without:", e);
+    }
     const result = await generateSpaceVisual(projectCtx, spaceRec, input.type);
     await createGeneratedVisual({
       projectId: input.projectId,
@@ -22702,16 +27638,16 @@ var designAdvisorRouter = router({
 import { z as z19 } from "zod";
 init_db();
 init_schema();
-import { eq as eq16, and as and7, desc as desc9, inArray as inArray3 } from "drizzle-orm";
+import { eq as eq17, and as and8, desc as desc9, inArray as inArray3 } from "drizzle-orm";
 var portfolioRouter = router({
   // ─── List all portfolios for current org ──────────────────────────
   list: orgProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return [];
-    const rows = await db.select().from(portfolios).where(eq16(portfolios.organizationId, ctx.orgId)).orderBy(desc9(portfolios.updatedAt));
+    const rows = await db.select().from(portfolios).where(eq17(portfolios.organizationId, ctx.orgId)).orderBy(desc9(portfolios.updatedAt));
     const result = [];
     for (const p of rows) {
-      const links = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, p.id));
+      const links = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, p.id));
       let avgComposite = 0;
       let avgRisk = 0;
       let scoredCount = 0;
@@ -22749,13 +27685,13 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) return null;
     const [portfolio] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) return null;
-    const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) {
       return {
         ...portfolio,
@@ -22887,9 +27823,9 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const [existing] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!existing) throw new Error("Portfolio not found");
@@ -22897,7 +27833,7 @@ var portfolioRouter = router({
     if (input.name !== void 0) updates.name = input.name;
     if (input.description !== void 0)
       updates.description = input.description;
-    await db.update(portfolios).set(updates).where(eq16(portfolios.id, input.id));
+    await db.update(portfolios).set(updates).where(eq17(portfolios.id, input.id));
     return { success: true };
   }),
   // ─── Delete portfolio ─────────────────────────────────────────────
@@ -22905,14 +27841,14 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const [existing] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!existing) throw new Error("Portfolio not found");
-    await db.delete(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
-    await db.delete(portfolios).where(eq16(portfolios.id, input.id));
+    await db.delete(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
+    await db.delete(portfolios).where(eq17(portfolios.id, input.id));
     return { success: true };
   }),
   // ─── Add project to portfolio ─────────────────────────────────────
@@ -22926,20 +27862,20 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const [portfolio] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.portfolioId),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.portfolioId),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) throw new Error("Portfolio not found");
-    const [project] = await db.select().from(projects).where(eq16(projects.id, input.projectId));
+    const [project] = await db.select().from(projects).where(eq17(projects.id, input.projectId));
     if (!project || project.orgId !== ctx.orgId) {
       throw new Error("Project not found");
     }
     const existing = await db.select().from(portfolioProjects).where(
-      and7(
-        eq16(portfolioProjects.portfolioId, input.portfolioId),
-        eq16(portfolioProjects.projectId, input.projectId)
+      and8(
+        eq17(portfolioProjects.portfolioId, input.portfolioId),
+        eq17(portfolioProjects.projectId, input.projectId)
       )
     );
     if (existing.length > 0) {
@@ -22962,16 +27898,16 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const [portfolio] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.portfolioId),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.portfolioId),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) throw new Error("Portfolio not found");
     await db.delete(portfolioProjects).where(
-      and7(
-        eq16(portfolioProjects.portfolioId, input.portfolioId),
-        eq16(portfolioProjects.projectId, input.projectId)
+      and8(
+        eq17(portfolioProjects.portfolioId, input.portfolioId),
+        eq17(portfolioProjects.projectId, input.projectId)
       )
     );
     return { success: true };
@@ -22980,8 +27916,8 @@ var portfolioRouter = router({
   availableProjects: orgProcedure.input(z19.object({ portfolioId: z19.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return [];
-    const allProjects = await db.select().from(projects).where(eq16(projects.orgId, ctx.orgId));
-    const linked = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.portfolioId));
+    const allProjects = await db.select().from(projects).where(eq17(projects.orgId, ctx.orgId));
+    const linked = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.portfolioId));
     const linkedIds = new Set(linked.map((l) => l.projectId));
     return allProjects.filter((p) => !linkedIds.has(p.id)).map((p) => ({
       id: p.id,
@@ -22996,13 +27932,13 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) throw new Error("Portfolio not found");
-    const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) {
       throw new Error("Portfolio has no projects \u2014 add projects before generating a report.");
     }
@@ -23098,13 +28034,13 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) throw new Error("Portfolio not found");
-    const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) return { alerts: [], message: "No projects in portfolio" };
     const pIds = links.map((l) => l.projectId);
     const projectList = await db.select().from(projects).where(inArray3(projects.id, pIds));
@@ -23210,15 +28146,15 @@ var portfolioRouter = router({
     const inserted = [];
     for (const alert of candidates) {
       const existing = await db.select().from(platformAlerts).where(
-        and7(
-          eq16(platformAlerts.alertType, alert.alertType),
-          eq16(platformAlerts.status, "active")
+        and8(
+          eq17(platformAlerts.alertType, alert.alertType),
+          eq17(platformAlerts.status, "active")
         )
       );
-      const isDuplicate2 = existing.some(
+      const isDuplicate = existing.some(
         (e) => e.title === alert.title && JSON.stringify(e.affectedProjectIds) === JSON.stringify(alert.affectedProjectIds)
       );
-      if (!isDuplicate2) {
+      if (!isDuplicate) {
         const [result] = await db.insert(platformAlerts).values(alert);
         const alertWithId = { ...alert, id: result.insertId };
         inserted.push(alertWithId);
@@ -23245,7 +28181,7 @@ import { z as z20 } from "zod";
 init_db();
 init_db();
 init_schema();
-import { eq as eq17, desc as desc10, gte as gte2, and as and8, count } from "drizzle-orm";
+import { eq as eq18, desc as desc10, gte as gte2, and as and9, count } from "drizzle-orm";
 
 // server/engines/customer/health-score.ts
 function clamp2(v, min = 0, max = 100) {
@@ -23380,8 +28316,8 @@ var customerSuccessRouter = router({
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1e3);
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const recentLogs = await d.select().from(auditLogs).where(and8(
-      eq17(auditLogs.userId, userId),
+    const recentLogs = await d.select().from(auditLogs).where(and9(
+      eq18(auditLogs.userId, userId),
       gte2(auditLogs.createdAt, thirtyDaysAgo)
     ));
     const totalActions = recentLogs.length;
@@ -23394,7 +28330,7 @@ var customerSuccessRouter = router({
     const totalProjects = projects2?.length || 0;
     const evaluatedProjects = projects2?.filter((p) => p.status === "evaluated").length || 0;
     const scenarioActions = recentLogs.filter((l) => l.entityType === "scenario").length;
-    const simRows = await d.select({ c: count() }).from(monteCarloSimulations).where(eq17(monteCarloSimulations.userId, userId));
+    const simRows = await d.select({ c: count() }).from(monteCarloSimulations).where(eq18(monteCarloSimulations.userId, userId));
     const simulationsRun = simRows[0]?.c || 0;
     const biasScanActions = recentLogs.filter((l) => l.action === "bias.scan").length;
     const portfolioActions = recentLogs.filter((l) => l.entityType === "portfolio").length;
@@ -23403,7 +28339,7 @@ var customerSuccessRouter = router({
     ).length;
     const evaluatedProjScores = projects2?.filter((p) => p.status === "evaluated" && p.compositeScore != null).map((p) => Number(p.compositeScore)) || [];
     const avgProjectScore = evaluatedProjScores.length > 0 ? evaluatedProjScores.reduce((s, v) => s + v, 0) / evaluatedProjScores.length : 0;
-    const allBiasAlerts = await d.select().from(biasAlerts).where(eq17(biasAlerts.userId, userId));
+    const allBiasAlerts = await d.select().from(biasAlerts).where(eq18(biasAlerts.userId, userId));
     const biasAlertsTotal = allBiasAlerts.length;
     const biasAlertsDismissed = allBiasAlerts.filter((a) => a.dismissed).length;
     const thisMonthProjects = projects2?.filter(
@@ -23456,7 +28392,7 @@ var customerSuccessRouter = router({
   getHealth: protectedProcedure.query(async ({ ctx }) => {
     const d = await getDb();
     if (!d) return null;
-    const rows = await d.select().from(customerHealthScores).where(eq17(customerHealthScores.userId, ctx.user.id)).orderBy(desc10(customerHealthScores.createdAt)).limit(1);
+    const rows = await d.select().from(customerHealthScores).where(eq18(customerHealthScores.userId, ctx.user.id)).orderBy(desc10(customerHealthScores.createdAt)).limit(1);
     return rows[0] || null;
   }),
   // Recent activity feed
@@ -23464,7 +28400,7 @@ var customerSuccessRouter = router({
     const d = await getDb();
     if (!d) return [];
     const limit = input?.limit || 20;
-    return d.select().from(auditLogs).where(eq17(auditLogs.userId, ctx.user.id)).orderBy(desc10(auditLogs.createdAt)).limit(limit);
+    return d.select().from(auditLogs).where(eq18(auditLogs.userId, ctx.user.id)).orderBy(desc10(auditLogs.createdAt)).limit(limit);
   })
 });
 
@@ -23473,7 +28409,7 @@ import { z as z21 } from "zod";
 init_db();
 init_db();
 init_schema();
-import { eq as eq18, desc as desc11 } from "drizzle-orm";
+import { eq as eq19, desc as desc11 } from "drizzle-orm";
 
 // server/engines/sustainability/digital-twin.ts
 var MATERIAL_DB = {
@@ -24219,12 +29155,12 @@ var sustainabilityRouter = router({
   getTwinModels: protectedProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ input }) => {
     const d = await getDb();
     if (!d) return [];
-    return d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(10);
+    return d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(10);
   }),
   getLatestTwin: protectedProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ input }) => {
     const d = await getDb();
     if (!d) return null;
-    const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
+    const rows = await d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
     return rows[0] || null;
   }),
   evaluateCompliance: protectedProcedure.input(z21.object({
@@ -24235,7 +29171,7 @@ var sustainabilityRouter = router({
     const project = await getProjectById(input.projectId);
     if (!project) throw new Error("Project not found");
     const city = project.city || "Dubai";
-    const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
+    const rows = await d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
     const twin = rows[0];
     if (!twin) throw new Error("No digital twin computed yet. Run 'Compute Twin' first.");
     const config = twin.config || {};
@@ -24265,6 +29201,1650 @@ var sustainabilityRouter = router({
   })
 });
 
+// server/routers/salesPremium.ts
+import { z as z22 } from "zod";
+
+// server/engines/value-add-engine.ts
+var RENTAL_PREMIUM_BY_CONDITION = {
+  "Shell & Core": 0,
+  "Category A": 0.075,
+  // +5–10% → midpoint 7.5%
+  "Category B": 0.2,
+  // +15–25% → midpoint 20%
+  "Fully Furnished": 0.4
+  // +30–50% → midpoint 40%
+};
+var SALE_IMPACT_BANDS = [
+  { maxRatio: 0.1, label: "UNDER_SPEC", salePremiumPct: -0.1 },
+  { maxRatio: 0.18, label: "IN_SPEC", salePremiumPct: 0 },
+  { maxRatio: 0.28, label: "PREMIUM", salePremiumPct: 0.085 },
+  { maxRatio: Infinity, label: "OVER_SPEC", salePremiumPct: 0.05 }
+];
+var SCENARIO_MULT = { conservative: 0.65, aggressive: 1.35 };
+var OVER_SPEC_RATIO = 0.28;
+var TIER_RENT_COEFF = {
+  "Mid": 0.06,
+  "Upper-mid": 0.08,
+  "Luxury": 0.1,
+  "Ultra-luxury": 0.14
+};
+function deriveConfidence(transactionCount) {
+  if (transactionCount >= 15) return "high";
+  if (transactionCount >= 8) return "medium";
+  if (transactionCount >= 3) return "low";
+  return "insufficient";
+}
+function buildRange(mid) {
+  return {
+    conservative: round2(mid * SCENARIO_MULT.conservative),
+    mid: round2(mid),
+    aggressive: round2(mid * SCENARIO_MULT.aggressive)
+  };
+}
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+function clamp4(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+function computeValueAddBridge(inputs) {
+  const {
+    currentFitoutPerSqm,
+    proposedFitoutPerSqm,
+    gfa,
+    saleMedianPerSqm,
+    rentMedianPerSqm,
+    tier,
+    handoverCondition,
+    transactionCount
+  } = inputs;
+  if (gfa <= 0 || saleMedianPerSqm <= 0) {
+    return zeroResult("insufficient", null, null);
+  }
+  const confidence = deriveConfidence(transactionCount);
+  const fitoutDelta = Math.max(0, proposedFitoutPerSqm - currentFitoutPerSqm);
+  const incrementalFitoutCost = Math.round(fitoutDelta * gfa);
+  const fitoutRatio = round2(proposedFitoutPerSqm / saleMedianPerSqm);
+  let riskFlag = null;
+  let riskMessage = null;
+  if (fitoutRatio > OVER_SPEC_RATIO) {
+    riskFlag = "DIMINISHING_RETURNS";
+    riskMessage = `Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price exceeds the ${(OVER_SPEC_RATIO * 100).toFixed(0)}% threshold. Payback extends significantly beyond 7 years.`;
+  } else if (fitoutRatio < 0.1) {
+    riskFlag = "UNDER_SPEC";
+    riskMessage = `Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price is below the 10% minimum for ${tier}. May not meet buyer expectations.`;
+  }
+  if (confidence === "insufficient") {
+    return {
+      yieldDelta: buildRange(0),
+      salePremiumPct: buildRange(0),
+      salePremiumAed: buildRange(0),
+      paybackMonths: buildRange(0),
+      incrementalFitoutCost,
+      fitoutRatio,
+      confidence,
+      riskFlag,
+      riskMessage: "Insufficient DLD comparables (< 3 transactions). Results are indicative only."
+    };
+  }
+  const rentCoeff = TIER_RENT_COEFF[tier] ?? 0.08;
+  const fitoutImprovementRatio = saleMedianPerSqm > 0 ? fitoutDelta / saleMedianPerSqm : 0;
+  let yieldDeltaMid = fitoutImprovementRatio * rentCoeff * 100;
+  if (handoverCondition) {
+    const conditionPremium = RENTAL_PREMIUM_BY_CONDITION[handoverCondition] ?? 0;
+    yieldDeltaMid = Math.max(yieldDeltaMid, conditionPremium * rentCoeff * 100);
+  }
+  yieldDeltaMid = clamp4(yieldDeltaMid, 0, 4);
+  const band = SALE_IMPACT_BANDS.find((b) => fitoutRatio <= b.maxRatio) ?? SALE_IMPACT_BANDS[SALE_IMPACT_BANDS.length - 1];
+  const currentBand = SALE_IMPACT_BANDS.find((b) => currentFitoutPerSqm / saleMedianPerSqm <= b.maxRatio) ?? SALE_IMPACT_BANDS[0];
+  const salePremiumMid = round1((band.salePremiumPct - currentBand.salePremiumPct) * 100);
+  const totalSaleValue = saleMedianPerSqm * gfa;
+  const salePremiumAedMid = Math.round(totalSaleValue * (salePremiumMid / 100));
+  let paybackMid;
+  if (incrementalFitoutCost <= 0) {
+    paybackMid = 0;
+  } else {
+    const annualRentalPremium = totalSaleValue * (yieldDeltaMid / 100);
+    if (annualRentalPremium <= 0) {
+      paybackMid = 999;
+    } else {
+      paybackMid = round1(incrementalFitoutCost / (annualRentalPremium / 12));
+    }
+  }
+  return {
+    yieldDelta: buildRange(yieldDeltaMid),
+    salePremiumPct: buildRange(salePremiumMid),
+    salePremiumAed: buildRange(salePremiumAedMid),
+    paybackMonths: {
+      // Payback ranges are inverted: conservative = longer, aggressive = shorter
+      conservative: round1(paybackMid / SCENARIO_MULT.conservative),
+      mid: round1(paybackMid),
+      aggressive: round1(paybackMid / SCENARIO_MULT.aggressive)
+    },
+    incrementalFitoutCost,
+    fitoutRatio,
+    confidence,
+    riskFlag,
+    riskMessage
+  };
+}
+function computeBrandEquityForecast(inputs) {
+  const { tier, targetValueAdd, salePerformancePct, brandedStatus } = inputs;
+  const isTrophy = targetValueAdd === "Brand Flagship / Trophy";
+  const isUltraLuxury = tier === "Ultra-luxury";
+  const isBranded = brandedStatus !== "Unbranded";
+  const haloApplies = isTrophy || isUltraLuxury && isBranded;
+  if (!haloApplies) {
+    return {
+      haloUpliftPct: 0,
+      haloApplies: false,
+      reasoning: `Halo effect is not applicable for ${tier} ${targetValueAdd} projects. Trophy or Ultra-luxury branded projects qualify.`,
+      portfolioImpactAed: { conservative: 0, mid: 0, aggressive: 0 }
+    };
+  }
+  if (salePerformancePct <= 10) {
+    return {
+      haloUpliftPct: 0,
+      haloApplies: true,
+      reasoning: `Project is performing at +${round1(salePerformancePct)}% above area median. Halo effect activates at >10% outperformance. Current performance is at the threshold.`,
+      portfolioImpactAed: { conservative: 0, mid: 0, aggressive: 0 }
+    };
+  }
+  const rawHalo = (salePerformancePct - 10) * 0.35;
+  const haloUpliftPct = round1(clamp4(rawHalo, 0, 8));
+  const brandBonus = isBranded ? 1.15 : 1;
+  const adjustedHalo = round1(clamp4(haloUpliftPct * brandBonus, 0, 8));
+  const dubaiAvgPerSqm = 25e3;
+  const nextProjectGfas = { conservative: 500, mid: 2e3, aggressive: 5e3 };
+  const portfolioImpactAed = {
+    conservative: Math.round(nextProjectGfas.conservative * dubaiAvgPerSqm * (adjustedHalo / 100)),
+    mid: Math.round(nextProjectGfas.mid * dubaiAvgPerSqm * (adjustedHalo / 100)),
+    aggressive: Math.round(nextProjectGfas.aggressive * dubaiAvgPerSqm * (adjustedHalo / 100))
+  };
+  const reasoning = [
+    `Project performs at +${round1(salePerformancePct)}% above area median.`,
+    `Halo formula: (${round1(salePerformancePct)} - 10) \xD7 0.35 = ${round1(rawHalo)}%, clamped at 8%.`,
+    isBranded ? `Branded status (${brandedStatus}) applies a 15% brand amplification bonus.` : "",
+    `Expected uplift on next project: +${adjustedHalo}%.`
+  ].filter(Boolean).join(" ");
+  return {
+    haloUpliftPct: adjustedHalo,
+    haloApplies: true,
+    reasoning,
+    portfolioImpactAed
+  };
+}
+function zeroResult(confidence, riskFlag, riskMessage) {
+  return {
+    yieldDelta: { conservative: 0, mid: 0, aggressive: 0 },
+    salePremiumPct: { conservative: 0, mid: 0, aggressive: 0 },
+    salePremiumAed: { conservative: 0, mid: 0, aggressive: 0 },
+    paybackMonths: { conservative: 0, mid: 0, aggressive: 0 },
+    incrementalFitoutCost: 0,
+    fitoutRatio: 0,
+    confidence,
+    riskFlag,
+    riskMessage
+  };
+}
+
+// server/routers/salesPremium.ts
+init_dld_analytics();
+init_db();
+var salesPremiumRouter = router({
+  /**
+   * getValueAddBridge — Core endpoint
+   *
+   * Given a project's current and proposed fitout spend,
+   * returns yield delta, sale premium, and payback period.
+   */
+  getValueAddBridge: orgProcedure.input(z22.object({
+    projectId: z22.number(),
+    currentFitoutPerSqm: z22.number().min(0),
+    proposedFitoutPerSqm: z22.number().min(0)
+  })).query(async ({ input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new Error("Project not found");
+    const saleMedianPerSqm = await getAreaSaleMedianSqm(project.dldAreaId ?? null);
+    let transactionCount = 0;
+    if (project.dldAreaId) {
+      const benchmark = await getDldAreaBenchmark(project.dldAreaId);
+      transactionCount = benchmark?.saleTransactionCount ? Number(benchmark.saleTransactionCount) : 0;
+    }
+    const result = computeValueAddBridge({
+      currentFitoutPerSqm: input.currentFitoutPerSqm,
+      proposedFitoutPerSqm: input.proposedFitoutPerSqm,
+      gfa: Number(project.totalFitoutArea || project.ctx03Gfa || 0),
+      saleMedianPerSqm,
+      tier: project.mkt01Tier ?? "Upper-mid",
+      handoverCondition: project.handoverCondition ?? void 0,
+      transactionCount
+    });
+    return result;
+  }),
+  /**
+   * getBrandEquityForecast — Brand halo endpoint
+   *
+   * For trophy/flagship projects, estimates the portfolio
+   * halo effect of a high-performing sale.
+   */
+  getBrandEquityForecast: orgProcedure.input(z22.object({
+    projectId: z22.number(),
+    salePerformancePct: z22.number().min(0).max(100)
+  })).query(async ({ input }) => {
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new Error("Project not found");
+    return computeBrandEquityForecast({
+      tier: project.mkt01Tier ?? "Upper-mid",
+      targetValueAdd: project.targetValueAdd ?? "Balanced Return",
+      salePerformancePct: input.salePerformancePct,
+      brandedStatus: project.brandedStatus ?? "Unbranded"
+    });
+  })
+});
+
+// server/routers/intake.ts
+import { z as z23 } from "zod";
+init_storage();
+init_db();
+init_ai_intake_engine();
+init_dynamic();
+import crypto3 from "crypto";
+var intakeRouter = router({
+  /**
+   * Generate a presigned S3 upload URL for direct client upload.
+   * Client uploads directly to S3, then calls `recordAsset` to register it.
+   */
+  getUploadUrl: orgProcedure.input(z23.object({
+    fileName: z23.string(),
+    contentType: z23.string(),
+    sizeBytes: z23.number().max(50 * 1024 * 1024)
+    // 50MB limit
+  })).mutation(async ({ input, ctx }) => {
+    const fileKey = `intake/${ctx.orgId}/${Date.now()}-${crypto3.randomUUID().slice(0, 8)}/${input.fileName}`;
+    const result = await storagePut(fileKey, Buffer.alloc(0), input.contentType);
+    return {
+      uploadUrl: result.url,
+      fileKey,
+      storageUrl: result.url
+    };
+  }),
+  /**
+   * Register an uploaded asset in the project_assets table.
+   * Called after client uploads to S3.
+   */
+  recordAsset: orgProcedure.input(z23.object({
+    projectId: z23.number().optional(),
+    fileName: z23.string(),
+    mimeType: z23.string(),
+    sizeBytes: z23.number(),
+    storagePath: z23.string(),
+    storageUrl: z23.string(),
+    category: z23.enum([
+      "brief",
+      "brand",
+      "budget",
+      "competitor",
+      "inspiration",
+      "material",
+      "sales",
+      "legal",
+      "mood_image",
+      "material_board",
+      "marketing_hero",
+      "floor_plan",
+      "voice_note",
+      "generated",
+      "other"
+    ]).default("other"),
+    assetType: z23.enum(["image", "pdf", "audio", "video", "url", "text_note"]).default("image")
+  })).mutation(async ({ input, ctx }) => {
+    const assetId = await createProjectAsset({
+      projectId: input.projectId ?? 0,
+      filename: input.fileName,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      storagePath: input.storagePath,
+      storageUrl: input.storageUrl,
+      category: input.category,
+      assetType: input.assetType,
+      uploadedBy: ctx.user.id
+    });
+    return { assetId };
+  }),
+  /**
+   * List assets for a project.
+   */
+  listAssets: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ input }) => {
+    return getProjectAssets(input.projectId);
+  }),
+  /**
+   * Process uploaded assets through the AI Intake Engine.
+   * Returns suggested ProjectInputs with per-field confidence and reasoning.
+   */
+  processAssets: orgProcedure.input(z23.object({
+    projectId: z23.number().optional(),
+    assets: z23.array(z23.object({
+      type: z23.enum(["image", "pdf", "audio", "video", "url", "text_note"]),
+      url: z23.string(),
+      mimeType: z23.string().optional(),
+      textContent: z23.string().optional(),
+      fileName: z23.string().optional(),
+      assetId: z23.number().optional()
+    })),
+    freeformDescription: z23.string().optional()
+  })).mutation(async ({ input }) => {
+    const intakeAssets = input.assets.map((a) => ({
+      type: a.type,
+      url: a.url,
+      mimeType: a.mimeType,
+      textContent: a.textContent
+    }));
+    if (input.freeformDescription?.trim()) {
+      intakeAssets.push({
+        type: "text_note",
+        url: "",
+        textContent: input.freeformDescription
+      });
+    }
+    const result = await processIntakeAssets(intakeAssets);
+    for (const asset of input.assets) {
+      if (asset.assetId) {
+        await updateProjectAsset(asset.assetId, {
+          aiExtractionResult: result.extractedInsights,
+          aiContributions: Object.keys(result.suggestedInputs)
+        });
+      }
+    }
+    return result;
+  }),
+  /**
+   * Link orphaned assets to a project (after project creation).
+   */
+  linkAssetsToProject: orgProcedure.input(z23.object({
+    assetIds: z23.array(z23.number()),
+    projectId: z23.number()
+  })).mutation(async ({ input }) => {
+    for (const assetId of input.assetIds) {
+      await updateProjectAsset(assetId, { projectId: input.projectId });
+    }
+    return { linked: input.assetIds.length };
+  }),
+  suggestSection: orgProcedure.input(z23.object({
+    section: z23.enum(["context", "strategy", "market", "financial", "design", "execution"]),
+    currentFormState: z23.record(z23.string(), z23.any())
+  })).mutation(async ({ input }) => {
+    const { suggestSectionFields: suggestSectionFields2 } = await Promise.resolve().then(() => (init_ai_intake_engine(), ai_intake_engine_exports));
+    return suggestSectionFields2(input.section, input.currentFormState);
+  }),
+  /**
+   * Scrape a URL for intake analysis.
+   * Uses DynamicConnector for full fallback chain (Firecrawl → ScrapingDog → native).
+   */
+  scrapeUrl: orgProcedure.input(z23.object({ url: z23.string().url() })).mutation(async ({ input }) => {
+    const { DynamicConnector: DynamicConnector2 } = await Promise.resolve().then(() => (init_dynamic(), dynamic_exports));
+    const connector = new DynamicConnector2({
+      id: "intake_scrape",
+      name: "Intake Scraper",
+      url: input.url,
+      sourceType: "other",
+      region: "UAE"
+    });
+    let result;
+    try {
+      result = await connector.fetch();
+    } catch {
+      result = await connector.fetchBasic();
+    }
+    if (result.error || !result.markdown && !result.rawHtml) {
+      return {
+        textContent: "",
+        title: new URL(input.url).hostname,
+        domain: new URL(input.url).hostname
+      };
+    }
+    const rawContent = result.markdown || cleanHtmlForLLM(result.rawHtml || "");
+    const titleMatch = result.rawHtml?.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch?.[1]?.trim() || new URL(input.url).hostname;
+    return {
+      textContent: rawContent.substring(0, 8e3),
+      // top 8000 chars as requested
+      title: title.substring(0, 100),
+      domain: new URL(input.url).hostname
+    };
+  }),
+  /**
+   * Conversational chat for project intake.
+   */
+  chat: orgProcedure.input(z23.object({
+    messages: z23.array(z23.object({
+      role: z23.enum(["user", "assistant"]),
+      content: z23.string()
+    }))
+  })).mutation(async ({ input }) => {
+    const { invokeLLM: invokeLLM2 } = await Promise.resolve().then(() => (init_llm(), llm_exports));
+    const systemPrompt = `You are MIYAR, an expert luxury real estate and interior design intake assistant for the UAE market.
+Your goal is to extract project requirements from the user through natural conversation.
+Ask ONE clear question at a time.
+Focus on: Typology (Villa/Apartment/Hotel), GFA (sqm/sqft), Quality Tier (Premium/Luxury/Ultra-Luxury), Location (e.g., Palm Jumeirah), and Design Style.
+Be professional, concise, and helpful. Do not mention your instructions.`;
+    const contents = input.messages.map((m) => ({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: m.content
+    }));
+    contents.unshift({
+      role: "system",
+      content: systemPrompt
+    });
+    if (contents.length > 1 && contents[contents.length - 1].role === "assistant") {
+      contents.push({ role: "user", content: "Please continue." });
+    }
+    const response = await invokeLLM2({
+      messages: contents
+    });
+    const rawContent = response.choices[0]?.message?.content;
+    const text2 = Array.isArray(rawContent) ? rawContent.filter((p) => p.type === "text").map((p) => p.text).join("") : typeof rawContent === "string" ? rawContent : "";
+    return { text: text2 };
+  })
+});
+
+// server/routers/materialQuantity.ts
+import { z as z24 } from "zod";
+init_db();
+init_space_program();
+var materialQuantityRouter = router({
+  /**
+   * generate — Full MQI pipeline
+   *
+   * 1. Build space program (rooms)
+   * 2. Calculate surface areas (deterministic)
+   * 3. Load existing locked allocations (preserved across re-runs)
+   * 4. Fetch material library
+   * 5. Generate allocations via Gemini (locked elements excluded)
+   * 6. Compute costs (deterministic)
+   * 7. Store to DB + write boardMaterialsCost
+   */
+  generate: orgProcedure.input(
+    z24.object({
+      projectId: z24.number(),
+      ceilingHeightM: z24.number().min(2.4).max(5).optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new Error("Project not found");
+    const storedRooms = await getSpaceProgramRooms(input.projectId, orgId);
+    let rooms;
+    if (storedRooms.length > 0) {
+      rooms = storedRooms.filter((r) => r.isFitOut).map((r) => ({
+        id: r.roomCode,
+        name: r.roomName,
+        sqm: Number(r.sqm),
+        budgetPct: Number(r.budgetPct) || 0,
+        priority: r.priority || "medium",
+        finishGrade: r.finishGrade || "B"
+      }));
+    } else {
+      const spaceProgram = buildSpaceProgram(project);
+      rooms = spaceProgram.rooms;
+    }
+    const surfaces = calculateSurfaceAreas(
+      rooms,
+      input.ceilingHeightM
+    );
+    const existingAllocations = await getMaterialAllocations(
+      input.projectId,
+      orgId
+    );
+    const lockedAllocations = [];
+    const lockedIds = [];
+    const lockedGroupMap = /* @__PURE__ */ new Map();
+    for (const alloc of existingAllocations) {
+      if (alloc.isLocked) {
+        lockedIds.push(alloc.id);
+        const key = `${alloc.roomId}:${alloc.element}`;
+        if (!lockedGroupMap.has(key)) lockedGroupMap.set(key, []);
+        lockedGroupMap.get(key).push({
+          materialLibraryId: alloc.materialLibraryId,
+          materialName: alloc.materialName,
+          percentage: Number(alloc.allocationPct),
+          reasoning: alloc.aiReasoning || "Locked by user"
+        });
+      }
+    }
+    for (const [key, slices] of Array.from(lockedGroupMap.entries())) {
+      const [roomId, element] = key.split(":");
+      lockedAllocations.push({ roomId, element, allocations: slices });
+    }
+    const materialLibrary2 = await getMaterialLibrary();
+    const allocationResult = await generateMaterialAllocations(
+      project,
+      surfaces,
+      materialLibrary2,
+      rooms,
+      lockedAllocations.length > 0 ? lockedAllocations : void 0
+    );
+    const costResult = buildQuantityCostSummary(
+      surfaces,
+      allocationResult,
+      materialLibrary2,
+      {
+        fin01BudgetCap: project.fin01BudgetCap ? Number(project.fin01BudgetCap) : null,
+        ctx03Gfa: project.ctx03Gfa ? Number(project.ctx03Gfa) : null
+      }
+    );
+    await deleteMaterialAllocations(
+      input.projectId,
+      orgId,
+      lockedIds.length > 0 ? lockedIds : void 0
+    );
+    const allocationsToInsert = [];
+    for (const room of costResult.rooms) {
+      for (const element of room.elements) {
+        for (const alloc of element.allocations) {
+          const lockKey = `${room.roomId}:${element.element}`;
+          if (lockedGroupMap.has(lockKey)) continue;
+          allocationsToInsert.push({
+            projectId: input.projectId,
+            organizationId: orgId,
+            roomId: room.roomId,
+            roomName: room.roomName,
+            element: element.element,
+            materialLibraryId: alloc.materialLibraryId,
+            materialName: alloc.materialName,
+            allocationPct: String(alloc.percentage),
+            surfaceAreaM2: String(alloc.actualAreaM2),
+            unitCostMin: alloc.unitCostMin ? String(alloc.unitCostMin) : null,
+            unitCostMax: alloc.unitCostMax ? String(alloc.unitCostMax) : null,
+            totalCostMin: alloc.totalCostMin ? String(alloc.totalCostMin) : null,
+            totalCostMax: alloc.totalCostMax ? String(alloc.totalCostMax) : null,
+            aiReasoning: alloc.reasoning,
+            isLocked: false
+          });
+        }
+      }
+    }
+    if (allocationsToInsert.length > 0) {
+      await insertMaterialAllocations(allocationsToInsert);
+    }
+    return costResult;
+  }),
+  /**
+   * getForProject — Read stored MQI data
+   */
+  getForProject: orgProcedure.input(z24.object({ projectId: z24.number() })).query(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    const allocations = await getMaterialAllocations(
+      input.projectId,
+      orgId
+    );
+    if (allocations.length === 0) return null;
+    const roomMap = /* @__PURE__ */ new Map();
+    for (const alloc of allocations) {
+      if (!roomMap.has(alloc.roomId)) {
+        roomMap.set(alloc.roomId, {
+          roomId: alloc.roomId,
+          roomName: alloc.roomName,
+          elements: []
+        });
+      }
+      const room = roomMap.get(alloc.roomId);
+      let element = room.elements.find((e) => e.element === alloc.element);
+      if (!element) {
+        element = { element: alloc.element, allocations: [] };
+        room.elements.push(element);
+      }
+      element.allocations.push({
+        id: alloc.id,
+        materialLibraryId: alloc.materialLibraryId,
+        materialName: alloc.materialName,
+        allocationPct: Number(alloc.allocationPct),
+        surfaceAreaM2: Number(alloc.surfaceAreaM2),
+        unitCostMin: Number(alloc.unitCostMin) || 0,
+        unitCostMax: Number(alloc.unitCostMax) || 0,
+        totalCostMin: Number(alloc.totalCostMin) || 0,
+        totalCostMax: Number(alloc.totalCostMax) || 0,
+        aiReasoning: alloc.aiReasoning,
+        isLocked: alloc.isLocked
+      });
+    }
+    return {
+      rooms: Array.from(roomMap.values()),
+      totalAllocations: allocations.length,
+      generatedAt: allocations[0]?.generatedAt?.toISOString()
+    };
+  }),
+  /**
+   * updateAllocation — Edit a single allocation
+   * Server-side recalculation of costs
+   */
+  updateAllocation: orgProcedure.input(
+    z24.object({
+      allocationId: z24.number(),
+      allocationPct: z24.number().min(0).max(100),
+      surfaceAreaM2: z24.number().min(0)
+    })
+  ).mutation(async ({ input }) => {
+    await updateMaterialAllocation(input.allocationId, {
+      allocationPct: String(input.allocationPct),
+      surfaceAreaM2: String(input.surfaceAreaM2)
+    });
+    return { success: true };
+  }),
+  /**
+   * lockAllocations — Bulk lock/unlock all allocations for a project
+   */
+  lockAllocations: orgProcedure.input(
+    z24.object({
+      projectId: z24.number(),
+      isLocked: z24.boolean()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    await lockMaterialAllocations(
+      input.projectId,
+      orgId,
+      input.isLocked
+    );
+    return { success: true, isLocked: input.isLocked };
+  }),
+  /**
+   * addSupplierSource — Register a new supplier URL for scraping
+   */
+  addSupplierSource: orgProcedure.input(
+    z24.object({
+      supplierName: z24.string().min(1).max(200),
+      supplierUrl: z24.string().url(),
+      materialCategory: z24.enum([
+        "flooring",
+        "wall_paint",
+        "wall_tile",
+        "ceiling",
+        "joinery",
+        "sanitaryware",
+        "fittings",
+        "lighting",
+        "hardware",
+        "specialty"
+      ]),
+      tier: z24.enum(["affordable", "mid", "premium", "ultra"]),
+      notes: z24.string().optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    const result = await insertMaterialSupplierSource({
+      organizationId: orgId,
+      supplierName: input.supplierName,
+      supplierUrl: input.supplierUrl,
+      materialCategory: input.materialCategory,
+      tier: input.tier,
+      notes: input.notes || null
+    });
+    return result;
+  }),
+  /**
+   * scrapeSupplierSource — Scrape a supplier URL for pricing
+   * Uses DynamicConnector for resilient fetching
+   */
+  scrapeSupplierSource: orgProcedure.input(z24.object({ sourceId: z24.number() })).mutation(async ({ input }) => {
+    const sources = await getMaterialSupplierSources();
+    const source = sources.find((s) => s.id === input.sourceId);
+    if (!source) throw new Error("Supplier source not found");
+    let rawContent;
+    try {
+      const response2 = await fetch(source.supplierUrl, {
+        headers: { "User-Agent": "MIYAR/3.0 Material Intelligence" }
+      });
+      if (!response2.ok) throw new Error(`HTTP ${response2.status}`);
+      rawContent = await response2.text();
+    } catch (err) {
+      return {
+        success: false,
+        error: `Failed to fetch: ${err.message}`
+      };
+    }
+    const { invokeLLM: invokeLLM2 } = await Promise.resolve().then(() => (init_llm(), llm_exports));
+    const response = await invokeLLM2({
+      messages: [
+        {
+          role: "system",
+          content: `Extract material pricing from this supplier page content. The material category is "${source.materialCategory}" and the tier is "${source.tier}". Return only min and max AED prices found.`
+        },
+        {
+          role: "user",
+          content: `Extract AED prices from:
+
+${rawContent.substring(0, 6e3)}`
+        }
+      ],
+      responseFormat: { type: "json_object" }
+    });
+    const rawParsed = response.choices[0]?.message?.content;
+    const text2 = typeof rawParsed === "string" ? rawParsed : Array.isArray(rawParsed) ? rawParsed.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    try {
+      const prices = JSON.parse(text2);
+      const minPrice = Number(prices.minPrice || prices.min || 0);
+      const maxPrice = Number(prices.maxPrice || prices.max || 0);
+      await updateMaterialSupplierSource(input.sourceId, {
+        lastScrapedAt: /* @__PURE__ */ new Date(),
+        lastPriceAedMin: minPrice > 0 ? String(minPrice) : void 0,
+        lastPriceAedMax: maxPrice > 0 ? String(maxPrice) : void 0
+      });
+      return {
+        success: true,
+        prices: { min: minPrice, max: maxPrice }
+      };
+    } catch {
+      return {
+        success: false,
+        error: "Failed to parse pricing from supplier page"
+      };
+    }
+  })
+});
+
+// server/routers/spaceProgram.ts
+import { z as z25 } from "zod";
+init_db();
+
+// server/engines/design/typology-fitout-rules.ts
+var SHELL_CORE_CATEGORIES = {
+  residential: /* @__PURE__ */ new Set([]),
+  // all fit-out
+  villa: /* @__PURE__ */ new Set([]),
+  // all fit-out (same as residential)
+  apartment: /* @__PURE__ */ new Set([]),
+  // all fit-out (same as residential)
+  commercial: /* @__PURE__ */ new Set(["office_floor", "parking"]),
+  office: /* @__PURE__ */ new Set(["office_floor", "parking"]),
+  office_building: /* @__PURE__ */ new Set(["office_floor", "parking"]),
+  // alias
+  hospitality: /* @__PURE__ */ new Set(["parking", "back_of_house"]),
+  hotel: /* @__PURE__ */ new Set(["parking", "back_of_house"]),
+  // alias
+  "mixed-use": /* @__PURE__ */ new Set(["parking"]),
+  // per-block rules apply
+  mixed_use: /* @__PURE__ */ new Set(["parking"]),
+  // underscore alias
+  retail: /* @__PURE__ */ new Set(["retail", "parking"]),
+  // tenanted units = shell
+  retail_commercial: /* @__PURE__ */ new Set(["retail", "parking"]),
+  // alias
+  industrial: /* @__PURE__ */ new Set(["office_floor", "parking", "back_of_house", "utility"]),
+  restaurant: /* @__PURE__ */ new Set(["parking"]),
+  // all interior is fit-out
+  clinic_medical: /* @__PURE__ */ new Set(["office_floor", "parking", "utility"])
+  // clinical rooms = S&C (tenant fit-out)
+};
+var SHELL_CORE_REASONS = {
+  office_floor: "Tenant/clinical fit-out responsibility \u2014 developer delivers shell & core only",
+  parking: "Parking structure \u2014 no interior finish required",
+  back_of_house: "Back-of-house \u2014 basic utility finish, not developer scope",
+  retail: "Retail unit \u2014 tenant fit-out responsibility",
+  utility: "Utility space \u2014 minimal finish scope",
+  // These never appear as shell & core but included for type completeness:
+  lobby: "",
+  corridor: "",
+  guest_room: "",
+  suite: "",
+  fb_restaurant: "",
+  bathroom: "",
+  kitchen: "",
+  bedroom: "",
+  living: "",
+  amenity: "",
+  other: ""
+};
+function getFitOutTag(typology, category) {
+  const normalizedTypology = typology.toLowerCase().trim();
+  const shellSet = SHELL_CORE_CATEGORIES[normalizedTypology] ?? /* @__PURE__ */ new Set();
+  if (shellSet.has(category)) {
+    return {
+      isFitOut: false,
+      fitOutReason: SHELL_CORE_REASONS[category] || `${category} is shell & core for ${normalizedTypology}`
+    };
+  }
+  return {
+    isFitOut: true,
+    fitOutReason: `${category} receives full interior fit-out for ${normalizedTypology} projects`
+  };
+}
+function getDefaultRoomTemplate(typology) {
+  const t2 = typology.toLowerCase().trim();
+  if (t2 === "hospitality") {
+    return [
+      { roomCode: "LBY", roomName: "Hotel Lobby", category: "lobby", pctOfGfa: 0.15, finishGrade: "A", priority: "high", budgetPct: 0.25, ...getFitOutTag(t2, "lobby") },
+      { roomCode: "GRM", roomName: "Guest Room (std)", category: "guest_room", pctOfGfa: 0.25, finishGrade: "A", priority: "high", budgetPct: 0.2, ...getFitOutTag(t2, "guest_room") },
+      { roomCode: "GRS", roomName: "Guest Room (suite)", category: "suite", pctOfGfa: 0.1, finishGrade: "A", priority: "high", budgetPct: 0.18, ...getFitOutTag(t2, "suite") },
+      { roomCode: "FBB", roomName: "F&B / Restaurant", category: "fb_restaurant", pctOfGfa: 0.12, finishGrade: "A", priority: "high", budgetPct: 0.15, ...getFitOutTag(t2, "fb_restaurant") },
+      { roomCode: "AMN", roomName: "Amenities (Pool/Spa/Gym)", category: "amenity", pctOfGfa: 0.08, finishGrade: "A", priority: "high", budgetPct: 0.1, ...getFitOutTag(t2, "amenity") },
+      { roomCode: "COR", roomName: "Corridors", category: "corridor", pctOfGfa: 0.1, finishGrade: "B", priority: "medium", budgetPct: 0.04, ...getFitOutTag(t2, "corridor") },
+      { roomCode: "BTH", roomName: "Common Bathrooms", category: "bathroom", pctOfGfa: 0.05, finishGrade: "B", priority: "medium", budgetPct: 0.04, ...getFitOutTag(t2, "bathroom") },
+      { roomCode: "BOH", roomName: "Back of House", category: "back_of_house", pctOfGfa: 0.08, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "back_of_house") },
+      { roomCode: "PKG", roomName: "Parking", category: "parking", pctOfGfa: 0.07, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "parking") }
+    ];
+  }
+  if (t2 === "commercial" || t2 === "office" || t2 === "office_building") {
+    return [
+      { roomCode: "RCP", roomName: "Reception / Lobby", category: "lobby", pctOfGfa: 0.08, finishGrade: "A", priority: "high", budgetPct: 0.22, ...getFitOutTag(t2, "lobby") },
+      { roomCode: "OPN", roomName: "Open Plan Office", category: "office_floor", pctOfGfa: 0.4, finishGrade: "B", priority: "medium", budgetPct: 0.08, ...getFitOutTag(t2, "office_floor") },
+      { roomCode: "MET", roomName: "Meeting Rooms", category: "office_floor", pctOfGfa: 0.1, finishGrade: "A", priority: "high", budgetPct: 0.18, ...getFitOutTag(t2, "office_floor") },
+      { roomCode: "COR", roomName: "Circulation / Corridors", category: "corridor", pctOfGfa: 0.08, finishGrade: "B", priority: "medium", budgetPct: 0.05, ...getFitOutTag(t2, "corridor") },
+      { roomCode: "BTH", roomName: "Toilet Cores", category: "bathroom", pctOfGfa: 0.06, finishGrade: "B", priority: "medium", budgetPct: 0.12, ...getFitOutTag(t2, "bathroom") },
+      { roomCode: "AMN", roomName: "Amenities", category: "amenity", pctOfGfa: 0.05, finishGrade: "A", priority: "high", budgetPct: 0.15, ...getFitOutTag(t2, "amenity") },
+      { roomCode: "BRK", roomName: "Break / Pantry Areas", category: "kitchen", pctOfGfa: 0.05, finishGrade: "B", priority: "medium", budgetPct: 0.08, ...getFitOutTag(t2, "kitchen") },
+      { roomCode: "UTL", roomName: "Utility / Services", category: "utility", pctOfGfa: 0.06, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "utility") },
+      { roomCode: "PKG", roomName: "Parking", category: "parking", pctOfGfa: 0.12, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "parking") }
+    ];
+  }
+  if (t2 === "retail" || t2 === "retail_commercial") {
+    return [
+      { roomCode: "LBY", roomName: "Mall Entrance / Atrium", category: "lobby", pctOfGfa: 0.1, finishGrade: "A", priority: "high", budgetPct: 0.25, ...getFitOutTag(t2, "lobby") },
+      { roomCode: "RTL", roomName: "Retail Units", category: "retail", pctOfGfa: 0.45, finishGrade: "B", priority: "medium", budgetPct: 0.05, ...getFitOutTag(t2, "retail") },
+      { roomCode: "COR", roomName: "Common Corridors", category: "corridor", pctOfGfa: 0.12, finishGrade: "A", priority: "high", budgetPct: 0.2, ...getFitOutTag(t2, "corridor") },
+      { roomCode: "FBB", roomName: "Food Court / F&B", category: "fb_restaurant", pctOfGfa: 0.08, finishGrade: "A", priority: "high", budgetPct: 0.18, ...getFitOutTag(t2, "fb_restaurant") },
+      { roomCode: "BTH", roomName: "Common Bathrooms", category: "bathroom", pctOfGfa: 0.04, finishGrade: "B", priority: "medium", budgetPct: 0.08, ...getFitOutTag(t2, "bathroom") },
+      { roomCode: "AMN", roomName: "Amenities / Entertainment", category: "amenity", pctOfGfa: 0.05, finishGrade: "A", priority: "high", budgetPct: 0.1, ...getFitOutTag(t2, "amenity") },
+      { roomCode: "BOH", roomName: "Back of House / Loading", category: "back_of_house", pctOfGfa: 0.06, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "back_of_house") },
+      { roomCode: "PKG", roomName: "Parking", category: "parking", pctOfGfa: 0.1, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "parking") }
+    ];
+  }
+  if (t2 === "restaurant") {
+    return [
+      { roomCode: "DNR", roomName: "Dining Room", category: "fb_restaurant", pctOfGfa: 0.4, finishGrade: "A", priority: "high", budgetPct: 0.3, ...getFitOutTag(t2, "fb_restaurant") },
+      { roomCode: "LNG", roomName: "Lounge / Bar", category: "living", pctOfGfa: 0.12, finishGrade: "A", priority: "high", budgetPct: 0.18, ...getFitOutTag(t2, "living") },
+      { roomCode: "KIT", roomName: "Kitchen", category: "kitchen", pctOfGfa: 0.18, finishGrade: "B", priority: "high", budgetPct: 0.2, ...getFitOutTag(t2, "kitchen") },
+      { roomCode: "LBY", roomName: "Entrance / Reception", category: "lobby", pctOfGfa: 0.08, finishGrade: "A", priority: "high", budgetPct: 0.12, ...getFitOutTag(t2, "lobby") },
+      { roomCode: "BTH", roomName: "Guest Washrooms", category: "bathroom", pctOfGfa: 0.06, finishGrade: "A", priority: "medium", budgetPct: 0.08, ...getFitOutTag(t2, "bathroom") },
+      { roomCode: "BOH", roomName: "Back of House / Storage", category: "back_of_house", pctOfGfa: 0.08, finishGrade: "C", priority: "low", budgetPct: 0.04, ...getFitOutTag(t2, "back_of_house") },
+      { roomCode: "COR", roomName: "Service Corridor", category: "corridor", pctOfGfa: 0.04, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "corridor") },
+      { roomCode: "PKG", roomName: "Parking", category: "parking", pctOfGfa: 0.04, finishGrade: "C", priority: "low", budgetPct: 0.06, ...getFitOutTag(t2, "parking") }
+    ];
+  }
+  if (t2 === "clinic_medical") {
+    return [
+      { roomCode: "RCP", roomName: "Reception / Waiting", category: "lobby", pctOfGfa: 0.12, finishGrade: "A", priority: "high", budgetPct: 0.25, ...getFitOutTag(t2, "lobby") },
+      { roomCode: "CLN", roomName: "Clinical Rooms", category: "office_floor", pctOfGfa: 0.35, finishGrade: "B", priority: "medium", budgetPct: 0.05, ...getFitOutTag(t2, "office_floor") },
+      { roomCode: "COR", roomName: "Corridors", category: "corridor", pctOfGfa: 0.1, finishGrade: "B", priority: "medium", budgetPct: 0.1, ...getFitOutTag(t2, "corridor") },
+      { roomCode: "BTH", roomName: "Patient Washrooms", category: "bathroom", pctOfGfa: 0.06, finishGrade: "A", priority: "medium", budgetPct: 0.12, ...getFitOutTag(t2, "bathroom") },
+      { roomCode: "PHR", roomName: "Pharmacy / Retail", category: "retail", pctOfGfa: 0.05, finishGrade: "B", priority: "medium", budgetPct: 0.08, ...getFitOutTag(t2, "retail") },
+      { roomCode: "ADM", roomName: "Admin / Back Office", category: "office_floor", pctOfGfa: 0.08, finishGrade: "B", priority: "low", budgetPct: 0.05, ...getFitOutTag(t2, "office_floor") },
+      { roomCode: "UTL", roomName: "Utility / Medical Gas", category: "utility", pctOfGfa: 0.06, finishGrade: "C", priority: "low", budgetPct: 0.03, ...getFitOutTag(t2, "utility") },
+      { roomCode: "BOH", roomName: "Back of House", category: "back_of_house", pctOfGfa: 0.06, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "back_of_house") },
+      { roomCode: "PKG", roomName: "Parking", category: "parking", pctOfGfa: 0.12, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "parking") }
+    ];
+  }
+  if (t2 === "mixed-use" || t2 === "mixed_use") {
+    return [
+      { roomCode: "LBY", roomName: "Main Lobby / Atrium", category: "lobby", pctOfGfa: 0.1, finishGrade: "A", priority: "high", budgetPct: 0.22, ...getFitOutTag(t2, "lobby") },
+      { roomCode: "RTL", roomName: "Retail Units", category: "retail", pctOfGfa: 0.3, finishGrade: "B", priority: "medium", budgetPct: 0.08, ...getFitOutTag(t2, "retail") },
+      { roomCode: "RES", roomName: "Residential Units", category: "living", pctOfGfa: 0.25, finishGrade: "A", priority: "high", budgetPct: 0.28, ...getFitOutTag(t2, "living") },
+      { roomCode: "FBB", roomName: "F&B / Restaurant", category: "fb_restaurant", pctOfGfa: 0.1, finishGrade: "A", priority: "high", budgetPct: 0.15, ...getFitOutTag(t2, "fb_restaurant") },
+      { roomCode: "AMN", roomName: "Amenities", category: "amenity", pctOfGfa: 0.05, finishGrade: "A", priority: "high", budgetPct: 0.1, ...getFitOutTag(t2, "amenity") },
+      { roomCode: "COR", roomName: "Corridors / Circulation", category: "corridor", pctOfGfa: 0.08, finishGrade: "B", priority: "medium", budgetPct: 0.05, ...getFitOutTag(t2, "corridor") },
+      { roomCode: "PKG", roomName: "Parking", category: "parking", pctOfGfa: 0.07, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "parking") },
+      { roomCode: "UTL", roomName: "Utility / Services", category: "utility", pctOfGfa: 0.05, finishGrade: "C", priority: "low", budgetPct: 0.02, ...getFitOutTag(t2, "utility") }
+    ];
+  }
+  return [
+    { roomCode: "LVG", roomName: "Living & Dining", category: "living", pctOfGfa: 0.28, finishGrade: "A", priority: "high", budgetPct: 0.28, ...getFitOutTag("residential", "living") },
+    { roomCode: "MBR", roomName: "Master Bedroom", category: "bedroom", pctOfGfa: 0.18, finishGrade: "A", priority: "high", budgetPct: 0.22, ...getFitOutTag("residential", "bedroom") },
+    { roomCode: "MEN", roomName: "Master Ensuite", category: "bathroom", pctOfGfa: 0.08, finishGrade: "A", priority: "high", budgetPct: 0.14, ...getFitOutTag("residential", "bathroom") },
+    { roomCode: "KIT", roomName: "Kitchen", category: "kitchen", pctOfGfa: 0.1, finishGrade: "A", priority: "high", budgetPct: 0.16, ...getFitOutTag("residential", "kitchen") },
+    { roomCode: "BD2", roomName: "Bedroom 2", category: "bedroom", pctOfGfa: 0.1, finishGrade: "B", priority: "medium", budgetPct: 0.07, ...getFitOutTag("residential", "bedroom") },
+    { roomCode: "BD3", roomName: "Bedroom 3", category: "bedroom", pctOfGfa: 0.08, finishGrade: "B", priority: "medium", budgetPct: 0.05, ...getFitOutTag("residential", "bedroom") },
+    { roomCode: "BTH", roomName: "Bathroom 2", category: "bathroom", pctOfGfa: 0.05, finishGrade: "B", priority: "medium", budgetPct: 0.05, ...getFitOutTag("residential", "bathroom") },
+    { roomCode: "ENT", roomName: "Entry & Corridors", category: "corridor", pctOfGfa: 0.08, finishGrade: "B", priority: "low", budgetPct: 0.02, ...getFitOutTag("residential", "corridor") },
+    { roomCode: "UTL", roomName: "Utility & Maid's", category: "utility", pctOfGfa: 0.05, finishGrade: "C", priority: "low", budgetPct: 0.01, ...getFitOutTag("residential", "utility") }
+  ];
+}
+
+// server/engines/design/amenity-taxonomy.ts
+var AMENITY_PROFILES = {
+  // Hospitality / Hotel
+  hospitality: [
+    { subSpaceName: "Swimming Pool & Deck", subSpaceType: "pool", pctOfParent: 0.25, isFitOut: true },
+    { subSpaceName: "Fitness Center", subSpaceType: "gym", pctOfParent: 0.15, isFitOut: true },
+    { subSpaceName: "Spa & Treatment Rooms", subSpaceType: "spa", pctOfParent: 0.2, isFitOut: true },
+    { subSpaceName: "Residents' Lounge", subSpaceType: "lounge", pctOfParent: 0.15, isFitOut: true },
+    { subSpaceName: "Kids Club", subSpaceType: "kids_club", pctOfParent: 0.08, isFitOut: true },
+    { subSpaceName: "Business Center", subSpaceType: "business_center", pctOfParent: 0.07, isFitOut: true },
+    { subSpaceName: "Concierge Desk", subSpaceType: "concierge", pctOfParent: 0.05, isFitOut: true },
+    { subSpaceName: "Prayer Room", subSpaceType: "prayer_room", pctOfParent: 0.05, isFitOut: true }
+  ],
+  // Residential
+  residential: [
+    { subSpaceName: "Swimming Pool & Deck", subSpaceType: "pool", pctOfParent: 0.3, isFitOut: true },
+    { subSpaceName: "Fitness Center", subSpaceType: "gym", pctOfParent: 0.2, isFitOut: true },
+    { subSpaceName: "Residents' Lounge", subSpaceType: "lounge", pctOfParent: 0.15, isFitOut: true },
+    { subSpaceName: "Kids Play Area", subSpaceType: "kids_club", pctOfParent: 0.1, isFitOut: true },
+    { subSpaceName: "Prayer Room", subSpaceType: "prayer_room", pctOfParent: 0.08, isFitOut: true },
+    { subSpaceName: "BBQ / Outdoor Lounge", subSpaceType: "lounge", pctOfParent: 0.1, isFitOut: true },
+    { subSpaceName: "Concierge Area", subSpaceType: "concierge", pctOfParent: 0.07, isFitOut: true }
+  ],
+  // Commercial / Office
+  commercial: [
+    { subSpaceName: "Fitness Center", subSpaceType: "gym", pctOfParent: 0.3, isFitOut: true },
+    { subSpaceName: "Business Lounge", subSpaceType: "lounge", pctOfParent: 0.25, isFitOut: true },
+    { subSpaceName: "Prayer Room", subSpaceType: "prayer_room", pctOfParent: 0.1, isFitOut: true },
+    { subSpaceName: "Concierge / Reception", subSpaceType: "concierge", pctOfParent: 0.1, isFitOut: true },
+    { subSpaceName: "Outdoor Terrace", subSpaceType: "lounge", pctOfParent: 0.15, isFitOut: true },
+    { subSpaceName: "Wellness Room", subSpaceType: "spa", pctOfParent: 0.1, isFitOut: true }
+  ],
+  // Retail / Mall
+  retail: [
+    { subSpaceName: "Entertainment Zone", subSpaceType: "theater", pctOfParent: 0.3, isFitOut: true },
+    { subSpaceName: "Kids Play Zone", subSpaceType: "kids_club", pctOfParent: 0.2, isFitOut: true },
+    { subSpaceName: "VIP Lounge", subSpaceType: "lounge", pctOfParent: 0.15, isFitOut: true },
+    { subSpaceName: "Prayer Room", subSpaceType: "prayer_room", pctOfParent: 0.1, isFitOut: true },
+    { subSpaceName: "Gym / Fitness", subSpaceType: "gym", pctOfParent: 0.15, isFitOut: true },
+    { subSpaceName: "Spa & Wellness", subSpaceType: "spa", pctOfParent: 0.1, isFitOut: true }
+  ]
+};
+AMENITY_PROFILES["office"] = AMENITY_PROFILES["commercial"];
+function getAmenitySubSpaces(typology, parentSqm) {
+  const t2 = typology.toLowerCase().trim();
+  const profile = AMENITY_PROFILES[t2] ?? AMENITY_PROFILES["residential"];
+  return profile.map((sub) => ({
+    ...sub,
+    sqm: Number((parentSqm * sub.pctOfParent).toFixed(2))
+  }));
+}
+
+// server/engines/intake/dwg-parser.ts
+var ROOM_NAME_CATEGORY_MAP = [
+  { pattern: /lobby|reception|entrance|atrium/i, category: "lobby" },
+  { pattern: /corridor|hallway|circulation|passage/i, category: "corridor" },
+  { pattern: /office|open\s*plan|workstation|desk/i, category: "office_floor" },
+  { pattern: /guest\s*room|hotel\s*room|standard\s*room/i, category: "guest_room" },
+  { pattern: /suite|penthouse|presidential/i, category: "suite" },
+  { pattern: /restaurant|f&?b|dining|cafe|bar|kitchen.*commercial/i, category: "fb_restaurant" },
+  { pattern: /bath|toilet|wc|washroom|ensuite|shower/i, category: "bathroom" },
+  { pattern: /kitchen|pantry|kitchenette/i, category: "kitchen" },
+  { pattern: /bed\s*room|master\s*bed|mbr|guest\s*bed/i, category: "bedroom" },
+  { pattern: /living|lounge|family|sitting|drawing/i, category: "living" },
+  { pattern: /utility|service|maid|laundry|store|mechanical/i, category: "utility" },
+  { pattern: /amenity|pool|gym|spa|fitness|sauna|steam/i, category: "amenity" },
+  { pattern: /parking|garage|car\s*park|basement/i, category: "parking" },
+  { pattern: /retail|shop|tenant|unit/i, category: "retail" },
+  { pattern: /boh|back\s*of\s*house|loading|staff/i, category: "back_of_house" }
+];
+function classifyRoomName(name) {
+  for (const entry of ROOM_NAME_CATEGORY_MAP) {
+    if (entry.pattern.test(name)) return entry.category;
+  }
+  return "other";
+}
+async function parseDxf(fileContent) {
+  const warnings = [];
+  const rooms = [];
+  try {
+    const DxfParser = (await import("dxf-parser")).default;
+    const parser = new DxfParser();
+    const dxf = parser.parseSync(fileContent);
+    if (!dxf || !dxf.entities) {
+      return { rooms: [], source: "dxf_geometry", warnings: ["DXF file has no entities"] };
+    }
+    const closedPolylines = dxf.entities.filter(
+      (e) => (e.type === "LWPOLYLINE" || e.type === "POLYLINE") && e.shape === true
+      // closed polyline
+    );
+    const insertEntities = dxf.entities.filter(
+      (e) => e.type === "INSERT" && e.name
+    );
+    for (const poly of closedPolylines) {
+      const vertices = poly.vertices;
+      if (!vertices || vertices.length < 3) continue;
+      const area = computePolygonArea(vertices);
+      if (area < 1) continue;
+      const layer = poly.layer || "";
+      const roomName = layer || `Room ${rooms.length + 1}`;
+      const category = classifyRoomName(roomName);
+      rooms.push({
+        name: roomName,
+        category,
+        sqm: Number(area.toFixed(2)),
+        floorLevel: null,
+        confidence: 0.7
+      });
+    }
+    for (const insert of insertEntities) {
+      const blockName = insert.name || "";
+      const category = classifyRoomName(blockName);
+      if (category !== "other") {
+        rooms.push({
+          name: blockName,
+          category,
+          sqm: 0,
+          // Will need manual input
+          floorLevel: null,
+          confidence: 0.3
+        });
+        warnings.push(`Block "${blockName}" found but sqm requires manual entry`);
+      }
+    }
+    if (rooms.length === 0) {
+      warnings.push("No room boundaries detected. DXF may not contain closed polylines on room layers.");
+    }
+  } catch (err) {
+    warnings.push(`DXF parse error: ${err.message}`);
+  }
+  return { rooms, source: "dxf_geometry", warnings };
+}
+function computePolygonArea(vertices) {
+  let area = 0;
+  const n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[j].x * vertices[i].y;
+  }
+  area = Math.abs(area) / 2;
+  if (area > 1e6) {
+    area /= 1e6;
+  }
+  return area;
+}
+async function parseDwgViaVision(fileBuffer, originalFilename) {
+  const warnings = [];
+  try {
+    const { invokeLLM: invokeLLM2 } = await Promise.resolve().then(() => (init_llm(), llm_exports));
+    const base64 = fileBuffer.toString("base64");
+    const mimeType = "application/octet-stream";
+    const response = await invokeLLM2({
+      messages: [
+        {
+          role: "system",
+          content: `You are an architectural drawing analyst. Extract rooms from this DWG/architectural drawing file named "${originalFilename}".
+
+For each room, provide:
+- name: room name as shown on the drawing
+- category: one of: lobby, corridor, office_floor, guest_room, suite, fb_restaurant, bathroom, kitchen, bedroom, living, utility, amenity, parking, retail, back_of_house, other
+- sqm: estimated area in square meters (based on drawing scale or labels)
+- floorLevel: floor level if visible (e.g., "Ground", "L1", "B1")
+
+Return JSON with schema: { rooms: [{ name, category, sqm, floorLevel }] }`
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Extract all rooms from this architectural drawing. Return structured JSON."
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64}`
+              }
+            }
+          ]
+        }
+      ],
+      responseFormat: { type: "json_object" }
+    });
+    const rawContent = response.choices[0]?.message?.content;
+    const text2 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    const parsed = JSON.parse(text2);
+    const rooms = (parsed.rooms || []).map((r) => ({
+      name: r.name || "Unknown Room",
+      category: classifyRoomName(r.name || r.category || ""),
+      sqm: Number(r.sqm) || 0,
+      floorLevel: r.floorLevel || null,
+      confidence: 0.5
+    }));
+    if (rooms.length === 0) {
+      warnings.push("Gemini vision could not identify rooms in the DWG file");
+    }
+    return { rooms, source: "dwg_vision", warnings };
+  } catch (err) {
+    warnings.push(`DWG vision analysis failed: ${err.message}`);
+    return { rooms: [], source: "dwg_vision", warnings };
+  }
+}
+
+// server/engines/design/space-program-extractor.ts
+async function extractSpaceProgram(input) {
+  const warnings = [];
+  let rooms = [];
+  let source = "typology_default";
+  if (input.fileContent && input.fileExtension) {
+    const parseResult = await parseFile(input);
+    warnings.push(...parseResult.warnings);
+    if (parseResult.rooms.length > 0) {
+      source = "file_extraction";
+      rooms = parseResult.rooms.map((r, i) => {
+        const fitOut = getFitOutTag(input.typology, r.category);
+        return {
+          projectId: input.projectId,
+          organizationId: input.organizationId,
+          roomCode: generateRoomCode(r.category, i),
+          roomName: r.name,
+          category: r.category,
+          sqm: String(r.sqm),
+          floorLevel: r.floorLevel || null,
+          source: "file_extraction",
+          isFitOut: fitOut.isFitOut,
+          fitOutOverridden: false,
+          fitOutReason: fitOut.fitOutReason,
+          finishGrade: deriveFinishGrade(r.category, input.typology),
+          priority: derivePriority(r.category),
+          budgetPct: null,
+          sortOrder: i,
+          blockName: "Main",
+          blockTypology: input.typology
+        };
+      });
+      redistributeBudget(rooms);
+    }
+  }
+  if (rooms.length === 0) {
+    if (input.blocks && input.blocks.length > 0) {
+      let sortOffset = 0;
+      for (const block of input.blocks) {
+        const template = getDefaultRoomTemplate(block.blockTypology);
+        const blockRooms = templateToRooms(
+          template,
+          block.gfaSqm,
+          input.projectId,
+          input.organizationId,
+          block.blockName,
+          block.blockTypology,
+          sortOffset
+        );
+        rooms.push(...blockRooms);
+        sortOffset += blockRooms.length;
+      }
+    } else {
+      const template = getDefaultRoomTemplate(input.typology);
+      rooms = templateToRooms(
+        template,
+        input.gfa,
+        input.projectId,
+        input.organizationId,
+        "Main",
+        input.typology,
+        0
+      );
+    }
+  }
+  const amenitySubSpaces2 = [];
+  for (const room of rooms) {
+    if (room.category === "amenity" && Number(room.sqm) > 0) {
+      const blockTypology = room.blockTypology || input.typology;
+      const subTemplates = getAmenitySubSpaces(blockTypology, Number(room.sqm));
+      amenitySubSpaces2.push({
+        roomCode: room.roomCode,
+        subSpaces: subTemplates.map((sub) => ({
+          subSpaceName: sub.subSpaceName,
+          subSpaceType: sub.subSpaceType,
+          sqm: String(sub.sqm),
+          pctOfParent: String((sub.pctOfParent * 100).toFixed(2)),
+          isFitOut: sub.isFitOut
+        }))
+      });
+    }
+  }
+  return { rooms, amenitySubSpaces: amenitySubSpaces2, source, warnings };
+}
+async function parseFile(input) {
+  const ext = (input.fileExtension || "").toLowerCase();
+  if (ext === "dxf") {
+    const content = typeof input.fileContent === "string" ? input.fileContent : input.fileContent.toString("utf-8");
+    return parseDxf(content);
+  }
+  if (ext === "dwg") {
+    const buffer = Buffer.isBuffer(input.fileContent) ? input.fileContent : Buffer.from(input.fileContent, "utf-8");
+    return parseDwgViaVision(buffer, input.originalFilename || "drawing.dwg");
+  }
+  return {
+    rooms: [],
+    source: "dxf_geometry",
+    warnings: [`Unsupported file extension: .${ext}. Only .dxf and .dwg are supported.`]
+  };
+}
+function templateToRooms(template, gfa, projectId, orgId, blockName, blockTypology, sortOffset) {
+  return template.map((t2, i) => ({
+    projectId,
+    organizationId: orgId,
+    roomCode: t2.roomCode,
+    roomName: t2.roomName,
+    category: t2.category,
+    sqm: String(Number((gfa * t2.pctOfGfa).toFixed(2))),
+    floorLevel: null,
+    source: "typology_default",
+    isFitOut: t2.isFitOut,
+    fitOutOverridden: false,
+    fitOutReason: t2.fitOutReason,
+    finishGrade: t2.finishGrade,
+    priority: t2.priority,
+    budgetPct: String(t2.budgetPct),
+    sortOrder: sortOffset + i,
+    blockName,
+    blockTypology
+  }));
+}
+function generateRoomCode(category, index) {
+  const prefixes = {
+    lobby: "LBY",
+    corridor: "COR",
+    office_floor: "OPN",
+    guest_room: "GRM",
+    suite: "GRS",
+    fb_restaurant: "FBB",
+    bathroom: "BTH",
+    kitchen: "KIT",
+    bedroom: "BDR",
+    living: "LVG",
+    utility: "UTL",
+    amenity: "AMN",
+    parking: "PKG",
+    retail: "RTL",
+    back_of_house: "BOH",
+    other: "OTH"
+  };
+  return `${prefixes[category] || "RM"}${index + 1}`;
+}
+function deriveFinishGrade(category, typology) {
+  const highGradeCategories = [
+    "lobby",
+    "suite",
+    "fb_restaurant",
+    "amenity",
+    "living"
+  ];
+  const lowGradeCategories = [
+    "parking",
+    "utility",
+    "back_of_house"
+  ];
+  if (highGradeCategories.includes(category)) return "A";
+  if (lowGradeCategories.includes(category)) return "C";
+  return "B";
+}
+function derivePriority(category) {
+  const highPriority = [
+    "lobby",
+    "suite",
+    "fb_restaurant",
+    "amenity",
+    "living",
+    "guest_room"
+  ];
+  const lowPriority = [
+    "parking",
+    "utility",
+    "back_of_house"
+  ];
+  if (highPriority.includes(category)) return "high";
+  if (lowPriority.includes(category)) return "low";
+  return "medium";
+}
+function redistributeBudget(rooms) {
+  const totalSqm = rooms.reduce((sum, r) => sum + Number(r.sqm), 0);
+  if (totalSqm <= 0) return;
+  const multipliers = { A: 1.3, B: 1, C: 0.7 };
+  const rawWeights = rooms.map((r) => {
+    const mult = multipliers[r.finishGrade] || 1;
+    return Number(r.sqm) / totalSqm * mult;
+  });
+  const weightSum = rawWeights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < rooms.length; i++) {
+    rooms[i].budgetPct = String(Number((rawWeights[i] / weightSum).toFixed(4)));
+  }
+}
+
+// server/routers/spaceProgram.ts
+var ROOM_CATEGORIES = [
+  "lobby",
+  "corridor",
+  "office_floor",
+  "guest_room",
+  "suite",
+  "fb_restaurant",
+  "bathroom",
+  "kitchen",
+  "bedroom",
+  "living",
+  "utility",
+  "amenity",
+  "parking",
+  "retail",
+  "back_of_house",
+  "other"
+];
+async function writeFitOutArea(projectId, orgId) {
+  const rooms = await getSpaceProgramRooms(projectId, orgId);
+  const fitOutSqm = rooms.filter((r) => r.isFitOut).reduce((sum, r) => sum + Number(r.sqm), 0);
+  await updateProjectVerification(projectId, { totalFitoutArea: fitOutSqm });
+}
+var spaceProgramRouter = router({
+  /**
+   * generate — Create space program from typology + GFA
+   * Uses deterministic templates from typology-fitout-rules.ts
+   */
+  generate: orgProcedure.input(
+    z25.object({
+      projectId: z25.number(),
+      blocks: z25.array(
+        z25.object({
+          blockName: z25.string().min(1),
+          blockTypology: z25.string().min(1),
+          gfaSqm: z25.number().positive()
+        })
+      ).optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new Error("Project not found");
+    const typology = project.ctx01Typology || "residential";
+    const gfa = Number(project.ctx03Gfa) || 0;
+    if (gfa <= 0) throw new Error("Project GFA must be > 0");
+    await resetSpaceProgramRooms(input.projectId, orgId, true);
+    const result = await extractSpaceProgram({
+      projectId: input.projectId,
+      organizationId: orgId,
+      typology,
+      gfa,
+      blocks: input.blocks
+    });
+    if (result.rooms.length > 0) {
+      await insertSpaceProgramRooms(result.rooms);
+    }
+    if (result.amenitySubSpaces.length > 0) {
+      const insertedRooms = await getSpaceProgramRooms(input.projectId, orgId);
+      for (const amenity of result.amenitySubSpaces) {
+        const dbRoom = insertedRooms.find((r) => r.roomCode === amenity.roomCode);
+        if (dbRoom && amenity.subSpaces.length > 0) {
+          await insertAmenitySubSpaces(
+            amenity.subSpaces.map((sub) => ({
+              ...sub,
+              spaceProgramRoomId: dbRoom.id
+            }))
+          );
+        }
+      }
+    }
+    await writeFitOutArea(input.projectId, orgId);
+    return {
+      roomCount: result.rooms.length,
+      source: result.source,
+      warnings: result.warnings,
+      fitOutRooms: result.rooms.filter((r) => r.isFitOut).length,
+      shellCoreRooms: result.rooms.filter((r) => !r.isFitOut).length
+    };
+  }),
+  /**
+   * extractFromFile — Parse DXF/DWG and create space program
+   * File is already uploaded to S3 — pass the S3 key
+   */
+  extractFromFile: orgProcedure.input(
+    z25.object({
+      projectId: z25.number(),
+      s3Key: z25.string().min(1),
+      originalFilename: z25.string().min(1)
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new Error("Project not found");
+    const typology = project.ctx01Typology || "residential";
+    const gfa = Number(project.ctx03Gfa) || 0;
+    const ext = input.originalFilename.split(".").pop()?.toLowerCase() || "";
+    if (!["dxf", "dwg"].includes(ext)) {
+      throw new Error("Only .dxf and .dwg files are supported");
+    }
+    const { storageGet: storageGet2 } = await Promise.resolve().then(() => (init_storage(), storage_exports));
+    const { url } = await storageGet2(input.s3Key);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Failed to fetch file from storage");
+    let fileContent;
+    if (ext === "dxf") {
+      fileContent = await response.text();
+    } else {
+      const arrayBuffer = await response.arrayBuffer();
+      fileContent = Buffer.from(arrayBuffer);
+    }
+    await resetSpaceProgramRooms(input.projectId, orgId, true);
+    const result = await extractSpaceProgram({
+      projectId: input.projectId,
+      organizationId: orgId,
+      typology,
+      gfa,
+      fileContent,
+      fileExtension: ext,
+      originalFilename: input.originalFilename
+    });
+    if (result.rooms.length > 0) {
+      await insertSpaceProgramRooms(result.rooms);
+    }
+    if (result.amenitySubSpaces.length > 0) {
+      const insertedRooms = await getSpaceProgramRooms(input.projectId, orgId);
+      for (const amenity of result.amenitySubSpaces) {
+        const dbRoom = insertedRooms.find((r) => r.roomCode === amenity.roomCode);
+        if (dbRoom && amenity.subSpaces.length > 0) {
+          await insertAmenitySubSpaces(
+            amenity.subSpaces.map((sub) => ({
+              ...sub,
+              spaceProgramRoomId: dbRoom.id
+            }))
+          );
+        }
+      }
+    }
+    await writeFitOutArea(input.projectId, orgId);
+    return {
+      roomCount: result.rooms.length,
+      source: result.source,
+      warnings: result.warnings,
+      fitOutRooms: result.rooms.filter((r) => r.isFitOut).length,
+      shellCoreRooms: result.rooms.filter((r) => !r.isFitOut).length
+    };
+  }),
+  /**
+   * getForProject — Read stored space program
+   */
+  getForProject: orgProcedure.input(z25.object({ projectId: z25.number() })).query(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    const rooms = await getSpaceProgramRooms(input.projectId, orgId);
+    if (rooms.length === 0) return null;
+    const roomsWithSubSpaces = await Promise.all(
+      rooms.map(async (room) => {
+        if (room.category === "amenity") {
+          const subSpaces = await getAmenitySubSpacesForRoom(room.id);
+          return { ...room, subSpaces };
+        }
+        return { ...room, subSpaces: [] };
+      })
+    );
+    const totalSqm = rooms.reduce((sum, r) => sum + Number(r.sqm), 0);
+    const fitOutSqm = rooms.filter((r) => r.isFitOut).reduce((sum, r) => sum + Number(r.sqm), 0);
+    const shellCoreSqm = totalSqm - fitOutSqm;
+    const blockMap = /* @__PURE__ */ new Map();
+    for (const room of roomsWithSubSpaces) {
+      const key = room.blockName || "Main";
+      if (!blockMap.has(key)) blockMap.set(key, []);
+      blockMap.get(key).push(room);
+    }
+    await updateProjectVerification(input.projectId, { totalFitoutArea: fitOutSqm });
+    return {
+      rooms: roomsWithSubSpaces,
+      blocks: Array.from(blockMap.entries()).map(([name, blockRooms]) => ({
+        blockName: name,
+        blockTypology: blockRooms[0]?.blockTypology || "residential",
+        rooms: blockRooms
+      })),
+      summary: {
+        totalRooms: rooms.length,
+        totalSqm,
+        fitOutSqm,
+        shellCoreSqm,
+        fitOutPct: totalSqm > 0 ? Number((fitOutSqm / totalSqm * 100).toFixed(1)) : 0
+      }
+    };
+  }),
+  /**
+   * updateRoom — Edit a single room's properties
+   */
+  updateRoom: orgProcedure.input(
+    z25.object({
+      roomId: z25.number(),
+      roomName: z25.string().min(1).optional(),
+      category: z25.enum(ROOM_CATEGORIES).optional(),
+      sqm: z25.number().positive().optional(),
+      floorLevel: z25.string().optional().nullable(),
+      finishGrade: z25.enum(["A", "B", "C"]).optional(),
+      priority: z25.enum(["high", "medium", "low"]).optional(),
+      blockName: z25.string().optional(),
+      blockTypology: z25.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    const { roomId, ...updates } = input;
+    const dbUpdates = {};
+    if (updates.roomName) dbUpdates.roomName = updates.roomName;
+    if (updates.category) dbUpdates.category = updates.category;
+    if (updates.sqm) dbUpdates.sqm = String(updates.sqm);
+    if (updates.floorLevel !== void 0) dbUpdates.floorLevel = updates.floorLevel;
+    if (updates.finishGrade) dbUpdates.finishGrade = updates.finishGrade;
+    if (updates.priority) dbUpdates.priority = updates.priority;
+    if (updates.blockName) dbUpdates.blockName = updates.blockName;
+    if (updates.blockTypology) dbUpdates.blockTypology = updates.blockTypology;
+    dbUpdates.source = "user_manual";
+    await updateSpaceProgramRoom(roomId, dbUpdates);
+    return { success: true };
+  }),
+  /**
+   * toggleFitOut — Flip isFitOut for a room and mark fitOutOverridden = true
+   */
+  toggleFitOut: orgProcedure.input(
+    z25.object({
+      roomId: z25.number(),
+      isFitOut: z25.boolean(),
+      projectId: z25.number()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    await updateSpaceProgramRoom(input.roomId, {
+      isFitOut: input.isFitOut,
+      fitOutOverridden: true,
+      fitOutReason: input.isFitOut ? "Manually included in fit-out scope by developer" : "Manually excluded from fit-out scope by developer"
+    });
+    await writeFitOutArea(input.projectId, orgId);
+    return { success: true };
+  }),
+  /**
+   * addRoom — Add a manual room to the space program
+   */
+  addRoom: orgProcedure.input(
+    z25.object({
+      projectId: z25.number(),
+      roomName: z25.string().min(1),
+      category: z25.enum(ROOM_CATEGORIES),
+      sqm: z25.number().positive(),
+      floorLevel: z25.string().optional(),
+      finishGrade: z25.enum(["A", "B", "C"]).default("B"),
+      priority: z25.enum(["high", "medium", "low"]).default("medium"),
+      blockName: z25.string().default("Main"),
+      blockTypology: z25.string()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    const existing = await getSpaceProgramRooms(input.projectId, orgId);
+    const sortOrder = existing.length;
+    const fitOut = getFitOutTag(input.blockTypology, input.category);
+    const roomCode = `MNL${sortOrder + 1}`;
+    await insertSpaceProgramRooms([
+      {
+        projectId: input.projectId,
+        organizationId: orgId,
+        roomCode,
+        roomName: input.roomName,
+        category: input.category,
+        sqm: String(input.sqm),
+        floorLevel: input.floorLevel || null,
+        source: "user_manual",
+        isFitOut: fitOut.isFitOut,
+        fitOutOverridden: false,
+        fitOutReason: fitOut.fitOutReason,
+        finishGrade: input.finishGrade,
+        priority: input.priority,
+        budgetPct: null,
+        sortOrder,
+        blockName: input.blockName,
+        blockTypology: input.blockTypology
+      }
+    ]);
+    await writeFitOutArea(input.projectId, orgId);
+    return { success: true, roomCode };
+  }),
+  /**
+   * deleteRoom — Remove a room from the space program
+   */
+  deleteRoom: orgProcedure.input(z25.object({ roomId: z25.number(), projectId: z25.number() })).mutation(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    await deleteSpaceProgramRoom(input.roomId);
+    await writeFitOutArea(input.projectId, orgId);
+    return { success: true };
+  }),
+  /**
+   * resetToTypologyDefaults — Wipe non-overridden rooms and regenerate from template
+   * Rooms with fitOutOverridden = true survive the reset
+   */
+  resetToTypologyDefaults: orgProcedure.input(z25.object({ projectId: z25.number() })).mutation(async ({ input, ctx }) => {
+    const orgId = ctx.orgId;
+    if (!orgId) throw new Error("Organization context required");
+    const project = await getProjectById(input.projectId);
+    if (!project) throw new Error("Project not found");
+    const typology = project.ctx01Typology || "residential";
+    const gfa = Number(project.ctx03Gfa) || 0;
+    await resetSpaceProgramRooms(input.projectId, orgId, true);
+    const overriddenRooms = await getSpaceProgramRooms(input.projectId, orgId);
+    const overriddenCodes = new Set(overriddenRooms.map((r) => r.roomCode));
+    const result = await extractSpaceProgram({
+      projectId: input.projectId,
+      organizationId: orgId,
+      typology,
+      gfa
+    });
+    const newRooms = result.rooms.filter((r) => !overriddenCodes.has(r.roomCode));
+    if (newRooms.length > 0) {
+      await insertSpaceProgramRooms(newRooms);
+    }
+    if (result.amenitySubSpaces.length > 0) {
+      const insertedRooms = await getSpaceProgramRooms(input.projectId, orgId);
+      for (const amenity of result.amenitySubSpaces) {
+        const dbRoom = insertedRooms.find((r) => r.roomCode === amenity.roomCode);
+        if (dbRoom && amenity.subSpaces.length > 0) {
+          await insertAmenitySubSpaces(
+            amenity.subSpaces.map((sub) => ({
+              ...sub,
+              spaceProgramRoomId: dbRoom.id
+            }))
+          );
+        }
+      }
+    }
+    await writeFitOutArea(input.projectId, orgId);
+    return {
+      roomCount: result.rooms.length,
+      warnings: result.warnings
+    };
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -24287,7 +30867,11 @@ var appRouter = router({
   designAdvisor: designAdvisorRouter,
   portfolio: portfolioRouter,
   customerSuccess: customerSuccessRouter,
-  sustainability: sustainabilityRouter
+  sustainability: sustainabilityRouter,
+  salesPremium: salesPremiumRouter,
+  intake: intakeRouter,
+  materialQuantity: materialQuantityRouter,
+  spaceProgram: spaceProgramRouter
 });
 
 // server/_core/context.ts

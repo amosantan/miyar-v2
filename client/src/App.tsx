@@ -1,73 +1,90 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
-import DashboardLayout from "@/components/DashboardLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { RequireAuth, RequireAdmin } from "./components/RouteGuards";
 import { PageErrorBoundary } from "./components/PageErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Projects from "./pages/Projects";
-import ProjectNew from "./pages/ProjectNew";
-import ProjectDetail from "./pages/ProjectDetail";
-import Results from "./pages/Results";
-import Scenarios from "./pages/Scenarios";
-import ScenarioTemplates from "./pages/ScenarioTemplates";
-import Reports from "./pages/Reports";
-import EvidenceVault from "./pages/EvidenceVault";
-import DesignBrief from "./pages/DesignBrief";
-import DesignStudio from "./pages/DesignStudio";
-import Collaboration from "./pages/Collaboration";
-import Benchmarks from "./pages/admin/Benchmarks";
-import BenchmarkVersions from "./pages/admin/BenchmarkVersions";
-import BenchmarkCategories from "./pages/admin/BenchmarkCategories";
-import ModelVersions from "./pages/admin/ModelVersions";
-import AuditLogs from "./pages/admin/AuditLogs";
-import Overrides from "./pages/admin/Overrides";
-import BenchmarkHealth from "./pages/admin/BenchmarkHealth";
-import ConnectorHealth from "./pages/admin/ConnectorHealth";
-import Portfolio from "./pages/admin/Portfolio";
-import RoiConfig from "./pages/admin/RoiConfig";
-import Webhooks from "./pages/admin/Webhooks";
-import CsvImport from "./pages/admin/CsvImport";
-import MaterialsLibrary from "./pages/admin/MaterialsLibrary";
-import PromptTemplates from "./pages/admin/PromptTemplates";
-import LogicRegistry from "./pages/admin/LogicRegistry";
-import Calibration from "./pages/admin/Calibration";
-import BenchmarkLearning from "./pages/admin/BenchmarkLearning";
-import LearningDashboard from "./pages/admin/LearningDashboard";
-import Explainability from "./pages/Explainability";
-import ScenarioComparison from "./pages/ScenarioComparison";
-import Outcomes from "./pages/Outcomes";
-import EvidenceVaultMI from "./pages/market-intel/EvidenceVaultMI";
-import SourceRegistry from "./pages/market-intel/SourceRegistry";
-import BenchmarkProposals from "./pages/market-intel/BenchmarkProposals";
-import CompetitorsMI from "./pages/market-intel/Competitors";
-import TrendTags from "./pages/market-intel/TrendTags";
-import IntelAuditLog from "./pages/market-intel/IntelAuditLog";
-import IngestionMonitor from "./pages/market-intel/IngestionMonitor";
-import AnalyticsDashboard from "./pages/market-intel/AnalyticsDashboard";
-import DataHealth from "./pages/market-intel/DataHealth";
-import DldInsights from "./pages/market-intel/DldInsights";
-import MarketIntelligence from "./pages/market-intel/MarketIntelligence";
-import Alerts from "./pages/Alerts";
-import DesignAdvisor from "./pages/DesignAdvisor";
-import PortfolioPage from "./pages/PortfolioPage";
-import RiskHeatmap from "./pages/RiskHeatmap";
-import BiasInsights from "./pages/BiasInsights";
-import Simulations from "./pages/Simulations";
-import CustomerSuccess from "./pages/CustomerSuccess";
-import Sustainability from "./pages/Sustainability";
-import InvestorSummary from "./pages/InvestorSummary";
-import ShareView from "./pages/ShareView";
-import BriefEditor from "./pages/BriefEditor";
-import Methodology from "./pages/Methodology";
-import AreaVerification from "./pages/AreaVerification";
-import SpacePlanner from "./pages/SpacePlanner";
+
+// Route-level splitting keeps specialist editors, admin tooling, and visualization
+// dependencies out of the initial application payload.
+const NotFound = lazy(() => import("@/pages/NotFound"));
+const DashboardLayout = lazy(() => import("@/components/DashboardLayout"));
+const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Projects = lazy(() => import("./pages/Projects"));
+const ProjectNew = lazy(() => import("./pages/ProjectNew"));
+const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const Results = lazy(() => import("./pages/Results"));
+const Scenarios = lazy(() => import("./pages/Scenarios"));
+const ScenarioTemplates = lazy(() => import("./pages/ScenarioTemplates"));
+const Reports = lazy(() => import("./pages/Reports"));
+const EvidenceVault = lazy(() => import("./pages/EvidenceVault"));
+const DesignBrief = lazy(() => import("./pages/DesignBrief"));
+const DesignStudio = lazy(() => import("./pages/DesignStudio"));
+const Collaboration = lazy(() => import("./pages/Collaboration"));
+const Benchmarks = lazy(() => import("./pages/admin/Benchmarks"));
+const BenchmarkVersions = lazy(() => import("./pages/admin/BenchmarkVersions"));
+const BenchmarkCategories = lazy(
+  () => import("./pages/admin/BenchmarkCategories")
+);
+const ModelVersions = lazy(() => import("./pages/admin/ModelVersions"));
+const AuditLogs = lazy(() => import("./pages/admin/AuditLogs"));
+const Overrides = lazy(() => import("./pages/admin/Overrides"));
+const BenchmarkHealth = lazy(() => import("./pages/admin/BenchmarkHealth"));
+const ConnectorHealth = lazy(() => import("./pages/admin/ConnectorHealth"));
+const Portfolio = lazy(() => import("./pages/admin/Portfolio"));
+const RoiConfig = lazy(() => import("./pages/admin/RoiConfig"));
+const Webhooks = lazy(() => import("./pages/admin/Webhooks"));
+const CsvImport = lazy(() => import("./pages/admin/CsvImport"));
+const MaterialsLibrary = lazy(() => import("./pages/admin/MaterialsLibrary"));
+const PromptTemplates = lazy(() => import("./pages/admin/PromptTemplates"));
+const LogicRegistry = lazy(() => import("./pages/admin/LogicRegistry"));
+const Calibration = lazy(() => import("./pages/admin/Calibration"));
+const BenchmarkLearning = lazy(() => import("./pages/admin/BenchmarkLearning"));
+const LearningDashboard = lazy(() => import("./pages/admin/LearningDashboard"));
+const Explainability = lazy(() => import("./pages/Explainability"));
+const ScenarioComparison = lazy(() => import("./pages/ScenarioComparison"));
+const Outcomes = lazy(() => import("./pages/Outcomes"));
+const EvidenceVaultMI = lazy(
+  () => import("./pages/market-intel/EvidenceVaultMI")
+);
+const SourceRegistry = lazy(
+  () => import("./pages/market-intel/SourceRegistry")
+);
+const BenchmarkProposals = lazy(
+  () => import("./pages/market-intel/BenchmarkProposals")
+);
+const CompetitorsMI = lazy(() => import("./pages/market-intel/Competitors"));
+const TrendTags = lazy(() => import("./pages/market-intel/TrendTags"));
+const IntelAuditLog = lazy(() => import("./pages/market-intel/IntelAuditLog"));
+const IngestionMonitor = lazy(
+  () => import("./pages/market-intel/IngestionMonitor")
+);
+const AnalyticsDashboard = lazy(
+  () => import("./pages/market-intel/AnalyticsDashboard")
+);
+const DataHealth = lazy(() => import("./pages/market-intel/DataHealth"));
+const DldInsights = lazy(() => import("./pages/market-intel/DldInsights"));
+const MarketIntelligence = lazy(
+  () => import("./pages/market-intel/MarketIntelligence")
+);
+const Alerts = lazy(() => import("./pages/Alerts"));
+const DesignAdvisor = lazy(() => import("./pages/DesignAdvisor"));
+const PortfolioPage = lazy(() => import("./pages/PortfolioPage"));
+const RiskHeatmap = lazy(() => import("./pages/RiskHeatmap"));
+const BiasInsights = lazy(() => import("./pages/BiasInsights"));
+const Simulations = lazy(() => import("./pages/Simulations"));
+const CustomerSuccess = lazy(() => import("./pages/CustomerSuccess"));
+const Sustainability = lazy(() => import("./pages/Sustainability"));
+const InvestorSummary = lazy(() => import("./pages/InvestorSummary"));
+const ShareView = lazy(() => import("./pages/ShareView"));
+const BriefEditor = lazy(() => import("./pages/BriefEditor"));
+const Methodology = lazy(() => import("./pages/Methodology"));
+const AreaVerification = lazy(() => import("./pages/AreaVerification"));
+const SpacePlanner = lazy(() => import("./pages/SpacePlanner"));
 
 // Helper: wrap a component with RequireAuth and DashboardLayout
 function Protected({ Component }: { Component: React.ComponentType<any> }) {
@@ -116,68 +133,172 @@ function Router() {
       <Route path="/methodology" component={Methodology} />
 
       {/* Protected routes */}
-      <Route path="/dashboard">{() => <Protected Component={Dashboard} />}</Route>
+      <Route path="/dashboard">
+        {() => <Protected Component={Dashboard} />}
+      </Route>
       <Route path="/projects">{() => <Protected Component={Projects} />}</Route>
-      <Route path="/projects/new">{() => <Protected Component={ProjectNew} />}</Route>
-      <Route path="/projects/:id">{() => <ProjectPage Component={ProjectDetail} />}</Route>
-      <Route path="/projects/:id/evidence">{() => <ProjectPage Component={EvidenceVault} />}</Route>
-      <Route path="/projects/:id/brief">{() => <ProjectPage Component={DesignBrief} />}</Route>
-      <Route path="/projects/:id/design-studio">{() => <ProjectPage Component={DesignStudio} />}</Route>
-      <Route path="/projects/:id/collaboration">{() => <ProjectPage Component={Collaboration} />}</Route>
-      <Route path="/projects/:id/design-advisor">{() => <ProjectPage Component={DesignAdvisor} />}</Route>
-      <Route path="/projects/:id/investor-summary">{() => <ProjectPage Component={InvestorSummary} />}</Route>
-      <Route path="/projects/:id/brief-editor">{() => <ProjectPage Component={BriefEditor} />}</Route>
-      <Route path="/projects/:id/explainability">{() => <ProjectPage Component={Explainability} />}</Route>
-      <Route path="/projects/:id/outcomes">{() => <ProjectPage Component={Outcomes} />}</Route>
-      <Route path="/projects/:id/verify-areas">{() => <ProjectPage Component={AreaVerification} />}</Route>
-      <Route path="/projects/:id/space-planner">{() => <ProjectPage Component={SpacePlanner} />}</Route>
+      <Route path="/projects/new">
+        {() => <Protected Component={ProjectNew} />}
+      </Route>
+      <Route path="/projects/:id">
+        {() => <ProjectPage Component={ProjectDetail} />}
+      </Route>
+      <Route path="/projects/:id/evidence">
+        {() => <ProjectPage Component={EvidenceVault} />}
+      </Route>
+      <Route path="/projects/:id/brief">
+        {() => <ProjectPage Component={DesignBrief} />}
+      </Route>
+      <Route path="/projects/:id/design-studio">
+        {() => <ProjectPage Component={DesignStudio} />}
+      </Route>
+      <Route path="/projects/:id/collaboration">
+        {() => <ProjectPage Component={Collaboration} />}
+      </Route>
+      <Route path="/projects/:id/design-advisor">
+        {() => <ProjectPage Component={DesignAdvisor} />}
+      </Route>
+      <Route path="/projects/:id/investor-summary">
+        {() => <ProjectPage Component={InvestorSummary} />}
+      </Route>
+      <Route path="/projects/:id/brief-editor">
+        {() => <ProjectPage Component={BriefEditor} />}
+      </Route>
+      <Route path="/projects/:id/explainability">
+        {() => <ProjectPage Component={Explainability} />}
+      </Route>
+      <Route path="/projects/:id/outcomes">
+        {() => <ProjectPage Component={Outcomes} />}
+      </Route>
+      <Route path="/projects/:id/verify-areas">
+        {() => <ProjectPage Component={AreaVerification} />}
+      </Route>
+      <Route path="/projects/:id/space-planner">
+        {() => <ProjectPage Component={SpacePlanner} />}
+      </Route>
       <Route path="/results">{() => <Protected Component={Results} />}</Route>
-      <Route path="/scenarios">{() => <Protected Component={Scenarios} />}</Route>
-      <Route path="/scenarios/templates">{() => <Protected Component={ScenarioTemplates} />}</Route>
-      <Route path="/scenarios/compare">{() => <Protected Component={ScenarioComparison} />}</Route>
+      <Route path="/scenarios">
+        {() => <Protected Component={Scenarios} />}
+      </Route>
+      <Route path="/scenarios/templates">
+        {() => <Protected Component={ScenarioTemplates} />}
+      </Route>
+      <Route path="/scenarios/compare">
+        {() => <Protected Component={ScenarioComparison} />}
+      </Route>
       <Route path="/reports">{() => <Protected Component={Reports} />}</Route>
       <Route path="/alerts">{() => <Protected Component={Alerts} />}</Route>
-      <Route path="/portfolio">{() => <Protected Component={PortfolioPage} />}</Route>
-      <Route path="/risk-heatmap">{() => <Protected Component={RiskHeatmap} />}</Route>
-      <Route path="/bias-insights">{() => <Protected Component={BiasInsights} />}</Route>
-      <Route path="/simulations">{() => <Protected Component={Simulations} />}</Route>
-      <Route path="/customer-success">{() => <Protected Component={CustomerSuccess} />}</Route>
-      <Route path="/sustainability">{() => <Protected Component={Sustainability} />}</Route>
+      <Route path="/portfolio">
+        {() => <Protected Component={PortfolioPage} />}
+      </Route>
+      <Route path="/risk-heatmap">
+        {() => <Protected Component={RiskHeatmap} />}
+      </Route>
+      <Route path="/bias-insights">
+        {() => <Protected Component={BiasInsights} />}
+      </Route>
+      <Route path="/simulations">
+        {() => <Protected Component={Simulations} />}
+      </Route>
+      <Route path="/customer-success">
+        {() => <Protected Component={CustomerSuccess} />}
+      </Route>
+      <Route path="/sustainability">
+        {() => <Protected Component={Sustainability} />}
+      </Route>
 
       {/* Market Intelligence — client-facing */}
-      <Route path="/market-intel/dld-insights">{() => <Protected Component={DldInsights} />}</Route>
-      <Route path="/market-intel/competitors">{() => <Protected Component={CompetitorsMI} />}</Route>
+      <Route path="/market-intel/dld-insights">
+        {() => <Protected Component={DldInsights} />}
+      </Route>
+      <Route path="/market-intel/competitors">
+        {() => <Protected Component={CompetitorsMI} />}
+      </Route>
 
       {/* Market Intelligence — admin-only internal tools */}
-      <Route path="/market-intel/evidence">{() => <AdminOnly Component={EvidenceVaultMI} />}</Route>
-      <Route path="/market-intel/sources">{() => <AdminOnly Component={SourceRegistry} />}</Route>
-      <Route path="/market-intel/proposals">{() => <AdminOnly Component={BenchmarkProposals} />}</Route>
-      <Route path="/market-intel/tags">{() => <AdminOnly Component={TrendTags} />}</Route>
-      <Route path="/market-intel/audit">{() => <AdminOnly Component={IntelAuditLog} />}</Route>
-      <Route path="/market-intel/data-health">{() => <AdminOnly Component={DataHealth} />}</Route>
-      <Route path="/market-intel/ingestion">{() => <AdminOnly Component={IngestionMonitor} />}</Route>
-      <Route path="/market-intel/analytics">{() => <AdminOnly Component={AnalyticsDashboard} />}</Route>
-      <Route path="/market-intelligence">{() => <AdminOnly Component={MarketIntelligence} />}</Route>
+      <Route path="/market-intel/evidence">
+        {() => <AdminOnly Component={EvidenceVaultMI} />}
+      </Route>
+      <Route path="/market-intel/sources">
+        {() => <AdminOnly Component={SourceRegistry} />}
+      </Route>
+      <Route path="/market-intel/proposals">
+        {() => <AdminOnly Component={BenchmarkProposals} />}
+      </Route>
+      <Route path="/market-intel/tags">
+        {() => <AdminOnly Component={TrendTags} />}
+      </Route>
+      <Route path="/market-intel/audit">
+        {() => <AdminOnly Component={IntelAuditLog} />}
+      </Route>
+      <Route path="/market-intel/data-health">
+        {() => <AdminOnly Component={DataHealth} />}
+      </Route>
+      <Route path="/market-intel/ingestion">
+        {() => <AdminOnly Component={IngestionMonitor} />}
+      </Route>
+      <Route path="/market-intel/analytics">
+        {() => <AdminOnly Component={AnalyticsDashboard} />}
+      </Route>
+      <Route path="/market-intelligence">
+        {() => <AdminOnly Component={MarketIntelligence} />}
+      </Route>
 
       {/* Admin routes (admin-only) */}
-      <Route path="/admin/benchmarks">{() => <AdminOnly Component={Benchmarks} />}</Route>
-      <Route path="/admin/benchmark-versions">{() => <AdminOnly Component={BenchmarkVersions} />}</Route>
-      <Route path="/admin/benchmark-categories">{() => <AdminOnly Component={BenchmarkCategories} />}</Route>
-      <Route path="/admin/models">{() => <AdminOnly Component={ModelVersions} />}</Route>
-      <Route path="/admin/audit">{() => <AdminOnly Component={AuditLogs} />}</Route>
-      <Route path="/admin/overrides">{() => <AdminOnly Component={Overrides} />}</Route>
-      <Route path="/admin/benchmark-health">{() => <AdminOnly Component={BenchmarkHealth} />}</Route>
-      <Route path="/admin/connector-health">{() => <AdminOnly Component={ConnectorHealth} />}</Route>
-      <Route path="/admin/portfolio">{() => <AdminOnly Component={Portfolio} />}</Route>
-      <Route path="/admin/roi-config">{() => <AdminOnly Component={RoiConfig} />}</Route>
-      <Route path="/admin/webhooks">{() => <AdminOnly Component={Webhooks} />}</Route>
-      <Route path="/admin/csv-import">{() => <AdminOnly Component={CsvImport} />}</Route>
-      <Route path="/admin/materials">{() => <AdminOnly Component={MaterialsLibrary} />}</Route>
-      <Route path="/admin/prompt-templates">{() => <AdminOnly Component={PromptTemplates} />}</Route>
-      <Route path="/admin/logic-registry">{() => <AdminOnly Component={LogicRegistry} />}</Route>
-      <Route path="/admin/calibration">{() => <AdminOnly Component={Calibration} />}</Route>
-      <Route path="/admin/benchmark-learning">{() => <AdminOnly Component={BenchmarkLearning} />}</Route>
-      <Route path="/admin/learning-dashboard">{() => <AdminOnly Component={LearningDashboard} />}</Route>
+      <Route path="/admin/benchmarks">
+        {() => <AdminOnly Component={Benchmarks} />}
+      </Route>
+      <Route path="/admin/benchmark-versions">
+        {() => <AdminOnly Component={BenchmarkVersions} />}
+      </Route>
+      <Route path="/admin/benchmark-categories">
+        {() => <AdminOnly Component={BenchmarkCategories} />}
+      </Route>
+      <Route path="/admin/models">
+        {() => <AdminOnly Component={ModelVersions} />}
+      </Route>
+      <Route path="/admin/audit">
+        {() => <AdminOnly Component={AuditLogs} />}
+      </Route>
+      <Route path="/admin/overrides">
+        {() => <AdminOnly Component={Overrides} />}
+      </Route>
+      <Route path="/admin/benchmark-health">
+        {() => <AdminOnly Component={BenchmarkHealth} />}
+      </Route>
+      <Route path="/admin/connector-health">
+        {() => <AdminOnly Component={ConnectorHealth} />}
+      </Route>
+      <Route path="/admin/portfolio">
+        {() => <AdminOnly Component={Portfolio} />}
+      </Route>
+      <Route path="/admin/roi-config">
+        {() => <AdminOnly Component={RoiConfig} />}
+      </Route>
+      <Route path="/admin/webhooks">
+        {() => <AdminOnly Component={Webhooks} />}
+      </Route>
+      <Route path="/admin/csv-import">
+        {() => <AdminOnly Component={CsvImport} />}
+      </Route>
+      <Route path="/admin/materials">
+        {() => <AdminOnly Component={MaterialsLibrary} />}
+      </Route>
+      <Route path="/admin/prompt-templates">
+        {() => <AdminOnly Component={PromptTemplates} />}
+      </Route>
+      <Route path="/admin/logic-registry">
+        {() => <AdminOnly Component={LogicRegistry} />}
+      </Route>
+      <Route path="/admin/calibration">
+        {() => <AdminOnly Component={Calibration} />}
+      </Route>
+      <Route path="/admin/benchmark-learning">
+        {() => <AdminOnly Component={BenchmarkLearning} />}
+      </Route>
+      <Route path="/admin/learning-dashboard">
+        {() => <AdminOnly Component={LearningDashboard} />}
+      </Route>
 
       {/* Fallback */}
       <Route path="/share/:token" component={ShareView} />
@@ -193,7 +314,15 @@ function App() {
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <Suspense
+            fallback={
+              <div className="min-h-screen bg-background flex items-center justify-center text-sm text-muted-foreground">
+                Loading MIYAR…
+              </div>
+            }
+          >
+            <Router />
+          </Suspense>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

@@ -207,6 +207,13 @@ export async function updateProject(id: number, data: Partial<typeof projects.$i
   await db.update(projects).set(data).where(eq(projects.id, id));
 }
 
+export async function updateProjectForOrg(id: number, orgId: number, data: Partial<typeof projects.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(projects).set(data).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
+}
+
 export async function deleteProject(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -275,6 +282,13 @@ export async function getScenariosByProject(projectId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(scenarios).where(eq(scenarios.projectId, projectId));
+}
+
+export async function getScenarioById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(scenarios).where(eq(scenarios.id, id)).limit(1);
+  return rows[0];
 }
 
 export async function deleteScenario(id: number) {
@@ -564,6 +578,13 @@ export async function getAllReports() {
   return db.select().from(reportInstances).orderBy(desc(reportInstances.generatedAt));
 }
 
+export async function getReportById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(reportInstances).where(eq(reportInstances.id, id)).limit(1);
+  return rows[0];
+}
+
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
 
 export async function createAuditLog(data: typeof auditLogs.$inferInsert) {
@@ -619,6 +640,18 @@ export async function createProjectAsset(data: typeof projectAssets.$inferInsert
   return { id: Number(result[0].insertId) };
 }
 
+export async function createProjectAssetForOrg(data: typeof projectAssets.$inferInsert, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    const result = await tx.insert(projectAssets).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
+
 export async function getProjectAssets(projectId: number, category?: string) {
   const db = await getDb();
   if (!db) return [];
@@ -640,10 +673,38 @@ export async function deleteProjectAsset(id: number) {
   await db.delete(projectAssets).where(eq(projectAssets.id, id));
 }
 
+export async function deleteProjectAssetForOrg(id: number, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(projectAssets).where(and(
+    eq(projectAssets.id, id),
+    sql`exists (
+      select 1 from ${projects}
+      where ${projects.id} = ${projectAssets.projectId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
+}
+
 export async function updateProjectAsset(id: number, data: Partial<typeof projectAssets.$inferInsert>) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(projectAssets).set(data).where(eq(projectAssets.id, id));
+}
+
+export async function updateProjectAssetForOrg(id: number, orgId: number, data: Partial<typeof projectAssets.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(projectAssets).set(data).where(and(
+    eq(projectAssets.id, id),
+    sql`exists (
+      select 1 from ${projects}
+      where ${projects.id} = ${projectAssets.projectId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 
 // ─── Asset Links (V2.8) ─────────────────────────────────────────────────────
@@ -655,10 +716,58 @@ export async function createAssetLink(data: typeof assetLinks.$inferInsert) {
   return { id: Number(result[0].insertId) };
 }
 
+export async function createAssetLinkForOrg(data: typeof assetLinks.$inferInsert, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const source = await tx.select({ projectId: projectAssets.projectId }).from(projectAssets)
+      .innerJoin(projects, eq(projects.id, projectAssets.projectId))
+      .where(and(eq(projectAssets.id, data.assetId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!source[0]) return null;
+
+    let target: Array<{ projectId: number }> = [];
+    if (data.linkType === "evaluation") {
+      target = await tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices)
+        .innerJoin(projects, eq(projects.id, scoreMatrices.projectId))
+        .where(and(eq(scoreMatrices.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "report") {
+      target = await tx.select({ projectId: reportInstances.projectId }).from(reportInstances)
+        .innerJoin(projects, eq(projects.id, reportInstances.projectId))
+        .where(and(eq(reportInstances.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "scenario") {
+      target = await tx.select({ projectId: scenarios.projectId }).from(scenarios)
+        .innerJoin(projects, eq(projects.id, scenarios.projectId))
+        .where(and(eq(scenarios.id, data.linkId), eq(scenarios.orgId, orgId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "material_board") {
+      target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards)
+        .innerJoin(projects, eq(projects.id, materialBoards.projectId))
+        .where(and(eq(materialBoards.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "design_brief") {
+      target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs)
+        .innerJoin(projects, eq(projects.id, designBriefs.projectId))
+        .where(and(eq(designBriefs.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (data.linkType === "visual") {
+      target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals)
+        .innerJoin(projects, eq(projects.id, generatedVisuals.projectId))
+        .where(and(eq(generatedVisuals.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    }
+    if (!target[0] || target[0].projectId !== source[0].projectId) return null;
+    const result = await tx.insert(assetLinks).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
+
 export async function getAssetLinksByAsset(assetId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(assetLinks).where(eq(assetLinks.assetId, assetId));
+}
+
+export async function getAssetLinkById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(assetLinks).where(eq(assetLinks.id, id)).limit(1);
+  return rows[0];
 }
 
 export async function getAssetLinksByEntity(linkType: string, linkId: number) {
@@ -676,6 +785,54 @@ export async function deleteAssetLink(id: number) {
   return { success: true };
 }
 
+export async function deleteAssetLinkForOrg(id: number, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const links = await tx.select({
+      id: assetLinks.id,
+      linkType: assetLinks.linkType,
+      linkId: assetLinks.linkId,
+      projectId: projectAssets.projectId,
+    }).from(assetLinks)
+      .innerJoin(projectAssets, eq(projectAssets.id, assetLinks.assetId))
+      .innerJoin(projects, eq(projects.id, projectAssets.projectId))
+      .where(and(eq(assetLinks.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
+    const link = links[0];
+    if (!link) return false;
+
+    let target: Array<{ projectId: number }> = [];
+    if (link.linkType === "material_board") {
+      target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards)
+        .innerJoin(projects, eq(projects.id, materialBoards.projectId))
+        .where(and(eq(materialBoards.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "evaluation") {
+      target = await tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices)
+        .innerJoin(projects, eq(projects.id, scoreMatrices.projectId))
+        .where(and(eq(scoreMatrices.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "report") {
+      target = await tx.select({ projectId: reportInstances.projectId }).from(reportInstances)
+        .innerJoin(projects, eq(projects.id, reportInstances.projectId))
+        .where(and(eq(reportInstances.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "scenario") {
+      target = await tx.select({ projectId: scenarios.projectId }).from(scenarios)
+        .innerJoin(projects, eq(projects.id, scenarios.projectId))
+        .where(and(eq(scenarios.id, link.linkId), eq(scenarios.orgId, orgId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "design_brief") {
+      target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs)
+        .innerJoin(projects, eq(projects.id, designBriefs.projectId))
+        .where(and(eq(designBriefs.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    } else if (link.linkType === "visual") {
+      target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals)
+        .innerJoin(projects, eq(projects.id, generatedVisuals.projectId))
+        .where(and(eq(generatedVisuals.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
+    }
+    if (!target[0] || target[0].projectId !== link.projectId) return false;
+    const result = await tx.delete(assetLinks).where(eq(assetLinks.id, id));
+    return Number(result[0].affectedRows) === 1;
+  });
+}
+
 // ─── Design Briefs (V2.8) ───────────────────────────────────────────────────
 
 export async function createDesignBrief(data: typeof designBriefs.$inferInsert) {
@@ -683,6 +840,23 @@ export async function createDesignBrief(data: typeof designBriefs.$inferInsert) 
   if (!db) throw new Error("DB not available");
   const result = await db.insert(designBriefs).values(data);
   return { id: Number(result[0].insertId) };
+}
+
+export async function createDesignBriefForOrg(data: typeof designBriefs.$inferInsert, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    if (data.scenarioId !== null && data.scenarioId !== undefined) {
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios)
+        .where(and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))).limit(1).for("update");
+      if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
+    }
+    const result = await tx.insert(designBriefs).values(data);
+    return { id: Number(result[0].insertId) };
+  });
 }
 
 export async function getDesignBriefsByProject(projectId: number) {
@@ -717,6 +891,23 @@ export async function createGeneratedVisual(data: typeof generatedVisuals.$infer
   return { id: Number(result[0].insertId) };
 }
 
+export async function createGeneratedVisualForOrg(data: typeof generatedVisuals.$inferInsert, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    if (data.scenarioId !== null && data.scenarioId !== undefined) {
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios)
+        .where(and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))).limit(1).for("update");
+      if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
+    }
+    const result = await tx.insert(generatedVisuals).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
+
 export async function getGeneratedVisualsByProject(projectId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -727,6 +918,20 @@ export async function updateGeneratedVisual(id: number, data: Partial<typeof gen
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(generatedVisuals).set(data).where(eq(generatedVisuals.id, id));
+}
+
+export async function updateGeneratedVisualForOrg(id: number, orgId: number, data: Partial<typeof generatedVisuals.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(generatedVisuals).set(data).where(and(
+    eq(generatedVisuals.id, id),
+    sql`exists (
+      select 1 from ${projects}
+      where ${projects.id} = ${generatedVisuals.projectId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 
 export async function getGeneratedVisualById(id: number) {
@@ -743,6 +948,23 @@ export async function createMaterialBoard(data: typeof materialBoards.$inferInse
   if (!db) throw new Error("DB not available");
   const result = await db.insert(materialBoards).values(data);
   return { id: Number(result[0].insertId) };
+}
+
+export async function createMaterialBoardForOrg(data: typeof materialBoards.$inferInsert, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    if (data.scenarioId !== null && data.scenarioId !== undefined) {
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios)
+        .where(and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))).limit(1).for("update");
+      if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
+    }
+    const result = await tx.insert(materialBoards).values(data);
+    return { id: Number(result[0].insertId) };
+  });
 }
 
 export async function getMaterialBoardsByProject(projectId: number) {
@@ -769,6 +991,27 @@ export async function deleteMaterialBoard(id: number) {
   if (!db) throw new Error("DB not available");
   await db.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
   await db.delete(materialBoards).where(eq(materialBoards.id, id));
+}
+
+export async function deleteMaterialBoardForOrg(id: number, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards)
+      .innerJoin(projects, eq(projects.id, materialBoards.projectId))
+      .where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1);
+    if (!boardRows[0]) return false;
+    await tx.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
+    const result = await tx.delete(materialBoards).where(and(
+      eq(materialBoards.id, id),
+      sql`exists (
+        select 1 from ${projects}
+        where ${projects.id} = ${materialBoards.projectId}
+          and ${projects.orgId} = ${orgId}
+      )`
+    ));
+    return Number(result[0].affectedRows) === 1;
+  });
 }
 
 // ─── Materials Catalog (V2.8) ───────────────────────────────────────────────
@@ -817,16 +1060,52 @@ export async function addMaterialToBoard(data: typeof materialsToBoards.$inferIn
   return { id: Number(result[0].insertId) };
 }
 
+export async function addMaterialToBoardForOrg(data: typeof materialsToBoards.$inferInsert, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: materialBoards.id }).from(materialBoards)
+      .innerJoin(projects, eq(projects.id, materialBoards.projectId))
+      .where(and(eq(materialBoards.id, data.boardId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    const result = await tx.insert(materialsToBoards).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
+
 export async function getMaterialsByBoard(boardId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(materialsToBoards).where(eq(materialsToBoards.boardId, boardId)).orderBy(materialsToBoards.sortOrder);
 }
 
+export async function getMaterialToBoardById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(materialsToBoards).where(eq(materialsToBoards.id, id)).limit(1);
+  return rows[0];
+}
+
 export async function removeMaterialFromBoard(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(materialsToBoards).where(eq(materialsToBoards.id, id));
+}
+
+export async function removeMaterialFromBoardForOrg(id: number, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(materialsToBoards).where(and(
+    eq(materialsToBoards.id, id),
+    sql`exists (
+      select 1
+      from ${materialBoards}
+      inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
+      where ${materialBoards.id} = ${materialsToBoards.boardId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 
 export async function updateBoardTile(id: number, data: { specNotes?: string | null; costBandOverride?: string | null; quantity?: string | null; unitOfMeasure?: string | null; notes?: string | null; sortOrder?: number }) {
@@ -844,12 +1123,61 @@ export async function updateBoardTile(id: number, data: { specNotes?: string | n
   }
 }
 
+export async function updateBoardTileForOrg(id: number, orgId: number, data: { specNotes?: string | null; costBandOverride?: string | null; quantity?: string | null; unitOfMeasure?: string | null; notes?: string | null; sortOrder?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updates = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+  if (Object.keys(updates).length === 0) return true;
+  const result = await db.update(materialsToBoards).set(updates).where(and(
+    eq(materialsToBoards.id, id),
+    sql`exists (
+      select 1
+      from ${materialBoards}
+      inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
+      where ${materialBoards.id} = ${materialsToBoards.boardId}
+        and ${projects.orgId} = ${orgId}
+    )`
+  ));
+  return Number(result[0].affectedRows) === 1;
+}
+
 export async function reorderBoardTiles(boardId: number, orderedIds: number[]) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   for (let i = 0; i < orderedIds.length; i++) {
     await db.update(materialsToBoards).set({ sortOrder: i }).where(eq(materialsToBoards.id, orderedIds[i]));
   }
+}
+
+export async function reorderBoardTilesForOrg(boardId: number, orderedIds: number[], orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards)
+      .innerJoin(projects, eq(projects.id, materialBoards.projectId))
+      .where(and(eq(materialBoards.id, boardId), eq(projects.orgId, orgId))).limit(1);
+    if (!boardRows[0]) return false;
+    if (orderedIds.length > 0) {
+      const joins = await tx.select({ id: materialsToBoards.id }).from(materialsToBoards)
+        .where(and(eq(materialsToBoards.boardId, boardId), inArray(materialsToBoards.id, orderedIds)));
+      if (joins.length !== orderedIds.length) return false;
+    }
+    for (let i = 0; i < orderedIds.length; i++) {
+      const result = await tx.update(materialsToBoards).set({ sortOrder: i }).where(and(
+        eq(materialsToBoards.id, orderedIds[i]),
+        eq(materialsToBoards.boardId, boardId),
+        sql`exists (
+          select 1
+          from ${materialBoards}
+          inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
+          where ${materialBoards.id} = ${materialsToBoards.boardId}
+            and ${projects.orgId} = ${orgId}
+        )`
+      ));
+      if (Number(result[0].affectedRows) !== 1) throw new Error("Board tile reorder lost authorization");
+    }
+    return true;
+  });
 }
 
 // ─── Prompt Templates (V2.8) ────────────────────────────────────────────────
@@ -866,6 +1194,13 @@ export async function getAllPromptTemplates(type?: string, orgId?: number) {
     query = query.where(and(...conditions)) as any;
   }
   return query.orderBy(desc(promptTemplates.createdAt));
+}
+
+export async function getPromptTemplateById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(promptTemplates).where(eq(promptTemplates.id, id)).limit(1);
+  return rows[0];
 }
 
 export async function getActivePromptTemplate(type: string, orgId?: number) {
@@ -902,6 +1237,35 @@ export async function createComment(data: typeof comments.$inferInsert) {
   return { id: Number(result[0].insertId) };
 }
 
+export async function createCommentForOrg(data: typeof comments.$inferInsert, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    if (data.entityType === "general") {
+      if (data.entityId !== null && data.entityId !== undefined) return null;
+    } else {
+      if (data.entityId === null || data.entityId === undefined) return null;
+      let target: Array<{ projectId: number }> = [];
+      if (data.entityType === "design_brief") {
+        target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs)
+          .where(eq(designBriefs.id, data.entityId)).limit(1).for("update");
+      } else if (data.entityType === "material_board") {
+        target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards)
+          .where(eq(materialBoards.id, data.entityId)).limit(1).for("update");
+      } else if (data.entityType === "visual") {
+        target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals)
+          .where(eq(generatedVisuals.id, data.entityId)).limit(1).for("update");
+      }
+      if (!target[0] || target[0].projectId !== data.projectId) return null;
+    }
+    const result = await tx.insert(comments).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
+
 export async function getCommentsByEntity(projectId: number, entityType: string, entityId?: number) {
   const db = await getDb();
   if (!db) return [];
@@ -925,6 +1289,14 @@ export async function updateProjectApprovalState(projectId: number, approvalStat
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(projects).set({ approvalState: approvalState as any }).where(eq(projects.id, projectId));
+}
+
+export async function updateProjectApprovalStateForOrg(projectId: number, orgId: number, approvalState: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(projects).set({ approvalState: approvalState as any })
+    .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
 }
 
 // ─── Logic Versions (V2.10) ──────────────────────────────────────────────────
@@ -2010,6 +2382,18 @@ export async function insertRfqLineItem(data: typeof rfqLineItems.$inferInsert) 
   return db.insert(rfqLineItems).values(data);
 }
 
+export async function insertRfqLineItemForOrg(data: typeof rfqLineItems.$inferInsert, orgId: number) {
+  if (data.organizationId !== orgId) return false;
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return false;
+    await tx.insert(rfqLineItems).values(data);
+    return true;
+  });
+}
 export async function insertDmComplianceChecklist(data: typeof dmComplianceChecklists.$inferInsert) {
   const db = await getDb();
   if (!db) return;
@@ -2213,6 +2597,13 @@ export async function getAiDesignBrief(projectId: number) {
   return results[0] || null;
 }
 
+export async function getAiDesignBriefById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(aiDesignBriefs).where(eq(aiDesignBriefs.id, id)).limit(1);
+  return rows[0] || null;
+}
+
 /** Phase 5 — Store a share token and expiry date on a brief. */
 export async function updateAiDesignBriefShareToken(briefId: number, token: string, expiresAt: Date) {
   const db = await getDb();
@@ -2310,6 +2701,7 @@ export async function getBenchmarkForProject(typology: string, location: string,
  */
 
 export async function getEvidenceWithSources(filters: {
+  orgId: number;
   category?: string;
   projectId?: number;
   limit?: number;
@@ -2317,6 +2709,7 @@ export async function getEvidenceWithSources(filters: {
   const db = await getDb();
   if (!db) return [];
   const conditions: any[] = [];
+  conditions.push(eq(evidenceRecords.orgId, filters.orgId));
   if (filters.category) conditions.push(eq(evidenceRecords.category, filters.category as any));
   if (filters.projectId) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
   // Exclude confidential records from public provenance display

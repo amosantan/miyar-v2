@@ -23,6 +23,24 @@ import { generateDesignBriefDocx } from "../engines/docx-brief";
 import { calculateSurfaceAreas, buildQuantityCostSummary, type AllocationSlice, type AllocationResult as MqiAllocationResult } from "../engines/design/material-quantity-engine";
 import { buildSpaceProgram } from "../engines/design/space-program";
 import { nanoid } from "nanoid";
+import { requireActivePublicShare } from "../_core/public-share-access";
+import {
+  requireDesignAsset,
+  requireDesignAssetLink,
+  requireDesignBoard,
+  requireDesignBoardJoin,
+  requireDesignBrief,
+  requireDesignCommentTarget,
+  requireDesignLinkTarget,
+  requireDesignProject,
+  requireDesignPromptTemplate,
+  requireDesignScenario,
+  requireDesignVisual,
+  requireMatchingDesignScenario,
+  requireSameDesignProject,
+  requireScopedDesignInsert,
+  requireScopedDesignMutation,
+} from "../_core/design-resource-access";
 
 function projectToInputs(p: any): ProjectInputs {
   return {
@@ -62,13 +80,14 @@ function projectToInputs(p: any): ProjectInputs {
 export const designRouter = router({
   // ─── Evidence Vault ─────────────────────────────────────────────────────────
 
-  listAssets: protectedProcedure
+  listAssets: orgProcedure
     .input(z.object({ projectId: z.number(), category: z.string().optional() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
       return db.getProjectAssets(input.projectId, input.category);
     }),
 
-  uploadAsset: protectedProcedure
+  uploadAsset: orgProcedure
     .input(z.object({
       projectId: z.number(),
       filename: z.string(),
@@ -80,12 +99,13 @@ export const designRouter = router({
       isClientVisible: z.boolean().default(true),
     }))
     .mutation(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
       const buffer = Buffer.from(input.base64Data, "base64");
       const suffix = Math.random().toString(36).slice(2, 10);
       const storagePath = `projects/${input.projectId}/assets/${suffix}-${input.filename}`;
       const { url } = await storagePut(storagePath, buffer, input.mimeType);
 
-      const result = await db.createProjectAsset({
+      const result = requireScopedDesignInsert(await db.createProjectAssetForOrg({
         projectId: input.projectId,
         filename: input.filename,
         mimeType: input.mimeType,
@@ -97,9 +117,10 @@ export const designRouter = router({
         tags: input.tags || [],
         notes: input.notes,
         isClientVisible: input.isClientVisible,
-      });
+      }, ctx.orgId));
 
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "asset.upload",
         entityType: "project_asset",
@@ -110,13 +131,13 @@ export const designRouter = router({
       return { id: result.id, url };
     }),
 
-  deleteAsset: protectedProcedure
+  deleteAsset: orgProcedure
     .input(z.object({ assetId: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const asset = await db.getProjectAssetById(input.assetId);
-      if (!asset) throw new TRPCError({ code: "NOT_FOUND", message: "Asset not found" });
-      await db.deleteProjectAsset(input.assetId);
+      const { resource: asset } = await requireDesignAsset(input.assetId, ctx.orgId);
+      requireScopedDesignMutation(await db.deleteProjectAssetForOrg(input.assetId, ctx.orgId));
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "asset.delete",
         entityType: "project_asset",
@@ -126,7 +147,7 @@ export const designRouter = router({
       return { success: true };
     }),
 
-  updateAsset: protectedProcedure
+  updateAsset: orgProcedure
     .input(z.object({
       assetId: z.number(),
       category: z.string().optional(),
@@ -135,34 +156,47 @@ export const designRouter = router({
       isClientVisible: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await requireDesignAsset(input.assetId, ctx.orgId);
       const { assetId, ...updates } = input;
-      await db.updateProjectAsset(assetId, updates as any);
+      requireScopedDesignMutation(await db.updateProjectAssetForOrg(assetId, ctx.orgId, updates as any));
       return { success: true };
     }),
 
-  linkAsset: protectedProcedure
+  linkAsset: orgProcedure
     .input(z.object({
       assetId: z.number(),
       linkType: z.enum(["evaluation", "report", "scenario", "material_board", "design_brief", "visual"]),
       linkId: z.number(),
     }))
-    .mutation(async ({ input }) => {
-      return db.createAssetLink(input);
+    .mutation(async ({ ctx, input }) => {
+      const asset = await requireDesignAsset(input.assetId, ctx.orgId);
+      const target = await requireDesignLinkTarget(input.linkType, input.linkId, ctx.orgId);
+      requireSameDesignProject(asset.project.id, target.value.project.id);
+      return requireScopedDesignInsert(await db.createAssetLinkForOrg(input, ctx.orgId));
     }),
 
-  getAssetLinks: protectedProcedure
+  getAssetLinks: orgProcedure
     .input(z.object({ assetId: z.number() }))
-    .query(async ({ input }) => {
-      return db.getAssetLinksByAsset(input.assetId);
+    .query(async ({ ctx, input }) => {
+      const asset = await requireDesignAsset(input.assetId, ctx.orgId);
+      const links = await db.getAssetLinksByAsset(input.assetId);
+      for (const link of links) {
+        const target = await requireDesignLinkTarget(link.linkType, link.linkId, ctx.orgId);
+        requireSameDesignProject(asset.project.id, target.value.project.id);
+      }
+      return links;
     }),
 
   // ─── Design Brief Generator ─────────────────────────────────────────────────
 
-  generateBrief: protectedProcedure
+  generateBrief: orgProcedure
     .input(z.object({ projectId: z.number(), scenarioId: z.number().optional() }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
+      if (input.scenarioId !== undefined) {
+        const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
+        requireSameDesignProject(project.id, scenario.project.id);
+      }
 
       const scores = await db.getScoreMatricesByProject(input.projectId);
       const latest = scores[0];
@@ -220,10 +254,10 @@ export const designRouter = router({
       // Phase C: Fetch MQI cost data for brief enrichment
       let mqiCostResult: import("../engines/design/material-quantity-engine").MaterialQuantityResult | undefined;
       try {
-        const allocations = await db.getMaterialAllocations(input.projectId, ctx.user.orgId ?? 0);
+        const allocations = await db.getMaterialAllocations(input.projectId, ctx.orgId);
         if (allocations.length > 0) {
           // Rebuild space program rooms for surface area calculation
-          const storedRooms = await db.getSpaceProgramRooms(input.projectId, ctx.user.orgId ?? 0);
+          const storedRooms = await db.getSpaceProgramRooms(input.projectId, ctx.orgId);
           let rooms;
           if (storedRooms.length > 0) {
             rooms = storedRooms
@@ -299,7 +333,7 @@ export const designRouter = router({
       const existing = await db.getDesignBriefsByProject(input.projectId);
       const nextVersion = existing.length > 0 ? (existing[0].version + 1) : 1;
 
-      const result = await db.createDesignBrief({
+      const result = requireScopedDesignInsert(await db.createDesignBriefForOrg({
         projectId: input.projectId,
         scenarioId: input.scenarioId,
         version: nextVersion,
@@ -310,9 +344,10 @@ export const designRouter = router({
         detailedBudget: { ...briefData.detailedBudget, mqiSummary: briefData.mqiSummary, spaceAllocation: briefData.spaceAllocation },
         designerInstructions: briefData.designerInstructions,
         createdBy: ctx.user.id,
-      });
+      }, ctx.orgId));
 
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "design_brief.generate",
         entityType: "design_brief",
@@ -323,38 +358,46 @@ export const designRouter = router({
       return { id: result.id, version: nextVersion, data: briefData };
     }),
 
-  listBriefs: protectedProcedure
+  listBriefs: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
-      return db.getDesignBriefsByProject(input.projectId);
+    .query(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
+      const briefs = await db.getDesignBriefsByProject(input.projectId);
+      for (const brief of briefs) {
+        await requireMatchingDesignScenario(brief.scenarioId, brief.projectId, ctx.orgId);
+      }
+      return briefs;
     }),
 
-  getBrief: protectedProcedure
+  getBrief: orgProcedure
     .input(z.object({ briefId: z.number() }))
-    .query(async ({ input }) => {
-      return db.getDesignBriefById(input.briefId);
+    .query(async ({ ctx, input }) => {
+      const { resource } = await requireDesignBrief(input.briefId, ctx.orgId);
+      await requireMatchingDesignScenario(resource.scenarioId, resource.projectId, ctx.orgId);
+      return resource;
     }),
 
-  getLatestBrief: protectedProcedure
+  getLatestBrief: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
-      return db.getLatestDesignBrief(input.projectId);
+    .query(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
+      const brief = await db.getLatestDesignBrief(input.projectId);
+      if (brief) await requireMatchingDesignScenario(brief.scenarioId, brief.projectId, ctx.orgId);
+      return brief;
     }),
 
   // ─── RFQ from Brief (V4 Pipeline) ─────────────────────────────────────────
 
-  generateRfqFromBrief: protectedProcedure
+  generateRfqFromBrief: orgProcedure
     .input(z.object({
       projectId: z.number(),
       briefId: z.number(),
     }))
     .mutation(async ({ ctx, input }) => {
       // 1. Fetch the Design Brief
-      const brief = await db.getDesignBriefById(input.briefId);
-      if (!brief) throw new TRPCError({ code: "NOT_FOUND", message: "Design Brief not found" });
-
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
+      const { resource: brief, project: briefProject } = await requireDesignBrief(input.briefId, ctx.orgId);
+      requireSameDesignProject(project.id, briefProject.id);
 
       // 2. Reconstruct DesignBriefData from stored JSON columns
       const briefData: DesignBriefData = {
@@ -381,7 +424,7 @@ export const designRouter = router({
       // 4. Generate RFQ from Brief
       const result = buildRFQFromBrief(
         input.projectId,
-        project.orgId || 1,
+        ctx.orgId,
         briefData,
         input.briefId,
         materialList,
@@ -389,11 +432,12 @@ export const designRouter = router({
 
       // 5. Persist RFQ line items
       for (const item of result.items) {
-        await db.insertRfqLineItem(item as any);
+        requireScopedDesignMutation(await db.insertRfqLineItemForOrg(item as any, ctx.orgId));
       }
 
       // 6. Audit log
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "rfq.generate_from_brief",
         entityType: "design_brief",
@@ -410,13 +454,10 @@ export const designRouter = router({
       return result;
     }),
 
-  exportBriefDocx: protectedProcedure
+  exportBriefDocx: orgProcedure
     .input(z.object({ briefId: z.number() }))
-    .mutation(async ({ input }) => {
-      const brief = await db.getDesignBriefById(input.briefId);
-      if (!brief) throw new Error("Design brief not found");
-
-      const project = await db.getProjectById(brief.projectId);
+    .mutation(async ({ ctx, input }) => {
+      const { resource: brief, project } = await requireDesignBrief(input.briefId, ctx.orgId);
 
       const docxBuffer = await generateDesignBriefDocx({
         projectIdentity: (brief.projectIdentity ?? {}) as Record<string, unknown>,
@@ -438,7 +479,7 @@ export const designRouter = router({
 
   // ─── Visual Generation (nano banana) ────────────────────────────────────────
 
-  generateVisual: protectedProcedure
+  generateVisual: orgProcedure
     .input(z.object({
       projectId: z.number(),
       type: z.enum(["mood", "material_board", "hero"]),
@@ -447,8 +488,15 @@ export const designRouter = router({
       templateId: z.number().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
+      let selectedTemplate: Awaited<ReturnType<typeof requireDesignPromptTemplate>> | undefined;
+      if (input.scenarioId !== undefined) {
+        const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
+        requireSameDesignProject(project.id, scenario.project.id);
+      }
+      if (input.templateId !== undefined) {
+        selectedTemplate = await requireDesignPromptTemplate(input.templateId, ctx.orgId);
+      }
 
       let inputs = projectToInputs(project);
 
@@ -495,7 +543,7 @@ export const designRouter = router({
 
       // Phase A (MQI): Fetch material allocations and inject allocationClause
       try {
-        const allocations = await db.getMaterialAllocations(input.projectId, ctx.user.orgId ?? 0);
+        const allocations = await db.getMaterialAllocations(input.projectId, ctx.orgId);
         if (allocations && allocations.length > 0) {
           const mqiAllocs: MqiAllocation[] = allocations.map((a: any) => ({
             roomId: a.roomId,
@@ -518,13 +566,11 @@ export const designRouter = router({
       let prompt: string;
       if (input.customPrompt) {
         prompt = input.customPrompt;
-      } else if (input.templateId) {
-        const templates = await db.getAllPromptTemplates(input.type, ctx.user.orgId ?? undefined);
-        const tmpl = templates.find((t: any) => t.id === input.templateId);
-        prompt = tmpl ? interpolateTemplate(tmpl.templateText, context) : generateDefaultPrompt(input.type, context);
+      } else if (selectedTemplate) {
+        prompt = interpolateTemplate(selectedTemplate.templateText, context);
       } else {
         // Use active template or default
-        const tmpl = await db.getActivePromptTemplate(input.type, ctx.user.orgId ?? undefined);
+        const tmpl = await db.getActivePromptTemplate(input.type, ctx.orgId);
         prompt = tmpl ? interpolateTemplate(tmpl.templateText, context) : generateDefaultPrompt(input.type, context);
       }
 
@@ -535,21 +581,21 @@ export const designRouter = router({
       }
 
       // Create visual record
-      const visualResult = await db.createGeneratedVisual({
+      const visualResult = requireScopedDesignInsert(await db.createGeneratedVisualForOrg({
         projectId: input.projectId,
         scenarioId: input.scenarioId,
         type: input.type,
         promptJson: { prompt, context, templateId: input.templateId },
         status: "generating",
         createdBy: ctx.user.id,
-      });
+      }, ctx.orgId));
 
       // Generate image asynchronously (but we await it for simplicity)
       try {
         const { url } = await generateImage({ prompt });
 
         // Create asset record
-        const assetResult = await db.createProjectAsset({
+        const assetResult = requireScopedDesignInsert(await db.createProjectAssetForOrg({
           projectId: input.projectId,
           filename: `${input.type}-${Date.now()}.png`,
           mimeType: "image/png",
@@ -558,15 +604,16 @@ export const designRouter = router({
           storageUrl: url,
           uploadedBy: ctx.user.id,
           category: input.type === "mood" ? "mood_image" : input.type === "material_board" ? "material_board" : "marketing_hero",
-        });
+        }, ctx.orgId));
 
         // Update visual record
-        await db.updateGeneratedVisual(visualResult.id, {
+        requireScopedDesignMutation(await db.updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
           status: "completed",
           imageAssetId: assetResult.id,
-        });
+        }));
 
         await db.createAuditLog({
+          orgId: ctx.orgId,
           userId: ctx.user.id,
           action: "visual.generate",
           entityType: "generated_visual",
@@ -576,23 +623,26 @@ export const designRouter = router({
 
         return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" as const };
       } catch (error: any) {
-        await db.updateGeneratedVisual(visualResult.id, {
+        requireScopedDesignMutation(await db.updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
           status: "failed",
           errorMessage: error.message || "Image generation failed",
-        });
+        }));
         return { id: visualResult.id, assetId: null, url: null, status: "failed" as const, error: error.message };
       }
     }),
 
-  listVisuals: protectedProcedure
+  listVisuals: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
       const visuals = await db.getGeneratedVisualsByProject(input.projectId);
       // Join with project_assets to get image URLs
       const enriched = await Promise.all(visuals.map(async (v: any) => {
+        await requireMatchingDesignScenario(v.scenarioId, v.projectId, ctx.orgId);
         let imageUrl: string | null = null;
         if (v.imageAssetId) {
-          const asset = await db.getProjectAssetById(v.imageAssetId);
+          const { resource: asset, project: assetProject } = await requireDesignAsset(v.imageAssetId, ctx.orgId);
+          requireSameDesignProject(input.projectId, assetProject.id);
           imageUrl = asset?.storageUrl ?? null;
         }
         return { ...v, imageUrl };
@@ -601,55 +651,44 @@ export const designRouter = router({
     }),
 
   // V4-05: Attach a completed visual's asset to a report/pack as an evidence reference
-  attachVisualToPack: protectedProcedure
+  attachVisualToPack: orgProcedure
     .input(z.object({
       visualId: z.number(),
       targetType: z.enum(["report", "design_brief", "material_board", "pack_section"]),
       targetId: z.number(),
       sectionLabel: z.string().optional(),
     }))
-    .mutation(async ({ ctx, input }) => {
-      const visual = await db.getGeneratedVisualById(input.visualId);
-      if (!visual || !visual.imageAssetId) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Visual not found or has no image" });
-      }
-      // Create an evidence reference linking the visual's asset to the target
-      await db.createEvidenceReference({
-        evidenceRecordId: visual.imageAssetId, // asset ID as evidence
-        targetType: input.targetType,
-        targetId: input.targetId,
-        sectionLabel: input.sectionLabel || `Visual #${visual.id}`,
-        citationText: `AI-generated ${visual.type} visual (prompt: ${((visual.promptJson as any)?.prompt || "").slice(0, 100)}...)`,
+    .mutation(async () => {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: "Visual attachments are unavailable until a typed attachment model is configured",
       });
-      await db.createAuditLog({
-        userId: ctx.user.id,
-        action: "visual.attach_to_pack",
-        entityType: "generated_visual",
-        entityId: visual.id,
-        details: { targetType: input.targetType, targetId: input.targetId },
-      });
-      return { success: true };
     }),
 
   // ─── Pin Visuals to Material Boards (V4) ────────────────────────────────────
 
-  pinVisualToBoard: protectedProcedure
+  pinVisualToBoard: orgProcedure
     .input(z.object({
       visualId: z.number(),
       boardId: z.number(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const visual = await db.getGeneratedVisualById(input.visualId);
+      const { resource: visual, project: visualProject } = await requireDesignVisual(input.visualId, ctx.orgId);
       if (!visual || !visual.imageAssetId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Visual not found or has no image" });
       }
+      const { project: boardProject } = await requireDesignBoard(input.boardId, ctx.orgId);
+      const { project: assetProject } = await requireDesignAsset(visual.imageAssetId, ctx.orgId);
+      requireSameDesignProject(visualProject.id, boardProject.id);
+      requireSameDesignProject(visualProject.id, assetProject.id);
       // Create an asset link from the visual's image asset to the board
-      const link = await db.createAssetLink({
+      const link = requireScopedDesignInsert(await db.createAssetLinkForOrg({
         assetId: visual.imageAssetId,
         linkType: "material_board",
         linkId: input.boardId,
-      });
+      }, ctx.orgId));
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "visual.pin_to_board",
         entityType: "generated_visual",
@@ -659,13 +698,15 @@ export const designRouter = router({
       return { success: true, linkId: link.id };
     }),
 
-  listPinnedVisuals: protectedProcedure
+  listPinnedVisuals: orgProcedure
     .input(z.object({ boardId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const { project: boardProject } = await requireDesignBoard(input.boardId, ctx.orgId);
       const links = await db.getAssetLinksByEntity("material_board", input.boardId);
       // Resolve each link to its visual + image URL
       const pinned = await Promise.all(links.map(async (link: { id: number; assetId: number; createdAt: Date }) => {
-        const asset = await db.getProjectAssetById(link.assetId);
+        const { resource: asset, project: assetProject } = await requireDesignAsset(link.assetId, ctx.orgId);
+        requireSameDesignProject(boardProject.id, assetProject.id);
         return {
           linkId: link.id,
           assetId: link.assetId,
@@ -677,11 +718,18 @@ export const designRouter = router({
       return pinned;
     }),
 
-  unpinVisual: protectedProcedure
+  unpinVisual: orgProcedure
     .input(z.object({ linkId: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      await db.deleteAssetLink(input.linkId);
+      const authorizedLink = await requireDesignAssetLink(input.linkId, ctx.orgId);
+      if (authorizedLink.resource.linkType !== "material_board") {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+      const target = await requireDesignLinkTarget(authorizedLink.resource.linkType, authorizedLink.resource.linkId, ctx.orgId);
+      requireSameDesignProject(authorizedLink.project.id, target.value.project.id);
+      requireScopedDesignMutation(await db.deleteAssetLinkForOrg(input.linkId, ctx.orgId));
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "visual.unpin_from_board",
         entityType: "asset_link",
@@ -692,7 +740,7 @@ export const designRouter = router({
 
   // ─── Material Board Composer ────────────────────────────────────────────────
 
-  createBoard: protectedProcedure
+  createBoard: orgProcedure
     .input(z.object({
       projectId: z.number(),
       boardName: z.string(),
@@ -700,6 +748,11 @@ export const designRouter = router({
       materialIds: z.array(z.number()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
+      if (input.scenarioId !== undefined) {
+        const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
+        requireSameDesignProject(project.id, scenario.project.id);
+      }
       // Get materials for board JSON
       const materials: any[] = [];
       if (input.materialIds && input.materialIds.length > 0) {
@@ -709,22 +762,23 @@ export const designRouter = router({
         }
       }
 
-      const boardResult = await db.createMaterialBoard({
+      const boardResult = requireScopedDesignInsert(await db.createMaterialBoardForOrg({
         projectId: input.projectId,
         scenarioId: input.scenarioId,
         boardName: input.boardName,
         boardJson: materials,
         createdBy: ctx.user.id,
-      });
+      }, ctx.orgId));
 
       // Add materials to board join table
       if (input.materialIds) {
         for (const materialId of input.materialIds) {
-          await db.addMaterialToBoard({ boardId: boardResult.id, materialId });
+          requireScopedDesignInsert(await db.addMaterialToBoardForOrg({ boardId: boardResult.id, materialId }, ctx.orgId));
         }
       }
 
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "board.create",
         entityType: "material_board",
@@ -735,17 +789,22 @@ export const designRouter = router({
       return { id: boardResult.id };
     }),
 
-  listBoards: protectedProcedure
+  listBoards: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
-      return db.getMaterialBoardsByProject(input.projectId);
+    .query(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
+      const boards = await db.getMaterialBoardsByProject(input.projectId);
+      for (const board of boards) {
+        await requireMatchingDesignScenario(board.scenarioId, board.projectId, ctx.orgId);
+      }
+      return boards;
     }),
 
-  getBoard: protectedProcedure
+  getBoard: orgProcedure
     .input(z.object({ boardId: z.number() }))
-    .query(async ({ input }) => {
-      const board = await db.getMaterialBoardById(input.boardId);
-      if (!board) throw new TRPCError({ code: "NOT_FOUND" });
+    .query(async ({ ctx, input }) => {
+      const { resource: board } = await requireDesignBoard(input.boardId, ctx.orgId);
+      await requireMatchingDesignScenario(board.scenarioId, board.projectId, ctx.orgId);
       const boardMaterials = await db.getMaterialsByBoard(input.boardId);
       // Get full material details
       const materialDetails = [];
@@ -756,7 +815,7 @@ export const designRouter = router({
       return { board, materials: materialDetails };
     }),
 
-  addMaterialToBoard: protectedProcedure
+  addMaterialToBoard: orgProcedure
     .input(z.object({
       boardId: z.number(),
       materialId: z.number(),
@@ -764,28 +823,32 @@ export const designRouter = router({
       unitOfMeasure: z.string().optional(),
       notes: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
-      return db.addMaterialToBoard({
+    .mutation(async ({ ctx, input }) => {
+      await requireDesignBoard(input.boardId, ctx.orgId);
+      return requireScopedDesignInsert(await db.addMaterialToBoardForOrg({
         boardId: input.boardId,
         materialId: input.materialId,
         quantity: input.quantity ? String(input.quantity) as any : undefined,
         unitOfMeasure: input.unitOfMeasure,
         notes: input.notes,
-      });
+      }, ctx.orgId));
     }),
 
-  removeMaterialFromBoard: protectedProcedure
+  removeMaterialFromBoard: orgProcedure
     .input(z.object({ joinId: z.number() }))
-    .mutation(async ({ input }) => {
-      await db.removeMaterialFromBoard(input.joinId);
+    .mutation(async ({ ctx, input }) => {
+      await requireDesignBoardJoin(input.joinId, ctx.orgId);
+      requireScopedDesignMutation(await db.removeMaterialFromBoardForOrg(input.joinId, ctx.orgId));
       return { success: true };
     }),
 
-  deleteBoard: protectedProcedure
+  deleteBoard: orgProcedure
     .input(z.object({ boardId: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      await db.deleteMaterialBoard(input.boardId);
+      await requireDesignBoard(input.boardId, ctx.orgId);
+      requireScopedDesignMutation(await db.deleteMaterialBoardForOrg(input.boardId, ctx.orgId));
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "board.delete",
         entityType: "material_board",
@@ -794,7 +857,7 @@ export const designRouter = router({
       return { success: true };
     }),
 
-  updateBoardTile: protectedProcedure
+  updateBoardTile: orgProcedure
     .input(z.object({
       joinId: z.number(),
       specNotes: z.string().nullish(),
@@ -804,34 +867,41 @@ export const designRouter = router({
       notes: z.string().nullish(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await requireDesignBoardJoin(input.joinId, ctx.orgId);
       const { joinId, ...rest } = input;
-      await db.updateBoardTile(joinId, {
+      requireScopedDesignMutation(await db.updateBoardTileForOrg(joinId, ctx.orgId, {
         specNotes: rest.specNotes ?? undefined,
         costBandOverride: rest.costBandOverride ?? undefined,
         quantity: rest.quantity !== undefined && rest.quantity !== null ? String(rest.quantity) : undefined,
         unitOfMeasure: rest.unitOfMeasure ?? undefined,
         notes: rest.notes ?? undefined,
-      });
+      }));
       return { success: true };
     }),
 
-  reorderBoardTiles: protectedProcedure
+  reorderBoardTiles: orgProcedure
     .input(z.object({
       boardId: z.number(),
       orderedJoinIds: z.array(z.number()),
     }))
-    .mutation(async ({ input }) => {
-      await db.reorderBoardTiles(input.boardId, input.orderedJoinIds);
+    .mutation(async ({ ctx, input }) => {
+      const board = await requireDesignBoard(input.boardId, ctx.orgId);
+      if (new Set(input.orderedJoinIds).size !== input.orderedJoinIds.length) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Board tile identifiers must be unique" });
+      }
+      for (const joinId of input.orderedJoinIds) {
+        const join = await requireDesignBoardJoin(joinId, ctx.orgId);
+        requireSameDesignProject(board.project.id, join.project.id);
+        if (join.parent.id !== input.boardId) throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+      requireScopedDesignMutation(await db.reorderBoardTilesForOrg(input.boardId, input.orderedJoinIds, ctx.orgId));
       return { success: true };
     }),
 
-  exportBoardPdf: protectedProcedure
+  exportBoardPdf: orgProcedure
     .input(z.object({ boardId: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const board = await db.getMaterialBoardById(input.boardId);
-      if (!board) throw new TRPCError({ code: "NOT_FOUND" });
-      const project = await db.getProjectById(board.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+      const { resource: board, project } = await requireDesignBoard(input.boardId, ctx.orgId);
 
       const boardMaterials = await db.getMaterialsByBoard(input.boardId);
       const items: Array<{ materialId: number; name: string; category: string; tier: string; costLow: number; costHigh: number; costUnit: string; leadTimeDays: number; leadTimeBand: string; supplierName: string; specNotes?: string; costBandOverride?: string; quantity?: string; unitOfMeasure?: string; notes?: string }> = [];
@@ -879,6 +949,7 @@ export const designRouter = router({
       }
 
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "board.export_pdf",
         entityType: "material_board",
@@ -889,9 +960,10 @@ export const designRouter = router({
       return { fileUrl, html };
     }),
 
-  boardSummary: protectedProcedure
+  boardSummary: orgProcedure
     .input(z.object({ boardId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireDesignBoard(input.boardId, ctx.orgId);
       const boardMaterials = await db.getMaterialsByBoard(input.boardId);
       const items = [];
       for (const bm of boardMaterials) {
@@ -917,12 +989,14 @@ export const designRouter = router({
       };
     }),
 
-  recommendMaterials: protectedProcedure
+  recommendMaterials: orgProcedure
     .input(z.object({ projectId: z.number(), maxItems: z.number().default(10) }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
       // Phase 8: Vendor Matching Integration
       const matched = await matchVendorsForProject({
         projectId: input.projectId,
+        orgId: ctx.orgId,
         maxItems: input.maxItems
       });
 
@@ -1052,7 +1126,7 @@ export const designRouter = router({
 
   // ─── Collaboration & Comments ───────────────────────────────────────────────
 
-  addComment: protectedProcedure
+  addComment: orgProcedure
     .input(z.object({
       projectId: z.number(),
       entityType: z.enum(["design_brief", "material_board", "visual", "general"]),
@@ -1060,22 +1134,38 @@ export const designRouter = router({
       content: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
-      return db.createComment({
+      await requireDesignProject(input.projectId, ctx.orgId);
+      if (input.entityType === "general") {
+        if (input.entityId !== undefined) throw new TRPCError({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
+      } else {
+        if (input.entityId === undefined) throw new TRPCError({ code: "BAD_REQUEST", message: "Entity comments require a target" });
+        const target = await requireDesignCommentTarget(input.entityType, input.entityId, ctx.orgId);
+        requireSameDesignProject(input.projectId, target.value.project.id);
+      }
+      return requireScopedDesignInsert(await db.createCommentForOrg({
         projectId: input.projectId,
         entityType: input.entityType,
         entityId: input.entityId,
         userId: ctx.user.id,
         content: input.content,
-      });
+      }, ctx.orgId));
     }),
 
-  listComments: protectedProcedure
+  listComments: orgProcedure
     .input(z.object({
       projectId: z.number(),
       entityType: z.string().optional(),
       entityId: z.number().optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
+      if (input.entityType === "general" && input.entityId !== undefined) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
+      }
+      if (input.entityType && input.entityType !== "general" && input.entityId !== undefined) {
+        const target = await requireDesignCommentTarget(input.entityType, input.entityId, ctx.orgId);
+        requireSameDesignProject(input.projectId, target.value.project.id);
+      }
       if (input.entityType) {
         return db.getCommentsByEntity(input.projectId, input.entityType, input.entityId);
       }
@@ -1084,15 +1174,17 @@ export const designRouter = router({
 
   // ─── Approval Gates ─────────────────────────────────────────────────────────
 
-  updateApprovalState: protectedProcedure
+  updateApprovalState: orgProcedure
     .input(z.object({
       projectId: z.number(),
       approvalState: z.enum(["draft", "review", "approved_rfq", "approved_marketing"]),
       rationale: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      await db.updateProjectApprovalState(input.projectId, input.approvalState);
+      await requireDesignProject(input.projectId, ctx.orgId);
+      requireScopedDesignMutation(await db.updateProjectApprovalStateForOrg(input.projectId, ctx.orgId, input.approvalState));
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "approval.update",
         entityType: "project",
@@ -1219,8 +1311,7 @@ export const designRouter = router({
       limit: z.number().min(1).max(50).default(20),
     }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
       const style = project.des01Style ?? undefined;
       const trends = await db.getDesignTrends({
         styleClassification: style,
@@ -1241,8 +1332,7 @@ export const designRouter = router({
   getBenchmarkForProject: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
       const typology = project.ctx01Typology ?? "Residential";
       const location = project.ctx04Location ?? "Secondary";
       const tier = project.mkt01Tier ?? "Upper-mid";
@@ -1322,9 +1412,8 @@ export const designRouter = router({
   /** Returns DLD benchmark data for a project's saved area — used by Investor Summary */
   getProjectDldBenchmark: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) return null;
+    .query(async ({ ctx, input }) => {
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
       if (!project.dldAreaId) return null;
       const benchmark = await db.getDldAreaBenchmark(project.dldAreaId);
       return benchmark ? {
@@ -1419,8 +1508,10 @@ export const designRouter = router({
       projectId: z.number().optional(),
       limit: z.number().min(1).max(50).default(20),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (input.projectId !== undefined) await requireDesignProject(input.projectId, ctx.orgId);
       const results = await db.getEvidenceWithSources({
+        orgId: ctx.orgId,
         category: input.category,
         projectId: input.projectId,
         limit: input.limit,
@@ -1440,10 +1531,9 @@ export const designRouter = router({
     .input(z.object({ projectId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const { generateInvestorPdfHtml } = await import("../engines/investor-pdf");
-      const project = await db.getProjectById(input.projectId);
-      if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
       const [brief, recs, materialConsts, benchmark, trends] = await Promise.all([
-        db.getAiDesignBrief(input.projectId),
+        db.getLatestAiDesignBrief(input.projectId, ctx.orgId),
         db.getSpaceRecommendations(input.projectId, ctx.orgId),
         db.getMaterialConstants(),
         db.getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
@@ -1493,9 +1583,8 @@ export const designRouter = router({
   createShareLink: orgProcedure
     .input(z.object({ projectId: z.number(), expiryDays: z.number().min(1).max(90).default(7) }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
-      const brief = await db.getAiDesignBrief(input.projectId);
+      await requireDesignProject(input.projectId, ctx.orgId);
+      const brief = await db.getLatestAiDesignBrief(input.projectId, ctx.orgId);
       if (!brief) throw new Error("Generate a design brief first before sharing");
       const token = nanoid(32);
       const expiresAt = new Date();
@@ -1507,13 +1596,9 @@ export const designRouter = router({
   resolveShareLink: publicProcedure
     .input(z.object({ token: z.string().min(8).max(64) }))
     .query(async ({ input }) => {
-      const brief = await db.getAiDesignBriefByShareToken(input.token);
-      if (!brief) throw new Error("Share link not found or expired");
-      if (brief.shareExpiresAt && new Date(brief.shareExpiresAt) < new Date()) throw new Error("This share link has expired");
-      const project = await db.getProjectById(brief.projectId);
-      if (!project) throw new Error("Project not found");
+      const { brief, project } = await requireActivePublicShare(input.token);
       const [recs, benchmark, trends] = await Promise.all([
-        db.getSpaceRecommendations(brief.projectId, project.orgId ?? 0),
+        db.getSpaceRecommendations(brief.projectId, brief.orgId),
         db.getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
         db.getDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
       ]);
@@ -1577,7 +1662,7 @@ export const designRouter = router({
 
   // ─── Phase 9: Room-Specific Render ─────────────────────────────────────────
 
-  generateRoomRender: protectedProcedure
+  generateRoomRender: orgProcedure
     .input(z.object({
       projectId: z.number(),
       roomName: z.string(),
@@ -1586,8 +1671,7 @@ export const designRouter = router({
       finishGrade: z.enum(["A", "B", "C"]).default("A"),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
 
       const inputs = projectToInputs(project);
 
@@ -1625,18 +1709,18 @@ export const designRouter = router({
       const validation = validatePrompt(prompt);
       if (!validation.valid) throw new TRPCError({ code: "BAD_REQUEST", message: validation.reason });
 
-      const visualResult = await db.createGeneratedVisual({
+      const visualResult = requireScopedDesignInsert(await db.createGeneratedVisualForOrg({
         projectId: input.projectId,
         type: "room_render" as any,
         promptJson: { prompt, context, roomName: input.roomName, roomType: input.roomType },
         status: "generating",
         createdBy: ctx.user.id,
-      });
+      }, ctx.orgId));
 
       try {
         const { url } = await generateImage({ prompt });
 
-        const assetResult = await db.createProjectAsset({
+        const assetResult = requireScopedDesignInsert(await db.createProjectAssetForOrg({
           projectId: input.projectId,
           filename: `room-render-${input.roomName.replace(/\s+/g, "-")}-${Date.now()}.png`,
           mimeType: "image/png",
@@ -1645,20 +1729,20 @@ export const designRouter = router({
           storageUrl: url,
           uploadedBy: ctx.user.id,
           category: "mood_image",
-        });
+        }, ctx.orgId));
 
-        await db.updateGeneratedVisual(visualResult.id, { status: "completed", imageAssetId: assetResult.id });
+        requireScopedDesignMutation(await db.updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "completed", imageAssetId: assetResult.id }));
 
         return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" as const };
       } catch (error: any) {
-        await db.updateGeneratedVisual(visualResult.id, { status: "failed", errorMessage: error.message });
+        requireScopedDesignMutation(await db.updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "failed", errorMessage: error.message }));
         return { id: visualResult.id, assetId: null, url: null, status: "failed" as const, error: error.message };
       }
     }),
 
   // ─── Phase 9: Floor Plan Upload ────────────────────────────────────────────
 
-  uploadFloorPlan: protectedProcedure
+  uploadFloorPlan: orgProcedure
     .input(z.object({
       projectId: z.number(),
       filename: z.string(),
@@ -1666,15 +1750,14 @@ export const designRouter = router({
       base64Data: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      await requireDesignProject(input.projectId, ctx.orgId);
 
       const buffer = Buffer.from(input.base64Data, "base64");
       const suffix = Math.random().toString(36).slice(2, 10);
       const storagePath = `projects/${input.projectId}/floor-plans/${suffix}-${input.filename}`;
       const { url } = await storagePut(storagePath, buffer, input.mimeType);
 
-      const result = await db.createProjectAsset({
+      const result = requireScopedDesignInsert(await db.createProjectAssetForOrg({
         projectId: input.projectId,
         filename: input.filename,
         mimeType: input.mimeType,
@@ -1683,14 +1766,15 @@ export const designRouter = router({
         storageUrl: url,
         uploadedBy: ctx.user.id,
         category: "other",
-      });
+      }, ctx.orgId));
 
       // Link the floor plan to the project
-      await db.updateProject(input.projectId, {
+      requireScopedDesignMutation(await db.updateProjectForOrg(input.projectId, ctx.orgId, {
         floorPlanAssetId: result.id,
-      });
+      }));
 
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "floor_plan.upload",
         entityType: "project",
@@ -1705,18 +1789,18 @@ export const designRouter = router({
 
   // ─── Phase 9: Floor Plan Analysis ──────────────────────────────────────────
 
-  analyzeFloorPlan: protectedProcedure
+  analyzeFloorPlan: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
 
       // Get the floor plan asset
       if (!project.floorPlanAssetId) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "No floor plan uploaded for this project" });
       }
 
-      const asset = await db.getProjectAssetById(project.floorPlanAssetId);
+      const { resource: asset, project: assetProject } = await requireDesignAsset(project.floorPlanAssetId, ctx.orgId);
+      requireSameDesignProject(project.id, assetProject.id);
       if (!asset || !asset.storageUrl) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Floor plan asset not found or has no URL" });
       }
@@ -1726,15 +1810,16 @@ export const designRouter = router({
       const analysis = await runFloorPlanAnalysis(asset.storageUrl, asset.mimeType);
 
       // Store in the project record
-      await db.updateProject(input.projectId, {
+      requireScopedDesignMutation(await db.updateProjectForOrg(input.projectId, ctx.orgId, {
         floorPlanAnalysis: analysis as any,
         // Also update totalFitoutArea if not already set
         ...((!project.totalFitoutArea || Number(project.totalFitoutArea) === 0) ? {
           totalFitoutArea: String(analysis.totalEstimatedSqm) as any,
         } : {}),
-      });
+      }));
 
       await db.createAuditLog({
+        orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "floor_plan.analyze",
         entityType: "project",
@@ -1752,11 +1837,10 @@ export const designRouter = router({
 
   // ─── Phase 9: Space Benchmarking ───────────────────────────────────────────
 
-  getSpaceBenchmark: protectedProcedure
+  getSpaceBenchmark: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+    .query(async ({ ctx, input }) => {
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
 
       if (!project.floorPlanAnalysis) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Floor plan has not been analyzed yet. Upload a floor plan and run analysis first." });
@@ -1783,4 +1867,3 @@ export const designRouter = router({
       return result;
     }),
 });
-

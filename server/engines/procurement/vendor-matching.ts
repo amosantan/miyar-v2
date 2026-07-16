@@ -1,9 +1,10 @@
 import { getDb } from "../../db";
 import { materialsCatalog, projects } from "../../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 interface MatchOptions {
     projectId: number;
+    orgId: number;
     maxItems?: number;
     category?: string;
     tier?: string;
@@ -18,7 +19,10 @@ export async function matchVendorsForProject(options: MatchOptions) {
     if (!db) throw new Error("Database not available");
 
     // 1. Fetch Project to get brand constraints
-    const projectRows = await db.select().from(projects).where(eq(projects.id, options.projectId)).limit(1);
+    const projectRows = await db.select().from(projects).where(and(
+        eq(projects.id, options.projectId),
+        eq(projects.orgId, options.orgId),
+    )).limit(1);
     if (projectRows.length === 0) throw new Error(`Project ${options.projectId} not found`);
 
     const project = projectRows[0];

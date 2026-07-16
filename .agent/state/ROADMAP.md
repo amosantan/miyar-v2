@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-03`
+- Next executable step: `TR-04`
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -118,7 +118,7 @@ Rules:
 
 ### TR-03 — Authorize the design-domain router
 
-- Status: `READY`
+- Status: `CLOSED`
 - Class / priority: API/security / P0
 - Dependencies: `TR-02`
 - Human gate: None unless a legacy resource has ambiguous ownership.
@@ -131,10 +131,15 @@ Rules:
 - Done when: No design-domain authenticated procedure reaches project data without a resource guard.
 - Verification: Router contract suite, static raw-ID audit, share expiry/read-only tests, full surrounding tests.
 - Expected artifacts: Guarded procedures, negative tests, updated inventory.
+- Closed: 2026-07-16
+- Terminal task state: `PASS`
+- Completion evidence: All 39 TR-03 inventory rows were reclassified, leaving zero design-domain remediation rows and 101 rows assigned to `TR-04`/`TR-05`; named project/resource resolvers, organization-locked insert/update/delete helpers, composite scenario/link/comment checks, organization-only evidence reads, fail-closed public shares, and a disabled invalid visual-attachment path are shipped in the worktree. The targeted authorization suite passes 68 tests, the safe full suite passes 886 with 22 skipped, TypeScript and all three build targets pass, and independent adversarial review ended `APPROVED_NO_OBJECTION`.
+- Residual risk: `attachVisualToPack` intentionally returns `PRECONDITION_FAILED` until a typed attachment model is approved. Database SQL was type-checked and bundled but not executed against a shared database because TR-03 prohibited shared-database access.
+- Lessons: `LES-014`
 
 ### TR-04 — Authorize remaining project routers
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: API/security / P0
 - Dependencies: `TR-02`, `TR-03`
 - Human gate: None unless ambiguous legacy ownership is found.

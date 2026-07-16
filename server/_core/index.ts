@@ -14,6 +14,7 @@ import { initSentry, captureException } from "./sentry";
 import { registerSSE } from "./sse-notifications";
 import { registerApiDocs } from "./api-docs";
 import { requestLogger, logger, startPerfMonitor } from "./logger";
+import { isCronAuthorized, shouldStartBackgroundJobs } from "./runtime-safety";
 
 // Initialise Sentry error tracking (no-ops if SENTRY_DSN is not set)
 initSentry();
@@ -77,7 +78,7 @@ async function startServer() {
       const authHeader = req.headers.authorization;
       const cronSecret = process.env.CRON_SECRET;
 
-      if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      if (!isCronAuthorized(authHeader, cronSecret)) {
         res.status(401).json({ error: "Unauthorized" });
         return;
       }
@@ -138,27 +139,31 @@ async function startServer() {
     // P3-7: Start performance monitor (log memory/uptime every 5 min)
     startPerfMonitor(5);
 
-    // Start ingestion scheduler (V2-07)
-    try {
-      startIngestionScheduler().catch(e => {
-        logger.error("[Ingestion Scheduler] Async start failed", { error: String(e) });
-      });
-    } catch (e) {
-      logger.error("[Ingestion Scheduler] Failed to start", { error: String(e) });
-    }
+    if (shouldStartBackgroundJobs(process.env.NODE_ENV, process.env.ENABLE_BACKGROUND_JOBS)) {
+      // Start ingestion scheduler (V2-07)
+      try {
+        startIngestionScheduler().catch(e => {
+          logger.error("[Ingestion Scheduler] Async start failed", { error: String(e) });
+        });
+      } catch (e) {
+        logger.error("[Ingestion Scheduler] Failed to start", { error: String(e) });
+      }
 
-    // Start learning accuracy scheduler (V5-02)
-    try {
-      startLearningScheduler();
-    } catch (e) {
-      logger.error("[Learning Scheduler] Failed to start", { error: String(e) });
-    }
+      // Start learning accuracy scheduler (V5-02)
+      try {
+        startLearningScheduler();
+      } catch (e) {
+        logger.error("[Learning Scheduler] Failed to start", { error: String(e) });
+      }
 
-    // Start alert evaluation scheduler (V7-00a)
-    try {
-      startAlertScheduler();
-    } catch (e) {
-      logger.error("[Alert Scheduler] Failed to start", { error: String(e) });
+      // Start alert evaluation scheduler (V7-00a)
+      try {
+        startAlertScheduler();
+      } catch (e) {
+        logger.error("[Alert Scheduler] Failed to start", { error: String(e) });
+      }
+    } else {
+      logger.info("Background jobs disabled in development; set ENABLE_BACKGROUND_JOBS=true to opt in");
     }
   });
 }

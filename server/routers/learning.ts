@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure, orgProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { outcomeComparisons, projectOutcomes, scoreMatrices, accuracySnapshots, logicChangeLog, benchmarkSuggestions } from "../../drizzle/schema";
@@ -8,6 +8,7 @@ import { compareOutcomeToPrediction } from "../engines/learning/outcome-comparat
 import { generatePostMortemEvidence, summarizeLearningSignals } from "../engines/learning/post-mortem-evidence";
 import { predictCostRange, predictOutcome } from "../engines/predictive";
 import type { EvidenceDataPoint, TrendDataPoint, ComparableOutcome } from "../engines/predictive";
+import { requireProjectForOrg } from "../_core/project-access";
 
 export const learningRouter = router({
     getAccuracyLedger: protectedProcedure
@@ -44,9 +45,10 @@ export const learningRouter = router({
                 .orderBy(desc(benchmarkSuggestions.createdAt));
         }),
 
-    getComparison: protectedProcedure
+    getComparison: orgProcedure
         .input(z.object({ projectId: z.number() }))
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             const ormDb = await db.getDb();
             const rows = await ormDb.select().from(outcomeComparisons)
                 .where(eq(outcomeComparisons.projectId, input.projectId))
@@ -57,7 +59,7 @@ export const learningRouter = router({
 
     // ─── Post-Mortem / Handover (V4) ────────────────────────────────────────
 
-    submitPostMortem: protectedProcedure
+    submitPostMortem: orgProcedure
         .input(z.object({
             projectId: z.number(),
             // Actual costs
@@ -78,8 +80,7 @@ export const learningRouter = router({
             keyLessonsLearned: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             // 1. Save the outcome
             const outcomeId = await db.createProjectOutcome({
@@ -259,9 +260,10 @@ export const learningRouter = router({
             };
         }),
 
-    getPostMortemStatus: protectedProcedure
+    getPostMortemStatus: orgProcedure
         .input(z.object({ projectId: z.number() }))
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             const ormDb = await db.getDb();
 
             // Check if outcome exists
@@ -288,9 +290,10 @@ export const learningRouter = router({
             };
         }),
 
-    runComparison: protectedProcedure
+    runComparison: orgProcedure
         .input(z.object({ projectId: z.number() }))
-        .mutation(async ({ input }) => {
+        .mutation(async ({ ctx, input }) => {
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
             const ormDb = await db.getDb();
 
             const outcomes = await ormDb.select().from(projectOutcomes)
@@ -311,9 +314,6 @@ export const learningRouter = router({
                 throw new TRPCError({ code: "NOT_FOUND", message: "No score matrix found for project" });
             }
             const scoreMatrix = matrices[0];
-
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
 
             // Build cost prediction
             const projectEvidence = await db.listEvidenceRecords({ projectId: input.projectId, limit: 500 });

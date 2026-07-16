@@ -5,7 +5,7 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-16
-- Commit: `db36254` plus uncommitted runtime-safety, tenant-guard, client-performance, generated-bundle, and migration-0044 changes
+- Commit: `d6f7940` plus uncommitted TR-03 authorization, runtime-safety, client-performance, generated-bundle, learning-router, and migration-0044 changes
 - Branch: `codex/loop-engineering-architecture`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
@@ -37,7 +37,7 @@ At the observation above:
 
 | Command      | Result | Evidence summary                                                                                     |
 | ------------ | ------ | ---------------------------------------------------------------------------------------------------- |
-| `pnpm test`  | PASS   | With `DATABASE_URL=''`: 867 passed and 22 skipped out of 889 tests; no database connection occurred  |
+| `pnpm test`  | PASS   | With `DATABASE_URL=''`: 886 passed and 22 skipped out of 908 tests; no database connection occurred  |
 | `pnpm check` | PASS   | Zero TypeScript diagnostics                                                                          |
 | `pnpm build` | PASS   | Client, Node server, and serverless bundle pass; entry JS remains approximately 678 KB / 199 KB gzip |
 
@@ -71,7 +71,8 @@ The observed worktree includes user-owned migration `0044` files and metadata th
 
 - `TR-01` inventories all 327 router procedures and assigns 140 remediation paths.
 - `TR-02` provides typed organization-resource and public-share authorization primitives with 49 passing targeted tests.
-- Production router adoption remains open under `TR-03` through `TR-05`.
+- `TR-03` closes all 39 design-router remediation paths with organization-locked resource operations and fail-closed public shares.
+- Production router adoption remains open under `TR-04` and pooled-data isolation remains open under `TR-05`.
 
 ## Refresh Procedure
 

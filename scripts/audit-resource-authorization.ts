@@ -555,6 +555,12 @@ function ownershipPath(
   procedure: ExtractedProcedure,
   classification: Classification
 ): string[] {
+  if (procedure.key === "design.linkAsset") {
+    return [
+      "input.assetId -> project_assets.id -> project_assets.projectId -> projects.orgId",
+      "input.linkType/linkId -> closed evaluation/report/scenario/material_board/design_brief/visual registry -> target.projectId -> projects.orgId",
+    ];
+  }
   if (procedure.key === "design.resolveShareLink") {
     return [
       "input.token -> ai_design_briefs.shareToken -> ai_design_briefs.projectId -> projects.id",
@@ -656,7 +662,18 @@ function defaultAnnotation(
 ): Omit<InventoryProcedure, keyof Omit<ExtractedProcedure, "sourceText">> {
   const text = procedure.sourceText;
   const relevant = isResourceRelevant(procedure);
-  const hasCanonicalGuard = /\brequireProjectForOrg\s*\(/.test(text);
+  const canonicalGuardMatch =
+    /\b(requireProjectForOrg|requireDesign[A-Z][A-Za-z]+|requireActivePublicShare)\s*\(/.exec(
+      text
+    );
+  const firstDataAccessPosition = procedure.firstDataAccess
+    ? text.indexOf(procedure.firstDataAccess)
+    : -1;
+  const hasCanonicalGuard = Boolean(
+    canonicalGuardMatch &&
+      (firstDataAccessPosition < 0 ||
+        canonicalGuardMatch.index <= firstDataAccessPosition)
+  );
   const hasOrgCheck =
     /(project|record|portfolio|brief|scenario|asset|board)\??\.?(orgId|organizationId)\s*!==?\s*(ctx\.orgId|ctx\.user\.orgId)/.test(
       text
@@ -724,6 +741,7 @@ function defaultAnnotation(
   ]);
 
   const orgGuardedKeys = new Set([
+    "design.attachVisualToPack",
     "design-advisor.getDesignBrief",
     "design-advisor.getRecommendations",
     "design-advisor.getSpaceRecommendation",
@@ -813,8 +831,13 @@ function defaultAnnotation(
       procedure.key === "analytics.runTrendDetection" ? "critical" : "high";
   }
   if (procedure.key === "design.resolveShareLink") {
-    targetStep = "TR-03";
-    severity = "high";
+    if (!/\brequireActivePublicShare\s*\(/.test(text)) {
+      targetStep = "TR-03";
+      severity = "high";
+    } else {
+      targetStep = "none";
+      severity = "none";
+    }
   }
 
   const resourceTypes = procedure.inputIdentifiers
@@ -826,7 +849,7 @@ function defaultAnnotation(
   const guardEvidence =
     classification === "org_guarded"
       ? hasCanonicalGuard
-        ? "Calls requireProjectForOrg before project-scoped child access."
+        ? "Calls a canonical project/resource authorization resolver before project-scoped child access."
         : procedure.key === "organization.acceptInvite"
           ? "Resolves an organization invite token, verifies its expiry, and adds the authenticated user to the invite's organization."
           : procedure.key === "organization.myOrgs"
@@ -838,7 +861,7 @@ function defaultAnnotation(
         ? "Uses userId ownership or userId fallback; does not establish the organization boundary."
         : classification === "public_token_guarded"
           ? procedure.key === "design.resolveShareLink"
-            ? "Resolves the share token and rejects expired non-null expiry dates through a query-only public procedure; nullable legacy expiry remains a fail-open caveat."
+            ? "Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads."
             : "Public token path detected; token scope, expiry, and query-only behavior require explicit review."
           : classification === "admin_governed"
             ? "Requires the global admin role; resource scope remains part of the admin-governance review."
@@ -861,14 +884,16 @@ function defaultAnnotation(
     targetStep,
     notes:
       procedure.key === "design.resolveShareLink"
-        ? "Token resolves ai_design_briefs and follows brief.projectId to project data. The schema permits null share expiry, and the router rejects only an expired non-null date; remediate fail-closed behavior under TR-03."
-        : procedure.key === "design.listAssets"
-          ? "Disposable mocked-router probe confirmed the procedure returns another project ID's mocked assets instead of rejecting; the probe file was removed after recording evidence."
-          : contaminationKeys.has(procedure.key)
-            ? "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
-            : procedure.key === "organization.acceptInvite"
-              ? "Invite-token authorization is distinct from session organization context; the token selects one organization and expiry is checked before membership mutation."
-              : "",
+        ? "Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed."
+        : procedure.key === "design.attachVisualToPack"
+          ? "Fails closed with PRECONDITION_FAILED and performs no data access until a typed visual-attachment model is approved."
+          : procedure.key === "design.listAssets"
+            ? "Requires the canonical design project guard before listing project assets."
+            : contaminationKeys.has(procedure.key)
+              ? "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
+              : procedure.key === "organization.acceptInvite"
+                ? "Invite-token authorization is distinct from session organization context; the token selects one organization and expiry is checked before membership mutation."
+                : "",
   };
 }
 

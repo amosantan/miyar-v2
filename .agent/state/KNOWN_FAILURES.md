@@ -7,10 +7,10 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Status: OPEN
 - Observed: 2026-07-16 at `a15424b` plus the TR-01 inventory worktree.
 - Command: `pnpm audit:authorization`
-- Evidence: `docs/security/resource-authorization-inventory.json` inventories all 327 router procedures and assigns 39 design-domain rows to `TR-03` plus 93 remaining authorization/global-governance/legacy-user rows to `TR-04`. A disposable mocked `design.listAssets` probe expected `NOT_FOUND` but received the other-project asset list.
+- Evidence: `docs/security/resource-authorization-inventory.json` inventories all 327 router procedures. `TR-03` closed all 39 design-domain rows; 93 remaining authorization/global-governance/legacy-user rows are assigned to `TR-04`.
 - Impact: authenticated callers can reach project, asset, brief, scenario, report, board, visual, room, allocation, evidence, or polymorphic records without every path proving the organization boundary; some global mutations also lack appropriate governance.
-- Owner: Canonical resolver foundation closed in `TR-02`; remaining router remediation is owned by `TR-03` and `TR-04`.
-- Exit criterion: every `TR-03`/`TR-04` inventory row is reclassified with proven organization, token, admin, or governed-global authorization; same-org, cross-org, missing, legacy-null, and polymorphic-target tests pass.
+- Owner: Canonical resolver foundation closed in `TR-02` and design-router adoption closed in `TR-03`; remaining router remediation is owned by `TR-04`.
+- Exit criterion: every `TR-04` inventory row is reclassified with proven organization, token, admin, or governed-global authorization; same-org, cross-org, missing, legacy-null, and polymorphic-target tests pass.
 
 ## KF-007 — Cross-organization evidence and learning contamination
 
