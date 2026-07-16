@@ -1,0 +1,2015 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Evidence-led product, technical, data, design-intelligence, and commercial audit of MIYAR."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230e6254%22/><path d=%22M15 46V18h7l10 15 10-15h7v28h-8V31l-9 13-9-13v15z%22 fill=%22%23fffdf8%22/></svg>"
+    />
+    <title>MIYAR Product &amp; Technical Audit — 15 July 2026</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17221f;
+        --muted: #63716b;
+        --paper: #fffdf8;
+        --canvas: #ece9e0;
+        --line: #d9ddd6;
+        --brand: #0e6254;
+        --brand-dark: #08483d;
+        --accent: #c58c36;
+        --soft: #edf5f1;
+        --warning: #fff3dd;
+        --danger: #8d2d2d;
+        --shadow: 0 18px 50px rgb(20 35 30 / 10%);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(
+            circle at 8% 3%,
+            rgb(197 140 54 / 16%),
+            transparent 24rem
+          ),
+          var(--canvas);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.65;
+      }
+
+      a {
+        color: var(--brand);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+      a:hover {
+        color: var(--brand-dark);
+      }
+      .page-shell {
+        max-width: 1680px;
+        margin: 0 auto;
+        padding: 32px;
+      }
+      .report-grid {
+        display: grid;
+        grid-template-columns: 270px minmax(0, 1fr);
+        gap: 28px;
+        align-items: start;
+      }
+      .sidebar {
+        position: sticky;
+        top: 24px;
+        max-height: calc(100vh - 48px);
+        overflow: auto;
+        padding: 24px;
+        border: 1px solid rgb(255 255 255 / 60%);
+        border-radius: 18px;
+        background: rgb(255 253 248 / 88%);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(16px);
+      }
+      .eyebrow {
+        color: var(--accent);
+        font-weight: 800;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+      }
+      .sidebar-title {
+        margin: 5px 0 18px;
+        font:
+          750 1.25rem/1.2 Georgia,
+          serif;
+        color: var(--brand-dark);
+      }
+      .toc {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .toc li {
+        margin: 0;
+        border-top: 1px solid var(--line);
+      }
+      .toc a {
+        display: block;
+        padding: 9px 2px;
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 0.84rem;
+        line-height: 1.3;
+      }
+      .toc a:hover {
+        color: var(--brand);
+      }
+      .report {
+        min-width: 0;
+        padding: clamp(28px, 5vw, 76px);
+        border: 1px solid rgb(255 255 255 / 70%);
+        border-radius: 24px;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+      .report > h1 {
+        max-width: 1000px;
+        margin: 0 0 26px;
+        color: var(--brand-dark);
+        font:
+          750 clamp(2.25rem, 5vw, 4.8rem) / 0.98 Georgia,
+          "Times New Roman",
+          serif;
+        letter-spacing: -0.04em;
+      }
+      h2,
+      h3 {
+        scroll-margin-top: 28px;
+        color: var(--brand-dark);
+      }
+      h2 {
+        margin: 70px 0 20px;
+        padding-top: 22px;
+        border-top: 2px solid var(--brand);
+        font:
+          750 clamp(1.55rem, 2.4vw, 2.25rem) / 1.15 Georgia,
+          serif;
+      }
+      h3 {
+        margin: 36px 0 12px;
+        font-size: 1.15rem;
+        letter-spacing: -0.01em;
+      }
+      p {
+        max-width: 1050px;
+      }
+      blockquote {
+        margin: 28px 0;
+        padding: 22px 26px;
+        border-left: 5px solid var(--accent);
+        border-radius: 0 12px 12px 0;
+        background: var(--warning);
+        color: #493b27;
+        font:
+          700 1.15rem/1.55 Georgia,
+          serif;
+      }
+      code {
+        padding: 0.12em 0.35em;
+        border-radius: 5px;
+        background: #eef0ec;
+        color: #36433e;
+        font:
+          0.88em ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+      }
+      pre:not(.mermaid) {
+        overflow: auto;
+        padding: 18px;
+        border-radius: 10px;
+        background: #17221f;
+        color: #edf5f1;
+      }
+      pre code {
+        padding: 0;
+        background: transparent;
+        color: inherit;
+      }
+      strong {
+        color: #102f29;
+      }
+      ul,
+      ol {
+        padding-left: 1.35rem;
+      }
+      li {
+        margin: 0.42rem 0;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 50px 0;
+      }
+      table {
+        display: block;
+        width: 100%;
+        margin: 24px 0 34px;
+        overflow-x: auto;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: white;
+        font-size: 0.84rem;
+        line-height: 1.42;
+      }
+      th,
+      td {
+        min-width: 125px;
+        padding: 11px 13px;
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        min-width: 140px;
+        background: var(--brand-dark);
+        color: white;
+        font-size: 0.76rem;
+        letter-spacing: 0.02em;
+      }
+      tr:nth-child(even) td {
+        background: #f7f8f5;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      th:last-child,
+      td:last-child {
+        border-right: 0;
+      }
+      .mermaid {
+        margin: 30px 0;
+        padding: 24px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: white;
+        text-align: center;
+        white-space: pre;
+      }
+      .report-footer {
+        margin-top: 70px;
+        padding-top: 20px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .print-button {
+        width: 100%;
+        margin-top: 18px;
+        padding: 10px 12px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--brand);
+        color: white;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .print-button:hover {
+        background: var(--brand-dark);
+      }
+
+      @media (max-width: 960px) {
+        .page-shell {
+          padding: 14px;
+        }
+        .report-grid {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          position: static;
+          max-height: none;
+        }
+        .toc {
+          columns: 2;
+          column-gap: 24px;
+        }
+        .report {
+          padding: 30px 22px;
+          border-radius: 16px;
+        }
+      }
+      @media (max-width: 560px) {
+        .toc {
+          columns: 1;
+        }
+        .report > h1 {
+          font-size: 2.15rem;
+        }
+        h2 {
+          margin-top: 48px;
+        }
+      }
+      @media print {
+        @page {
+          size: A4 landscape;
+          margin: 13mm;
+        }
+        body {
+          background: white;
+          font-size: 9.5pt;
+        }
+        .page-shell {
+          max-width: none;
+          padding: 0;
+        }
+        .report-grid {
+          display: block;
+        }
+        .sidebar {
+          display: none;
+        }
+        .report {
+          padding: 0;
+          border: 0;
+          box-shadow: none;
+        }
+        .report > h1 {
+          font-size: 30pt;
+        }
+        h2 {
+          margin-top: 28px;
+          break-after: avoid;
+        }
+        h3 {
+          break-after: avoid;
+        }
+        table {
+          display: table;
+          overflow: visible;
+          font-size: 7.5pt;
+          break-inside: auto;
+        }
+        thead {
+          display: table-header-group;
+        }
+        tr {
+          break-inside: avoid;
+        }
+        th {
+          position: static;
+        }
+        a {
+          color: inherit;
+          text-decoration: none;
+        }
+        .mermaid {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="report-grid">
+        <aside class="sidebar" aria-label="Report navigation">
+          <div class="eyebrow">MIYAR · Audit</div>
+          <div class="sidebar-title">Report contents</div>
+          <ol class="toc" id="toc"></ol>
+          <button class="print-button" type="button" onclick="window.print()">
+            Print / Save as PDF
+          </button>
+        </aside>
+        <main class="report" id="report">
+          <h1>
+            MIYAR Product, Technical, Data, Design-Intelligence, and Commercial
+            Audit
+          </h1>
+          <p>
+            <strong>Observed:</strong> 15 July 2026<br /><strong
+              >Repository:</strong
+            >
+            <code>amosantan/miyar-v2</code><br /><strong
+              >Branch / commit:</strong
+            >
+            <code>codex/loop-engineering-architecture</code> /
+            <code>a15424b</code> plus the changes listed in this audit<br /><strong
+              >Decision:</strong
+            >
+            <strong>CONDITIONAL / not production-ready</strong>
+          </p>
+          <p>
+            This audit is based on the live checkout, live commands, focused
+            browser checks, and current primary or authoritative external
+            sources. Historical phase reports were not accepted as
+            implementation evidence. User-owned migration
+            <code>0044</code> files were excluded from inspection-driven changes
+            and remain untouched.
+          </p>
+          <h2>1. Executive assessment</h2>
+          <p>
+            MIYAR has the ingredients of a differentiated UAE design-decision
+            product, but its current breadth exceeds its operational trust. The
+            checkout contains 87 schema tables, 24 router modules, 136 engine
+            files, 64 pages, and approximately 97,000 lines of TypeScript/TSX.
+            It attempts intake, deterministic scoring, DLD analytics, materials
+            and quantities, space programming, visualization, scenarios,
+            reports, learning, sustainability, collaboration, and
+            administration. Only 33 test files cover that surface, the full
+            suite is red, TypeScript is red, tenant enforcement is inconsistent,
+            and data truth is not yet strong enough to support the public
+            “live/daily/compliance” positioning.
+          </p>
+          <p>
+            The strongest defensible product is not “AI generates luxury
+            interiors.” It is:
+          </p>
+          <blockquote>
+            <p>
+              <strong
+                >A UAE design-brief decision system that turns developer intent
+                into an approved, typology-aware, costed and evidence-linked
+                brief, then preserves the decisions and assumptions through
+                design handover.</strong
+              >
+            </p>
+          </blockquote>
+          <p>
+            That wedge is narrower and more commercially credible. It joins a
+            developer’s investment brief to a designer’s space programme, finish
+            intent, procurement guardrails, and board package. MIYAR can
+            differentiate through UAE evidence, deterministic reconciliation,
+            approval states, and report identity—areas where generic renderers
+            and global site-feasibility products are weak.
+          </p>
+          <h3>What is genuinely strong</h3>
+          <ul>
+            <li>
+              The repository explicitly separates deterministic calculations
+              from AI assistance (<code>server/engines/scoring.ts</code>,
+              <code>normalization.ts</code>,
+              <code>design/material-quantity-engine.ts</code>,
+              <code>predictive/</code>).
+            </li>
+            <li>
+              The data model already anticipates evidence, source reliability,
+              capture dates, benchmark proposals, logic versions, report
+              instances, space rooms, material allocations, outcome comparisons,
+              and audit records (<code>drizzle/schema.ts</code>).
+            </li>
+            <li>
+              Intake supports conversational and multimodal paths with an
+              expert-form fallback
+              (<code>client/src/pages/ProjectNew.tsx</code>,
+              <code>server/routers/intake.ts</code>).
+            </li>
+            <li>
+              The design workflow has real building blocks: space programmes,
+              fit-out tags, finish schedules, quantity calculations, material
+              boards, RFQs, DOCX/PDF-oriented reports, DLD analytics, and public
+              brief shares.
+            </li>
+            <li>
+              Current DLD open data is a genuine strategic asset: the official
+              transactions dataset is daily and includes transaction/property
+              attributes, while DLD also exposes downloadable real-estate data.
+              <a
+                href="https://www.dubaipulse.gov.ae/data/dld-transactions/dld_transactions-open?organisation=dld&service=dld-transactions"
+                >Dubai Pulse DLD transactions</a
+              >,
+              <a href="https://dubailand.gov.ae/en/open-data/real-estate-data/"
+                >DLD real-estate open data</a
+              >
+            </li>
+          </ul>
+          <h3>What prevents production trust</h3>
+          <ul>
+            <li>
+              Several project-scoped routers authenticate a user but do not
+              consistently authorize the project or organization. The audit
+              confirmed this in the learning router and found the same
+              structural pattern across design, scenario, analytics, and other
+              routers.
+            </li>
+            <li>
+              Learning and predictive code reads all scores/evidence across
+              organizations (<code>server/routers/learning.ts:125-171</code>,
+              <code>319-365</code>), creating a cross-tenant contamination risk
+              even after access to the target project is checked.
+            </li>
+            <li>
+              <code>pnpm check</code> has 49 observed errors;
+              <code>pnpm test</code> has 9 failures. A passing build does not
+              compensate for invalid contracts.
+            </li>
+            <li>
+              Local development previously connected to the configured remote
+              database and started ingestion, learning, and alert workers
+              automatically. The cron endpoint previously allowed execution when
+              <code>CRON_SECRET</code> was absent.
+            </li>
+            <li>
+              The landing page claims daily real-time prices, direct/live DLD
+              integration, 50+ localized variations, compliance assurance, and
+              large data counts (<code>client/src/pages/Home.tsx:142-155</code>,
+              <code>322-324</code>) without runtime evidence sufficient to
+              substantiate those promises.
+            </li>
+            <li>
+              Material prices are split across three overlapping models. The
+              primary <code>material_library</code> has no source URL, capture
+              time, price validity, quote status, or provenance version
+              (<code>drizzle/schema.ts:1600-1630</code>).
+            </li>
+            <li>
+              The product journey is fragmented across many global and project
+              routes; there is no single brief completeness/approval contract
+              that tells a user what is ready, insufficient, assumed, or stale.
+            </li>
+          </ul>
+          <h2>2. Verified baseline</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Live evidence</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Git</td>
+                <td>
+                  Branch <code>codex/loop-engineering-architecture</code>,
+                  commit <code>a15424b</code>; only pre-existing changes were
+                  migration <code>0044</code> SQL/snapshot/journal
+                </td>
+                <td>Protected user work identified</td>
+              </tr>
+              <tr>
+                <td>Type safety</td>
+                <td><code>pnpm check</code></td>
+                <td>
+                  <strong>FAIL</strong>: 49 errors in client contracts,
+                  ingestion, and routers
+                </td>
+              </tr>
+              <tr>
+                <td>Tests</td>
+                <td><code>pnpm test</code></td>
+                <td>
+                  <strong>FAIL</strong>: 9 failed, 799 passed, 22 skipped (830
+                  total)
+                </td>
+              </tr>
+              <tr>
+                <td>Build, before changes</td>
+                <td><code>pnpm build</code></td>
+                <td>
+                  <strong>PASS</strong>; entry bundle 4.76 MB minified / 937 KB
+                  gzip
+                </td>
+              </tr>
+              <tr>
+                <td>Build, after changes</td>
+                <td><code>pnpm build</code></td>
+                <td>
+                  <strong>PASS</strong>; entry bundle 678 KB minified / 199 KB
+                  gzip
+                </td>
+              </tr>
+              <tr>
+                <td>Browser</td>
+                <td>
+                  <code>/</code>, <code>/login</code>, unauthenticated
+                  <code>/projects</code>
+                </td>
+                <td>
+                  Home and login rendered without console errors; protected
+                  route redirected to <code>/login</code>
+                </td>
+              </tr>
+              <tr>
+                <td>Runtime safety</td>
+                <td>First local start</td>
+                <td>
+                  Connected to configured remote DB and started three worker
+                  families; stopped immediately
+                </td>
+              </tr>
+              <tr>
+                <td>Runtime safety, after change</td>
+                <td>Second local start</td>
+                <td>
+                  Background jobs explicitly disabled in development; no
+                  scheduler DB activity observed
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <h2>3. Current product and user journey</h2>
+          <h3>Intended-to-implemented journey</h3>
+          <ol>
+            <li>
+              <strong>Acquire / authenticate.</strong> Public home, methodology,
+              login, registration, then organization creation
+              (<code>App.tsx</code>, <code>Login.tsx</code>,
+              <code>server/routers/auth.ts</code>). The landing page currently
+              sells a luxury-investment platform more than a brief-generation
+              workflow.
+            </li>
+            <li>
+              <strong>Capture intent.</strong>
+              <code>/projects/new</code> defaults to AI intake for files,
+              images, audio, URLs, and text, with the structured seven-step
+              <code>ProjectForm</code> as fallback. Suggestions are reviewed
+              before project creation.
+            </li>
+            <li>
+              <strong>Establish project facts.</strong> Project detail links to
+              evidence, area verification, space planner, design brief, design
+              studio/advisor, collaboration, explainability, outcomes, and
+              investor summary.
+            </li>
+            <li>
+              <strong>Evaluate.</strong> The project router normalizes inputs,
+              resolves logic/benchmark configuration, runs deterministic
+              scoring, writes score matrices, and derives risk/bias/intelligence
+              outputs.
+            </li>
+            <li>
+              <strong>Develop design direction.</strong> Space programmes and
+              fit-out scope feed finish schedules, MQI surfaces/allocations,
+              color palettes, AI recommendations, boards, visuals, RFQs, and
+              compliance checklists.
+            </li>
+            <li>
+              <strong>Communicate.</strong> Reports, investor PDF, DOCX brief,
+              public share, and collaboration/comments expose portions of the
+              result.
+            </li>
+            <li>
+              <strong>Learn.</strong> Outcomes and post-mortems compare
+              predictions with actuals and create proposed evidence/learning
+              signals.
+            </li>
+          </ol>
+          <h3>Journey deficiencies</h3>
+          <ul>
+            <li>
+              There is no canonical “brief readiness” model across objectives,
+              user groups, typology, spaces, narrative, materials, costs,
+              suppliers, compliance, risks, evidence, and approval. Users
+              navigate features instead of completing a governed brief.
+            </li>
+            <li>
+              Project creation asks for scoring variables early, before a clear
+              client/designer brief contract has been established. The value
+              story is therefore “score a project” rather than “align the
+              development and design team.”
+            </li>
+            <li>
+              Global routes (<code>/reports</code>, <code>/results</code>,
+              <code>/scenarios</code>, <code>/portfolio</code>) and project
+              routes compete for navigation context.
+            </li>
+            <li>
+              Approval state exists, but section-level ownership, acceptance
+              criteria, issue resolution, and immutable issued versions do not
+              form a complete workflow.
+            </li>
+            <li>
+              Generated concepts are not clearly separated into inspiration,
+              controlled concept, design-development reference, and
+              non-contractual render.
+            </li>
+          </ul>
+          <h2>4. Current architecture</h2>
+          <pre class="mermaid">
+flowchart TD
+  U["Developer, designer, admin, public viewer"] --&gt; R["React + Wouter client"]
+  R --&gt; T["tRPC / Express"]
+  T --&gt; AU["Auth / org middleware"]
+  T --&gt; RO["24 domain routers"]
+  RO --&gt; E["136 engine files"]
+  E --&gt; D["Deterministic scoring, cost, risk, quantity"]
+  E --&gt; AI["Gemini extraction, narrative, visual direction"]
+  E --&gt; I["Ingestion and intelligence"]
+  E --&gt; RP["HTML, PDF-oriented, DOCX reports"]
+  RO --&gt; DB["server/db.ts helpers"]
+  DB --&gt; MY["MySQL-compatible DB / 87 tables"]
+  AI --&gt; G["Gemini / image provider"]
+  I --&gt; S["Government, research, supplier web sources"]
+  RP --&gt; ST["Local or S3 storage"]</pre
+          >
+          <h3>Architecture findings</h3>
+          <ul>
+            <li>
+              <strong>Good boundary:</strong> calculation engines are mostly
+              TypeScript and AI is generally used for
+              extraction/narrative/visual work.
+            </li>
+            <li>
+              <strong>Weak authorization composition:</strong>
+              <code>protectedProcedure</code> proves identity only; many routers
+              then call project/asset/scenario helpers without a mandatory
+              organization-bound resource resolver.
+            </li>
+            <li>
+              <strong>God-router pressure:</strong>
+              <code>server/routers/design.ts</code> is approximately 1,800 lines
+              and mixes assets, briefs, pricing, visuals, boards, materials,
+              collaboration, DLD, sharing, and floor plans.
+            </li>
+            <li>
+              <strong>Data-access inconsistency:</strong> some newer MQI/space
+              helpers require <code>organizationId</code>; many older helpers
+              accept only IDs. <code>projects.orgId</code> remains nullable for
+              backward compatibility.
+            </li>
+            <li>
+              <strong>Dual runtime drift:</strong> Node and serverless entries
+              do not expose identical runtime features. The Node entry owns
+              schedulers, SSE, API docs, request logging, and cron; serverless
+              only mounts auth and tRPC.
+            </li>
+            <li>
+              <strong>Observability is partial:</strong> request logs and
+              optional Sentry exist, but Sentry was disabled in the observed
+              environment, and ingestion failures were only logs. There is no
+              verified trace connecting brief generation to
+              evidence/model/prompt/report IDs.
+            </li>
+            <li>
+              <strong>Client composition was eager:</strong> all 64 pages and
+              the authenticated shell were statically imported. This audit
+              introduced route/shell splitting.
+            </li>
+          </ul>
+          <h2>5. Product, data, and design-intelligence assessment</h2>
+          <h3>Typologies and space programmes</h3>
+          <p>
+            The system supports Residential, Mixed-use, Hospitality, Office,
+            Villa, Gated Community, and Villa Development at project level. It
+            has reusable templates and fit-out classification, but retail is not
+            a first-class project typology despite being in the intended
+            product. Apartment, residential-building, hotel, serviced-apartment,
+            restaurant/F&amp;B, workplace, and retail subtypes need explicit
+            parameter sets rather than generic labels. Space logic should
+            produce a reconciled schedule of accommodation with net/gross
+            definitions, unit counts, occupancy assumptions, area source,
+            fit-out responsibility, and variance against a named benchmark.
+          </p>
+          <h3>Materials, suppliers, and price intelligence</h3>
+          <p>
+            MIYAR has useful quantity formulas and allocations, but three
+            material systems (<code>materials_catalog</code>,
+            <code>material_library</code>, <code>material_constants</code>)
+            invite category/unit drift. Current price truth should be a
+            time-versioned observation, not mutable columns on a product row.
+            Official retail listings such as Danube Home expose AED prices and
+            pack areas, which are useful as retail observations but not tender
+            rates.
+            <a href="https://www.danubehome.com/ae/en/c/search/tiles-and-bricks"
+              >Danube Home tile listings</a
+            >
+            Manufacturer catalogs such as RAK Ceramics are stronger for
+            specification identity than price.
+            <a href="https://www.rakceramics.com/uae/en/">RAK Ceramics UAE</a>
+            Dubai Municipality’s certified-product lists can validate
+            product/certification status and expiry, not commercial price.
+            <a
+              href="https://www.dm.gov.ae/municipality-business/list-of-certified-products-under-the-factory-assessment-scheme-2/"
+              >Dubai Municipality certified products</a
+            >
+          </p>
+          <p>
+            The target source ladder should be: signed supplier quote &gt;
+            contracted rate card &gt; supplier/e-commerce observation &gt;
+            governed market benchmark &gt; labelled assumption. Each price must
+            retain incoterm/delivery geography, VAT inclusion, supply-only vs
+            installed, pack conversion, waste, minimum order, lead time, capture
+            time, validity, and evidence URL/file.
+          </p>
+          <h3>Scoring and explainability</h3>
+          <p>
+            The deterministic five-dimension engine and contribution traces are
+            directionally sound. The principal gap is not another score—it is
+            authority and calibration. A board must see which inputs are
+            explicit, inferred, benchmarked, or assumed; which logic and
+            benchmark versions ran; how penalties reconcile; and whether the
+            output is calibrated against comparable completed projects. No
+            weights, thresholds, or financial assumptions were changed in this
+            audit.
+          </p>
+          <h3>AI quality and visual intelligence</h3>
+          <p>
+            Gemini structured outputs are the right direction for intake and
+            recommendation contracts; Google explicitly supports
+            schema-constrained structured output and native image
+            generation/editing.
+            <a
+              href="https://ai.google.dev/gemini-api/docs/structured-output?lang=rest"
+              >Gemini structured outputs</a
+            >,
+            <a href="https://ai.google.dev/gemini-api/docs/image-generation"
+              >Gemini image generation</a
+            >
+            The missing layer is evaluation: golden multimodal fixtures,
+            field-level precision/recall, abstention tests, conflict
+            preservation, prompt/model identity, visual consistency tests, and
+            human acceptance rates. A render must be linked to room geometry
+            source, material allocation version, prompt/model, seed/reference
+            images, and a conspicuous “concept—not construction information”
+            status.
+          </p>
+          <h3>Compliance and sustainability</h3>
+          <p>
+            MIYAR should provide a jurisdiction-aware evidence checklist, not
+            “ensure compliance.” Dubai Building Code defines minimum health,
+            safety, accessibility/convenience, environment, and
+            sustainable-development requirements.
+            <a
+              href="https://www.dm.gov.ae/municipality-business/planning-and-construction/dubai-building-code-2/"
+              >Dubai Building Code</a
+            >
+            Al Sa’fat replaced the prior green-building system and requires at
+            least Silver for new Dubai buildings, with higher voluntary ratings.
+            <a
+              href="https://www.dm.gov.ae/municipality-business/al-safat-dubai-green-building-system/"
+              >Al Sa’fat</a
+            >
+            Abu Dhabi uses Estidama/Pearl, and UAE fire/life-safety requirements
+            are maintained through Civil Defence.
+            <a
+              href="https://www.dmt.gov.ae/-/media/Project/DMT/DMT/E-Library/0001-Manuals/PRRS/PRRS-Version-10.pdf"
+              >Estidama Pearl system</a
+            >,
+            <a
+              href="https://www.dcd.gov.ae/portal/en/item/82-uaeslscp.jsp?print=1&tmpl=component"
+              >UAE Fire and Life Safety Code</a
+            >
+          </p>
+          <h2>6. Competitor and tooling comparison</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Product / source</th>
+                <th>Proven strength</th>
+                <th>Gap relative to MIYAR opportunity</th>
+                <th>Implication</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>TestFit</strong></td>
+                <td>
+                  Editable site plans, constraints, generative options, pro
+                  forma, takeoffs, scheme comparison,
+                  Revit/CAD/SketchUp/Excel/PDF exports.
+                  <a href="https://www.testfit.io/">TestFit</a>,
+                  <a href="https://www.testfit.io/product/site-solver"
+                    >Site Solver</a
+                  >
+                </td>
+                <td>
+                  Primarily site/deal feasibility and North American data, not
+                  UAE interior-brief evidence
+                </td>
+                <td>
+                  Do not imitate its whole site solver. Match its rapid option
+                  comparison and downstream exports at the interior-brief level.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Autodesk Forma</strong></td>
+                <td>
+                  Geolocated concept/site analysis, environmental analysis,
+                  collaborative review, Revit continuity; advertised from
+                  US$59/month.
+                  <a href="https://www.autodesk.com/products/forma"
+                    >Forma Site Design</a
+                  >
+                </td>
+                <td>
+                  Broad AEC ecosystem, not UAE material/procurement intelligence
+                </td>
+                <td>
+                  Integrate rather than compete on geometry. Autodesk Data
+                  Exchange/AEC APIs can supply versioned BIM properties and
+                  quantities.
+                  <a
+                    href="https://aps.autodesk.com/developer/overview/data-exchange-api"
+                    >APS Data Exchange</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Chaos Enscape / Veras</strong></td>
+                <td>
+                  CAD/BIM-linked visualization, live design iteration, AI image
+                  exploration, cloud review, high-quality assets.
+                  <a href="https://www.chaos.com/enscape/features"
+                    >Enscape features</a
+                  >,
+                  <a
+                    href="https://www.chaos.com/press/chaos-strengthens-end-to-end-architectural-design-and-visualization-workflow"
+                    >Chaos 2026 workflow</a
+                  >
+                </td>
+                <td>
+                  Visualization is the product; cost/provenance/brief governance
+                  is secondary
+                </td>
+                <td>
+                  MIYAR should orchestrate approved material/brief context into
+                  visual tools, not attempt to replace professional render
+                  workflows.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>DLD / Dubai Pulse</strong></td>
+                <td>
+                  Official daily transactions and downloadable market records.
+                  <a
+                    href="https://www.dubaipulse.gov.ae/data/dld-transactions/dld_transactions-open?organisation=dld&service=dld-transactions"
+                    >Dubai Pulse</a
+                  >
+                </td>
+                <td>
+                  Property market evidence, not design specification or fit-out
+                  cost
+                </td>
+                <td>
+                  Build governed area/tier comparables and freshness SLAs; never
+                  imply DLD validates interior price premiums without calibrated
+                  evidence.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>RICS NRM / ICMS</strong></td>
+                <td>
+                  Standardized order-of-cost/cost-plan measurement and
+                  comparable cost/carbon classification.
+                  <a
+                    href="https://www.rics.org/profession-standards/rics-standards-and-guidance/sector-standards/construction-standards/nrm"
+                    >RICS NRM</a
+                  >,
+                  <a href="https://icms-coalition.org/the-standard/">ICMS 3</a>
+                </td>
+                <td>Standards, not workflow software</td>
+                <td>
+                  Align cost breakdown/export terminology and declare conformity
+                  scope; retain MIYAR-specific interior detail beneath standard
+                  classifications.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>ISO 19650 / openBIM</strong></td>
+                <td>
+                  Versioned, organized information containers and lifecycle
+                  information management; IFC/IDS/openCDE APIs.
+                  <a href="https://www.iso.org/standard/68078.html"
+                    >ISO 19650-1</a
+                  >,
+                  <a href="https://www.buildingsmart.org/about/openbim/"
+                    >buildingSMART openBIM</a
+                  >
+                </td>
+                <td>Frameworks require implementation discipline</td>
+                <td>
+                  Treat issued briefs, boards, schedules, and evidence as
+                  versioned information containers; use IFC/IDS or Autodesk
+                  exchange for design handoff.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <h2>7. Complete prioritized enhancement matrix</h2>
+          <p>
+            Effort is relative: <strong>S</strong> &lt;= 1 engineer-week,
+            <strong>M</strong> 2-4 weeks, <strong>L</strong> 1-2 quarters,
+            <strong>XL</strong> multi-quarter. Value is expected user/commercial
+            value after dependencies are met.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Priority</th>
+                <th>Class</th>
+                <th>Gap</th>
+                <th>Repository evidence</th>
+                <th>User impact</th>
+                <th>Recommended solution / technical design</th>
+                <th>Dependencies</th>
+                <th align="right">Effort</th>
+                <th>Risk</th>
+                <th>Expected value</th>
+                <th>Objective verification</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>P0</td>
+                <td>Foundation</td>
+                <td>Project resources lack mandatory tenant authorization</td>
+                <td>
+                  <code>protectedProcedure</code> only checks identity; numerous
+                  <code>design.ts</code>, <code>scenario.ts</code>,
+                  <code>analytics.ts</code> procedures accept raw IDs; learning
+                  gap confirmed
+                </td>
+                <td>
+                  Cross-tenant disclosure or mutation; unacceptable enterprise
+                  risk
+                </td>
+                <td>
+                  Create typed <code>orgProjectProcedure</code>/resource
+                  resolvers; require org-bound joins for project, asset, brief,
+                  scenario, report, board, visual, comment; add negative tests
+                </td>
+                <td>Resource ownership map</td>
+                <td align="right">L</td>
+                <td>Medium migration/legacy risk</td>
+                <td>Critical</td>
+                <td>
+                  Automated unauthenticated, cross-org, same-org tests for every
+                  project-scoped procedure; query audit finds no raw-ID path
+                </td>
+              </tr>
+              <tr>
+                <td>P0</td>
+                <td>Foundation</td>
+                <td>Cross-tenant learning/prediction contamination</td>
+                <td>
+                  <code>learning.ts:125-171</code>, <code>319-365</code> reads
+                  all evidence/scores and project records
+                </td>
+                <td>
+                  One client’s outcomes can affect another; weak privacy and
+                  calibration
+                </td>
+                <td>
+                  Partition learning datasets by org; allow only explicitly
+                  anonymized/governed aggregate pools; store cohort/data-policy
+                  version
+                </td>
+                <td>Product/data governance approval for pooled learning</td>
+                <td align="right">M</td>
+                <td>High</td>
+                <td>Critical</td>
+                <td>
+                  Fixtures with two orgs prove zero record leakage and stable
+                  per-org predictions
+                </td>
+              </tr>
+              <tr>
+                <td>P0</td>
+                <td>Foundation</td>
+                <td>Red type/test gates</td>
+                <td>49 TS errors; 9 failed tests</td>
+                <td>Unsafe releases and ambiguous contracts</td>
+                <td>
+                  Resolve by failure class; do not weaken assertions; add CI
+                  artifact with exact baseline/delta
+                </td>
+                <td>
+                  Intended contracts for board annex, space empty state,
+                  connector confidence
+                </td>
+                <td align="right">M</td>
+                <td>Low</td>
+                <td>Very high</td>
+                <td>
+                  <code>pnpm check</code>, <code>pnpm test</code>,
+                  <code>pnpm build</code> all exit 0
+                </td>
+              </tr>
+              <tr>
+                <td>P0</td>
+                <td>Quick win</td>
+                <td>Unsafe local jobs and fail-open cron</td>
+                <td>
+                  Reproduced local remote-DB connection/workers; prior
+                  conditional cron-secret check
+                </td>
+                <td>
+                  Accidental shared writes and unauthenticated ingestion trigger
+                </td>
+                <td>
+                  <strong>Implemented:</strong> dev workers opt-in; cron fails
+                  closed; retain production behavior
+                </td>
+                <td>None</td>
+                <td align="right">S</td>
+                <td>Low</td>
+                <td>Critical</td>
+                <td>
+                  Runtime policy tests; dev log confirms jobs disabled;
+                  missing/wrong secret returns 401
+                </td>
+              </tr>
+              <tr>
+                <td>P0</td>
+                <td>Product</td>
+                <td>Unsupported public promises</td>
+                <td>
+                  <code>Home.tsx:142-155</code>, <code>322-324</code> claims
+                  real-time daily prices, direct DLD, compliance assurance, 50+
+                  variations/counts
+                </td>
+                <td>Trust, legal, and sales credibility risk</td>
+                <td>
+                  Replace with measured capability/freshness language and live
+                  metrics sourced from health APIs; legal/privacy/terms pages
+                </td>
+                <td>Commercial/legal approval for copy</td>
+                <td align="right">S</td>
+                <td>Medium</td>
+                <td>Very high</td>
+                <td>
+                  Every quantitative/public claim maps to a live metric/source
+                  and owner; legal review
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Foundation</td>
+                <td>No canonical Brief Readiness contract</td>
+                <td>
+                  Capabilities live across project, brief, spaces, MQI, boards,
+                  reports
+                </td>
+                <td>
+                  Users cannot tell what is complete, approved, stale, assumed,
+                  or blocked
+                </td>
+                <td>
+                  Add a deterministic readiness engine over versioned section
+                  states: missing/assumed/evidenced/reviewed/approved/issued
+                </td>
+                <td>Product owner defines required sections per typology</td>
+                <td align="right">M</td>
+                <td>Medium</td>
+                <td>Very high</td>
+                <td>
+                  Typology fixtures yield expected readiness; UI and report
+                  agree exactly
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Foundation</td>
+                <td>Mutable/unprovenanced material prices</td>
+                <td>
+                  <code>material_library</code> has min/max but no
+                  source/capture/validity; overlapping material models
+                </td>
+                <td>False precision and stale budgets</td>
+                <td>
+                  Normalize product identity + append-only price observations +
+                  supplier offers/quotes; use source ladder; preserve
+                  pack/unit/VAT/install basis
+                </td>
+                <td><strong>Schema human gate</strong>; source terms</td>
+                <td align="right">L</td>
+                <td>Medium</td>
+                <td>Very high</td>
+                <td>
+                  Every displayed cost resolves to
+                  observation/benchmark/assumption and freshness; unit
+                  conversion tests
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Product differentiator</td>
+                <td>Typology coverage is labels, not full rule packs</td>
+                <td>
+                  Retail missing from project enum; generic templates/archetypes
+                </td>
+                <td>
+                  Weak briefs for retail, F&amp;B, hospitality, buildings and
+                  mixed-use
+                </td>
+                <td>
+                  Versioned typology packs: objectives, user personas, space
+                  rules, net:gross, adjacency, FF&amp;E, compliance prompts,
+                  risk checks, deliverable template
+                </td>
+                <td>Human domain validation</td>
+                <td align="right">L</td>
+                <td>Medium</td>
+                <td>Very high</td>
+                <td>
+                  Golden briefs for apartment, villa, residential building,
+                  office, hotel, restaurant, retail, mixed-use
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Foundation</td>
+                <td>Report reproducibility incomplete and annex tests fail</td>
+                <td>
+                  Two board-annex failures; report paths span multiple engines;
+                  sample HTML committed under public uploads
+                </td>
+                <td>
+                  Board output can omit required design evidence or diverge from
+                  screens
+                </td>
+                <td>
+                  Canonical report snapshot DTO with document ID, project/brief
+                  version, logic/benchmark/evidence/model/prompt IDs, issue
+                  status, assumptions, disclaimer
+                </td>
+                <td>Report contract approval</td>
+                <td align="right">M</td>
+                <td>Medium</td>
+                <td>Very high</td>
+                <td>
+                  Data assertions + rendered visual QA for
+                  complete/partial/large fixtures; share expiry tests
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Quick win</td>
+                <td>Initial client payload was 4.76 MB</td>
+                <td>
+                  All pages and shell eagerly imported in <code>App.tsx</code>
+                </td>
+                <td>Slow first use, especially mobile/client sites</td>
+                <td>
+                  <strong>Implemented:</strong> route and authenticated-shell
+                  lazy loading
+                </td>
+                <td>None</td>
+                <td align="right">S</td>
+                <td>Low</td>
+                <td>High</td>
+                <td>
+                  Entry bundle 678 KB / 199 KB gzip; public/login/protected
+                  browser checks pass
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Foundation</td>
+                <td>Design router is an authorization and change hotspot</td>
+                <td>
+                  <code>design.ts</code> combines ~55 procedures across
+                  unrelated resources
+                </td>
+                <td>High regression/security cost</td>
+                <td>
+                  Split asset, brief, board, visual, material, collaboration,
+                  market-context routers behind shared resource guards
+                </td>
+                <td>P0 authorization layer</td>
+                <td align="right">M</td>
+                <td>Medium</td>
+                <td>High</td>
+                <td>
+                  Module boundaries; contract tests; no procedure behavior
+                  regression
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Data</td>
+                <td>Source freshness/quality is not a product SLA</td>
+                <td>
+                  Evidence supports capture date/confidence; sources and
+                  failures are admin views
+                </td>
+                <td>
+                  Client sees “live” without coverage/freshness sufficiency
+                </td>
+                <td>
+                  Coverage matrix by category/geography/tier/unit; freshness
+                  SLA; insufficient-data state; source incident status
+                </td>
+                <td>Source strategy and licensing</td>
+                <td align="right">M</td>
+                <td>Low</td>
+                <td>High</td>
+                <td>
+                  Dashboard/reports show coverage numerator/denominator and
+                  staleness; no live label when SLA fails
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Design intelligence</td>
+                <td>AI quality has no evaluated acceptance baseline</td>
+                <td>
+                  AI tests cover parsing/failure, not field precision or visual
+                  consistency
+                </td>
+                <td>Plausible but wrong inputs/materials/renders</td>
+                <td>
+                  Golden multimodal dataset; exact-field F1, abstention/conflict
+                  metrics, prompt/model registry, user acceptance/override
+                  analytics
+                </td>
+                <td>Licensed/consented fixtures; evaluation rubric</td>
+                <td align="right">M</td>
+                <td>Medium</td>
+                <td>High</td>
+                <td>
+                  Versioned eval report with thresholds; regression blocks
+                  model/prompt promotion
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Compliance</td>
+                <td>Checklist can be mistaken for assurance</td>
+                <td>
+                  Public “ensure” claim; deterministic
+                  <code>dm-compliance.ts</code> without licensed-professional
+                  workflow
+                </td>
+                <td>Liability and unsafe reliance</td>
+                <td>
+                  Jurisdiction selector; source/version/last-reviewed field;
+                  evidence-only checklist; professional sign-off and exclusions
+                </td>
+                <td><strong>Human compliance-policy gate</strong></td>
+                <td align="right">M</td>
+                <td>High</td>
+                <td>High</td>
+                <td>
+                  Dubai/Abu Dhabi fixtures; expired source warnings; signed
+                  review state; legal approval
+                </td>
+              </tr>
+              <tr>
+                <td>P1</td>
+                <td>Commercial</td>
+                <td>No focused monetization or entitlement model</td>
+                <td>
+                  Broad feature surface; no billing/entitlement domain found
+                </td>
+                <td>Difficult sales packaging and costly support</td>
+                <td>
+                  Package by workflow outcome: Brief, Intelligence, Portfolio;
+                  usage meter for AI/render/data; enterprise SSO/API add-ons
+                </td>
+                <td>Pricing and margin study</td>
+                <td align="right">M</td>
+                <td>Medium</td>
+                <td>High</td>
+                <td>
+                  Entitlement tests, unit economics dashboard, pilot
+                  conversion/time-saved metrics
+                </td>
+              </tr>
+              <tr>
+                <td>P2</td>
+                <td>Product differentiator</td>
+                <td>No robust BIM/CAD handoff</td>
+                <td>
+                  DXF parser exists, but no Revit/IFC/common-data integration
+                </td>
+                <td>Designer rekeys rooms/materials and loses traceability</td>
+                <td>
+                  Export/import typed room/finish/material IDs; pilot Autodesk
+                  AEC Data Model/Data Exchange or IFC/IDS
+                </td>
+                <td>Partner credentials/cost review</td>
+                <td align="right">L</td>
+                <td>Medium</td>
+                <td>High</td>
+                <td>
+                  Round-trip fixture preserves IDs, quantities, versions, and
+                  rejected-field report
+                </td>
+              </tr>
+              <tr>
+                <td>P2</td>
+                <td>Product</td>
+                <td>Boards and renders are not controlled design records</td>
+                <td>
+                  Generated visuals/boards exist, but no stage/status lineage
+                  contract
+                </td>
+                <td>
+                  Attractive output may not match approved materials/geometry
+                </td>
+                <td>
+                  Concept lineage object: room/source geometry, allocation
+                  version, prompt/model, references, approval status; board
+                  issue versions
+                </td>
+                <td>Brief version model</td>
+                <td align="right">M</td>
+                <td>Low</td>
+                <td>High</td>
+                <td>
+                  Render/board provenance visible; changing allocation marks
+                  visual stale
+                </td>
+              </tr>
+              <tr>
+                <td>P2</td>
+                <td>Procurement</td>
+                <td>RFQ lacks quote comparison and substitution workflow</td>
+                <td>RFQ generation exists; supplier fields are basic</td>
+                <td>Procurement still returns to spreadsheets/email</td>
+                <td>
+                  Structured RFQ package, supplier offer import, normalization,
+                  alternates, lead-time/availability, commercial exclusions; no
+                  external send without approval
+                </td>
+                <td>
+                  Supplier partnerships; <strong>external-message gate</strong>
+                </td>
+                <td align="right">L</td>
+                <td>Medium</td>
+                <td>High</td>
+                <td>
+                  Three-quote fixture normalizes basis and flags non-comparable
+                  offers
+                </td>
+              </tr>
+              <tr>
+                <td>P2</td>
+                <td>Collaboration</td>
+                <td>Comments are not a full design review workflow</td>
+                <td>
+                  Comments/approval state exist; project/section ownership is
+                  shallow
+                </td>
+                <td>Decisions remain in meetings/chat; weak audit</td>
+                <td>
+                  Section assignments, due dates, issues, approvals, issue/close
+                  reason, immutable issue transmittal
+                </td>
+                <td>Notification policy</td>
+                <td align="right">M</td>
+                <td>Low</td>
+                <td>Medium-high</td>
+                <td>Role matrix and end-to-end review/issue test</td>
+              </tr>
+              <tr>
+                <td>P2</td>
+                <td>Performance</td>
+                <td>Deferred shared chunk still ~911 KB; entry 678 KB</td>
+                <td>Post-change build warning remains</td>
+                <td>Some authenticated routes remain heavy</td>
+                <td>
+                  Isolate Markdown/diagram renderers behind component-level
+                  imports; analyze vendor chunks; add bundle budgets
+                </td>
+                <td>Bundle analyzer in CI</td>
+                <td align="right">S-M</td>
+                <td>Low</td>
+                <td>Medium</td>
+                <td>
+                  Entry &lt; 300 KB gzip; route budgets; repeat browser smoke
+                </td>
+              </tr>
+              <tr>
+                <td>P2</td>
+                <td>Operations</td>
+                <td>Node/serverless capability drift</td>
+                <td>
+                  <code>server/_core/index.ts</code> vs
+                  <code>server/serverless/index.ts</code>
+                </td>
+                <td>Deployment-dependent missing features and surprises</td>
+                <td>
+                  Explicit deployment profiles/capability health; externalize
+                  workers; single authenticated cron contract
+                </td>
+                <td>Infrastructure approval before production change</td>
+                <td align="right">M</td>
+                <td>Medium</td>
+                <td>High</td>
+                <td>
+                  Contract/smoke tests for both builds; health endpoint lists
+                  capabilities
+                </td>
+              </tr>
+              <tr>
+                <td>P2</td>
+                <td>Security/privacy</td>
+                <td>No verified data-retention/DSR workflow</td>
+                <td>
+                  Assets, audio transcripts, generated media, prompts and
+                  personal data exist
+                </td>
+                <td>UAE PDPL exposure</td>
+                <td>
+                  Data inventory, purpose/retention, deletion/export workflow,
+                  provider-region and cross-border record
+                </td>
+                <td><strong>Legal/privacy gate</strong></td>
+                <td align="right">L</td>
+                <td>High</td>
+                <td>High</td>
+                <td>
+                  DSR/export/delete tests and retention job dry run; privacy
+                  review. UAE PDPL requires transparent, purpose-limited,
+                  secured processing and data-subject rights.
+                  <a href="https://uaelegislation.gov.ae/en/legislations/1972"
+                    >UAE PDPL</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td>P3</td>
+                <td>Experimental</td>
+                <td>Outcome-driven premium/yield model is under-evidenced</td>
+                <td>
+                  Sales premium engine uses rules/benchmarks with limited
+                  observed calibration
+                </td>
+                <td>Could overstate commercial return</td>
+                <td>
+                  Research-only cohort model with DLD/property data plus
+                  controlled design-quality labels; publish calibration/error,
+                  not causal claims
+                </td>
+                <td>
+                  <strong>Financial-assumption gate</strong>, licensed data,
+                  sufficient sample
+                </td>
+                <td align="right">XL</td>
+                <td>High</td>
+                <td>Potentially very high</td>
+                <td>
+                  Out-of-sample calibration, bias/segment analysis, qualified
+                  valuation review
+                </td>
+              </tr>
+              <tr>
+                <td>P3</td>
+                <td>Experimental</td>
+                <td>Generative option explosion</td>
+                <td>
+                  Public claim of 50+ variations; no decision-quality measure
+                </td>
+                <td>More images can increase review burden</td>
+                <td>
+                  Generate a small diverse set constrained by approved brief;
+                  rank by deterministic compliance/cost/brief fit, with human
+                  selection
+                </td>
+                <td>Visual eval and geometry controls</td>
+                <td align="right">M</td>
+                <td>Medium</td>
+                <td>Medium</td>
+                <td>
+                  Diversity plus adherence score; user selection time and rework
+                  vs baseline
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <h2>8. Improved product model</h2>
+          <h3>Core object: the Issued Design Brief</h3>
+          <p>
+            MIYAR should organize the product around one versioned object with
+            ten governed sections:
+          </p>
+          <ol>
+            <li>
+              <strong>Intent:</strong> objectives, outcomes, positioning, target
+              users, constraints.
+            </li>
+            <li>
+              <strong>Asset context:</strong> city/jurisdiction,
+              typology/subtype, scale, programme phase, source files.
+            </li>
+            <li>
+              <strong>Space programme:</strong> room/unit schedule, net/gross,
+              occupancy, adjacency, fit-out responsibility, benchmark variance.
+            </li>
+            <li>
+              <strong>Design direction:</strong> narrative, experience
+              principles, style vocabulary, mood and palette.
+            </li>
+            <li>
+              <strong>Specification intent:</strong> room-element finish
+              performance, product/brand examples, alternates, exclusions.
+            </li>
+            <li>
+              <strong>Cost and quantities:</strong> deterministic quantities,
+              price basis, range, waste, contingency boundary, classification.
+            </li>
+            <li>
+              <strong>Supply:</strong> supplier/source, availability, lead time,
+              MOQ, quote/observation validity, substitution strategy.
+            </li>
+            <li>
+              <strong>Risk and compliance evidence:</strong>
+              design/cost/schedule/procurement/market risks and
+              jurisdiction-aware checklist.
+            </li>
+            <li>
+              <strong>Concept media:</strong> boards and visuals with lineage
+              and approval status.
+            </li>
+            <li>
+              <strong>Governance:</strong> evidence, assumptions, confidence,
+              owner, reviewer, version, issue purpose, disclaimer.
+            </li>
+          </ol>
+          <p>
+            Each section has a deterministic state:
+            <code
+              >missing -&gt; drafted -&gt; evidenced -&gt; reviewed -&gt;
+              approved -&gt; issued</code
+            >, plus <code>stale</code> and <code>blocked</code>. AI can draft or
+            suggest; it cannot approve or issue.
+          </p>
+          <h3>Commercial packaging</h3>
+          <ul>
+            <li>
+              <strong>MIYAR Brief:</strong> per-project or team subscription;
+              intake, programme, direction, basic cost guardrails, issued
+              PDF/DOCX.
+            </li>
+            <li>
+              <strong>MIYAR Intelligence:</strong> add governed UAE
+              material/supplier/market evidence, quantities, scenarios,
+              procurement comparisons.
+            </li>
+            <li>
+              <strong>MIYAR Portfolio:</strong> enterprise organizations,
+              templates, benchmark governance, outcomes, API/BIM integration,
+              SSO, audit/retention controls.
+            </li>
+            <li>
+              <strong>Services/partners:</strong> paid typology-pack setup,
+              benchmark onboarding, supplier catalog normalization, report
+              branding, and workflow integration.
+            </li>
+          </ul>
+          <p>
+            Defensibility comes from the governed UAE evidence graph, approved
+            typology packs, outcome calibration, organization templates, and
+            issued-decision history—not from access to a general image model.
+          </p>
+          <h2>9. Target technical and data architecture</h2>
+          <pre class="mermaid">
+flowchart LR
+  UX["Brief workspace: section readiness, review, issue"] --&gt; API["Typed tRPC commands/queries"]
+  API --&gt; AUTH["Mandatory org + resource authorization"]
+  API --&gt; WF["Brief workflow and version service"]
+  WF --&gt; ENG["Deterministic programme / quantity / cost / scoring engines"]
+  WF --&gt; AIG["AI proposal gateway + eval / prompt / model registry"]
+  WF --&gt; EV["Evidence graph"]
+  EV --&gt; SRC["Source capture + supplier offers + DLD + regulations"]
+  EV --&gt; PX["Append-only price observations and governed benchmarks"]
+  WF --&gt; ART["Immutable issued report snapshot + media lineage"]
+  WF --&gt; INT["BIM / IFC / Autodesk exchange adapters"]
+  ENG --&gt; OBS["Versioned result and reconciliation trace"]
+  AIG --&gt; OBS
+  EV --&gt; OBS
+  ART --&gt; OBS
+  OBS --&gt; AUD["Tenant-safe audit, metrics, alerts, calibration"]</pre
+          >
+          <p>Key data contracts:</p>
+          <ul>
+            <li>
+              <code>brief_version</code> and
+              <code>brief_section_version</code> are immutable when issued.
+            </li>
+            <li>
+              <code>evidence_item</code> identifies source, capture, terms,
+              geography, reliability, and confidentiality.
+            </li>
+            <li>
+              <code>product_identity</code> is separate from
+              <code>price_observation</code>, <code>supplier_offer</code>, and
+              <code>governed_benchmark</code>.
+            </li>
+            <li>
+              <code>calculation_run</code> stores input hash,
+              engine/logic/benchmark versions, output, reconciliation, and
+              insufficiency reasons.
+            </li>
+            <li>
+              <code>generation_run</code> stores prompt template/version, model,
+              references, output, safety status, and acceptance/override.
+            </li>
+            <li>
+              <code>artifact_issue</code> stores exact snapshot, issue purpose,
+              document identity, approvals, disclaimer, and expiry/share policy.
+            </li>
+            <li>
+              Organization-owned records carry non-null organization identity;
+              global evidence is explicitly <code>global</code>, never “null
+              means maybe global.”
+            </li>
+          </ul>
+          <h2>10. Implementation phases</h2>
+          <p>
+            The detailed dependency-ordered implementation ledger for Codex and
+            Claude Code is maintained in
+            <a href="../../.agent/state/ROADMAP.md"
+              ><code>.agent/state/ROADMAP.md</code></a
+            >; its execution and learning protocol is
+            <a href="../runbooks/roadmap-execution.md"
+              ><code>docs/runbooks/roadmap-execution.md</code></a
+            >.
+          </p>
+          <h3>Phase 0 — Trust recovery (0-4 weeks)</h3>
+          <ul>
+            <li>
+              Complete resource-level tenant authorization and cross-org
+              negative tests.
+            </li>
+            <li>Remove cross-tenant learning/evidence pooling.</li>
+            <li>Make TypeScript and tests green; render/verify reports.</li>
+            <li>
+              Replace unsupported public claims; add legal/privacy/terms and
+              live freshness indicators.
+            </li>
+            <li>
+              Retain the runtime-safety and code-splitting changes delivered by
+              this audit.
+            </li>
+          </ul>
+          <h3>Phase 1 — Brief operating system (1-2 quarters)</h3>
+          <ul>
+            <li>
+              Brief readiness/version/issue model and unified project workspace.
+            </li>
+            <li>
+              Approved typology packs for apartment, villa, residential
+              building, office, hospitality, retail, mixed-use.
+            </li>
+            <li>Canonical report snapshot and designer/board variants.</li>
+            <li>Golden intake/AI evaluation suite.</li>
+          </ul>
+          <h3>Phase 2 — Evidence and procurement moat (1-2 quarters)</h3>
+          <ul>
+            <li>
+              Product identity, price observations, supplier offers/quotes,
+              freshness/coverage SLAs.
+            </li>
+            <li>DLD governed pipelines and market-comparable methodology.</li>
+            <li>RFQ comparison, substitutions, availability and lead times.</li>
+            <li>
+              Cost classification mapped to RICS NRM/ICMS where appropriate.
+            </li>
+          </ul>
+          <h3>Phase 3 — Integration and portfolio scale (2+ quarters)</h3>
+          <ul>
+            <li>Autodesk/IFC/IDS handoff pilot and version reconciliation.</li>
+            <li>
+              Enterprise entitlements, SSO, retention/DSR, operational workers,
+              observability/SLOs.
+            </li>
+            <li>
+              Calibrated outcomes and optional anonymized aggregate learning
+              only after governance approval.
+            </li>
+          </ul>
+          <h2>11. Changes implemented in this audit</h2>
+          <ol>
+            <li>
+              <p>
+                <strong>Tenant guard for learning project resources</strong>
+              </p>
+              <ul>
+                <li>Added <code>server/_core/project-access.ts</code>.</li>
+                <li>
+                  Converted comparison/post-mortem project procedures to
+                  <code>orgProcedure</code> and required exact
+                  <code>project.orgId</code> matching before child reads/writes.
+                </li>
+                <li>
+                  Added four boundary tests including cross-org, missing, and
+                  legacy-null organization cases.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <p><strong>Runtime safety</strong></p>
+              <ul>
+                <li>Added <code>server/_core/runtime-safety.ts</code>.</li>
+                <li>
+                  Background workers are disabled by default in development;
+                  explicit <code>ENABLE_BACKGROUND_JOBS=true</code> opts in.
+                  Production behavior is preserved.
+                </li>
+                <li>
+                  Cron authentication now fails closed when
+                  <code>CRON_SECRET</code> is missing.
+                </li>
+                <li>Added six policy tests.</li>
+              </ul>
+            </li>
+            <li>
+              <p><strong>Client performance</strong></p>
+              <ul>
+                <li>
+                  Converted all page imports and <code>DashboardLayout</code> to
+                  lazy imports with a common fallback.
+                </li>
+                <li>
+                  Entry bundle reduced from 4.76 MB / 937 KB gzip to 678 KB /
+                  199 KB gzip.
+                </li>
+              </ul>
+            </li>
+          </ol>
+          <p>
+            No schema, scoring weight, financial assumption, compliance policy,
+            production infrastructure, shared database, deployment, or migration
+            <code>0044</code> file was changed.
+          </p>
+          <h2>12. Verification evidence</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Verification</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Authorization/runtime unit</td>
+                <td>
+                  <code
+                    >pnpm vitest run server/_core/runtime-safety.test.ts
+                    server/_core/project-access.test.ts</code
+                  >: 10/10 pass
+                </td>
+              </tr>
+              <tr>
+                <td>Learning regression</td>
+                <td>
+                  <code
+                    >pnpm vitest run server/_core/project-access.test.ts
+                    server/engines/learning/outcome-comparator.test.ts</code
+                  >: 7/7 pass
+                </td>
+              </tr>
+              <tr>
+                <td>Production build</td>
+                <td>
+                  <code>pnpm build</code>: pass for client, Node server, and
+                  serverless bundle
+                </td>
+              </tr>
+              <tr>
+                <td>Browser smoke</td>
+                <td>
+                  Home and login render; no console errors; unauthenticated
+                  <code>/projects</code> redirects to <code>/login</code>
+                </td>
+              </tr>
+              <tr>
+                <td>Runtime smoke</td>
+                <td>
+                  Development log states background jobs disabled; no scheduler
+                  DB activity after change
+                </td>
+              </tr>
+              <tr>
+                <td>Type-check</td>
+                <td>
+                  Still fails with the recorded baseline groups; no errors in
+                  changed files
+                </td>
+              </tr>
+              <tr>
+                <td>Full test</td>
+                <td>
+                  <code>pnpm test</code>: 9 failed, 809 passed, 22 skipped (840
+                  total); the same nine baseline cases failed and 10 new tests
+                  pass
+                </td>
+              </tr>
+              <tr>
+                <td>Migration protection</td>
+                <td>
+                  Final Git status retains <code>0044</code> SQL/snapshot and
+                  journal metadata solely as pre-existing user-owned working
+                  files
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <h2>13. Remaining risks and human decisions</h2>
+          <h3>Immediate engineering risks</h3>
+          <ul>
+            <li>
+              Tenant authorization remains incomplete outside the learning
+              endpoints fixed here.
+            </li>
+            <li>
+              Learning still uses all-organization evidence/scores for
+              comparable data; access is fixed, contamination is not.
+            </li>
+            <li>Full check/test gates remain red.</li>
+            <li>
+              Entry payload remains above an ideal performance budget, and one
+              deferred shared chunk is ~911 KB.
+            </li>
+            <li>Report annex behavior and visual QA remain unresolved.</li>
+            <li>
+              Local runtime still uses whichever <code>DATABASE_URL</code> is
+              configured for ordinary API requests; a dedicated local/test
+              database profile is still needed.
+            </li>
+          </ul>
+          <h3>Decisions requiring authorized humans</h3>
+          <ul>
+            <li>
+              <strong>Scoring/financial:</strong> any weight, threshold,
+              premium/yield assumption, confidence rule, or benchmark-policy
+              change.
+            </li>
+            <li>
+              <strong>Schema/data:</strong> the canonical brief version model,
+              product/price observation schema, non-null organization migration,
+              and anonymized aggregate-learning policy.
+            </li>
+            <li>
+              <strong>Compliance/legal:</strong> jurisdiction content,
+              licensed-professional sign-off, disclaimer text, PDPL
+              retention/cross-border processing, privacy/terms pages.
+            </li>
+            <li>
+              <strong>Commercial:</strong> target segment, packaging, price
+              points, entitlements, source/API licensing budget, supplier
+              partnerships.
+            </li>
+            <li>
+              <strong>External/production:</strong> migrations, deployment
+              topology, background-worker infrastructure, provider changes,
+              outbound RFQs/messages, publication.
+            </li>
+          </ul>
+          <h2>14. Final conclusion</h2>
+          <p>
+            MIYAR should pause feature expansion and spend its next cycle
+            earning trust: tenant-safe resource access, green gates, truthful
+            claims, canonical brief readiness, and versioned evidence. Once that
+            foundation is real, the combination of UAE market data,
+            typology-aware design briefs, deterministic quantities/costs,
+            supplier evidence, and issued board/designer outputs can be
+            commercially distinctive. Without it, additional renderers, scores,
+            dashboards, and predictors increase surface area faster than
+            defensibility.
+          </p>
+
+          <footer class="report-footer">
+            MIYAR product and technical audit · Observed 15 July 2026 ·
+            Generated from the canonical Markdown report.
+          </footer>
+        </main>
+      </div>
+    </div>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "base",
+        themeVariables: {
+          primaryColor: "#edf5f1",
+          primaryTextColor: "#17221f",
+          primaryBorderColor: "#0e6254",
+          lineColor: "#63716b",
+          secondaryColor: "#fff3dd",
+          tertiaryColor: "#fffdf8",
+          fontFamily: "Inter, ui-sans-serif, sans-serif",
+        },
+      });
+    </script>
+    <script>
+      const slugCounts = new Map();
+      const headings = [...document.querySelectorAll("#report h2")];
+      const toc = document.querySelector("#toc");
+      for (const heading of headings) {
+        const base =
+          heading.textContent
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "") || "section";
+        const count = slugCounts.get(base) || 0;
+        slugCounts.set(base, count + 1);
+        heading.id = count ? base + "-" + (count + 1) : base;
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = "#" + heading.id;
+        link.textContent = heading.textContent;
+        item.append(link);
+        toc.append(item);
+      }
+    </script>
+  </body>
+</html>

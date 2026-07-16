@@ -4,8 +4,8 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-14
-- Commit: `d8e5782` plus uncommitted repository-organization changes
+- Observed: 2026-07-16
+- Commit: `a15424b` plus uncommitted roadmap, authorization, audit, runtime-safety, tenant-guard, and client-performance changes
 - Branch: `codex/loop-engineering-architecture`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
@@ -35,11 +35,11 @@ This is the canonical location for current observed repository facts. It is not 
 
 At the observation above:
 
-| Command      | Result | Evidence summary                                                                    |
-| ------------ | ------ | ----------------------------------------------------------------------------------- |
-| `pnpm test`  | FAIL   | 799 passed, 9 failed, 22 skipped out of 830 tests                                   |
-| `pnpm check` | FAIL   | TypeScript errors in client pages, ingestion utilities, and server router contracts |
-| `pnpm build` | PASS   | Client, Node server, and Vercel API bundle built after repository reorganization    |
+| Command      | Result | Evidence summary                                                                                             |
+| ------------ | ------ | ------------------------------------------------------------------------------------------------------------ |
+| `pnpm test`  | FAIL   | With `DATABASE_URL=''`: 849 passed, 9 failed, 22 skipped out of 880 tests; the same nine baseline cases fail |
+| `pnpm check` | FAIL   | Same 52 recorded TypeScript diagnostics; no errors in TR-02 authorization files                              |
+| `pnpm build` | PASS   | Client, Node server, and serverless bundle pass; entry JS is 678 KB / 199 KB gzip                            |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
@@ -59,12 +59,19 @@ The observed worktree includes user-owned migration `0044` files and metadata th
 ## Environment Uncertainties
 
 - Documentation historically names both PlanetScale and TiDB. Treat the actual `DATABASE_URL` target and deployment configuration as authoritative for a given environment without exposing credentials.
+- The full Vitest suite is not database-hermetic: the auth logout test can initialize the configured database and attempt an audit-log write. See `KF-008`; use a dedicated safe test profile before treating local test execution as externally non-mutating.
 
 ## CI Configuration in the Current Worktree
 
 - CI has been changed to use pnpm and the committed pnpm lockfile.
 - TypeScript, tests, and build are configured as fail-closed mandatory gates.
 - Because the observed TypeScript and test baseline is red, CI is expected to remain red until the failures in `.agent/state/KNOWN_FAILURES.md` are fixed.
+
+## Authorization Foundation
+
+- `TR-01` inventories all 327 router procedures and assigns 140 remediation paths.
+- `TR-02` provides typed organization-resource and public-share authorization primitives with 49 passing targeted tests.
+- Production router adoption remains open under `TR-03` through `TR-05`.
 
 ## Refresh Procedure
 

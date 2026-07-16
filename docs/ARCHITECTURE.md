@@ -63,6 +63,7 @@ The client builds from `client/` through Vite. Generated output goes to `dist/`,
 ### Organization
 
 - `client/src/App.tsx`: route registry and route guards.
+- Pages and the authenticated dashboard shell are loaded at route boundaries so specialist design, administration, and visualization dependencies do not block public/login startup.
 - `client/src/pages/`: project, scenario, report, portfolio, market-intelligence, sustainability, customer-success, and administration views.
 - `client/src/components/`: reusable product and domain components.
 - `client/src/components/ui/`: shared UI primitives.
@@ -75,6 +76,7 @@ The client builds from `client/` through Vite. Generated output goes to `dist/`,
 - Server authorization must be enforced even when routes are visually guarded.
 - Sensitive organization data must never be embedded into public bundles or public share responses.
 - User-facing numerical displays must retain units, currency, assumptions, and insufficient-data states.
+- New top-level routes must remain lazily imported unless a measured startup requirement justifies eager loading.
 
 ## API and Router Layer
 
@@ -193,6 +195,7 @@ Security invariants:
 
 - Client route guards are not authorization.
 - Project access checks include organization ownership.
+- Project, child-resource, organization-resource, and public-share resolution follows `docs/security/AUTHORIZATION_CONTRACT.md`.
 - Admin procedures enforce role, not only authentication.
 - Public share tokens are high entropy, scoped, expiring, and revocable where supported.
 - Authentication and authorization changes require negative-path and cross-tenant tests.

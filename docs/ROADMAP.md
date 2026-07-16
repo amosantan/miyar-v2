@@ -4,6 +4,8 @@
 
 This file contains current and future priorities only. Completed phase narratives belong in historical reports. Priorities must be revalidated against product evidence, customer needs, and repository health before execution.
 
+The canonical dependency-ordered implementation ledger is `.agent/state/ROADMAP.md`. Codex and Claude Code must use `docs/runbooks/roadmap-execution.md` to select the single next step, record evidence, close work, and preserve durable lessons.
+
 ## Priority 0 — Restore a Trustworthy Engineering Baseline
 
 ### P0.1 Type safety
@@ -130,7 +132,9 @@ Do not prioritize feature count over a red verification baseline.
 
 - Every roadmap item needs an owner before entering implementation.
 - Every implementation task uses a loop under `docs/loops/`.
+- Detailed step status, dependencies, gates, and the next executable step live only in `.agent/state/ROADMAP.md`.
 - Acceptance criteria must be observable and include required evidence.
 - Completion moves to a dated historical report or release record; it does not remain as a completed section here.
+- Step completion and reusable learning are retained in `.agent/state/ROADMAP.md`, `.agent/state/WORKLOG.md`, `.agent/state/LESSONS.md`, and Git history.
 - Changes to product direction require product-owner review.
 - Changes to scoring, financial, compliance, or benchmark policy require the relevant human approval gate.

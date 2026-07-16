@@ -40,6 +40,7 @@ Never trust recorded test counts, table counts, phase status, or build status wi
 - Product purpose and boundaries: `docs/PRODUCT.md`
 - Current system architecture: `docs/ARCHITECTURE.md`
 - Current/future priorities: `docs/ROADMAP.md`
+- Dependency-ordered execution ledger: `.agent/state/ROADMAP.md`
 - Verified changing facts: `docs/PROJECT_STATE.md`
 - Verification and Definition of Done: `docs/VERIFICATION.md`
 - Security and data handling: `docs/SECURITY.md`
@@ -69,6 +70,8 @@ Never trust recorded test counts, table counts, phase status, or build status wi
 - `docs/loops/`: repeatable task loops.
 - `docs/runbooks/`: operational procedures.
 - `.agent/state/`: current task, reproduced failures, and concise handovers.
+- `.agent/state/ROADMAP.md`: canonical step order, status, dependencies, gates, and next executable step.
+- `.agent/state/LESSONS.md`: append-only reusable lessons proven during execution.
 - `docs/PROJECT_STATE.md`: canonical verified repository facts.
 - `docs/archive/`: historical evidence only; never use as current authority.
 - `docs/artifacts/`: approved project briefs, reports, and business artifacts; verify sensitivity before committing.
@@ -89,10 +92,10 @@ Do not claim a command passes unless it was run successfully in the current chec
 
 ## Start-of-Task Protocol
 
-1. Read `AGENTS.md`, `docs/PROJECT_STATE.md`, and `.agent/state/KNOWN_FAILURES.md`.
+1. Read `AGENTS.md`, `docs/PROJECT_STATE.md`, `.agent/state/KNOWN_FAILURES.md`, `.agent/state/ROADMAP.md`, and `.agent/state/LESSONS.md`.
 2. Inspect `git status`, the current branch, recent commits, and relevant code.
 3. Classify the task using `LOOP_ENGINEERING.md`.
-4. Select or create a bounded task in `.agent/state/CURRENT_TASK.md` when work spans multiple steps or sessions.
+4. Select the single next executable roadmap step and create a bounded task in `.agent/state/CURRENT_TASK.md` when work spans multiple steps or sessions.
 5. Read only the relevant domain skill, loop, runbook, and specification.
 6. Establish a baseline with the smallest relevant verification command.
 7. Record assumptions that could affect architecture, data, security, or product behavior.
@@ -162,12 +165,16 @@ Local migration generation, tests, builds, and reversible implementation work ar
 ## State and Handover
 
 - `.agent/state/CURRENT_TASK.md`: one active task, its acceptance criteria, status, and next action.
+- `.agent/state/ROADMAP.md`: canonical ordered steps, dependencies, human gates, status, and exactly one next executable step.
 - `docs/PROJECT_STATE.md`: verified repository facts and the date/commit at which they were observed.
 - `.agent/state/KNOWN_FAILURES.md`: reproducible failures with evidence, owner/status, and exit criterion.
+- `.agent/state/LESSONS.md`: append-only proven issues, causes, fixes, evidence, and reuse rules.
 - `.agent/state/WORKLOG.md`: concise append-only handover entries for material multi-session work.
 - Git history remains the authoritative change timeline.
 
 Do not duplicate changing statistics across instruction files. Update one canonical state file and link to it.
+
+Use `docs/runbooks/roadmap-execution.md` to start, close, block, or hand over roadmap steps. A completed step must update the roadmap, current task, worklog, and any proven lessons in the same verified change.
 
 ## Domain Routing
 
