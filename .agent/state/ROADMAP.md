@@ -178,7 +178,7 @@ Rules:
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
 - Completion evidence: All 93 baseline rows are closed; the live inventory covers 329 procedures with zero `TR-04` and exactly eight `TR-05` rows. The reopened remediation adds organization-locked atomic report persistence, tenant-owned portfolio alerts through migration `0046`, concurrent active-alert deduplication, explicit tenant/global-alert separation, exhaustive asset-link dispatch, classification acknowledgements, and stronger audit/evidence contracts. Targeted contracts pass 29/29, disposable MySQL 8 passes 13/13 with rollback and ownership/concurrency evidence, the safe full suite passes 950 with 22 skipped, TypeScript/audit/build/diff checks pass, and the final independent Claude Code review ended `APPROVED_NO_OBJECTION`.
-- Residual risk: The eight pooled learning/prediction paths remain under `TR-05`. The approved deterministic production ownership backfill closed `KF-015`; migration 0046 is applied. GitHub Actions billing (`KF-014`), release identity, and post-deployment observation remain release concerns.
+- Residual risk: The eight pooled learning/prediction paths remain under `TR-05`. Migration 0046, the approved ownership backfill, production deployment, and immediate smoke checks are complete. GitHub Actions billing (`KF-014`) remains open; continue normal production observation.
 - Lessons: `LES-018`
 - Reopened and reclosed: 2026-07-16 after an ultra-review found non-atomic report artifact writes and tenant writes to globally governed platform alerts. Fresh remediation and verification supersede the earlier closure evidence.
 

@@ -5,13 +5,13 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-16
-- Application release commit: `9e5d1e395ab7486fdfc73943d279820d5a91d53c`
-- Branch: `main`; local and `origin/main` matched at the application release observation
+- Application release commit: `3d0e26068b3c96237dc20605923280c76e548152`
+- Branch: `codex/tr-04-authorization`; the application release commit is pushed to `origin/codex/tr-04-authorization`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel deployment `dpl_HQ6mnWadr46VhfjS3GhGQnxi48Ng` reached `READY` from the exact application release commit
+- Production: Vercel deployment `dpl_7ndQvn6N7NpoJqx13fjBdgU5V8vM` reached `READY` from the exact clean application release commit and is aliased to `www.miyar.dev`
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Active worktree observation: `codex/tr-04-authorization` at pushed application commit `92847f3`; migration 0046 and the approved production ownership remediation are complete
+- Active worktree observation: clean `codex/tr-04-authorization` at the deployed application commit before this state-only closeout; migration 0046 and the approved production ownership remediation are complete
 
 ## Technology Observed
 
@@ -66,7 +66,7 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - Migration 0045 is complete: `organization_members_org_user_unique` and `ai_design_briefs_share_token_unique` are present as unique indexes.
 - Migration 0046 is complete: `portfolio_alerts` has 16 expected columns, a primary key, and unique `(organization_id, active_dedup_key)`.
 - TR-04 release preflight found 2 null-owned projects, 4 null-owned scenarios, and 8 reports attached to null-owned projects. The user approved the unique organization-1 mapping; one transaction updated the 2 projects and 4 scenarios, and all three post-remediation counts are zero. `KF-015` is closed.
-- Production smoke checks were read-only and did not print tokens or credentials.
+- Production deployment `dpl_7ndQvn6N7NpoJqx13fjBdgU5V8vM` is `READY`. Root and `system.health` return 200, unauthenticated `project.get` returns 401, invalid public shares return concealed 404 with `private, no-store` and `noindex, nofollow, noarchive`, and post-deployment ownership/table/index integrity checks pass.
 
 ## Environment Uncertainties
 
