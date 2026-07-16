@@ -17,7 +17,6 @@ import {
     type NormalizedEvidenceInput,
 } from "../connector";
 import { invokeLLM } from "../../../_core/llm";
-import { PDFParse } from "pdf-parse";
 
 // Known SCAD publication URLs for building material statistics
 const SCAD_PDF_URLS = [
@@ -90,6 +89,10 @@ export class SCADPdfConnector extends BaseSourceConnector {
 
                 const buffer = Buffer.from(await response.arrayBuffer());
 
+                // pdf-parse loads pdfjs and browser canvas globals at module
+                // evaluation time. Keep it out of the serverless startup path
+                // and load it only after a PDF download succeeds.
+                const { PDFParse } = await import("pdf-parse");
                 const parser = new PDFParse({ data: buffer });
                 try {
                     const parsed = await parser.getText();

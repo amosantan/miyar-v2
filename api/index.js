@@ -23225,7 +23225,6 @@ init_llm();
 // server/engines/ingestion/connectors/scad-pdf-connector.ts
 init_connector();
 init_llm();
-import { PDFParse } from "pdf-parse";
 var SCAD_PDF_URLS = [
   "https://www.scad.gov.ae/Release%20Documents/Construction%20Cost%20Index%20Report%20Q4%202024_EN.pdf",
   "https://www.scad.gov.ae/Release%20Documents/Construction%20Material%20Prices%202024_EN.pdf"
@@ -23277,6 +23276,7 @@ var SCADPdfConnector = class extends BaseSourceConnector {
           continue;
         }
         const buffer = Buffer.from(await response.arrayBuffer());
+        const { PDFParse } = await import("pdf-parse");
         const parser = new PDFParse({ data: buffer });
         try {
           const parsed = await parser.getText();
