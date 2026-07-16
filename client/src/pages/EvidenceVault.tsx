@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Upload, FileText, Image, Trash2, Tag, Eye, EyeOff, Link2, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
+import type { ProjectAsset } from "@shared/entity-types";
 
 const CATEGORIES = [
   { value: "brief", label: "Brief" },
@@ -168,7 +169,7 @@ export default function EvidenceVault() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {assets.data.map(asset => (
+          {(assets.data as ProjectAsset[]).map(asset => (
             <Card key={asset.id} className="group relative">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">

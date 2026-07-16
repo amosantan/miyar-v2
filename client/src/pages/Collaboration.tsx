@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { MessageSquare, Shield, Send, User, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+import type { Comment } from "@shared/entity-types";
 
 const APPROVAL_STATES = [
   { value: "draft", label: "Draft", color: "bg-gray-100 text-gray-700" },
@@ -174,7 +175,7 @@ export default function Collaboration() {
                 <p className="text-sm text-muted-foreground text-center py-6">No comments yet. Start the discussion.</p>
               ) : (
                 <div className="space-y-3">
-                  {comments.data.map(comment => (
+                  {(comments.data as Comment[]).map(comment => (
                     <div key={comment.id} className="flex gap-3 p-3 rounded-lg border">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <User className="h-4 w-4 text-primary" />

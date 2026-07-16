@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Lightbulb, RefreshCw, CheckCircle, XCircle, BarChart3 } from "lucide-react";
 import { useState } from "react";
+import type { BenchmarkSuggestion } from "@shared/entity-types";
 
 export default function BenchmarkLearning() {
   const suggestions = trpc.intelligence.benchmarkLearning.listSuggestions.useQuery();
@@ -33,7 +34,7 @@ export default function BenchmarkLearning() {
   });
 
   const [reviewNotes, setReviewNotes] = useState<Record<number, string>>({});
-  const suggestionList = suggestions.data ?? [];
+  const suggestionList = (suggestions.data ?? []) as BenchmarkSuggestion[];
   const outcomeCount = allOutcomes.data?.length ?? 0;
 
   return (

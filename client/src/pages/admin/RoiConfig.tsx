@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2, DollarSign, Settings, Save } from "lucide-react";
 import { useState, useEffect } from "react";
+import type { RoiConfig as RoiConfigRecord } from "@shared/entity-types";
 
 const COEFFICIENT_LABELS: Record<string, { label: string; description: string; unit: string }> = {
   hourlyRate: { label: "Hourly Rate", description: "Professional hourly rate for time-value calculations", unit: "AED" },
@@ -82,7 +83,7 @@ export default function RoiConfig() {
             </CardContent>
           </Card>
         ) : (
-          configs.map((config) => (
+          (configs as RoiConfigRecord[]).map((config) => (
             <Card key={config.id}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">

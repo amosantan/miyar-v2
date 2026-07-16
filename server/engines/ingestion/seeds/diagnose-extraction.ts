@@ -3,7 +3,16 @@
  * Helps identify why full scrape returned 0 records.
  */
 import "dotenv/config";
-import { invokeLLM } from "../../../_core/llm";
+import { invokeLLM, type InvokeResult } from "../../../_core/llm";
+
+function getResponseText(content: InvokeResult["choices"][number]["message"]["content"] | undefined): string {
+    if (typeof content === "string") return content;
+    if (!content) return "";
+    return content
+        .filter((item): item is Extract<typeof item, { type: "text" }> => item.type === "text")
+        .map(item => item.text)
+        .join("\n");
+}
 
 async function main() {
     // 1. Fetch a known page with prices (IKEA UAE sofas)
@@ -63,7 +72,7 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         response_format: { type: "json_object" }
     });
 
-    const content = result.choices[0]?.message?.content || "";
+    const content = getResponseText(result.choices[0]?.message?.content);
     console.log(`\nLLM Response length: ${content.length} chars`);
     console.log(`First 1500 chars of response:\n${content.substring(0, 1500)}\n`);
 

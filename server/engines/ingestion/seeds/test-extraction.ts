@@ -8,6 +8,7 @@ import { sourceRegistry } from "../../../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { DynamicConnector } from "../connectors/dynamic";
 import { runSingleConnector } from "../orchestrator";
+import type { SourceRegistryEntry } from "../../../../drizzle/schema";
 
 async function main() {
     const db = await getDb();
@@ -17,15 +18,16 @@ async function main() {
     const allSources = await db
         .select()
         .from(sourceRegistry)
-        .where(eq(sourceRegistry.isActive, true));
+        .where(eq(sourceRegistry.isActive, true)) as SourceRegistryEntry[];
 
     const developer = allSources.find(s => s.sourceType === "developer_brochure");
     const supplier = allSources.find(s => s.sourceType === "supplier_catalog" || s.sourceType === "manufacturer_catalog");
 
     console.log("\n━━━ TEST: Source-Type-Specific Extraction ━━━\n");
 
-    for (const source of [developer, supplier].filter(Boolean)) {
-        if (!source) continue;
+    for (const source of [developer, supplier].filter(
+        (candidate): candidate is NonNullable<typeof candidate> => candidate !== undefined,
+    )) {
 
         console.log(`\n🔍 Testing: ${source.name} (${source.sourceType})`);
         console.log(`   URL: ${source.url}`);

@@ -17,6 +17,7 @@ import {
     type NormalizedEvidenceInput,
 } from "../connector";
 import { invokeLLM } from "../../../_core/llm";
+import { PDFParse } from "pdf-parse";
 
 // Known SCAD publication URLs for building material statistics
 const SCAD_PDF_URLS = [
@@ -89,19 +90,15 @@ export class SCADPdfConnector extends BaseSourceConnector {
 
                 const buffer = Buffer.from(await response.arrayBuffer());
 
-                // Dynamic import to avoid hard dependency failures
-                let pdfParse: any;
+                const parser = new PDFParse({ data: buffer });
                 try {
-                    pdfParse = (await import("pdf-parse")).default;
-                } catch {
-                    console.error("[SCAD PDF] pdf-parse not available — run: npm install pdf-parse");
-                    continue;
-                }
-
-                const parsed = await pdfParse(buffer);
-                if (parsed.text && parsed.text.length > 100) {
-                    allText += `\n--- Source: ${pdfUrl} ---\n${parsed.text}\n`;
-                    console.log(`[SCAD PDF] Extracted ${parsed.text.length} chars from ${pdfUrl} (${parsed.numpages} pages)`);
+                    const parsed = await parser.getText();
+                    if (parsed.text && parsed.text.length > 100) {
+                        allText += `\n--- Source: ${pdfUrl} ---\n${parsed.text}\n`;
+                        console.log(`[SCAD PDF] Extracted ${parsed.text.length} chars from ${pdfUrl} (${parsed.total} pages)`);
+                    }
+                } finally {
+                    await parser.destroy();
                 }
             } catch (err) {
                 console.warn(`[SCAD PDF] Failed to fetch/parse ${pdfUrl}:`, err instanceof Error ? err.message : String(err));

@@ -137,7 +137,7 @@ async function runAudit() {
                     .map((m: string) => m.replace(/href=["']/i, "").replace(/["']$/, ""))
                     .filter((u: string) => u.startsWith("/") || u.startsWith(baseUrl))
                     .filter((u: string) => !u.includes("#") && !u.endsWith(".css") && !u.endsWith(".js"));
-                result.subPagesFound = [...new Set(subPages)].length;
+                result.subPagesFound = new Set(subPages).size;
                 console.log(`       🔗 Sub-pages found: ${result.subPagesFound}`);
             }
         } catch (err) {

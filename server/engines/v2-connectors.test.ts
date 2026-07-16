@@ -12,7 +12,7 @@
  *   8. Price regex extraction helper
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import {
   assignGrade,
   computeConfidence,
@@ -161,6 +161,16 @@ describe("V2-04: Confidence Computation", () => {
     expect(confidence).toBe(0.95); // 0.85 + 0.10
   });
 
+  it("includes the 90-day boundary in the recency bonus", () => {
+    const published = new Date("2025-11-22T12:00:00Z");
+    expect(computeConfidence("A", published, now)).toBe(0.95);
+  });
+
+  it("removes the recency bonus after 90 days", () => {
+    const published = new Date("2025-11-21T12:00:00Z");
+    expect(computeConfidence("A", published, now)).toBe(0.85);
+  });
+
   it("applies staleness penalty for content older than 365 days", () => {
     const stale = new Date("2024-12-01T12:00:00Z"); // ~447 days ago
     const confidence = computeConfidence("A", stale, now);
@@ -298,6 +308,9 @@ describe("V2-04: Connector Extraction", () => {
 // ─── 5. Normalization ───────────────────────────────────────────
 
 describe("V2-04: Connector Normalization", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   it("RAK Ceramics normalizes with Grade B and material tags", async () => {
     const connector = new RAKCeramicsConnector();
     const evidence: ExtractedEvidence = {
@@ -333,6 +346,8 @@ describe("V2-04: Connector Normalization", () => {
   });
 
   it("RICS normalizes with Grade A and null value for reports", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-15T00:00:00.000Z"));
     const connector = new RICSConnector();
     const evidence: ExtractedEvidence = {
       title: "RICS - UAE Construction Market Survey",

@@ -871,6 +871,7 @@ export function generateDesignBriefHTML(data: PDFReportInput): string {
     htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, watermark),
     `<div class="content-wrapper">`,
     renderDesignBrief(data.designBrief),
+    renderBoardAnnex(data.boardSummaries),
     renderEvidenceReferences(data.evidenceRefs),
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
     `</div>`,

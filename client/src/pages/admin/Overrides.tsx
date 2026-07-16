@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Shield, Loader2 } from "lucide-react";
 import { useState, useMemo } from "react";
+import type { Project } from "@shared/entity-types";
 
 function OverridesContent() {
   const { data: projects } = trpc.project.list.useQuery();
@@ -41,7 +42,7 @@ function OverridesContent() {
               <SelectValue placeholder="Select project" />
             </SelectTrigger>
             <SelectContent>
-              {projects.map((p) => (
+              {(projects as Project[]).map((p) => (
                 <SelectItem key={p.id} value={String(p.id)}>
                   {p.name}
                 </SelectItem>

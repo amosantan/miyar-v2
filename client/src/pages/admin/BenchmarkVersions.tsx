@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2, Plus, CheckCircle2, GitBranch, ArrowRightLeft } from "lucide-react";
 import { useState } from "react";
+import type { BenchmarkVersion } from "@shared/entity-types";
 
 export default function BenchmarkVersions() {
   const { data: versions, isLoading } = trpc.admin.benchmarkVersions.list.useQuery();
@@ -46,6 +47,7 @@ export default function BenchmarkVersions() {
     { versionId: diffNew! },
     { enabled: diffNew != null }
   );
+  const versionList = (versions ?? []) as BenchmarkVersion[];
 
   return (
     <>
@@ -106,11 +108,11 @@ export default function BenchmarkVersions() {
               <div className="flex justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : !versions || versions.length === 0 ? (
+            ) : versionList.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">No versions found.</p>
             ) : (
               <div className="space-y-2">
-                {versions.map((v) => (
+                {versionList.map((v) => (
                   <div key={v.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/50">
                     <div className="flex items-center gap-3">
                       {v.status === "published" ? (

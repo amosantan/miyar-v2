@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { benchmarkSpaceRatios } from "./design/space-benchmarking";
 import type { FloorPlanAnalysis } from "./design/floor-plan-analyzer";
+import { normalizeInputs } from "./normalization";
 
 /**
  * Phase 9 Space Intelligence — Test Suite
@@ -120,8 +121,6 @@ describe("V9 Space Benchmarking", () => {
 
 describe("V9 Scoring Integration", () => {
     it("spaceEfficiencyScore normalizes to 0-1 range", () => {
-        const { normalizeInputs } = require("./normalization");
-
         const inputsWithSpace: any = {
             ctx01Typology: "Residential",
             ctx02Scale: "Medium",
@@ -162,8 +161,6 @@ describe("V9 Scoring Integration", () => {
     });
 
     it("defaults spaceEfficiency_n to 0.5 when no score", () => {
-        const { normalizeInputs } = require("./normalization");
-
         const inputsNoSpace: any = {
             ctx01Typology: "Residential",
             ctx02Scale: "Medium",

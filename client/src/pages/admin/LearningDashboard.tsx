@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart3, TrendingUp, CheckCircle, BrainCircuit } from "lucide-react";
 import { useState } from "react";
+import type {
+    AccuracySnapshot,
+    BenchmarkSuggestion,
+    LogicChangeLogEntry,
+} from "@shared/entity-types";
 
 export default function LearningDashboard() {
     const ledger = trpc.learning.getAccuracyLedger.useQuery();
@@ -26,9 +31,9 @@ export default function LearningDashboard() {
     const [reviewNotes, setReviewNotes] = useState<Record<number, string>>({});
 
     const lData = ledger.data;
-    const hData = history.data ?? [];
-    const pBenchmarks = pendingBenchmarks.data ?? [];
-    const pLogic = pendingLogic.data ?? [];
+    const hData = (history.data ?? []) as AccuracySnapshot[];
+    const pBenchmarks = (pendingBenchmarks.data ?? []) as BenchmarkSuggestion[];
+    const pLogic = (pendingLogic.data ?? []) as LogicChangeLogEntry[];
 
     return (
         <div className="space-y-6">

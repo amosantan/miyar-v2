@@ -166,7 +166,7 @@ Rules:
 
 ### TR-06 — Resolve TypeScript failures by contract group
 
-- Status: `PLANNED`
+- Status: `CLOSED`
 - Class / priority: Engineering baseline / P0
 - Dependencies: `TR-04` recommended; may run earlier only in non-overlapping files.
 - Human gate: Stop if a type error exposes an ambiguous product or financial contract.
@@ -179,10 +179,14 @@ Rules:
 - Done when: `pnpm check` exits 0 without suppression.
 - Verification: Targeted tests after each group, final `pnpm check`, `pnpm test`, and `pnpm build`.
 - Expected artifacts: Green type gate and closed `KF-001`.
+- Closed: 2026-07-16
+- Terminal task state: `PASS`
+- Completion evidence: All 52 diagnostics were resolved by typed shared entity contracts, ingestion narrowing, decimal serialization, and current design-brief persistence shape; `pnpm check`, the safe full suite, build, and authorization audit pass.
+- Lessons: `LES-013`
 
 ### TR-07 — Repair unambiguous baseline tests
 
-- Status: `PLANNED`
+- Status: `CLOSED`
 - Class / priority: Test health / P0
 - Dependencies: `RM-00`
 - Human gate: None for mocks/import paths; do not choose ambiguous product behavior.
@@ -194,10 +198,13 @@ Rules:
 - Done when: The two auth failures and invalid-path space failures pass without changing product behavior.
 - Verification: Targeted Vitest files, surrounding auth/space tests, full suite delta.
 - Expected artifacts: Correct test harnesses and updated known-failure evidence.
+- Closed: 2026-07-16
+- Terminal task state: `PASS`
+- Completion evidence: Authentication mocks include `getDb`, normalization tests use the valid static import, and the safe full suite passes without connecting to a database.
 
 ### TR-08 — Decide ambiguous baseline contracts
 
-- Status: `NEEDS_HUMAN`
+- Status: `CLOSED`
 - Class / priority: Product/data/report decision / P0
 - Dependencies: `RM-00`
 - Human gate: Product owner and relevant domain owner.
@@ -209,10 +216,13 @@ Rules:
 - Done when: Each decision has owner, rationale, accepted examples, and effective version.
 - Verification: Decision record reviewed against current UI/report/data consumers.
 - Expected artifacts: ADR or product decision record feeding `TR-09` and `TR-10`.
+- Closed: 2026-07-16
+- Terminal task state: `PASS`
+- Completion evidence: The user approved a neutral empty-space result, retained the versioned Grade A confidence rule with deterministic time, and required the Material Board Annex in both design briefs and full reports with an explicit empty state.
 
 ### TR-09 — Implement decided baseline contracts
 
-- Status: `PLANNED`
+- Status: `CLOSED`
 - Class / priority: Engine/test / P0
 - Dependencies: `TR-07`, `TR-08`
 - Human gate: Decisions from `TR-08` must be recorded first.
@@ -225,6 +235,9 @@ Rules:
 - Done when: All nine recorded baseline failures are resolved without weakened assertions.
 - Verification: Targeted regression suites, full `pnpm test`, type-check, build.
 - Expected artifacts: Green test gate; closed `KF-002` through `KF-005` as applicable.
+- Closed: 2026-07-16
+- Terminal task state: `PASS`
+- Completion evidence: SCAD uses the typed ESM PDF parser, RICS recency is deterministic with 90/91-day coverage, empty space analysis is neutral, and design briefs always render the board annex; targeted and full tests plus PDF visual QA pass.
 
 ### TR-10 — Certify report integrity and visual rendering
 

@@ -21,6 +21,7 @@ import {
   type NormalizedEvidenceInput,
 } from "../connector";
 import { invokeLLM } from "../../../_core/llm";
+import { SCADPdfConnector } from "./scad-pdf-connector";
 
 // ─── SOURCE_URLS Registry ──────────────────────────────────────
 
@@ -847,10 +848,7 @@ export const ALL_CONNECTORS: Record<string, () => BaseSourceConnector> = {
   "bayut-listings": () => new BayutListingsConnector(),
   "propertyfinder-listings": () => new PropertyFinderListingsConnector(),
   // V6: PDF-based connectors
-  "scad-pdf-materials": () => {
-    const { SCADPdfConnector } = require("./scad-pdf-connector");
-    return new SCADPdfConnector();
-  },
+  "scad-pdf-materials": () => new SCADPdfConnector(),
 };
 
 export function getConnectorById(sourceId: string): BaseSourceConnector | null {

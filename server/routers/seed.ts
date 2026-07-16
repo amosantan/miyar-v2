@@ -237,12 +237,11 @@ export const seedRouter = router({
           projectId,
           version: 1,
           projectIdentity: briefData.projectIdentity,
-          positioningStatement: briefData.positioningStatement,
-          styleMood: briefData.styleMood,
-          materialGuidance: briefData.materialGuidance,
-          budgetGuardrails: briefData.budgetGuardrails,
-          procurementConstraints: briefData.procurementConstraints,
-          deliverablesChecklist: briefData.deliverablesChecklist,
+          designNarrative: briefData.designNarrative,
+          materialSpecifications: briefData.materialSpecifications,
+          boqFramework: briefData.boqFramework,
+          detailedBudget: briefData.detailedBudget,
+          designerInstructions: briefData.designerInstructions,
           createdBy: ctx.user.id,
         });
 

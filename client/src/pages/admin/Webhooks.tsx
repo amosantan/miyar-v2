@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2, Webhook, Plus, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { useState } from "react";
+import type { WebhookConfig } from "@shared/entity-types";
 
 const EVENT_OPTIONS = [
   "project.scored",
@@ -147,7 +148,7 @@ export default function Webhooks() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {webhooks.map((wh) => (
+            {(webhooks as WebhookConfig[]).map((wh) => (
               <Card key={wh.id}>
                 <CardContent className="pt-4 pb-3">
                   <div className="flex items-center justify-between">

@@ -1,128 +1,64 @@
 # Current Task
 
-- ID: TR-02
-- Roadmap step: `TR-02`
-- Title: Canonical organization-resource authorization layer
+- ID: TR-06
+- Roadmap step: `TR-06` with user-authorized `TR-07` and `TR-09` baseline repairs
+- Title: Restore green TypeScript and test baselines
 - Status: PASS
 - Owner: Codex
-- Reviewer: Claude Code plan review (`APPROVED_WITH_CHANGES`); final security-focused diff review required
 - Started: 2026-07-16
-- Risk: High API/security
-- Selected loop: `LOOP_ENGINEERING.md`
+- Risk: High, spanning client contracts, ingestion, deterministic confidence, authentication tests, and reports
+- Selected loops: Defect loop, ingestion loop, and report loop from `LOOP_ENGINEERING.md`
 - Retry budget: 3 evidence-based attempts per failure class
-- Resource budget: one reusable authorization layer, isolated fixtures/tests, security contract documentation, and scoped TR-01/TR-02 commit; no production-router remediation
-- Approval gates: deny legacy-null ownership; stop as `NEEDS_HUMAN` before any exception, schema/migration change, production deployment, protected-branch merge, global/admin policy, pooled learning, scoring, financial, or compliance change
+- Approval gates: no schema/migration application, shared database access, scoring-policy changes beyond the approved RICS rule, commit, push, deployment, or protected-branch action
 
 ## Goal
 
-Provide typed, dependency-injected organization authorization primitives for projects, direct and nested project resources, direct organization resources, project-and-organization records, batches, polymorphic targets, and expiring public shares so later router remediation does not reimplement ownership logic.
+Resolve all 52 reproduced TypeScript diagnostics and all nine reproduced test failures without broad suppression, weakened assertions, external database access, or disturbance to unrelated worktree changes.
 
-## Non-Goals
+## Locked Decisions
 
-- Do not import the new TR-02 helpers from or otherwise modify production routers.
-- Do not remediate the `TR-03`, `TR-04`, or `TR-05` inventory rows.
-- Do not change schema, migrations, dependencies, scoring, financial assumptions, compliance policy, global/admin governance, or pooled-learning policy.
-- Do not connect to or intentionally read/write a shared database.
-- Do not modify or include migration `0044`, its snapshot, or its journal changes.
-- Do not include unrelated client-performance, runtime-safety, generated-bundle, or pre-existing router changes in the scoped commit.
+- Empty floor plans return a neutral score of 50 with no recommendations and zero counts.
+- RICS confidence remains Grade A base 0.85 plus 0.10 for publications no older than 90 days, with deterministic test time.
+- Material Board Annex appears in design briefs and full reports, including an explicit empty state.
 
 ## Acceptance Criteria
 
-- [x] Existing `requireProjectForOrg` API and error contract remain compatible.
-- [x] Typed direct-child, nested-child, direct-org, project-and-org, ordered batch, and closed-registry polymorphic helpers are implemented.
-- [x] Missing, cross-org, legacy-null, orphaned, inconsistent, and unsupported resources fail with the same resource-safe `NOT_FOUND` contract.
-- [x] Batch authorization preserves order and duplicates, returns no partial result, and completes before downstream effects.
-- [x] Public-share authorization is separate from authenticated access and requires a non-null future UTC expiry plus consistent non-null brief/project ownership.
-- [x] Synthetic fixtures cover unauthenticated, no-org, two-org, third-party/orphan, legacy-null, inconsistent-parent, and public-share states.
-- [x] Unit and test-router contract suites pass without initializing the real database.
-- [x] Authorization contract documentation is linked from security and architecture documentation.
-- [x] No production router contains a TR-02 helper import or behavior change.
-- [x] Authorization audit passes; formatting passes; full type/test/build gates are reported honestly with no regression.
-- [x] Security diff review finds no ID, ownership, table, token, stack, or full-record leakage.
-- [x] Roadmap, task, worklog, lessons, known failures, and project state are updated only from verified evidence.
-- [x] Scoped TR-01/TR-02 commit boundary is recorded; preview deploy is prohibited unless mandatory repository gates all exit zero.
-
-## Commit Allowlist
-
-Only task-proven hunks under these paths may be staged:
-
-- `.agent/state/CURRENT_TASK.md`
-- `.agent/state/KNOWN_FAILURES.md`
-- `.agent/state/LESSONS.md`
-- `.agent/state/ROADMAP.md`
-- `.agent/state/WORKLOG.md`
-- `AGENTS.md`
-- `CLAUDE.md`
-- `docs/ARCHITECTURE.md`
-- `docs/PROJECT_STATE.md`
-- `docs/ROADMAP.md`
-- `docs/SECURITY.md`
-- `docs/audits/MIYAR_PRODUCT_TECH_AUDIT_2026-07-15.md`
-- `docs/audits/MIYAR_PRODUCT_TECH_AUDIT_2026-07-15.html`
-- `docs/runbooks/roadmap-execution.md`
-- `docs/security/`
-- `package.json`
-- `scripts/audit-resource-authorization.ts`
-- `server/_core/project-access.ts`
-- `server/_core/project-access.test.ts`
-- new TR-02 authorization, fixture, test, and contract files under `server/_core/` and `server/test-utils/`
-
-Explicitly excluded:
-
-- `api/index.js`
-- `client/src/App.tsx`
-- `drizzle/0044_last_the_executioner.sql`
-- `drizzle/meta/0044_snapshot.json`
-- `drizzle/meta/_journal.json`
-- `server/_core/index.ts`
-- `server/_core/runtime-safety.ts`
-- `server/_core/runtime-safety.test.ts`
-- `server/routers/learning.ts`
-- every unrelated or unproven user-owned hunk
-
-## Plan
-
-- [x] Activate TR-02 and record scope, gates, and commit allowlist.
-- [x] Implement canonical authenticated and public-share authorization helpers.
-- [x] Add reusable fixtures, unit tests, router contract tests, and documentation.
-- [x] Run targeted and repository verification plus security diff review.
-- [x] Close TR-02 and promote TR-03 from verified evidence.
-- [x] Stage the allowlist, commit, push, and conditionally deploy a Vercel preview.
+- [x] `pnpm check` exits 0 without ignores or broad casts introduced to silence diagnostics.
+- [x] SCAD PDF connector resolves under ESM and uses the typed `pdf-parse` API.
+- [x] Ingestion extraction utilities safely normalize union message content and Set/source iteration.
+- [x] Outcome decimal values and seeded design briefs match persistence contracts.
+- [x] Connector, board-report, space-program, and authentication regression tests pass.
+- [x] `DATABASE_URL='' pnpm test` exits 0 without an external database connection.
+- [x] Production build passes while preserving the pre-task `api/index.js` worktree content.
+- [x] Populated and empty design-brief PDFs render without annex layout defects.
+- [x] Existing migration, runtime-safety, authorization, client-performance, learning-router, and generated-bundle changes remain preserved.
+- [x] Roadmap, known failures, project state, worklog, and lessons reflect only verified results.
 
 ## Baseline Evidence
 
-- Branch: `codex/loop-engineering-architecture` at `a15424b` plus existing uncommitted work.
-- `pnpm vitest run server/_core/project-access.test.ts`: PASS, 4/4.
-- `pnpm audit:authorization`: last recorded PASS, 327 procedures and 140 remediation rows.
-- `pnpm check`: recorded red baseline with 52 diagnostics; changed-file regression comparison required.
-- `pnpm test`: recorded 809 passed, 9 failed, 22 skipped; ordinary invocation is not database-hermetic.
-- `pnpm build`: last recorded PASS.
-- Claude Code reviewed the implementation/release plan and returned `APPROVED_WITH_CHANGES`; the final plan incorporates its public-share, batch-boundary, legacy-null, leakage-review, commit-isolation, and preview-gate corrections.
-- `.vercel/project.json` exists and is ignored; no installed `vercel` executable was found.
+- Branch: `codex/loop-engineering-architecture` at `a7b1510` plus existing uncommitted work.
+- `pnpm check`: FAIL, 52 diagnostics.
+- `DATABASE_URL='' pnpm test`: FAIL, 9 tests; 854 passed and 22 skipped.
+- Existing dirty files before this task: `api/index.js`, `client/src/App.tsx`, `drizzle/meta/_journal.json`, `server/_core/index.ts`, `server/routers/learning.ts`, migration `0044`, and runtime-safety files.
 
-## Attempts and Recovery
+## Plan
 
-| Attempt | Hypothesis                                                                             | Action                              | Evidence                                                                                                                         | Result                                                                                                    |
-| ------: | -------------------------------------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-|       1 | The first public-share failure represented an authorization defect                     | Inspected the failed orphan fixture | The helper default parameter replaced explicit `undefined` with the organization-A project                                       | Corrected the test harness; the implementation contract was unchanged                                     |
-|       2 | Generic project lookup types matched the existing helper signature                     | Ran `pnpm check`                    | One TR-02 diagnostic showed the project lookup allowed synchronous results while `requireProjectForOrg` requires an async lookup | Narrowed the project lookup type; TR-02 diagnostics returned to zero                                      |
-|       3 | Removing `DATABASE_URL` from the command environment prevents dotenv from restoring it | Ran `env -u DATABASE_URL pnpm test` | `dotenv/config` loaded the local value and the logout test attempted a remote audit insert                                       | Established `DATABASE_URL=''` as the safe invocation and reproduced the suite with no external connection |
-|       4 | The TypeScript evidence summary command could store its exit in `status` under zsh     | Ran the diagnostic-count command    | zsh rejected its read-only `status` variable                                                                                     | Re-ran with `exit_code`; confirmed 52 baseline diagnostics and zero TR-02 diagnostics                     |
+- [x] Repair server/data/ingestion contracts and the nine failing tests.
+- [x] Repair causal tRPC/database output typing and remaining client render boundaries.
+- [x] Run targeted and full verification plus PDF visual QA.
+- [x] Review the complete diff and update durable state from evidence.
 
 ## Completion Evidence
 
-- `pnpm vitest run server/_core/project-access.test.ts server/_core/resource-access.test.ts server/_core/public-share-access.test.ts server/_core/resource-access.router.test.ts`: PASS, 49/49.
-- `pnpm audit:authorization`: PASS, 327 procedures and 140 remediation rows.
-- Targeted Prettier check: PASS.
-- `pnpm check`: FAIL with the same 52 recorded diagnostics; zero diagnostics reference TR-02 production or fixture files.
-- `DATABASE_URL='' pnpm test`: FAIL with the same nine known failures; 849 passed and 22 skipped, including all new TR-02 tests; no database connection attempt.
-- `pnpm build`: PASS for client, Node server, and serverless bundle.
-- Production-router search found no TR-02 helper import.
-- Security review found no logging in authorization helpers and no error response containing IDs, ownership details, tokens, table names, or stacks.
-- Public-share router adoption remains deliberately deferred to `TR-03`.
-- Scoped commit `4b81bab` was created from the allowlist and pushed to `origin/codex/loop-engineering-architecture`.
-- Vercel preview was not deployed because `pnpm check` and `DATABASE_URL='' pnpm test` remain red under the recorded baseline; no waiver or bypass was used.
+- `pnpm check`: PASS with zero diagnostics.
+- `DATABASE_URL='' pnpm test`: PASS; 867 passed and 22 skipped across 39 files, with no database connection.
+- `pnpm build`: PASS for client, Node server, and serverless targets; the pre-task `api/index.js` was restored after verification.
+- `pnpm audit:authorization`: PASS; 327 procedures and 140 remediation rows after refreshing source locations.
+- Targeted SCAD connector tests: PASS for typed PDF extraction, parser cleanup, and HTML fallback.
+- Populated and empty design-brief PDFs rendered as two-page A4 artifacts and all four PNG pages passed visual inspection for annex content, clipping, spacing, disclaimer, provenance, and footer.
+- Scoped `git diff --check` excluding the recorded user-owned dirty files: PASS.
+- No commit, push, deployment, migration application, or shared database action was performed.
 
 ## Next Action
 
-Start `TR-03 — Authorize the design-domain router`; preview deployment remains gated on a future fully green repository candidate.
+Resume `TR-03 — Authorize the design-domain router`.

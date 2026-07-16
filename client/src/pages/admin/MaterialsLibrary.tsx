@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Search, Package, Trash2, Edit } from "lucide-react";
 import { toast } from "sonner";
+import type { MaterialCatalogItem } from "@shared/entity-types";
 
 const CATEGORIES = ["tile", "stone", "wood", "metal", "fabric", "glass", "paint", "wallpaper", "lighting", "furniture", "fixture", "accessory", "other"] as const;
 const TIERS = ["economy", "mid", "premium", "luxury", "ultra_luxury"] as const;
@@ -50,9 +51,10 @@ export default function MaterialsLibrary() {
 
   const filtered = useMemo(() => {
     if (!materials.data) return [];
-    if (!search) return materials.data;
+    const materialList = materials.data as MaterialCatalogItem[];
+    if (!search) return materialList;
     const lower = search.toLowerCase();
-    return materials.data.filter(m =>
+    return materialList.filter(m =>
       m.name.toLowerCase().includes(lower) ||
       m.supplierName?.toLowerCase().includes(lower) ||
       m.notes?.toLowerCase().includes(lower)

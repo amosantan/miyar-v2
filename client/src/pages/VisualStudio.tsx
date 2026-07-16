@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Wand2, Image, Loader2, AlertCircle, Sparkles, Palette, Camera, Eye, Clock, Hash } from "lucide-react";
 import { toast } from "sonner";
+import type { PromptTemplate } from "@shared/entity-types";
 
 export default function VisualStudio() {
   const [, params] = useRoute("/projects/:id/visuals");
@@ -116,7 +117,7 @@ export default function VisualStudio() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="auto">Auto (active template)</SelectItem>
-                    {templates.data?.map(t => (
+                    {(templates.data as PromptTemplate[] | undefined)?.map(t => (
                       <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>

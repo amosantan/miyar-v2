@@ -155,7 +155,7 @@ function BenchmarksContent() {
           {Object.entries(counts).map(([type, count]) => (
             <span key={type} className="flex items-center gap-1.5">
               <SourceBadge type={type} />
-              <span>{count}</span>
+              <span>{Number(count)}</span>
             </span>
           ))}
         </div>

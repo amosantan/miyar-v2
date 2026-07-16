@@ -11,6 +11,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Plus, CheckCircle, Archive, Scale, AlertTriangle, History } from "lucide-react";
+import type {
+  LogicChangeLogEntry,
+  LogicThreshold,
+  LogicVersion,
+  LogicWeight,
+} from "@shared/entity-types";
+
+type LogicVersionDetail = LogicVersion & {
+  weights: LogicWeight[];
+  thresholds: LogicThreshold[];
+  changeLog: LogicChangeLogEntry[];
+};
 
 export default function LogicRegistry() {
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
@@ -72,11 +84,12 @@ export default function LogicRegistry() {
   const [editThresholds, setEditThresholds] = useState<
     Array<{ ruleKey: string; thresholdValue: string; comparator: string; notes: string }>
   >([]);
+  const versionDetail = selectedVersion.data as LogicVersionDetail | null | undefined;
 
   const initWeightEdit = () => {
-    if (!selectedVersion.data?.weights) return;
+    if (!versionDetail?.weights) return;
     const w: Record<string, string> = {};
-    for (const wt of selectedVersion.data.weights) {
+    for (const wt of versionDetail.weights) {
       w[wt.dimension] = wt.weight;
     }
     // Ensure all 5 dimensions present
@@ -87,9 +100,9 @@ export default function LogicRegistry() {
   };
 
   const initThresholdEdit = () => {
-    if (!selectedVersion.data?.thresholds) return;
+    if (!versionDetail?.thresholds) return;
     setEditThresholds(
-      selectedVersion.data.thresholds.map((t) => ({
+      versionDetail.thresholds.map((t) => ({
         ruleKey: t.ruleKey,
         thresholdValue: t.thresholdValue,
         comparator: t.comparator ?? "gte",
@@ -98,8 +111,8 @@ export default function LogicRegistry() {
     );
   };
 
-  const versionList = versions.data ?? [];
-  const sv = selectedVersion.data;
+  const versionList = (versions.data ?? []) as LogicVersion[];
+  const sv = versionDetail;
 
   return (
     <div className="space-y-6">

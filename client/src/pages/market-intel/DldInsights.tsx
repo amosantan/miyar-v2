@@ -10,6 +10,7 @@ import {
     MapPin, TrendingUp, Building2, DollarSign,
     ArrowUpDown, Search, Database, BarChart3,
 } from "lucide-react";
+import type { DldAreaBenchmark } from "@shared/entity-types";
 
 function fmt(v: number | string | null | undefined): string {
     if (v == null) return "—";
@@ -36,7 +37,6 @@ interface BenchmarkItem {
     fitoutMid: number | null;
     fitoutHigh: number | null;
     txnCount: number;
-    [key: string]: any;
 }
 
 export default function DldInsights() {
@@ -49,17 +49,17 @@ export default function DldInsights() {
 
     const sorted = useMemo(() => {
         if (!benchmarks) return [];
-        let items = benchmarks.map((b: any) => ({
+        let items: BenchmarkItem[] = (benchmarks as DldAreaBenchmark[]).map((b) => ({
             id: b.areaId ?? b.id,
-            areaName: b.areaName ?? b.areaNameEn ?? "Unknown",
-            saleP25: b.saleP25 ?? b.recommendedFitoutLow ?? null,
-            saleP50: b.saleP50 ?? null,
-            saleP75: b.saleP75 ?? b.recommendedFitoutHigh ?? null,
-            grossYield: b.grossYield ?? null,
-            fitoutLow: b.recommendedFitoutLow ?? null,
-            fitoutMid: b.recommendedFitoutMid ?? null,
-            fitoutHigh: b.recommendedFitoutHigh ?? null,
-            txnCount: (Number(b.transactionCount) || 0) + (Number(b.rentContractCount) || 0),
+            areaName: b.areaNameEn || "Unknown",
+            saleP25: b.saleP25 ? Number(b.saleP25) : null,
+            saleP50: b.saleP50 ? Number(b.saleP50) : null,
+            saleP75: b.saleP75 ? Number(b.saleP75) : null,
+            grossYield: b.grossYield ? Number(b.grossYield) : null,
+            fitoutLow: b.recommendedFitoutLow ? Number(b.recommendedFitoutLow) : null,
+            fitoutMid: b.recommendedFitoutMid ? Number(b.recommendedFitoutMid) : null,
+            fitoutHigh: b.recommendedFitoutHigh ? Number(b.recommendedFitoutHigh) : null,
+            txnCount: (b.saleTransactionCount || 0) + (b.rentTransactionCount || 0),
         }));
 
         if (search) {
@@ -68,13 +68,13 @@ export default function DldInsights() {
         }
 
         items.sort((a: BenchmarkItem, b: BenchmarkItem) => {
-            const va = Number(a[sortKey]) || 0;
-            const vb = Number(b[sortKey]) || 0;
             if (sortKey === "areaName") {
                 return sortAsc
                     ? a.areaName.localeCompare(b.areaName)
                     : b.areaName.localeCompare(a.areaName);
             }
+            const va = Number(a[sortKey]) || 0;
+            const vb = Number(b[sortKey]) || 0;
             return sortAsc ? va - vb : vb - va;
         });
 
@@ -126,7 +126,7 @@ export default function DldInsights() {
                     { icon: Building2, label: "Rent Contracts", value: fmt(stats?.rentCount) },
                     { icon: MapPin, label: "Areas Benchmarked", value: String(sorted.length) },
                     { icon: DollarSign, label: "Avg Median Price", value: sorted.length > 0 ? `${fmt(sorted.reduce((s, i) => s + (Number(i.saleP50) || 0), 0) / sorted.length)} AED/sqm` : "—" },
-                ].map(s => (
+                ].map((s: { icon: typeof Database; label: string; value: string }) => (
                     <Card key={s.label}>
                         <CardContent className="pt-4 pb-3">
                             <div className="flex items-center gap-2 mb-1">
@@ -242,7 +242,7 @@ export default function DldInsights() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {sorted.map(item => (
+                                {sorted.map((item: BenchmarkItem) => (
                                     <tr key={item.id} className="border-t hover:bg-muted/30 transition-colors">
                                         <td className="px-3 py-2 font-medium">{item.areaName}</td>
                                         <td className="px-3 py-2 tabular-nums">{fmt(item.saleP50)}</td>

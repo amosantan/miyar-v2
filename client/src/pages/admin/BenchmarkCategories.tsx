@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { Loader2, Layers, Filter } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { BenchmarkCategory } from "@shared/entity-types";
 
 const CATEGORY_LABELS: Record<string, string> = {
   materials: "Materials",
@@ -38,8 +39,9 @@ export default function BenchmarkCategories() {
 
   const grouped = useMemo(() => {
     if (!categories) return {};
-    const g: Record<string, typeof categories> = {};
-    for (const cat of categories) {
+    const categoryList = categories as BenchmarkCategory[];
+    const g: Record<string, BenchmarkCategory[]> = {};
+    for (const cat of categoryList) {
       const key = cat.category;
       if (!g[key]) g[key] = [];
       g[key].push(cat);

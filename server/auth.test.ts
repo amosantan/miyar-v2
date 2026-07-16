@@ -8,6 +8,7 @@ import { createHash } from "crypto";
 let mockDbUsers: Record<string, any> = {};
 
 vi.mock("./db", () => ({
+    getDb: vi.fn(async () => null),
     emailExists: vi.fn(async (email: string) => !!mockDbUsers[email]),
     getUserByEmail: vi.fn(async (email: string) => mockDbUsers[email] || null),
     upsertUser: vi.fn(async (user: any) => {

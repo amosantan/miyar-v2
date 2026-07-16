@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Switch } from "@/components/ui/switch";
 import { Plus, Wand2, Code } from "lucide-react";
 import { toast } from "sonner";
+import type { PromptTemplate } from "@shared/entity-types";
 
 export default function PromptTemplates() {
   const [filterType, setFilterType] = useState<string>("");
@@ -107,7 +108,7 @@ export default function PromptTemplates() {
       </div>
 
       <div className="space-y-3">
-        {templates.data?.map(tmpl => {
+        {(templates.data as PromptTemplate[] | undefined)?.map(tmpl => {
           const vars = tmpl.variables as string[];
           return (
             <Card key={tmpl.id}>

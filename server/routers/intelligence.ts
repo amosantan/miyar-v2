@@ -502,6 +502,7 @@ export const intelligenceRouter = router({
       .mutation(async ({ input, ctx }) => {
         const id = await createProjectOutcome({
           ...input,
+          actualFitoutCostPerSqm: input.actualFitoutCostPerSqm?.toString(),
           capturedBy: ctx.user.id,
         });
         return { id };

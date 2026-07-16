@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import CostForecastingPanel from "@/components/CostForecastingPanel";
+import type { TrendSnapshot } from "@shared/entity-types";
 
 // ─── Market Trends Panel ─────────────────────────────────────────
 
@@ -42,7 +43,7 @@ function MarketTrendsPanel() {
     limit: 20,
   });
 
-  const trends = data?.trends || [];
+  const trends = (data?.trends || []) as TrendSnapshot[];
 
   // Group by category — must be called before any early return
   const categories = useMemo(() => {

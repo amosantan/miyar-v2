@@ -5,7 +5,7 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-16
-- Commit: `4b81bab` plus uncommitted user/runtime-safety, tenant-guard, client-performance, generated-bundle, and migration-0044 changes
+- Commit: `a7b1510` plus uncommitted baseline-recovery, runtime-safety, tenant-guard, client-performance, generated-bundle, and migration-0044 changes
 - Branch: `codex/loop-engineering-architecture`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
@@ -35,11 +35,11 @@ This is the canonical location for current observed repository facts. It is not 
 
 At the observation above:
 
-| Command      | Result | Evidence summary                                                                                             |
-| ------------ | ------ | ------------------------------------------------------------------------------------------------------------ |
-| `pnpm test`  | FAIL   | With `DATABASE_URL=''`: 849 passed, 9 failed, 22 skipped out of 880 tests; the same nine baseline cases fail |
-| `pnpm check` | FAIL   | Same 52 recorded TypeScript diagnostics; no errors in TR-02 authorization files                              |
-| `pnpm build` | PASS   | Client, Node server, and serverless bundle pass; entry JS is 678 KB / 199 KB gzip                            |
+| Command      | Result | Evidence summary                                                                                     |
+| ------------ | ------ | ---------------------------------------------------------------------------------------------------- |
+| `pnpm test`  | PASS   | With `DATABASE_URL=''`: 867 passed and 22 skipped out of 889 tests; no database connection occurred  |
+| `pnpm check` | PASS   | Zero TypeScript diagnostics                                                                          |
+| `pnpm build` | PASS   | Client, Node server, and serverless bundle pass; entry JS remains approximately 678 KB / 199 KB gzip |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
@@ -65,7 +65,7 @@ The observed worktree includes user-owned migration `0044` files and metadata th
 
 - CI has been changed to use pnpm and the committed pnpm lockfile.
 - TypeScript, tests, and build are configured as fail-closed mandatory gates.
-- Because the observed TypeScript and test baseline is red, CI is expected to remain red until the failures in `.agent/state/KNOWN_FAILURES.md` are fixed.
+- The observed TypeScript, test, and build gates are green. `KF-001` through `KF-005` remain recorded as resolved pending an authorized fixing commit.
 
 ## Authorization Foundation
 

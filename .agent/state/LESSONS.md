@@ -157,3 +157,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The unset run attempted the remote audit insert; the explicitly empty logout test and full suite reported `DATABASE_URL set: false` and made no connection attempt.
 - Reuse rule: For dotenv-based applications, verify the effective runtime configuration rather than assuming `env -u` disables a setting; use an explicit safe profile or fail-closed sentinel.
 - Supersedes / related: Extends `LES-011`; tracked by `KF-008` and roadmap `TR-12`.
+
+### LES-013 — An `any` data boundary collapses client contract inference
+
+- Date / roadmap step: 2026-07-16 / `TR-06`
+- Context: tRPC query callbacks across administration, reporting, scenarios, and market intelligence were reported as implicit `any`.
+- Observed: The UI callbacks were not independently untyped; database helpers returning through an `any` handle erased router output inference across many consumers.
+- Cause: Runtime database initialization was intentionally loose, but no concrete shared entity contract was restored at the client boundary.
+- Fix or decision: Export schema-derived entity types through `shared/` and narrow affected query results once at their consumption boundary; keep JSON fields explicitly unknown until validated.
+- Proof: The same callback set compiles with zero diagnostics without callback-level `any`, ignores, or weakening strict mode.
+- Reuse rule: When many tRPC consumers simultaneously lose inference, inspect the earliest `any` boundary before annotating individual callbacks; publish concrete cross-layer types from `shared/`.
+- Supersedes / related: Extends `LES-004`; applies to future router and database contract work.

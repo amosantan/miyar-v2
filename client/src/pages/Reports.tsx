@@ -28,6 +28,7 @@ import {
 import { useState, useMemo, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import ReportRenderer from "@/components/ReportRenderer";
+import type { Project } from "@shared/entity-types";
 
 const REPORT_TYPES = [
   {
@@ -67,7 +68,7 @@ const REPORT_TYPES = [
 function ReportsContent() {
   const { data: projects } = trpc.project.list.useQuery();
   const evaluatedProjects = useMemo(
-    () => projects?.filter((p) => p.status === "evaluated") ?? [],
+    () => (projects as Project[] | undefined)?.filter((p) => p.status === "evaluated") ?? [],
     [projects]
   );
   const [selectedId, setSelectedId] = useState<string>("");

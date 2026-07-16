@@ -118,6 +118,19 @@ export function benchmarkSpaceRatios(
     transactionCount: number = 0,
     saleP50: number | null = null,
 ): SpaceBenchmarkResult {
+    if (analysis.rooms.length === 0) {
+        return {
+            recommendations: [],
+            overallEfficiencyScore: 50,
+            circulationWastePercent: Math.round(analysis.circulationPercentage * 10) / 10,
+            balconyToLivingRatio: 0,
+            totalCritical: 0,
+            totalAdvisory: 0,
+            totalOptimal: 0,
+            unitType: analysis.unitType,
+            areaName,
+        };
+    }
 
     // Determine which benchmark set to use
     const bedroomCount = analysis.bedroomCount;

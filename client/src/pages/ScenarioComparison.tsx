@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/PageHeader";
 import { GitCompare, ArrowUpDown, TrendingUp, TrendingDown, Minus, FileText, Download } from "lucide-react";
+import type { Scenario, ScenarioComparison as ScenarioComparisonRecord } from "@shared/entity-types";
 
 export default function ScenarioComparison() {
   const [, params] = useRoute("/projects/:id/scenario-compare");
@@ -45,8 +46,8 @@ export default function ScenarioComparison() {
     onError: () => toast.error("Failed to export Comparison Pack"),
   });
 
-  const scenarioList = scenarios.data ?? [];
-  const comparisonList = comparisons.data ?? [];
+  const scenarioList = (scenarios.data ?? []) as Scenario[];
+  const comparisonList = (comparisons.data ?? []) as ScenarioComparisonRecord[];
 
   const toggleCompared = (id: number) => {
     if (id === baselineId) return;
