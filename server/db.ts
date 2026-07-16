@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, inArray, gte } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray, gte, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import {
@@ -74,6 +74,15 @@ import {
   materialSupplierSources,
   spaceProgramRooms,
   amenitySubSpaces,
+  monteCarloSimulations,
+  scenarioStressTests,
+  riskSurfaceMaps,
+  projectRoiModels,
+  digitalTwinModels,
+  sustainabilitySnapshots,
+  portfolios,
+  portfolioProjects,
+  portfolioAlerts,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -234,6 +243,14 @@ export async function deleteProject(id: number) {
   await db.delete(projects).where(eq(projects.id, id));
 }
 
+export async function deleteProjectForOrg(id: number, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(projects)
+    .where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
+}
+
 // ─── Direction Candidates ────────────────────────────────────────────────────
 
 export async function createDirection(data: typeof directionCandidates.$inferInsert) {
@@ -292,6 +309,24 @@ export async function createScenarioRecord(data: typeof scenarios.$inferInsert) 
   return { id: Number(result[0].insertId) };
 }
 
+export async function createScenarioRecordForOrg(
+  data: typeof scenarios.$inferInsert,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return null;
+    const result = await tx.insert(scenarios).values({ ...data, orgId });
+    return { id: Number(result[0].insertId) };
+  });
+}
+
 export async function getScenariosByProject(projectId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -309,6 +344,136 @@ export async function deleteScenario(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(scenarios).where(eq(scenarios.id, id));
+}
+
+export async function deleteScenarioForOrg(id: number, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(scenarios)
+    .where(and(eq(scenarios.id, id), eq(scenarios.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
+}
+
+export async function getMonteCarloSimulationById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(monteCarloSimulations)
+    .where(eq(monteCarloSimulations.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+export async function createScenarioStressTestForOrg(
+  data: typeof scenarioStressTests.$inferInsert,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const scenario = await tx.select({ id: scenarios.id })
+      .from(scenarios)
+      .innerJoin(projects, eq(scenarios.projectId, projects.id))
+      .where(and(
+        eq(scenarios.id, data.scenarioId),
+        eq(projects.orgId, orgId)
+      ))
+      .limit(1)
+      .for("update");
+    if (scenario.length !== 1) return false;
+    await tx.insert(scenarioStressTests).values(data);
+    return true;
+  });
+}
+
+export async function createProjectRoiModelForOrg(
+  data: typeof projectRoiModels.$inferInsert,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return false;
+    if (data.scenarioId !== null && data.scenarioId !== undefined) {
+      const scenario = await tx.select({ id: scenarios.id })
+        .from(scenarios)
+        .where(and(
+          eq(scenarios.id, data.scenarioId),
+          eq(scenarios.projectId, data.projectId),
+          eq(scenarios.orgId, orgId)
+        ))
+        .limit(1)
+        .for("update");
+      if (scenario.length !== 1) return false;
+    }
+    await tx.insert(projectRoiModels).values(data);
+    return true;
+  });
+}
+
+export async function createRiskSurfaceMapsForOrg(
+  data: (typeof riskSurfaceMaps.$inferInsert)[],
+  orgId: number
+) {
+  if (data.length === 0) return true;
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const projectId = data[0].projectId;
+  if (data.some(row => row.projectId !== projectId)) return false;
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return false;
+    await tx.insert(riskSurfaceMaps).values(data);
+    return true;
+  });
+}
+
+export async function createMonteCarloSimulationForOrg(
+  data: typeof monteCarloSimulations.$inferInsert,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return false;
+    await tx.insert(monteCarloSimulations).values({ ...data, orgId });
+    return true;
+  });
+}
+
+export async function createDigitalTwinForOrg(
+  model: typeof digitalTwinModels.$inferInsert,
+  snapshot: typeof sustainabilitySnapshots.$inferInsert,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, model.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1 || snapshot.projectId !== model.projectId) {
+      return false;
+    }
+    await tx.insert(digitalTwinModels).values({ ...model, orgId });
+    await tx.insert(sustainabilitySnapshots).values(snapshot);
+    return true;
+  });
 }
 
 // ─── Model Versions ──────────────────────────────────────────────────────────
@@ -580,6 +745,82 @@ export async function createReportInstance(data: typeof reportInstances.$inferIn
   return { id: Number(result[0].insertId) };
 }
 
+export async function createReportArtifactsForOrg(input: {
+  projectId: number;
+  orgId: number;
+  report: typeof reportInstances.$inferInsert;
+  designArtifacts?: {
+    finishSchedule: (typeof finishScheduleItems.$inferInsert)[];
+    colorPalette: typeof projectColorPalettes.$inferInsert;
+    complianceChecklist: typeof dmComplianceChecklists.$inferInsert;
+    brief: typeof designBriefs.$inferInsert;
+    rfqItems: (typeof rfqLineItems.$inferInsert)[];
+  };
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const owned = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(
+        eq(projects.id, input.projectId),
+        eq(projects.orgId, input.orgId)
+      ))
+      .limit(1)
+      .for("update");
+    if (owned.length !== 1 || input.report.projectId !== input.projectId) {
+      return null;
+    }
+    const score = await tx.select({ id: scoreMatrices.id })
+      .from(scoreMatrices)
+      .where(and(
+        eq(scoreMatrices.id, input.report.scoreMatrixId),
+        eq(scoreMatrices.projectId, input.projectId)
+      ))
+      .limit(1)
+      .for("update");
+    if (score.length !== 1) return null;
+
+    let briefId: number | null = null;
+    const artifacts = input.designArtifacts;
+    if (artifacts) {
+      const rowsMatch = artifacts.finishSchedule.every(row =>
+        row.projectId === input.projectId &&
+        row.organizationId === input.orgId
+      ) &&
+        artifacts.colorPalette.projectId === input.projectId &&
+        artifacts.colorPalette.organizationId === input.orgId &&
+        artifacts.complianceChecklist.projectId === input.projectId &&
+        artifacts.complianceChecklist.organizationId === input.orgId &&
+        artifacts.brief.projectId === input.projectId &&
+        artifacts.rfqItems.every(row =>
+          row.projectId === input.projectId &&
+          row.organizationId === input.orgId
+        );
+      if (!rowsMatch) return null;
+
+      if (artifacts.finishSchedule.length > 0) {
+        await tx.insert(finishScheduleItems).values(artifacts.finishSchedule);
+      }
+      await tx.insert(projectColorPalettes).values(artifacts.colorPalette);
+      await tx.insert(dmComplianceChecklists).values(artifacts.complianceChecklist);
+      const briefResult = await tx.insert(designBriefs).values(artifacts.brief);
+      briefId = Number(briefResult[0].insertId);
+      if (artifacts.rfqItems.length > 0) {
+        await tx.insert(rfqLineItems).values(
+          artifacts.rfqItems.map(row => ({ ...row, briefId }))
+        );
+      }
+    }
+
+    const reportResult = await tx.insert(reportInstances).values(input.report);
+    return {
+      reportId: Number(reportResult[0].insertId),
+      briefId,
+    };
+  });
+}
+
 export async function getReportsByProject(projectId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -637,6 +878,24 @@ export async function createOverrideRecord(data: typeof overrideRecords.$inferIn
   if (!db) throw new Error("DB not available");
   const result = await db.insert(overrideRecords).values(data);
   return { id: Number(result[0].insertId) };
+}
+
+export async function createOverrideRecordForOrg(
+  data: typeof overrideRecords.$inferInsert,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return null;
+    const result = await tx.insert(overrideRecords).values(data);
+    return { id: Number(result[0].insertId) };
+  });
 }
 
 export async function getOverridesByProject(projectId: number) {
@@ -721,14 +980,85 @@ export async function updateProjectAssetForOrg(id: number, orgId: number, data: 
   return Number(result[0].affectedRows) === 1;
 }
 
-// ─── Asset Links (V2.8) ─────────────────────────────────────────────────────
-
-export async function createAssetLink(data: typeof assetLinks.$inferInsert) {
+export async function linkProjectAssetsForOrg(
+  assetIds: readonly number[],
+  projectId: number,
+  orgId: number
+) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(assetLinks).values(data);
-  return { id: Number(result[0].insertId) };
+  const uniqueAssetIds = Array.from(new Set(assetIds));
+  if (uniqueAssetIds.length === 0) return true;
+  return db.transaction(async (tx: any) => {
+    const target = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (target.length !== 1) return false;
+
+    const authorizedAssets = await tx.select({ id: projectAssets.id })
+      .from(projectAssets)
+      .innerJoin(projects, eq(projectAssets.projectId, projects.id))
+      .where(and(
+        inArray(projectAssets.id, uniqueAssetIds),
+        eq(projects.orgId, orgId)
+      ))
+      .for("update");
+    if (authorizedAssets.length !== uniqueAssetIds.length) return false;
+
+    const result = await tx.update(projectAssets)
+      .set({ projectId })
+      .where(inArray(projectAssets.id, uniqueAssetIds));
+    return Number(result[0].affectedRows) === uniqueAssetIds.length;
+  });
 }
+
+// ─── Asset Links (V2.8) ─────────────────────────────────────────────────────
+
+type AssetLinkType = (typeof assetLinks.$inferInsert)["linkType"];
+type AssetLinkTargetResolver = (
+  tx: any,
+  id: number,
+  orgId: number
+) => Promise<Array<{ projectId: number }>>;
+
+const assetLinkTargetResolvers = {
+  evaluation: (tx, id, orgId) =>
+    tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices)
+      .innerJoin(projects, eq(projects.id, scoreMatrices.projectId))
+      .where(and(eq(scoreMatrices.id, id), eq(projects.orgId, orgId)))
+      .limit(1).for("update"),
+  report: (tx, id, orgId) =>
+    tx.select({ projectId: reportInstances.projectId }).from(reportInstances)
+      .innerJoin(projects, eq(projects.id, reportInstances.projectId))
+      .where(and(eq(reportInstances.id, id), eq(projects.orgId, orgId)))
+      .limit(1).for("update"),
+  scenario: (tx, id, orgId) =>
+    tx.select({ projectId: scenarios.projectId }).from(scenarios)
+      .innerJoin(projects, eq(projects.id, scenarios.projectId))
+      .where(and(
+        eq(scenarios.id, id),
+        eq(scenarios.orgId, orgId),
+        eq(projects.orgId, orgId)
+      ))
+      .limit(1).for("update"),
+  material_board: (tx, id, orgId) =>
+    tx.select({ projectId: materialBoards.projectId }).from(materialBoards)
+      .innerJoin(projects, eq(projects.id, materialBoards.projectId))
+      .where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId)))
+      .limit(1).for("update"),
+  design_brief: (tx, id, orgId) =>
+    tx.select({ projectId: designBriefs.projectId }).from(designBriefs)
+      .innerJoin(projects, eq(projects.id, designBriefs.projectId))
+      .where(and(eq(designBriefs.id, id), eq(projects.orgId, orgId)))
+      .limit(1).for("update"),
+  visual: (tx, id, orgId) =>
+    tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals)
+      .innerJoin(projects, eq(projects.id, generatedVisuals.projectId))
+      .where(and(eq(generatedVisuals.id, id), eq(projects.orgId, orgId)))
+      .limit(1).for("update"),
+} satisfies Record<AssetLinkType, AssetLinkTargetResolver>;
 
 export async function createAssetLinkForOrg(data: typeof assetLinks.$inferInsert, orgId: number) {
   const db = await getDb();
@@ -739,32 +1069,11 @@ export async function createAssetLinkForOrg(data: typeof assetLinks.$inferInsert
       .where(and(eq(projectAssets.id, data.assetId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!source[0]) return null;
 
-    let target: Array<{ projectId: number }> = [];
-    if (data.linkType === "evaluation") {
-      target = await tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices)
-        .innerJoin(projects, eq(projects.id, scoreMatrices.projectId))
-        .where(and(eq(scoreMatrices.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "report") {
-      target = await tx.select({ projectId: reportInstances.projectId }).from(reportInstances)
-        .innerJoin(projects, eq(projects.id, reportInstances.projectId))
-        .where(and(eq(reportInstances.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "scenario") {
-      target = await tx.select({ projectId: scenarios.projectId }).from(scenarios)
-        .innerJoin(projects, eq(projects.id, scenarios.projectId))
-        .where(and(eq(scenarios.id, data.linkId), eq(scenarios.orgId, orgId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "material_board") {
-      target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards)
-        .innerJoin(projects, eq(projects.id, materialBoards.projectId))
-        .where(and(eq(materialBoards.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "design_brief") {
-      target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs)
-        .innerJoin(projects, eq(projects.id, designBriefs.projectId))
-        .where(and(eq(designBriefs.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "visual") {
-      target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals)
-        .innerJoin(projects, eq(projects.id, generatedVisuals.projectId))
-        .where(and(eq(generatedVisuals.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    }
+    const target = await assetLinkTargetResolvers[data.linkType](
+      tx,
+      data.linkId,
+      orgId
+    );
     if (!target[0] || target[0].projectId !== source[0].projectId) return null;
     const result = await tx.insert(assetLinks).values(data);
     return { id: Number(result[0].insertId) };
@@ -792,13 +1101,6 @@ export async function getAssetLinksByEntity(linkType: string, linkId: number) {
   );
 }
 
-export async function deleteAssetLink(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.delete(assetLinks).where(eq(assetLinks.id, id));
-  return { success: true };
-}
-
 export async function deleteAssetLinkForOrg(id: number, orgId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -815,32 +1117,12 @@ export async function deleteAssetLinkForOrg(id: number, orgId: number) {
     const link = links[0];
     if (!link) return false;
 
-    let target: Array<{ projectId: number }> = [];
-    if (link.linkType === "material_board") {
-      target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards)
-        .innerJoin(projects, eq(projects.id, materialBoards.projectId))
-        .where(and(eq(materialBoards.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "evaluation") {
-      target = await tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices)
-        .innerJoin(projects, eq(projects.id, scoreMatrices.projectId))
-        .where(and(eq(scoreMatrices.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "report") {
-      target = await tx.select({ projectId: reportInstances.projectId }).from(reportInstances)
-        .innerJoin(projects, eq(projects.id, reportInstances.projectId))
-        .where(and(eq(reportInstances.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "scenario") {
-      target = await tx.select({ projectId: scenarios.projectId }).from(scenarios)
-        .innerJoin(projects, eq(projects.id, scenarios.projectId))
-        .where(and(eq(scenarios.id, link.linkId), eq(scenarios.orgId, orgId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "design_brief") {
-      target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs)
-        .innerJoin(projects, eq(projects.id, designBriefs.projectId))
-        .where(and(eq(designBriefs.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "visual") {
-      target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals)
-        .innerJoin(projects, eq(projects.id, generatedVisuals.projectId))
-        .where(and(eq(generatedVisuals.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    }
+    const linkType = link.linkType as AssetLinkType;
+    const target = await assetLinkTargetResolvers[linkType](
+      tx,
+      link.linkId,
+      orgId
+    );
     if (!target[0] || target[0].projectId !== link.projectId) return false;
     const result = await tx.delete(assetLinks).where(eq(assetLinks.id, id));
     return Number(result[0].affectedRows) === 1;
@@ -1527,6 +1809,25 @@ export async function createScenarioInput(data: { scenarioId: number; jsonInput:
   return result.insertId;
 }
 
+export async function createScenarioInputForOrg(
+  data: { scenarioId: number; jsonInput: unknown },
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const rows = await tx.select({ id: scenarios.id })
+      .from(scenarios)
+      .innerJoin(projects, eq(scenarios.projectId, projects.id))
+      .where(and(eq(scenarios.id, data.scenarioId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (rows.length !== 1) return null;
+    const [result] = await tx.insert(scenarioInputs).values(data);
+    return Number(result.insertId);
+  });
+}
+
 export async function getScenarioInput(scenarioId: number) {
   const db = await getDb();
   if (!db) return null;
@@ -1554,6 +1855,25 @@ export async function createScenarioOutput(data: {
   if (!db) return 0;
   const [result] = await db.insert(scenarioOutputs).values(data);
   return result.insertId;
+}
+
+export async function createScenarioOutputForOrg(
+  data: Parameters<typeof createScenarioOutput>[0],
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const rows = await tx.select({ id: scenarios.id })
+      .from(scenarios)
+      .innerJoin(projects, eq(scenarios.projectId, projects.id))
+      .where(and(eq(scenarios.id, data.scenarioId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (rows.length !== 1) return null;
+    const [result] = await tx.insert(scenarioOutputs).values(data);
+    return Number(result.insertId);
+  });
 }
 
 export async function getScenarioOutput(scenarioId: number) {
@@ -1593,6 +1913,37 @@ export async function createScenarioComparison(data: {
   if (!db) return 0;
   const [result] = await db.insert(scenarioComparisons).values(data);
   return result.insertId;
+}
+
+export async function createScenarioComparisonForOrg(
+  data: Parameters<typeof createScenarioComparison>[0],
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const scenarioIds = Array.from(new Set([
+    data.baselineScenarioId,
+    ...data.comparedScenarioIds,
+  ]));
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return null;
+    const scenarioRows = await tx.select({ id: scenarios.id })
+      .from(scenarios)
+      .where(and(
+        inArray(scenarios.id, scenarioIds),
+        eq(scenarios.projectId, data.projectId),
+        eq(scenarios.orgId, orgId)
+      ))
+      .for("update");
+    if (scenarioRows.length !== scenarioIds.length) return null;
+    const [result] = await tx.insert(scenarioComparisons).values(data);
+    return Number(result.insertId);
+  });
 }
 
 export async function listScenarioComparisons(projectId: number) {
@@ -1636,6 +1987,24 @@ export async function createProjectOutcome(data: {
   if (!db) return 0;
   const [result] = await db.insert(projectOutcomes).values(data);
   return result.insertId;
+}
+
+export async function createProjectOutcomeForOrg(
+  data: Parameters<typeof createProjectOutcome>[0],
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return null;
+    const [result] = await tx.insert(projectOutcomes).values(data);
+    return Number(result.insertId);
+  });
 }
 
 export async function getProjectOutcomes(projectId: number) {
@@ -1755,6 +2124,28 @@ export async function listEvidenceRecords(filters?: {
   return (query as any).orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
 }
 
+export async function listPublicEvidenceRecords(filters?: {
+  category?: string;
+  reliabilityGrade?: string;
+  evidencePhase?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    isNull(evidenceRecords.projectId),
+    isNull(evidenceRecords.orgId),
+    eq(evidenceRecords.confidentiality, "public"),
+  ];
+  if (filters?.category) conditions.push(eq(evidenceRecords.category, filters.category as any));
+  if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade as any));
+  if (filters?.evidencePhase) conditions.push(eq(evidenceRecords.evidencePhase, filters.evidencePhase as any));
+  return db.select().from(evidenceRecords)
+    .where(and(...conditions))
+    .orderBy(desc(evidenceRecords.createdAt))
+    .limit(filters?.limit ?? 100);
+}
+
 export async function getEvidenceRecordById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
@@ -1773,6 +2164,17 @@ export async function deleteEvidenceRecord(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(evidenceRecords).where(eq(evidenceRecords.id, id));
+}
+
+export async function deleteGlobalEvidenceRecord(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(evidenceRecords).where(and(
+    eq(evidenceRecords.id, id),
+    isNull(evidenceRecords.projectId),
+    isNull(evidenceRecords.orgId)
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 
 export async function getPreviousEvidenceRecord(itemName: string, sourceRegistryId: number, beforeDate: Date) {
@@ -1819,6 +2221,28 @@ export async function getEvidenceStats() {
     byCategory,
     byGrade,
     avgConfidence: all.length > 0 ? Math.round(totalConfidence / all.length) : 0,
+  };
+}
+
+export async function getPublicEvidenceStats() {
+  const records = await listPublicEvidenceRecords({ limit: 10_000 });
+  const byCategory: Record<string, number> = {};
+  const byGrade: Record<string, number> = {};
+  let confidenceTotal = 0;
+  for (const record of records) {
+    byCategory[record.category] = (byCategory[record.category] ?? 0) + 1;
+    byGrade[record.reliabilityGrade] =
+      (byGrade[record.reliabilityGrade] ?? 0) + 1;
+    confidenceTotal += record.confidenceScore;
+  }
+  return {
+    total: records.length,
+    byCategory,
+    byGrade,
+    avgConfidence:
+      records.length === 0
+        ? 0
+        : Math.round(confidenceTotal / records.length),
   };
 }
 
@@ -2061,6 +2485,29 @@ export async function createEntityTag(data: typeof entityTags.$inferInsert) {
   return { id: Number(result.insertId) };
 }
 
+export async function getEntityTagById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(entityTags)
+    .where(eq(entityTags.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+export async function deleteEntityTagIfMatches(
+  id: number,
+  expected: { entityType: string; entityId: number }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(entityTags).where(and(
+    eq(entityTags.id, id),
+    eq(entityTags.entityType, expected.entityType as any),
+    eq(entityTags.entityId, expected.entityId)
+  ));
+  return Number(result[0].affectedRows) === 1;
+}
+
 export async function deleteEntityTag(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -2143,6 +2590,34 @@ export async function createEvidenceReference(data: typeof evidenceReferences.$i
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(evidenceReferences).values(data);
   return { id: Number(result.insertId) };
+}
+
+export async function getEvidenceReferenceById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(evidenceReferences)
+    .where(eq(evidenceReferences.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+export async function deleteEvidenceReferenceIfMatches(
+  id: number,
+  expected: {
+    evidenceRecordId: number;
+    targetType: string;
+    targetId: number;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(evidenceReferences).where(and(
+    eq(evidenceReferences.id, id),
+    eq(evidenceReferences.evidenceRecordId, expected.evidenceRecordId),
+    eq(evidenceReferences.targetType, expected.targetType as any),
+    eq(evidenceReferences.targetId, expected.targetId)
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 
 export async function deleteEvidenceReference(id: number) {
@@ -2409,6 +2884,33 @@ export async function insertProjectInsight(data: typeof projectInsights.$inferIn
   return db.insert(projectInsights).values(data);
 }
 
+export async function insertProjectInsightForOrg(
+  data: typeof projectInsights.$inferInsert & { projectId: number },
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return false;
+    await tx.insert(projectInsights).values(data);
+    return true;
+  });
+}
+
+export async function getProjectInsightById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(projectInsights)
+    .where(eq(projectInsights.id, id))
+    .limit(1);
+  return rows[0];
+}
+
 export async function getProjectInsights(filters?: {
   projectId?: number;
   insightType?: string;
@@ -2434,6 +2936,24 @@ export async function getProjectInsights(filters?: {
   return query.orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
 }
 
+export async function getGlobalProjectInsights(filters?: {
+  insightType?: string;
+  severity?: string;
+  status?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [isNull(projectInsights.projectId)];
+  if (filters?.insightType) conditions.push(eq(projectInsights.insightType, filters.insightType as any));
+  if (filters?.severity) conditions.push(eq(projectInsights.severity, filters.severity as any));
+  if (filters?.status) conditions.push(eq(projectInsights.status, filters.status as any));
+  return db.select().from(projectInsights)
+    .where(and(...conditions))
+    .orderBy(desc(projectInsights.createdAt))
+    .limit(filters?.limit ?? 50);
+}
+
 export async function updateInsightStatus(
   insightId: number,
   status: "active" | "acknowledged" | "dismissed" | "resolved",
@@ -2447,6 +2967,37 @@ export async function updateInsightStatus(
     updates.acknowledgedAt = new Date();
   }
   return db.update(projectInsights).set(updates).where(eq(projectInsights.id, insightId));
+}
+
+export async function updateInsightStatusForOrg(
+  insightId: number,
+  orgId: number,
+  status: "active" | "acknowledged" | "dismissed" | "resolved",
+  userId?: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const rows = await tx.select({ id: projectInsights.id })
+      .from(projectInsights)
+      .innerJoin(projects, eq(projectInsights.projectId, projects.id))
+      .where(and(
+        eq(projectInsights.id, insightId),
+        eq(projects.orgId, orgId)
+      ))
+      .limit(1)
+      .for("update");
+    if (rows.length !== 1) return false;
+    const updates: any = { status };
+    if (status === "acknowledged" && userId) {
+      updates.acknowledgedBy = userId;
+      updates.acknowledgedAt = new Date();
+    }
+    const result = await tx.update(projectInsights)
+      .set(updates)
+      .where(eq(projectInsights.id, insightId));
+    return Number(result[0].affectedRows) === 1;
+  });
 }
 
 // ─── V8: Design Intelligence Layer ──────────────────────────────────────────
@@ -2547,6 +3098,15 @@ export async function getBiasAlertsByProject(projectId: number) {
     .orderBy(desc(biasAlerts.createdAt));
 }
 
+export async function getBiasAlertById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(biasAlerts)
+    .where(eq(biasAlerts.id, id))
+    .limit(1);
+  return rows[0];
+}
+
 export async function getActiveBiasAlerts(projectId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -2564,6 +3124,19 @@ export async function dismissBiasAlert(alertId: number, userId: number) {
   return db.update(biasAlerts)
     .set({ dismissed: true, dismissedBy: userId, dismissedAt: new Date() })
     .where(eq(biasAlerts.id, alertId));
+}
+
+export async function dismissBiasAlertForOrg(
+  alertId: number,
+  orgId: number,
+  userId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(biasAlerts)
+    .set({ dismissed: true, dismissedBy: userId, dismissedAt: new Date() })
+    .where(and(eq(biasAlerts.id, alertId), eq(biasAlerts.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
 }
 
 export async function getUserBiasProfile(userId: number) {
@@ -2660,6 +3233,34 @@ export async function clearSpaceRecommendations(projectId: number, orgId: number
     ));
 }
 
+export async function replaceSpaceRecommendationsForOrg(
+  projectId: number,
+  orgId: number,
+  recommendations: (typeof spaceRecommendations.$inferInsert)[]
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (
+      project.length !== 1 ||
+      recommendations.some(row => row.projectId !== projectId || row.orgId !== orgId)
+    ) return false;
+    await tx.delete(spaceRecommendations).where(and(
+      eq(spaceRecommendations.projectId, projectId),
+      eq(spaceRecommendations.orgId, orgId)
+    ));
+    if (recommendations.length > 0) {
+      await tx.insert(spaceRecommendations).values(recommendations);
+    }
+    return true;
+  });
+}
+
 export async function getSpaceRecommendations(projectId: number, orgId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -2676,6 +3277,25 @@ export async function createDesignPackage(data: typeof designPackages.$inferInse
   if (!db) return;
   const result = await db.insert(designPackages).values(data);
   return { id: result[0].insertId };
+}
+
+export async function createDesignPackageForOrg(
+  projectId: number,
+  orgId: number,
+  data: typeof designPackages.$inferInsert
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1 || data.orgId !== orgId) return null;
+    const result = await tx.insert(designPackages).values(data);
+    return { id: Number(result[0].insertId) };
+  });
 }
 
 export async function getDesignPackages(typology?: string, tier?: string) {
@@ -2695,6 +3315,24 @@ export async function createAiDesignBrief(data: typeof aiDesignBriefs.$inferInse
   const db = await getDb();
   if (!db) return;
   await db.insert(aiDesignBriefs).values(data);
+}
+
+export async function createAiDesignBriefForOrg(
+  data: typeof aiDesignBriefs.$inferInsert,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1 || data.orgId !== orgId) return false;
+    await tx.insert(aiDesignBriefs).values(data);
+    return true;
+  });
 }
 
 export async function getLatestAiDesignBrief(projectId: number, orgId: number) {
@@ -2969,6 +3607,24 @@ export async function createPdfExtraction(data: typeof pdfExtractions.$inferInse
   return { id: Number(result.insertId) };
 }
 
+export async function createPdfExtractionForOrg(
+  data: typeof pdfExtractions.$inferInsert,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return null;
+    const result = await tx.insert(pdfExtractions).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
+
 export async function getPdfExtractionsByProject(projectId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -2999,6 +3655,62 @@ export async function updatePdfExtraction(
   return db.update(pdfExtractions).set(data as any).where(eq(pdfExtractions.id, id));
 }
 
+export async function updatePdfExtractionForOrg(
+  id: number,
+  orgId: number,
+  data: Parameters<typeof updatePdfExtraction>[1]
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const extraction = await tx.select({ id: pdfExtractions.id })
+      .from(pdfExtractions)
+      .innerJoin(projects, eq(pdfExtractions.projectId, projects.id))
+      .where(and(eq(pdfExtractions.id, id), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (extraction.length !== 1) return false;
+    const result = await tx.update(pdfExtractions)
+      .set(data as any)
+      .where(eq(pdfExtractions.id, id));
+    return Number(result[0].affectedRows) === 1;
+  });
+}
+
+export async function verifyPdfExtractionForOrg(
+  id: number,
+  projectId: number,
+  orgId: number,
+  userId: number,
+  verifiedArea: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const extraction = await tx.select({ id: pdfExtractions.id })
+      .from(pdfExtractions)
+      .innerJoin(projects, eq(pdfExtractions.projectId, projects.id))
+      .where(and(
+        eq(pdfExtractions.id, id),
+        eq(pdfExtractions.projectId, projectId),
+        eq(projects.orgId, orgId)
+      ))
+      .limit(1)
+      .for("update");
+    if (extraction.length !== 1) return false;
+    await tx.update(pdfExtractions).set({
+      status: "verified",
+      verifiedBy: userId,
+      verifiedAt: new Date(),
+    }).where(eq(pdfExtractions.id, id));
+    const result = await tx.update(projects).set({
+      fitoutAreaVerified: true,
+      totalFitoutArea: String(verifiedArea),
+    }).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
+    return Number(result[0].affectedRows) === 1;
+  });
+}
+
 export async function updateProjectVerification(
   projectId: number,
   data: { fitoutAreaVerified?: boolean; totalFitoutArea?: number }
@@ -3009,6 +3721,22 @@ export async function updateProjectVerification(
   if (data.fitoutAreaVerified !== undefined) updates.fitoutAreaVerified = data.fitoutAreaVerified;
   if (data.totalFitoutArea !== undefined) updates.totalFitoutArea = String(data.totalFitoutArea);
   return db.update(projects).set(updates).where(eq(projects.id, projectId));
+}
+
+export async function updateProjectVerificationForOrg(
+  projectId: number,
+  orgId: number,
+  data: { fitoutAreaVerified?: boolean; totalFitoutArea?: number }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updates: any = {};
+  if (data.fitoutAreaVerified !== undefined) updates.fitoutAreaVerified = data.fitoutAreaVerified;
+  if (data.totalFitoutArea !== undefined) updates.totalFitoutArea = String(data.totalFitoutArea);
+  const result = await db.update(projects)
+    .set(updates)
+    .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
 }
 
 // ─── MIYAR 3.0 Phase A — Material Quantity Intelligence ────────────────────
@@ -3029,6 +3757,39 @@ export async function insertMaterialAllocations(data: (typeof materialAllocation
   if (!db) return;
   if (data.length === 0) return;
   return db.insert(materialAllocations).values(data);
+}
+
+export async function replaceMaterialAllocationsForOrg(
+  projectId: number,
+  organizationId: number,
+  data: (typeof materialAllocations.$inferInsert)[]
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(
+        eq(projects.id, projectId),
+        eq(projects.orgId, organizationId)
+      ))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return false;
+    await tx.delete(materialAllocations).where(and(
+      eq(materialAllocations.projectId, projectId),
+      eq(materialAllocations.organizationId, organizationId),
+      eq(materialAllocations.isLocked, false)
+    ));
+    if (data.length > 0) {
+      if (data.some(row =>
+        row.projectId !== projectId ||
+        row.organizationId !== organizationId
+      )) return false;
+      await tx.insert(materialAllocations).values(data);
+    }
+    return true;
+  });
 }
 
 export async function deleteMaterialAllocations(projectId: number, organizationId: number, excludeLockedIds?: number[]) {
@@ -3060,6 +3821,39 @@ export async function updateMaterialAllocation(
   const db = await getDb();
   if (!db) return;
   return db.update(materialAllocations).set(data as any).where(eq(materialAllocations.id, id));
+}
+
+export async function getMaterialAllocationById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(materialAllocations)
+    .where(eq(materialAllocations.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateMaterialAllocationForOrg(
+  id: number,
+  organizationId: number,
+  data: Partial<{
+    allocationPct: string;
+    surfaceAreaM2: string;
+    unitCostMin: string;
+    unitCostMax: string;
+    totalCostMin: string;
+    totalCostMax: string;
+    isLocked: boolean;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(materialAllocations)
+    .set(data as any)
+    .where(and(
+      eq(materialAllocations.id, id),
+      eq(materialAllocations.organizationId, organizationId)
+    ));
+  return Number(result[0].affectedRows) === 1;
 }
 
 export async function lockMaterialAllocations(projectId: number, organizationId: number, isLocked: boolean) {
@@ -3109,6 +3903,35 @@ export async function updateMaterialSupplierSource(
   return db.update(materialSupplierSources).set(data as any).where(eq(materialSupplierSources.id, id));
 }
 
+export async function getMaterialSupplierSourceById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(materialSupplierSources)
+    .where(eq(materialSupplierSources.id, id))
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateMaterialSupplierSourceForOrg(
+  id: number,
+  organizationId: number,
+  data: Partial<{
+    lastScrapedAt: Date;
+    lastPriceAedMin: string;
+    lastPriceAedMax: string;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(materialSupplierSources)
+    .set(data as any)
+    .where(and(
+      eq(materialSupplierSources.id, id),
+      eq(materialSupplierSources.organizationId, organizationId)
+    ));
+  return Number(result[0].affectedRows) === 1;
+}
+
 // ─── MIYAR 3.0 Phase B — Space Program Intelligence ────────────────────────
 
 export async function getSpaceProgramRooms(projectId: number, organizationId: number) {
@@ -3127,6 +3950,39 @@ export async function insertSpaceProgramRooms(data: (typeof spaceProgramRooms.$i
   if (!db) return;
   if (data.length === 0) return;
   return db.insert(spaceProgramRooms).values(data);
+}
+
+export async function insertSpaceProgramRoomForOrg(
+  data: typeof spaceProgramRooms.$inferInsert,
+  organizationId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(
+        eq(projects.id, data.projectId),
+        eq(projects.orgId, organizationId)
+      ))
+      .limit(1)
+      .for("update");
+    if (
+      project.length !== 1 ||
+      data.organizationId !== organizationId
+    ) return false;
+    await tx.insert(spaceProgramRooms).values(data);
+    return true;
+  });
+}
+
+export async function getSpaceProgramRoomById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(spaceProgramRooms)
+    .where(eq(spaceProgramRooms.id, id))
+    .limit(1);
+  return rows[0];
 }
 
 export async function updateSpaceProgramRoom(
@@ -3152,12 +4008,55 @@ export async function updateSpaceProgramRoom(
   return db.update(spaceProgramRooms).set(data as any).where(eq(spaceProgramRooms.id, id));
 }
 
+export async function updateSpaceProgramRoomForOrg(
+  id: number,
+  organizationId: number,
+  data: Parameters<typeof updateSpaceProgramRoom>[1]
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(spaceProgramRooms)
+    .set(data as any)
+    .where(and(
+      eq(spaceProgramRooms.id, id),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    ));
+  return Number(result[0].affectedRows) === 1;
+}
+
 export async function deleteSpaceProgramRoom(id: number) {
   const db = await getDb();
   if (!db) return;
   // Also delete associated amenity sub-spaces
   await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, id));
   return db.delete(spaceProgramRooms).where(eq(spaceProgramRooms.id, id));
+}
+
+export async function deleteSpaceProgramRoomForOrg(
+  id: number,
+  organizationId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const rows = await tx.select({ id: spaceProgramRooms.id })
+      .from(spaceProgramRooms)
+      .where(and(
+        eq(spaceProgramRooms.id, id),
+        eq(spaceProgramRooms.organizationId, organizationId)
+      ))
+      .limit(1)
+      .for("update");
+    if (rows.length !== 1) return false;
+    await tx.delete(amenitySubSpaces)
+      .where(eq(amenitySubSpaces.spaceProgramRoomId, id));
+    const result = await tx.delete(spaceProgramRooms)
+      .where(and(
+        eq(spaceProgramRooms.id, id),
+        eq(spaceProgramRooms.organizationId, organizationId)
+      ));
+    return Number(result[0].affectedRows) === 1;
+  });
 }
 
 export async function getAmenitySubSpacesForRoom(spaceProgramRoomId: number) {
@@ -3172,6 +4071,151 @@ export async function insertAmenitySubSpaces(data: (typeof amenitySubSpaces.$inf
   if (!db) return;
   if (data.length === 0) return;
   return db.insert(amenitySubSpaces).values(data);
+}
+
+export async function replaceSpaceProgramRoomsForOrg(
+  projectId: number,
+  organizationId: number,
+  rooms: (typeof spaceProgramRooms.$inferInsert)[],
+  amenities: Array<{
+    roomCode: string;
+    subSpaces: Array<Omit<typeof amenitySubSpaces.$inferInsert, "spaceProgramRoomId">>;
+  }>,
+  preserveOverridden = true
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const project = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(
+        eq(projects.id, projectId),
+        eq(projects.orgId, organizationId)
+      ))
+      .limit(1)
+      .for("update");
+    if (project.length !== 1) return null;
+
+    const deleteConditions = [
+      eq(spaceProgramRooms.projectId, projectId),
+      eq(spaceProgramRooms.organizationId, organizationId),
+    ];
+    if (preserveOverridden) {
+      deleteConditions.push(eq(spaceProgramRooms.fitOutOverridden, false));
+    }
+    const deleting = await tx.select({ id: spaceProgramRooms.id })
+      .from(spaceProgramRooms)
+      .where(and(...deleteConditions))
+      .for("update");
+    const deletingIds = deleting.map((row: { id: number }) => row.id);
+    if (deletingIds.length > 0) {
+      await tx.delete(amenitySubSpaces)
+        .where(inArray(amenitySubSpaces.spaceProgramRoomId, deletingIds));
+      await tx.delete(spaceProgramRooms).where(and(...deleteConditions));
+    }
+
+    if (rooms.some(room =>
+      room.projectId !== projectId ||
+      room.organizationId !== organizationId
+    )) return null;
+    if (rooms.length > 0) await tx.insert(spaceProgramRooms).values(rooms);
+
+    const storedRooms = await tx.select().from(spaceProgramRooms)
+      .where(and(
+        eq(spaceProgramRooms.projectId, projectId),
+        eq(spaceProgramRooms.organizationId, organizationId)
+      ));
+    const roomByCode = new Map<string, typeof spaceProgramRooms.$inferSelect>(
+      storedRooms.map((room: typeof spaceProgramRooms.$inferSelect) => [
+        room.roomCode,
+        room,
+      ])
+    );
+    const subSpaces = amenities.flatMap(amenity => {
+      const room = roomByCode.get(amenity.roomCode);
+      if (!room) return [];
+      return amenity.subSpaces.map(subSpace => ({
+        ...subSpace,
+        spaceProgramRoomId: room.id,
+      }));
+    });
+    if (subSpaces.length > 0) {
+      await tx.insert(amenitySubSpaces).values(subSpaces);
+    }
+    return storedRooms;
+  });
+}
+
+export async function insertPortfolioAlertsForOrg(input: {
+  portfolioId: number;
+  orgId: number;
+  alerts: (typeof portfolioAlerts.$inferInsert)[];
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const portfolio = await tx.select({ id: portfolios.id })
+      .from(portfolios)
+      .where(and(
+        eq(portfolios.id, input.portfolioId),
+        eq(portfolios.organizationId, input.orgId)
+      ))
+      .limit(1)
+      .for("update");
+    if (portfolio.length !== 1) return null;
+
+    const links = await tx.select({ projectId: portfolioProjects.projectId })
+      .from(portfolioProjects)
+      .where(eq(portfolioProjects.portfolioId, input.portfolioId))
+      .for("update");
+    const projectIds: number[] = Array.from(new Set<number>(
+      links.map((row: { projectId: number }) => row.projectId)
+    ));
+    if (projectIds.length > 0) {
+      const ownedProjects = await tx.select({ id: projects.id })
+        .from(projects)
+        .where(and(
+          inArray(projects.id, projectIds),
+          eq(projects.orgId, input.orgId)
+        ))
+        .for("update");
+      if (ownedProjects.length !== projectIds.length) return null;
+    }
+
+    const valid = input.alerts.every(alert => {
+      const affected = Array.isArray(alert.affectedProjectIds)
+        ? alert.affectedProjectIds as number[]
+        : [];
+      return alert.organizationId === input.orgId &&
+        alert.portfolioId === input.portfolioId &&
+        Boolean(alert.activeDedupKey) &&
+        affected.every(id => projectIds.includes(id));
+    });
+    if (!valid) return null;
+
+    await tx.update(portfolioAlerts)
+      .set({ status: "expired", activeDedupKey: null })
+      .where(and(
+        eq(portfolioAlerts.organizationId, input.orgId),
+        eq(portfolioAlerts.portfolioId, input.portfolioId),
+        eq(portfolioAlerts.status, "active"),
+        sql`${portfolioAlerts.expiresAt} <= now()`
+      ));
+
+    const inserted: (typeof portfolioAlerts.$inferSelect)[] = [];
+    for (const alert of input.alerts) {
+      const result = await tx.insert(portfolioAlerts)
+        .ignore()
+        .values(alert);
+      if (Number(result[0].affectedRows) === 1) {
+        const rows = await tx.select().from(portfolioAlerts)
+          .where(eq(portfolioAlerts.id, Number(result[0].insertId)))
+          .limit(1);
+        if (rows[0]) inserted.push(rows[0]);
+      }
+    }
+    return inserted;
+  });
 }
 
 export async function resetSpaceProgramRooms(

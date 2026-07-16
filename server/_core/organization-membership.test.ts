@@ -14,6 +14,8 @@ vi.mock("../db", () => ({
 import {
   designOrgAdminProcedure,
   designOrgMutationProcedure,
+  orgAdminProcedure,
+  orgMutationProcedure,
   orgProcedure,
   router,
 } from "./trpc";
@@ -23,13 +25,13 @@ const testRouter = router({
     mocks.downstream();
     return { orgId: ctx.orgId, role: ctx.orgRole };
   }),
-  mutate: designOrgMutationProcedure
+  mutate: orgMutationProcedure
     .input(z.object({ value: z.string() }))
     .mutation(({ ctx, input }) => {
       mocks.downstream();
       return { role: ctx.orgRole, value: input.value };
     }),
-  administer: designOrgAdminProcedure.mutation(({ ctx }) => {
+  administer: orgAdminProcedure.mutation(({ ctx }) => {
     mocks.downstream();
     return { role: ctx.orgRole };
   }),
@@ -145,5 +147,10 @@ describe("organization membership middleware", () => {
     await expect(
       testRouter.createCaller(context()).administer()
     ).resolves.toEqual({ role: "admin" });
+  });
+
+  it("keeps the design procedure exports as compatibility aliases", () => {
+    expect(designOrgMutationProcedure).toBe(orgMutationProcedure);
+    expect(designOrgAdminProcedure).toBe(orgAdminProcedure);
   });
 });

@@ -35,6 +35,14 @@ export interface RateLimitOpts {
     keyPrefix?: string;  // extra namespace for the limit
 }
 
+export function buildRateLimitKey(
+    keyPrefix: string,
+    userId: number | string,
+    path: string,
+) {
+    return `${keyPrefix}:${userId}:${path}`;
+}
+
 /**
  * Creates a TRPC middleware that rate-limits per-user.
  * Usage: `protectedProcedure.use(rateLimit({ max: 3, windowMs: 60_000 }))`
@@ -49,7 +57,7 @@ export function createRateLimitMiddleware(
 
     return (t as any).middleware(async ({ ctx, next, path }: { ctx: any; next: Function; path: string }) => {
         const userId = ctx?.user?.id ?? "anon";
-        const key = `${keyPrefix}:${userId}:${path}`;
+        const key = buildRateLimitKey(keyPrefix, userId, path);
         const now = Date.now();
 
         let entry = store.get(key);

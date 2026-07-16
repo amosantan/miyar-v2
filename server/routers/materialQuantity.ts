@@ -7,8 +7,18 @@
  */
 
 import { z } from "zod";
-import { router, orgProcedure } from "../_core/trpc";
+import {
+    orgHeavyMutationProcedure,
+    orgMutationProcedure,
+    orgProcedure,
+    router,
+} from "../_core/trpc";
 import * as db from "../db";
+import { requireProjectForOrg } from "../_core/project-access";
+import {
+    requireOrgResourceForOrg,
+    requireProjectOrgResourceForOrg,
+} from "../_core/resource-access";
 import { buildSpaceProgram } from "../engines/design/space-program";
 import {
     calculateSurfaceAreas,
@@ -29,7 +39,7 @@ export const materialQuantityRouter = router({
      * 6. Compute costs (deterministic)
      * 7. Store to DB + write boardMaterialsCost
      */
-    generate: orgProcedure
+    generate: orgHeavyMutationProcedure
         .input(
             z.object({
                 projectId: z.number(),
@@ -41,8 +51,7 @@ export const materialQuantityRouter = router({
             if (!orgId) throw new Error("Organization context required");
 
             // 1. Get project
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, orgId);
 
             // 2. Build space program — Phase B fit-out aware
             // Try persisted space program first (Phase B), fall back to legacy (Phase A)
@@ -83,13 +92,10 @@ export const materialQuantityRouter = router({
                 element: string;
                 allocations: AllocationSlice[];
             }> = [];
-            const lockedIds: number[] = [];
-
             // Group locked allocations by room+element
             const lockedGroupMap = new Map<string, AllocationSlice[]>();
             for (const alloc of existingAllocations) {
                 if (alloc.isLocked) {
-                    lockedIds.push(alloc.id);
                     const key = `${alloc.roomId}:${alloc.element}`;
                     if (!lockedGroupMap.has(key)) lockedGroupMap.set(key, []);
                     lockedGroupMap.get(key)!.push({
@@ -130,14 +136,7 @@ export const materialQuantityRouter = router({
                 }
             );
 
-            // 8. Delete old non-locked allocations, keep locked ones
-            await db.deleteMaterialAllocations(
-                input.projectId,
-                orgId,
-                lockedIds.length > 0 ? lockedIds : undefined
-            );
-
-            // 9. Insert new allocations
+            // 8. Build replacement rows; locked rows remain untouched.
             const allocationsToInsert: any[] = [];
             for (const room of costResult.rooms) {
                 for (const element of room.elements) {
@@ -175,8 +174,12 @@ export const materialQuantityRouter = router({
                 }
             }
 
-            if (allocationsToInsert.length > 0) {
-                await db.insertMaterialAllocations(allocationsToInsert);
+            if (!(await db.replaceMaterialAllocationsForOrg(
+                input.projectId,
+                orgId,
+                allocationsToInsert
+            ))) {
+                await requireProjectForOrg(input.projectId, orgId);
             }
 
             // boardMaterialsCost is computed at eval-time from RFQ/MQI data,
@@ -194,6 +197,7 @@ export const materialQuantityRouter = router({
         .query(async ({ input, ctx }) => {
             const orgId = (ctx as any).orgId;
             if (!orgId) throw new Error("Organization context required");
+            await requireProjectForOrg(input.projectId, orgId);
 
             const allocations = await db.getMaterialAllocations(
                 input.projectId,
@@ -255,7 +259,7 @@ export const materialQuantityRouter = router({
      * updateAllocation — Edit a single allocation
      * Server-side recalculation of costs
      */
-    updateAllocation: orgProcedure
+    updateAllocation: orgMutationProcedure
         .input(
             z.object({
                 allocationId: z.number(),
@@ -263,20 +267,31 @@ export const materialQuantityRouter = router({
                 surfaceAreaM2: z.number().min(0),
             })
         )
-        .mutation(async ({ input }) => {
+        .mutation(async ({ input, ctx }) => {
+            await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
+                lookupResource: db.getMaterialAllocationById,
+                getProjectId: allocation => allocation.projectId,
+                getOrgId: allocation => allocation.organizationId,
+            });
             // Recalculate costs on server side
             // For now, update percentage and let the frontend trigger a full recalc
-            await db.updateMaterialAllocation(input.allocationId, {
+            if (!(await db.updateMaterialAllocationForOrg(input.allocationId, ctx.orgId, {
                 allocationPct: String(input.allocationPct),
                 surfaceAreaM2: String(input.surfaceAreaM2),
-            });
+            }))) {
+                await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
+                    lookupResource: db.getMaterialAllocationById,
+                    getProjectId: allocation => allocation.projectId,
+                    getOrgId: allocation => allocation.organizationId,
+                });
+            }
             return { success: true };
         }),
 
     /**
      * lockAllocations — Bulk lock/unlock all allocations for a project
      */
-    lockAllocations: orgProcedure
+    lockAllocations: orgMutationProcedure
         .input(
             z.object({
                 projectId: z.number(),
@@ -286,6 +301,7 @@ export const materialQuantityRouter = router({
         .mutation(async ({ input, ctx }) => {
             const orgId = (ctx as any).orgId;
             if (!orgId) throw new Error("Organization context required");
+            await requireProjectForOrg(input.projectId, orgId);
             await db.lockMaterialAllocations(
                 input.projectId,
                 orgId,
@@ -297,7 +313,7 @@ export const materialQuantityRouter = router({
     /**
      * addSupplierSource — Register a new supplier URL for scraping
      */
-    addSupplierSource: orgProcedure
+    addSupplierSource: orgMutationProcedure
         .input(
             z.object({
                 supplierName: z.string().min(1).max(200),
@@ -335,13 +351,17 @@ export const materialQuantityRouter = router({
      * scrapeSupplierSource — Scrape a supplier URL for pricing
      * Uses DynamicConnector for resilient fetching
      */
-    scrapeSupplierSource: orgProcedure
+    scrapeSupplierSource: orgHeavyMutationProcedure
         .input(z.object({ sourceId: z.number() }))
-        .mutation(async ({ input }) => {
-            // Fetch source details
-            const sources = await db.getMaterialSupplierSources();
-            const source = sources.find((s: any) => s.id === input.sourceId);
-            if (!source) throw new Error("Supplier source not found");
+        .mutation(async ({ input, ctx }) => {
+            const source = await requireOrgResourceForOrg(
+                input.sourceId,
+                ctx.orgId,
+                {
+                    lookupResource: db.getMaterialSupplierSourceById,
+                    getOrgId: record => record.organizationId,
+                }
+            );
 
             // Use DynamicConnector for scraping (same as ingestion pipeline)
             let rawContent: string;
@@ -389,11 +409,16 @@ export const materialQuantityRouter = router({
                 const minPrice = Number(prices.minPrice || prices.min || 0);
                 const maxPrice = Number(prices.maxPrice || prices.max || 0);
 
-                await db.updateMaterialSupplierSource(input.sourceId, {
+                if (!(await db.updateMaterialSupplierSourceForOrg(input.sourceId, ctx.orgId, {
                     lastScrapedAt: new Date(),
                     lastPriceAedMin: minPrice > 0 ? String(minPrice) : undefined,
                     lastPriceAedMax: maxPrice > 0 ? String(maxPrice) : undefined,
-                });
+                }))) {
+                    await requireOrgResourceForOrg(input.sourceId, ctx.orgId, {
+                        lookupResource: db.getMaterialSupplierSourceById,
+                        getOrgId: record => record.organizationId,
+                    });
+                }
 
                 return {
                     success: true,

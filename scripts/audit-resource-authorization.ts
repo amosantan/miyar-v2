@@ -1,5 +1,6 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 import * as ts from "typescript";
@@ -20,8 +21,16 @@ const REPORT_PATH = path.join(
   "docs/security/RESOURCE_AUTHORIZATION_INVENTORY.md"
 );
 const MYSQL_EVIDENCE_PATH = path.join(ROOT, MYSQL_EVIDENCE_FILE);
+const RECLASSIFICATION_ACK_PATH = path.join(
+  ROOT,
+  "docs/security/authorization-reclassification-ack.json"
+);
 
 const ACCESS_PRIMITIVES = [
+  "orgHeavyMutationProcedure",
+  "orgRateLimitedProcedure",
+  "orgAdminProcedure",
+  "orgMutationProcedure",
   "designOrgAdminProcedure",
   "designOrgMutationProcedure",
   "publicProcedure",
@@ -30,6 +39,16 @@ const ACCESS_PRIMITIVES = [
   "adminProcedure",
   "heavyProcedure",
 ] as const;
+
+const ORG_ACCESS_PRIMITIVES = new Set<AccessPrimitive>([
+  "orgHeavyMutationProcedure",
+  "orgRateLimitedProcedure",
+  "orgAdminProcedure",
+  "orgMutationProcedure",
+  "designOrgAdminProcedure",
+  "designOrgMutationProcedure",
+  "orgProcedure",
+]);
 
 const CLASSIFICATIONS = [
   "org_guarded",
@@ -111,6 +130,8 @@ const TENANT_RESOURCE_ID_PATTERN =
 
 const RESOURCE_HELPER_PATTERN =
   /(Project|Asset|Brief|Scenario|Report|Board|Visual|Comment|Room|Outcome|Evidence|Portfolio|BiasAlert|Simulation|Allocation|Checklist|Recommendation|Rfq|Share)/i;
+const GLOBAL_PLATFORM_ALERT_EFFECT_PATTERN =
+  /\b(?:triggerAlertEngine\s*\(|platformAlerts\b)/;
 
 const GLOBAL_ROUTER_PATTERN = /^(admin|ingestion|market-intelligence)$/;
 const SCOPED_WRITE_EVIDENCE: Record<
@@ -201,7 +222,25 @@ const SCOPED_WRITE_EVIDENCE: Record<
     finalScopedWrite: "db.createFloorPlanAssetAndLinkForOrg",
     integrationTestName: "rolls back board, RFQ and floor-plan transactions after late SQL failures",
   },
+  "portfolio.checkAlerts": {
+    finalScopedWrite: "db.insertPortfolioAlertsForOrg",
+    integrationTestName: "keeps tenant portfolio alerts organization scoped and deduplicated",
+  },
+  "project.generateReport": {
+    finalScopedWrite: "db.createReportArtifactsForOrg",
+    integrationTestName: "persists report artifacts atomically and rechecks project ownership",
+  },
 };
+
+const READ_ONLY_ORG_PRIMITIVES = new Set<AccessPrimitive>([
+  "orgProcedure",
+  "orgRateLimitedProcedure",
+]);
+
+const GLOBAL_TENANT_IDENTIFIER_POLICY_KEYS = new Set([
+  "design.attachVisualToPack",
+  "market-intelligence.competitors.compare",
+]);
 
 const OWNERSHIP_PATHS: Record<string, string> = {
   projectId: "input.projectId -> projects.id -> projects.orgId",
@@ -690,6 +729,11 @@ function ownershipPath(
       "input.projectIds[] -> competitor_projects.id -> governed global competitor records",
     ];
   }
+  if (procedure.key === "intelligence.scenarios.getComparison") {
+    return [
+      "input.id -> scenario_comparisons.id -> scenario_comparisons.projectId -> projects.orgId",
+    ];
+  }
   if (procedure.key === "economics.rankScenarios") {
     return [
       "caller-supplied scenario DTOs -> deterministic ranking only; no database resource access",
@@ -777,7 +821,7 @@ function defaultAnnotation(
   const text = procedure.sourceText;
   const relevant = isResourceRelevant(procedure);
   const canonicalGuardMatch =
-    /\b(requireProjectForOrg|requireDesign[A-Z][A-Za-z]+|requireActivePublicShare)\s*\(/.exec(
+    /\b(require[A-Z][A-Za-z]+ForOrg|requireDesign[A-Z][A-Za-z]+|requireActivePublicShare)\s*\(/.exec(
       text
     );
   const firstDataAccessPosition = procedure.firstDataAccess
@@ -804,8 +848,13 @@ function defaultAnnotation(
   const usesOrgContext = /ctx\.(orgId|user\.orgId)/.test(text);
   const hasOrgScopedPredicate =
     /eq\([^,]*(orgId|organizationId),\s*ctx\.(orgId|user\.orgId)\)/s.test(text);
+  const hasOrgScopedHelper =
+    /\b[A-Za-z][A-Za-z0-9]*(?:ByOrg|ForOrg)\s*\([^)]*ctx\.orgId/s.test(text);
+  const hasOrgScopedInsert =
+    /\b(orgId|organizationId)\s*:\s*ctx\.(orgId|user\.orgId)\b/.test(text);
 
   const globalGovernedKeys = new Set([
+    "admin.portfolio.overview",
     "analytics.getTrends",
     "analytics.getTrendHistory",
     "analytics.getAnomalies",
@@ -825,62 +874,53 @@ function defaultAnnotation(
     "learning.getAccuracyLedger",
     "learning.getPendingBenchmarkSuggestions",
     "learning.getPendingLogicProposals",
+    "ingestion.verifyData",
+    "intelligence.benchmarkLearning.generateSuggestions",
+    "intelligence.outcomes.listAll",
+    "market-intelligence.competitors.bulkImport",
+    "market-intelligence.competitors.createProject",
+    "market-intelligence.competitors.deleteProject",
+    "market-intelligence.competitors.updateProject",
+    "market-intelligence.evidence.bulkImport",
+    "market-intelligence.evidence.create",
+    "market-intelligence.evidence.delete",
+    "market-intelligence.proposals.generate",
     "market-intelligence.competitors.compare",
     "market-intelligence.competitors.getEntity",
     "market-intelligence.competitors.getProject",
     "market-intelligence.competitors.listEntities",
     "market-intelligence.competitors.listProjects",
     "market-intelligence.dataHealth",
+    "market-intelligence.evidence.stats",
     "market-intelligence.sources.get",
     "market-intelligence.sources.list",
     "market-intelligence.tags.list",
     "project.scenarioTemplates",
+    "seed.seedEnrichedData",
+    "seed.seedEvidence",
+  ]);
+
+  const intentionallyDisabledKeys = new Set([
+    "design.attachVisualToPack",
   ]);
 
   const unsafeKeys = new Set([
     "analytics.getMarketPosition",
     "analytics.runTrendDetection",
-    "analytics.updateInsightStatus",
-    "autonomous.acknowledgeAlert",
-    "autonomous.getAlerts",
-    "autonomous.portfolioInsights",
-    "autonomous.resolveAlert",
-    "market-intelligence.tags.getEntityTags",
-    "market-intelligence.tags.getTaggedEntities",
-    "material-quantity.scrapeSupplierSource",
-    "portfolio.availableProjects",
-    "scenario.getSimulation",
-    "seed.seedEnrichedData",
-    "seed.seedEvidence",
   ]);
-
-  const orgGuardedKeys = new Set([
-    "design.attachVisualToPack",
-    "design-advisor.getDesignBrief",
-    "design-advisor.getRecommendations",
-    "design-advisor.getSpaceRecommendation",
-    "material-quantity.addSupplierSource",
-    "material-quantity.getForProject",
-    "material-quantity.lockAllocations",
-    "project.create",
-    "project.list",
-    "project.listWithScores",
-    "space-program.getForProject",
-    "design.listPromptTemplates",
-    "organization.acceptInvite",
-    "organization.myOrgs",
-  ]);
-  if (procedure.router === "portfolio") orgGuardedKeys.add(procedure.key);
 
   let classification: Classification;
   if (unsafeKeys.has(procedure.key)) {
     classification = "unsafe";
+  } else if (
+    intentionallyDisabledKeys.has(procedure.key) &&
+    /PRECONDITION_FAILED/.test(text)
+  ) {
+    classification = "global_governed";
   } else if (globalGovernedKeys.has(procedure.key)) {
     classification = "global_governed";
-  } else if (orgGuardedKeys.has(procedure.key)) {
-    classification = "org_guarded";
   } else if (procedure.accessPrimitive === "adminProcedure") {
-    classification = "admin_governed";
+    classification = relevant ? "unsafe" : "admin_governed";
   } else if (procedure.accessPrimitive === "publicProcedure") {
     classification = /\b(token|shareToken|expiresAt|shareExpiresAt)\b/.test(
       text
@@ -889,10 +929,16 @@ function defaultAnnotation(
       : "not_project_scoped";
   } else if (hasLegacyFallback || (hasLegacyUserGuard && relevant)) {
     classification = "legacy_user_guard";
-  } else if (hasCanonicalGuard || hasOrgCheck || hasOrgScopedPredicate) {
+  } else if (
+    hasCanonicalGuard ||
+    hasOrgCheck ||
+    hasOrgScopedPredicate ||
+    hasOrgScopedHelper ||
+    hasOrgScopedInsert
+  ) {
     classification = "org_guarded";
   } else if (
-    procedure.accessPrimitive === "orgProcedure" &&
+    ORG_ACCESS_PRIMITIVES.has(procedure.accessPrimitive) &&
     usesOrgContext &&
     !relevant
   ) {
@@ -901,7 +947,10 @@ function defaultAnnotation(
     classification = "unsafe";
   } else if (GLOBAL_ROUTER_PATTERN.test(procedure.router)) {
     classification = "global_governed";
-  } else if (procedure.accessPrimitive === "orgProcedure" && usesOrgContext) {
+  } else if (
+    ORG_ACCESS_PRIMITIVES.has(procedure.accessPrimitive) &&
+    usesOrgContext
+  ) {
     classification = "org_guarded";
   } else {
     classification = "not_project_scoped";
@@ -972,9 +1021,7 @@ function defaultAnnotation(
           ? "Resolves an organization invite token, verifies its expiry, and adds the authenticated user to the invite's organization."
           : procedure.key === "organization.myOrgs"
             ? "Scopes organization reads through organization_members.userId for the authenticated user."
-            : orgGuardedKeys.has(procedure.key)
-              ? "Uses a reviewed organization-scoped helper, predicate, or direct organization-owned insert."
-              : "Checks resource organization against session organization or scopes by session organization."
+            : "Checks resource organization against session organization or scopes by session organization."
       : classification === "legacy_user_guard"
         ? "Uses userId ownership or userId fallback; does not establish the organization boundary."
         : classification === "public_token_guarded"
@@ -1026,29 +1073,12 @@ async function mergeInventory(
   existing: InventoryDocument | null
 ): Promise<InventoryDocument> {
   const mysqlEvidenceExecuted = (await validateMysqlEvidence()).valid;
-  const existingByKey = new Map(
-    existing?.procedures.map(procedure => [procedure.key, procedure]) ?? []
-  );
-
   const procedures = extracted.map(procedure => {
     const { sourceText: _sourceText, ...facts } = procedure;
-    const previous = existingByKey.get(procedure.key);
     const defaults = defaultAnnotation(procedure);
     return {
       ...facts,
       ...defaults,
-      ...(previous
-        ? {
-            resourceTypes: previous.resourceTypes,
-            ownershipPath: previous.ownershipPath,
-            authorizationEvidence: previous.authorizationEvidence,
-            classification: previous.classification,
-            severity: previous.severity,
-            disposition: previous.disposition,
-            targetStep: previous.targetStep,
-            notes: previous.notes,
-          }
-        : {}),
       finalScopedWrite: defaults.finalScopedWrite,
       integrationTest: defaults.integrationTest,
       integrationTestName: defaults.integrationTestName,
@@ -1071,6 +1101,55 @@ async function mergeInventory(
     allowedIntegrationEvidenceStatuses: INTEGRATION_EVIDENCE_STATUSES,
     procedures,
   };
+}
+
+async function requireReclassificationAcknowledgement(
+  inventory: InventoryDocument
+) {
+  let committed: InventoryDocument;
+  try {
+    committed = JSON.parse(
+      execFileSync(
+        "git",
+        ["show", "HEAD:docs/security/resource-authorization-inventory.json"],
+        { cwd: ROOT, encoding: "utf8" }
+      )
+    ) as InventoryDocument;
+  } catch {
+    return;
+  }
+  const currentByKey = new Map(
+    inventory.procedures.map(procedure => [procedure.key, procedure])
+  );
+  const removed = committed.procedures
+    .filter(previous =>
+      previous.targetStep !== "none" &&
+      currentByKey.get(previous.key)?.targetStep === "none"
+    )
+    .map(procedure => procedure.key)
+    .sort();
+  if (removed.length === 0) return;
+
+  const ack = JSON.parse(
+    await readFile(RECLASSIFICATION_ACK_PATH, "utf8")
+  ) as {
+    taskId?: string;
+    removedTargetStep?: string;
+    keyCount?: number;
+    keysSha256?: string;
+    rationale?: string;
+  };
+  const hash = createHash("sha256").update(removed.join("\n")).digest("hex");
+  if (
+    !ack.taskId ||
+    !ack.rationale?.trim() ||
+    ack.keyCount !== removed.length ||
+    ack.keysSha256 !== hash
+  ) {
+    throw new Error(
+      "Security reclassification acknowledgement is missing or does not match the removed remediation keys"
+    );
+  }
 }
 
 async function validateMysqlEvidence(): Promise<{
@@ -1270,6 +1349,39 @@ function validateInventory(
     if (row.firstDataAccess !== procedure.firstDataAccess) {
       errors.push(`First-data-access drift for ${key}`);
     }
+    if (
+      procedure.operation === "mutation" &&
+      READ_ONLY_ORG_PRIMITIVES.has(procedure.accessPrimitive)
+    ) {
+      errors.push(
+        `Organization mutation uses read-only procedure primitive: ${key}`
+      );
+    }
+    if (
+      ORG_ACCESS_PRIMITIVES.has(procedure.accessPrimitive) &&
+      GLOBAL_PLATFORM_ALERT_EFFECT_PATTERN.test(procedure.sourceText)
+    ) {
+      errors.push(
+        `Tenant procedure reaches globally governed platform alerts: ${key}`
+      );
+    }
+    if (
+      row.classification === "global_governed" &&
+      procedure.inputIdentifiers.some(identifier =>
+        TENANT_RESOURCE_ID_PATTERN.test(identifier)
+      ) &&
+      !GLOBAL_TENANT_IDENTIFIER_POLICY_KEYS.has(key)
+    ) {
+      errors.push(
+        `Global-governed path accepts a tenant resource identifier without explicit policy: ${key}`
+      );
+    }
+    if (
+      SCOPED_WRITE_EVIDENCE[key] &&
+      row.finalScopedWrite !== SCOPED_WRITE_EVIDENCE[key].finalScopedWrite
+    ) {
+      errors.push(`Missing final scoped-write evidence: ${key}`);
+    }
   }
 
   for (const key of inventoryByKey.keys()) {
@@ -1354,9 +1466,9 @@ function renderReport(inventory: InventoryDocument) {
     "",
     "## Method and Scope",
     "",
-    "- The TypeScript compiler enumerates every procedure declared by the 24 router modules plus the two procedures in `systemRouter`.",
+    "- The TypeScript compiler AST enumerates every procedure declared by the 24 router modules plus the two procedures in `systemRouter`.",
     "- Extracted facts include access primitive, operation, input identifiers, helper calls, first resource access, and source location.",
-    "- Manual semantic review traces direct, child, polymorphic, public-token, governed-global, nullable, and legacy-user ownership.",
+    "- Semantic classification combines source-text rules, explicit governed/disabled registries, scoped-write evidence mappings, and manual ownership review; AST enumeration does not by itself prove authorization correctness.",
     "- The validator fails on missing/duplicate/stale procedures, source/helper/access drift, placeholder ownership paths, invalid classifications, and incomplete public-token evidence.",
     "- Inventory generation never accesses a live or shared database. Scoped-write SQL semantics are separately covered by the guarded serial suite at `tests/mysql/design-authorization.mysql.test.ts`, which accepts only disposable local database names prefixed `miyar_auth_test`.",
     "- Named MySQL coverage includes asset/visual/brief/scenario writes, board create/delete/join/reorder rollback paths, all six asset-link target types, comments, RFQ batches, share-token uniqueness, floor-plan linking, approval updates, evidence isolation, membership uniqueness, and two-connection ownership locking.",
@@ -1445,7 +1557,6 @@ function renderReport(inventory: InventoryDocument) {
       row =>
         `| \`${row.key}\` | \`${row.classification}\` | ${row.ownershipPath.join("<br>")} | ${row.disposition} |`
     ),
-    "",
   ];
 
   return `${lines.join("\n")}\n`;
@@ -1460,6 +1571,7 @@ async function main() {
       extracted,
       process.argv.includes("--reset") ? null : await readExistingInventory()
     );
+    await requireReclassificationAcknowledgement(inventory);
     await mkdir(path.dirname(INVENTORY_PATH), { recursive: true });
     await writeFile(
       INVENTORY_PATH,

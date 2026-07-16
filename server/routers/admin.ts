@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { router, adminProcedure, protectedProcedure } from "../_core/trpc";
+import {
+  adminProcedure,
+  orgMutationProcedure,
+  orgProcedure,
+  protectedProcedure,
+  router,
+} from "../_core/trpc";
+import { requireProjectForOrg } from "../_core/project-access";
 import * as db from "../db";
 import { computeDistributions, computeComplianceHeatmap, detectFailurePatterns, computeImprovementLevers, type PortfolioProject } from "../engines/portfolio";
 import { syncMaterialsWithBenchmarks, getLiveCategoryPricing } from "../engines/pricing-engine";
@@ -512,15 +519,14 @@ export const adminRouter = router({
 
   // ─── Override Records ────────────────────────────────────────────────
   overrides: router({
-    list: protectedProcedure
+    list: orgProcedure
       .input(z.object({ projectId: z.number() }))
       .query(async ({ ctx, input }) => {
-        const project = await db.getProjectById(input.projectId);
-        if (!project || project.userId !== ctx.user.id) return [];
+        await requireProjectForOrg(input.projectId, ctx.orgId);
         return db.getOverridesByProject(input.projectId);
       }),
 
-    create: protectedProcedure
+    create: orgMutationProcedure
       .input(z.object({
         projectId: z.number(),
         overrideType: z.enum(["strategic", "market_insight", "risk_adjustment", "experimental"]),
@@ -530,13 +536,15 @@ export const adminRouter = router({
         justification: z.string().min(10),
       }))
       .mutation(async ({ ctx, input }) => {
-        const project = await db.getProjectById(input.projectId);
-        if (!project || project.userId !== ctx.user.id) throw new Error("Project not found");
-
-        const result = await db.createOverrideRecord({
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+        const result = await db.createOverrideRecordForOrg({
           ...input,
           userId: ctx.user.id,
-        });
+        }, ctx.orgId);
+        if (!result) {
+          await requireProjectForOrg(input.projectId, ctx.orgId);
+          throw new Error("Failed to create override");
+        }
 
         await db.createAuditLog({
           userId: ctx.user.id,

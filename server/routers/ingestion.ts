@@ -440,9 +440,9 @@ export const ingestionRouter = router({
     }).optional())
     .mutation(async ({ input }) => {
       const { verifyDatabaseValues } = await import("../engines/ingestion/data-verifier");
-      const { listEvidenceRecords } = await import("../db");
+      const { listPublicEvidenceRecords } = await import("../db");
 
-      const records = await listEvidenceRecords({
+      const records = await listPublicEvidenceRecords({
         category: input?.category,
         limit: input?.limit ?? 50,
       });
@@ -546,4 +546,3 @@ export const ingestionRouter = router({
       };
     }),
 });
-

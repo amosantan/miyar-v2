@@ -52,16 +52,16 @@ export async function deliverAlert(alert: Alert & { id?: number }): Promise<Deli
       <div style="background: #ffffff; padding: 24px; border: 1px solid #d0d7de; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="color: #1f2328; margin-top: 0;">${alert.title}</h2>
         <p style="color: #656d76; line-height: 1.6;">${alert.body || ""}</p>
-        
+
         ${alert.suggestedAction ? `
           <div style="background: #f6f8fa; border-left: 4px solid #0969da; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;">
             <strong style="color: #1f2328;">Suggested Action:</strong>
             <p style="color: #656d76; margin: 4px 0 0;">${alert.suggestedAction}</p>
           </div>
         ` : ""}
-        
+
         <p style="color: #656d76; font-size: 12px; margin-top: 24px;">
-          Alert Type: <code>${alert.alertType}</code> · 
+          Alert Type: <code>${alert.alertType}</code> ·
           Generated: ${new Date().toISOString()}
         </p>
       </div>

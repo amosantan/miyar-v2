@@ -1,6 +1,12 @@
 import { z } from "zod";
-import { router, orgProcedure } from "../_core/trpc";
+import {
+    orgHeavyMutationProcedure,
+    orgMutationProcedure,
+    orgProcedure,
+    router,
+} from "../_core/trpc";
 import * as db from "../db";
+import { requireProjectForOrg } from "../_core/project-access";
 import { generateDesignRecommendations, generateAIDesignBrief } from "../engines/design/ai-design-advisor";
 import { buildSpaceProgram, type Room } from "../engines/design/space-program";
 import { getPricingArea } from "../engines/area-utils";
@@ -113,11 +119,10 @@ export const designAdvisorRouter = router({
     // Phase 1: AI Design Recommendations
     // ═════════════════════════════════════════════════════════════════════════
 
-    generateRecommendations: orgProcedure
+    generateRecommendations: orgHeavyMutationProcedure
         .input(z.object({ projectId: z.number() }))
         .mutation(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             const inputs = projectToInputs(project);
             const materials = await db.getMaterialLibrary();
@@ -153,11 +158,7 @@ export const designAdvisorRouter = router({
                 project, inputs, materials, recentEvidence, trends, fitOutStoredRooms,
             );
 
-            // Clear previous recommendations before inserting fresh ones (prevents duplicates)
-            await db.clearSpaceRecommendations(input.projectId, ctx.orgId);
-
-            for (const rec of recommendations) {
-                await db.createSpaceRecommendation({
+            const rows = recommendations.map(rec => ({
                     projectId: input.projectId,
                     orgId: ctx.orgId,
                     roomId: rec.roomId,
@@ -173,7 +174,13 @@ export const designAdvisorRouter = router({
                     kitchenSpec: rec.kitchenSpec || null,
                     bathroomSpec: rec.bathroomSpec || null,
                     alternatives: rec.alternatives,
-                });
+            }));
+            if (!(await db.replaceSpaceRecommendationsForOrg(
+                input.projectId,
+                ctx.orgId,
+                rows
+            ))) {
+                await requireProjectForOrg(input.projectId, ctx.orgId);
             }
 
             return { recommendations, count: recommendations.length };
@@ -182,12 +189,14 @@ export const designAdvisorRouter = router({
     getRecommendations: orgProcedure
         .input(z.object({ projectId: z.number() }))
         .query(async ({ ctx, input }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             return db.getSpaceRecommendations(input.projectId, ctx.orgId);
         }),
 
     getSpaceRecommendation: orgProcedure
         .input(z.object({ projectId: z.number(), roomId: z.string() }))
         .query(async ({ ctx, input }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             const recs = await db.getSpaceRecommendations(input.projectId, ctx.orgId);
             return recs.find((r: any) => r.roomId === input.roomId) || null;
         }),
@@ -195,8 +204,7 @@ export const designAdvisorRouter = router({
     getSpaceProgram: orgProcedure
         .input(z.object({ projectId: z.number() }))
         .query(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             // Phase B: use stored space program if available; fall back to legacy template
             const storedRooms = await db.getSpaceProgramRooms(input.projectId, ctx.orgId);
@@ -209,11 +217,10 @@ export const designAdvisorRouter = router({
             return buildSpaceProgram(project);
         }),
 
-    generateDesignBrief: orgProcedure
+    generateDesignBrief: orgHeavyMutationProcedure
         .input(z.object({ projectId: z.number() }))
         .mutation(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             const inputs = projectToInputs(project);
             const recs = await db.getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -224,11 +231,13 @@ export const designAdvisorRouter = router({
             const recommendations = recs.map(mapRecToSpace);
             const brief = await generateAIDesignBrief(project, inputs, recommendations);
 
-            await db.createAiDesignBrief({
+            if (!(await db.createAiDesignBriefForOrg({
                 projectId: input.projectId,
                 orgId: ctx.orgId,
                 briefData: brief,
-            });
+            }, ctx.orgId))) {
+                await requireProjectForOrg(input.projectId, ctx.orgId);
+            }
 
             return brief;
         }),
@@ -236,6 +245,7 @@ export const designAdvisorRouter = router({
     getDesignBrief: orgProcedure
         .input(z.object({ projectId: z.number() }))
         .query(async ({ ctx, input }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             return db.getLatestAiDesignBrief(input.projectId, ctx.orgId);
         }),
 
@@ -248,18 +258,17 @@ export const designAdvisorRouter = router({
             return db.getDesignPackages(input.typology, input.tier);
         }),
 
-    saveAsPackage: orgProcedure
+    saveAsPackage: orgMutationProcedure
         .input(z.object({
             projectId: z.number(),
             name: z.string(),
             description: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             const recs = await db.getSpaceRecommendations(input.projectId, ctx.orgId);
-            return db.createDesignPackage({
+            return db.createDesignPackageForOrg(input.projectId, ctx.orgId, {
                 orgId: ctx.orgId,
                 name: input.name,
                 typology: project.ctx01Typology || "Residential",
@@ -276,15 +285,14 @@ export const designAdvisorRouter = router({
     // Phase 2: Visual Generation (Nano Banana)
     // ═════════════════════════════════════════════════════════════════════════
 
-    generateVisual: orgProcedure
+    generateVisual: orgHeavyMutationProcedure
         .input(z.object({
             projectId: z.number(),
             roomId: z.string(),
             type: z.enum(["mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette"]),
         }))
         .mutation(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             const recs = await db.getSpaceRecommendations(input.projectId, ctx.orgId);
             const rec = recs.find((r: any) => r.roomId === input.roomId);
@@ -327,35 +335,38 @@ export const designAdvisorRouter = router({
 
             const result = await generateSpaceVisual(projectCtx, spaceRec as any, input.type as VisualType);
 
-            await db.createGeneratedVisual({
+            if (!(await db.createGeneratedVisualForOrg({
                 projectId: input.projectId,
                 type: input.type as any,
                 promptJson: { prompt: result.prompt, roomId: input.roomId, visualType: input.type, imageUrl: result.imageUrl },
                 status: "completed",
                 createdBy: ctx.user.id,
                 imageAssetId: null,
-            });
+            }, ctx.orgId))) {
+                await requireProjectForOrg(input.projectId, ctx.orgId);
+            }
 
             return result;
         }),
 
-    generateHero: orgProcedure
+    generateHero: orgHeavyMutationProcedure
         .input(z.object({ projectId: z.number() }))
         .mutation(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             const projectCtx = buildProjectContext(project);
             const result = await generateHeroVisual(projectCtx);
 
-            await db.createGeneratedVisual({
+            if (!(await db.createGeneratedVisualForOrg({
                 projectId: input.projectId,
                 type: "hero" as any,
                 promptJson: { prompt: result.prompt, visualType: "hero_image", imageUrl: result.imageUrl },
                 status: "completed",
                 createdBy: ctx.user.id,
                 imageAssetId: null,
-            });
+            }, ctx.orgId))) {
+                await requireProjectForOrg(input.projectId, ctx.orgId);
+            }
 
             return result;
         }),
@@ -363,6 +374,7 @@ export const designAdvisorRouter = router({
     getVisuals: orgProcedure
         .input(z.object({ projectId: z.number() }))
         .query(async ({ ctx, input }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             return db.getGeneratedVisualsByProject(input.projectId);
         }),
 });

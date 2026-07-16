@@ -34,6 +34,12 @@ const tables = [
   "score_matrices",
   "scenarios",
   "evidence_records",
+  "portfolio_projects",
+  "portfolio_alerts",
+  "portfolios",
+  "finish_schedule_items",
+  "project_color_palettes",
+  "dm_compliance_checklists",
   "materials_catalog",
   "organization_members",
   "projects",
@@ -53,6 +59,7 @@ try {
   await connection.query("drop trigger if exists tr03h_fail_board_delete");
   await connection.query("drop trigger if exists tr03h_fail_project_update");
   await connection.query("drop trigger if exists tr03h_fail_rfq_insert");
+  await connection.query("drop trigger if exists tr04_fail_report_rfq_insert");
 } finally {
   await connection.query("set foreign_key_checks = 1").catch(() => undefined);
   await connection.end();

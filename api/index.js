@@ -68,6 +68,7 @@ __export(schema_exports, {
   overrideRecords: () => overrideRecords,
   pdfExtractions: () => pdfExtractions,
   platformAlerts: () => platformAlerts,
+  portfolioAlerts: () => portfolioAlerts,
   portfolioProjects: () => portfolioProjects,
   portfolios: () => portfolios,
   priceChangeEvents: () => priceChangeEvents,
@@ -112,7 +113,7 @@ import {
   json,
   uniqueIndex
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -1742,6 +1743,41 @@ var init_schema = __esm({
       addedAt: timestamp("added_at").defaultNow().notNull(),
       note: text("note")
     });
+    portfolioAlerts = mysqlTable(
+      "portfolio_alerts",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        organizationId: int("organization_id").notNull(),
+        portfolioId: int("portfolio_id").notNull(),
+        alertType: mysqlEnum("alert_type", [
+          "portfolio_risk",
+          "portfolio_failure_pattern"
+        ]).notNull(),
+        severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
+        title: varchar("title", { length: 255 }).notNull(),
+        body: text("body").notNull(),
+        affectedProjectIds: json("affected_project_ids"),
+        triggerData: json("trigger_data"),
+        suggestedAction: text("suggested_action").notNull(),
+        status: mysqlEnum("status", [
+          "active",
+          "acknowledged",
+          "resolved",
+          "expired"
+        ]).default("active").notNull(),
+        activeDedupKey: varchar("active_dedup_key", { length: 64 }),
+        acknowledgedBy: int("acknowledged_by"),
+        acknowledgedAt: timestamp("acknowledged_at"),
+        expiresAt: timestamp("expires_at").notNull(),
+        createdAt: timestamp("created_at").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("portfolio_alerts_org_active_key_unique").on(
+          table.organizationId,
+          table.activeDedupKey
+        )
+      ]
+    );
     monteCarloSimulations = mysqlTable("monte_carlo_simulations", {
       id: int("id").primaryKey().autoincrement(),
       projectId: int("project_id").notNull(),
@@ -2126,7 +2162,7 @@ __export(db_exports, {
   archiveLogicVersion: () => archiveLogicVersion,
   clearSpaceRecommendations: () => clearSpaceRecommendations,
   createAiDesignBrief: () => createAiDesignBrief,
-  createAssetLink: () => createAssetLink,
+  createAiDesignBriefForOrg: () => createAiDesignBriefForOrg,
   createAssetLinkForOrg: () => createAssetLinkForOrg,
   createAuditLog: () => createAuditLog,
   createBenchmark: () => createBenchmark,
@@ -2144,6 +2180,8 @@ __export(db_exports, {
   createDesignBrief: () => createDesignBrief,
   createDesignBriefForOrg: () => createDesignBriefForOrg,
   createDesignPackage: () => createDesignPackage,
+  createDesignPackageForOrg: () => createDesignPackageForOrg,
+  createDigitalTwinForOrg: () => createDigitalTwinForOrg,
   createDirection: () => createDirection,
   createEntityTag: () => createEntityTag,
   createEvidenceRecord: () => createEvidenceRecord,
@@ -2158,27 +2196,38 @@ __export(db_exports, {
   createMaterialBoardForOrg: () => createMaterialBoardForOrg,
   createMaterialBoardWithMaterialsForOrg: () => createMaterialBoardWithMaterialsForOrg,
   createModelVersion: () => createModelVersion,
+  createMonteCarloSimulationForOrg: () => createMonteCarloSimulationForOrg,
   createOverrideRecord: () => createOverrideRecord,
+  createOverrideRecordForOrg: () => createOverrideRecordForOrg,
   createPdfExtraction: () => createPdfExtraction,
+  createPdfExtractionForOrg: () => createPdfExtractionForOrg,
   createPriceChangeEvent: () => createPriceChangeEvent,
   createProject: () => createProject,
   createProjectAsset: () => createProjectAsset,
   createProjectAssetForOrg: () => createProjectAssetForOrg,
   createProjectIntelligence: () => createProjectIntelligence,
   createProjectOutcome: () => createProjectOutcome,
+  createProjectOutcomeForOrg: () => createProjectOutcomeForOrg,
+  createProjectRoiModelForOrg: () => createProjectRoiModelForOrg,
   createPromptTemplate: () => createPromptTemplate,
+  createReportArtifactsForOrg: () => createReportArtifactsForOrg,
   createReportInstance: () => createReportInstance,
+  createRiskSurfaceMapsForOrg: () => createRiskSurfaceMapsForOrg,
   createRoiConfig: () => createRoiConfig,
   createScenarioComparison: () => createScenarioComparison,
+  createScenarioComparisonForOrg: () => createScenarioComparisonForOrg,
   createScenarioInput: () => createScenarioInput,
+  createScenarioInputForOrg: () => createScenarioInputForOrg,
   createScenarioOutput: () => createScenarioOutput,
+  createScenarioOutputForOrg: () => createScenarioOutputForOrg,
   createScenarioRecord: () => createScenarioRecord,
+  createScenarioRecordForOrg: () => createScenarioRecordForOrg,
+  createScenarioStressTestForOrg: () => createScenarioStressTestForOrg,
   createScoreMatrix: () => createScoreMatrix,
   createSourceRegistryEntry: () => createSourceRegistryEntry,
   createSpaceRecommendation: () => createSpaceRecommendation,
   createTrendTag: () => createTrendTag,
   createWebhookConfig: () => createWebhookConfig,
-  deleteAssetLink: () => deleteAssetLink,
   deleteAssetLinkForOrg: () => deleteAssetLinkForOrg,
   deleteBenchmark: () => deleteBenchmark,
   deleteBenchmarkCategory: () => deleteBenchmarkCategory,
@@ -2186,8 +2235,11 @@ __export(db_exports, {
   deleteCompetitorProject: () => deleteCompetitorProject,
   deleteDirection: () => deleteDirection,
   deleteEntityTag: () => deleteEntityTag,
+  deleteEntityTagIfMatches: () => deleteEntityTagIfMatches,
   deleteEvidenceRecord: () => deleteEvidenceRecord,
   deleteEvidenceReference: () => deleteEvidenceReference,
+  deleteEvidenceReferenceIfMatches: () => deleteEvidenceReferenceIfMatches,
+  deleteGlobalEvidenceRecord: () => deleteGlobalEvidenceRecord,
   deleteMaterial: () => deleteMaterial,
   deleteMaterialAllocations: () => deleteMaterialAllocations,
   deleteMaterialBoard: () => deleteMaterialBoard,
@@ -2195,12 +2247,16 @@ __export(db_exports, {
   deleteProject: () => deleteProject,
   deleteProjectAsset: () => deleteProjectAsset,
   deleteProjectAssetForOrg: () => deleteProjectAssetForOrg,
+  deleteProjectForOrg: () => deleteProjectForOrg,
   deleteScenario: () => deleteScenario,
+  deleteScenarioForOrg: () => deleteScenarioForOrg,
   deleteSourceRegistryEntry: () => deleteSourceRegistryEntry,
   deleteSpaceProgramRoom: () => deleteSpaceProgramRoom,
+  deleteSpaceProgramRoomForOrg: () => deleteSpaceProgramRoomForOrg,
   deleteTrendTag: () => deleteTrendTag,
   deleteWebhookConfig: () => deleteWebhookConfig,
   dismissBiasAlert: () => dismissBiasAlert,
+  dismissBiasAlertForOrg: () => dismissBiasAlertForOrg,
   emailExists: () => emailExists,
   getActiveBenchmarkVersion: () => getActiveBenchmarkVersion,
   getActiveBiasAlerts: () => getActiveBiasAlerts,
@@ -2237,6 +2293,7 @@ __export(db_exports, {
   getBenchmarkSnapshotById: () => getBenchmarkSnapshotById,
   getBenchmarkVersionById: () => getBenchmarkVersionById,
   getBenchmarks: () => getBenchmarks,
+  getBiasAlertById: () => getBiasAlertById,
   getBiasAlertsByProject: () => getBiasAlertsByProject,
   getCommentsByEntity: () => getCommentsByEntity,
   getCommentsByProject: () => getCommentsByProject,
@@ -2259,14 +2316,17 @@ __export(db_exports, {
   getDldProjectsByArea: () => getDldProjectsByArea,
   getDldRentCount: () => getDldRentCount,
   getDldTransactionCount: () => getDldTransactionCount,
+  getEntityTagById: () => getEntityTagById,
   getEntityTags: () => getEntityTags,
   getEvidenceForTarget: () => getEvidenceForTarget,
   getEvidenceRecordById: () => getEvidenceRecordById,
+  getEvidenceReferenceById: () => getEvidenceReferenceById,
   getEvidenceStats: () => getEvidenceStats,
   getEvidenceWithSources: () => getEvidenceWithSources,
   getExpectedCost: () => getExpectedCost,
   getGeneratedVisualById: () => getGeneratedVisualById,
   getGeneratedVisualsByProject: () => getGeneratedVisualsByProject,
+  getGlobalProjectInsights: () => getGlobalProjectInsights,
   getIngestionRunById: () => getIngestionRunById,
   getIngestionRunHistory: () => getIngestionRunHistory,
   getIntelligenceAuditEntryById: () => getIntelligenceAuditEntryById,
@@ -2276,6 +2336,7 @@ __export(db_exports, {
   getLogicThresholds: () => getLogicThresholds,
   getLogicVersionById: () => getLogicVersionById,
   getLogicWeights: () => getLogicWeights,
+  getMaterialAllocationById: () => getMaterialAllocationById,
   getMaterialAllocations: () => getMaterialAllocations,
   getMaterialBoardById: () => getMaterialBoardById,
   getMaterialBoardsByProject: () => getMaterialBoardsByProject,
@@ -2283,9 +2344,11 @@ __export(db_exports, {
   getMaterialConstantByType: () => getMaterialConstantByType,
   getMaterialConstants: () => getMaterialConstants,
   getMaterialLibrary: () => getMaterialLibrary,
+  getMaterialSupplierSourceById: () => getMaterialSupplierSourceById,
   getMaterialSupplierSources: () => getMaterialSupplierSources,
   getMaterialToBoardById: () => getMaterialToBoardById,
   getMaterialsByBoard: () => getMaterialsByBoard,
+  getMonteCarloSimulationById: () => getMonteCarloSimulationById,
   getOrganizationMemberships: () => getOrganizationMemberships,
   getOverridesByProject: () => getOverridesByProject,
   getPdfExtractionById: () => getPdfExtractionById,
@@ -2295,12 +2358,14 @@ __export(db_exports, {
   getProjectAssets: () => getProjectAssets,
   getProjectById: () => getProjectById,
   getProjectEvaluationHistory: () => getProjectEvaluationHistory,
+  getProjectInsightById: () => getProjectInsightById,
   getProjectInsights: () => getProjectInsights,
   getProjectIntelligenceByProject: () => getProjectIntelligenceByProject,
   getProjectOutcomes: () => getProjectOutcomes,
   getProjectsByOrg: () => getProjectsByOrg,
   getProjectsByUser: () => getProjectsByUser,
   getPromptTemplateById: () => getPromptTemplateById,
+  getPublicEvidenceStats: () => getPublicEvidenceStats,
   getPublishedLogicVersion: () => getPublishedLogicVersion,
   getReportById: () => getReportById,
   getReportsByProject: () => getReportsByProject,
@@ -2312,6 +2377,7 @@ __export(db_exports, {
   getScoreMatricesByProject: () => getScoreMatricesByProject,
   getScoreMatrixById: () => getScoreMatrixById,
   getSourceRegistryById: () => getSourceRegistryById,
+  getSpaceProgramRoomById: () => getSpaceProgramRoomById,
   getSpaceProgramRooms: () => getSpaceProgramRooms,
   getSpaceRecommendations: () => getSpaceRecommendations,
   getTaggedEntities: () => getTaggedEntities,
@@ -2327,13 +2393,17 @@ __export(db_exports, {
   insertFinishScheduleItem: () => insertFinishScheduleItem,
   insertMaterialAllocations: () => insertMaterialAllocations,
   insertMaterialSupplierSource: () => insertMaterialSupplierSource,
+  insertPortfolioAlertsForOrg: () => insertPortfolioAlertsForOrg,
   insertProjectColorPalette: () => insertProjectColorPalette,
   insertProjectInsight: () => insertProjectInsight,
+  insertProjectInsightForOrg: () => insertProjectInsightForOrg,
   insertRfqLineItem: () => insertRfqLineItem,
   insertRfqLineItemForOrg: () => insertRfqLineItemForOrg,
   insertRfqLineItemsForOrg: () => insertRfqLineItemsForOrg,
+  insertSpaceProgramRoomForOrg: () => insertSpaceProgramRoomForOrg,
   insertSpaceProgramRooms: () => insertSpaceProgramRooms,
   insertTrendSnapshot: () => insertTrendSnapshot,
+  linkProjectAssetsForOrg: () => linkProjectAssetsForOrg,
   listAllOutcomes: () => listAllOutcomes,
   listBenchmarkProposals: () => listBenchmarkProposals,
   listBenchmarkSnapshots: () => listBenchmarkSnapshots,
@@ -2344,6 +2414,7 @@ __export(db_exports, {
   listEvidenceReferences: () => listEvidenceReferences,
   listIntelligenceAuditLog: () => listIntelligenceAuditLog,
   listLogicVersions: () => listLogicVersions,
+  listPublicEvidenceRecords: () => listPublicEvidenceRecords,
   listScenarioComparisons: () => listScenarioComparisons,
   listScenarioOutputs: () => listScenarioOutputs,
   listSourceRegistry: () => listSourceRegistry,
@@ -2355,6 +2426,9 @@ __export(db_exports, {
   removeMaterialFromBoardForOrg: () => removeMaterialFromBoardForOrg,
   reorderBoardTiles: () => reorderBoardTiles,
   reorderBoardTilesForOrg: () => reorderBoardTilesForOrg,
+  replaceMaterialAllocationsForOrg: () => replaceMaterialAllocationsForOrg,
+  replaceSpaceProgramRoomsForOrg: () => replaceSpaceProgramRoomsForOrg,
+  replaceSpaceRecommendationsForOrg: () => replaceSpaceRecommendationsForOrg,
   resetSpaceProgramRooms: () => resetSpaceProgramRooms,
   reviewBenchmarkProposal: () => reviewBenchmarkProposal,
   reviewBenchmarkSuggestion: () => reviewBenchmarkSuggestion,
@@ -2370,11 +2444,15 @@ __export(db_exports, {
   updateGeneratedVisual: () => updateGeneratedVisual,
   updateGeneratedVisualForOrg: () => updateGeneratedVisualForOrg,
   updateInsightStatus: () => updateInsightStatus,
+  updateInsightStatusForOrg: () => updateInsightStatusForOrg,
   updateMaterial: () => updateMaterial,
   updateMaterialAllocation: () => updateMaterialAllocation,
+  updateMaterialAllocationForOrg: () => updateMaterialAllocationForOrg,
   updateMaterialBoard: () => updateMaterialBoard,
   updateMaterialSupplierSource: () => updateMaterialSupplierSource,
+  updateMaterialSupplierSourceForOrg: () => updateMaterialSupplierSourceForOrg,
   updatePdfExtraction: () => updatePdfExtraction,
+  updatePdfExtractionForOrg: () => updatePdfExtractionForOrg,
   updateProject: () => updateProject,
   updateProjectApprovalState: () => updateProjectApprovalState,
   updateProjectApprovalStateForOrg: () => updateProjectApprovalStateForOrg,
@@ -2382,16 +2460,19 @@ __export(db_exports, {
   updateProjectAssetForOrg: () => updateProjectAssetForOrg,
   updateProjectForOrg: () => updateProjectForOrg,
   updateProjectVerification: () => updateProjectVerification,
+  updateProjectVerificationForOrg: () => updateProjectVerificationForOrg,
   updatePromptTemplate: () => updatePromptTemplate,
   updateRoiConfig: () => updateRoiConfig,
   updateSourceRegistryEntry: () => updateSourceRegistryEntry,
   updateSpaceProgramRoom: () => updateSpaceProgramRoom,
+  updateSpaceProgramRoomForOrg: () => updateSpaceProgramRoomForOrg,
   updateWebhookConfig: () => updateWebhookConfig,
   upsertAreaBenchmark: () => upsertAreaBenchmark,
   upsertBiasProfile: () => upsertBiasProfile,
-  upsertUser: () => upsertUser
+  upsertUser: () => upsertUser,
+  verifyPdfExtractionForOrg: () => verifyPdfExtractionForOrg
 });
-import { eq, and, desc, asc, sql, inArray, gte } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray, gte, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 async function getDb() {
@@ -2526,6 +2607,12 @@ async function deleteProject(id) {
   if (!db) throw new Error("DB not available");
   await db.delete(projects).where(eq(projects.id, id));
 }
+async function deleteProjectForOrg(id, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(projects).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
+}
 async function createDirection(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -2570,6 +2657,16 @@ async function createScenarioRecord(data) {
   const result = await db.insert(scenarios).values(data);
   return { id: Number(result[0].insertId) };
 }
+async function createScenarioRecordForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1) return null;
+    const result = await tx.insert(scenarios).values({ ...data, orgId });
+    return { id: Number(result[0].insertId) };
+  });
+}
 async function getScenariosByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
@@ -2585,6 +2682,85 @@ async function deleteScenario(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(scenarios).where(eq(scenarios.id, id));
+}
+async function deleteScenarioForOrg(id, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(scenarios).where(and(eq(scenarios.id, id), eq(scenarios.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
+}
+async function getMonteCarloSimulationById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(monteCarloSimulations).where(eq(monteCarloSimulations.id, id)).limit(1);
+  return rows[0];
+}
+async function createScenarioStressTestForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const scenario = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq(scenarios.projectId, projects.id)).where(and(
+      eq(scenarios.id, data.scenarioId),
+      eq(projects.orgId, orgId)
+    )).limit(1).for("update");
+    if (scenario.length !== 1) return false;
+    await tx.insert(scenarioStressTests).values(data);
+    return true;
+  });
+}
+async function createProjectRoiModelForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1) return false;
+    if (data.scenarioId !== null && data.scenarioId !== void 0) {
+      const scenario = await tx.select({ id: scenarios.id }).from(scenarios).where(and(
+        eq(scenarios.id, data.scenarioId),
+        eq(scenarios.projectId, data.projectId),
+        eq(scenarios.orgId, orgId)
+      )).limit(1).for("update");
+      if (scenario.length !== 1) return false;
+    }
+    await tx.insert(projectRoiModels).values(data);
+    return true;
+  });
+}
+async function createRiskSurfaceMapsForOrg(data, orgId) {
+  if (data.length === 0) return true;
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const projectId = data[0].projectId;
+  if (data.some((row) => row.projectId !== projectId)) return false;
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1) return false;
+    await tx.insert(riskSurfaceMaps).values(data);
+    return true;
+  });
+}
+async function createMonteCarloSimulationForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1) return false;
+    await tx.insert(monteCarloSimulations).values({ ...data, orgId });
+    return true;
+  });
+}
+async function createDigitalTwinForOrg(model, snapshot, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, model.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1 || snapshot.projectId !== model.projectId) {
+      return false;
+    }
+    await tx.insert(digitalTwinModels).values({ ...model, orgId });
+    await tx.insert(sustainabilitySnapshots).values(snapshot);
+    return true;
+  });
 }
 async function getActiveModelVersion() {
   const db = await getDb();
@@ -2803,6 +2979,51 @@ async function createReportInstance(data) {
   const result = await db.insert(reportInstances).values(data);
   return { id: Number(result[0].insertId) };
 }
+async function createReportArtifactsForOrg(input) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(
+      eq(projects.id, input.projectId),
+      eq(projects.orgId, input.orgId)
+    )).limit(1).for("update");
+    if (owned.length !== 1 || input.report.projectId !== input.projectId) {
+      return null;
+    }
+    const score = await tx.select({ id: scoreMatrices.id }).from(scoreMatrices).where(and(
+      eq(scoreMatrices.id, input.report.scoreMatrixId),
+      eq(scoreMatrices.projectId, input.projectId)
+    )).limit(1).for("update");
+    if (score.length !== 1) return null;
+    let briefId = null;
+    const artifacts = input.designArtifacts;
+    if (artifacts) {
+      const rowsMatch = artifacts.finishSchedule.every(
+        (row) => row.projectId === input.projectId && row.organizationId === input.orgId
+      ) && artifacts.colorPalette.projectId === input.projectId && artifacts.colorPalette.organizationId === input.orgId && artifacts.complianceChecklist.projectId === input.projectId && artifacts.complianceChecklist.organizationId === input.orgId && artifacts.brief.projectId === input.projectId && artifacts.rfqItems.every(
+        (row) => row.projectId === input.projectId && row.organizationId === input.orgId
+      );
+      if (!rowsMatch) return null;
+      if (artifacts.finishSchedule.length > 0) {
+        await tx.insert(finishScheduleItems).values(artifacts.finishSchedule);
+      }
+      await tx.insert(projectColorPalettes).values(artifacts.colorPalette);
+      await tx.insert(dmComplianceChecklists).values(artifacts.complianceChecklist);
+      const briefResult = await tx.insert(designBriefs).values(artifacts.brief);
+      briefId = Number(briefResult[0].insertId);
+      if (artifacts.rfqItems.length > 0) {
+        await tx.insert(rfqLineItems).values(
+          artifacts.rfqItems.map((row) => ({ ...row, briefId }))
+        );
+      }
+    }
+    const reportResult = await tx.insert(reportInstances).values(input.report);
+    return {
+      reportId: Number(reportResult[0].insertId),
+      briefId
+    };
+  });
+}
 async function getReportsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
@@ -2845,6 +3066,16 @@ async function createOverrideRecord(data) {
   if (!db) throw new Error("DB not available");
   const result = await db.insert(overrideRecords).values(data);
   return { id: Number(result[0].insertId) };
+}
+async function createOverrideRecordForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1) return null;
+    const result = await tx.insert(overrideRecords).values(data);
+    return { id: Number(result[0].insertId) };
+  });
 }
 async function getOverridesByProject(projectId) {
   const db = await getDb();
@@ -2916,11 +3147,22 @@ async function updateProjectAssetForOrg(id, orgId, data) {
   ));
   return Number(result[0].affectedRows) === 1;
 }
-async function createAssetLink(data) {
+async function linkProjectAssetsForOrg(assetIds, projectId, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(assetLinks).values(data);
-  return { id: Number(result[0].insertId) };
+  const uniqueAssetIds = Array.from(new Set(assetIds));
+  if (uniqueAssetIds.length === 0) return true;
+  return db.transaction(async (tx) => {
+    const target = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (target.length !== 1) return false;
+    const authorizedAssets = await tx.select({ id: projectAssets.id }).from(projectAssets).innerJoin(projects, eq(projectAssets.projectId, projects.id)).where(and(
+      inArray(projectAssets.id, uniqueAssetIds),
+      eq(projects.orgId, orgId)
+    )).for("update");
+    if (authorizedAssets.length !== uniqueAssetIds.length) return false;
+    const result = await tx.update(projectAssets).set({ projectId }).where(inArray(projectAssets.id, uniqueAssetIds));
+    return Number(result[0].affectedRows) === uniqueAssetIds.length;
+  });
 }
 async function createAssetLinkForOrg(data, orgId) {
   const db = await getDb();
@@ -2928,20 +3170,11 @@ async function createAssetLinkForOrg(data, orgId) {
   return db.transaction(async (tx) => {
     const source = await tx.select({ projectId: projectAssets.projectId }).from(projectAssets).innerJoin(projects, eq(projects.id, projectAssets.projectId)).where(and(eq(projectAssets.id, data.assetId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!source[0]) return null;
-    let target = [];
-    if (data.linkType === "evaluation") {
-      target = await tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq(projects.id, scoreMatrices.projectId)).where(and(eq(scoreMatrices.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "report") {
-      target = await tx.select({ projectId: reportInstances.projectId }).from(reportInstances).innerJoin(projects, eq(projects.id, reportInstances.projectId)).where(and(eq(reportInstances.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "scenario") {
-      target = await tx.select({ projectId: scenarios.projectId }).from(scenarios).innerJoin(projects, eq(projects.id, scenarios.projectId)).where(and(eq(scenarios.id, data.linkId), eq(scenarios.orgId, orgId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "material_board") {
-      target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "design_brief") {
-      target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).innerJoin(projects, eq(projects.id, designBriefs.projectId)).where(and(eq(designBriefs.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (data.linkType === "visual") {
-      target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq(projects.id, generatedVisuals.projectId)).where(and(eq(generatedVisuals.id, data.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    }
+    const target = await assetLinkTargetResolvers[data.linkType](
+      tx,
+      data.linkId,
+      orgId
+    );
     if (!target[0] || target[0].projectId !== source[0].projectId) return null;
     const result = await tx.insert(assetLinks).values(data);
     return { id: Number(result[0].insertId) };
@@ -2965,12 +3198,6 @@ async function getAssetLinksByEntity(linkType, linkId) {
     and(eq(assetLinks.linkType, linkType), eq(assetLinks.linkId, linkId))
   );
 }
-async function deleteAssetLink(id) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.delete(assetLinks).where(eq(assetLinks.id, id));
-  return { success: true };
-}
 async function deleteAssetLinkForOrg(id, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -2983,20 +3210,12 @@ async function deleteAssetLinkForOrg(id, orgId) {
     }).from(assetLinks).innerJoin(projectAssets, eq(projectAssets.id, assetLinks.assetId)).innerJoin(projects, eq(projects.id, projectAssets.projectId)).where(and(eq(assetLinks.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
     const link = links[0];
     if (!link) return false;
-    let target = [];
-    if (link.linkType === "material_board") {
-      target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "evaluation") {
-      target = await tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq(projects.id, scoreMatrices.projectId)).where(and(eq(scoreMatrices.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "report") {
-      target = await tx.select({ projectId: reportInstances.projectId }).from(reportInstances).innerJoin(projects, eq(projects.id, reportInstances.projectId)).where(and(eq(reportInstances.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "scenario") {
-      target = await tx.select({ projectId: scenarios.projectId }).from(scenarios).innerJoin(projects, eq(projects.id, scenarios.projectId)).where(and(eq(scenarios.id, link.linkId), eq(scenarios.orgId, orgId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "design_brief") {
-      target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).innerJoin(projects, eq(projects.id, designBriefs.projectId)).where(and(eq(designBriefs.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    } else if (link.linkType === "visual") {
-      target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq(projects.id, generatedVisuals.projectId)).where(and(eq(generatedVisuals.id, link.linkId), eq(projects.orgId, orgId))).limit(1).for("update");
-    }
+    const linkType = link.linkType;
+    const target = await assetLinkTargetResolvers[linkType](
+      tx,
+      link.linkId,
+      orgId
+    );
     if (!target[0] || target[0].projectId !== link.projectId) return false;
     const result = await tx.delete(assetLinks).where(eq(assetLinks.id, id));
     return Number(result[0].affectedRows) === 1;
@@ -3520,6 +3739,16 @@ async function createScenarioInput(data) {
   });
   return result.insertId;
 }
+async function createScenarioInputForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const rows = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq(scenarios.projectId, projects.id)).where(and(eq(scenarios.id, data.scenarioId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (rows.length !== 1) return null;
+    const [result] = await tx.insert(scenarioInputs).values(data);
+    return Number(result.insertId);
+  });
+}
 async function getScenarioInput(scenarioId) {
   const db = await getDb();
   if (!db) return null;
@@ -3531,6 +3760,16 @@ async function createScenarioOutput(data) {
   if (!db) return 0;
   const [result] = await db.insert(scenarioOutputs).values(data);
   return result.insertId;
+}
+async function createScenarioOutputForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const rows = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq(scenarios.projectId, projects.id)).where(and(eq(scenarios.id, data.scenarioId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (rows.length !== 1) return null;
+    const [result] = await tx.insert(scenarioOutputs).values(data);
+    return Number(result.insertId);
+  });
 }
 async function getScenarioOutput(scenarioId) {
   const db = await getDb();
@@ -3550,6 +3789,26 @@ async function createScenarioComparison(data) {
   const [result] = await db.insert(scenarioComparisons).values(data);
   return result.insertId;
 }
+async function createScenarioComparisonForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const scenarioIds = Array.from(/* @__PURE__ */ new Set([
+    data.baselineScenarioId,
+    ...data.comparedScenarioIds
+  ]));
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1) return null;
+    const scenarioRows = await tx.select({ id: scenarios.id }).from(scenarios).where(and(
+      inArray(scenarios.id, scenarioIds),
+      eq(scenarios.projectId, data.projectId),
+      eq(scenarios.orgId, orgId)
+    )).for("update");
+    if (scenarioRows.length !== scenarioIds.length) return null;
+    const [result] = await tx.insert(scenarioComparisons).values(data);
+    return Number(result.insertId);
+  });
+}
 async function listScenarioComparisons(projectId) {
   const db = await getDb();
   if (!db) return [];
@@ -3566,6 +3825,16 @@ async function createProjectOutcome(data) {
   if (!db) return 0;
   const [result] = await db.insert(projectOutcomes).values(data);
   return result.insertId;
+}
+async function createProjectOutcomeForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1) return null;
+    const [result] = await tx.insert(projectOutcomes).values(data);
+    return Number(result.insertId);
+  });
 }
 async function getProjectOutcomes(projectId) {
   const db = await getDb();
@@ -3638,6 +3907,19 @@ async function listEvidenceRecords(filters) {
   }
   return query.orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
 }
+async function listPublicEvidenceRecords(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    isNull(evidenceRecords.projectId),
+    isNull(evidenceRecords.orgId),
+    eq(evidenceRecords.confidentiality, "public")
+  ];
+  if (filters?.category) conditions.push(eq(evidenceRecords.category, filters.category));
+  if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade));
+  if (filters?.evidencePhase) conditions.push(eq(evidenceRecords.evidencePhase, filters.evidencePhase));
+  return db.select().from(evidenceRecords).where(and(...conditions)).orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
+}
 async function getEvidenceRecordById(id) {
   const db = await getDb();
   if (!db) return void 0;
@@ -3654,6 +3936,16 @@ async function deleteEvidenceRecord(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(evidenceRecords).where(eq(evidenceRecords.id, id));
+}
+async function deleteGlobalEvidenceRecord(id) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(evidenceRecords).where(and(
+    eq(evidenceRecords.id, id),
+    isNull(evidenceRecords.projectId),
+    isNull(evidenceRecords.orgId)
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 async function getPreviousEvidenceRecord(itemName, sourceRegistryId, beforeDate) {
   const db = await getDb();
@@ -3691,6 +3983,23 @@ async function getEvidenceStats() {
     byCategory,
     byGrade,
     avgConfidence: all.length > 0 ? Math.round(totalConfidence / all.length) : 0
+  };
+}
+async function getPublicEvidenceStats() {
+  const records = await listPublicEvidenceRecords({ limit: 1e4 });
+  const byCategory = {};
+  const byGrade = {};
+  let confidenceTotal = 0;
+  for (const record of records) {
+    byCategory[record.category] = (byCategory[record.category] ?? 0) + 1;
+    byGrade[record.reliabilityGrade] = (byGrade[record.reliabilityGrade] ?? 0) + 1;
+    confidenceTotal += record.confidenceScore;
+  }
+  return {
+    total: records.length,
+    byCategory,
+    byGrade,
+    avgConfidence: records.length === 0 ? 0 : Math.round(confidenceTotal / records.length)
   };
 }
 async function getDataHealthStats() {
@@ -3873,6 +4182,22 @@ async function createEntityTag(data) {
   const [result] = await db.insert(entityTags).values(data);
   return { id: Number(result.insertId) };
 }
+async function getEntityTagById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(entityTags).where(eq(entityTags.id, id)).limit(1);
+  return rows[0];
+}
+async function deleteEntityTagIfMatches(id, expected) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(entityTags).where(and(
+    eq(entityTags.id, id),
+    eq(entityTags.entityType, expected.entityType),
+    eq(entityTags.entityId, expected.entityId)
+  ));
+  return Number(result[0].affectedRows) === 1;
+}
 async function deleteEntityTag(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -3933,6 +4258,23 @@ async function createEvidenceReference(data) {
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(evidenceReferences).values(data);
   return { id: Number(result.insertId) };
+}
+async function getEvidenceReferenceById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(evidenceReferences).where(eq(evidenceReferences.id, id)).limit(1);
+  return rows[0];
+}
+async function deleteEvidenceReferenceIfMatches(id, expected) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(evidenceReferences).where(and(
+    eq(evidenceReferences.id, id),
+    eq(evidenceReferences.evidenceRecordId, expected.evidenceRecordId),
+    eq(evidenceReferences.targetType, expected.targetType),
+    eq(evidenceReferences.targetId, expected.targetId)
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 async function deleteEvidenceReference(id) {
   const db = await getDb();
@@ -4115,6 +4457,22 @@ async function insertProjectInsight(data) {
   if (!db) return;
   return db.insert(projectInsights).values(data);
 }
+async function insertProjectInsightForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1) return false;
+    await tx.insert(projectInsights).values(data);
+    return true;
+  });
+}
+async function getProjectInsightById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(projectInsights).where(eq(projectInsights.id, id)).limit(1);
+  return rows[0];
+}
 async function getProjectInsights(filters) {
   const db = await getDb();
   if (!db) return [];
@@ -4129,6 +4487,15 @@ async function getProjectInsights(filters) {
   }
   return query.orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
 }
+async function getGlobalProjectInsights(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [isNull(projectInsights.projectId)];
+  if (filters?.insightType) conditions.push(eq(projectInsights.insightType, filters.insightType));
+  if (filters?.severity) conditions.push(eq(projectInsights.severity, filters.severity));
+  if (filters?.status) conditions.push(eq(projectInsights.status, filters.status));
+  return db.select().from(projectInsights).where(and(...conditions)).orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
+}
 async function updateInsightStatus(insightId, status, userId) {
   const db = await getDb();
   if (!db) return;
@@ -4138,6 +4505,24 @@ async function updateInsightStatus(insightId, status, userId) {
     updates.acknowledgedAt = /* @__PURE__ */ new Date();
   }
   return db.update(projectInsights).set(updates).where(eq(projectInsights.id, insightId));
+}
+async function updateInsightStatusForOrg(insightId, orgId, status, userId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const rows = await tx.select({ id: projectInsights.id }).from(projectInsights).innerJoin(projects, eq(projectInsights.projectId, projects.id)).where(and(
+      eq(projectInsights.id, insightId),
+      eq(projects.orgId, orgId)
+    )).limit(1).for("update");
+    if (rows.length !== 1) return false;
+    const updates = { status };
+    if (status === "acknowledged" && userId) {
+      updates.acknowledgedBy = userId;
+      updates.acknowledgedAt = /* @__PURE__ */ new Date();
+    }
+    const result = await tx.update(projectInsights).set(updates).where(eq(projectInsights.id, insightId));
+    return Number(result[0].affectedRows) === 1;
+  });
 }
 async function insertFinishScheduleItem(data) {
   const db = await getDb();
@@ -4208,6 +4593,12 @@ async function getBiasAlertsByProject(projectId) {
   if (!db) return [];
   return db.select().from(biasAlerts).where(eq(biasAlerts.projectId, projectId)).orderBy(desc(biasAlerts.createdAt));
 }
+async function getBiasAlertById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(biasAlerts).where(eq(biasAlerts.id, id)).limit(1);
+  return rows[0];
+}
 async function getActiveBiasAlerts(projectId) {
   const db = await getDb();
   if (!db) return [];
@@ -4220,6 +4611,12 @@ async function dismissBiasAlert(alertId, userId) {
   const db = await getDb();
   if (!db) return;
   return db.update(biasAlerts).set({ dismissed: true, dismissedBy: userId, dismissedAt: /* @__PURE__ */ new Date() }).where(eq(biasAlerts.id, alertId));
+}
+async function dismissBiasAlertForOrg(alertId, orgId, userId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(biasAlerts).set({ dismissed: true, dismissedBy: userId, dismissedAt: /* @__PURE__ */ new Date() }).where(and(eq(biasAlerts.id, alertId), eq(biasAlerts.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
 }
 async function getUserBiasProfile(userId) {
   const db = await getDb();
@@ -4291,6 +4688,22 @@ async function clearSpaceRecommendations(projectId, orgId) {
     eq(spaceRecommendations.orgId, orgId)
   ));
 }
+async function replaceSpaceRecommendationsForOrg(projectId, orgId, recommendations) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1 || recommendations.some((row) => row.projectId !== projectId || row.orgId !== orgId)) return false;
+    await tx.delete(spaceRecommendations).where(and(
+      eq(spaceRecommendations.projectId, projectId),
+      eq(spaceRecommendations.orgId, orgId)
+    ));
+    if (recommendations.length > 0) {
+      await tx.insert(spaceRecommendations).values(recommendations);
+    }
+    return true;
+  });
+}
 async function getSpaceRecommendations(projectId, orgId) {
   const db = await getDb();
   if (!db) return [];
@@ -4304,6 +4717,16 @@ async function createDesignPackage(data) {
   if (!db) return;
   const result = await db.insert(designPackages).values(data);
   return { id: result[0].insertId };
+}
+async function createDesignPackageForOrg(projectId, orgId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1 || data.orgId !== orgId) return null;
+    const result = await tx.insert(designPackages).values(data);
+    return { id: Number(result[0].insertId) };
+  });
 }
 async function getDesignPackages(typology, tier) {
   const db = await getDb();
@@ -4320,6 +4743,16 @@ async function createAiDesignBrief(data) {
   const db = await getDb();
   if (!db) return;
   await db.insert(aiDesignBriefs).values(data);
+}
+async function createAiDesignBriefForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1 || data.orgId !== orgId) return false;
+    await tx.insert(aiDesignBriefs).values(data);
+    return true;
+  });
 }
 async function getLatestAiDesignBrief(projectId, orgId) {
   const db = await getDb();
@@ -4488,6 +4921,16 @@ async function createPdfExtraction(data) {
   const [result] = await db.insert(pdfExtractions).values(data);
   return { id: Number(result.insertId) };
 }
+async function createPdfExtractionForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (project.length !== 1) return null;
+    const result = await tx.insert(pdfExtractions).values(data);
+    return { id: Number(result[0].insertId) };
+  });
+}
 async function getPdfExtractionsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
@@ -4504,6 +4947,38 @@ async function updatePdfExtraction(id, data) {
   if (!db) return;
   return db.update(pdfExtractions).set(data).where(eq(pdfExtractions.id, id));
 }
+async function updatePdfExtractionForOrg(id, orgId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const extraction = await tx.select({ id: pdfExtractions.id }).from(pdfExtractions).innerJoin(projects, eq(pdfExtractions.projectId, projects.id)).where(and(eq(pdfExtractions.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (extraction.length !== 1) return false;
+    const result = await tx.update(pdfExtractions).set(data).where(eq(pdfExtractions.id, id));
+    return Number(result[0].affectedRows) === 1;
+  });
+}
+async function verifyPdfExtractionForOrg(id, projectId, orgId, userId, verifiedArea) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const extraction = await tx.select({ id: pdfExtractions.id }).from(pdfExtractions).innerJoin(projects, eq(pdfExtractions.projectId, projects.id)).where(and(
+      eq(pdfExtractions.id, id),
+      eq(pdfExtractions.projectId, projectId),
+      eq(projects.orgId, orgId)
+    )).limit(1).for("update");
+    if (extraction.length !== 1) return false;
+    await tx.update(pdfExtractions).set({
+      status: "verified",
+      verifiedBy: userId,
+      verifiedAt: /* @__PURE__ */ new Date()
+    }).where(eq(pdfExtractions.id, id));
+    const result = await tx.update(projects).set({
+      fitoutAreaVerified: true,
+      totalFitoutArea: String(verifiedArea)
+    }).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
+    return Number(result[0].affectedRows) === 1;
+  });
+}
 async function updateProjectVerification(projectId, data) {
   const db = await getDb();
   if (!db) return;
@@ -4511,6 +4986,15 @@ async function updateProjectVerification(projectId, data) {
   if (data.fitoutAreaVerified !== void 0) updates.fitoutAreaVerified = data.fitoutAreaVerified;
   if (data.totalFitoutArea !== void 0) updates.totalFitoutArea = String(data.totalFitoutArea);
   return db.update(projects).set(updates).where(eq(projects.id, projectId));
+}
+async function updateProjectVerificationForOrg(projectId, orgId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updates = {};
+  if (data.fitoutAreaVerified !== void 0) updates.fitoutAreaVerified = data.fitoutAreaVerified;
+  if (data.totalFitoutArea !== void 0) updates.totalFitoutArea = String(data.totalFitoutArea);
+  const result = await db.update(projects).set(updates).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
+  return Number(result[0].affectedRows) === 1;
 }
 async function getMaterialAllocations(projectId, organizationId) {
   const db = await getDb();
@@ -4525,6 +5009,29 @@ async function insertMaterialAllocations(data) {
   if (!db) return;
   if (data.length === 0) return;
   return db.insert(materialAllocations).values(data);
+}
+async function replaceMaterialAllocationsForOrg(projectId, organizationId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(
+      eq(projects.id, projectId),
+      eq(projects.orgId, organizationId)
+    )).limit(1).for("update");
+    if (project.length !== 1) return false;
+    await tx.delete(materialAllocations).where(and(
+      eq(materialAllocations.projectId, projectId),
+      eq(materialAllocations.organizationId, organizationId),
+      eq(materialAllocations.isLocked, false)
+    ));
+    if (data.length > 0) {
+      if (data.some(
+        (row) => row.projectId !== projectId || row.organizationId !== organizationId
+      )) return false;
+      await tx.insert(materialAllocations).values(data);
+    }
+    return true;
+  });
 }
 async function deleteMaterialAllocations(projectId, organizationId, excludeLockedIds) {
   const db = await getDb();
@@ -4542,6 +5049,21 @@ async function updateMaterialAllocation(id, data) {
   const db = await getDb();
   if (!db) return;
   return db.update(materialAllocations).set(data).where(eq(materialAllocations.id, id));
+}
+async function getMaterialAllocationById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(materialAllocations).where(eq(materialAllocations.id, id)).limit(1);
+  return rows[0];
+}
+async function updateMaterialAllocationForOrg(id, organizationId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(materialAllocations).set(data).where(and(
+    eq(materialAllocations.id, id),
+    eq(materialAllocations.organizationId, organizationId)
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 async function lockMaterialAllocations(projectId, organizationId, isLocked) {
   const db = await getDb();
@@ -4573,6 +5095,21 @@ async function updateMaterialSupplierSource(id, data) {
   if (!db) return;
   return db.update(materialSupplierSources).set(data).where(eq(materialSupplierSources.id, id));
 }
+async function getMaterialSupplierSourceById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(materialSupplierSources).where(eq(materialSupplierSources.id, id)).limit(1);
+  return rows[0];
+}
+async function updateMaterialSupplierSourceForOrg(id, organizationId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(materialSupplierSources).set(data).where(and(
+    eq(materialSupplierSources.id, id),
+    eq(materialSupplierSources.organizationId, organizationId)
+  ));
+  return Number(result[0].affectedRows) === 1;
+}
 async function getSpaceProgramRooms(projectId, organizationId) {
   const db = await getDb();
   if (!db) return [];
@@ -4587,16 +5124,61 @@ async function insertSpaceProgramRooms(data) {
   if (data.length === 0) return;
   return db.insert(spaceProgramRooms).values(data);
 }
+async function insertSpaceProgramRoomForOrg(data, organizationId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(
+      eq(projects.id, data.projectId),
+      eq(projects.orgId, organizationId)
+    )).limit(1).for("update");
+    if (project.length !== 1 || data.organizationId !== organizationId) return false;
+    await tx.insert(spaceProgramRooms).values(data);
+    return true;
+  });
+}
+async function getSpaceProgramRoomById(id) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(spaceProgramRooms).where(eq(spaceProgramRooms.id, id)).limit(1);
+  return rows[0];
+}
 async function updateSpaceProgramRoom(id, data) {
   const db = await getDb();
   if (!db) return;
   return db.update(spaceProgramRooms).set(data).where(eq(spaceProgramRooms.id, id));
+}
+async function updateSpaceProgramRoomForOrg(id, organizationId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(spaceProgramRooms).set(data).where(and(
+    eq(spaceProgramRooms.id, id),
+    eq(spaceProgramRooms.organizationId, organizationId)
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 async function deleteSpaceProgramRoom(id) {
   const db = await getDb();
   if (!db) return;
   await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, id));
   return db.delete(spaceProgramRooms).where(eq(spaceProgramRooms.id, id));
+}
+async function deleteSpaceProgramRoomForOrg(id, organizationId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const rows = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(
+      eq(spaceProgramRooms.id, id),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    )).limit(1).for("update");
+    if (rows.length !== 1) return false;
+    await tx.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, id));
+    const result = await tx.delete(spaceProgramRooms).where(and(
+      eq(spaceProgramRooms.id, id),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    ));
+    return Number(result[0].affectedRows) === 1;
+  });
 }
 async function getAmenitySubSpacesForRoom(spaceProgramRoomId) {
   const db = await getDb();
@@ -4608,6 +5190,98 @@ async function insertAmenitySubSpaces(data) {
   if (!db) return;
   if (data.length === 0) return;
   return db.insert(amenitySubSpaces).values(data);
+}
+async function replaceSpaceProgramRoomsForOrg(projectId, organizationId, rooms, amenities, preserveOverridden = true) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({ id: projects.id }).from(projects).where(and(
+      eq(projects.id, projectId),
+      eq(projects.orgId, organizationId)
+    )).limit(1).for("update");
+    if (project.length !== 1) return null;
+    const deleteConditions = [
+      eq(spaceProgramRooms.projectId, projectId),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    ];
+    if (preserveOverridden) {
+      deleteConditions.push(eq(spaceProgramRooms.fitOutOverridden, false));
+    }
+    const deleting = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(...deleteConditions)).for("update");
+    const deletingIds = deleting.map((row) => row.id);
+    if (deletingIds.length > 0) {
+      await tx.delete(amenitySubSpaces).where(inArray(amenitySubSpaces.spaceProgramRoomId, deletingIds));
+      await tx.delete(spaceProgramRooms).where(and(...deleteConditions));
+    }
+    if (rooms.some(
+      (room) => room.projectId !== projectId || room.organizationId !== organizationId
+    )) return null;
+    if (rooms.length > 0) await tx.insert(spaceProgramRooms).values(rooms);
+    const storedRooms = await tx.select().from(spaceProgramRooms).where(and(
+      eq(spaceProgramRooms.projectId, projectId),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    ));
+    const roomByCode = new Map(
+      storedRooms.map((room) => [
+        room.roomCode,
+        room
+      ])
+    );
+    const subSpaces = amenities.flatMap((amenity) => {
+      const room = roomByCode.get(amenity.roomCode);
+      if (!room) return [];
+      return amenity.subSpaces.map((subSpace) => ({
+        ...subSpace,
+        spaceProgramRoomId: room.id
+      }));
+    });
+    if (subSpaces.length > 0) {
+      await tx.insert(amenitySubSpaces).values(subSpaces);
+    }
+    return storedRooms;
+  });
+}
+async function insertPortfolioAlertsForOrg(input) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const portfolio = await tx.select({ id: portfolios.id }).from(portfolios).where(and(
+      eq(portfolios.id, input.portfolioId),
+      eq(portfolios.organizationId, input.orgId)
+    )).limit(1).for("update");
+    if (portfolio.length !== 1) return null;
+    const links = await tx.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq(portfolioProjects.portfolioId, input.portfolioId)).for("update");
+    const projectIds = Array.from(new Set(
+      links.map((row) => row.projectId)
+    ));
+    if (projectIds.length > 0) {
+      const ownedProjects = await tx.select({ id: projects.id }).from(projects).where(and(
+        inArray(projects.id, projectIds),
+        eq(projects.orgId, input.orgId)
+      )).for("update");
+      if (ownedProjects.length !== projectIds.length) return null;
+    }
+    const valid = input.alerts.every((alert) => {
+      const affected = Array.isArray(alert.affectedProjectIds) ? alert.affectedProjectIds : [];
+      return alert.organizationId === input.orgId && alert.portfolioId === input.portfolioId && Boolean(alert.activeDedupKey) && affected.every((id) => projectIds.includes(id));
+    });
+    if (!valid) return null;
+    await tx.update(portfolioAlerts).set({ status: "expired", activeDedupKey: null }).where(and(
+      eq(portfolioAlerts.organizationId, input.orgId),
+      eq(portfolioAlerts.portfolioId, input.portfolioId),
+      eq(portfolioAlerts.status, "active"),
+      sql`${portfolioAlerts.expiresAt} <= now()`
+    ));
+    const inserted = [];
+    for (const alert of input.alerts) {
+      const result = await tx.insert(portfolioAlerts).ignore().values(alert);
+      if (Number(result[0].affectedRows) === 1) {
+        const rows = await tx.select().from(portfolioAlerts).where(eq(portfolioAlerts.id, Number(result[0].insertId))).limit(1);
+        if (rows[0]) inserted.push(rows[0]);
+      }
+    }
+    return inserted;
+  });
 }
 async function resetSpaceProgramRooms(projectId, organizationId, preserveOverridden = true) {
   const db = await getDb();
@@ -4643,13 +5317,25 @@ async function resetSpaceProgramRooms(projectId, organizationId, preserveOverrid
     ));
   }
 }
-var _db;
+var _db, assetLinkTargetResolvers;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
     init_schema();
     init_env();
     _db = null;
+    assetLinkTargetResolvers = {
+      evaluation: (tx, id, orgId) => tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq(projects.id, scoreMatrices.projectId)).where(and(eq(scoreMatrices.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
+      report: (tx, id, orgId) => tx.select({ projectId: reportInstances.projectId }).from(reportInstances).innerJoin(projects, eq(projects.id, reportInstances.projectId)).where(and(eq(reportInstances.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
+      scenario: (tx, id, orgId) => tx.select({ projectId: scenarios.projectId }).from(scenarios).innerJoin(projects, eq(projects.id, scenarios.projectId)).where(and(
+        eq(scenarios.id, id),
+        eq(scenarios.orgId, orgId),
+        eq(projects.orgId, orgId)
+      )).limit(1).for("update"),
+      material_board: (tx, id, orgId) => tx.select({ projectId: materialBoards.projectId }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
+      design_brief: (tx, id, orgId) => tx.select({ projectId: designBriefs.projectId }).from(designBriefs).innerJoin(projects, eq(projects.id, designBriefs.projectId)).where(and(eq(designBriefs.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
+      visual: (tx, id, orgId) => tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq(projects.id, generatedVisuals.projectId)).where(and(eq(generatedVisuals.id, id), eq(projects.orgId, orgId))).limit(1).for("update")
+    };
   }
 });
 
@@ -4985,234 +5671,6 @@ var init_llm = __esm({
         throw new Error("GEMINI_API_KEY is not configured in the environment");
       }
     };
-  }
-});
-
-// server/engines/autonomous/alert-delivery.ts
-async function deliverAlert(alert) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const recipientEmail = process.env.ALERT_RECIPIENT_EMAIL || process.env.ADMIN_EMAIL;
-  if (!apiKey) {
-    console.log("[AlertDelivery] RESEND_API_KEY not set, skipping email delivery");
-    return { delivered: false, channel: "skipped" };
-  }
-  if (!recipientEmail) {
-    console.log("[AlertDelivery] No ALERT_RECIPIENT_EMAIL or ADMIN_EMAIL set, skipping");
-    return { delivered: false, channel: "skipped" };
-  }
-  if (alert.severity !== "critical" && alert.severity !== "high") {
-    return { delivered: false, channel: "skipped" };
-  }
-  const severityEmoji = alert.severity === "critical" ? "\u{1F534}" : "\u{1F7E0}";
-  const severityLabel = alert.severity.toUpperCase();
-  const htmlBody = `
-    <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: linear-gradient(135deg, #0d1117, #161b22); padding: 24px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: #e6edf3; margin: 0; font-size: 20px;">
-          ${severityEmoji} MIYAR Alert \u2014 ${severityLabel}
-        </h1>
-      </div>
-      <div style="background: #ffffff; padding: 24px; border: 1px solid #d0d7de; border-top: none; border-radius: 0 0 12px 12px;">
-        <h2 style="color: #1f2328; margin-top: 0;">${alert.title}</h2>
-        <p style="color: #656d76; line-height: 1.6;">${alert.body || ""}</p>
-        
-        ${alert.suggestedAction ? `
-          <div style="background: #f6f8fa; border-left: 4px solid #0969da; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;">
-            <strong style="color: #1f2328;">Suggested Action:</strong>
-            <p style="color: #656d76; margin: 4px 0 0;">${alert.suggestedAction}</p>
-          </div>
-        ` : ""}
-        
-        <p style="color: #656d76; font-size: 12px; margin-top: 24px;">
-          Alert Type: <code>${alert.alertType}</code> \xB7 
-          Generated: ${(/* @__PURE__ */ new Date()).toISOString()}
-        </p>
-      </div>
-    </div>
-  `;
-  try {
-    const response = await fetch(RESEND_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from: "MIYAR Alerts <alerts@miyar.ai>",
-        to: [recipientEmail],
-        subject: `${severityEmoji} [${severityLabel}] ${alert.title}`,
-        html: htmlBody
-      })
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[AlertDelivery] Resend API error (${response.status}):`, errorText);
-      return { delivered: false, channel: "email", error: errorText };
-    }
-    const result = await response.json();
-    console.log(`[AlertDelivery] Email sent successfully (ID: ${result.id}) for alert: ${alert.title}`);
-    return { delivered: true, channel: "email" };
-  } catch (error) {
-    console.error("[AlertDelivery] Failed to send email:", error.message);
-    return { delivered: false, channel: "email", error: error.message };
-  }
-}
-var RESEND_API_URL;
-var init_alert_delivery = __esm({
-  "server/engines/autonomous/alert-delivery.ts"() {
-    "use strict";
-    RESEND_API_URL = "https://api.resend.com/emails";
-  }
-});
-
-// server/engines/autonomous/alert-engine.ts
-import { eq as eq3, inArray as inArray2, and as and2, sql as sql2 } from "drizzle-orm";
-async function evaluateAlerts(params) {
-  const db = await getDb();
-  if (!db) return [];
-  const newAlerts = [];
-  for (const event of params.priceChangeEvents) {
-    if (event.severity === "significant") {
-      newAlerts.push({
-        alertType: "price_shock",
-        severity: "critical",
-        title: "Significant Price Shock Detected",
-        body: `The price of ${event.itemName} shifted by ${event.changePct}%`,
-        affectedProjectIds: [],
-        affectedCategories: [event.category],
-        triggerData: event,
-        suggestedAction: "Review material cost dependencies and update affected budgets.",
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1e3)
-        // critical: 24h
-      });
-    }
-  }
-  let loadedPatterns = {};
-  if (params.patternMatches.length > 0) {
-    const pIds = params.patternMatches.map((m) => m.patternId);
-    const patterns = await db.select().from(decisionPatterns).where(inArray2(decisionPatterns.id, pIds));
-    for (const p of patterns) loadedPatterns[p.id] = p;
-  }
-  let loadedProjects = {};
-  if (params.patternMatches.length > 0) {
-    const prjIds = params.patternMatches.map((m) => m.projectId);
-    const prjs = await db.select().from(projects).where(inArray2(projects.id, prjIds));
-    for (const p of prjs) loadedProjects[p.id] = p;
-  }
-  for (const match of params.patternMatches) {
-    const pattern = loadedPatterns[match.patternId];
-    const project = loadedProjects[match.projectId];
-    if (!pattern || !project) continue;
-    if (pattern.category === "risk_indicator" && parseFloat(pattern.reliabilityScore || "1") < 0.4) {
-      newAlerts.push({
-        alertType: "pattern_warning",
-        severity: "high",
-        title: "High-Risk Pattern Matched",
-        body: `Project '${project.name}' matched risk pattern '${pattern.name}' (Historical success rate <40%).`,
-        affectedProjectIds: [match.projectId],
-        affectedCategories: [],
-        triggerData: { match, pattern },
-        suggestedAction: "Implement strict preventative measures immediately.",
-        expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1e3)
-        // high: 72h
-      });
-    }
-  }
-  if (params.accuracyLedger && parseFloat(params.accuracyLedger.overallPlatformAccuracy || "100") < 60) {
-    newAlerts.push({
-      alertType: "accuracy_degraded",
-      severity: "high",
-      title: "Platform Accuracy Degraded",
-      body: `Overall platform prediction accuracy dropped to ${params.accuracyLedger.overallPlatformAccuracy}%.`,
-      affectedProjectIds: [],
-      affectedCategories: [],
-      triggerData: params.accuracyLedger,
-      suggestedAction: "Audit V5 learning weights and calibration multipliers.",
-      expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1e3)
-    });
-  }
-  if (params.calibrationProposals && params.calibrationProposals.length > 0) {
-    for (const prop of params.calibrationProposals) {
-      if (parseFloat(prop.calibrationFactor || "0") > 0.15) {
-        newAlerts.push({
-          alertType: "benchmark_drift",
-          severity: "medium",
-          title: "Benchmark Calibration Drift",
-          body: `A benchmark proposal requires >15% drift adjustment (${prop.calibrationFactor}).`,
-          affectedProjectIds: prop.projectId ? [prop.projectId] : [],
-          affectedCategories: [],
-          triggerData: prop,
-          suggestedAction: "Review calibration proposals and update material baseline bands.",
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
-          // medium: 7d
-        });
-      }
-    }
-  }
-  for (const insight of params.projectInsights) {
-    if (insight.insightType === "market_opportunity" && (insight.severity === "critical" || insight.severity === "warning")) {
-      newAlerts.push({
-        alertType: "market_opportunity",
-        severity: "medium",
-        title: "Market Opportunity Identified",
-        body: insight.title,
-        affectedProjectIds: insight.projectId ? [insight.projectId] : [],
-        affectedCategories: [],
-        triggerData: insight,
-        suggestedAction: insight.actionableRecommendation || "Investigate the newly generated opportunity parameters.",
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
-      });
-    }
-  }
-  const insertedAlerts = [];
-  for (const alert of newAlerts) {
-    const existing = await db.select().from(platformAlerts).where(
-      and2(
-        eq3(platformAlerts.alertType, alert.alertType),
-        eq3(platformAlerts.status, "active")
-        // For perfect duplicate suppression on JSON array, we can use simple string equality or fetch and filter
-        // We'll fetch active of this type and filter by JS equality
-      )
-    );
-    const isDuplicate = existing.some(
-      (e) => JSON.stringify(e.affectedProjectIds) === JSON.stringify(alert.affectedProjectIds)
-    );
-    if (!isDuplicate) {
-      const [result] = await db.insert(platformAlerts).values(alert);
-      const inserted = { ...alert, id: result.insertId };
-      insertedAlerts.push(inserted);
-      deliverAlert(inserted).catch(
-        (e) => console.error("[AlertEngine] Delivery failed for alert:", inserted.title, e)
-      );
-    }
-  }
-  return insertedAlerts;
-}
-async function triggerAlertEngine() {
-  const db = await getDb();
-  if (!db) return [];
-  const memoryWindow = new Date(Date.now() - 24 * 60 * 60 * 1e3);
-  const recentPrices = await db.select().from(priceChangeEvents).where(sql2`${priceChangeEvents.detectedAt} >= ${memoryWindow}`);
-  const recentInsights = await db.select().from(projectInsights).where(sql2`${projectInsights.createdAt} >= ${memoryWindow}`);
-  const recentComparisons = await db.select().from(outcomeComparisons).orderBy(sql2`${outcomeComparisons.comparedAt} DESC`).limit(20);
-  const recentMatches = await db.select().from(projectPatternMatches).where(sql2`${projectPatternMatches.matchedAt} >= ${memoryWindow}`);
-  const ledgerRows = await db.select().from(accuracySnapshots).orderBy(sql2`${accuracySnapshots.snapshotDate} DESC`).limit(1);
-  const recentProposals = await db.select().from(benchmarkProposals).where(sql2`${benchmarkProposals.createdAt} >= ${memoryWindow}`);
-  return evaluateAlerts({
-    priceChangeEvents: recentPrices,
-    projectInsights: recentInsights,
-    outcomeComparisons: recentComparisons,
-    patternMatches: recentMatches,
-    accuracyLedger: ledgerRows[0],
-    calibrationProposals: recentProposals
-  });
-}
-var init_alert_engine = __esm({
-  "server/engines/autonomous/alert-engine.ts"() {
-    "use strict";
-    init_db();
-    init_alert_delivery();
-    init_schema();
   }
 });
 
@@ -9215,6 +9673,234 @@ var init_proposal_generator = __esm({
   }
 });
 
+// server/engines/autonomous/alert-delivery.ts
+async function deliverAlert(alert) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const recipientEmail = process.env.ALERT_RECIPIENT_EMAIL || process.env.ADMIN_EMAIL;
+  if (!apiKey) {
+    console.log("[AlertDelivery] RESEND_API_KEY not set, skipping email delivery");
+    return { delivered: false, channel: "skipped" };
+  }
+  if (!recipientEmail) {
+    console.log("[AlertDelivery] No ALERT_RECIPIENT_EMAIL or ADMIN_EMAIL set, skipping");
+    return { delivered: false, channel: "skipped" };
+  }
+  if (alert.severity !== "critical" && alert.severity !== "high") {
+    return { delivered: false, channel: "skipped" };
+  }
+  const severityEmoji = alert.severity === "critical" ? "\u{1F534}" : "\u{1F7E0}";
+  const severityLabel = alert.severity.toUpperCase();
+  const htmlBody = `
+    <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #0d1117, #161b22); padding: 24px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: #e6edf3; margin: 0; font-size: 20px;">
+          ${severityEmoji} MIYAR Alert \u2014 ${severityLabel}
+        </h1>
+      </div>
+      <div style="background: #ffffff; padding: 24px; border: 1px solid #d0d7de; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="color: #1f2328; margin-top: 0;">${alert.title}</h2>
+        <p style="color: #656d76; line-height: 1.6;">${alert.body || ""}</p>
+
+        ${alert.suggestedAction ? `
+          <div style="background: #f6f8fa; border-left: 4px solid #0969da; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;">
+            <strong style="color: #1f2328;">Suggested Action:</strong>
+            <p style="color: #656d76; margin: 4px 0 0;">${alert.suggestedAction}</p>
+          </div>
+        ` : ""}
+
+        <p style="color: #656d76; font-size: 12px; margin-top: 24px;">
+          Alert Type: <code>${alert.alertType}</code> \xB7
+          Generated: ${(/* @__PURE__ */ new Date()).toISOString()}
+        </p>
+      </div>
+    </div>
+  `;
+  try {
+    const response = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: "MIYAR Alerts <alerts@miyar.ai>",
+        to: [recipientEmail],
+        subject: `${severityEmoji} [${severityLabel}] ${alert.title}`,
+        html: htmlBody
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[AlertDelivery] Resend API error (${response.status}):`, errorText);
+      return { delivered: false, channel: "email", error: errorText };
+    }
+    const result = await response.json();
+    console.log(`[AlertDelivery] Email sent successfully (ID: ${result.id}) for alert: ${alert.title}`);
+    return { delivered: true, channel: "email" };
+  } catch (error) {
+    console.error("[AlertDelivery] Failed to send email:", error.message);
+    return { delivered: false, channel: "email", error: error.message };
+  }
+}
+var RESEND_API_URL;
+var init_alert_delivery = __esm({
+  "server/engines/autonomous/alert-delivery.ts"() {
+    "use strict";
+    RESEND_API_URL = "https://api.resend.com/emails";
+  }
+});
+
+// server/engines/autonomous/alert-engine.ts
+import { eq as eq6, inArray as inArray2, and as and3, sql as sql2 } from "drizzle-orm";
+async function evaluateAlerts(params) {
+  const db = await getDb();
+  if (!db) return [];
+  const newAlerts = [];
+  for (const event of params.priceChangeEvents) {
+    if (event.severity === "significant") {
+      newAlerts.push({
+        alertType: "price_shock",
+        severity: "critical",
+        title: "Significant Price Shock Detected",
+        body: `The price of ${event.itemName} shifted by ${event.changePct}%`,
+        affectedProjectIds: [],
+        affectedCategories: [event.category],
+        triggerData: event,
+        suggestedAction: "Review material cost dependencies and update affected budgets.",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1e3)
+        // critical: 24h
+      });
+    }
+  }
+  let loadedPatterns = {};
+  if (params.patternMatches.length > 0) {
+    const pIds = params.patternMatches.map((m) => m.patternId);
+    const patterns = await db.select().from(decisionPatterns).where(inArray2(decisionPatterns.id, pIds));
+    for (const p of patterns) loadedPatterns[p.id] = p;
+  }
+  let loadedProjects = {};
+  if (params.patternMatches.length > 0) {
+    const prjIds = params.patternMatches.map((m) => m.projectId);
+    const prjs = await db.select().from(projects).where(inArray2(projects.id, prjIds));
+    for (const p of prjs) loadedProjects[p.id] = p;
+  }
+  for (const match of params.patternMatches) {
+    const pattern = loadedPatterns[match.patternId];
+    const project = loadedProjects[match.projectId];
+    if (!pattern || !project) continue;
+    if (pattern.category === "risk_indicator" && parseFloat(pattern.reliabilityScore || "1") < 0.4) {
+      newAlerts.push({
+        alertType: "pattern_warning",
+        severity: "high",
+        title: "High-Risk Pattern Matched",
+        body: `Project '${project.name}' matched risk pattern '${pattern.name}' (Historical success rate <40%).`,
+        affectedProjectIds: [match.projectId],
+        affectedCategories: [],
+        triggerData: { match, pattern },
+        suggestedAction: "Implement strict preventative measures immediately.",
+        expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1e3)
+        // high: 72h
+      });
+    }
+  }
+  if (params.accuracyLedger && parseFloat(params.accuracyLedger.overallPlatformAccuracy || "100") < 60) {
+    newAlerts.push({
+      alertType: "accuracy_degraded",
+      severity: "high",
+      title: "Platform Accuracy Degraded",
+      body: `Overall platform prediction accuracy dropped to ${params.accuracyLedger.overallPlatformAccuracy}%.`,
+      affectedProjectIds: [],
+      affectedCategories: [],
+      triggerData: params.accuracyLedger,
+      suggestedAction: "Audit V5 learning weights and calibration multipliers.",
+      expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1e3)
+    });
+  }
+  if (params.calibrationProposals && params.calibrationProposals.length > 0) {
+    for (const prop of params.calibrationProposals) {
+      if (parseFloat(prop.calibrationFactor || "0") > 0.15) {
+        newAlerts.push({
+          alertType: "benchmark_drift",
+          severity: "medium",
+          title: "Benchmark Calibration Drift",
+          body: `A benchmark proposal requires >15% drift adjustment (${prop.calibrationFactor}).`,
+          affectedProjectIds: prop.projectId ? [prop.projectId] : [],
+          affectedCategories: [],
+          triggerData: prop,
+          suggestedAction: "Review calibration proposals and update material baseline bands.",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
+          // medium: 7d
+        });
+      }
+    }
+  }
+  for (const insight of params.projectInsights) {
+    if (insight.insightType === "market_opportunity" && (insight.severity === "critical" || insight.severity === "warning")) {
+      newAlerts.push({
+        alertType: "market_opportunity",
+        severity: "medium",
+        title: "Market Opportunity Identified",
+        body: insight.title,
+        affectedProjectIds: insight.projectId ? [insight.projectId] : [],
+        affectedCategories: [],
+        triggerData: insight,
+        suggestedAction: insight.actionableRecommendation || "Investigate the newly generated opportunity parameters.",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
+      });
+    }
+  }
+  const insertedAlerts = [];
+  for (const alert of newAlerts) {
+    const existing = await db.select().from(platformAlerts).where(
+      and3(
+        eq6(platformAlerts.alertType, alert.alertType),
+        eq6(platformAlerts.status, "active")
+        // For perfect duplicate suppression on JSON array, we can use simple string equality or fetch and filter
+        // We'll fetch active of this type and filter by JS equality
+      )
+    );
+    const isDuplicate = existing.some(
+      (e) => JSON.stringify(e.affectedProjectIds) === JSON.stringify(alert.affectedProjectIds)
+    );
+    if (!isDuplicate) {
+      const [result] = await db.insert(platformAlerts).values(alert);
+      const inserted = { ...alert, id: result.insertId };
+      insertedAlerts.push(inserted);
+      deliverAlert(inserted).catch(
+        (e) => console.error("[AlertEngine] Delivery failed for alert:", inserted.title, e)
+      );
+    }
+  }
+  return insertedAlerts;
+}
+async function triggerAlertEngine() {
+  const db = await getDb();
+  if (!db) return [];
+  const memoryWindow = new Date(Date.now() - 24 * 60 * 60 * 1e3);
+  const recentPrices = await db.select().from(priceChangeEvents).where(sql2`${priceChangeEvents.detectedAt} >= ${memoryWindow}`);
+  const recentInsights = await db.select().from(projectInsights).where(sql2`${projectInsights.createdAt} >= ${memoryWindow}`);
+  const recentComparisons = await db.select().from(outcomeComparisons).orderBy(sql2`${outcomeComparisons.comparedAt} DESC`).limit(20);
+  const recentMatches = await db.select().from(projectPatternMatches).where(sql2`${projectPatternMatches.matchedAt} >= ${memoryWindow}`);
+  const ledgerRows = await db.select().from(accuracySnapshots).orderBy(sql2`${accuracySnapshots.snapshotDate} DESC`).limit(1);
+  const recentProposals = await db.select().from(benchmarkProposals).where(sql2`${benchmarkProposals.createdAt} >= ${memoryWindow}`);
+  return evaluateAlerts({
+    priceChangeEvents: recentPrices,
+    projectInsights: recentInsights,
+    outcomeComparisons: recentComparisons,
+    patternMatches: recentMatches,
+    accuracyLedger: ledgerRows[0],
+    calibrationProposals: recentProposals
+  });
+}
+var init_alert_engine = __esm({
+  "server/engines/autonomous/alert-engine.ts"() {
+    "use strict";
+    init_db();
+    init_alert_delivery();
+    init_schema();
+  }
+});
+
 // server/engines/ingestion/data-quality.ts
 function validateEvidence(record) {
   const flags = [];
@@ -12433,11 +13119,14 @@ setInterval(() => {
     if (entry.timestamps.length === 0) store.delete(key);
   }
 }, 3e5);
+function buildRateLimitKey(keyPrefix, userId, path) {
+  return `${keyPrefix}:${userId}:${path}`;
+}
 function createRateLimitMiddleware(t2, opts = {}) {
   const { windowMs = 6e4, max = 5, keyPrefix = "rl" } = opts;
   return t2.middleware(async ({ ctx, next, path }) => {
     const userId = ctx?.user?.id ?? "anon";
-    const key = `${keyPrefix}:${userId}:${path}`;
+    const key = buildRateLimitKey(keyPrefix, userId, path);
     const now = Date.now();
     let entry = store.get(key);
     if (!entry) {
@@ -12518,7 +13207,7 @@ var requireOrg = t.middleware(async (opts) => {
   });
 });
 var orgProcedure = t.procedure.use(requireOrg);
-var designOrgMutationProcedure = orgProcedure.use(
+var orgMutationProcedure = orgProcedure.use(
   async ({ ctx, next }) => {
     if (ctx.orgRole === "viewer") {
       throw new TRPCError3({
@@ -12529,7 +13218,7 @@ var designOrgMutationProcedure = orgProcedure.use(
     return next({ ctx });
   }
 );
-var designOrgAdminProcedure = orgProcedure.use(
+var orgAdminProcedure = orgProcedure.use(
   async ({ ctx, next }) => {
     if (ctx.orgRole !== "admin") {
       throw new TRPCError3({
@@ -12540,7 +13229,16 @@ var designOrgAdminProcedure = orgProcedure.use(
     return next({ ctx });
   }
 );
-var heavyProcedure = t.procedure.use(requireUser).use(createRateLimitMiddleware(t, { max: 5, windowMs: 6e4, keyPrefix: "heavy" }));
+var designOrgMutationProcedure = orgMutationProcedure;
+var designOrgAdminProcedure = orgAdminProcedure;
+var heavyRateLimit = createRateLimitMiddleware(t, {
+  max: 5,
+  windowMs: 6e4,
+  keyPrefix: "heavy"
+});
+var heavyProcedure = t.procedure.use(requireUser).use(heavyRateLimit);
+var orgRateLimitedProcedure = orgProcedure.use(heavyRateLimit);
+var orgHeavyMutationProcedure = orgMutationProcedure.use(heavyRateLimit);
 
 // server/_core/systemRouter.ts
 var systemRouter = router({
@@ -12846,6 +13544,104 @@ var authRouter = router({
 
 // server/routers/project.ts
 import { z as z3 } from "zod";
+import { TRPCError as TRPCError7 } from "@trpc/server";
+
+// server/_core/project-access.ts
+init_db();
+import { TRPCError as TRPCError5 } from "@trpc/server";
+async function requireProjectForOrg(projectId, orgId, lookup = getProjectById) {
+  const project = await lookup(projectId);
+  if (!project || project.orgId !== orgId) {
+    throw new TRPCError5({ code: "NOT_FOUND", message: "Project not found" });
+  }
+  return project;
+}
+
+// server/_core/resource-access.ts
+init_db();
+import { TRPCError as TRPCError6 } from "@trpc/server";
+var DEFAULT_NOT_FOUND_MESSAGE = "Resource not found";
+function notFound(message = DEFAULT_NOT_FOUND_MESSAGE) {
+  throw new TRPCError6({ code: "NOT_FOUND", message });
+}
+async function requireAuthorizedProject(projectId, orgId, lookupProject, notFoundMessage) {
+  try {
+    return await requireProjectForOrg(projectId, orgId, lookupProject);
+  } catch (error) {
+    if (error instanceof TRPCError6 && error.code === "NOT_FOUND") {
+      return notFound(notFoundMessage);
+    }
+    throw error;
+  }
+}
+async function requireProjectResourceForOrg(resourceId, orgId, options) {
+  const resource = await options.lookupResource(resourceId);
+  if (!resource) {
+    return notFound(options.notFoundMessage);
+  }
+  const project = await requireAuthorizedProject(
+    options.getProjectId(resource),
+    orgId,
+    options.lookupProject ?? getProjectById,
+    options.notFoundMessage
+  );
+  return { resource, project };
+}
+async function requireNestedProjectResourceForOrg(resourceId, orgId, options) {
+  const resource = await options.lookupResource(resourceId);
+  if (!resource) {
+    return notFound(options.notFoundMessage);
+  }
+  const parent = await options.lookupParent(options.getParentId(resource));
+  if (!parent) {
+    return notFound(options.notFoundMessage);
+  }
+  const project = await requireAuthorizedProject(
+    options.getProjectId(parent),
+    orgId,
+    options.lookupProject ?? getProjectById,
+    options.notFoundMessage
+  );
+  return { resource, parent, project };
+}
+async function requireOrgResourceForOrg(resourceId, orgId, options) {
+  const resource = await options.lookupResource(resourceId);
+  if (!resource || options.getOrgId(resource) !== orgId) {
+    return notFound(options.notFoundMessage);
+  }
+  return resource;
+}
+async function requireProjectOrgResourceForOrg(resourceId, orgId, options) {
+  const resource = await options.lookupResource(resourceId);
+  if (!resource || options.getOrgId(resource) !== orgId) {
+    return notFound(options.notFoundMessage);
+  }
+  const project = await requireAuthorizedProject(
+    options.getProjectId(resource),
+    orgId,
+    options.lookupProject ?? getProjectById,
+    options.notFoundMessage
+  );
+  return { resource, project };
+}
+async function requireProjectResourceBatchForOrg(resourceIds, orgId, authorize) {
+  return Promise.all(
+    resourceIds.map((resourceId) => authorize(resourceId, orgId))
+  );
+}
+function createPolymorphicResourceAuthorizer(registry, notFoundMessage = DEFAULT_NOT_FOUND_MESSAGE) {
+  const closedRegistry = Object.freeze({ ...registry });
+  return async function requirePolymorphicResourceForOrg(type, id, orgId) {
+    if (!Object.prototype.hasOwnProperty.call(closedRegistry, type)) {
+      return notFound(notFoundMessage);
+    }
+    const resolver = closedRegistry[type];
+    const value = await resolver(id, orgId);
+    return { type, value };
+  };
+}
+
+// server/routers/project.ts
 init_db();
 
 // server/engines/sustainability/sustainability-multipliers.ts
@@ -15027,7 +15823,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
 
 // server/routers/project.ts
 init_storage();
-import { nanoid } from "nanoid";
+import { nanoid as nanoid2 } from "nanoid";
 
 // server/engines/roi.ts
 var DEFAULT_COEFFICIENTS = {
@@ -16080,19 +16876,18 @@ async function generateInsights(input, options = {}) {
 
 // server/routers/project.ts
 init_db();
-init_alert_engine();
 
 // server/engines/autonomous/document-generator.ts
 init_db();
 init_llm();
 init_schema();
-import { eq as eq4, desc as desc2 } from "drizzle-orm";
+import { eq as eq3, desc as desc2 } from "drizzle-orm";
 async function generateAutonomousDesignBrief(projectId) {
   const db = await getDb();
   if (!db) throw new Error("Database not connected");
-  const [project] = await db.select().from(projects).where(eq4(projects.id, projectId));
+  const [project] = await db.select().from(projects).where(eq3(projects.id, projectId));
   if (!project) throw new Error("Project not found");
-  const scoreRecords = await db.select().from(scoreMatrices).where(eq4(scoreMatrices.projectId, projectId)).orderBy(desc2(scoreMatrices.computedAt)).limit(1);
+  const scoreRecords = await db.select().from(scoreMatrices).where(eq3(scoreMatrices.projectId, projectId)).orderBy(desc2(scoreMatrices.computedAt)).limit(1);
   const scores = scoreRecords[0] || null;
   const systemPrompt = `
 You are an expert real estate development consultant and interior design strategist for MIYAR.
@@ -16135,6 +16930,57 @@ Latest Evaluation Scores:
   const content = response.choices?.[0]?.message?.content;
   const markdownOutput = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => c.text || "").join("") : "";
   return markdownOutput.trim();
+}
+
+// server/_core/upload-compensation.ts
+init_storage();
+import { nanoid } from "nanoid";
+
+// server/_core/sentry.ts
+var Sentry = null;
+function captureException(err, context) {
+  if (!Sentry) return;
+  Sentry.withScope((scope) => {
+    if (context) {
+      Object.entries(context).forEach(([key, val]) => {
+        scope.setExtra(key, val);
+      });
+    }
+    Sentry.captureException(err);
+  });
+}
+function captureMessage(message, level = "info") {
+  if (!Sentry) return;
+  Sentry.captureMessage(message, level);
+}
+
+// server/_core/upload-compensation.ts
+var CLEANUP_ATTEMPTS = 3;
+async function cleanupRejectedUpload(objectKey, correlationId = nanoid(12)) {
+  let lastError;
+  for (let attempt = 1; attempt <= CLEANUP_ATTEMPTS; attempt += 1) {
+    try {
+      await storageDelete(objectKey);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  captureException(lastError, {
+    source: "upload-cleanup-failed",
+    correlationId,
+    objectKey
+  });
+  throw new Error(`Upload cleanup failed (${correlationId})`);
+}
+function reportIndeterminateUploadPersistence(objectKey, error, correlationId = nanoid(12)) {
+  captureException(error, {
+    source: "upload-reconciliation-required",
+    correlationId,
+    objectKey
+  });
+  captureMessage(`Upload reconciliation required (${correlationId})`, "error");
+  return correlationId;
 }
 
 // server/routers/project.ts
@@ -16321,11 +17167,9 @@ var projectRouter = router({
     return result;
   }),
   get: orgProcedure.input(z3.object({ id: z3.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.id);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return null;
-    return project;
+    return requireProjectForOrg(input.id, ctx.orgId);
   }),
-  create: orgProcedure.input(projectInputSchema).mutation(async ({ ctx, input }) => {
+  create: orgMutationProcedure.input(projectInputSchema).mutation(async ({ ctx, input }) => {
     const result = await createProject({
       ...input,
       userId: ctx.user.id,
@@ -16347,12 +17191,9 @@ var projectRouter = router({
     });
     return result;
   }),
-  update: orgProcedure.input(z3.object({ id: z3.number() }).merge(projectInputSchema.partial())).mutation(async ({ ctx, input }) => {
+  update: orgMutationProcedure.input(z3.object({ id: z3.number() }).merge(projectInputSchema.partial())).mutation(async ({ ctx, input }) => {
     const { id, ...data } = input;
-    const project = await getProjectById(id);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
-      throw new Error("Project not found");
-    }
+    const project = await requireProjectForOrg(id, ctx.orgId);
     if (project.status === "locked") {
       throw new Error("Cannot update a locked project");
     }
@@ -16362,7 +17203,9 @@ var projectRouter = router({
     if (data.officeCustomRatio !== void 0) updateData.officeCustomRatio = data.officeCustomRatio != null ? String(data.officeCustomRatio) : null;
     if (data.totalFitoutArea !== void 0) updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
     if (data.totalNonFinishArea !== void 0) updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
-    await updateProject(id, updateData);
+    if (!await updateProjectForOrg(id, ctx.orgId, updateData)) {
+      await requireProjectForOrg(id, ctx.orgId);
+    }
     await createAuditLog({
       userId: ctx.user.id,
       action: "project.update",
@@ -16372,12 +17215,12 @@ var projectRouter = router({
     });
     return { success: true };
   }),
-  delete: protectedProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.id);
-    if (!project || project.userId !== ctx.user.id) {
-      throw new Error("Project not found");
+  delete: orgAdminProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.id, ctx.orgId);
+    if (!await deleteProjectForOrg(input.id, ctx.orgId)) {
+      await requireProjectForOrg(input.id, ctx.orgId);
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
-    await deleteProject(input.id);
     await createAuditLog({
       userId: ctx.user.id,
       action: "project.delete",
@@ -16386,11 +17229,8 @@ var projectRouter = router({
     });
     return { success: true };
   }),
-  evaluate: orgProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.id);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
-      throw new Error("Project not found");
-    }
+  evaluate: orgHeavyMutationProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.id, ctx.orgId);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) throw new Error("No active model version found");
     const inputs = projectToInputs(project);
@@ -16460,26 +17300,18 @@ var projectRouter = router({
         console.log(`[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`);
         if (spaceResult.totalCritical >= 2) {
           try {
-            const { getDb: getDbFn } = await Promise.resolve().then(() => (init_db(), db_exports));
-            const { platformAlerts: platformAlertsTable } = await Promise.resolve().then(() => (init_schema(), schema_exports));
-            const alertDb = await getDbFn();
-            if (alertDb) {
-              const criticalRooms = spaceResult.recommendations.filter((r) => r.severity === "critical").map((r) => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`).join(", ");
-              await alertDb.insert(platformAlertsTable).values({
-                alertType: "space_critical",
-                severity: "high",
-                title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
-                body: `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside DLD benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
-                affectedProjectIds: [input.id],
-                affectedCategories: ["space_planning", "floor_plan"],
-                triggerData: { spaceResult },
-                suggestedAction: "Review floor plan allocations in Space Planner. Critical room ratios are correlated with lower sale prices in this area.",
-                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
-              });
-              console.log(`[Phase9] Space-critical alert created for project ${input.id}`);
-            }
+            const criticalRooms = spaceResult.recommendations.filter((r) => r.severity === "critical").map((r) => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`).join(", ");
+            await insertProjectInsightForOrg({
+              projectId: input.id,
+              insightType: "positioning_gap",
+              severity: "warning",
+              title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
+              body: `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside DLD benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
+              actionableRecommendation: "Review floor plan allocations in Space Planner. Critical room ratios are correlated with lower sale prices in this area.",
+              dataPoints: { spaceResult }
+            }, ctx.orgId);
           } catch (alertErr) {
-            console.warn("[Phase9] Space alert creation failed (non-blocking):", alertErr);
+            console.warn("[Phase9] Space insight creation failed (non-blocking):", alertErr);
           }
         }
       } catch (e) {
@@ -16588,11 +17420,13 @@ var projectRouter = router({
     } catch (e) {
       console.warn("[V11] Bias detection failed (non-blocking):", e);
     }
-    await updateProject(input.id, {
+    if (!await updateProjectForOrg(input.id, ctx.orgId, {
       status: "evaluated",
       modelVersionId: modelVersion.id,
       benchmarkVersionId: activeBV?.id ?? null
-    });
+    })) {
+      await requireProjectForOrg(input.id, ctx.orgId);
+    }
     await createAuditLog({
       userId: ctx.user.id,
       action: "project.evaluate",
@@ -16648,12 +17482,6 @@ var projectRouter = router({
     } catch (e) {
       console.warn("[V3-09] Insight generation failed (non-blocking):", e);
     }
-    try {
-      const alerts = await triggerAlertEngine();
-      console.log(`[Project] Post-evaluation alert generation: ${alerts.length} new alerts created`);
-    } catch (err) {
-      console.error("[Project] Post-evaluation alert generation failed:", err);
-    }
     let dldMarketPosition = null;
     if (project.dldAreaId) {
       const { computeMarketPosition: computeMarketPosition3 } = await Promise.resolve().then(() => (init_dld_analytics(), dld_analytics_exports));
@@ -16676,13 +17504,11 @@ var projectRouter = router({
     return { scoreMatrixId: matrixResult.id, ...scoreResult, dldMarketPosition };
   }),
   getScores: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return [];
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getScoreMatricesByProject(input.projectId);
   }),
   sensitivity: orgProcedure.input(z3.object({ id: z3.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.id);
-    if (!project || project.userId !== ctx.user.id) return [];
+    const project = await requireProjectForOrg(input.id, ctx.orgId);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) return [];
     const inputs = projectToInputs(project);
@@ -16693,8 +17519,7 @@ var projectRouter = router({
   }),
   // ─── V2: ROI Narrative Engine ──────────────────────────────────────
   roi: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return null;
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const scores = await getScoreMatricesByProject(input.projectId);
     if (scores.length === 0) return null;
     const latest = scores[0];
@@ -16739,8 +17564,7 @@ var projectRouter = router({
   }),
   // ─── V2: 5-Lens Validation Framework ──────────────────────────────
   fiveLens: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return null;
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const scores = await getScoreMatricesByProject(input.projectId);
     if (scores.length === 0) return null;
     const latest = scores[0];
@@ -16749,8 +17573,7 @@ var projectRouter = router({
   }),
   // ─── V2: Project Intelligence ─────────────────────────────────────
   intelligence: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return null;
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const intel = await getProjectIntelligenceByProject(input.projectId);
     return intel.length > 0 ? intel[0] : null;
   }),
@@ -16758,12 +17581,11 @@ var projectRouter = router({
   scenarioTemplates: orgProcedure.query(async () => {
     return SCENARIO_TEMPLATES;
   }),
-  applyScenarioTemplate: orgProcedure.input(z3.object({
+  applyScenarioTemplate: orgHeavyMutationProcedure.input(z3.object({
     projectId: z3.number(),
     templateKey: z3.string()
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const template = getScenarioTemplate(input.templateKey);
     if (!template) throw new Error("Template not found");
     const baseInputs = projectToInputs(project);
@@ -16796,14 +17618,18 @@ var projectRouter = router({
     const benchmarks = await getBenchmarks(scenarioInputs2.ctx01Typology, scenarioInputs2.ctx04Location, scenarioInputs2.mkt01Tier);
     const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
     const scoreResult = evaluate(scenarioInputs2, config);
-    const result = await createScenarioRecord({
+    const result = await createScenarioRecordForOrg({
       projectId: input.projectId,
       name: template.name,
       description: template.description,
       variableOverrides: template.overrides,
       isTemplate: true,
       templateKey: input.templateKey
-    });
+    }, ctx.orgId);
+    if (!result) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      throw new Error("Failed to create scenario");
+    }
     await createAuditLog({
       userId: ctx.user.id,
       action: "scenario.template_applied",
@@ -16814,7 +17640,7 @@ var projectRouter = router({
     return { id: result.id, ...scoreResult, tradeoffs: template.tradeoffs };
   }),
   // ─── V2: Constraint Solver ────────────────────────────────────────
-  solveConstraints: orgProcedure.input(z3.object({
+  solveConstraints: orgMutationProcedure.input(z3.object({
     projectId: z3.number(),
     constraints: z3.array(z3.object({
       variable: z3.string(),
@@ -16822,18 +17648,16 @@ var projectRouter = router({
       value: z3.union([z3.number(), z3.string(), z3.array(z3.union([z3.number(), z3.string()]))])
     }))
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const baseProject = projectToInputs(project);
     return solveConstraints(baseProject, input.constraints);
   }),
   // ─── V2: Enhanced Report Generation ───────────────────────────────
-  generateReport: orgProcedure.input(z3.object({
+  generateReport: orgHeavyMutationProcedure.input(z3.object({
     projectId: z3.number(),
     reportType: z3.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"])
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const scores = await getScoreMatricesByProject(input.projectId);
     if (scores.length === 0) throw new Error("No scores available. Evaluate first.");
     const latest = scores[0];
@@ -16914,45 +17738,52 @@ var projectRouter = router({
     const roiResult = computeRoi(roiInputs, coefficients);
     const roi = input.reportType === "full_report" ? computeROI(inputs, scoreResult.compositeScore, 15e4) : void 0;
     let reportData;
+    let designArtifacts;
     if (input.reportType === "validation_summary") {
       reportData = generateValidationSummary(project.name, project.id, inputs, scoreResult, sensitivity);
     } else if (input.reportType === "design_brief") {
-      try {
-        const { buildDesignVocabulary: buildDesignVocabulary2 } = await Promise.resolve().then(() => (init_vocabulary(), vocabulary_exports));
-        const { buildSpaceProgram: buildSpaceProgram2 } = await Promise.resolve().then(() => (init_space_program(), space_program_exports));
-        const { buildFinishSchedule: buildFinishSchedule2 } = await Promise.resolve().then(() => (init_finish_schedule(), finish_schedule_exports));
-        const { buildColorPalette: buildColorPalette2 } = await Promise.resolve().then(() => (init_color_palette(), color_palette_exports));
-        const { buildRFQPack: buildRFQPack2 } = await Promise.resolve().then(() => (init_rfq_generator(), rfq_generator_exports));
-        const { buildRFQFromBrief: buildRFQFromBriefLegacy } = await Promise.resolve().then(() => (init_rfq_generator(), rfq_generator_exports));
-        const { buildDMComplianceChecklist: buildDMComplianceChecklist2 } = await Promise.resolve().then(() => (init_dm_compliance(), dm_compliance_exports));
-        const vocab = buildDesignVocabulary2(project);
-        const { totalFitoutBudgetAed, rooms, totalAllocatedSqm } = buildSpaceProgram2(project);
-        const materials = await getAllMaterials();
-        const finishSchedule = buildFinishSchedule2(project, vocab, rooms, materials);
-        const colorPalette = await buildColorPalette2(project, vocab);
-        const complianceChecklist = buildDMComplianceChecklist2(project.id, project.orgId || 1, project);
-        for (const item of finishSchedule) await insertFinishScheduleItem(item);
-        await insertProjectColorPalette(colorPalette);
-        await insertDmComplianceChecklist(complianceChecklist);
-        const briefResult = await createDesignBrief({
+      const { buildDesignVocabulary: buildDesignVocabulary2 } = await Promise.resolve().then(() => (init_vocabulary(), vocabulary_exports));
+      const { buildSpaceProgram: buildSpaceProgram2 } = await Promise.resolve().then(() => (init_space_program(), space_program_exports));
+      const { buildFinishSchedule: buildFinishSchedule2 } = await Promise.resolve().then(() => (init_finish_schedule(), finish_schedule_exports));
+      const { buildColorPalette: buildColorPalette2 } = await Promise.resolve().then(() => (init_color_palette(), color_palette_exports));
+      const { buildRFQPack: buildRFQPack2 } = await Promise.resolve().then(() => (init_rfq_generator(), rfq_generator_exports));
+      const { buildDMComplianceChecklist: buildDMComplianceChecklist2 } = await Promise.resolve().then(() => (init_dm_compliance(), dm_compliance_exports));
+      const vocab = buildDesignVocabulary2(project);
+      const { totalFitoutBudgetAed, rooms } = buildSpaceProgram2(project);
+      const materials = await getAllMaterials();
+      const finishSchedule = buildFinishSchedule2(project, vocab, rooms, materials);
+      const colorPalette = await buildColorPalette2(project, vocab);
+      const complianceChecklist = buildDMComplianceChecklist2(
+        project.id,
+        ctx.orgId,
+        project
+      );
+      const rfqPack = buildRFQPack2(
+        project.id,
+        ctx.orgId,
+        finishSchedule,
+        rooms,
+        materials
+      );
+      designArtifacts = {
+        finishSchedule,
+        colorPalette,
+        complianceChecklist,
+        brief: {
           projectId: project.id,
           version: 1,
           createdBy: ctx.user.id,
           projectIdentity: { name: project.name, location: project.ctx04Location },
-          designNarrative: { positioningStatement: colorPalette.geminiRationale || "Curated aesthetic alignment." },
+          designNarrative: {
+            positioningStatement: colorPalette.geminiRationale || "Curated aesthetic alignment."
+          },
           materialSpecifications: { vocab, finishSchedule },
           boqFramework: { coreAllocations: [] },
           detailedBudget: { totalFitoutBudgetAed, rfqMin: 0, rfqMax: 0 },
           designerInstructions: { deliverablesChecklist: complianceChecklist }
-        });
-        const rfqPack = buildRFQPack2(project.id, project.orgId || 1, finishSchedule, rooms, materials);
-        for (const item of rfqPack) await insertRfqLineItem(item);
-        const rfqMin = rfqPack.reduce((acc, r) => acc + Number(r.totalAedMin || 0), 0);
-        const rfqMax = rfqPack.reduce((acc, r) => acc + Number(r.totalAedMax || 0), 0);
-        console.log(`[V8] Successfully orchestrated Design Intelligence Layer for Project ${project.id}.`);
-      } catch (v8Err) {
-        console.error("[V8] Engine integration error:", v8Err);
-      }
+        },
+        rfqItems: rfqPack
+      };
       reportData = generateDesignBrief(project.name, project.id, inputs, scoreResult, sensitivity);
     } else if (input.reportType === "autonomous_design_brief") {
       const mdContent = await generateAutonomousDesignBrief(project.id);
@@ -17032,22 +17863,42 @@ var projectRouter = router({
     };
     const html = generateReportHTML(input.reportType, pdfInput);
     let fileUrl = null;
+    let storageKey = null;
     try {
-      const fileKey = `reports/${project.id}/${input.reportType}-${nanoid(8)}.html`;
+      const fileKey = `reports/${project.id}/${input.reportType}-${nanoid2(8)}.html`;
       const result = await storagePut(fileKey, html, "text/html");
+      storageKey = result.key;
       fileUrl = result.url;
     } catch (e) {
       console.warn("[Report] S3 upload failed, storing HTML content inline:", e);
     }
-    await createReportInstance({
-      projectId: input.projectId,
-      scoreMatrixId: latest.id,
-      reportType: input.reportType,
-      fileUrl,
-      content: fileUrl ? reportData : { ...reportData, html },
-      generatedBy: ctx.user.id,
-      benchmarkVersionId: activeBV?.id ?? null
-    });
+    let persistence;
+    try {
+      persistence = await createReportArtifactsForOrg({
+        projectId: input.projectId,
+        orgId: ctx.orgId,
+        report: {
+          projectId: input.projectId,
+          scoreMatrixId: latest.id,
+          reportType: input.reportType,
+          fileUrl,
+          content: fileUrl ? reportData : { ...reportData, html },
+          generatedBy: ctx.user.id,
+          benchmarkVersionId: activeBV?.id ?? null
+        },
+        designArtifacts
+      });
+    } catch (error) {
+      if (storageKey) {
+        reportIndeterminateUploadPersistence(storageKey, error);
+      }
+      throw error;
+    }
+    if (!persistence) {
+      if (storageKey) await cleanupRejectedUpload(storageKey);
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+    }
     await createAuditLog({
       userId: ctx.user.id,
       action: "report.generate",
@@ -17072,28 +17923,36 @@ var projectRouter = router({
     };
   }),
   listReports: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return [];
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getReportsByProject(input.projectId);
   }),
   // ─── V4: Area Verification Gate ───────────────────────────────────────────
-  extractAreas: orgProcedure.input(z3.object({
+  extractAreas: orgHeavyMutationProcedure.input(z3.object({
     projectId: z3.number(),
     assetId: z3.number()
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
-      throw new Error("Project not found or unauthorized");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
+    const { resource: asset } = await requireProjectResourceForOrg(
+      input.assetId,
+      ctx.orgId,
+      {
+        lookupResource: getProjectAssetById,
+        getProjectId: (record) => record.projectId
+      }
+    );
+    if (asset.projectId !== project.id) {
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
-    const asset = await getProjectAssetById(input.assetId);
-    if (!asset) throw new Error("Asset not found");
     if (!asset.storageUrl) throw new Error("Asset has no storage URL");
-    const extraction = await createPdfExtraction({
+    const extraction = await createPdfExtractionForOrg({
       projectId: input.projectId,
       assetId: input.assetId,
       extractionMethod: "vision_ai",
       status: "pending"
-    });
+    }, ctx.orgId);
+    if (!extraction) {
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+    }
     try {
       const { extractRoomsFromImage: extractRoomsFromImage2 } = await Promise.resolve().then(() => (init_pdf_extraction(), pdf_extraction_exports));
       const result = await extractRoomsFromImage2(
@@ -17104,11 +17963,13 @@ var projectRouter = router({
           archetype: project.projectArchetype || void 0
         }
       );
-      await updatePdfExtraction(extraction.id, {
+      if (!await updatePdfExtractionForOrg(extraction.id, ctx.orgId, {
         status: "extracted",
         extractedRooms: result.rooms,
         totalExtractedArea: String(result.totalArea)
-      });
+      })) {
+        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       await createAuditLog({
         userId: ctx.user.id,
         action: "area.extract",
@@ -17129,36 +17990,41 @@ var projectRouter = router({
         status: "extracted"
       };
     } catch (error) {
-      await updatePdfExtraction(extraction.id, {
+      await updatePdfExtractionForOrg(extraction.id, ctx.orgId, {
         status: "rejected"
       });
       throw new Error(`Area extraction failed: ${error.message}`);
     }
   }),
-  verifyAreas: orgProcedure.input(z3.object({
+  verifyAreas: orgMutationProcedure.input(z3.object({
     projectId: z3.number(),
     extractionId: z3.number(),
     action: z3.enum(["verify", "reject"]),
     adjustedTotalArea: z3.number().optional()
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
-      throw new Error("Project not found or unauthorized");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
+    const { resource: extraction } = await requireProjectResourceForOrg(
+      input.extractionId,
+      ctx.orgId,
+      {
+        lookupResource: getPdfExtractionById,
+        getProjectId: (record) => record.projectId
+      }
+    );
+    if (extraction.projectId !== project.id) {
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
-    const extraction = await getPdfExtractionById(input.extractionId);
-    if (!extraction) throw new Error("Extraction not found");
-    if (extraction.projectId !== input.projectId) throw new Error("Extraction does not belong to this project");
     if (input.action === "verify") {
-      await updatePdfExtraction(input.extractionId, {
-        status: "verified",
-        verifiedBy: ctx.user.id,
-        verifiedAt: /* @__PURE__ */ new Date()
-      });
       const verifiedArea = input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
-      await updateProjectVerification(input.projectId, {
-        fitoutAreaVerified: true,
-        totalFitoutArea: verifiedArea
-      });
+      if (!await verifyPdfExtractionForOrg(
+        input.extractionId,
+        input.projectId,
+        ctx.orgId,
+        ctx.user.id,
+        verifiedArea
+      )) {
+        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       await createAuditLog({
         userId: ctx.user.id,
         action: "area.verify",
@@ -17172,11 +18038,13 @@ var projectRouter = router({
       });
       return { success: true, verifiedArea };
     } else {
-      await updatePdfExtraction(input.extractionId, {
+      if (!await updatePdfExtractionForOrg(input.extractionId, ctx.orgId, {
         status: "rejected",
         verifiedBy: ctx.user.id,
         verifiedAt: /* @__PURE__ */ new Date()
-      });
+      })) {
+        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       await createAuditLog({
         userId: ctx.user.id,
         action: "area.reject",
@@ -17188,14 +18056,14 @@ var projectRouter = router({
     }
   }),
   getExtractions: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return [];
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getPdfExtractionsByProject(input.projectId);
   })
 });
 
 // server/routers/scenario.ts
 import { z as z4 } from "zod";
+import { TRPCError as TRPCError8 } from "@trpc/server";
 init_db();
 init_db();
 
@@ -17412,7 +18280,7 @@ function rankScenarios(scenarios2) {
 
 // server/routers/scenario.ts
 init_schema();
-import { eq as eq5, desc as desc3 } from "drizzle-orm";
+import { eq as eq4, desc as desc3 } from "drizzle-orm";
 function projectToInputs2(p) {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
@@ -17448,25 +18316,27 @@ function projectToInputs2(p) {
   };
 }
 var scenarioRouter = router({
-  list: protectedProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.userId !== ctx.user.id) return [];
+  list: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getScenariosByProject(input.projectId);
   }),
-  create: protectedProcedure.input(z4.object({
+  create: orgMutationProcedure.input(z4.object({
     projectId: z4.number(),
     name: z4.string().min(1),
     description: z4.string().optional(),
     variableOverrides: z4.record(z4.string(), z4.any())
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.userId !== ctx.user.id) throw new Error("Project not found");
-    const result = await createScenarioRecord({
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    const result = await createScenarioRecordForOrg({
       projectId: input.projectId,
       name: input.name,
       description: input.description,
       variableOverrides: input.variableOverrides
-    });
+    }, ctx.orgId);
+    if (!result) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      throw new Error("Failed to create scenario");
+    }
     await createAuditLog({
       userId: ctx.user.id,
       action: "scenario.create",
@@ -17475,13 +18345,21 @@ var scenarioRouter = router({
     });
     return result;
   }),
-  delete: protectedProcedure.input(z4.object({ id: z4.number() })).mutation(async ({ ctx, input }) => {
-    await deleteScenario(input.id);
+  delete: orgMutationProcedure.input(z4.object({ id: z4.number() })).mutation(async ({ ctx, input }) => {
+    await requireProjectResourceForOrg(input.id, ctx.orgId, {
+      lookupResource: getScenarioById,
+      getProjectId: (scenario) => scenario.projectId
+    });
+    if (!await deleteScenarioForOrg(input.id, ctx.orgId)) {
+      await requireProjectResourceForOrg(input.id, ctx.orgId, {
+        lookupResource: getScenarioById,
+        getProjectId: (scenario) => scenario.projectId
+      });
+    }
     return { success: true };
   }),
-  compare: protectedProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.userId !== ctx.user.id) return [];
+  compare: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) return [];
     const baseInputs = projectToInputs2(project);
@@ -17513,35 +18391,46 @@ var scenarioRouter = router({
     return runScenarioComparison(baseInputs, scenarioInputs2, config);
   }),
   // ─── D1: Stress Test ────────────────────────────────────────────────
-  stressTest: protectedProcedure.input(z4.object({
+  stressTest: orgMutationProcedure.input(z4.object({
     scenarioId: z4.number(),
     stressCondition: z4.enum(["cost_surge", "demand_collapse", "market_shift", "data_disruption"]),
     baselineBudgetAed: z4.number(),
     tier: z4.string()
   })).mutation(async ({ ctx, input }) => {
-    const drizzle2 = await getDb();
-    if (!drizzle2) throw new Error("Database unavailable");
+    await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+      lookupResource: getScenarioById,
+      getProjectId: (scenario) => scenario.projectId
+    });
     const result = simulateStressTest(
       input.stressCondition,
       input.baselineBudgetAed,
       input.tier
     );
-    await drizzle2.insert(scenarioStressTests).values({
+    if (!await createScenarioStressTestForOrg({
       scenarioId: input.scenarioId,
       stressCondition: input.stressCondition,
       impactMagnitudePercent: String(result.impactMagnitudePercent),
       resilienceScore: result.resilienceScore,
       failurePoints: result.failurePoints
-    });
+    }, ctx.orgId)) {
+      await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+        lookupResource: getScenarioById,
+        getProjectId: (scenario) => scenario.projectId
+      });
+    }
     return result;
   }),
-  listStressTests: protectedProcedure.input(z4.object({ scenarioId: z4.number() })).query(async ({ input }) => {
+  listStressTests: orgProcedure.input(z4.object({ scenarioId: z4.number() })).query(async ({ ctx, input }) => {
+    await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+      lookupResource: getScenarioById,
+      getProjectId: (scenario) => scenario.projectId
+    });
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
-    return drizzle2.select().from(scenarioStressTests).where(eq5(scenarioStressTests.scenarioId, input.scenarioId)).orderBy(desc3(scenarioStressTests.createdAt));
+    return drizzle2.select().from(scenarioStressTests).where(eq4(scenarioStressTests.scenarioId, input.scenarioId)).orderBy(desc3(scenarioStressTests.createdAt));
   }),
   // ─── D2: Economic Model (ROI) ──────────────────────────────────────
-  calculateRoi: protectedProcedure.input(z4.object({
+  calculateRoi: orgMutationProcedure.input(z4.object({
     projectId: z4.number(),
     scenarioId: z4.number().optional(),
     tier: z4.string(),
@@ -17552,8 +18441,20 @@ var scenarioRouter = router({
     serviceFeeAed: z4.number(),
     decisionSpeedAdjustment: z4.number().optional()
   })).mutation(async ({ ctx, input }) => {
-    const drizzle2 = await getDb();
-    if (!drizzle2) throw new Error("Database unavailable");
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    if (input.scenarioId !== void 0) {
+      const authorized = await requireProjectResourceForOrg(
+        input.scenarioId,
+        ctx.orgId,
+        {
+          lookupResource: getScenarioById,
+          getProjectId: (scenario) => scenario.projectId
+        }
+      );
+      if (authorized.project.id !== input.projectId) {
+        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+    }
     const roi = calculateProjectRoi({
       tier: input.tier,
       scale: input.scale,
@@ -17563,7 +18464,7 @@ var scenarioRouter = router({
       serviceFeeAed: input.serviceFeeAed,
       decisionSpeedAdjustment: input.decisionSpeedAdjustment
     });
-    await drizzle2.insert(projectRoiModels).values({
+    if (!await createProjectRoiModelForOrg({
       projectId: input.projectId,
       scenarioId: input.scenarioId ?? null,
       reworkCostAvoided: String(roi.reworkCostAvoided),
@@ -17571,19 +18472,20 @@ var scenarioRouter = router({
       totalValueCreated: String(roi.totalValueCreated),
       netRoiPercent: String(roi.netRoiPercent),
       confidenceMultiplier: String(roi.confidenceMultiplier)
-    });
+    }, ctx.orgId)) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+    }
     return roi;
   }),
   // ─── D3: Risk Surface Map ──────────────────────────────────────────
-  generateRiskSurface: protectedProcedure.input(z4.object({
+  generateRiskSurface: orgMutationProcedure.input(z4.object({
     projectId: z4.number(),
     tier: z4.string(),
     horizon: z4.string(),
     location: z4.string(),
     complexityScore: z4.number()
   })).mutation(async ({ ctx, input }) => {
-    const drizzle2 = await getDb();
-    if (!drizzle2) throw new Error("Database unavailable");
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const domains = [
       "Model",
       "Operational",
@@ -17603,8 +18505,8 @@ var scenarioRouter = router({
         complexityScore: input.complexityScore
       })
     );
-    for (const r of results) {
-      await drizzle2.insert(riskSurfaceMaps).values({
+    if (!await createRiskSurfaceMapsForOrg(
+      results.map((r) => ({
         projectId: input.projectId,
         domain: r.domain,
         probability: r.probability,
@@ -17613,7 +18515,10 @@ var scenarioRouter = router({
         controlStrength: r.controlStrength,
         compositeRiskScore: r.compositeRiskScore,
         riskBand: r.riskBand
-      });
+      })),
+      ctx.orgId
+    )) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
     }
     return {
       projectId: input.projectId,
@@ -17623,26 +18528,26 @@ var scenarioRouter = router({
       )
     };
   }),
-  getRiskSurface: protectedProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ input }) => {
+  getRiskSurface: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
-    return drizzle2.select().from(riskSurfaceMaps).where(eq5(riskSurfaceMaps.projectId, input.projectId)).orderBy(desc3(riskSurfaceMaps.createdAt));
+    return drizzle2.select().from(riskSurfaceMaps).where(eq4(riskSurfaceMaps.projectId, input.projectId)).orderBy(desc3(riskSurfaceMaps.createdAt));
   }),
   // ─── D4: Scenario Ranking ─────────────────────────────────────────
-  rank: protectedProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+  rank: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
-    const project = await getProjectById(input.projectId);
-    if (!project || project.userId !== ctx.user.id) return [];
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const scenarios2 = await getScenariosByProject(input.projectId);
     if (scenarios2.length === 0) return [];
     const profiles = [];
     for (const s of scenarios2) {
-      const stressTests = await drizzle2.select().from(scenarioStressTests).where(eq5(scenarioStressTests.scenarioId, s.id));
+      const stressTests = await drizzle2.select().from(scenarioStressTests).where(eq4(scenarioStressTests.scenarioId, s.id));
       const avgResilience = stressTests.length > 0 ? Math.round(stressTests.reduce((sum, t2) => sum + t2.resilienceScore, 0) / stressTests.length) : 70;
-      const roiRows = await drizzle2.select().from(projectRoiModels).where(eq5(projectRoiModels.scenarioId, s.id)).orderBy(desc3(projectRoiModels.createdAt)).limit(1);
+      const roiRows = await drizzle2.select().from(projectRoiModels).where(eq4(projectRoiModels.scenarioId, s.id)).orderBy(desc3(projectRoiModels.createdAt)).limit(1);
       const netRoi = roiRows.length > 0 ? Number(roiRows[0].netRoiPercent) : 0;
-      const riskMaps = await drizzle2.select().from(riskSurfaceMaps).where(eq5(riskSurfaceMaps.projectId, input.projectId));
+      const riskMaps = await drizzle2.select().from(riskSurfaceMaps).where(eq4(riskSurfaceMaps.projectId, input.projectId));
       const avgRisk = riskMaps.length > 0 ? Math.round(riskMaps.reduce((sum, r) => sum + r.compositeRiskScore, 0) / riskMaps.length) : 50;
       profiles.push({
         scenarioId: s.id,
@@ -17655,15 +18560,14 @@ var scenarioRouter = router({
     return rankScenarios(profiles);
   }),
   // ─── Phase F: Monte Carlo Simulation ────────────────────────────────────
-  runMonteCarlo: heavyProcedure.input(z4.object({
+  runMonteCarlo: orgHeavyMutationProcedure.input(z4.object({
     projectId: z4.number(),
     iterations: z4.number().min(100).max(5e4).default(1e4),
     horizonMonths: z4.number().min(1).max(60).default(18),
     costVolatilityPct: z4.number().min(1).max(50).default(12),
     trendVolatility: z4.number().min(0).max(20).default(3)
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const { runMonteCarloSimulation: runMonteCarloSimulation2 } = await Promise.resolve().then(() => (init_monte_carlo(), monte_carlo_exports));
     const baseCost = Number(project.fin01BudgetCap || 0);
     const gfa = Number(project.siteArea || 500);
@@ -17680,41 +18584,46 @@ var scenarioRouter = router({
       iterations: input.iterations,
       costVolatilityPct: input.costVolatilityPct
     });
-    const d = await getDb();
-    if (d) {
-      await d.insert(monteCarloSimulations).values({
-        projectId: input.projectId,
-        userId: ctx.user.id,
-        orgId: ctx.user.orgId || null,
-        iterations: result.iterations,
-        p5: String(result.percentiles.p5),
-        p10: String(result.percentiles.p10),
-        p25: String(result.percentiles.p25),
-        p50: String(result.percentiles.p50),
-        p75: String(result.percentiles.p75),
-        p90: String(result.percentiles.p90),
-        p95: String(result.percentiles.p95),
-        mean: String(result.mean),
-        stdDev: String(result.stdDev),
-        var95: String(result.var95),
-        budgetExceedProbability: result.budgetExceedProbability != null ? String(result.budgetExceedProbability) : null,
-        histogram: result.histogram,
-        timeSeriesData: result.timeSeries,
-        config: result.config
-      });
+    if (!await createMonteCarloSimulationForOrg({
+      projectId: input.projectId,
+      userId: ctx.user.id,
+      orgId: ctx.orgId,
+      iterations: result.iterations,
+      p5: String(result.percentiles.p5),
+      p10: String(result.percentiles.p10),
+      p25: String(result.percentiles.p25),
+      p50: String(result.percentiles.p50),
+      p75: String(result.percentiles.p75),
+      p90: String(result.percentiles.p90),
+      p95: String(result.percentiles.p95),
+      mean: String(result.mean),
+      stdDev: String(result.stdDev),
+      var95: String(result.var95),
+      budgetExceedProbability: result.budgetExceedProbability != null ? String(result.budgetExceedProbability) : null,
+      histogram: result.histogram,
+      timeSeriesData: result.timeSeries,
+      config: result.config
+    }, ctx.orgId)) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
     }
     return result;
   }),
-  getSimulations: protectedProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ input }) => {
+  getSimulations: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
-    return d.select().from(monteCarloSimulations).where(eq5(monteCarloSimulations.projectId, input.projectId)).orderBy(desc3(monteCarloSimulations.createdAt)).limit(10);
+    return d.select().from(monteCarloSimulations).where(eq4(monteCarloSimulations.projectId, input.projectId)).orderBy(desc3(monteCarloSimulations.createdAt)).limit(10);
   }),
-  getSimulation: protectedProcedure.input(z4.object({ id: z4.number() })).query(async ({ input }) => {
-    const d = await getDb();
-    if (!d) return null;
-    const rows = await d.select().from(monteCarloSimulations).where(eq5(monteCarloSimulations.id, input.id));
-    return rows[0] || null;
+  getSimulation: orgProcedure.input(z4.object({ id: z4.number() })).query(async ({ ctx, input }) => {
+    const authorized = await requireProjectResourceForOrg(
+      input.id,
+      ctx.orgId,
+      {
+        lookupResource: getMonteCarloSimulationById,
+        getProjectId: (simulation) => simulation.projectId
+      }
+    );
+    return authorized.resource;
   })
 });
 
@@ -18646,12 +19555,11 @@ var adminRouter = router({
   }),
   // ─── Override Records ────────────────────────────────────────────────
   overrides: router({
-    list: protectedProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
-      const project = await getProjectById(input.projectId);
-      if (!project || project.userId !== ctx.user.id) return [];
+    list: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       return getOverridesByProject(input.projectId);
     }),
-    create: protectedProcedure.input(z5.object({
+    create: orgMutationProcedure.input(z5.object({
       projectId: z5.number(),
       overrideType: z5.enum(["strategic", "market_insight", "risk_adjustment", "experimental"]),
       authorityLevel: z5.number().min(1).max(5),
@@ -18659,12 +19567,15 @@ var adminRouter = router({
       overrideValue: z5.any(),
       justification: z5.string().min(10)
     })).mutation(async ({ ctx, input }) => {
-      const project = await getProjectById(input.projectId);
-      if (!project || project.userId !== ctx.user.id) throw new Error("Project not found");
-      const result = await createOverrideRecord({
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      const result = await createOverrideRecordForOrg({
         ...input,
         userId: ctx.user.id
-      });
+      }, ctx.orgId);
+      if (!result) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+        throw new Error("Failed to create override");
+      }
       await createAuditLog({
         userId: ctx.user.id,
         action: "override.create",
@@ -18872,16 +19783,17 @@ var SAMPLE_PROJECTS = [
   }
 ];
 var seedRouter = router({
-  seedProjects: protectedProcedure.mutation(async ({ ctx }) => {
+  seedProjects: orgHeavyMutationProcedure.mutation(async ({ ctx }) => {
     const results = [];
     for (const sample of SAMPLE_PROJECTS) {
-      const existing = await getProjectsByUser(ctx.user.id);
+      const existing = await getProjectsByOrg(ctx.orgId);
       if (existing.some((p) => p.name === sample.name)) {
         continue;
       }
       const projectResult = await createProject({
         ...sample,
         userId: ctx.user.id,
+        orgId: ctx.orgId,
         status: "draft",
         ctx03Gfa: String(sample.ctx03Gfa),
         fin01BudgetCap: String(sample.fin01BudgetCap)
@@ -18924,7 +19836,7 @@ var seedRouter = router({
         conditionalActions: scoreResult.conditionalActions,
         inputSnapshot: scoreResult.inputSnapshot
       });
-      await updateProject(projectId, {
+      await updateProjectForOrg(projectId, ctx.orgId, {
         status: "evaluated",
         modelVersionId: modelVersion.id
       });
@@ -19055,7 +19967,7 @@ var seedRouter = router({
       projects: results
     };
   }),
-  seedMaterials: protectedProcedure.mutation(async () => {
+  seedMaterials: adminProcedure.mutation(async () => {
     const existing = await getAllMaterials();
     if (existing.length > 0) {
       return { seeded: 0, message: "Materials already exist" };
@@ -19091,7 +20003,7 @@ var seedRouter = router({
     }
     return { seeded, message: `${seeded} materials seeded` };
   }),
-  seedEvidence: protectedProcedure.mutation(async ({ ctx }) => {
+  seedEvidence: adminProcedure.mutation(async ({ ctx }) => {
     const existing = await listEvidenceRecords({});
     if (existing && existing.length > 0) {
       return { seeded: 0, message: "Evidence records already exist" };
@@ -19121,13 +20033,15 @@ var seedRouter = router({
         captureDate: now,
         currencyOriginal: "AED",
         evidencePhase: "concept",
+        confidentiality: "public",
+        orgId: null,
         createdBy: ctx.user.id
       });
       seeded++;
     }
     return { seeded, message: `${seeded} evidence records seeded` };
   }),
-  seedEnrichedData: protectedProcedure.mutation(async ({ ctx }) => {
+  seedEnrichedData: adminProcedure.mutation(async ({ ctx }) => {
     const now = /* @__PURE__ */ new Date();
     const ENRICHED_MATERIALS = [
       { name: "Statuario Marble Natural", category: "stone", tier: "ultra_luxury", typicalCostLow: "3200.00", typicalCostHigh: "4500.00", costUnit: "AED/sqm", leadTimeDays: 90, leadTimeBand: "long", supplierName: "Sanipex / Arifeen", notes: "Premium natural Statuario marble with distinct veining" },
@@ -19162,6 +20076,8 @@ var seedRouter = router({
         captureDate: now,
         currencyOriginal: "AED",
         evidencePhase: "concept",
+        confidentiality: "public",
+        orgId: null,
         createdBy: ctx.user.id
       });
       evidenceSeeded++;
@@ -19178,7 +20094,7 @@ var seedRouter = router({
 import { z as z6 } from "zod";
 init_db();
 init_storage();
-import { TRPCError as TRPCError9 } from "@trpc/server";
+import { TRPCError as TRPCError11 } from "@trpc/server";
 init_dld_analytics();
 init_area_utils();
 init_rfq_generator();
@@ -19365,13 +20281,13 @@ init_board_composer();
 // server/engines/procurement/vendor-matching.ts
 init_db();
 init_schema();
-import { and as and3, eq as eq6 } from "drizzle-orm";
+import { and as and2, eq as eq5 } from "drizzle-orm";
 async function matchVendorsForProject(options) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const projectRows = await db.select().from(projects).where(and3(
-    eq6(projects.id, options.projectId),
-    eq6(projects.orgId, options.orgId)
+  const projectRows = await db.select().from(projects).where(and2(
+    eq5(projects.id, options.projectId),
+    eq5(projects.orgId, options.orgId)
   )).limit(1);
   if (projectRows.length === 0) throw new Error(`Project ${options.projectId} not found`);
   const project = projectRows[0];
@@ -19384,7 +20300,7 @@ async function matchVendorsForProject(options) {
   } else if (constraints === "open_market" || constraints === "none") {
     allowedStatuses = ["open_market", "approved_vendor", "preferred_brand"];
   }
-  const allMaterials = await db.select().from(materialsCatalog).where(eq6(materialsCatalog.isActive, true));
+  const allMaterials = await db.select().from(materialsCatalog).where(eq5(materialsCatalog.isActive, true));
   let matchedMaterials = allMaterials.filter(
     (m) => allowedStatuses.includes(m.brandStandardApproval || "open_market")
   );
@@ -20371,10 +21287,10 @@ import { nanoid as nanoid3 } from "nanoid";
 
 // server/_core/public-share-access.ts
 init_db();
-import { TRPCError as TRPCError5 } from "@trpc/server";
+import { TRPCError as TRPCError9 } from "@trpc/server";
 var PUBLIC_SHARE_NOT_FOUND_MESSAGE = "Share link not found or expired";
 function shareNotFound() {
-  throw new TRPCError5({
+  throw new TRPCError9({
     code: "NOT_FOUND",
     message: PUBLIC_SHARE_NOT_FOUND_MESSAGE
   });
@@ -20398,101 +21314,9 @@ async function requireActivePublicShare(token, options = {}) {
 
 // server/_core/design-resource-access.ts
 init_db();
-import { TRPCError as TRPCError8 } from "@trpc/server";
-
-// server/_core/project-access.ts
-init_db();
-import { TRPCError as TRPCError6 } from "@trpc/server";
-async function requireProjectForOrg(projectId, orgId, lookup = getProjectById) {
-  const project = await lookup(projectId);
-  if (!project || project.orgId !== orgId) {
-    throw new TRPCError6({ code: "NOT_FOUND", message: "Project not found" });
-  }
-  return project;
-}
-
-// server/_core/resource-access.ts
-init_db();
-import { TRPCError as TRPCError7 } from "@trpc/server";
-var DEFAULT_NOT_FOUND_MESSAGE = "Resource not found";
-function notFound(message = DEFAULT_NOT_FOUND_MESSAGE) {
-  throw new TRPCError7({ code: "NOT_FOUND", message });
-}
-async function requireAuthorizedProject(projectId, orgId, lookupProject, notFoundMessage) {
-  try {
-    return await requireProjectForOrg(projectId, orgId, lookupProject);
-  } catch (error) {
-    if (error instanceof TRPCError7 && error.code === "NOT_FOUND") {
-      return notFound(notFoundMessage);
-    }
-    throw error;
-  }
-}
-async function requireProjectResourceForOrg(resourceId, orgId, options) {
-  const resource = await options.lookupResource(resourceId);
-  if (!resource) {
-    return notFound(options.notFoundMessage);
-  }
-  const project = await requireAuthorizedProject(
-    options.getProjectId(resource),
-    orgId,
-    options.lookupProject ?? getProjectById,
-    options.notFoundMessage
-  );
-  return { resource, project };
-}
-async function requireNestedProjectResourceForOrg(resourceId, orgId, options) {
-  const resource = await options.lookupResource(resourceId);
-  if (!resource) {
-    return notFound(options.notFoundMessage);
-  }
-  const parent = await options.lookupParent(options.getParentId(resource));
-  if (!parent) {
-    return notFound(options.notFoundMessage);
-  }
-  const project = await requireAuthorizedProject(
-    options.getProjectId(parent),
-    orgId,
-    options.lookupProject ?? getProjectById,
-    options.notFoundMessage
-  );
-  return { resource, parent, project };
-}
-async function requireOrgResourceForOrg(resourceId, orgId, options) {
-  const resource = await options.lookupResource(resourceId);
-  if (!resource || options.getOrgId(resource) !== orgId) {
-    return notFound(options.notFoundMessage);
-  }
-  return resource;
-}
-async function requireProjectOrgResourceForOrg(resourceId, orgId, options) {
-  const resource = await options.lookupResource(resourceId);
-  if (!resource || options.getOrgId(resource) !== orgId) {
-    return notFound(options.notFoundMessage);
-  }
-  const project = await requireAuthorizedProject(
-    options.getProjectId(resource),
-    orgId,
-    options.lookupProject ?? getProjectById,
-    options.notFoundMessage
-  );
-  return { resource, project };
-}
-function createPolymorphicResourceAuthorizer(registry, notFoundMessage = DEFAULT_NOT_FOUND_MESSAGE) {
-  const closedRegistry = Object.freeze({ ...registry });
-  return async function requirePolymorphicResourceForOrg(type, id, orgId) {
-    if (!Object.prototype.hasOwnProperty.call(closedRegistry, type)) {
-      return notFound(notFoundMessage);
-    }
-    const resolver = closedRegistry[type];
-    const value = await resolver(id, orgId);
-    return { type, value };
-  };
-}
-
-// server/_core/design-resource-access.ts
+import { TRPCError as TRPCError10 } from "@trpc/server";
 var notFound2 = () => {
-  throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+  throw new TRPCError10({ code: "NOT_FOUND", message: "Resource not found" });
 };
 function requireDesignProject(projectId, orgId) {
   return requireProjectForOrg(projectId, orgId);
@@ -20597,57 +21421,6 @@ async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
   requireSameDesignProject(projectId, scenario.project.id);
 }
 
-// server/_core/upload-compensation.ts
-init_storage();
-import { nanoid as nanoid2 } from "nanoid";
-
-// server/_core/sentry.ts
-var Sentry = null;
-function captureException(err, context) {
-  if (!Sentry) return;
-  Sentry.withScope((scope) => {
-    if (context) {
-      Object.entries(context).forEach(([key, val]) => {
-        scope.setExtra(key, val);
-      });
-    }
-    Sentry.captureException(err);
-  });
-}
-function captureMessage(message, level = "info") {
-  if (!Sentry) return;
-  Sentry.captureMessage(message, level);
-}
-
-// server/_core/upload-compensation.ts
-var CLEANUP_ATTEMPTS = 3;
-async function cleanupRejectedUpload(objectKey, correlationId = nanoid2(12)) {
-  let lastError;
-  for (let attempt = 1; attempt <= CLEANUP_ATTEMPTS; attempt += 1) {
-    try {
-      await storageDelete(objectKey);
-      return;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  captureException(lastError, {
-    source: "upload-cleanup-failed",
-    correlationId,
-    objectKey
-  });
-  throw new Error(`Upload cleanup failed (${correlationId})`);
-}
-function reportIndeterminateUploadPersistence(objectKey, error, correlationId = nanoid2(12)) {
-  captureException(error, {
-    source: "upload-reconciliation-required",
-    correlationId,
-    objectKey
-  });
-  captureMessage(`Upload reconciliation required (${correlationId})`, "error");
-  return correlationId;
-}
-
 // server/routers/design.ts
 function isDuplicateKeyError(error) {
   let current = error;
@@ -20740,15 +21513,15 @@ var designRouter = router({
       }, ctx.orgId);
     } catch (error) {
       reportIndeterminateUploadPersistence(uploaded.key, error);
-      throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
+      throw new TRPCError11({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
     }
     if (!created) {
       try {
         await cleanupRejectedUpload(uploaded.key);
       } catch {
-        throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
+        throw new TRPCError11({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
       }
-      throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const result = requireScopedDesignInsert(created);
     await bestEffortAudit({
@@ -20814,7 +21587,7 @@ var designRouter = router({
     }
     const scores = await getScoreMatricesByProject(input.projectId);
     const latest = scores[0];
-    if (!latest) throw new TRPCError9({ code: "PRECONDITION_FAILED", message: "Project must be evaluated first" });
+    if (!latest) throw new TRPCError11({ code: "PRECONDITION_FAILED", message: "Project must be evaluated first" });
     const inputs = projectToInputs4(project);
     const scoreResult = {
       compositeScore: Number(latest.compositeScore),
@@ -21004,7 +21777,7 @@ var designRouter = router({
       materialList
     );
     if (result.items.length > 1e3) {
-      throw new TRPCError9({ code: "PRECONDITION_FAILED", message: "RFQ exceeds the 1,000 line limit" });
+      throw new TRPCError11({ code: "PRECONDITION_FAILED", message: "RFQ exceeds the 1,000 line limit" });
     }
     requireScopedDesignMutation(await insertRfqLineItemsForOrg(
       result.items,
@@ -21126,7 +21899,7 @@ var designRouter = router({
     }
     const validation = validatePrompt(prompt);
     if (!validation.valid) {
-      throw new TRPCError9({ code: "BAD_REQUEST", message: validation.reason });
+      throw new TRPCError11({ code: "BAD_REQUEST", message: validation.reason });
     }
     const visualResult = requireScopedDesignInsert(await createGeneratedVisualForOrg({
       projectId: input.projectId,
@@ -21191,7 +21964,7 @@ var designRouter = router({
     targetId: z6.number(),
     sectionLabel: z6.string().optional()
   })).mutation(async () => {
-    throw new TRPCError9({
+    throw new TRPCError11({
       code: "PRECONDITION_FAILED",
       message: "Visual attachments are unavailable until a typed attachment model is configured"
     });
@@ -21203,7 +21976,7 @@ var designRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const { resource: visual, project: visualProject } = await requireDesignVisual(input.visualId, ctx.orgId);
     if (!visual || !visual.imageAssetId) {
-      throw new TRPCError9({ code: "NOT_FOUND", message: "Visual not found or has no image" });
+      throw new TRPCError11({ code: "NOT_FOUND", message: "Visual not found or has no image" });
     }
     const { project: boardProject } = await requireDesignBoard(input.boardId, ctx.orgId);
     const { project: assetProject } = await requireDesignAsset(visual.imageAssetId, ctx.orgId);
@@ -21243,7 +22016,7 @@ var designRouter = router({
   unpinVisual: designOrgMutationProcedure.input(z6.object({ linkId: z6.number() })).mutation(async ({ ctx, input }) => {
     const authorizedLink = await requireDesignAssetLink(input.linkId, ctx.orgId);
     if (authorizedLink.resource.linkType !== "material_board") {
-      throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const target = await requireDesignLinkTarget(authorizedLink.resource.linkType, authorizedLink.resource.linkId, ctx.orgId);
     requireSameDesignProject(authorizedLink.project.id, target.value.project.id);
@@ -21271,7 +22044,7 @@ var designRouter = router({
     }
     const materialIds = input.materialIds ?? [];
     if (new Set(materialIds).size !== materialIds.length) {
-      throw new TRPCError9({ code: "BAD_REQUEST", message: "Duplicate material IDs are not allowed" });
+      throw new TRPCError11({ code: "BAD_REQUEST", message: "Duplicate material IDs are not allowed" });
     }
     const boardResult = requireScopedDesignInsert(await createMaterialBoardWithMaterialsForOrg({
       projectId: input.projectId,
@@ -21366,12 +22139,12 @@ var designRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const board = await requireDesignBoard(input.boardId, ctx.orgId);
     if (new Set(input.orderedJoinIds).size !== input.orderedJoinIds.length) {
-      throw new TRPCError9({ code: "BAD_REQUEST", message: "Board tile identifiers must be unique" });
+      throw new TRPCError11({ code: "BAD_REQUEST", message: "Board tile identifiers must be unique" });
     }
     for (const joinId of input.orderedJoinIds) {
       const join = await requireDesignBoardJoin(joinId, ctx.orgId);
       requireSameDesignProject(board.project.id, join.project.id);
-      if (join.parent.id !== input.boardId) throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+      if (join.parent.id !== input.boardId) throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
     }
     requireScopedDesignMutation(await reorderBoardTilesForOrg(input.boardId, input.orderedJoinIds, ctx.orgId));
     return { success: true };
@@ -21568,9 +22341,9 @@ var designRouter = router({
   })).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     if (input.entityType === "general") {
-      if (input.entityId !== void 0) throw new TRPCError9({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
+      if (input.entityId !== void 0) throw new TRPCError11({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
     } else {
-      if (input.entityId === void 0) throw new TRPCError9({ code: "BAD_REQUEST", message: "Entity comments require a target" });
+      if (input.entityId === void 0) throw new TRPCError11({ code: "BAD_REQUEST", message: "Entity comments require a target" });
       const target = await requireDesignCommentTarget(input.entityType, input.entityId, ctx.orgId);
       requireSameDesignProject(input.projectId, target.value.project.id);
     }
@@ -21589,7 +22362,7 @@ var designRouter = router({
   })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     if (input.entityType === "general" && input.entityId !== void 0) {
-      throw new TRPCError9({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
+      throw new TRPCError11({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
     }
     if (input.entityType && input.entityType !== "general" && input.entityId !== void 0) {
       const target = await requireDesignCommentTarget(input.entityType, input.entityId, ctx.orgId);
@@ -21965,15 +22738,15 @@ var designRouter = router({
       } catch (error) {
         if (isDuplicateKeyError(error)) {
           if (attempt === 5) {
-            throw new TRPCError9({
+            throw new TRPCError11({
               code: "INTERNAL_SERVER_ERROR",
               message: "Unable to create a unique share link"
             });
           }
           continue;
         }
-        if (error instanceof TRPCError9) throw error;
-        throw new TRPCError9({
+        if (error instanceof TRPCError11) throw error;
+        throw new TRPCError11({
           code: "INTERNAL_SERVER_ERROR",
           message: "Unable to create share link"
         });
@@ -22101,7 +22874,7 @@ var designRouter = router({
     );
     const prompt = generateRoomRenderPrompt(context, input.roomName, input.roomSqm, input.finishGrade);
     const validation = validatePrompt(prompt);
-    if (!validation.valid) throw new TRPCError9({ code: "BAD_REQUEST", message: validation.reason });
+    if (!validation.valid) throw new TRPCError11({ code: "BAD_REQUEST", message: validation.reason });
     const visualResult = requireScopedDesignInsert(await createGeneratedVisualForOrg({
       projectId: input.projectId,
       type: "room_render",
@@ -22154,15 +22927,15 @@ var designRouter = router({
       }, ctx.orgId);
     } catch (error) {
       reportIndeterminateUploadPersistence(uploaded.key, error);
-      throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
+      throw new TRPCError11({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
     }
     if (!created) {
       try {
         await cleanupRejectedUpload(uploaded.key);
       } catch {
-        throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
+        throw new TRPCError11({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
       }
-      throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const result = requireScopedDesignInsert(created);
     await bestEffortAudit({
@@ -22179,12 +22952,12 @@ var designRouter = router({
   analyzeFloorPlan: designOrgMutationProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (!project.floorPlanAssetId) {
-      throw new TRPCError9({ code: "BAD_REQUEST", message: "No floor plan uploaded for this project" });
+      throw new TRPCError11({ code: "BAD_REQUEST", message: "No floor plan uploaded for this project" });
     }
     const { resource: asset, project: assetProject } = await requireDesignAsset(project.floorPlanAssetId, ctx.orgId);
     requireSameDesignProject(project.id, assetProject.id);
     if (!asset || !asset.storageUrl) {
-      throw new TRPCError9({ code: "NOT_FOUND", message: "Floor plan asset not found or has no URL" });
+      throw new TRPCError11({ code: "NOT_FOUND", message: "Floor plan asset not found or has no URL" });
     }
     console.log(`[FloorPlan] Analyzing floor plan for project ${input.projectId}: ${asset.storageUrl}`);
     const analysis = await analyzeFloorPlan(asset.storageUrl, asset.mimeType);
@@ -22214,7 +22987,7 @@ var designRouter = router({
   getSpaceBenchmark: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (!project.floorPlanAnalysis) {
-      throw new TRPCError9({ code: "BAD_REQUEST", message: "Floor plan has not been analyzed yet. Upload a floor plan and run analysis first." });
+      throw new TRPCError11({ code: "BAD_REQUEST", message: "Floor plan has not been analyzed yet. Upload a floor plan and run analysis first." });
     }
     const analysis = project.floorPlanAnalysis;
     let areaName = project.dldAreaName || project.ctx04Location || "Dubai";
@@ -22235,6 +23008,7 @@ var designRouter = router({
 
 // server/routers/intelligence.ts
 import { z as z7 } from "zod";
+import { TRPCError as TRPCError12 } from "@trpc/server";
 init_db();
 
 // server/engines/explainability.ts
@@ -22784,7 +23558,8 @@ var intelligenceRouter = router({
     })
   }),
   // ─── V2.10: Calibration ────────────────────────────────────────────────────
-  calibrate: adminProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ input }) => {
+  calibrate: orgAdminProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ input, ctx }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const logicVersion = await getPublishedLogicVersion();
     if (!logicVersion) return { error: "No published logic version" };
     const weights = await getLogicWeights(logicVersion.id);
@@ -22814,14 +23589,28 @@ var intelligenceRouter = router({
   }),
   // ─── V2.11: Scenario Simulation ────────────────────────────────────────────
   scenarios: router({
-    saveInput: protectedProcedure.input(z7.object({ scenarioId: z7.number(), jsonInput: z7.unknown() })).mutation(async ({ input }) => {
-      const id = await createScenarioInput({ scenarioId: input.scenarioId, jsonInput: input.jsonInput });
+    saveInput: orgMutationProcedure.input(z7.object({ scenarioId: z7.number(), jsonInput: z7.unknown() })).mutation(async ({ ctx, input }) => {
+      await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+        lookupResource: getScenarioById,
+        getProjectId: (scenario) => scenario.projectId
+      });
+      const id = await createScenarioInputForOrg(
+        { scenarioId: input.scenarioId, jsonInput: input.jsonInput },
+        ctx.orgId
+      );
+      if (id === null) {
+        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       return { id };
     }),
-    getInput: protectedProcedure.input(z7.object({ scenarioId: z7.number() })).query(async ({ input }) => {
+    getInput: orgProcedure.input(z7.object({ scenarioId: z7.number() })).query(async ({ ctx, input }) => {
+      await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+        lookupResource: getScenarioById,
+        getProjectId: (scenario) => scenario.projectId
+      });
       return getScenarioInput(input.scenarioId);
     }),
-    saveOutput: protectedProcedure.input(
+    saveOutput: orgMutationProcedure.input(
       z7.object({
         scenarioId: z7.number(),
         scoreJson: z7.unknown(),
@@ -22831,17 +23620,36 @@ var intelligenceRouter = router({
         benchmarkVersionId: z7.number().optional(),
         logicVersionId: z7.number().optional()
       })
-    ).mutation(async ({ input }) => {
-      const id = await createScenarioOutput(input);
+    ).mutation(async ({ ctx, input }) => {
+      await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+        lookupResource: getScenarioById,
+        getProjectId: (scenario) => scenario.projectId
+      });
+      const id = await createScenarioOutputForOrg(input, ctx.orgId);
+      if (id === null) {
+        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       return { id };
     }),
-    getOutput: protectedProcedure.input(z7.object({ scenarioId: z7.number() })).query(async ({ input }) => {
+    getOutput: orgProcedure.input(z7.object({ scenarioId: z7.number() })).query(async ({ ctx, input }) => {
+      await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+        lookupResource: getScenarioById,
+        getProjectId: (scenario) => scenario.projectId
+      });
       return getScenarioOutput(input.scenarioId);
     }),
-    listOutputs: protectedProcedure.input(z7.object({ scenarioIds: z7.array(z7.number()) })).query(async ({ input }) => {
+    listOutputs: orgProcedure.input(z7.object({ scenarioIds: z7.array(z7.number()) })).query(async ({ ctx, input }) => {
+      await requireProjectResourceBatchForOrg(
+        input.scenarioIds,
+        ctx.orgId,
+        (id, orgId) => requireProjectResourceForOrg(id, orgId, {
+          lookupResource: getScenarioById,
+          getProjectId: (scenario) => scenario.projectId
+        })
+      );
       return listScenarioOutputs(input.scenarioIds);
     }),
-    compare: protectedProcedure.input(
+    compare: orgMutationProcedure.input(
       z7.object({
         projectId: z7.number(),
         baselineScenarioId: z7.number(),
@@ -22849,7 +23657,19 @@ var intelligenceRouter = router({
         decisionNote: z7.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       const allIds = [input.baselineScenarioId, ...input.comparedScenarioIds];
+      const authorized = await requireProjectResourceBatchForOrg(
+        allIds,
+        ctx.orgId,
+        (id2, orgId) => requireProjectResourceForOrg(id2, orgId, {
+          lookupResource: getScenarioById,
+          getProjectId: (scenario) => scenario.projectId
+        })
+      );
+      if (authorized.some((item) => item.project.id !== input.projectId)) {
+        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       const outputs = await listScenarioOutputs(allIds);
       const baselineOutput = outputs.find((o) => o.scenarioId === input.baselineScenarioId);
       const comparedOutputs = outputs.filter((o) => input.comparedScenarioIds.includes(o.scenarioId));
@@ -22867,24 +23687,32 @@ var intelligenceRouter = router({
         })),
         generatedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
-      const id = await createScenarioComparison({
+      const id = await createScenarioComparisonForOrg({
         ...input,
         comparisonResult,
         createdBy: ctx.user.id
-      });
+      }, ctx.orgId);
+      if (id === null) {
+        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       return { id, comparisonResult };
     }),
-    listComparisons: protectedProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ input }) => {
+    listComparisons: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       return listScenarioComparisons(input.projectId);
     }),
-    getComparison: protectedProcedure.input(z7.object({ id: z7.number() })).query(async ({ input }) => {
-      return getScenarioComparisonById(input.id);
+    getComparison: orgProcedure.input(z7.object({ id: z7.number() })).query(async ({ ctx, input }) => {
+      const authorized = await requireProjectResourceForOrg(input.id, ctx.orgId, {
+        lookupResource: getScenarioComparisonById,
+        getProjectId: (comparison) => comparison.projectId
+      });
+      return authorized.resource;
     }),
-    exportComparisonPDF: protectedProcedure.input(z7.object({ comparisonId: z7.number() })).mutation(async ({ input }) => {
-      const comparison = await getScenarioComparisonById(input.comparisonId);
-      if (!comparison) throw new Error("Comparison not found");
-      const project = await getProjectById(comparison.projectId);
-      if (!project) throw new Error("Project not found");
+    exportComparisonPDF: orgHeavyMutationProcedure.input(z7.object({ comparisonId: z7.number() })).mutation(async ({ ctx, input }) => {
+      const { resource: comparison, project } = await requireProjectResourceForOrg(input.comparisonId, ctx.orgId, {
+        lookupResource: getScenarioComparisonById,
+        getProjectId: (record) => record.projectId
+      });
       const allScenarios = await getScenariosByProject(comparison.projectId);
       const scenarioMap = new Map(allScenarios.map((s) => [s.id, s.name]));
       const compResult = comparison.comparisonResult ?? {};
@@ -22923,9 +23751,8 @@ var intelligenceRouter = router({
   }),
   // ─── V2.12: Explainability ─────────────────────────────────────────────────
   explainability: router({
-    generate: protectedProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ input }) => {
-      const project = await getProjectById(input.projectId);
-      if (!project) return null;
+    generate: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const scores = await getScoreMatricesByProject(input.projectId);
       const latestScore = scores[0];
       if (!latestScore) return null;
@@ -22969,9 +23796,8 @@ var intelligenceRouter = router({
         logicVersion?.name ?? "Default"
       );
     }),
-    auditPack: protectedProcedure.input(z7.object({ projectId: z7.number() })).mutation(async ({ input }) => {
-      const project = await getProjectById(input.projectId);
-      if (!project) return { error: "Project not found" };
+    auditPack: orgHeavyMutationProcedure.input(z7.object({ projectId: z7.number() })).mutation(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const scores = await getScoreMatricesByProject(input.projectId);
       const latestScore = scores[0];
       if (!latestScore) return { error: "No evaluation found" };
@@ -23032,7 +23858,7 @@ var intelligenceRouter = router({
   }),
   // ─── V2.13: Outcomes ───────────────────────────────────────────────────────
   outcomes: router({
-    capture: protectedProcedure.input(
+    capture: orgMutationProcedure.input(
       z7.object({
         projectId: z7.number(),
         procurementActualCosts: z7.record(z7.string(), z7.number()).optional(),
@@ -23046,14 +23872,19 @@ var intelligenceRouter = router({
         projectDeliveredOnTime: z7.boolean().optional()
       })
     ).mutation(async ({ input, ctx }) => {
-      const id = await createProjectOutcome({
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      const id = await createProjectOutcomeForOrg({
         ...input,
         actualFitoutCostPerSqm: input.actualFitoutCostPerSqm?.toString(),
         capturedBy: ctx.user.id
-      });
+      }, ctx.orgId);
+      if (id === null) {
+        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       return { id };
     }),
-    list: protectedProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ input }) => {
+    list: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       return getProjectOutcomes(input.projectId);
     }),
     listAll: adminProcedure.query(async () => {
@@ -23133,6 +23964,7 @@ function computeDeltas(baseline, compared) {
 
 // server/routers/market-intelligence.ts
 import { z as z9 } from "zod";
+import { TRPCError as TRPCError14 } from "@trpc/server";
 init_db();
 init_dynamic();
 init_orchestrator();
@@ -23600,6 +24432,70 @@ Seeder complete: ${created} sources created, ${skipped} skipped`);
   });
 }
 
+// server/_core/market-resource-access.ts
+init_db();
+import { TRPCError as TRPCError13 } from "@trpc/server";
+function notFound3() {
+  throw new TRPCError13({ code: "NOT_FOUND", message: "Resource not found" });
+}
+async function requireEvidenceRecordForOrg(evidenceId, orgId) {
+  const evidence = await getEvidenceRecordById(evidenceId);
+  if (!evidence) return notFound3();
+  if (evidence.projectId !== null) {
+    let project;
+    try {
+      project = await requireProjectForOrg(evidence.projectId, orgId);
+    } catch (error) {
+      if (error instanceof TRPCError13 && error.code === "NOT_FOUND") {
+        return notFound3();
+      }
+      throw error;
+    }
+    if (evidence.orgId !== orgId) return notFound3();
+    return { evidence, project };
+  }
+  if (evidence.orgId === orgId) return { evidence, project: null };
+  if (evidence.orgId === null && evidence.confidentiality === "public") {
+    return { evidence, project: null };
+  }
+  return notFound3();
+}
+async function requireGlobalCompetitorProject(id) {
+  const record = await getCompetitorProjectById(id);
+  return record ?? notFound3();
+}
+var requireMarketTagTargetForOrg = createPolymorphicResourceAuthorizer({
+  project: requireProjectForOrg,
+  scenario: requireDesignScenario,
+  evidence_record: async (id, orgId) => requireEvidenceRecordForOrg(id, orgId),
+  competitor_project: async (id) => requireGlobalCompetitorProject(id)
+});
+var requireEvidenceReferenceTargetForOrg = createPolymorphicResourceAuthorizer({
+  scenario: requireDesignScenario,
+  design_brief: requireDesignBrief,
+  report: requireDesignReport,
+  material_board: requireDesignBoard
+});
+async function requireTaggedEntitiesForOrg(tagId, orgId) {
+  const links = await getTaggedEntities(tagId);
+  const authorized = [];
+  for (const link of links) {
+    try {
+      await requireMarketTagTargetForOrg(
+        link.entityType,
+        link.entityId,
+        orgId
+      );
+      authorized.push(link);
+    } catch (error) {
+      if (!(error instanceof TRPCError13) || error.code !== "NOT_FOUND") {
+        throw error;
+      }
+    }
+  }
+  return authorized;
+}
+
 // server/routers/market-intelligence.ts
 var evidenceRecordSchema = z9.object({
   projectId: z9.number().optional(),
@@ -23834,16 +24730,25 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Evidence Records ──────────────────────────────────────────────────────
   evidence: router({
-    list: protectedProcedure.input(z9.object({
+    list: orgProcedure.input(z9.object({
       projectId: z9.number().optional(),
       category: z9.string().optional(),
       reliabilityGrade: z9.string().optional(),
       evidencePhase: z9.string().optional(),
       confidentiality: z9.string().optional(),
       limit: z9.number().default(100)
-    }).optional()).query(async ({ input }) => {
+    }).optional()).query(async ({ ctx, input }) => {
+      if (!input?.projectId) {
+        return listPublicEvidenceRecords({
+          category: input?.category,
+          reliabilityGrade: input?.reliabilityGrade,
+          evidencePhase: input?.evidencePhase,
+          limit: input?.limit ?? 100
+        });
+      }
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       return listEvidenceRecords({
-        projectId: input?.projectId,
+        projectId: input.projectId,
         category: input?.category,
         reliabilityGrade: input?.reliabilityGrade,
         evidencePhase: input?.evidencePhase,
@@ -23851,13 +24756,22 @@ var marketIntelligenceRouter = router({
         limit: input?.limit ?? 100
       });
     }),
-    get: protectedProcedure.input(z9.object({ id: z9.number() })).query(async ({ input }) => {
-      return getEvidenceRecordById(input.id);
+    get: orgProcedure.input(z9.object({ id: z9.number() })).query(async ({ ctx, input }) => {
+      const authorized = await requireEvidenceRecordForOrg(input.id, ctx.orgId);
+      return authorized.evidence;
     }),
     create: adminProcedure.input(evidenceRecordSchema).mutation(async ({ input, ctx }) => {
+      if (input.projectId !== void 0) {
+        throw new TRPCError14({
+          code: "BAD_REQUEST",
+          message: "Project-linked evidence must be created within an organization workflow"
+        });
+      }
       const recordId = generateRecordId3();
       const result = await createEvidenceRecord({
         ...input,
+        projectId: null,
+        orgId: null,
         recordId,
         priceMin: input.priceMin ? String(input.priceMin) : null,
         priceTypical: input.priceTypical ? String(input.priceTypical) : null,
@@ -23884,6 +24798,12 @@ var marketIntelligenceRouter = router({
     bulkImport: adminProcedure.input(z9.object({
       records: z9.array(evidenceRecordSchema)
     })).mutation(async ({ input, ctx }) => {
+      if (input.records.some((record) => record.projectId !== void 0)) {
+        throw new TRPCError14({
+          code: "BAD_REQUEST",
+          message: "Project-linked evidence must be created within an organization workflow"
+        });
+      }
       const runId = generateRunId("BULK");
       const startedAt = /* @__PURE__ */ new Date();
       let imported = 0;
@@ -23894,6 +24814,8 @@ var marketIntelligenceRouter = router({
           const recordId = generateRecordId3();
           await createEvidenceRecord({
             ...rec,
+            projectId: null,
+            orgId: null,
             recordId,
             priceMin: rec.priceMin ? String(rec.priceMin) : null,
             priceTypical: rec.priceTypical ? String(rec.priceTypical) : null,
@@ -23925,7 +24847,9 @@ var marketIntelligenceRouter = router({
       return { imported, errors: errors.length, runId };
     }),
     delete: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
-      await deleteEvidenceRecord(input.id);
+      if (!await deleteGlobalEvidenceRecord(input.id)) {
+        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       await createAuditLog({
         userId: ctx.user.id,
         action: "evidence_record.delete",
@@ -23934,18 +24858,31 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    stats: protectedProcedure.query(async () => {
-      return getEvidenceStats();
+    stats: orgProcedure.query(async () => {
+      return getPublicEvidenceStats();
     }),
     // V2.2 — Evidence References
-    listReferences: protectedProcedure.input(z9.object({
+    listReferences: orgProcedure.input(z9.object({
       evidenceRecordId: z9.number().optional(),
       targetType: z9.string().optional(),
       targetId: z9.number().optional()
-    })).query(async ({ input }) => {
+    }).refine(
+      (value) => value.evidenceRecordId !== void 0 || value.targetType !== void 0 && value.targetId !== void 0,
+      "Evidence record or complete target is required"
+    )).query(async ({ ctx, input }) => {
+      if (input.evidenceRecordId !== void 0) {
+        await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
+      }
+      if (input.targetType !== void 0 && input.targetId !== void 0) {
+        await requireEvidenceReferenceTargetForOrg(
+          input.targetType,
+          input.targetId,
+          ctx.orgId
+        );
+      }
       return listEvidenceReferences(input);
     }),
-    addReference: adminProcedure.input(z9.object({
+    addReference: orgMutationProcedure.input(z9.object({
       evidenceRecordId: z9.number(),
       targetType: z9.enum([
         "scenario",
@@ -23960,6 +24897,12 @@ var marketIntelligenceRouter = router({
       sectionLabel: z9.string().optional(),
       citationText: z9.string().optional()
     })).mutation(async ({ input, ctx }) => {
+      await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
+      await requireEvidenceReferenceTargetForOrg(
+        input.targetType,
+        input.targetId,
+        ctx.orgId
+      );
       const result = await createEvidenceReference({ ...input, addedBy: ctx.user.id });
       await createAuditLog({
         userId: ctx.user.id,
@@ -23969,8 +24912,20 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    removeReference: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
-      await deleteEvidenceReference(input.id);
+    removeReference: orgMutationProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
+      const reference = await getEvidenceReferenceById(input.id);
+      if (!reference) {
+        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+      await requireEvidenceRecordForOrg(reference.evidenceRecordId, ctx.orgId);
+      await requireEvidenceReferenceTargetForOrg(
+        reference.targetType,
+        reference.targetId,
+        ctx.orgId
+      );
+      if (!await deleteEvidenceReferenceIfMatches(input.id, reference)) {
+        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       await createAuditLog({
         userId: ctx.user.id,
         action: "evidence_reference.delete",
@@ -23980,10 +24935,15 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // Get evidence records linked to a specific target (e.g., scenario, design_brief)
-    getForTarget: protectedProcedure.input(z9.object({
+    getForTarget: orgProcedure.input(z9.object({
       targetType: z9.string(),
       targetId: z9.number()
-    })).query(async ({ input }) => {
+    })).query(async ({ ctx, input }) => {
+      await requireEvidenceReferenceTargetForOrg(
+        input.targetType,
+        input.targetId,
+        ctx.orgId
+      );
       return getEvidenceForTarget(input.targetType, input.targetId);
     })
   }),
@@ -24413,26 +25373,47 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // ─── Entity Tagging ───────────────────────────────────────────────────
-    attach: adminProcedure.input(z9.object({
+    attach: orgMutationProcedure.input(z9.object({
       tagId: z9.number(),
       entityType: z9.enum(["competitor_project", "scenario", "evidence_record", "project"]),
       entityId: z9.number()
     })).mutation(async ({ input, ctx }) => {
+      await requireMarketTagTargetForOrg(
+        input.entityType,
+        input.entityId,
+        ctx.orgId
+      );
       const result = await createEntityTag({ ...input, addedBy: ctx.user.id });
       return result;
     }),
-    detach: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input }) => {
-      await deleteEntityTag(input.id);
+    detach: orgMutationProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
+      const entityTag = await getEntityTagById(input.id);
+      if (!entityTag) {
+        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+      await requireMarketTagTargetForOrg(
+        entityTag.entityType,
+        entityTag.entityId,
+        ctx.orgId
+      );
+      if (!await deleteEntityTagIfMatches(input.id, entityTag)) {
+        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+      }
       return { success: true };
     }),
-    getEntityTags: protectedProcedure.input(z9.object({
+    getEntityTags: orgProcedure.input(z9.object({
       entityType: z9.enum(["competitor_project", "scenario", "evidence_record", "project"]),
       entityId: z9.number()
-    })).query(async ({ input }) => {
+    })).query(async ({ ctx, input }) => {
+      await requireMarketTagTargetForOrg(
+        input.entityType,
+        input.entityId,
+        ctx.orgId
+      );
       return getEntityTags(input.entityType, input.entityId);
     }),
-    getTaggedEntities: protectedProcedure.input(z9.object({ tagId: z9.number() })).query(async ({ input }) => {
-      return getTaggedEntities(input.tagId);
+    getTaggedEntities: orgProcedure.input(z9.object({ tagId: z9.number() })).query(async ({ ctx, input }) => {
+      return requireTaggedEntitiesForOrg(input.tagId, ctx.orgId);
     })
   }),
   // ─── Intelligence Audit Log ───────────────────────────────────────────────
@@ -24799,8 +25780,8 @@ var ingestionRouter = router({
     limit: z10.number().min(10).max(100).default(50)
   }).optional()).mutation(async ({ input }) => {
     const { verifyDatabaseValues: verifyDatabaseValues2 } = await Promise.resolve().then(() => (init_data_verifier(), data_verifier_exports));
-    const { listEvidenceRecords: listEvidenceRecords2 } = await Promise.resolve().then(() => (init_db(), db_exports));
-    const records = await listEvidenceRecords2({
+    const { listPublicEvidenceRecords: listPublicEvidenceRecords2 } = await Promise.resolve().then(() => (init_db(), db_exports));
+    const records = await listPublicEvidenceRecords2({
       category: input?.category,
       limit: input?.limit ?? 50
     });
@@ -24890,6 +25871,7 @@ var ingestionRouter = router({
 
 // server/routers/analytics.ts
 import { z as z11 } from "zod";
+import { TRPCError as TRPCError15 } from "@trpc/server";
 init_db();
 init_trend_detection();
 
@@ -25323,7 +26305,7 @@ var analyticsRouter = router({
       trends: results
     };
   }),
-  getProjectInsights: protectedProcedure.input(
+  getProjectInsights: orgProcedure.input(
     z11.object({
       projectId: z11.number().optional(),
       insightType: z11.string().optional(),
@@ -25331,22 +26313,41 @@ var analyticsRouter = router({
       status: z11.string().optional(),
       limit: z11.number().min(1).max(100).default(50)
     }).optional()
-  ).query(async ({ input }) => {
+  ).query(async ({ ctx, input }) => {
+    if (input?.projectId === void 0) {
+      const insights2 = await getGlobalProjectInsights({
+        insightType: input?.insightType,
+        severity: input?.severity,
+        status: input?.status,
+        limit: input?.limit
+      });
+      return { insights: insights2 };
+    }
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const insights = await getProjectInsights({
-      projectId: input?.projectId,
-      insightType: input?.insightType,
-      severity: input?.severity,
-      status: input?.status,
-      limit: input?.limit
+      projectId: input.projectId,
+      insightType: input.insightType,
+      severity: input.severity,
+      status: input.status,
+      limit: input.limit
     });
     return { insights };
   }),
-  generateProjectInsights: protectedProcedure.input(
+  generateProjectInsights: orgHeavyMutationProcedure.input(
     z11.object({
       projectId: z11.number().optional(),
       enrichWithLLM: z11.boolean().default(true)
     })
-  ).mutation(async ({ input }) => {
+  ).mutation(async ({ ctx, input }) => {
+    if (input.projectId === void 0 && ctx.user.role !== "admin") {
+      throw new TRPCError15({
+        code: "FORBIDDEN",
+        message: "Global administrator access is required"
+      });
+    }
+    if (input.projectId !== void 0) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+    }
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     const trendSnaps = await getTrendSnapshots({ limit: 50 });
@@ -25393,17 +26394,29 @@ var analyticsRouter = router({
     const insightInput = {
       trends,
       competitorLandscape,
-      projectContext: input.projectId ? {
+      projectContext: input.projectId === void 0 ? void 0 : {
         projectId: input.projectId,
         projectName: `Project #${input.projectId}`
-      } : void 0
+      }
     };
     const generated = await generateInsights(insightInput, {
       enrichWithLLM: input.enrichWithLLM
     });
     for (const insight of generated) {
-      await insertProjectInsight({
-        projectId: input.projectId || null,
+      if (input.projectId === void 0) {
+        await insertProjectInsight({
+          projectId: null,
+          insightType: insight.type,
+          severity: insight.severity,
+          title: insight.title,
+          body: insight.body,
+          actionableRecommendation: insight.actionableRecommendation,
+          confidenceScore: String(insight.confidenceScore),
+          triggerCondition: insight.triggerCondition,
+          dataPoints: insight.dataPoints
+        });
+      } else if (!await insertProjectInsightForOrg({
+        projectId: input.projectId,
         insightType: insight.type,
         severity: insight.severity,
         title: insight.title,
@@ -25412,20 +26425,36 @@ var analyticsRouter = router({
         confidenceScore: String(insight.confidenceScore),
         triggerCondition: insight.triggerCondition,
         dataPoints: insight.dataPoints
-      });
+      }, ctx.orgId)) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+      }
     }
     return {
       generated: generated.length,
       insights: generated
     };
   }),
-  updateInsightStatus: protectedProcedure.input(
+  updateInsightStatus: orgMutationProcedure.input(
     z11.object({
       insightId: z11.number(),
       status: z11.enum(["active", "acknowledged", "dismissed", "resolved"])
     })
   ).mutation(async ({ ctx, input }) => {
-    await updateInsightStatus(input.insightId, input.status, ctx.user?.id);
+    await requireProjectResourceForOrg(input.insightId, ctx.orgId, {
+      lookupResource: getProjectInsightById,
+      getProjectId: (insight) => insight.projectId
+    });
+    if (!await updateInsightStatusForOrg(
+      input.insightId,
+      ctx.orgId,
+      input.status,
+      ctx.user.id
+    )) {
+      await requireProjectResourceForOrg(input.insightId, ctx.orgId, {
+        lookupResource: getProjectInsightById,
+        getProjectId: (insight) => insight.projectId
+      });
+    }
     return { success: true };
   })
 });
@@ -25434,7 +26463,7 @@ var analyticsRouter = router({
 import { z as z12 } from "zod";
 init_db();
 init_area_utils();
-import { TRPCError as TRPCError10 } from "@trpc/server";
+import { TRPCError as TRPCError16 } from "@trpc/server";
 
 // server/engines/predictive/cost-range.ts
 function weightedPercentile(values, percentile3) {
@@ -25838,7 +26867,7 @@ var predictiveRouter = router({
     geography: z12.string().optional()
   })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError10({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError16({ code: "NOT_FOUND" });
     const projectEvidence = await listEvidenceRecords({ projectId: input.projectId, limit: 500 });
     const allEvidence = await listEvidenceRecords({ limit: 1e3 });
     const toDataPoint = (e) => ({
@@ -25872,7 +26901,7 @@ var predictiveRouter = router({
    */
   getOutcomePrediction: protectedProcedure.input(z12.object({ projectId: z12.number() })).query(async ({ input }) => {
     const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError10({ code: "NOT_FOUND" });
+    if (!project) throw new TRPCError16({ code: "NOT_FOUND" });
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
     if (!latest) {
@@ -25911,9 +26940,8 @@ var predictiveRouter = router({
   /**
    * V5-08: Get matched learning patterns for a project
    */
-  getProjectPatterns: protectedProcedure.input(z12.object({ projectId: z12.number() })).query(async ({ input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError10({ code: "NOT_FOUND" });
+  getProjectPatterns: orgProcedure.input(z12.object({ projectId: z12.number() })).query(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
     if (!latest) return [];
@@ -25931,13 +26959,12 @@ var predictiveRouter = router({
   /**
    * V4-10: Get scenario cost projection
    */
-  getScenarioProjection: protectedProcedure.input(z12.object({
+  getScenarioProjection: orgProcedure.input(z12.object({
     projectId: z12.number(),
     horizonMonths: z12.number().default(18),
     marketCondition: z12.enum(["tight", "balanced", "soft"]).default("balanced")
-  })).query(async ({ input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new TRPCError10({ code: "NOT_FOUND" });
+  })).query(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const gfa = getPricingArea(project);
     const budgetCap = Number(project.fin01BudgetCap) || 0;
     const budgetPerSqm = gfa > 0 ? budgetCap / gfa : 0;
@@ -26031,7 +27058,7 @@ var predictiveRouter = router({
 import { z as z13 } from "zod";
 init_db();
 init_schema();
-import { TRPCError as TRPCError11 } from "@trpc/server";
+import { TRPCError as TRPCError17 } from "@trpc/server";
 import { eq as eq13, desc as desc6 } from "drizzle-orm";
 
 // server/engines/learning/outcome-comparator.ts
@@ -26310,7 +27337,7 @@ var learningRouter = router({
     return rows[0] || null;
   }),
   // ─── Post-Mortem / Handover (V4) ────────────────────────────────────────
-  submitPostMortem: orgProcedure.input(z13.object({
+  submitPostMortem: orgMutationProcedure.input(z13.object({
     projectId: z13.number(),
     // Actual costs
     actualTotalCost: z13.string().optional(),
@@ -26487,17 +27514,17 @@ var learningRouter = router({
       learningSummary: comparisons[0]?.learningSignals ? summarizeLearningSignals(comparisons[0].learningSignals) : null
     };
   }),
-  runComparison: orgProcedure.input(z13.object({ projectId: z13.number() })).mutation(async ({ ctx, input }) => {
+  runComparison: orgHeavyMutationProcedure.input(z13.object({ projectId: z13.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const ormDb = await getDb();
     const outcomes = await ormDb.select().from(projectOutcomes).where(eq13(projectOutcomes.projectId, input.projectId)).limit(1);
     if (!outcomes.length) {
-      throw new TRPCError11({ code: "NOT_FOUND", message: "No outcome found for project" });
+      throw new TRPCError17({ code: "NOT_FOUND", message: "No outcome found for project" });
     }
     const outcome = outcomes[0];
     const matrices = await ormDb.select().from(scoreMatrices).where(eq13(scoreMatrices.projectId, input.projectId)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
     if (!matrices.length) {
-      throw new TRPCError11({ code: "NOT_FOUND", message: "No score matrix found for project" });
+      throw new TRPCError17({ code: "NOT_FOUND", message: "No score matrix found for project" });
     }
     const scoreMatrix = matrices[0];
     const projectEvidence = await listEvidenceRecords({ projectId: input.projectId, limit: 500 });
@@ -26568,8 +27595,8 @@ var learningRouter = router({
 import { z as z14 } from "zod";
 init_db();
 init_schema();
-import { eq as eq15, and as and6, desc as desc8, sql as sql7 } from "drizzle-orm";
-import { TRPCError as TRPCError12 } from "@trpc/server";
+import { eq as eq15, and as and7, desc as desc8, sql as sql7 } from "drizzle-orm";
+import { TRPCError as TRPCError18 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
 init_llm();
@@ -26703,11 +27730,14 @@ ${JSON.stringify(truncatedData, null, 2)}` }
 init_llm();
 init_db();
 init_schema();
-import { eq as eq14, desc as desc7 } from "drizzle-orm";
-async function generatePortfolioInsights() {
+import { and as and6, eq as eq14, desc as desc7 } from "drizzle-orm";
+async function generatePortfolioInsightsForOrg(orgId) {
   const db = await getDb();
   if (!db) throw new Error("Database error");
-  const allProjects = await db.select().from(projects).where(eq14(projects.status, "evaluated"));
+  const allProjects = await db.select().from(projects).where(and6(
+    eq14(projects.status, "evaluated"),
+    eq14(projects.orgId, orgId)
+  ));
   if (allProjects.length === 0) {
     return "No evaluated projects available for portfolio analysis.";
   }
@@ -26787,7 +27817,7 @@ async function generatePortfolioInsights() {
 
 // server/routers/autonomous.ts
 var autonomousRouter = router({
-  getAlerts: protectedProcedure.input(z14.object({
+  getAlerts: adminProcedure.input(z14.object({
     severity: z14.string().optional(),
     type: z14.string().optional(),
     status: z14.enum(["active", "acknowledged", "resolved", "expired"]).optional()
@@ -26803,9 +27833,9 @@ var autonomousRouter = router({
     if (input?.type) {
       conditions.push(eq15(platformAlerts.alertType, input.type));
     }
-    return db.select().from(platformAlerts).where(conditions.length > 0 ? and6(...conditions) : void 0).orderBy(desc8(platformAlerts.createdAt));
+    return db.select().from(platformAlerts).where(conditions.length > 0 ? and7(...conditions) : void 0).orderBy(desc8(platformAlerts.createdAt));
   }),
-  acknowledgeAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
+  acknowledgeAlert: adminProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
@@ -26815,7 +27845,7 @@ var autonomousRouter = router({
     }).where(eq15(platformAlerts.id, input.id));
     return { success: true };
   }),
-  resolveAlert: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
+  resolveAlert: adminProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
@@ -26825,17 +27855,17 @@ var autonomousRouter = router({
   }),
   nlQuery: protectedProcedure.input(z14.object({ query: z14.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError12({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
+    if (!db) throw new TRPCError18({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
     const recentQueries = await db.select({ count: sql7`count(*)` }).from(nlQueryLog).where(
-      and6(
+      and7(
         eq15(nlQueryLog.userId, ctx.user.id),
         sql7`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
     );
     const count2 = Number(recentQueries[0]?.count || 0);
     if (count2 >= 20) {
-      throw new TRPCError12({
+      throw new TRPCError18({
         code: "TOO_MANY_REQUESTS",
         message: "Natural language query limit: 20 queries/hour"
       });
@@ -26843,12 +27873,13 @@ var autonomousRouter = router({
     const result = await processNlQuery(ctx.user.id, input.query);
     return result;
   }),
-  generateBrief: protectedProcedure.input(z14.object({ projectId: z14.number() })).mutation(async ({ input }) => {
+  generateBrief: orgHeavyMutationProcedure.input(z14.object({ projectId: z14.number() })).mutation(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const briefMarkdown = await generateAutonomousDesignBrief(input.projectId);
     return { markdown: briefMarkdown };
   }),
-  portfolioInsights: protectedProcedure.query(async () => {
-    const markdown = await generatePortfolioInsights();
+  portfolioInsights: orgRateLimitedProcedure.query(async ({ ctx }) => {
+    const markdown = await generatePortfolioInsightsForOrg(ctx.orgId);
     return { markdown };
   })
 });
@@ -26857,8 +27888,8 @@ var autonomousRouter = router({
 init_db();
 import { z as z15 } from "zod";
 init_schema();
-import { TRPCError as TRPCError13 } from "@trpc/server";
-import { eq as eq16, and as and7 } from "drizzle-orm";
+import { TRPCError as TRPCError19 } from "@trpc/server";
+import { eq as eq16, and as and8 } from "drizzle-orm";
 import { nanoid as nanoid6 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z15.object({
@@ -26867,10 +27898,10 @@ var organizationRouter = router({
     domain: z15.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError13({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
+    if (!db) throw new TRPCError19({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
     const existing = await db.select().from(organizations).where(eq16(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
-      throw new TRPCError13({ code: "CONFLICT", message: "Slug is already taken" });
+      throw new TRPCError19({ code: "CONFLICT", message: "Slug is already taken" });
     }
     const [orgResult] = await db.insert(organizations).values({
       name: input.name,
@@ -26896,15 +27927,15 @@ var organizationRouter = router({
     }).from(organizationMembers).innerJoin(organizations, eq16(organizations.id, organizationMembers.orgId)).where(eq16(organizationMembers.userId, ctx.user.id));
     return result;
   }),
-  inviteMember: orgProcedure.input(z15.object({
+  inviteMember: orgAdminProcedure.input(z15.object({
     email: z15.string().email(),
     role: z15.enum(["admin", "member", "viewer"])
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError13({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and7(eq16(organizationMembers.orgId, ctx.orgId), eq16(organizationMembers.userId, ctx.user.id))).limit(1);
+    if (!db) throw new TRPCError19({ code: "INTERNAL_SERVER_ERROR" });
+    const myMembership = await db.select().from(organizationMembers).where(and8(eq16(organizationMembers.orgId, ctx.orgId), eq16(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
-      throw new TRPCError13({ code: "FORBIDDEN", message: "Only admins can invite members" });
+      throw new TRPCError19({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
     const token = nanoid6(32);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
@@ -26920,18 +27951,18 @@ var organizationRouter = router({
   }),
   acceptInvite: protectedProcedure.input(z15.object({ token: z15.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError13({ code: "INTERNAL_SERVER_ERROR" });
+    if (!db) throw new TRPCError19({ code: "INTERNAL_SERVER_ERROR" });
     return db.transaction(async (tx) => {
       const inviteResult = await tx.select().from(organizationInvites).where(eq16(organizationInvites.token, input.token)).limit(1).for("update");
       const invite = inviteResult[0];
-      if (!invite) throw new TRPCError13({ code: "NOT_FOUND", message: "Invalid invite token" });
-      if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError13({ code: "BAD_REQUEST", message: "Invite expired" });
-      const memberships = await tx.select().from(organizationMembers).where(and7(
+      if (!invite) throw new TRPCError19({ code: "NOT_FOUND", message: "Invalid invite token" });
+      if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError19({ code: "BAD_REQUEST", message: "Invite expired" });
+      const memberships = await tx.select().from(organizationMembers).where(and8(
         eq16(organizationMembers.orgId, invite.orgId),
         eq16(organizationMembers.userId, ctx.user.id)
       )).limit(2).for("update");
       if (memberships.length > 1) {
-        throw new TRPCError13({
+        throw new TRPCError19({
           code: "FORBIDDEN",
           message: "Organization membership is inconsistent"
         });
@@ -27026,19 +28057,32 @@ init_db();
 var biasRouter = router({
   // Get all bias alerts for a project (active + dismissed)
   getAlerts: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return [];
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getBiasAlertsByProject(input.projectId);
   }),
   // Get only active (non-dismissed) alerts
   getActiveAlerts: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) return [];
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getActiveBiasAlerts(input.projectId);
   }),
   // Dismiss a bias alert
-  dismiss: orgProcedure.input(z17.object({ alertId: z17.number() })).mutation(async ({ ctx, input }) => {
-    await dismissBiasAlert(input.alertId, ctx.user.id);
+  dismiss: orgMutationProcedure.input(z17.object({ alertId: z17.number() })).mutation(async ({ ctx, input }) => {
+    await requireProjectOrgResourceForOrg(input.alertId, ctx.orgId, {
+      lookupResource: getBiasAlertById,
+      getProjectId: (alert) => alert.projectId,
+      getOrgId: (alert) => alert.orgId
+    });
+    if (!await dismissBiasAlertForOrg(
+      input.alertId,
+      ctx.orgId,
+      ctx.user.id
+    )) {
+      await requireProjectOrgResourceForOrg(input.alertId, ctx.orgId, {
+        lookupResource: getBiasAlertById,
+        getProjectId: (alert) => alert.projectId,
+        getOrgId: (alert) => alert.orgId
+      });
+    }
     await createAuditLog({
       userId: ctx.user.id,
       action: "bias.dismiss",
@@ -27054,10 +28098,7 @@ var biasRouter = router({
   }),
   // Get intervention report for a project (structured summary for reports)
   getInterventionReport: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
-      return { alerts: [], hasBiases: false, summary: "No data available." };
-    }
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const alerts = await getActiveBiasAlerts(input.projectId);
     if (alerts.length === 0) {
       return {
@@ -27079,11 +28120,8 @@ var biasRouter = router({
     };
   }),
   // On-demand bias scan (without re-evaluating project)
-  scan: orgProcedure.input(z17.object({ projectId: z17.number() })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId && project.userId !== ctx.user.id) {
-      throw new Error("Project not found or access denied");
-    }
+  scan: orgMutationProcedure.input(z17.object({ projectId: z17.number() })).mutation(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     if (!matrices || matrices.length === 0) {
       throw new Error("Project has no evaluations yet. Evaluate the project first.");
@@ -27152,8 +28190,8 @@ var biasRouter = router({
     };
   }),
   // Get all active alerts across all user projects (for dashboard)
-  getAllActiveAlerts: protectedProcedure.query(async ({ ctx }) => {
-    const projects2 = await getProjectsByUser(ctx.user.id);
+  getAllActiveAlerts: orgProcedure.query(async ({ ctx }) => {
+    const projects2 = await getProjectsByOrg(ctx.orgId);
     if (!projects2 || projects2.length === 0) return [];
     const allAlerts = [];
     for (const p of projects2) {
@@ -27875,9 +28913,8 @@ var designAdvisorRouter = router({
   // ═════════════════════════════════════════════════════════════════════════
   // Phase 1: AI Design Recommendations
   // ═════════════════════════════════════════════════════════════════════════
-  generateRecommendations: orgProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+  generateRecommendations: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = projectToInputs5(project);
     const materials = await getMaterialLibrary();
     const recentEvidence = await listEvidenceRecords({ limit: 100 });
@@ -27904,38 +28941,43 @@ var designAdvisorRouter = router({
       trends,
       fitOutStoredRooms
     );
-    await clearSpaceRecommendations(input.projectId, ctx.orgId);
-    for (const rec of recommendations) {
-      await createSpaceRecommendation({
-        projectId: input.projectId,
-        orgId: ctx.orgId,
-        roomId: rec.roomId,
-        roomName: rec.roomName,
-        sqm: String(rec.sqm),
-        styleDirection: rec.styleDirection,
-        colorScheme: rec.colorScheme,
-        materialPackage: rec.materialPackage,
-        budgetAllocation: String(rec.budgetAllocation),
-        budgetBreakdown: rec.budgetBreakdown,
-        aiRationale: rec.aiRationale,
-        specialNotes: rec.specialNotes,
-        kitchenSpec: rec.kitchenSpec || null,
-        bathroomSpec: rec.bathroomSpec || null,
-        alternatives: rec.alternatives
-      });
+    const rows = recommendations.map((rec) => ({
+      projectId: input.projectId,
+      orgId: ctx.orgId,
+      roomId: rec.roomId,
+      roomName: rec.roomName,
+      sqm: String(rec.sqm),
+      styleDirection: rec.styleDirection,
+      colorScheme: rec.colorScheme,
+      materialPackage: rec.materialPackage,
+      budgetAllocation: String(rec.budgetAllocation),
+      budgetBreakdown: rec.budgetBreakdown,
+      aiRationale: rec.aiRationale,
+      specialNotes: rec.specialNotes,
+      kitchenSpec: rec.kitchenSpec || null,
+      bathroomSpec: rec.bathroomSpec || null,
+      alternatives: rec.alternatives
+    }));
+    if (!await replaceSpaceRecommendationsForOrg(
+      input.projectId,
+      ctx.orgId,
+      rows
+    )) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
     }
     return { recommendations, count: recommendations.length };
   }),
   getRecommendations: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getSpaceRecommendations(input.projectId, ctx.orgId);
   }),
   getSpaceRecommendation: orgProcedure.input(z18.object({ projectId: z18.number(), roomId: z18.string() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
     return recs.find((r) => r.roomId === input.roomId) || null;
   }),
   getSpaceProgram: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const storedRooms = await getSpaceProgramRooms(input.projectId, ctx.orgId);
     if (storedRooms.length > 0) {
       await clearSpaceRecommendations(input.projectId, ctx.orgId);
@@ -27943,9 +28985,8 @@ var designAdvisorRouter = router({
     }
     return buildSpaceProgram(project);
   }),
-  generateDesignBrief: orgProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+  generateDesignBrief: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = projectToInputs5(project);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
     if (!recs || recs.length === 0) {
@@ -27953,14 +28994,17 @@ var designAdvisorRouter = router({
     }
     const recommendations = recs.map(mapRecToSpace);
     const brief = await generateAIDesignBrief(project, inputs, recommendations);
-    await createAiDesignBrief({
+    if (!await createAiDesignBriefForOrg({
       projectId: input.projectId,
       orgId: ctx.orgId,
       briefData: brief
-    });
+    }, ctx.orgId)) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+    }
     return brief;
   }),
   getDesignBrief: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getLatestAiDesignBrief(input.projectId, ctx.orgId);
   }),
   getStandardPackages: orgProcedure.input(z18.object({
@@ -27969,15 +29013,14 @@ var designAdvisorRouter = router({
   })).query(async ({ input }) => {
     return getDesignPackages(input.typology, input.tier);
   }),
-  saveAsPackage: orgProcedure.input(z18.object({
+  saveAsPackage: orgMutationProcedure.input(z18.object({
     projectId: z18.number(),
     name: z18.string(),
     description: z18.string().optional()
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
-    return createDesignPackage({
+    return createDesignPackageForOrg(input.projectId, ctx.orgId, {
       orgId: ctx.orgId,
       name: input.name,
       typology: project.ctx01Typology || "Residential",
@@ -27992,13 +29035,12 @@ var designAdvisorRouter = router({
   // ═════════════════════════════════════════════════════════════════════════
   // Phase 2: Visual Generation (Nano Banana)
   // ═════════════════════════════════════════════════════════════════════════
-  generateVisual: orgProcedure.input(z18.object({
+  generateVisual: orgHeavyMutationProcedure.input(z18.object({
     projectId: z18.number(),
     roomId: z18.string(),
     type: z18.enum(["mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette"])
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
     const rec = recs.find((r) => r.roomId === input.roomId);
     if (!rec) throw new Error("Space recommendation not found \u2014 generate recommendations first");
@@ -28030,42 +29072,47 @@ var designAdvisorRouter = router({
       console.warn("[DesignAdvisor] MQI allocation fetch failed, continuing without:", e);
     }
     const result = await generateSpaceVisual(projectCtx, spaceRec, input.type);
-    await createGeneratedVisual({
+    if (!await createGeneratedVisualForOrg({
       projectId: input.projectId,
       type: input.type,
       promptJson: { prompt: result.prompt, roomId: input.roomId, visualType: input.type, imageUrl: result.imageUrl },
       status: "completed",
       createdBy: ctx.user.id,
       imageAssetId: null
-    });
+    }, ctx.orgId)) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+    }
     return result;
   }),
-  generateHero: orgProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project || project.orgId !== ctx.orgId) throw new Error("Project not found");
+  generateHero: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const projectCtx = buildProjectContext(project);
     const result = await generateHeroVisual(projectCtx);
-    await createGeneratedVisual({
+    if (!await createGeneratedVisualForOrg({
       projectId: input.projectId,
       type: "hero",
       promptJson: { prompt: result.prompt, visualType: "hero_image", imageUrl: result.imageUrl },
       status: "completed",
       createdBy: ctx.user.id,
       imageAssetId: null
-    });
+    }, ctx.orgId)) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+    }
     return result;
   }),
   getVisuals: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getGeneratedVisualsByProject(input.projectId);
   })
 });
 
 // server/routers/portfolio.ts
 import { z as z19 } from "zod";
+import { TRPCError as TRPCError20 } from "@trpc/server";
+import { createHash } from "node:crypto";
 init_db();
 init_schema();
-init_alert_delivery();
-import { eq as eq17, and as and8, desc as desc9, inArray as inArray3 } from "drizzle-orm";
+import { eq as eq17, and as and9, desc as desc9, inArray as inArray3 } from "drizzle-orm";
 var portfolioRouter = router({
   // ─── List all portfolios for current org ──────────────────────────
   list: orgProcedure.query(async ({ ctx }) => {
@@ -28112,7 +29159,7 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) return null;
     const [portfolio] = await db.select().from(portfolios).where(
-      and8(
+      and9(
         eq17(portfolios.id, input.id),
         eq17(portfolios.organizationId, ctx.orgId)
       )
@@ -28127,9 +29174,16 @@ var portfolioRouter = router({
       };
     }
     const projectIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(inArray3(projects.id, projectIds));
-    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, projectIds)).orderBy(desc9(scoreMatrices.computedAt));
-    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, projectIds)).orderBy(desc9(projectIntelligence.computedAt));
+    const projectList = await db.select().from(projects).where(and9(
+      inArray3(projects.id, projectIds),
+      eq17(projects.orgId, ctx.orgId)
+    ));
+    if (projectList.length !== new Set(projectIds).size) {
+      throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    const authorizedProjectIds = projectList.map((project) => project.id);
+    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc9(scoreMatrices.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc9(projectIntelligence.computedAt));
     const latestScoreByProject = /* @__PURE__ */ new Map();
     for (const s of allScores) {
       if (!latestScoreByProject.has(s.projectId)) {
@@ -28223,7 +29277,7 @@ var portfolioRouter = router({
     };
   }),
   // ─── Create portfolio ─────────────────────────────────────────────
-  create: orgProcedure.input(
+  create: orgMutationProcedure.input(
     z19.object({
       name: z19.string().min(1).max(255),
       description: z19.string().optional()
@@ -28240,7 +29294,7 @@ var portfolioRouter = router({
     return { id: Number(result.insertId), name: input.name };
   }),
   // ─── Update portfolio ─────────────────────────────────────────────
-  update: orgProcedure.input(
+  update: orgMutationProcedure.input(
     z19.object({
       id: z19.number(),
       name: z19.string().min(1).max(255).optional(),
@@ -28249,37 +29303,43 @@ var portfolioRouter = router({
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
-    const [existing] = await db.select().from(portfolios).where(
-      and8(
-        eq17(portfolios.id, input.id),
-        eq17(portfolios.organizationId, ctx.orgId)
-      )
-    );
-    if (!existing) throw new Error("Portfolio not found");
     const updates = {};
     if (input.name !== void 0) updates.name = input.name;
     if (input.description !== void 0)
       updates.description = input.description;
-    await db.update(portfolios).set(updates).where(eq17(portfolios.id, input.id));
+    const [result] = await db.update(portfolios).set(updates).where(and9(
+      eq17(portfolios.id, input.id),
+      eq17(portfolios.organizationId, ctx.orgId)
+    ));
+    if (Number(result.affectedRows) !== 1) {
+      throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+    }
     return { success: true };
   }),
   // ─── Delete portfolio ─────────────────────────────────────────────
-  delete: orgProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
+  delete: orgMutationProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
-    const [existing] = await db.select().from(portfolios).where(
-      and8(
+    const deleted = await db.transaction(async (tx) => {
+      const rows = await tx.select({ id: portfolios.id }).from(portfolios).where(and9(
         eq17(portfolios.id, input.id),
         eq17(portfolios.organizationId, ctx.orgId)
-      )
-    );
-    if (!existing) throw new Error("Portfolio not found");
-    await db.delete(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
-    await db.delete(portfolios).where(eq17(portfolios.id, input.id));
+      )).limit(1).for("update");
+      if (rows.length !== 1) return false;
+      await tx.delete(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
+      const [result] = await tx.delete(portfolios).where(and9(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
+      ));
+      return Number(result.affectedRows) === 1;
+    });
+    if (!deleted) {
+      throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+    }
     return { success: true };
   }),
   // ─── Add project to portfolio ─────────────────────────────────────
-  addProject: orgProcedure.input(
+  addProject: orgMutationProcedure.input(
     z19.object({
       portfolioId: z19.number(),
       projectId: z19.number(),
@@ -28288,35 +29348,35 @@ var portfolioRouter = router({
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
-    const [portfolio] = await db.select().from(portfolios).where(
-      and8(
+    const result = await db.transaction(async (tx) => {
+      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and9(
         eq17(portfolios.id, input.portfolioId),
         eq17(portfolios.organizationId, ctx.orgId)
-      )
-    );
-    if (!portfolio) throw new Error("Portfolio not found");
-    const [project] = await db.select().from(projects).where(eq17(projects.id, input.projectId));
-    if (!project || project.orgId !== ctx.orgId) {
-      throw new Error("Project not found");
-    }
-    const existing = await db.select().from(portfolioProjects).where(
-      and8(
+      )).limit(1).for("update");
+      const [project] = await tx.select({ id: projects.id }).from(projects).where(and9(
+        eq17(projects.id, input.projectId),
+        eq17(projects.orgId, ctx.orgId)
+      )).limit(1).for("update");
+      if (!portfolio || !project) return "not_found";
+      const existing = await tx.select({ portfolioId: portfolioProjects.portfolioId }).from(portfolioProjects).where(and9(
         eq17(portfolioProjects.portfolioId, input.portfolioId),
         eq17(portfolioProjects.projectId, input.projectId)
-      )
-    );
-    if (existing.length > 0) {
-      return { success: true, message: "Project already in portfolio" };
-    }
-    await db.insert(portfolioProjects).values({
-      portfolioId: input.portfolioId,
-      projectId: input.projectId,
-      note: input.note ?? null
+      )).limit(1);
+      if (existing.length > 0) return "existing";
+      await tx.insert(portfolioProjects).values({
+        portfolioId: input.portfolioId,
+        projectId: input.projectId,
+        note: input.note ?? null
+      });
+      return "inserted";
     });
-    return { success: true };
+    if (result === "not_found") {
+      throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    return result === "existing" ? { success: true, message: "Project already in portfolio" } : { success: true };
   }),
   // ─── Remove project from portfolio ────────────────────────────────
-  removeProject: orgProcedure.input(
+  removeProject: orgMutationProcedure.input(
     z19.object({
       portfolioId: z19.number(),
       projectId: z19.number()
@@ -28324,25 +29384,41 @@ var portfolioRouter = router({
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
-    const [portfolio] = await db.select().from(portfolios).where(
-      and8(
+    const removed = await db.transaction(async (tx) => {
+      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and9(
         eq17(portfolios.id, input.portfolioId),
         eq17(portfolios.organizationId, ctx.orgId)
-      )
-    );
-    if (!portfolio) throw new Error("Portfolio not found");
-    await db.delete(portfolioProjects).where(
-      and8(
+      )).limit(1).for("update");
+      const [project] = await tx.select({ id: projects.id }).from(projects).where(and9(
+        eq17(projects.id, input.projectId),
+        eq17(projects.orgId, ctx.orgId)
+      )).limit(1).for("update");
+      if (!portfolio || !project) return false;
+      await tx.delete(portfolioProjects).where(and9(
         eq17(portfolioProjects.portfolioId, input.portfolioId),
         eq17(portfolioProjects.projectId, input.projectId)
-      )
-    );
+      ));
+      return true;
+    });
+    if (!removed) {
+      throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+    }
     return { success: true };
   }),
   // ─── Available projects (not in this portfolio) ───────────────────
   availableProjects: orgProcedure.input(z19.object({ portfolioId: z19.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return [];
+    const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and9(
+      eq17(portfolios.id, input.portfolioId),
+      eq17(portfolios.organizationId, ctx.orgId)
+    ));
+    if (!portfolio) {
+      throw new TRPCError20({
+        code: "NOT_FOUND",
+        message: "Portfolio not found"
+      });
+    }
     const allProjects = await db.select().from(projects).where(eq17(projects.orgId, ctx.orgId));
     const linked = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.portfolioId));
     const linkedIds = new Set(linked.map((l) => l.projectId));
@@ -28355,11 +29431,11 @@ var portfolioRouter = router({
     }));
   }),
   // ─── Generate PDF Report ────────────────────────────────────
-  generateReport: orgProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
+  generateReport: orgHeavyMutationProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and8(
+      and9(
         eq17(portfolios.id, input.id),
         eq17(portfolios.organizationId, ctx.orgId)
       )
@@ -28370,9 +29446,16 @@ var portfolioRouter = router({
       throw new Error("Portfolio has no projects \u2014 add projects before generating a report.");
     }
     const pIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(inArray3(projects.id, pIds));
-    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, pIds)).orderBy(desc9(scoreMatrices.computedAt));
-    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, pIds)).orderBy(desc9(projectIntelligence.computedAt));
+    const projectList = await db.select().from(projects).where(and9(
+      inArray3(projects.id, pIds),
+      eq17(projects.orgId, ctx.orgId)
+    ));
+    if (projectList.length !== new Set(pIds).size) {
+      throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    const authorizedProjectIds = projectList.map((project) => project.id);
+    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc9(scoreMatrices.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc9(projectIntelligence.computedAt));
     const latestScoreByProject = /* @__PURE__ */ new Map();
     for (const s of allScores) {
       if (!latestScoreByProject.has(s.projectId)) {
@@ -28457,11 +29540,11 @@ var portfolioRouter = router({
     return { html, portfolioName: portfolio.name };
   }),
   // ─── Check Portfolio Alerts ──────────────────────────────────
-  checkAlerts: orgProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
+  checkAlerts: orgMutationProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and8(
+      and9(
         eq17(portfolios.id, input.id),
         eq17(portfolios.organizationId, ctx.orgId)
       )
@@ -28470,8 +29553,15 @@ var portfolioRouter = router({
     const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) return { alerts: [], message: "No projects in portfolio" };
     const pIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(inArray3(projects.id, pIds));
-    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, pIds)).orderBy(desc9(scoreMatrices.computedAt));
+    const projectList = await db.select().from(projects).where(and9(
+      inArray3(projects.id, pIds),
+      eq17(projects.orgId, ctx.orgId)
+    ));
+    if (projectList.length !== new Set(pIds).size) {
+      throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    const authorizedProjectIds = projectList.map((project) => project.id);
+    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc9(scoreMatrices.computedAt));
     const latestScoreByProject = /* @__PURE__ */ new Map();
     for (const s of allScores) {
       if (!latestScoreByProject.has(s.projectId)) {
@@ -28518,14 +29608,19 @@ var portfolioRouter = router({
     ).length;
     const failurePatterns = detectFailurePatterns(portfolioItems);
     const candidates = [];
+    const baseAlert = {
+      organizationId: ctx.orgId,
+      portfolioId: portfolio.id,
+      status: "active"
+    };
     if (avgComposite < 55) {
       candidates.push({
+        ...baseAlert,
         alertType: "portfolio_risk",
         severity: avgComposite < 40 ? "critical" : "high",
         title: `Portfolio "${portfolio.name}" \u2014 Low Average Score`,
         body: `Portfolio average composite score is ${avgComposite}/100 across ${portfolioItems.length} projects. This indicates systemic design feasibility concerns.`,
-        affectedProjectIds: pIds,
-        affectedCategories: [],
+        affectedProjectIds: authorizedProjectIds,
         triggerData: { portfolioId: portfolio.id, avgComposite, avgRisk },
         suggestedAction: "Review underperforming projects and consider replacing or redesigning low-scoring components.",
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
@@ -28533,12 +29628,12 @@ var portfolioRouter = router({
     }
     if (avgRisk > 65) {
       candidates.push({
+        ...baseAlert,
         alertType: "portfolio_risk",
         severity: avgRisk > 80 ? "critical" : "high",
         title: `Portfolio "${portfolio.name}" \u2014 Elevated Risk`,
         body: `Portfolio average risk score is ${avgRisk}/100. ${noGoCount} project(s) have NO_GO decisions.`,
-        affectedProjectIds: pIds,
-        affectedCategories: [],
+        affectedProjectIds: authorizedProjectIds,
         triggerData: { portfolioId: portfolio.id, avgRisk, noGoCount },
         suggestedAction: "Prioritize risk mitigation for the highest-risk projects. Consider portfolio rebalancing.",
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
@@ -28546,12 +29641,12 @@ var portfolioRouter = router({
     }
     if (noGoCount > portfolioItems.length / 2) {
       candidates.push({
+        ...baseAlert,
         alertType: "portfolio_risk",
         severity: "critical",
         title: `Portfolio "${portfolio.name}" \u2014 Majority NO_GO`,
         body: `${noGoCount} out of ${portfolioItems.length} scored projects have NO_GO decisions. Portfolio viability is severely compromised.`,
-        affectedProjectIds: pIds,
-        affectedCategories: [],
+        affectedProjectIds: authorizedProjectIds,
         triggerData: { portfolioId: portfolio.id, noGoCount, total: portfolioItems.length },
         suggestedAction: "Conduct an emergency portfolio review. Consider replacing failing projects or fundamentally redesigning the approach.",
         expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1e3)
@@ -28559,36 +29654,33 @@ var portfolioRouter = router({
     }
     for (const fp of failurePatterns.filter((f) => f.severity === "high")) {
       candidates.push({
+        ...baseAlert,
         alertType: "portfolio_failure_pattern",
         severity: "high",
         title: `Portfolio "${portfolio.name}" \u2014 ${fp.pattern}`,
         body: `${fp.description} (affects ${fp.frequency} project(s))`,
-        affectedProjectIds: pIds,
-        affectedCategories: [],
+        affectedProjectIds: authorizedProjectIds,
         triggerData: { portfolioId: portfolio.id, pattern: fp },
         suggestedAction: "Address the root cause of this recurring failure pattern across the portfolio.",
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
       });
     }
-    const inserted = [];
     for (const alert of candidates) {
-      const existing = await db.select().from(platformAlerts).where(
-        and8(
-          eq17(platformAlerts.alertType, alert.alertType),
-          eq17(platformAlerts.status, "active")
-        )
-      );
-      const isDuplicate = existing.some(
-        (e) => e.title === alert.title && JSON.stringify(e.affectedProjectIds) === JSON.stringify(alert.affectedProjectIds)
-      );
-      if (!isDuplicate) {
-        const [result] = await db.insert(platformAlerts).values(alert);
-        const alertWithId = { ...alert, id: result.insertId };
-        inserted.push(alertWithId);
-        deliverAlert(alertWithId).catch(
-          (e) => console.error("[PortfolioAlerts] Delivery failed:", alert.title, e)
-        );
-      }
+      alert.activeDedupKey = createHash("sha256").update(JSON.stringify({
+        organizationId: ctx.orgId,
+        portfolioId: portfolio.id,
+        alertType: alert.alertType,
+        title: alert.title,
+        affectedProjectIds: authorizedProjectIds
+      })).digest("hex");
+    }
+    const inserted = await insertPortfolioAlertsForOrg({
+      portfolioId: portfolio.id,
+      orgId: ctx.orgId,
+      alerts: candidates
+    });
+    if (!inserted) {
+      throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return {
       alerts: inserted.map((a) => ({
@@ -28608,7 +29700,7 @@ import { z as z20 } from "zod";
 init_db();
 init_db();
 init_schema();
-import { eq as eq18, desc as desc10, gte as gte2, and as and9, count } from "drizzle-orm";
+import { eq as eq18, desc as desc10, gte as gte2, and as and10, count } from "drizzle-orm";
 
 // server/engines/customer/health-score.ts
 function clamp2(v, min = 0, max = 100) {
@@ -28735,7 +29827,7 @@ function calculateHealthScore(metrics) {
 // server/routers/customer-success.ts
 var customerSuccessRouter = router({
   // Calculate and persist a fresh health score
-  calculateHealth: heavyProcedure.mutation(async ({ ctx }) => {
+  calculateHealth: orgHeavyMutationProcedure.mutation(async ({ ctx }) => {
     const d = await getDb();
     if (!d) throw new Error("Database unavailable");
     const userId = ctx.user.id;
@@ -28743,7 +29835,7 @@ var customerSuccessRouter = router({
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1e3);
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const recentLogs = await d.select().from(auditLogs).where(and9(
+    const recentLogs = await d.select().from(auditLogs).where(and10(
       eq18(auditLogs.userId, userId),
       gte2(auditLogs.createdAt, thirtyDaysAgo)
     ));
@@ -28753,7 +29845,7 @@ var customerSuccessRouter = router({
     ).size;
     const lastAction = recentLogs.length > 0 ? recentLogs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] : null;
     const daysSinceLastAction = lastAction ? Math.floor((now.getTime() - new Date(lastAction.createdAt).getTime()) / (1e3 * 60 * 60 * 24)) : 30;
-    const projects2 = await getProjectsByUser(userId);
+    const projects2 = await getProjectsByOrg(ctx.orgId);
     const totalProjects = projects2?.length || 0;
     const evaluatedProjects = projects2?.filter((p) => p.status === "evaluated").length || 0;
     const scenarioActions = recentLogs.filter((l) => l.entityType === "scenario").length;
@@ -28803,7 +29895,7 @@ var customerSuccessRouter = router({
     const result = calculateHealthScore(metrics);
     await d.insert(customerHealthScores).values({
       userId,
-      orgId: ctx.user.orgId || null,
+      orgId: ctx.orgId,
       compositeScore: result.compositeScore,
       engagementScore: result.engagement.score,
       adoptionScore: result.adoption.score,
@@ -29509,7 +30601,7 @@ var materialEnum = z21.enum([
   "ceramic"
 ]);
 var sustainabilityRouter = router({
-  computeTwin: heavyProcedure.input(z21.object({
+  computeTwin: orgHeavyMutationProcedure.input(z21.object({
     projectId: z21.number(),
     floors: z21.number().min(1).max(200).default(5),
     specLevel: z21.enum(["economy", "standard", "premium", "luxury"]).default("standard"),
@@ -29522,8 +30614,7 @@ var sustainabilityRouter = router({
     includeRenewables: z21.boolean().default(false),
     waterRecycling: z21.boolean().default(false)
   })).mutation(async ({ ctx, input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const gfa = Number(project.siteArea || 500);
     const sustainabilityRating = Number(project.des05Sustainability || 2);
     const materials = input.materials && input.materials.length > 0 ? input.materials : [
@@ -29545,58 +30636,57 @@ var sustainabilityRouter = router({
       includeRenewables: input.includeRenewables,
       waterRecycling: input.waterRecycling
     });
-    const d = await getDb();
-    if (d) {
-      await d.insert(digitalTwinModels).values({
-        projectId: input.projectId,
-        userId: ctx.user.id,
-        orgId: ctx.user.orgId || null,
-        sustainabilityScore: result.sustainabilityScore,
-        sustainabilityGrade: result.sustainabilityGrade,
-        embodiedCarbon: String(result.totalEmbodiedCarbon),
-        carbonPerSqm: String(result.carbonPerSqm),
-        operationalEnergy: String(result.operationalEnergy),
-        energyPerSqm: String(result.energyPerSqm),
-        lifecycleCost30yr: String(result.lifecycleCost30yr),
-        carbonBreakdown: result.carbonBreakdown,
-        lifecycle: result.lifecycle,
-        config: result.config
-      });
-      await d.insert(sustainabilitySnapshots).values({
-        projectId: input.projectId,
-        userId: ctx.user.id,
-        compositeScore: result.sustainabilityScore,
-        grade: result.sustainabilityGrade,
-        embodiedCarbon: String(result.totalEmbodiedCarbon),
-        operationalEnergy: String(result.operationalEnergy),
-        lifecycleCost: String(result.lifecycleCost30yr),
-        carbonPerSqm: String(result.carbonPerSqm),
-        energyRating: result.energyRating || null,
-        renewablesEnabled: input.includeRenewables,
-        waterRecycling: input.waterRecycling,
-        configSnapshot: result.config
-      });
+    if (!await createDigitalTwinForOrg({
+      projectId: input.projectId,
+      userId: ctx.user.id,
+      orgId: ctx.orgId,
+      sustainabilityScore: result.sustainabilityScore,
+      sustainabilityGrade: result.sustainabilityGrade,
+      embodiedCarbon: String(result.totalEmbodiedCarbon),
+      carbonPerSqm: String(result.carbonPerSqm),
+      operationalEnergy: String(result.operationalEnergy),
+      energyPerSqm: String(result.energyPerSqm),
+      lifecycleCost30yr: String(result.lifecycleCost30yr),
+      carbonBreakdown: result.carbonBreakdown,
+      lifecycle: result.lifecycle,
+      config: result.config
+    }, {
+      projectId: input.projectId,
+      userId: ctx.user.id,
+      compositeScore: result.sustainabilityScore,
+      grade: result.sustainabilityGrade,
+      embodiedCarbon: String(result.totalEmbodiedCarbon),
+      operationalEnergy: String(result.operationalEnergy),
+      lifecycleCost: String(result.lifecycleCost30yr),
+      carbonPerSqm: String(result.carbonPerSqm),
+      energyRating: result.energyRating == null ? null : String(result.energyRating),
+      renewablesEnabled: input.includeRenewables,
+      waterRecycling: input.waterRecycling,
+      configSnapshot: result.config
+    }, ctx.orgId)) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
     }
     return result;
   }),
-  getTwinModels: protectedProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ input }) => {
+  getTwinModels: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
     return d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(10);
   }),
-  getLatestTwin: protectedProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ input }) => {
+  getLatestTwin: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return null;
     const rows = await d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
     return rows[0] || null;
   }),
-  evaluateCompliance: protectedProcedure.input(z21.object({
+  evaluateCompliance: orgProcedure.input(z21.object({
     projectId: z21.number()
-  })).query(async ({ input }) => {
+  })).query(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) throw new Error("Database unavailable");
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new Error("Project not found");
     const city = project.city || "Dubai";
     const rows = await d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
     const twin = rows[0];
@@ -29832,9 +30922,8 @@ var salesPremiumRouter = router({
     projectId: z22.number(),
     currentFitoutPerSqm: z22.number().min(0),
     proposedFitoutPerSqm: z22.number().min(0)
-  })).query(async ({ input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new Error("Project not found");
+  })).query(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const saleMedianPerSqm = await getAreaSaleMedianSqm(project.dldAreaId ?? null);
     let transactionCount = 0;
     if (project.dldAreaId) {
@@ -29861,9 +30950,8 @@ var salesPremiumRouter = router({
   getBrandEquityForecast: orgProcedure.input(z22.object({
     projectId: z22.number(),
     salePerformancePct: z22.number().min(0).max(100)
-  })).query(async ({ input }) => {
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new Error("Project not found");
+  })).query(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     return computeBrandEquityForecast({
       tier: project.mkt01Tier ?? "Upper-mid",
       targetValueAdd: project.targetValueAdd ?? "Balanced Return",
@@ -29885,7 +30973,7 @@ var intakeRouter = router({
    * Generate a presigned S3 upload URL for direct client upload.
    * Client uploads directly to S3, then calls `recordAsset` to register it.
    */
-  getUploadUrl: orgProcedure.input(z23.object({
+  getUploadUrl: orgMutationProcedure.input(z23.object({
     fileName: z23.string(),
     contentType: z23.string(),
     sizeBytes: z23.number().max(50 * 1024 * 1024)
@@ -29903,8 +30991,8 @@ var intakeRouter = router({
    * Register an uploaded asset in the project_assets table.
    * Called after client uploads to S3.
    */
-  recordAsset: orgProcedure.input(z23.object({
-    projectId: z23.number().optional(),
+  recordAsset: orgMutationProcedure.input(z23.object({
+    projectId: z23.number(),
     fileName: z23.string(),
     mimeType: z23.string(),
     sizeBytes: z23.number(),
@@ -29929,8 +31017,9 @@ var intakeRouter = router({
     ]).default("other"),
     assetType: z23.enum(["image", "pdf", "audio", "video", "url", "text_note"]).default("image")
   })).mutation(async ({ input, ctx }) => {
-    const assetId = await createProjectAsset({
-      projectId: input.projectId ?? 0,
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    const assetId = await createProjectAssetForOrg({
+      projectId: input.projectId,
       filename: input.fileName,
       mimeType: input.mimeType,
       sizeBytes: input.sizeBytes,
@@ -29939,20 +31028,25 @@ var intakeRouter = router({
       category: input.category,
       assetType: input.assetType,
       uploadedBy: ctx.user.id
-    });
+    }, ctx.orgId);
+    if (!assetId) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      throw new Error("Failed to record asset");
+    }
     return { assetId };
   }),
   /**
    * List assets for a project.
    */
-  listAssets: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ input }) => {
+  listAssets: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ input, ctx }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
     return getProjectAssets(input.projectId);
   }),
   /**
    * Process uploaded assets through the AI Intake Engine.
    * Returns suggested ProjectInputs with per-field confidence and reasoning.
    */
-  processAssets: orgProcedure.input(z23.object({
+  processAssets: orgHeavyMutationProcedure.input(z23.object({
     projectId: z23.number().optional(),
     assets: z23.array(z23.object({
       type: z23.enum(["image", "pdf", "audio", "video", "url", "text_note"]),
@@ -29963,7 +31057,20 @@ var intakeRouter = router({
       assetId: z23.number().optional()
     })),
     freeformDescription: z23.string().optional()
-  })).mutation(async ({ input }) => {
+  })).mutation(async ({ input, ctx }) => {
+    const project = input.projectId === void 0 ? null : await requireProjectForOrg(input.projectId, ctx.orgId);
+    const assetIds = input.assets.map((asset) => asset.assetId).filter((id) => id !== void 0);
+    const authorizedAssets = await requireProjectResourceBatchForOrg(
+      assetIds,
+      ctx.orgId,
+      (id, orgId) => requireProjectResourceForOrg(id, orgId, {
+        lookupResource: getProjectAssetById,
+        getProjectId: (asset) => asset.projectId
+      })
+    );
+    if (project && authorizedAssets.some((asset) => asset.project.id !== project.id)) {
+      throw new Error("Resource not found");
+    }
     const intakeAssets = input.assets.map((a) => ({
       type: a.type,
       url: a.url,
@@ -29980,10 +31087,15 @@ var intakeRouter = router({
     const result = await processIntakeAssets(intakeAssets);
     for (const asset of input.assets) {
       if (asset.assetId) {
-        await updateProjectAsset(asset.assetId, {
+        if (!await updateProjectAssetForOrg(asset.assetId, ctx.orgId, {
           aiExtractionResult: result.extractedInsights,
           aiContributions: Object.keys(result.suggestedInputs)
-        });
+        })) {
+          await requireProjectResourceForOrg(asset.assetId, ctx.orgId, {
+            lookupResource: getProjectAssetById,
+            getProjectId: (record) => record.projectId
+          });
+        }
       }
     }
     return result;
@@ -29991,16 +31103,30 @@ var intakeRouter = router({
   /**
    * Link orphaned assets to a project (after project creation).
    */
-  linkAssetsToProject: orgProcedure.input(z23.object({
+  linkAssetsToProject: orgMutationProcedure.input(z23.object({
     assetIds: z23.array(z23.number()),
     projectId: z23.number()
-  })).mutation(async ({ input }) => {
-    for (const assetId of input.assetIds) {
-      await updateProjectAsset(assetId, { projectId: input.projectId });
+  })).mutation(async ({ input, ctx }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    await requireProjectResourceBatchForOrg(
+      input.assetIds,
+      ctx.orgId,
+      (id, orgId) => requireProjectResourceForOrg(id, orgId, {
+        lookupResource: getProjectAssetById,
+        getProjectId: (asset) => asset.projectId
+      })
+    );
+    if (!await linkProjectAssetsForOrg(
+      input.assetIds,
+      input.projectId,
+      ctx.orgId
+    )) {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      throw new Error("Resource not found");
     }
     return { linked: input.assetIds.length };
   }),
-  suggestSection: orgProcedure.input(z23.object({
+  suggestSection: orgHeavyMutationProcedure.input(z23.object({
     section: z23.enum(["context", "strategy", "market", "financial", "design", "execution"]),
     currentFormState: z23.record(z23.string(), z23.any())
   })).mutation(async ({ input }) => {
@@ -30011,7 +31137,7 @@ var intakeRouter = router({
    * Scrape a URL for intake analysis.
    * Uses DynamicConnector for full fallback chain (Firecrawl → ScrapingDog → native).
    */
-  scrapeUrl: orgProcedure.input(z23.object({ url: z23.string().url() })).mutation(async ({ input }) => {
+  scrapeUrl: orgHeavyMutationProcedure.input(z23.object({ url: z23.string().url() })).mutation(async ({ input }) => {
     const { DynamicConnector: DynamicConnector2 } = await Promise.resolve().then(() => (init_dynamic(), dynamic_exports));
     const connector = new DynamicConnector2({
       id: "intake_scrape",
@@ -30046,7 +31172,7 @@ var intakeRouter = router({
   /**
    * Conversational chat for project intake.
    */
-  chat: orgProcedure.input(z23.object({
+  chat: orgHeavyMutationProcedure.input(z23.object({
     messages: z23.array(z23.object({
       role: z23.enum(["user", "assistant"]),
       content: z23.string()
@@ -30094,7 +31220,7 @@ var materialQuantityRouter = router({
    * 6. Compute costs (deterministic)
    * 7. Store to DB + write boardMaterialsCost
    */
-  generate: orgProcedure.input(
+  generate: orgHeavyMutationProcedure.input(
     z24.object({
       projectId: z24.number(),
       ceilingHeightM: z24.number().min(2.4).max(5).optional()
@@ -30102,8 +31228,7 @@ var materialQuantityRouter = router({
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, orgId);
     const storedRooms = await getSpaceProgramRooms(input.projectId, orgId);
     let rooms;
     if (storedRooms.length > 0) {
@@ -30128,11 +31253,9 @@ var materialQuantityRouter = router({
       orgId
     );
     const lockedAllocations = [];
-    const lockedIds = [];
     const lockedGroupMap = /* @__PURE__ */ new Map();
     for (const alloc of existingAllocations) {
       if (alloc.isLocked) {
-        lockedIds.push(alloc.id);
         const key = `${alloc.roomId}:${alloc.element}`;
         if (!lockedGroupMap.has(key)) lockedGroupMap.set(key, []);
         lockedGroupMap.get(key).push({
@@ -30164,11 +31287,6 @@ var materialQuantityRouter = router({
         ctx03Gfa: project.ctx03Gfa ? Number(project.ctx03Gfa) : null
       }
     );
-    await deleteMaterialAllocations(
-      input.projectId,
-      orgId,
-      lockedIds.length > 0 ? lockedIds : void 0
-    );
     const allocationsToInsert = [];
     for (const room of costResult.rooms) {
       for (const element of room.elements) {
@@ -30195,8 +31313,12 @@ var materialQuantityRouter = router({
         }
       }
     }
-    if (allocationsToInsert.length > 0) {
-      await insertMaterialAllocations(allocationsToInsert);
+    if (!await replaceMaterialAllocationsForOrg(
+      input.projectId,
+      orgId,
+      allocationsToInsert
+    )) {
+      await requireProjectForOrg(input.projectId, orgId);
     }
     return costResult;
   }),
@@ -30206,6 +31328,7 @@ var materialQuantityRouter = router({
   getForProject: orgProcedure.input(z24.object({ projectId: z24.number() })).query(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
+    await requireProjectForOrg(input.projectId, orgId);
     const allocations = await getMaterialAllocations(
       input.projectId,
       orgId
@@ -30250,23 +31373,34 @@ var materialQuantityRouter = router({
    * updateAllocation — Edit a single allocation
    * Server-side recalculation of costs
    */
-  updateAllocation: orgProcedure.input(
+  updateAllocation: orgMutationProcedure.input(
     z24.object({
       allocationId: z24.number(),
       allocationPct: z24.number().min(0).max(100),
       surfaceAreaM2: z24.number().min(0)
     })
-  ).mutation(async ({ input }) => {
-    await updateMaterialAllocation(input.allocationId, {
+  ).mutation(async ({ input, ctx }) => {
+    await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
+      lookupResource: getMaterialAllocationById,
+      getProjectId: (allocation) => allocation.projectId,
+      getOrgId: (allocation) => allocation.organizationId
+    });
+    if (!await updateMaterialAllocationForOrg(input.allocationId, ctx.orgId, {
       allocationPct: String(input.allocationPct),
       surfaceAreaM2: String(input.surfaceAreaM2)
-    });
+    })) {
+      await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
+        lookupResource: getMaterialAllocationById,
+        getProjectId: (allocation) => allocation.projectId,
+        getOrgId: (allocation) => allocation.organizationId
+      });
+    }
     return { success: true };
   }),
   /**
    * lockAllocations — Bulk lock/unlock all allocations for a project
    */
-  lockAllocations: orgProcedure.input(
+  lockAllocations: orgMutationProcedure.input(
     z24.object({
       projectId: z24.number(),
       isLocked: z24.boolean()
@@ -30274,6 +31408,7 @@ var materialQuantityRouter = router({
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
+    await requireProjectForOrg(input.projectId, orgId);
     await lockMaterialAllocations(
       input.projectId,
       orgId,
@@ -30284,7 +31419,7 @@ var materialQuantityRouter = router({
   /**
    * addSupplierSource — Register a new supplier URL for scraping
    */
-  addSupplierSource: orgProcedure.input(
+  addSupplierSource: orgMutationProcedure.input(
     z24.object({
       supplierName: z24.string().min(1).max(200),
       supplierUrl: z24.string().url(),
@@ -30319,10 +31454,15 @@ var materialQuantityRouter = router({
    * scrapeSupplierSource — Scrape a supplier URL for pricing
    * Uses DynamicConnector for resilient fetching
    */
-  scrapeSupplierSource: orgProcedure.input(z24.object({ sourceId: z24.number() })).mutation(async ({ input }) => {
-    const sources = await getMaterialSupplierSources();
-    const source = sources.find((s) => s.id === input.sourceId);
-    if (!source) throw new Error("Supplier source not found");
+  scrapeSupplierSource: orgHeavyMutationProcedure.input(z24.object({ sourceId: z24.number() })).mutation(async ({ input, ctx }) => {
+    const source = await requireOrgResourceForOrg(
+      input.sourceId,
+      ctx.orgId,
+      {
+        lookupResource: getMaterialSupplierSourceById,
+        getOrgId: (record) => record.organizationId
+      }
+    );
     let rawContent;
     try {
       const response2 = await fetch(source.supplierUrl, {
@@ -30358,11 +31498,16 @@ ${rawContent.substring(0, 6e3)}`
       const prices = JSON.parse(text2);
       const minPrice = Number(prices.minPrice || prices.min || 0);
       const maxPrice = Number(prices.maxPrice || prices.max || 0);
-      await updateMaterialSupplierSource(input.sourceId, {
+      if (!await updateMaterialSupplierSourceForOrg(input.sourceId, ctx.orgId, {
         lastScrapedAt: /* @__PURE__ */ new Date(),
         lastPriceAedMin: minPrice > 0 ? String(minPrice) : void 0,
         lastPriceAedMax: maxPrice > 0 ? String(maxPrice) : void 0
-      });
+      })) {
+        await requireOrgResourceForOrg(input.sourceId, ctx.orgId, {
+          lookupResource: getMaterialSupplierSourceById,
+          getOrgId: (record) => record.organizationId
+        });
+      }
       return {
         success: true,
         prices: { min: minPrice, max: maxPrice }
@@ -30949,14 +32094,18 @@ var ROOM_CATEGORIES = [
 async function writeFitOutArea(projectId, orgId) {
   const rooms = await getSpaceProgramRooms(projectId, orgId);
   const fitOutSqm = rooms.filter((r) => r.isFitOut).reduce((sum, r) => sum + Number(r.sqm), 0);
-  await updateProjectVerification(projectId, { totalFitoutArea: fitOutSqm });
+  if (!await updateProjectVerificationForOrg(projectId, orgId, {
+    totalFitoutArea: fitOutSqm
+  })) {
+    await requireProjectForOrg(projectId, orgId);
+  }
 }
 var spaceProgramRouter = router({
   /**
    * generate — Create space program from typology + GFA
    * Uses deterministic templates from typology-fitout-rules.ts
    */
-  generate: orgProcedure.input(
+  generate: orgMutationProcedure.input(
     z25.object({
       projectId: z25.number(),
       blocks: z25.array(
@@ -30970,12 +32119,10 @@ var spaceProgramRouter = router({
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, orgId);
     const typology = project.ctx01Typology || "residential";
     const gfa = Number(project.ctx03Gfa) || 0;
     if (gfa <= 0) throw new Error("Project GFA must be > 0");
-    await resetSpaceProgramRooms(input.projectId, orgId, true);
     const result = await extractSpaceProgram({
       projectId: input.projectId,
       organizationId: orgId,
@@ -30983,22 +32130,14 @@ var spaceProgramRouter = router({
       gfa,
       blocks: input.blocks
     });
-    if (result.rooms.length > 0) {
-      await insertSpaceProgramRooms(result.rooms);
-    }
-    if (result.amenitySubSpaces.length > 0) {
-      const insertedRooms = await getSpaceProgramRooms(input.projectId, orgId);
-      for (const amenity of result.amenitySubSpaces) {
-        const dbRoom = insertedRooms.find((r) => r.roomCode === amenity.roomCode);
-        if (dbRoom && amenity.subSpaces.length > 0) {
-          await insertAmenitySubSpaces(
-            amenity.subSpaces.map((sub) => ({
-              ...sub,
-              spaceProgramRoomId: dbRoom.id
-            }))
-          );
-        }
-      }
+    if (!await replaceSpaceProgramRoomsForOrg(
+      input.projectId,
+      orgId,
+      result.rooms,
+      result.amenitySubSpaces,
+      true
+    )) {
+      await requireProjectForOrg(input.projectId, orgId);
     }
     await writeFitOutArea(input.projectId, orgId);
     return {
@@ -31013,7 +32152,7 @@ var spaceProgramRouter = router({
    * extractFromFile — Parse DXF/DWG and create space program
    * File is already uploaded to S3 — pass the S3 key
    */
-  extractFromFile: orgProcedure.input(
+  extractFromFile: orgHeavyMutationProcedure.input(
     z25.object({
       projectId: z25.number(),
       s3Key: z25.string().min(1),
@@ -31022,8 +32161,7 @@ var spaceProgramRouter = router({
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, orgId);
     const typology = project.ctx01Typology || "residential";
     const gfa = Number(project.ctx03Gfa) || 0;
     const ext = input.originalFilename.split(".").pop()?.toLowerCase() || "";
@@ -31041,7 +32179,6 @@ var spaceProgramRouter = router({
       const arrayBuffer = await response.arrayBuffer();
       fileContent = Buffer.from(arrayBuffer);
     }
-    await resetSpaceProgramRooms(input.projectId, orgId, true);
     const result = await extractSpaceProgram({
       projectId: input.projectId,
       organizationId: orgId,
@@ -31051,22 +32188,14 @@ var spaceProgramRouter = router({
       fileExtension: ext,
       originalFilename: input.originalFilename
     });
-    if (result.rooms.length > 0) {
-      await insertSpaceProgramRooms(result.rooms);
-    }
-    if (result.amenitySubSpaces.length > 0) {
-      const insertedRooms = await getSpaceProgramRooms(input.projectId, orgId);
-      for (const amenity of result.amenitySubSpaces) {
-        const dbRoom = insertedRooms.find((r) => r.roomCode === amenity.roomCode);
-        if (dbRoom && amenity.subSpaces.length > 0) {
-          await insertAmenitySubSpaces(
-            amenity.subSpaces.map((sub) => ({
-              ...sub,
-              spaceProgramRoomId: dbRoom.id
-            }))
-          );
-        }
-      }
+    if (!await replaceSpaceProgramRoomsForOrg(
+      input.projectId,
+      orgId,
+      result.rooms,
+      result.amenitySubSpaces,
+      true
+    )) {
+      await requireProjectForOrg(input.projectId, orgId);
     }
     await writeFitOutArea(input.projectId, orgId);
     return {
@@ -31083,6 +32212,7 @@ var spaceProgramRouter = router({
   getForProject: orgProcedure.input(z25.object({ projectId: z25.number() })).query(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
+    await requireProjectForOrg(input.projectId, orgId);
     const rooms = await getSpaceProgramRooms(input.projectId, orgId);
     if (rooms.length === 0) return null;
     const roomsWithSubSpaces = await Promise.all(
@@ -31103,7 +32233,9 @@ var spaceProgramRouter = router({
       if (!blockMap.has(key)) blockMap.set(key, []);
       blockMap.get(key).push(room);
     }
-    await updateProjectVerification(input.projectId, { totalFitoutArea: fitOutSqm });
+    await updateProjectForOrg(input.projectId, orgId, {
+      totalFitoutArea: fitOutSqm
+    });
     return {
       rooms: roomsWithSubSpaces,
       blocks: Array.from(blockMap.entries()).map(([name, blockRooms]) => ({
@@ -31123,7 +32255,7 @@ var spaceProgramRouter = router({
   /**
    * updateRoom — Edit a single room's properties
    */
-  updateRoom: orgProcedure.input(
+  updateRoom: orgMutationProcedure.input(
     z25.object({
       roomId: z25.number(),
       roomName: z25.string().min(1).optional(),
@@ -31135,7 +32267,12 @@ var spaceProgramRouter = router({
       blockName: z25.string().optional(),
       blockTypology: z25.string().optional()
     })
-  ).mutation(async ({ input }) => {
+  ).mutation(async ({ input, ctx }) => {
+    await requireProjectOrgResourceForOrg(input.roomId, ctx.orgId, {
+      lookupResource: getSpaceProgramRoomById,
+      getProjectId: (room) => room.projectId,
+      getOrgId: (room) => room.organizationId
+    });
     const { roomId, ...updates } = input;
     const dbUpdates = {};
     if (updates.roomName) dbUpdates.roomName = updates.roomName;
@@ -31147,13 +32284,19 @@ var spaceProgramRouter = router({
     if (updates.blockName) dbUpdates.blockName = updates.blockName;
     if (updates.blockTypology) dbUpdates.blockTypology = updates.blockTypology;
     dbUpdates.source = "user_manual";
-    await updateSpaceProgramRoom(roomId, dbUpdates);
+    if (!await updateSpaceProgramRoomForOrg(roomId, ctx.orgId, dbUpdates)) {
+      await requireProjectOrgResourceForOrg(roomId, ctx.orgId, {
+        lookupResource: getSpaceProgramRoomById,
+        getProjectId: (room) => room.projectId,
+        getOrgId: (room) => room.organizationId
+      });
+    }
     return { success: true };
   }),
   /**
    * toggleFitOut — Flip isFitOut for a room and mark fitOutOverridden = true
    */
-  toggleFitOut: orgProcedure.input(
+  toggleFitOut: orgMutationProcedure.input(
     z25.object({
       roomId: z25.number(),
       isFitOut: z25.boolean(),
@@ -31162,7 +32305,13 @@ var spaceProgramRouter = router({
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
-    await updateSpaceProgramRoom(input.roomId, {
+    const authorized = await requireProjectOrgResourceForOrg(input.roomId, orgId, {
+      lookupResource: getSpaceProgramRoomById,
+      getProjectId: (room) => room.projectId,
+      getOrgId: (room) => room.organizationId
+    });
+    if (authorized.project.id !== input.projectId) throw new Error("Resource not found");
+    await updateSpaceProgramRoomForOrg(input.roomId, orgId, {
       isFitOut: input.isFitOut,
       fitOutOverridden: true,
       fitOutReason: input.isFitOut ? "Manually included in fit-out scope by developer" : "Manually excluded from fit-out scope by developer"
@@ -31173,7 +32322,7 @@ var spaceProgramRouter = router({
   /**
    * addRoom — Add a manual room to the space program
    */
-  addRoom: orgProcedure.input(
+  addRoom: orgMutationProcedure.input(
     z25.object({
       projectId: z25.number(),
       roomName: z25.string().min(1),
@@ -31188,41 +32337,50 @@ var spaceProgramRouter = router({
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
+    await requireProjectForOrg(input.projectId, orgId);
     const existing = await getSpaceProgramRooms(input.projectId, orgId);
     const sortOrder = existing.length;
     const fitOut = getFitOutTag(input.blockTypology, input.category);
     const roomCode = `MNL${sortOrder + 1}`;
-    await insertSpaceProgramRooms([
-      {
-        projectId: input.projectId,
-        organizationId: orgId,
-        roomCode,
-        roomName: input.roomName,
-        category: input.category,
-        sqm: String(input.sqm),
-        floorLevel: input.floorLevel || null,
-        source: "user_manual",
-        isFitOut: fitOut.isFitOut,
-        fitOutOverridden: false,
-        fitOutReason: fitOut.fitOutReason,
-        finishGrade: input.finishGrade,
-        priority: input.priority,
-        budgetPct: null,
-        sortOrder,
-        blockName: input.blockName,
-        blockTypology: input.blockTypology
-      }
-    ]);
+    if (!await insertSpaceProgramRoomForOrg({
+      projectId: input.projectId,
+      organizationId: orgId,
+      roomCode,
+      roomName: input.roomName,
+      category: input.category,
+      sqm: String(input.sqm),
+      floorLevel: input.floorLevel || null,
+      source: "user_manual",
+      isFitOut: fitOut.isFitOut,
+      fitOutOverridden: false,
+      fitOutReason: fitOut.fitOutReason,
+      finishGrade: input.finishGrade,
+      priority: input.priority,
+      budgetPct: null,
+      sortOrder,
+      blockName: input.blockName,
+      blockTypology: input.blockTypology
+    }, orgId)) {
+      await requireProjectForOrg(input.projectId, orgId);
+    }
     await writeFitOutArea(input.projectId, orgId);
     return { success: true, roomCode };
   }),
   /**
    * deleteRoom — Remove a room from the space program
    */
-  deleteRoom: orgProcedure.input(z25.object({ roomId: z25.number(), projectId: z25.number() })).mutation(async ({ input, ctx }) => {
+  deleteRoom: orgMutationProcedure.input(z25.object({ roomId: z25.number(), projectId: z25.number() })).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
-    await deleteSpaceProgramRoom(input.roomId);
+    const authorized = await requireProjectOrgResourceForOrg(input.roomId, orgId, {
+      lookupResource: getSpaceProgramRoomById,
+      getProjectId: (room) => room.projectId,
+      getOrgId: (room) => room.organizationId
+    });
+    if (authorized.project.id !== input.projectId) throw new Error("Resource not found");
+    if (!await deleteSpaceProgramRoomForOrg(input.roomId, orgId)) {
+      throw new Error("Resource not found");
+    }
     await writeFitOutArea(input.projectId, orgId);
     return { success: true };
   }),
@@ -31230,14 +32388,12 @@ var spaceProgramRouter = router({
    * resetToTypologyDefaults — Wipe non-overridden rooms and regenerate from template
    * Rooms with fitOutOverridden = true survive the reset
    */
-  resetToTypologyDefaults: orgProcedure.input(z25.object({ projectId: z25.number() })).mutation(async ({ input, ctx }) => {
+  resetToTypologyDefaults: orgMutationProcedure.input(z25.object({ projectId: z25.number() })).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
-    const project = await getProjectById(input.projectId);
-    if (!project) throw new Error("Project not found");
+    const project = await requireProjectForOrg(input.projectId, orgId);
     const typology = project.ctx01Typology || "residential";
     const gfa = Number(project.ctx03Gfa) || 0;
-    await resetSpaceProgramRooms(input.projectId, orgId, true);
     const overriddenRooms = await getSpaceProgramRooms(input.projectId, orgId);
     const overriddenCodes = new Set(overriddenRooms.map((r) => r.roomCode));
     const result = await extractSpaceProgram({
@@ -31247,22 +32403,14 @@ var spaceProgramRouter = router({
       gfa
     });
     const newRooms = result.rooms.filter((r) => !overriddenCodes.has(r.roomCode));
-    if (newRooms.length > 0) {
-      await insertSpaceProgramRooms(newRooms);
-    }
-    if (result.amenitySubSpaces.length > 0) {
-      const insertedRooms = await getSpaceProgramRooms(input.projectId, orgId);
-      for (const amenity of result.amenitySubSpaces) {
-        const dbRoom = insertedRooms.find((r) => r.roomCode === amenity.roomCode);
-        if (dbRoom && amenity.subSpaces.length > 0) {
-          await insertAmenitySubSpaces(
-            amenity.subSpaces.map((sub) => ({
-              ...sub,
-              spaceProgramRoomId: dbRoom.id
-            }))
-          );
-        }
-      }
+    if (!await replaceSpaceProgramRoomsForOrg(
+      input.projectId,
+      orgId,
+      newRooms,
+      result.amenitySubSpaces,
+      true
+    )) {
+      await requireProjectForOrg(input.projectId, orgId);
     }
     await writeFitOutArea(input.projectId, orgId);
     return {

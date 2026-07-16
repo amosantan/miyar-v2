@@ -1,75 +1,85 @@
 # Current Task
 
-- ID: TR-03H
-- Roadmap step: `TR-03H`
-- Title: Design authorization hardening
+- ID: TR-04
+- Roadmap step: `TR-04`
+- Title: Authorize remaining project routers
 - Status: PASS
 - Owner: Codex
 - Started: 2026-07-16
-- Risk: Critical authentication, tenant isolation, transaction, migration, storage, public-share, and release work
-- Selected loop: API/security defect loop plus schema and release verification
+- Risk: Critical API authorization, tenant isolation, transaction, and global-governance work
+- Selected loop: API/security defect loop with real-SQL verification
 - Retry budget: 3 evidence-based attempts per failure class
-- Approval gates: applying migration 0045 to a shared target, pushing `main`, production deployment, and production smoke writes require separate approval
+- Resource budget: One bounded roadmap step implemented in five router batches; stop if a batch exposes ambiguous ownership or a new schema/data policy.
+- Approval gates: production null-owner queries beyond read-only counts, data repair/backfill, shared migrations, push, deployment, and release exceptions require separate approval
 
 ## Goal
 
-Close the authorization guarantees that remained unproven after TR-03: live organization membership, design-role enforcement, final scoped share writes, atomic composite mutations, rejected-upload cleanup, public-share cache/index controls, real MySQL evidence, and canonical-main release identity.
+Close the 93 `TR-04` authorization inventory rows across 18 non-design routers without changing numerical policy or crossing the eight-row `TR-05` pooled-data boundary.
 
 ## Locked Decisions
 
-- Every organization-scoped request requires exactly one current membership row; global admins do not bypass membership.
-- Design viewers are read-only; members and organization admins may perform normal design mutations; approval and share creation require organization admin.
-- Migration 0045 adds unique membership and public-share-token indexes; duplicate production data fails closed for human resolution.
-- Direct upload rejection uses compensating storage deletion; indeterminate commit outcomes are alerted rather than deleted blindly.
-- The canonical-main PR includes all nine existing branch commits plus TR-03H and is reviewed as one complete release diff.
-
-## Acceptance Criteria
-
-- [x] Removed, missing, duplicate, and stale memberships are rejected before handler access.
-- [x] Design viewers cannot mutate; organization-admin-only operations reject members and viewers.
-- [x] Share-token creation is organization/project scoped, collision-safe, and database-unique.
-- [x] Board deletion, board creation, RFQ insertion, and floor-plan asset linking are atomic.
-- [x] Explicit rejected asset/floor-plan persistence removes the uploaded object in unit contracts.
-- [x] Public-share API and page responses are `no-store` and `noindex` in application/header contracts.
-- [x] Real isolated MySQL tests exercise every named TR-03 scoped helper and rollback path.
-- [x] Authorization inventory covers the full 329-procedure app router with hash-bound final-write evidence.
-- [x] Unit tests, MySQL integration, authorization audit, TypeScript, build, and independent security review pass.
-- [x] Authorized PlanetScale development-branch compatibility run passes.
-- [x] Canonical `main` contains the complete reviewed release, migration 0045 is applied, and production runs the exact canonical release SHA.
+- `orgProcedure` permits reads for current viewers, members, and organization admins.
+- `orgMutationProcedure` permits ordinary mutations for members and organization admins; viewers are read-only.
+- `orgAdminProcedure` is required for project deletion and organization-level destructive actions.
+- Rate-limited organization reads and mutations preserve the existing rate-limit key and add the appropriate organization/role boundary.
+- `adminProcedure` is reserved for platform-wide governance and does not bypass tenant authorization on organization-owned resources.
+- Legacy `project.userId` ownership and user fallbacks are removed. Null, orphaned, and inconsistent organization ownership fails closed.
+- Single-row writes use organization/project predicates and affected-row validation. Composite and race-sensitive writes use transactions and parent locking.
+- TR-05 rows, RFQ idempotency, scoring/pricing policy, production data repair, deployment, and release are outside this task.
 
 ## Baseline Evidence
 
-- Branch created from `1f972f4`.
-- `pnpm audit:authorization`: PASS but covers 327 router-directory procedures and omits two system procedures.
-- Targeted authorization suite: 68 passing tests.
+- Branch: `codex/tr-04-authorization` from `3bfc990`.
+- `pnpm audit:authorization`: PASS, 329 application procedures, 93 `TR-04` rows, 8 `TR-05` rows.
+- Core membership/resource/design authorization baseline: PASS, 75 tests.
+- Exact TR-04 procedure keys remain canonical in `docs/security/resource-authorization-inventory.json`; this task does not create a duplicate inventory.
+
+## Acceptance Criteria
+
+- [x] Generic organization read, mutation, admin, rate-limited read, and heavy-mutation procedures are defined with compatibility aliases for design routes.
+- [x] All 93 baseline TR-04 keys are reclassified with semantic route-to-final-write evidence.
+- [x] Project and child reads reject cross-organization, missing, null-owner, orphaned, and inconsistent-parent resources with the established concealed `NOT_FOUND`.
+- [x] Viewers cannot invoke ordinary mutations; project deletion requires organization admin.
+- [x] No tenant mutation trusts a caller-controlled organization identifier or legacy `project.userId` fallback.
+- [x] Single-row writes are organization/project scoped at final SQL; composite writes are atomic.
+- [x] Storage, AI, report, PDF, webhook, and calculation side effects do not start after rejected authorization.
+- [x] Platform alerts and global seed operations require global admin; portfolio insights are organization scoped.
+- [x] TR-05 retains exactly its eight baseline rows unless a separately reviewed live-code addition changes the inventory.
+- [x] Targeted router contracts, real MySQL tests, authorization audit, safe full tests, TypeScript, build, public-share regressions, and independent review pass.
+- [x] `KF-006` and durable roadmap state close only with objective evidence.
+
+## Execution Batches
+
+1. Foundation and inventory evidence.
+2. Project roots, admin overrides, customer success, and bias: 25 paths.
+3. Scenario and intelligence: 26 paths.
+4. Space programme, intake, material quantity, portfolio, and design advisor: 16 paths.
+5. Market intelligence, analytics, predictive, sales premium, and sustainability: 18 paths.
+6. Autonomous and seed governance: 8 paths.
+
+## Completion Evidence
+
+- `pnpm audit:authorization`: PASS; 329 procedures inventoried, zero `TR-04` rows, exactly eight `TR-05` rows, no read-only organization mutations, and current hash-bound scoped-write evidence.
+- Targeted organization, market-resource, rate-limit, and TR-04 router contracts: PASS, 29/29.
+- `pnpm test:authorization:mysql`: PASS, 13/13 on disposable MySQL 8 with cleanup; report ownership races and rollback, portfolio-alert concurrent deduplication/expiry, public-share expiry, membership roles, and representative scoped writes execute against the real engine.
+- `DATABASE_URL='' pnpm test`: PASS, 950 passed and 22 skipped; no shared database connection.
 - `pnpm check`: PASS.
-- Production currently runs the feature-branch release rather than canonical `main`.
+- `pnpm build`: PASS for client, Node server, and serverless bundle.
+- `git diff --check`: PASS.
+- Public-share access/header regression suites passed within the safe full suite.
+- Claude Code's reopened ultra-review first returned `CHANGES_REQUIRED` for tenant-triggered global platform alerts through `project.evaluate`. The call was removed, a router-source regression and audit prohibition were added, and the fresh review returned `APPROVED_NO_OBJECTION`.
+- Migration `0046_far_blob.sql` was generated, verified against disposable local MySQL, and applied to the approved production PlanetScale database. Post-DDL inspection confirms all 16 columns, the primary key, and unique `(organization_id, active_dedup_key)` index.
+- Production release preflight found 2 null-organization projects, 4 null-organization scenarios, and 8 reports whose project is missing or null-owned. Per the locked fail-closed policy, application deployment is `NEEDS_HUMAN` pending a deterministic remediation decision; no backfill or application deployment was performed.
 
-## Current Verification Evidence
+## Reopened Remediation
 
-- `DATABASE_URL='' pnpm test`: PASS, 930 passed and 22 skipped.
-- `pnpm check`: PASS.
-- `pnpm audit:authorization`: PASS, 329 procedures.
-- `pnpm build`: PASS for client, Node server, and generated serverless bundle.
-- Membership, design-role, public-share-header, upload-compensation, and design authorization contracts: 63 passing targeted tests.
-- Guarded MySQL launcher rejects caller-provided `DATABASE_URL` and non-local `TEST_DATABASE_URL`.
-- First guarded MySQL 8 run exposed Drizzle-wrapped duplicate-key handling; the retry detector was corrected to inspect the error cause chain.
-- Final guarded MySQL 8 run: PASS, 7/7 serial real-SQL tests; transaction rollback triggers, two-connection ownership locking, unique indexes, and scoped writes passed.
-- Runner-finally cleanup was independently queried at zero remaining fixture rows; the disposable container was removed.
-- MySQL evidence is bound to SHA-256 hashes of the tested schema, migration, helpers, router, runner/config, cleanup script, and test source; the authorization audit downgrades stale hashes.
-- Complete-diff Claude review ended `APPROVED_NO_OBJECTION` after verifying evidence hash binding in normal audit check mode.
-- Authorized PlanetScale compatibility branch `tr03h-compat-20260716`: schema push PASS; 0044/duplicate preflight PASS; 6/6 applicable scoped-SQL tests PASS with one MySQL-only trigger fault-injection test skipped; branch cleanup completed and the disposable branch was deleted.
-- Post-compatibility mandatory local MySQL 8 rerun: 7/7 PASS including trigger rollback; full 930/22 suite, TypeScript, authorization audit, and build PASS.
-- Draft PR `#1` contains the complete reviewed release diff plus this CI-gate state record. GitHub Actions did not start either job because the repository owner account is locked for a billing issue; no CI step executed.
-- Release exception approved by the user: use Vercel’s hosted build check on every pushed release commit as the external clean-build gate, supported by local MySQL 8, PlanetScale compatibility, full tests, authorization audit, TypeScript, build, and independent review.
-- Production duplicate preflight passed with zero duplicate membership pairs and zero duplicate non-null share tokens.
-- PlanetScale backup `6168hbonz89d` completed successfully before the shared-target migration.
-- Migration 0045 is fully applied in production: `organization_members_org_user_unique` and `ai_design_briefs_share_token_unique` are present and unique.
-- Canonical `main` and `origin/main` were fast-forwarded to application release SHA `9e5d1e395ab7486fdfc73943d279820d5a91d53c`.
-- Vercel production deployment `dpl_HQ6mnWadr46VhfjS3GhGQnxi48Ng` reached `READY` from that exact SHA.
-- Production read-only smoke checks passed: root and health return 200; anonymous organization access and unauthenticated cron return 401; invalid and malformed shares return 404/400 with `private, no-store`, `no-cache`, and `noindex, nofollow, noarchive`.
-- Final independent Claude Code review ended `APPROVED_NO_OBJECTION`.
+- Reopened: 2026-07-16
+- Reason: A later Claude Code ultra-review identified two valid TR-04 gaps: project design-brief report artifacts were persisted through raw non-atomic helpers after the initial guard, and `portfolio.checkAlerts` allowed tenant members to write the global `platform_alerts` table.
+- Required closeout: atomic organization-locked report persistence, an organization-owned portfolio-alert model, strengthened audit/evidence controls, fresh disposable MySQL evidence, and a new independent review.
 
-## Next Action
+## Residual Risk / Next Action
 
-Start bounded planning for `TR-04`, the next dependency-valid roadmap step.
+- The eight pooled learning/prediction paths remain intentionally assigned to `TR-05`.
+- Production null-organization preflight is complete and nonzero: 2 projects, 4 scenarios, and 8 affected reports. Application deployment is stopped at `NEEDS_HUMAN`; see `KF-015`.
+- PlanetScale compatibility was not rerun for this uncommitted TR-04 worktree; the disposable MySQL 8 reference gate is current. Any future release must re-evaluate provider compatibility and `KF-014`.
+- Next executable roadmap step: `TR-05`.

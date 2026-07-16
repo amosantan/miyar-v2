@@ -4,13 +4,27 @@
  * Competitor Intelligence, Trend Tags, Audit Logging
  */
 import { z } from "zod";
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
+import {
+  adminProcedure,
+  orgMutationProcedure,
+  orgProcedure,
+  protectedProcedure,
+  router,
+} from "../_core/trpc";
 import * as db from "../db";
 import { nanoid } from "nanoid";
 import { DynamicConnector } from "../engines/ingestion/connectors/dynamic";
 import { runSingleConnector, testScrape } from "../engines/ingestion/orchestrator";
 import { generateCsvTemplate, processCsvUpload } from "../engines/ingestion/csv-pipeline";
 import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
+import { requireProjectForOrg } from "../_core/project-access";
+import {
+  requireEvidenceRecordForOrg,
+  requireEvidenceReferenceTargetForOrg,
+  requireMarketTagTargetForOrg,
+  requireTaggedEntitiesForOrg,
+} from "../_core/market-resource-access";
 
 // ─── Shared Schemas ─────────────────────────────────────────────────────────
 
@@ -274,7 +288,7 @@ export const marketIntelligenceRouter = router({
   // ─── Evidence Records ──────────────────────────────────────────────────────
 
   evidence: router({
-    list: protectedProcedure
+    list: orgProcedure
       .input(z.object({
         projectId: z.number().optional(),
         category: z.string().optional(),
@@ -283,9 +297,18 @@ export const marketIntelligenceRouter = router({
         confidentiality: z.string().optional(),
         limit: z.number().default(100),
       }).optional())
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        if (!input?.projectId) {
+          return db.listPublicEvidenceRecords({
+            category: input?.category,
+            reliabilityGrade: input?.reliabilityGrade,
+            evidencePhase: input?.evidencePhase,
+            limit: input?.limit ?? 100,
+          });
+        }
+        await requireProjectForOrg(input.projectId, ctx.orgId);
         return db.listEvidenceRecords({
-          projectId: input?.projectId,
+          projectId: input.projectId,
           category: input?.category,
           reliabilityGrade: input?.reliabilityGrade,
           evidencePhase: input?.evidencePhase,
@@ -294,18 +317,27 @@ export const marketIntelligenceRouter = router({
         });
       }),
 
-    get: protectedProcedure
+    get: orgProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return db.getEvidenceRecordById(input.id);
+      .query(async ({ ctx, input }) => {
+        const authorized = await requireEvidenceRecordForOrg(input.id, ctx.orgId);
+        return authorized.evidence;
       }),
 
     create: adminProcedure
       .input(evidenceRecordSchema)
       .mutation(async ({ input, ctx }) => {
+        if (input.projectId !== undefined) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Project-linked evidence must be created within an organization workflow",
+          });
+        }
         const recordId = generateRecordId();
         const result = await db.createEvidenceRecord({
           ...input,
+          projectId: null,
+          orgId: null,
           recordId,
           priceMin: input.priceMin ? String(input.priceMin) as any : null,
           priceTypical: input.priceTypical ? String(input.priceTypical) as any : null,
@@ -338,6 +370,12 @@ export const marketIntelligenceRouter = router({
         records: z.array(evidenceRecordSchema),
       }))
       .mutation(async ({ input, ctx }) => {
+        if (input.records.some(record => record.projectId !== undefined)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Project-linked evidence must be created within an organization workflow",
+          });
+        }
         const runId = generateRunId("BULK");
         const startedAt = new Date();
         let imported = 0;
@@ -349,6 +387,8 @@ export const marketIntelligenceRouter = router({
             const recordId = generateRecordId();
             await db.createEvidenceRecord({
               ...rec,
+              projectId: null,
+              orgId: null,
               recordId,
               priceMin: rec.priceMin ? String(rec.priceMin) as any : null,
               priceTypical: rec.priceTypical ? String(rec.priceTypical) as any : null,
@@ -385,7 +425,9 @@ export const marketIntelligenceRouter = router({
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        await db.deleteEvidenceRecord(input.id);
+        if (!(await db.deleteGlobalEvidenceRecord(input.id))) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
         await db.createAuditLog({
           userId: ctx.user.id,
           action: "evidence_record.delete",
@@ -395,22 +437,37 @@ export const marketIntelligenceRouter = router({
         return { success: true };
       }),
 
-    stats: protectedProcedure.query(async () => {
-      return db.getEvidenceStats();
+    stats: orgProcedure.query(async () => {
+      return db.getPublicEvidenceStats();
     }),
 
     // V2.2 — Evidence References
-    listReferences: protectedProcedure
+    listReferences: orgProcedure
       .input(z.object({
         evidenceRecordId: z.number().optional(),
         targetType: z.string().optional(),
         targetId: z.number().optional(),
-      }))
-      .query(async ({ input }) => {
+      }).refine(
+        value =>
+          value.evidenceRecordId !== undefined ||
+          (value.targetType !== undefined && value.targetId !== undefined),
+        "Evidence record or complete target is required"
+      ))
+      .query(async ({ ctx, input }) => {
+        if (input.evidenceRecordId !== undefined) {
+          await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
+        }
+        if (input.targetType !== undefined && input.targetId !== undefined) {
+          await requireEvidenceReferenceTargetForOrg(
+            input.targetType,
+            input.targetId,
+            ctx.orgId
+          );
+        }
         return db.listEvidenceReferences(input);
       }),
 
-    addReference: adminProcedure
+    addReference: orgMutationProcedure
       .input(z.object({
         evidenceRecordId: z.number(),
         targetType: z.enum([
@@ -422,6 +479,12 @@ export const marketIntelligenceRouter = router({
         citationText: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
+        await requireEvidenceReferenceTargetForOrg(
+          input.targetType,
+          input.targetId,
+          ctx.orgId
+        );
         const result = await db.createEvidenceReference({ ...input, addedBy: ctx.user.id });
         await db.createAuditLog({
           userId: ctx.user.id,
@@ -432,10 +495,22 @@ export const marketIntelligenceRouter = router({
         return result;
       }),
 
-    removeReference: adminProcedure
+    removeReference: orgMutationProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        await db.deleteEvidenceReference(input.id);
+        const reference = await db.getEvidenceReferenceById(input.id);
+        if (!reference) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
+        await requireEvidenceRecordForOrg(reference.evidenceRecordId, ctx.orgId);
+        await requireEvidenceReferenceTargetForOrg(
+          reference.targetType,
+          reference.targetId,
+          ctx.orgId
+        );
+        if (!(await db.deleteEvidenceReferenceIfMatches(input.id, reference))) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
         await db.createAuditLog({
           userId: ctx.user.id,
           action: "evidence_reference.delete",
@@ -446,12 +521,17 @@ export const marketIntelligenceRouter = router({
       }),
 
     // Get evidence records linked to a specific target (e.g., scenario, design_brief)
-    getForTarget: protectedProcedure
+    getForTarget: orgProcedure
       .input(z.object({
         targetType: z.string(),
         targetId: z.number(),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireEvidenceReferenceTargetForOrg(
+          input.targetType,
+          input.targetId,
+          ctx.orgId
+        );
         return db.getEvidenceForTarget(input.targetType, input.targetId);
       }),
   }),
@@ -977,37 +1057,58 @@ export const marketIntelligenceRouter = router({
       }),
 
     // ─── Entity Tagging ───────────────────────────────────────────────────
-    attach: adminProcedure
+    attach: orgMutationProcedure
       .input(z.object({
         tagId: z.number(),
         entityType: z.enum(["competitor_project", "scenario", "evidence_record", "project"]),
         entityId: z.number(),
       }))
       .mutation(async ({ input, ctx }) => {
+        await requireMarketTagTargetForOrg(
+          input.entityType,
+          input.entityId,
+          ctx.orgId
+        );
         const result = await db.createEntityTag({ ...input, addedBy: ctx.user.id });
         return result;
       }),
 
-    detach: adminProcedure
+    detach: orgMutationProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
-        await db.deleteEntityTag(input.id);
+      .mutation(async ({ input, ctx }) => {
+        const entityTag = await db.getEntityTagById(input.id);
+        if (!entityTag) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
+        await requireMarketTagTargetForOrg(
+          entityTag.entityType,
+          entityTag.entityId,
+          ctx.orgId
+        );
+        if (!(await db.deleteEntityTagIfMatches(input.id, entityTag))) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
         return { success: true };
       }),
 
-    getEntityTags: protectedProcedure
+    getEntityTags: orgProcedure
       .input(z.object({
         entityType: z.enum(["competitor_project", "scenario", "evidence_record", "project"]),
         entityId: z.number(),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireMarketTagTargetForOrg(
+          input.entityType,
+          input.entityId,
+          ctx.orgId
+        );
         return db.getEntityTags(input.entityType, input.entityId);
       }),
 
-    getTaggedEntities: protectedProcedure
+    getTaggedEntities: orgProcedure
       .input(z.object({ tagId: z.number() }))
-      .query(async ({ input }) => {
-        return db.getTaggedEntities(input.tagId);
+      .query(async ({ ctx, input }) => {
+        return requireTaggedEntitiesForOrg(input.tagId, ctx.orgId);
       }),
   }),
 

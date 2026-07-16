@@ -1,5 +1,15 @@
 import { z } from "zod";
-import { router, protectedProcedure, heavyProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
+import {
+  orgHeavyMutationProcedure,
+  orgMutationProcedure,
+  orgProcedure,
+  router,
+} from "../_core/trpc";
+import { requireProjectForOrg } from "../_core/project-access";
+import {
+  requireProjectResourceForOrg,
+} from "../_core/resource-access";
 import * as db from "../db";
 import { getDb } from "../db";
 import { runScenarioComparison } from "../engines/scenario";
@@ -53,15 +63,14 @@ function projectToInputs(p: any): ProjectInputs {
 }
 
 export const scenarioRouter = router({
-  list: protectedProcedure
+  list: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || project.userId !== ctx.user.id) return [];
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       return db.getScenariosByProject(input.projectId);
     }),
 
-  create: protectedProcedure
+  create: orgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       name: z.string().min(1),
@@ -69,15 +78,17 @@ export const scenarioRouter = router({
       variableOverrides: z.record(z.string(), z.any()),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || project.userId !== ctx.user.id) throw new Error("Project not found");
-
-      const result = await db.createScenarioRecord({
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      const result = await db.createScenarioRecordForOrg({
         projectId: input.projectId,
         name: input.name,
         description: input.description,
         variableOverrides: input.variableOverrides,
-      });
+      }, ctx.orgId);
+      if (!result) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+        throw new Error("Failed to create scenario");
+      }
 
       await db.createAuditLog({
         userId: ctx.user.id,
@@ -89,18 +100,26 @@ export const scenarioRouter = router({
       return result;
     }),
 
-  delete: protectedProcedure
+  delete: orgMutationProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      await db.deleteScenario(input.id);
+      await requireProjectResourceForOrg(input.id, ctx.orgId, {
+        lookupResource: db.getScenarioById,
+        getProjectId: scenario => scenario.projectId,
+      });
+      if (!(await db.deleteScenarioForOrg(input.id, ctx.orgId))) {
+        await requireProjectResourceForOrg(input.id, ctx.orgId, {
+          lookupResource: db.getScenarioById,
+          getProjectId: scenario => scenario.projectId,
+        });
+      }
       return { success: true };
     }),
 
-  compare: protectedProcedure
+  compare: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || project.userId !== ctx.user.id) return [];
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const modelVersion = await db.getActiveModelVersion();
       if (!modelVersion) return [];
@@ -139,7 +158,7 @@ export const scenarioRouter = router({
     }),
 
   // ─── D1: Stress Test ────────────────────────────────────────────────
-  stressTest: protectedProcedure
+  stressTest: orgMutationProcedure
     .input(z.object({
       scenarioId: z.number(),
       stressCondition: z.enum(["cost_surge", "demand_collapse", "market_shift", "data_disruption"]),
@@ -147,9 +166,10 @@ export const scenarioRouter = router({
       tier: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const drizzle = await getDb();
-      if (!drizzle) throw new Error("Database unavailable");
-
+      await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+        lookupResource: db.getScenarioById,
+        getProjectId: scenario => scenario.projectId,
+      });
       const result = simulateStressTest(
         input.stressCondition as StressCondition,
         input.baselineBudgetAed,
@@ -157,20 +177,29 @@ export const scenarioRouter = router({
       );
 
       // Persist to scenario_stress_tests
-      await drizzle.insert(scenarioStressTests).values({
+      if (!(await db.createScenarioStressTestForOrg({
         scenarioId: input.scenarioId,
         stressCondition: input.stressCondition,
         impactMagnitudePercent: String(result.impactMagnitudePercent),
         resilienceScore: result.resilienceScore,
         failurePoints: result.failurePoints,
-      });
+      }, ctx.orgId))) {
+        await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+          lookupResource: db.getScenarioById,
+          getProjectId: scenario => scenario.projectId,
+        });
+      }
 
       return result;
     }),
 
-  listStressTests: protectedProcedure
+  listStressTests: orgProcedure
     .input(z.object({ scenarioId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+        lookupResource: db.getScenarioById,
+        getProjectId: scenario => scenario.projectId,
+      });
       const drizzle = await getDb();
       if (!drizzle) return [];
 
@@ -182,7 +211,7 @@ export const scenarioRouter = router({
     }),
 
   // ─── D2: Economic Model (ROI) ──────────────────────────────────────
-  calculateRoi: protectedProcedure
+  calculateRoi: orgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       scenarioId: z.number().optional(),
@@ -195,9 +224,20 @@ export const scenarioRouter = router({
       decisionSpeedAdjustment: z.number().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const drizzle = await getDb();
-      if (!drizzle) throw new Error("Database unavailable");
-
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      if (input.scenarioId !== undefined) {
+        const authorized = await requireProjectResourceForOrg(
+          input.scenarioId,
+          ctx.orgId,
+          {
+            lookupResource: db.getScenarioById,
+            getProjectId: scenario => scenario.projectId,
+          }
+        );
+        if (authorized.project.id !== input.projectId) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
+      }
       const roi = calculateProjectRoi({
         tier: input.tier,
         scale: input.scale,
@@ -209,7 +249,7 @@ export const scenarioRouter = router({
       });
 
       // Persist to project_roi_models
-      await drizzle.insert(projectRoiModels).values({
+      if (!(await db.createProjectRoiModelForOrg({
         projectId: input.projectId,
         scenarioId: input.scenarioId ?? null,
         reworkCostAvoided: String(roi.reworkCostAvoided),
@@ -217,13 +257,15 @@ export const scenarioRouter = router({
         totalValueCreated: String(roi.totalValueCreated),
         netRoiPercent: String(roi.netRoiPercent),
         confidenceMultiplier: String(roi.confidenceMultiplier),
-      });
+      }, ctx.orgId))) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+      }
 
       return roi;
     }),
 
   // ─── D3: Risk Surface Map ──────────────────────────────────────────
-  generateRiskSurface: protectedProcedure
+  generateRiskSurface: orgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       tier: z.string(),
@@ -232,9 +274,7 @@ export const scenarioRouter = router({
       complexityScore: z.number(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const drizzle = await getDb();
-      if (!drizzle) throw new Error("Database unavailable");
-
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       const domains: RiskInputParams["domain"][] = [
         "Model", "Operational", "Commercial", "Technology",
         "Data", "Behavioural", "Strategic", "Regulatory",
@@ -250,9 +290,8 @@ export const scenarioRouter = router({
         })
       );
 
-      // Persist each domain result
-      for (const r of results) {
-        await drizzle.insert(riskSurfaceMaps).values({
+      if (!(await db.createRiskSurfaceMapsForOrg(
+        results.map(r => ({
           projectId: input.projectId,
           domain: r.domain,
           probability: r.probability,
@@ -261,7 +300,10 @@ export const scenarioRouter = router({
           controlStrength: r.controlStrength,
           compositeRiskScore: r.compositeRiskScore,
           riskBand: r.riskBand,
-        });
+        })),
+        ctx.orgId
+      ))) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
       }
 
       return {
@@ -273,9 +315,10 @@ export const scenarioRouter = router({
       };
     }),
 
-  getRiskSurface: protectedProcedure
+  getRiskSurface: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       const drizzle = await getDb();
       if (!drizzle) return [];
 
@@ -287,14 +330,13 @@ export const scenarioRouter = router({
     }),
 
   // ─── D4: Scenario Ranking ─────────────────────────────────────────
-  rank: protectedProcedure
+  rank: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
       const drizzle = await getDb();
       if (!drizzle) return [];
 
-      const project = await db.getProjectById(input.projectId);
-      if (!project || project.userId !== ctx.user.id) return [];
+      await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const scenarios = await db.getScenariosByProject(input.projectId);
       if (scenarios.length === 0) return [];
@@ -349,7 +391,7 @@ export const scenarioRouter = router({
 
   // ─── Phase F: Monte Carlo Simulation ────────────────────────────────────
 
-  runMonteCarlo: heavyProcedure
+  runMonteCarlo: orgHeavyMutationProcedure
     .input(z.object({
       projectId: z.number(),
       iterations: z.number().min(100).max(50000).default(10000),
@@ -358,8 +400,7 @@ export const scenarioRouter = router({
       trendVolatility: z.number().min(0).max(20).default(3),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new Error("Project not found");
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const { runMonteCarloSimulation } = await import("../engines/predictive/monte-carlo");
 
@@ -382,12 +423,10 @@ export const scenarioRouter = router({
       });
 
       // Persist
-      const d = await getDb();
-      if (d) {
-        await d.insert(monteCarloSimulations).values({
+      if (!(await db.createMonteCarloSimulationForOrg({
           projectId: input.projectId,
           userId: ctx.user.id,
-          orgId: ctx.user.orgId || null,
+          orgId: ctx.orgId,
           iterations: result.iterations,
           p5: String(result.percentiles.p5),
           p10: String(result.percentiles.p10),
@@ -405,15 +444,17 @@ export const scenarioRouter = router({
           histogram: result.histogram,
           timeSeriesData: result.timeSeries,
           config: result.config,
-        });
+        }, ctx.orgId))) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
       }
 
       return result;
     }),
 
-  getSimulations: protectedProcedure
+  getSimulations: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       const d = await getDb();
       if (!d) return [];
       return d.select().from(monteCarloSimulations)
@@ -422,13 +463,17 @@ export const scenarioRouter = router({
         .limit(10);
     }),
 
-  getSimulation: protectedProcedure
+  getSimulation: orgProcedure
     .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => {
-      const d = await getDb();
-      if (!d) return null;
-      const rows = await d.select().from(monteCarloSimulations)
-        .where(eq(monteCarloSimulations.id, input.id));
-      return rows[0] || null;
+    .query(async ({ ctx, input }) => {
+      const authorized = await requireProjectResourceForOrg(
+        input.id,
+        ctx.orgId,
+        {
+          lookupResource: db.getMonteCarloSimulationById,
+          getProjectId: simulation => simulation.projectId,
+        }
+      );
+      return authorized.resource;
     }),
 });

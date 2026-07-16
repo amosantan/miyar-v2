@@ -3,7 +3,21 @@
  * Logic Registry, Scenario Simulation, Explainability, Outcomes, Benchmark Learning
  */
 import { z } from "zod";
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
+import {
+  adminProcedure,
+  orgAdminProcedure,
+  orgHeavyMutationProcedure,
+  orgMutationProcedure,
+  orgProcedure,
+  protectedProcedure,
+  router,
+} from "../_core/trpc";
+import { requireProjectForOrg } from "../_core/project-access";
+import {
+  requireProjectResourceBatchForOrg,
+  requireProjectResourceForOrg,
+} from "../_core/resource-access";
 import {
   getPublishedLogicVersion,
   listLogicVersions,
@@ -17,15 +31,16 @@ import {
   setLogicThresholds,
   getLogicChangeLog,
   addLogicChangeLogEntry,
-  createScenarioInput,
+  createScenarioInputForOrg,
   getScenarioInput,
-  createScenarioOutput,
+  createScenarioOutputForOrg,
   getScenarioOutput,
   listScenarioOutputs,
-  createScenarioComparison,
+  createScenarioComparisonForOrg,
   listScenarioComparisons,
   getScenarioComparisonById,
-  createProjectOutcome,
+  getScenarioById,
+  createProjectOutcomeForOrg,
   getProjectOutcomes,
   listAllOutcomes,
   createBenchmarkSuggestion,
@@ -158,9 +173,10 @@ export const intelligenceRouter = router({
 
   // ─── V2.10: Calibration ────────────────────────────────────────────────────
 
-  calibrate: adminProcedure
+  calibrate: orgAdminProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       // Get current published logic version
       const logicVersion = await getPublishedLogicVersion();
       if (!logicVersion) return { error: "No published logic version" };
@@ -198,20 +214,34 @@ export const intelligenceRouter = router({
   // ─── V2.11: Scenario Simulation ────────────────────────────────────────────
 
   scenarios: router({
-    saveInput: protectedProcedure
+    saveInput: orgMutationProcedure
       .input(z.object({ scenarioId: z.number(), jsonInput: z.unknown() }))
-      .mutation(async ({ input }) => {
-        const id = await createScenarioInput({ scenarioId: input.scenarioId, jsonInput: input.jsonInput });
+      .mutation(async ({ ctx, input }) => {
+        await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+          lookupResource: getScenarioById,
+          getProjectId: scenario => scenario.projectId,
+        });
+        const id = await createScenarioInputForOrg(
+          { scenarioId: input.scenarioId, jsonInput: input.jsonInput },
+          ctx.orgId
+        );
+        if (id === null) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
         return { id };
       }),
 
-    getInput: protectedProcedure
+    getInput: orgProcedure
       .input(z.object({ scenarioId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+          lookupResource: getScenarioById,
+          getProjectId: scenario => scenario.projectId,
+        });
         return getScenarioInput(input.scenarioId);
       }),
 
-    saveOutput: protectedProcedure
+    saveOutput: orgMutationProcedure
       .input(
         z.object({
           scenarioId: z.number(),
@@ -223,24 +253,43 @@ export const intelligenceRouter = router({
           logicVersionId: z.number().optional(),
         })
       )
-      .mutation(async ({ input }) => {
-        const id = await createScenarioOutput(input);
+      .mutation(async ({ ctx, input }) => {
+        await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+          lookupResource: getScenarioById,
+          getProjectId: scenario => scenario.projectId,
+        });
+        const id = await createScenarioOutputForOrg(input, ctx.orgId);
+        if (id === null) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
         return { id };
       }),
 
-    getOutput: protectedProcedure
+    getOutput: orgProcedure
       .input(z.object({ scenarioId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
+          lookupResource: getScenarioById,
+          getProjectId: scenario => scenario.projectId,
+        });
         return getScenarioOutput(input.scenarioId);
       }),
 
-    listOutputs: protectedProcedure
+    listOutputs: orgProcedure
       .input(z.object({ scenarioIds: z.array(z.number()) }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireProjectResourceBatchForOrg(
+          input.scenarioIds,
+          ctx.orgId,
+          (id, orgId) => requireProjectResourceForOrg(id, orgId, {
+            lookupResource: getScenarioById,
+            getProjectId: scenario => scenario.projectId,
+          })
+        );
         return listScenarioOutputs(input.scenarioIds);
       }),
 
-    compare: protectedProcedure
+    compare: orgMutationProcedure
       .input(
         z.object({
           projectId: z.number(),
@@ -250,8 +299,19 @@ export const intelligenceRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        // Get outputs for all scenarios
+        await requireProjectForOrg(input.projectId, ctx.orgId);
         const allIds = [input.baselineScenarioId, ...input.comparedScenarioIds];
+        const authorized = await requireProjectResourceBatchForOrg(
+          allIds,
+          ctx.orgId,
+          (id, orgId) => requireProjectResourceForOrg(id, orgId, {
+            lookupResource: getScenarioById,
+            getProjectId: scenario => scenario.projectId,
+          })
+        );
+        if (authorized.some(item => item.project.id !== input.projectId)) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
         const outputs = await listScenarioOutputs(allIds);
 
         // Build comparison result
@@ -273,34 +333,42 @@ export const intelligenceRouter = router({
           generatedAt: new Date().toISOString(),
         };
 
-        const id = await createScenarioComparison({
+        const id = await createScenarioComparisonForOrg({
           ...input,
           comparisonResult,
           createdBy: ctx.user.id,
-        });
+        }, ctx.orgId);
+        if (id === null) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
         return { id, comparisonResult };
       }),
 
-    listComparisons: protectedProcedure
+    listComparisons: orgProcedure
       .input(z.object({ projectId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
         return listScenarioComparisons(input.projectId);
       }),
 
-    getComparison: protectedProcedure
+    getComparison: orgProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return getScenarioComparisonById(input.id);
+      .query(async ({ ctx, input }) => {
+        const authorized = await requireProjectResourceForOrg(input.id, ctx.orgId, {
+          lookupResource: getScenarioComparisonById,
+          getProjectId: comparison => comparison.projectId,
+        });
+        return authorized.resource;
       }),
 
-    exportComparisonPDF: protectedProcedure
+    exportComparisonPDF: orgHeavyMutationProcedure
       .input(z.object({ comparisonId: z.number() }))
-      .mutation(async ({ input }) => {
-        const comparison = await getScenarioComparisonById(input.comparisonId);
-        if (!comparison) throw new Error("Comparison not found");
-
-        const project = await getProjectById(comparison.projectId);
-        if (!project) throw new Error("Project not found");
+      .mutation(async ({ ctx, input }) => {
+        const { resource: comparison, project } =
+          await requireProjectResourceForOrg(input.comparisonId, ctx.orgId, {
+            lookupResource: getScenarioComparisonById,
+            getProjectId: record => record.projectId,
+          });
 
         // Get scenario names
         const allScenarios = await getScenariosByProject(comparison.projectId);
@@ -348,11 +416,10 @@ export const intelligenceRouter = router({
   // ─── V2.12: Explainability ─────────────────────────────────────────────────
 
   explainability: router({
-    generate: protectedProcedure
+    generate: orgProcedure
       .input(z.object({ projectId: z.number() }))
-      .query(async ({ input }) => {
-        const project = await getProjectById(input.projectId);
-        if (!project) return null;
+      .query(async ({ ctx, input }) => {
+        const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
         const scores = await getScoreMatricesByProject(input.projectId);
         const latestScore = scores[0];
@@ -405,11 +472,10 @@ export const intelligenceRouter = router({
         );
       }),
 
-    auditPack: protectedProcedure
+    auditPack: orgHeavyMutationProcedure
       .input(z.object({ projectId: z.number() }))
-      .mutation(async ({ input }) => {
-        const project = await getProjectById(input.projectId);
-        if (!project) return { error: "Project not found" };
+      .mutation(async ({ ctx, input }) => {
+        const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
         const scores = await getScoreMatricesByProject(input.projectId);
         const latestScore = scores[0];
@@ -484,7 +550,7 @@ export const intelligenceRouter = router({
   // ─── V2.13: Outcomes ───────────────────────────────────────────────────────
 
   outcomes: router({
-    capture: protectedProcedure
+    capture: orgMutationProcedure
       .input(
         z.object({
           projectId: z.number(),
@@ -500,17 +566,22 @@ export const intelligenceRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        const id = await createProjectOutcome({
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+        const id = await createProjectOutcomeForOrg({
           ...input,
           actualFitoutCostPerSqm: input.actualFitoutCostPerSqm?.toString(),
           capturedBy: ctx.user.id,
-        });
+        }, ctx.orgId);
+        if (id === null) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
         return { id };
       }),
 
-    list: protectedProcedure
+    list: orgProcedure
       .input(z.object({ projectId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
         return getProjectOutcomes(input.projectId);
       }),
 

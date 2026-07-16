@@ -5,12 +5,22 @@
  * Uses existing storage.ts (S3) and project_assets table via db.ts helpers.
  */
 import { z } from "zod";
-import { router, orgProcedure } from "../_core/trpc";
+import {
+    orgHeavyMutationProcedure,
+    orgMutationProcedure,
+    orgProcedure,
+    router,
+} from "../_core/trpc";
 import { storagePut } from "../storage";
 import * as db from "../db";
 import { processIntakeAssets, type IntakeAsset, type IntakeResult } from "../engines/intake/ai-intake-engine";
 import { cleanHtmlForLLM } from "../engines/ingestion/connectors/dynamic";
 import crypto from "crypto";
+import { requireProjectForOrg } from "../_core/project-access";
+import {
+    requireProjectResourceBatchForOrg,
+    requireProjectResourceForOrg,
+} from "../_core/resource-access";
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 
@@ -19,7 +29,7 @@ export const intakeRouter = router({
      * Generate a presigned S3 upload URL for direct client upload.
      * Client uploads directly to S3, then calls `recordAsset` to register it.
      */
-    getUploadUrl: orgProcedure
+    getUploadUrl: orgMutationProcedure
         .input(z.object({
             fileName: z.string(),
             contentType: z.string(),
@@ -40,9 +50,9 @@ export const intakeRouter = router({
      * Register an uploaded asset in the project_assets table.
      * Called after client uploads to S3.
      */
-    recordAsset: orgProcedure
+    recordAsset: orgMutationProcedure
         .input(z.object({
-            projectId: z.number().optional(),
+            projectId: z.number(),
             fileName: z.string(),
             mimeType: z.string(),
             sizeBytes: z.number(),
@@ -56,8 +66,9 @@ export const intakeRouter = router({
             assetType: z.enum(["image", "pdf", "audio", "video", "url", "text_note"]).default("image"),
         }))
         .mutation(async ({ input, ctx }) => {
-            const assetId = await db.createProjectAsset({
-                projectId: input.projectId ?? 0,
+            await requireProjectForOrg(input.projectId, ctx.orgId);
+            const assetId = await db.createProjectAssetForOrg({
+                projectId: input.projectId,
                 filename: input.fileName,
                 mimeType: input.mimeType,
                 sizeBytes: input.sizeBytes,
@@ -66,7 +77,11 @@ export const intakeRouter = router({
                 category: input.category,
                 assetType: input.assetType,
                 uploadedBy: ctx.user.id,
-            });
+            }, ctx.orgId);
+            if (!assetId) {
+                await requireProjectForOrg(input.projectId, ctx.orgId);
+                throw new Error("Failed to record asset");
+            }
 
             return { assetId };
         }),
@@ -76,7 +91,8 @@ export const intakeRouter = router({
      */
     listAssets: orgProcedure
         .input(z.object({ projectId: z.number() }))
-        .query(async ({ input }) => {
+        .query(async ({ input, ctx }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             return db.getProjectAssets(input.projectId);
         }),
 
@@ -84,7 +100,7 @@ export const intakeRouter = router({
      * Process uploaded assets through the AI Intake Engine.
      * Returns suggested ProjectInputs with per-field confidence and reasoning.
      */
-    processAssets: orgProcedure
+    processAssets: orgHeavyMutationProcedure
         .input(z.object({
             projectId: z.number().optional(),
             assets: z.array(z.object({
@@ -97,7 +113,27 @@ export const intakeRouter = router({
             })),
             freeformDescription: z.string().optional(),
         }))
-        .mutation(async ({ input }): Promise<IntakeResult> => {
+        .mutation(async ({ input, ctx }): Promise<IntakeResult> => {
+            const project = input.projectId === undefined
+                ? null
+                : await requireProjectForOrg(input.projectId, ctx.orgId);
+            const assetIds = input.assets
+                .map(asset => asset.assetId)
+                .filter((id): id is number => id !== undefined);
+            const authorizedAssets = await requireProjectResourceBatchForOrg(
+                assetIds,
+                ctx.orgId,
+                (id, orgId) => requireProjectResourceForOrg(id, orgId, {
+                    lookupResource: db.getProjectAssetById,
+                    getProjectId: asset => asset.projectId,
+                })
+            );
+            if (
+                project &&
+                authorizedAssets.some(asset => asset.project.id !== project.id)
+            ) {
+                throw new Error("Resource not found");
+            }
             // Build IntakeAsset array
             const intakeAssets: IntakeAsset[] = input.assets.map(a => ({
                 type: a.type,
@@ -121,10 +157,15 @@ export const intakeRouter = router({
             // Store AI extraction results back on assets that have IDs
             for (const asset of input.assets) {
                 if (asset.assetId) {
-                    await db.updateProjectAsset(asset.assetId, {
+                    if (!(await db.updateProjectAssetForOrg(asset.assetId, ctx.orgId, {
                         aiExtractionResult: result.extractedInsights,
                         aiContributions: Object.keys(result.suggestedInputs),
-                    });
+                    }))) {
+                        await requireProjectResourceForOrg(asset.assetId, ctx.orgId, {
+                            lookupResource: db.getProjectAssetById,
+                            getProjectId: record => record.projectId,
+                        });
+                    }
                 }
             }
 
@@ -134,19 +175,33 @@ export const intakeRouter = router({
     /**
      * Link orphaned assets to a project (after project creation).
      */
-    linkAssetsToProject: orgProcedure
+    linkAssetsToProject: orgMutationProcedure
         .input(z.object({
             assetIds: z.array(z.number()),
             projectId: z.number(),
         }))
-        .mutation(async ({ input }) => {
-            for (const assetId of input.assetIds) {
-                await db.updateProjectAsset(assetId, { projectId: input.projectId });
+        .mutation(async ({ input, ctx }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
+            await requireProjectResourceBatchForOrg(
+                input.assetIds,
+                ctx.orgId,
+                (id, orgId) => requireProjectResourceForOrg(id, orgId, {
+                    lookupResource: db.getProjectAssetById,
+                    getProjectId: asset => asset.projectId,
+                })
+            );
+            if (!(await db.linkProjectAssetsForOrg(
+                input.assetIds,
+                input.projectId,
+                ctx.orgId
+            ))) {
+                await requireProjectForOrg(input.projectId, ctx.orgId);
+                throw new Error("Resource not found");
             }
             return { linked: input.assetIds.length };
         }),
 
-    suggestSection: orgProcedure
+    suggestSection: orgHeavyMutationProcedure
         .input(z.object({
             section: z.enum(["context", "strategy", "market", "financial", "design", "execution"]),
             currentFormState: z.record(z.string(), z.any()),
@@ -160,7 +215,7 @@ export const intakeRouter = router({
      * Scrape a URL for intake analysis.
      * Uses DynamicConnector for full fallback chain (Firecrawl → ScrapingDog → native).
      */
-    scrapeUrl: orgProcedure
+    scrapeUrl: orgHeavyMutationProcedure
         .input(z.object({ url: z.string().url() }))
         .mutation(async ({ input }) => {
             const { DynamicConnector } = await import("../engines/ingestion/connectors/dynamic");
@@ -204,7 +259,7 @@ export const intakeRouter = router({
     /**
      * Conversational chat for project intake.
      */
-    chat: orgProcedure
+    chat: orgHeavyMutationProcedure
         .input(z.object({
             messages: z.array(z.object({
                 role: z.enum(["user", "assistant"]),

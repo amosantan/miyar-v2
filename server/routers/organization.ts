@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { getDb } from "../db";
-import { router, protectedProcedure, orgProcedure } from "../_core/trpc";
+import {
+    orgAdminProcedure,
+    orgProcedure,
+    protectedProcedure,
+    router,
+} from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { organizations, organizationMembers, organizationInvites, users } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
@@ -61,7 +66,7 @@ export const organizationRouter = router({
         return result;
     }),
 
-    inviteMember: orgProcedure
+    inviteMember: orgAdminProcedure
         .input(z.object({
             email: z.string().email(),
             role: z.enum(["admin", "member", "viewer"]),

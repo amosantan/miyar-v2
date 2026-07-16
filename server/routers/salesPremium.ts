@@ -10,6 +10,7 @@ import { router, orgProcedure } from "../_core/trpc";
 import { computeValueAddBridge, computeBrandEquityForecast } from "../engines/value-add-engine";
 import { getAreaSaleMedianSqm } from "../engines/dld-analytics";
 import * as db from "../db";
+import { requireProjectForOrg } from "../_core/project-access";
 
 export const salesPremiumRouter = router({
     /**
@@ -24,10 +25,9 @@ export const salesPremiumRouter = router({
             currentFitoutPerSqm: z.number().min(0),
             proposedFitoutPerSqm: z.number().min(0),
         }))
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
             // 1. Fetch project data
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             // 2. Get DLD area stats
             const saleMedianPerSqm = await getAreaSaleMedianSqm(project.dldAreaId ?? null);
@@ -66,9 +66,8 @@ export const salesPremiumRouter = router({
             projectId: z.number(),
             salePerformancePct: z.number().min(0).max(100),
         }))
-        .query(async ({ input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new Error("Project not found");
+        .query(async ({ ctx, input }) => {
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             return computeBrandEquityForecast({
                 tier: project.mkt01Tier ?? "Upper-mid",

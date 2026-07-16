@@ -212,3 +212,25 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: Both production unique indexes are present, unique, and duplicate preflight remains zero after the controlled completion.
 - Reuse rule: After partial DDL, never replay blindly; inspect applied state, verify data invariants again, and execute only the exact missing idempotent-safe statement.
 - Supersedes / related: Applies to all manual or provider-specific migration runners.
+
+### LES-018 — Regenerated security inventories must not preserve prior verdicts
+
+- Date / roadmap step: 2026-07-16 / `TR-04`
+- Context: The authorization inventory merged live AST facts with previously rendered annotations.
+- Observed: Removing one hardcoded safe-key list was insufficient because the merge still preserved old safe classifications; an adversarial rerender reopened 22 paths, including real design-advisor and evidence authorization gaps.
+- Cause: Historical annotations were treated as authoritative across source changes, and `adminProcedure` was initially assumed to prove governance without examining tenant resource relevance.
+- Fix or decision: Recompute classifications from live code on every render, make global governance explicit by procedure key, classify tenant-relevant admin paths unsafe unless separately authorized, and bind critical integration evidence to current file hashes.
+- Proof: A clean rerender inventories 329 procedures with zero `TR-04`, exactly eight `TR-05`, and 21 current executed MySQL evidence rows; Claude Code independently verified that stale classifications cannot survive and returned `APPROVED_NO_OBJECTION`.
+- Reuse rule: Generated security ledgers may preserve descriptive history only when it cannot override live classification; access primitives and old annotations are evidence inputs, never final authorization verdicts.
+- Supersedes / related: Extends `LES-007`, `LES-014`, and `LES-015`.
+
+### LES-019 — Tenant workflows must not piggyback global side effects
+
+- Date / roadmap step: 2026-07-16 / `TR-04`
+- Context: Tenant project evaluation and portfolio health checks historically invoked platform-wide alert behavior.
+- Observed: Moving portfolio alerts to an organization-owned table was insufficient while `project.evaluate` still called the global alert engine, allowing ordinary tenant members to create global-admin-visible records containing cross-tenant pattern context.
+- Cause: Authorization review classified the router's direct database calls but did not initially follow an imported engine into its global reads and writes.
+- Fix or decision: Remove tenant-triggered global alert generation, keep platform alerts behind global-admin/scheduler governance, and make the authorization audit reject organization procedures that reference the global alert engine or `platformAlerts`.
+- Proof: The router regression rejects either symbol, the live inventory passes with zero TR-04 rows, the safe suite passes 950 tests, and the final Claude Code adversarial review returned `APPROVED_NO_OBJECTION`.
+- Reuse rule: Trace imported engines and external side-effect helpers as part of the authorization path; a tenant-scoped router may not inherit global-write authority through an indirect call.
+- Supersedes / related: Extends `LES-007`, `LES-014`, and `LES-018`.

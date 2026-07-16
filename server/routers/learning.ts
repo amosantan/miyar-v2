@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { router, protectedProcedure, orgProcedure } from "../_core/trpc";
+import {
+    orgHeavyMutationProcedure,
+    orgMutationProcedure,
+    orgProcedure,
+    protectedProcedure,
+    router,
+} from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { outcomeComparisons, projectOutcomes, scoreMatrices, accuracySnapshots, logicChangeLog, benchmarkSuggestions } from "../../drizzle/schema";
@@ -59,7 +65,7 @@ export const learningRouter = router({
 
     // ─── Post-Mortem / Handover (V4) ────────────────────────────────────────
 
-    submitPostMortem: orgProcedure
+    submitPostMortem: orgMutationProcedure
         .input(z.object({
             projectId: z.number(),
             // Actual costs
@@ -290,7 +296,7 @@ export const learningRouter = router({
             };
         }),
 
-    runComparison: orgProcedure
+    runComparison: orgHeavyMutationProcedure
         .input(z.object({ projectId: z.number() }))
         .mutation(async ({ ctx, input }) => {
             const project = await requireProjectForOrg(input.projectId, ctx.orgId);

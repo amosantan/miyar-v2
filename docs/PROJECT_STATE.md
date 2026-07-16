@@ -11,6 +11,7 @@ This is the canonical location for current observed repository facts. It is not 
 - Package manager declared by repository: `pnpm`
 - Production: Vercel deployment `dpl_HQ6mnWadr46VhfjS3GhGQnxi48Ng` reached `READY` from the exact application release commit
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
+- Active worktree observation: uncommitted `codex/tr-04-authorization`; migration 0046 is applied to production, while application deployment is blocked by `KF-015`
 
 ## Technology Observed
 
@@ -39,9 +40,9 @@ At the observation above:
 
 | Command                         | Result | Evidence summary                                                                                                    |
 | ------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL='' pnpm test`     | PASS   | 930 passed and 22 skipped; no shared database connection occurred                                                   |
-| Guarded MySQL authorization run | PASS   | Disposable MySQL 8 suite passed 7/7, including rollback, locking, uniqueness, and scoped-write behavior             |
-| PlanetScale compatibility       | PASS   | Disposable development branch passed 6/6 applicable tests; one MySQL-only trigger fault-injection test was excluded |
+| `DATABASE_URL='' pnpm test`     | PASS   | 950 passed and 22 skipped; no shared database connection occurred                                                   |
+| Guarded MySQL authorization run | PASS   | Disposable MySQL 8 suite passed 13/13, including report and portfolio-alert rollback, locking, ownership races, expiry, uniqueness, and scoped writes |
+| PlanetScale compatibility       | HISTORICAL PASS | TR-03H disposable branch passed 6/6 applicable tests; not rerun for the uncommitted TR-04 worktree            |
 | `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                         |
 | `pnpm audit:authorization`      | PASS   | All 329 application procedures are inventoried and hash-bound scoped-write evidence is current                      |
 | `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                           |
@@ -63,6 +64,8 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - Duplicate preflight found zero duplicate membership pairs and zero duplicate non-null share tokens.
 - Backup `6168hbonz89d` completed successfully before migration 0045.
 - Migration 0045 is complete: `organization_members_org_user_unique` and `ai_design_briefs_share_token_unique` are present as unique indexes.
+- Migration 0046 is complete: `portfolio_alerts` has 16 expected columns, a primary key, and unique `(organization_id, active_dedup_key)`.
+- TR-04 release preflight found 2 null-owned projects, 4 null-owned scenarios, and 8 reports whose project is missing or null-owned. Application deployment is `NEEDS_HUMAN` under `KF-015`; no legacy production row was modified.
 - Production smoke checks were read-only and did not print tokens or credentials.
 
 ## Environment Uncertainties
@@ -83,7 +86,8 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - `TR-02` provides typed organization-resource and public-share authorization primitives with 49 passing targeted tests.
 - `TR-03` closes all 39 design-router remediation paths with organization-locked resource operations and fail-closed public shares.
 - `TR-03H` closes live membership, design roles, scoped final writes, composite atomicity, rejected-upload compensation, public-share privacy, real-SQL evidence, and canonical release identity.
-- `TR-04` is the next executable step; pooled-data isolation remains open under `TR-05`.
+- `TR-04` closes all 93 remaining project-router authorization/global-governance paths, including the later ultra-review remediation for atomic report persistence and tenant-owned portfolio alerts. The live inventory has zero `TR-04` and exactly eight pooled-data rows under `TR-05`; targeted, disposable MySQL, safe full-suite, TypeScript, audit, build, diff, and independent-review gates pass.
+- `TR-05` is the next executable step.
 
 ## Refresh Procedure
 

@@ -1,15 +1,22 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../_core/trpc";
+import {
+    adminProcedure,
+    orgHeavyMutationProcedure,
+    orgRateLimitedProcedure,
+    protectedProcedure,
+    router,
+} from "../_core/trpc";
 import { getDb } from "../db";
 import { platformAlerts, nlQueryLog } from "../../drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { processNlQuery } from "../engines/autonomous/nl-engine";
 import { generateAutonomousDesignBrief } from "../engines/autonomous/document-generator";
-import { generatePortfolioInsights } from "../engines/autonomous/portfolio-engine";
+import { generatePortfolioInsightsForOrg } from "../engines/autonomous/portfolio-engine";
+import { requireProjectForOrg } from "../_core/project-access";
 
 export const autonomousRouter = router({
-    getAlerts: protectedProcedure
+    getAlerts: adminProcedure
         .input(z.object({
             severity: z.string().optional(),
             type: z.string().optional(),
@@ -37,7 +44,7 @@ export const autonomousRouter = router({
                 .orderBy(desc(platformAlerts.createdAt));
         }),
 
-    acknowledgeAlert: protectedProcedure
+    acknowledgeAlert: adminProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ ctx, input }) => {
             const db = await getDb();
@@ -54,7 +61,7 @@ export const autonomousRouter = router({
             return { success: true };
         }),
 
-    resolveAlert: protectedProcedure
+    resolveAlert: adminProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ input }) => {
             const db = await getDb();
@@ -99,16 +106,17 @@ export const autonomousRouter = router({
             return result;
         }),
 
-    generateBrief: protectedProcedure
+    generateBrief: orgHeavyMutationProcedure
         .input(z.object({ projectId: z.number() }))
-        .mutation(async ({ input }) => {
+        .mutation(async ({ ctx, input }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             const briefMarkdown = await generateAutonomousDesignBrief(input.projectId);
             return { markdown: briefMarkdown };
         }),
 
-    portfolioInsights: protectedProcedure
-        .query(async () => {
-            const markdown = await generatePortfolioInsights();
+    portfolioInsights: orgRateLimitedProcedure
+        .query(async ({ ctx }) => {
+            const markdown = await generatePortfolioInsightsForOrg(ctx.orgId);
             return { markdown };
         })
 });

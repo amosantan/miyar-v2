@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-04`
+- Next executable step: `TR-05` (`READY`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -91,7 +91,7 @@ Rules:
 - Expected artifacts: Security inventory, prioritized remediation batches, updated `KNOWN_FAILURES.md` if new reproducible leaks are confirmed.
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
-- Completion evidence: AST-backed inventory validates all 327 router procedures exactly once; 107 unsafe, 29 legacy-user, 38 organization-guarded, 43 governed-global, 90 admin-governed, 19 non-project, and one public-token path. Remediation assigns 39 rows to `TR-03`, 93 to `TR-04`, and eight pooled-data paths to `TR-05`. Same-org/cross-org/missing/legacy-null helper tests pass; a disposable mocked route probe confirmed an unsafe path; independent review ended `APPROVED_NO_OBJECTION`.
+- Completion evidence: At the historical TR-01 baseline, the AST-backed inventory validated all 327 then-present router procedures exactly once; 107 unsafe, 29 legacy-user, 38 organization-guarded, 43 governed-global, 90 admin-governed, 19 non-project, and one public-token path. Remediation assigned 39 rows to `TR-03`, 93 to `TR-04`, and eight pooled-data paths to `TR-05`. Same-org/cross-org/missing/legacy-null helper tests passed; a disposable mocked route probe confirmed an unsafe path; independent review ended `APPROVED_NO_OBJECTION`. Live procedure counts are maintained only in the generated authorization inventory.
 - Residual risk: The inventory documents rather than fixes the 140 remediation rows. The full test suite remains red and is not database-hermetic; Claude Code review could not run because its OAuth token was expired.
 - Lessons: `LES-007`, `LES-008`, `LES-009`, `LES-010`, `LES-011`
 
@@ -162,7 +162,7 @@ Rules:
 
 ### TR-04 — Authorize remaining project routers
 
-- Status: `READY`
+- Status: `CLOSED`
 - Class / priority: API/security / P0
 - Dependencies: `TR-02`, `TR-03`, `TR-03H`
 - Human gate: None unless ambiguous legacy ownership is found.
@@ -175,10 +175,16 @@ Rules:
 - Done when: The ownership inventory contains no unsafe or unknown authenticated project path.
 - Verification: Cross-org negative suite across every router family; targeted integration tests; full test suite.
 - Expected artifacts: Closed authorization inventory and security evidence report.
+- Closed: 2026-07-16
+- Terminal task state: `PASS`
+- Completion evidence: All 93 baseline rows are closed; the live inventory covers 329 procedures with zero `TR-04` and exactly eight `TR-05` rows. The reopened remediation adds organization-locked atomic report persistence, tenant-owned portfolio alerts through migration `0046`, concurrent active-alert deduplication, explicit tenant/global-alert separation, exhaustive asset-link dispatch, classification acknowledgements, and stronger audit/evidence contracts. Targeted contracts pass 29/29, disposable MySQL 8 passes 13/13 with rollback and ownership/concurrency evidence, the safe full suite passes 950 with 22 skipped, TypeScript/audit/build/diff checks pass, and the final independent Claude Code review ended `APPROVED_NO_OBJECTION`.
+- Residual risk: The eight pooled learning/prediction paths remain under `TR-05`. Production preflight found nonzero legacy-null ownership (`KF-015`), so application deployment is `NEEDS_HUMAN`. Migration 0046 was applied additively; provider compatibility, GitHub Actions billing (`KF-014`), and release identity remain release concerns.
+- Lessons: `LES-018`
+- Reopened and reclosed: 2026-07-16 after an ultra-review found non-atomic report artifact writes and tenant writes to globally governed platform alerts. Fresh remediation and verification supersede the earlier closure evidence.
 
 ### TR-05 — Isolate learning and prediction data by organization
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: Data/security / P0
 - Dependencies: `TR-02`
 - Human gate: Required before any pooled, anonymized, or global learning cohort is enabled.

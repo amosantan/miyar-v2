@@ -3,6 +3,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import * as db from "../db";
+import { createRateLimitMiddleware } from "./rate-limit";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -28,6 +29,8 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
+// Platform-wide governance only. Tenant-owned resources must still use an
+// organization procedure and an explicit resource resolver.
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
@@ -79,7 +82,7 @@ const requireOrg = t.middleware(async opts => {
 
 export const orgProcedure = t.procedure.use(requireOrg);
 
-export const designOrgMutationProcedure = orgProcedure.use(
+export const orgMutationProcedure = orgProcedure.use(
   async ({ ctx, next }) => {
     if (ctx.orgRole === "viewer") {
       throw new TRPCError({
@@ -91,7 +94,7 @@ export const designOrgMutationProcedure = orgProcedure.use(
   }
 );
 
-export const designOrgAdminProcedure = orgProcedure.use(
+export const orgAdminProcedure = orgProcedure.use(
   async ({ ctx, next }) => {
     if (ctx.orgRole !== "admin") {
       throw new TRPCError({
@@ -103,10 +106,25 @@ export const designOrgAdminProcedure = orgProcedure.use(
   }
 );
 
-// ─── Rate-limited procedure for expensive compute mutations ─────────────────
-import { createRateLimitMiddleware } from "./rate-limit";
+// Compatibility aliases retained for the design router while the generic
+// organization procedures are adopted across the application.
+export const designOrgMutationProcedure = orgMutationProcedure;
+export const designOrgAdminProcedure = orgAdminProcedure;
 
 /** Protected + rate limited: max 5 calls/minute per user */
+const heavyRateLimit = createRateLimitMiddleware(t, {
+  max: 5,
+  windowMs: 60_000,
+  keyPrefix: "heavy",
+});
+
 export const heavyProcedure = t.procedure
   .use(requireUser)
-  .use(createRateLimitMiddleware(t, { max: 5, windowMs: 60_000, keyPrefix: "heavy" }));
+  .use(heavyRateLimit);
+
+/** Current organization membership plus the existing expensive-call limit. */
+export const orgRateLimitedProcedure = orgProcedure.use(heavyRateLimit);
+
+/** Organization member/admin mutation plus the existing expensive-call limit. */
+export const orgHeavyMutationProcedure =
+  orgMutationProcedure.use(heavyRateLimit);

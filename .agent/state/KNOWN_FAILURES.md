@@ -4,13 +4,16 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 
 ## KF-006 — Project and child-resource authorization gaps
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 at `a15424b` plus the TR-01 inventory worktree.
 - Command: `pnpm audit:authorization`
 - Evidence: `docs/security/resource-authorization-inventory.json` inventories all 327 router procedures. `TR-03` closed all 39 design-domain rows; 93 remaining authorization/global-governance/legacy-user rows are assigned to `TR-04`.
 - Impact: authenticated callers can reach project, asset, brief, scenario, report, board, visual, room, allocation, evidence, or polymorphic records without every path proving the organization boundary; some global mutations also lack appropriate governance.
 - Owner: Canonical resolver foundation closed in `TR-02` and design-router adoption closed in `TR-03`; remaining router remediation is owned by `TR-04`.
 - Exit criterion: every `TR-04` inventory row is reclassified with proven organization, token, admin, or governed-global authorization; same-org, cross-org, missing, legacy-null, and polymorphic-target tests pass.
+- Closed evidence: `TR-04` closes all 93 baseline rows across 18 routers. The regenerated 329-procedure inventory has zero `TR-04` and exactly eight `TR-05` rows; stale classifications cannot survive regeneration and tenant-relevant `adminProcedure` paths fail audit unless explicitly governed. Targeted contracts pass 25/25, disposable MySQL 8 passes 9/9 with representative real router-chain, scoped-write, rollback, and concurrency evidence, the safe full suite passes 946 with 22 skipped, TypeScript/audit/build pass, and independent Claude Code review returned `APPROVED_NO_OBJECTION`.
+- Reopened evidence: A later full TR-01–TR-04 ultra-review traced `project.generateReport` to raw multi-table writes outside an organization-locked transaction and `portfolio.checkAlerts` to tenant-triggered writes against the global `platform_alerts` table. Exit now additionally requires atomic report persistence and organization-owned portfolio alerts.
+- Reclosed evidence: Report artifacts now persist through one organization-locked transaction with ownership recheck, rollback, RFQ brief linkage, and upload compensation/reconciliation. Portfolio alerts now use the organization-owned `portfolio_alerts` table with locked ownership validation, expiry, and unique active deduplication. Tenant project evaluation no longer invokes the global alert engine, and the authorization audit rejects any organization procedure that reaches global platform alerts. Targeted tests pass 29/29, disposable MySQL passes 13/13, the safe suite passes 950 with 22 skipped, check/audit/build/diff gates pass, and Claude Code returned `APPROVED_NO_OBJECTION`.
 
 ## KF-007 — Cross-organization evidence and learning contamination
 
@@ -90,6 +93,17 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Owner: Repository owner / GitHub billing administrator.
 - Approved release exception: for the TR-03H release only, the user selected Vercel’s hosted build check on each pushed commit as the external gate, combined with the recorded local MySQL, PlanetScale, full-suite, audit, build, and Claude evidence.
 - Exit criterion: restore Actions eligibility and obtain successful hosted Actions checks for future releases; the bounded TR-03H exception does not close the underlying billing failure.
+
+## KF-015 — Production contains legacy null-organization resources
+
+- Status: OPEN
+- Observed: 2026-07-16 during the approved TR-04 production release preflight.
+- Command: Read-only production ownership-count queries against the Vercel `DATABASE_URL` target.
+- Evidence: Production contains 2 `projects` rows with null `orgId`, 4 `scenarios` rows with null `orgId`, and 8 `report_instances` rows whose project is missing or null-owned. Portfolios contain zero null organization owners.
+- Impact: The fail-closed TR-04 application will conceal these legacy records. Assigning them automatically could create tenant leakage; retaining user-owner fallback would reopen the authorization vulnerability.
+- Owner: Product/data owner must choose and approve a deterministic mapping, archival, or explicit abandonment policy.
+- Exit criterion: Every affected row receives an approved deterministic disposition, a reversible/idempotent remediation is verified on a safe target, production counts reach zero or approved archival scope, and post-remediation tenant checks pass.
+- Release gate: Application deployment remains `NEEDS_HUMAN`. Migration 0046 is additive and was applied successfully; no legacy row was modified.
 
 ## Handling Protocol
 

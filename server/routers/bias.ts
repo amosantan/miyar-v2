@@ -4,17 +4,22 @@
  */
 
 import { z } from "zod";
-import { orgProcedure, protectedProcedure } from "../_core/trpc";
+import {
+    orgMutationProcedure,
+    orgProcedure,
+    protectedProcedure,
+} from "../_core/trpc";
 import { router } from "../_core/trpc";
 import * as db from "../db";
+import { requireProjectForOrg } from "../_core/project-access";
+import { requireProjectOrgResourceForOrg } from "../_core/resource-access";
 
 export const biasRouter = router({
     // Get all bias alerts for a project (active + dismissed)
     getAlerts: orgProcedure
         .input(z.object({ projectId: z.number() }))
         .query(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return [];
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             return db.getBiasAlertsByProject(input.projectId);
         }),
 
@@ -22,16 +27,30 @@ export const biasRouter = router({
     getActiveAlerts: orgProcedure
         .input(z.object({ projectId: z.number() }))
         .query(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return [];
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             return db.getActiveBiasAlerts(input.projectId);
         }),
 
     // Dismiss a bias alert
-    dismiss: orgProcedure
+    dismiss: orgMutationProcedure
         .input(z.object({ alertId: z.number() }))
         .mutation(async ({ ctx, input }) => {
-            await db.dismissBiasAlert(input.alertId, ctx.user.id);
+            await requireProjectOrgResourceForOrg(input.alertId, ctx.orgId, {
+                lookupResource: db.getBiasAlertById,
+                getProjectId: alert => alert.projectId,
+                getOrgId: alert => alert.orgId,
+            });
+            if (!(await db.dismissBiasAlertForOrg(
+                input.alertId,
+                ctx.orgId,
+                ctx.user.id
+            ))) {
+                await requireProjectOrgResourceForOrg(input.alertId, ctx.orgId, {
+                    lookupResource: db.getBiasAlertById,
+                    getProjectId: alert => alert.projectId,
+                    getOrgId: alert => alert.orgId,
+                });
+            }
             await db.createAuditLog({
                 userId: ctx.user.id,
                 action: "bias.dismiss",
@@ -52,10 +71,7 @@ export const biasRouter = router({
     getInterventionReport: orgProcedure
         .input(z.object({ projectId: z.number() }))
         .query(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) {
-                return { alerts: [], hasBiases: false, summary: "No data available." };
-            }
+            await requireProjectForOrg(input.projectId, ctx.orgId);
 
             const alerts = await db.getActiveBiasAlerts(input.projectId);
 
@@ -86,13 +102,10 @@ export const biasRouter = router({
             };
         }),
     // On-demand bias scan (without re-evaluating project)
-    scan: orgProcedure
+    scan: orgMutationProcedure
         .input(z.object({ projectId: z.number() }))
         .mutation(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) {
-                throw new Error("Project not found or access denied");
-            }
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             // Get latest score matrix
             const matrices = await db.getScoreMatricesByProject(input.projectId);
@@ -178,9 +191,9 @@ export const biasRouter = router({
         }),
 
     // Get all active alerts across all user projects (for dashboard)
-    getAllActiveAlerts: protectedProcedure
-        .query(async ({ ctx }: { ctx: any }) => {
-            const projects = await db.getProjectsByUser(ctx.user.id);
+    getAllActiveAlerts: orgProcedure
+        .query(async ({ ctx }) => {
+            const projects = await db.getProjectsByOrg(ctx.orgId);
             if (!projects || projects.length === 0) return [];
             const allAlerts: any[] = [];
             for (const p of projects) {

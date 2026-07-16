@@ -1,0 +1,20 @@
+CREATE TABLE `portfolio_alerts` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`organization_id` int NOT NULL,
+	`portfolio_id` int NOT NULL,
+	`alert_type` enum('portfolio_risk','portfolio_failure_pattern') NOT NULL,
+	`severity` enum('critical','high','medium','info') NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`body` text NOT NULL,
+	`affected_project_ids` json,
+	`trigger_data` json,
+	`suggested_action` text NOT NULL,
+	`status` enum('active','acknowledged','resolved','expired') NOT NULL DEFAULT 'active',
+	`active_dedup_key` varchar(64),
+	`acknowledged_by` int,
+	`acknowledged_at` timestamp,
+	`expires_at` timestamp NOT NULL,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `portfolio_alerts_id` PRIMARY KEY(`id`),
+	CONSTRAINT `portfolio_alerts_org_active_key_unique` UNIQUE(`organization_id`,`active_dedup_key`)
+);

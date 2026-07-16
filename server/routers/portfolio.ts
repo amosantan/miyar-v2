@@ -3,18 +3,24 @@
  * Full CRUD for named portfolios with aggregation analytics.
  */
 import { z } from "zod";
-import { router, orgProcedure } from "../_core/trpc";
-import { getDb } from "../db";
+import { TRPCError } from "@trpc/server";
+import { createHash } from "node:crypto";
+import {
+    orgHeavyMutationProcedure,
+    orgMutationProcedure,
+    orgProcedure,
+    router,
+} from "../_core/trpc";
+import { getDb, insertPortfolioAlertsForOrg } from "../db";
 import {
     portfolios,
     portfolioProjects,
     projects,
     scoreMatrices,
     projectIntelligence,
-    platformAlerts,
+    portfolioAlerts,
 } from "../../drizzle/schema";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
-import { deliverAlert } from "../engines/autonomous/alert-delivery";
 import {
     computeDistributions,
     computeComplianceHeatmap,
@@ -128,20 +134,27 @@ export const portfolioRouter = router({
             const projectList = await db
                 .select()
                 .from(projects)
-                .where(inArray(projects.id, projectIds));
+                .where(and(
+                    inArray(projects.id, projectIds),
+                    eq(projects.orgId, ctx.orgId)
+                ));
+            if (projectList.length !== new Set(projectIds).size) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+            }
+            const authorizedProjectIds = projectList.map((project: { id: number }) => project.id);
 
             // Get scores
             const allScores = await db
                 .select()
                 .from(scoreMatrices)
-                .where(inArray(scoreMatrices.projectId, projectIds))
+                .where(inArray(scoreMatrices.projectId, authorizedProjectIds))
                 .orderBy(desc(scoreMatrices.computedAt));
 
             // Get intelligence
             const allIntel = await db
                 .select()
                 .from(projectIntelligence)
-                .where(inArray(projectIntelligence.projectId, projectIds))
+                .where(inArray(projectIntelligence.projectId, authorizedProjectIds))
                 .orderBy(desc(projectIntelligence.computedAt));
 
             // Build portfolio items
@@ -261,7 +274,7 @@ export const portfolioRouter = router({
         }),
 
     // ─── Create portfolio ─────────────────────────────────────────────
-    create: orgProcedure
+    create: orgMutationProcedure
         .input(
             z.object({
                 name: z.string().min(1).max(255),
@@ -283,7 +296,7 @@ export const portfolioRouter = router({
         }),
 
     // ─── Update portfolio ─────────────────────────────────────────────
-    update: orgProcedure
+    update: orgMutationProcedure
         .input(
             z.object({
                 id: z.number(),
@@ -295,63 +308,59 @@ export const portfolioRouter = router({
             const db = await getDb();
             if (!db) throw new Error("Database error");
 
-            const [existing] = await db
-                .select()
-                .from(portfolios)
-                .where(
-                    and(
-                        eq(portfolios.id, input.id),
-                        eq(portfolios.organizationId, ctx.orgId)
-                    )
-                );
-
-            if (!existing) throw new Error("Portfolio not found");
-
             const updates: Partial<{ name: string; description: string | null }> = {};
             if (input.name !== undefined) updates.name = input.name;
             if (input.description !== undefined)
                 updates.description = input.description;
 
-            await db
+            const [result] = await db
                 .update(portfolios)
                 .set(updates)
-                .where(eq(portfolios.id, input.id));
+                .where(and(
+                    eq(portfolios.id, input.id),
+                    eq(portfolios.organizationId, ctx.orgId)
+                ));
+            if (Number(result.affectedRows) !== 1) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+            }
 
             return { success: true };
         }),
 
     // ─── Delete portfolio ─────────────────────────────────────────────
-    delete: orgProcedure
+    delete: orgMutationProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ ctx, input }) => {
             const db = await getDb();
             if (!db) throw new Error("Database error");
 
-            const [existing] = await db
-                .select()
-                .from(portfolios)
-                .where(
-                    and(
+            const deleted = await db.transaction(async (tx: any) => {
+                const rows = await tx.select({ id: portfolios.id })
+                    .from(portfolios)
+                    .where(and(
                         eq(portfolios.id, input.id),
                         eq(portfolios.organizationId, ctx.orgId)
-                    )
-                );
-
-            if (!existing) throw new Error("Portfolio not found");
-
-            // Remove all project links first
-            await db
-                .delete(portfolioProjects)
-                .where(eq(portfolioProjects.portfolioId, input.id));
-
-            // Delete portfolio
-            await db.delete(portfolios).where(eq(portfolios.id, input.id));
+                    ))
+                    .limit(1)
+                    .for("update");
+                if (rows.length !== 1) return false;
+                await tx.delete(portfolioProjects)
+                    .where(eq(portfolioProjects.portfolioId, input.id));
+                const [result] = await tx.delete(portfolios).where(and(
+                    eq(portfolios.id, input.id),
+                    eq(portfolios.organizationId, ctx.orgId)
+                ));
+                return Number(result.affectedRows) === 1;
+            });
+            if (!deleted) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+            }
 
             return { success: true };
         }),
 
     // ─── Add project to portfolio ─────────────────────────────────────
-    addProject: orgProcedure
+    addProject: orgMutationProcedure
         .input(
             z.object({
                 portfolioId: z.number(),
@@ -363,53 +372,49 @@ export const portfolioRouter = router({
             const db = await getDb();
             if (!db) throw new Error("Database error");
 
-            // Verify portfolio belongs to org
-            const [portfolio] = await db
-                .select()
-                .from(portfolios)
-                .where(
-                    and(
+            const result = await db.transaction(async (tx: any) => {
+                const [portfolio] = await tx.select({ id: portfolios.id })
+                    .from(portfolios)
+                    .where(and(
                         eq(portfolios.id, input.portfolioId),
                         eq(portfolios.organizationId, ctx.orgId)
-                    )
-                );
-            if (!portfolio) throw new Error("Portfolio not found");
-
-            // Verify project belongs to org
-            const [project] = await db
-                .select()
-                .from(projects)
-                .where(eq(projects.id, input.projectId));
-            if (!project || project.orgId !== ctx.orgId) {
-                throw new Error("Project not found");
-            }
-
-            // Check if already linked
-            const existing = await db
-                .select()
-                .from(portfolioProjects)
-                .where(
-                    and(
+                    ))
+                    .limit(1)
+                    .for("update");
+                const [project] = await tx.select({ id: projects.id })
+                    .from(projects)
+                    .where(and(
+                        eq(projects.id, input.projectId),
+                        eq(projects.orgId, ctx.orgId)
+                    ))
+                    .limit(1)
+                    .for("update");
+                if (!portfolio || !project) return "not_found" as const;
+                const existing = await tx.select({ portfolioId: portfolioProjects.portfolioId })
+                    .from(portfolioProjects)
+                    .where(and(
                         eq(portfolioProjects.portfolioId, input.portfolioId),
                         eq(portfolioProjects.projectId, input.projectId)
-                    )
-                );
-
-            if (existing.length > 0) {
-                return { success: true, message: "Project already in portfolio" };
-            }
-
-            await db.insert(portfolioProjects).values({
-                portfolioId: input.portfolioId,
-                projectId: input.projectId,
-                note: input.note ?? null,
+                    ))
+                    .limit(1);
+                if (existing.length > 0) return "existing" as const;
+                await tx.insert(portfolioProjects).values({
+                    portfolioId: input.portfolioId,
+                    projectId: input.projectId,
+                    note: input.note ?? null,
+                });
+                return "inserted" as const;
             });
-
-            return { success: true };
+            if (result === "not_found") {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+            }
+            return result === "existing"
+                ? { success: true, message: "Project already in portfolio" }
+                : { success: true };
         }),
 
     // ─── Remove project from portfolio ────────────────────────────────
-    removeProject: orgProcedure
+    removeProject: orgMutationProcedure
         .input(
             z.object({
                 portfolioId: z.number(),
@@ -420,26 +425,33 @@ export const portfolioRouter = router({
             const db = await getDb();
             if (!db) throw new Error("Database error");
 
-            // Verify portfolio belongs to org
-            const [portfolio] = await db
-                .select()
-                .from(portfolios)
-                .where(
-                    and(
+            const removed = await db.transaction(async (tx: any) => {
+                const [portfolio] = await tx.select({ id: portfolios.id })
+                    .from(portfolios)
+                    .where(and(
                         eq(portfolios.id, input.portfolioId),
                         eq(portfolios.organizationId, ctx.orgId)
-                    )
-                );
-            if (!portfolio) throw new Error("Portfolio not found");
-
-            await db
-                .delete(portfolioProjects)
-                .where(
-                    and(
-                        eq(portfolioProjects.portfolioId, input.portfolioId),
-                        eq(portfolioProjects.projectId, input.projectId)
-                    )
-                );
+                    ))
+                    .limit(1)
+                    .for("update");
+                const [project] = await tx.select({ id: projects.id })
+                    .from(projects)
+                    .where(and(
+                        eq(projects.id, input.projectId),
+                        eq(projects.orgId, ctx.orgId)
+                    ))
+                    .limit(1)
+                    .for("update");
+                if (!portfolio || !project) return false;
+                await tx.delete(portfolioProjects).where(and(
+                    eq(portfolioProjects.portfolioId, input.portfolioId),
+                    eq(portfolioProjects.projectId, input.projectId)
+                ));
+                return true;
+            });
+            if (!removed) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+            }
 
             return { success: true };
         }),
@@ -450,6 +462,20 @@ export const portfolioRouter = router({
         .query(async ({ ctx, input }) => {
             const db = await getDb();
             if (!db) return [];
+
+            const [portfolio] = await db
+                .select({ id: portfolios.id })
+                .from(portfolios)
+                .where(and(
+                    eq(portfolios.id, input.portfolioId),
+                    eq(portfolios.organizationId, ctx.orgId)
+                ));
+            if (!portfolio) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Portfolio not found",
+                });
+            }
 
             // Get all org projects
             const allProjects = await db
@@ -477,7 +503,7 @@ export const portfolioRouter = router({
         }),
 
     // ─── Generate PDF Report ────────────────────────────────────
-    generateReport: orgProcedure
+    generateReport: orgHeavyMutationProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ ctx, input }) => {
             const db = await getDb();
@@ -510,20 +536,27 @@ export const portfolioRouter = router({
             const projectList = await db
                 .select()
                 .from(projects)
-                .where(inArray(projects.id, pIds));
+                .where(and(
+                    inArray(projects.id, pIds),
+                    eq(projects.orgId, ctx.orgId)
+                ));
+            if (projectList.length !== new Set(pIds).size) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+            }
+            const authorizedProjectIds = projectList.map((project: { id: number }) => project.id);
 
             // Fetch latest scores
             const allScores = await db
                 .select()
                 .from(scoreMatrices)
-                .where(inArray(scoreMatrices.projectId, pIds))
+                .where(inArray(scoreMatrices.projectId, authorizedProjectIds))
                 .orderBy(desc(scoreMatrices.computedAt));
 
             // Fetch intelligence
             const allIntel = await db
                 .select()
                 .from(projectIntelligence)
-                .where(inArray(projectIntelligence.projectId, pIds))
+                .where(inArray(projectIntelligence.projectId, authorizedProjectIds))
                 .orderBy(desc(projectIntelligence.computedAt));
 
             // Build maps
@@ -637,7 +670,7 @@ export const portfolioRouter = router({
         }),
 
     // ─── Check Portfolio Alerts ──────────────────────────────────
-    checkAlerts: orgProcedure
+    checkAlerts: orgMutationProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ ctx, input }) => {
             const db = await getDb();
@@ -667,13 +700,20 @@ export const portfolioRouter = router({
             const projectList = await db
                 .select()
                 .from(projects)
-                .where(inArray(projects.id, pIds));
+                .where(and(
+                    inArray(projects.id, pIds),
+                    eq(projects.orgId, ctx.orgId)
+                ));
+            if (projectList.length !== new Set(pIds).size) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+            }
+            const authorizedProjectIds = projectList.map((project: { id: number }) => project.id);
 
             // Fetch latest scores
             const allScores = await db
                 .select()
                 .from(scoreMatrices)
-                .where(inArray(scoreMatrices.projectId, pIds))
+                .where(inArray(scoreMatrices.projectId, authorizedProjectIds))
                 .orderBy(desc(scoreMatrices.computedAt));
 
             const latestScoreByProject = new Map<number, (typeof allScores)[0]>();
@@ -737,18 +777,23 @@ export const portfolioRouter = router({
             const failurePatterns = detectFailurePatterns(portfolioItems);
 
             // Build alert candidates
-            type AlertCandidate = typeof platformAlerts.$inferInsert;
+            type AlertCandidate = typeof portfolioAlerts.$inferInsert;
             const candidates: AlertCandidate[] = [];
+            const baseAlert = {
+                organizationId: ctx.orgId,
+                portfolioId: portfolio.id,
+                status: "active" as const,
+            };
 
             // Rule 1: Portfolio avg composite < 55 → high severity risk alert
             if (avgComposite < 55) {
                 candidates.push({
+                    ...baseAlert,
                     alertType: "portfolio_risk",
                     severity: avgComposite < 40 ? "critical" : "high",
                     title: `Portfolio "${portfolio.name}" — Low Average Score`,
                     body: `Portfolio average composite score is ${avgComposite}/100 across ${portfolioItems.length} projects. This indicates systemic design feasibility concerns.`,
-                    affectedProjectIds: pIds,
-                    affectedCategories: [],
+                    affectedProjectIds: authorizedProjectIds,
                     triggerData: { portfolioId: portfolio.id, avgComposite, avgRisk } as any,
                     suggestedAction: "Review underperforming projects and consider replacing or redesigning low-scoring components.",
                     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -758,12 +803,12 @@ export const portfolioRouter = router({
             // Rule 2: Portfolio avg risk > 65 → high severity risk alert
             if (avgRisk > 65) {
                 candidates.push({
+                    ...baseAlert,
                     alertType: "portfolio_risk",
                     severity: avgRisk > 80 ? "critical" : "high",
                     title: `Portfolio "${portfolio.name}" — Elevated Risk`,
                     body: `Portfolio average risk score is ${avgRisk}/100. ${noGoCount} project(s) have NO_GO decisions.`,
-                    affectedProjectIds: pIds,
-                    affectedCategories: [],
+                    affectedProjectIds: authorizedProjectIds,
                     triggerData: { portfolioId: portfolio.id, avgRisk, noGoCount } as any,
                     suggestedAction: "Prioritize risk mitigation for the highest-risk projects. Consider portfolio rebalancing.",
                     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -773,12 +818,12 @@ export const portfolioRouter = router({
             // Rule 3: >50% of projects are NO_GO → critical alert
             if (noGoCount > portfolioItems.length / 2) {
                 candidates.push({
+                    ...baseAlert,
                     alertType: "portfolio_risk",
                     severity: "critical",
                     title: `Portfolio "${portfolio.name}" — Majority NO_GO`,
                     body: `${noGoCount} out of ${portfolioItems.length} scored projects have NO_GO decisions. Portfolio viability is severely compromised.`,
-                    affectedProjectIds: pIds,
-                    affectedCategories: [],
+                    affectedProjectIds: authorizedProjectIds,
                     triggerData: { portfolioId: portfolio.id, noGoCount, total: portfolioItems.length } as any,
                     suggestedAction: "Conduct an emergency portfolio review. Consider replacing failing projects or fundamentally redesigning the approach.",
                     expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
@@ -788,51 +833,40 @@ export const portfolioRouter = router({
             // Rule 4: High-severity failure patterns → individual alerts
             for (const fp of failurePatterns.filter((f) => f.severity === "high")) {
                 candidates.push({
+                    ...baseAlert,
                     alertType: "portfolio_failure_pattern",
                     severity: "high",
                     title: `Portfolio "${portfolio.name}" — ${fp.pattern}`,
                     body: `${fp.description} (affects ${fp.frequency} project(s))`,
-                    affectedProjectIds: pIds,
-                    affectedCategories: [],
+                    affectedProjectIds: authorizedProjectIds,
                     triggerData: { portfolioId: portfolio.id, pattern: fp } as any,
                     suggestedAction: "Address the root cause of this recurring failure pattern across the portfolio.",
                     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                 });
             }
 
-            // Deduplicate + insert
-            const inserted: Array<AlertCandidate & { id?: number }> = [];
             for (const alert of candidates) {
-                const existing = await db
-                    .select()
-                    .from(platformAlerts)
-                    .where(
-                        and(
-                            eq(platformAlerts.alertType, alert.alertType!),
-                            eq(platformAlerts.status, "active")
-                        )
-                    );
-
-                const isDuplicate = existing.some(
-                    (e: any) =>
-                        e.title === alert.title &&
-                        JSON.stringify(e.affectedProjectIds) === JSON.stringify(alert.affectedProjectIds)
-                );
-
-                if (!isDuplicate) {
-                    const [result] = await db.insert(platformAlerts).values(alert);
-                    const alertWithId = { ...alert, id: (result as any).insertId };
-                    inserted.push(alertWithId);
-
-                    // Attempt delivery for high/critical
-                    deliverAlert(alertWithId as any).catch((e) =>
-                        console.error("[PortfolioAlerts] Delivery failed:", alert.title, e)
-                    );
-                }
+                alert.activeDedupKey = createHash("sha256")
+                    .update(JSON.stringify({
+                        organizationId: ctx.orgId,
+                        portfolioId: portfolio.id,
+                        alertType: alert.alertType,
+                        title: alert.title,
+                        affectedProjectIds: authorizedProjectIds,
+                    }))
+                    .digest("hex");
+            }
+            const inserted = await insertPortfolioAlertsForOrg({
+                portfolioId: portfolio.id,
+                orgId: ctx.orgId,
+                alerts: candidates,
+            });
+            if (!inserted) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
             }
 
             return {
-                alerts: inserted.map((a) => ({
+                alerts: inserted.map((a: typeof portfolioAlerts.$inferSelect) => ({
                     id: a.id,
                     type: a.alertType,
                     severity: a.severity,

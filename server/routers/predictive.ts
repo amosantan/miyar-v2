@@ -3,7 +3,7 @@
  * Endpoints for cost range prediction, outcome prediction, and scenario cost projection.
  */
 import { z } from "zod";
-import { router, protectedProcedure } from "../_core/trpc";
+import { orgProcedure, protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { getPricingArea } from "../engines/area-utils";
@@ -11,6 +11,7 @@ import { predictCostRange, predictOutcome, projectScenarioCost } from "../engine
 import { matchScoreMatrixToPatterns } from "../engines/learning/pattern-extractor";
 import { decisionPatterns } from "../../drizzle/schema";
 import type { EvidenceDataPoint, TrendDataPoint, ComparableOutcome } from "../engines/predictive";
+import { requireProjectForOrg } from "../_core/project-access";
 
 export const predictiveRouter = router({
   /**
@@ -115,11 +116,10 @@ export const predictiveRouter = router({
   /**
    * V5-08: Get matched learning patterns for a project
    */
-  getProjectPatterns: protectedProcedure
+  getProjectPatterns: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+    .query(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const matrices = await db.getScoreMatricesByProject(input.projectId);
       const latest = matrices[0];
@@ -142,15 +142,14 @@ export const predictiveRouter = router({
   /**
    * V4-10: Get scenario cost projection
    */
-  getScenarioProjection: protectedProcedure
+  getScenarioProjection: orgProcedure
     .input(z.object({
       projectId: z.number(),
       horizonMonths: z.number().default(18),
       marketCondition: z.enum(["tight", "balanced", "soft"]).default("balanced"),
     }))
-    .query(async ({ input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+    .query(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const gfa = getPricingArea(project);
       // Derive budget per sqm from budget cap / pricing area

@@ -9,15 +9,25 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
+import {
+  orgHeavyMutationProcedure,
+  orgMutationProcedure,
+  orgProcedure,
+  protectedProcedure,
+  router,
+} from "../_core/trpc";
 import {
   getTrendSnapshots,
   getTrendHistory,
   getAnomalies,
   insertTrendSnapshot,
   getProjectInsights,
+  getGlobalProjectInsights,
   insertProjectInsight,
-  updateInsightStatus,
+  insertProjectInsightForOrg,
+  getProjectInsightById,
+  updateInsightStatusForOrg,
   getDb,
 } from "../db";
 import {
@@ -38,6 +48,8 @@ import {
 } from "../engines/analytics/insight-generator";
 import { evidenceRecords, competitorProjects, competitorEntities } from "../../drizzle/schema";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { requireProjectForOrg } from "../_core/project-access";
+import { requireProjectResourceForOrg } from "../_core/resource-access";
 
 export const analyticsRouter = router({
   getTrends: protectedProcedure
@@ -272,7 +284,7 @@ export const analyticsRouter = router({
       };
     }),
 
-  getProjectInsights: protectedProcedure
+  getProjectInsights: orgProcedure
     .input(
       z.object({
         projectId: z.number().optional(),
@@ -282,25 +294,44 @@ export const analyticsRouter = router({
         limit: z.number().min(1).max(100).default(50),
       }).optional()
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (input?.projectId === undefined) {
+        const insights = await getGlobalProjectInsights({
+          insightType: input?.insightType,
+          severity: input?.severity,
+          status: input?.status,
+          limit: input?.limit,
+        });
+        return { insights };
+      }
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       const insights = await getProjectInsights({
-        projectId: input?.projectId,
-        insightType: input?.insightType,
-        severity: input?.severity,
-        status: input?.status,
-        limit: input?.limit,
+        projectId: input.projectId,
+        insightType: input.insightType,
+        severity: input.severity,
+        status: input.status,
+        limit: input.limit,
       });
       return { insights };
     }),
 
-  generateProjectInsights: protectedProcedure
+  generateProjectInsights: orgHeavyMutationProcedure
     .input(
       z.object({
         projectId: z.number().optional(),
         enrichWithLLM: z.boolean().default(true),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      if (input.projectId === undefined && ctx.user.role !== "admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Global administrator access is required",
+        });
+      }
+      if (input.projectId !== undefined) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+      }
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
@@ -355,10 +386,10 @@ export const analyticsRouter = router({
       const insightInput: InsightInput = {
         trends,
         competitorLandscape,
-        projectContext: input.projectId ? {
+        projectContext: input.projectId === undefined ? undefined : {
           projectId: input.projectId,
           projectName: `Project #${input.projectId}`,
-        } : undefined,
+        },
       };
 
       const generated = await generateInsights(insightInput, {
@@ -367,8 +398,20 @@ export const analyticsRouter = router({
 
       // Persist insights
       for (const insight of generated) {
-        await insertProjectInsight({
-          projectId: input.projectId || null,
+        if (input.projectId === undefined) {
+          await insertProjectInsight({
+            projectId: null,
+            insightType: insight.type as any,
+            severity: insight.severity,
+            title: insight.title,
+            body: insight.body,
+            actionableRecommendation: insight.actionableRecommendation,
+            confidenceScore: String(insight.confidenceScore),
+            triggerCondition: insight.triggerCondition,
+            dataPoints: insight.dataPoints,
+          });
+        } else if (!(await insertProjectInsightForOrg({
+          projectId: input.projectId,
           insightType: insight.type as any,
           severity: insight.severity,
           title: insight.title,
@@ -377,7 +420,9 @@ export const analyticsRouter = router({
           confidenceScore: String(insight.confidenceScore),
           triggerCondition: insight.triggerCondition,
           dataPoints: insight.dataPoints,
-        });
+        }, ctx.orgId))) {
+          await requireProjectForOrg(input.projectId, ctx.orgId);
+        }
       }
 
       return {
@@ -386,7 +431,7 @@ export const analyticsRouter = router({
       };
     }),
 
-  updateInsightStatus: protectedProcedure
+  updateInsightStatus: orgMutationProcedure
     .input(
       z.object({
         insightId: z.number(),
@@ -394,7 +439,21 @@ export const analyticsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await updateInsightStatus(input.insightId, input.status, ctx.user?.id);
+      await requireProjectResourceForOrg(input.insightId, ctx.orgId, {
+        lookupResource: getProjectInsightById,
+        getProjectId: insight => insight.projectId!,
+      });
+      if (!(await updateInsightStatusForOrg(
+        input.insightId,
+        ctx.orgId,
+        input.status,
+        ctx.user.id
+      ))) {
+        await requireProjectResourceForOrg(input.insightId, ctx.orgId, {
+          lookupResource: getProjectInsightById,
+          getProjectId: insight => insight.projectId!,
+        });
+      }
       return { success: true };
     }),
 });

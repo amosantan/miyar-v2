@@ -1,7 +1,7 @@
 import { invokeLLM } from "../../_core/llm";
 import { getDb } from "../../db";
 import { projects, scoreMatrices } from "../../../drizzle/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import {
     computeDistributions,
     computeComplianceHeatmap,
@@ -10,14 +10,17 @@ import {
     type PortfolioProject
 } from "../portfolio";
 
-export async function generatePortfolioInsights(): Promise<string> {
+export async function generatePortfolioInsightsForOrg(orgId: number): Promise<string> {
     const db = await getDb();
     if (!db) throw new Error("Database error");
 
     // Fetch all scored projects
     const allProjects = await db.select()
         .from(projects)
-        .where(eq(projects.status, "evaluated"));
+        .where(and(
+            eq(projects.status, "evaluated"),
+            eq(projects.orgId, orgId)
+        ));
 
     if (allProjects.length === 0) {
         return "No evaluated projects available for portfolio analysis.";

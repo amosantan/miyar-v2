@@ -4,13 +4,18 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, heavyProcedure, router } from "../_core/trpc";
+import {
+    orgHeavyMutationProcedure,
+    orgProcedure,
+    router,
+} from "../_core/trpc";
 import { getDb } from "../db";
 import * as db from "../db";
-import { digitalTwinModels, sustainabilitySnapshots } from "../../drizzle/schema";
+import { digitalTwinModels } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 import { computeDigitalTwin, type MaterialType } from "../engines/sustainability/digital-twin";
 import { evaluateCompliance } from "../engines/sustainability/compliance-checklists";
+import { requireProjectForOrg } from "../_core/project-access";
 
 const materialEnum = z.enum([
     "concrete", "steel", "glass", "aluminum",
@@ -18,7 +23,7 @@ const materialEnum = z.enum([
 ]);
 
 export const sustainabilityRouter = router({
-    computeTwin: heavyProcedure
+    computeTwin: orgHeavyMutationProcedure
         .input(z.object({
             projectId: z.number(),
             floors: z.number().min(1).max(200).default(5),
@@ -33,8 +38,7 @@ export const sustainabilityRouter = router({
             waterRecycling: z.boolean().default(false),
         }))
         .mutation(async ({ ctx, input }) => {
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
             const gfa = Number(project.siteArea || 500);
             const sustainabilityRating = Number(project.des05Sustainability || 2);
@@ -63,13 +67,10 @@ export const sustainabilityRouter = router({
                 waterRecycling: input.waterRecycling,
             });
 
-            // Persist to digital_twin_models
-            const d = await getDb();
-            if (d) {
-                await d.insert(digitalTwinModels).values({
+            if (!(await db.createDigitalTwinForOrg({
                     projectId: input.projectId,
                     userId: ctx.user.id,
-                    orgId: ctx.user.orgId || null,
+                    orgId: ctx.orgId,
                     sustainabilityScore: result.sustainabilityScore,
                     sustainabilityGrade: result.sustainabilityGrade,
                     embodiedCarbon: String(result.totalEmbodiedCarbon),
@@ -80,10 +81,7 @@ export const sustainabilityRouter = router({
                     carbonBreakdown: result.carbonBreakdown,
                     lifecycle: result.lifecycle,
                     config: result.config,
-                });
-
-                // Also persist to sustainability_snapshots for historical tracking (P2-5)
-                await d.insert(sustainabilitySnapshots).values({
+                }, {
                     projectId: input.projectId,
                     userId: ctx.user.id,
                     compositeScore: result.sustainabilityScore,
@@ -92,19 +90,23 @@ export const sustainabilityRouter = router({
                     operationalEnergy: String(result.operationalEnergy),
                     lifecycleCost: String(result.lifecycleCost30yr),
                     carbonPerSqm: String(result.carbonPerSqm),
-                    energyRating: result.energyRating || null,
+                    energyRating: result.energyRating == null
+                        ? null
+                        : String(result.energyRating),
                     renewablesEnabled: input.includeRenewables,
                     waterRecycling: input.waterRecycling,
                     configSnapshot: result.config,
-                });
+                }, ctx.orgId))) {
+                await requireProjectForOrg(input.projectId, ctx.orgId);
             }
 
             return result;
         }),
 
-    getTwinModels: protectedProcedure
+    getTwinModels: orgProcedure
         .input(z.object({ projectId: z.number() }))
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             const d = await getDb();
             if (!d) return [];
             return d.select().from(digitalTwinModels)
@@ -113,9 +115,10 @@ export const sustainabilityRouter = router({
                 .limit(10);
         }),
 
-    getLatestTwin: protectedProcedure
+    getLatestTwin: orgProcedure
         .input(z.object({ projectId: z.number() }))
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
+            await requireProjectForOrg(input.projectId, ctx.orgId);
             const d = await getDb();
             if (!d) return null;
             const rows = await d.select().from(digitalTwinModels)
@@ -125,17 +128,16 @@ export const sustainabilityRouter = router({
             return rows[0] || null;
         }),
 
-    evaluateCompliance: protectedProcedure
+    evaluateCompliance: orgProcedure
         .input(z.object({
             projectId: z.number(),
         }))
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
             const d = await getDb();
             if (!d) throw new Error("Database unavailable");
 
             // Get project to determine city
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new Error("Project not found");
             const city = (project as any).city || "Dubai";
 
             // Get latest digital twin model for this project

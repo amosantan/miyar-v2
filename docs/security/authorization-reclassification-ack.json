@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "taskId": "TR-04",
+  "removedTargetStep": "TR-04",
+  "keyCount": 93,
+  "keysSha256": "fb1d70a390dc96779ff2206828080f3b9100a7c9518709a5c360543aec7a4347",
+  "rationale": "TR-04 replaces the recorded unsafe and legacy ownership paths with organization-scoped authorization and verified final-write behavior."
+}

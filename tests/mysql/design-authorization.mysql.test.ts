@@ -1,6 +1,25 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import mysql from "mysql2/promise";
 import * as db from "../../server/db";
+import { projectRouter } from "../../server/routers/project";
+import { scenarioRouter } from "../../server/routers/scenario";
+import { spaceProgramRouter } from "../../server/routers/spaceProgram";
+import { portfolioRouter } from "../../server/routers/portfolio";
+import { intakeRouter } from "../../server/routers/intake";
+import { adminRouter } from "../../server/routers/admin";
+import { analyticsRouter } from "../../server/routers/analytics";
+import { autonomousRouter } from "../../server/routers/autonomous";
+import { biasRouter } from "../../server/routers/bias";
+import { designAdvisorRouter } from "../../server/routers/design-advisor";
+import { intelligenceRouter } from "../../server/routers/intelligence";
+import { marketIntelligenceRouter } from "../../server/routers/market-intelligence";
+import { materialQuantityRouter } from "../../server/routers/materialQuantity";
+import { predictiveRouter } from "../../server/routers/predictive";
+import { salesPremiumRouter } from "../../server/routers/salesPremium";
+import { seedRouter } from "../../server/routers/seed";
+import { sustainabilityRouter } from "../../server/routers/sustainability";
+import type { TrpcContext } from "../../server/_core/context";
+import { requireActivePublicShare } from "../../server/_core/public-share-access";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("Guarded MySQL suite requires DATABASE_URL");
@@ -21,6 +40,19 @@ const tables = [
   "score_matrices",
   "scenarios",
   "evidence_records",
+  "project_insights",
+  "material_allocations",
+  "material_supplier_sources",
+  "amenity_sub_spaces",
+  "space_program_rooms",
+  "bias_alerts",
+  "override_records",
+  "portfolio_projects",
+  "portfolio_alerts",
+  "portfolios",
+  "finish_schedule_items",
+  "project_color_palettes",
+  "dm_compliance_checklists",
   "materials_catalog",
   "organization_members",
   "projects",
@@ -57,11 +89,54 @@ async function seedBase() {
   `);
 }
 
+async function seedScore(id: number, projectId: number) {
+  await pool.query(`
+    insert into score_matrices
+      (id, projectId, modelVersionId, saScore, ffScore, mpScore, dsScore, erScore, compositeScore, riskScore, rasScore, confidenceScore, decisionStatus, dimensionWeights, variableContributions, inputSnapshot)
+    values (?, ?, 1, 60, 60, 60, 60, 60, 60, 40, 60, 80, 'validated', '{}', '{}', '{}')
+  `, [id, projectId]);
+}
+
+function orgContext(): TrpcContext {
+  return {
+    user: {
+      id: 1,
+      openId: "mysql-user-a",
+      password: null,
+      name: "User A",
+      email: null,
+      loginMethod: "test",
+      role: "user",
+      orgId: 101,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    },
+    req: { headers: {} } as TrpcContext["req"],
+    res: {} as TrpcContext["res"],
+  };
+}
+
+function viewerContext(): TrpcContext {
+  const ctx = orgContext();
+  return {
+    ...ctx,
+    user: {
+      ...ctx.user!,
+      id: 2,
+      openId: "mysql-user-b",
+      name: "User B",
+      orgId: 202,
+    },
+  };
+}
+
 beforeEach(async () => {
   if (!providerCompatibility) {
     await pool.query("drop trigger if exists tr03h_fail_board_delete");
     await pool.query("drop trigger if exists tr03h_fail_project_update");
     await pool.query("drop trigger if exists tr03h_fail_rfq_insert");
+    await pool.query("drop trigger if exists tr04_fail_report_rfq_insert");
   }
   await pool.query("set foreign_key_checks = 0");
   for (const table of tables) await pool.query(`truncate table \`${table}\``);
@@ -76,7 +151,378 @@ afterAll(async () => {
   await pool.end();
 });
 
-describe("TR-03H real MySQL authorization boundary", () => {
+describe("TR-03H/TR-04 real MySQL authorization boundary", () => {
+  it("rejects cross-organization reads through representative router chains", async () => {
+    const ctx = orgContext();
+    await expect(projectRouter.createCaller(ctx).get({ id: 22 }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(projectRouter.createCaller(ctx).get({ id: 33 }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(scenarioRouter.createCaller(ctx).list({ projectId: 22 }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(spaceProgramRouter.createCaller(ctx).getForProject({ projectId: 22 }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(intakeRouter.createCaller(ctx).listAssets({ projectId: 22 }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    await pool.query(
+      "insert into portfolios (id, organization_id, name, created_by) values (501, 202, 'Foreign portfolio', 2)"
+    );
+    await expect(
+      portfolioRouter.createCaller(ctx).availableProjects({ portfolioId: 501 })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    await pool.query(`
+      insert into evidence_records
+        (id, recordId, projectId, orgId, category, itemName, unit, sourceUrl, captureDate, reliabilityGrade, confidenceScore, confidentiality)
+      values
+        (902, 'FOREIGN-EVIDENCE', 22, 202, 'other', 'Foreign', 'item', 'https://example.invalid/foreign', now(), 'A', 90, 'confidential')
+    `);
+
+    const crossOrgCalls = [
+      () => adminRouter.createCaller(ctx).overrides.list({ projectId: 22 }),
+      () => analyticsRouter.createCaller(ctx).getProjectInsights({ projectId: 22, limit: 50 }),
+      () => autonomousRouter.createCaller(ctx).generateBrief({ projectId: 22 }),
+      () => biasRouter.createCaller(ctx).getAlerts({ projectId: 22 }),
+      () => designAdvisorRouter.createCaller(ctx).getRecommendations({ projectId: 22 }),
+      () => intelligenceRouter.createCaller(ctx).calibrate({ projectId: 22 }),
+      () => marketIntelligenceRouter.createCaller(ctx).evidence.get({ id: 902 }),
+      () => materialQuantityRouter.createCaller(ctx).getForProject({ projectId: 22 }),
+      () => predictiveRouter.createCaller(ctx).getProjectPatterns({ projectId: 22 }),
+      () => salesPremiumRouter.createCaller(ctx).getBrandEquityForecast({
+        projectId: 22,
+        salePerformancePct: 50,
+      }),
+      () => sustainabilityRouter.createCaller(ctx).getTwinModels({ projectId: 22 }),
+    ];
+    for (const call of crossOrgCalls) {
+      await expect(call()).rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+
+    await expect(autonomousRouter.createCaller(ctx).getAlerts({}))
+      .rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(seedRouter.createCaller(ctx).seedEvidence())
+      .rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("keeps TR-04 root, scenario, room, allocation and insight writes organization scoped", async () => {
+    expect(await db.updateProjectForOrg(11, 202, { name: "Foreign" })).toBe(false);
+    expect(await db.updateProjectForOrg(11, 101, { name: "Owned" })).toBe(true);
+
+    const scenario = await db.createScenarioRecordForOrg({
+      projectId: 11,
+      name: "Scoped scenario",
+      variableOverrides: {},
+    }, 101);
+    expect(scenario?.id).toBeTypeOf("number");
+    expect(await db.createScenarioRecordForOrg({
+      projectId: 22,
+      name: "Rejected scenario",
+      variableOverrides: {},
+    }, 101)).toBeNull();
+    expect(await db.deleteScenarioForOrg(scenario!.id, 202)).toBe(false);
+    expect(await db.deleteScenarioForOrg(scenario!.id, 101)).toBe(true);
+
+    const override = await db.createOverrideRecordForOrg({
+      projectId: 11,
+      userId: 1,
+      overrideType: "strategic",
+      authorityLevel: 2,
+      originalValue: { value: 1 },
+      overrideValue: { value: 2 },
+      justification: "Scoped authorization integration test",
+    }, 101);
+    expect(override?.id).toBeTypeOf("number");
+    expect(await db.createOverrideRecordForOrg({
+      projectId: 22,
+      userId: 1,
+      overrideType: "strategic",
+      authorityLevel: 2,
+      originalValue: { value: 1 },
+      overrideValue: { value: 2 },
+      justification: "Rejected cross organization override",
+    }, 101)).toBeNull();
+
+    await pool.query(`
+      insert into space_program_rooms
+        (id, projectId, organizationId, roomCode, roomName, category, sqm, source, isFitOut, fitOutOverridden, finishGrade, priority, sortOrder, blockName, blockTypology)
+      values
+        (301, 11, 101, 'R1', 'Room', 'living', 20, 'user_manual', true, false, 'B', 'medium', 0, 'Main', 'residential')
+    `);
+    expect(await db.updateSpaceProgramRoomForOrg(301, 202, { roomName: "Foreign" })).toBe(false);
+    expect(await db.updateSpaceProgramRoomForOrg(301, 101, { roomName: "Owned" })).toBe(true);
+    expect(await db.deleteSpaceProgramRoomForOrg(301, 202)).toBe(false);
+    expect(await db.deleteSpaceProgramRoomForOrg(301, 101)).toBe(true);
+
+    await pool.query(`
+      insert into material_allocations
+        (id, projectId, organizationId, roomId, roomName, element, materialName, allocationPct, surfaceAreaM2, isLocked)
+      values
+        (401, 11, 101, 'R1', 'Room', 'floor', 'Stone', 100, 20, false)
+    `);
+    expect(await db.updateMaterialAllocationForOrg(401, 202, { allocationPct: "50" })).toBe(false);
+    expect(await db.updateMaterialAllocationForOrg(401, 101, { allocationPct: "50" })).toBe(true);
+
+    expect(await db.insertProjectInsightForOrg({
+      projectId: 22,
+      insightType: "cost_pressure",
+      severity: "warning",
+      title: "Rejected",
+    }, 101)).toBe(false);
+    expect(await db.insertProjectInsightForOrg({
+      projectId: 11,
+      insightType: "cost_pressure",
+      severity: "warning",
+      title: "Owned",
+    }, 101)).toBe(true);
+    const [insights] = await pool.query("select id from project_insights where projectId = 11");
+    const insightId = Number((insights as Array<{ id: number }>)[0].id);
+    expect(await db.updateInsightStatusForOrg(insightId, 202, "resolved", 2)).toBe(false);
+    expect(await db.updateInsightStatusForOrg(insightId, 101, "resolved", 1)).toBe(true);
+  });
+
+  it("persists report artifacts atomically and rechecks project ownership", async () => {
+    await seedScore(601, 11);
+    const artifacts = {
+      finishSchedule: [{
+        projectId: 11,
+        organizationId: 101,
+        roomId: "L1",
+        roomName: "Lobby",
+        element: "floor" as const,
+      }],
+      colorPalette: {
+        projectId: 11,
+        organizationId: 101,
+        paletteKey: "report-test",
+        colors: [{ hex: "#ffffff" }],
+      },
+      complianceChecklist: {
+        projectId: 11,
+        organizationId: 101,
+        items: [{ requirement: "test", status: "pass" }],
+      },
+      brief: {
+        projectId: 11,
+        createdBy: 1,
+        projectIdentity: {},
+        designNarrative: {},
+        materialSpecifications: {},
+        boqFramework: {},
+        detailedBudget: {},
+        designerInstructions: {},
+      },
+      rfqItems: [{
+        projectId: 11,
+        organizationId: 101,
+        sectionNo: 1,
+        itemCode: "RPT-1",
+        description: "Report line",
+        unit: "sqm",
+      }],
+    };
+    const result = await db.createReportArtifactsForOrg({
+      projectId: 11,
+      orgId: 101,
+      report: {
+        projectId: 11,
+        scoreMatrixId: 601,
+        reportType: "design_brief",
+        generatedBy: 1,
+      },
+      designArtifacts: artifacts,
+    });
+    expect(result?.reportId).toBeTypeOf("number");
+    expect(result?.briefId).toBeTypeOf("number");
+    const [rfqRows] = await pool.query(
+      "select brief_id as briefId from rfq_line_items where project_id = 11"
+    );
+    expect((rfqRows as Array<{ briefId: number }>)[0].briefId).toBe(result!.briefId);
+
+    expect(await db.createReportArtifactsForOrg({
+      projectId: 22,
+      orgId: 101,
+      report: {
+        projectId: 22,
+        scoreMatrixId: 601,
+        reportType: "design_brief",
+        generatedBy: 1,
+      },
+    })).toBeNull();
+
+    await seedScore(602, 11);
+    const blocker = await pool.getConnection();
+    try {
+      await blocker.beginTransaction();
+      await blocker.query("select id from projects where id = 11 for update");
+      let settled = false;
+      const pending = db.createReportArtifactsForOrg({
+        projectId: 11,
+        orgId: 101,
+        report: {
+          projectId: 11,
+          scoreMatrixId: 602,
+          reportType: "validation_summary",
+          generatedBy: 1,
+        },
+      }).finally(() => {
+        settled = true;
+      });
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(settled).toBe(false);
+      await blocker.query("update projects set orgId = 202 where id = 11");
+      await blocker.commit();
+      await expect(pending).resolves.toBeNull();
+      const [rows] = await pool.query(
+        "select count(*) as count from report_instances where scoreMatrixId = 602"
+      );
+      expect(Number((rows as Array<{ count: number }>)[0].count)).toBe(0);
+    } finally {
+      await blocker.rollback().catch(() => undefined);
+      blocker.release();
+    }
+  });
+
+  it.skipIf(providerCompatibility)(
+    "rolls back every report artifact after a late RFQ failure",
+    async () => {
+      await seedScore(603, 11);
+      await pool.query(`
+        create trigger tr04_fail_report_rfq_insert
+        before insert on rfq_line_items
+        for each row signal sqlstate '45000' set message_text = 'forced report RFQ failure'
+      `);
+      await expect(db.createReportArtifactsForOrg({
+        projectId: 11,
+        orgId: 101,
+        report: {
+          projectId: 11,
+          scoreMatrixId: 603,
+          reportType: "design_brief",
+          generatedBy: 1,
+        },
+        designArtifacts: {
+          finishSchedule: [{
+            projectId: 11, organizationId: 101, roomId: "L1",
+            roomName: "Lobby", element: "floor",
+          }],
+          colorPalette: {
+            projectId: 11, organizationId: 101,
+            paletteKey: "rollback", colors: [],
+          },
+          complianceChecklist: {
+            projectId: 11, organizationId: 101, items: [],
+          },
+          brief: {
+            projectId: 11, createdBy: 1, projectIdentity: {},
+            designNarrative: {}, materialSpecifications: {},
+            boqFramework: {}, detailedBudget: {}, designerInstructions: {},
+          },
+          rfqItems: [{
+            projectId: 11, organizationId: 101, sectionNo: 1,
+            itemCode: "BAD", description: "Rollback", unit: "sqm",
+          }],
+        },
+      })).rejects.toThrow();
+      for (const table of [
+        "finish_schedule_items",
+        "project_color_palettes",
+        "dm_compliance_checklists",
+        "design_briefs",
+        "rfq_line_items",
+        "report_instances",
+      ]) {
+        expect(await count(table)).toBe(0);
+      }
+      await pool.query("drop trigger tr04_fail_report_rfq_insert");
+    }
+  );
+
+  it("keeps tenant portfolio alerts organization scoped and deduplicated", async () => {
+    await pool.query(
+      "insert into portfolios (id, organization_id, name, created_by) values (501, 101, 'Owned', 1)"
+    );
+    await pool.query(
+      "insert into portfolio_projects (portfolio_id, project_id) values (501, 11)"
+    );
+    const alert = {
+      organizationId: 101,
+      portfolioId: 501,
+      alertType: "portfolio_risk" as const,
+      severity: "high" as const,
+      title: "Owned portfolio risk",
+      body: "Risk body",
+      affectedProjectIds: [11],
+      triggerData: { portfolioId: 501 },
+      suggestedAction: "Review",
+      status: "active" as const,
+      activeDedupKey: "portfolio-risk-key",
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+    const inserted = await db.insertPortfolioAlertsForOrg({
+      portfolioId: 501,
+      orgId: 101,
+      alerts: [alert],
+    });
+    expect(inserted).toHaveLength(1);
+    expect(await db.insertPortfolioAlertsForOrg({
+      portfolioId: 501,
+      orgId: 101,
+      alerts: [alert],
+    })).toEqual([]);
+    expect(await db.insertPortfolioAlertsForOrg({
+      portfolioId: 501,
+      orgId: 202,
+      alerts: [{ ...alert, organizationId: 202 }],
+    })).toBeNull();
+
+    await pool.query(
+      "update portfolio_alerts set expires_at = date_sub(now(), interval 1 minute) where id = ?",
+      [inserted![0].id]
+    );
+    expect(await db.insertPortfolioAlertsForOrg({
+      portfolioId: 501,
+      orgId: 101,
+      alerts: [alert],
+    })).toHaveLength(1);
+
+    await pool.query("delete from portfolio_alerts where portfolio_id = 501");
+    const concurrentResults = await Promise.all([
+      db.insertPortfolioAlertsForOrg({
+        portfolioId: 501,
+        orgId: 101,
+        alerts: [alert],
+      }),
+      db.insertPortfolioAlertsForOrg({
+        portfolioId: 501,
+        orgId: 101,
+        alerts: [alert],
+      }),
+    ]);
+    expect(concurrentResults.flat()).toHaveLength(1);
+    expect(await count("portfolio_alerts")).toBe(1);
+
+    await expect(
+      portfolioRouter.createCaller(viewerContext()).create({
+        name: "Viewer cannot create",
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("fails closed for expired and null-expiry public shares in real MySQL", async () => {
+    await pool.query(`
+      insert into ai_design_briefs
+        (id, project_id, org_id, brief_data, share_token, share_expires_at)
+      values
+        (701, 11, 101, '{}', 'expired-share', date_sub(now(), interval 1 minute)),
+        (702, 11, 101, '{}', 'null-expiry-share', null)
+    `);
+    await expect(requireActivePublicShare("expired-share"))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(requireActivePublicShare("null-expiry-share"))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
   it("enforces membership uniqueness and resolves exactly one role", async () => {
     await expect(
       pool.query("insert into organization_members (orgId, userId, role) values (101, 1, 'member')")

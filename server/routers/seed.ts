@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../_core/trpc";
+import {
+  adminProcedure,
+  orgHeavyMutationProcedure,
+  router,
+} from "../_core/trpc";
 import * as db from "../db";
 import { evaluate, type EvaluationConfig } from "../engines/scoring";
 import { generateDesignBrief } from "../engines/design-brief";
@@ -141,7 +145,7 @@ const SAMPLE_PROJECTS = [
 ];
 
 export const seedRouter = router({
-  seedProjects: protectedProcedure.mutation(async ({ ctx }) => {
+  seedProjects: orgHeavyMutationProcedure.mutation(async ({ ctx }) => {
     const results: Array<{
       projectId: number;
       name: string;
@@ -151,7 +155,7 @@ export const seedRouter = router({
 
     for (const sample of SAMPLE_PROJECTS) {
       // Check if already seeded (by name)
-      const existing = await db.getProjectsByUser(ctx.user.id);
+      const existing = await db.getProjectsByOrg(ctx.orgId);
       if (existing.some((p: any) => p.name === sample.name)) {
         continue; // Skip if already exists
       }
@@ -160,6 +164,7 @@ export const seedRouter = router({
       const projectResult = await db.createProject({
         ...sample,
         userId: ctx.user.id,
+        orgId: ctx.orgId,
         status: "draft",
         ctx03Gfa: String(sample.ctx03Gfa) as any,
         fin01BudgetCap: String(sample.fin01BudgetCap) as any,
@@ -215,7 +220,7 @@ export const seedRouter = router({
       });
 
       // Update project status
-      await db.updateProject(projectId, {
+      await db.updateProjectForOrg(projectId, ctx.orgId, {
         status: "evaluated",
         modelVersionId: modelVersion.id,
       });
@@ -370,7 +375,7 @@ export const seedRouter = router({
     };
   }),
 
-  seedMaterials: protectedProcedure.mutation(async () => {
+  seedMaterials: adminProcedure.mutation(async () => {
     const existing = await db.getAllMaterials();
     if (existing.length > 0) {
       return { seeded: 0, message: "Materials already exist" };
@@ -410,7 +415,7 @@ export const seedRouter = router({
     return { seeded, message: `${seeded} materials seeded` };
   }),
 
-  seedEvidence: protectedProcedure.mutation(async ({ ctx }) => {
+  seedEvidence: adminProcedure.mutation(async ({ ctx }) => {
     const existing = await db.listEvidenceRecords({});
     if (existing && existing.length > 0) {
       return { seeded: 0, message: "Evidence records already exist" };
@@ -442,6 +447,8 @@ export const seedRouter = router({
         captureDate: now,
         currencyOriginal: "AED",
         evidencePhase: "concept",
+        confidentiality: "public",
+        orgId: null,
         createdBy: ctx.user.id,
       });
       seeded++;
@@ -450,7 +457,7 @@ export const seedRouter = router({
     return { seeded, message: `${seeded} evidence records seeded` };
   }),
 
-  seedEnrichedData: protectedProcedure.mutation(async ({ ctx }) => {
+  seedEnrichedData: adminProcedure.mutation(async ({ ctx }) => {
     const now = new Date();
 
     // 1. Enriched Materials
@@ -491,6 +498,8 @@ export const seedRouter = router({
         captureDate: now,
         currencyOriginal: "AED",
         evidencePhase: "concept",
+        confidentiality: "public",
+        orgId: null,
         createdBy: ctx.user.id,
       });
       evidenceSeeded++;

@@ -7,8 +7,10 @@
  */
 
 import { z } from "zod";
-import { router, orgProcedure } from "../_core/trpc";
+import { orgHeavyMutationProcedure, orgMutationProcedure, orgProcedure, router } from "../_core/trpc";
 import * as db from "../db";
+import { requireProjectForOrg } from "../_core/project-access";
+import { requireProjectOrgResourceForOrg } from "../_core/resource-access";
 import { extractSpaceProgram } from "../engines/design/space-program-extractor";
 import { getFitOutTag, type RoomCategory } from "../engines/design/typology-fitout-rules";
 
@@ -27,7 +29,11 @@ async function writeFitOutArea(projectId: number, orgId: number) {
     const fitOutSqm = rooms
         .filter((r: any) => r.isFitOut)
         .reduce((sum: number, r: any) => sum + Number(r.sqm), 0);
-    await db.updateProjectVerification(projectId, { totalFitoutArea: fitOutSqm });
+    if (!(await db.updateProjectVerificationForOrg(projectId, orgId, {
+        totalFitoutArea: fitOutSqm,
+    }))) {
+        await requireProjectForOrg(projectId, orgId);
+    }
 }
 
 export const spaceProgramRouter = router({
@@ -35,7 +41,7 @@ export const spaceProgramRouter = router({
      * generate — Create space program from typology + GFA
      * Uses deterministic templates from typology-fitout-rules.ts
      */
-    generate: orgProcedure
+    generate: orgMutationProcedure
         .input(
             z.object({
                 projectId: z.number(),
@@ -52,15 +58,11 @@ export const spaceProgramRouter = router({
             const orgId = (ctx as any).orgId;
             if (!orgId) throw new Error("Organization context required");
 
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, orgId);
 
             const typology = project.ctx01Typology || "residential";
             const gfa = Number(project.ctx03Gfa) || 0;
             if (gfa <= 0) throw new Error("Project GFA must be > 0");
-
-            // Clear existing (preserve overridden rooms)
-            await db.resetSpaceProgramRooms(input.projectId, orgId, true);
 
             // Extract using the orchestrator
             const result = await extractSpaceProgram({
@@ -71,25 +73,14 @@ export const spaceProgramRouter = router({
                 blocks: input.blocks,
             });
 
-            // Insert rooms
-            if (result.rooms.length > 0) {
-                await db.insertSpaceProgramRooms(result.rooms as any);
-            }
-
-            // Insert amenity sub-spaces (need to resolve roomCode → DB id)
-            if (result.amenitySubSpaces.length > 0) {
-                const insertedRooms = await db.getSpaceProgramRooms(input.projectId, orgId);
-                for (const amenity of result.amenitySubSpaces) {
-                    const dbRoom = insertedRooms.find((r: any) => r.roomCode === amenity.roomCode);
-                    if (dbRoom && amenity.subSpaces.length > 0) {
-                        await db.insertAmenitySubSpaces(
-                            amenity.subSpaces.map((sub) => ({
-                                ...sub,
-                                spaceProgramRoomId: dbRoom.id,
-                            }))
-                        );
-                    }
-                }
+            if (!(await db.replaceSpaceProgramRoomsForOrg(
+                input.projectId,
+                orgId,
+                result.rooms as any,
+                result.amenitySubSpaces,
+                true
+            ))) {
+                await requireProjectForOrg(input.projectId, orgId);
             }
 
             // Sync totalFitoutArea on project for scoring engine + AI Advisor
@@ -108,7 +99,7 @@ export const spaceProgramRouter = router({
      * extractFromFile — Parse DXF/DWG and create space program
      * File is already uploaded to S3 — pass the S3 key
      */
-    extractFromFile: orgProcedure
+    extractFromFile: orgHeavyMutationProcedure
         .input(
             z.object({
                 projectId: z.number(),
@@ -120,8 +111,7 @@ export const spaceProgramRouter = router({
             const orgId = (ctx as any).orgId;
             if (!orgId) throw new Error("Organization context required");
 
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, orgId);
 
             const typology = project.ctx01Typology || "residential";
             const gfa = Number(project.ctx03Gfa) || 0;
@@ -147,9 +137,6 @@ export const spaceProgramRouter = router({
                 fileContent = Buffer.from(arrayBuffer);
             }
 
-            // Clear existing rooms
-            await db.resetSpaceProgramRooms(input.projectId, orgId, true);
-
             const result = await extractSpaceProgram({
                 projectId: input.projectId,
                 organizationId: orgId,
@@ -160,25 +147,14 @@ export const spaceProgramRouter = router({
                 originalFilename: input.originalFilename,
             });
 
-            // Insert rooms
-            if (result.rooms.length > 0) {
-                await db.insertSpaceProgramRooms(result.rooms as any);
-            }
-
-            // Insert amenity sub-spaces
-            if (result.amenitySubSpaces.length > 0) {
-                const insertedRooms = await db.getSpaceProgramRooms(input.projectId, orgId);
-                for (const amenity of result.amenitySubSpaces) {
-                    const dbRoom = insertedRooms.find((r: any) => r.roomCode === amenity.roomCode);
-                    if (dbRoom && amenity.subSpaces.length > 0) {
-                        await db.insertAmenitySubSpaces(
-                            amenity.subSpaces.map((sub) => ({
-                                ...sub,
-                                spaceProgramRoomId: dbRoom.id,
-                            }))
-                        );
-                    }
-                }
+            if (!(await db.replaceSpaceProgramRoomsForOrg(
+                input.projectId,
+                orgId,
+                result.rooms as any,
+                result.amenitySubSpaces,
+                true
+            ))) {
+                await requireProjectForOrg(input.projectId, orgId);
             }
 
             // Sync totalFitoutArea on project for scoring engine + AI Advisor
@@ -201,6 +177,7 @@ export const spaceProgramRouter = router({
         .query(async ({ input, ctx }) => {
             const orgId = (ctx as any).orgId;
             if (!orgId) throw new Error("Organization context required");
+            await requireProjectForOrg(input.projectId, orgId);
 
             const rooms = await db.getSpaceProgramRooms(input.projectId, orgId);
             if (rooms.length === 0) return null;
@@ -231,7 +208,9 @@ export const spaceProgramRouter = router({
 
             // Gap 2: Sync totalFitoutArea on read so scoring engine, ROI,
             // and AI Advisor always see the current fit-out area
-            await db.updateProjectVerification(input.projectId, { totalFitoutArea: fitOutSqm });
+            await db.updateProjectForOrg(input.projectId, orgId, {
+                totalFitoutArea: fitOutSqm,
+            });
 
             return {
                 rooms: roomsWithSubSpaces,
@@ -253,7 +232,7 @@ export const spaceProgramRouter = router({
     /**
      * updateRoom — Edit a single room's properties
      */
-    updateRoom: orgProcedure
+    updateRoom: orgMutationProcedure
         .input(
             z.object({
                 roomId: z.number(),
@@ -267,7 +246,12 @@ export const spaceProgramRouter = router({
                 blockTypology: z.string().optional(),
             })
         )
-        .mutation(async ({ input }) => {
+        .mutation(async ({ input, ctx }) => {
+            await requireProjectOrgResourceForOrg(input.roomId, ctx.orgId, {
+                lookupResource: db.getSpaceProgramRoomById,
+                getProjectId: room => room.projectId,
+                getOrgId: room => room.organizationId,
+            });
             const { roomId, ...updates } = input;
             const dbUpdates: any = {};
             if (updates.roomName) dbUpdates.roomName = updates.roomName;
@@ -281,14 +265,20 @@ export const spaceProgramRouter = router({
             // Mark source as user_manual since developer edited it
             dbUpdates.source = "user_manual";
 
-            await db.updateSpaceProgramRoom(roomId, dbUpdates);
+            if (!(await db.updateSpaceProgramRoomForOrg(roomId, ctx.orgId, dbUpdates))) {
+                await requireProjectOrgResourceForOrg(roomId, ctx.orgId, {
+                    lookupResource: db.getSpaceProgramRoomById,
+                    getProjectId: room => room.projectId,
+                    getOrgId: room => room.organizationId,
+                });
+            }
             return { success: true };
         }),
 
     /**
      * toggleFitOut — Flip isFitOut for a room and mark fitOutOverridden = true
      */
-    toggleFitOut: orgProcedure
+    toggleFitOut: orgMutationProcedure
         .input(
             z.object({
                 roomId: z.number(),
@@ -299,7 +289,13 @@ export const spaceProgramRouter = router({
         .mutation(async ({ input, ctx }) => {
             const orgId = (ctx as any).orgId;
             if (!orgId) throw new Error("Organization context required");
-            await db.updateSpaceProgramRoom(input.roomId, {
+            const authorized = await requireProjectOrgResourceForOrg(input.roomId, orgId, {
+                lookupResource: db.getSpaceProgramRoomById,
+                getProjectId: room => room.projectId,
+                getOrgId: room => room.organizationId,
+            });
+            if (authorized.project.id !== input.projectId) throw new Error("Resource not found");
+            await db.updateSpaceProgramRoomForOrg(input.roomId, orgId, {
                 isFitOut: input.isFitOut,
                 fitOutOverridden: true,
                 fitOutReason: input.isFitOut
@@ -314,7 +310,7 @@ export const spaceProgramRouter = router({
     /**
      * addRoom — Add a manual room to the space program
      */
-    addRoom: orgProcedure
+    addRoom: orgMutationProcedure
         .input(
             z.object({
                 projectId: z.number(),
@@ -331,6 +327,7 @@ export const spaceProgramRouter = router({
         .mutation(async ({ input, ctx }) => {
             const orgId = (ctx as any).orgId;
             if (!orgId) throw new Error("Organization context required");
+            await requireProjectForOrg(input.projectId, orgId);
 
             // Get existing rooms count for sort order and room code
             const existing = await db.getSpaceProgramRooms(input.projectId, orgId);
@@ -339,27 +336,27 @@ export const spaceProgramRouter = router({
 
             const roomCode = `MNL${sortOrder + 1}`;
 
-            await db.insertSpaceProgramRooms([
-                {
-                    projectId: input.projectId,
-                    organizationId: orgId,
-                    roomCode,
-                    roomName: input.roomName,
-                    category: input.category,
-                    sqm: String(input.sqm),
-                    floorLevel: input.floorLevel || null,
-                    source: "user_manual",
-                    isFitOut: fitOut.isFitOut,
-                    fitOutOverridden: false,
-                    fitOutReason: fitOut.fitOutReason,
-                    finishGrade: input.finishGrade,
-                    priority: input.priority,
-                    budgetPct: null,
-                    sortOrder,
-                    blockName: input.blockName,
-                    blockTypology: input.blockTypology,
-                },
-            ]);
+            if (!(await db.insertSpaceProgramRoomForOrg({
+                projectId: input.projectId,
+                organizationId: orgId,
+                roomCode,
+                roomName: input.roomName,
+                category: input.category,
+                sqm: String(input.sqm),
+                floorLevel: input.floorLevel || null,
+                source: "user_manual",
+                isFitOut: fitOut.isFitOut,
+                fitOutOverridden: false,
+                fitOutReason: fitOut.fitOutReason,
+                finishGrade: input.finishGrade,
+                priority: input.priority,
+                budgetPct: null,
+                sortOrder,
+                blockName: input.blockName,
+                blockTypology: input.blockTypology,
+            }, orgId))) {
+                await requireProjectForOrg(input.projectId, orgId);
+            }
 
             // Sync totalFitoutArea
             await writeFitOutArea(input.projectId, orgId);
@@ -369,12 +366,20 @@ export const spaceProgramRouter = router({
     /**
      * deleteRoom — Remove a room from the space program
      */
-    deleteRoom: orgProcedure
+    deleteRoom: orgMutationProcedure
         .input(z.object({ roomId: z.number(), projectId: z.number() }))
         .mutation(async ({ input, ctx }) => {
             const orgId = (ctx as any).orgId;
             if (!orgId) throw new Error("Organization context required");
-            await db.deleteSpaceProgramRoom(input.roomId);
+            const authorized = await requireProjectOrgResourceForOrg(input.roomId, orgId, {
+                lookupResource: db.getSpaceProgramRoomById,
+                getProjectId: room => room.projectId,
+                getOrgId: room => room.organizationId,
+            });
+            if (authorized.project.id !== input.projectId) throw new Error("Resource not found");
+            if (!(await db.deleteSpaceProgramRoomForOrg(input.roomId, orgId))) {
+                throw new Error("Resource not found");
+            }
             // Sync totalFitoutArea after deletion
             await writeFitOutArea(input.projectId, orgId);
             return { success: true };
@@ -384,20 +389,16 @@ export const spaceProgramRouter = router({
      * resetToTypologyDefaults — Wipe non-overridden rooms and regenerate from template
      * Rooms with fitOutOverridden = true survive the reset
      */
-    resetToTypologyDefaults: orgProcedure
+    resetToTypologyDefaults: orgMutationProcedure
         .input(z.object({ projectId: z.number() }))
         .mutation(async ({ input, ctx }) => {
             const orgId = (ctx as any).orgId;
             if (!orgId) throw new Error("Organization context required");
 
-            const project = await db.getProjectById(input.projectId);
-            if (!project) throw new Error("Project not found");
+            const project = await requireProjectForOrg(input.projectId, orgId);
 
             const typology = project.ctx01Typology || "residential";
             const gfa = Number(project.ctx03Gfa) || 0;
-
-            // Reset (preserves fitOutOverridden rooms)
-            await db.resetSpaceProgramRooms(input.projectId, orgId, true);
 
             // Fetch surviving overridden rooms to avoid duplicating their room codes
             const overriddenRooms = await db.getSpaceProgramRooms(input.projectId, orgId);
@@ -413,24 +414,14 @@ export const spaceProgramRouter = router({
 
             // Filter out rooms whose roomCode is already covered by an overridden room
             const newRooms = result.rooms.filter((r) => !overriddenCodes.has(r.roomCode));
-            if (newRooms.length > 0) {
-                await db.insertSpaceProgramRooms(newRooms as any);
-            }
-
-            // Insert amenity sub-spaces
-            if (result.amenitySubSpaces.length > 0) {
-                const insertedRooms = await db.getSpaceProgramRooms(input.projectId, orgId);
-                for (const amenity of result.amenitySubSpaces) {
-                    const dbRoom = insertedRooms.find((r: any) => r.roomCode === amenity.roomCode);
-                    if (dbRoom && amenity.subSpaces.length > 0) {
-                        await db.insertAmenitySubSpaces(
-                            amenity.subSpaces.map((sub) => ({
-                                ...sub,
-                                spaceProgramRoomId: dbRoom.id,
-                            }))
-                        );
-                    }
-                }
+            if (!(await db.replaceSpaceProgramRoomsForOrg(
+                input.projectId,
+                orgId,
+                newRooms as any,
+                result.amenitySubSpaces,
+                true
+            ))) {
+                await requireProjectForOrg(input.projectId, orgId);
             }
 
             // Sync totalFitoutArea for scoring engine

@@ -1,5 +1,14 @@
 import { z } from "zod";
-import { router, protectedProcedure, orgProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
+import {
+  orgAdminProcedure,
+  orgHeavyMutationProcedure,
+  orgMutationProcedure,
+  orgProcedure,
+  router,
+} from "../_core/trpc";
+import { requireProjectForOrg } from "../_core/project-access";
+import { requireProjectResourceForOrg } from "../_core/resource-access";
 import * as db from "../db";
 import { evaluate, computeROI, type EvaluationConfig } from "../engines/scoring";
 import { runSensitivityAnalysis } from "../engines/sensitivity";
@@ -18,8 +27,11 @@ import { SCENARIO_TEMPLATES, getScenarioTemplate, solveConstraints, type Constra
 import { dispatchWebhook } from "../engines/webhook";
 import { generateInsights, type InsightInput } from "../engines/analytics/insight-generator";
 import { getTrendSnapshots } from "../db";
-import { triggerAlertEngine } from "../engines/autonomous/alert-engine";
 import { generateAutonomousDesignBrief } from "../engines/autonomous/document-generator";
+import {
+  cleanupRejectedUpload,
+  reportIndeterminateUploadPersistence,
+} from "../_core/upload-compensation";
 
 /**
  * Build evaluation config that respects the Logic Registry.
@@ -236,12 +248,10 @@ export const projectRouter = router({
   get: orgProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.id);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return null;
-      return project;
+      return requireProjectForOrg(input.id, ctx.orgId);
     }),
 
-  create: orgProcedure
+  create: orgMutationProcedure
     .input(projectInputSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await db.createProject({
@@ -266,14 +276,11 @@ export const projectRouter = router({
       return result;
     }),
 
-  update: orgProcedure
+  update: orgMutationProcedure
     .input(z.object({ id: z.number() }).merge(projectInputSchema.partial()))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
-      const project = await db.getProjectById(id);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) {
-        throw new Error("Project not found");
-      }
+      const project = await requireProjectForOrg(id, ctx.orgId);
       if (project.status === "locked") {
         throw new Error("Cannot update a locked project");
       }
@@ -283,7 +290,9 @@ export const projectRouter = router({
       if (data.officeCustomRatio !== undefined) updateData.officeCustomRatio = data.officeCustomRatio != null ? String(data.officeCustomRatio) : null;
       if (data.totalFitoutArea !== undefined) updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
       if (data.totalNonFinishArea !== undefined) updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
-      await db.updateProject(id, updateData);
+      if (!(await db.updateProjectForOrg(id, ctx.orgId, updateData))) {
+        await requireProjectForOrg(id, ctx.orgId);
+      }
       await db.createAuditLog({
         userId: ctx.user.id,
         action: "project.update",
@@ -294,14 +303,14 @@ export const projectRouter = router({
       return { success: true };
     }),
 
-  delete: protectedProcedure
+  delete: orgAdminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.id);
-      if (!project || project.userId !== ctx.user.id) {
-        throw new Error("Project not found");
+      await requireProjectForOrg(input.id, ctx.orgId);
+      if (!(await db.deleteProjectForOrg(input.id, ctx.orgId))) {
+        await requireProjectForOrg(input.id, ctx.orgId);
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
       }
-      await db.deleteProject(input.id);
       await db.createAuditLog({
         userId: ctx.user.id,
         action: "project.delete",
@@ -311,13 +320,10 @@ export const projectRouter = router({
       return { success: true };
     }),
 
-  evaluate: orgProcedure
+  evaluate: orgHeavyMutationProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.id);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) {
-        throw new Error("Project not found");
-      }
+      const project = await requireProjectForOrg(input.id, ctx.orgId);
 
       const modelVersion = await db.getActiveModelVersion();
       if (!modelVersion) throw new Error("No active model version found");
@@ -404,32 +410,24 @@ export const projectRouter = router({
           inputs.spaceCriticalCount = spaceResult.totalCritical;
           console.log(`[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`);
 
-          // Phase 9 Gap 6: Space-critical platform alert
+          // Phase 9 Gap 6: Space-critical tenant insight
           if (spaceResult.totalCritical >= 2) {
             try {
-              const { getDb: getDbFn } = await import("../db");
-              const { platformAlerts: platformAlertsTable } = await import("../../drizzle/schema");
-              const alertDb = await getDbFn();
-              if (alertDb) {
-                const criticalRooms = spaceResult.recommendations
-                  .filter(r => r.severity === "critical")
-                  .map(r => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`)
-                  .join(", ");
-                await alertDb.insert(platformAlertsTable).values({
-                  alertType: "space_critical",
-                  severity: "high",
-                  title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
-                  body: `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside DLD benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
-                  affectedProjectIds: [input.id],
-                  affectedCategories: ["space_planning", "floor_plan"],
-                  triggerData: { spaceResult } as any,
-                  suggestedAction: "Review floor plan allocations in Space Planner. Critical room ratios are correlated with lower sale prices in this area.",
-                  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-                });
-                console.log(`[Phase9] Space-critical alert created for project ${input.id}`);
-              }
+              const criticalRooms = spaceResult.recommendations
+                .filter(r => r.severity === "critical")
+                .map(r => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`)
+                .join(", ");
+              await db.insertProjectInsightForOrg({
+                projectId: input.id,
+                insightType: "positioning_gap",
+                severity: "warning",
+                title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
+                body: `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside DLD benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
+                actionableRecommendation: "Review floor plan allocations in Space Planner. Critical room ratios are correlated with lower sale prices in this area.",
+                dataPoints: { spaceResult },
+              }, ctx.orgId);
             } catch (alertErr) {
-              console.warn("[Phase9] Space alert creation failed (non-blocking):", alertErr);
+              console.warn("[Phase9] Space insight creation failed (non-blocking):", alertErr);
             }
           }
         } catch (e) {
@@ -561,11 +559,13 @@ export const projectRouter = router({
         console.warn("[V11] Bias detection failed (non-blocking):", e);
       }
 
-      await db.updateProject(input.id, {
+      if (!(await db.updateProjectForOrg(input.id, ctx.orgId, {
         status: "evaluated",
         modelVersionId: modelVersion.id,
         benchmarkVersionId: activeBV?.id ?? null,
-      });
+      }))) {
+        await requireProjectForOrg(input.id, ctx.orgId);
+      }
 
       await db.createAuditLog({
         userId: ctx.user.id,
@@ -630,14 +630,6 @@ export const projectRouter = router({
         console.warn("[V3-09] Insight generation failed (non-blocking):", e);
       }
 
-      // V6: Autonomous Alert Generation
-      try {
-        const alerts = await triggerAlertEngine();
-        console.log(`[Project] Post-evaluation alert generation: ${alerts.length} new alerts created`);
-      } catch (err) {
-        console.error("[Project] Post-evaluation alert generation failed:", err);
-      }
-
       // Phase C.1+C.2: DLD Market Positioning + Over/Under-Spec Detection
       let dldMarketPosition = null;
       if (project.dldAreaId) {
@@ -665,16 +657,14 @@ export const projectRouter = router({
   getScores: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return [];
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       return db.getScoreMatricesByProject(input.projectId);
     }),
 
   sensitivity: orgProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.id);
-      if (!project || project.userId !== ctx.user.id) return [];
+      const project = await requireProjectForOrg(input.id, ctx.orgId);
 
       const modelVersion = await db.getActiveModelVersion();
       if (!modelVersion) return [];
@@ -692,8 +682,7 @@ export const projectRouter = router({
   roi: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return null;
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const scores = await db.getScoreMatricesByProject(input.projectId);
       if (scores.length === 0) return null;
@@ -749,8 +738,7 @@ export const projectRouter = router({
   fiveLens: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return null;
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const scores = await db.getScoreMatricesByProject(input.projectId);
       if (scores.length === 0) return null;
@@ -764,8 +752,7 @@ export const projectRouter = router({
   intelligence: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return null;
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const intel = await db.getProjectIntelligenceByProject(input.projectId);
       return intel.length > 0 ? intel[0] : null;
@@ -776,14 +763,13 @@ export const projectRouter = router({
     return SCENARIO_TEMPLATES;
   }),
 
-  applyScenarioTemplate: orgProcedure
+  applyScenarioTemplate: orgHeavyMutationProcedure
     .input(z.object({
       projectId: z.number(),
       templateKey: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) throw new Error("Project not found");
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const template = getScenarioTemplate(input.templateKey);
       if (!template) throw new Error("Template not found");
@@ -829,14 +815,18 @@ export const projectRouter = router({
 
       const scoreResult = evaluate(scenarioInputs as ProjectInputs, config);
 
-      const result = await db.createScenarioRecord({
+      const result = await db.createScenarioRecordForOrg({
         projectId: input.projectId,
         name: template.name,
         description: template.description,
         variableOverrides: template.overrides,
         isTemplate: true,
         templateKey: input.templateKey,
-      });
+      }, ctx.orgId);
+      if (!result) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+        throw new Error("Failed to create scenario");
+      }
 
       await db.createAuditLog({
         userId: ctx.user.id,
@@ -850,7 +840,7 @@ export const projectRouter = router({
     }),
 
   // ─── V2: Constraint Solver ────────────────────────────────────────
-  solveConstraints: orgProcedure
+  solveConstraints: orgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       constraints: z.array(z.object({
@@ -860,22 +850,20 @@ export const projectRouter = router({
       })),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) throw new Error("Project not found");
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const baseProject = projectToInputs(project) as Record<string, any>;
       return solveConstraints(baseProject, input.constraints as Constraint[]);
     }),
 
   // ─── V2: Enhanced Report Generation ───────────────────────────────
-  generateReport: orgProcedure
+  generateReport: orgHeavyMutationProcedure
     .input(z.object({
       projectId: z.number(),
       reportType: z.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"]),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) throw new Error("Project not found");
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       const scores = await db.getScoreMatricesByProject(input.projectId);
       if (scores.length === 0) throw new Error("No scores available. Evaluate first.");
@@ -976,55 +964,55 @@ export const projectRouter = router({
         : undefined;
 
       let reportData;
+      let designArtifacts:
+        Parameters<typeof db.createReportArtifactsForOrg>[0]["designArtifacts"];
       if (input.reportType === "validation_summary") {
         reportData = generateValidationSummary(project.name, project.id, inputs, scoreResult, sensitivity);
       } else if (input.reportType === "design_brief") {
-        // V8 DESIGN INTELLIGENCE ENGINE SEQUENCE 
-        try {
-          const { buildDesignVocabulary } = await import("../engines/design/vocabulary");
-          const { buildSpaceProgram } = await import("../engines/design/space-program");
-          const { buildFinishSchedule } = await import("../engines/design/finish-schedule");
-          const { buildColorPalette } = await import("../engines/design/color-palette");
-          const { buildRFQPack } = await import("../engines/design/rfq-generator");
-          const { buildRFQFromBrief: buildRFQFromBriefLegacy } = await import("../engines/design/rfq-generator");
-          const { buildDMComplianceChecklist } = await import("../engines/design/dm-compliance");
+        const { buildDesignVocabulary } = await import("../engines/design/vocabulary");
+        const { buildSpaceProgram } = await import("../engines/design/space-program");
+        const { buildFinishSchedule } = await import("../engines/design/finish-schedule");
+        const { buildColorPalette } = await import("../engines/design/color-palette");
+        const { buildRFQPack } = await import("../engines/design/rfq-generator");
+        const { buildDMComplianceChecklist } = await import("../engines/design/dm-compliance");
 
-          const vocab = buildDesignVocabulary(project);
-          const { totalFitoutBudgetAed, rooms, totalAllocatedSqm } = buildSpaceProgram(project);
-          const materials = await db.getAllMaterials();
-          const finishSchedule = buildFinishSchedule(project, vocab, rooms, materials);
-          const colorPalette = await buildColorPalette(project, vocab);
-          const complianceChecklist = buildDMComplianceChecklist(project.id, project.orgId || 1, project);
-
-          // Insert deterministic records into DB
-          for (const item of finishSchedule) await db.insertFinishScheduleItem(item);
-          await db.insertProjectColorPalette(colorPalette);
-          await db.insertDmComplianceChecklist(complianceChecklist);
-
-          // Create the Design Brief first
-          const briefResult = await db.createDesignBrief({
+        const vocab = buildDesignVocabulary(project);
+        const { totalFitoutBudgetAed, rooms } = buildSpaceProgram(project);
+        const materials = await db.getAllMaterials();
+        const finishSchedule = buildFinishSchedule(project, vocab, rooms, materials);
+        const colorPalette = await buildColorPalette(project, vocab);
+        const complianceChecklist = buildDMComplianceChecklist(
+          project.id,
+          ctx.orgId,
+          project
+        );
+        const rfqPack = buildRFQPack(
+          project.id,
+          ctx.orgId,
+          finishSchedule,
+          rooms,
+          materials
+        );
+        designArtifacts = {
+          finishSchedule,
+          colorPalette,
+          complianceChecklist,
+          brief: {
             projectId: project.id,
             version: 1,
             createdBy: ctx.user.id,
             projectIdentity: { name: project.name, location: project.ctx04Location },
-            designNarrative: { positioningStatement: colorPalette.geminiRationale || "Curated aesthetic alignment." },
+            designNarrative: {
+              positioningStatement:
+                colorPalette.geminiRationale || "Curated aesthetic alignment.",
+            },
             materialSpecifications: { vocab, finishSchedule },
             boqFramework: { coreAllocations: [] },
             detailedBudget: { totalFitoutBudgetAed, rfqMin: 0, rfqMax: 0 },
-            designerInstructions: { deliverablesChecklist: complianceChecklist }
-          });
-
-          // Generate RFQ — use legacy path since this Brief doesn't have full BOQ allocations
-          const rfqPack = buildRFQPack(project.id, project.orgId || 1, finishSchedule, rooms, materials);
-          for (const item of rfqPack) await db.insertRfqLineItem(item);
-
-          const rfqMin = rfqPack.reduce((acc: number, r: any) => acc + Number(r.totalAedMin || 0), 0);
-          const rfqMax = rfqPack.reduce((acc: number, r: any) => acc + Number(r.totalAedMax || 0), 0);
-
-          console.log(`[V8] Successfully orchestrated Design Intelligence Layer for Project ${project.id}.`);
-        } catch (v8Err) {
-          console.error("[V8] Engine integration error:", v8Err);
-        }
+            designerInstructions: { deliverablesChecklist: complianceChecklist },
+          },
+          rfqItems: rfqPack,
+        };
 
         // Output legacy format for the PDF template to continue working seamlessly
         reportData = generateDesignBrief(project.name, project.id, inputs, scoreResult, sensitivity);
@@ -1117,23 +1105,43 @@ export const projectRouter = router({
       const html = generateReportHTML(input.reportType, pdfInput);
 
       let fileUrl: string | null = null;
+      let storageKey: string | null = null;
       try {
         const fileKey = `reports/${project.id}/${input.reportType}-${nanoid(8)}.html`;
         const result = await storagePut(fileKey, html, "text/html");
+        storageKey = result.key;
         fileUrl = result.url;
       } catch (e) {
         console.warn("[Report] S3 upload failed, storing HTML content inline:", e);
       }
 
-      await db.createReportInstance({
-        projectId: input.projectId,
-        scoreMatrixId: latest.id,
-        reportType: input.reportType as any,
-        fileUrl,
-        content: fileUrl ? reportData : { ...reportData, html },
-        generatedBy: ctx.user.id,
-        benchmarkVersionId: activeBV?.id ?? null,
-      });
+      let persistence;
+      try {
+        persistence = await db.createReportArtifactsForOrg({
+          projectId: input.projectId,
+          orgId: ctx.orgId,
+          report: {
+            projectId: input.projectId,
+            scoreMatrixId: latest.id,
+            reportType: input.reportType as any,
+            fileUrl,
+            content: fileUrl ? reportData : { ...reportData, html },
+            generatedBy: ctx.user.id,
+            benchmarkVersionId: activeBV?.id ?? null,
+          },
+          designArtifacts,
+        });
+      } catch (error) {
+        if (storageKey) {
+          reportIndeterminateUploadPersistence(storageKey, error);
+        }
+        throw error;
+      }
+      if (!persistence) {
+        if (storageKey) await cleanupRejectedUpload(storageKey);
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+      }
 
       await db.createAuditLog({
         userId: ctx.user.id,
@@ -1164,35 +1172,42 @@ export const projectRouter = router({
   listReports: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return [];
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       return db.getReportsByProject(input.projectId);
     }),
 
   // ─── V4: Area Verification Gate ───────────────────────────────────────────
 
-  extractAreas: orgProcedure
+  extractAreas: orgHeavyMutationProcedure
     .input(z.object({
       projectId: z.number(),
       assetId: z.number(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) {
-        throw new Error("Project not found or unauthorized");
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
+      const { resource: asset } = await requireProjectResourceForOrg(
+        input.assetId,
+        ctx.orgId,
+        {
+          lookupResource: db.getProjectAssetById,
+          getProjectId: record => record.projectId,
+        }
+      );
+      if (asset.projectId !== project.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
       }
-
-      const asset = await db.getProjectAssetById(input.assetId);
-      if (!asset) throw new Error("Asset not found");
       if (!asset.storageUrl) throw new Error("Asset has no storage URL");
 
       // Create pending extraction record
-      const extraction = await db.createPdfExtraction({
+      const extraction = await db.createPdfExtractionForOrg({
         projectId: input.projectId,
         assetId: input.assetId,
         extractionMethod: "vision_ai",
         status: "pending",
-      });
+      }, ctx.orgId);
+      if (!extraction) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+      }
 
       try {
         const { extractRoomsFromImage } = await import("../engines/pdf-extraction");
@@ -1207,11 +1222,13 @@ export const projectRouter = router({
         );
 
         // Update extraction with results
-        await db.updatePdfExtraction(extraction.id, {
+        if (!(await db.updatePdfExtractionForOrg(extraction.id, ctx.orgId, {
           status: "extracted",
           extractedRooms: result.rooms,
           totalExtractedArea: String(result.totalArea),
-        });
+        }))) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
 
         await db.createAuditLog({
           userId: ctx.user.id,
@@ -1234,14 +1251,14 @@ export const projectRouter = router({
           status: "extracted" as const,
         };
       } catch (error: any) {
-        await db.updatePdfExtraction(extraction.id, {
+        await db.updatePdfExtractionForOrg(extraction.id, ctx.orgId, {
           status: "rejected",
         });
         throw new Error(`Area extraction failed: ${error.message}`);
       }
     }),
 
-  verifyAreas: orgProcedure
+  verifyAreas: orgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       extractionId: z.number(),
@@ -1249,29 +1266,30 @@ export const projectRouter = router({
       adjustedTotalArea: z.number().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) {
-        throw new Error("Project not found or unauthorized");
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
+      const { resource: extraction } = await requireProjectResourceForOrg(
+        input.extractionId,
+        ctx.orgId,
+        {
+          lookupResource: db.getPdfExtractionById,
+          getProjectId: record => record.projectId,
+        }
+      );
+      if (extraction.projectId !== project.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
       }
 
-      const extraction = await db.getPdfExtractionById(input.extractionId);
-      if (!extraction) throw new Error("Extraction not found");
-      if (extraction.projectId !== input.projectId) throw new Error("Extraction does not belong to this project");
-
       if (input.action === "verify") {
-        // Mark extraction as verified
-        await db.updatePdfExtraction(input.extractionId, {
-          status: "verified",
-          verifiedBy: ctx.user.id,
-          verifiedAt: new Date(),
-        });
-
-        // Update project's fitout area verification flag
         const verifiedArea = input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
-        await db.updateProjectVerification(input.projectId, {
-          fitoutAreaVerified: true,
-          totalFitoutArea: verifiedArea,
-        });
+        if (!(await db.verifyPdfExtractionForOrg(
+          input.extractionId,
+          input.projectId,
+          ctx.orgId,
+          ctx.user.id,
+          verifiedArea
+        ))) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
 
         await db.createAuditLog({
           userId: ctx.user.id,
@@ -1288,11 +1306,13 @@ export const projectRouter = router({
         return { success: true, verifiedArea };
       } else {
         // Reject extraction
-        await db.updatePdfExtraction(input.extractionId, {
+        if (!(await db.updatePdfExtractionForOrg(input.extractionId, ctx.orgId, {
           status: "rejected",
           verifiedBy: ctx.user.id,
           verifiedAt: new Date(),
-        });
+        }))) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        }
 
         await db.createAuditLog({
           userId: ctx.user.id,
@@ -1309,8 +1329,7 @@ export const projectRouter = router({
   getExtractions: orgProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project || (project.orgId !== ctx.orgId && project.userId !== ctx.user.id)) return [];
+      await requireProjectForOrg(input.projectId, ctx.orgId);
       return db.getPdfExtractionsByProject(input.projectId);
     }),
 });

@@ -4,7 +4,11 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, heavyProcedure, router } from "../_core/trpc";
+import {
+    orgHeavyMutationProcedure,
+    protectedProcedure,
+    router,
+} from "../_core/trpc";
 import { getDb } from "../db";
 import * as db from "../db";
 import {
@@ -18,7 +22,7 @@ import { calculateHealthScore, type HealthMetrics } from "../engines/customer/he
 
 export const customerSuccessRouter = router({
     // Calculate and persist a fresh health score
-    calculateHealth: heavyProcedure
+    calculateHealth: orgHeavyMutationProcedure
         .mutation(async ({ ctx }) => {
             const d = await getDb();
             if (!d) throw new Error("Database unavailable");
@@ -50,7 +54,7 @@ export const customerSuccessRouter = router({
                 : 30;
 
             // Adoption: project & feature counts
-            const projects = await db.getProjectsByUser(userId);
+            const projects = await db.getProjectsByOrg(ctx.orgId);
             const totalProjects = projects?.length || 0;
             const evaluatedProjects = projects?.filter((p: { status: string }) => p.status === "evaluated").length || 0;
 
@@ -128,7 +132,7 @@ export const customerSuccessRouter = router({
             // Persist
             await d.insert(customerHealthScores).values({
                 userId,
-                orgId: ctx.user.orgId || null,
+                orgId: ctx.orgId,
                 compositeScore: result.compositeScore,
                 engagementScore: result.engagement.score,
                 adoptionScore: result.adoption.score,

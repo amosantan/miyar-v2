@@ -1895,6 +1895,45 @@ export const portfolioProjects = mysqlTable("portfolio_projects", {
 export type PortfolioProjectRow = typeof portfolioProjects.$inferSelect;
 export type InsertPortfolioProject = typeof portfolioProjects.$inferInsert;
 
+export const portfolioAlerts = mysqlTable(
+  "portfolio_alerts",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    organizationId: int("organization_id").notNull(),
+    portfolioId: int("portfolio_id").notNull(),
+    alertType: mysqlEnum("alert_type", [
+      "portfolio_risk",
+      "portfolio_failure_pattern",
+    ]).notNull(),
+    severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    body: text("body").notNull(),
+    affectedProjectIds: json("affected_project_ids"),
+    triggerData: json("trigger_data"),
+    suggestedAction: text("suggested_action").notNull(),
+    status: mysqlEnum("status", [
+      "active",
+      "acknowledged",
+      "resolved",
+      "expired",
+    ]).default("active").notNull(),
+    activeDedupKey: varchar("active_dedup_key", { length: 64 }),
+    acknowledgedBy: int("acknowledged_by"),
+    acknowledgedAt: timestamp("acknowledged_at"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("portfolio_alerts_org_active_key_unique").on(
+      table.organizationId,
+      table.activeDedupKey
+    ),
+  ]
+);
+
+export type PortfolioAlert = typeof portfolioAlerts.$inferSelect;
+export type InsertPortfolioAlert = typeof portfolioAlerts.$inferInsert;
+
 // ─── Phase F: Monte Carlo Simulations ───────────────────────────────────────
 
 export const monteCarloSimulations = mysqlTable("monte_carlo_simulations", {
