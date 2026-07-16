@@ -14,7 +14,8 @@ import { initSentry, captureException } from "./sentry";
 import { registerSSE } from "./sse-notifications";
 import { registerApiDocs } from "./api-docs";
 import { requestLogger, logger, startPerfMonitor } from "./logger";
-import { isCronAuthorized, shouldStartBackgroundJobs } from "./runtime-safety";
+import { shouldStartBackgroundJobs } from "./runtime-safety";
+import { registerIngestionCronRoute } from "./ingestion-cron";
 
 // Initialise Sentry error tracking (no-ops if SENTRY_DSN is not set)
 initSentry();
@@ -69,47 +70,7 @@ async function startServer() {
   // P3-5: API documentation endpoints
   registerApiDocs(app);
 
-  // ─── Vercel Cron: Ingestion trigger (Phase B.1) ────────────────────────────
-  // Triggered by Vercel Cron Jobs or external scheduler via GET /api/cron/ingestion
-  // Protected by CRON_SECRET bearer token
-  app.get("/api/cron/ingestion", async (req, res) => {
-    try {
-      // Verify cron secret (Vercel sends Authorization header automatically)
-      const authHeader = req.headers.authorization;
-      const cronSecret = process.env.CRON_SECRET;
-
-      if (!isCronAuthorized(authHeader, cronSecret)) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-      }
-
-      logger.info("[Cron Ingestion] Triggered via Vercel Cron");
-
-      // Dynamic import to avoid circular deps
-      const { getAllConnectors } = await import("../engines/ingestion/connectors/index");
-      const { runIngestion } = await import("../engines/ingestion/orchestrator");
-
-      const connectors = getAllConnectors();
-      const report = await runIngestion(connectors, "scheduled");
-
-      logger.info(`[Cron Ingestion] Complete: ${report.evidenceCreated} records, ${report.durationMs}ms`);
-
-      res.status(200).json({
-        ok: true,
-        evidenceCreated: report.evidenceCreated,
-        evidenceSkipped: report.evidenceSkipped,
-        sourcesAttempted: report.sourcesAttempted,
-        sourcesSucceeded: report.sourcesSucceeded,
-        durationMs: report.durationMs,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.error("[Cron Ingestion] Failed", { error: msg });
-      captureException(error, { source: "cron-ingestion" });
-      res.status(500).json({ ok: false, error: msg });
-    }
-  });
+  registerIngestionCronRoute(app);
 
   // tRPC API
   app.use(

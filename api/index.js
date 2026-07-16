@@ -4832,6 +4832,234 @@ var init_llm = __esm({
   }
 });
 
+// server/engines/autonomous/alert-delivery.ts
+async function deliverAlert(alert) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const recipientEmail = process.env.ALERT_RECIPIENT_EMAIL || process.env.ADMIN_EMAIL;
+  if (!apiKey) {
+    console.log("[AlertDelivery] RESEND_API_KEY not set, skipping email delivery");
+    return { delivered: false, channel: "skipped" };
+  }
+  if (!recipientEmail) {
+    console.log("[AlertDelivery] No ALERT_RECIPIENT_EMAIL or ADMIN_EMAIL set, skipping");
+    return { delivered: false, channel: "skipped" };
+  }
+  if (alert.severity !== "critical" && alert.severity !== "high") {
+    return { delivered: false, channel: "skipped" };
+  }
+  const severityEmoji = alert.severity === "critical" ? "\u{1F534}" : "\u{1F7E0}";
+  const severityLabel = alert.severity.toUpperCase();
+  const htmlBody = `
+    <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #0d1117, #161b22); padding: 24px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: #e6edf3; margin: 0; font-size: 20px;">
+          ${severityEmoji} MIYAR Alert \u2014 ${severityLabel}
+        </h1>
+      </div>
+      <div style="background: #ffffff; padding: 24px; border: 1px solid #d0d7de; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="color: #1f2328; margin-top: 0;">${alert.title}</h2>
+        <p style="color: #656d76; line-height: 1.6;">${alert.body || ""}</p>
+        
+        ${alert.suggestedAction ? `
+          <div style="background: #f6f8fa; border-left: 4px solid #0969da; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;">
+            <strong style="color: #1f2328;">Suggested Action:</strong>
+            <p style="color: #656d76; margin: 4px 0 0;">${alert.suggestedAction}</p>
+          </div>
+        ` : ""}
+        
+        <p style="color: #656d76; font-size: 12px; margin-top: 24px;">
+          Alert Type: <code>${alert.alertType}</code> \xB7 
+          Generated: ${(/* @__PURE__ */ new Date()).toISOString()}
+        </p>
+      </div>
+    </div>
+  `;
+  try {
+    const response = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: "MIYAR Alerts <alerts@miyar.ai>",
+        to: [recipientEmail],
+        subject: `${severityEmoji} [${severityLabel}] ${alert.title}`,
+        html: htmlBody
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[AlertDelivery] Resend API error (${response.status}):`, errorText);
+      return { delivered: false, channel: "email", error: errorText };
+    }
+    const result = await response.json();
+    console.log(`[AlertDelivery] Email sent successfully (ID: ${result.id}) for alert: ${alert.title}`);
+    return { delivered: true, channel: "email" };
+  } catch (error) {
+    console.error("[AlertDelivery] Failed to send email:", error.message);
+    return { delivered: false, channel: "email", error: error.message };
+  }
+}
+var RESEND_API_URL;
+var init_alert_delivery = __esm({
+  "server/engines/autonomous/alert-delivery.ts"() {
+    "use strict";
+    RESEND_API_URL = "https://api.resend.com/emails";
+  }
+});
+
+// server/engines/autonomous/alert-engine.ts
+import { eq as eq3, inArray as inArray2, and as and2, sql as sql2 } from "drizzle-orm";
+async function evaluateAlerts(params) {
+  const db = await getDb();
+  if (!db) return [];
+  const newAlerts = [];
+  for (const event of params.priceChangeEvents) {
+    if (event.severity === "significant") {
+      newAlerts.push({
+        alertType: "price_shock",
+        severity: "critical",
+        title: "Significant Price Shock Detected",
+        body: `The price of ${event.itemName} shifted by ${event.changePct}%`,
+        affectedProjectIds: [],
+        affectedCategories: [event.category],
+        triggerData: event,
+        suggestedAction: "Review material cost dependencies and update affected budgets.",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1e3)
+        // critical: 24h
+      });
+    }
+  }
+  let loadedPatterns = {};
+  if (params.patternMatches.length > 0) {
+    const pIds = params.patternMatches.map((m) => m.patternId);
+    const patterns = await db.select().from(decisionPatterns).where(inArray2(decisionPatterns.id, pIds));
+    for (const p of patterns) loadedPatterns[p.id] = p;
+  }
+  let loadedProjects = {};
+  if (params.patternMatches.length > 0) {
+    const prjIds = params.patternMatches.map((m) => m.projectId);
+    const prjs = await db.select().from(projects).where(inArray2(projects.id, prjIds));
+    for (const p of prjs) loadedProjects[p.id] = p;
+  }
+  for (const match of params.patternMatches) {
+    const pattern = loadedPatterns[match.patternId];
+    const project = loadedProjects[match.projectId];
+    if (!pattern || !project) continue;
+    if (pattern.category === "risk_indicator" && parseFloat(pattern.reliabilityScore || "1") < 0.4) {
+      newAlerts.push({
+        alertType: "pattern_warning",
+        severity: "high",
+        title: "High-Risk Pattern Matched",
+        body: `Project '${project.name}' matched risk pattern '${pattern.name}' (Historical success rate <40%).`,
+        affectedProjectIds: [match.projectId],
+        affectedCategories: [],
+        triggerData: { match, pattern },
+        suggestedAction: "Implement strict preventative measures immediately.",
+        expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1e3)
+        // high: 72h
+      });
+    }
+  }
+  if (params.accuracyLedger && parseFloat(params.accuracyLedger.overallPlatformAccuracy || "100") < 60) {
+    newAlerts.push({
+      alertType: "accuracy_degraded",
+      severity: "high",
+      title: "Platform Accuracy Degraded",
+      body: `Overall platform prediction accuracy dropped to ${params.accuracyLedger.overallPlatformAccuracy}%.`,
+      affectedProjectIds: [],
+      affectedCategories: [],
+      triggerData: params.accuracyLedger,
+      suggestedAction: "Audit V5 learning weights and calibration multipliers.",
+      expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1e3)
+    });
+  }
+  if (params.calibrationProposals && params.calibrationProposals.length > 0) {
+    for (const prop of params.calibrationProposals) {
+      if (parseFloat(prop.calibrationFactor || "0") > 0.15) {
+        newAlerts.push({
+          alertType: "benchmark_drift",
+          severity: "medium",
+          title: "Benchmark Calibration Drift",
+          body: `A benchmark proposal requires >15% drift adjustment (${prop.calibrationFactor}).`,
+          affectedProjectIds: prop.projectId ? [prop.projectId] : [],
+          affectedCategories: [],
+          triggerData: prop,
+          suggestedAction: "Review calibration proposals and update material baseline bands.",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
+          // medium: 7d
+        });
+      }
+    }
+  }
+  for (const insight of params.projectInsights) {
+    if (insight.insightType === "market_opportunity" && (insight.severity === "critical" || insight.severity === "warning")) {
+      newAlerts.push({
+        alertType: "market_opportunity",
+        severity: "medium",
+        title: "Market Opportunity Identified",
+        body: insight.title,
+        affectedProjectIds: insight.projectId ? [insight.projectId] : [],
+        affectedCategories: [],
+        triggerData: insight,
+        suggestedAction: insight.actionableRecommendation || "Investigate the newly generated opportunity parameters.",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
+      });
+    }
+  }
+  const insertedAlerts = [];
+  for (const alert of newAlerts) {
+    const existing = await db.select().from(platformAlerts).where(
+      and2(
+        eq3(platformAlerts.alertType, alert.alertType),
+        eq3(platformAlerts.status, "active")
+        // For perfect duplicate suppression on JSON array, we can use simple string equality or fetch and filter
+        // We'll fetch active of this type and filter by JS equality
+      )
+    );
+    const isDuplicate = existing.some(
+      (e) => JSON.stringify(e.affectedProjectIds) === JSON.stringify(alert.affectedProjectIds)
+    );
+    if (!isDuplicate) {
+      const [result] = await db.insert(platformAlerts).values(alert);
+      const inserted = { ...alert, id: result.insertId };
+      insertedAlerts.push(inserted);
+      deliverAlert(inserted).catch(
+        (e) => console.error("[AlertEngine] Delivery failed for alert:", inserted.title, e)
+      );
+    }
+  }
+  return insertedAlerts;
+}
+async function triggerAlertEngine() {
+  const db = await getDb();
+  if (!db) return [];
+  const memoryWindow = new Date(Date.now() - 24 * 60 * 60 * 1e3);
+  const recentPrices = await db.select().from(priceChangeEvents).where(sql2`${priceChangeEvents.detectedAt} >= ${memoryWindow}`);
+  const recentInsights = await db.select().from(projectInsights).where(sql2`${projectInsights.createdAt} >= ${memoryWindow}`);
+  const recentComparisons = await db.select().from(outcomeComparisons).orderBy(sql2`${outcomeComparisons.comparedAt} DESC`).limit(20);
+  const recentMatches = await db.select().from(projectPatternMatches).where(sql2`${projectPatternMatches.matchedAt} >= ${memoryWindow}`);
+  const ledgerRows = await db.select().from(accuracySnapshots).orderBy(sql2`${accuracySnapshots.snapshotDate} DESC`).limit(1);
+  const recentProposals = await db.select().from(benchmarkProposals).where(sql2`${benchmarkProposals.createdAt} >= ${memoryWindow}`);
+  return evaluateAlerts({
+    priceChangeEvents: recentPrices,
+    projectInsights: recentInsights,
+    outcomeComparisons: recentComparisons,
+    patternMatches: recentMatches,
+    accuracyLedger: ledgerRows[0],
+    calibrationProposals: recentProposals
+  });
+}
+var init_alert_engine = __esm({
+  "server/engines/autonomous/alert-engine.ts"() {
+    "use strict";
+    init_db();
+    init_alert_delivery();
+    init_schema();
+  }
+});
+
 // server/engines/design/space-benchmarking.ts
 var space_benchmarking_exports = {};
 __export(space_benchmarking_exports, {
@@ -8695,6 +8923,512 @@ var init_freshness = __esm({
   }
 });
 
+// server/engines/ingestion/proposal-generator.ts
+import { randomUUID } from "crypto";
+async function generateBenchmarkProposals(options = {}) {
+  const { category, minEvidenceCount = 3, actorId, ingestionRunId } = options;
+  const runId = `PROP-${randomUUID().substring(0, 8)}`;
+  const startedAt = /* @__PURE__ */ new Date();
+  const evidence = await listEvidenceRecords({
+    category,
+    limit: 1e4
+  });
+  if (evidence.length === 0) {
+    return { proposalsCreated: 0, groupsAnalyzed: 0, totalEvidence: 0, proposals: [] };
+  }
+  const groups = /* @__PURE__ */ new Map();
+  for (const rec of evidence) {
+    const finish = rec.finishLevel?.toLowerCase() || "standard";
+    const key = `${rec.category}:${finish}:${rec.unit}`;
+    const existing = groups.get(key) ?? [];
+    existing.push(rec);
+    groups.set(key, existing);
+  }
+  const proposals = [];
+  let proposalsCreated = 0;
+  for (const [benchmarkKey, records] of Array.from(groups.entries())) {
+    if (records.length < minEvidenceCount) continue;
+    const prices = records.map((r) => Number(r.priceTypical ?? r.currencyAed ?? 0)).filter((p) => p > 0).sort((a, b) => a - b);
+    if (prices.length === 0) continue;
+    const p25 = prices[Math.floor(prices.length * 0.25)] ?? prices[0];
+    const p50 = prices[Math.floor(prices.length * 0.5)] ?? prices[0];
+    const p75 = prices[Math.floor(prices.length * 0.75)] ?? prices[prices.length - 1];
+    const weightMap = { A: 3, B: 2, C: 1 };
+    let weightedSum = 0;
+    let totalWeight = 0;
+    for (const rec of records) {
+      const price = Number(rec.priceTypical ?? rec.currencyAed ?? 0);
+      if (price <= 0) continue;
+      const gradeWeight2 = weightMap[rec.reliabilityGrade] ?? 1;
+      const freshnessWeight = getFreshnessWeight(rec.captureDate);
+      const combinedWeight = gradeWeight2 * freshnessWeight;
+      weightedSum += price * combinedWeight;
+      totalWeight += combinedWeight;
+    }
+    const weightedMean = totalWeight > 0 ? weightedSum / totalWeight : p50;
+    const reliabilityDist = { A: 0, B: 0, C: 0 };
+    for (const rec of records) {
+      reliabilityDist[rec.reliabilityGrade]++;
+    }
+    const now = Date.now();
+    const recencyDist = { recent: 0, mid: 0, old: 0 };
+    for (const rec of records) {
+      const age = now - new Date(rec.captureDate).getTime();
+      const months = age / (30 * 24 * 60 * 60 * 1e3);
+      if (months <= 3) recencyDist.recent++;
+      else if (months <= 12) recencyDist.mid++;
+      else recencyDist.old++;
+    }
+    const uniqueSources = new Set(records.map((r) => r.sourceRegistryId ?? r.sourceUrl));
+    const sourceDiversity = uniqueSources.size;
+    let confidence = 50;
+    if (records.length >= 10) confidence += 15;
+    else if (records.length >= 5) confidence += 10;
+    if (sourceDiversity >= 3) confidence += 15;
+    else if (sourceDiversity >= 2) confidence += 10;
+    if (reliabilityDist.A >= records.length * 0.5) confidence += 10;
+    if (recencyDist.recent >= records.length * 0.5) confidence += 10;
+    confidence = Math.min(100, confidence);
+    let recommendation = "publish";
+    let rejectionReason;
+    if (records.length < 5) {
+      recommendation = "reject";
+      rejectionReason = `Insufficient sample size: ${records.length} < 5`;
+    } else if (sourceDiversity < 2) {
+      recommendation = "reject";
+      rejectionReason = `Insufficient source diversity: ${sourceDiversity} < 2`;
+    } else if (confidence < 40) {
+      recommendation = "reject";
+      rejectionReason = `Low confidence score: ${confidence}`;
+    }
+    try {
+      const result = await createBenchmarkProposal({
+        benchmarkKey,
+        proposedP25: String(p25.toFixed(2)),
+        proposedP50: String(p50.toFixed(2)),
+        proposedP75: String(p75.toFixed(2)),
+        weightedMean: String(weightedMean.toFixed(2)),
+        evidenceCount: records.length,
+        sourceDiversity,
+        reliabilityDist,
+        recencyDist,
+        confidenceScore: confidence,
+        recommendation,
+        rejectionReason,
+        runId
+      });
+      proposals.push({ id: result.id, benchmarkKey, recommendation });
+      proposalsCreated++;
+    } catch (err) {
+      console.error(`[ProposalGenerator] Failed to create proposal for ${benchmarkKey}:`, err);
+    }
+  }
+  try {
+    await createIntelligenceAuditEntry({
+      runType: "benchmark_proposal",
+      runId,
+      actor: actorId ?? null,
+      inputSummary: {
+        category,
+        minEvidenceCount,
+        totalEvidence: evidence.length,
+        triggeredByIngestion: ingestionRunId ?? null
+      },
+      outputSummary: { proposalsCreated, groups: groups.size },
+      sourcesProcessed: evidence.length,
+      recordsExtracted: proposalsCreated,
+      errors: 0,
+      startedAt,
+      completedAt: /* @__PURE__ */ new Date()
+    });
+  } catch (err) {
+    console.error("[ProposalGenerator] Failed to log audit entry:", err);
+  }
+  return {
+    proposalsCreated,
+    groupsAnalyzed: groups.size,
+    totalEvidence: evidence.length,
+    proposals
+  };
+}
+var init_proposal_generator = __esm({
+  "server/engines/ingestion/proposal-generator.ts"() {
+    "use strict";
+    init_db();
+    init_freshness();
+  }
+});
+
+// server/engines/ingestion/data-quality.ts
+function validateEvidence(record) {
+  const flags = [];
+  if (record.value === null || record.value === void 0) {
+    return { status: "missing_value", flags: ["no_price_value"] };
+  }
+  if (record.value <= 0) {
+    flags.push("non_positive_value");
+    return {
+      status: "outlier_flagged",
+      flags,
+      adjustedConfidence: Math.max(record.confidence * 0.5, 0.1)
+    };
+  }
+  const matchingRules = QUALITY_RULES.filter(
+    (rule) => rule.category === record.category && rule.unit === (record.unit || "unit") && (!rule.itemPattern || rule.itemPattern.test(record.itemName))
+  );
+  if (matchingRules.length === 0) {
+    return { status: "valid", flags: [] };
+  }
+  let passedAnyRule = false;
+  for (const rule of matchingRules) {
+    if (record.value >= rule.minValue && record.value <= rule.maxValue) {
+      passedAnyRule = true;
+      if (record.valueMax !== null && record.valueMax !== void 0) {
+        if (record.valueMax < record.value) {
+          flags.push("max_less_than_min");
+        }
+        if (record.valueMax > rule.maxValue * 1.5) {
+          flags.push("value_max_extreme");
+        }
+      }
+      break;
+    }
+  }
+  if (!passedAnyRule) {
+    const rule = matchingRules[0];
+    if (record.value < rule.minValue) {
+      flags.push(`below_minimum: ${record.value} < ${rule.minValue} ${rule.unit} (${rule.description})`);
+    }
+    if (record.value > rule.maxValue) {
+      flags.push(`above_maximum: ${record.value} > ${rule.maxValue} ${rule.unit} (${rule.description})`);
+    }
+    return {
+      status: "outlier_flagged",
+      flags,
+      adjustedConfidence: Math.max(record.confidence * 0.3, 0.1)
+    };
+  }
+  return {
+    status: flags.length > 0 ? "outlier_flagged" : "valid",
+    flags,
+    adjustedConfidence: flags.length > 0 ? record.confidence * 0.8 : void 0
+  };
+}
+var QUALITY_RULES;
+var init_data_quality = __esm({
+  "server/engines/ingestion/data-quality.ts"() {
+    "use strict";
+    QUALITY_RULES = [
+      // Flooring
+      { category: "floors", minValue: 15, maxValue: 5e3, unit: "sqm", description: "Floor materials AED/sqm" },
+      { category: "floors", minValue: 1, maxValue: 500, unit: "sqft", description: "Floor materials AED/sqft" },
+      { category: "floors", minValue: 5, maxValue: 2e3, unit: "piece", description: "Floor tiles per piece" },
+      // Walls
+      { category: "walls", minValue: 10, maxValue: 3e3, unit: "sqm", description: "Wall materials AED/sqm" },
+      { category: "walls", minValue: 5, maxValue: 500, unit: "sqft", description: "Wall materials AED/sqft" },
+      { category: "walls", minValue: 20, maxValue: 800, unit: "L", description: "Paint per litre" },
+      // Ceilings
+      { category: "ceilings", minValue: 30, maxValue: 2e3, unit: "sqm", description: "Ceiling materials AED/sqm" },
+      // Sanitary ware
+      { category: "sanitary", minValue: 50, maxValue: 8e4, unit: "piece", description: "Sanitary fixtures per piece" },
+      { category: "sanitary", minValue: 50, maxValue: 8e4, unit: "unit", description: "Sanitary fixtures per unit" },
+      { category: "sanitary", minValue: 100, maxValue: 2e5, unit: "set", description: "Sanitary sets" },
+      // Kitchen
+      { category: "kitchen", minValue: 200, maxValue: 5e5, unit: "set", description: "Kitchen sets" },
+      { category: "kitchen", minValue: 50, maxValue: 1e5, unit: "unit", description: "Kitchen appliances per unit" },
+      { category: "kitchen", minValue: 100, maxValue: 5e4, unit: "piece", description: "Kitchen items per piece" },
+      { category: "kitchen", minValue: 200, maxValue: 1e4, unit: "m", description: "Kitchen countertops per meter" },
+      // Hardware
+      { category: "hardware", minValue: 5, maxValue: 2e4, unit: "piece", description: "Hardware items per piece" },
+      { category: "hardware", minValue: 5, maxValue: 2e4, unit: "unit", description: "Hardware items per unit" },
+      { category: "hardware", minValue: 10, maxValue: 5e4, unit: "set", description: "Hardware sets" },
+      // Joinery
+      { category: "joinery", minValue: 500, maxValue: 5e4, unit: "unit", description: "Joinery per unit (doors, cabinets)" },
+      { category: "joinery", minValue: 200, maxValue: 1e4, unit: "sqm", description: "Joinery per sqm" },
+      { category: "joinery", minValue: 200, maxValue: 1e4, unit: "m", description: "Joinery per linear meter" },
+      // Lighting
+      { category: "lighting", minValue: 20, maxValue: 2e5, unit: "piece", description: "Lighting fixtures per piece" },
+      { category: "lighting", minValue: 20, maxValue: 2e5, unit: "unit", description: "Lighting fixtures per unit" },
+      // FF&E
+      { category: "ffe", minValue: 100, maxValue: 5e5, unit: "unit", description: "FF&E per unit" },
+      { category: "ffe", minValue: 100, maxValue: 5e5, unit: "piece", description: "FF&E per piece" },
+      { category: "ffe", minValue: 50, maxValue: 1e4, unit: "sqm", description: "FF&E per sqm (carpets, rugs)" },
+      // Fitout rates (other)
+      { category: "other", minValue: 100, maxValue: 15e3, unit: "sqft", description: "Fitout rates AED/sqft" },
+      { category: "other", minValue: 500, maxValue: 5e4, unit: "sqm", description: "Fitout rates AED/sqm" }
+    ];
+  }
+});
+
+// server/engines/ingestion/change-detector.ts
+async function detectPriceChange(currentRecord) {
+  if (!currentRecord.priceTypical || !currentRecord.sourceRegistryId) return null;
+  const currentPrice = parseFloat(currentRecord.priceTypical);
+  if (isNaN(currentPrice)) return null;
+  const previousRecord = await getPreviousEvidenceRecord(
+    currentRecord.itemName,
+    currentRecord.sourceRegistryId,
+    currentRecord.captureDate
+  );
+  if (!previousRecord || !previousRecord.priceTypical) return null;
+  const previousPrice = parseFloat(previousRecord.priceTypical);
+  if (isNaN(previousPrice)) return null;
+  if (currentPrice === previousPrice) return null;
+  const changePct = (currentPrice - previousPrice) / Math.abs(previousPrice) * 100;
+  const changeDirection = currentPrice > previousPrice ? "increased" : "decreased";
+  let severity2 = "none";
+  const absChange = Math.abs(changePct);
+  if (absChange >= 10) severity2 = "significant";
+  else if (absChange >= 5) severity2 = "notable";
+  else if (absChange > 0) severity2 = "minor";
+  if (severity2 === "none") return null;
+  const result = await createPriceChangeEvent({
+    itemName: currentRecord.itemName.substring(0, 255),
+    category: currentRecord.category.substring(0, 255),
+    sourceId: currentRecord.sourceRegistryId,
+    previousPrice: previousPrice.toString(),
+    newPrice: currentPrice.toString(),
+    changePct: changePct.toString(),
+    changeDirection,
+    severity: severity2,
+    detectedAt: currentRecord.captureDate
+  });
+  if (severity2 === "significant" || severity2 === "notable") {
+    const insightType = changeDirection === "increased" ? "cost_pressure" : "market_opportunity";
+    await insertProjectInsight({
+      insightType,
+      severity: severity2 === "significant" ? "critical" : "warning",
+      title: `${changeDirection === "increased" ? "Price Spike" : "Price Drop"} Detected: ${currentRecord.itemName}`.substring(0, 512),
+      body: `A ${severity2} price ${changeDirection} of ${Math.abs(changePct).toFixed(1)}% was detected for ${currentRecord.itemName} supplied via ${currentRecord.publisher}. Previous: ${previousPrice} AED, New: ${currentPrice} AED.`,
+      actionableRecommendation: `Review associated material benchmarks to adjust expected forecasting costs accordingly.`,
+      confidenceScore: "0.85",
+      dataPoints: [
+        { label: "Previous Price", value: previousPrice.toString() },
+        { label: "New Price", value: currentPrice.toString() },
+        { label: "Deviation %", value: `${changePct.toFixed(1)}%` }
+      ],
+      triggerCondition: `Change detector alert: abs(change) >= ${severity2 === "significant" ? 10 : 5}%`
+    });
+  }
+  return {
+    id: result.id,
+    itemName: currentRecord.itemName,
+    previousPrice,
+    newPrice: currentPrice,
+    changePct,
+    changeDirection,
+    severity: severity2
+  };
+}
+var init_change_detector = __esm({
+  "server/engines/ingestion/change-detector.ts"() {
+    "use strict";
+    init_db();
+  }
+});
+
+// server/engines/analytics/trend-detection.ts
+function computeMovingAverage(points, windowDays = DEFAULT_MA_WINDOW_DAYS) {
+  if (points.length === 0) return [];
+  const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const windowMs = windowDays * 24 * 60 * 60 * 1e3;
+  return sorted.map((point) => {
+    const windowStart = point.date.getTime() - windowMs;
+    const windowPoints = sorted.filter(
+      (p) => p.date.getTime() >= windowStart && p.date.getTime() <= point.date.getTime()
+    );
+    const ma = windowPoints.length > 0 ? windowPoints.reduce((sum, p) => sum + p.value, 0) / windowPoints.length : point.value;
+    return {
+      date: point.date,
+      value: point.value,
+      ma: Math.round(ma * 100) / 100
+    };
+  });
+}
+function detectDirectionChange(points, windowDays = DEFAULT_MA_WINDOW_DAYS) {
+  if (points.length < 2) {
+    return { direction: "insufficient_data", currentMA: null, previousMA: null, percentChange: null };
+  }
+  const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const latest = sorted[sorted.length - 1].date.getTime();
+  const windowMs = windowDays * 24 * 60 * 60 * 1e3;
+  const currentWindowStart = latest - windowMs;
+  const currentPoints = sorted.filter(
+    (p) => p.date.getTime() >= currentWindowStart && p.date.getTime() <= latest
+  );
+  const prevWindowStart = latest - 2 * windowMs;
+  const prevPoints = sorted.filter(
+    (p) => p.date.getTime() >= prevWindowStart && p.date.getTime() < currentWindowStart
+  );
+  if (currentPoints.length === 0) {
+    return { direction: "insufficient_data", currentMA: null, previousMA: null, percentChange: null };
+  }
+  const currentMA = currentPoints.reduce((sum, p) => sum + p.value, 0) / currentPoints.length;
+  if (prevPoints.length === 0) {
+    return {
+      direction: "stable",
+      currentMA: Math.round(currentMA * 100) / 100,
+      previousMA: null,
+      percentChange: null
+    };
+  }
+  const previousMA = prevPoints.reduce((sum, p) => sum + p.value, 0) / prevPoints.length;
+  if (previousMA === 0) {
+    return {
+      direction: "stable",
+      currentMA: Math.round(currentMA * 100) / 100,
+      previousMA: 0,
+      percentChange: null
+    };
+  }
+  const percentChange = (currentMA - previousMA) / Math.abs(previousMA);
+  let direction;
+  if (percentChange > DIRECTION_CHANGE_THRESHOLD) {
+    direction = "rising";
+  } else if (percentChange < -DIRECTION_CHANGE_THRESHOLD) {
+    direction = "falling";
+  } else {
+    direction = "stable";
+  }
+  return {
+    direction,
+    currentMA: Math.round(currentMA * 100) / 100,
+    previousMA: Math.round(previousMA * 100) / 100,
+    percentChange: Math.round(percentChange * 1e4) / 1e4
+    // 4 decimal places
+  };
+}
+function flagAnomalies(points, maPoints, stdDevThreshold = ANOMALY_STD_DEV_THRESHOLD) {
+  if (points.length < 3 || maPoints.length === 0) return [];
+  const residuals = maPoints.map((ma) => ma.value - ma.ma);
+  const meanResidual = residuals.reduce((sum, r) => sum + r, 0) / residuals.length;
+  const variance = residuals.reduce((sum, r) => sum + Math.pow(r - meanResidual, 2), 0) / residuals.length;
+  const stdDev = Math.sqrt(variance);
+  if (stdDev === 0) return [];
+  const anomalies = [];
+  const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
+  for (let i = 0; i < sorted.length; i++) {
+    const point = sorted[i];
+    const maPoint = maPoints[i];
+    if (!maPoint) continue;
+    const deviation = Math.abs(point.value - maPoint.ma);
+    const deviationMultiple = deviation / stdDev;
+    if (deviationMultiple > stdDevThreshold) {
+      anomalies.push({
+        date: point.date,
+        value: point.value,
+        expectedMA: maPoint.ma,
+        deviationMultiple: Math.round(deviationMultiple * 100) / 100,
+        recordId: point.recordId,
+        sourceId: point.sourceId
+      });
+    }
+  }
+  return anomalies;
+}
+function assessConfidence(dataPointCount, gradeACount) {
+  if (dataPointCount >= CONFIDENCE_HIGH_MIN_POINTS && gradeACount >= CONFIDENCE_HIGH_MIN_GRADE_A) {
+    return "high";
+  }
+  if (dataPointCount >= CONFIDENCE_MEDIUM_MIN_POINTS) {
+    return "medium";
+  }
+  if (dataPointCount >= CONFIDENCE_LOW_MIN_POINTS) {
+    return "low";
+  }
+  return "insufficient";
+}
+async function generateTrendNarrative(trend) {
+  try {
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: "You are a real estate market analyst. Write exactly 3 sentences summarizing a market trend. Be factual and concise. Do not add opinions or recommendations."
+        },
+        {
+          role: "user",
+          content: `Summarize this trend:
+Metric: ${trend.metric}
+Category: ${trend.category}
+Geography: ${trend.geography}
+Direction: ${trend.direction}
+Current 30-day average: ${trend.currentMA ?? "N/A"}
+Previous 30-day average: ${trend.previousMA ?? "N/A"}
+Change: ${trend.percentChange !== null ? `${(trend.percentChange * 100).toFixed(1)}%` : "N/A"}
+Data points: ${trend.dataPointCount} (${trend.gradeACount} Grade A, ${trend.gradeBCount} Grade B, ${trend.gradeCCount} Grade C)
+Sources: ${trend.uniqueSources}
+Anomalies: ${trend.anomalies.length}
+Date range: ${trend.dateRange ? `${trend.dateRange.start.toISOString().split("T")[0]} to ${trend.dateRange.end.toISOString().split("T")[0]}` : "N/A"}
+Confidence: ${trend.confidence}`
+        }
+      ]
+    });
+    const content = response.choices?.[0]?.message?.content;
+    return typeof content === "string" ? content.trim() : "";
+  } catch (err) {
+    console.error("[TrendDetection] Narrative generation failed:", err);
+    return "";
+  }
+}
+async function detectTrends(metric, category, geography, points, options) {
+  const windowDays = options?.windowDays ?? DEFAULT_MA_WINDOW_DAYS;
+  const shouldGenerateNarrative = options?.generateNarrative ?? true;
+  const gradeACount = points.filter((p) => p.grade === "A").length;
+  const gradeBCount = points.filter((p) => p.grade === "B").length;
+  const gradeCCount = points.filter((p) => p.grade === "C").length;
+  const uniqueSources = new Set(points.map((p) => p.sourceId)).size;
+  const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const dateRange = sorted.length > 0 ? { start: sorted[0].date, end: sorted[sorted.length - 1].date } : null;
+  const maPoints = computeMovingAverage(points, windowDays);
+  const { direction, currentMA, previousMA, percentChange } = detectDirectionChange(
+    points,
+    windowDays
+  );
+  const anomalies = flagAnomalies(points, maPoints);
+  const confidence = assessConfidence(points.length, gradeACount);
+  const partialResult = {
+    metric,
+    category,
+    geography,
+    dataPointCount: points.length,
+    gradeACount,
+    gradeBCount,
+    gradeCCount,
+    uniqueSources,
+    dateRange,
+    currentMA,
+    previousMA,
+    percentChange,
+    direction,
+    anomalies,
+    confidence
+  };
+  let narrative = null;
+  if (shouldGenerateNarrative && points.length >= CONFIDENCE_LOW_MIN_POINTS) {
+    narrative = await generateTrendNarrative(partialResult);
+  }
+  return {
+    ...partialResult,
+    narrative,
+    movingAverages: maPoints
+  };
+}
+var DEFAULT_MA_WINDOW_DAYS, DIRECTION_CHANGE_THRESHOLD, ANOMALY_STD_DEV_THRESHOLD, CONFIDENCE_HIGH_MIN_POINTS, CONFIDENCE_HIGH_MIN_GRADE_A, CONFIDENCE_MEDIUM_MIN_POINTS, CONFIDENCE_LOW_MIN_POINTS;
+var init_trend_detection = __esm({
+  "server/engines/analytics/trend-detection.ts"() {
+    "use strict";
+    init_llm();
+    DEFAULT_MA_WINDOW_DAYS = 30;
+    DIRECTION_CHANGE_THRESHOLD = 0.05;
+    ANOMALY_STD_DEV_THRESHOLD = 2;
+    CONFIDENCE_HIGH_MIN_POINTS = 15;
+    CONFIDENCE_HIGH_MIN_GRADE_A = 2;
+    CONFIDENCE_MEDIUM_MIN_POINTS = 8;
+    CONFIDENCE_LOW_MIN_POINTS = 5;
+  }
+});
+
 // server/engines/ingestion/evidence-to-materials.ts
 var evidence_to_materials_exports = {};
 __export(evidence_to_materials_exports, {
@@ -8874,6 +9608,1483 @@ var init_evidence_to_materials = __esm({
       ffe: "furniture",
       // FF&E → furniture
       other: "other"
+    };
+  }
+});
+
+// server/engines/ingestion/orchestrator.ts
+var orchestrator_exports = {};
+__export(orchestrator_exports, {
+  runIngestion: () => runIngestion,
+  runSingleConnector: () => runSingleConnector,
+  testScrape: () => testScrape
+});
+import { randomUUID as randomUUID2 } from "crypto";
+import { and as and4, eq as eq8, sql as sql3 } from "drizzle-orm";
+async function runWithConcurrencyLimit(tasks, limit) {
+  const results = [];
+  let index = 0;
+  async function runNext() {
+    while (index < tasks.length) {
+      const currentIndex = index++;
+      results[currentIndex] = await tasks[currentIndex]();
+    }
+  }
+  const workers = Array.from(
+    { length: Math.min(limit, tasks.length) },
+    () => runNext()
+  );
+  await Promise.all(workers);
+  return results;
+}
+async function findExistingRecord(sourceUrl, itemName) {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await db.select({
+    id: evidenceRecords.id,
+    recordId: evidenceRecords.recordId,
+    priceMin: evidenceRecords.priceMin,
+    priceTypical: evidenceRecords.priceTypical,
+    priceMax: evidenceRecords.priceMax,
+    confidenceScore: evidenceRecords.confidenceScore,
+    captureDate: evidenceRecords.captureDate,
+    sourceRegistryId: evidenceRecords.sourceRegistryId,
+    itemName: evidenceRecords.itemName,
+    category: evidenceRecords.category,
+    publisher: evidenceRecords.publisher
+  }).from(evidenceRecords).where(
+    and4(
+      eq8(evidenceRecords.sourceUrl, sourceUrl),
+      eq8(evidenceRecords.itemName, itemName)
+    )
+  ).orderBy(sql3`${evidenceRecords.captureDate} DESC`).limit(1);
+  return existing.length > 0 ? existing[0] : null;
+}
+async function updateExistingRecord(existing, newData) {
+  const db = await getDb();
+  if (!db) return { priceChanged: false, changePct: 0 };
+  const oldPrice = existing.priceTypical ? parseFloat(existing.priceTypical) : null;
+  const newPrice = newData.priceTypical ? parseFloat(newData.priceTypical) : null;
+  let changePct = 0;
+  let priceChanged = false;
+  if (oldPrice !== null && newPrice !== null && oldPrice > 0) {
+    changePct = (newPrice - oldPrice) / oldPrice * 100;
+    priceChanged = Math.abs(changePct) > 2;
+  } else if (oldPrice === null !== (newPrice === null)) {
+    priceChanged = true;
+  }
+  const updatePayload = {
+    captureDate: newData.captureDate,
+    confidenceScore: Math.max(newData.confidenceScore, existing.confidenceScore),
+    extractedSnippet: newData.extractedSnippet,
+    runId: newData.runId
+  };
+  if (newData.priceMin !== null) updatePayload.priceMin = newData.priceMin;
+  if (newData.priceTypical !== null) updatePayload.priceTypical = newData.priceTypical;
+  if (newData.priceMax !== null) updatePayload.priceMax = newData.priceMax;
+  if (newData.reliabilityGrade) updatePayload.reliabilityGrade = newData.reliabilityGrade;
+  if (newData.finishLevel) updatePayload.finishLevel = newData.finishLevel;
+  if (newData.designStyle) updatePayload.designStyle = newData.designStyle;
+  if (newData.brandsMentioned) updatePayload.brandsMentioned = newData.brandsMentioned;
+  if (newData.materialSpec) updatePayload.materialSpec = newData.materialSpec;
+  await db.update(evidenceRecords).set(updatePayload).where(eq8(evidenceRecords.id, existing.id));
+  return { priceChanged, changePct };
+}
+function mapCategory(category) {
+  return CATEGORY_MAP[category] || "other";
+}
+function generateRecordId() {
+  recordCounter++;
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).substring(2, 6);
+  return `MYR-PE-${ts}-${rand}`.toUpperCase();
+}
+async function runIngestion(connectors, triggeredBy = "manual", actorId) {
+  const runId = `ING-${randomUUID2().substring(0, 8)}`;
+  const startedAt = /* @__PURE__ */ new Date();
+  const connectorResults = [];
+  try {
+    const db = await getDb();
+    if (db) {
+      for (const connector of connectors) {
+        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq8(sourceRegistry.name, connector.sourceId)).limit(1);
+        if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
+          connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[Ingestion] Failed to load lastSuccessfulFetch:", err);
+  }
+  const tasks = connectors.map((connector) => async () => {
+    try {
+      const raw = await connector.fetch();
+      if (raw.error && raw.statusCode === 0) {
+        return {
+          sourceId: connector.sourceId,
+          sourceName: connector.sourceName,
+          status: "failed",
+          evidenceExtracted: 0,
+          evidenceCreated: 0,
+          evidenceUpdated: 0,
+          evidenceSkipped: 0,
+          outliersFlagged: 0,
+          error: raw.error
+        };
+      }
+      if (raw.statusCode >= 400) {
+        return {
+          sourceId: connector.sourceId,
+          sourceName: connector.sourceName,
+          status: "failed",
+          evidenceExtracted: 0,
+          evidenceCreated: 0,
+          evidenceUpdated: 0,
+          evidenceSkipped: 0,
+          outliersFlagged: 0,
+          error: raw.error || `HTTP ${raw.statusCode}`
+        };
+      }
+      let extracted;
+      try {
+        extracted = await connector.extract(raw);
+      } catch (err) {
+        return {
+          sourceId: connector.sourceId,
+          sourceName: connector.sourceName,
+          status: "failed",
+          evidenceExtracted: 0,
+          evidenceCreated: 0,
+          evidenceUpdated: 0,
+          evidenceSkipped: 0,
+          outliersFlagged: 0,
+          error: `Extract failed: ${err instanceof Error ? err.message : String(err)}`
+        };
+      }
+      const validExtracted = extracted.filter((e) => {
+        const result = extractedEvidenceSchema.safeParse(e);
+        return result.success;
+      });
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+      let outliers = 0;
+      for (const evidence of validExtracted) {
+        try {
+          let normalized;
+          try {
+            normalized = await connector.normalize(evidence);
+          } catch (err) {
+            normalized = {
+              metric: evidence.title,
+              value: null,
+              unit: null,
+              confidence: 0.2,
+              grade: "C",
+              summary: evidence.rawText.substring(0, 500),
+              tags: []
+            };
+          }
+          const validationResult = normalizedEvidenceInputSchema.safeParse(normalized);
+          if (!validationResult.success) {
+            normalized = {
+              metric: evidence.title || "Unknown metric",
+              value: null,
+              unit: null,
+              confidence: 0.2,
+              grade: "C",
+              summary: evidence.rawText.substring(0, 500) || "Extraction failed",
+              tags: []
+            };
+          }
+          const qualityResult = validateEvidence({
+            category: evidence.category,
+            itemName: normalized.metric,
+            value: normalized.value ?? null,
+            valueMax: normalized.valueMax ?? null,
+            unit: normalized.unit,
+            confidence: normalized.confidence
+          });
+          if (qualityResult.status === "outlier_flagged") {
+            outliers++;
+            if (qualityResult.adjustedConfidence !== void 0) {
+              normalized.confidence = qualityResult.adjustedConfidence;
+            }
+            console.warn(`[Ingestion] \u{1F6A9} Outlier flagged: ${normalized.metric} = ${normalized.value} (${qualityResult.flags.join(", ")})`);
+          }
+          const captureDate = evidence.publishedDate || raw.fetchedAt;
+          const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
+          const evidenceCategory = validCategories.includes(evidence.category) ? evidence.category : mapCategory(evidence.category);
+          const sourceRegistryId = typeof connector.sourceId === "number" ? connector.sourceId : parseInt(connector.sourceId) || void 0;
+          const existing = await findExistingRecord(
+            evidence.sourceUrl,
+            normalized.metric
+          );
+          if (existing) {
+            const { priceChanged } = await updateExistingRecord(existing, {
+              priceMin: normalized.value?.toString() ?? null,
+              priceTypical: normalized.value?.toString() ?? null,
+              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+              confidenceScore: Math.round(normalized.confidence * 100),
+              captureDate,
+              extractedSnippet: normalized.summary,
+              reliabilityGrade: normalized.grade,
+              runId,
+              finishLevel: normalized.finishLevel ?? null,
+              designStyle: normalized.designStyle ?? null,
+              brandsMentioned: normalized.brandsMentioned ?? null,
+              materialSpec: normalized.materialSpec ?? null
+            });
+            if (priceChanged) {
+              const updatedRecord = await getEvidenceRecordById(existing.id);
+              if (updatedRecord) {
+                await detectPriceChange(updatedRecord);
+              }
+            }
+            updated++;
+          } else {
+            const { id: newRecordId } = await createEvidenceRecord({
+              recordId: generateRecordId(),
+              sourceRegistryId,
+              sourceUrl: evidence.sourceUrl,
+              category: evidenceCategory,
+              itemName: normalized.metric,
+              priceMin: normalized.value?.toString() ?? null,
+              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+              priceTypical: normalized.value?.toString() ?? null,
+              unit: normalized.unit || "unit",
+              currencyOriginal: "AED",
+              captureDate,
+              reliabilityGrade: normalized.grade,
+              confidenceScore: Math.round(normalized.confidence * 100),
+              extractedSnippet: normalized.summary,
+              publisher: connector.sourceName,
+              title: evidence.title,
+              tags: normalized.tags,
+              notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
+              runId,
+              // V7: Design Intelligence Fields
+              finishLevel: normalized.finishLevel ?? null,
+              designStyle: normalized.designStyle ?? null,
+              brandsMentioned: normalized.brandsMentioned ?? null,
+              materialSpec: normalized.materialSpec ?? null,
+              intelligenceType: normalized.intelligenceType ?? "material_price"
+            });
+            const insertedRecord = await getEvidenceRecordById(newRecordId);
+            if (insertedRecord) {
+              await detectPriceChange(insertedRecord);
+            }
+            created++;
+          }
+        } catch (err) {
+          console.error(`[Ingestion] Record persist failed for ${connector.sourceId}:`, err);
+        }
+      }
+      return {
+        sourceId: connector.sourceId,
+        sourceName: connector.sourceName,
+        status: "success",
+        evidenceExtracted: validExtracted.length,
+        evidenceCreated: created,
+        evidenceUpdated: updated,
+        evidenceSkipped: skipped,
+        outliersFlagged: outliers
+      };
+    } catch (err) {
+      return {
+        sourceId: connector.sourceId,
+        sourceName: connector.sourceName,
+        status: "failed",
+        evidenceExtracted: 0,
+        evidenceCreated: 0,
+        evidenceUpdated: 0,
+        evidenceSkipped: 0,
+        outliersFlagged: 0,
+        error: `Unhandled: ${err instanceof Error ? err.message : String(err)}`
+      };
+    }
+  });
+  const results = await runWithConcurrencyLimit(tasks, MAX_CONCURRENT);
+  connectorResults.push(...results);
+  for (const result of connectorResults) {
+    try {
+      const healthStatus = result.status === "success" ? result.evidenceCreated > 0 ? "success" : "partial" : "failed";
+      let errorType = null;
+      if (result.error) {
+        if (result.error.includes("ENOTFOUND") || result.error.includes("DNS") || result.error.includes("resolve")) {
+          errorType = "dns_failure";
+        } else if (result.error.includes("timeout") || result.error.includes("ETIMEDOUT")) {
+          errorType = "timeout";
+        } else if (result.error.includes("HTTP")) {
+          errorType = "http_error";
+        } else if (result.error.includes("Extract") || result.error.includes("parse")) {
+          errorType = "parse_error";
+        } else if (result.error.includes("LLM") || result.error.includes("invokeLLM")) {
+          errorType = "llm_error";
+        } else {
+          errorType = "unknown";
+        }
+      }
+      await insertConnectorHealth({
+        runId,
+        sourceId: result.sourceId,
+        sourceName: result.sourceName,
+        status: healthStatus,
+        httpStatusCode: null,
+        responseTimeMs: null,
+        recordsExtracted: result.evidenceExtracted,
+        recordsInserted: result.evidenceCreated,
+        duplicatesSkipped: result.evidenceSkipped,
+        errorMessage: result.error || null,
+        errorType
+      });
+    } catch (err) {
+      console.error(`[Ingestion] Failed to record health for ${result.sourceId}:`, err);
+    }
+  }
+  try {
+    const db = await getDb();
+    if (db) {
+      for (const result of connectorResults) {
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq8(sourceRegistry.name, result.sourceId)).limit(1);
+        const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
+        const isSuccess = result.status === "success";
+        const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
+        const updates = {
+          lastScrapedAt: /* @__PURE__ */ new Date(),
+          lastScrapedStatus: statusEnum,
+          lastRecordCount: result.evidenceCreated,
+          consecutiveFailures: isSuccess ? 0 : currentFailures + 1
+        };
+        if (isSuccess) {
+          updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
+        }
+        await db.update(sourceRegistry).set(updates).where(eq8(sourceRegistry.name, result.sourceId));
+      }
+    }
+  } catch (err) {
+    console.warn("[Ingestion] Failed to update sourceRegistry metrics:", err);
+  }
+  const completedAt = /* @__PURE__ */ new Date();
+  const durationMs = completedAt.getTime() - startedAt.getTime();
+  const succeeded = connectorResults.filter((r) => r.status === "success").length;
+  const failed = connectorResults.filter((r) => r.status === "failed").length;
+  const totalCreated = connectorResults.reduce((sum, r) => sum + r.evidenceCreated, 0);
+  const totalUpdated = connectorResults.reduce((sum, r) => sum + r.evidenceUpdated, 0);
+  const totalSkipped = connectorResults.reduce((sum, r) => sum + r.evidenceSkipped, 0);
+  const totalOutliers = connectorResults.reduce((sum, r) => sum + r.outliersFlagged, 0);
+  const errors = connectorResults.filter((r) => r.status === "failed" && r.error).map((r) => ({
+    sourceId: r.sourceId,
+    sourceName: r.sourceName,
+    error: r.error
+  }));
+  try {
+    const db = await getDb();
+    if (db) {
+      await db.insert(ingestionRuns).values({
+        runId,
+        trigger: triggeredBy,
+        triggeredBy: actorId ?? null,
+        status: failed === connectors.length ? "failed" : "completed",
+        totalSources: connectors.length,
+        sourcesSucceeded: succeeded,
+        sourcesFailed: failed,
+        recordsExtracted: connectorResults.reduce((sum, r) => sum + r.evidenceExtracted, 0),
+        recordsInserted: totalCreated,
+        recordsUpdated: totalUpdated,
+        duplicatesSkipped: totalSkipped,
+        outliersFlagged: totalOutliers,
+        sourceBreakdown: connectorResults.map((r) => ({
+          sourceId: r.sourceId,
+          name: r.sourceName,
+          status: r.status,
+          extracted: r.evidenceExtracted,
+          inserted: r.evidenceCreated,
+          updated: r.evidenceUpdated,
+          duplicates: r.evidenceSkipped,
+          outliers: r.outliersFlagged,
+          error: r.error || null
+        })),
+        errorSummary: errors.length > 0 ? errors : null,
+        startedAt,
+        completedAt,
+        durationMs
+      });
+    }
+  } catch (err) {
+    console.error("[Ingestion] Failed to persist ingestion run:", err);
+  }
+  try {
+    await createIntelligenceAuditEntry({
+      runType: "price_extraction",
+      runId,
+      actor: actorId ?? null,
+      inputSummary: {
+        triggeredBy,
+        connectorCount: connectors.length,
+        connectorIds: connectors.map((c) => c.sourceId)
+      },
+      outputSummary: {
+        sourcesAttempted: connectors.length,
+        sourcesSucceeded: succeeded,
+        sourcesFailed: failed,
+        evidenceCreated: totalCreated,
+        evidenceUpdated: totalUpdated,
+        evidenceSkipped: totalSkipped,
+        outliersFlagged: totalOutliers
+      },
+      sourcesProcessed: connectors.length,
+      recordsExtracted: totalCreated,
+      errors: failed,
+      errorDetails: errors.length > 0 ? errors : null,
+      startedAt,
+      completedAt
+    });
+  } catch (err) {
+    console.error("[Ingestion] Failed to log audit entry:", err);
+  }
+  let proposalResult = null;
+  if (totalCreated > 0 || totalUpdated > 0) {
+    try {
+      proposalResult = await generateBenchmarkProposals({
+        actorId,
+        ingestionRunId: runId
+      });
+      console.log(
+        `[Ingestion] Post-run proposal generation: ${proposalResult.proposalsCreated} proposals created`
+      );
+    } catch (err) {
+      console.error("[Ingestion] Post-run proposal generation failed:", err);
+    }
+  }
+  if (totalCreated > 0 || totalUpdated > 0) {
+    try {
+      const db = await getDb();
+      if (db) {
+        const recentEvidence = await db.select().from(evidenceRecords).orderBy(sql3`${evidenceRecords.createdAt} DESC`).limit(500);
+        const categoryGroups = /* @__PURE__ */ new Map();
+        for (const record of recentEvidence) {
+          const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
+          if (value === null || isNaN(value)) continue;
+          const date = record.captureDate || record.createdAt;
+          if (!date) continue;
+          const category = record.category || "other";
+          const finishLevel = record.finishLevel?.toLowerCase() || "standard";
+          const metric = `${category}:${finishLevel}`;
+          const grade2 = record.reliabilityGrade || "C";
+          if (!categoryGroups.has(metric)) categoryGroups.set(metric, { category, points: [] });
+          categoryGroups.get(metric).points.push({
+            date: new Date(date),
+            value,
+            grade: grade2,
+            sourceId: record.sourceRegistryId ? String(record.sourceRegistryId) : "unknown",
+            recordId: record.id
+          });
+        }
+        let trendsGenerated = 0;
+        for (const [metric, group] of Array.from(categoryGroups.entries())) {
+          if (group.points.length < 2) continue;
+          const trend = await detectTrends(metric, group.category, "UAE", group.points, {
+            generateNarrative: group.points.length >= 5
+          });
+          await insertTrendSnapshot({
+            metric: trend.metric,
+            category: trend.category,
+            geography: trend.geography,
+            dataPointCount: trend.dataPointCount,
+            gradeACount: trend.gradeACount,
+            gradeBCount: trend.gradeBCount,
+            gradeCCount: trend.gradeCCount,
+            uniqueSources: trend.uniqueSources,
+            dateRangeStart: trend.dateRange?.start || null,
+            dateRangeEnd: trend.dateRange?.end || null,
+            currentMA: trend.currentMA !== null ? String(trend.currentMA) : null,
+            previousMA: trend.previousMA !== null ? String(trend.previousMA) : null,
+            percentChange: trend.percentChange !== null ? String(trend.percentChange) : null,
+            direction: trend.direction,
+            anomalyCount: trend.anomalies.length,
+            anomalyDetails: trend.anomalies.length > 0 ? trend.anomalies : null,
+            confidence: trend.confidence,
+            narrative: trend.narrative,
+            movingAverages: trend.movingAverages.length > 0 ? trend.movingAverages : null,
+            ingestionRunId: runId
+          });
+          trendsGenerated++;
+        }
+        console.log(`[Ingestion] Post-run trend detection: ${trendsGenerated} trend snapshots created`);
+      }
+    } catch (err) {
+      console.error("[Ingestion] Post-run trend detection failed:", err);
+    }
+  }
+  try {
+    const alerts = await triggerAlertEngine();
+    console.log(`[Ingestion] Post-run alert generation: ${alerts.length} new alerts created`);
+  } catch (err) {
+    console.error("[Ingestion] Post-run alert generation failed:", err);
+  }
+  if (totalCreated > 0 || totalUpdated > 0) {
+    try {
+      const { syncEvidenceToMaterials: syncEvidenceToMaterials2 } = await Promise.resolve().then(() => (init_evidence_to_materials(), evidence_to_materials_exports));
+      const materialSync = await syncEvidenceToMaterials2(runId);
+      console.log(
+        `[Ingestion] Post-run materials sync: ${materialSync.created} created, ${materialSync.updated} updated, ${materialSync.skipped} skipped`
+      );
+    } catch (err) {
+      console.error("[Ingestion] Post-run materials sync failed:", err);
+    }
+  }
+  console.log(`[Ingestion] Run ${runId} complete: ${totalCreated} created, ${totalUpdated} updated, ${totalSkipped} skipped, ${totalOutliers} outliers flagged`);
+  const report = {
+    runId,
+    startedAt,
+    completedAt,
+    durationMs,
+    triggeredBy,
+    sourcesAttempted: connectors.length,
+    sourcesSucceeded: succeeded,
+    sourcesFailed: failed,
+    evidenceCreated: totalCreated,
+    evidenceUpdated: totalUpdated,
+    evidenceSkipped: totalSkipped,
+    outliersFlagged: totalOutliers,
+    errors,
+    perSource: connectorResults
+  };
+  return report;
+}
+async function runSingleConnector(connector, triggeredBy = "manual", actorId) {
+  return runIngestion([connector], triggeredBy, actorId);
+}
+async function testScrape(connector) {
+  const startedAt = /* @__PURE__ */ new Date();
+  const raw = await connector.fetch();
+  if (raw.error) {
+    return { success: false, error: raw.error, statusCode: raw.statusCode };
+  }
+  const extracted = await connector.extract(raw);
+  const normalizedRecords = [];
+  for (const evidence of extracted) {
+    if (!extractedEvidenceSchema.safeParse(evidence).success) continue;
+    try {
+      const normalized = await connector.normalize(evidence);
+      if (normalizedEvidenceInputSchema.safeParse(normalized).success) {
+        normalizedRecords.push(normalized);
+      }
+    } catch {
+    }
+  }
+  return {
+    success: true,
+    statusCode: raw.statusCode,
+    rawPayloadSize: (raw.rawHtml?.length || 0) + JSON.stringify(raw.rawJson || {}).length,
+    extractedCount: extracted.length,
+    validNormalizedCount: normalizedRecords.length,
+    previewRecords: normalizedRecords.slice(0, 5),
+    durationMs: (/* @__PURE__ */ new Date()).getTime() - startedAt.getTime()
+  };
+}
+var MAX_CONCURRENT, CATEGORY_MAP, recordCounter;
+var init_orchestrator = __esm({
+  "server/engines/ingestion/orchestrator.ts"() {
+    "use strict";
+    init_connector();
+    init_db();
+    init_proposal_generator();
+    init_alert_engine();
+    init_data_quality();
+    init_change_detector();
+    init_trend_detection();
+    init_schema();
+    MAX_CONCURRENT = 3;
+    CATEGORY_MAP = {
+      material_cost: "floors",
+      // LLM now sets correct category per-item
+      fitout_rate: "other",
+      market_trend: "other",
+      competitor_project: "other",
+      floors: "floors",
+      walls: "walls",
+      ceilings: "ceilings",
+      joinery: "joinery",
+      lighting: "lighting",
+      sanitary: "sanitary",
+      kitchen: "kitchen",
+      hardware: "hardware",
+      ffe: "ffe",
+      other: "other"
+    };
+    recordCounter = 0;
+  }
+});
+
+// server/engines/ingestion/connectors/scad-pdf-connector.ts
+var SCAD_PDF_URLS, SCAD_PUBLICATIONS_URL, EXTRACTION_PROMPT2, SCADPdfConnector;
+var init_scad_pdf_connector = __esm({
+  "server/engines/ingestion/connectors/scad-pdf-connector.ts"() {
+    "use strict";
+    init_connector();
+    init_llm();
+    SCAD_PDF_URLS = [
+      "https://www.scad.gov.ae/Release%20Documents/Construction%20Cost%20Index%20Report%20Q4%202024_EN.pdf",
+      "https://www.scad.gov.ae/Release%20Documents/Construction%20Material%20Prices%202024_EN.pdf"
+    ];
+    SCAD_PUBLICATIONS_URL = "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx";
+    EXTRACTION_PROMPT2 = `You are a data extraction engine for MIYAR, a UAE real estate intelligence platform.
+
+Extract material price data from this SCAD (Statistics Centre Abu Dhabi) PDF text.
+Focus on: construction materials, building materials, finishing materials, and their price indices.
+
+Return a JSON array of objects with these exact fields:
+- materialName: string (e.g. "Portland Cement", "Steel Reinforcement Bar", "Ceramic Tiles 30x30")
+- category: string (one of: "cement", "steel", "aggregate", "timber", "tiles", "glass", "paint", "insulation", "plumbing", "electrical", "stone", "other")
+- priceAed: number|null (price in AED per unit, null if only index given)
+- unit: string (e.g. "ton", "kg", "sqm", "piece", "bag", "meter", "cubic_meter")
+- indexValue: number|null (price index value if available, base=100)
+- yearQuarter: string|null (e.g. "2024-Q4", "2024")
+- changePercent: number|null (year-over-year % change if stated)
+
+Rules:
+- Extract up to 30 items
+- Only real data from the PDF \u2014 do NOT invent values
+- If a row has an index but no absolute AED price, still include it with priceAed: null
+- Return [] if no material data found
+
+PDF text content:
+`;
+    SCADPdfConnector = class extends BaseSourceConnector {
+      sourceId = "scad-pdf-materials";
+      sourceName = "SCAD Abu Dhabi \u2014 Material Price Index (PDF)";
+      sourceUrl = SCAD_PUBLICATIONS_URL;
+      /**
+       * Fetch: download PDF(s) and extract text via pdf-parse.
+       * Falls back to publications page HTML if PDF fetch fails.
+       */
+      async fetch() {
+        let allText = "";
+        for (const pdfUrl of SCAD_PDF_URLS) {
+          try {
+            const response = await fetch(pdfUrl, {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform; +https://miyar.ai)",
+                "Accept": "application/pdf"
+              },
+              signal: AbortSignal.timeout(3e4)
+            });
+            if (!response.ok) {
+              console.warn(`[SCAD PDF] HTTP ${response.status} for ${pdfUrl}`);
+              continue;
+            }
+            const buffer = Buffer.from(await response.arrayBuffer());
+            const { PDFParse } = await import("pdf-parse");
+            const parser = new PDFParse({ data: buffer });
+            try {
+              const parsed = await parser.getText();
+              if (parsed.text && parsed.text.length > 100) {
+                allText += `
+--- Source: ${pdfUrl} ---
+${parsed.text}
+`;
+                console.log(`[SCAD PDF] Extracted ${parsed.text.length} chars from ${pdfUrl} (${parsed.total} pages)`);
+              }
+            } finally {
+              await parser.destroy();
+            }
+          } catch (err) {
+            console.warn(`[SCAD PDF] Failed to fetch/parse ${pdfUrl}:`, err instanceof Error ? err.message : String(err));
+          }
+        }
+        if (allText.length < 100) {
+          try {
+            const htmlResp = await fetch(this.sourceUrl, {
+              headers: { "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform)" },
+              signal: AbortSignal.timeout(15e3)
+            });
+            if (htmlResp.ok) {
+              allText = await htmlResp.text();
+            }
+          } catch {
+          }
+        }
+        return {
+          url: SCAD_PDF_URLS[0] || this.sourceUrl,
+          rawHtml: allText,
+          // Using rawHtml field for the extracted text
+          fetchedAt: /* @__PURE__ */ new Date(),
+          statusCode: allText.length > 100 ? 200 : 0
+        };
+      }
+      /**
+       * Extract: send PDF text to Gemini for structured material price extraction.
+       */
+      async extract(raw) {
+        const text2 = raw.rawHtml || "";
+        if (!text2 || text2.length < 100) return [];
+        const truncated = text2.substring(0, 15e3);
+        try {
+          const response = await invokeLLM({
+            messages: [
+              {
+                role: "system",
+                content: "You extract structured data from SCAD Abu Dhabi construction material publications. Return ONLY valid JSON. No markdown fences."
+              },
+              {
+                role: "user",
+                content: EXTRACTION_PROMPT2 + truncated
+              }
+            ],
+            response_format: { type: "json_object" }
+          });
+          const content = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
+          if (!content) return [];
+          const parsed = JSON.parse(content);
+          const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.materials || parsed.data || [];
+          if (!Array.isArray(items)) return [];
+          return items.filter((item) => item && typeof item.materialName === "string" && item.materialName.length > 0).slice(0, 30).map((item) => ({
+            title: `SCAD Material Index \u2014 ${item.materialName}`,
+            rawText: [
+              item.materialName,
+              item.priceAed ? `AED ${item.priceAed}/${item.unit}` : null,
+              item.indexValue ? `Index: ${item.indexValue}` : null,
+              item.changePercent ? `YoY: ${item.changePercent > 0 ? "+" : ""}${item.changePercent}%` : null,
+              item.yearQuarter
+            ].filter(Boolean).join(" | "),
+            publishedDate: void 0,
+            category: "material_cost",
+            geography: "Abu Dhabi",
+            sourceUrl: raw.url,
+            // Pass through structured data for normalize()
+            _scadItem: item
+          }));
+        } catch (err) {
+          console.error("[SCAD PDF] LLM extraction failed:", err instanceof Error ? err.message : String(err));
+          return [];
+        }
+      }
+      /**
+       * Normalize: convert extracted items into evidence record format.
+       */
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const scadItem = evidence._scadItem;
+        const metric = scadItem ? `${scadItem.materialName} (${scadItem.category})` : evidence.title;
+        const value = scadItem?.priceAed ?? scadItem?.indexValue ?? null;
+        const unit = scadItem?.unit ?? "unit";
+        const tags = [
+          "government",
+          "statistics",
+          "abu-dhabi",
+          "material-index",
+          "scad",
+          scadItem?.category
+        ].filter(Boolean);
+        const summaryParts = [evidence.rawText];
+        if (scadItem?.changePercent != null) {
+          summaryParts.push(`Year-over-year change: ${scadItem.changePercent > 0 ? "+" : ""}${scadItem.changePercent}%`);
+        }
+        return {
+          metric,
+          value,
+          unit,
+          confidence,
+          grade: grade2,
+          summary: summaryParts.join(" \u2014 ").substring(0, 500),
+          tags
+        };
+      }
+    };
+  }
+});
+
+// server/engines/ingestion/connectors/index.ts
+var connectors_exports = {};
+__export(connectors_exports, {
+  ALL_CONNECTORS: () => ALL_CONNECTORS,
+  AldarPropertiesConnector: () => AldarPropertiesConnector,
+  BayutListingsConnector: () => BayutListingsConnector,
+  CBREResearchConnector: () => CBREResearchConnector,
+  DAMACConnector: () => DAMACConnector,
+  DERAInteriorsConnector: () => DERAInteriorsConnector,
+  DLDTransactionsConnector: () => DLDTransactionsConnector,
+  DragonMartConnector: () => DragonMartConnector,
+  DubaiPulseConnector: () => DubaiPulseConnector,
+  DubaiStatisticsConnector: () => DubaiStatisticsConnector,
+  EmaarConnector: () => EmaarConnector,
+  GEMSConnector: () => GEMSConnector,
+  HafeleConnector: () => HafeleConnector,
+  JLLConnector: () => JLLConnector,
+  KnightFrankConnector: () => KnightFrankConnector,
+  NakheelConnector: () => NakheelConnector,
+  PorcelanosaConnector: () => PorcelanosaConnector,
+  PropertyFinderListingsConnector: () => PropertyFinderListingsConnector,
+  PropertyMonitorConnector: () => PropertyMonitorConnector,
+  RAKCeramicsConnector: () => RAKCeramicsConnector,
+  RICSConnector: () => RICSConnector,
+  SCADConnector: () => SCADConnector,
+  SOURCE_URLS: () => SOURCE_URLS,
+  SavillsConnector: () => SavillsConnector,
+  getAllConnectors: () => getAllConnectors,
+  getConnectorById: () => getConnectorById,
+  getConnectorsByIds: () => getConnectorsByIds
+});
+function buildExtractionUserPrompt(sourceName, category, geography, htmlSnippet, lastFetch) {
+  const dateFilter = lastFetch ? `
+Focus on content published or updated after ${lastFetch.toISOString().split("T")[0]}.` : "";
+  return `Extract evidence items from this ${sourceName} webpage HTML.
+Category: ${category}
+Geography: ${geography}${dateFilter}
+
+Return a JSON array of objects with these exact fields:
+- title: string (item/product/project name)
+- rawText: string (relevant text snippet, max 500 chars)
+- publishedDate: string|null (ISO date if found, null otherwise)
+- metric: string (what is being measured, e.g. "Marble Tile 60x60 price")
+- value: number|null (numeric value in AED if found, null otherwise)
+- unit: string|null (e.g. "sqm", "sqft", "piece", "unit", null if not applicable)
+
+Rules:
+- Extract up to 15 items maximum
+- Only extract items with real data (titles, prices, descriptions)
+- Do NOT invent data \u2014 if no items found, return empty array []
+- Do NOT output confidence, grade, or scoring fields
+
+HTML content (truncated to 8000 chars):
+${htmlSnippet.substring(0, 8e3)}`;
+}
+async function extractViaLLM(sourceName, category, geography, html, lastFetch) {
+  try {
+    const textContent = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (textContent.length < 50) return [];
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT2 },
+        {
+          role: "user",
+          content: buildExtractionUserPrompt(
+            sourceName,
+            category,
+            geography,
+            textContent,
+            lastFetch
+          )
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+    const content = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
+    if (!content) return [];
+    const parsed = JSON.parse(content);
+    const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.data || [];
+    if (!Array.isArray(items)) return [];
+    return items.filter((item) => item && typeof item.title === "string" && item.title.length > 0).slice(0, 15).map((item) => ({
+      title: String(item.title || "").substring(0, 255),
+      rawText: String(item.rawText || item.description || item.text || "").substring(0, 500),
+      publishedDate: item.publishedDate || null,
+      metric: String(item.metric || item.title || "").substring(0, 255),
+      value: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
+      unit: typeof item.unit === "string" ? item.unit : null
+    }));
+  } catch (err) {
+    console.error(`[LLM Extraction] Failed for ${sourceName}:`, err instanceof Error ? err.message : String(err));
+    return [];
+  }
+}
+function extractPricesFromText(text2) {
+  const prices = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const regex of [AED_PRICE_REGEX, NUMERIC_PRICE_REGEX]) {
+    regex.lastIndex = 0;
+    let match;
+    while ((match = regex.exec(text2)) !== null) {
+      const val = parseFloat(match[1].replace(/,/g, ""));
+      if (!isNaN(val) && val > 0 && val < 1e8 && !seen.has(val)) {
+        seen.add(val);
+        const context = text2.substring(
+          Math.max(0, match.index - 30),
+          Math.min(text2.length, match.index + match[0].length + 30)
+        );
+        let unit = "unit";
+        if (SQM_REGEX.test(context)) unit = "sqm";
+        else if (SQFT_REGEX.test(context)) unit = "sqft";
+        prices.push({ value: val, unit });
+      }
+    }
+  }
+  return prices;
+}
+function extractSnippet(text2, maxLen = 500) {
+  return text2.replace(/\s+/g, " ").trim().substring(0, maxLen);
+}
+function getConnectorById(sourceId) {
+  const factory = ALL_CONNECTORS[sourceId];
+  return factory ? factory() : null;
+}
+function getAllConnectors() {
+  return Object.values(ALL_CONNECTORS).map((factory) => factory());
+}
+function getConnectorsByIds(sourceIds) {
+  return sourceIds.map((id) => getConnectorById(id)).filter((c) => c !== null);
+}
+var SOURCE_URLS, LLM_EXTRACTION_SYSTEM_PROMPT2, AED_PRICE_REGEX, NUMERIC_PRICE_REGEX, SQFT_REGEX, SQM_REGEX, HTMLSourceConnector, RAKCeramicsConnector, DERAInteriorsConnector, DragonMartConnector, PorcelanosaConnector, EmaarConnector, DAMACConnector, NakheelConnector, RICSConnector, JLLConnector, DubaiStatisticsConnector, HafeleConnector, GEMSConnector, DubaiPulseConnector, SCADConnector, DLDTransactionsConnector, AldarPropertiesConnector, CBREResearchConnector, KnightFrankConnector, SavillsConnector, PropertyMonitorConnector, BayutListingsConnector, PropertyFinderListingsConnector, ALL_CONNECTORS;
+var init_connectors = __esm({
+  "server/engines/ingestion/connectors/index.ts"() {
+    "use strict";
+    init_connector();
+    init_llm();
+    init_scad_pdf_connector();
+    SOURCE_URLS = {
+      "rak-ceramics-uae": "https://www.rakceramics.com/",
+      "dera-interiors": "https://derainteriors.ae/",
+      "dragon-mart-dubai": "https://www.dragonmart.ae/",
+      "porcelanosa-uae": "https://www.porcelanosa.com/ae/",
+      "emaar-properties": "https://www.emaar.com/en/",
+      "damac-properties": "https://www.damacproperties.com/en/",
+      "nakheel-properties": "https://www.nakheel.com/en/",
+      "rics-market-reports": "https://www.rics.org/news-insights/research-and-insights/",
+      "jll-mena-research": "https://www.jll.com/en/trends-and-insights/research",
+      "dubai-statistics-center": "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
+      "hafele-uae": "https://www.hafele.com/",
+      "gems-building-materials": "https://gemsbuilding.com/products/",
+      // ─── V4: New UAE Market Sources ─────────────────────────────────
+      "dubai-pulse-materials": "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
+      "scad-abu-dhabi": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+      "scad-pdf-materials": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+      "dld-transactions": "https://www.dubaipulse.gov.ae/data/dld_transactions/dld_transactions-open",
+      "aldar-properties": "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
+      "cbre-uae-research": "https://www.cbre.ae/en/insights",
+      "knight-frank-uae": "https://www.knightfrank.ae/research",
+      "savills-me-research": "https://www.savills.me/insight-and-opinion/",
+      "property-monitor-dubai": "https://www.propertymonitor.ae/market-reports",
+      // ─── V5: Live Property Listing Sources ─────────────────────────
+      "bayut-listings": "https://www.bayut.com/for-sale/property/dubai/",
+      "propertyfinder-listings": "https://www.propertyfinder.ae/en/buy/dubai/"
+    };
+    LLM_EXTRACTION_SYSTEM_PROMPT2 = `You are a data extraction engine for the MIYAR real estate intelligence platform.
+You extract structured evidence from raw HTML content of UAE construction/real estate websites.
+Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
+    AED_PRICE_REGEX = /(?:AED|Dhs?\.?)\s*([\d,]+(?:\.\d{1,2})?)/gi;
+    NUMERIC_PRICE_REGEX = /([\d,]+(?:\.\d{1,2})?)\s*(?:AED|Dhs?\.?|per\s+(?:sqm|sqft|m²|unit|piece|set|roll))/gi;
+    SQFT_REGEX = /(?:per\s+)?(?:sq\.?\s*ft\.?|sqft|square\s+foot|square\s+feet)/i;
+    SQM_REGEX = /(?:per\s+)?(?:sq\.?\s*m\.?|sqm|m²|square\s+met(?:er|re))/i;
+    HTMLSourceConnector = class extends BaseSourceConnector {
+      async extract(raw) {
+        const html = raw.rawHtml || "";
+        if (!html || html.length < 50) return [];
+        const llmItems = await extractViaLLM(
+          this.sourceName,
+          this.category,
+          this.geography,
+          html,
+          this.lastSuccessfulFetch
+        );
+        if (llmItems.length > 0) {
+          return llmItems.map((item) => ({
+            title: `${this.sourceName} - ${item.title}`,
+            rawText: item.rawText || item.title,
+            publishedDate: item.publishedDate ? new Date(item.publishedDate) : void 0,
+            category: this.category,
+            geography: this.geography,
+            sourceUrl: raw.url,
+            // Store LLM-extracted metric/value/unit as metadata in rawText for normalize()
+            _llmMetric: item.metric,
+            _llmValue: item.value,
+            _llmUnit: item.unit
+          }));
+        }
+        return this.extractRuleBased(raw);
+      }
+      /** Rule-based fallback extraction — subclasses can override */
+      extractRuleBased(raw) {
+        const html = raw.rawHtml || "";
+        const evidence = [];
+        const sections = html.match(
+          /<(?:div|article|section|li)[^>]*class="[^"]*(?:product|item|card|project|property|report|service)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section|li)>/gi
+        ) || [];
+        for (const section of sections.slice(0, 15)) {
+          const titleMatch = section.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/i);
+          const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+          if (!title) continue;
+          const text2 = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          evidence.push({
+            title: `${this.sourceName} - ${title}`,
+            rawText: text2,
+            publishedDate: void 0,
+            category: this.category,
+            geography: this.geography,
+            sourceUrl: raw.url
+          });
+        }
+        if (evidence.length === 0 && html.length > 100) {
+          const plainText = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ");
+          evidence.push({
+            title: `${this.sourceName} - Page Content`,
+            rawText: extractSnippet(plainText),
+            publishedDate: void 0,
+            category: this.category,
+            geography: this.geography,
+            sourceUrl: raw.url
+          });
+        }
+        return evidence;
+      }
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        if (llmEvidence._llmValue !== void 0) {
+          return {
+            metric: llmEvidence._llmMetric || evidence.title,
+            value: llmEvidence._llmValue,
+            unit: llmEvidence._llmUnit || this.defaultUnit,
+            confidence,
+            grade: grade2,
+            summary: extractSnippet(evidence.rawText),
+            tags: this.defaultTags
+          };
+        }
+        const prices = extractPricesFromText(evidence.rawText);
+        return {
+          metric: evidence.title,
+          value: prices.length > 0 ? prices[0].value : null,
+          unit: prices.length > 0 ? prices[0].unit : this.defaultUnit,
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    RAKCeramicsConnector = class extends HTMLSourceConnector {
+      sourceId = "rak-ceramics-uae";
+      sourceName = "RAK Ceramics UAE";
+      sourceUrl = SOURCE_URLS["rak-ceramics-uae"];
+      category = "material_cost";
+      geography = "UAE";
+      defaultTags = ["ceramics", "tiles", "flooring", "manufacturer"];
+      defaultUnit = "sqm";
+    };
+    DERAInteriorsConnector = class extends HTMLSourceConnector {
+      sourceId = "dera-interiors";
+      sourceName = "DERA Interiors";
+      sourceUrl = SOURCE_URLS["dera-interiors"];
+      category = "fitout_rate";
+      geography = "Dubai";
+      defaultTags = ["fitout", "interior-design", "contractor"];
+      defaultUnit = "sqft";
+    };
+    DragonMartConnector = class extends HTMLSourceConnector {
+      sourceId = "dragon-mart-dubai";
+      sourceName = "Dragon Mart Dubai";
+      sourceUrl = SOURCE_URLS["dragon-mart-dubai"];
+      category = "material_cost";
+      geography = "Dubai";
+      defaultTags = ["retailer", "building-materials", "wholesale"];
+      defaultUnit = "unit";
+    };
+    PorcelanosaConnector = class extends HTMLSourceConnector {
+      sourceId = "porcelanosa-uae";
+      sourceName = "Porcelanosa UAE";
+      sourceUrl = SOURCE_URLS["porcelanosa-uae"];
+      category = "material_cost";
+      geography = "UAE";
+      defaultTags = ["tiles", "surfaces", "premium", "manufacturer"];
+      defaultUnit = "sqm";
+    };
+    EmaarConnector = class extends HTMLSourceConnector {
+      sourceId = "emaar-properties";
+      sourceName = "Emaar Properties";
+      sourceUrl = SOURCE_URLS["emaar-properties"];
+      category = "competitor_project";
+      geography = "Dubai";
+      defaultTags = ["developer", "luxury", "dubai", "residential"];
+      defaultUnit = "sqft";
+    };
+    DAMACConnector = class extends HTMLSourceConnector {
+      sourceId = "damac-properties";
+      sourceName = "DAMAC Properties";
+      sourceUrl = SOURCE_URLS["damac-properties"];
+      category = "competitor_project";
+      geography = "Dubai";
+      defaultTags = ["developer", "luxury", "dubai", "branded-residences"];
+      defaultUnit = "sqft";
+    };
+    NakheelConnector = class extends HTMLSourceConnector {
+      sourceId = "nakheel-properties";
+      sourceName = "Nakheel Properties";
+      sourceUrl = SOURCE_URLS["nakheel-properties"];
+      category = "competitor_project";
+      geography = "Dubai";
+      defaultTags = ["developer", "master-plan", "dubai", "community"];
+      defaultUnit = "sqft";
+    };
+    RICSConnector = class extends HTMLSourceConnector {
+      sourceId = "rics-market-reports";
+      sourceName = "RICS Market Reports";
+      sourceUrl = SOURCE_URLS["rics-market-reports"];
+      category = "market_trend";
+      geography = "UAE";
+      defaultTags = ["market-survey", "construction", "industry-report", "rics"];
+      defaultUnit = "sqm";
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          unit: llmEvidence._llmUnit ?? null,
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    JLLConnector = class extends HTMLSourceConnector {
+      sourceId = "jll-mena-research";
+      sourceName = "JLL MENA Research";
+      sourceUrl = SOURCE_URLS["jll-mena-research"];
+      category = "market_trend";
+      geography = "UAE";
+      defaultTags = ["market-research", "real-estate", "mena", "jll"];
+      defaultUnit = "sqm";
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          unit: llmEvidence._llmUnit ?? null,
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    DubaiStatisticsConnector = class extends HTMLSourceConnector {
+      sourceId = "dubai-statistics-center";
+      sourceName = "Dubai Statistics Center";
+      sourceUrl = SOURCE_URLS["dubai-statistics-center"];
+      category = "market_trend";
+      geography = "Dubai";
+      defaultTags = ["government", "statistics", "dubai", "economic-indicators"];
+      defaultUnit = "sqm";
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          unit: llmEvidence._llmUnit ?? null,
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    HafeleConnector = class extends HTMLSourceConnector {
+      sourceId = "hafele-uae";
+      sourceName = "Hafele UAE";
+      sourceUrl = SOURCE_URLS["hafele-uae"];
+      category = "material_cost";
+      geography = "UAE";
+      defaultTags = ["hardware", "fittings", "joinery", "manufacturer"];
+      defaultUnit = "piece";
+    };
+    GEMSConnector = class extends HTMLSourceConnector {
+      sourceId = "gems-building-materials";
+      sourceName = "GEMS Building Materials";
+      sourceUrl = SOURCE_URLS["gems-building-materials"];
+      category = "material_cost";
+      geography = "UAE";
+      defaultTags = ["building-materials", "supplier", "wholesale"];
+      defaultUnit = "unit";
+    };
+    DubaiPulseConnector = class extends HTMLSourceConnector {
+      sourceId = "dubai-pulse-materials";
+      sourceName = "Dubai Pulse \u2014 Material Prices";
+      sourceUrl = SOURCE_URLS["dubai-pulse-materials"];
+      category = "material_cost";
+      geography = "Dubai";
+      defaultTags = ["government", "material-prices", "construction", "dubai-pulse"];
+      defaultUnit = "unit";
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          unit: llmEvidence._llmUnit ?? "unit",
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    SCADConnector = class extends HTMLSourceConnector {
+      sourceId = "scad-abu-dhabi";
+      sourceName = "SCAD Abu Dhabi Statistics";
+      sourceUrl = SOURCE_URLS["scad-abu-dhabi"];
+      category = "material_cost";
+      geography = "Abu Dhabi";
+      defaultTags = ["government", "statistics", "abu-dhabi", "material-prices"];
+      defaultUnit = "unit";
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          unit: llmEvidence._llmUnit ?? "unit",
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    DLDTransactionsConnector = class extends HTMLSourceConnector {
+      sourceId = "dld-transactions";
+      sourceName = "DLD Real Estate Transactions";
+      sourceUrl = SOURCE_URLS["dld-transactions"];
+      category = "market_trend";
+      geography = "Dubai";
+      defaultTags = ["government", "transactions", "real-estate", "dld"];
+      defaultUnit = "sqft";
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          unit: llmEvidence._llmUnit ?? "sqft",
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    AldarPropertiesConnector = class extends HTMLSourceConnector {
+      sourceId = "aldar-properties";
+      sourceName = "Aldar Properties";
+      sourceUrl = SOURCE_URLS["aldar-properties"];
+      category = "competitor_project";
+      geography = "Abu Dhabi";
+      defaultTags = ["developer", "abu-dhabi", "residential", "master-plan"];
+      defaultUnit = "sqft";
+    };
+    CBREResearchConnector = class extends HTMLSourceConnector {
+      sourceId = "cbre-uae-research";
+      sourceName = "CBRE UAE Research";
+      sourceUrl = SOURCE_URLS["cbre-uae-research"];
+      category = "market_trend";
+      geography = "UAE";
+      defaultTags = ["market-research", "real-estate", "commercial", "cbre"];
+      defaultUnit = "sqft";
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          unit: llmEvidence._llmUnit ?? null,
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    KnightFrankConnector = class extends HTMLSourceConnector {
+      sourceId = "knight-frank-uae";
+      sourceName = "Knight Frank UAE";
+      sourceUrl = SOURCE_URLS["knight-frank-uae"];
+      category = "market_trend";
+      geography = "UAE";
+      defaultTags = ["market-research", "real-estate", "residential", "knight-frank"];
+      defaultUnit = "sqft";
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          unit: llmEvidence._llmUnit ?? null,
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    SavillsConnector = class extends HTMLSourceConnector {
+      sourceId = "savills-me-research";
+      sourceName = "Savills ME Research";
+      sourceUrl = SOURCE_URLS["savills-me-research"];
+      category = "market_trend";
+      geography = "UAE";
+      defaultTags = ["market-research", "real-estate", "investment", "savills"];
+      defaultUnit = "sqft";
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        return {
+          metric: llmEvidence._llmMetric || evidence.title,
+          value: llmEvidence._llmValue ?? null,
+          unit: llmEvidence._llmUnit ?? null,
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: this.defaultTags
+        };
+      }
+    };
+    PropertyMonitorConnector = class extends HTMLSourceConnector {
+      sourceId = "property-monitor-dubai";
+      sourceName = "Property Monitor Dubai";
+      sourceUrl = SOURCE_URLS["property-monitor-dubai"];
+      category = "market_trend";
+      geography = "Dubai";
+      defaultTags = ["market-reports", "property", "dubai", "analytics"];
+      defaultUnit = "sqft";
+    };
+    BayutListingsConnector = class extends HTMLSourceConnector {
+      sourceId = "bayut-listings";
+      sourceName = "Bayut \u2014 UAE Property Listings";
+      sourceUrl = SOURCE_URLS["bayut-listings"];
+      category = "property_price";
+      geography = "Dubai";
+      defaultTags = ["property-listing", "prices", "residential", "bayut", "dubizzle"];
+      defaultUnit = "sqft";
+      requestDelayMs = 2e3;
+      // Respect rate limits
+      /**
+       * Bayut listings are JS-rendered — Firecrawl is strongly preferred.
+       * Falls back to basic fetch if Firecrawl is unavailable.
+       */
+      async fetch() {
+        if (this.requestDelayMs && this.requestDelayMs > 0) {
+          await new Promise((r) => setTimeout(r, this.requestDelayMs));
+        }
+        return this.fetchWithFirecrawl();
+      }
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        let metric = llmEvidence._llmMetric || evidence.title;
+        let value = llmEvidence._llmValue ?? null;
+        let unit = llmEvidence._llmUnit ?? "sqft";
+        if (value && evidence.rawText) {
+          const areaMatch = evidence.rawText.match(/(\d[\d,]*)\s*(?:sq\.?\s*ft|sqft)/i);
+          if (areaMatch) {
+            const area = parseFloat(areaMatch[1].replace(/,/g, ""));
+            if (area > 0 && value > area) {
+              metric = `${metric} \u2014 AED/sqft`;
+              value = Math.round(value / area);
+              unit = "sqft";
+            }
+          }
+        }
+        return {
+          metric,
+          value,
+          unit,
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: [...this.defaultTags, "listing"]
+        };
+      }
+    };
+    PropertyFinderListingsConnector = class extends HTMLSourceConnector {
+      sourceId = "propertyfinder-listings";
+      sourceName = "PropertyFinder \u2014 UAE Listings";
+      sourceUrl = SOURCE_URLS["propertyfinder-listings"];
+      category = "property_price";
+      geography = "Dubai";
+      defaultTags = ["property-listing", "prices", "residential", "propertyfinder"];
+      defaultUnit = "sqft";
+      requestDelayMs = 2e3;
+      // Respect rate limits
+      /**
+       * PropertyFinder is also JS-rendered — use Firecrawl.
+       */
+      async fetch() {
+        if (this.requestDelayMs && this.requestDelayMs > 0) {
+          await new Promise((r) => setTimeout(r, this.requestDelayMs));
+        }
+        return this.fetchWithFirecrawl();
+      }
+      async normalize(evidence) {
+        const grade2 = assignGrade(this.sourceId);
+        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+        const llmEvidence = evidence;
+        let metric = llmEvidence._llmMetric || evidence.title;
+        let value = llmEvidence._llmValue ?? null;
+        let unit = llmEvidence._llmUnit ?? "sqft";
+        if (value && evidence.rawText) {
+          const areaMatch = evidence.rawText.match(/(\d[\d,]*)\s*(?:sq\.?\s*ft|sqft)/i);
+          if (areaMatch) {
+            const area = parseFloat(areaMatch[1].replace(/,/g, ""));
+            if (area > 0 && value > area) {
+              metric = `${metric} \u2014 AED/sqft`;
+              value = Math.round(value / area);
+              unit = "sqft";
+            }
+          }
+        }
+        return {
+          metric,
+          value,
+          unit,
+          confidence,
+          grade: grade2,
+          summary: extractSnippet(evidence.rawText),
+          tags: [...this.defaultTags, "listing"]
+        };
+      }
+    };
+    ALL_CONNECTORS = {
+      "rak-ceramics-uae": () => new RAKCeramicsConnector(),
+      "dera-interiors": () => new DERAInteriorsConnector(),
+      "dragon-mart-dubai": () => new DragonMartConnector(),
+      "porcelanosa-uae": () => new PorcelanosaConnector(),
+      "emaar-properties": () => new EmaarConnector(),
+      "damac-properties": () => new DAMACConnector(),
+      "nakheel-properties": () => new NakheelConnector(),
+      "rics-market-reports": () => new RICSConnector(),
+      "jll-mena-research": () => new JLLConnector(),
+      "dubai-statistics-center": () => new DubaiStatisticsConnector(),
+      "hafele-uae": () => new HafeleConnector(),
+      "gems-building-materials": () => new GEMSConnector(),
+      // V4: New UAE Market Sources
+      "dubai-pulse-materials": () => new DubaiPulseConnector(),
+      "scad-abu-dhabi": () => new SCADConnector(),
+      "dld-transactions": () => new DLDTransactionsConnector(),
+      "aldar-properties": () => new AldarPropertiesConnector(),
+      "cbre-uae-research": () => new CBREResearchConnector(),
+      "knight-frank-uae": () => new KnightFrankConnector(),
+      "savills-me-research": () => new SavillsConnector(),
+      "property-monitor-dubai": () => new PropertyMonitorConnector(),
+      // V5: Live Property Listing Sources
+      "bayut-listings": () => new BayutListingsConnector(),
+      "propertyfinder-listings": () => new PropertyFinderListingsConnector(),
+      // V6: PDF-based connectors
+      "scad-pdf-materials": () => new SCADPdfConnector()
     };
   }
 });
@@ -13679,224 +15890,7 @@ async function generateInsights(input, options = {}) {
 
 // server/routers/project.ts
 init_db();
-
-// server/engines/autonomous/alert-engine.ts
-init_db();
-
-// server/engines/autonomous/alert-delivery.ts
-var RESEND_API_URL = "https://api.resend.com/emails";
-async function deliverAlert(alert) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const recipientEmail = process.env.ALERT_RECIPIENT_EMAIL || process.env.ADMIN_EMAIL;
-  if (!apiKey) {
-    console.log("[AlertDelivery] RESEND_API_KEY not set, skipping email delivery");
-    return { delivered: false, channel: "skipped" };
-  }
-  if (!recipientEmail) {
-    console.log("[AlertDelivery] No ALERT_RECIPIENT_EMAIL or ADMIN_EMAIL set, skipping");
-    return { delivered: false, channel: "skipped" };
-  }
-  if (alert.severity !== "critical" && alert.severity !== "high") {
-    return { delivered: false, channel: "skipped" };
-  }
-  const severityEmoji = alert.severity === "critical" ? "\u{1F534}" : "\u{1F7E0}";
-  const severityLabel = alert.severity.toUpperCase();
-  const htmlBody = `
-    <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: linear-gradient(135deg, #0d1117, #161b22); padding: 24px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: #e6edf3; margin: 0; font-size: 20px;">
-          ${severityEmoji} MIYAR Alert \u2014 ${severityLabel}
-        </h1>
-      </div>
-      <div style="background: #ffffff; padding: 24px; border: 1px solid #d0d7de; border-top: none; border-radius: 0 0 12px 12px;">
-        <h2 style="color: #1f2328; margin-top: 0;">${alert.title}</h2>
-        <p style="color: #656d76; line-height: 1.6;">${alert.body || ""}</p>
-        
-        ${alert.suggestedAction ? `
-          <div style="background: #f6f8fa; border-left: 4px solid #0969da; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;">
-            <strong style="color: #1f2328;">Suggested Action:</strong>
-            <p style="color: #656d76; margin: 4px 0 0;">${alert.suggestedAction}</p>
-          </div>
-        ` : ""}
-        
-        <p style="color: #656d76; font-size: 12px; margin-top: 24px;">
-          Alert Type: <code>${alert.alertType}</code> \xB7 
-          Generated: ${(/* @__PURE__ */ new Date()).toISOString()}
-        </p>
-      </div>
-    </div>
-  `;
-  try {
-    const response = await fetch(RESEND_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from: "MIYAR Alerts <alerts@miyar.ai>",
-        to: [recipientEmail],
-        subject: `${severityEmoji} [${severityLabel}] ${alert.title}`,
-        html: htmlBody
-      })
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[AlertDelivery] Resend API error (${response.status}):`, errorText);
-      return { delivered: false, channel: "email", error: errorText };
-    }
-    const result = await response.json();
-    console.log(`[AlertDelivery] Email sent successfully (ID: ${result.id}) for alert: ${alert.title}`);
-    return { delivered: true, channel: "email" };
-  } catch (error) {
-    console.error("[AlertDelivery] Failed to send email:", error.message);
-    return { delivered: false, channel: "email", error: error.message };
-  }
-}
-
-// server/engines/autonomous/alert-engine.ts
-init_schema();
-import { eq as eq3, inArray as inArray2, and as and2, sql as sql2 } from "drizzle-orm";
-async function evaluateAlerts(params) {
-  const db = await getDb();
-  if (!db) return [];
-  const newAlerts = [];
-  for (const event of params.priceChangeEvents) {
-    if (event.severity === "significant") {
-      newAlerts.push({
-        alertType: "price_shock",
-        severity: "critical",
-        title: "Significant Price Shock Detected",
-        body: `The price of ${event.itemName} shifted by ${event.changePct}%`,
-        affectedProjectIds: [],
-        affectedCategories: [event.category],
-        triggerData: event,
-        suggestedAction: "Review material cost dependencies and update affected budgets.",
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1e3)
-        // critical: 24h
-      });
-    }
-  }
-  let loadedPatterns = {};
-  if (params.patternMatches.length > 0) {
-    const pIds = params.patternMatches.map((m) => m.patternId);
-    const patterns = await db.select().from(decisionPatterns).where(inArray2(decisionPatterns.id, pIds));
-    for (const p of patterns) loadedPatterns[p.id] = p;
-  }
-  let loadedProjects = {};
-  if (params.patternMatches.length > 0) {
-    const prjIds = params.patternMatches.map((m) => m.projectId);
-    const prjs = await db.select().from(projects).where(inArray2(projects.id, prjIds));
-    for (const p of prjs) loadedProjects[p.id] = p;
-  }
-  for (const match of params.patternMatches) {
-    const pattern = loadedPatterns[match.patternId];
-    const project = loadedProjects[match.projectId];
-    if (!pattern || !project) continue;
-    if (pattern.category === "risk_indicator" && parseFloat(pattern.reliabilityScore || "1") < 0.4) {
-      newAlerts.push({
-        alertType: "pattern_warning",
-        severity: "high",
-        title: "High-Risk Pattern Matched",
-        body: `Project '${project.name}' matched risk pattern '${pattern.name}' (Historical success rate <40%).`,
-        affectedProjectIds: [match.projectId],
-        affectedCategories: [],
-        triggerData: { match, pattern },
-        suggestedAction: "Implement strict preventative measures immediately.",
-        expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1e3)
-        // high: 72h
-      });
-    }
-  }
-  if (params.accuracyLedger && parseFloat(params.accuracyLedger.overallPlatformAccuracy || "100") < 60) {
-    newAlerts.push({
-      alertType: "accuracy_degraded",
-      severity: "high",
-      title: "Platform Accuracy Degraded",
-      body: `Overall platform prediction accuracy dropped to ${params.accuracyLedger.overallPlatformAccuracy}%.`,
-      affectedProjectIds: [],
-      affectedCategories: [],
-      triggerData: params.accuracyLedger,
-      suggestedAction: "Audit V5 learning weights and calibration multipliers.",
-      expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1e3)
-    });
-  }
-  if (params.calibrationProposals && params.calibrationProposals.length > 0) {
-    for (const prop of params.calibrationProposals) {
-      if (parseFloat(prop.calibrationFactor || "0") > 0.15) {
-        newAlerts.push({
-          alertType: "benchmark_drift",
-          severity: "medium",
-          title: "Benchmark Calibration Drift",
-          body: `A benchmark proposal requires >15% drift adjustment (${prop.calibrationFactor}).`,
-          affectedProjectIds: prop.projectId ? [prop.projectId] : [],
-          affectedCategories: [],
-          triggerData: prop,
-          suggestedAction: "Review calibration proposals and update material baseline bands.",
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
-          // medium: 7d
-        });
-      }
-    }
-  }
-  for (const insight of params.projectInsights) {
-    if (insight.insightType === "market_opportunity" && (insight.severity === "critical" || insight.severity === "warning")) {
-      newAlerts.push({
-        alertType: "market_opportunity",
-        severity: "medium",
-        title: "Market Opportunity Identified",
-        body: insight.title,
-        affectedProjectIds: insight.projectId ? [insight.projectId] : [],
-        affectedCategories: [],
-        triggerData: insight,
-        suggestedAction: insight.actionableRecommendation || "Investigate the newly generated opportunity parameters.",
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3)
-      });
-    }
-  }
-  const insertedAlerts = [];
-  for (const alert of newAlerts) {
-    const existing = await db.select().from(platformAlerts).where(
-      and2(
-        eq3(platformAlerts.alertType, alert.alertType),
-        eq3(platformAlerts.status, "active")
-        // For perfect duplicate suppression on JSON array, we can use simple string equality or fetch and filter
-        // We'll fetch active of this type and filter by JS equality
-      )
-    );
-    const isDuplicate = existing.some(
-      (e) => JSON.stringify(e.affectedProjectIds) === JSON.stringify(alert.affectedProjectIds)
-    );
-    if (!isDuplicate) {
-      const [result] = await db.insert(platformAlerts).values(alert);
-      const inserted = { ...alert, id: result.insertId };
-      insertedAlerts.push(inserted);
-      deliverAlert(inserted).catch(
-        (e) => console.error("[AlertEngine] Delivery failed for alert:", inserted.title, e)
-      );
-    }
-  }
-  return insertedAlerts;
-}
-async function triggerAlertEngine() {
-  const db = await getDb();
-  if (!db) return [];
-  const memoryWindow = new Date(Date.now() - 24 * 60 * 60 * 1e3);
-  const recentPrices = await db.select().from(priceChangeEvents).where(sql2`${priceChangeEvents.detectedAt} >= ${memoryWindow}`);
-  const recentInsights = await db.select().from(projectInsights).where(sql2`${projectInsights.createdAt} >= ${memoryWindow}`);
-  const recentComparisons = await db.select().from(outcomeComparisons).orderBy(sql2`${outcomeComparisons.comparedAt} DESC`).limit(20);
-  const recentMatches = await db.select().from(projectPatternMatches).where(sql2`${projectPatternMatches.matchedAt} >= ${memoryWindow}`);
-  const ledgerRows = await db.select().from(accuracySnapshots).orderBy(sql2`${accuracySnapshots.snapshotDate} DESC`).limit(1);
-  const recentProposals = await db.select().from(benchmarkProposals).where(sql2`${benchmarkProposals.createdAt} >= ${memoryWindow}`);
-  return evaluateAlerts({
-    priceChangeEvents: recentPrices,
-    projectInsights: recentInsights,
-    outcomeComparisons: recentComparisons,
-    patternMatches: recentMatches,
-    accuracyLedger: ledgerRows[0],
-    calibrationProposals: recentProposals
-  });
-}
+init_alert_engine();
 
 // server/engines/autonomous/document-generator.ts
 init_db();
@@ -20825,1085 +22819,12 @@ function computeDeltas(baseline, compared) {
 import { z as z9 } from "zod";
 init_db();
 init_dynamic();
+init_orchestrator();
 import { nanoid as nanoid4 } from "nanoid";
-
-// server/engines/ingestion/orchestrator.ts
-init_connector();
-init_db();
-import { randomUUID as randomUUID2 } from "crypto";
-
-// server/engines/ingestion/proposal-generator.ts
-init_db();
-init_freshness();
-import { randomUUID } from "crypto";
-async function generateBenchmarkProposals(options = {}) {
-  const { category, minEvidenceCount = 3, actorId, ingestionRunId } = options;
-  const runId = `PROP-${randomUUID().substring(0, 8)}`;
-  const startedAt = /* @__PURE__ */ new Date();
-  const evidence = await listEvidenceRecords({
-    category,
-    limit: 1e4
-  });
-  if (evidence.length === 0) {
-    return { proposalsCreated: 0, groupsAnalyzed: 0, totalEvidence: 0, proposals: [] };
-  }
-  const groups = /* @__PURE__ */ new Map();
-  for (const rec of evidence) {
-    const finish = rec.finishLevel?.toLowerCase() || "standard";
-    const key = `${rec.category}:${finish}:${rec.unit}`;
-    const existing = groups.get(key) ?? [];
-    existing.push(rec);
-    groups.set(key, existing);
-  }
-  const proposals = [];
-  let proposalsCreated = 0;
-  for (const [benchmarkKey, records] of Array.from(groups.entries())) {
-    if (records.length < minEvidenceCount) continue;
-    const prices = records.map((r) => Number(r.priceTypical ?? r.currencyAed ?? 0)).filter((p) => p > 0).sort((a, b) => a - b);
-    if (prices.length === 0) continue;
-    const p25 = prices[Math.floor(prices.length * 0.25)] ?? prices[0];
-    const p50 = prices[Math.floor(prices.length * 0.5)] ?? prices[0];
-    const p75 = prices[Math.floor(prices.length * 0.75)] ?? prices[prices.length - 1];
-    const weightMap = { A: 3, B: 2, C: 1 };
-    let weightedSum = 0;
-    let totalWeight = 0;
-    for (const rec of records) {
-      const price = Number(rec.priceTypical ?? rec.currencyAed ?? 0);
-      if (price <= 0) continue;
-      const gradeWeight2 = weightMap[rec.reliabilityGrade] ?? 1;
-      const freshnessWeight = getFreshnessWeight(rec.captureDate);
-      const combinedWeight = gradeWeight2 * freshnessWeight;
-      weightedSum += price * combinedWeight;
-      totalWeight += combinedWeight;
-    }
-    const weightedMean = totalWeight > 0 ? weightedSum / totalWeight : p50;
-    const reliabilityDist = { A: 0, B: 0, C: 0 };
-    for (const rec of records) {
-      reliabilityDist[rec.reliabilityGrade]++;
-    }
-    const now = Date.now();
-    const recencyDist = { recent: 0, mid: 0, old: 0 };
-    for (const rec of records) {
-      const age = now - new Date(rec.captureDate).getTime();
-      const months = age / (30 * 24 * 60 * 60 * 1e3);
-      if (months <= 3) recencyDist.recent++;
-      else if (months <= 12) recencyDist.mid++;
-      else recencyDist.old++;
-    }
-    const uniqueSources = new Set(records.map((r) => r.sourceRegistryId ?? r.sourceUrl));
-    const sourceDiversity = uniqueSources.size;
-    let confidence = 50;
-    if (records.length >= 10) confidence += 15;
-    else if (records.length >= 5) confidence += 10;
-    if (sourceDiversity >= 3) confidence += 15;
-    else if (sourceDiversity >= 2) confidence += 10;
-    if (reliabilityDist.A >= records.length * 0.5) confidence += 10;
-    if (recencyDist.recent >= records.length * 0.5) confidence += 10;
-    confidence = Math.min(100, confidence);
-    let recommendation = "publish";
-    let rejectionReason;
-    if (records.length < 5) {
-      recommendation = "reject";
-      rejectionReason = `Insufficient sample size: ${records.length} < 5`;
-    } else if (sourceDiversity < 2) {
-      recommendation = "reject";
-      rejectionReason = `Insufficient source diversity: ${sourceDiversity} < 2`;
-    } else if (confidence < 40) {
-      recommendation = "reject";
-      rejectionReason = `Low confidence score: ${confidence}`;
-    }
-    try {
-      const result = await createBenchmarkProposal({
-        benchmarkKey,
-        proposedP25: String(p25.toFixed(2)),
-        proposedP50: String(p50.toFixed(2)),
-        proposedP75: String(p75.toFixed(2)),
-        weightedMean: String(weightedMean.toFixed(2)),
-        evidenceCount: records.length,
-        sourceDiversity,
-        reliabilityDist,
-        recencyDist,
-        confidenceScore: confidence,
-        recommendation,
-        rejectionReason,
-        runId
-      });
-      proposals.push({ id: result.id, benchmarkKey, recommendation });
-      proposalsCreated++;
-    } catch (err) {
-      console.error(`[ProposalGenerator] Failed to create proposal for ${benchmarkKey}:`, err);
-    }
-  }
-  try {
-    await createIntelligenceAuditEntry({
-      runType: "benchmark_proposal",
-      runId,
-      actor: actorId ?? null,
-      inputSummary: {
-        category,
-        minEvidenceCount,
-        totalEvidence: evidence.length,
-        triggeredByIngestion: ingestionRunId ?? null
-      },
-      outputSummary: { proposalsCreated, groups: groups.size },
-      sourcesProcessed: evidence.length,
-      recordsExtracted: proposalsCreated,
-      errors: 0,
-      startedAt,
-      completedAt: /* @__PURE__ */ new Date()
-    });
-  } catch (err) {
-    console.error("[ProposalGenerator] Failed to log audit entry:", err);
-  }
-  return {
-    proposalsCreated,
-    groupsAnalyzed: groups.size,
-    totalEvidence: evidence.length,
-    proposals
-  };
-}
-
-// server/engines/ingestion/data-quality.ts
-var QUALITY_RULES = [
-  // Flooring
-  { category: "floors", minValue: 15, maxValue: 5e3, unit: "sqm", description: "Floor materials AED/sqm" },
-  { category: "floors", minValue: 1, maxValue: 500, unit: "sqft", description: "Floor materials AED/sqft" },
-  { category: "floors", minValue: 5, maxValue: 2e3, unit: "piece", description: "Floor tiles per piece" },
-  // Walls
-  { category: "walls", minValue: 10, maxValue: 3e3, unit: "sqm", description: "Wall materials AED/sqm" },
-  { category: "walls", minValue: 5, maxValue: 500, unit: "sqft", description: "Wall materials AED/sqft" },
-  { category: "walls", minValue: 20, maxValue: 800, unit: "L", description: "Paint per litre" },
-  // Ceilings
-  { category: "ceilings", minValue: 30, maxValue: 2e3, unit: "sqm", description: "Ceiling materials AED/sqm" },
-  // Sanitary ware
-  { category: "sanitary", minValue: 50, maxValue: 8e4, unit: "piece", description: "Sanitary fixtures per piece" },
-  { category: "sanitary", minValue: 50, maxValue: 8e4, unit: "unit", description: "Sanitary fixtures per unit" },
-  { category: "sanitary", minValue: 100, maxValue: 2e5, unit: "set", description: "Sanitary sets" },
-  // Kitchen
-  { category: "kitchen", minValue: 200, maxValue: 5e5, unit: "set", description: "Kitchen sets" },
-  { category: "kitchen", minValue: 50, maxValue: 1e5, unit: "unit", description: "Kitchen appliances per unit" },
-  { category: "kitchen", minValue: 100, maxValue: 5e4, unit: "piece", description: "Kitchen items per piece" },
-  { category: "kitchen", minValue: 200, maxValue: 1e4, unit: "m", description: "Kitchen countertops per meter" },
-  // Hardware
-  { category: "hardware", minValue: 5, maxValue: 2e4, unit: "piece", description: "Hardware items per piece" },
-  { category: "hardware", minValue: 5, maxValue: 2e4, unit: "unit", description: "Hardware items per unit" },
-  { category: "hardware", minValue: 10, maxValue: 5e4, unit: "set", description: "Hardware sets" },
-  // Joinery
-  { category: "joinery", minValue: 500, maxValue: 5e4, unit: "unit", description: "Joinery per unit (doors, cabinets)" },
-  { category: "joinery", minValue: 200, maxValue: 1e4, unit: "sqm", description: "Joinery per sqm" },
-  { category: "joinery", minValue: 200, maxValue: 1e4, unit: "m", description: "Joinery per linear meter" },
-  // Lighting
-  { category: "lighting", minValue: 20, maxValue: 2e5, unit: "piece", description: "Lighting fixtures per piece" },
-  { category: "lighting", minValue: 20, maxValue: 2e5, unit: "unit", description: "Lighting fixtures per unit" },
-  // FF&E
-  { category: "ffe", minValue: 100, maxValue: 5e5, unit: "unit", description: "FF&E per unit" },
-  { category: "ffe", minValue: 100, maxValue: 5e5, unit: "piece", description: "FF&E per piece" },
-  { category: "ffe", minValue: 50, maxValue: 1e4, unit: "sqm", description: "FF&E per sqm (carpets, rugs)" },
-  // Fitout rates (other)
-  { category: "other", minValue: 100, maxValue: 15e3, unit: "sqft", description: "Fitout rates AED/sqft" },
-  { category: "other", minValue: 500, maxValue: 5e4, unit: "sqm", description: "Fitout rates AED/sqm" }
-];
-function validateEvidence(record) {
-  const flags = [];
-  if (record.value === null || record.value === void 0) {
-    return { status: "missing_value", flags: ["no_price_value"] };
-  }
-  if (record.value <= 0) {
-    flags.push("non_positive_value");
-    return {
-      status: "outlier_flagged",
-      flags,
-      adjustedConfidence: Math.max(record.confidence * 0.5, 0.1)
-    };
-  }
-  const matchingRules = QUALITY_RULES.filter(
-    (rule) => rule.category === record.category && rule.unit === (record.unit || "unit") && (!rule.itemPattern || rule.itemPattern.test(record.itemName))
-  );
-  if (matchingRules.length === 0) {
-    return { status: "valid", flags: [] };
-  }
-  let passedAnyRule = false;
-  for (const rule of matchingRules) {
-    if (record.value >= rule.minValue && record.value <= rule.maxValue) {
-      passedAnyRule = true;
-      if (record.valueMax !== null && record.valueMax !== void 0) {
-        if (record.valueMax < record.value) {
-          flags.push("max_less_than_min");
-        }
-        if (record.valueMax > rule.maxValue * 1.5) {
-          flags.push("value_max_extreme");
-        }
-      }
-      break;
-    }
-  }
-  if (!passedAnyRule) {
-    const rule = matchingRules[0];
-    if (record.value < rule.minValue) {
-      flags.push(`below_minimum: ${record.value} < ${rule.minValue} ${rule.unit} (${rule.description})`);
-    }
-    if (record.value > rule.maxValue) {
-      flags.push(`above_maximum: ${record.value} > ${rule.maxValue} ${rule.unit} (${rule.description})`);
-    }
-    return {
-      status: "outlier_flagged",
-      flags,
-      adjustedConfidence: Math.max(record.confidence * 0.3, 0.1)
-    };
-  }
-  return {
-    status: flags.length > 0 ? "outlier_flagged" : "valid",
-    flags,
-    adjustedConfidence: flags.length > 0 ? record.confidence * 0.8 : void 0
-  };
-}
-
-// server/engines/ingestion/change-detector.ts
-init_db();
-async function detectPriceChange(currentRecord) {
-  if (!currentRecord.priceTypical || !currentRecord.sourceRegistryId) return null;
-  const currentPrice = parseFloat(currentRecord.priceTypical);
-  if (isNaN(currentPrice)) return null;
-  const previousRecord = await getPreviousEvidenceRecord(
-    currentRecord.itemName,
-    currentRecord.sourceRegistryId,
-    currentRecord.captureDate
-  );
-  if (!previousRecord || !previousRecord.priceTypical) return null;
-  const previousPrice = parseFloat(previousRecord.priceTypical);
-  if (isNaN(previousPrice)) return null;
-  if (currentPrice === previousPrice) return null;
-  const changePct = (currentPrice - previousPrice) / Math.abs(previousPrice) * 100;
-  const changeDirection = currentPrice > previousPrice ? "increased" : "decreased";
-  let severity2 = "none";
-  const absChange = Math.abs(changePct);
-  if (absChange >= 10) severity2 = "significant";
-  else if (absChange >= 5) severity2 = "notable";
-  else if (absChange > 0) severity2 = "minor";
-  if (severity2 === "none") return null;
-  const result = await createPriceChangeEvent({
-    itemName: currentRecord.itemName.substring(0, 255),
-    category: currentRecord.category.substring(0, 255),
-    sourceId: currentRecord.sourceRegistryId,
-    previousPrice: previousPrice.toString(),
-    newPrice: currentPrice.toString(),
-    changePct: changePct.toString(),
-    changeDirection,
-    severity: severity2,
-    detectedAt: currentRecord.captureDate
-  });
-  if (severity2 === "significant" || severity2 === "notable") {
-    const insightType = changeDirection === "increased" ? "cost_pressure" : "market_opportunity";
-    await insertProjectInsight({
-      insightType,
-      severity: severity2 === "significant" ? "critical" : "warning",
-      title: `${changeDirection === "increased" ? "Price Spike" : "Price Drop"} Detected: ${currentRecord.itemName}`.substring(0, 512),
-      body: `A ${severity2} price ${changeDirection} of ${Math.abs(changePct).toFixed(1)}% was detected for ${currentRecord.itemName} supplied via ${currentRecord.publisher}. Previous: ${previousPrice} AED, New: ${currentPrice} AED.`,
-      actionableRecommendation: `Review associated material benchmarks to adjust expected forecasting costs accordingly.`,
-      confidenceScore: "0.85",
-      dataPoints: [
-        { label: "Previous Price", value: previousPrice.toString() },
-        { label: "New Price", value: currentPrice.toString() },
-        { label: "Deviation %", value: `${changePct.toFixed(1)}%` }
-      ],
-      triggerCondition: `Change detector alert: abs(change) >= ${severity2 === "significant" ? 10 : 5}%`
-    });
-  }
-  return {
-    id: result.id,
-    itemName: currentRecord.itemName,
-    previousPrice,
-    newPrice: currentPrice,
-    changePct,
-    changeDirection,
-    severity: severity2
-  };
-}
-
-// server/engines/analytics/trend-detection.ts
-init_llm();
-var DEFAULT_MA_WINDOW_DAYS = 30;
-var DIRECTION_CHANGE_THRESHOLD = 0.05;
-var ANOMALY_STD_DEV_THRESHOLD = 2;
-var CONFIDENCE_HIGH_MIN_POINTS = 15;
-var CONFIDENCE_HIGH_MIN_GRADE_A = 2;
-var CONFIDENCE_MEDIUM_MIN_POINTS = 8;
-var CONFIDENCE_LOW_MIN_POINTS = 5;
-function computeMovingAverage(points, windowDays = DEFAULT_MA_WINDOW_DAYS) {
-  if (points.length === 0) return [];
-  const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
-  const windowMs = windowDays * 24 * 60 * 60 * 1e3;
-  return sorted.map((point) => {
-    const windowStart = point.date.getTime() - windowMs;
-    const windowPoints = sorted.filter(
-      (p) => p.date.getTime() >= windowStart && p.date.getTime() <= point.date.getTime()
-    );
-    const ma = windowPoints.length > 0 ? windowPoints.reduce((sum, p) => sum + p.value, 0) / windowPoints.length : point.value;
-    return {
-      date: point.date,
-      value: point.value,
-      ma: Math.round(ma * 100) / 100
-    };
-  });
-}
-function detectDirectionChange(points, windowDays = DEFAULT_MA_WINDOW_DAYS) {
-  if (points.length < 2) {
-    return { direction: "insufficient_data", currentMA: null, previousMA: null, percentChange: null };
-  }
-  const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
-  const latest = sorted[sorted.length - 1].date.getTime();
-  const windowMs = windowDays * 24 * 60 * 60 * 1e3;
-  const currentWindowStart = latest - windowMs;
-  const currentPoints = sorted.filter(
-    (p) => p.date.getTime() >= currentWindowStart && p.date.getTime() <= latest
-  );
-  const prevWindowStart = latest - 2 * windowMs;
-  const prevPoints = sorted.filter(
-    (p) => p.date.getTime() >= prevWindowStart && p.date.getTime() < currentWindowStart
-  );
-  if (currentPoints.length === 0) {
-    return { direction: "insufficient_data", currentMA: null, previousMA: null, percentChange: null };
-  }
-  const currentMA = currentPoints.reduce((sum, p) => sum + p.value, 0) / currentPoints.length;
-  if (prevPoints.length === 0) {
-    return {
-      direction: "stable",
-      currentMA: Math.round(currentMA * 100) / 100,
-      previousMA: null,
-      percentChange: null
-    };
-  }
-  const previousMA = prevPoints.reduce((sum, p) => sum + p.value, 0) / prevPoints.length;
-  if (previousMA === 0) {
-    return {
-      direction: "stable",
-      currentMA: Math.round(currentMA * 100) / 100,
-      previousMA: 0,
-      percentChange: null
-    };
-  }
-  const percentChange = (currentMA - previousMA) / Math.abs(previousMA);
-  let direction;
-  if (percentChange > DIRECTION_CHANGE_THRESHOLD) {
-    direction = "rising";
-  } else if (percentChange < -DIRECTION_CHANGE_THRESHOLD) {
-    direction = "falling";
-  } else {
-    direction = "stable";
-  }
-  return {
-    direction,
-    currentMA: Math.round(currentMA * 100) / 100,
-    previousMA: Math.round(previousMA * 100) / 100,
-    percentChange: Math.round(percentChange * 1e4) / 1e4
-    // 4 decimal places
-  };
-}
-function flagAnomalies(points, maPoints, stdDevThreshold = ANOMALY_STD_DEV_THRESHOLD) {
-  if (points.length < 3 || maPoints.length === 0) return [];
-  const residuals = maPoints.map((ma) => ma.value - ma.ma);
-  const meanResidual = residuals.reduce((sum, r) => sum + r, 0) / residuals.length;
-  const variance = residuals.reduce((sum, r) => sum + Math.pow(r - meanResidual, 2), 0) / residuals.length;
-  const stdDev = Math.sqrt(variance);
-  if (stdDev === 0) return [];
-  const anomalies = [];
-  const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
-  for (let i = 0; i < sorted.length; i++) {
-    const point = sorted[i];
-    const maPoint = maPoints[i];
-    if (!maPoint) continue;
-    const deviation = Math.abs(point.value - maPoint.ma);
-    const deviationMultiple = deviation / stdDev;
-    if (deviationMultiple > stdDevThreshold) {
-      anomalies.push({
-        date: point.date,
-        value: point.value,
-        expectedMA: maPoint.ma,
-        deviationMultiple: Math.round(deviationMultiple * 100) / 100,
-        recordId: point.recordId,
-        sourceId: point.sourceId
-      });
-    }
-  }
-  return anomalies;
-}
-function assessConfidence(dataPointCount, gradeACount) {
-  if (dataPointCount >= CONFIDENCE_HIGH_MIN_POINTS && gradeACount >= CONFIDENCE_HIGH_MIN_GRADE_A) {
-    return "high";
-  }
-  if (dataPointCount >= CONFIDENCE_MEDIUM_MIN_POINTS) {
-    return "medium";
-  }
-  if (dataPointCount >= CONFIDENCE_LOW_MIN_POINTS) {
-    return "low";
-  }
-  return "insufficient";
-}
-async function generateTrendNarrative(trend) {
-  try {
-    const response = await invokeLLM({
-      messages: [
-        {
-          role: "system",
-          content: "You are a real estate market analyst. Write exactly 3 sentences summarizing a market trend. Be factual and concise. Do not add opinions or recommendations."
-        },
-        {
-          role: "user",
-          content: `Summarize this trend:
-Metric: ${trend.metric}
-Category: ${trend.category}
-Geography: ${trend.geography}
-Direction: ${trend.direction}
-Current 30-day average: ${trend.currentMA ?? "N/A"}
-Previous 30-day average: ${trend.previousMA ?? "N/A"}
-Change: ${trend.percentChange !== null ? `${(trend.percentChange * 100).toFixed(1)}%` : "N/A"}
-Data points: ${trend.dataPointCount} (${trend.gradeACount} Grade A, ${trend.gradeBCount} Grade B, ${trend.gradeCCount} Grade C)
-Sources: ${trend.uniqueSources}
-Anomalies: ${trend.anomalies.length}
-Date range: ${trend.dateRange ? `${trend.dateRange.start.toISOString().split("T")[0]} to ${trend.dateRange.end.toISOString().split("T")[0]}` : "N/A"}
-Confidence: ${trend.confidence}`
-        }
-      ]
-    });
-    const content = response.choices?.[0]?.message?.content;
-    return typeof content === "string" ? content.trim() : "";
-  } catch (err) {
-    console.error("[TrendDetection] Narrative generation failed:", err);
-    return "";
-  }
-}
-async function detectTrends(metric, category, geography, points, options) {
-  const windowDays = options?.windowDays ?? DEFAULT_MA_WINDOW_DAYS;
-  const shouldGenerateNarrative = options?.generateNarrative ?? true;
-  const gradeACount = points.filter((p) => p.grade === "A").length;
-  const gradeBCount = points.filter((p) => p.grade === "B").length;
-  const gradeCCount = points.filter((p) => p.grade === "C").length;
-  const uniqueSources = new Set(points.map((p) => p.sourceId)).size;
-  const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
-  const dateRange = sorted.length > 0 ? { start: sorted[0].date, end: sorted[sorted.length - 1].date } : null;
-  const maPoints = computeMovingAverage(points, windowDays);
-  const { direction, currentMA, previousMA, percentChange } = detectDirectionChange(
-    points,
-    windowDays
-  );
-  const anomalies = flagAnomalies(points, maPoints);
-  const confidence = assessConfidence(points.length, gradeACount);
-  const partialResult = {
-    metric,
-    category,
-    geography,
-    dataPointCount: points.length,
-    gradeACount,
-    gradeBCount,
-    gradeCCount,
-    uniqueSources,
-    dateRange,
-    currentMA,
-    previousMA,
-    percentChange,
-    direction,
-    anomalies,
-    confidence
-  };
-  let narrative = null;
-  if (shouldGenerateNarrative && points.length >= CONFIDENCE_LOW_MIN_POINTS) {
-    narrative = await generateTrendNarrative(partialResult);
-  }
-  return {
-    ...partialResult,
-    narrative,
-    movingAverages: maPoints
-  };
-}
-
-// server/engines/ingestion/orchestrator.ts
-init_schema();
-import { and as and4, eq as eq8, sql as sql3 } from "drizzle-orm";
-var MAX_CONCURRENT = 3;
-async function runWithConcurrencyLimit(tasks, limit) {
-  const results = [];
-  let index = 0;
-  async function runNext() {
-    while (index < tasks.length) {
-      const currentIndex = index++;
-      results[currentIndex] = await tasks[currentIndex]();
-    }
-  }
-  const workers = Array.from(
-    { length: Math.min(limit, tasks.length) },
-    () => runNext()
-  );
-  await Promise.all(workers);
-  return results;
-}
-async function findExistingRecord(sourceUrl, itemName) {
-  const db = await getDb();
-  if (!db) return null;
-  const existing = await db.select({
-    id: evidenceRecords.id,
-    recordId: evidenceRecords.recordId,
-    priceMin: evidenceRecords.priceMin,
-    priceTypical: evidenceRecords.priceTypical,
-    priceMax: evidenceRecords.priceMax,
-    confidenceScore: evidenceRecords.confidenceScore,
-    captureDate: evidenceRecords.captureDate,
-    sourceRegistryId: evidenceRecords.sourceRegistryId,
-    itemName: evidenceRecords.itemName,
-    category: evidenceRecords.category,
-    publisher: evidenceRecords.publisher
-  }).from(evidenceRecords).where(
-    and4(
-      eq8(evidenceRecords.sourceUrl, sourceUrl),
-      eq8(evidenceRecords.itemName, itemName)
-    )
-  ).orderBy(sql3`${evidenceRecords.captureDate} DESC`).limit(1);
-  return existing.length > 0 ? existing[0] : null;
-}
-async function updateExistingRecord(existing, newData) {
-  const db = await getDb();
-  if (!db) return { priceChanged: false, changePct: 0 };
-  const oldPrice = existing.priceTypical ? parseFloat(existing.priceTypical) : null;
-  const newPrice = newData.priceTypical ? parseFloat(newData.priceTypical) : null;
-  let changePct = 0;
-  let priceChanged = false;
-  if (oldPrice !== null && newPrice !== null && oldPrice > 0) {
-    changePct = (newPrice - oldPrice) / oldPrice * 100;
-    priceChanged = Math.abs(changePct) > 2;
-  } else if (oldPrice === null !== (newPrice === null)) {
-    priceChanged = true;
-  }
-  const updatePayload = {
-    captureDate: newData.captureDate,
-    confidenceScore: Math.max(newData.confidenceScore, existing.confidenceScore),
-    extractedSnippet: newData.extractedSnippet,
-    runId: newData.runId
-  };
-  if (newData.priceMin !== null) updatePayload.priceMin = newData.priceMin;
-  if (newData.priceTypical !== null) updatePayload.priceTypical = newData.priceTypical;
-  if (newData.priceMax !== null) updatePayload.priceMax = newData.priceMax;
-  if (newData.reliabilityGrade) updatePayload.reliabilityGrade = newData.reliabilityGrade;
-  if (newData.finishLevel) updatePayload.finishLevel = newData.finishLevel;
-  if (newData.designStyle) updatePayload.designStyle = newData.designStyle;
-  if (newData.brandsMentioned) updatePayload.brandsMentioned = newData.brandsMentioned;
-  if (newData.materialSpec) updatePayload.materialSpec = newData.materialSpec;
-  await db.update(evidenceRecords).set(updatePayload).where(eq8(evidenceRecords.id, existing.id));
-  return { priceChanged, changePct };
-}
-var CATEGORY_MAP = {
-  material_cost: "floors",
-  // LLM now sets correct category per-item
-  fitout_rate: "other",
-  market_trend: "other",
-  competitor_project: "other",
-  floors: "floors",
-  walls: "walls",
-  ceilings: "ceilings",
-  joinery: "joinery",
-  lighting: "lighting",
-  sanitary: "sanitary",
-  kitchen: "kitchen",
-  hardware: "hardware",
-  ffe: "ffe",
-  other: "other"
-};
-function mapCategory(category) {
-  return CATEGORY_MAP[category] || "other";
-}
-var recordCounter = 0;
-function generateRecordId() {
-  recordCounter++;
-  const ts = Date.now().toString(36);
-  const rand = Math.random().toString(36).substring(2, 6);
-  return `MYR-PE-${ts}-${rand}`.toUpperCase();
-}
-async function runIngestion(connectors, triggeredBy = "manual", actorId) {
-  const runId = `ING-${randomUUID2().substring(0, 8)}`;
-  const startedAt = /* @__PURE__ */ new Date();
-  const connectorResults = [];
-  try {
-    const db = await getDb();
-    if (db) {
-      for (const connector of connectors) {
-        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq8(sourceRegistry.name, connector.sourceId)).limit(1);
-        if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
-          connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("[Ingestion] Failed to load lastSuccessfulFetch:", err);
-  }
-  const tasks = connectors.map((connector) => async () => {
-    try {
-      const raw = await connector.fetch();
-      if (raw.error && raw.statusCode === 0) {
-        return {
-          sourceId: connector.sourceId,
-          sourceName: connector.sourceName,
-          status: "failed",
-          evidenceExtracted: 0,
-          evidenceCreated: 0,
-          evidenceUpdated: 0,
-          evidenceSkipped: 0,
-          outliersFlagged: 0,
-          error: raw.error
-        };
-      }
-      if (raw.statusCode >= 400) {
-        return {
-          sourceId: connector.sourceId,
-          sourceName: connector.sourceName,
-          status: "failed",
-          evidenceExtracted: 0,
-          evidenceCreated: 0,
-          evidenceUpdated: 0,
-          evidenceSkipped: 0,
-          outliersFlagged: 0,
-          error: raw.error || `HTTP ${raw.statusCode}`
-        };
-      }
-      let extracted;
-      try {
-        extracted = await connector.extract(raw);
-      } catch (err) {
-        return {
-          sourceId: connector.sourceId,
-          sourceName: connector.sourceName,
-          status: "failed",
-          evidenceExtracted: 0,
-          evidenceCreated: 0,
-          evidenceUpdated: 0,
-          evidenceSkipped: 0,
-          outliersFlagged: 0,
-          error: `Extract failed: ${err instanceof Error ? err.message : String(err)}`
-        };
-      }
-      const validExtracted = extracted.filter((e) => {
-        const result = extractedEvidenceSchema.safeParse(e);
-        return result.success;
-      });
-      let created = 0;
-      let updated = 0;
-      let skipped = 0;
-      let outliers = 0;
-      for (const evidence of validExtracted) {
-        try {
-          let normalized;
-          try {
-            normalized = await connector.normalize(evidence);
-          } catch (err) {
-            normalized = {
-              metric: evidence.title,
-              value: null,
-              unit: null,
-              confidence: 0.2,
-              grade: "C",
-              summary: evidence.rawText.substring(0, 500),
-              tags: []
-            };
-          }
-          const validationResult = normalizedEvidenceInputSchema.safeParse(normalized);
-          if (!validationResult.success) {
-            normalized = {
-              metric: evidence.title || "Unknown metric",
-              value: null,
-              unit: null,
-              confidence: 0.2,
-              grade: "C",
-              summary: evidence.rawText.substring(0, 500) || "Extraction failed",
-              tags: []
-            };
-          }
-          const qualityResult = validateEvidence({
-            category: evidence.category,
-            itemName: normalized.metric,
-            value: normalized.value ?? null,
-            valueMax: normalized.valueMax ?? null,
-            unit: normalized.unit,
-            confidence: normalized.confidence
-          });
-          if (qualityResult.status === "outlier_flagged") {
-            outliers++;
-            if (qualityResult.adjustedConfidence !== void 0) {
-              normalized.confidence = qualityResult.adjustedConfidence;
-            }
-            console.warn(`[Ingestion] \u{1F6A9} Outlier flagged: ${normalized.metric} = ${normalized.value} (${qualityResult.flags.join(", ")})`);
-          }
-          const captureDate = evidence.publishedDate || raw.fetchedAt;
-          const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
-          const evidenceCategory = validCategories.includes(evidence.category) ? evidence.category : mapCategory(evidence.category);
-          const sourceRegistryId = typeof connector.sourceId === "number" ? connector.sourceId : parseInt(connector.sourceId) || void 0;
-          const existing = await findExistingRecord(
-            evidence.sourceUrl,
-            normalized.metric
-          );
-          if (existing) {
-            const { priceChanged } = await updateExistingRecord(existing, {
-              priceMin: normalized.value?.toString() ?? null,
-              priceTypical: normalized.value?.toString() ?? null,
-              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
-              confidenceScore: Math.round(normalized.confidence * 100),
-              captureDate,
-              extractedSnippet: normalized.summary,
-              reliabilityGrade: normalized.grade,
-              runId,
-              finishLevel: normalized.finishLevel ?? null,
-              designStyle: normalized.designStyle ?? null,
-              brandsMentioned: normalized.brandsMentioned ?? null,
-              materialSpec: normalized.materialSpec ?? null
-            });
-            if (priceChanged) {
-              const updatedRecord = await getEvidenceRecordById(existing.id);
-              if (updatedRecord) {
-                await detectPriceChange(updatedRecord);
-              }
-            }
-            updated++;
-          } else {
-            const { id: newRecordId } = await createEvidenceRecord({
-              recordId: generateRecordId(),
-              sourceRegistryId,
-              sourceUrl: evidence.sourceUrl,
-              category: evidenceCategory,
-              itemName: normalized.metric,
-              priceMin: normalized.value?.toString() ?? null,
-              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
-              priceTypical: normalized.value?.toString() ?? null,
-              unit: normalized.unit || "unit",
-              currencyOriginal: "AED",
-              captureDate,
-              reliabilityGrade: normalized.grade,
-              confidenceScore: Math.round(normalized.confidence * 100),
-              extractedSnippet: normalized.summary,
-              publisher: connector.sourceName,
-              title: evidence.title,
-              tags: normalized.tags,
-              notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
-              runId,
-              // V7: Design Intelligence Fields
-              finishLevel: normalized.finishLevel ?? null,
-              designStyle: normalized.designStyle ?? null,
-              brandsMentioned: normalized.brandsMentioned ?? null,
-              materialSpec: normalized.materialSpec ?? null,
-              intelligenceType: normalized.intelligenceType ?? "material_price"
-            });
-            const insertedRecord = await getEvidenceRecordById(newRecordId);
-            if (insertedRecord) {
-              await detectPriceChange(insertedRecord);
-            }
-            created++;
-          }
-        } catch (err) {
-          console.error(`[Ingestion] Record persist failed for ${connector.sourceId}:`, err);
-        }
-      }
-      return {
-        sourceId: connector.sourceId,
-        sourceName: connector.sourceName,
-        status: "success",
-        evidenceExtracted: validExtracted.length,
-        evidenceCreated: created,
-        evidenceUpdated: updated,
-        evidenceSkipped: skipped,
-        outliersFlagged: outliers
-      };
-    } catch (err) {
-      return {
-        sourceId: connector.sourceId,
-        sourceName: connector.sourceName,
-        status: "failed",
-        evidenceExtracted: 0,
-        evidenceCreated: 0,
-        evidenceUpdated: 0,
-        evidenceSkipped: 0,
-        outliersFlagged: 0,
-        error: `Unhandled: ${err instanceof Error ? err.message : String(err)}`
-      };
-    }
-  });
-  const results = await runWithConcurrencyLimit(tasks, MAX_CONCURRENT);
-  connectorResults.push(...results);
-  for (const result of connectorResults) {
-    try {
-      const healthStatus = result.status === "success" ? result.evidenceCreated > 0 ? "success" : "partial" : "failed";
-      let errorType = null;
-      if (result.error) {
-        if (result.error.includes("ENOTFOUND") || result.error.includes("DNS") || result.error.includes("resolve")) {
-          errorType = "dns_failure";
-        } else if (result.error.includes("timeout") || result.error.includes("ETIMEDOUT")) {
-          errorType = "timeout";
-        } else if (result.error.includes("HTTP")) {
-          errorType = "http_error";
-        } else if (result.error.includes("Extract") || result.error.includes("parse")) {
-          errorType = "parse_error";
-        } else if (result.error.includes("LLM") || result.error.includes("invokeLLM")) {
-          errorType = "llm_error";
-        } else {
-          errorType = "unknown";
-        }
-      }
-      await insertConnectorHealth({
-        runId,
-        sourceId: result.sourceId,
-        sourceName: result.sourceName,
-        status: healthStatus,
-        httpStatusCode: null,
-        responseTimeMs: null,
-        recordsExtracted: result.evidenceExtracted,
-        recordsInserted: result.evidenceCreated,
-        duplicatesSkipped: result.evidenceSkipped,
-        errorMessage: result.error || null,
-        errorType
-      });
-    } catch (err) {
-      console.error(`[Ingestion] Failed to record health for ${result.sourceId}:`, err);
-    }
-  }
-  try {
-    const db = await getDb();
-    if (db) {
-      for (const result of connectorResults) {
-        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq8(sourceRegistry.name, result.sourceId)).limit(1);
-        const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
-        const isSuccess = result.status === "success";
-        const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
-        const updates = {
-          lastScrapedAt: /* @__PURE__ */ new Date(),
-          lastScrapedStatus: statusEnum,
-          lastRecordCount: result.evidenceCreated,
-          consecutiveFailures: isSuccess ? 0 : currentFailures + 1
-        };
-        if (isSuccess) {
-          updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
-        }
-        await db.update(sourceRegistry).set(updates).where(eq8(sourceRegistry.name, result.sourceId));
-      }
-    }
-  } catch (err) {
-    console.warn("[Ingestion] Failed to update sourceRegistry metrics:", err);
-  }
-  const completedAt = /* @__PURE__ */ new Date();
-  const durationMs = completedAt.getTime() - startedAt.getTime();
-  const succeeded = connectorResults.filter((r) => r.status === "success").length;
-  const failed = connectorResults.filter((r) => r.status === "failed").length;
-  const totalCreated = connectorResults.reduce((sum, r) => sum + r.evidenceCreated, 0);
-  const totalUpdated = connectorResults.reduce((sum, r) => sum + r.evidenceUpdated, 0);
-  const totalSkipped = connectorResults.reduce((sum, r) => sum + r.evidenceSkipped, 0);
-  const totalOutliers = connectorResults.reduce((sum, r) => sum + r.outliersFlagged, 0);
-  const errors = connectorResults.filter((r) => r.status === "failed" && r.error).map((r) => ({
-    sourceId: r.sourceId,
-    sourceName: r.sourceName,
-    error: r.error
-  }));
-  try {
-    const db = await getDb();
-    if (db) {
-      await db.insert(ingestionRuns).values({
-        runId,
-        trigger: triggeredBy,
-        triggeredBy: actorId ?? null,
-        status: failed === connectors.length ? "failed" : "completed",
-        totalSources: connectors.length,
-        sourcesSucceeded: succeeded,
-        sourcesFailed: failed,
-        recordsExtracted: connectorResults.reduce((sum, r) => sum + r.evidenceExtracted, 0),
-        recordsInserted: totalCreated,
-        recordsUpdated: totalUpdated,
-        duplicatesSkipped: totalSkipped,
-        outliersFlagged: totalOutliers,
-        sourceBreakdown: connectorResults.map((r) => ({
-          sourceId: r.sourceId,
-          name: r.sourceName,
-          status: r.status,
-          extracted: r.evidenceExtracted,
-          inserted: r.evidenceCreated,
-          updated: r.evidenceUpdated,
-          duplicates: r.evidenceSkipped,
-          outliers: r.outliersFlagged,
-          error: r.error || null
-        })),
-        errorSummary: errors.length > 0 ? errors : null,
-        startedAt,
-        completedAt,
-        durationMs
-      });
-    }
-  } catch (err) {
-    console.error("[Ingestion] Failed to persist ingestion run:", err);
-  }
-  try {
-    await createIntelligenceAuditEntry({
-      runType: "price_extraction",
-      runId,
-      actor: actorId ?? null,
-      inputSummary: {
-        triggeredBy,
-        connectorCount: connectors.length,
-        connectorIds: connectors.map((c) => c.sourceId)
-      },
-      outputSummary: {
-        sourcesAttempted: connectors.length,
-        sourcesSucceeded: succeeded,
-        sourcesFailed: failed,
-        evidenceCreated: totalCreated,
-        evidenceUpdated: totalUpdated,
-        evidenceSkipped: totalSkipped,
-        outliersFlagged: totalOutliers
-      },
-      sourcesProcessed: connectors.length,
-      recordsExtracted: totalCreated,
-      errors: failed,
-      errorDetails: errors.length > 0 ? errors : null,
-      startedAt,
-      completedAt
-    });
-  } catch (err) {
-    console.error("[Ingestion] Failed to log audit entry:", err);
-  }
-  let proposalResult = null;
-  if (totalCreated > 0 || totalUpdated > 0) {
-    try {
-      proposalResult = await generateBenchmarkProposals({
-        actorId,
-        ingestionRunId: runId
-      });
-      console.log(
-        `[Ingestion] Post-run proposal generation: ${proposalResult.proposalsCreated} proposals created`
-      );
-    } catch (err) {
-      console.error("[Ingestion] Post-run proposal generation failed:", err);
-    }
-  }
-  if (totalCreated > 0 || totalUpdated > 0) {
-    try {
-      const db = await getDb();
-      if (db) {
-        const recentEvidence = await db.select().from(evidenceRecords).orderBy(sql3`${evidenceRecords.createdAt} DESC`).limit(500);
-        const categoryGroups = /* @__PURE__ */ new Map();
-        for (const record of recentEvidence) {
-          const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
-          if (value === null || isNaN(value)) continue;
-          const date = record.captureDate || record.createdAt;
-          if (!date) continue;
-          const category = record.category || "other";
-          const finishLevel = record.finishLevel?.toLowerCase() || "standard";
-          const metric = `${category}:${finishLevel}`;
-          const grade2 = record.reliabilityGrade || "C";
-          if (!categoryGroups.has(metric)) categoryGroups.set(metric, { category, points: [] });
-          categoryGroups.get(metric).points.push({
-            date: new Date(date),
-            value,
-            grade: grade2,
-            sourceId: record.sourceRegistryId ? String(record.sourceRegistryId) : "unknown",
-            recordId: record.id
-          });
-        }
-        let trendsGenerated = 0;
-        for (const [metric, group] of Array.from(categoryGroups.entries())) {
-          if (group.points.length < 2) continue;
-          const trend = await detectTrends(metric, group.category, "UAE", group.points, {
-            generateNarrative: group.points.length >= 5
-          });
-          await insertTrendSnapshot({
-            metric: trend.metric,
-            category: trend.category,
-            geography: trend.geography,
-            dataPointCount: trend.dataPointCount,
-            gradeACount: trend.gradeACount,
-            gradeBCount: trend.gradeBCount,
-            gradeCCount: trend.gradeCCount,
-            uniqueSources: trend.uniqueSources,
-            dateRangeStart: trend.dateRange?.start || null,
-            dateRangeEnd: trend.dateRange?.end || null,
-            currentMA: trend.currentMA !== null ? String(trend.currentMA) : null,
-            previousMA: trend.previousMA !== null ? String(trend.previousMA) : null,
-            percentChange: trend.percentChange !== null ? String(trend.percentChange) : null,
-            direction: trend.direction,
-            anomalyCount: trend.anomalies.length,
-            anomalyDetails: trend.anomalies.length > 0 ? trend.anomalies : null,
-            confidence: trend.confidence,
-            narrative: trend.narrative,
-            movingAverages: trend.movingAverages.length > 0 ? trend.movingAverages : null,
-            ingestionRunId: runId
-          });
-          trendsGenerated++;
-        }
-        console.log(`[Ingestion] Post-run trend detection: ${trendsGenerated} trend snapshots created`);
-      }
-    } catch (err) {
-      console.error("[Ingestion] Post-run trend detection failed:", err);
-    }
-  }
-  try {
-    const alerts = await triggerAlertEngine();
-    console.log(`[Ingestion] Post-run alert generation: ${alerts.length} new alerts created`);
-  } catch (err) {
-    console.error("[Ingestion] Post-run alert generation failed:", err);
-  }
-  if (totalCreated > 0 || totalUpdated > 0) {
-    try {
-      const { syncEvidenceToMaterials: syncEvidenceToMaterials2 } = await Promise.resolve().then(() => (init_evidence_to_materials(), evidence_to_materials_exports));
-      const materialSync = await syncEvidenceToMaterials2(runId);
-      console.log(
-        `[Ingestion] Post-run materials sync: ${materialSync.created} created, ${materialSync.updated} updated, ${materialSync.skipped} skipped`
-      );
-    } catch (err) {
-      console.error("[Ingestion] Post-run materials sync failed:", err);
-    }
-  }
-  console.log(`[Ingestion] Run ${runId} complete: ${totalCreated} created, ${totalUpdated} updated, ${totalSkipped} skipped, ${totalOutliers} outliers flagged`);
-  const report = {
-    runId,
-    startedAt,
-    completedAt,
-    durationMs,
-    triggeredBy,
-    sourcesAttempted: connectors.length,
-    sourcesSucceeded: succeeded,
-    sourcesFailed: failed,
-    evidenceCreated: totalCreated,
-    evidenceUpdated: totalUpdated,
-    evidenceSkipped: totalSkipped,
-    outliersFlagged: totalOutliers,
-    errors,
-    perSource: connectorResults
-  };
-  return report;
-}
-async function runSingleConnector(connector, triggeredBy = "manual", actorId) {
-  return runIngestion([connector], triggeredBy, actorId);
-}
-async function testScrape(connector) {
-  const startedAt = /* @__PURE__ */ new Date();
-  const raw = await connector.fetch();
-  if (raw.error) {
-    return { success: false, error: raw.error, statusCode: raw.statusCode };
-  }
-  const extracted = await connector.extract(raw);
-  const normalizedRecords = [];
-  for (const evidence of extracted) {
-    if (!extractedEvidenceSchema.safeParse(evidence).success) continue;
-    try {
-      const normalized = await connector.normalize(evidence);
-      if (normalizedEvidenceInputSchema.safeParse(normalized).success) {
-        normalizedRecords.push(normalized);
-      }
-    } catch {
-    }
-  }
-  return {
-    success: true,
-    statusCode: raw.statusCode,
-    rawPayloadSize: (raw.rawHtml?.length || 0) + JSON.stringify(raw.rawJson || {}).length,
-    extractedCount: extracted.length,
-    validNormalizedCount: normalizedRecords.length,
-    previewRecords: normalizedRecords.slice(0, 5),
-    durationMs: (/* @__PURE__ */ new Date()).getTime() - startedAt.getTime()
-  };
-}
 
 // server/engines/ingestion/csv-pipeline.ts
 init_db();
+init_change_detector();
 import * as xlsx from "xlsx";
 function generateRecordId2() {
   const ts = Date.now().toString(36);
@@ -23217,846 +24138,20 @@ var marketIntelligenceRouter = router({
 
 // server/routers/ingestion.ts
 import { z as z10 } from "zod";
-
-// server/engines/ingestion/connectors/index.ts
-init_connector();
-init_llm();
-
-// server/engines/ingestion/connectors/scad-pdf-connector.ts
-init_connector();
-init_llm();
-var SCAD_PDF_URLS = [
-  "https://www.scad.gov.ae/Release%20Documents/Construction%20Cost%20Index%20Report%20Q4%202024_EN.pdf",
-  "https://www.scad.gov.ae/Release%20Documents/Construction%20Material%20Prices%202024_EN.pdf"
-];
-var SCAD_PUBLICATIONS_URL = "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx";
-var EXTRACTION_PROMPT2 = `You are a data extraction engine for MIYAR, a UAE real estate intelligence platform.
-
-Extract material price data from this SCAD (Statistics Centre Abu Dhabi) PDF text.
-Focus on: construction materials, building materials, finishing materials, and their price indices.
-
-Return a JSON array of objects with these exact fields:
-- materialName: string (e.g. "Portland Cement", "Steel Reinforcement Bar", "Ceramic Tiles 30x30")
-- category: string (one of: "cement", "steel", "aggregate", "timber", "tiles", "glass", "paint", "insulation", "plumbing", "electrical", "stone", "other")
-- priceAed: number|null (price in AED per unit, null if only index given)
-- unit: string (e.g. "ton", "kg", "sqm", "piece", "bag", "meter", "cubic_meter")
-- indexValue: number|null (price index value if available, base=100)
-- yearQuarter: string|null (e.g. "2024-Q4", "2024")
-- changePercent: number|null (year-over-year % change if stated)
-
-Rules:
-- Extract up to 30 items
-- Only real data from the PDF \u2014 do NOT invent values
-- If a row has an index but no absolute AED price, still include it with priceAed: null
-- Return [] if no material data found
-
-PDF text content:
-`;
-var SCADPdfConnector = class extends BaseSourceConnector {
-  sourceId = "scad-pdf-materials";
-  sourceName = "SCAD Abu Dhabi \u2014 Material Price Index (PDF)";
-  sourceUrl = SCAD_PUBLICATIONS_URL;
-  /**
-   * Fetch: download PDF(s) and extract text via pdf-parse.
-   * Falls back to publications page HTML if PDF fetch fails.
-   */
-  async fetch() {
-    let allText = "";
-    for (const pdfUrl of SCAD_PDF_URLS) {
-      try {
-        const response = await fetch(pdfUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform; +https://miyar.ai)",
-            "Accept": "application/pdf"
-          },
-          signal: AbortSignal.timeout(3e4)
-        });
-        if (!response.ok) {
-          console.warn(`[SCAD PDF] HTTP ${response.status} for ${pdfUrl}`);
-          continue;
-        }
-        const buffer = Buffer.from(await response.arrayBuffer());
-        const { PDFParse } = await import("pdf-parse");
-        const parser = new PDFParse({ data: buffer });
-        try {
-          const parsed = await parser.getText();
-          if (parsed.text && parsed.text.length > 100) {
-            allText += `
---- Source: ${pdfUrl} ---
-${parsed.text}
-`;
-            console.log(`[SCAD PDF] Extracted ${parsed.text.length} chars from ${pdfUrl} (${parsed.total} pages)`);
-          }
-        } finally {
-          await parser.destroy();
-        }
-      } catch (err) {
-        console.warn(`[SCAD PDF] Failed to fetch/parse ${pdfUrl}:`, err instanceof Error ? err.message : String(err));
-      }
-    }
-    if (allText.length < 100) {
-      try {
-        const htmlResp = await fetch(this.sourceUrl, {
-          headers: { "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform)" },
-          signal: AbortSignal.timeout(15e3)
-        });
-        if (htmlResp.ok) {
-          allText = await htmlResp.text();
-        }
-      } catch {
-      }
-    }
-    return {
-      url: SCAD_PDF_URLS[0] || this.sourceUrl,
-      rawHtml: allText,
-      // Using rawHtml field for the extracted text
-      fetchedAt: /* @__PURE__ */ new Date(),
-      statusCode: allText.length > 100 ? 200 : 0
-    };
-  }
-  /**
-   * Extract: send PDF text to Gemini for structured material price extraction.
-   */
-  async extract(raw) {
-    const text2 = raw.rawHtml || "";
-    if (!text2 || text2.length < 100) return [];
-    const truncated = text2.substring(0, 15e3);
-    try {
-      const response = await invokeLLM({
-        messages: [
-          {
-            role: "system",
-            content: "You extract structured data from SCAD Abu Dhabi construction material publications. Return ONLY valid JSON. No markdown fences."
-          },
-          {
-            role: "user",
-            content: EXTRACTION_PROMPT2 + truncated
-          }
-        ],
-        response_format: { type: "json_object" }
-      });
-      const content = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
-      if (!content) return [];
-      const parsed = JSON.parse(content);
-      const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.materials || parsed.data || [];
-      if (!Array.isArray(items)) return [];
-      return items.filter((item) => item && typeof item.materialName === "string" && item.materialName.length > 0).slice(0, 30).map((item) => ({
-        title: `SCAD Material Index \u2014 ${item.materialName}`,
-        rawText: [
-          item.materialName,
-          item.priceAed ? `AED ${item.priceAed}/${item.unit}` : null,
-          item.indexValue ? `Index: ${item.indexValue}` : null,
-          item.changePercent ? `YoY: ${item.changePercent > 0 ? "+" : ""}${item.changePercent}%` : null,
-          item.yearQuarter
-        ].filter(Boolean).join(" | "),
-        publishedDate: void 0,
-        category: "material_cost",
-        geography: "Abu Dhabi",
-        sourceUrl: raw.url,
-        // Pass through structured data for normalize()
-        _scadItem: item
-      }));
-    } catch (err) {
-      console.error("[SCAD PDF] LLM extraction failed:", err instanceof Error ? err.message : String(err));
-      return [];
-    }
-  }
-  /**
-   * Normalize: convert extracted items into evidence record format.
-   */
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const scadItem = evidence._scadItem;
-    const metric = scadItem ? `${scadItem.materialName} (${scadItem.category})` : evidence.title;
-    const value = scadItem?.priceAed ?? scadItem?.indexValue ?? null;
-    const unit = scadItem?.unit ?? "unit";
-    const tags = [
-      "government",
-      "statistics",
-      "abu-dhabi",
-      "material-index",
-      "scad",
-      scadItem?.category
-    ].filter(Boolean);
-    const summaryParts = [evidence.rawText];
-    if (scadItem?.changePercent != null) {
-      summaryParts.push(`Year-over-year change: ${scadItem.changePercent > 0 ? "+" : ""}${scadItem.changePercent}%`);
-    }
-    return {
-      metric,
-      value,
-      unit,
-      confidence,
-      grade: grade2,
-      summary: summaryParts.join(" \u2014 ").substring(0, 500),
-      tags
-    };
-  }
-};
-
-// server/engines/ingestion/connectors/index.ts
-var SOURCE_URLS = {
-  "rak-ceramics-uae": "https://www.rakceramics.com/",
-  "dera-interiors": "https://derainteriors.ae/",
-  "dragon-mart-dubai": "https://www.dragonmart.ae/",
-  "porcelanosa-uae": "https://www.porcelanosa.com/ae/",
-  "emaar-properties": "https://www.emaar.com/en/",
-  "damac-properties": "https://www.damacproperties.com/en/",
-  "nakheel-properties": "https://www.nakheel.com/en/",
-  "rics-market-reports": "https://www.rics.org/news-insights/research-and-insights/",
-  "jll-mena-research": "https://www.jll.com/en/trends-and-insights/research",
-  "dubai-statistics-center": "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
-  "hafele-uae": "https://www.hafele.com/",
-  "gems-building-materials": "https://gemsbuilding.com/products/",
-  // ─── V4: New UAE Market Sources ─────────────────────────────────
-  "dubai-pulse-materials": "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
-  "scad-abu-dhabi": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
-  "scad-pdf-materials": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
-  "dld-transactions": "https://www.dubaipulse.gov.ae/data/dld_transactions/dld_transactions-open",
-  "aldar-properties": "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
-  "cbre-uae-research": "https://www.cbre.ae/en/insights",
-  "knight-frank-uae": "https://www.knightfrank.ae/research",
-  "savills-me-research": "https://www.savills.me/insight-and-opinion/",
-  "property-monitor-dubai": "https://www.propertymonitor.ae/market-reports",
-  // ─── V5: Live Property Listing Sources ─────────────────────────
-  "bayut-listings": "https://www.bayut.com/for-sale/property/dubai/",
-  "propertyfinder-listings": "https://www.propertyfinder.ae/en/buy/dubai/"
-};
-var LLM_EXTRACTION_SYSTEM_PROMPT2 = `You are a data extraction engine for the MIYAR real estate intelligence platform.
-You extract structured evidence from raw HTML content of UAE construction/real estate websites.
-Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
-function buildExtractionUserPrompt(sourceName, category, geography, htmlSnippet, lastFetch) {
-  const dateFilter = lastFetch ? `
-Focus on content published or updated after ${lastFetch.toISOString().split("T")[0]}.` : "";
-  return `Extract evidence items from this ${sourceName} webpage HTML.
-Category: ${category}
-Geography: ${geography}${dateFilter}
-
-Return a JSON array of objects with these exact fields:
-- title: string (item/product/project name)
-- rawText: string (relevant text snippet, max 500 chars)
-- publishedDate: string|null (ISO date if found, null otherwise)
-- metric: string (what is being measured, e.g. "Marble Tile 60x60 price")
-- value: number|null (numeric value in AED if found, null otherwise)
-- unit: string|null (e.g. "sqm", "sqft", "piece", "unit", null if not applicable)
-
-Rules:
-- Extract up to 15 items maximum
-- Only extract items with real data (titles, prices, descriptions)
-- Do NOT invent data \u2014 if no items found, return empty array []
-- Do NOT output confidence, grade, or scoring fields
-
-HTML content (truncated to 8000 chars):
-${htmlSnippet.substring(0, 8e3)}`;
-}
-async function extractViaLLM(sourceName, category, geography, html, lastFetch) {
-  try {
-    const textContent = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    if (textContent.length < 50) return [];
-    const response = await invokeLLM({
-      messages: [
-        { role: "system", content: LLM_EXTRACTION_SYSTEM_PROMPT2 },
-        {
-          role: "user",
-          content: buildExtractionUserPrompt(
-            sourceName,
-            category,
-            geography,
-            textContent,
-            lastFetch
-          )
-        }
-      ],
-      response_format: { type: "json_object" }
-    });
-    const content = typeof response.choices[0]?.message?.content === "string" ? response.choices[0].message.content : "";
-    if (!content) return [];
-    const parsed = JSON.parse(content);
-    const items = Array.isArray(parsed) ? parsed : parsed.items || parsed.data || [];
-    if (!Array.isArray(items)) return [];
-    return items.filter((item) => item && typeof item.title === "string" && item.title.length > 0).slice(0, 15).map((item) => ({
-      title: String(item.title || "").substring(0, 255),
-      rawText: String(item.rawText || item.description || item.text || "").substring(0, 500),
-      publishedDate: item.publishedDate || null,
-      metric: String(item.metric || item.title || "").substring(0, 255),
-      value: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
-      unit: typeof item.unit === "string" ? item.unit : null
-    }));
-  } catch (err) {
-    console.error(`[LLM Extraction] Failed for ${sourceName}:`, err instanceof Error ? err.message : String(err));
-    return [];
-  }
-}
-var AED_PRICE_REGEX = /(?:AED|Dhs?\.?)\s*([\d,]+(?:\.\d{1,2})?)/gi;
-var NUMERIC_PRICE_REGEX = /([\d,]+(?:\.\d{1,2})?)\s*(?:AED|Dhs?\.?|per\s+(?:sqm|sqft|m²|unit|piece|set|roll))/gi;
-var SQFT_REGEX = /(?:per\s+)?(?:sq\.?\s*ft\.?|sqft|square\s+foot|square\s+feet)/i;
-var SQM_REGEX = /(?:per\s+)?(?:sq\.?\s*m\.?|sqm|m²|square\s+met(?:er|re))/i;
-function extractPricesFromText(text2) {
-  const prices = [];
-  const seen = /* @__PURE__ */ new Set();
-  for (const regex of [AED_PRICE_REGEX, NUMERIC_PRICE_REGEX]) {
-    regex.lastIndex = 0;
-    let match;
-    while ((match = regex.exec(text2)) !== null) {
-      const val = parseFloat(match[1].replace(/,/g, ""));
-      if (!isNaN(val) && val > 0 && val < 1e8 && !seen.has(val)) {
-        seen.add(val);
-        const context = text2.substring(
-          Math.max(0, match.index - 30),
-          Math.min(text2.length, match.index + match[0].length + 30)
-        );
-        let unit = "unit";
-        if (SQM_REGEX.test(context)) unit = "sqm";
-        else if (SQFT_REGEX.test(context)) unit = "sqft";
-        prices.push({ value: val, unit });
-      }
-    }
-  }
-  return prices;
-}
-function extractSnippet(text2, maxLen = 500) {
-  return text2.replace(/\s+/g, " ").trim().substring(0, maxLen);
-}
-var HTMLSourceConnector = class extends BaseSourceConnector {
-  async extract(raw) {
-    const html = raw.rawHtml || "";
-    if (!html || html.length < 50) return [];
-    const llmItems = await extractViaLLM(
-      this.sourceName,
-      this.category,
-      this.geography,
-      html,
-      this.lastSuccessfulFetch
-    );
-    if (llmItems.length > 0) {
-      return llmItems.map((item) => ({
-        title: `${this.sourceName} - ${item.title}`,
-        rawText: item.rawText || item.title,
-        publishedDate: item.publishedDate ? new Date(item.publishedDate) : void 0,
-        category: this.category,
-        geography: this.geography,
-        sourceUrl: raw.url,
-        // Store LLM-extracted metric/value/unit as metadata in rawText for normalize()
-        _llmMetric: item.metric,
-        _llmValue: item.value,
-        _llmUnit: item.unit
-      }));
-    }
-    return this.extractRuleBased(raw);
-  }
-  /** Rule-based fallback extraction — subclasses can override */
-  extractRuleBased(raw) {
-    const html = raw.rawHtml || "";
-    const evidence = [];
-    const sections = html.match(
-      /<(?:div|article|section|li)[^>]*class="[^"]*(?:product|item|card|project|property|report|service)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section|li)>/gi
-    ) || [];
-    for (const section of sections.slice(0, 15)) {
-      const titleMatch = section.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/i);
-      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-      if (!title) continue;
-      const text2 = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      evidence.push({
-        title: `${this.sourceName} - ${title}`,
-        rawText: text2,
-        publishedDate: void 0,
-        category: this.category,
-        geography: this.geography,
-        sourceUrl: raw.url
-      });
-    }
-    if (evidence.length === 0 && html.length > 100) {
-      const plainText = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ");
-      evidence.push({
-        title: `${this.sourceName} - Page Content`,
-        rawText: extractSnippet(plainText),
-        publishedDate: void 0,
-        category: this.category,
-        geography: this.geography,
-        sourceUrl: raw.url
-      });
-    }
-    return evidence;
-  }
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    if (llmEvidence._llmValue !== void 0) {
-      return {
-        metric: llmEvidence._llmMetric || evidence.title,
-        value: llmEvidence._llmValue,
-        unit: llmEvidence._llmUnit || this.defaultUnit,
-        confidence,
-        grade: grade2,
-        summary: extractSnippet(evidence.rawText),
-        tags: this.defaultTags
-      };
-    }
-    const prices = extractPricesFromText(evidence.rawText);
-    return {
-      metric: evidence.title,
-      value: prices.length > 0 ? prices[0].value : null,
-      unit: prices.length > 0 ? prices[0].unit : this.defaultUnit,
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var RAKCeramicsConnector = class extends HTMLSourceConnector {
-  sourceId = "rak-ceramics-uae";
-  sourceName = "RAK Ceramics UAE";
-  sourceUrl = SOURCE_URLS["rak-ceramics-uae"];
-  category = "material_cost";
-  geography = "UAE";
-  defaultTags = ["ceramics", "tiles", "flooring", "manufacturer"];
-  defaultUnit = "sqm";
-};
-var DERAInteriorsConnector = class extends HTMLSourceConnector {
-  sourceId = "dera-interiors";
-  sourceName = "DERA Interiors";
-  sourceUrl = SOURCE_URLS["dera-interiors"];
-  category = "fitout_rate";
-  geography = "Dubai";
-  defaultTags = ["fitout", "interior-design", "contractor"];
-  defaultUnit = "sqft";
-};
-var DragonMartConnector = class extends HTMLSourceConnector {
-  sourceId = "dragon-mart-dubai";
-  sourceName = "Dragon Mart Dubai";
-  sourceUrl = SOURCE_URLS["dragon-mart-dubai"];
-  category = "material_cost";
-  geography = "Dubai";
-  defaultTags = ["retailer", "building-materials", "wholesale"];
-  defaultUnit = "unit";
-};
-var PorcelanosaConnector = class extends HTMLSourceConnector {
-  sourceId = "porcelanosa-uae";
-  sourceName = "Porcelanosa UAE";
-  sourceUrl = SOURCE_URLS["porcelanosa-uae"];
-  category = "material_cost";
-  geography = "UAE";
-  defaultTags = ["tiles", "surfaces", "premium", "manufacturer"];
-  defaultUnit = "sqm";
-};
-var EmaarConnector = class extends HTMLSourceConnector {
-  sourceId = "emaar-properties";
-  sourceName = "Emaar Properties";
-  sourceUrl = SOURCE_URLS["emaar-properties"];
-  category = "competitor_project";
-  geography = "Dubai";
-  defaultTags = ["developer", "luxury", "dubai", "residential"];
-  defaultUnit = "sqft";
-};
-var DAMACConnector = class extends HTMLSourceConnector {
-  sourceId = "damac-properties";
-  sourceName = "DAMAC Properties";
-  sourceUrl = SOURCE_URLS["damac-properties"];
-  category = "competitor_project";
-  geography = "Dubai";
-  defaultTags = ["developer", "luxury", "dubai", "branded-residences"];
-  defaultUnit = "sqft";
-};
-var NakheelConnector = class extends HTMLSourceConnector {
-  sourceId = "nakheel-properties";
-  sourceName = "Nakheel Properties";
-  sourceUrl = SOURCE_URLS["nakheel-properties"];
-  category = "competitor_project";
-  geography = "Dubai";
-  defaultTags = ["developer", "master-plan", "dubai", "community"];
-  defaultUnit = "sqft";
-};
-var RICSConnector = class extends HTMLSourceConnector {
-  sourceId = "rics-market-reports";
-  sourceName = "RICS Market Reports";
-  sourceUrl = SOURCE_URLS["rics-market-reports"];
-  category = "market_trend";
-  geography = "UAE";
-  defaultTags = ["market-survey", "construction", "industry-report", "rics"];
-  defaultUnit = "sqm";
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      unit: llmEvidence._llmUnit ?? null,
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var JLLConnector = class extends HTMLSourceConnector {
-  sourceId = "jll-mena-research";
-  sourceName = "JLL MENA Research";
-  sourceUrl = SOURCE_URLS["jll-mena-research"];
-  category = "market_trend";
-  geography = "UAE";
-  defaultTags = ["market-research", "real-estate", "mena", "jll"];
-  defaultUnit = "sqm";
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      unit: llmEvidence._llmUnit ?? null,
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var DubaiStatisticsConnector = class extends HTMLSourceConnector {
-  sourceId = "dubai-statistics-center";
-  sourceName = "Dubai Statistics Center";
-  sourceUrl = SOURCE_URLS["dubai-statistics-center"];
-  category = "market_trend";
-  geography = "Dubai";
-  defaultTags = ["government", "statistics", "dubai", "economic-indicators"];
-  defaultUnit = "sqm";
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      unit: llmEvidence._llmUnit ?? null,
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var HafeleConnector = class extends HTMLSourceConnector {
-  sourceId = "hafele-uae";
-  sourceName = "Hafele UAE";
-  sourceUrl = SOURCE_URLS["hafele-uae"];
-  category = "material_cost";
-  geography = "UAE";
-  defaultTags = ["hardware", "fittings", "joinery", "manufacturer"];
-  defaultUnit = "piece";
-};
-var GEMSConnector = class extends HTMLSourceConnector {
-  sourceId = "gems-building-materials";
-  sourceName = "GEMS Building Materials";
-  sourceUrl = SOURCE_URLS["gems-building-materials"];
-  category = "material_cost";
-  geography = "UAE";
-  defaultTags = ["building-materials", "supplier", "wholesale"];
-  defaultUnit = "unit";
-};
-var DubaiPulseConnector = class extends HTMLSourceConnector {
-  sourceId = "dubai-pulse-materials";
-  sourceName = "Dubai Pulse \u2014 Material Prices";
-  sourceUrl = SOURCE_URLS["dubai-pulse-materials"];
-  category = "material_cost";
-  geography = "Dubai";
-  defaultTags = ["government", "material-prices", "construction", "dubai-pulse"];
-  defaultUnit = "unit";
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      unit: llmEvidence._llmUnit ?? "unit",
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var SCADConnector = class extends HTMLSourceConnector {
-  sourceId = "scad-abu-dhabi";
-  sourceName = "SCAD Abu Dhabi Statistics";
-  sourceUrl = SOURCE_URLS["scad-abu-dhabi"];
-  category = "material_cost";
-  geography = "Abu Dhabi";
-  defaultTags = ["government", "statistics", "abu-dhabi", "material-prices"];
-  defaultUnit = "unit";
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      unit: llmEvidence._llmUnit ?? "unit",
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var DLDTransactionsConnector = class extends HTMLSourceConnector {
-  sourceId = "dld-transactions";
-  sourceName = "DLD Real Estate Transactions";
-  sourceUrl = SOURCE_URLS["dld-transactions"];
-  category = "market_trend";
-  geography = "Dubai";
-  defaultTags = ["government", "transactions", "real-estate", "dld"];
-  defaultUnit = "sqft";
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      unit: llmEvidence._llmUnit ?? "sqft",
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var AldarPropertiesConnector = class extends HTMLSourceConnector {
-  sourceId = "aldar-properties";
-  sourceName = "Aldar Properties";
-  sourceUrl = SOURCE_URLS["aldar-properties"];
-  category = "competitor_project";
-  geography = "Abu Dhabi";
-  defaultTags = ["developer", "abu-dhabi", "residential", "master-plan"];
-  defaultUnit = "sqft";
-};
-var CBREResearchConnector = class extends HTMLSourceConnector {
-  sourceId = "cbre-uae-research";
-  sourceName = "CBRE UAE Research";
-  sourceUrl = SOURCE_URLS["cbre-uae-research"];
-  category = "market_trend";
-  geography = "UAE";
-  defaultTags = ["market-research", "real-estate", "commercial", "cbre"];
-  defaultUnit = "sqft";
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      unit: llmEvidence._llmUnit ?? null,
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var KnightFrankConnector = class extends HTMLSourceConnector {
-  sourceId = "knight-frank-uae";
-  sourceName = "Knight Frank UAE";
-  sourceUrl = SOURCE_URLS["knight-frank-uae"];
-  category = "market_trend";
-  geography = "UAE";
-  defaultTags = ["market-research", "real-estate", "residential", "knight-frank"];
-  defaultUnit = "sqft";
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      unit: llmEvidence._llmUnit ?? null,
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var SavillsConnector = class extends HTMLSourceConnector {
-  sourceId = "savills-me-research";
-  sourceName = "Savills ME Research";
-  sourceUrl = SOURCE_URLS["savills-me-research"];
-  category = "market_trend";
-  geography = "UAE";
-  defaultTags = ["market-research", "real-estate", "investment", "savills"];
-  defaultUnit = "sqft";
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    return {
-      metric: llmEvidence._llmMetric || evidence.title,
-      value: llmEvidence._llmValue ?? null,
-      unit: llmEvidence._llmUnit ?? null,
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: this.defaultTags
-    };
-  }
-};
-var PropertyMonitorConnector = class extends HTMLSourceConnector {
-  sourceId = "property-monitor-dubai";
-  sourceName = "Property Monitor Dubai";
-  sourceUrl = SOURCE_URLS["property-monitor-dubai"];
-  category = "market_trend";
-  geography = "Dubai";
-  defaultTags = ["market-reports", "property", "dubai", "analytics"];
-  defaultUnit = "sqft";
-};
-var BayutListingsConnector = class extends HTMLSourceConnector {
-  sourceId = "bayut-listings";
-  sourceName = "Bayut \u2014 UAE Property Listings";
-  sourceUrl = SOURCE_URLS["bayut-listings"];
-  category = "property_price";
-  geography = "Dubai";
-  defaultTags = ["property-listing", "prices", "residential", "bayut", "dubizzle"];
-  defaultUnit = "sqft";
-  requestDelayMs = 2e3;
-  // Respect rate limits
-  /**
-   * Bayut listings are JS-rendered — Firecrawl is strongly preferred.
-   * Falls back to basic fetch if Firecrawl is unavailable.
-   */
-  async fetch() {
-    if (this.requestDelayMs && this.requestDelayMs > 0) {
-      await new Promise((r) => setTimeout(r, this.requestDelayMs));
-    }
-    return this.fetchWithFirecrawl();
-  }
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    let metric = llmEvidence._llmMetric || evidence.title;
-    let value = llmEvidence._llmValue ?? null;
-    let unit = llmEvidence._llmUnit ?? "sqft";
-    if (value && evidence.rawText) {
-      const areaMatch = evidence.rawText.match(/(\d[\d,]*)\s*(?:sq\.?\s*ft|sqft)/i);
-      if (areaMatch) {
-        const area = parseFloat(areaMatch[1].replace(/,/g, ""));
-        if (area > 0 && value > area) {
-          metric = `${metric} \u2014 AED/sqft`;
-          value = Math.round(value / area);
-          unit = "sqft";
-        }
-      }
-    }
-    return {
-      metric,
-      value,
-      unit,
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: [...this.defaultTags, "listing"]
-    };
-  }
-};
-var PropertyFinderListingsConnector = class extends HTMLSourceConnector {
-  sourceId = "propertyfinder-listings";
-  sourceName = "PropertyFinder \u2014 UAE Listings";
-  sourceUrl = SOURCE_URLS["propertyfinder-listings"];
-  category = "property_price";
-  geography = "Dubai";
-  defaultTags = ["property-listing", "prices", "residential", "propertyfinder"];
-  defaultUnit = "sqft";
-  requestDelayMs = 2e3;
-  // Respect rate limits
-  /**
-   * PropertyFinder is also JS-rendered — use Firecrawl.
-   */
-  async fetch() {
-    if (this.requestDelayMs && this.requestDelayMs > 0) {
-      await new Promise((r) => setTimeout(r, this.requestDelayMs));
-    }
-    return this.fetchWithFirecrawl();
-  }
-  async normalize(evidence) {
-    const grade2 = assignGrade(this.sourceId);
-    const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
-    const llmEvidence = evidence;
-    let metric = llmEvidence._llmMetric || evidence.title;
-    let value = llmEvidence._llmValue ?? null;
-    let unit = llmEvidence._llmUnit ?? "sqft";
-    if (value && evidence.rawText) {
-      const areaMatch = evidence.rawText.match(/(\d[\d,]*)\s*(?:sq\.?\s*ft|sqft)/i);
-      if (areaMatch) {
-        const area = parseFloat(areaMatch[1].replace(/,/g, ""));
-        if (area > 0 && value > area) {
-          metric = `${metric} \u2014 AED/sqft`;
-          value = Math.round(value / area);
-          unit = "sqft";
-        }
-      }
-    }
-    return {
-      metric,
-      value,
-      unit,
-      confidence,
-      grade: grade2,
-      summary: extractSnippet(evidence.rawText),
-      tags: [...this.defaultTags, "listing"]
-    };
-  }
-};
-var ALL_CONNECTORS = {
-  "rak-ceramics-uae": () => new RAKCeramicsConnector(),
-  "dera-interiors": () => new DERAInteriorsConnector(),
-  "dragon-mart-dubai": () => new DragonMartConnector(),
-  "porcelanosa-uae": () => new PorcelanosaConnector(),
-  "emaar-properties": () => new EmaarConnector(),
-  "damac-properties": () => new DAMACConnector(),
-  "nakheel-properties": () => new NakheelConnector(),
-  "rics-market-reports": () => new RICSConnector(),
-  "jll-mena-research": () => new JLLConnector(),
-  "dubai-statistics-center": () => new DubaiStatisticsConnector(),
-  "hafele-uae": () => new HafeleConnector(),
-  "gems-building-materials": () => new GEMSConnector(),
-  // V4: New UAE Market Sources
-  "dubai-pulse-materials": () => new DubaiPulseConnector(),
-  "scad-abu-dhabi": () => new SCADConnector(),
-  "dld-transactions": () => new DLDTransactionsConnector(),
-  "aldar-properties": () => new AldarPropertiesConnector(),
-  "cbre-uae-research": () => new CBREResearchConnector(),
-  "knight-frank-uae": () => new KnightFrankConnector(),
-  "savills-me-research": () => new SavillsConnector(),
-  "property-monitor-dubai": () => new PropertyMonitorConnector(),
-  // V5: Live Property Listing Sources
-  "bayut-listings": () => new BayutListingsConnector(),
-  "propertyfinder-listings": () => new PropertyFinderListingsConnector(),
-  // V6: PDF-based connectors
-  "scad-pdf-materials": () => new SCADPdfConnector()
-};
-function getConnectorById(sourceId) {
-  const factory = ALL_CONNECTORS[sourceId];
-  return factory ? factory() : null;
-}
-function getAllConnectors() {
-  return Object.values(ALL_CONNECTORS).map((factory) => factory());
-}
-
-// server/routers/ingestion.ts
+init_orchestrator();
+init_connectors();
 init_db();
 init_schema();
 import { desc as desc5, eq as eq11, sql as sql4 } from "drizzle-orm";
 
 // server/engines/ingestion/scheduler.ts
-import cron from "node-cron";
+init_orchestrator();
 init_db();
 init_schema();
 init_dynamic();
 init_freshness();
 init_source_discovery();
+import cron from "node-cron";
 import { eq as eq10 } from "drizzle-orm";
 var scheduledTasks = [];
 var lastScheduledRunAt = null;
@@ -24480,6 +24575,7 @@ var ingestionRouter = router({
 // server/routers/analytics.ts
 import { z as z11 } from "zod";
 init_db();
+init_trend_detection();
 
 // server/engines/analytics/market-positioning.ts
 var TIER_LABELS = {
@@ -27638,6 +27734,7 @@ var designAdvisorRouter = router({
 import { z as z19 } from "zod";
 init_db();
 init_schema();
+init_alert_delivery();
 import { eq as eq17, and as and8, desc as desc9, inArray as inArray3 } from "drizzle-orm";
 var portfolioRouter = router({
   // ─── List all portfolios for current org ──────────────────────────
@@ -30889,11 +30986,100 @@ async function createContext(opts) {
   };
 }
 
+// server/_core/logger.ts
+var LOG_LEVELS = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3
+};
+var MIN_LEVEL = LOG_LEVELS[process.env.LOG_LEVEL || "info"];
+var IS_JSON = process.env.LOG_FORMAT !== "pretty";
+function emit(level, message, meta) {
+  if (LOG_LEVELS[level] < MIN_LEVEL) return;
+  const entry = {
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    level,
+    message,
+    service: "miyar-api",
+    ...meta
+  };
+  if (IS_JSON) {
+    const fn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+    fn(JSON.stringify(entry));
+  } else {
+    const color = level === "error" ? "\x1B[31m" : level === "warn" ? "\x1B[33m" : level === "debug" ? "\x1B[90m" : "\x1B[36m";
+    const reset = "\x1B[0m";
+    const time = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", { hour12: false });
+    const metaStr = meta ? ` ${JSON.stringify(meta)}` : "";
+    console.log(`${color}[${time}] ${level.toUpperCase().padEnd(5)} ${message}${metaStr}${reset}`);
+  }
+}
+var logger = {
+  debug: (msg, meta) => emit("debug", msg, meta),
+  info: (msg, meta) => emit("info", msg, meta),
+  warn: (msg, meta) => emit("warn", msg, meta),
+  error: (msg, meta) => emit("error", msg, meta)
+};
+
+// server/_core/runtime-safety.ts
+function isCronAuthorized(authorizationHeader, cronSecret) {
+  return Boolean(cronSecret) && authorizationHeader === `Bearer ${cronSecret}`;
+}
+
+// server/_core/sentry.ts
+var Sentry = null;
+function captureException(err, context) {
+  if (!Sentry) return;
+  Sentry.withScope((scope) => {
+    if (context) {
+      Object.entries(context).forEach(([key, val]) => {
+        scope.setExtra(key, val);
+      });
+    }
+    Sentry.captureException(err);
+  });
+}
+
+// server/_core/ingestion-cron.ts
+function registerIngestionCronRoute(app2) {
+  app2.get("/api/cron/ingestion", async (req, res) => {
+    try {
+      if (!isCronAuthorized(req.headers.authorization, process.env.CRON_SECRET)) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      logger.info("[Cron Ingestion] Triggered via Vercel Cron");
+      const { getAllConnectors: getAllConnectors2 } = await Promise.resolve().then(() => (init_connectors(), connectors_exports));
+      const { runIngestion: runIngestion2 } = await Promise.resolve().then(() => (init_orchestrator(), orchestrator_exports));
+      const report = await runIngestion2(getAllConnectors2(), "scheduled");
+      logger.info(
+        `[Cron Ingestion] Complete: ${report.evidenceCreated} records, ${report.durationMs}ms`
+      );
+      res.status(200).json({
+        ok: true,
+        evidenceCreated: report.evidenceCreated,
+        evidenceSkipped: report.evidenceSkipped,
+        sourcesAttempted: report.sourcesAttempted,
+        sourcesSucceeded: report.sourcesSucceeded,
+        durationMs: report.durationMs,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error("[Cron Ingestion] Failed", { error: message });
+      captureException(error, { source: "cron-ingestion" });
+      res.status(500).json({ ok: false, error: message });
+    }
+  });
+}
+
 // server/serverless/index.ts
 var app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 registerOAuthRoutes(app);
+registerIngestionCronRoute(app);
 app.use(
   "/api/trpc",
   createExpressMiddleware({
