@@ -179,3 +179,36 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: Zero TR-03 inventory rows, 68 passing authorization tests, safe full suite and builds, and final independent review `APPROVED_NO_OBJECTION`.
 - Reuse rule: For multi-resource operations, authorization is complete only when every ownership claim is revalidated at the final read/write boundary; a prior router check alone is not sufficient evidence.
 - Supersedes / related: Extends `LES-007` and `LES-008`; applies to `TR-04`.
+
+### LES-015 — Real SQL exposes error contracts that mocks conceal
+
+- Date / roadmap step: 2026-07-16 / `TR-03H`
+- Context: Share-token collision handling passed mocked contracts but initially failed against MySQL.
+- Observed: Drizzle wrapped the duplicate-key error in a cause chain, so checking only the top-level error did not recognize a retryable collision.
+- Cause: The mocked error shape represented the database driver directly rather than the ORM-wrapped runtime shape.
+- Fix or decision: Traverse bounded error causes when classifying known database errors and require real isolated SQL coverage for scoped mutation helpers.
+- Proof: The guarded MySQL 8 suite passes 7/7, including uniqueness and collision handling.
+- Reuse rule: Mocked database tests prove orchestration, not driver/ORM error semantics; critical constraint handling needs a real-engine contract.
+- Supersedes / related: Extends `LES-014`; applies to `TR-04` database boundaries.
+
+### LES-016 — Provider compatibility needs an explicit capability profile
+
+- Date / roadmap step: 2026-07-16 / `TR-03H`
+- Context: The mandatory MySQL suite used a trigger solely to inject a late transaction failure.
+- Observed: PlanetScale rejected trigger DDL even though all application SQL and transaction behavior under test were compatible.
+- Cause: A test-only fault-injection mechanism was treated as if it were part of the provider application contract.
+- Fix or decision: Keep full MySQL 8 semantics mandatory and define a narrow provider profile that skips only unsupported test machinery, never application behavior.
+- Proof: MySQL passes 7/7 including trigger rollback; PlanetScale passes 6/6 applicable tests with the trigger-only case explicitly identified and excluded.
+- Reuse rule: Provider compatibility exclusions must name the unsupported mechanism and retain equivalent semantic evidence on the mandatory reference engine.
+- Supersedes / related: Applies to future provider-compatibility gates.
+
+### LES-017 — Migration tooling must not execute statement markers
+
+- Date / roadmap step: 2026-07-16 / `TR-03H`
+- Context: Applying migration 0045 through a bounded production script.
+- Observed: The first unique index succeeded, then the script sent Drizzle's `--> statement-breakpoint` marker as SQL before the second index.
+- Cause: The ad hoc runner split the file without stripping migration metadata.
+- Fix or decision: Stop immediately, inspect the exact partial schema, rerun duplicate preflight, and apply only the missing additive statement; future runners must parse or strip recognized migration markers before execution.
+- Proof: Both production unique indexes are present, unique, and duplicate preflight remains zero after the controlled completion.
+- Reuse rule: After partial DDL, never replay blindly; inspect applied state, verify data invariants again, and execute only the exact missing idempotent-safe statement.
+- Supersedes / related: Applies to all manual or provider-specific migration runners.

@@ -3,7 +3,7 @@
 - ID: TR-03H
 - Roadmap step: `TR-03H`
 - Title: Design authorization hardening
-- Status: ACTIVE
+- Status: PASS
 - Owner: Codex
 - Started: 2026-07-16
 - Risk: Critical authentication, tenant isolation, transaction, migration, storage, public-share, and release work
@@ -35,7 +35,7 @@ Close the authorization guarantees that remained unproven after TR-03: live orga
 - [x] Authorization inventory covers the full 329-procedure app router with hash-bound final-write evidence.
 - [x] Unit tests, MySQL integration, authorization audit, TypeScript, build, and independent security review pass.
 - [x] Authorized PlanetScale development-branch compatibility run passes.
-- [x] Canonical-main and production release remain stopped at their explicit human gates until separately authorized.
+- [x] Canonical `main` contains the complete reviewed release, migration 0045 is applied, and production runs the exact canonical release SHA.
 
 ## Baseline Evidence
 
@@ -62,7 +62,14 @@ Close the authorization guarantees that remained unproven after TR-03: live orga
 - Post-compatibility mandatory local MySQL 8 rerun: 7/7 PASS including trigger rollback; full 930/22 suite, TypeScript, authorization audit, and build PASS.
 - Draft PR `#1` contains the complete reviewed release diff plus this CI-gate state record. GitHub Actions did not start either job because the repository owner account is locked for a billing issue; no CI step executed.
 - Release exception approved by the user: use Vercel’s hosted build check on every pushed release commit as the external clean-build gate, supported by local MySQL 8, PlanetScale compatibility, full tests, authorization audit, TypeScript, build, and independent review.
+- Production duplicate preflight passed with zero duplicate membership pairs and zero duplicate non-null share tokens.
+- PlanetScale backup `6168hbonz89d` completed successfully before the shared-target migration.
+- Migration 0045 is fully applied in production: `organization_members_org_user_unique` and `ai_design_briefs_share_token_unique` are present and unique.
+- Canonical `main` and `origin/main` were fast-forwarded to application release SHA `9e5d1e395ab7486fdfc73943d279820d5a91d53c`.
+- Vercel production deployment `dpl_HQ6mnWadr46VhfjS3GhGQnxi48Ng` reached `READY` from that exact SHA.
+- Production read-only smoke checks passed: root and health return 200; anonymous organization access and unauthenticated cron return 401; invalid and malformed shares return 404/400 with `private, no-store`, `no-cache`, and `noindex, nofollow, noarchive`.
+- Final independent Claude Code review ended `APPROVED_NO_OBJECTION`.
 
 ## Next Action
 
-Push the compatibility evidence commit and require its Vercel check to pass before production migration, canonical-main, and deployment.
+Start bounded planning for `TR-04`, the next dependency-valid roadmap step.

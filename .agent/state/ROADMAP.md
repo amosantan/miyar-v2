@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-03H`
+- Next executable step: `TR-04`
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -139,7 +139,7 @@ Rules:
 
 ### TR-03H — Design authorization hardening
 
-- Status: `ACTIVE`
+- Status: `CLOSED`
 - Class / priority: API/security/schema/release / P0
 - Dependencies: `TR-03`
 - Human gate: Shared migration application, canonical-main push, production deployment, and production smoke writes
@@ -154,10 +154,15 @@ Rules:
 - Done when: Every acceptance criterion in `.agent/state/CURRENT_TASK.md` has objective evidence and the reviewed canonical-main SHA is the release candidate.
 - Verification: Membership/role contracts, real MySQL rollback/concurrency suite, authorization audit, safe full tests, type-check, build, public-header checks, independent review, and release gates.
 - Expected artifacts: Hardened middleware/helpers/routes, migration 0045, isolated integration harness, corrected inventory/state, and reviewed PR/release evidence.
+- Closed: 2026-07-16
+- Terminal task state: `PASS`
+- Completion evidence: Live membership and design-role enforcement, scoped share writes, atomic board/RFQ/floor-plan helpers, upload compensation, and public-share privacy controls shipped; `DATABASE_URL='' pnpm test` passes 930 tests with 22 skipped; TypeScript, authorization audit, and all build targets pass; isolated MySQL 8 passes 7/7 and PlanetScale passes 6/6 applicable compatibility tests with the MySQL-only trigger fault injection explicitly excluded; migration 0045 unique indexes are present in production; canonical `main` application release SHA `9e5d1e3` reached Vercel `READY`; production read-only smoke and share-header checks pass; independent review ended `APPROVED_NO_OBJECTION`.
+- Residual risk: RFQ retries remain deliberately non-idempotent (`KF-013`). GitHub Actions remains unavailable due the owner billing lock (`KF-014`); the user approved Vercel hosted clean builds as the bounded release substitute. Ordinary full-suite database hermeticity remains tracked by `KF-008`.
+- Lessons: `LES-015`, `LES-016`, `LES-017`
 
 ### TR-04 — Authorize remaining project routers
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: API/security / P0
 - Dependencies: `TR-02`, `TR-03`, `TR-03H`
 - Human gate: None unless ambiguous legacy ownership is found.

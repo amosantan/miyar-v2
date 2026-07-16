@@ -34,39 +34,43 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 
 ## KF-009 — Organization context does not prove current membership or design role
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 at `1f972f4`.
 - Evidence: `orgProcedure` trusts `users.orgId` without resolving `organization_members`, and design mutations do not distinguish viewer, member, and organization-admin roles.
 - Impact: stale membership can retain tenant access, and viewers can invoke design mutations.
 - Owner: `TR-03H`.
 - Exit criterion: exactly one live membership is required per request; removed/duplicate/stale memberships fail closed; design viewer/member/admin contracts pass.
+- Closed evidence: `orgProcedure` now resolves exactly one current membership on every request, design viewer/member/admin levels are enforced, migration 0045 makes `(orgId, userId)` unique, targeted role contracts pass, and real MySQL verifies membership uniqueness and role resolution.
 
 ## KF-010 — TR-03 final-write and transaction guarantees are incomplete
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 at `1f972f4`.
 - Evidence: share-token update is raw-ID scoped; board/RFQ/floor-plan composite operations span separate statements or transactions; scoped SQL is mocked by router tests.
 - Impact: ownership changes or partial failures can modify the wrong final resource, leave partial records, or escape the claimed rollback boundary.
 - Owner: `TR-03H`.
 - Exit criterion: final writes are organization/project scoped, composite mutations are atomic, and real isolated MySQL tests prove affected-row and rollback behavior.
+- Closed evidence: Share-token mutation locks and scopes the brief/project write; board, RFQ, and floor-plan composites use transactions; isolated MySQL 8 passes all 7 serial SQL/rollback/locking tests and PlanetScale passes all 6 applicable compatibility tests.
 
 ## KF-011 — Rejected uploads and public-share responses lack operational containment
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 at `1f972f4` and the production deployment.
 - Evidence: storage upload precedes final scoped persistence without compensation; public-share responses do not set `no-store` or `noindex`.
 - Impact: lost authorization can leave orphaned storage objects, and expired public content can remain stored or indexed.
 - Owner: `TR-03H`.
 - Exit criterion: explicit rejected persistence deletes its object, indeterminate outcomes emit critical reconciliation telemetry, and share API/page headers pass Node, serverless, and production checks.
+- Closed evidence: Direct asset and floor-plan uploads compensate explicit rejected persistence with bounded deletion retries, indeterminate outcomes emit reconciliation telemetry, application/header contracts pass, and production invalid/malformed share responses carry the required no-store/noindex headers.
 
 ## KF-012 — Canonical main does not identify the production release
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 after deployment of `1f972f4`.
 - Evidence: production was deployed from `codex/loop-engineering-architecture`; `origin/main` remains nine commits behind.
 - Impact: a future main-based deployment can silently remove the authorization and runtime fixes; rollback and attribution are ambiguous.
 - Owner: `TR-03H` release closeout.
-- Exit criterion: the complete reviewed branch is fast-forwarded to canonical `main`, the deployed SHA equals main, and release evidence records the identity.
+- Exit criterion: the complete reviewed application branch is fast-forwarded to canonical `main`, the production deployment source equals that canonical application release SHA, and release evidence records the identity. Later state-only commits do not change the application release identity.
+- Closed evidence: The complete reviewed application history was fast-forwarded to local and remote `main`; Vercel production deployment `dpl_HQ6mnWadr46VhfjS3GhGQnxi48Ng` reached `READY` from canonical application release SHA `9e5d1e395ab7486fdfc73943d279820d5a91d53c`. This closeout changes repository state records only and does not alter the deployed application.
 
 ## KF-013 — RFQ generation retries are intentionally non-idempotent
 

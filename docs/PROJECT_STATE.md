@@ -5,10 +5,12 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-16
-- Commit: `d6f7940` plus uncommitted TR-03 authorization, runtime-safety, client-performance, generated-bundle, learning-router, and migration-0044 changes
-- Branch: `codex/loop-engineering-architecture`
+- Application release commit: `9e5d1e395ab7486fdfc73943d279820d5a91d53c`
+- Branch: `main`; local and `origin/main` matched at the application release observation
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
+- Production: Vercel deployment `dpl_HQ6mnWadr46VhfjS3GhGQnxi48Ng` reached `READY` from the exact application release commit
+- Release identity policy: later documentation/state-only commits do not supersede the application release SHA
 
 ## Technology Observed
 
@@ -35,11 +37,14 @@ This is the canonical location for current observed repository facts. It is not 
 
 At the observation above:
 
-| Command      | Result | Evidence summary                                                                                     |
-| ------------ | ------ | ---------------------------------------------------------------------------------------------------- |
-| `pnpm test`  | PASS   | With `DATABASE_URL=''`: 886 passed and 22 skipped out of 908 tests; no database connection occurred  |
-| `pnpm check` | PASS   | Zero TypeScript diagnostics                                                                          |
-| `pnpm build` | PASS   | Client, Node server, and serverless bundle pass; entry JS remains approximately 678 KB / 199 KB gzip |
+| Command                         | Result | Evidence summary                                                                                                    |
+| ------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL='' pnpm test`     | PASS   | 930 passed and 22 skipped; no shared database connection occurred                                                   |
+| Guarded MySQL authorization run | PASS   | Disposable MySQL 8 suite passed 7/7, including rollback, locking, uniqueness, and scoped-write behavior             |
+| PlanetScale compatibility       | PASS   | Disposable development branch passed 6/6 applicable tests; one MySQL-only trigger fault-injection test was excluded |
+| `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                         |
+| `pnpm audit:authorization`      | PASS   | All 329 application procedures are inventoried and hash-bound scoped-write evidence is current                      |
+| `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                           |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
@@ -52,27 +57,33 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - Current/future priorities live in `docs/ROADMAP.md`.
 - Historical reports are non-authoritative unless reverified.
 
-## Working Tree Caution
+## Production Database Observation
 
-The observed worktree includes user-owned migration `0044` files and metadata that were not modified by the organization task. Local Word/Excel working artifacts now live under ignored `docs/artifacts/` categories, and the local PlanetScale CLI lives under ignored `.local/bin/`. Agents must continue to inspect `git status`; untracked does not mean disposable.
+- Migration 0044 was verified complete before TR-03H release.
+- Duplicate preflight found zero duplicate membership pairs and zero duplicate non-null share tokens.
+- Backup `6168hbonz89d` completed successfully before migration 0045.
+- Migration 0045 is complete: `organization_members_org_user_unique` and `ai_design_briefs_share_token_unique` are present as unique indexes.
+- Production smoke checks were read-only and did not print tokens or credentials.
 
 ## Environment Uncertainties
 
 - Documentation historically names both PlanetScale and TiDB. Treat the actual `DATABASE_URL` target and deployment configuration as authoritative for a given environment without exposing credentials.
-- The full Vitest suite is not database-hermetic: the auth logout test can initialize the configured database and attempt an audit-log write. See `KF-008`; use a dedicated safe test profile before treating local test execution as externally non-mutating.
+- The ordinary full Vitest command is not database-hermetic. Continue using the explicit safe `DATABASE_URL=''` profile until `KF-008` closes.
+- GitHub Actions cannot start while the repository owner account is billing-locked (`KF-014`). For this TR-03H release only, the user approved Vercel hosted clean builds on pushed commits plus the recorded local MySQL, PlanetScale, full-suite, audit, build, and independent-review evidence.
 
 ## CI Configuration in the Current Worktree
 
-- CI has been changed to use pnpm and the committed pnpm lockfile.
-- TypeScript, tests, and build are configured as fail-closed mandatory gates.
-- The observed TypeScript, test, and build gates are green. Baseline failures `KF-001` through `KF-005` were fixed in `db36254` and removed from the open-failure register.
+- CI configuration uses pnpm and the committed lockfile, with fail-closed TypeScript, test, build, and isolated MySQL jobs.
+- GitHub did not execute those jobs because of `KF-014`; the approved bounded substitute was Vercel's hosted clean build on every pushed release commit.
+- The observed local TypeScript, safe full-suite, authorization, build, isolated MySQL, and PlanetScale compatibility gates are green.
 
 ## Authorization Foundation
 
-- `TR-01` inventories all 327 router procedures and assigns 140 remediation paths.
+- `TR-01` inventory extraction now covers all 329 application procedures.
 - `TR-02` provides typed organization-resource and public-share authorization primitives with 49 passing targeted tests.
 - `TR-03` closes all 39 design-router remediation paths with organization-locked resource operations and fail-closed public shares.
-- Production router adoption remains open under `TR-04` and pooled-data isolation remains open under `TR-05`.
+- `TR-03H` closes live membership, design roles, scoped final writes, composite atomicity, rejected-upload compensation, public-share privacy, real-SQL evidence, and canonical release identity.
+- `TR-04` is the next executable step; pooled-data isolation remains open under `TR-05`.
 
 ## Refresh Procedure
 
