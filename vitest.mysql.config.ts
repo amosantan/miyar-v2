@@ -18,7 +18,7 @@ export default defineConfig({
     fileParallelism: false,
     maxWorkers: 1,
     minWorkers: 1,
-    testTimeout: 20_000,
-    hookTimeout: 20_000,
+    testTimeout: process.env.PLANETSCALE_COMPAT === "1" ? 60_000 : 20_000,
+    hookTimeout: process.env.PLANETSCALE_COMPAT === "1" ? 60_000 : 20_000,
   },
 });

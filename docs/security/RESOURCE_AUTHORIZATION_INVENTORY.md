@@ -3,7 +3,7 @@
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
 - Procedures inventoried: **329**
-- Generated: 2026-07-16T15:26:42.964Z
+- Generated: 2026-07-16T15:44:15.261Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 

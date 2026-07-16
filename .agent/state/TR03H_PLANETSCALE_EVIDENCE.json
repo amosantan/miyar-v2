@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "observedAt": "2026-07-16T15:43:17.000Z",
+  "provider": "PlanetScale MySQL",
+  "database": "miyar-v2",
+  "developmentBranch": "tr03h-compat-20260716",
+  "parentBranch": "main",
+  "production": false,
+  "schemaPush": "PASS",
+  "preflight": {
+    "migration0044Complete": true,
+    "duplicateMembershipPairs": 0,
+    "duplicateShareTokens": 0
+  },
+  "testProfile": "PLANETSCALE_COMPAT=1",
+  "testFile": "tests/mysql/design-authorization.mysql.test.ts",
+  "passed": 6,
+  "skipped": 1,
+  "skipReason": "PlanetScale prohibits trigger DDL; the skipped late-failure trigger test passed in the mandatory local MySQL 8 run.",
+  "cleanupVerified": true,
+  "branchDeleted": true,
+  "fileHashes": {
+    "drizzle/0045_steady_amazoness.sql": "9862f48fe585e31c835ea97bd5c11b3e7640e97ba2764217534f5fbcad2df48d",
+    "drizzle/schema.ts": "930e8aef85f994a0c6af877295223b8f591d2447d8894f17e70a757a30d63595",
+    "tests/mysql/design-authorization.mysql.test.ts": "bb35dc1627345fdf5553ad0cac99fdee803eb18ee36b884e45ff5b38518e9b56",
+    "vitest.mysql.config.ts": "ae526161cb7f38e71178580579b254b71d5b32e0e0a55750316770bcdbfbf953"
+  }
+}

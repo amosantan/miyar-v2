@@ -34,7 +34,7 @@ Close the authorization guarantees that remained unproven after TR-03: live orga
 - [x] Real isolated MySQL tests exercise every named TR-03 scoped helper and rollback path.
 - [x] Authorization inventory covers the full 329-procedure app router with hash-bound final-write evidence.
 - [x] Unit tests, MySQL integration, authorization audit, TypeScript, build, and independent security review pass.
-- [ ] Authorized PlanetScale development-branch compatibility run passes.
+- [x] Authorized PlanetScale development-branch compatibility run passes.
 - [x] Canonical-main and production release remain stopped at their explicit human gates until separately authorized.
 
 ## Baseline Evidence
@@ -58,8 +58,10 @@ Close the authorization guarantees that remained unproven after TR-03: live orga
 - Runner-finally cleanup was independently queried at zero remaining fixture rows; the disposable container was removed.
 - MySQL evidence is bound to SHA-256 hashes of the tested schema, migration, helpers, router, runner/config, cleanup script, and test source; the authorization audit downgrades stale hashes.
 - Complete-diff Claude review ended `APPROVED_NO_OBJECTION` after verifying evidence hash binding in normal audit check mode.
+- Authorized PlanetScale compatibility branch `tr03h-compat-20260716`: schema push PASS; 0044/duplicate preflight PASS; 6/6 applicable scoped-SQL tests PASS with one MySQL-only trigger fault-injection test skipped; branch cleanup completed and the disposable branch was deleted.
+- Post-compatibility mandatory local MySQL 8 rerun: 7/7 PASS including trigger rollback; full 930/22 suite, TypeScript, authorization audit, and build PASS.
 - Draft PR `#1` contains the complete reviewed release diff plus this CI-gate state record. GitHub Actions did not start either job because the repository owner account is locked for a billing issue; no CI step executed.
 
 ## Next Action
 
-Resolve the GitHub Actions billing lock and rerun both required jobs, then obtain separate authorization for the PlanetScale compatibility run before any canonical-main, shared-migration, or deployment action.
+Resolve the GitHub Actions billing lock and rerun both required jobs, or obtain an explicit release exception for that mandatory gate before production migration, canonical-main, and deployment.

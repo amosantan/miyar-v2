@@ -5,6 +5,7 @@ import * as db from "../../server/db";
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("Guarded MySQL suite requires DATABASE_URL");
 const pool = mysql.createPool(connectionString);
+const providerCompatibility = process.env.PLANETSCALE_COMPAT === "1";
 
 const tables = [
   "asset_links",
@@ -57,9 +58,11 @@ async function seedBase() {
 }
 
 beforeEach(async () => {
-  await pool.query("drop trigger if exists tr03h_fail_board_delete");
-  await pool.query("drop trigger if exists tr03h_fail_project_update");
-  await pool.query("drop trigger if exists tr03h_fail_rfq_insert");
+  if (!providerCompatibility) {
+    await pool.query("drop trigger if exists tr03h_fail_board_delete");
+    await pool.query("drop trigger if exists tr03h_fail_project_update");
+    await pool.query("drop trigger if exists tr03h_fail_rfq_insert");
+  }
   await pool.query("set foreign_key_checks = 0");
   for (const table of tables) await pool.query(`truncate table \`${table}\``);
   await pool.query("set foreign_key_checks = 1");
@@ -190,7 +193,9 @@ describe("TR-03H real MySQL authorization boundary", () => {
     }
   });
 
-  it("rolls back board, RFQ and floor-plan transactions after late SQL failures", async () => {
+  it.skipIf(providerCompatibility)(
+    "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+    async () => {
     await pool.query(`
       insert into materials_catalog (id, name, category, tier, isActive)
       values (81, 'Stone', 'stone', 'premium', true)
@@ -263,7 +268,8 @@ describe("TR-03H real MySQL authorization boundary", () => {
     }, 101)).rejects.toThrow();
     expect(await count("project_assets")).toBe(0);
     await pool.query("drop trigger tr03h_fail_project_update");
-  });
+    }
+  );
 
   it("keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic", async () => {
     await pool.query("insert into scenarios (id, projectId, orgId, name) values (71, 11, 101, 'Owned')");
