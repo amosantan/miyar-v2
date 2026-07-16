@@ -58,7 +58,8 @@ Close the authorization guarantees that remained unproven after TR-03: live orga
 - Runner-finally cleanup was independently queried at zero remaining fixture rows; the disposable container was removed.
 - MySQL evidence is bound to SHA-256 hashes of the tested schema, migration, helpers, router, runner/config, cleanup script, and test source; the authorization audit downgrades stale hashes.
 - Complete-diff Claude review ended `APPROVED_NO_OBJECTION` after verifying evidence hash binding in normal audit check mode.
+- Draft PR `#1` contains the complete ten-commit release diff. GitHub Actions did not start either job because the repository owner account is locked for a billing issue; no CI step executed.
 
 ## Next Action
 
-Push the reviewed branch and open its draft PR; then obtain separate authorization for the PlanetScale compatibility run before any canonical-main, shared-migration, or deployment action.
+Resolve the GitHub Actions billing lock and rerun both required jobs, then obtain separate authorization for the PlanetScale compatibility run before any canonical-main, shared-migration, or deployment action.

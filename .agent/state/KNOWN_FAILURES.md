@@ -77,6 +77,15 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Owner: Later RFQ workflow/idempotency step; outside the bounded TR-03H authorization hardening scope.
 - Exit criterion: RFQ generation accepts a stable idempotency key or uses an approved replace/version contract, with retry and uncertain-response integration tests proving one intended result.
 
+## KF-014 — GitHub Actions cannot start because the owner account is billing-locked
+
+- Status: OPEN
+- Observed: 2026-07-16 on draft PR `#1`, run `29511289388`.
+- Evidence: both `lint-and-test` and `mysql-authorization` completed with zero steps; GitHub check annotations say the jobs were not started because the account is locked due to a billing issue.
+- Impact: required hosted CI gates cannot become green even though equivalent local TypeScript, unit, build, authorization, and disposable MySQL 8 checks pass.
+- Owner: Repository owner / GitHub billing administrator.
+- Exit criterion: restore Actions eligibility, rerun PR `#1`, and obtain successful `lint-and-test` and `mysql-authorization` check conclusions on the reviewed head SHA.
+
 ## Handling Protocol
 
 1. Reproduce a failure before adding it.
