@@ -113,7 +113,7 @@ Rules:
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
 - Completion evidence: Typed direct, nested, organization, combined, batch, and closed-registry polymorphic authorization helpers plus a separate expiring public-share resolver; 49/49 targeted tests pass; authorization inventory and formatting pass; build passes; safe full-suite run reproduces the same nine known failures with no database connection; TypeScript reproduces the same 52 diagnostics with none in TR-02 files.
-- Residual risk: The helpers are intentionally not wired into production routers. The 140 inventory remediation rows remain owned by `TR-03`–`TR-05`; public-share fail-closed behavior remains unshipped until `TR-03`.
+- Residual risk: The helpers are intentionally not wired into production routers. The 140 inventory remediation rows remain owned by `TR-03`–`TR-05`; public-share fail-closed behavior remains unshipped until `TR-03`. Commit `4b81bab` pushed the scoped TR-01/TR-02 foundation; preview deployment is blocked by the red mandatory type/test gates.
 - Lessons: `LES-012`
 
 ### TR-03 — Authorize the design-domain router

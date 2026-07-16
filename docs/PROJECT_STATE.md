@@ -5,7 +5,7 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-16
-- Commit: `a15424b` plus uncommitted roadmap, authorization, audit, runtime-safety, tenant-guard, and client-performance changes
+- Commit: `4b81bab` plus uncommitted user/runtime-safety, tenant-guard, client-performance, generated-bundle, and migration-0044 changes
 - Branch: `codex/loop-engineering-architecture`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`

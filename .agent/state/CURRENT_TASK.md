@@ -87,7 +87,7 @@ Explicitly excluded:
 - [x] Add reusable fixtures, unit tests, router contract tests, and documentation.
 - [x] Run targeted and repository verification plus security diff review.
 - [x] Close TR-02 and promote TR-03 from verified evidence.
-- [ ] Stage the allowlist, commit, push, and conditionally deploy a Vercel preview.
+- [x] Stage the allowlist, commit, push, and conditionally deploy a Vercel preview.
 
 ## Baseline Evidence
 
@@ -120,7 +120,9 @@ Explicitly excluded:
 - Production-router search found no TR-02 helper import.
 - Security review found no logging in authorization helpers and no error response containing IDs, ownership details, tokens, table names, or stacks.
 - Public-share router adoption remains deliberately deferred to `TR-03`.
+- Scoped commit `4b81bab` was created from the allowlist and pushed to `origin/codex/loop-engineering-architecture`.
+- Vercel preview was not deployed because `pnpm check` and `DATABASE_URL='' pnpm test` remain red under the recorded baseline; no waiver or bypass was used.
 
 ## Next Action
 
-Stage only the recorded TR-01/TR-02 allowlist, review the staged diff, commit, and push. Do not deploy a preview because mandatory type/test gates are red. Then start `TR-03`.
+Start `TR-03 — Authorize the design-domain router`; preview deployment remains gated on a future fully green repository candidate.
