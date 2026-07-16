@@ -11,7 +11,7 @@ This is the canonical location for current observed repository facts. It is not 
 - Package manager declared by repository: `pnpm`
 - Production: Vercel deployment `dpl_HQ6mnWadr46VhfjS3GhGQnxi48Ng` reached `READY` from the exact application release commit
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Active worktree observation: uncommitted `codex/tr-04-authorization`; migration 0046 is applied to production, while application deployment is blocked by `KF-015`
+- Active worktree observation: `codex/tr-04-authorization` at pushed application commit `92847f3`; migration 0046 and the approved production ownership remediation are complete
 
 ## Technology Observed
 
@@ -65,7 +65,7 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - Backup `6168hbonz89d` completed successfully before migration 0045.
 - Migration 0045 is complete: `organization_members_org_user_unique` and `ai_design_briefs_share_token_unique` are present as unique indexes.
 - Migration 0046 is complete: `portfolio_alerts` has 16 expected columns, a primary key, and unique `(organization_id, active_dedup_key)`.
-- TR-04 release preflight found 2 null-owned projects, 4 null-owned scenarios, and 8 reports whose project is missing or null-owned. Application deployment is `NEEDS_HUMAN` under `KF-015`; no legacy production row was modified.
+- TR-04 release preflight found 2 null-owned projects, 4 null-owned scenarios, and 8 reports attached to null-owned projects. The user approved the unique organization-1 mapping; one transaction updated the 2 projects and 4 scenarios, and all three post-remediation counts are zero. `KF-015` is closed.
 - Production smoke checks were read-only and did not print tokens or credentials.
 
 ## Environment Uncertainties

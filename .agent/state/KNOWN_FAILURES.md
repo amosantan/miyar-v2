@@ -96,14 +96,15 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 
 ## KF-015 — Production contains legacy null-organization resources
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 during the approved TR-04 production release preflight.
 - Command: Read-only production ownership-count queries against the Vercel `DATABASE_URL` target.
 - Evidence: Production contains 2 `projects` rows with null `orgId`, 4 `scenarios` rows with null `orgId`, and 8 `report_instances` rows whose project is missing or null-owned. Portfolios contain zero null organization owners.
 - Impact: The fail-closed TR-04 application will conceal these legacy records. Assigning them automatically could create tenant leakage; retaining user-owner fallback would reopen the authorization vulnerability.
 - Owner: Product/data owner must choose and approve a deterministic mapping, archival, or explicit abandonment policy.
 - Exit criterion: Every affected row receives an approved deterministic disposition, a reversible/idempotent remediation is verified on a safe target, production counts reach zero or approved archival scope, and post-remediation tenant checks pass.
-- Release gate: Application deployment remains `NEEDS_HUMAN`. Migration 0046 is additive and was applied successfully; no legacy row was modified.
+- Closed evidence: The user approved mapping projects 1 and 2 and scenarios 1–4 to organization 1 after read-only evidence showed a single current creator membership and matching parent-project ownership. One production transaction updated 2 projects and 4 scenarios; post-transaction null-owner counts are zero for projects and scenarios, and zero reports remain attached to missing or null-owned projects.
+- Release gate: Cleared. Migration 0046 and the deterministic ownership remediation are complete.
 
 ## Handling Protocol
 

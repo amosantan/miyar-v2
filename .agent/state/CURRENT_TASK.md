@@ -69,7 +69,7 @@ Close the 93 `TR-04` authorization inventory rows across 18 non-design routers w
 - Public-share access/header regression suites passed within the safe full suite.
 - Claude Code's reopened ultra-review first returned `CHANGES_REQUIRED` for tenant-triggered global platform alerts through `project.evaluate`. The call was removed, a router-source regression and audit prohibition were added, and the fresh review returned `APPROVED_NO_OBJECTION`.
 - Migration `0046_far_blob.sql` was generated, verified against disposable local MySQL, and applied to the approved production PlanetScale database. Post-DDL inspection confirms all 16 columns, the primary key, and unique `(organization_id, active_dedup_key)` index.
-- Production release preflight found 2 null-organization projects, 4 null-organization scenarios, and 8 reports whose project is missing or null-owned. Per the locked fail-closed policy, application deployment is `NEEDS_HUMAN` pending a deterministic remediation decision; no backfill or application deployment was performed.
+- Production release preflight found 2 null-organization projects, 4 null-organization scenarios, and 8 reports whose project was null-owned. The user approved the deterministic mapping to organization 1; one transaction updated the 2 projects and 4 scenarios, and post-backfill project/scenario/report legacy-null counts are all zero.
 
 ## Reopened Remediation
 
@@ -80,6 +80,6 @@ Close the 93 `TR-04` authorization inventory rows across 18 non-design routers w
 ## Residual Risk / Next Action
 
 - The eight pooled learning/prediction paths remain intentionally assigned to `TR-05`.
-- Production null-organization preflight is complete and nonzero: 2 projects, 4 scenarios, and 8 affected reports. Application deployment is stopped at `NEEDS_HUMAN`; see `KF-015`.
+- Production ownership remediation is complete and `KF-015` is closed. The application release may proceed, subject to the remaining deployment and smoke gates.
 - PlanetScale compatibility was not rerun for this uncommitted TR-04 worktree; the disposable MySQL 8 reference gate is current. Any future release must re-evaluate provider compatibility and `KF-014`.
 - Next executable roadmap step: `TR-05`.
