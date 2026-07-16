@@ -84,7 +84,8 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Evidence: both `lint-and-test` and `mysql-authorization` completed with zero steps; GitHub check annotations say the jobs were not started because the account is locked due to a billing issue.
 - Impact: required hosted CI gates cannot become green even though equivalent local TypeScript, unit, build, authorization, and disposable MySQL 8 checks pass.
 - Owner: Repository owner / GitHub billing administrator.
-- Exit criterion: restore Actions eligibility, rerun PR `#1`, and obtain successful `lint-and-test` and `mysql-authorization` check conclusions on the reviewed head SHA.
+- Approved release exception: for the TR-03H release only, the user selected Vercel’s hosted build check on each pushed commit as the external gate, combined with the recorded local MySQL, PlanetScale, full-suite, audit, build, and Claude evidence.
+- Exit criterion: restore Actions eligibility and obtain successful hosted Actions checks for future releases; the bounded TR-03H exception does not close the underlying billing failure.
 
 ## Handling Protocol
 

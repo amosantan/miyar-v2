@@ -61,7 +61,8 @@ Close the authorization guarantees that remained unproven after TR-03: live orga
 - Authorized PlanetScale compatibility branch `tr03h-compat-20260716`: schema push PASS; 0044/duplicate preflight PASS; 6/6 applicable scoped-SQL tests PASS with one MySQL-only trigger fault-injection test skipped; branch cleanup completed and the disposable branch was deleted.
 - Post-compatibility mandatory local MySQL 8 rerun: 7/7 PASS including trigger rollback; full 930/22 suite, TypeScript, authorization audit, and build PASS.
 - Draft PR `#1` contains the complete reviewed release diff plus this CI-gate state record. GitHub Actions did not start either job because the repository owner account is locked for a billing issue; no CI step executed.
+- Release exception approved by the user: use Vercel’s hosted build check on every pushed release commit as the external clean-build gate, supported by local MySQL 8, PlanetScale compatibility, full tests, authorization audit, TypeScript, build, and independent review.
 
 ## Next Action
 
-Resolve the GitHub Actions billing lock and rerun both required jobs, or obtain an explicit release exception for that mandatory gate before production migration, canonical-main, and deployment.
+Push the compatibility evidence commit and require its Vercel check to pass before production migration, canonical-main, and deployment.
