@@ -99,25 +99,41 @@ export const organizationRouter = router({
             const db = await getDb();
             if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-            const inviteResult = await db.select().from(organizationInvites).where(eq(organizationInvites.token, input.token)).limit(1);
-            const invite = inviteResult[0];
+            return db.transaction(async (tx: typeof db) => {
+                const inviteResult = await tx.select().from(organizationInvites)
+                    .where(eq(organizationInvites.token, input.token))
+                    .limit(1)
+                    .for("update");
+                const invite = inviteResult[0];
 
-            if (!invite) throw new TRPCError({ code: "NOT_FOUND", message: "Invalid invite token" });
-            if (invite.expiresAt < new Date()) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite expired" });
+                if (!invite) throw new TRPCError({ code: "NOT_FOUND", message: "Invalid invite token" });
+                if (invite.expiresAt < new Date()) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite expired" });
 
-            // Add to org
-            await db.insert(organizationMembers).values({
-                orgId: invite.orgId,
-                userId: ctx.user.id,
-                role: invite.role,
+                const memberships = await tx.select().from(organizationMembers)
+                    .where(and(
+                        eq(organizationMembers.orgId, invite.orgId),
+                        eq(organizationMembers.userId, ctx.user.id),
+                    ))
+                    .limit(2)
+                    .for("update");
+                if (memberships.length > 1) {
+                    throw new TRPCError({
+                        code: "FORBIDDEN",
+                        message: "Organization membership is inconsistent",
+                    });
+                }
+                if (memberships.length === 0) {
+                    await tx.insert(organizationMembers).values({
+                        orgId: invite.orgId,
+                        userId: ctx.user.id,
+                        role: invite.role,
+                    });
+                }
+
+                await tx.update(users).set({ orgId: invite.orgId }).where(eq(users.id, ctx.user.id));
+                await tx.delete(organizationInvites).where(eq(organizationInvites.id, invite.id));
+
+                return { success: true, orgId: invite.orgId };
             });
-
-            // Set as active org
-            await db.update(users).set({ orgId: invite.orgId }).where(eq(users.id, ctx.user.id));
-
-            // Remove invite
-            await db.delete(organizationInvites).where(eq(organizationInvites.id, invite.id));
-
-            return { success: true, orgId: invite.orgId };
         }),
 });

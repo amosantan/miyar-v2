@@ -109,7 +109,8 @@ import {
   varchar,
   decimal,
   boolean,
-  json
+  json,
+  uniqueIndex
 } from "drizzle-orm/mysql-core";
 var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces;
 var init_schema = __esm({
@@ -139,13 +140,22 @@ var init_schema = __esm({
       createdAt: timestamp("createdAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
-    organizationMembers = mysqlTable("organization_members", {
-      id: int("id").autoincrement().primaryKey(),
-      orgId: int("orgId").notNull(),
-      userId: int("userId").notNull(),
-      role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
-      createdAt: timestamp("createdAt").defaultNow().notNull()
-    });
+    organizationMembers = mysqlTable(
+      "organization_members",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        orgId: int("orgId").notNull(),
+        userId: int("userId").notNull(),
+        role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("organization_members_org_user_unique").on(
+          table.orgId,
+          table.userId
+        )
+      ]
+    );
     organizationInvites = mysqlTable("organization_invites", {
       id: int("id").autoincrement().primaryKey(),
       orgId: int("orgId").notNull(),
@@ -1698,18 +1708,24 @@ var init_schema = __esm({
       createdAt: timestamp("created_at").defaultNow().notNull(),
       updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull()
     });
-    aiDesignBriefs = mysqlTable("ai_design_briefs", {
-      id: int("id").primaryKey().autoincrement(),
-      projectId: int("project_id").notNull(),
-      orgId: int("org_id").notNull(),
-      briefData: json("brief_data").notNull(),
-      // AIDesignBrief
-      version: varchar("version", { length: 20 }).default("1.0"),
-      // Phase 5: Shareable link
-      shareToken: varchar("share_token", { length: 64 }),
-      shareExpiresAt: timestamp("share_expires_at"),
-      generatedAt: timestamp("generated_at").defaultNow().notNull()
-    });
+    aiDesignBriefs = mysqlTable(
+      "ai_design_briefs",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        projectId: int("project_id").notNull(),
+        orgId: int("org_id").notNull(),
+        briefData: json("brief_data").notNull(),
+        // AIDesignBrief
+        version: varchar("version", { length: 20 }).default("1.0"),
+        // Phase 5: Shareable link
+        shareToken: varchar("share_token", { length: 64 }),
+        shareExpiresAt: timestamp("share_expires_at"),
+        generatedAt: timestamp("generated_at").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("ai_design_briefs_share_token_unique").on(table.shareToken)
+      ]
+    );
     portfolios = mysqlTable("portfolios", {
       id: int("id").autoincrement().primaryKey(),
       name: varchar("name", { length: 255 }).notNull(),
@@ -2132,6 +2148,7 @@ __export(db_exports, {
   createEntityTag: () => createEntityTag,
   createEvidenceRecord: () => createEvidenceRecord,
   createEvidenceReference: () => createEvidenceReference,
+  createFloorPlanAssetAndLinkForOrg: () => createFloorPlanAssetAndLinkForOrg,
   createGeneratedVisual: () => createGeneratedVisual,
   createGeneratedVisualForOrg: () => createGeneratedVisualForOrg,
   createIntelligenceAuditEntry: () => createIntelligenceAuditEntry,
@@ -2139,6 +2156,7 @@ __export(db_exports, {
   createMaterial: () => createMaterial,
   createMaterialBoard: () => createMaterialBoard,
   createMaterialBoardForOrg: () => createMaterialBoardForOrg,
+  createMaterialBoardWithMaterialsForOrg: () => createMaterialBoardWithMaterialsForOrg,
   createModelVersion: () => createModelVersion,
   createOverrideRecord: () => createOverrideRecord,
   createPdfExtraction: () => createPdfExtraction,
@@ -2268,6 +2286,7 @@ __export(db_exports, {
   getMaterialSupplierSources: () => getMaterialSupplierSources,
   getMaterialToBoardById: () => getMaterialToBoardById,
   getMaterialsByBoard: () => getMaterialsByBoard,
+  getOrganizationMemberships: () => getOrganizationMemberships,
   getOverridesByProject: () => getOverridesByProject,
   getPdfExtractionById: () => getPdfExtractionById,
   getPdfExtractionsByProject: () => getPdfExtractionsByProject,
@@ -2312,6 +2331,7 @@ __export(db_exports, {
   insertProjectInsight: () => insertProjectInsight,
   insertRfqLineItem: () => insertRfqLineItem,
   insertRfqLineItemForOrg: () => insertRfqLineItemForOrg,
+  insertRfqLineItemsForOrg: () => insertRfqLineItemsForOrg,
   insertSpaceProgramRooms: () => insertSpaceProgramRooms,
   insertTrendSnapshot: () => insertTrendSnapshot,
   listAllOutcomes: () => listAllOutcomes,
@@ -2341,6 +2361,7 @@ __export(db_exports, {
   setLogicThresholds: () => setLogicThresholds,
   setLogicWeights: () => setLogicWeights,
   updateAiDesignBriefShareToken: () => updateAiDesignBriefShareToken,
+  updateAiDesignBriefShareTokenForOrg: () => updateAiDesignBriefShareTokenForOrg,
   updateBenchmarkCategory: () => updateBenchmarkCategory,
   updateBoardTile: () => updateBoardTile,
   updateBoardTileForOrg: () => updateBoardTileForOrg,
@@ -2384,7 +2405,7 @@ async function getDb() {
         user: decodeURIComponent(url.username),
         password: decodeURIComponent(url.password),
         database: url.pathname.slice(1),
-        ssl: { rejectUnauthorized: true },
+        ssl: process.env.DATABASE_SSL_DISABLED === "1" ? void 0 : { rejectUnauthorized: true },
         waitForConnections: true,
         connectionLimit: 5
       });
@@ -2469,6 +2490,14 @@ async function getProjectsByOrg(orgId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(projects).where(eq(projects.orgId, orgId)).orderBy(desc(projects.updatedAt));
+}
+async function getOrganizationMemberships(userId, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.select().from(organizationMembers).where(and(
+    eq(organizationMembers.userId, userId),
+    eq(organizationMembers.orgId, orgId)
+  )).limit(2);
 }
 async function getAllProjects() {
   const db = await getDb();
@@ -3105,7 +3134,7 @@ async function deleteMaterialBoardForOrg(id, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1);
+    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!boardRows[0]) return false;
     await tx.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
     const result = await tx.delete(materialBoards).where(and(
@@ -3113,10 +3142,57 @@ async function deleteMaterialBoardForOrg(id, orgId) {
       sql`exists (
         select 1 from ${projects}
         where ${projects.id} = ${materialBoards.projectId}
-          and ${projects.orgId} = ${orgId}
+        and ${projects.orgId} = ${orgId}
       )`
     ));
-    return Number(result[0].affectedRows) === 1;
+    if (Number(result[0].affectedRows) !== 1) {
+      throw new Error("Material board deletion lost authorization");
+    }
+    return true;
+  });
+}
+async function createMaterialBoardWithMaterialsForOrg(data, materialIds, orgId) {
+  if (new Set(materialIds).size !== materialIds.length) return null;
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    if (data.scenarioId !== null && data.scenarioId !== void 0) {
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(and(
+        eq(scenarios.id, data.scenarioId),
+        eq(scenarios.orgId, orgId)
+      )).limit(1).for("update");
+      if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
+    }
+    let orderedMaterials = [];
+    if (materialIds.length > 0) {
+      const rows = await tx.select().from(materialsCatalog).where(and(
+        inArray(materialsCatalog.id, materialIds),
+        eq(materialsCatalog.isActive, true)
+      )).for("update");
+      const materialsById = new Map(rows.map((material) => [
+        material.id,
+        material
+      ]));
+      orderedMaterials = materialIds.map((materialId) => materialsById.get(materialId)).filter((material) => Boolean(material));
+      if (orderedMaterials.length !== materialIds.length) return null;
+    }
+    const boardResult = await tx.insert(materialBoards).values({
+      ...data,
+      boardJson: orderedMaterials
+    });
+    const boardId = Number(boardResult[0].insertId);
+    if (materialIds.length > 0) {
+      await tx.insert(materialsToBoards).values(
+        materialIds.map((materialId, sortOrder) => ({
+          boardId,
+          materialId,
+          sortOrder
+        }))
+      );
+    }
+    return { id: boardId };
   });
 }
 async function getAllMaterials(category, tier) {
@@ -3161,6 +3237,11 @@ async function addMaterialToBoardForOrg(data, orgId) {
   return db.transaction(async (tx) => {
     const owned = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, data.boardId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
+    const material = await tx.select({ id: materialsCatalog.id }).from(materialsCatalog).where(and(
+      eq(materialsCatalog.id, data.materialId),
+      eq(materialsCatalog.isActive, true)
+    )).limit(1).for("update");
+    if (!material[0]) return null;
     const result = await tx.insert(materialsToBoards).values(data);
     return { id: Number(result[0].insertId) };
   });
@@ -4084,6 +4165,28 @@ async function insertRfqLineItemForOrg(data, orgId) {
     return true;
   });
 }
+async function insertRfqLineItemsForOrg(data, expected) {
+  if (data.length > 1e3) return false;
+  if (data.some(
+    (item) => item.organizationId !== expected.orgId || item.projectId !== expected.projectId || item.briefId !== expected.briefId
+  )) return false;
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(
+      eq(projects.id, expected.projectId),
+      eq(projects.orgId, expected.orgId)
+    )).limit(1).for("update");
+    if (!owned[0]) return false;
+    const brief = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).where(and(
+      eq(designBriefs.id, expected.briefId),
+      eq(designBriefs.projectId, expected.projectId)
+    )).limit(1).for("update");
+    if (!brief[0]) return false;
+    if (data.length > 0) await tx.insert(rfqLineItems).values(data);
+    return true;
+  });
+}
 async function insertDmComplianceChecklist(data) {
   const db = await getDb();
   if (!db) return;
@@ -4243,6 +4346,46 @@ async function updateAiDesignBriefShareToken(briefId, token, expiresAt) {
   const db = await getDb();
   if (!db) return;
   await db.update(aiDesignBriefs).set({ shareToken: token, shareExpiresAt: expiresAt }).where(eq(aiDesignBriefs.id, briefId));
+}
+async function updateAiDesignBriefShareTokenForOrg(briefId, projectId, orgId, token, expiresAt) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const rows = await tx.select({ id: aiDesignBriefs.id }).from(aiDesignBriefs).innerJoin(projects, eq(projects.id, aiDesignBriefs.projectId)).where(and(
+      eq(aiDesignBriefs.id, briefId),
+      eq(aiDesignBriefs.projectId, projectId),
+      eq(aiDesignBriefs.orgId, orgId),
+      eq(projects.id, projectId),
+      eq(projects.orgId, orgId)
+    )).limit(1).for("update");
+    if (!rows[0]) return false;
+    const result = await tx.update(aiDesignBriefs).set({ shareToken: token, shareExpiresAt: expiresAt }).where(and(
+      eq(aiDesignBriefs.id, briefId),
+      eq(aiDesignBriefs.projectId, projectId),
+      eq(aiDesignBriefs.orgId, orgId),
+      sql`exists (
+          select 1 from ${projects}
+          where ${projects.id} = ${projectId}
+            and ${projects.orgId} = ${orgId}
+        )`
+    ));
+    return Number(result[0].affectedRows) === 1;
+  });
+}
+async function createFloorPlanAssetAndLinkForOrg(data, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (!owned[0]) return null;
+    const assetResult = await tx.insert(projectAssets).values(data);
+    const assetId = Number(assetResult[0].insertId);
+    const projectResult = await tx.update(projects).set({ floorPlanAssetId: assetId }).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)));
+    if (Number(projectResult[0].affectedRows) !== 1) {
+      throw new Error("Floor-plan project link lost authorization");
+    }
+    return { id: assetId };
+  });
 }
 async function getAiDesignBriefByShareToken(token) {
   const db = await getDb();
@@ -4527,13 +4670,15 @@ var init_area_utils = __esm({
 // server/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
+  storageDelete: () => storageDelete,
   storageGet: () => storageGet,
   storagePut: () => storagePut
 });
 import {
   S3Client,
   PutObjectCommand,
-  GetObjectCommand
+  GetObjectCommand,
+  DeleteObjectCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Buffer as Buffer2 } from "node:buffer";
@@ -4594,6 +4739,17 @@ async function storageGet(relKey) {
   });
   const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
   return { key, url };
+}
+async function storageDelete(relKey) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    return;
+  }
+  await client.send(new DeleteObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  }));
 }
 var init_storage = __esm({
   "server/storage.ts"() {
@@ -12170,7 +12326,7 @@ import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 
 // server/_core/oauth.ts
-function registerOAuthRoutes(app2) {
+function registerOAuthRoutes(app) {
 }
 
 // server/_core/systemRouter.ts
@@ -12260,6 +12416,7 @@ var UNAUTHED_ERR_MSG = "Please login (10001)";
 var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
 
 // server/_core/trpc.ts
+init_db();
 import { initTRPC, TRPCError as TRPCError3 } from "@trpc/server";
 import superjson from "superjson";
 
@@ -12341,15 +12498,48 @@ var requireOrg = t.middleware(async (opts) => {
   if (!ctx.user.orgId) {
     throw new TRPCError3({ code: "FORBIDDEN", message: "User does not belong to an organization" });
   }
+  const memberships = await getOrganizationMemberships(
+    ctx.user.id,
+    ctx.user.orgId
+  );
+  if (memberships.length !== 1) {
+    throw new TRPCError3({
+      code: "FORBIDDEN",
+      message: "User does not belong to this organization"
+    });
+  }
   return next({
     ctx: {
       ...ctx,
       user: ctx.user,
-      orgId: ctx.user.orgId
+      orgId: ctx.user.orgId,
+      orgRole: memberships[0].role
     }
   });
 });
 var orgProcedure = t.procedure.use(requireOrg);
+var designOrgMutationProcedure = orgProcedure.use(
+  async ({ ctx, next }) => {
+    if (ctx.orgRole === "viewer") {
+      throw new TRPCError3({
+        code: "FORBIDDEN",
+        message: "Organization viewer access is read-only"
+      });
+    }
+    return next({ ctx });
+  }
+);
+var designOrgAdminProcedure = orgProcedure.use(
+  async ({ ctx, next }) => {
+    if (ctx.orgRole !== "admin") {
+      throw new TRPCError3({
+        code: "FORBIDDEN",
+        message: "Organization administrator access is required"
+      });
+    }
+    return next({ ctx });
+  }
+);
 var heavyProcedure = t.procedure.use(requireUser).use(createRateLimitMiddleware(t, { max: 5, windowMs: 6e4, keyPrefix: "heavy" }));
 
 // server/_core/systemRouter.ts
@@ -20177,7 +20367,7 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
 
 // server/routers/design.ts
 init_space_program();
-import { nanoid as nanoid2 } from "nanoid";
+import { nanoid as nanoid3 } from "nanoid";
 
 // server/_core/public-share-access.ts
 init_db();
@@ -20407,7 +20597,77 @@ async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
   requireSameDesignProject(projectId, scenario.project.id);
 }
 
+// server/_core/upload-compensation.ts
+init_storage();
+import { nanoid as nanoid2 } from "nanoid";
+
+// server/_core/sentry.ts
+var Sentry = null;
+function captureException(err, context) {
+  if (!Sentry) return;
+  Sentry.withScope((scope) => {
+    if (context) {
+      Object.entries(context).forEach(([key, val]) => {
+        scope.setExtra(key, val);
+      });
+    }
+    Sentry.captureException(err);
+  });
+}
+function captureMessage(message, level = "info") {
+  if (!Sentry) return;
+  Sentry.captureMessage(message, level);
+}
+
+// server/_core/upload-compensation.ts
+var CLEANUP_ATTEMPTS = 3;
+async function cleanupRejectedUpload(objectKey, correlationId = nanoid2(12)) {
+  let lastError;
+  for (let attempt = 1; attempt <= CLEANUP_ATTEMPTS; attempt += 1) {
+    try {
+      await storageDelete(objectKey);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  captureException(lastError, {
+    source: "upload-cleanup-failed",
+    correlationId,
+    objectKey
+  });
+  throw new Error(`Upload cleanup failed (${correlationId})`);
+}
+function reportIndeterminateUploadPersistence(objectKey, error, correlationId = nanoid2(12)) {
+  captureException(error, {
+    source: "upload-reconciliation-required",
+    correlationId,
+    objectKey
+  });
+  captureMessage(`Upload reconciliation required (${correlationId})`, "error");
+  return correlationId;
+}
+
 // server/routers/design.ts
+function isDuplicateKeyError(error) {
+  let current = error;
+  const seen = /* @__PURE__ */ new Set();
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const candidate = current;
+    if (candidate.code === "ER_DUP_ENTRY" || candidate.errno === 1062) {
+      return true;
+    }
+    current = candidate.cause;
+  }
+  return false;
+}
+async function bestEffortAudit(data) {
+  try {
+    await createAuditLog(data);
+  } catch {
+  }
+}
 function projectToInputs4(p) {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
@@ -20448,7 +20708,7 @@ var designRouter = router({
     await requireDesignProject(input.projectId, ctx.orgId);
     return getProjectAssets(input.projectId, input.category);
   }),
-  uploadAsset: orgProcedure.input(z6.object({
+  uploadAsset: designOrgMutationProcedure.input(z6.object({
     projectId: z6.number(),
     filename: z6.string(),
     mimeType: z6.string(),
@@ -20462,21 +20722,36 @@ var designRouter = router({
     const buffer = Buffer.from(input.base64Data, "base64");
     const suffix = Math.random().toString(36).slice(2, 10);
     const storagePath = `projects/${input.projectId}/assets/${suffix}-${input.filename}`;
-    const { url } = await storagePut(storagePath, buffer, input.mimeType);
-    const result = requireScopedDesignInsert(await createProjectAssetForOrg({
-      projectId: input.projectId,
-      filename: input.filename,
-      mimeType: input.mimeType,
-      sizeBytes: buffer.length,
-      storagePath,
-      storageUrl: url,
-      uploadedBy: ctx.user.id,
-      category: input.category,
-      tags: input.tags || [],
-      notes: input.notes,
-      isClientVisible: input.isClientVisible
-    }, ctx.orgId));
-    await createAuditLog({
+    const uploaded = await storagePut(storagePath, buffer, input.mimeType);
+    let created;
+    try {
+      created = await createProjectAssetForOrg({
+        projectId: input.projectId,
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: buffer.length,
+        storagePath: uploaded.key,
+        storageUrl: uploaded.url,
+        uploadedBy: ctx.user.id,
+        category: input.category,
+        tags: input.tags || [],
+        notes: input.notes,
+        isClientVisible: input.isClientVisible
+      }, ctx.orgId);
+    } catch (error) {
+      reportIndeterminateUploadPersistence(uploaded.key, error);
+      throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
+    }
+    if (!created) {
+      try {
+        await cleanupRejectedUpload(uploaded.key);
+      } catch {
+        throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
+      }
+      throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    const result = requireScopedDesignInsert(created);
+    await bestEffortAudit({
       orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "asset.upload",
@@ -20484,9 +20759,9 @@ var designRouter = router({
       entityId: result.id,
       details: { projectId: input.projectId, filename: input.filename, category: input.category }
     });
-    return { id: result.id, url };
+    return { id: result.id, url: uploaded.url };
   }),
-  deleteAsset: orgProcedure.input(z6.object({ assetId: z6.number() })).mutation(async ({ ctx, input }) => {
+  deleteAsset: designOrgMutationProcedure.input(z6.object({ assetId: z6.number() })).mutation(async ({ ctx, input }) => {
     const { resource: asset } = await requireDesignAsset(input.assetId, ctx.orgId);
     requireScopedDesignMutation(await deleteProjectAssetForOrg(input.assetId, ctx.orgId));
     await createAuditLog({
@@ -20499,7 +20774,7 @@ var designRouter = router({
     });
     return { success: true };
   }),
-  updateAsset: orgProcedure.input(z6.object({
+  updateAsset: designOrgMutationProcedure.input(z6.object({
     assetId: z6.number(),
     category: z6.string().optional(),
     tags: z6.array(z6.string()).optional(),
@@ -20511,7 +20786,7 @@ var designRouter = router({
     requireScopedDesignMutation(await updateProjectAssetForOrg(assetId, ctx.orgId, updates));
     return { success: true };
   }),
-  linkAsset: orgProcedure.input(z6.object({
+  linkAsset: designOrgMutationProcedure.input(z6.object({
     assetId: z6.number(),
     linkType: z6.enum(["evaluation", "report", "scenario", "material_board", "design_brief", "visual"]),
     linkId: z6.number()
@@ -20531,7 +20806,7 @@ var designRouter = router({
     return links;
   }),
   // ─── Design Brief Generator ─────────────────────────────────────────────────
-  generateBrief: orgProcedure.input(z6.object({ projectId: z6.number(), scenarioId: z6.number().optional() })).mutation(async ({ ctx, input }) => {
+  generateBrief: designOrgMutationProcedure.input(z6.object({ projectId: z6.number(), scenarioId: z6.number().optional() })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (input.scenarioId !== void 0) {
       const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
@@ -20696,7 +20971,7 @@ var designRouter = router({
     return brief;
   }),
   // ─── RFQ from Brief (V4 Pipeline) ─────────────────────────────────────────
-  generateRfqFromBrief: orgProcedure.input(z6.object({
+  generateRfqFromBrief: designOrgMutationProcedure.input(z6.object({
     projectId: z6.number(),
     briefId: z6.number()
   })).mutation(async ({ ctx, input }) => {
@@ -20728,10 +21003,14 @@ var designRouter = router({
       input.briefId,
       materialList
     );
-    for (const item of result.items) {
-      requireScopedDesignMutation(await insertRfqLineItemForOrg(item, ctx.orgId));
+    if (result.items.length > 1e3) {
+      throw new TRPCError9({ code: "PRECONDITION_FAILED", message: "RFQ exceeds the 1,000 line limit" });
     }
-    await createAuditLog({
+    requireScopedDesignMutation(await insertRfqLineItemsForOrg(
+      result.items,
+      { projectId: input.projectId, briefId: input.briefId, orgId: ctx.orgId }
+    ));
+    await bestEffortAudit({
       orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "rfq.generate_from_brief",
@@ -20747,7 +21026,7 @@ var designRouter = router({
     });
     return result;
   }),
-  exportBriefDocx: orgProcedure.input(z6.object({ briefId: z6.number() })).mutation(async ({ ctx, input }) => {
+  exportBriefDocx: designOrgMutationProcedure.input(z6.object({ briefId: z6.number() })).mutation(async ({ ctx, input }) => {
     const { resource: brief, project } = await requireDesignBrief(input.briefId, ctx.orgId);
     const docxBuffer = await generateDesignBriefDocx({
       projectIdentity: brief.projectIdentity ?? {},
@@ -20760,12 +21039,12 @@ var designRouter = router({
       version: brief.version,
       projectName: project?.name
     });
-    const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid2(8)}.docx`;
+    const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid3(8)}.docx`;
     const { url } = await storagePut(fileKey, docxBuffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     return { url };
   }),
   // ─── Visual Generation (nano banana) ────────────────────────────────────────
-  generateVisual: orgProcedure.input(z6.object({
+  generateVisual: designOrgMutationProcedure.input(z6.object({
     projectId: z6.number(),
     type: z6.enum(["mood", "material_board", "hero"]),
     scenarioId: z6.number().optional(),
@@ -20906,7 +21185,7 @@ var designRouter = router({
     return enriched;
   }),
   // V4-05: Attach a completed visual's asset to a report/pack as an evidence reference
-  attachVisualToPack: orgProcedure.input(z6.object({
+  attachVisualToPack: designOrgMutationProcedure.input(z6.object({
     visualId: z6.number(),
     targetType: z6.enum(["report", "design_brief", "material_board", "pack_section"]),
     targetId: z6.number(),
@@ -20918,7 +21197,7 @@ var designRouter = router({
     });
   }),
   // ─── Pin Visuals to Material Boards (V4) ────────────────────────────────────
-  pinVisualToBoard: orgProcedure.input(z6.object({
+  pinVisualToBoard: designOrgMutationProcedure.input(z6.object({
     visualId: z6.number(),
     boardId: z6.number()
   })).mutation(async ({ ctx, input }) => {
@@ -20961,7 +21240,7 @@ var designRouter = router({
     }));
     return pinned;
   }),
-  unpinVisual: orgProcedure.input(z6.object({ linkId: z6.number() })).mutation(async ({ ctx, input }) => {
+  unpinVisual: designOrgMutationProcedure.input(z6.object({ linkId: z6.number() })).mutation(async ({ ctx, input }) => {
     const authorizedLink = await requireDesignAssetLink(input.linkId, ctx.orgId);
     if (authorizedLink.resource.linkType !== "material_board") {
       throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
@@ -20979,7 +21258,7 @@ var designRouter = router({
     return { success: true };
   }),
   // ─── Material Board Composer ────────────────────────────────────────────────
-  createBoard: orgProcedure.input(z6.object({
+  createBoard: designOrgMutationProcedure.input(z6.object({
     projectId: z6.number(),
     boardName: z6.string(),
     scenarioId: z6.number().optional(),
@@ -20990,32 +21269,23 @@ var designRouter = router({
       const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
       requireSameDesignProject(project.id, scenario.project.id);
     }
-    const materials = [];
-    if (input.materialIds && input.materialIds.length > 0) {
-      for (const id of input.materialIds) {
-        const mat = await getMaterialById(id);
-        if (mat) materials.push(mat);
-      }
+    const materialIds = input.materialIds ?? [];
+    if (new Set(materialIds).size !== materialIds.length) {
+      throw new TRPCError9({ code: "BAD_REQUEST", message: "Duplicate material IDs are not allowed" });
     }
-    const boardResult = requireScopedDesignInsert(await createMaterialBoardForOrg({
+    const boardResult = requireScopedDesignInsert(await createMaterialBoardWithMaterialsForOrg({
       projectId: input.projectId,
       scenarioId: input.scenarioId,
       boardName: input.boardName,
-      boardJson: materials,
       createdBy: ctx.user.id
-    }, ctx.orgId));
-    if (input.materialIds) {
-      for (const materialId of input.materialIds) {
-        requireScopedDesignInsert(await addMaterialToBoardForOrg({ boardId: boardResult.id, materialId }, ctx.orgId));
-      }
-    }
-    await createAuditLog({
+    }, materialIds, ctx.orgId));
+    await bestEffortAudit({
       orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "board.create",
       entityType: "material_board",
       entityId: boardResult.id,
-      details: { projectId: input.projectId, materialCount: materials.length }
+      details: { projectId: input.projectId, materialCount: materialIds.length }
     });
     return { id: boardResult.id };
   }),
@@ -21038,7 +21308,7 @@ var designRouter = router({
     }
     return { board, materials: materialDetails };
   }),
-  addMaterialToBoard: orgProcedure.input(z6.object({
+  addMaterialToBoard: designOrgMutationProcedure.input(z6.object({
     boardId: z6.number(),
     materialId: z6.number(),
     quantity: z6.number().optional(),
@@ -21054,12 +21324,12 @@ var designRouter = router({
       notes: input.notes
     }, ctx.orgId));
   }),
-  removeMaterialFromBoard: orgProcedure.input(z6.object({ joinId: z6.number() })).mutation(async ({ ctx, input }) => {
+  removeMaterialFromBoard: designOrgMutationProcedure.input(z6.object({ joinId: z6.number() })).mutation(async ({ ctx, input }) => {
     await requireDesignBoardJoin(input.joinId, ctx.orgId);
     requireScopedDesignMutation(await removeMaterialFromBoardForOrg(input.joinId, ctx.orgId));
     return { success: true };
   }),
-  deleteBoard: orgProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
+  deleteBoard: designOrgMutationProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
     await requireDesignBoard(input.boardId, ctx.orgId);
     requireScopedDesignMutation(await deleteMaterialBoardForOrg(input.boardId, ctx.orgId));
     await createAuditLog({
@@ -21071,7 +21341,7 @@ var designRouter = router({
     });
     return { success: true };
   }),
-  updateBoardTile: orgProcedure.input(z6.object({
+  updateBoardTile: designOrgMutationProcedure.input(z6.object({
     joinId: z6.number(),
     specNotes: z6.string().nullish(),
     costBandOverride: z6.string().nullish(),
@@ -21090,7 +21360,7 @@ var designRouter = router({
     }));
     return { success: true };
   }),
-  reorderBoardTiles: orgProcedure.input(z6.object({
+  reorderBoardTiles: designOrgMutationProcedure.input(z6.object({
     boardId: z6.number(),
     orderedJoinIds: z6.array(z6.number())
   })).mutation(async ({ ctx, input }) => {
@@ -21106,7 +21376,7 @@ var designRouter = router({
     requireScopedDesignMutation(await reorderBoardTilesForOrg(input.boardId, input.orderedJoinIds, ctx.orgId));
     return { success: true };
   }),
-  exportBoardPdf: orgProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
+  exportBoardPdf: designOrgMutationProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
     const { resource: board, project } = await requireDesignBoard(input.boardId, ctx.orgId);
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const items = [];
@@ -21144,7 +21414,7 @@ var designRouter = router({
     });
     let fileUrl = null;
     try {
-      const fileKey = `boards/${board.projectId}/${board.id}-${nanoid2(8)}.html`;
+      const fileKey = `boards/${board.projectId}/${board.id}-${nanoid3(8)}.html`;
       const result = await storagePut(fileKey, html, "text/html");
       fileUrl = result.url;
     } catch (e) {
@@ -21290,7 +21560,7 @@ var designRouter = router({
     return { success: true };
   }),
   // ─── Collaboration & Comments ───────────────────────────────────────────────
-  addComment: orgProcedure.input(z6.object({
+  addComment: designOrgMutationProcedure.input(z6.object({
     projectId: z6.number(),
     entityType: z6.enum(["design_brief", "material_board", "visual", "general"]),
     entityId: z6.number().optional(),
@@ -21331,7 +21601,7 @@ var designRouter = router({
     return getCommentsByProject(input.projectId);
   }),
   // ─── Approval Gates ─────────────────────────────────────────────────────────
-  updateApprovalState: orgProcedure.input(z6.object({
+  updateApprovalState: designOrgAdminProcedure.input(z6.object({
     projectId: z6.number(),
     approvalState: z6.enum(["draft", "review", "approved_rfq", "approved_marketing"]),
     rationale: z6.string().optional()
@@ -21607,7 +21877,7 @@ var designRouter = router({
     return getActiveSourceRegistry(input.limit);
   }),
   // ─── Phase 5: Export & Handover ─────────────────────────────────────────────
-  exportInvestorPdf: orgProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
+  exportInvestorPdf: designOrgMutationProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
     const { generateInvestorPdfHtml: generateInvestorPdfHtml2 } = await Promise.resolve().then(() => (init_investor_pdf(), investor_pdf_exports));
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     const [brief, recs, materialConsts, benchmark, trends] = await Promise.all([
@@ -21674,14 +21944,49 @@ var designRouter = router({
     });
     return { html, projectName: project.name ?? "Project" };
   }),
-  createShareLink: orgProcedure.input(z6.object({ projectId: z6.number(), expiryDays: z6.number().min(1).max(90).default(7) })).mutation(async ({ ctx, input }) => {
+  createShareLink: designOrgAdminProcedure.input(z6.object({ projectId: z6.number(), expiryDays: z6.number().min(1).max(90).default(7) })).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const brief = await getLatestAiDesignBrief(input.projectId, ctx.orgId);
     if (!brief) throw new Error("Generate a design brief first before sharing");
-    const token = nanoid2(32);
     const expiresAt = /* @__PURE__ */ new Date();
     expiresAt.setDate(expiresAt.getDate() + input.expiryDays);
-    await updateAiDesignBriefShareToken(brief.id, token, expiresAt);
+    let token = "";
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      token = nanoid3(32);
+      try {
+        requireScopedDesignMutation(await updateAiDesignBriefShareTokenForOrg(
+          brief.id,
+          input.projectId,
+          ctx.orgId,
+          token,
+          expiresAt
+        ));
+        break;
+      } catch (error) {
+        if (isDuplicateKeyError(error)) {
+          if (attempt === 5) {
+            throw new TRPCError9({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Unable to create a unique share link"
+            });
+          }
+          continue;
+        }
+        if (error instanceof TRPCError9) throw error;
+        throw new TRPCError9({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Unable to create share link"
+        });
+      }
+    }
+    await bestEffortAudit({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "brief.share",
+      entityType: "ai_design_brief",
+      entityId: brief.id,
+      details: { projectId: input.projectId, expiryDays: input.expiryDays }
+    });
     return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
   }),
   resolveShareLink: publicProcedure.input(z6.object({ token: z6.string().min(8).max(64) })).query(async ({ input }) => {
@@ -21755,7 +22060,7 @@ var designRouter = router({
     };
   }),
   // ─── Phase 9: Room-Specific Render ─────────────────────────────────────────
-  generateRoomRender: orgProcedure.input(z6.object({
+  generateRoomRender: designOrgMutationProcedure.input(z6.object({
     projectId: z6.number(),
     roomName: z6.string(),
     roomType: z6.string(),
@@ -21824,7 +22129,7 @@ var designRouter = router({
     }
   }),
   // ─── Phase 9: Floor Plan Upload ────────────────────────────────────────────
-  uploadFloorPlan: orgProcedure.input(z6.object({
+  uploadFloorPlan: designOrgMutationProcedure.input(z6.object({
     projectId: z6.number(),
     filename: z6.string(),
     mimeType: z6.string(),
@@ -21834,21 +22139,33 @@ var designRouter = router({
     const buffer = Buffer.from(input.base64Data, "base64");
     const suffix = Math.random().toString(36).slice(2, 10);
     const storagePath = `projects/${input.projectId}/floor-plans/${suffix}-${input.filename}`;
-    const { url } = await storagePut(storagePath, buffer, input.mimeType);
-    const result = requireScopedDesignInsert(await createProjectAssetForOrg({
-      projectId: input.projectId,
-      filename: input.filename,
-      mimeType: input.mimeType,
-      sizeBytes: buffer.length,
-      storagePath,
-      storageUrl: url,
-      uploadedBy: ctx.user.id,
-      category: "other"
-    }, ctx.orgId));
-    requireScopedDesignMutation(await updateProjectForOrg(input.projectId, ctx.orgId, {
-      floorPlanAssetId: result.id
-    }));
-    await createAuditLog({
+    const uploaded = await storagePut(storagePath, buffer, input.mimeType);
+    let created;
+    try {
+      created = await createFloorPlanAssetAndLinkForOrg({
+        projectId: input.projectId,
+        filename: input.filename,
+        mimeType: input.mimeType,
+        sizeBytes: buffer.length,
+        storagePath: uploaded.key,
+        storageUrl: uploaded.url,
+        uploadedBy: ctx.user.id,
+        category: "other"
+      }, ctx.orgId);
+    } catch (error) {
+      reportIndeterminateUploadPersistence(uploaded.key, error);
+      throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
+    }
+    if (!created) {
+      try {
+        await cleanupRejectedUpload(uploaded.key);
+      } catch {
+        throw new TRPCError9({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
+      }
+      throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    const result = requireScopedDesignInsert(created);
+    await bestEffortAudit({
       orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "floor_plan.upload",
@@ -21856,11 +22173,10 @@ var designRouter = router({
       entityId: input.projectId,
       details: { assetId: result.id, filename: input.filename }
     });
-    console.log(`[FloorPlan] Uploaded floor plan for project ${input.projectId}: ${url}`);
-    return { assetId: result.id, url };
+    return { assetId: result.id, url: uploaded.url };
   }),
   // ─── Phase 9: Floor Plan Analysis ──────────────────────────────────────────
-  analyzeFloorPlan: orgProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
+  analyzeFloorPlan: designOrgMutationProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (!project.floorPlanAssetId) {
       throw new TRPCError9({ code: "BAD_REQUEST", message: "No floor plan uploaded for this project" });
@@ -22378,7 +22694,7 @@ function generateLearningReport(outcomes, predictions) {
 
 // server/routers/intelligence.ts
 init_storage();
-import { nanoid as nanoid3 } from "nanoid";
+import { nanoid as nanoid4 } from "nanoid";
 var intelligenceRouter = router({
   // ─── V2.10: Logic Registry ──────────────────────────────────────────────────
   logicVersions: router({
@@ -22600,7 +22916,7 @@ var intelligenceRouter = router({
         logicVersion: logicVersion?.name ?? "Default"
       };
       const html = generateScenarioComparisonHTML(pdfInput);
-      const fileKey = `reports/${comparison.projectId}/scenario-comparison-${nanoid3(8)}.html`;
+      const fileKey = `reports/${comparison.projectId}/scenario-comparison-${nanoid4(8)}.html`;
       const { url } = await storagePut(fileKey, html, "text/html");
       return { url, html };
     })
@@ -22820,7 +23136,7 @@ import { z as z9 } from "zod";
 init_db();
 init_dynamic();
 init_orchestrator();
-import { nanoid as nanoid4 } from "nanoid";
+import { nanoid as nanoid5 } from "nanoid";
 
 // server/engines/ingestion/csv-pipeline.ts
 init_db();
@@ -23367,11 +23683,11 @@ var sourceRegistrySchema = z9.object({
   requestDelayMs: z9.number().default(2e3)
 });
 function generateRecordId3() {
-  const seq = nanoid4(8).toUpperCase();
+  const seq = nanoid5(8).toUpperCase();
   return `MYR-PE-${seq}`;
 }
 function generateRunId(prefix) {
-  return `${prefix}-${Date.now()}-${nanoid4(6)}`;
+  return `${prefix}-${Date.now()}-${nanoid5(6)}`;
 }
 var marketIntelligenceRouter = router({
   // ─── Source Registry ────────────────────────────────────────────────────────
@@ -26543,7 +26859,7 @@ import { z as z15 } from "zod";
 init_schema();
 import { TRPCError as TRPCError13 } from "@trpc/server";
 import { eq as eq16, and as and7 } from "drizzle-orm";
-import { nanoid as nanoid5 } from "nanoid";
+import { nanoid as nanoid6 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z15.object({
     name: z15.string().min(2),
@@ -26590,7 +26906,7 @@ var organizationRouter = router({
     if (!myMembership[0] || myMembership[0].role !== "admin") {
       throw new TRPCError13({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
-    const token = nanoid5(32);
+    const token = nanoid6(32);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
     await db.insert(organizationInvites).values({
       orgId: ctx.orgId,
@@ -26605,18 +26921,32 @@ var organizationRouter = router({
   acceptInvite: protectedProcedure.input(z15.object({ token: z15.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError13({ code: "INTERNAL_SERVER_ERROR" });
-    const inviteResult = await db.select().from(organizationInvites).where(eq16(organizationInvites.token, input.token)).limit(1);
-    const invite = inviteResult[0];
-    if (!invite) throw new TRPCError13({ code: "NOT_FOUND", message: "Invalid invite token" });
-    if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError13({ code: "BAD_REQUEST", message: "Invite expired" });
-    await db.insert(organizationMembers).values({
-      orgId: invite.orgId,
-      userId: ctx.user.id,
-      role: invite.role
+    return db.transaction(async (tx) => {
+      const inviteResult = await tx.select().from(organizationInvites).where(eq16(organizationInvites.token, input.token)).limit(1).for("update");
+      const invite = inviteResult[0];
+      if (!invite) throw new TRPCError13({ code: "NOT_FOUND", message: "Invalid invite token" });
+      if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError13({ code: "BAD_REQUEST", message: "Invite expired" });
+      const memberships = await tx.select().from(organizationMembers).where(and7(
+        eq16(organizationMembers.orgId, invite.orgId),
+        eq16(organizationMembers.userId, ctx.user.id)
+      )).limit(2).for("update");
+      if (memberships.length > 1) {
+        throw new TRPCError13({
+          code: "FORBIDDEN",
+          message: "Organization membership is inconsistent"
+        });
+      }
+      if (memberships.length === 0) {
+        await tx.insert(organizationMembers).values({
+          orgId: invite.orgId,
+          userId: ctx.user.id,
+          role: invite.role
+        });
+      }
+      await tx.update(users).set({ orgId: invite.orgId }).where(eq16(users.id, ctx.user.id));
+      await tx.delete(organizationInvites).where(eq16(organizationInvites.id, invite.id));
+      return { success: true, orgId: invite.orgId };
     });
-    await db.update(users).set({ orgId: invite.orgId }).where(eq16(users.id, ctx.user.id));
-    await db.delete(organizationInvites).where(eq16(organizationInvites.id, invite.id));
-    return { success: true, orgId: invite.orgId };
   })
 });
 
@@ -31027,23 +31357,9 @@ function isCronAuthorized(authorizationHeader, cronSecret) {
   return Boolean(cronSecret) && authorizationHeader === `Bearer ${cronSecret}`;
 }
 
-// server/_core/sentry.ts
-var Sentry = null;
-function captureException(err, context) {
-  if (!Sentry) return;
-  Sentry.withScope((scope) => {
-    if (context) {
-      Object.entries(context).forEach(([key, val]) => {
-        scope.setExtra(key, val);
-      });
-    }
-    Sentry.captureException(err);
-  });
-}
-
 // server/_core/ingestion-cron.ts
-function registerIngestionCronRoute(app2) {
-  app2.get("/api/cron/ingestion", async (req, res) => {
+function registerIngestionCronRoute(app) {
+  app.get("/api/cron/ingestion", async (req, res) => {
     try {
       if (!isCronAuthorized(req.headers.authorization, process.env.CRON_SECRET)) {
         res.status(401).json({ error: "Unauthorized" });
@@ -31074,20 +31390,54 @@ function registerIngestionCronRoute(app2) {
   });
 }
 
+// server/_core/public-share-headers.ts
+var PUBLIC_SHARE_HEADERS = {
+  "Cache-Control": "private, no-store",
+  "Pragma": "no-cache",
+  "X-Robots-Tag": "noindex, nofollow, noarchive"
+};
+function isPublicShareTrpcRequest(path) {
+  const withoutQuery = path.split("?", 1)[0] ?? "";
+  const marker = "/api/trpc/";
+  const markerIndex = withoutQuery.indexOf(marker);
+  if (markerIndex < 0) return false;
+  const rawSuffix = withoutQuery.slice(markerIndex + marker.length);
+  let decodedSuffix = rawSuffix;
+  try {
+    decodedSuffix = decodeURIComponent(rawSuffix);
+  } catch {
+  }
+  const procedures = decodedSuffix.split(",");
+  return procedures.includes("design.resolveShareLink");
+}
+var publicShareHeaders = (req, res, next) => {
+  if (isPublicShareTrpcRequest(req.originalUrl || req.url)) {
+    for (const [name, value] of Object.entries(PUBLIC_SHARE_HEADERS)) {
+      res.setHeader(name, value);
+    }
+  }
+  next();
+};
+
 // server/serverless/index.ts
-var app = express();
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-registerOAuthRoutes(app);
-registerIngestionCronRoute(app);
-app.use(
-  "/api/trpc",
-  createExpressMiddleware({
-    router: appRouter,
-    createContext
-  })
-);
-var index_default = app;
+function createServerlessApplication(options = {}) {
+  const app = express();
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  registerOAuthRoutes(app);
+  registerIngestionCronRoute(app);
+  app.use(publicShareHeaders);
+  app.use(
+    "/api/trpc",
+    createExpressMiddleware({
+      router: options.trpcRouter ?? appRouter,
+      createContext: options.contextFactory ?? createContext
+    })
+  );
+  return app;
+}
+var index_default = createServerlessApplication();
 export {
+  createServerlessApplication,
   index_default as default
 };

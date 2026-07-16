@@ -16,21 +16,33 @@ import { registerApiDocs } from "./api-docs";
 import { requestLogger, logger, startPerfMonitor } from "./logger";
 import { shouldStartBackgroundJobs } from "./runtime-safety";
 import { registerIngestionCronRoute } from "./ingestion-cron";
+import { publicShareHeaders } from "./public-share-headers";
 
-// Initialise Sentry error tracking (no-ops if SENTRY_DSN is not set)
-initSentry();
+type AppOptions = {
+  trpcRouter?: any;
+  contextFactory?: any;
+};
 
-// --- Global Error Boundary (V7-07) ---
-process.on("uncaughtException", (error) => {
-  console.error("🔥 [CRITICAL] Uncaught Exception:", error);
-  captureException(error, { source: "uncaughtException" });
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("🔥 [CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
-  captureException(reason, { source: "unhandledRejection" });
-});
-// ------------------------------------
+export function createNodeApplication(options: AppOptions = {}) {
+  const app = express();
+  const server = createServer(app);
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(requestLogger);
+  registerOAuthRoutes(app);
+  registerSSE(app);
+  registerApiDocs(app);
+  registerIngestionCronRoute(app);
+  app.use(publicShareHeaders);
+  app.use(
+    "/api/trpc",
+    createExpressMiddleware({
+      router: options.trpcRouter ?? appRouter,
+      createContext: options.contextFactory ?? createContext,
+    })
+  );
+  return { app, server };
+}
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -52,34 +64,17 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
-  const app = express();
-  const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  initSentry();
+  process.on("uncaughtException", (error) => {
+    console.error("🔥 [CRITICAL] Uncaught Exception:", error);
+    captureException(error, { source: "uncaughtException" });
+  });
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error("🔥 [CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
+    captureException(reason, { source: "unhandledRejection" });
+  });
 
-  // P3-7: Structured request logging
-  app.use(requestLogger);
-
-  // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
-
-  // P3-3: Server-Sent Events for real-time notifications
-  registerSSE(app);
-
-  // P3-5: API documentation endpoints
-  registerApiDocs(app);
-
-  registerIngestionCronRoute(app);
-
-  // tRPC API
-  app.use(
-    "/api/trpc",
-    createExpressMiddleware({
-      router: appRouter,
-      createContext,
-    })
-  );
+  const { app, server } = createNodeApplication();
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
@@ -129,4 +124,6 @@ async function startServer() {
   });
 }
 
-startServer().catch(console.error);
+if (process.env.NODE_ENV !== "test") {
+  startServer().catch(console.error);
+}

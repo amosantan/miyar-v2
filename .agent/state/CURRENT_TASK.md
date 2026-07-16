@@ -1,67 +1,64 @@
 # Current Task
 
-- ID: TR-03
-- Roadmap step: `TR-03`
-- Title: Authorize the design-domain router
-- Status: PASS
+- ID: TR-03H
+- Roadmap step: `TR-03H`
+- Title: Design authorization hardening
+- Status: ACTIVE
 - Owner: Codex
 - Started: 2026-07-16
-- Risk: High API/security change across project resources, public shares, storage, generation, exports, and evidence reads
-- Selected loop: API/security defect loop from `LOOP_ENGINEERING.md`
+- Risk: Critical authentication, tenant isolation, transaction, migration, storage, public-share, and release work
+- Selected loop: API/security defect loop plus schema and release verification
 - Retry budget: 3 evidence-based attempts per failure class
-- Approval gates: no schema migration, shared database access, deployment, commit, push, or protected-branch action
+- Approval gates: applying migration 0045 to a shared target, pushing `main`, production deployment, and production smoke writes require separate approval
 
 ## Goal
 
-Ensure every design-domain authenticated procedure proves organization ownership before project data access or side effects, while preserving read-only public shares behind a fail-closed token and expiry boundary.
+Close the authorization guarantees that remained unproven after TR-03: live organization membership, design-role enforcement, final scoped share writes, atomic composite mutations, rejected-upload cleanup, public-share cache/index controls, real MySQL evidence, and canonical-main release identity.
 
 ## Locked Decisions
 
-- `attachVisualToPack` fails closed until a typed attachment model is approved.
-- Evidence requests without a project return only records explicitly owned by the caller's organization.
-- Null-owned evidence and prompt templates are not treated as governed global data.
-- Missing, cross-organization, orphaned, inconsistent, and legacy-null resources use indistinguishable `NOT_FOUND` responses.
+- Every organization-scoped request requires exactly one current membership row; global admins do not bypass membership.
+- Design viewers are read-only; members and organization admins may perform normal design mutations; approval and share creation require organization admin.
+- Migration 0045 adds unique membership and public-share-token indexes; duplicate production data fails closed for human resolution.
+- Direct upload rejection uses compensating storage deletion; indeterminate commit outcomes are alerted rather than deleted blindly.
+- The canonical-main PR includes all nine existing branch commits plus TR-03H and is reviewed as one complete release diff.
 
 ## Acceptance Criteria
 
-- [x] All authenticated TR-03 procedures require organization context and an authorized project/resource.
-- [x] Composite, polymorphic, nested, and batch operations prove every resource belongs to the same authorized project before side effects.
-- [x] Organization-scoped database mutations reject zero affected rows and prevent partial cross-project batch writes.
-- [x] Rejected requests do not call storage, image/floor-plan generation, document export, RFQ insertion, audit logging, or mutation helpers.
-- [x] `getEvidenceChain` returns only authorized project evidence or caller-organization evidence.
-- [x] `resolveShareLink` uses the canonical active-share resolver and remains read-only.
-- [x] `attachVisualToPack` performs no data access or side effect and returns `PRECONDITION_FAILED`.
-- [x] The semantic design-router review finds no incorrectly classified guarded path.
-- [x] Targeted authorization tests, `pnpm audit:authorization`, `pnpm check`, safe full tests, and build pass.
-- [x] Existing user-owned migration, runtime-safety, client, learning-router, and generated-bundle changes remain preserved.
+- [x] Removed, missing, duplicate, and stale memberships are rejected before handler access.
+- [x] Design viewers cannot mutate; organization-admin-only operations reject members and viewers.
+- [x] Share-token creation is organization/project scoped, collision-safe, and database-unique.
+- [x] Board deletion, board creation, RFQ insertion, and floor-plan asset linking are atomic.
+- [x] Explicit rejected asset/floor-plan persistence removes the uploaded object in unit contracts.
+- [x] Public-share API and page responses are `no-store` and `noindex` in application/header contracts.
+- [x] Real isolated MySQL tests exercise every named TR-03 scoped helper and rollback path.
+- [x] Authorization inventory covers the full 329-procedure app router with hash-bound final-write evidence.
+- [x] Unit tests, MySQL integration, authorization audit, TypeScript, build, and independent security review pass.
+- [ ] Authorized PlanetScale development-branch compatibility run passes.
+- [x] Canonical-main and production release remain stopped at their explicit human gates until separately authorized.
 
 ## Baseline Evidence
 
-- Branch: `codex/loop-engineering-architecture` at `d6f7940` plus existing uncommitted work.
-- Existing dirty files: `api/index.js`, `client/src/App.tsx`, `drizzle/meta/_journal.json`, `server/_core/index.ts`, `server/routers/learning.ts`, migration `0044`, and runtime-safety files.
-- `pnpm audit:authorization`: PASS; 327 procedures and 140 remediation rows, including 39 assigned to TR-03.
-- TR-02 authorization suite: PASS; 49 tests.
+- Branch created from `1f972f4`.
+- `pnpm audit:authorization`: PASS but covers 327 router-directory procedures and omits two system procedures.
+- Targeted authorization suite: 68 passing tests.
 - `pnpm check`: PASS.
+- Production currently runs the feature-branch release rather than canonical `main`.
 
-## Plan
+## Current Verification Evidence
 
-- [x] Add named design-resource authorization resolvers and organization-scoped database helpers.
-- [x] Guard project, asset, brief, visual, board, comment, floor-plan, evidence, DLD, and share procedures.
-- [x] Validate composite and polymorphic resource consistency before downstream work.
-- [x] Add router contract and side-effect suppression tests.
-- [x] Regenerate authorization evidence, run the full verification ladder, perform adversarial review, and close durable state.
-
-## Completion Evidence
-
-- `pnpm audit:authorization`: PASS; 327 procedures, zero `TR-03` rows, 93 `TR-04` rows, and eight `TR-05` rows.
-- Authorization suites: PASS; 68 tests across the design router and TR-02 primitives.
-- `pnpm check`: PASS with zero diagnostics.
-- `DATABASE_URL='' pnpm test`: PASS; 886 passed and 22 skipped across 40 files, with no database connection.
-- Client, Node, and serverless builds: PASS; serverless output was directed to `/tmp` so the pre-existing user-owned `api/index.js` remained untouched.
-- Scoped diff check: PASS.
-- Independent adversarial review: `APPROVED_NO_OBJECTION` after two requested-change rounds were resolved.
-- No schema migration, shared database action, deployment, commit, or push was performed.
+- `DATABASE_URL='' pnpm test`: PASS, 930 passed and 22 skipped.
+- `pnpm check`: PASS.
+- `pnpm audit:authorization`: PASS, 329 procedures.
+- `pnpm build`: PASS for client, Node server, and generated serverless bundle.
+- Membership, design-role, public-share-header, upload-compensation, and design authorization contracts: 63 passing targeted tests.
+- Guarded MySQL launcher rejects caller-provided `DATABASE_URL` and non-local `TEST_DATABASE_URL`.
+- First guarded MySQL 8 run exposed Drizzle-wrapped duplicate-key handling; the retry detector was corrected to inspect the error cause chain.
+- Final guarded MySQL 8 run: PASS, 7/7 serial real-SQL tests; transaction rollback triggers, two-connection ownership locking, unique indexes, and scoped writes passed.
+- Runner-finally cleanup was independently queried at zero remaining fixture rows; the disposable container was removed.
+- MySQL evidence is bound to SHA-256 hashes of the tested schema, migration, helpers, router, runner/config, cleanup script, and test source; the authorization audit downgrades stale hashes.
+- Complete-diff Claude review ended `APPROVED_NO_OBJECTION` after verifying evidence hash binding in normal audit check mode.
 
 ## Next Action
 
-Start `TR-04 — Authorize remaining project routers`.
+Push the reviewed branch and open its draft PR; then obtain separate authorization for the PlanetScale compatibility run before any canonical-main, shared-migration, or deployment action.

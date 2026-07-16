@@ -6,6 +6,7 @@
  * Route: /share/:token
  */
 import { useParams } from "wouter";
+import { useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,24 @@ function gradeColor(g: string) {
 export default function ShareView() {
     const params = useParams<{ token: string }>();
     const token = params.token ?? "";
+
+    useEffect(() => {
+        const existing = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+        const previous = existing?.content;
+        const meta = existing ?? document.createElement("meta");
+        if (!existing) {
+            meta.name = "robots";
+            document.head.appendChild(meta);
+        }
+        meta.content = "noindex, nofollow, noarchive";
+        return () => {
+            if (existing && previous !== undefined) {
+                existing.content = previous;
+            } else {
+                meta.remove();
+            }
+        };
+    }, []);
 
     const { data, isLoading, error } = trpc.design.resolveShareLink.useQuery(
         { token },

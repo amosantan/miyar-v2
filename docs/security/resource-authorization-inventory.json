@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-07-16T13:58:12.870Z",
-  "sourceRoot": "server/routers",
-  "procedureCount": 327,
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-16T15:26:42.964Z",
+  "sourceRoot": "server/routers + server/_core/systemRouter.ts",
+  "procedureCount": 329,
   "allowedClassifications": [
     "org_guarded",
     "public_token_guarded",
@@ -21,6 +21,11 @@
     "TR-05",
     "NEEDS_HUMAN",
     "none"
+  ],
+  "allowedIntegrationEvidenceStatuses": [
+    "not_applicable",
+    "defined_not_executed",
+    "executed"
   ],
   "procedures": [
     {
@@ -42,6 +47,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -67,6 +76,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -88,6 +101,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -109,6 +126,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -130,6 +151,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -155,6 +180,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -180,6 +209,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -201,6 +234,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -220,6 +257,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -239,6 +280,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -260,6 +305,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -282,6 +331,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -308,6 +361,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -329,6 +386,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -350,6 +411,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -371,6 +436,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -392,6 +461,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -411,6 +484,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -432,6 +509,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -453,6 +534,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -476,6 +561,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -495,6 +584,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -526,6 +619,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -547,6 +644,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -568,6 +669,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -587,6 +692,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -608,6 +717,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -629,6 +742,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -650,6 +767,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -671,6 +792,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -692,6 +817,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -713,6 +842,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -734,6 +867,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -755,6 +892,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -781,6 +922,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -802,6 +947,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -829,6 +978,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -850,6 +1003,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-05.",
       "targetStep": "TR-05",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
     },
     {
@@ -869,6 +1026,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -890,6 +1051,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -911,6 +1076,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -932,6 +1101,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-05.",
       "targetStep": "TR-05",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
     },
     {
@@ -953,6 +1126,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -974,6 +1151,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -995,6 +1176,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1016,6 +1201,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1042,6 +1231,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1063,6 +1256,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1082,6 +1279,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1109,6 +1310,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1130,6 +1335,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1151,6 +1360,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1172,6 +1385,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1193,6 +1410,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1212,6 +1433,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1231,6 +1456,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1252,6 +1481,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1271,6 +1504,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1292,6 +1529,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1320,6 +1561,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1347,6 +1592,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1368,6 +1617,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1389,6 +1642,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1414,6 +1671,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1438,6 +1699,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1469,6 +1734,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-05.",
       "targetStep": "TR-05",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
     },
     {
@@ -1501,6 +1770,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1520,6 +1793,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1539,6 +1816,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1563,6 +1844,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1585,6 +1870,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1606,6 +1895,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1625,6 +1918,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -1648,14 +1945,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.addComment",
       "router": "design",
       "procedure": "addComment",
-      "source": "server/routers/design.ts:1129",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:1172",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["entityId", "projectId"],
       "helperCalls": [
@@ -1675,14 +1976,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.createCommentForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "validates all polymorphic link targets, typed comments and evidence isolation",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.addMaterialToBoard",
       "router": "design",
       "procedure": "addMaterialToBoard",
-      "source": "server/routers/design.ts:818",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:861",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["boardId", "materialId"],
       "helperCalls": ["requireDesignBoard", "db.addMaterialToBoardForOrg"],
@@ -1697,14 +2002,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.addMaterialToBoardForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "creates and rolls back scenario-bound boards atomically",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.analyzeFloorPlan",
       "router": "design",
       "procedure": "analyzeFloorPlan",
-      "source": "server/routers/design.ts:1792",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:1877",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["projectId"],
       "helperCalls": [
@@ -1722,14 +2031,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.updateProjectForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.attachVisualToPack",
       "router": "design",
       "procedure": "attachVisualToPack",
-      "source": "server/routers/design.ts:654",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:709",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["targetId", "visualId"],
       "helperCalls": [],
@@ -1744,13 +2057,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Fails closed with PRECONDITION_FAILED and performs no data access until a typed visual-attachment model is approved."
     },
     {
       "key": "design.boardSummary",
       "router": "design",
       "procedure": "boardSummary",
-      "source": "server/routers/design.ts:963",
+      "source": "server/routers/design.ts:1006",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["boardId"],
@@ -1771,13 +2088,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.calculateSpec",
       "router": "design",
       "procedure": "calculateSpec",
-      "source": "server/routers/design.ts:1218",
+      "source": "server/routers/design.ts:1261",
       "accessPrimitive": "protectedProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -1792,26 +2113,27 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.createBoard",
       "router": "design",
       "procedure": "createBoard",
-      "source": "server/routers/design.ts:743",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:798",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["materialIds", "projectId", "scenarioId"],
       "helperCalls": [
         "requireDesignProject",
         "requireDesignScenario",
         "requireSameDesignProject",
-        "db.getMaterialById",
-        "db.createMaterialBoardForOrg",
-        "db.addMaterialToBoardForOrg",
-        "db.createAuditLog"
+        "db.createMaterialBoardWithMaterialsForOrg"
       ],
-      "firstDataAccess": "db.getMaterialById",
+      "firstDataAccess": "db.createMaterialBoardWithMaterialsForOrg",
       "resourceTypes": ["material", "project", "scenario"],
       "ownershipPath": [
         "input.materialIds[] -> materials_catalog.id -> governed global materials",
@@ -1823,13 +2145,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.createMaterialBoardWithMaterialsForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "creates and rolls back scenario-bound boards atomically",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.createMaterial",
       "router": "design",
       "procedure": "createMaterial",
-      "source": "server/routers/design.ts:1032",
+      "source": "server/routers/design.ts:1075",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -1844,13 +2170,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.createPromptTemplate",
       "router": "design",
       "procedure": "createPromptTemplate",
-      "source": "server/routers/design.ts:1102",
+      "source": "server/routers/design.ts:1145",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -1865,20 +2195,24 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.createShareLink",
       "router": "design",
       "procedure": "createShareLink",
-      "source": "server/routers/design.ts:1583",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:1626",
+      "accessPrimitive": "designOrgAdminProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["projectId"],
       "helperCalls": [
         "requireDesignProject",
         "db.getLatestAiDesignBrief",
-        "db.updateAiDesignBriefShareToken"
+        "db.updateAiDesignBriefShareTokenForOrg"
       ],
       "firstDataAccess": "db.getLatestAiDesignBrief",
       "resourceTypes": ["project"],
@@ -1888,14 +2222,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.updateAiDesignBriefShareTokenForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.deleteAsset",
       "router": "design",
       "procedure": "deleteAsset",
-      "source": "server/routers/design.ts:134",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:186",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["assetId"],
       "helperCalls": [
@@ -1913,14 +2251,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.deleteProjectAssetForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "scopes project assets and generated visuals through project ownership",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.deleteBoard",
       "router": "design",
       "procedure": "deleteBoard",
-      "source": "server/routers/design.ts:845",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:888",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["boardId"],
       "helperCalls": [
@@ -1938,13 +2280,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.deleteMaterialBoardForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.deleteMaterial",
       "router": "design",
       "procedure": "deleteMaterial",
-      "source": "server/routers/design.ts:1087",
+      "source": "server/routers/design.ts:1130",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["id"],
@@ -1959,14 +2305,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.exportBoardPdf",
       "router": "design",
       "procedure": "exportBoardPdf",
-      "source": "server/routers/design.ts:901",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:944",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["boardId"],
       "helperCalls": [
@@ -1989,14 +2339,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.exportBriefDocx",
       "router": "design",
       "procedure": "exportBriefDocx",
-      "source": "server/routers/design.ts:457",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:512",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["briefId"],
       "helperCalls": [
@@ -2014,14 +2368,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.exportInvestorPdf",
       "router": "design",
       "procedure": "exportInvestorPdf",
-      "source": "server/routers/design.ts:1530",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:1573",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["projectId"],
       "helperCalls": [
@@ -2040,14 +2398,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.generateBrief",
       "router": "design",
       "procedure": "generateBrief",
-      "source": "server/routers/design.ts:192",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:244",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["projectId", "scenarioId"],
       "helperCalls": [
@@ -2083,14 +2445,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.createDesignBriefForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.generateRfqFromBrief",
       "router": "design",
       "procedure": "generateRfqFromBrief",
-      "source": "server/routers/design.ts:391",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:443",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["briefId", "projectId"],
       "helperCalls": [
@@ -2099,8 +2465,7 @@
         "requireSameDesignProject",
         "db.getAllMaterials",
         "buildRFQFromBrief",
-        "db.insertRfqLineItemForOrg",
-        "db.createAuditLog"
+        "db.insertRfqLineItemsForOrg"
       ],
       "firstDataAccess": "db.getAllMaterials",
       "resourceTypes": ["brief", "project"],
@@ -2113,14 +2478,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.insertRfqLineItemsForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.generateRoomRender",
       "router": "design",
       "procedure": "generateRoomRender",
-      "source": "server/routers/design.ts:1665",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:1743",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["projectId"],
       "helperCalls": [
@@ -2143,14 +2512,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "scopes project assets and generated visuals through project ownership",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.generateVisual",
       "router": "design",
       "procedure": "generateVisual",
-      "source": "server/routers/design.ts:482",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:537",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["projectId", "scenarioId", "templateId"],
       "helperCalls": [
@@ -2184,13 +2557,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "scopes project assets and generated visuals through project ownership",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.getAreaBenchmark",
       "router": "design",
       "procedure": "getAreaBenchmark",
-      "source": "server/routers/design.ts:1397",
+      "source": "server/routers/design.ts:1440",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["areaId"],
@@ -2205,13 +2582,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getAreaBenchmarks",
       "router": "design",
       "procedure": "getAreaBenchmarks",
-      "source": "server/routers/design.ts:1392",
+      "source": "server/routers/design.ts:1435",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -2226,13 +2607,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getAssetLinks",
       "router": "design",
       "procedure": "getAssetLinks",
-      "source": "server/routers/design.ts:178",
+      "source": "server/routers/design.ts:230",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["assetId"],
@@ -2251,13 +2636,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getBenchmarkForProject",
       "router": "design",
       "procedure": "getBenchmarkForProject",
-      "source": "server/routers/design.ts:1332",
+      "source": "server/routers/design.ts:1375",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2270,13 +2659,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getBoard",
       "router": "design",
       "procedure": "getBoard",
-      "source": "server/routers/design.ts:803",
+      "source": "server/routers/design.ts:846",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["boardId"],
@@ -2296,13 +2689,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getBrief",
       "router": "design",
       "procedure": "getBrief",
-      "source": "server/routers/design.ts:372",
+      "source": "server/routers/design.ts:424",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["briefId"],
@@ -2317,13 +2714,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getCompetitorContext",
       "router": "design",
       "procedure": "getCompetitorContext",
-      "source": "server/routers/design.ts:1522",
+      "source": "server/routers/design.ts:1565",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -2338,13 +2739,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getDataFreshness",
       "router": "design",
       "procedure": "getDataFreshness",
-      "source": "server/routers/design.ts:1436",
+      "source": "server/routers/design.ts:1479",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -2363,13 +2768,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getDesignTrends",
       "router": "design",
       "procedure": "getDesignTrends",
-      "source": "server/routers/design.ts:1308",
+      "source": "server/routers/design.ts:1351",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2382,13 +2791,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getDldAreaComparison",
       "router": "design",
       "procedure": "getDldAreaComparison",
-      "source": "server/routers/design.ts:1374",
+      "source": "server/routers/design.ts:1417",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["areaId"],
@@ -2408,13 +2821,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getDldAreas",
       "router": "design",
       "procedure": "getDldAreas",
-      "source": "server/routers/design.ts:1369",
+      "source": "server/routers/design.ts:1412",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -2429,13 +2846,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getDldDataStats",
       "router": "design",
       "procedure": "getDldDataStats",
-      "source": "server/routers/design.ts:1403",
+      "source": "server/routers/design.ts:1446",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -2450,13 +2871,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getEvidenceChain",
       "router": "design",
       "procedure": "getEvidenceChain",
-      "source": "server/routers/design.ts:1505",
+      "source": "server/routers/design.ts:1548",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2469,13 +2894,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getLatestBrief",
       "router": "design",
       "procedure": "getLatestBrief",
-      "source": "server/routers/design.ts:380",
+      "source": "server/routers/design.ts:432",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2492,13 +2921,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getMaterial",
       "router": "design",
       "procedure": "getMaterial",
-      "source": "server/routers/design.ts:1026",
+      "source": "server/routers/design.ts:1069",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": ["id"],
@@ -2513,13 +2946,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getMaterialConstants",
       "router": "design",
       "procedure": "getMaterialConstants",
-      "source": "server/routers/design.ts:1203",
+      "source": "server/routers/design.ts:1246",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -2534,13 +2971,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getProjectDldBenchmark",
       "router": "design",
       "procedure": "getProjectDldBenchmark",
-      "source": "server/routers/design.ts:1413",
+      "source": "server/routers/design.ts:1456",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2553,13 +2994,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.getSpaceBenchmark",
       "router": "design",
       "procedure": "getSpaceBenchmark",
-      "source": "server/routers/design.ts:1840",
+      "source": "server/routers/design.ts:1925",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2572,14 +3017,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.linkAsset",
       "router": "design",
       "procedure": "linkAsset",
-      "source": "server/routers/design.ts:165",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:217",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["assetId", "linkId"],
       "helperCalls": [
@@ -2598,13 +3047,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.createAssetLinkForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "validates all polymorphic link targets, typed comments and evidence isolation",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.listAssets",
       "router": "design",
       "procedure": "listAssets",
-      "source": "server/routers/design.ts:83",
+      "source": "server/routers/design.ts:121",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2617,13 +3070,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Requires the canonical design project guard before listing project assets."
     },
     {
       "key": "design.listBoards",
       "router": "design",
       "procedure": "listBoards",
-      "source": "server/routers/design.ts:792",
+      "source": "server/routers/design.ts:835",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2640,13 +3097,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.listBriefs",
       "router": "design",
       "procedure": "listBriefs",
-      "source": "server/routers/design.ts:361",
+      "source": "server/routers/design.ts:413",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2663,13 +3124,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.listComments",
       "router": "design",
       "procedure": "listComments",
-      "source": "server/routers/design.ts:1154",
+      "source": "server/routers/design.ts:1197",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["entityId", "projectId"],
@@ -2691,13 +3156,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.listMaterials",
       "router": "design",
       "procedure": "listMaterials",
-      "source": "server/routers/design.ts:1020",
+      "source": "server/routers/design.ts:1063",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -2712,13 +3181,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.listPinnedVisuals",
       "router": "design",
       "procedure": "listPinnedVisuals",
-      "source": "server/routers/design.ts:701",
+      "source": "server/routers/design.ts:756",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["boardId"],
@@ -2738,13 +3211,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.listPromptTemplates",
       "router": "design",
       "procedure": "listPromptTemplates",
-      "source": "server/routers/design.ts:1096",
+      "source": "server/routers/design.ts:1139",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -2759,13 +3236,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.listVisuals",
       "router": "design",
       "procedure": "listVisuals",
-      "source": "server/routers/design.ts:634",
+      "source": "server/routers/design.ts:689",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2785,14 +3266,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.pinVisualToBoard",
       "router": "design",
       "procedure": "pinVisualToBoard",
-      "source": "server/routers/design.ts:670",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:725",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["boardId", "visualId"],
       "helperCalls": [
@@ -2814,13 +3299,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.createAssetLinkForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "validates all polymorphic link targets, typed comments and evidence isolation",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.recommendMaterials",
       "router": "design",
       "procedure": "recommendMaterials",
-      "source": "server/routers/design.ts:992",
+      "source": "server/routers/design.ts:1035",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": ["projectId"],
@@ -2833,14 +3322,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.removeMaterialFromBoard",
       "router": "design",
       "procedure": "removeMaterialFromBoard",
-      "source": "server/routers/design.ts:837",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:880",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["joinId"],
       "helperCalls": [
@@ -2857,14 +3350,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.removeMaterialFromBoardForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "creates and rolls back scenario-bound boards atomically",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.reorderBoardTiles",
       "router": "design",
       "procedure": "reorderBoardTiles",
-      "source": "server/routers/design.ts:882",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:925",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["boardId", "orderedJoinIds"],
       "helperCalls": [
@@ -2884,13 +3381,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.reorderBoardTilesForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "creates and rolls back scenario-bound boards atomically",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.resolveShareLink",
       "router": "design",
       "procedure": "resolveShareLink",
-      "source": "server/routers/design.ts:1596",
+      "source": "server/routers/design.ts:1674",
       "accessPrimitive": "publicProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -2912,14 +3413,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed."
     },
     {
       "key": "design.unpinVisual",
       "router": "design",
       "procedure": "unpinVisual",
-      "source": "server/routers/design.ts:721",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:776",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["linkId"],
       "helperCalls": [
@@ -2938,14 +3443,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.deleteAssetLinkForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "validates all polymorphic link targets, typed comments and evidence isolation",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.updateApprovalState",
       "router": "design",
       "procedure": "updateApprovalState",
-      "source": "server/routers/design.ts:1177",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:1220",
+      "accessPrimitive": "designOrgAdminProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["projectId"],
       "helperCalls": [
@@ -2961,14 +3470,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.updateProjectApprovalStateForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.updateAsset",
       "router": "design",
       "procedure": "updateAsset",
-      "source": "server/routers/design.ts:150",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:202",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["assetId"],
       "helperCalls": ["requireDesignAsset", "db.updateProjectAssetForOrg"],
@@ -2982,14 +3495,18 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.updateProjectAssetForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "scopes project assets and generated visuals through project ownership",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.updateBoardTile",
       "router": "design",
       "procedure": "updateBoardTile",
-      "source": "server/routers/design.ts:860",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:903",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["joinId"],
       "helperCalls": ["requireDesignBoardJoin", "db.updateBoardTileForOrg"],
@@ -3003,13 +3520,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.updateBoardTileForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "creates and rolls back scenario-bound boards atomically",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.updateMaterial",
       "router": "design",
       "procedure": "updateMaterial",
-      "source": "server/routers/design.ts:1063",
+      "source": "server/routers/design.ts:1106",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["id"],
@@ -3024,13 +3545,17 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.updatePromptTemplate",
       "router": "design",
       "procedure": "updatePromptTemplate",
-      "source": "server/routers/design.ts:1113",
+      "source": "server/routers/design.ts:1156",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["id"],
@@ -3045,21 +3570,25 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
       "key": "design.uploadAsset",
       "router": "design",
       "procedure": "uploadAsset",
-      "source": "server/routers/design.ts:90",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:128",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["projectId"],
       "helperCalls": [
         "requireDesignProject",
         "storagePut",
         "db.createProjectAssetForOrg",
-        "db.createAuditLog"
+        "reportIndeterminateUploadPersistence"
       ],
       "firstDataAccess": "storagePut",
       "resourceTypes": ["project"],
@@ -3069,22 +3598,25 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.createProjectAssetForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "scopes project assets and generated visuals through project ownership",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
       "key": "design.uploadFloorPlan",
       "router": "design",
       "procedure": "uploadFloorPlan",
-      "source": "server/routers/design.ts:1745",
-      "accessPrimitive": "orgProcedure",
+      "source": "server/routers/design.ts:1823",
+      "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["projectId"],
       "helperCalls": [
         "requireDesignProject",
         "storagePut",
-        "db.createProjectAssetForOrg",
-        "db.updateProjectForOrg",
-        "db.createAuditLog"
+        "db.createFloorPlanAssetAndLinkForOrg",
+        "reportIndeterminateUploadPersistence"
       ],
       "firstDataAccess": "storagePut",
       "resourceTypes": ["project"],
@@ -3094,6 +3626,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": "db.createFloorPlanAssetAndLinkForOrg",
+      "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
+      "integrationTestName": "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3115,6 +3651,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3136,6 +3676,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3157,6 +3701,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3178,6 +3726,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3199,6 +3751,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3220,6 +3776,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3241,6 +3801,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3260,6 +3824,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3279,6 +3847,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3298,6 +3870,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3324,6 +3900,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3345,6 +3925,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3366,6 +3950,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3387,6 +3975,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3412,6 +4004,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3437,6 +4033,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3462,6 +4062,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3483,6 +4087,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3512,6 +4120,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3533,6 +4145,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3554,6 +4170,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3575,6 +4195,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3596,6 +4220,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3617,6 +4245,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3638,6 +4270,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3659,6 +4295,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3681,6 +4321,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3700,6 +4344,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3726,6 +4374,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3745,6 +4397,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3766,6 +4422,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3787,6 +4447,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3813,6 +4477,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3834,6 +4502,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3855,6 +4527,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3874,6 +4550,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3899,6 +4579,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3922,6 +4606,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3943,6 +4631,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3964,6 +4656,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -3985,6 +4681,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4006,6 +4706,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4027,6 +4731,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4048,6 +4756,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4069,6 +4781,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4090,6 +4806,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4111,6 +4831,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4130,6 +4854,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4149,6 +4877,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4170,6 +4902,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4197,6 +4933,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4226,6 +4966,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4247,6 +4991,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4268,6 +5016,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4289,6 +5041,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4308,6 +5064,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4329,6 +5089,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4350,6 +5114,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4377,6 +5145,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4398,6 +5170,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4419,6 +5195,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4438,6 +5218,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4459,6 +5243,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4480,6 +5268,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4499,6 +5291,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4530,6 +5326,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-05.",
       "targetStep": "TR-05",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
     },
     {
@@ -4565,6 +5365,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-05.",
       "targetStep": "TR-05",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
     },
     {
@@ -4586,6 +5390,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4607,6 +5415,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4631,6 +5443,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4657,6 +5473,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4678,6 +5498,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4699,6 +5523,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4720,6 +5548,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4741,6 +5573,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4762,6 +5598,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4783,6 +5623,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4802,6 +5646,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4823,6 +5671,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4844,6 +5696,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4865,6 +5721,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4884,6 +5744,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4906,6 +5770,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4930,6 +5798,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4954,6 +5826,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4975,6 +5851,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -4996,6 +5876,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5017,6 +5901,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5036,6 +5924,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5058,6 +5950,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5079,6 +5975,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5098,6 +5998,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5123,6 +6027,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5144,6 +6052,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5165,6 +6077,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5193,6 +6109,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5218,6 +6138,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5239,6 +6163,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5260,6 +6188,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5281,6 +6213,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5302,6 +6238,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5323,6 +6263,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5344,6 +6288,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5363,6 +6311,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5387,6 +6339,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5408,6 +6364,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5429,6 +6389,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5450,6 +6414,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5471,6 +6439,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5492,6 +6464,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5514,6 +6490,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5535,6 +6515,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5556,6 +6540,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5577,6 +6565,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5598,6 +6590,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5619,6 +6615,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5638,6 +6638,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5659,6 +6663,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5690,6 +6698,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5717,6 +6729,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5736,6 +6752,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5760,6 +6780,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5781,6 +6805,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5791,19 +6819,8 @@
       "accessPrimitive": "protectedProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
-      "helperCalls": [
-        "getDb",
-        "db.limit",
-        "db.where",
-        "db.from",
-        "db.select",
-        "db.values",
-        "db.insert",
-        "db.set",
-        "db.update",
-        "db.delete"
-      ],
-      "firstDataAccess": "db.select",
+      "helperCalls": ["getDb", "db.transaction"],
+      "firstDataAccess": "db.transaction",
       "resourceTypes": [],
       "ownershipPath": [
         "input.token -> organization_invites.token -> organization_invites.orgId -> organizations.id"
@@ -5813,6 +6830,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Invite-token authorization is distinct from session organization context; the token selects one organization and expiry is checked before membership mutation."
     },
     {
@@ -5844,6 +6865,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5873,6 +6898,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5900,6 +6929,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5929,6 +6962,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5957,6 +6994,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -5995,6 +7036,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6016,6 +7061,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6037,6 +7086,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6073,6 +7126,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6112,6 +7169,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6142,6 +7203,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6164,6 +7229,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6192,6 +7261,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6217,6 +7290,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-05.",
       "targetStep": "TR-05",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
     },
     {
@@ -6242,6 +7319,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-05.",
       "targetStep": "TR-05",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
     },
     {
@@ -6265,6 +7346,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6291,6 +7376,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6317,6 +7406,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-05.",
       "targetStep": "TR-05",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
     },
     {
@@ -6348,6 +7441,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6369,6 +7466,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6392,6 +7493,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6436,6 +7541,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6465,6 +7574,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6488,6 +7601,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6542,6 +7659,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6561,6 +7682,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6580,6 +7705,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6599,6 +7728,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6621,6 +7754,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6642,6 +7779,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6661,6 +7802,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6686,6 +7831,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6710,6 +7859,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6731,6 +7884,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6756,6 +7913,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6775,6 +7936,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6799,6 +7964,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6827,6 +7996,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6846,6 +8019,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6865,6 +8042,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6887,6 +8068,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6915,6 +8100,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6938,6 +8127,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6959,6 +8152,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6978,6 +8175,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -6997,6 +8198,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7018,6 +8223,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7037,6 +8246,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7056,6 +8269,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7077,6 +8294,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7101,6 +8322,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7120,6 +8345,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7141,6 +8370,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7160,6 +8393,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7179,6 +8416,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7200,6 +8441,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7242,6 +8487,10 @@
       "severity": "medium",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7261,6 +8510,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7283,6 +8536,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7310,6 +8567,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7336,6 +8597,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7362,6 +8627,10 @@
       "severity": "none",
       "disposition": "No remediation assigned; retain classification evidence.",
       "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7389,6 +8658,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7411,6 +8684,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7432,6 +8709,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7451,6 +8732,10 @@
       "severity": "critical",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7470,6 +8755,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7489,6 +8778,10 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     },
     {
@@ -7508,6 +8801,60 @@
       "severity": "high",
       "disposition": "Remediate under TR-04.",
       "targetStep": "TR-04",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
+      "notes": ""
+    },
+    {
+      "key": "system.health",
+      "router": "system",
+      "procedure": "health",
+      "source": "server/_core/systemRouter.ts:6",
+      "accessPrimitive": "publicProcedure",
+      "operation": "query",
+      "inputIdentifiers": [],
+      "helperCalls": [],
+      "firstDataAccess": null,
+      "resourceTypes": [],
+      "ownershipPath": [
+        "session/user credential, deterministic input, or non-project workflow -> no project/org-owned identifier is accepted"
+      ],
+      "authorizationEvidence": "No project-owned identifier or project-data helper detected.",
+      "classification": "not_project_scoped",
+      "severity": "none",
+      "disposition": "No remediation assigned; retain classification evidence.",
+      "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
+      "notes": ""
+    },
+    {
+      "key": "system.notifyOwner",
+      "router": "system",
+      "procedure": "notifyOwner",
+      "source": "server/_core/systemRouter.ts:16",
+      "accessPrimitive": "adminProcedure",
+      "operation": "mutation",
+      "inputIdentifiers": [],
+      "helperCalls": [],
+      "firstDataAccess": null,
+      "resourceTypes": [],
+      "ownershipPath": [
+        "authenticated global admin role -> governed administrative resource"
+      ],
+      "authorizationEvidence": "Requires the global admin role; resource scope remains part of the admin-governance review.",
+      "classification": "admin_governed",
+      "severity": "none",
+      "disposition": "No remediation assigned; retain classification evidence.",
+      "targetStep": "none",
+      "finalScopedWrite": null,
+      "integrationTest": null,
+      "integrationTestName": null,
+      "integrationEvidenceStatus": "not_applicable",
       "notes": ""
     }
   ]

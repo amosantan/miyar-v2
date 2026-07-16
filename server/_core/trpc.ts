@@ -2,6 +2,7 @@ import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '../../shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
+import * as db from "../db";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -55,16 +56,52 @@ const requireOrg = t.middleware(async opts => {
     throw new TRPCError({ code: "FORBIDDEN", message: "User does not belong to an organization" });
   }
 
+  const memberships = await db.getOrganizationMemberships(
+    ctx.user.id,
+    ctx.user.orgId
+  );
+  if (memberships.length !== 1) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "User does not belong to this organization",
+    });
+  }
+
   return next({
     ctx: {
       ...ctx,
       user: ctx.user,
       orgId: ctx.user.orgId,
+      orgRole: memberships[0].role,
     },
   });
 });
 
 export const orgProcedure = t.procedure.use(requireOrg);
+
+export const designOrgMutationProcedure = orgProcedure.use(
+  async ({ ctx, next }) => {
+    if (ctx.orgRole === "viewer") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Organization viewer access is read-only",
+      });
+    }
+    return next({ ctx });
+  }
+);
+
+export const designOrgAdminProcedure = orgProcedure.use(
+  async ({ ctx, next }) => {
+    if (ctx.orgRole !== "admin") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Organization administrator access is required",
+      });
+    }
+    return next({ ctx });
+  }
+);
 
 // ─── Rate-limited procedure for expensive compute mutations ─────────────────
 import { createRateLimitMiddleware } from "./rate-limit";
@@ -73,4 +110,3 @@ import { createRateLimitMiddleware } from "./rate-limit";
 export const heavyProcedure = t.procedure
   .use(requireUser)
   .use(createRateLimitMiddleware(t, { max: 5, windowMs: 60_000, keyPrefix: "heavy" }));
-

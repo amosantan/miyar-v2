@@ -1,7 +1,13 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import * as ts from "typescript";
+import {
+  MYSQL_EVIDENCE_FILE,
+  MYSQL_INTEGRATION_TEST,
+  REQUIRED_MYSQL_EVIDENCE_FILES,
+} from "./tr03h-mysql-evidence-contract";
 
 const ROOT = process.cwd();
 const ROUTERS_DIR = path.join(ROOT, "server/routers");
@@ -13,8 +19,11 @@ const REPORT_PATH = path.join(
   ROOT,
   "docs/security/RESOURCE_AUTHORIZATION_INVENTORY.md"
 );
+const MYSQL_EVIDENCE_PATH = path.join(ROOT, MYSQL_EVIDENCE_FILE);
 
 const ACCESS_PRIMITIVES = [
+  "designOrgAdminProcedure",
+  "designOrgMutationProcedure",
   "publicProcedure",
   "protectedProcedure",
   "orgProcedure",
@@ -42,11 +51,18 @@ const TARGET_STEPS = [
   "NEEDS_HUMAN",
   "none",
 ] as const;
+const INTEGRATION_EVIDENCE_STATUSES = [
+  "not_applicable",
+  "defined_not_executed",
+  "executed",
+] as const;
 
 type AccessPrimitive = (typeof ACCESS_PRIMITIVES)[number];
 type Classification = (typeof CLASSIFICATIONS)[number];
 type Severity = (typeof SEVERITIES)[number];
 type TargetStep = (typeof TARGET_STEPS)[number];
+type IntegrationEvidenceStatus =
+  (typeof INTEGRATION_EVIDENCE_STATUSES)[number];
 type Operation = "query" | "mutation" | "subscription";
 
 interface ExtractedProcedure {
@@ -71,16 +87,21 @@ interface InventoryProcedure extends Omit<ExtractedProcedure, "sourceText"> {
   disposition: string;
   targetStep: TargetStep;
   notes: string;
+  finalScopedWrite: string | null;
+  integrationTest: string | null;
+  integrationTestName: string | null;
+  integrationEvidenceStatus: IntegrationEvidenceStatus;
 }
 
 interface InventoryDocument {
-  schemaVersion: 1;
+  schemaVersion: 2;
   generatedAt: string;
-  sourceRoot: "server/routers";
+  sourceRoot: "server/routers + server/_core/systemRouter.ts";
   procedureCount: number;
   allowedClassifications: readonly Classification[];
   allowedSeverities: readonly Severity[];
   allowedTargetSteps: readonly TargetStep[];
+  allowedIntegrationEvidenceStatuses: readonly IntegrationEvidenceStatus[];
   procedures: InventoryProcedure[];
 }
 
@@ -92,6 +113,95 @@ const RESOURCE_HELPER_PATTERN =
   /(Project|Asset|Brief|Scenario|Report|Board|Visual|Comment|Room|Outcome|Evidence|Portfolio|BiasAlert|Simulation|Allocation|Checklist|Recommendation|Rfq|Share)/i;
 
 const GLOBAL_ROUTER_PATTERN = /^(admin|ingestion|market-intelligence)$/;
+const SCOPED_WRITE_EVIDENCE: Record<
+  string,
+  { finalScopedWrite: string; integrationTestName: string }
+> = {
+  "design.addComment": {
+    finalScopedWrite: "db.createCommentForOrg",
+    integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",
+  },
+  "design.addMaterialToBoard": {
+    finalScopedWrite: "db.addMaterialToBoardForOrg",
+    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+  },
+  "design.analyzeFloorPlan": {
+    finalScopedWrite: "db.updateProjectForOrg",
+    integrationTestName: "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+  },
+  "design.createBoard": {
+    finalScopedWrite: "db.createMaterialBoardWithMaterialsForOrg",
+    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+  },
+  "design.createShareLink": {
+    finalScopedWrite: "db.updateAiDesignBriefShareTokenForOrg",
+    integrationTestName: "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+  },
+  "design.deleteAsset": {
+    finalScopedWrite: "db.deleteProjectAssetForOrg",
+    integrationTestName: "scopes project assets and generated visuals through project ownership",
+  },
+  "design.deleteBoard": {
+    finalScopedWrite: "db.deleteMaterialBoardForOrg",
+    integrationTestName: "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+  },
+  "design.generateBrief": {
+    finalScopedWrite: "db.createDesignBriefForOrg",
+    integrationTestName: "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+  },
+  "design.generateRfqFromBrief": {
+    finalScopedWrite: "db.insertRfqLineItemsForOrg",
+    integrationTestName: "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+  },
+  "design.generateRoomRender": {
+    finalScopedWrite: "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
+    integrationTestName: "scopes project assets and generated visuals through project ownership",
+  },
+  "design.generateVisual": {
+    finalScopedWrite: "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
+    integrationTestName: "scopes project assets and generated visuals through project ownership",
+  },
+  "design.linkAsset": {
+    finalScopedWrite: "db.createAssetLinkForOrg",
+    integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",
+  },
+  "design.pinVisualToBoard": {
+    finalScopedWrite: "db.createAssetLinkForOrg",
+    integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",
+  },
+  "design.removeMaterialFromBoard": {
+    finalScopedWrite: "db.removeMaterialFromBoardForOrg",
+    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+  },
+  "design.reorderBoardTiles": {
+    finalScopedWrite: "db.reorderBoardTilesForOrg",
+    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+  },
+  "design.unpinVisual": {
+    finalScopedWrite: "db.deleteAssetLinkForOrg",
+    integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",
+  },
+  "design.updateApprovalState": {
+    finalScopedWrite: "db.updateProjectApprovalStateForOrg",
+    integrationTestName: "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+  },
+  "design.updateAsset": {
+    finalScopedWrite: "db.updateProjectAssetForOrg",
+    integrationTestName: "scopes project assets and generated visuals through project ownership",
+  },
+  "design.updateBoardTile": {
+    finalScopedWrite: "db.updateBoardTileForOrg",
+    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+  },
+  "design.uploadAsset": {
+    finalScopedWrite: "db.createProjectAssetForOrg",
+    integrationTestName: "scopes project assets and generated visuals through project ownership",
+  },
+  "design.uploadFloorPlan": {
+    finalScopedWrite: "db.createFloorPlanAssetAndLinkForOrg",
+    integrationTestName: "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+  },
+};
 
 const OWNERSHIP_PATHS: Record<string, string> = {
   projectId: "input.projectId -> projects.id -> projects.orgId",
@@ -409,13 +519,17 @@ function extractProceduresFromRouter(
 }
 
 async function extractProcedures(): Promise<ExtractedProcedure[]> {
-  const files = (await readdir(ROUTERS_DIR))
+  const routerFiles = (await readdir(ROUTERS_DIR))
     .filter(file => file.endsWith(".ts") && !file.endsWith(".test.ts"))
-    .sort();
+    .sort()
+    .map(file => path.join(ROUTERS_DIR, file));
+  const files = [
+    ...routerFiles,
+    path.join(ROOT, "server/_core/systemRouter.ts"),
+  ];
   const procedures: ExtractedProcedure[] = [];
 
-  for (const file of files) {
-    const absolutePath = path.join(ROUTERS_DIR, file);
+  for (const absolutePath of files) {
     const sourceText = await readFile(absolutePath, "utf8");
     const sourceFile = ts.createSourceFile(
       absolutePath,
@@ -845,11 +959,15 @@ function defaultAnnotation(
       identifier.replace(/Ids?$/, "").replace(/^id$/, "record")
     )
     .filter(Boolean);
+  const scopedWriteEvidence = SCOPED_WRITE_EVIDENCE[procedure.key];
+  const finalScopedWrite = scopedWriteEvidence?.finalScopedWrite ?? null;
 
   const guardEvidence =
     classification === "org_guarded"
       ? hasCanonicalGuard
-        ? "Calls a canonical project/resource authorization resolver before project-scoped child access."
+        ? scopedWriteEvidence
+          ? "Calls a canonical project/resource authorization resolver before access and uses an organization-scoped final-write helper; named real-SQL coverage is maintained in tests/mysql/design-authorization.mysql.test.ts."
+          : "Calls a canonical project/resource authorization resolver before project-scoped child access."
         : procedure.key === "organization.acceptInvite"
           ? "Resolves an organization invite token, verifies its expiry, and adds the authenticated user to the invite's organization."
           : procedure.key === "organization.myOrgs"
@@ -882,6 +1000,12 @@ function defaultAnnotation(
         ? "No remediation assigned; retain classification evidence."
         : `Remediate under ${targetStep}.`,
     targetStep,
+    finalScopedWrite,
+    integrationTest: finalScopedWrite ? MYSQL_INTEGRATION_TEST : null,
+    integrationTestName: scopedWriteEvidence?.integrationTestName ?? null,
+    integrationEvidenceStatus: finalScopedWrite
+      ? "defined_not_executed"
+      : "not_applicable",
     notes:
       procedure.key === "design.resolveShareLink"
         ? "Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed."
@@ -897,10 +1021,11 @@ function defaultAnnotation(
   };
 }
 
-function mergeInventory(
+async function mergeInventory(
   extracted: ExtractedProcedure[],
   existing: InventoryDocument | null
-): InventoryDocument {
+): Promise<InventoryDocument> {
+  const mysqlEvidenceExecuted = (await validateMysqlEvidence()).valid;
   const existingByKey = new Map(
     existing?.procedures.map(procedure => [procedure.key, procedure]) ?? []
   );
@@ -924,19 +1049,66 @@ function mergeInventory(
             notes: previous.notes,
           }
         : {}),
+      finalScopedWrite: defaults.finalScopedWrite,
+      integrationTest: defaults.integrationTest,
+      integrationTestName: defaults.integrationTestName,
+      integrationEvidenceStatus: defaults.integrationTest
+        ? mysqlEvidenceExecuted
+          ? "executed"
+          : "defined_not_executed"
+        : "not_applicable",
     };
   });
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
-    sourceRoot: "server/routers",
+    sourceRoot: "server/routers + server/_core/systemRouter.ts",
     procedureCount: procedures.length,
     allowedClassifications: CLASSIFICATIONS,
     allowedSeverities: SEVERITIES,
     allowedTargetSteps: TARGET_STEPS,
+    allowedIntegrationEvidenceStatuses: INTEGRATION_EVIDENCE_STATUSES,
     procedures,
   };
+}
+
+async function validateMysqlEvidence(): Promise<{
+  valid: boolean;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  try {
+    const evidence = JSON.parse(await readFile(MYSQL_EVIDENCE_PATH, "utf8")) as {
+      status?: string;
+      testFile?: string;
+      cleanupVerified?: boolean;
+      fileHashes?: Record<string, string>;
+    };
+    if (evidence.status !== "PASS") errors.push("MySQL evidence status is not PASS");
+    if (evidence.testFile !== MYSQL_INTEGRATION_TEST) {
+      errors.push("MySQL evidence test-file identity is invalid");
+    }
+    if (evidence.cleanupVerified !== true) {
+      errors.push("MySQL evidence does not prove cleanup");
+    }
+    const expectedFiles = [...REQUIRED_MYSQL_EVIDENCE_FILES].sort();
+    const actualFiles = Object.keys(evidence.fileHashes ?? {}).sort();
+    if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
+      errors.push("MySQL evidence hash file set is incomplete or unexpected");
+    } else {
+      for (const file of expectedFiles) {
+        const contents = await readFile(path.join(ROOT, file));
+        const actual = createHash("sha256").update(contents).digest("hex");
+        if (actual !== evidence.fileHashes?.[file]) {
+          errors.push(`Stale MySQL evidence hash: ${file}`);
+        }
+      }
+    }
+  } catch {
+    errors.push("MySQL evidence file is missing or unreadable");
+  }
+  return { valid: errors.length === 0, errors };
 }
 
 async function readExistingInventory(): Promise<InventoryDocument | null> {
@@ -978,6 +1150,31 @@ function validateInventory(
       errors.push(
         `Invalid target step for ${procedure.key}: ${procedure.targetStep}`
       );
+    }
+    if (
+      !INTEGRATION_EVIDENCE_STATUSES.includes(
+        procedure.integrationEvidenceStatus
+      )
+    ) {
+      errors.push(
+        `Invalid integration evidence status for ${procedure.key}: ${procedure.integrationEvidenceStatus}`
+      );
+    }
+    if (procedure.finalScopedWrite && !procedure.integrationTest) {
+      errors.push(`Missing integration test mapping: ${procedure.key}`);
+    }
+    if (procedure.finalScopedWrite && !procedure.integrationTestName) {
+      errors.push(`Missing integration test name: ${procedure.key}`);
+    }
+    if (
+      procedure.integrationEvidenceStatus !== "not_applicable" &&
+      (
+        !procedure.finalScopedWrite ||
+        !procedure.integrationTest ||
+        !procedure.integrationTestName
+      )
+    ) {
+      errors.push(`Incomplete scoped-write evidence: ${procedure.key}`);
     }
     if (procedure.ownershipPath.length === 0)
       errors.push(`Missing ownership path: ${procedure.key}`);
@@ -1088,6 +1285,32 @@ function validateInventory(
   return errors;
 }
 
+async function validateIntegrationEvidence(
+  inventory: InventoryDocument
+): Promise<string[]> {
+  const errors: string[] = [];
+  const sourceCache = new Map<string, string>();
+  for (const procedure of inventory.procedures) {
+    if (!procedure.integrationTest || !procedure.integrationTestName) continue;
+    let source = sourceCache.get(procedure.integrationTest);
+    if (source === undefined) {
+      try {
+        source = await readFile(path.join(ROOT, procedure.integrationTest), "utf8");
+        sourceCache.set(procedure.integrationTest, source);
+      } catch {
+        errors.push(`Missing integration test file: ${procedure.integrationTest}`);
+        continue;
+      }
+    }
+    if (!source.includes(procedure.integrationTestName)) {
+      errors.push(
+        `Missing named integration test for ${procedure.key}: ${procedure.integrationTestName}`
+      );
+    }
+  }
+  return errors;
+}
+
 function countBy<T extends string>(values: T[]) {
   const counts = new Map<T, number>();
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
@@ -1115,6 +1338,9 @@ function renderReport(inventory: InventoryDocument) {
         a.targetStep.localeCompare(b.targetStep) ||
         a.key.localeCompare(b.key)
     );
+  const scopedWriteRows = inventory.procedures.filter(
+    row => row.finalScopedWrite
+  );
 
   const lines = [
     "# MIYAR Project-Resource Authorization Inventory",
@@ -1128,11 +1354,12 @@ function renderReport(inventory: InventoryDocument) {
     "",
     "## Method and Scope",
     "",
-    "- The TypeScript compiler enumerates every procedure declared by the 24 router modules.",
+    "- The TypeScript compiler enumerates every procedure declared by the 24 router modules plus the two procedures in `systemRouter`.",
     "- Extracted facts include access primitive, operation, input identifiers, helper calls, first resource access, and source location.",
     "- Manual semantic review traces direct, child, polymorphic, public-token, governed-global, nullable, and legacy-user ownership.",
     "- The validator fails on missing/duplicate/stale procedures, source/helper/access drift, placeholder ownership paths, invalid classifications, and incomplete public-token evidence.",
-    "- No live or shared database was accessed. A disposable mocked caller confirmed `design.listAssets` returns an unverified project ID's assets; the probe was removed after evidence capture.",
+    "- Inventory generation never accesses a live or shared database. Scoped-write SQL semantics are separately covered by the guarded serial suite at `tests/mysql/design-authorization.mysql.test.ts`, which accepts only disposable local database names prefixed `miyar_auth_test`.",
+    "- Named MySQL coverage includes asset/visual/brief/scenario writes, board create/delete/join/reorder rollback paths, all six asset-link target types, comments, RFQ batches, share-token uniqueness, floor-plan linking, approval updates, evidence isolation, membership uniqueness, and two-connection ownership locking.",
     "",
     "## Review Batches",
     "",
@@ -1181,6 +1408,15 @@ function renderReport(inventory: InventoryDocument) {
     "- Public shares: `shareToken -> ai_design_briefs.projectId -> projects.id`; token expiry and query-only behavior are required.",
     "- Legacy user checks: `projects.userId` is recorded as a legacy guard, not organization authorization.",
     "",
+    "## Final Scoped-Write Evidence",
+    "",
+    "| Procedure | Final scoped write | Integration test | Test case | Status |",
+    "| --- | --- | --- | --- | --- |",
+    ...scopedWriteRows.map(
+      row =>
+        `| \`${row.key}\` | ${row.finalScopedWrite} | \`${row.integrationTest}\` | ${row.integrationTestName} | \`${row.integrationEvidenceStatus}\` |`
+    ),
+    "",
     "## Remediation Inventory",
     "",
     "| Key | Access | Operation | Classification | Severity | Ownership path | First data access | Target | Source |",
@@ -1220,7 +1456,7 @@ async function main() {
   const extracted = await extractProcedures();
 
   if (mode === "render") {
-    const inventory = mergeInventory(
+    const inventory = await mergeInventory(
       extracted,
       process.argv.includes("--reset") ? null : await readExistingInventory()
     );
@@ -1240,7 +1476,23 @@ async function main() {
     throw new Error(
       `Inventory missing: ${path.relative(ROOT, INVENTORY_PATH)}`
     );
-  const errors = validateInventory(extracted, inventory);
+  const mysqlEvidence = await validateMysqlEvidence();
+  const hasExecutedRows = inventory.procedures.some(
+    row => row.integrationEvidenceStatus === "executed"
+  );
+  const errors = [
+    ...validateInventory(extracted, inventory),
+    ...await validateIntegrationEvidence(inventory),
+    ...(hasExecutedRows && !mysqlEvidence.valid ? mysqlEvidence.errors : []),
+  ];
+  for (const row of inventory.procedures.filter(row => row.integrationTest)) {
+    const expected = mysqlEvidence.valid ? "executed" : "defined_not_executed";
+    if (row.integrationEvidenceStatus !== expected) {
+      errors.push(
+        `Integration evidence status drift for ${row.key}: ${row.integrationEvidenceStatus} != ${expected}`
+      );
+    }
+  }
   if (errors.length > 0) {
     console.error(errors.map(error => `- ${error}`).join("\n"));
     process.exitCode = 1;

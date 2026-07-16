@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-04`
+- Next executable step: `TR-03H`
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -134,14 +134,32 @@ Rules:
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
 - Completion evidence: All 39 TR-03 inventory rows were reclassified, leaving zero design-domain remediation rows and 101 rows assigned to `TR-04`/`TR-05`; named project/resource resolvers, organization-locked insert/update/delete helpers, composite scenario/link/comment checks, organization-only evidence reads, fail-closed public shares, and a disabled invalid visual-attachment path are shipped in the worktree. The targeted authorization suite passes 68 tests, the safe full suite passes 886 with 22 skipped, TypeScript and all three build targets pass, and independent adversarial review ended `APPROVED_NO_OBJECTION`.
-- Residual risk: `attachVisualToPack` intentionally returns `PRECONDITION_FAILED` until a typed attachment model is approved. Database SQL was type-checked and bundled but not executed against a shared database because TR-03 prohibited shared-database access.
+- Residual risk: `attachVisualToPack` intentionally returns `PRECONDITION_FAILED` until a typed attachment model is approved. Independent post-release review found that live membership, final share-token writes, real MySQL semantics, composite atomicity, upload compensation, public-share cache controls, and canonical-main identity require the bounded `TR-03H` hardening step below.
 - Lessons: `LES-014`
+
+### TR-03H — Design authorization hardening
+
+- Status: `ACTIVE`
+- Class / priority: API/security/schema/release / P0
+- Dependencies: `TR-03`
+- Human gate: Shared migration application, canonical-main push, production deployment, and production smoke writes
+- Evidence: Post-release adversarial review found stale-membership access, an unscoped share-token update, mocked-only scoped SQL, non-atomic composite operations, storage orphans after lost authorization, cacheable public shares, and production/main drift.
+- Change set:
+  - Validate exactly one live organization membership and enforce design viewer/member/admin roles.
+  - Add unique membership/share-token indexes and a final organization/project-scoped share update.
+  - Make board, RFQ, and floor-plan composite writes atomic.
+  - Compensate explicitly rejected direct uploads and add public-share no-store/noindex controls.
+  - Run scoped helpers against isolated MySQL 8 and verify provider compatibility before release.
+  - Correct inventory coverage and durable release evidence.
+- Done when: Every acceptance criterion in `.agent/state/CURRENT_TASK.md` has objective evidence and the reviewed canonical-main SHA is the release candidate.
+- Verification: Membership/role contracts, real MySQL rollback/concurrency suite, authorization audit, safe full tests, type-check, build, public-header checks, independent review, and release gates.
+- Expected artifacts: Hardened middleware/helpers/routes, migration 0045, isolated integration harness, corrected inventory/state, and reviewed PR/release evidence.
 
 ### TR-04 — Authorize remaining project routers
 
-- Status: `READY`
+- Status: `PLANNED`
 - Class / priority: API/security / P0
-- Dependencies: `TR-02`, `TR-03`
+- Dependencies: `TR-02`, `TR-03`, `TR-03H`
 - Human gate: None unless ambiguous legacy ownership is found.
 - Evidence: Audit identified the same structural pattern in scenario, analytics, reporting, learning, and related routers.
 - Change set:

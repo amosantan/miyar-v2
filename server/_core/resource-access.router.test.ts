@@ -8,6 +8,18 @@ import {
   authorizationFixtures,
 } from "../test-utils/authorization-fixtures";
 
+const membershipMocks = vi.hoisted(() => ({
+  getOrganizationMemberships: vi.fn(),
+}));
+
+vi.mock("../db", async importOriginal => {
+  const actual = await importOriginal<typeof import("../db")>();
+  return {
+    ...actual,
+    getOrganizationMemberships: membershipMocks.getOrganizationMemberships,
+  };
+});
+
 const { contexts, projects, resources } = authorizationFixtures;
 
 const lookupResource = vi.fn();
@@ -35,6 +47,13 @@ const authorizationContractRouter = router({
 describe("authorization router contract", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    membershipMocks.getOrganizationMemberships.mockResolvedValue([{
+      id: 1,
+      userId: contexts.orgA.user!.id,
+      orgId: AUTH_ORG_A,
+      role: "member",
+      createdAt: new Date(),
+    }]);
     lookupResource.mockImplementation(async (id: number) => {
       if (id === resources.orgA.id) return resources.orgA;
       if (id === resources.orgB.id) return resources.orgB;

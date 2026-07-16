@@ -1,0 +1,2 @@
+ALTER TABLE `ai_design_briefs` ADD CONSTRAINT `ai_design_briefs_share_token_unique` UNIQUE(`share_token`);--> statement-breakpoint
+ALTER TABLE `organization_members` ADD CONSTRAINT `organization_members_org_user_unique` UNIQUE(`orgId`,`userId`);

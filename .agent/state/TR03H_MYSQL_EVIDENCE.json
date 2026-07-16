@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "observedAt": "2026-07-16T15:26:34.056Z",
+  "databaseEngine": "MySQL 8.0",
+  "targetClass": "disposable localhost database",
+  "command": "pnpm test:authorization:mysql",
+  "testFile": "tests/mysql/design-authorization.mysql.test.ts",
+  "testCount": 7,
+  "cleanupVerified": true,
+  "fileHashes": {
+    "tests/mysql/design-authorization.mysql.test.ts": "93990ce610ca33345d36cd3b55488cecbf63f87cf71b4fe736b763b948175609",
+    "server/db.ts": "3f19cdd0a2caecec37da782959ce47d3d94a11e74dd346802bf360f7a2fa79ab",
+    "server/routers/design.ts": "ade25161ddef25e37ebe9af4e67ac5eaaef3d6f21f6ef83479f604c4859df3f9",
+    "drizzle/schema.ts": "930e8aef85f994a0c6af877295223b8f591d2447d8894f17e70a757a30d63595",
+    "drizzle/0045_steady_amazoness.sql": "9862f48fe585e31c835ea97bd5c11b3e7640e97ba2764217534f5fbcad2df48d",
+    "scripts/run-guarded-mysql-tests.ts": "fcf6524813ec596fdc0e6f60499add9df491c680ee8c95f95cf430d83b152fe3",
+    "scripts/cleanup-mysql-auth-test.ts": "760724ac7a0c876dd424909036fac9124a720c5a3d02465cc3954f57c6ab91bd",
+    "scripts/tr03h-mysql-evidence-contract.ts": "26d327f981dfb93be616517cab1ed286794832a14e8c383e4e9110b560fd713e",
+    "drizzle.mysql-test.config.ts": "3cbce8a1cb0b7006649e9188332a0f6172d3657d1212bc99f9645e32109fbd40",
+    "vitest.mysql.config.ts": "d0dffbd403a9428d31100e2c8216b8d243b6d9ec5033f0a06674ac02cb615da8"
+  }
+}

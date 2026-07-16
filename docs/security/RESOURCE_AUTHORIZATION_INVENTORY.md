@@ -1,19 +1,20 @@
 # MIYAR Project-Resource Authorization Inventory
 
-Generated from `server/routers` by `scripts/audit-resource-authorization.ts`.
+Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **327**
-- Generated: 2026-07-16T13:58:12.870Z
+- Procedures inventoried: **329**
+- Generated: 2026-07-16T15:26:42.964Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
 ## Method and Scope
 
-- The TypeScript compiler enumerates every procedure declared by the 24 router modules.
+- The TypeScript compiler enumerates every procedure declared by the 24 router modules plus the two procedures in `systemRouter`.
 - Extracted facts include access primitive, operation, input identifiers, helper calls, first resource access, and source location.
 - Manual semantic review traces direct, child, polymorphic, public-token, governed-global, nullable, and legacy-user ownership.
 - The validator fails on missing/duplicate/stale procedures, source/helper/access drift, placeholder ownership paths, invalid classifications, and incomplete public-token evidence.
-- No live or shared database was accessed. A disposable mocked caller confirmed `design.listAssets` returns an unverified project ID's assets; the probe was removed after evidence capture.
+- Inventory generation never accesses a live or shared database. Scoped-write SQL semantics are separately covered by the guarded serial suite at `tests/mysql/design-authorization.mysql.test.ts`, which accepts only disposable local database names prefixed `miyar_auth_test`.
+- Named MySQL coverage includes asset/visual/brief/scenario writes, board create/delete/join/reorder rollback paths, all six asset-link target types, comments, RFQ batches, share-token uniqueness, floor-plan linking, approval updates, evidence isolation, membership uniqueness, and two-connection ownership locking.
 
 ## Review Batches
 
@@ -26,10 +27,10 @@ Generated from `server/routers` by `scripts/audit-resource-authorization.ts`.
 
 | Classification         | Count |
 | ---------------------- | ----: |
-| `admin_governed`       |    90 |
+| `admin_governed`       |    91 |
 | `global_governed`      |    43 |
 | `legacy_user_guard`    |    29 |
-| `not_project_scoped`   |    19 |
+| `not_project_scoped`   |    20 |
 | `org_guarded`          |    76 |
 | `public_token_guarded` |     1 |
 | `unsafe`               |    69 |
@@ -41,13 +42,13 @@ Generated from `server/routers` by `scripts/audit-resource-authorization.ts`.
 | `critical` |    34 |
 | `high`     |    38 |
 | `medium`   |    29 |
-| `none`     |   226 |
+| `none`     |   228 |
 
 ## Remediation Summary
 
 | Target  | Count |
 | ------- | ----: |
-| `none`  |   226 |
+| `none`  |   228 |
 | `TR-04` |    93 |
 | `TR-05` |     8 |
 
@@ -70,6 +71,32 @@ Generated from `server/routers` by `scripts/audit-resource-authorization.ts`.
 - Governed global records: explicit global intelligence/admin data; null ownership is not assumed global.
 - Public shares: `shareToken -> ai_design_briefs.projectId -> projects.id`; token expiry and query-only behavior are required.
 - Legacy user checks: `projects.userId` is recorded as a legacy guard, not organization authorization.
+
+## Final Scoped-Write Evidence
+
+| Procedure                        | Final scoped write                                                                            | Integration test                                 | Test case                                                                     | Status     |
+| -------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------- | ---------- |
+| `design.addComment`              | db.createCommentForOrg                                                                        | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `executed` |
+| `design.addMaterialToBoard`      | db.addMaterialToBoardForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
+| `design.analyzeFloorPlan`        | db.updateProjectForOrg                                                                        | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `executed` |
+| `design.createBoard`             | db.createMaterialBoardWithMaterialsForOrg                                                     | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
+| `design.createShareLink`         | db.updateAiDesignBriefShareTokenForOrg                                                        | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `executed` |
+| `design.deleteAsset`             | db.deleteProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
+| `design.deleteBoard`             | db.deleteMaterialBoardForOrg                                                                  | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `executed` |
+| `design.generateBrief`           | db.createDesignBriefForOrg                                                                    | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `executed` |
+| `design.generateRfqFromBrief`    | db.insertRfqLineItemsForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `executed` |
+| `design.generateRoomRender`      | db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
+| `design.generateVisual`          | db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
+| `design.linkAsset`               | db.createAssetLinkForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `executed` |
+| `design.pinVisualToBoard`        | db.createAssetLinkForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `executed` |
+| `design.removeMaterialFromBoard` | db.removeMaterialFromBoardForOrg                                                              | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
+| `design.reorderBoardTiles`       | db.reorderBoardTilesForOrg                                                                    | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
+| `design.unpinVisual`             | db.deleteAssetLinkForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `executed` |
+| `design.updateApprovalState`     | db.updateProjectApprovalStateForOrg                                                           | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `executed` |
+| `design.updateAsset`             | db.updateProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
+| `design.updateBoardTile`         | db.updateBoardTileForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
+| `design.uploadAsset`             | db.createProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
+| `design.uploadFloorPlan`         | db.createFloorPlanAssetAndLinkForOrg                                                          | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `executed` |
 
 ## Remediation Inventory
 
@@ -181,7 +208,7 @@ Generated from `server/routers` by `scripts/audit-resource-authorization.ts`.
 
 | Key                       | Operation | Evidence                                                                                                                                              | Notes                                                                                                                                                                  | Source                          |
 | ------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1596` |
+| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1674` |
 
 ## Complete Procedure Checklist
 
@@ -514,3 +541,5 @@ Generated from `server/routers` by `scripts/audit-resource-authorization.ts`.
 | `sustainability.evaluateCompliance`                  | `unsafe`               | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | Remediate under TR-04.                                   |
 | `sustainability.getLatestTwin`                       | `unsafe`               | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | Remediate under TR-04.                                   |
 | `sustainability.getTwinModels`                       | `unsafe`               | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | Remediate under TR-04.                                   |
+| `system.health`                                      | `not_project_scoped`   | session/user credential, deterministic input, or non-project workflow -> no project/org-owned identifier is accepted                                                                                                                                            | No remediation assigned; retain classification evidence. |
+| `system.notifyOwner`                                 | `admin_governed`       | authenticated global admin role -> governed administrative resource                                                                                                                                                                                             | No remediation assigned; retain classification evidence. |

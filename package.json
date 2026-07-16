@@ -12,6 +12,8 @@
     "audit:authorization:render": "tsx scripts/audit-resource-authorization.ts --render && prettier --write docs/security/resource-authorization-inventory.json docs/security/RESOURCE_AUTHORIZATION_INVENTORY.md",
     "format": "prettier --write .",
     "test": "vitest run",
+    "test:authorization:mysql": "tsx scripts/run-guarded-mysql-tests.ts",
+    "db:preflight:tr03h": "tsx scripts/check-tr03h-migration-preflight.ts",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {

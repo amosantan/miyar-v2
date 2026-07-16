@@ -6,9 +6,12 @@ import {
 
 const mocks = vi.hoisted(() => ({
   storagePut: vi.fn(),
+  storageDelete: vi.fn(),
   generateImage: vi.fn(),
   runFloorPlanAnalysis: vi.fn(),
+  nanoid: vi.fn(),
   db: {
+    getOrganizationMemberships: vi.fn(),
     getProjectById: vi.fn(),
     getProjectAssets: vi.fn(),
     getProjectAssetById: vi.fn(),
@@ -36,18 +39,27 @@ const mocks = vi.hoisted(() => ({
     createCommentForOrg: vi.fn(),
     createAuditLog: vi.fn(),
     createProjectAssetForOrg: vi.fn(),
+    createMaterialBoardWithMaterialsForOrg: vi.fn(),
+    insertRfqLineItemsForOrg: vi.fn(),
+    updateAiDesignBriefShareTokenForOrg: vi.fn(),
+    createFloorPlanAssetAndLinkForOrg: vi.fn(),
+    getLatestAiDesignBrief: vi.fn(),
     updateProjectForOrg: vi.fn(),
   },
 }));
 
 vi.mock("../db", () => mocks.db);
-vi.mock("../storage", () => ({ storagePut: mocks.storagePut }));
+vi.mock("../storage", () => ({
+  storagePut: mocks.storagePut,
+  storageDelete: mocks.storageDelete,
+}));
 vi.mock("../_core/imageGeneration", () => ({
   generateImage: mocks.generateImage,
 }));
 vi.mock("../engines/design/floor-plan-analyzer", () => ({
   analyzeFloorPlan: mocks.runFloorPlanAnalysis,
 }));
+vi.mock("nanoid", () => ({ nanoid: mocks.nanoid }));
 
 import { designRouter } from "./design";
 
@@ -103,6 +115,15 @@ function byId<T extends { id: number }>(...records: T[]) {
 describe("design router authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.db.getOrganizationMemberships.mockImplementation(
+      async (userId: number, orgId: number) => [{
+        id: userId,
+        userId,
+        orgId,
+        role: "admin",
+        createdAt: AUTH_NOW,
+      }]
+    );
     mocks.db.getProjectById.mockImplementation(
       byId(projects.orgA, projects.orgB, projects.legacyNull)
     );
@@ -137,10 +158,17 @@ describe("design router authorization", () => {
     mocks.db.createAssetLinkForOrg.mockResolvedValue({ id: 800 });
     mocks.db.createCommentForOrg.mockResolvedValue({ id: 1 });
     mocks.db.createProjectAssetForOrg.mockResolvedValue({ id: 900 });
+    mocks.db.createMaterialBoardWithMaterialsForOrg.mockResolvedValue({ id: 901 });
+    mocks.db.insertRfqLineItemsForOrg.mockResolvedValue(true);
+    mocks.db.updateAiDesignBriefShareTokenForOrg.mockResolvedValue(true);
+    mocks.db.createFloorPlanAssetAndLinkForOrg.mockResolvedValue({ id: 902 });
     mocks.db.updateProjectForOrg.mockResolvedValue(true);
     mocks.storagePut.mockResolvedValue({
+      key: "projects/11/upload.png",
       url: "https://example.invalid/upload.png",
     });
+    mocks.storageDelete.mockResolvedValue(undefined);
+    mocks.nanoid.mockReturnValue("share-token-default-123456789012");
   });
 
   it("requires authentication and organization context before project lookup", async () => {
@@ -201,6 +229,169 @@ describe("design router authorization", () => {
     expect(mocks.storagePut).not.toHaveBeenCalled();
     expect(mocks.db.createProjectAssetForOrg).not.toHaveBeenCalled();
     expect(mocks.db.createAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("keeps design viewers read-only before resource access", async () => {
+    mocks.db.getOrganizationMemberships.mockResolvedValue([{
+      id: 1,
+      userId: contexts.orgA.user!.id,
+      orgId: projects.orgA.orgId,
+      role: "viewer",
+      createdAt: AUTH_NOW,
+    }]);
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.uploadAsset({
+      projectId: projects.orgA.id,
+      filename: "blocked.png",
+      mimeType: "image/png",
+      base64Data: "AA==",
+    })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(mocks.db.getProjectById).not.toHaveBeenCalled();
+    expect(mocks.storagePut).not.toHaveBeenCalled();
+  });
+
+  it("requires an organization admin for share creation", async () => {
+    mocks.db.getOrganizationMemberships.mockResolvedValue([{
+      id: 1,
+      userId: contexts.orgA.user!.id,
+      orgId: projects.orgA.orgId,
+      role: "member",
+      createdAt: AUTH_NOW,
+    }]);
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.createShareLink({
+      projectId: projects.orgA.id,
+      expiryDays: 7,
+    })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(mocks.db.getProjectById).not.toHaveBeenCalled();
+    expect(mocks.db.updateAiDesignBriefShareTokenForOrg).not.toHaveBeenCalled();
+  });
+
+  it("retries a share-token collision and succeeds without exposing collision details", async () => {
+    const duplicate = Object.assign(new Error("drizzle query failed"), {
+      cause: Object.assign(new Error("duplicate unique index token-secret"), {
+        code: "ER_DUP_ENTRY",
+        errno: 1062,
+      }),
+    });
+    mocks.db.getLatestAiDesignBrief.mockResolvedValue({
+      id: 91,
+      projectId: projects.orgA.id,
+      orgId: projects.orgA.orgId,
+    });
+    mocks.nanoid
+      .mockReturnValueOnce("first-collision-token-1234567890")
+      .mockReturnValueOnce("second-valid-token-123456789012");
+    mocks.db.updateAiDesignBriefShareTokenForOrg
+      .mockRejectedValueOnce(duplicate)
+      .mockResolvedValueOnce(true);
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.createShareLink({
+      projectId: projects.orgA.id,
+      expiryDays: 7,
+    })).resolves.toMatchObject({
+      token: "second-valid-token-123456789012",
+      shareUrl: "/share/second-valid-token-123456789012",
+    });
+    expect(mocks.db.updateAiDesignBriefShareTokenForOrg).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns a generic error after five share-token collisions", async () => {
+    const duplicate = Object.assign(new Error("duplicate token-secret index-name"), {
+      code: "ER_DUP_ENTRY",
+      errno: 1062,
+    });
+    mocks.db.getLatestAiDesignBrief.mockResolvedValue({
+      id: 91,
+      projectId: projects.orgA.id,
+      orgId: projects.orgA.orgId,
+    });
+    mocks.db.updateAiDesignBriefShareTokenForOrg.mockRejectedValue(duplicate);
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.createShareLink({
+      projectId: projects.orgA.id,
+      expiryDays: 7,
+    })).rejects.toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Unable to create a unique share link",
+    });
+    expect(mocks.db.updateAiDesignBriefShareTokenForOrg).toHaveBeenCalledTimes(5);
+  });
+
+  it("preserves NOT_FOUND when the final scoped share update loses authorization", async () => {
+    mocks.db.getLatestAiDesignBrief.mockResolvedValue({
+      id: 91,
+      projectId: projects.orgA.id,
+      orgId: projects.orgA.orgId,
+    });
+    mocks.db.updateAiDesignBriefShareTokenForOrg.mockResolvedValue(false);
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.createShareLink({
+      projectId: projects.orgA.id,
+      expiryDays: 7,
+    })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("conceals non-duplicate database details during share creation", async () => {
+    mocks.db.getLatestAiDesignBrief.mockResolvedValue({
+      id: 91,
+      projectId: projects.orgA.id,
+      orgId: projects.orgA.orgId,
+    });
+    mocks.db.updateAiDesignBriefShareTokenForOrg.mockRejectedValue(
+      new Error("connection sql token-secret")
+    );
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.createShareLink({
+      projectId: projects.orgA.id,
+      expiryDays: 7,
+    })).rejects.toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Unable to create share link",
+    });
+  });
+
+  it("compensates an explicitly rejected asset persistence", async () => {
+    mocks.db.createProjectAssetForOrg.mockResolvedValue(null);
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.uploadAsset({
+      projectId: projects.orgA.id,
+      filename: "rejected.png",
+      mimeType: "image/png",
+      base64Data: "AA==",
+    })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(mocks.storageDelete).toHaveBeenCalledWith("projects/11/upload.png");
+    expect(mocks.db.createAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("does not delete an upload after an indeterminate database exception", async () => {
+    mocks.db.createProjectAssetForOrg.mockRejectedValue(new Error("connection lost"));
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.uploadAsset({
+      projectId: projects.orgA.id,
+      filename: "uncertain.png",
+      mimeType: "image/png",
+      base64Data: "AA==",
+    })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    expect(mocks.storageDelete).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate board material IDs before the atomic insert", async () => {
+    const caller = designRouter.createCaller(contexts.orgA);
+    await expect(caller.createBoard({
+      projectId: projects.orgA.id,
+      boardName: "Duplicate",
+      materialIds: [1, 1],
+    })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(mocks.db.createMaterialBoardWithMaterialsForOrg).not.toHaveBeenCalled();
   });
 
   it("conceals cross-organization child resources", async () => {

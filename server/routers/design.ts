@@ -3,7 +3,15 @@
  * Evidence Vault, Design Brief, Visual Generation, Board Composer, Materials, Collaboration
  */
 import { z } from "zod";
-import { router, protectedProcedure, adminProcedure, orgProcedure, publicProcedure } from "../_core/trpc";
+import {
+  adminProcedure,
+  designOrgAdminProcedure,
+  designOrgMutationProcedure,
+  orgProcedure,
+  protectedProcedure,
+  publicProcedure,
+  router,
+} from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { storagePut } from "../storage";
@@ -41,6 +49,36 @@ import {
   requireScopedDesignInsert,
   requireScopedDesignMutation,
 } from "../_core/design-resource-access";
+import {
+  cleanupRejectedUpload,
+  reportIndeterminateUploadPersistence,
+} from "../_core/upload-compensation";
+
+function isDuplicateKeyError(error: unknown): boolean {
+  let current = error;
+  const seen = new Set<unknown>();
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const candidate = current as {
+      code?: string;
+      errno?: number;
+      cause?: unknown;
+    };
+    if (candidate.code === "ER_DUP_ENTRY" || candidate.errno === 1062) {
+      return true;
+    }
+    current = candidate.cause;
+  }
+  return false;
+}
+
+async function bestEffortAudit(data: Parameters<typeof db.createAuditLog>[0]) {
+  try {
+    await db.createAuditLog(data);
+  } catch {
+    // Audit delivery must not turn a committed domain operation into an API error.
+  }
+}
 
 function projectToInputs(p: any): ProjectInputs {
   return {
@@ -87,7 +125,7 @@ export const designRouter = router({
       return db.getProjectAssets(input.projectId, input.category);
     }),
 
-  uploadAsset: orgProcedure
+  uploadAsset: designOrgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       filename: z.string(),
@@ -103,23 +141,37 @@ export const designRouter = router({
       const buffer = Buffer.from(input.base64Data, "base64");
       const suffix = Math.random().toString(36).slice(2, 10);
       const storagePath = `projects/${input.projectId}/assets/${suffix}-${input.filename}`;
-      const { url } = await storagePut(storagePath, buffer, input.mimeType);
+      const uploaded = await storagePut(storagePath, buffer, input.mimeType);
+      let created: Awaited<ReturnType<typeof db.createProjectAssetForOrg>>;
+      try {
+        created = await db.createProjectAssetForOrg({
+          projectId: input.projectId,
+          filename: input.filename,
+          mimeType: input.mimeType,
+          sizeBytes: buffer.length,
+          storagePath: uploaded.key,
+          storageUrl: uploaded.url,
+          uploadedBy: ctx.user.id,
+          category: input.category,
+          tags: input.tags || [],
+          notes: input.notes,
+          isClientVisible: input.isClientVisible,
+        }, ctx.orgId);
+      } catch (error) {
+        reportIndeterminateUploadPersistence(uploaded.key, error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
+      }
+      if (!created) {
+        try {
+          await cleanupRejectedUpload(uploaded.key);
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
+        }
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+      const result = requireScopedDesignInsert(created);
 
-      const result = requireScopedDesignInsert(await db.createProjectAssetForOrg({
-        projectId: input.projectId,
-        filename: input.filename,
-        mimeType: input.mimeType,
-        sizeBytes: buffer.length,
-        storagePath,
-        storageUrl: url,
-        uploadedBy: ctx.user.id,
-        category: input.category,
-        tags: input.tags || [],
-        notes: input.notes,
-        isClientVisible: input.isClientVisible,
-      }, ctx.orgId));
-
-      await db.createAuditLog({
+      await bestEffortAudit({
         orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "asset.upload",
@@ -128,10 +180,10 @@ export const designRouter = router({
         details: { projectId: input.projectId, filename: input.filename, category: input.category },
       });
 
-      return { id: result.id, url };
+      return { id: result.id, url: uploaded.url };
     }),
 
-  deleteAsset: orgProcedure
+  deleteAsset: designOrgMutationProcedure
     .input(z.object({ assetId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const { resource: asset } = await requireDesignAsset(input.assetId, ctx.orgId);
@@ -147,7 +199,7 @@ export const designRouter = router({
       return { success: true };
     }),
 
-  updateAsset: orgProcedure
+  updateAsset: designOrgMutationProcedure
     .input(z.object({
       assetId: z.number(),
       category: z.string().optional(),
@@ -162,7 +214,7 @@ export const designRouter = router({
       return { success: true };
     }),
 
-  linkAsset: orgProcedure
+  linkAsset: designOrgMutationProcedure
     .input(z.object({
       assetId: z.number(),
       linkType: z.enum(["evaluation", "report", "scenario", "material_board", "design_brief", "visual"]),
@@ -189,7 +241,7 @@ export const designRouter = router({
 
   // ─── Design Brief Generator ─────────────────────────────────────────────────
 
-  generateBrief: orgProcedure
+  generateBrief: designOrgMutationProcedure
     .input(z.object({ projectId: z.number(), scenarioId: z.number().optional() }))
     .mutation(async ({ ctx, input }) => {
       const project = await requireDesignProject(input.projectId, ctx.orgId);
@@ -388,7 +440,7 @@ export const designRouter = router({
 
   // ─── RFQ from Brief (V4 Pipeline) ─────────────────────────────────────────
 
-  generateRfqFromBrief: orgProcedure
+  generateRfqFromBrief: designOrgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       briefId: z.number(),
@@ -430,13 +482,16 @@ export const designRouter = router({
         materialList,
       );
 
-      // 5. Persist RFQ line items
-      for (const item of result.items) {
-        requireScopedDesignMutation(await db.insertRfqLineItemForOrg(item as any, ctx.orgId));
+      if (result.items.length > 1000) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "RFQ exceeds the 1,000 line limit" });
       }
+      requireScopedDesignMutation(await db.insertRfqLineItemsForOrg(
+        result.items as any[],
+        { projectId: input.projectId, briefId: input.briefId, orgId: ctx.orgId },
+      ));
 
       // 6. Audit log
-      await db.createAuditLog({
+      await bestEffortAudit({
         orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "rfq.generate_from_brief",
@@ -454,7 +509,7 @@ export const designRouter = router({
       return result;
     }),
 
-  exportBriefDocx: orgProcedure
+  exportBriefDocx: designOrgMutationProcedure
     .input(z.object({ briefId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const { resource: brief, project } = await requireDesignBrief(input.briefId, ctx.orgId);
@@ -479,7 +534,7 @@ export const designRouter = router({
 
   // ─── Visual Generation (nano banana) ────────────────────────────────────────
 
-  generateVisual: orgProcedure
+  generateVisual: designOrgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       type: z.enum(["mood", "material_board", "hero"]),
@@ -651,7 +706,7 @@ export const designRouter = router({
     }),
 
   // V4-05: Attach a completed visual's asset to a report/pack as an evidence reference
-  attachVisualToPack: orgProcedure
+  attachVisualToPack: designOrgMutationProcedure
     .input(z.object({
       visualId: z.number(),
       targetType: z.enum(["report", "design_brief", "material_board", "pack_section"]),
@@ -667,7 +722,7 @@ export const designRouter = router({
 
   // ─── Pin Visuals to Material Boards (V4) ────────────────────────────────────
 
-  pinVisualToBoard: orgProcedure
+  pinVisualToBoard: designOrgMutationProcedure
     .input(z.object({
       visualId: z.number(),
       boardId: z.number(),
@@ -718,7 +773,7 @@ export const designRouter = router({
       return pinned;
     }),
 
-  unpinVisual: orgProcedure
+  unpinVisual: designOrgMutationProcedure
     .input(z.object({ linkId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const authorizedLink = await requireDesignAssetLink(input.linkId, ctx.orgId);
@@ -740,7 +795,7 @@ export const designRouter = router({
 
   // ─── Material Board Composer ────────────────────────────────────────────────
 
-  createBoard: orgProcedure
+  createBoard: designOrgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       boardName: z.string(),
@@ -753,37 +808,25 @@ export const designRouter = router({
         const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
         requireSameDesignProject(project.id, scenario.project.id);
       }
-      // Get materials for board JSON
-      const materials: any[] = [];
-      if (input.materialIds && input.materialIds.length > 0) {
-        for (const id of input.materialIds) {
-          const mat = await db.getMaterialById(id);
-          if (mat) materials.push(mat);
-        }
+      const materialIds = input.materialIds ?? [];
+      if (new Set(materialIds).size !== materialIds.length) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Duplicate material IDs are not allowed" });
       }
 
-      const boardResult = requireScopedDesignInsert(await db.createMaterialBoardForOrg({
+      const boardResult = requireScopedDesignInsert(await db.createMaterialBoardWithMaterialsForOrg({
         projectId: input.projectId,
         scenarioId: input.scenarioId,
         boardName: input.boardName,
-        boardJson: materials,
         createdBy: ctx.user.id,
-      }, ctx.orgId));
+      }, materialIds, ctx.orgId));
 
-      // Add materials to board join table
-      if (input.materialIds) {
-        for (const materialId of input.materialIds) {
-          requireScopedDesignInsert(await db.addMaterialToBoardForOrg({ boardId: boardResult.id, materialId }, ctx.orgId));
-        }
-      }
-
-      await db.createAuditLog({
+      await bestEffortAudit({
         orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "board.create",
         entityType: "material_board",
         entityId: boardResult.id,
-        details: { projectId: input.projectId, materialCount: materials.length },
+        details: { projectId: input.projectId, materialCount: materialIds.length },
       });
 
       return { id: boardResult.id };
@@ -815,7 +858,7 @@ export const designRouter = router({
       return { board, materials: materialDetails };
     }),
 
-  addMaterialToBoard: orgProcedure
+  addMaterialToBoard: designOrgMutationProcedure
     .input(z.object({
       boardId: z.number(),
       materialId: z.number(),
@@ -834,7 +877,7 @@ export const designRouter = router({
       }, ctx.orgId));
     }),
 
-  removeMaterialFromBoard: orgProcedure
+  removeMaterialFromBoard: designOrgMutationProcedure
     .input(z.object({ joinId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       await requireDesignBoardJoin(input.joinId, ctx.orgId);
@@ -842,7 +885,7 @@ export const designRouter = router({
       return { success: true };
     }),
 
-  deleteBoard: orgProcedure
+  deleteBoard: designOrgMutationProcedure
     .input(z.object({ boardId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       await requireDesignBoard(input.boardId, ctx.orgId);
@@ -857,7 +900,7 @@ export const designRouter = router({
       return { success: true };
     }),
 
-  updateBoardTile: orgProcedure
+  updateBoardTile: designOrgMutationProcedure
     .input(z.object({
       joinId: z.number(),
       specNotes: z.string().nullish(),
@@ -879,7 +922,7 @@ export const designRouter = router({
       return { success: true };
     }),
 
-  reorderBoardTiles: orgProcedure
+  reorderBoardTiles: designOrgMutationProcedure
     .input(z.object({
       boardId: z.number(),
       orderedJoinIds: z.array(z.number()),
@@ -898,7 +941,7 @@ export const designRouter = router({
       return { success: true };
     }),
 
-  exportBoardPdf: orgProcedure
+  exportBoardPdf: designOrgMutationProcedure
     .input(z.object({ boardId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const { resource: board, project } = await requireDesignBoard(input.boardId, ctx.orgId);
@@ -1126,7 +1169,7 @@ export const designRouter = router({
 
   // ─── Collaboration & Comments ───────────────────────────────────────────────
 
-  addComment: orgProcedure
+  addComment: designOrgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       entityType: z.enum(["design_brief", "material_board", "visual", "general"]),
@@ -1174,7 +1217,7 @@ export const designRouter = router({
 
   // ─── Approval Gates ─────────────────────────────────────────────────────────
 
-  updateApprovalState: orgProcedure
+  updateApprovalState: designOrgAdminProcedure
     .input(z.object({
       projectId: z.number(),
       approvalState: z.enum(["draft", "review", "approved_rfq", "approved_marketing"]),
@@ -1527,7 +1570,7 @@ export const designRouter = router({
 
   // ─── Phase 5: Export & Handover ─────────────────────────────────────────────
 
-  exportInvestorPdf: orgProcedure
+  exportInvestorPdf: designOrgMutationProcedure
     .input(z.object({ projectId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const { generateInvestorPdfHtml } = await import("../engines/investor-pdf");
@@ -1580,16 +1623,51 @@ export const designRouter = router({
       return { html, projectName: project.name ?? "Project" };
     }),
 
-  createShareLink: orgProcedure
+  createShareLink: designOrgAdminProcedure
     .input(z.object({ projectId: z.number(), expiryDays: z.number().min(1).max(90).default(7) }))
     .mutation(async ({ ctx, input }) => {
       await requireDesignProject(input.projectId, ctx.orgId);
       const brief = await db.getLatestAiDesignBrief(input.projectId, ctx.orgId);
       if (!brief) throw new Error("Generate a design brief first before sharing");
-      const token = nanoid(32);
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + input.expiryDays);
-      await db.updateAiDesignBriefShareToken(brief.id, token, expiresAt);
+      let token = "";
+      for (let attempt = 1; attempt <= 5; attempt += 1) {
+        token = nanoid(32);
+        try {
+          requireScopedDesignMutation(await db.updateAiDesignBriefShareTokenForOrg(
+            brief.id,
+            input.projectId,
+            ctx.orgId,
+            token,
+            expiresAt,
+          ));
+          break;
+        } catch (error) {
+          if (isDuplicateKeyError(error)) {
+            if (attempt === 5) {
+              throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Unable to create a unique share link",
+              });
+            }
+            continue;
+          }
+          if (error instanceof TRPCError) throw error;
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Unable to create share link",
+          });
+        }
+      }
+      await bestEffortAudit({
+        orgId: ctx.orgId,
+        userId: ctx.user.id,
+        action: "brief.share",
+        entityType: "ai_design_brief",
+        entityId: brief.id,
+        details: { projectId: input.projectId, expiryDays: input.expiryDays },
+      });
       return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
     }),
 
@@ -1662,7 +1740,7 @@ export const designRouter = router({
 
   // ─── Phase 9: Room-Specific Render ─────────────────────────────────────────
 
-  generateRoomRender: orgProcedure
+  generateRoomRender: designOrgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       roomName: z.string(),
@@ -1742,7 +1820,7 @@ export const designRouter = router({
 
   // ─── Phase 9: Floor Plan Upload ────────────────────────────────────────────
 
-  uploadFloorPlan: orgProcedure
+  uploadFloorPlan: designOrgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       filename: z.string(),
@@ -1755,25 +1833,34 @@ export const designRouter = router({
       const buffer = Buffer.from(input.base64Data, "base64");
       const suffix = Math.random().toString(36).slice(2, 10);
       const storagePath = `projects/${input.projectId}/floor-plans/${suffix}-${input.filename}`;
-      const { url } = await storagePut(storagePath, buffer, input.mimeType);
+      const uploaded = await storagePut(storagePath, buffer, input.mimeType);
+      let created: Awaited<ReturnType<typeof db.createFloorPlanAssetAndLinkForOrg>>;
+      try {
+        created = await db.createFloorPlanAssetAndLinkForOrg({
+          projectId: input.projectId,
+          filename: input.filename,
+          mimeType: input.mimeType,
+          sizeBytes: buffer.length,
+          storagePath: uploaded.key,
+          storageUrl: uploaded.url,
+          uploadedBy: ctx.user.id,
+          category: "other",
+        }, ctx.orgId);
+      } catch (error) {
+        reportIndeterminateUploadPersistence(uploaded.key, error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
+      }
+      if (!created) {
+        try {
+          await cleanupRejectedUpload(uploaded.key);
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
+        }
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+      const result = requireScopedDesignInsert(created);
 
-      const result = requireScopedDesignInsert(await db.createProjectAssetForOrg({
-        projectId: input.projectId,
-        filename: input.filename,
-        mimeType: input.mimeType,
-        sizeBytes: buffer.length,
-        storagePath,
-        storageUrl: url,
-        uploadedBy: ctx.user.id,
-        category: "other",
-      }, ctx.orgId));
-
-      // Link the floor plan to the project
-      requireScopedDesignMutation(await db.updateProjectForOrg(input.projectId, ctx.orgId, {
-        floorPlanAssetId: result.id,
-      }));
-
-      await db.createAuditLog({
+      await bestEffortAudit({
         orgId: ctx.orgId,
         userId: ctx.user.id,
         action: "floor_plan.upload",
@@ -1782,14 +1869,12 @@ export const designRouter = router({
         details: { assetId: result.id, filename: input.filename },
       });
 
-      console.log(`[FloorPlan] Uploaded floor plan for project ${input.projectId}: ${url}`);
-
-      return { assetId: result.id, url };
+      return { assetId: result.id, url: uploaded.url };
     }),
 
   // ─── Phase 9: Floor Plan Analysis ──────────────────────────────────────────
 
-  analyzeFloorPlan: orgProcedure
+  analyzeFloorPlan: designOrgMutationProcedure
     .input(z.object({ projectId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const project = await requireDesignProject(input.projectId, ctx.orgId);

@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Buffer } from "node:buffer";
@@ -95,4 +96,18 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
   const url = await getSignedUrl(client as any, getCommand as any, { expiresIn: 3600 * 24 * 7 });
 
   return { key, url };
+}
+
+export async function storageDelete(relKey: string): Promise<void> {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+
+  if (!bucketName) {
+    return;
+  }
+
+  await (client as any).send(new DeleteObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+  }));
 }

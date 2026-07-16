@@ -316,6 +316,13 @@
       "when": 1772640673975,
       "tag": "0044_last_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "5",
+      "when": 1784213880689,
+      "tag": "0045_steady_amazoness",
+      "breakpoints": true
     }
   ]
 }

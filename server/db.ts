@@ -4,6 +4,7 @@ import mysql from "mysql2";
 import {
   InsertUser,
   users,
+  organizationMembers,
   projects,
   directionCandidates,
   scoreMatrices,
@@ -89,7 +90,9 @@ export async function getDb() {
         user: decodeURIComponent(url.username),
         password: decodeURIComponent(url.password),
         database: url.pathname.slice(1),
-        ssl: { rejectUnauthorized: true },
+        ssl: process.env.DATABASE_SSL_DISABLED === "1"
+          ? undefined
+          : { rejectUnauthorized: true },
         waitForConnections: true,
         connectionLimit: 5,
       });
@@ -186,6 +189,17 @@ export async function getProjectsByOrg(orgId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(projects).where(eq(projects.orgId, orgId)).orderBy(desc(projects.updatedAt));
+}
+
+export async function getOrganizationMemberships(userId: number, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.select().from(organizationMembers)
+    .where(and(
+      eq(organizationMembers.userId, userId),
+      eq(organizationMembers.orgId, orgId),
+    ))
+    .limit(2);
 }
 
 export async function getAllProjects() {
@@ -999,7 +1013,7 @@ export async function deleteMaterialBoardForOrg(id: number, orgId: number) {
   return db.transaction(async (tx: typeof db) => {
     const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards)
       .innerJoin(projects, eq(projects.id, materialBoards.projectId))
-      .where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1);
+      .where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!boardRows[0]) return false;
     await tx.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
     const result = await tx.delete(materialBoards).where(and(
@@ -1007,10 +1021,75 @@ export async function deleteMaterialBoardForOrg(id: number, orgId: number) {
       sql`exists (
         select 1 from ${projects}
         where ${projects.id} = ${materialBoards.projectId}
-          and ${projects.orgId} = ${orgId}
+        and ${projects.orgId} = ${orgId}
       )`
     ));
-    return Number(result[0].affectedRows) === 1;
+    if (Number(result[0].affectedRows) !== 1) {
+      throw new Error("Material board deletion lost authorization");
+    }
+    return true;
+  });
+}
+
+export async function createMaterialBoardWithMaterialsForOrg(
+  data: Omit<typeof materialBoards.$inferInsert, "boardJson">,
+  materialIds: number[],
+  orgId: number
+) {
+  if (new Set(materialIds).size !== materialIds.length) return null;
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (!owned[0]) return null;
+
+    if (data.scenarioId !== null && data.scenarioId !== undefined) {
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios)
+        .where(and(
+          eq(scenarios.id, data.scenarioId),
+          eq(scenarios.orgId, orgId),
+        ))
+        .limit(1)
+        .for("update");
+      if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
+    }
+
+    let orderedMaterials: Array<typeof materialsCatalog.$inferSelect> = [];
+    if (materialIds.length > 0) {
+      const rows = await tx.select().from(materialsCatalog)
+        .where(and(
+          inArray(materialsCatalog.id, materialIds),
+          eq(materialsCatalog.isActive, true),
+        ))
+        .for("update");
+      const materialsById = new Map(rows.map((material: typeof materialsCatalog.$inferSelect) => [
+        material.id,
+        material,
+      ]));
+      orderedMaterials = materialIds
+        .map(materialId => materialsById.get(materialId))
+        .filter((material): material is typeof materialsCatalog.$inferSelect => Boolean(material));
+      if (orderedMaterials.length !== materialIds.length) return null;
+    }
+
+    const boardResult = await tx.insert(materialBoards).values({
+      ...data,
+      boardJson: orderedMaterials,
+    });
+    const boardId = Number(boardResult[0].insertId);
+    if (materialIds.length > 0) {
+      await tx.insert(materialsToBoards).values(
+        materialIds.map((materialId, sortOrder) => ({
+          boardId,
+          materialId,
+          sortOrder,
+        }))
+      );
+    }
+    return { id: boardId };
   });
 }
 
@@ -1068,6 +1147,14 @@ export async function addMaterialToBoardForOrg(data: typeof materialsToBoards.$i
       .innerJoin(projects, eq(projects.id, materialBoards.projectId))
       .where(and(eq(materialBoards.id, data.boardId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
+    const material = await tx.select({ id: materialsCatalog.id }).from(materialsCatalog)
+      .where(and(
+        eq(materialsCatalog.id, data.materialId),
+        eq(materialsCatalog.isActive, true),
+      ))
+      .limit(1)
+      .for("update");
+    if (!material[0]) return null;
     const result = await tx.insert(materialsToBoards).values(data);
     return { id: Number(result[0].insertId) };
   });
@@ -2394,6 +2481,43 @@ export async function insertRfqLineItemForOrg(data: typeof rfqLineItems.$inferIn
     return true;
   });
 }
+
+export async function insertRfqLineItemsForOrg(
+  data: (typeof rfqLineItems.$inferInsert)[],
+  expected: { projectId: number; briefId: number; orgId: number }
+) {
+  if (data.length > 1000) return false;
+  if (data.some(item =>
+    item.organizationId !== expected.orgId ||
+    item.projectId !== expected.projectId ||
+    item.briefId !== expected.briefId
+  )) return false;
+
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: projects.id }).from(projects)
+      .where(and(
+        eq(projects.id, expected.projectId),
+        eq(projects.orgId, expected.orgId),
+      ))
+      .limit(1)
+      .for("update");
+    if (!owned[0]) return false;
+
+    const brief = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs)
+      .where(and(
+        eq(designBriefs.id, expected.briefId),
+        eq(designBriefs.projectId, expected.projectId),
+      ))
+      .limit(1)
+      .for("update");
+    if (!brief[0]) return false;
+
+    if (data.length > 0) await tx.insert(rfqLineItems).values(data);
+    return true;
+  });
+}
 export async function insertDmComplianceChecklist(data: typeof dmComplianceChecklists.$inferInsert) {
   const db = await getDb();
   if (!db) return;
@@ -2611,6 +2735,70 @@ export async function updateAiDesignBriefShareToken(briefId: number, token: stri
   await db.update(aiDesignBriefs)
     .set({ shareToken: token, shareExpiresAt: expiresAt })
     .where(eq(aiDesignBriefs.id, briefId));
+}
+
+export async function updateAiDesignBriefShareTokenForOrg(
+  briefId: number,
+  projectId: number,
+  orgId: number,
+  token: string,
+  expiresAt: Date
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const rows = await tx.select({ id: aiDesignBriefs.id }).from(aiDesignBriefs)
+      .innerJoin(projects, eq(projects.id, aiDesignBriefs.projectId))
+      .where(and(
+        eq(aiDesignBriefs.id, briefId),
+        eq(aiDesignBriefs.projectId, projectId),
+        eq(aiDesignBriefs.orgId, orgId),
+        eq(projects.id, projectId),
+        eq(projects.orgId, orgId),
+      ))
+      .limit(1)
+      .for("update");
+    if (!rows[0]) return false;
+
+    const result = await tx.update(aiDesignBriefs)
+      .set({ shareToken: token, shareExpiresAt: expiresAt })
+      .where(and(
+        eq(aiDesignBriefs.id, briefId),
+        eq(aiDesignBriefs.projectId, projectId),
+        eq(aiDesignBriefs.orgId, orgId),
+        sql`exists (
+          select 1 from ${projects}
+          where ${projects.id} = ${projectId}
+            and ${projects.orgId} = ${orgId}
+        )`,
+      ));
+    return Number(result[0].affectedRows) === 1;
+  });
+}
+
+export async function createFloorPlanAssetAndLinkForOrg(
+  data: typeof projectAssets.$inferInsert,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: typeof db) => {
+    const owned = await tx.select({ id: projects.id }).from(projects)
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (!owned[0]) return null;
+
+    const assetResult = await tx.insert(projectAssets).values(data);
+    const assetId = Number(assetResult[0].insertId);
+    const projectResult = await tx.update(projects)
+      .set({ floorPlanAssetId: assetId })
+      .where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)));
+    if (Number(projectResult[0].affectedRows) !== 1) {
+      throw new Error("Floor-plan project link lost authorization");
+    }
+    return { id: assetId };
+  });
 }
 
 /** Phase 5 — Resolve share token → brief row (used by public resolveShareLink endpoint). */

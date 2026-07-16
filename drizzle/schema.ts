@@ -10,6 +10,7 @@ import {
   boolean,
   float,
   json,
+  uniqueIndex,
 } from "drizzle-orm/mysql-core";
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -45,13 +46,22 @@ export const organizations = mysqlTable("organizations", {
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = typeof organizations.$inferInsert;
 
-export const organizationMembers = mysqlTable("organization_members", {
-  id: int("id").autoincrement().primaryKey(),
-  orgId: int("orgId").notNull(),
-  userId: int("userId").notNull(),
-  role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+export const organizationMembers = mysqlTable(
+  "organization_members",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    userId: int("userId").notNull(),
+    role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("organization_members_org_user_unique").on(
+      table.orgId,
+      table.userId
+    ),
+  ]
+);
 
 export type OrganizationMember = typeof organizationMembers.$inferSelect;
 export type InsertOrganizationMember = typeof organizationMembers.$inferInsert;
@@ -1838,17 +1848,23 @@ export const designPackages = mysqlTable("design_packages", {
 export type DesignPackageRow = typeof designPackages.$inferSelect;
 export type InsertDesignPackage = typeof designPackages.$inferInsert;
 
-export const aiDesignBriefs = mysqlTable("ai_design_briefs", {
-  id: int("id").primaryKey().autoincrement(),
-  projectId: int("project_id").notNull(),
-  orgId: int("org_id").notNull(),
-  briefData: json("brief_data").notNull(),          // AIDesignBrief
-  version: varchar("version", { length: 20 }).default("1.0"),
-  // Phase 5: Shareable link
-  shareToken: varchar("share_token", { length: 64 }),
-  shareExpiresAt: timestamp("share_expires_at"),
-  generatedAt: timestamp("generated_at").defaultNow().notNull(),
-});
+export const aiDesignBriefs = mysqlTable(
+  "ai_design_briefs",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    projectId: int("project_id").notNull(),
+    orgId: int("org_id").notNull(),
+    briefData: json("brief_data").notNull(),          // AIDesignBrief
+    version: varchar("version", { length: 20 }).default("1.0"),
+    // Phase 5: Shareable link
+    shareToken: varchar("share_token", { length: 64 }),
+    shareExpiresAt: timestamp("share_expires_at"),
+    generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("ai_design_briefs_share_token_unique").on(table.shareToken),
+  ]
+);
 
 
 export type AiDesignBriefRow = typeof aiDesignBriefs.$inferSelect;

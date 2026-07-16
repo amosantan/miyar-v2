@@ -86,6 +86,17 @@ Requires explicit approval naming the target and migration. Before applying:
 
 Apply through the established deployment platform, record timestamps, then run integrity and application checks immediately.
 
+## TR-03H Migration 0045
+
+Migration 0045 is additive but security-sensitive:
+
+1. Confirm migration 0044 is complete before continuing.
+2. Run `pnpm db:preflight:tr03h` against the approved target.
+3. Any duplicate membership pair, duplicate non-null share token, or absent/partial 0044 result is `NEEDS_HUMAN`; never repair production data automatically.
+4. Treat the duplicate preflight as advisory because old application instances may still write between the query and DDL. Use a brief write freeze or stop old writers before applying 0045.
+5. The unique-index DDL result is authoritative. A duplicate-key DDL failure is `NEEDS_HUMAN`, not a retry or an invitation to delete records.
+6. Applying 0045 remains a separate production-database approval from application deployment.
+
 ## Recovery Patterns
 
 Choose and document one:
