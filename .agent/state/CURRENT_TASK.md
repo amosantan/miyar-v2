@@ -83,6 +83,6 @@ Close the 93 `TR-04` authorization inventory rows across 18 non-design routers w
 - Production ownership remediation is complete and `KF-015` is closed. The application release may proceed, subject to the remaining deployment and smoke gates.
 - Application commit `3d0e26068b3c96237dc20605923280c76e548152` was deployed to Vercel production as `dpl_7ndQvn6N7NpoJqx13fjBdgU5V8vM` and reached `READY`.
 - Production smoke checks pass for site/API health, unauthenticated tenant rejection, invalid-share concealment/privacy headers, migration structure, and zero remaining legacy-null ownership counts.
-- Production currently identifies review-branch application SHA `3d0e260`; canonical `origin/main` was not changed because protected-main integration was not authorized. `KF-012` is reopened as a governance follow-up.
+- Production identifies application SHA `3d0e260`, and canonical `origin/main` now contains that exact application commit plus state-only release records. `KF-012` is closed.
 - PlanetScale compatibility was not rerun for this uncommitted TR-04 worktree; the disposable MySQL 8 reference gate is current. Any future release must re-evaluate provider compatibility and `KF-014`.
 - Next executable roadmap step: `TR-05`.

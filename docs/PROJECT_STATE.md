@@ -6,7 +6,7 @@ This is the canonical location for current observed repository facts. It is not 
 
 - Observed: 2026-07-16
 - Application release commit: `3d0e26068b3c96237dc20605923280c76e548152`
-- Branch: `codex/tr-04-authorization`; the application release commit is pushed to `origin/codex/tr-04-authorization`
+- Branch identity: canonical `origin/main` contains the deployed application SHA and the complete reviewed TR-04 history; `codex/tr-04-authorization` remains the review branch
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: Vercel deployment `dpl_7ndQvn6N7NpoJqx13fjBdgU5V8vM` reached `READY` from the exact clean application release commit and is aliased to `www.miyar.dev`
@@ -67,6 +67,7 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - Migration 0046 is complete: `portfolio_alerts` has 16 expected columns, a primary key, and unique `(organization_id, active_dedup_key)`.
 - TR-04 release preflight found 2 null-owned projects, 4 null-owned scenarios, and 8 reports attached to null-owned projects. The user approved the unique organization-1 mapping; one transaction updated the 2 projects and 4 scenarios, and all three post-remediation counts are zero. `KF-015` is closed.
 - Production deployment `dpl_7ndQvn6N7NpoJqx13fjBdgU5V8vM` is `READY`. Root and `system.health` return 200, unauthenticated `project.get` returns 401, invalid public shares return concealed 404 with `private, no-store` and `noindex, nofollow, noarchive`, and post-deployment ownership/table/index integrity checks pass.
+- Canonical main was fast-forwarded through the complete TR-04 history after explicit user authorization. Deployed application SHA `3d0e26068b3c96237dc20605923280c76e548152` is contained in `origin/main`; later commits are release-state records.
 
 ## Environment Uncertainties
 

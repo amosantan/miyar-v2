@@ -4,7 +4,7 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 
 ## KF-006 — Project and child-resource authorization gaps
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 at `a15424b` plus the TR-01 inventory worktree.
 - Command: `pnpm audit:authorization`
 - Evidence: `docs/security/resource-authorization-inventory.json` inventories all 327 router procedures. `TR-03` closed all 39 design-domain rows; 93 remaining authorization/global-governance/legacy-user rows are assigned to `TR-04`.
@@ -75,6 +75,7 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Exit criterion: the complete reviewed application branch is fast-forwarded to canonical `main`, the production deployment source equals that canonical application release SHA, and release evidence records the identity. Later state-only commits do not change the application release identity.
 - Closed evidence: The complete reviewed application history was fast-forwarded to local and remote `main`; Vercel production deployment `dpl_HQ6mnWadr46VhfjS3GhGQnxi48Ng` reached `READY` from canonical application release SHA `9e5d1e395ab7486fdfc73943d279820d5a91d53c`. This closeout changes repository state records only and does not alter the deployed application.
 - Reopened evidence: TR-04 application commit `3d0e26068b3c96237dc20605923280c76e548152` was deployed successfully from `codex/tr-04-authorization`, while `origin/main` remains at the prior release lineage. Production is healthy, but canonical release identity is again divergent until an explicitly authorized reviewed fast-forward or merge updates `main`.
+- Reclosed evidence: The user authorized protected-main integration, and `origin/main` was fast-forwarded without a merge from `3bfc990` through the complete reviewed TR-04 history at `5edb26d`. Canonical main contains deployed application SHA `3d0e26068b3c96237dc20605923280c76e548152`; later commits record release state only.
 
 ## KF-013 — RFQ generation retries are intentionally non-idempotent
 
