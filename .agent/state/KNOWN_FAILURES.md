@@ -97,6 +97,7 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Impact: required hosted CI gates cannot become green even though equivalent local TypeScript, unit, build, authorization, and disposable MySQL 8 checks pass.
 - Owner: Repository owner / GitHub billing administrator.
 - Approved release exception: for the TR-03H release only, the user selected Vercel’s hosted build check on each pushed commit as the external gate, combined with the recorded local MySQL, PlanetScale, full-suite, audit, build, and Claude evidence.
+- TR-07 release disposition: The user explicitly authorized final smoke, commit, push, canonical-main merge, and production deployment. Run `29604504677` again created both jobs with zero steps and the billing-lock annotation. The release proceeded with a clean frozen install, passing TypeScript, safe 1,021/22 suite, 335/0 authorization audit, production build, successful Vercel preview/production builds, and passing production smoke. This bounded disposition does not close or normalize the CI failure.
 - Exit criterion: restore Actions eligibility and obtain successful hosted Actions checks for future releases; the bounded TR-03H exception does not close the underlying billing failure.
 
 ## KF-015 — Production contains legacy null-organization resources

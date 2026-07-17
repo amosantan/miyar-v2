@@ -244,6 +244,7 @@ Rules:
 - Completion evidence: Fixing commit `db36254`; authentication mocks include `getDb`, normalization tests use the valid static import, and the safe full suite passes without connecting to a database.
 - Reopened: 2026-07-17 at the user's direction for a bounded re-audit of authentication database/audit isolation, typed deterministic fixtures, and the existing static ESM normalization import. Systemic test-environment protection remains under `KF-008`/`TR-12`.
 - Reclosed: 2026-07-17 with terminal state `PASS` after schema-derived deterministic user fixtures, type-checked database mocks, isolated audit assertions, and three restored causal mutation proofs. Targeted/surrounding tests pass 49/49; the safe full suite passes 1,021 with 22 skipped and no auth/logout database attempt; TypeScript, the 335-procedure authorization audit, production builds, and diff checks pass.
+- Production release: Candidate `15d29c5` merged through PR `#5` as canonical-main commit `85f98db`; Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU` completed successfully, public/negative-path production smoke passed, and three follow-up health observations remained 200. The release contained no runtime or schema change.
 - Residual risk: `KF-008` remains open because auth-specific isolation does not provide the fail-closed environment profiles owned by `TR-12`.
 - Lessons: `LES-022`
 

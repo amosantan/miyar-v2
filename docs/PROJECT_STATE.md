@@ -5,13 +5,13 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-17
-- Application release observation: UX-01 merge commit `029f5c1b0aa544f8a364dfc4b179efdfafa5a78b` has a successful Vercel deployment status; exact authenticated production behavior was not reverified in this observation
-- Branch identity: `origin/main` is `a5e0b94088af01e0b89d3380d1db90f5d9ad1db5`; the TR-07 worktree branches from that fetched tip
+- Application release commit: `85f98db305e5fe983a9ab578f6d129592fa6cfc7`, merging test-only TR-07 candidate `15d29c5f5d7baa240fd79976d04dfb2254219415`
+- Branch identity: canonical `origin/main` is `85f98db305e5fe983a9ab578f6d129592fa6cfc7`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: UX-01 commit status links successful Vercel deployment `3EiFA1wEbRhrNiciHqnvmmwNZCNp`; public root and timestamped `system.health` return HTTP 200, but no authenticated browser session was available for independent smoke re-verification
+- Production: Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU` completed successfully for exact canonical-main commit `85f98db`; root and health return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and the public homepage renders
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Active worktree observation: completed `TR-07` test-only re-audit on `codex/tr-07-test-baseline` at fetched `origin/main`; no runtime, schema, migration, scoring, or authorization behavior changed
+- Active worktree observation: TR-07 release closeout on `codex/tr-07-test-baseline`; the released diff changes tests and state only, with no runtime, schema, migration, dependency, scoring, or authorization behavior
 
 ## Technology Observed
 
@@ -71,18 +71,19 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - TR-04 release preflight found 2 null-owned projects, 4 null-owned scenarios, and 8 reports attached to null-owned projects. The user approved the unique organization-1 mapping; one transaction updated the 2 projects and 4 scenarios, and all three post-remediation counts are zero. `KF-015` is closed.
 - Production deployment `dpl_7ndQvn6N7NpoJqx13fjBdgU5V8vM` is `READY`. Root and `system.health` return 200, unauthenticated `project.get` returns 401, invalid public shares return concealed 404 with `private, no-store` and `noindex, nofollow, noarchive`, and post-deployment ownership/table/index integrity checks pass.
 - TR-05 production deployment `dpl_G7hPvJk7WUqwxYBdrjZN6noNxNFn` is `READY` and Vercel identifies exact commit `1f8c97d288ce97315664229049db3db38ec65bb2`. Root and `system.health` return 200, unauthenticated `project.get` returns 401, invalid shares return concealed 404 with privacy headers, and post-deployment corpus integrity checks pass.
-- Canonical main was fast-forwarded through the complete TR-04 history after explicit user authorization. The TR-05 application SHA is pushed on `origin/codex/tr-05-data-isolation` and deployed, but has not been merged into canonical main.
+- TR-07 test-only release commit `85f98db305e5fe983a9ab578f6d129592fa6cfc7` deployed successfully as Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU`. Post-deployment root/health, unauthenticated tenant rejection, invalid-share privacy, rendered homepage, and a three-observation health window pass. No database or schema operation was part of the release.
+- Canonical `main` contains the reviewed TR-05, UX-01, TR-06H, and TR-07 histories through application release commit `85f98db`.
 
 ## Environment Uncertainties
 
 - Documentation historically names both PlanetScale and TiDB. Treat the actual `DATABASE_URL` target and deployment configuration as authoritative for a given environment without exposing credentials.
 - The ordinary full Vitest command is not database-hermetic. Continue using the explicit safe `DATABASE_URL=''` profile until `KF-008` closes.
-- GitHub Actions cannot start while the repository owner account is billing-locked (`KF-014`). TR-05 release evidence therefore uses the user-authorized Vercel hosted clean build on the pushed commit plus recorded disposable MySQL, production PlanetScale DDL/integrity, full-suite, audit, build, browser, and independent-review gates.
+- GitHub Actions cannot start while the repository owner account is billing-locked (`KF-014`). TR-07 run `29604504677` created both jobs with zero steps and the same billing annotation; the user-authorized release used the clean frozen local gates plus successful Vercel preview/production builds and production smoke. The underlying CI failure remains open.
 
 ## CI Configuration in the Current Worktree
 
 - CI configuration uses pnpm and the committed lockfile, with fail-closed TypeScript, test, build, and isolated MySQL jobs.
-- GitHub did not execute those jobs because of `KF-014`; the approved bounded substitute was Vercel's hosted clean build on every pushed release commit.
+- GitHub did not execute those jobs because of `KF-014`; the TR-07 release disposition and replacement evidence are recorded in `.agent/state/KNOWN_FAILURES.md` and `.agent/state/CURRENT_TASK.md`.
 - The observed local TypeScript, safe full-suite, authorization, build, isolated MySQL, and PlanetScale compatibility gates are green.
 
 ## Authorization Foundation
@@ -93,7 +94,7 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - `TR-03H` closes live membership, design roles, scoped final writes, composite atomicity, rejected-upload compensation, public-share privacy, real-SQL evidence, and canonical release identity.
 - `TR-04` closes all 93 remaining project-router authorization/global-governance paths, including the later ultra-review remediation for atomic report persistence and tenant-owned portfolio alerts. The live inventory has zero `TR-04` and exactly eight pooled-data rows under `TR-05`; targeted, disposable MySQL, safe full-suite, TypeScript, audit, build, diff, and independent-review gates pass.
 - `TR-05` and `KF-007` are closed on `codex/tr-05-data-isolation`. Corpus isolation, migration 0047, fail-closed organization/public reads, scheduler disablement, insufficiency contracts, UI states, and enhanced audit enforcement are implemented. Verified gates: disposable MySQL 18/18, safe suite 962 passed with 22 skipped, authorization inventory 331/331 with zero remediation rows, TypeScript/build/diff PASS, in-app browser PASS across analytics, cost forecasting, project prediction, design advisor, and learning administration, and independent Claude Code `APPROVED_NO_OBJECTION`. `TR-10` is the next executable step.
-- `UX-01` is closed on the uncommitted review branch `codex/miyar-ux-redesign`. The warm light-first design system, simplified public/application/admin navigation, quick-start provenance and readiness gate, four-section project workspace, route compatibility, RTL foundations, and account-specific onboarding are implemented. Verified gates: disposable MySQL 19/19, safe suite 971 passed with 22 skipped, authorization inventory 333/333 with zero remediation rows, TypeScript/build/diff PASS, authenticated in-app browser PASS at 360/390/768/1440 with themes, Arabic RTL, admin separation, and readiness, plus a corrected independent Claude Code no-blocker `APPROVE_WITH_CHANGES`. Migration 0048 and deployment remain human-gated; `TR-10` is next.
+- `UX-01` is merged into canonical main through commit `029f5c1`. Its implementation and prior authenticated verification remain recorded, but an authenticated browser session was unavailable during the independent TR-07 release smoke; the roadmap retains that explicit UX-01 human gate. `TR-10` is next.
 
 ## Refresh Procedure
 
