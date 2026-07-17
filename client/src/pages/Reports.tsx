@@ -28,7 +28,6 @@ import {
 import { useState, useMemo, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import ReportRenderer from "@/components/ReportRenderer";
-import type { Project } from "@shared/entity-types";
 
 const REPORT_TYPES = [
   {
@@ -63,12 +62,14 @@ const REPORT_TYPES = [
     badge: "AI-Powered",
     badgeColor: "bg-blue-500/20 text-blue-500",
   }
-];
+] as const;
+
+type GenerateReportType = (typeof REPORT_TYPES)[number]["value"];
 
 function ReportsContent() {
   const { data: projects } = trpc.project.list.useQuery();
   const evaluatedProjects = useMemo(
-    () => (projects as Project[] | undefined)?.filter((p) => p.status === "evaluated") ?? [],
+    () => projects?.filter((p) => p.status === "evaluated") ?? [],
     [projects]
   );
   const [selectedId, setSelectedId] = useState<string>("");
@@ -81,7 +82,7 @@ function ReportsContent() {
   const generateReport = trpc.project.generateReport.useMutation();
   const utils = trpc.useUtils();
 
-  const [reportType, setReportType] = useState("validation_summary");
+  const [reportType, setReportType] = useState<GenerateReportType>("validation_summary");
   const [previewId, setPreviewId] = useState<number | null>(null);
 
   async function handleGenerate() {
@@ -89,16 +90,16 @@ function ReportsContent() {
     try {
       const result = await generateReport.mutateAsync({
         projectId,
-        reportType: reportType as any,
+        reportType,
       });
       utils.project.listReports.invalidate({ projectId });
-      if ((result as any).fileUrl) {
+      if (result.fileUrl) {
         toast.success("Report generated and uploaded to cloud storage");
       } else {
         toast.success("Report generated (stored locally)");
       }
-    } catch (e: any) {
-      toast.error(e.message || "Failed to generate report");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate report");
     }
   }
 
@@ -298,12 +299,13 @@ function ReportsContent() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {reports.map((r: any) => {
+                  {reports.map((r) => {
                     const rtDef = REPORT_TYPES.find(
                       (t) => t.value === r.reportType
                     );
                     const Icon = rtDef?.icon || FileText;
                     const isExpanded = previewId === r.id;
+                    const fileUrl = r.fileUrl;
 
                     return (
                       <div key={r.id} className="rounded-lg border border-border overflow-hidden">
@@ -334,13 +336,13 @@ function ReportsContent() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            {r.fileUrl && (
+                            {fileUrl && (
                               <>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="gap-1.5 text-xs"
-                                  onClick={() => handleView(r.fileUrl)}
+                                  onClick={() => handleView(fileUrl)}
                                 >
                                   <ExternalLink className="h-3.5 w-3.5" />
                                   View
@@ -350,7 +352,7 @@ function ReportsContent() {
                                   size="sm"
                                   className="gap-1.5 text-xs"
                                   onClick={() =>
-                                    handleDownload(r.fileUrl, r.reportType)
+                                    handleDownload(fileUrl, r.reportType)
                                   }
                                 >
                                   <Download className="h-3.5 w-3.5" />
@@ -358,7 +360,7 @@ function ReportsContent() {
                                 </Button>
                               </>
                             )}
-                            {!r.fileUrl && r.content && (
+                            {!fileUrl && r.content != null && (
                               <Button
                                 variant="ghost"
                                 size="sm"

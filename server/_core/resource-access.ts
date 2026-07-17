@@ -75,14 +75,11 @@ async function requireAuthorizedProject<
   lookupProject: ProjectLookup<Project>,
   notFoundMessage?: string
 ): Promise<Project> {
-  try {
-    return await requireProjectForOrg(projectId, orgId, lookupProject);
-  } catch (error) {
-    if (error instanceof TRPCError && error.code === "NOT_FOUND") {
-      return notFound(notFoundMessage);
-    }
-    throw error;
+  const project = await lookupProject(projectId);
+  if (!project || project.orgId !== orgId) {
+    return notFound(notFoundMessage);
   }
+  return project;
 }
 
 /**

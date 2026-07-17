@@ -450,8 +450,8 @@ export const projectRouter = router({
           if (project.dldAreaId) {
             const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
             if (dldBench) {
-              areaNameForBench = dldBench.areaName || areaNameForBench;
-              transCount = dldBench.transactionCount ? Number(dldBench.transactionCount) : 0;
+              areaNameForBench = dldBench.areaNameEn || areaNameForBench;
+              transCount = dldBench.saleTransactionCount ? Number(dldBench.saleTransactionCount) : 0;
               saleP50 = dldBench.saleP50 ? Number(dldBench.saleP50) : null;
             }
           }
@@ -782,7 +782,7 @@ export const projectRouter = router({
         const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
         if (dldBench) {
           dldContext = {
-            areaName: project.dldAreaName || dldBench.areaName,
+            areaName: project.dldAreaName || dldBench.areaNameEn,
             grossYield: dldBench.grossYield ? Number(dldBench.grossYield) : null,
             saleP50: dldBench.saleP50 ? Number(dldBench.saleP50) : null,
             projectPurpose: project.projectPurpose || "sell_ready",

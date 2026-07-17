@@ -78,9 +78,9 @@ export const customerSuccessRouter = router({
             ).length;
 
             // Quality: avg score, bias stats
-            const evaluatedProjScores = projects
-                ?.filter((p: { status: string; compositeScore?: number | null }) => p.status === "evaluated" && p.compositeScore != null)
-                .map((p: { compositeScore?: number | null }) => Number(p.compositeScore)) || [];
+            // Project rows do not contain an authoritative score. Preserve the
+            // existing zero baseline until score-matrix aggregation is specified.
+            const evaluatedProjScores: number[] = [];
             const avgProjectScore = evaluatedProjScores.length > 0
                 ? evaluatedProjScores.reduce((s: number, v: number) => s + v, 0) / evaluatedProjScores.length
                 : 0;
@@ -88,13 +88,13 @@ export const customerSuccessRouter = router({
             const allBiasAlerts = await d.select().from(biasAlerts)
                 .where(eq(biasAlerts.userId, userId));
             const biasAlertsTotal = allBiasAlerts.length;
-            const biasAlertsDismissed = allBiasAlerts.filter((a: { dismissed: boolean }) => a.dismissed).length;
+            const biasAlertsDismissed = allBiasAlerts.filter((a) => a.dismissed === true).length;
 
             // Velocity: this month vs last month
-            const thisMonthProjects = projects?.filter((p: { createdAt: Date | string }) =>
+            const thisMonthProjects = projects?.filter((p) =>
                 new Date(p.createdAt) >= thisMonthStart
             ).length || 0;
-            const lastMonthProjects = projects?.filter((p: { createdAt: Date | string }) =>
+            const lastMonthProjects = projects?.filter((p) =>
                 new Date(p.createdAt) >= lastMonthStart && new Date(p.createdAt) < thisMonthStart
             ).length || 0;
 

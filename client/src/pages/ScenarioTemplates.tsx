@@ -8,7 +8,6 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2, Wand2, Target, ArrowRight, AlertTriangle, Lightbulb } from "lucide-react";
 import { useState, useMemo } from "react";
-import type { Project } from "@shared/entity-types";
 
 const CONSTRAINT_VARIABLES = [
   { key: "des02MaterialLevel", label: "Material Level", type: "number" },
@@ -97,7 +96,7 @@ export default function ScenarioTemplates() {
                   {projectsLoading ? (
                     <SelectItem value="loading" disabled>Loading...</SelectItem>
                   ) : (
-                    (projects as Project[] | undefined)?.map(p => (
+                    projects?.map(p => (
                       <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
                     ))
                   )}

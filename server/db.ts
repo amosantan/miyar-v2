@@ -1,5 +1,5 @@
 import { eq, and, desc, asc, sql, inArray, gte, isNull, or } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import {
   InsertUser,
@@ -89,7 +89,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
-let _db: any = null;
+let _db: MySql2Database | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {

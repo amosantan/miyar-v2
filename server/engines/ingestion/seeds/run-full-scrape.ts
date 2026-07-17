@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 
 async function main() {
     const db = await getDb();
+    if (!db) throw new Error("DB not available");
     console.log("🕷️  MIYAR Full Local Scrape");
     console.log("━".repeat(60));
 

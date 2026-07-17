@@ -292,9 +292,9 @@ export const designRouter = router({
           if (floorPlanAnalysis?.rooms?.length > 0 && project.dldAreaId) {
             const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
             if (dldBench) {
-              const areaName = dldBench.areaName || "Dubai";
-              const transCount = Number(dldBench.transactionCount) || 100;
-              const saleP50 = Number(dldBench.saleMedian) || 25000;
+              const areaName = dldBench.areaNameEn || "Dubai";
+              const transCount = Number(dldBench.saleTransactionCount) || 100;
+              const saleP50 = Number(dldBench.saleP50) || 25000;
               spaceBenchmarkResult = benchmarkSpaceRatios(floorPlanAnalysis, areaName, transCount, saleP50);
             }
           }
@@ -766,7 +766,7 @@ export const designRouter = router({
           linkId: link.id,
           assetId: link.assetId,
           imageUrl: asset?.storageUrl ?? null,
-          fileName: asset?.fileName ?? null,
+          fileName: asset?.filename ?? null,
           pinnedAt: link.createdAt,
         };
       }));
@@ -1460,7 +1460,7 @@ export const designRouter = router({
       if (!project.dldAreaId) return null;
       const benchmark = await db.getDldAreaBenchmark(project.dldAreaId);
       return benchmark ? {
-        areaName: project.dldAreaName || benchmark.areaName,
+        areaName: project.dldAreaName || benchmark.areaNameEn,
         projectPurpose: project.projectPurpose || "sell_ready",
         saleP50: benchmark.saleP50 ? Number(benchmark.saleP50) : null,
         saleP25: benchmark.saleP25 ? Number(benchmark.saleP25) : null,
@@ -1470,8 +1470,8 @@ export const designRouter = router({
         fitoutLow: benchmark.recommendedFitoutLow ? Number(benchmark.recommendedFitoutLow) : null,
         fitoutMid: benchmark.recommendedFitoutMid ? Number(benchmark.recommendedFitoutMid) : null,
         fitoutHigh: benchmark.recommendedFitoutHigh ? Number(benchmark.recommendedFitoutHigh) : null,
-        transactionCount: benchmark.transactionCount ? Number(benchmark.transactionCount) : 0,
-        rentContractCount: benchmark.rentContractCount ? Number(benchmark.rentContractCount) : 0,
+        transactionCount: benchmark.saleTransactionCount ? Number(benchmark.saleTransactionCount) : 0,
+        rentContractCount: benchmark.rentTransactionCount ? Number(benchmark.rentTransactionCount) : 0,
       } : null;
     }),
 
@@ -1693,9 +1693,9 @@ export const designRouter = router({
             if (dldBench) {
               const spaceResult = benchmarkSpaceRatios(
                 fpData,
-                dldBench.areaName || "Dubai",
-                Number(dldBench.transactionCount) || 100,
-                Number(dldBench.saleMedian) || 25000,
+                dldBench.areaNameEn || "Dubai",
+                Number(dldBench.saleTransactionCount) || 100,
+                Number(dldBench.saleP50) || 25000,
               );
               spaceEfficiency = {
                 efficiencyScore: spaceResult.overallEfficiencyScore,

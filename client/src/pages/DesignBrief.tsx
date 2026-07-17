@@ -9,6 +9,40 @@ import { Separator } from "@/components/ui/separator";
 import { FileText, Palette, Package, DollarSign, Truck, CheckSquare, RefreshCw, History, ChevronRight, Download, LayoutGrid, Layers } from "lucide-react";
 import { toast } from "sonner";
 
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as JsonRecord
+    : null;
+}
+
+function textValue(record: JsonRecord | null, key: string): string {
+  const value = record?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function numberValue(record: JsonRecord | null, key: string): number {
+  const value = record?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function booleanValue(record: JsonRecord | null, key: string): boolean {
+  return record?.[key] === true;
+}
+
+function stringList(record: JsonRecord | null, key: string): string[] {
+  const value = record?.[key];
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function recordList(record: JsonRecord | null, key: string): JsonRecord[] {
+  const value = record?.[key];
+  return Array.isArray(value)
+    ? value.map(asRecord).filter((item): item is JsonRecord => item !== null)
+    : [];
+}
+
 export default function DesignBrief() {
   const [, params] = useRoute("/projects/:id/brief");
   const projectId = Number(params?.id);
@@ -36,16 +70,70 @@ export default function DesignBrief() {
   });
 
   const brief = latestBrief.data;
-  const identity = brief?.projectIdentity as any;
-  const styleMood = brief?.styleMood as any;
-  const materialGuidance = brief?.materialGuidance as any;
-  const budgetGuardrails = brief?.budgetGuardrails as any;
-  const procurement = brief?.procurementConstraints as any;
-  const deliverables = brief?.deliverablesChecklist as any;
-  const briefFullData = brief?.briefData as any;
-  const detailedBudgetData = brief?.detailedBudget as any;
-  const spaceAllocation = briefFullData?.spaceAllocation ?? detailedBudgetData?.spaceAllocation;
-  const mqiSummary = briefFullData?.mqiSummary ?? detailedBudgetData?.mqiSummary;
+  const identityRaw = asRecord(brief?.projectIdentity);
+  const narrativeRaw = asRecord(brief?.designNarrative);
+  const materialsRaw = asRecord(brief?.materialSpecifications);
+  const budgetRaw = asRecord(brief?.detailedBudget);
+  const instructionsRaw = asRecord(brief?.designerInstructions);
+  const procurementRaw = asRecord(instructionsRaw?.procurementAndLogistics);
+  const phasesRaw = asRecord(instructionsRaw?.phasedDeliverables);
+
+  const identity = identityRaw && {
+    projectName: textValue(identityRaw, "projectName"), typology: textValue(identityRaw, "typology"),
+    scale: textValue(identityRaw, "scale"), gfa: numberValue(identityRaw, "gfa"),
+    location: textValue(identityRaw, "location"), horizon: textValue(identityRaw, "horizon"),
+    marketTier: textValue(identityRaw, "marketTier"), style: textValue(identityRaw, "style"),
+  };
+  const styleMood = narrativeRaw && {
+    positioningStatement: textValue(narrativeRaw, "positioningStatement"),
+    primaryStyle: textValue(narrativeRaw, "primaryStyle"), moodKeywords: stringList(narrativeRaw, "moodKeywords"),
+    colorPalette: stringList(narrativeRaw, "colorPalette"), textureDirection: textValue(narrativeRaw, "textureDirection"),
+    lightingApproach: textValue(narrativeRaw, "lightingApproach"), spatialPhilosophy: textValue(narrativeRaw, "spatialPhilosophy"),
+  };
+  const materialGuidance = materialsRaw && {
+    tierRecommendation: textValue(materialsRaw, "tierRequirement"), qualityBenchmark: textValue(materialsRaw, "qualityBenchmark"),
+    primaryMaterials: stringList(materialsRaw, "approvedMaterials"), accentMaterials: stringList(materialsRaw, "finishesAndTextures"),
+    avoidMaterials: stringList(materialsRaw, "prohibitedMaterials"), sustainabilityNotes: textValue(materialsRaw, "sustainabilityMandate"),
+  };
+  const budgetGuardrails = budgetRaw && {
+    costPerSqftTarget: textValue(budgetRaw, "costPerSqmTarget"), costBand: textValue(budgetRaw, "costBand"),
+    contingencyRecommendation: textValue(budgetRaw, "contingencyRecommendation"), flexibilityLevel: textValue(budgetRaw, "flexibilityLevel"),
+    valueEngineeringNotes: stringList(budgetRaw, "valueEngineeringMandates"),
+  };
+  const procurement = procurementRaw && {
+    leadTimeWindow: textValue(procurementRaw, "leadTimeWindow"), criticalPathItems: stringList(procurementRaw, "criticalPathItems"),
+    importDependencies: stringList(procurementRaw, "importDependencies"), riskMitigations: stringList(instructionsRaw, "coordinationRequirements"),
+  };
+  const deliverables = phasesRaw && {
+    phase1: stringList(phasesRaw, "conceptDesign"), phase2: stringList(phasesRaw, "schematicDesign"),
+    phase3: stringList(phasesRaw, "detailedDesign"), qualityGates: stringList(instructionsRaw, "authorityApprovals"),
+  };
+
+  const spaceRaw = asRecord(budgetRaw?.spaceAllocation);
+  const spaceAllocation = spaceRaw && {
+    efficiencyScore: numberValue(spaceRaw, "efficiencyScore"), totalArea: numberValue(spaceRaw, "totalArea"),
+    roomCount: numberValue(spaceRaw, "roomCount"), circulationPct: numberValue(spaceRaw, "circulationPct"),
+    rooms: recordList(spaceRaw, "rooms").map((room) => ({
+      name: textValue(room, "name"), pctOfTotal: numberValue(room, "pctOfTotal"), finishGrade: textValue(room, "finishGrade"),
+    })),
+    recommendations: recordList(spaceRaw, "recommendations").map((item) => ({
+      severity: textValue(item, "severity"), advice: textValue(item, "advice"),
+    })),
+  };
+  const mqiRaw = asRecord(budgetRaw?.mqiSummary);
+  const mqiSummary = mqiRaw && {
+    totalFinishCostMin: numberValue(mqiRaw, "totalFinishCostMin"), totalFinishCostMid: numberValue(mqiRaw, "totalFinishCostMid"),
+    totalFinishCostMax: numberValue(mqiRaw, "totalFinishCostMax"), qualityLabel: textValue(mqiRaw, "qualityLabel"),
+    budgetUtilizationPct: typeof mqiRaw.budgetUtilizationPct === "number" ? mqiRaw.budgetUtilizationPct : null,
+    isOverBudget: booleanValue(mqiRaw, "isOverBudget"), overBudgetByAed: numberValue(mqiRaw, "overBudgetByAed"),
+    roomBreakdown: recordList(mqiRaw, "roomBreakdown").map((room) => ({
+      roomName: textValue(room, "roomName"), roomCostMin: numberValue(room, "roomCostMin"), roomCostMax: numberValue(room, "roomCostMax"),
+    })),
+    topMaterials: recordList(mqiRaw, "topMaterials").map((material) => ({
+      materialName: textValue(material, "materialName"), totalAreaM2: numberValue(material, "totalAreaM2"),
+      pctOfTotalSurface: numberValue(material, "pctOfTotalSurface"),
+    })),
+  };
 
   return (
     <div className="space-y-6">
@@ -128,7 +216,7 @@ export default function DesignBrief() {
                 <Separator />
                 <div>
                   <p className="text-sm font-medium mb-2">Positioning Statement</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{brief.positioningStatement}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{styleMood?.positioningStatement}</p>
                 </div>
               </CardContent>
             </Card>
@@ -521,7 +609,7 @@ export default function DesignBrief() {
                 )}
                 <div>
                   <h4 className="font-semibold mb-1">2. Positioning</h4>
-                  <p className="text-muted-foreground">{brief.positioningStatement}</p>
+                  <p className="text-muted-foreground">{styleMood?.positioningStatement}</p>
                 </div>
                 {styleMood && (
                   <div>

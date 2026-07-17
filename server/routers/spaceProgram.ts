@@ -209,7 +209,7 @@ export const spaceProgramRouter = router({
             // Gap 2: Sync totalFitoutArea on read so scoring engine, ROI,
             // and AI Advisor always see the current fit-out area
             await db.updateProjectForOrg(input.projectId, orgId, {
-                totalFitoutArea: fitOutSqm,
+                totalFitoutArea: String(fitOutSqm),
             });
 
             return {

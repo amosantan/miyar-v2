@@ -163,13 +163,13 @@ function MarketIntelligenceContent() {
 
     /* ─── DLD feed items ───────────────────────────────── */
     const feedItems = useMemo(() => {
-        if (!evidence?.records) return [];
-        return evidence.records.slice(0, 4).map((r: any) => ({
-            title: r.title ?? r.snippet?.slice(0, 40) ?? "Transaction Record",
-            subtitle: r.sourceId ? `Source #${r.sourceId}` : "DLD Registry",
-            sqft: r.dataValue ? `${fmtAed(r.dataValue)} AED/sqft` : null,
-            time: timeAgo(r.recordDate ?? r.createdAt),
-            isNew: Date.now() - new Date(r.recordDate ?? r.createdAt).getTime() < 3600_000,
+        if (!evidence) return [];
+        return evidence.slice(0, 4).map((r) => ({
+            title: r.title ?? r.extractedSnippet?.slice(0, 40) ?? r.itemName,
+            subtitle: r.sourceRegistryId ? `Source #${r.sourceRegistryId}` : "Evidence registry",
+            sqft: r.priceTypical ? `${fmtAed(Number(r.priceTypical))} AED/${r.unit}` : null,
+            time: timeAgo(r.captureDate),
+            isNew: Date.now() - new Date(r.captureDate).getTime() < 3600_000,
         }));
     }, [evidence]);
 

@@ -127,8 +127,11 @@ describe("Logic Registry Weights Wiring", () => {
       ctx01Typology: "Residential" as const,
       ctx02Scale: "Large" as const,
       ctx03Gfa: 500000,
+      totalFitoutArea: null,
       ctx04Location: "Prime" as const,
       ctx05Horizon: "12-24m" as const,
+      city: "Dubai" as const,
+      sustainCertTarget: "none",
       str01BrandClarity: 4,
       str02Differentiation: 4,
       str03BuyerMaturity: 3,
@@ -187,8 +190,11 @@ describe("Logic Registry Weights Wiring", () => {
       ctx01Typology: "Residential" as const,
       ctx02Scale: "Medium" as const,
       ctx03Gfa: 200000,
+      totalFitoutArea: null,
       ctx04Location: "Secondary" as const,
       ctx05Horizon: "0-12m" as const,
+      city: "Dubai" as const,
+      sustainCertTarget: "none",
       str01BrandClarity: 3,
       str02Differentiation: 3,
       str03BuyerMaturity: 3,
@@ -241,8 +247,8 @@ describe("Design Brief DOCX Export", () => {
       marketTier: "Mid",
       style: "Modern",
     },
-    positioningStatement: "A mid-market residential tower targeting young professionals with modern, cost-efficient interiors.",
-    styleMood: {
+    designNarrative: {
+      positioningStatement: "A mid-market residential tower targeting young professionals with modern, cost-efficient interiors.",
       primaryStyle: "Modern Minimalist",
       moodKeywords: ["Clean", "Functional", "Light"],
       colorPalette: ["Warm White", "Light Grey", "Teal Accent"],
@@ -250,32 +256,39 @@ describe("Design Brief DOCX Export", () => {
       lightingApproach: "Layered ambient with task lighting",
       spatialPhilosophy: "Open plan with defined zones",
     },
-    materialGuidance: {
-      tierRecommendation: "Mid",
+    materialSpecifications: {
+      tierRequirement: "Mid",
       qualityBenchmark: "Standard commercial grade",
-      primaryMaterials: ["Porcelain tiles", "Engineered wood", "Painted drywall"],
-      accentMaterials: ["Brushed metal", "Glass panels"],
-      avoidMaterials: ["Natural stone", "Exotic hardwoods"],
-      sustainabilityNotes: "Focus on locally sourced materials where possible",
+      approvedMaterials: ["Porcelain tiles", "Engineered wood", "Painted drywall"],
+      finishesAndTextures: ["Brushed metal", "Glass panels"],
+      prohibitedMaterials: ["Natural stone", "Exotic hardwoods"],
+      sustainabilityMandate: "Focus on locally sourced materials where possible",
     },
-    budgetGuardrails: {
+    boqFramework: {
+      totalEstimatedSqm: 450000,
+      coreAllocations: [{ category: "Finishes", percentage: 100, estimatedCostLabel: "AED 280/sqm", notes: "Fixture" }],
+    },
+    detailedBudget: {
       costPerSqmTarget: "AED 280/sqm",
       costBand: "AED 250-310/sqft",
       contingencyRecommendation: "8% contingency",
       flexibilityLevel: "Moderate",
-      valueEngineeringNotes: ["Consider alternative tile formats", "Standardize fixture specifications"],
+      valueEngineeringMandates: ["Consider alternative tile formats", "Standardize fixture specifications"],
+      totalBudgetCap: "AED 126,000,000",
     },
-    procurementConstraints: {
-      leadTimeWindow: "16-20 weeks",
-      criticalPathItems: ["Custom joinery", "Imported fixtures"],
-      importDependencies: ["European tile suppliers"],
-      riskMitigations: ["Maintain 2 alternative suppliers per category"],
-    },
-    deliverablesChecklist: {
-      phase1: ["Concept boards", "Material palette"],
-      phase2: ["Technical drawings", "Specifications"],
-      phase3: ["Shop drawings", "Installation guides"],
-      qualityGates: ["Concept approval", "Material sign-off", "Mock-up review"],
+    designerInstructions: {
+      phasedDeliverables: {
+        conceptDesign: ["Concept boards", "Material palette"],
+        schematicDesign: ["Technical drawings", "Specifications"],
+        detailedDesign: ["Shop drawings", "Installation guides"],
+      },
+      authorityApprovals: ["Concept approval", "Material sign-off", "Mock-up review"],
+      coordinationRequirements: ["Maintain 2 alternative suppliers per category"],
+      procurementAndLogistics: {
+        leadTimeWindow: "16-20 weeks",
+        criticalPathItems: ["Custom joinery", "Imported fixtures"],
+        importDependencies: ["European tile suppliers"],
+      },
     },
     version: 1,
     projectName: "Al Wasl Residences",
@@ -297,12 +310,13 @@ describe("Design Brief DOCX Export", () => {
   it("should handle missing optional fields gracefully", async () => {
     const minimalData = {
       projectIdentity: { projectName: "Minimal Project" },
-      positioningStatement: "Test positioning",
-      styleMood: {},
-      materialGuidance: {},
-      budgetGuardrails: {},
-      procurementConstraints: {},
-      deliverablesChecklist: {},
+      designNarrative: { positioningStatement: "Test positioning" },
+      materialSpecifications: {},
+      boqFramework: { totalEstimatedSqm: null, coreAllocations: [] },
+      detailedBudget: {},
+      designerInstructions: {
+        phasedDeliverables: {}, authorityApprovals: [], coordinationRequirements: [], procurementAndLogistics: {},
+      },
       version: 1,
     };
     const buffer = await generateDesignBriefDocx(minimalData);
@@ -313,12 +327,13 @@ describe("Design Brief DOCX Export", () => {
   it("should produce different sizes for different content volumes", async () => {
     const minimalData = {
       projectIdentity: {},
-      positioningStatement: "Short",
-      styleMood: {},
-      materialGuidance: {},
-      budgetGuardrails: {},
-      procurementConstraints: {},
-      deliverablesChecklist: {},
+      designNarrative: { positioningStatement: "Short" },
+      materialSpecifications: {},
+      boqFramework: { totalEstimatedSqm: null, coreAllocations: [] },
+      detailedBudget: {},
+      designerInstructions: {
+        phasedDeliverables: {}, authorityApprovals: [], coordinationRequirements: [], procurementAndLogistics: {},
+      },
       version: 1,
     };
     const minimalBuffer = await generateDesignBriefDocx(minimalData);

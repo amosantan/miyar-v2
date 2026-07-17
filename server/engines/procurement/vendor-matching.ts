@@ -1,6 +1,7 @@
 import { getDb } from "../../db";
 import { materialsCatalog, projects } from "../../../drizzle/schema";
 import { and, eq } from "drizzle-orm";
+import type { BrandStandardConstraints } from "../../../shared/miyar-types";
 
 interface MatchOptions {
     projectId: number;
@@ -8,6 +9,14 @@ interface MatchOptions {
     maxItems?: number;
     category?: string;
     tier?: string;
+}
+
+export function allowedVendorStatuses(
+    constraints: BrandStandardConstraints | null | undefined,
+): string[] {
+    if (constraints === "Strict Vendor List") return ["preferred_brand"];
+    if (constraints === "Moderate Guidelines") return ["approved_vendor", "preferred_brand"];
+    return ["open_market", "approved_vendor", "preferred_brand"];
 }
 
 /**
@@ -26,18 +35,7 @@ export async function matchVendorsForProject(options: MatchOptions) {
     if (projectRows.length === 0) throw new Error(`Project ${options.projectId} not found`);
 
     const project = projectRows[0];
-    const constraints = project.brandStandardConstraints || "none";
-
-    // 2. Map constraint to allowed approval statuses
-    let allowedStatuses: string[] = ["open_market", "approved_vendor", "preferred_brand"];
-
-    if (constraints === "strict_vendor_list") {
-        allowedStatuses = ["preferred_brand"]; // Only exact brand matches
-    } else if (constraints === "moderate_guidelines") {
-        allowedStatuses = ["approved_vendor", "preferred_brand"]; // Quality & Brands
-    } else if (constraints === "open_market" || constraints === "none") {
-        allowedStatuses = ["open_market", "approved_vendor", "preferred_brand"]; // Anything
-    }
+    const allowedStatuses = allowedVendorStatuses(project.brandStandardConstraints);
 
     // 3. Fetch full catalog (with optional category/tier filters before fetching)
     // For simplicity and speed in V8, we fetch all and filter in memory, but this could be SQLized.
