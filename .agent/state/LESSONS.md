@@ -256,3 +256,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The before/after browser captures changed the headline from `rgb(240, 235, 227)` on the warm light canvas to the governed foreground, and authenticated checks passed at 360, 390, 768, and 1440 pixels with no overflow.
 - Reuse rule: A token migration is incomplete until representative rendered pages are inspected in every supported theme; search for late global rules and hard-coded colors even when compilation and component contracts are green.
 - Supersedes / related: Applies to future theme, typography, RTL, chart, report, and accessibility work.
+
+### LES-022 — Timed-out async tests can contaminate the next mock assertion
+
+- Date / roadmap step: 2026-07-17 / `TR-07`
+- Context: One authentication test performed registration, successful login, and rejected login, each requiring cost-12 bcrypt work, while the full suite and build competed for CPU.
+- Observed: The combined test crossed Vitest's five-second timeout and continued far enough to record an audit call during the following legacy-password test, making the next test report an impossible extra call.
+- Cause: Multiple expensive cryptographic behaviors shared one timeout boundary; timeout failure did not cancel already-running asynchronous work.
+- Fix or decision: Split rejected-password behavior into a focused case with a fixed valid bcrypt fixture, keep success and legacy-upgrade contracts separately bounded, and preserve the default timeout rather than hiding the issue with a larger limit.
+- Proof: The focused auth suite, 49-test surrounding suite, and safe full suite with 1,021 passing tests all complete without timeout spill or cross-test audit contamination.
+- Reuse rule: Keep expensive password or crypto behaviors in independently bounded tests; when a later mock assertion gains unexplained calls, check for unfinished asynchronous work from a timed-out predecessor before weakening isolation or assertions.
+- Supersedes / related: Extends test-isolation guidance from `TR-07`; `KF-008` remains the separate environment-profile risk.

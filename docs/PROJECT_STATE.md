@@ -5,13 +5,13 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-17
-- Application release commit: `1f8c97d288ce97315664229049db3db38ec65bb2`
-- Branch identity: `codex/tr-05-data-isolation` contains and tracks the deployed application SHA; canonical `origin/main` remains at the completed TR-04 baseline pending a separately authorized merge
+- Application release observation: UX-01 merge commit `029f5c1b0aa544f8a364dfc4b179efdfafa5a78b` has a successful Vercel deployment status; exact authenticated production behavior was not reverified in this observation
+- Branch identity: `origin/main` is `a5e0b94088af01e0b89d3380d1db90f5d9ad1db5`; the TR-07 worktree branches from that fetched tip
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel deployment `dpl_G7hPvJk7WUqwxYBdrjZN6noNxNFn` reached `READY` from the exact clean TR-05 application release commit and is aliased to `www.miyar.dev`
+- Production: UX-01 commit status links successful Vercel deployment `3EiFA1wEbRhrNiciHqnvmmwNZCNp`; public root and timestamped `system.health` return HTTP 200, but no authenticated browser session was available for independent smoke re-verification
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Active worktree observation: uncommitted verified `UX-01` implementation on `codex/miyar-ux-redesign`, based on the deployed TR-05 line; migration 0048 is local-only and has not been applied to shared/production data
+- Active worktree observation: completed `TR-07` test-only re-audit on `codex/tr-07-test-baseline` at fetched `origin/main`; no runtime, schema, migration, scoring, or authorization behavior changed
 
 ## Technology Observed
 
@@ -40,11 +40,11 @@ At the observation above:
 
 | Command                         | Result | Evidence summary                                                                                                    |
 | ------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL='' pnpm test`     | PASS   | 971 passed and 22 skipped; no shared database connection occurred                                                   |
+| `DATABASE_URL='' pnpm test`     | PASS   | 1,021 passed and 22 skipped; no auth/logout database connection attempt occurred                                    |
 | Guarded MySQL authorization run | PASS   | Disposable MySQL 8 suite passed 19/19, adding UX-01 stored-provenance, organization confirmation, concealment, and role-denial evidence |
 | PlanetScale compatibility       | PASS   | Production Vitess accepted all 23 migration-0047 statements; 19 columns, five indexes, defaults, counts, and post-deploy reads verified |
 | `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                         |
-| `pnpm audit:authorization`      | PASS   | All 333 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence |
+| `pnpm audit:authorization`      | PASS   | All 335 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence |
 | `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                           |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.

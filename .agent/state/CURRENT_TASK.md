@@ -1,63 +1,72 @@
 # Current Task
 
-- ID: UX-01
-- Roadmap step: `UX-01`
-- Title: Release the warm architectural UX to production
-- Status: ACTIVE
+- ID: TR-07
+- Roadmap step: `TR-07`
+- Title: Re-audit and harden the unambiguous test baseline
+- Status: PASS
 - Owner: Codex
 - Started: 2026-07-17
-- Branch: `codex/miyar-ux-redesign`
-- Base: `ae2cfed`
-- Prior production application commit: `1f8c97d288ce97315664229049db3db38ec65bb2`
-- Risk: Critical release with additive production schema, protected-branch integration, route compatibility, and user-facing deployment
-- Selected loops: Release decision loop and schema migration loop
-- Retry budget: 3 evidence-based preflight attempts per failure class; no automatic retry after a failed production migration or deployment
-- Resource budget: One user-authorized production release window
-- Approver: User authorization in the active Codex task on 2026-07-17
+- Closed: 2026-07-17
+- Branch: `codex/tr-07-test-baseline`
+- Base: `a5e0b94088af01e0b89d3380d1db90f5d9ad1db5` (`origin/main` after fetch)
+- Risk: Medium test-harness/authentication isolation; no runtime product behavior
+- Selected loop: Defect loop from `LOOP_ENGINEERING.md`
+- Retry budget: 3 evidence-based attempts per failure class
+- Resource budget: One bounded test-harness increment and repository verification pass
+- Approval gates: No product behavior, schema/migration, scoring/financial policy, shared database access, commit, push, PR, merge, deployment, or production mutation was performed
 
 ## Goal
 
-Publish UX-01 as an exact, reproducible production release: replace safely removable specialist implementations with compatibility redirects, apply additive migration 0048, commit and push the verified branch, integrate it into canonical main, deploy the exact commit, and certify the live application.
-
-## Compatibility Decision
-
-- Existing bookmarks must not become 404s.
-- Route removal means removing redundant page implementations only where the same capability already exists in the four-section workspace.
-- Removed implementations remain compatibility aliases that preserve project ID and query parameters.
-- Specialist workflows not yet represented inside the workspace remain registered.
+Re-certify and harden the repaired TR-07 authentication and space-test harnesses so they are deterministic, type-checked, isolated from real audit/database side effects, and demonstrably fail when the historical harness defects are reintroduced.
 
 ## Acceptance Criteria
 
-- [x] `/projects/:id/evidence`, `/projects/:id/explainability`, and `/projects/:id/space-planner` redirect to the corresponding workspace section/view without losing existing query parameters.
-- [x] Every other supported project and admin route remains available and authorized.
-- [x] Migration 0048 is confirmed additive/backward compatible, a production recovery point is recorded, and the column shape/default/nullability is verified after apply.
-- [x] The release diff is reviewed and all mandatory local gates remain green.
-- [ ] The scoped files are staged, committed, pushed, and integrated into canonical `main` without discarding unrelated history.
-- [ ] Production deploys the exact integrated commit and reports `READY`.
-- [ ] Health, unauthenticated authorization, invalid-share privacy, authenticated homepage/dashboard/project/admin/theme/RTL, and readiness smoke checks pass.
-- [ ] Release identity, migration evidence, deployment ID, rollback position, and residual risks are recorded.
+- [x] A fresh worktree and `codex/tr-07-test-baseline` branch were created before task mutation; the original dirty checkout remains untouched.
+- [x] UX-01 was removed from `ACTIVE` without claiming its unavailable authenticated production smoke; TR-07 was the only active roadmap step during execution.
+- [x] Authentication tests use deterministic schema-derived user fixtures and a type-checked mock for the exact database exports consumed by the router.
+- [x] Authentication and logout tests mock the audit boundary and verify successful/rejected/unauthenticated audit behavior without initializing a real database.
+- [x] Space normalization tests retain static ESM imports and typed `ProjectInputs` fixtures without changing numerical behavior.
+- [x] Temporary mutation proofs demonstrate the missing `getDb`, rejected audit boundary, and CommonJS import failures; no mutation-only edit remains.
+- [x] Targeted, surrounding, safe full-suite, TypeScript, authorization-audit, build, and diff checks pass with no external database attempt.
+- [x] Roadmap, worklog, known failures, lessons, and project state reflect only verified evidence; `KF-008` remains open.
 
-## Non-Goals
+## Implemented Scope
 
-- Removing specialist routes whose functionality is not yet represented in the workspace.
-- Changing scoring, financial, prediction, tenant-isolation, public-share, evidence, or report contracts.
-- Destructive schema rollback; migration 0048 remains in place if application rollback is needed.
+- `server/auth.test.ts` now uses full schema-derived `User` fixtures, deterministic identifiers and timestamps, and a database mock checked with `satisfies Pick<typeof import("./db"), ...>`.
+- Authentication registration, successful login, rejected login, and legacy-password upgrade explicitly assert their audit and database-isolation contracts.
+- `server/auth.logout.test.ts` now mocks `auditLog`, uses a schema-derived authenticated user, and proves authenticated versus unauthenticated audit behavior while preserving cookie assertions.
+- `server/engines/v9-space.test.ts` required no permanent edit: its static ESM `normalizeInputs` import and typed `ProjectInputs` fixtures already match the intended contract.
+- No production source, schema, API, authorization, scoring, financial, normalization, or report behavior changed.
 
-## Rollback
+## Causal Proof
 
-- Application rollback target: prior known-good production commit `1f8c97d288ce97315664229049db3db38ec65bb2`.
-- Migration 0048 is nullable and additive; leave it in place during application rollback.
-- Stop and transfer to incident handling for authentication, tenant-isolation, data-integrity, or critical workflow regressions.
+| Temporary mutation | Expected failure observed | Restored proof |
+| --- | --- | --- |
+| Removed `getDb` from the typed auth database mock | Vitest failed with `No "getDb" export is defined` | Clean auth rerun passed |
+| Made the isolated audit mock reject | Registration, legacy login, and authenticated logout failed with the mutation sentinel; rejected login and unauthenticated logout did not | Clean auth/logout rerun passed |
+| Reintroduced CommonJS `require("./normalization")` | Both affected ESM space cases failed with `Cannot find module './normalization'` | Clean space rerun passed |
 
-## Next Action
+No mutation sentinel, CommonJS normalization import, or missing mock export remains in the final diff.
 
-Commit and push the immutable release candidate, integrate it into canonical main, deploy that exact application commit, and run production certification.
+## Verification Evidence
 
-## Migration Evidence
+- Targeted and surrounding: `DATABASE_URL='' pnpm vitest run server/auth.test.ts server/auth.logout.test.ts server/engines/v9-space.test.ts server/engines/scoring.test.ts` — 4 files, 49 tests passed.
+- Safe full suite: `DATABASE_URL='' pnpm test` — 57 files passed and 1 skipped; 1,021 tests passed and 22 skipped; no auth/logout database warning or external database attempt occurred.
+- TypeScript: `pnpm check` — passed with zero diagnostics.
+- Authorization inventory: `pnpm audit:authorization` — 335 procedures, zero remediation rows.
+- Production bundles: `pnpm build` — client, Node, and serverless builds passed.
+- Scope: `git diff --check` passed; the build produced no tracked artifact diff; the original checkout's pre-existing modified and untracked files were unchanged.
 
-- Target: production `miyar-v2` on Vitess 8.0.42, explicitly authorized by the user.
-- Preflight: migration 0047 marker present; `inputProvenance` absent; 11 project rows.
-- Recovery snapshot: encrypted AES-256-GCM affected-table snapshot outside the repository, 11 rows, decryption verified, SHA-256 `913e526c6dc68e5f793a65ce2e6b40793930224d2719f98ede3251f97f2324ef`.
-- Applied: `0048_youthful_morlocks` from `2026-07-17T14:00:13.395Z` to `2026-07-17T14:00:14.591Z`.
-- Integrity: project count remained 11; `inputProvenance` is nullable JSON with no default at ordinal 73; all 11 legacy projects remain null and therefore use the explicit legacy-compatibility policy.
-- Recovery: leave the additive nullable column in place and redeploy prior application commit `1f8c97d288ce97315664229049db3db38ec65bb2` if application rollback is required.
+## Attempts and Recovery
+
+| Attempt | Hypothesis | Action | Evidence | Result |
+| ---: | --- | --- | --- | --- |
+| 1 | The full suite and production build could safely share CPU during verification | Ran safe full Vitest and the build concurrently | The auth test's three bcrypt operations exceeded Vitest's five-second timeout; late completion added an audit call during the next test | Reclassified as verification contention and reran the suite alone |
+| 2 | Removing build contention would keep the combined success/rejection auth test under five seconds | Ran the safe full suite alone | Three cost-12 bcrypt operations again crossed the timeout and the late audit call contaminated the next assertion | Split rejected-password behavior into a focused test with a fixed valid bcrypt fixture; did not increase the timeout |
+| 3 | Bounded cases would preserve every assertion without cross-test spill | Reran targeted, surrounding, and safe full suites | 49/49 surrounding and 1,021/22 safe full-suite results passed with no database attempt | PASS |
+
+## Residual Risk and Next Step
+
+- `KF-008` remains open. TR-07 proves auth-specific isolation, but ordinary test commands still lack the systemic fail-closed database profile owned by `TR-12`.
+- UX-01 remains `NEEDS_HUMAN` because no authenticated production browser session was available for independent smoke re-verification; its merged PR, Vercel status, public root, and health endpoint were independently verified.
+- `TR-10` is the next dependency-valid roadmap step and remains `READY`.

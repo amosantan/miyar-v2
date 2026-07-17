@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `UX-01` (`ACTIVE`)
+- Next executable step: `TR-10` (`READY`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -53,7 +53,7 @@ Rules:
 
 ### RM-00 — Persistent Codex and Claude Code roadmap
 
-- Status: `ACTIVE`
+- Status: `CLOSED`
 - Class / priority: Documentation foundation / P0
 - Dependencies: None
 - Human gate: None
@@ -242,6 +242,10 @@ Rules:
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
 - Completion evidence: Fixing commit `db36254`; authentication mocks include `getDb`, normalization tests use the valid static import, and the safe full suite passes without connecting to a database.
+- Reopened: 2026-07-17 at the user's direction for a bounded re-audit of authentication database/audit isolation, typed deterministic fixtures, and the existing static ESM normalization import. Systemic test-environment protection remains under `KF-008`/`TR-12`.
+- Reclosed: 2026-07-17 with terminal state `PASS` after schema-derived deterministic user fixtures, type-checked database mocks, isolated audit assertions, and three restored causal mutation proofs. Targeted/surrounding tests pass 49/49; the safe full suite passes 1,021 with 22 skipped and no auth/logout database attempt; TypeScript, the 335-procedure authorization audit, production builds, and diff checks pass.
+- Residual risk: `KF-008` remains open because auth-specific isolation does not provide the fail-closed environment profiles owned by `TR-12`.
+- Lessons: `LES-022`
 
 ### TR-08 — Decide ambiguous baseline contracts
 
@@ -362,7 +366,7 @@ Rules:
 
 ### UX-01 — Simplify the developer journey and establish the warm architectural interface
 
-- Status: `CLOSED`
+- Status: `NEEDS_HUMAN`
 - Class / priority: UI/workflow/schema / P0
 - Dependencies: `TR-05`; approved interaction direction supersedes the UI slice of `BR-04` and conservative copy satisfies the interim path of `TR-11`.
 - Human gate: Shared/production schema application, deployment, and removal of compatibility routes remain separately gated.
@@ -380,6 +384,7 @@ Rules:
 - Completion evidence: Warm light/dark semantic themes, simplified application and admin shells, six-field quick start, persisted provenance/readiness gating, four-section workspace, conservative homepage/dashboard/onboarding, and route compatibility are implemented; disposable MySQL passed 19/19, safe suite 971/22, targeted UX/readiness 9/9, authorization audit 333/0, TypeScript/build/diff checks pass, authenticated in-app browser checks passed at 360/390/768/1440 plus themes/RTL/admin/readiness, and Claude Code returned a corrected no-blocker `APPROVE_WITH_CHANGES` verdict.
 - Residual risk: Migration 0048, production deployment, route removal, commit/push/merge, and issued-report page certification remain separately gated; `TR-10` is next.
 - Reopened: 2026-07-17 for the user-authorized migration 0048, compatibility-route contraction, protected-branch integration, and production deployment gates.
+- Current gate: PR `#2` is merged at `029f5c1`, the Vercel commit status is successful, and public root/health checks pass. Neither available browser has a signed-in MIYAR session, so the required authenticated production smoke cannot be reverified autonomously. The user selected independent `TR-07` as the next active step while this gate remains explicit.
 
 ## Phase BR — Brief Operating System
 
