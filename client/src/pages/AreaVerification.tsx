@@ -13,6 +13,8 @@ import {
     Shield, Scan, AlertTriangle, Eye, RefreshCw
 } from "lucide-react";
 import PdfPreview from "../components/PdfPreview";
+import { putSignedMedia } from "@/lib/direct-media-upload";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 
 type ExtractionResult = {
     id: number;
@@ -45,7 +47,8 @@ export default function AreaVerification() {
     );
 
     // Mutations
-    const uploadMutation = trpc.design.uploadAsset.useMutation();
+    const createUploadMutation = trpc.design.createAssetUpload.useMutation();
+    const finalizeUploadMutation = trpc.design.finalizeAssetUpload.useMutation();
     const extractMutation = trpc.project.extractAreas.useMutation();
     const verifyMutation = trpc.project.verifyAreas.useMutation();
 
@@ -54,28 +57,30 @@ export default function AreaVerification() {
     const isVerified = project?.fitoutAreaVerified ?? false;
 
     // Handle file selection
-    const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
+    const selectFile = useCallback((file: File | undefined) => {
         if (file) {
             const allowed = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
             if (!allowed.includes(file.type)) {
                 toast.error("Please upload a PNG, JPEG, WebP, or PDF file");
                 return;
             }
-            if (file.size > 20 * 1024 * 1024) {
-                toast.error("File size must be under 20 MB");
+            if (file.size > 50 * 1024 * 1024) {
+                toast.error("File size must be under 50 MB");
                 return;
             }
             setSelectedFile(file);
         }
     }, []);
 
+    const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        selectFile(e.target.files?.[0]);
+    }, [selectFile]);
+
     // Handle drag & drop
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
-        const file = e.dataTransfer.files[0];
-        if (file) setSelectedFile(file);
-    }, []);
+        selectFile(e.dataTransfer.files[0]);
+    }, [selectFile]);
 
     // Upload + Extract
     const handleExtract = async () => {
@@ -83,26 +88,22 @@ export default function AreaVerification() {
         setStep("extracting");
 
         try {
-            // Step 1: Upload file as asset
-            const reader = new FileReader();
-            const base64 = await new Promise<string>((resolve, reject) => {
-                reader.onload = () => {
-                    const result = reader.result as string;
-                    const base64Data = result.split(",")[1];
-                    resolve(base64Data);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(selectedFile);
-            });
-
-            const uploadResult = await uploadMutation.mutateAsync({
+            // Step 1: upload browser bytes directly to S3, then let the server
+            // validate and persist the authoritative media metadata.
+            const upload = await createUploadMutation.mutateAsync({
                 projectId,
+                mimeType: selectedFile.type,
+            });
+            await putSignedMedia(upload.uploadUrl, selectedFile);
+            const uploadResult = await finalizeUploadMutation.mutateAsync({
+                projectId,
+                storageKey: upload.storageKey,
                 filename: selectedFile.name,
                 mimeType: selectedFile.type,
-                base64Data: base64,
                 category: "brief",
                 tags: ["floor_plan", "area_verification"],
                 notes: "Uploaded for area verification via Gemini Vision",
+                purpose: "asset",
             });
 
             setUploadedAssetId(uploadResult.id);
@@ -117,8 +118,8 @@ export default function AreaVerification() {
             setExtraction(extractResult);
             setStep("review");
             toast.success(`Extracted ${extractResult.rooms.length} rooms (${extractResult.totalArea} sqm)`);
-        } catch (error: any) {
-            toast.error(error.message || "Extraction failed");
+        } catch (error) {
+            toast.error(withReference(formatAiOperationError(error, "We could not extract areas from this file.")));
             setStep("upload");
         }
     };
@@ -136,8 +137,8 @@ export default function AreaVerification() {
             toast.success("Areas verified! Fitout area updated.");
             projectQuery.refetch();
             extractionsQuery.refetch();
-        } catch (error: any) {
-            toast.error(error.message || "Verification failed");
+        } catch (error) {
+            toast.error(withReference(formatAiOperationError(error, "Verification failed.")));
         }
     };
 
@@ -155,8 +156,8 @@ export default function AreaVerification() {
             setSelectedFile(null);
             setStep("upload");
             extractionsQuery.refetch();
-        } catch (error: any) {
-            toast.error(error.message || "Rejection failed");
+        } catch (error) {
+            toast.error(withReference(formatAiOperationError(error, "Rejection failed.")));
         }
     };
 

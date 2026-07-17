@@ -14,6 +14,8 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { putSignedMedia } from "@/lib/direct-media-upload";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 
 const SEVERITY_STYLES: Record<string, { bg: string; text: string; border: string; icon: React.ComponentType<any> }> = {
     critical: { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30", icon: AlertTriangle },
@@ -32,7 +34,8 @@ export default function SpacePlanner() {
     const projectQuery = trpc.project.get.useQuery({ id: projectId }, { enabled: !!projectId });
     const project = projectQuery.data;
 
-    const uploadFloorPlan = trpc.design.uploadFloorPlan.useMutation();
+    const createUpload = trpc.design.createAssetUpload.useMutation();
+    const finalizeUpload = trpc.design.finalizeAssetUpload.useMutation();
     const analyzeFloorPlan = trpc.design.analyzeFloorPlan.useMutation();
 
     const benchmarkQuery = trpc.design.getSpaceBenchmark.useQuery(
@@ -53,38 +56,34 @@ export default function SpacePlanner() {
             return;
         }
 
-        if (file.size > 20 * 1024 * 1024) {
-            toast.error("File too large. Maximum 20MB.");
+        if (file.size > 50 * 1024 * 1024) {
+            toast.error("File too large. Maximum 50MB.");
             return;
         }
 
         setUploadingFile(true);
         try {
-            const reader = new FileReader();
-            const base64 = await new Promise<string>((resolve, reject) => {
-                reader.onload = () => {
-                    const result = reader.result as string;
-                    resolve(result.split(",")[1]);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-
-            await uploadFloorPlan.mutateAsync({
+            const upload = await createUpload.mutateAsync({
                 projectId,
+                mimeType: file.type,
+            });
+            await putSignedMedia(upload.uploadUrl, file);
+            await finalizeUpload.mutateAsync({
+                projectId,
+                storageKey: upload.storageKey,
                 filename: file.name,
                 mimeType: file.type,
-                base64Data: base64,
+                purpose: "floor_plan",
             });
 
             toast.success("Floor plan uploaded successfully");
             projectQuery.refetch();
-        } catch (error: any) {
-            toast.error(error.message || "Upload failed");
+        } catch (error) {
+            toast.error(withReference(formatAiOperationError(error, "We could not upload this floor plan.")));
         } finally {
             setUploadingFile(false);
         }
-    }, [projectId, uploadFloorPlan, projectQuery]);
+    }, [projectId, createUpload, finalizeUpload, projectQuery]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -100,8 +99,8 @@ export default function SpacePlanner() {
             toast.success("Floor plan analysis complete!");
             projectQuery.refetch();
             benchmarkQuery.refetch();
-        } catch (error: any) {
-            toast.error(error.message || "Analysis failed");
+        } catch (error) {
+            toast.error(withReference(formatAiOperationError(error, "We could not analyse this floor plan.")));
         } finally {
             setAnalyzing(false);
         }

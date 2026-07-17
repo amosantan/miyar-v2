@@ -2,8 +2,8 @@
 
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **333**
-- Generated: 2026-07-17T14:51:08.629Z
+- Procedures inventoried: **335**
+- Generated: 2026-07-17T16:17:49.999Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
@@ -30,20 +30,20 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `admin_governed`       |    82 |
 | `global_governed`      |    54 |
 | `not_project_scoped`   |    22 |
-| `org_guarded`          |   174 |
+| `org_guarded`          |   176 |
 | `public_token_guarded` |     1 |
 
 ## Severity Summary
 
 | Severity | Count |
 | -------- | ----: |
-| `none`   |   333 |
+| `none`   |   335 |
 
 ## Remediation Summary
 
 | Target | Count |
 | ------ | ----: |
-| `none` |   333 |
+| `none` |   335 |
 
 ### Remediation ownership
 
@@ -103,7 +103,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 
 | Key                       | Operation | Evidence                                                                                                                                              | Notes                                                                                                                                                                  | Source                          |
 | ------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1674` |
+| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1779` |
 
 ## Complete Procedure Checklist
 
@@ -191,6 +191,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `design.attachVisualToPack`                          | `global_governed`      | input.targetId -> polymorphic target -> ownership follows linkType/targetType<br>input.visualId -> generated_visuals.id -> generated_visuals.projectId -> projects.orgId                                                                                        | No remediation assigned; retain classification evidence. |
 | `design.boardSummary`                                | `org_guarded`          | input.boardId -> material_boards.id -> material_boards.projectId -> projects.orgId                                                                                                                                                                              | No remediation assigned; retain classification evidence. |
 | `design.calculateSpec`                               | `global_governed`      | governed global design data -> no project/org-owned identifier is accepted                                                                                                                                                                                      | No remediation assigned; retain classification evidence. |
+| `design.createAssetUpload`                           | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `design.createBoard`                                 | `org_guarded`          | input.materialIds[] -> materials_catalog.id -> governed global materials<br>input.projectId -> projects.id -> projects.orgId<br>input.scenarioId -> scenarios.id -> scenarios.projectId -> projects.orgId                                                       | No remediation assigned; retain classification evidence. |
 | `design.createMaterial`                              | `admin_governed`       | authenticated global admin role -> governed administrative resource                                                                                                                                                                                             | No remediation assigned; retain classification evidence. |
 | `design.createPromptTemplate`                        | `admin_governed`       | authenticated global admin role -> governed administrative resource                                                                                                                                                                                             | No remediation assigned; retain classification evidence. |
@@ -201,6 +202,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `design.exportBoardPdf`                              | `org_guarded`          | input.boardId -> material_boards.id -> material_boards.projectId -> projects.orgId                                                                                                                                                                              | No remediation assigned; retain classification evidence. |
 | `design.exportBriefDocx`                             | `org_guarded`          | input.briefId -> design_briefs/ai_design_briefs.id -> projectId -> projects.orgId                                                                                                                                                                               | No remediation assigned; retain classification evidence. |
 | `design.exportInvestorPdf`                           | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
+| `design.finalizeAssetUpload`                         | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `design.generateBrief`                               | `org_guarded`          | input.projectId -> projects.id -> projects.orgId<br>input.scenarioId -> scenarios.id -> scenarios.projectId -> projects.orgId                                                                                                                                   | No remediation assigned; retain classification evidence. |
 | `design.generateRfqFromBrief`                        | `org_guarded`          | input.briefId -> design_briefs/ai_design_briefs.id -> projectId -> projects.orgId<br>input.projectId -> projects.id -> projects.orgId                                                                                                                           | No remediation assigned; retain classification evidence. |
 | `design.generateRoomRender`                          | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
@@ -270,10 +272,10 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `ingestion.toggleSource`                             | `admin_governed`       | input.id -> governed global intelligence/administrative record                                                                                                                                                                                                  | No remediation assigned; retain classification evidence. |
 | `ingestion.verifyData`                               | `global_governed`      | authenticated global admin role -> governed administrative resource                                                                                                                                                                                             | No remediation assigned; retain classification evidence. |
 | `intake.chat`                                        | `not_project_scoped`   | session/user credential, deterministic input, or non-project workflow -> no project/org-owned identifier is accepted                                                                                                                                            | No remediation assigned; retain classification evidence. |
-| `intake.getUploadUrl`                                | `org_guarded`          | session organization context -> organization-scoped query/write                                                                                                                                                                                                 | No remediation assigned; retain classification evidence. |
+| `intake.getUploadUrl`                                | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `intake.linkAssetsToProject`                         | `org_guarded`          | input.assetIds[] -> project_assets.id -> project_assets.projectId -> projects.orgId<br>input.projectId -> projects.id -> projects.orgId                                                                                                                         | No remediation assigned; retain classification evidence. |
 | `intake.listAssets`                                  | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
-| `intake.processAssets`                               | `org_guarded`          | input.assetId -> project_assets.id -> project_assets.projectId -> projects.orgId<br>input.projectId -> projects.id -> projects.orgId                                                                                                                            | No remediation assigned; retain classification evidence. |
+| `intake.processAssets`                               | `org_guarded`          | input.assetIds[] -> project_assets.id -> project_assets.projectId -> projects.orgId<br>input.projectId -> projects.id -> projects.orgId                                                                                                                         | No remediation assigned; retain classification evidence. |
 | `intake.recordAsset`                                 | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `intake.scrapeUrl`                                   | `not_project_scoped`   | session/user credential, deterministic input, or non-project workflow -> no project/org-owned identifier is accepted                                                                                                                                            | No remediation assigned; retain classification evidence. |
 | `intake.suggestSection`                              | `not_project_scoped`   | session/user credential, deterministic input, or non-project workflow -> no project/org-owned identifier is accepted                                                                                                                                            | No remediation assigned; retain classification evidence. |

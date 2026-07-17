@@ -36,6 +36,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 import { useState, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -655,7 +656,7 @@ function AiSectionAssist({
       }
     },
     onError: (err) => {
-      toast.error(`AI Assist failed: ${err.message}`);
+      toast.error("AI Assist failed", { description: withReference(formatAiOperationError(err, "We could not generate suggestions. Please try again.")) });
     },
   });
 

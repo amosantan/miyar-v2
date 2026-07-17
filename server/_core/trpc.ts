@@ -4,9 +4,23 @@ import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import * as db from "../db";
 import { createRateLimitMiddleware } from "./rate-limit";
+import { getAiOperationError } from "./ai-operation";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    const aiError = getAiOperationError(error.cause ?? error);
+    return {
+      ...shape,
+      message: aiError?.message ?? shape.message,
+      data: {
+        ...shape.data,
+        aiCode: aiError?.code,
+        retryable: aiError?.retryable,
+        correlationId: aiError?.correlationId,
+      },
+    };
+  },
 });
 
 export const router = t.router;

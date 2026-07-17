@@ -38,6 +38,7 @@ import {
   cleanupRejectedUpload,
   reportIndeterminateUploadPersistence,
 } from "../_core/upload-compensation";
+import { readValidatedProjectMedia } from "../_core/project-media";
 
 /**
  * Build evaluation config that respects the Logic Registry.
@@ -1258,7 +1259,7 @@ export const projectRouter = router({
       if (asset.projectId !== project.id) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
       }
-      if (!asset.storageUrl) throw new Error("Asset has no storage URL");
+      if (!asset.storagePath) throw new TRPCError({ code: "BAD_REQUEST", message: "Asset has no stored media" });
 
       // Create pending extraction record
       const extraction = await db.createPdfExtractionForOrg({
@@ -1272,10 +1273,11 @@ export const projectRouter = router({
       }
 
       try {
-        const { extractRoomsFromImage } = await import("../engines/pdf-extraction");
+        const { extractRoomsFromMedia } = await import("../engines/pdf-extraction");
+        const media = await readValidatedProjectMedia(asset, "project.area-extraction");
 
-        const result = await extractRoomsFromImage(
-          asset.storageUrl,
+        const result = await extractRoomsFromMedia(
+          media,
           {
             typology: project.ctx01Typology || undefined,
             gfa: getPricingArea(project) || undefined,
@@ -1312,11 +1314,11 @@ export const projectRouter = router({
           warnings: result.warnings,
           status: "extracted" as const,
         };
-      } catch (error: any) {
+      } catch (error) {
         await db.updatePdfExtractionForOrg(extraction.id, ctx.orgId, {
           status: "rejected",
         });
-        throw new Error(`Area extraction failed: ${error.message}`);
+        throw error;
       }
     }),
 

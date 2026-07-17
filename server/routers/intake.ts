@@ -11,7 +11,7 @@ import {
     orgProcedure,
     router,
 } from "../_core/trpc";
-import { storagePut } from "../storage";
+import { storageCreatePresignedPut, storageGet } from "../storage";
 import * as db from "../db";
 import { processIntakeAssets, type IntakeAsset, type IntakeResult } from "../engines/intake/ai-intake-engine";
 import { cleanHtmlForLLM } from "../engines/ingestion/connectors/dynamic";
@@ -21,6 +21,9 @@ import {
     requireProjectResourceBatchForOrg,
     requireProjectResourceForOrg,
 } from "../_core/resource-access";
+import { isSupportedMediaMimeType, mediaTypeFromMime } from "../_core/media-validation";
+import { readValidatedProjectMedia } from "../_core/project-media";
+import { toAiOperationFailure } from "../_core/ai-operation";
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 
@@ -31,18 +34,24 @@ export const intakeRouter = router({
      */
     getUploadUrl: orgMutationProcedure
         .input(z.object({
+            projectId: z.number(),
             fileName: z.string(),
             contentType: z.string(),
             sizeBytes: z.number().max(50 * 1024 * 1024), // 50MB limit
         }))
         .mutation(async ({ input, ctx }) => {
-            const fileKey = `intake/${ctx.orgId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}/${input.fileName}`;
-            const result = await storagePut(fileKey, Buffer.alloc(0), input.contentType);
+            await requireProjectForOrg(input.projectId, ctx.orgId);
+            const contentType = input.contentType.toLowerCase();
+            if (!isSupportedMediaMimeType(contentType)) {
+                throw new Error("This file type is not supported. Please choose a supported image, PDF, audio, or video file.");
+            }
+            const fileKey = `intake/${ctx.orgId}/${input.projectId}/uploads/${crypto.randomUUID()}`;
+            const result = await storageCreatePresignedPut(fileKey, contentType);
 
             return {
-                uploadUrl: result.url,
-                fileKey,
-                storageUrl: result.url,
+                uploadUrl: result.uploadUrl,
+                fileKey: result.key,
+                expiresInSeconds: 900,
             };
         }),
 
@@ -57,25 +66,34 @@ export const intakeRouter = router({
             mimeType: z.string(),
             sizeBytes: z.number(),
             storagePath: z.string(),
-            storageUrl: z.string(),
+            storageUrl: z.string().optional(),
             category: z.enum([
                 "brief", "brand", "budget", "competitor", "inspiration",
                 "material", "sales", "legal", "mood_image", "material_board",
                 "marketing_hero", "floor_plan", "voice_note", "generated", "other",
             ]).default("other"),
-            assetType: z.enum(["image", "pdf", "audio", "video", "url", "text_note"]).default("image"),
+            assetType: z.enum(["image", "pdf", "audio", "video", "url", "text_note"]).optional(),
         }))
         .mutation(async ({ input, ctx }) => {
             await requireProjectForOrg(input.projectId, ctx.orgId);
+            if (!input.storagePath.startsWith(`intake/${ctx.orgId}/${input.projectId}/uploads/`)) {
+                throw new Error("Upload not found");
+            }
+            const media = await readValidatedProjectMedia({
+                storagePath: input.storagePath,
+                mimeType: input.mimeType,
+            }, "intake.asset.finalize");
+            const stored = await storageGet(input.storagePath);
             const assetId = await db.createProjectAssetForOrg({
                 projectId: input.projectId,
                 filename: input.fileName,
-                mimeType: input.mimeType,
-                sizeBytes: input.sizeBytes,
+                mimeType: media.mimeType,
+                sizeBytes: media.sizeBytes,
+                checksum: media.checksum,
                 storagePath: input.storagePath,
-                storageUrl: input.storageUrl,
+                storageUrl: stored.url,
                 category: input.category,
-                assetType: input.assetType,
+                assetType: mediaTypeFromMime(media.mimeType),
                 uploadedBy: ctx.user.id,
             }, ctx.orgId);
             if (!assetId) {
@@ -102,66 +120,65 @@ export const intakeRouter = router({
      */
     processAssets: orgHeavyMutationProcedure
         .input(z.object({
-            projectId: z.number().optional(),
-            assets: z.array(z.object({
-                type: z.enum(["image", "pdf", "audio", "video", "url", "text_note"]),
-                url: z.string(),
-                mimeType: z.string().optional(),
-                textContent: z.string().optional(),
-                fileName: z.string().optional(),
-                assetId: z.number().optional(),
-            })),
-            freeformDescription: z.string().optional(),
+            projectId: z.number(),
+            assetIds: z.array(z.number()).max(5),
+            freeformDescription: z.string().max(10_000).optional(),
         }))
-        .mutation(async ({ input, ctx }): Promise<IntakeResult> => {
-            const project = input.projectId === undefined
-                ? null
-                : await requireProjectForOrg(input.projectId, ctx.orgId);
-            const assetIds = input.assets
-                .map(asset => asset.assetId)
-                .filter((id): id is number => id !== undefined);
+        .mutation(async ({ input, ctx }): Promise<IntakeResult & { assetResults: Array<{ assetId: number; status: "processed" | "failed"; error?: ReturnType<typeof toAiOperationFailure> }> }> => {
+            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
             const authorizedAssets = await requireProjectResourceBatchForOrg(
-                assetIds,
+                input.assetIds,
                 ctx.orgId,
                 (id, orgId) => requireProjectResourceForOrg(id, orgId, {
                     lookupResource: db.getProjectAssetById,
                     getProjectId: asset => asset.projectId,
                 })
             );
-            if (
-                project &&
-                authorizedAssets.some(asset => asset.project.id !== project.id)
-            ) {
+            if (authorizedAssets.some(asset => asset.project.id !== project.id)) {
                 throw new Error("Resource not found");
             }
-            // Build IntakeAsset array
-            const intakeAssets: IntakeAsset[] = input.assets.map(a => ({
-                type: a.type,
-                url: a.url,
-                mimeType: a.mimeType,
-                textContent: a.textContent,
+
+            const prepared = await Promise.all(authorizedAssets.map(async ({ resource: asset }) => {
+                try {
+                    const media = await readValidatedProjectMedia(asset, "intake.process-assets");
+                    return {
+                        asset,
+                        intake: {
+                            type: mediaTypeFromMime(media.mimeType),
+                            media,
+                            fileName: asset.filename,
+                        } satisfies IntakeAsset,
+                    };
+                } catch (error) {
+                    return { asset, error: toAiOperationFailure(error, "intake.process-assets") };
+                }
             }));
+            const intakeAssets = prepared.reduce<IntakeAsset[]>((items, item) => {
+                if ("intake" in item && item.intake) items.push(item.intake);
+                return items;
+            }, []);
 
             // Add freeform description as a text_note asset
             if (input.freeformDescription?.trim()) {
                 intakeAssets.push({
                     type: "text_note",
-                    url: "",
                     textContent: input.freeformDescription,
                 });
             }
 
-            // Call the AI intake engine
             const result = await processIntakeAssets(intakeAssets);
+            const assetResults = prepared.map(item => "intake" in item
+                ? { assetId: item.asset.id, status: "processed" as const }
+                : { assetId: item.asset.id, status: "failed" as const, error: item.error });
 
             // Store AI extraction results back on assets that have IDs
-            for (const asset of input.assets) {
-                if (asset.assetId) {
-                    if (!(await db.updateProjectAssetForOrg(asset.assetId, ctx.orgId, {
+            for (const item of prepared) {
+                if ("intake" in item) {
+                    if (!(await db.updateProjectAssetForOrg(item.asset.id, ctx.orgId, {
                         aiExtractionResult: result.extractedInsights,
                         aiContributions: Object.keys(result.suggestedInputs),
                     }))) {
-                        await requireProjectResourceForOrg(asset.assetId, ctx.orgId, {
+                        await requireProjectResourceForOrg(item.asset.id, ctx.orgId, {
                             lookupResource: db.getProjectAssetById,
                             getProjectId: record => record.projectId,
                         });
@@ -169,7 +186,7 @@ export const intakeRouter = router({
                 }
             }
 
-            return result;
+            return { ...result, assetResults };
         }),
 
     /**

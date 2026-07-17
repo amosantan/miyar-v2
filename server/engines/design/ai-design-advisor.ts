@@ -5,8 +5,10 @@
  */
 
 import { invokeLLM } from "../../_core/llm";
+import { AiOperationError } from "../../_core/ai-operation";
 import { buildSpaceProgram, type Room } from "./space-program";
 import { getPricingArea } from "../area-utils";
+import { z } from "zod";
 import type {
     SpaceRecommendation,
     MaterialRec,
@@ -23,6 +25,58 @@ import type { ProjectInputs } from "../../../shared/miyar-types";
 const KITCHEN_ROOMS = ["KIT"];
 const BATHROOM_ROOMS = ["MEN", "BTH", "ENS"];
 const WET_ROOM_IDS = [...KITCHEN_ROOMS, ...BATHROOM_ROOMS, "UTL"];
+
+const materialSchema = z.object({
+    element: z.string(),
+    productName: z.string(),
+    brand: z.string(),
+    priceRange: z.string(),
+    rationale: z.string(),
+});
+
+const kitchenSchema = z.object({
+    layoutType: z.enum(["L-shape", "U-shape", "Island", "Galley", "Peninsula", "One-wall"]),
+    layoutRationale: z.string(),
+    cabinetStyle: z.string(),
+    cabinetFinish: z.string(),
+    countertopMaterial: z.string(),
+    countertopPriceRange: z.string(),
+    backsplash: z.string(),
+    sinkType: z.string(),
+    applianceLevel: z.enum(["standard", "premium", "professional"]),
+    applianceBrands: z.array(z.string()),
+    storageFeatures: z.array(z.string()),
+});
+
+const bathroomSchema = z.object({
+    showerType: z.enum(["walk-in", "enclosed", "wet-room", "bath-shower-combo"]),
+    vanityStyle: z.string(),
+    vanityWidth: z.string(),
+    tilePattern: z.string(),
+    wallTile: z.string(),
+    floorTile: z.string(),
+    fixtureFinish: z.string(),
+    fixtureBrand: z.string(),
+    mirrorType: z.string(),
+    luxuryFeatures: z.array(z.string()),
+});
+
+const geminiDesignResponseSchema = z.object({
+    spaces: z.array(z.object({
+        roomId: z.string(),
+        roomName: z.string(),
+        styleDirection: z.string(),
+        colorScheme: z.string(),
+        rationale: z.string(),
+        specialNotes: z.array(z.string()),
+        materials: z.array(materialSchema),
+        budgetBreakdown: z.array(z.object({ element: z.string(), percentage: z.number().finite() })),
+        kitchenSpec: kitchenSchema.optional(),
+        bathroomSpec: bathroomSchema.optional(),
+    })),
+    overallDesignNarrative: z.string(),
+    designPhilosophy: z.string(),
+});
 
 const TIER_PRICE_MULTIPLIERS: Record<string, number> = {
     "Entry": 0.5,
@@ -297,10 +351,12 @@ async function callGeminiForDesign(prompt: string): Promise<GeminiDesignResponse
         : "";
 
     try {
-        return JSON.parse(text) as GeminiDesignResponse;
-    } catch {
-        console.error("[DesignAdvisor] Failed to parse Gemini response:", text.substring(0, 500));
-        throw new Error("AI design recommendation generation failed — invalid response format");
+        return geminiDesignResponseSchema.parse(JSON.parse(text));
+    } catch (error) {
+        throw new AiOperationError("PROVIDER_INVALID_RESPONSE", {
+            operation: "design-advisor.generate-recommendations",
+            cause: error,
+        }).report();
     }
 }
 

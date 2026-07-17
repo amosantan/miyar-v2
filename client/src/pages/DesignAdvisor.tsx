@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 import { InsufficientDataState } from "@/components/InsufficientDataState";
 import { toast } from "sonner";
 import { useParams } from "wouter";
@@ -224,7 +225,7 @@ function DesignAdvisorContent() {
             }
             utils.designAdvisor.getRecommendations.invalidate({ projectId });
         },
-        onError: (err) => toast.error(err.message),
+        onError: (err) => toast.error(withReference(formatAiOperationError(err, "We could not generate recommendations. Please try again."))),
     });
 
     const briefMutation = trpc.designAdvisor.generateDesignBrief.useMutation({
@@ -232,7 +233,7 @@ function DesignAdvisorContent() {
             toast.success("Design brief generated");
             utils.designAdvisor.getDesignBrief.invalidate({ projectId });
         },
-        onError: (err) => toast.error(err.message),
+        onError: (err) => toast.error(withReference(formatAiOperationError(err, "We could not generate the design brief. Please try again."))),
     });
 
     // Phase 2: Visual generation
@@ -250,7 +251,7 @@ function DesignAdvisorContent() {
             setGeneratingVisual(null);
         },
         onError: (err) => {
-            toast.error(err.message);
+            toast.error(withReference(formatAiOperationError(err, "We could not generate this visual. Please try again.")));
             setGeneratingVisual(null);
         },
     });
@@ -260,7 +261,7 @@ function DesignAdvisorContent() {
             toast.success("Hero image generated!");
             utils.designAdvisor.getVisuals.invalidate({ projectId });
         },
-        onError: (err) => toast.error(err.message),
+        onError: (err) => toast.error(withReference(formatAiOperationError(err, "We could not generate the hero image. Please try again."))),
     });
 
     function handleGenerateVisual(roomId: string, type: string) {

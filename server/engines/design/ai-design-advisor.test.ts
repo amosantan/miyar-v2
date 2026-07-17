@@ -278,7 +278,10 @@ describe("AI Design Advisor — Generate Recommendations", () => {
 
         await expect(
             generateDesignRecommendations(mockProject, mockInputs, mockMaterials)
-        ).rejects.toThrow("invalid response format");
+        ).rejects.toMatchObject({
+            code: "PROVIDER_INVALID_RESPONSE",
+            message: "The AI service returned an unusable result. Please try again.",
+        });
     });
 
     test("handles empty material library correctly", async () => {

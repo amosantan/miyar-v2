@@ -14,7 +14,7 @@ import {
 } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
-import { storagePut } from "../storage";
+import { storageCreatePresignedPut, storageGet, storagePut } from "../storage";
 import { generateDesignBrief, type DesignBriefData } from "../engines/design-brief";
 import { getAreaSaleMedianSqm } from "../engines/dld-analytics";
 import { getLiveCategoryPricing } from "../engines/pricing-engine";
@@ -31,6 +31,7 @@ import { generateDesignBriefDocx } from "../engines/docx-brief";
 import { calculateSurfaceAreas, buildQuantityCostSummary, type AllocationSlice, type AllocationResult as MqiAllocationResult } from "../engines/design/material-quantity-engine";
 import { buildSpaceProgram } from "../engines/design/space-program";
 import { nanoid } from "nanoid";
+import crypto from "node:crypto";
 import { requireActivePublicShare } from "../_core/public-share-access";
 import {
   requireDesignAsset,
@@ -53,6 +54,19 @@ import {
   cleanupRejectedUpload,
   reportIndeterminateUploadPersistence,
 } from "../_core/upload-compensation";
+import { isSupportedMediaMimeType, MAX_MEDIA_BYTES, mediaTypeFromMime, validateMediaBuffer } from "../_core/media-validation";
+import { readValidatedProjectMedia } from "../_core/project-media";
+import { toAiOperationFailure } from "../_core/ai-operation";
+
+const assetCategorySchema = z.enum([
+  "brief", "brand", "budget", "competitor", "inspiration", "material", "sales", "legal",
+  "mood_image", "material_board", "marketing_hero", "generated", "other",
+]);
+const MAX_LEGACY_BASE64_CHARS = Math.ceil(MAX_MEDIA_BYTES * 4 / 3) + 4;
+
+function isOwnedUploadKey(orgId: number, projectId: number, key: string): boolean {
+  return key.startsWith(`projects/${orgId}/${projectId}/uploads/`);
+}
 
 function isDuplicateKeyError(error: unknown): boolean {
   let current = error;
@@ -125,12 +139,98 @@ export const designRouter = router({
       return db.getProjectAssets(input.projectId, input.category);
     }),
 
+  /**
+   * Starts a browser-to-S3 media upload. The caller receives only a short-lived
+   * write URL; finalization below is the security boundary that creates an asset.
+   */
+  createAssetUpload: designOrgMutationProcedure
+    .input(z.object({
+      projectId: z.number(),
+      mimeType: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
+      const mimeType = input.mimeType.toLowerCase();
+      if (!isSupportedMediaMimeType(mimeType)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This file type is not supported. Please choose a supported image, PDF, audio, or video file." });
+      }
+      const key = `projects/${ctx.orgId}/${input.projectId}/uploads/${crypto.randomUUID()}`;
+      const upload = await storageCreatePresignedPut(key, mimeType);
+      return { storageKey: upload.key, uploadUrl: upload.uploadUrl, expiresInSeconds: 900 };
+    }),
+
+  /** Validates an uploaded object and is the only path that persists direct uploads. */
+  finalizeAssetUpload: designOrgMutationProcedure
+    .input(z.object({
+      projectId: z.number(),
+      storageKey: z.string().min(1),
+      filename: z.string().min(1).max(512),
+      mimeType: z.string(),
+      category: assetCategorySchema.default("other"),
+      tags: z.array(z.string().max(100)).max(30).optional(),
+      notes: z.string().max(5_000).optional(),
+      isClientVisible: z.boolean().default(true),
+      purpose: z.enum(["asset", "floor_plan"]).default("asset"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
+      if (!isOwnedUploadKey(ctx.orgId, input.projectId, input.storageKey)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Upload not found" });
+      }
+
+      let media;
+      try {
+        media = await readValidatedProjectMedia({
+          storagePath: input.storageKey,
+          mimeType: input.mimeType,
+        }, "design.asset.finalize");
+      } catch (error) {
+        try { await cleanupRejectedUpload(input.storageKey); } catch { /* telemetry is emitted by the cleanup helper */ }
+        throw error;
+      }
+
+      const stored = await storageGet(input.storageKey);
+      const assetInput = {
+        projectId: input.projectId,
+        filename: input.filename.replace(/[\\/\u0000]/g, "_").slice(0, 512),
+        mimeType: media.mimeType,
+        sizeBytes: media.sizeBytes,
+        checksum: media.checksum,
+        storagePath: input.storageKey,
+        storageUrl: stored.url,
+        uploadedBy: ctx.user.id,
+        category: input.purpose === "floor_plan" ? "floor_plan" as const : input.category,
+        assetType: mediaTypeFromMime(media.mimeType),
+        tags: input.tags || [],
+        notes: input.notes,
+        isClientVisible: input.isClientVisible,
+      };
+
+      const created = input.purpose === "floor_plan"
+        ? await db.createFloorPlanAssetAndLinkForOrg(assetInput, ctx.orgId)
+        : await db.createProjectAssetForOrg(assetInput, ctx.orgId);
+      if (!created) {
+        try { await cleanupRejectedUpload(input.storageKey); } catch { /* preserved by reconciliation telemetry */ }
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+
+      await bestEffortAudit({
+        orgId: ctx.orgId,
+        userId: ctx.user.id,
+        action: input.purpose === "floor_plan" ? "floor_plan.upload" : "asset.upload",
+        entityType: "project_asset",
+        entityId: created.id,
+        details: { projectId: input.projectId, mediaType: media.mimeType, sizeBytes: media.sizeBytes },
+      });
+      return { id: created.id, url: stored.url, mimeType: media.mimeType, sizeBytes: media.sizeBytes };
+    }),
+
   uploadAsset: designOrgMutationProcedure
     .input(z.object({
       projectId: z.number(),
       filename: z.string(),
       mimeType: z.string(),
-      base64Data: z.string(),
+      base64Data: z.string().max(MAX_LEGACY_BASE64_CHARS),
       category: z.enum(["brief", "brand", "budget", "competitor", "inspiration", "material", "sales", "legal", "mood_image", "material_board", "marketing_hero", "generated", "other"]).default("other"),
       tags: z.array(z.string()).optional(),
       notes: z.string().optional(),
@@ -139,16 +239,18 @@ export const designRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireDesignProject(input.projectId, ctx.orgId);
       const buffer = Buffer.from(input.base64Data, "base64");
+      const media = await validateMediaBuffer(buffer, input.mimeType, "design.asset.legacy-upload");
       const suffix = Math.random().toString(36).slice(2, 10);
       const storagePath = `projects/${input.projectId}/assets/${suffix}-${input.filename}`;
-      const uploaded = await storagePut(storagePath, buffer, input.mimeType);
+      const uploaded = await storagePut(storagePath, media.buffer, media.mimeType);
       let created: Awaited<ReturnType<typeof db.createProjectAssetForOrg>>;
       try {
         created = await db.createProjectAssetForOrg({
           projectId: input.projectId,
           filename: input.filename,
-          mimeType: input.mimeType,
-          sizeBytes: buffer.length,
+          mimeType: media.mimeType,
+          sizeBytes: media.sizeBytes,
+          checksum: media.checksum,
           storagePath: uploaded.key,
           storageUrl: uploaded.url,
           uploadedBy: ctx.user.id,
@@ -647,15 +749,17 @@ export const designRouter = router({
 
       // Generate image asynchronously (but we await it for simplicity)
       try {
-        const { url } = await generateImage({ prompt });
+        const generated = await generateImage({ prompt });
+        const url = generated.url;
 
         // Create asset record
         const assetResult = requireScopedDesignInsert(await db.createProjectAssetForOrg({
           projectId: input.projectId,
           filename: `${input.type}-${Date.now()}.png`,
-          mimeType: "image/png",
-          sizeBytes: 0,
-          storagePath: `projects/${input.projectId}/visuals/${input.type}-${Date.now()}.png`,
+          mimeType: generated.mimeType,
+          sizeBytes: generated.sizeBytes,
+          checksum: generated.checksum,
+          storagePath: generated.storageKey,
           storageUrl: url,
           uploadedBy: ctx.user.id,
           category: input.type === "mood" ? "mood_image" : input.type === "material_board" ? "material_board" : "marketing_hero",
@@ -677,12 +781,13 @@ export const designRouter = router({
         });
 
         return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" as const };
-      } catch (error: any) {
+      } catch (error) {
+        const failure = toAiOperationFailure(error, "design.visual-generation");
         requireScopedDesignMutation(await db.updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
           status: "failed",
-          errorMessage: error.message || "Image generation failed",
+          errorMessage: failure.message,
         }));
-        return { id: visualResult.id, assetId: null, url: null, status: "failed" as const, error: error.message };
+        return { id: visualResult.id, assetId: null, url: null, status: "failed" as const, error: failure.message, referenceId: failure.referenceId };
       }
     }),
 
@@ -1796,14 +1901,16 @@ export const designRouter = router({
       }, ctx.orgId));
 
       try {
-        const { url } = await generateImage({ prompt });
+        const generated = await generateImage({ prompt });
+        const url = generated.url;
 
         const assetResult = requireScopedDesignInsert(await db.createProjectAssetForOrg({
           projectId: input.projectId,
           filename: `room-render-${input.roomName.replace(/\s+/g, "-")}-${Date.now()}.png`,
-          mimeType: "image/png",
-          sizeBytes: 0,
-          storagePath: `projects/${input.projectId}/visuals/room-${Date.now()}.png`,
+          mimeType: generated.mimeType,
+          sizeBytes: generated.sizeBytes,
+          checksum: generated.checksum,
+          storagePath: generated.storageKey,
           storageUrl: url,
           uploadedBy: ctx.user.id,
           category: "mood_image",
@@ -1812,9 +1919,10 @@ export const designRouter = router({
         requireScopedDesignMutation(await db.updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "completed", imageAssetId: assetResult.id }));
 
         return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" as const };
-      } catch (error: any) {
-        requireScopedDesignMutation(await db.updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "failed", errorMessage: error.message }));
-        return { id: visualResult.id, assetId: null, url: null, status: "failed" as const, error: error.message };
+      } catch (error) {
+        const failure = toAiOperationFailure(error, "design.room-render");
+        requireScopedDesignMutation(await db.updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "failed", errorMessage: failure.message }));
+        return { id: visualResult.id, assetId: null, url: null, status: "failed" as const, error: failure.message, referenceId: failure.referenceId };
       }
     }),
 
@@ -1825,22 +1933,24 @@ export const designRouter = router({
       projectId: z.number(),
       filename: z.string(),
       mimeType: z.string(),
-      base64Data: z.string(),
+      base64Data: z.string().max(MAX_LEGACY_BASE64_CHARS),
     }))
     .mutation(async ({ ctx, input }) => {
       await requireDesignProject(input.projectId, ctx.orgId);
 
       const buffer = Buffer.from(input.base64Data, "base64");
+      const media = await validateMediaBuffer(buffer, input.mimeType, "design.floor-plan.legacy-upload");
       const suffix = Math.random().toString(36).slice(2, 10);
       const storagePath = `projects/${input.projectId}/floor-plans/${suffix}-${input.filename}`;
-      const uploaded = await storagePut(storagePath, buffer, input.mimeType);
+      const uploaded = await storagePut(storagePath, media.buffer, media.mimeType);
       let created: Awaited<ReturnType<typeof db.createFloorPlanAssetAndLinkForOrg>>;
       try {
         created = await db.createFloorPlanAssetAndLinkForOrg({
           projectId: input.projectId,
           filename: input.filename,
-          mimeType: input.mimeType,
-          sizeBytes: buffer.length,
+          mimeType: media.mimeType,
+          sizeBytes: media.sizeBytes,
+          checksum: media.checksum,
           storagePath: uploaded.key,
           storageUrl: uploaded.url,
           uploadedBy: ctx.user.id,
@@ -1886,13 +1996,12 @@ export const designRouter = router({
 
       const { resource: asset, project: assetProject } = await requireDesignAsset(project.floorPlanAssetId, ctx.orgId);
       requireSameDesignProject(project.id, assetProject.id);
-      if (!asset || !asset.storageUrl) {
+      if (!asset || !asset.storagePath) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Floor plan asset not found or has no URL" });
       }
 
-      console.log(`[FloorPlan] Analyzing floor plan for project ${input.projectId}: ${asset.storageUrl}`);
-
-      const analysis = await runFloorPlanAnalysis(asset.storageUrl, asset.mimeType);
+      const media = await readValidatedProjectMedia(asset, "design.floor-plan.analyze");
+      const analysis = await runFloorPlanAnalysis(media);
 
       // Store in the project record
       requireScopedDesignMutation(await db.updateProjectForOrg(input.projectId, ctx.orgId, {

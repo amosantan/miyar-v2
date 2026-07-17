@@ -3,6 +3,9 @@
  * Uses Gemini Vision to extract room names and areas from floor plan images.
  */
 import { invokeLLM } from "../_core/llm";
+import { AiOperationError } from "../_core/ai-operation";
+import type { ValidatedMedia } from "../_core/media-validation";
+import { z } from "zod";
 
 export interface ExtractedRoom {
     name: string;
@@ -38,8 +41,8 @@ Rules:
 /**
  * Extract rooms from a floor plan image using Gemini Vision
  */
-export async function extractRoomsFromImage(
-    imageUrl: string,
+export async function extractRoomsFromMedia(
+    media: ValidatedMedia,
     projectContext?: { typology?: string; gfa?: number; archetype?: string }
 ): Promise<ExtractionResult> {
     const contextNote = projectContext
@@ -56,8 +59,8 @@ export async function extractRoomsFromImage(
                         text: EXTRACTION_PROMPT + contextNote + "\n\nAnalyze this floor plan and extract all rooms with their areas.",
                     },
                     {
-                        type: "image_url",
-                        image_url: { url: imageUrl, detail: "high" },
+                        type: "media",
+                        media,
                     },
                 ],
             },
@@ -91,22 +94,26 @@ export async function extractRoomsFromImage(
     const content = result.choices[0]?.message?.content;
     const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((c: any) => c.text || "").join("") : "";
 
-    let parsed: { rooms: ExtractedRoom[]; totalArea: number; notes?: string };
+    let parsed: z.infer<typeof EXTRACTION_RESULT_SCHEMA>;
     try {
-        parsed = JSON.parse(text);
-    } catch {
+        parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(text));
+    } catch (error) {
         // Fallback: try to extract JSON from the response
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            parsed = JSON.parse(jsonMatch[0]);
+            try {
+                parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(jsonMatch[0]));
+            } catch (fallbackError) {
+                throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "area-extraction", cause: fallbackError }).report();
+            }
         } else {
-            throw new Error("Failed to parse Gemini extraction response");
+            throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "area-extraction", cause: error }).report();
         }
     }
 
     // Validate and clean extracted rooms
     const warnings: string[] = [];
-    const rooms = (parsed.rooms || []).map((r) => ({
+    const rooms = parsed.rooms.map((r) => ({
         name: r.name || "Unknown Room",
         areaSqm: Math.round((r.areaSqm || 0) * 10) / 10,
         confidence: Math.min(1, Math.max(0, r.confidence || 0.5)),
@@ -142,3 +149,14 @@ export async function extractRoomsFromImage(
         warnings,
     };
 }
+
+const EXTRACTION_RESULT_SCHEMA = z.object({
+    rooms: z.array(z.object({
+        name: z.string().optional(),
+        areaSqm: z.number().finite().optional(),
+        confidence: z.number().finite().optional(),
+        category: z.string().optional(),
+    })),
+    totalArea: z.number().finite().optional(),
+    notes: z.string().optional(),
+});

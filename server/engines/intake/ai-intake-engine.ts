@@ -14,16 +14,20 @@
  */
 
 import { invokeLLM, type Message, type MessageContent } from "../../_core/llm";
+import { AiOperationError, toAiOperationError } from "../../_core/ai-operation";
 import { analyzeFloorPlan, type FloorPlanAnalysis } from "../design/floor-plan-analyzer";
 import type { ProjectInputs } from "../../../shared/miyar-types";
+import type { ValidatedMedia } from "../../_core/media-validation";
+import { z } from "zod";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface IntakeAsset {
     type: "image" | "pdf" | "audio" | "video" | "url" | "text_note";
-    url: string;
-    mimeType?: string;
+    /** Binary assets must be read and validated by the server before reaching this engine. */
+    media?: ValidatedMedia;
     textContent?: string; // for URLs: scraped content; for text_note: raw text
+    fileName?: string;
 }
 
 export interface IntakeResult {
@@ -163,23 +167,28 @@ const INTAKE_OUTPUT_SCHEMA = {
     },
 };
 
-// ─── MIME Type Mapping ───────────────────────────────────────────────────────
-
-const MIME_TO_FILE_TYPE: Record<string, "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4"> = {
-    "audio/mpeg": "audio/mpeg",
-    "audio/mp3": "audio/mpeg",
-    "audio/wav": "audio/wav",
-    "audio/mp4": "audio/mp4",
-    "audio/m4a": "audio/mp4",
-    "application/pdf": "application/pdf",
-    "video/mp4": "video/mp4",
-};
+const INTAKE_RESPONSE_SCHEMA = z.object({
+    suggestedInputs: z.record(z.string(), z.unknown()).default({}),
+    confidence: z.record(z.string(), z.enum(["high", "medium", "low"])).default({}),
+    reasoning: z.record(z.string(), z.string()).default({}),
+    extractedInsights: z.object({
+        detectedStyle: z.string().optional(),
+        detectedMaterials: z.array(z.string()).optional(),
+        detectedBrands: z.array(z.string()).optional(),
+        detectedTier: z.string().optional(),
+        detectedTypology: z.string().optional(),
+        detectedLocation: z.string().optional(),
+        detectedScale: z.string().optional(),
+        projectDescription: z.string().optional(),
+        supplierInfo: z.array(z.object({ name: z.string(), url: z.string(), materials: z.array(z.string()) })).optional(),
+    }).default({}),
+    warnings: z.array(z.string()).default([]),
+});
 
 function isFloorPlanAsset(asset: IntakeAsset): boolean {
-    // Check if the filename/URL suggests a floor plan
-    const urlLower = (asset.url || "").toLowerCase();
-    const hasFloorPlanKeyword = /floor.?plan|layout|blueprint|plan.?view/i.test(urlLower);
-    return hasFloorPlanKeyword && (asset.type === "image" || asset.type === "pdf");
+    const name = (asset.fileName || "").toLowerCase();
+    const hasFloorPlanKeyword = /floor.?plan|layout|blueprint|plan.?view/i.test(name);
+    return hasFloorPlanKeyword && !!asset.media && (asset.type === "image" || asset.type === "pdf");
 }
 
 // ─── Main Engine ─────────────────────────────────────────────────────────────
@@ -206,17 +215,16 @@ export async function processIntakeAssets(
 
     // ─── Phase 1: Floor Plan Detection ──────────────────────────────────────
     let floorPlanAnalysis: FloorPlanAnalysis | undefined;
+    const processingWarnings: string[] = [];
     const floorPlanAssets = assets.filter(isFloorPlanAsset);
 
     if (floorPlanAssets.length > 0) {
         try {
             const fpAsset = floorPlanAssets[0];
-            floorPlanAnalysis = await analyzeFloorPlan(
-                fpAsset.url,
-                fpAsset.mimeType || "image/jpeg"
-            );
-        } catch (err: any) {
-            console.warn("[AI Intake] Floor plan analysis failed:", err.message);
+            floorPlanAnalysis = await analyzeFloorPlan(fpAsset.media!);
+        } catch (error) {
+            toAiOperationError(error, "intake.floor-plan-analysis").report();
+            processingWarnings.push("A floor plan could not be analysed. Other valid files were still processed.");
         }
     }
 
@@ -243,10 +251,10 @@ export async function processIntakeAssets(
 
         switch (asset.type) {
             case "image":
-                if (asset.url) {
+                if (asset.media) {
                     contentParts.push({
-                        type: "image_url",
-                        image_url: { url: asset.url, detail: "high" },
+                        type: "media",
+                        media: asset.media,
                     });
                     contentParts.push({
                         type: "text",
@@ -256,13 +264,10 @@ export async function processIntakeAssets(
                 break;
 
             case "pdf":
-                if (asset.url) {
+                if (asset.media) {
                     contentParts.push({
-                        type: "file_url",
-                        file_url: {
-                            url: asset.url,
-                            mime_type: "application/pdf",
-                        },
+                        type: "media",
+                        media: asset.media,
                     });
                     contentParts.push({
                         type: "text",
@@ -272,11 +277,10 @@ export async function processIntakeAssets(
                 break;
 
             case "audio":
-                if (asset.url) {
-                    const mimeType = MIME_TO_FILE_TYPE[asset.mimeType || "audio/mp4"] || "audio/mp4";
+                if (asset.media) {
                     contentParts.push({
-                        type: "file_url",
-                        file_url: { url: asset.url, mime_type: mimeType },
+                        type: "media",
+                        media: asset.media,
                     });
                     contentParts.push({
                         type: "text",
@@ -286,10 +290,10 @@ export async function processIntakeAssets(
                 break;
 
             case "video":
-                if (asset.url) {
+                if (asset.media) {
                     contentParts.push({
-                        type: "file_url",
-                        file_url: { url: asset.url, mime_type: "video/mp4" },
+                        type: "media",
+                        media: asset.media,
                     });
                     contentParts.push({
                         type: "text",
@@ -302,12 +306,7 @@ export async function processIntakeAssets(
                 if (asset.textContent) {
                     contentParts.push({
                         type: "text",
-                        text: `[Asset ${assetIndex}: Web URL <${asset.url}>]\nExtracted content:\n${asset.textContent.slice(0, 5000)}`,
-                    });
-                } else {
-                    contentParts.push({
-                        type: "text",
-                        text: `[Asset ${assetIndex}: Web URL <${asset.url}> — analyze if this is a supplier, competitor, or reference project]`,
+                        text: `[Asset ${assetIndex}: Web reference]\nExtracted content:\n${asset.textContent.slice(0, 5000)}`,
                     });
                 }
                 break;
@@ -337,56 +336,49 @@ export async function processIntakeAssets(
 
     const rawText = response.choices[0]?.message?.content;
     if (!rawText || typeof rawText !== "string") {
-        return {
-            suggestedInputs: {},
-            confidence: {},
-            reasoning: {},
-            extractedInsights: {},
-            warnings: ["AI did not return a valid response."],
-        };
+        throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.process-assets" }).report();
     }
 
     // ─── Phase 4: Parse & Validate ──────────────────────────────────────────
-    let parsed: any;
+    let parsed: z.infer<typeof INTAKE_RESPONSE_SCHEMA>;
     try {
-        parsed = JSON.parse(rawText);
+        parsed = INTAKE_RESPONSE_SCHEMA.parse(JSON.parse(rawText));
     } catch {
         // Try to extract JSON from response
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             try {
-                parsed = JSON.parse(jsonMatch[0]);
+                parsed = INTAKE_RESPONSE_SCHEMA.parse(JSON.parse(jsonMatch[0]));
             } catch {
-                return {
-                    suggestedInputs: {},
-                    confidence: {},
-                    reasoning: {},
-                    extractedInsights: {},
-                    warnings: ["Failed to parse AI response as JSON."],
-                };
+                throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.process-assets" }).report();
             }
         } else {
-            return {
-                suggestedInputs: {},
-                confidence: {},
-                reasoning: {},
-                extractedInsights: {},
-                warnings: ["AI response was not valid JSON."],
-            };
+            throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.process-assets" }).report();
         }
     }
 
     // Validate and clean the result
     const result: IntakeResult = {
         suggestedInputs: validateSuggestedInputs(parsed.suggestedInputs || {}),
-        confidence: validatedRecord(parsed.confidence || {}) as Record<string, "high" | "medium" | "low">,
-        reasoning: validatedRecord(parsed.reasoning || {}),
+        confidence: parsed.confidence,
+        reasoning: parsed.reasoning,
         extractedInsights: {
-            ...(parsed.extractedInsights || {}),
+            ...parsed.extractedInsights,
             floorPlanAnalysis,
         },
-        warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+        warnings: [...parsed.warnings, ...processingWarnings],
     };
+
+    // AI suggestions are never allowed to overwrite an explicit value. The UI
+    // can present alternatives, but the existing project input remains source
+    // of truth until a user deliberately changes it.
+    for (const [field, value] of Object.entries(existingInputs || {})) {
+        if (value !== undefined && value !== null && value !== "") {
+            delete (result.suggestedInputs as Record<string, unknown>)[field];
+            delete result.confidence[field];
+            delete result.reasoning[field];
+        }
+    }
 
     // Merge floor plan data into suggested inputs
     if (floorPlanAnalysis) {
@@ -497,17 +489,6 @@ function validateSuggestedInputs(raw: any): Partial<ProjectInputs> {
     return result;
 }
 
-function validatedRecord(raw: any): Record<string, string> {
-    if (!raw || typeof raw !== "object") return {};
-    const result: Record<string, string> = {};
-    for (const [key, value] of Object.entries(raw)) {
-        if (typeof value === "string") {
-            result[key] = value;
-        }
-    }
-    return result;
-}
-
 // ─── Section-Level AI Assist ─────────────────────────────────────────────────
 
 /** Fields belonging to each form section */
@@ -550,6 +531,16 @@ export interface SectionSuggestResult {
     suggestions: SectionSuggestion[];
     sectionSummary: string;
 }
+
+const SECTION_SUGGESTION_RESPONSE_SCHEMA = z.object({
+    suggestions: z.array(z.object({
+        field: z.string(),
+        value: z.unknown(),
+        confidence: z.enum(["high", "medium", "low"]),
+        reasoning: z.string(),
+    })).default([]),
+    sectionSummary: z.string().default(""),
+});
 
 /**
  * Suggest values for a specific form section using current form state as context.
@@ -677,18 +668,18 @@ Return a JSON object with:
 
         const rawText = response.choices[0]?.message?.content;
         if (!rawText || typeof rawText !== "string") {
-            return { suggestions: [], sectionSummary: "AI did not return a valid response." };
+            throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.suggest-section" }).report();
         }
 
-        let parsed: any;
+        let parsed: z.infer<typeof SECTION_SUGGESTION_RESPONSE_SCHEMA>;
         try {
-            parsed = JSON.parse(rawText);
+            parsed = SECTION_SUGGESTION_RESPONSE_SCHEMA.parse(JSON.parse(rawText));
         } catch {
             const jsonMatch = rawText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                parsed = JSON.parse(jsonMatch[0]);
+                parsed = SECTION_SUGGESTION_RESPONSE_SCHEMA.parse(JSON.parse(jsonMatch[0]));
             } else {
-                return { suggestions: [], sectionSummary: "Failed to parse AI response." };
+                throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.suggest-section" }).report();
             }
         }
 
@@ -700,8 +691,8 @@ Return a JSON object with:
                     validSuggestions.push({
                         field: s.field,
                         value: s.value,
-                        confidence: ["high", "medium", "low"].includes(s.confidence) ? s.confidence : "low",
-                        reasoning: String(s.reasoning || ""),
+                    confidence: s.confidence,
+                    reasoning: s.reasoning,
                     });
                 }
             }
@@ -711,9 +702,7 @@ Return a JSON object with:
             suggestions: validSuggestions,
             sectionSummary: parsed.sectionSummary || "",
         };
-    } catch (err: any) {
-        console.error("[AI Section Assist] Error:", err.message);
-        return { suggestions: [], sectionSummary: `Error: ${err.message}` };
+    } catch (error) {
+        throw toAiOperationError(error, "intake.suggest-section").report();
     }
 }
-

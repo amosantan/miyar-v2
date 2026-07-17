@@ -22,8 +22,12 @@ import {
     Pin, PinOff, TrendingUp, Layers, BarChart3, Home,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 
 const COST_BANDS = ["Economy", "Mid-Range", "Premium", "Luxury", "Ultra-Luxury", "Custom"];
+const safeAiError = (error: unknown, fallback: string) => withReference(formatAiOperationError(error, fallback));
+const safeResultFailure = (referenceId: string | null | undefined, fallback: string) =>
+    referenceId ? `${fallback} Reference: ${referenceId}` : fallback;
 
 export default function DesignStudio() {
     const [, params] = useRoute("/projects/:id/design-studio");
@@ -83,11 +87,11 @@ function StudioOverviewTab({ projectId, onNavigate }: { projectId: number; onNav
             if (result.status === "completed") {
                 toast.success("Visual generated", { description: "Image created and saved" });
             } else {
-                toast.error("Generation failed", { description: result.error || "Unknown error" });
+                toast.error("Generation failed", { description: safeResultFailure(result.referenceId, "We could not generate this visual. Please try again.") });
             }
             visuals.refetch();
         },
-        onError: (err) => toast.error("Generation failed", { description: err.message }),
+        onError: (err) => toast.error("Generation failed", { description: safeAiError(err, "We could not generate this visual. Please try again.") }),
     });
 
     const quickGenerate = (type: "mood" | "material_board" | "hero") => {
@@ -225,11 +229,11 @@ function VisualsTab({ projectId }: { projectId: number }) {
             if (result.status === "completed") {
                 toast.success("Visual generated", { description: "Image created and saved" });
             } else {
-                toast.error("Generation failed", { description: result.error || "Unknown error" });
+                toast.error("Generation failed", { description: safeResultFailure(result.referenceId, "We could not generate this visual. Please try again.") });
             }
             visuals.refetch();
         },
-        onError: (err) => toast.error("Generation failed", { description: err.message }),
+        onError: (err) => toast.error("Generation failed", { description: safeAiError(err, "We could not generate this visual. Please try again.") }),
     });
 
     const pinMutation = trpc.design.pinVisualToBoard.useMutation({
@@ -237,7 +241,7 @@ function VisualsTab({ projectId }: { projectId: number }) {
             toast.success("Visual pinned to board");
             setPinDialogVisual(null);
         },
-        onError: (err) => toast.error("Pin failed", { description: err.message }),
+        onError: () => toast.error("Pin failed", { description: "We could not update this visual. Please try again." }),
     });
 
     // Phase 9: Room render mutation (uses board-aware prompts)
@@ -246,11 +250,11 @@ function VisualsTab({ projectId }: { projectId: number }) {
             if (result.status === "completed") {
                 toast.success("Room render generated", { description: `${roomName} visualization created` });
             } else {
-                toast.error("Render failed", { description: result.error || "Unknown error" });
+                toast.error("Render failed", { description: safeResultFailure(result.referenceId, "We could not generate this room render. Please try again.") });
             }
             visuals.refetch();
         },
-        onError: (err: any) => toast.error("Render failed", { description: err.message }),
+        onError: (err: unknown) => toast.error("Render failed", { description: safeAiError(err, "We could not generate this room render. Please try again.") }),
     });
 
     const handleGenerate = () => {
@@ -425,7 +429,7 @@ function VisualsTab({ projectId }: { projectId: number }) {
                                                 {visual.status === "failed" && (
                                                     <div className="aspect-video bg-destructive/5 flex flex-col items-center justify-center gap-2">
                                                         <AlertCircle className="h-8 w-8 text-destructive" />
-                                                        <span className="text-xs text-destructive">{visual.errorMessage || "Generation failed"}</span>
+                                                        <span className="text-xs text-destructive">Generation failed. Please try again.</span>
                                                     </div>
                                                 )}
                                                 <CardContent className="pt-3 space-y-1.5">

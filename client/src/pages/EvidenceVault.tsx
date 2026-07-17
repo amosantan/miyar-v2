@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Upload, FileText, Image, Trash2, Tag, Eye, EyeOff, Link2, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
+import { putSignedMedia } from "@/lib/direct-media-upload";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 
 const CATEGORIES = [
   { value: "brief", label: "Brief" },
@@ -25,7 +27,13 @@ const CATEGORIES = [
   { value: "marketing_hero", label: "Marketing Hero" },
   { value: "generated", label: "Generated" },
   { value: "other", label: "Other" },
-];
+] as const;
+
+type AssetCategory = typeof CATEGORIES[number]["value"];
+
+function isAssetCategory(value: string): value is AssetCategory {
+  return CATEGORIES.some(category => category.value === value);
+}
 
 export default function EvidenceVault() {
   const [, params] = useRoute("/projects/:id/evidence");
@@ -34,7 +42,7 @@ export default function EvidenceVault() {
 
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [uploadCategory, setUploadCategory] = useState("other");
+  const [uploadCategory, setUploadCategory] = useState<AssetCategory>("other");
   const [uploadNotes, setUploadNotes] = useState("");
 
   const assets = trpc.design.listAssets.useQuery(
@@ -42,14 +50,8 @@ export default function EvidenceVault() {
     { enabled: !!projectId }
   );
 
-  const uploadMutation = trpc.design.uploadAsset.useMutation({
-    onSuccess: () => {
-      toast.success("File uploaded", { description: "Asset added to Evidence Vault" });
-      assets.refetch();
-      setUploadOpen(false);
-    },
-    onError: (err) => toast.error("Upload failed", { description: err.message }),
-  });
+  const createUpload = trpc.design.createAssetUpload.useMutation();
+  const finalizeUpload = trpc.design.finalizeAssetUpload.useMutation();
 
   const deleteMutation = trpc.design.deleteAsset.useMutation({
     onSuccess: () => {
@@ -61,24 +63,28 @@ export default function EvidenceVault() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File too large", { description: "Maximum 10MB" });
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("File too large", { description: "Maximum 50MB" });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      uploadMutation.mutate({
+    try {
+      const upload = await createUpload.mutateAsync({ projectId, mimeType: file.type });
+      await putSignedMedia(upload.uploadUrl, file);
+      await finalizeUpload.mutateAsync({
         projectId,
+        storageKey: upload.storageKey,
         filename: file.name,
         mimeType: file.type,
-        base64Data: base64,
-        category: uploadCategory as any,
+        category: uploadCategory,
         notes: uploadNotes || undefined,
       });
-    };
-    reader.readAsDataURL(file);
+      toast.success("File uploaded", { description: "Asset added to Evidence Vault" });
+      assets.refetch();
+      setUploadOpen(false);
+    } catch (error) {
+      toast.error("Upload failed", { description: withReference(formatAiOperationError(error, "We could not upload this file.")) });
+    }
   };
 
   const getCategoryIcon = (cat: string) => {
@@ -111,7 +117,9 @@ export default function EvidenceVault() {
             <div className="space-y-4 py-4">
               <div>
                 <label className="text-sm font-medium">Category</label>
-                <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                <Select value={uploadCategory} onValueChange={(value) => {
+                  if (isAssetCategory(value)) setUploadCategory(value);
+                }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map(c => (
@@ -126,8 +134,8 @@ export default function EvidenceVault() {
               </div>
               <div>
                 <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
-                <Button onClick={() => fileInputRef.current?.click()} disabled={uploadMutation.isPending} className="w-full">
-                  {uploadMutation.isPending ? "Uploading..." : "Choose File & Upload"}
+                <Button onClick={() => fileInputRef.current?.click()} disabled={createUpload.isPending || finalizeUpload.isPending} className="w-full">
+                  {createUpload.isPending || finalizeUpload.isPending ? "Uploading..." : "Choose File & Upload"}
                 </Button>
               </div>
             </div>
