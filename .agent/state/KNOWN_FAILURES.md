@@ -36,6 +36,7 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Impact: ordinary local verification can contact or attempt writes to a shared database, violating safe-test expectations and making results environment-dependent.
 - Owner: Roadmap `TR-07` and `TR-12`.
 - Exit criterion: test configuration forces a dedicated isolated database or mocked data layer, fails before contacting protected/shared targets, and the full suite produces no external database connection or write attempt.
+- TR-07 progress: On 2026-07-17, the auth and logout harnesses were re-certified with type-checked database mocks, explicit null `getDb`, isolated audit mocks, and success/rejection assertions. `DATABASE_URL='' pnpm test` passed 1,021 tests with 22 skipped and emitted no auth/logout database attempt. The failure remains open because ordinary invocation still lacks the systemic protected-target guard and explicit environment profiles owned by `TR-12`.
 
 ## KF-009 — Organization context does not prove current membership or design role
 
