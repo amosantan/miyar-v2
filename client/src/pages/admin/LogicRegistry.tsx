@@ -84,7 +84,7 @@ export default function LogicRegistry() {
   const [editThresholds, setEditThresholds] = useState<
     Array<{ ruleKey: string; thresholdValue: string; comparator: string; notes: string }>
   >([]);
-  const versionDetail = selectedVersion.data as LogicVersionDetail | null | undefined;
+  const versionDetail = selectedVersion.data;
 
   const initWeightEdit = () => {
     if (!versionDetail?.weights) return;
@@ -111,7 +111,7 @@ export default function LogicRegistry() {
     );
   };
 
-  const versionList = (versions.data ?? []) as LogicVersion[];
+  const versionList = versions.data ?? [];
   const sv = versionDetail;
 
   return (

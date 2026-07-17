@@ -5,23 +5,6 @@ import { trpc } from "@/lib/trpc";
 import { Database, Loader2, Sparkles, Layers, Beaker } from "lucide-react";
 import { useState } from "react";
 
-interface BenchmarkRow {
-  id: number;
-  region: string;
-  typology: string;
-  location: string;
-  marketTier: string;
-  materialLevel: number;
-  roomType: string | null;
-  costPerSqftLow: string | null;
-  costPerSqftMid: string | null;
-  costPerSqftHigh: string | null;
-  absorptionRate: string | null;
-  sourceType: string | null;
-  sourceNote: string | null;
-  dataYear: number | null;
-}
-
 function SourceBadge({ type }: { type: string | null }) {
   const config: Record<string, { label: string; className: string }> = {
     curated: {
@@ -93,7 +76,7 @@ function BenchmarksContent() {
 
   // Count by source type
   const counts = (benchmarks || []).reduce(
-    (acc: Record<string, number>, b: BenchmarkRow) => {
+    (acc, b) => {
       const t = b.sourceType || "synthetic";
       acc[t] = (acc[t] || 0) + 1;
       return acc;
@@ -211,7 +194,7 @@ function BenchmarksContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {benchmarks.map((b: BenchmarkRow) => (
+                  {benchmarks.map((b) => (
                     <tr
                       key={b.id}
                       className="border-b border-border/50 hover:bg-secondary/30"

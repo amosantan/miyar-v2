@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sliders, Play, History, CheckCircle, AlertTriangle } from "lucide-react";
-import type { LogicThreshold, LogicVersion, LogicWeight } from "@shared/entity-types";
 
 export default function Calibration() {
   const [projectId, setProjectId] = useState("");
@@ -22,7 +21,7 @@ export default function Calibration() {
     { enabled: false }
   );
 
-  const versionList = (versions.data ?? []) as LogicVersion[];
+  const versionList = versions.data ?? [];
   const publishedVersion = versionList.find((v) => v.status === "published");
 
 
@@ -120,7 +119,7 @@ export default function Calibration() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {calibrateQuery.data.weights.map((w: LogicWeight) => (
+                  {calibrateQuery.data.weights.map((w) => (
                     <TableRow key={w.dimension}>
                       <TableCell className="font-medium uppercase">{w.dimension}</TableCell>
                       <TableCell>{w.weight}</TableCell>
@@ -138,7 +137,7 @@ export default function Calibration() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {calibrateQuery.data.thresholds.map((t: LogicThreshold) => (
+                  {calibrateQuery.data.thresholds.map((t) => (
                     <TableRow key={t.ruleKey}>
                       <TableCell className="font-mono text-sm">{t.ruleKey}</TableCell>
                       <TableCell>{t.comparator}</TableCell>

@@ -25,13 +25,12 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import type { Project } from "@shared/entity-types";
 
 function ResultsContent() {
   const { data: projects, isLoading: loadingProjects } =
     trpc.project.list.useQuery();
   const evaluatedProjects = useMemo(
-    () => (projects as Project[] | undefined)?.filter((p) => p.status === "evaluated") ?? [],
+    () => projects?.filter((p) => p.status === "evaluated") ?? [],
     [projects]
   );
   const [selectedId, setSelectedId] = useState<string>("");

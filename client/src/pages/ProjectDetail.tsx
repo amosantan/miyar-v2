@@ -1399,13 +1399,13 @@ function ProjectDetailContent() {
             <CardTitle className="text-base">Extended Brief</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {project.developerGuidelines && (
+            {project.developerGuidelines != null && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-foreground">Developer Guidelines & Target Audience</h4>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{typeof project.developerGuidelines === "object" ? JSON.stringify(project.developerGuidelines, null, 2) : String(project.developerGuidelines)}</p>
               </div>
             )}
-            {project.unitMix && (
+            {project.unitMix != null && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-foreground">Unit Mix</h4>
                 {(() => {
@@ -1452,7 +1452,7 @@ function ProjectDetailContent() {
                 })()}
               </div>
             )}
-            {project.villaSpaces && (
+            {project.villaSpaces != null && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-foreground">Villa Spaces</h4>
                 {(() => {

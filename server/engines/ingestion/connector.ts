@@ -18,7 +18,6 @@
  */
 
 import { z } from "zod";
-// @ts-ignore
 import robotsParser from "robots-parser";
 
 // ─── Constants & Resilience Data ─────────────────────────────────
@@ -741,4 +740,3 @@ export abstract class BaseSourceConnector implements SourceConnector {
   abstract extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
   abstract normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
 }
-

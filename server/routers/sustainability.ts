@@ -16,6 +16,7 @@ import { eq, desc } from "drizzle-orm";
 import { computeDigitalTwin, type MaterialType } from "../engines/sustainability/digital-twin";
 import { evaluateCompliance } from "../engines/sustainability/compliance-checklists";
 import { requireProjectForOrg } from "../_core/project-access";
+import { getPricingArea } from "../engines/area-utils";
 
 const materialEnum = z.enum([
     "concrete", "steel", "glass", "aluminum",
@@ -40,7 +41,7 @@ export const sustainabilityRouter = router({
         .mutation(async ({ ctx, input }) => {
             const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
-            const gfa = Number(project.siteArea || 500);
+            const gfa = getPricingArea(project) || 500;
             const sustainabilityRating = Number(project.des05Sustainability || 2);
 
             // Default material mix if not specified

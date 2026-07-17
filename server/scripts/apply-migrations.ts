@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 
 async function run() {
     const db = await getDb();
+    if (!db) throw new Error("DB not available");
     const queries = [
         `CREATE TABLE IF NOT EXISTS \`design_trends\` (
         \`id\` int AUTO_INCREMENT NOT NULL,

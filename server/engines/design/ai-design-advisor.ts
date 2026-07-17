@@ -91,7 +91,7 @@ export async function generateDesignRecommendations(
                 rent: "Rental investment (prioritize durability, cost-efficiency, low maintenance)",
                 mixed: "Mixed strategy (balance resale appeal and rental durability)",
             };
-            dldContext = `- **Area**: ${project.dldAreaName || benchmark.areaName}
+            dldContext = `- **Area**: ${project.dldAreaName || benchmark.areaNameEn}
 - **Median Sale Price**: ${benchmark.saleP50 ? Math.round(Number(benchmark.saleP50)).toLocaleString() : "N/A"} AED/sqm
 - **Recommended Fitout**: ${benchmark.recommendedFitoutMid ? Math.round(Number(benchmark.recommendedFitoutMid)).toLocaleString() : "N/A"} AED/sqm
 - **Gross Rental Yield**: ${benchmark.grossYield ? Number(benchmark.grossYield).toFixed(1) : "N/A"}%
@@ -473,7 +473,7 @@ export async function generateAIDesignBrief(
             };
             dldSection = `
 ## DLD Area Market Context
-- Area: ${project.dldAreaName || benchmark.areaName}
+- Area: ${project.dldAreaName || benchmark.areaNameEn}
 - Median Sale Price: ${benchmark.saleP50 ? Math.round(Number(benchmark.saleP50)).toLocaleString() : "N/A"} AED/sqm
 - Recommended Fitout: ${benchmark.recommendedFitoutMid ? Math.round(Number(benchmark.recommendedFitoutMid)).toLocaleString() : "N/A"} AED/sqm
 - Gross Yield: ${benchmark.grossYield ? Number(benchmark.grossYield).toFixed(1) : "N/A"}%

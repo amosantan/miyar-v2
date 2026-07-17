@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { benchmarkSpaceRatios } from "./design/space-benchmarking";
 import type { FloorPlanAnalysis } from "./design/floor-plan-analyzer";
 import { normalizeInputs } from "./normalization";
+import type { ProjectInputs } from "../../shared/miyar-types";
 
 /**
  * Phase 9 Space Intelligence — Test Suite
@@ -121,12 +122,12 @@ describe("V9 Space Benchmarking", () => {
 
 describe("V9 Scoring Integration", () => {
     it("spaceEfficiencyScore normalizes to 0-1 range", () => {
-        const inputsWithSpace: any = {
+        const inputsWithSpace: ProjectInputs = {
             ctx01Typology: "Residential",
             ctx02Scale: "Medium",
             ctx03Gfa: 1000,
             totalFitoutArea: null,
-            ctx04Location: "Primary",
+            ctx04Location: "Prime",
             ctx05Horizon: "12-24m",
             str01BrandClarity: 3,
             str02Differentiation: 3,
@@ -156,17 +157,17 @@ describe("V9 Scoring Integration", () => {
             spaceCriticalCount: 1,
         };
 
-        const normalized = normalizeInputs(inputsWithSpace);
+        const normalized = normalizeInputs(inputsWithSpace, 200);
         expect(normalized.spaceEfficiency_n).toBeCloseTo(0.75, 2);
     });
 
     it("defaults spaceEfficiency_n to 0.5 when no score", () => {
-        const inputsNoSpace: any = {
+        const inputsNoSpace: ProjectInputs = {
             ctx01Typology: "Residential",
             ctx02Scale: "Medium",
             ctx03Gfa: 1000,
             totalFitoutArea: null,
-            ctx04Location: "Primary",
+            ctx04Location: "Prime",
             ctx05Horizon: "12-24m",
             str01BrandClarity: 3,
             str02Differentiation: 3,
@@ -194,7 +195,7 @@ describe("V9 Scoring Integration", () => {
             sustainCertTarget: "silver",
         };
 
-        const normalized = normalizeInputs(inputsNoSpace);
+        const normalized = normalizeInputs(inputsNoSpace, 200);
         expect(normalized.spaceEfficiency_n).toBeCloseTo(0.5, 2);
     });
 });

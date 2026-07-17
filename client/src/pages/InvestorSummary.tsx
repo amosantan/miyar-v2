@@ -27,6 +27,19 @@ function formatAed(amount: number) {
     return `${amount.toLocaleString()} AED`;
 }
 
+function materialPackage(value: unknown): Array<{ productName: string; brand: string; priceRangeAed: string }> {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((item) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+        const record = item as Record<string, unknown>;
+        return [{
+            productName: typeof record.productName === "string" ? record.productName : "Unnamed material",
+            brand: typeof record.brand === "string" ? record.brand : "Unspecified",
+            priceRangeAed: typeof record.priceRangeAed === "string" ? record.priceRangeAed : "Not available",
+        }];
+    });
+}
+
 function GradeChip({ grade }: { grade: string }) {
     const colors: Record<string, string> = {
         A: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -148,8 +161,8 @@ function InvestorSummaryContent() {
     const designDir = briefData?.designDirection as Record<string, any> | undefined;
 
     // Unique material types from space recs
-    const allMaterials = (recs ?? []).flatMap((r: { roomName: string; materialPackage?: any[] }) =>
-        (r.materialPackage || []).map((m: { productName: string; brand: string; priceRangeAed: string }) => ({
+    const allMaterials = (recs ?? []).flatMap((r) =>
+        materialPackage(r.materialPackage).map((m) => ({
             name: m.productName,
             brand: m.brand,
             price: m.priceRangeAed,
@@ -161,7 +174,7 @@ function InvestorSummaryContent() {
     const constMap = new Map((materialConstants ?? []).map((c: any) => [c.materialType, c]));
 
     // Budget by space
-    const spaceData = (recs ?? []).map((r: { roomName: string; budgetAllocation?: number | string; sqm?: number | string }) => ({
+    const spaceData = (recs ?? []).map((r) => ({
         name: r.roomName,
         budget: Number(r.budgetAllocation || 0),
         sqm: Number(r.sqm || 0),

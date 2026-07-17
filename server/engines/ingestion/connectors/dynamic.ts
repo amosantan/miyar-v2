@@ -335,11 +335,11 @@ export class DynamicConnector extends BaseSourceConnector {
         name: string;
         url: string;
         sourceType?: string;
-        region?: string;
-        scrapeMethod?: string;
-        extractionHints?: string;
+        region?: string | null;
+        scrapeMethod?: string | null;
+        extractionHints?: string | null;
         lastSuccessfulFetch?: Date | null;
-        requestDelayMs?: number;
+        requestDelayMs?: number | null;
         scrapeConfig?: any;
     }) {
         super();

@@ -18,6 +18,7 @@ import type { ProjectInputs, ScenarioInput } from "../../shared/miyar-types";
 import { simulateStressTest, type StressCondition } from "../engines/risk/stress-tester";
 import { evaluateRiskSurface, type RiskInputParams } from "../engines/risk/risk-evaluator";
 import { calculateProjectRoi } from "../engines/economic/roi-calculator";
+import { getPricingArea } from "../engines/area-utils";
 import { rankScenarios, type ScenarioProfile } from "../engines/autonomous/scenario-ranking";
 import {
   scenarioStressTests,
@@ -406,8 +407,8 @@ export const scenarioRouter = router({
 
       // Extract cost and project params
       const baseCost = Number(project.fin01BudgetCap || 0);
-      const gfa = Number(project.siteArea || 500);
-      const trendPct = Number(project.marketTrendPercent || 3);
+      const gfa = getPricingArea(project) || 500;
+      const trendPct = 3;
       const marketCond = (project as any).marketCondition || "balanced";
 
       const result = runMonteCarloSimulation({

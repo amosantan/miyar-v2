@@ -7,7 +7,6 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2, Plus, CheckCircle2, GitBranch, ArrowRightLeft } from "lucide-react";
 import { useState } from "react";
-import type { BenchmarkVersion } from "@shared/entity-types";
 
 export default function BenchmarkVersions() {
   const { data: versions, isLoading } = trpc.admin.benchmarkVersions.list.useQuery();
@@ -47,7 +46,7 @@ export default function BenchmarkVersions() {
     { versionId: diffNew! },
     { enabled: diffNew != null }
   );
-  const versionList = (versions ?? []) as BenchmarkVersion[];
+  const versionList = versions ?? [];
 
   return (
     <>

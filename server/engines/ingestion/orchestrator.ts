@@ -630,9 +630,7 @@ export async function runIngestion(
         sourcesFailed: failed,
         recordsExtracted: connectorResults.reduce((sum, r) => sum + r.evidenceExtracted, 0),
         recordsInserted: totalCreated,
-        recordsUpdated: totalUpdated,
         duplicatesSkipped: totalSkipped,
-        outliersFlagged: totalOutliers,
         sourceBreakdown: connectorResults.map((r) => ({
           sourceId: r.sourceId,
           name: r.sourceName,

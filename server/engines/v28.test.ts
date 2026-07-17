@@ -9,11 +9,15 @@ const baseInputs: ProjectInputs = {
   ctx01Typology: "Residential",
   ctx02Scale: "Large",
   ctx03Gfa: 500000,
+  totalFitoutArea: null,
   ctx04Location: "Prime",
   ctx05Horizon: "12-24m",
   mkt01Tier: "Luxury",
+  str01BrandClarity: 4,
   str02Differentiation: 4,
-  mkt03BrandAlignment: 4,
+  str03BuyerMaturity: 4,
+  mkt02Competitor: 4,
+  mkt03Trend: 4,
   des01Style: "Contemporary",
   des02MaterialLevel: 4,
   des03Complexity: 4,
@@ -22,9 +26,16 @@ const baseInputs: ProjectInputs = {
   fin01BudgetCap: 4600,
   fin02Flexibility: 3,
   fin03ShockTolerance: 3,
+  fin04SalesPremium: 3,
   exe01SupplyChain: 3,
-  exe02Timeline: 3,
-  exe03LocalLabor: 3,
+  exe02Contractor: 3,
+  exe03Approvals: 3,
+  exe04QaMaturity: 3,
+  add01SampleKit: false,
+  add02PortfolioMode: false,
+  add03DashboardExport: true,
+  city: "Dubai",
+  sustainCertTarget: "none",
 };
 
 const scoreResult = {
@@ -78,10 +89,29 @@ describe("Design Brief Generator", () => {
     expect(brief.designerInstructions.phasedDeliverables.schematicDesign.length).toBeGreaterThan(0);
     expect(brief.designerInstructions.phasedDeliverables.detailedDesign.length).toBeGreaterThan(0);
     expect(brief.designerInstructions.authorityApprovals.length).toBeGreaterThan(0);
+
+    const persistedShape = JSON.parse(JSON.stringify({
+      projectIdentity: brief.projectIdentity,
+      designNarrative: brief.designNarrative,
+      materialSpecifications: brief.materialSpecifications,
+      boqFramework: brief.boqFramework,
+      detailedBudget: brief.detailedBudget,
+      designerInstructions: brief.designerInstructions,
+    })) as Record<string, unknown>;
+    expect(Object.keys(persistedShape)).toEqual([
+      "projectIdentity",
+      "designNarrative",
+      "materialSpecifications",
+      "boqFramework",
+      "detailedBudget",
+      "designerInstructions",
+    ]);
+    expect(persistedShape).not.toHaveProperty("styleMood");
+    expect(persistedShape).not.toHaveProperty("materialGuidance");
   });
 
   it("adjusts for different tiers", () => {
-    const midInputs = { ...baseInputs, mkt01Tier: "Mid" as any, des02MaterialLevel: 2, des03Complexity: 2 };
+    const midInputs: ProjectInputs = { ...baseInputs, mkt01Tier: "Mid", des02MaterialLevel: 2, des03Complexity: 2 };
     const midBrief = generateDesignBrief({ name: "Mid Project", description: null }, midInputs, { ...scoreResult, compositeScore: 65 });
 
     expect(midBrief.materialSpecifications.tierRequirement).toBe("Mid");
@@ -107,7 +137,7 @@ describe("Design Brief Generator", () => {
   });
 
   it("handles ultra-luxury tier", () => {
-    const ultraInputs = { ...baseInputs, mkt01Tier: "Ultra-luxury" as any, fin01BudgetCap: 8500 };
+    const ultraInputs: ProjectInputs = { ...baseInputs, mkt01Tier: "Ultra-luxury", fin01BudgetCap: 8500 };
     const brief = generateDesignBrief({ name: "Ultra", description: null }, ultraInputs, scoreResult);
     expect(brief.detailedBudget.costBand).toBe("Ultra-Premium Luxury");
     expect(brief.materialSpecifications.tierRequirement).toBe("Ultra-luxury");

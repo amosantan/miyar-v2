@@ -4,23 +4,31 @@
  * All pricing, scoring, and analytics engines should use these functions
  * instead of directly accessing ctx03Gfa.
  */
-import type { ProjectInputs } from "../../shared/miyar-types";
+type AreaInputs = {
+    totalFitoutArea?: number | string | null;
+    ctx03Gfa?: number | string | null;
+};
+
+function finiteArea(value: number | string | null | undefined): number {
+    const numeric = Number(value ?? 0);
+    return Number.isFinite(numeric) ? numeric : 0;
+}
 
 /**
  * Get the area to use for pricing calculations.
  * Prefers totalFitoutArea (verified interior finish area) over ctx03Gfa (gross floor area).
  * This ensures pricing excludes structural voids, risers, and non-finish areas.
  */
-export function getPricingArea(inputs: ProjectInputs): number {
-    return inputs.totalFitoutArea ?? inputs.ctx03Gfa ?? 0;
+export function getPricingArea(inputs: AreaInputs): number {
+    return finiteArea(inputs.totalFitoutArea ?? inputs.ctx03Gfa);
 }
 
 /**
  * Get the structural gross floor area (GFA).
  * Used for scale classification, portfolio metrics, and property-level comparisons.
  */
-export function getStructuralArea(inputs: ProjectInputs): number {
-    return inputs.ctx03Gfa ?? 0;
+export function getStructuralArea(inputs: AreaInputs): number {
+    return finiteArea(inputs.ctx03Gfa);
 }
 
 /**
