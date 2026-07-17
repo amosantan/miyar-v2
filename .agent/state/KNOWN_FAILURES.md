@@ -112,6 +112,23 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Closed evidence: The user approved mapping projects 1 and 2 and scenarios 1–4 to organization 1 after read-only evidence showed a single current creator membership and matching parent-project ownership. One production transaction updated 2 projects and 4 scenarios; post-transaction null-owner counts are zero for projects and scenarios, and zero reports remain attached to missing or null-owned projects.
 - Release gate: Cleared. Migration 0046 and the deterministic ownership remediation are complete.
 
+## KF-016 — Baseline contract provenance and failure states are incomplete
+
+- Status: OPEN
+- Observed: 2026-07-17 at canonical-main state `1736129` during TR-08 consumer recertification.
+- Evidence:
+  - `benchmarkSpaceRatios` returns the neutral fallback 50 for an empty room list, while project evaluation, normalization/scoring, ROI, Space Planner, and Investor Summary can consume or present it without distinguishing it from a measured DLD-backed score.
+  - `computeConfidence` deterministically produces connector initial confidence, but the orchestrator can quality-adjust it to as low as 0.10 and retains the maximum of new and existing confidence on update, so a newly reduced score cannot lower an older higher score. CSV ingestion separately assigns 0.90 to Grade A and 0.70 to Grades B and C. Evidence records retain only grade and final score, not the full policy chain. Valid future publication dates receive the recency bonus and can become future capture dates. Invalid dates constructed by dynamic/crawler extraction cause the evidence item to be silently filtered by schema validation before persistence, while a direct unvalidated `computeConfidence` call returns the base score.
+  - Report generation converts board-summary retrieval failures to an empty list. An existing board with zero resolved items is also omitted from summaries, while a partially resolved board includes only resolved items without disclosing omissions. The renderer emits the genuine no-board message when no summaries remain in both issued-output paths.
+- Impact: A neutral fallback can look like measured evidence and influence derived value, historical confidence scores cannot identify or reproduce their full calculation path or masked quality reductions, and an issued report can falsely claim that no material boards exist or silently omit unresolved board content.
+- Owner: Reopened roadmap step `TR-09`.
+- Scope boundary: TR-08 records only behavioral acceptance boundaries. It does not prescribe TypeScript interfaces, API shapes, schema columns, migrations, UI components, or report failure mechanisms.
+- Exit criterion:
+  - Empty and measured space results are distinguishable across presentation, scoring, and ROI without changing the approved neutral fallback silently.
+  - Every newly computed confidence score retains an approved policy-chain identity and clock provenance across connector calculation, quality adjustment, update merge, and non-connector ingestion, with approved invalid/future-date and rejection-visibility behavior plus migration/backward-compatibility evidence where applicable.
+  - Genuine no-board state, board-retrieval failure, and existing boards with zero, partial, or wholly unresolvable items produce distinct approved behavior in design briefs and full reports, with organization authorization and artifact tests passing.
+  - Targeted, safe full-suite, TypeScript, authorization, build, rendered-artifact, migration/integrity where applicable, and independent-review gates pass.
+
 ## Handling Protocol
 
 1. Reproduce a failure before adding it.

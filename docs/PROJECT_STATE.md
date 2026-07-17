@@ -6,12 +6,12 @@ This is the canonical location for current observed repository facts. It is not 
 
 - Observed: 2026-07-17
 - Application release commit: `85f98db305e5fe983a9ab578f6d129592fa6cfc7`, merging test-only TR-07 candidate `15d29c5f5d7baa240fd79976d04dfb2254219415`
-- Branch identity: canonical `origin/main` is `85f98db305e5fe983a9ab578f6d129592fa6cfc7`
+- Branch identity: canonical `origin/main` is state commit `1736129bc3733356b5d105669d8adb53a46d80af`; application release identity remains `85f98db305e5fe983a9ab578f6d129592fa6cfc7`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU` completed successfully for exact canonical-main commit `85f98db`; root and health return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and the public homepage renders
+- Production: Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU` completed successfully for exact application release commit `85f98db`; root and health return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and the public homepage renders
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Active worktree observation: TR-07 release closeout on `codex/tr-07-test-baseline`; the released diff changes tests and state only, with no runtime, schema, migration, dependency, scoring, or authorization behavior
+- Active worktree observation: TR-08 recertification on `codex/tr-08-contract-recertification` at base `1736129`; the scoped diff changes characterization tests and durable state/decision records only, with no runtime, schema, migration, dependency, scoring, authorization, or report-rendering behavior
 
 ## Technology Observed
 
@@ -38,14 +38,14 @@ This is the canonical location for current observed repository facts. It is not 
 
 At the observation above:
 
-| Command                         | Result | Evidence summary                                                                                                    |
-| ------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL='' pnpm test`     | PASS   | 1,021 passed and 22 skipped; no auth/logout database connection attempt occurred                                    |
+| Command                         | Result | Evidence summary                                                                                                                        |
+| ------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL='' pnpm test`     | PASS   | 1,023 passed and 22 skipped; no database connection attempt occurred                                                                    |
 | Guarded MySQL authorization run | PASS   | Disposable MySQL 8 suite passed 19/19, adding UX-01 stored-provenance, organization confirmation, concealment, and role-denial evidence |
 | PlanetScale compatibility       | PASS   | Production Vitess accepted all 23 migration-0047 statements; 19 columns, five indexes, defaults, counts, and post-deploy reads verified |
-| `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                         |
-| `pnpm audit:authorization`      | PASS   | All 335 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence |
-| `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                           |
+| `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                                             |
+| `pnpm audit:authorization`      | PASS   | All 335 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence                  |
+| `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                                               |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
@@ -93,8 +93,9 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - `TR-03` closes all 39 design-router remediation paths with organization-locked resource operations and fail-closed public shares.
 - `TR-03H` closes live membership, design roles, scoped final writes, composite atomicity, rejected-upload compensation, public-share privacy, real-SQL evidence, and canonical release identity.
 - `TR-04` closes all 93 remaining project-router authorization/global-governance paths, including the later ultra-review remediation for atomic report persistence and tenant-owned portfolio alerts. The live inventory has zero `TR-04` and exactly eight pooled-data rows under `TR-05`; targeted, disposable MySQL, safe full-suite, TypeScript, audit, build, diff, and independent-review gates pass.
-- `TR-05` and `KF-007` are closed on `codex/tr-05-data-isolation`. Corpus isolation, migration 0047, fail-closed organization/public reads, scheduler disablement, insufficiency contracts, UI states, and enhanced audit enforcement are implemented. Verified gates: disposable MySQL 18/18, safe suite 962 passed with 22 skipped, authorization inventory 331/331 with zero remediation rows, TypeScript/build/diff PASS, in-app browser PASS across analytics, cost forecasting, project prediction, design advisor, and learning administration, and independent Claude Code `APPROVED_NO_OBJECTION`. `TR-10` is the next executable step.
-- `UX-01` is merged into canonical main through commit `029f5c1`. Its implementation and prior authenticated verification remain recorded, but an authenticated browser session was unavailable during the independent TR-07 release smoke; the roadmap retains that explicit UX-01 human gate. `TR-10` is next.
+- `TR-05` and `KF-007` are closed on `codex/tr-05-data-isolation`. Corpus isolation, migration 0047, fail-closed organization/public reads, scheduler disablement, insufficiency contracts, UI states, and enhanced audit enforcement are implemented. Verified gates: disposable MySQL 18/18, safe suite 962 passed with 22 skipped, authorization inventory 331/331 with zero remediation rows, TypeScript/build/diff PASS, in-app browser PASS across analytics, cost forecasting, project prediction, design advisor, and learning administration, and independent Claude Code `APPROVED_NO_OBJECTION`.
+- `UX-01` is merged into canonical main through commit `029f5c1`. Its implementation and prior authenticated verification remain recorded, but an authenticated browser session was unavailable during the independent TR-07 release smoke; the roadmap retains that explicit UX-01 human gate.
+- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. Characterization passes 80/80, the safe suite passes 1,023 with 22 skipped, check/audit/build/documentation/diff gates pass, and independent code plus Claude Sonnet reviews approved. `KF-016` records the unresolved consumer/provenance/report-state gaps; reopened `TR-09` is the sole next executable step and `TR-10` remains planned.
 
 ## Refresh Procedure
 

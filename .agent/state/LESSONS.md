@@ -267,3 +267,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The focused auth suite, 49-test surrounding suite, and safe full suite with 1,021 passing tests all complete without timeout spill or cross-test audit contamination.
 - Reuse rule: Keep expensive password or crypto behaviors in independently bounded tests; when a later mock assertion gains unexplained calls, check for unfinished asynchronous work from a timed-out predecessor before weakening isolation or assertions.
 - Supersedes / related: Extends test-isolation guidance from `TR-07`; `KF-008` remains the separate environment-profile risk.
+
+### LES-023 — Human policy approval is incomplete until its durable decision artifact exists
+
+- Date / roadmap step: 2026-07-17 / `TR-08`
+- Context: The product owner had approved the empty-space fallback, connector confidence formula, and mandatory report annex, and the implementation tests were green, but the roadmap step closed without the required decision record.
+- Observed: Live behavior could be characterized, yet future engineers had no authoritative record separating approved policy from downstream limitations or naming what required new human approval.
+- Cause: Passing implementation evidence was treated as a substitute for the owner, rationale, versions, boundaries, consumer trace, rejected alternatives, and supersession rules required by the decision gate.
+- Fix or decision: Reopen the step, preserve its original closure history, create accepted ADR-0003, strengthen exact characterization, and route newly verified ambiguities to a separate remediation step without changing runtime behavior.
+- Proof: `TR-08-v1` is indexed and consumer-traced; targeted tests pass 80/80, the safe suite passes 1,023 with 22 skipped, repository gates pass, and independent code and Claude Sonnet reviews approved the corrected record.
+- Reuse rule: Do not close a human-gated product, numerical, data, or report decision until the durable accepted artifact exists and its approved behavior, limitations, effective version, consumers, and supersession process are all reviewable from the repository.
+- Supersedes / related: Extends the roadmap Definition of Done and applies to all future ADR-backed human approval gates.

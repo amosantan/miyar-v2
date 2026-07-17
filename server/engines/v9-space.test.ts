@@ -82,7 +82,7 @@ describe("V9 Space Benchmarking", () => {
         });
         const result = benchmarkSpaceRatios(emptyPlan, "Palm Jumeirah", 100, 40000);
 
-        expect(result.overallEfficiencyScore).toBeDefined();
+        expect(result.overallEfficiencyScore).toBe(50);
         expect(result.recommendations.length).toBe(0);
         expect(result.totalCritical).toBe(0);
         expect(result.totalAdvisory).toBe(0);

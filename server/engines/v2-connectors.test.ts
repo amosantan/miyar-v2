@@ -171,6 +171,16 @@ describe("V2-04: Confidence Computation", () => {
     expect(computeConfidence("A", published, now)).toBe(0.85);
   });
 
+  it("retains base confidence at the 365-day boundary", () => {
+    const published = new Date("2025-02-20T12:00:00Z");
+    expect(computeConfidence("A", published, now)).toBe(0.85);
+  });
+
+  it("applies the staleness penalty after the 365-day boundary", () => {
+    const published = new Date("2025-02-19T12:00:00Z");
+    expect(computeConfidence("A", published, now)).toBe(0.70);
+  });
+
   it("applies staleness penalty for content older than 365 days", () => {
     const stale = new Date("2024-12-01T12:00:00Z"); // ~447 days ago
     const confidence = computeConfidence("A", stale, now);

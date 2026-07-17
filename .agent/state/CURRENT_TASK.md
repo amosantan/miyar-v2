@@ -1,84 +1,85 @@
 # Current Task
 
-- ID: TR-07
-- Roadmap step: `TR-07`
-- Title: Re-audit and harden the unambiguous test baseline
+- ID: TR-08
+- Roadmap step: `TR-08`
+- Title: Recertify ambiguous baseline contracts
 - Status: PASS
 - Owner: Codex
+- Product and domain approver: Amro Saleh, acting as Product Owner and Data/Decision-model and Design/Report approver for this bounded decision
 - Started: 2026-07-17
 - Closed: 2026-07-17
-- Released: 2026-07-17
-- Branch: `codex/tr-07-test-baseline`
-- Base: `a5e0b94088af01e0b89d3380d1db90f5d9ad1db5` (`origin/main` after fetch)
-- Risk: Medium test-harness/authentication isolation; no runtime product behavior
-- Selected loop: Defect loop from `LOOP_ENGINEERING.md`
+- Branch: `codex/tr-08-contract-recertification`
+- Base: `1736129bc3733356b5d105669d8adb53a46d80af` (`origin/main` after fetch)
+- Risk: Medium product/data/report governance; characterization tests only
+- Selected loops: Defect, ingestion, scoring/pricing, and report loops from `LOOP_ENGINEERING.md`
 - Retry budget: 3 evidence-based attempts per failure class
-- Resource budget: One bounded test-harness increment and repository verification pass
-- Approval gates: Initial implementation performed no release action; the user separately authorized final smoke, commit, push, canonical-main merge, and production deployment on 2026-07-17
+- Resource budget: One decision record, three characterization groups, and one repository verification pass
+- Approval gates: No production logic, numerical policy, API, shared type, schema, authorization, dependency, deployment, database, commit, push, or pull-request action
 
 ## Goal
 
-Re-certify and harden the repaired TR-07 authentication and space-test harnesses so they are deterministic, type-checked, isolated from real audit/database side effects, and demonstrably fail when the historical harness defects are reintroduced.
+Create the durable decision record originally required by TR-08, prove that the three approved baseline contracts still match current behavior, and route verified downstream ambiguity to a separately bounded TR-09 remediation without changing runtime behavior.
+
+## Approved Contracts
+
+- `space-empty-v1`: an empty AI floor-plan room list returns a neutral score of 50, no recommendations, and zero critical, advisory, and optimal counts.
+- `ingestion-confidence-v1`: connector-derived initial confidence uses Grade A/B/C bases of 0.85/0.70/0.55; publication age through day 90 adds 0.10; days 91–365 have no adjustment; day 366 onward or a missing date subtracts 0.15; the function output is bounded to 0.20–1.00. Later quality adjustment, update merge, and non-connector ingestion remain distinct live behaviors.
+- `material-board-annex-v1`: the Material Board Annex is mandatory in design briefs and full reports and renders either board content or an explicit no-board state.
+
+The policy bundle is `TR-08-v1`, effective 2026-07-16 at verified implementation commit `db362540dbccdc621faf38ef74c3270ebee6370b` and reaffirmed by the product owner on 2026-07-17.
 
 ## Acceptance Criteria
 
-- [x] A fresh worktree and `codex/tr-07-test-baseline` branch were created before task mutation; the original dirty checkout remains untouched.
-- [x] UX-01 was removed from `ACTIVE` without claiming its unavailable authenticated production smoke; TR-07 was the only active roadmap step during execution.
-- [x] Authentication tests use deterministic schema-derived user fixtures and a type-checked mock for the exact database exports consumed by the router.
-- [x] Authentication and logout tests mock the audit boundary and verify successful/rejected/unauthenticated audit behavior without initializing a real database.
-- [x] Space normalization tests retain static ESM imports and typed `ProjectInputs` fixtures without changing numerical behavior.
-- [x] Temporary mutation proofs demonstrate the missing `getDb`, rejected audit boundary, and CommonJS import failures; no mutation-only edit remains.
-- [x] Targeted, surrounding, safe full-suite, TypeScript, authorization-audit, build, and diff checks pass with no external database attempt.
-- [x] Roadmap, worklog, known failures, lessons, and project state reflect only verified evidence; `KF-008` remains open.
+- [x] A fresh worktree and review branch were created from current `origin/main` before task mutation; the dirty primary checkout remains untouched.
+- [x] The frozen install and pre-change targeted baseline pass with 78 tests and no database connection.
+- [x] TR-08 was the sole active/next step during execution and its historical closure evidence remains intact.
+- [x] Accepted ADR-0003 records owners, rationale, exact examples/boundaries, affected consumers, limitations, effective versions, rejected alternatives, and supersession rules.
+- [x] The ADR index references ADR-0003 and all links resolve.
+- [x] Characterization tests lock the exact empty result, 90/91 and 365/366 confidence boundaries, missing-date penalty, and populated/empty annex in both design and full reports.
+- [x] No production source, numerical policy, API, shared type, schema, authorization, dependency, or report-rendering behavior changes.
+- [x] Reproduced downstream gaps are recorded under `KF-016` with prose-only TR-09 acceptance boundaries.
+- [x] Targeted, safe full-suite, TypeScript, authorization-audit, production-build, formatting, and diff gates pass.
+- [x] Independent code review and Claude Sonnet review find no unresolved blocker or hidden policy/interface choice.
+- [x] Roadmap, current task, known failures, worklog, lessons, and project state reflect only verified evidence; TR-09 is the sole next step and TR-10 waits in `PLANNED`.
 
-## Implemented Scope
+## Non-Goals
 
-- `server/auth.test.ts` now uses full schema-derived `User` fixtures, deterministic identifiers and timestamps, and a database mock checked with `satisfies Pick<typeof import("./db"), ...>`.
-- Authentication registration, successful login, rejected login, and legacy-password upgrade explicitly assert their audit and database-isolation contracts.
-- `server/auth.logout.test.ts` now mocks `auditLog`, uses a schema-derived authenticated user, and proves authenticated versus unauthenticated audit behavior while preserving cookie assertions.
-- `server/engines/v9-space.test.ts` required no permanent edit: its static ESM `normalizeInputs` import and typed `ProjectInputs` fixtures already match the intended contract.
-- No production source, schema, API, authorization, scoring, financial, normalization, or report behavior changed.
+- Do not change the neutral value of 50 or any confidence value, grade, threshold, date boundary, cap, or floor.
+- Do not add an insufficiency status, change ROI/scoring/UI behavior, or decide its eventual interface.
+- Do not add confidence-policy columns or decide how initial confidence, quality adjustment, update merge, non-connector ingestion, or rejected evidence will be versioned, persisted, or presented.
+- Do not change report retrieval or rendering behavior or decide its eventual API shape.
+- Do not perform TR-09 remediation or TR-10 artifact certification.
 
-## Causal Proof
+## Verified Baseline
 
-| Temporary mutation | Expected failure observed | Restored proof |
-| --- | --- | --- |
-| Removed `getDb` from the typed auth database mock | Vitest failed with `No "getDb" export is defined` | Clean auth rerun passed |
-| Made the isolated audit mock reject | Registration, legacy login, and authenticated logout failed with the mutation sentinel; rejected login and unauthenticated logout did not | Clean auth/logout rerun passed |
-| Reintroduced CommonJS `require("./normalization")` | Both affected ESM space cases failed with `Cannot find module './normalization'` | Clean space rerun passed |
+- `pnpm install --frozen-lockfile` completed from the committed lockfile.
+- `DATABASE_URL='' pnpm vitest run server/engines/v9-space.test.ts server/engines/v2-connectors.test.ts server/engines/board-pdf.test.ts` passed 78/78 tests. Expected unauthorized-provider diagnostics exercised the existing rule-based fallback; no database connection occurred.
+- `git cat-file -t db36254` returned `commit`.
 
-No mutation sentinel, CommonJS normalization import, or missing mock export remains in the final diff.
+## Plan
+
+- [x] Add and index the accepted ADR with a decision-to-consumer trace.
+- [x] Add characterization assertions without changing production code.
+- [x] Record the bounded TR-09 remediation and known failure.
+- [x] Run the full verification ladder and independent review.
+- [x] Close durable state from verified evidence only.
 
 ## Verification Evidence
 
-- Targeted and surrounding: `DATABASE_URL='' pnpm vitest run server/auth.test.ts server/auth.logout.test.ts server/engines/v9-space.test.ts server/engines/scoring.test.ts` — 4 files, 49 tests passed.
-- Safe full suite: `DATABASE_URL='' pnpm test` — 57 files passed and 1 skipped; 1,021 tests passed and 22 skipped; no auth/logout database warning or external database attempt occurred.
-- TypeScript: `pnpm check` — passed with zero diagnostics.
-- Authorization inventory: `pnpm audit:authorization` — 335 procedures, zero remediation rows.
-- Production bundles: `pnpm build` — client, Node, and serverless builds passed.
-- Scope: `git diff --check` passed; the build produced no tracked artifact diff; the original checkout's pre-existing modified and untracked files were unchanged.
+- Targeted characterization: 80/80 passed.
+- Safe full suite: 1,023 passed and 22 skipped with `DATABASE_URL=''`.
+- `pnpm check`, `pnpm audit:authorization` (335 procedures, zero remediation), and `pnpm build`: passed.
+- Scoped documentation formatting, ADR/index/path checks, roadmap uniqueness checks, `git diff --check`, and scoped-diff review: passed.
+- Independent code reviewer: `APPROVED` after exact confidence-chain, invalid-date, and board-resolution corrections.
+- Claude Sonnet: `APPROVED` after the ADR explicitly recorded reachable clamp bounds, named-source grade governance, max-merge masking, and partial-board resolution.
 
-## Attempts and Recovery
+## Delivered Scope
 
-| Attempt | Hypothesis | Action | Evidence | Result |
-| ---: | --- | --- | --- | --- |
-| 1 | The full suite and production build could safely share CPU during verification | Ran safe full Vitest and the build concurrently | The auth test's three bcrypt operations exceeded Vitest's five-second timeout; late completion added an audit call during the next test | Reclassified as verification contention and reran the suite alone |
-| 2 | Removing build contention would keep the combined success/rejection auth test under five seconds | Ran the safe full suite alone | Three cost-12 bcrypt operations again crossed the timeout and the late audit call contaminated the next assertion | Split rejected-password behavior into a focused test with a fixed valid bcrypt fixture; did not increase the timeout |
-| 3 | Bounded cases would preserve every assertion without cross-test spill | Reran targeted, surrounding, and safe full suites | 49/49 surrounding and 1,021/22 safe full-suite results passed with no database attempt | PASS |
+- Accepted and indexed ADR-0003 for `TR-08-v1` at implementation commit `db362540dbccdc621faf38ef74c3270ebee6370b`.
+- Strengthened characterization only; no production source or runtime contract changed.
+- Opened `KF-016` and returned TR-09 to `READY` with prose-only behavioral acceptance boundaries.
+- Kept TR-10 `PLANNED` until TR-09 closes.
 
-## Residual Risk and Next Step
+## Next Action
 
-- `KF-008` remains open. TR-07 proves auth-specific isolation, but ordinary test commands still lack the systemic fail-closed database profile owned by `TR-12`.
-- UX-01 remains `NEEDS_HUMAN` because no authenticated production browser session was available for independent smoke re-verification; its merged PR, Vercel status, public root, and health endpoint were independently verified.
-- `TR-10` is the next dependency-valid roadmap step and remains `READY`.
-
-## Production Release Closeout
-
-- Candidate commit: `15d29c5f5d7baa240fd79976d04dfb2254219415` (`test(auth): harden TR-07 baseline isolation`).
-- Canonical merge: PR `#5` merged the pinned candidate into `main` as `85f98db305e5fe983a9ab578f6d129592fa6cfc7` at `2026-07-17T18:39:05Z`.
-- Deployment: Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU` completed successfully for the exact merge commit at `2026-07-17T18:40:01Z`.
-- Pre-deploy evidence: clean frozen install; TypeScript; safe full suite with 1,021 passed and 22 skipped; 335/0 authorization audit; client, Node, and serverless builds; diff check; rendered public homepage; root/health 200; unauthenticated project 401; invalid share 404 with privacy headers.
-- Post-deploy evidence: the homepage rendered after deployment; root and health returned 200; unauthenticated project access returned 401; invalid share returned concealed 404 with `private, no-store` and `noindex, nofollow, noarchive`; three additional health observations remained 200.
-- CI limitation: GitHub Actions run `29604504677` created both configured jobs with zero steps because the owner account remains billing-locked (`KF-014`). The user-authorized release used the passing clean local gates plus the successful Vercel hosted build/deployment; the underlying failure remains open.
-- Rollback target: prior canonical production line `a5e0b94088af01e0b89d3380d1db90f5d9ad1db5`. No schema, data, configuration, dependency, or runtime application change accompanied this release.
-- Authenticated production smoke was not possible because neither available browser had a signed-in MIYAR session. This does not alter the test-only release result and remains recorded under the existing UX-01 human gate.
+Plan reopened TR-09 as the sole next executable roadmap step. Its first gate is an approved behavioral design for the distinctions recorded in KF-016; TR-08 does not choose implementation interfaces.

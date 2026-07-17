@@ -271,9 +271,9 @@ describe("V4-06: Board PDF HTML Generation", () => {
 // ─── Board Annex in Report Tests ──────────────────────────────────────────────
 
 describe("V4-06: Board Annex in PDF Reports", () => {
-  it("renderBoardAnnex is called in design brief HTML", async () => {
+  it("renders populated annexes in design-brief and full-report HTML", async () => {
     // We test the integration by importing the report generator
-    const { generateDesignBriefHTML } = await import("./pdf-report");
+    const { generateDesignBriefHTML, generateFullReportHTML } = await import("./pdf-report");
     const mockData = {
       projectName: "Test Project",
       projectId: 1,
@@ -306,14 +306,17 @@ describe("V4-06: Board Annex in PDF Reports", () => {
         },
       ],
     };
-    const html = generateDesignBriefHTML(mockData);
-    expect(html).toContain("Material Board Annex");
-    expect(html).toContain("Master Suite Board");
-    expect(html).toContain("5 items");
+    const designBriefHtml = generateDesignBriefHTML(mockData);
+    const fullReportHtml = generateFullReportHTML(mockData);
+    for (const html of [designBriefHtml, fullReportHtml]) {
+      expect(html).toContain("Material Board Annex");
+      expect(html).toContain("Master Suite Board");
+      expect(html).toContain("5 items");
+    }
   });
 
-  it("renderBoardAnnex shows empty message when no boards", async () => {
-    const { generateDesignBriefHTML } = await import("./pdf-report");
+  it("renders empty annexes in design-brief and full-report HTML", async () => {
+    const { generateDesignBriefHTML, generateFullReportHTML } = await import("./pdf-report");
     const mockData = {
       projectName: "Test Project",
       projectId: 1,
@@ -335,8 +338,11 @@ describe("V4-06: Board Annex in PDF Reports", () => {
       sensitivity: [],
       boardSummaries: [],
     };
-    const html = generateDesignBriefHTML(mockData);
-    expect(html).toContain("Material Board Annex");
-    expect(html).toContain("No material boards have been created");
+    const designBriefHtml = generateDesignBriefHTML(mockData);
+    const fullReportHtml = generateFullReportHTML(mockData);
+    for (const html of [designBriefHtml, fullReportHtml]) {
+      expect(html).toContain("Material Board Annex");
+      expect(html).toContain("No material boards have been created");
+    }
   });
 });

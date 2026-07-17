@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-10` (`READY`)
+- Next executable step: `TR-09` (`READY`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -265,10 +265,15 @@ Rules:
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
 - Completion evidence: The user approved a neutral empty-space result, retained the versioned Grade A confidence rule with deterministic time, and required the Material Board Annex in both design briefs and full reports with an explicit empty state.
+- Reopened: 2026-07-17 at the product owner's direction to create the missing durable decision record, recertify exact boundary behavior, trace current consumers, and hand verified runtime gaps to a separately bounded `TR-09` remediation.
+- Current scope: Decision documentation and characterization tests only. No production logic, numerical policy, API, schema, authorization, or report-rendering change is authorized under this reopening.
+- Reclosed: 2026-07-17 with terminal state `PASS` after accepted ADR-0003 established policy bundle `TR-08-v1`, characterization strengthened all three contracts without production-source changes, and `KF-016` captured the verified downstream ambiguity.
+- Recertification evidence: Targeted contracts pass 80/80; the safe full suite passes 1,023 with 22 skipped; TypeScript, the 335-procedure authorization audit, all build targets, scoped documentation formatting, link/status checks, and diff checks pass; independent code review and Claude Sonnet both returned `APPROVED`.
+- Lessons: `LES-023`
 
 ### TR-09 — Implement decided baseline contracts
 
-- Status: `CLOSED`
+- Status: `READY`
 - Class / priority: Engine/test / P0
 - Dependencies: `TR-07`, `TR-08`
 - Human gate: Decisions from `TR-08` must be recorded first.
@@ -284,10 +289,16 @@ Rules:
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
 - Completion evidence: Fixing commit `db36254`; SCAD uses the typed ESM PDF parser, RICS recency is deterministic with 90/91-day coverage, empty space analysis is neutral, and design briefs always render the board annex; targeted and full tests plus PDF visual QA pass.
+- Reopened: 2026-07-17 after TR-08 recertification verified the unresolved consumer and provenance gaps recorded in `KF-016`. The original closure evidence above remains valid for the behavior it delivered.
+- Remediation acceptance boundary:
+  - Distinguish an empty neutral fallback from measured space evidence across presentation, scoring, and ROI.
+  - Retain and explain the full confidence-policy chain across connector calculation, quality adjustment, update merge, and non-connector ingestion, including clock, invalid/future-date, and rejection-visibility semantics.
+  - Distinguish genuine no-board, retrieval failure, and zero, partial, or wholly unresolvable existing-board states in both issued-report paths.
+- Current gate: Begin with a separately approved behavioral design; do not infer TypeScript interfaces, API shapes, schema columns, migrations, UI components, or report failure mechanisms from TR-08.
 
 ### TR-10 — Certify report integrity and visual rendering
 
-- Status: `READY`
+- Status: `PLANNED`
 - Class / priority: Report / P1
 - Dependencies: `TR-09`
 - Human gate: Report contract/branding approval for any changed issued content.
