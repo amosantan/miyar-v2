@@ -1,88 +1,90 @@
 # Current Task
 
-- ID: TR-04
-- Roadmap step: `TR-04`
-- Title: Authorize remaining project routers
+- ID: TR-05
+- Roadmap step: `TR-05`
+- Title: Isolate learning and prediction data by organization
 - Status: PASS
 - Owner: Codex
 - Started: 2026-07-16
-- Risk: Critical API authorization, tenant isolation, transaction, and global-governance work
-- Selected loop: API/security defect loop with real-SQL verification
+- Closed: 2026-07-17
+- Branch: `codex/tr-05-data-isolation`
+- Base: `7b3866b`
+- Risk: Critical tenant data-influence, derived-data provenance, API, schema, and background-job work
+- Selected loop: Data/security defect loop with deterministic and real-SQL isolation verification
 - Retry budget: 3 evidence-based attempts per failure class
-- Resource budget: One bounded roadmap step implemented in five router batches; stop if a batch exposes ambiguous ownership or a new schema/data policy.
-- Approval gates: production null-owner queries beyond read-only counts, data repair/backfill, shared migrations, push, deployment, and release exceptions require separate approval
+- Resource budget: One bounded roadmap step; stop before production migration, data promotion, deployment, or pooled-cohort activation
+- Approval gates: shared/production migration, data classification or public promotion, deployment, push/merge, and any pooled learning activation require separate approval
 
 ## Goal
 
-Close the 93 `TR-04` authorization inventory rows across 18 non-design routers without changing numerical policy or crossing the eight-row `TR-05` pooled-data boundary.
+Ensure organization calculations use only records owned by the current organization plus explicitly governed platform-public UAE evidence. Other-organization and legacy-unscoped records must have zero influence on predictions, comparisons, recommendations, and derived trends.
 
 ## Locked Decisions
 
-- `orgProcedure` permits reads for current viewers, members, and organization admins.
-- `orgMutationProcedure` permits ordinary mutations for members and organization admins; viewers are read-only.
-- `orgAdminProcedure` is required for project deletion and organization-level destructive actions.
-- Rate-limited organization reads and mutations preserve the existing rate-limit key and add the appropriate organization/role boundary.
-- `adminProcedure` is reserved for platform-wide governance and does not bypass tenant authorization on organization-owned resources.
-- Legacy `project.userId` ownership and user fallbacks are removed. Null, orphaned, and inconsistent organization ownership fails closed.
-- Single-row writes use organization/project predicates and affected-row validation. Composite and race-sensitive writes use transactions and parent locking.
-- TR-05 rows, RFQ idempotency, scoring/pricing policy, production data repair, deployment, and release are outside this task.
+- Corpus scopes are `organization`, `platform_public`, and `legacy_unscoped`.
+- Tenant calculations use policy `org-public-v1`; governed shared evidence uses `public-v1`; historical unknown rows use `legacy-v0`.
+- Null ownership does not prove public governance.
+- Tenant trend detection remains available but writes organization-owned snapshots. Platform-public trend generation is admin/ingestion-only.
+- Insufficient safe data is returned explicitly; MIYAR does not silently pool tenants.
+- Pooled anonymized learning is hard-disabled. A future implementation requires consent, anonymization, at least 10 organizations and 30 projects, policy/version identity, and separate approval.
+- Scoring weights, prediction formulas, financial assumptions, and confidence thresholds do not change.
+- Historical unscoped data is retained but hidden from tenant calculations.
+- The post-mortem derived-evidence writer is removed for this release.
 
-## Baseline Evidence
+## Non-Goals
 
-- Branch: `codex/tr-04-authorization` from `3bfc990`.
-- `pnpm audit:authorization`: PASS, 329 application procedures, 93 `TR-04` rows, 8 `TR-05` rows.
-- Core membership/resource/design authorization baseline: PASS, 75 tests.
-- Exact TR-04 procedure keys remain canonical in `docs/security/resource-authorization-inventory.json`; this task does not create a duplicate inventory.
+- Production schema application, data backfill, public-evidence promotion, deployment, or release.
+- Enabling anonymized or pooled learning.
+- Changing deterministic scoring, pricing, prediction, or confidence policy.
+- Repairing unrelated ingestion, UI, or reporting behavior.
 
 ## Acceptance Criteria
 
-- [x] Generic organization read, mutation, admin, rate-limited read, and heavy-mutation procedures are defined with compatibility aliases for design routes.
-- [x] All 93 baseline TR-04 keys are reclassified with semantic route-to-final-write evidence.
-- [x] Project and child reads reject cross-organization, missing, null-owner, orphaned, and inconsistent-parent resources with the established concealed `NOT_FOUND`.
-- [x] Viewers cannot invoke ordinary mutations; project deletion requires organization admin.
-- [x] No tenant mutation trusts a caller-controlled organization identifier or legacy `project.userId` fallback.
-- [x] Single-row writes are organization/project scoped at final SQL; composite writes are atomic.
-- [x] Storage, AI, report, PDF, webhook, and calculation side effects do not start after rejected authorization.
-- [x] Platform alerts and global seed operations require global admin; portfolio insights are organization scoped.
-- [x] TR-05 retains exactly its eight baseline rows unless a separately reviewed live-code addition changes the inventory.
-- [x] Targeted router contracts, real MySQL tests, authorization audit, safe full tests, TypeScript, build, public-share regressions, and independent review pass.
-- [x] `KF-006` and durable roadmap state close only with objective evidence.
+- [x] Corpus metadata exists on evidence and every tenant-visible or policy-influencing derived-data table named in the approved plan.
+- [x] Existing rows default to `legacy_unscoped`; only explicit organization rows and exact seed-pattern allowlists receive deterministic local classification tooling.
+- [x] Tenant evidence, score, outcome, project, trend, design-trend, and pattern reads use fail-closed scoped helpers.
+- [x] The eight canonical TR-05 procedures cannot read or derive from another organization's records.
+- [x] Predictive project routes authorize the target project before any side effect or data read.
+- [x] Tenant trend snapshots are organization-owned; public trend writes require global administration or ingestion governance.
+- [x] Post-mortem comparison writes are organization-locked and no derived evidence is emitted.
+- [x] Pooled weekly learning reads and writes are disabled.
+- [x] Insufficient-data responses expose corpus policy and safe sample counts without revealing excluded tenant data.
+- [x] Authorization audit rejects tenant use of unscoped learning helpers and tenant writes to platform-public derived data.
+- [x] Two-organization fixtures prove other-organization inserts and changes cannot alter the current organization's deterministic outputs.
+- [x] Targeted tests, disposable MySQL isolation, safe full suite, TypeScript, authorization audit, build, diff review, browser checks, and independent Claude Code review pass.
+- [x] `KF-007` closes only with objective evidence and durable roadmap/worklog/lesson updates.
 
-## Execution Batches
+## Planned Verification
 
-1. Foundation and inventory evidence.
-2. Project roots, admin overrides, customer success, and bias: 25 paths.
-3. Scenario and intelligence: 26 paths.
-4. Space programme, intake, material quantity, portfolio, and design advisor: 16 paths.
-5. Market intelligence, analytics, predictive, sales premium, and sustainability: 18 paths.
-6. Autonomous and seed governance: 8 paths.
+- `pnpm vitest run server/routers/tr05.authorization.test.ts`
+- `pnpm test:authorization:mysql`
+- `pnpm audit:authorization`
+- `DATABASE_URL='' pnpm test`
+- `pnpm check`
+- `pnpm build`
+- `git diff --check`
+- Browser verification of predictive, analytics, cost forecasting, design advisor, and learning administration insufficiency states
+- Independent Claude Code adversarial review
 
-## Completion Evidence
+## Baseline
 
-- `pnpm audit:authorization`: PASS; 329 procedures inventoried, zero `TR-04` rows, exactly eight `TR-05` rows, no read-only organization mutations, and current hash-bound scoped-write evidence.
-- Targeted organization, market-resource, rate-limit, and TR-04 router contracts: PASS, 29/29.
-- `pnpm test:authorization:mysql`: PASS, 13/13 on disposable MySQL 8 with cleanup; report ownership races and rollback, portfolio-alert concurrent deduplication/expiry, public-share expiry, membership roles, and representative scoped writes execute against the real engine.
-- `DATABASE_URL='' pnpm test`: PASS, 950 passed and 22 skipped; no shared database connection.
+- Live base is `7b3866b`, which includes the complete released TR-04 history and later state-only release records.
+- Authorization inventory contains exactly eight `TR-05` procedures.
+- `KF-007` is open.
+- Production/shared mutations are not authorized by this task.
+
+## Verification Evidence
+
+- `DATABASE_URL='' pnpm vitest run --reporter=dot`: PASS, 962 passed and 22 skipped.
+- `pnpm test:authorization:mysql`: PASS, 18/18 against disposable MySQL 8; cleanup and evidence hashes refreshed.
+- `pnpm audit:authorization`: PASS, 331 procedures and zero remediation rows after clean regeneration.
 - `pnpm check`: PASS.
-- `pnpm build`: PASS for client, Node server, and serverless bundle.
+- `pnpm build`: PASS across Vite, Node bundle, and serverless bundle.
 - `git diff --check`: PASS.
-- Public-share access/header regression suites passed within the safe full suite.
-- Claude Code's reopened ultra-review first returned `CHANGES_REQUIRED` for tenant-triggered global platform alerts through `project.evaluate`. The call was removed, a router-source regression and audit prohibition were added, and the fresh review returned `APPROVED_NO_OBJECTION`.
-- Migration `0046_far_blob.sql` was generated, verified against disposable local MySQL, and applied to the approved production PlanetScale database. Post-DDL inspection confirms all 16 columns, the primary key, and unique `(organization_id, active_dedup_key)` index.
-- Production release preflight found 2 null-organization projects, 4 null-organization scenarios, and 8 reports whose project was null-owned. The user approved the deterministic mapping to organization 1; one transaction updated the 2 projects and 4 scenarios, and post-backfill project/scenario/report legacy-null counts are all zero.
+- Migration 0047 and the classification script were applied to disposable MySQL; a second classification dry run reported zero changes and null-owned legacy rows remained unpromoted.
+- Independent Claude Code review initially returned `CHANGES_REQUIRED`; the project-insight leak, outcome read hardening, admin evidence classification, public change-detection boundary, audit coverage, and adjacent intelligence outcome read were remediated. Focused re-review returned `APPROVED_NO_OBJECTION`.
+- In-app browser verification: PASS against a disposable local MySQL 8 environment. Analytics showed governed-data insufficiency instead of a market tier; UAE cost forecasting showed nine insufficient categories and the own-plus-public corpus label; project cost, outcome, and cost-over-time prediction cards showed explicit insufficiency without zero forecasts; design advisor abstained without calling the LLM; learning administration showed no governed accuracy snapshot instead of `0.0%`. Browser review found and drove fixes for the cost-over-time zero table and learning-dashboard zero accuracy cards before the final PASS.
 
-## Reopened Remediation
+## Next Action
 
-- Reopened: 2026-07-16
-- Reason: A later Claude Code ultra-review identified two valid TR-04 gaps: project design-brief report artifacts were persisted through raw non-atomic helpers after the initial guard, and `portfolio.checkAlerts` allowed tenant members to write the global `platform_alerts` table.
-- Required closeout: atomic organization-locked report persistence, an organization-owned portfolio-alert model, strengthened audit/evidence controls, fresh disposable MySQL evidence, and a new independent review.
-
-## Residual Risk / Next Action
-
-- The eight pooled learning/prediction paths remain intentionally assigned to `TR-05`.
-- Production ownership remediation is complete and `KF-015` is closed. The application release may proceed, subject to the remaining deployment and smoke gates.
-- Application commit `3d0e26068b3c96237dc20605923280c76e548152` was deployed to Vercel production as `dpl_7ndQvn6N7NpoJqx13fjBdgU5V8vM` and reached `READY`.
-- Production smoke checks pass for site/API health, unauthenticated tenant rejection, invalid-share concealment/privacy headers, migration structure, and zero remaining legacy-null ownership counts.
-- Production identifies application SHA `3d0e260`, and canonical `origin/main` now contains that exact application commit plus state-only release records. `KF-012` is closed.
-- PlanetScale compatibility was not rerun for this uncommitted TR-04 worktree; the disposable MySQL 8 reference gate is current. Any future release must re-evaluate provider compatibility and `KF-014`.
-- Next executable roadmap step: `TR-05`.
+TR-05 is closed. Begin bounded planning for `TR-10`, the next dependency-valid roadmap step. Production migration, classification, promotion, deployment, commit, push, and merge remain separately gated.

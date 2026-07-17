@@ -100,6 +100,9 @@ export default function CostForecastingPanel() {
           <p className="text-sm text-muted-foreground">
             Evidence-based cost ranges by material category with 6-month trend-adjusted outlook
           </p>
+          <p className="text-xs text-muted-foreground">
+            Organization evidence plus explicitly governed public UAE evidence only.
+          </p>
         </CardHeader>
         <CardContent>
           {withData.length > 0 ? (

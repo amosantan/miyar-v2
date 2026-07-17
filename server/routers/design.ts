@@ -1356,14 +1356,14 @@ export const designRouter = router({
     .query(async ({ ctx, input }) => {
       const project = await requireDesignProject(input.projectId, ctx.orgId);
       const style = project.des01Style ?? undefined;
-      const trends = await db.getDesignTrends({
+      const trends = await db.getPublicDesignTrends({
         styleClassification: style,
         region: "UAE",
         limit: input.limit,
       });
       // If style-specific returned nothing, fall back to all UAE trends
       if (trends.length === 0) {
-        return db.getDesignTrends({ region: "UAE", limit: input.limit });
+        return db.getPublicDesignTrends({ region: "UAE", limit: input.limit });
       }
       return trends;
     }),
@@ -1580,7 +1580,7 @@ export const designRouter = router({
         db.getSpaceRecommendations(input.projectId, ctx.orgId),
         db.getMaterialConstants(),
         db.getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
-        db.getDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
+        db.getPublicDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
       ]);
       const totalFitoutBudget = (recs ?? []).reduce((s: number, r: any) => s + Number(r.budgetAllocation || 0), 0);
       const gfa = getPricingArea(project);
@@ -1678,7 +1678,7 @@ export const designRouter = router({
       const [recs, benchmark, trends] = await Promise.all([
         db.getSpaceRecommendations(brief.projectId, brief.orgId),
         db.getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
-        db.getDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
+        db.getPublicDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
       ]);
 
       // Phase 9: Compute space benchmark data for public share view

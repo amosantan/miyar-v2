@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "taskId": "TR-04",
-  "removedTargetStep": "TR-04",
-  "keyCount": 93,
-  "keysSha256": "fb1d70a390dc96779ff2206828080f3b9100a7c9518709a5c360543aec7a4347",
-  "rationale": "TR-04 replaces the recorded unsafe and legacy ownership paths with organization-scoped authorization and verified final-write behavior."
+  "taskId": "TR-05",
+  "removedTargetStep": "TR-05",
+  "keyCount": 8,
+  "keysSha256": "d56e5bf34aac7dfd1aa841115d55d4c7aea9a6c5705e9eb2ec12eb45ce6a04db",
+  "rationale": "TR-05 replaces cross-organization evidence, trend, score, outcome, project, and pattern reads with organization-plus-governed-public corpus boundaries and disables pooled learning."
 }

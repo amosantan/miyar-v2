@@ -21,7 +21,7 @@ import {
   createEvidenceRecord,
   createIntelligenceAuditEntry,
   insertConnectorHealth,
-  insertTrendSnapshot,
+  insertPublicTrendSnapshot,
   getDb,
   getEvidenceRecordById
 } from "../../db";
@@ -476,6 +476,8 @@ export async function runIngestion(
               brandsMentioned: normalized.brandsMentioned ?? null,
               materialSpec: normalized.materialSpec ?? null,
               intelligenceType: (normalized.intelligenceType as any) ?? "material_price",
+              corpusScope: "platform_public",
+              corpusPolicyVersion: "public-v1",
             });
 
             // Hand off to the intelligent change detector
@@ -737,7 +739,7 @@ export async function runIngestion(
           const trend = await detectTrends(metric, group.category, "UAE", group.points, {
             generateNarrative: group.points.length >= 5,
           });
-          await insertTrendSnapshot({
+          await insertPublicTrendSnapshot({
             metric: trend.metric,
             category: trend.category,
             geography: trend.geography,

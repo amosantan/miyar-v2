@@ -17,13 +17,15 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 
 ## KF-007 — Cross-organization evidence and learning contamination
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 at `a15424b` plus the TR-01 inventory worktree.
 - Command: `pnpm audit:authorization`
 - Evidence: Eight procedures are assigned to `TR-05`: analytics market position/trend detection, design-advisor recommendations, learning comparison/post-mortem, and predictive cost/outcome/UAE-range paths. They read unscoped evidence, scores, projects, or comparables that can include organization-owned or confidential records.
 - Impact: one organization's data can influence another organization's recommendations, predictions, trends, or post-mortem comparisons even where target-project access is guarded.
 - Owner: Roadmap `TR-05`.
 - Exit criterion: organization-only data is the safe default, insufficient-data behavior is explicit, and two-organization fixtures prove no cross-organization record influence; any pooled cohort requires separate governance approval.
+- Closed: 2026-07-17 by `TR-05`.
+- Closure evidence: Explicit organization/public/legacy corpus policy; fail-closed tenant reads and derived writes; hard-disabled pooled learning; two-organization invariance and negative fixtures; disposable MySQL 18/18; safe suite 962/22; authorization inventory 331/331 with zero remediation rows; TypeScript/build/diff PASS; in-app browser verification across all five affected surfaces; independent Claude Code `APPROVED_NO_OBJECTION`.
 
 ## KF-008 — Full test suite is not database-hermetic
 

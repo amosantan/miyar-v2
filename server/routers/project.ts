@@ -26,7 +26,6 @@ import { getPricingArea } from "../engines/area-utils";
 import { SCENARIO_TEMPLATES, getScenarioTemplate, solveConstraints, type Constraint } from "../engines/scenario-templates";
 import { dispatchWebhook } from "../engines/webhook";
 import { generateInsights, type InsightInput } from "../engines/analytics/insight-generator";
-import { getTrendSnapshots } from "../db";
 import { generateAutonomousDesignBrief } from "../engines/autonomous/document-generator";
 import {
   cleanupRejectedUpload,
@@ -436,7 +435,10 @@ export const projectRouter = router({
       }
 
       // V4-11: Check if we have enough evidence for evidence-backed cost
-      const evidenceRecords = await db.listEvidenceRecords({ projectId: input.id, limit: 500 });
+      const evidenceRecords = await db.listOrganizationEvidenceRecords(ctx.orgId, {
+        projectId: input.id,
+        limit: 500,
+      });
       const budgetFitMethod = evidenceRecords.length >= 20 ? "evidence_backed" : "benchmark_static";
 
       const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
@@ -472,7 +474,8 @@ export const projectRouter = router({
       // Compute and store project intelligence
       try {
         const allBenchmarks = await db.getAllBenchmarkData();
-        const allScores = await db.getAllScoreMatrices();
+        const allScores = (await db.getComparableScoreMatricesForOrg(ctx.orgId))
+          .map((row: any) => row.scoreMatrix);
         const latestMatrix = await db.getScoreMatrixById(matrixResult.id);
         if (latestMatrix) {
           const derived = computeDerivedFeatures(project as any, latestMatrix as any, allBenchmarks as any, allScores as any);
@@ -587,7 +590,7 @@ export const projectRouter = router({
 
       // V3-09: Generate project insights after evaluation
       try {
-        const trendSnaps = await getTrendSnapshots({ limit: 50 });
+        const trendSnaps = await db.getTrendSnapshotsForOrg(ctx.orgId, { limit: 50 });
         const trends = trendSnaps.map((s: any) => ({
           metric: s.metric,
           category: s.category,
@@ -612,7 +615,7 @@ export const projectRouter = router({
         const insights = await generateInsights(insightInput, { enrichWithLLM: true });
 
         for (const insight of insights) {
-          await db.insertProjectInsight({
+          await db.insertProjectInsightForOrg({
             projectId: input.id,
             insightType: insight.type as any,
             severity: insight.severity,
@@ -622,7 +625,7 @@ export const projectRouter = router({
             confidenceScore: String(insight.confidenceScore),
             triggerCondition: insight.triggerCondition,
             dataPoints: insight.dataPoints,
-          });
+          }, ctx.orgId);
         }
 
         console.log(`[V3-09] Generated ${insights.length} insights for project ${input.id}`);
@@ -1040,7 +1043,9 @@ export const projectRouter = router({
       // Get evidence references linked to this project
       let evidenceRefs: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }> = [];
       try {
-        const allEvidence = await db.listEvidenceRecords({ projectId: input.projectId });
+        const allEvidence = await db.listOrganizationEvidenceRecords(ctx.orgId, {
+          projectId: input.projectId,
+        });
         if (allEvidence.length > 0) {
           evidenceRefs = allEvidence
             .map((e: any) => ({

@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-05` (`READY`)
+- Next executable step: `TR-10` (`READY`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -184,7 +184,7 @@ Rules:
 
 ### TR-05 — Isolate learning and prediction data by organization
 
-- Status: `READY`
+- Status: `CLOSED`
 - Class / priority: Data/security / P0
 - Dependencies: `TR-02`
 - Human gate: Required before any pooled, anonymized, or global learning cohort is enabled.
@@ -197,6 +197,11 @@ Rules:
 - Done when: One organization's records cannot affect another organization's comparisons or predictions under the default policy.
 - Verification: Isolation fixtures, deterministic result comparison, query review, no pooled mode without recorded approval.
 - Expected artifacts: Scoped queries, insufficiency state, policy decision request for optional pooled learning.
+- Closed: 2026-07-17
+- Terminal task state: `PASS`
+- Completion evidence: Corpus policy and migration 0047 are implemented; safe organization/public database helpers cover evidence, comparables, outcomes, trends, design trends, patterns, and insights; all eight canonical procedures and adjacent consumers are scoped; pooled scheduling is hard-disabled; authorization inventory is 331/331 with zero remediation rows; disposable MySQL passes 18/18; safe suite passes 962 with 22 skipped; TypeScript/build/diff checks pass; final Claude Code review is `APPROVED_NO_OBJECTION`. In-app browser verification passed analytics, UAE cost forecasting, project prediction, design advisor, and learning administration against disposable local MySQL; it also exposed and verified fixes for two misleading zero-value states.
+- Residual risk: Applying migration 0047, classifying shared/production data, promoting evidence to `platform_public`, deployment, and any future pooled cohort remain explicit human gates. Historical `legacy_unscoped` rows stay retained and excluded.
+- Lessons: `LES-020`
 
 ### TR-06 — Resolve TypeScript failures by contract group
 
@@ -275,7 +280,7 @@ Rules:
 
 ### TR-10 — Certify report integrity and visual rendering
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: Report / P1
 - Dependencies: `TR-09`
 - Human gate: Report contract/branding approval for any changed issued content.

@@ -3,33 +3,59 @@
  * Endpoints for cost range prediction, outcome prediction, and scenario cost projection.
  */
 import { z } from "zod";
-import { orgProcedure, protectedProcedure, router } from "../_core/trpc";
+import { orgProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { getPricingArea } from "../engines/area-utils";
-import { predictCostRange, predictOutcome, projectScenarioCost } from "../engines/predictive";
+import {
+  predictCostRange,
+  predictOutcome,
+  projectScenarioCost,
+} from "../engines/predictive";
 import { matchScoreMatrixToPatterns } from "../engines/learning/pattern-extractor";
-import { decisionPatterns } from "../../drizzle/schema";
-import type { EvidenceDataPoint, TrendDataPoint, ComparableOutcome } from "../engines/predictive";
+import type {
+  EvidenceDataPoint,
+  TrendDataPoint,
+  ComparableOutcome,
+} from "../engines/predictive";
 import { requireProjectForOrg } from "../_core/project-access";
+import { ORGANIZATION_CORPUS_POLICY_VERSION } from "../../shared/data-corpus";
 
 export const predictiveRouter = router({
   /**
    * V4-08: Get cost range prediction for a project category
    */
-  getCostRange: protectedProcedure
-    .input(z.object({
-      projectId: z.number(),
-      category: z.string().optional(),
-      geography: z.string().optional(),
-    }))
-    .query(async ({ input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+  getCostRange: orgProcedure
+    .input(
+      z.object({
+        projectId: z.number(),
+        category: z.string().optional(),
+        geography: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
-      // Get evidence records for this project and globally
-      const projectEvidence = await db.listEvidenceRecords({ projectId: input.projectId, limit: 500 });
-      const allEvidence = await db.listEvidenceRecords({ limit: 1000 });
+      const [projectEvidence, organizationEvidence, publicEvidence, trends] =
+        await Promise.all([
+          db.listOrganizationEvidenceRecords(ctx.orgId, {
+            projectId: input.projectId,
+            category: input.category,
+            limit: 500,
+          }),
+          db.listOrganizationEvidenceRecords(ctx.orgId, {
+            category: input.category,
+            limit: 1000,
+          }),
+          db.listPublicCorpusEvidence({
+            category: input.category,
+            limit: 1000,
+          }),
+          db.getTrendSnapshotsForOrg(ctx.orgId, {
+            category: input.category,
+            limit: 10,
+          }),
+        ]);
 
       // Transform to EvidenceDataPoint format
       const toDataPoint = (e: any): EvidenceDataPoint => ({
@@ -45,10 +71,9 @@ export const predictiveRouter = router({
       });
 
       const evidence = projectEvidence.map(toDataPoint);
-      const uaeWideEvidence = allEvidence.map(toDataPoint);
-
-      // Get trend data
-      const trends = await db.getTrendSnapshots({ category: input.category, limit: 10 });
+      const uaeWideEvidence = [...organizationEvidence, ...publicEvidence].map(
+        toDataPoint
+      );
       const trendData: TrendDataPoint[] = trends.map((t: any) => ({
         category: t.category,
         direction: t.direction,
@@ -56,61 +81,106 @@ export const predictiveRouter = router({
         confidence: t.confidence,
       }));
 
-      return predictCostRange(evidence, trendData, {
+      const prediction = predictCostRange(evidence, trendData, {
         category: input.category,
         geography: input.geography || project.ctx04Location || undefined,
         uaeWideEvidence,
       });
+      return {
+        ...prediction,
+        status:
+          prediction.confidence === "insufficient"
+            ? ("insufficient_data" as const)
+            : ("ok" as const),
+        corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
+        organizationSampleCount: organizationEvidence.length,
+        publicSampleCount: publicEvidence.length,
+        insufficiencyReason:
+          prediction.confidence === "insufficient"
+            ? ("below_minimum_sample" as const)
+            : undefined,
+      };
     }),
 
   /**
    * V4-09: Get outcome prediction for a project
    */
-  getOutcomePrediction: protectedProcedure
+  getOutcomePrediction: orgProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }) => {
-      const project = await db.getProjectById(input.projectId);
-      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+    .query(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       // Get latest score matrix for this project
       const matrices = await db.getScoreMatricesByProject(input.projectId);
       const latest = matrices[0]; // already ordered by computedAt desc
       if (!latest) {
-        return predictOutcome(0, [], {}, {
-          typology: project.ctx01Typology || "Residential",
-          tier: project.mkt01Tier || "Mid",
-        });
+        const prediction = predictOutcome(
+          0,
+          [],
+          {},
+          {
+            typology: project.ctx01Typology || "Residential",
+            tier: project.mkt01Tier || "Mid",
+          }
+        );
+        return {
+          ...prediction,
+          status: "insufficient_data" as const,
+          corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
+          organizationSampleCount: 0,
+          publicSampleCount: 0,
+          insufficiencyReason: "no_same_organization_comparables" as const,
+        };
       }
 
       const compositeScore = Number(latest.compositeScore) || 0;
-      const variableContributions = (latest.variableContributions as Record<string, any>) || {};
+      const variableContributions =
+        (latest.variableContributions as Record<string, any>) || {};
 
       // Get comparable outcomes from other projects
-      const allScores = await db.getAllScoreMatrices();
-      const outcomes: ComparableOutcome[] = [];
-      for (const sm of allScores) {
-        if (sm.projectId === input.projectId) continue;
-        const proj = await db.getProjectById(sm.projectId);
-        if (!proj) continue;
-        outcomes.push({
-          projectId: sm.projectId,
-          compositeScore: Number(sm.compositeScore) || 0,
-          decisionStatus: sm.decisionStatus as any,
-          typology: proj.ctx01Typology || "Residential",
-          tier: proj.mkt01Tier || "Mid",
-          geography: proj.ctx04Location || undefined,
-          targetYield: proj.targetYield || undefined,
-          salesStrategy: proj.salesStrategy || undefined,
-        });
-      }
+      const comparableRows = await db.getComparableScoreMatricesForOrg(
+        ctx.orgId,
+        input.projectId
+      );
+      const outcomes: ComparableOutcome[] = comparableRows.map(
+        ({ scoreMatrix, project: comparableProject }: any) => ({
+          projectId: scoreMatrix.projectId,
+          compositeScore: Number(scoreMatrix.compositeScore) || 0,
+          decisionStatus: scoreMatrix.decisionStatus,
+          typology: comparableProject.ctx01Typology || "Residential",
+          tier: comparableProject.mkt01Tier || "Mid",
+          geography: comparableProject.ctx04Location || undefined,
+          targetYield: comparableProject.targetYield || undefined,
+          salesStrategy: comparableProject.salesStrategy || undefined,
+        })
+      );
 
-      return predictOutcome(compositeScore, outcomes, variableContributions, {
-        typology: project.ctx01Typology || "Residential",
-        tier: project.mkt01Tier || "Mid",
-        geography: project.ctx04Location || undefined,
-        targetYield: project.targetYield || undefined,
-        salesStrategy: project.salesStrategy || undefined,
-      });
+      const prediction = predictOutcome(
+        compositeScore,
+        outcomes,
+        variableContributions,
+        {
+          typology: project.ctx01Typology || "Residential",
+          tier: project.mkt01Tier || "Mid",
+          geography: project.ctx04Location || undefined,
+          targetYield: project.targetYield || undefined,
+          salesStrategy: project.salesStrategy || undefined,
+        }
+      );
+      return {
+        ...prediction,
+        status:
+          prediction.confidenceLevel === "insufficient"
+            ? ("insufficient_data" as const)
+            : ("ok" as const),
+        corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
+        organizationSampleCount: outcomes.length,
+        publicSampleCount: 0,
+        insufficiencyReason:
+          outcomes.length === 0
+            ? ("no_same_organization_comparables" as const)
+            : undefined,
+      };
     }),
 
   /**
@@ -125,8 +195,7 @@ export const predictiveRouter = router({
       const latest = matrices[0];
       if (!latest) return [];
 
-      const ormDb = await db.getDb();
-      const activePatterns = await ormDb.select().from(decisionPatterns);
+      const activePatterns = await db.getPublicDecisionPatterns();
 
       const scores = {
         SA: Number(latest.saScore) || 0,
@@ -143,11 +212,15 @@ export const predictiveRouter = router({
    * V4-10: Get scenario cost projection
    */
   getScenarioProjection: orgProcedure
-    .input(z.object({
-      projectId: z.number(),
-      horizonMonths: z.number().default(18),
-      marketCondition: z.enum(["tight", "balanced", "soft"]).default("balanced"),
-    }))
+    .input(
+      z.object({
+        projectId: z.number(),
+        horizonMonths: z.number().default(18),
+        marketCondition: z
+          .enum(["tight", "balanced", "soft"])
+          .default("balanced"),
+      })
+    )
     .query(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
@@ -157,13 +230,18 @@ export const predictiveRouter = router({
       const budgetPerSqm = gfa > 0 ? budgetCap / gfa : 0;
 
       // Get trend data for cost projection
-      const trends = await db.getTrendSnapshots({ limit: 10 });
+      const trends = await db.getTrendSnapshotsForOrg(ctx.orgId, { limit: 10 });
       let trendPercentChange = 0;
-      let trendDirection: "rising" | "falling" | "stable" | "insufficient_data" = "insufficient_data";
+      let trendDirection:
+        | "rising"
+        | "falling"
+        | "stable"
+        | "insufficient_data" = "insufficient_data";
 
       if (trends.length > 0) {
         // Use the most recent trend with sufficient confidence
-        const bestTrend = trends.find((t: any) => t.confidence !== "insufficient") || trends[0];
+        const bestTrend =
+          trends.find((t: any) => t.confidence !== "insufficient") || trends[0];
         trendPercentChange = Number((bestTrend as any).percentChange) || 0;
         trendDirection = (bestTrend as any).direction || "insufficient_data";
       }
@@ -190,7 +268,9 @@ export const predictiveRouter = router({
             totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
 
             // Base baseline assumes 5% (0.05). If material OPEX is higher, variance increases.
-            const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+            const matMaint = parseFloat(
+              String(mat.maintenanceFactor || "0.05")
+            );
             totalVariance += (matMaint - 0.05) * 100; // Store as relative percentage delta
           }
         }
@@ -201,7 +281,7 @@ export const predictiveRouter = router({
         }
       }
 
-      return projectScenarioCost({
+      const projection = projectScenarioCost({
         baseCostPerSqm: budgetPerSqm,
         gfa,
         trendPercentChange,
@@ -220,53 +300,116 @@ export const predictiveRouter = router({
         boardMaterialsCost,
         boardMaintenanceVariance,
       });
+      const organizationSampleCount = trends.filter(
+        (trend: any) => trend.corpusScope === "organization"
+      ).length;
+      const publicSampleCount = trends.filter(
+        (trend: any) => trend.corpusScope === "platform_public"
+      ).length;
+      return {
+        ...projection,
+        status:
+          trends.length > 0 ? ("ok" as const) : ("insufficient_data" as const),
+        corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
+        organizationSampleCount,
+        publicSampleCount,
+        insufficiencyReason:
+          trends.length === 0 ? ("no_governed_trend_data" as const) : undefined,
+      };
     }),
 
   /**
    * V4-13: Get UAE-wide cost ranges by market tier for analytics dashboard
    */
-  getUaeCostRanges: protectedProcedure
-    .query(async () => {
-      const allEvidence = await db.listEvidenceRecords({ limit: 2000 });
-      const trends = await db.getTrendSnapshots({ limit: 50 });
+  getUaeCostRanges: orgProcedure.query(async ({ ctx }) => {
+    const [organizationEvidence, publicEvidence, trends] = await Promise.all([
+      db.listOrganizationEvidenceRecords(ctx.orgId, { limit: 2000 }),
+      db.listPublicCorpusEvidence({ limit: 2000 }),
+      db.getTrendSnapshotsForOrg(ctx.orgId, { limit: 50 }),
+    ]);
+    const allEvidence = [...organizationEvidence, ...publicEvidence];
 
-      const tiers = ["Economy", "Mid", "Upper-mid", "Premium", "Luxury", "Ultra-luxury"];
-      const categories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe"];
+    const tiers = [
+      "Economy",
+      "Mid",
+      "Upper-mid",
+      "Premium",
+      "Luxury",
+      "Ultra-luxury",
+    ];
+    const categories = [
+      "floors",
+      "walls",
+      "ceilings",
+      "joinery",
+      "lighting",
+      "sanitary",
+      "kitchen",
+      "hardware",
+      "ffe",
+    ];
 
-      const results: Array<{
-        tier: string;
-        category: string;
-        prediction: ReturnType<typeof predictCostRange>;
-      }> = [];
+    const results: Array<{
+      tier: string;
+      category: string;
+      prediction: ReturnType<typeof predictCostRange> & {
+        status: "ok" | "insufficient_data";
+        corpusPolicyVersion: string;
+        organizationSampleCount: number;
+        publicSampleCount: number;
+        insufficiencyReason?: "below_minimum_sample";
+      };
+    }> = [];
 
-      for (const category of categories) {
-        const catEvidence: EvidenceDataPoint[] = allEvidence
-          .filter((e: any) => e.category === category)
-          .map((e: any) => ({
-            priceMin: Number(e.priceMin) || 0,
-            priceTypical: Number(e.priceTypical) || 0,
-            priceMax: Number(e.priceMax) || 0,
-            unit: e.unit || "sqm",
-            reliabilityGrade: e.reliabilityGrade,
-            confidenceScore: e.confidenceScore,
-            captureDate: e.captureDate,
-            category: e.category,
-            geography: "UAE",
-          }));
+    for (const category of categories) {
+      const catEvidence: EvidenceDataPoint[] = allEvidence
+        .filter((e: any) => e.category === category)
+        .map((e: any) => ({
+          priceMin: Number(e.priceMin) || 0,
+          priceTypical: Number(e.priceTypical) || 0,
+          priceMax: Number(e.priceMax) || 0,
+          unit: e.unit || "sqm",
+          reliabilityGrade: e.reliabilityGrade,
+          confidenceScore: e.confidenceScore,
+          captureDate: e.captureDate,
+          category: e.category,
+          geography: "UAE",
+        }));
 
-        const catTrends: TrendDataPoint[] = trends
-          .filter((t: any) => t.category === category)
-          .map((t: any) => ({
-            category: t.category,
-            direction: t.direction,
-            percentChange: Number(t.percentChange) || 0,
-            confidence: t.confidence,
-          }));
+      const catTrends: TrendDataPoint[] = trends
+        .filter((t: any) => t.category === category)
+        .map((t: any) => ({
+          category: t.category,
+          direction: t.direction,
+          percentChange: Number(t.percentChange) || 0,
+          confidence: t.confidence,
+        }));
 
-        const prediction = predictCostRange(catEvidence, catTrends, { category });
-        results.push({ tier: "All", category, prediction });
-      }
+      const prediction = predictCostRange(catEvidence, catTrends, { category });
+      results.push({
+        tier: "All",
+        category,
+        prediction: {
+          ...prediction,
+          status:
+            prediction.confidence === "insufficient"
+              ? ("insufficient_data" as const)
+              : ("ok" as const),
+          corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
+          organizationSampleCount: organizationEvidence.filter(
+            (e: any) => e.category === category
+          ).length,
+          publicSampleCount: publicEvidence.filter(
+            (e: any) => e.category === category
+          ).length,
+          insufficiencyReason:
+            prediction.confidence === "insufficient"
+              ? ("below_minimum_sample" as const)
+              : undefined,
+        },
+      });
+    }
 
-      return results;
-    }),
+    return results;
+  }),
 });

@@ -1,397 +1,339 @@
 import { z } from "zod";
-import {
-    orgHeavyMutationProcedure,
-    orgMutationProcedure,
-    orgProcedure,
-    protectedProcedure,
-    router,
-} from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
+import {
+  adminProcedure,
+  orgHeavyMutationProcedure,
+  orgMutationProcedure,
+  orgProcedure,
+  router,
+} from "../_core/trpc";
 import * as db from "../db";
-import { outcomeComparisons, projectOutcomes, scoreMatrices, accuracySnapshots, logicChangeLog, benchmarkSuggestions } from "../../drizzle/schema";
-import { eq, desc } from "drizzle-orm";
 import { compareOutcomeToPrediction } from "../engines/learning/outcome-comparator";
-import { generatePostMortemEvidence, summarizeLearningSignals } from "../engines/learning/post-mortem-evidence";
+import { summarizeLearningSignals } from "../engines/learning/post-mortem-evidence";
 import { predictCostRange, predictOutcome } from "../engines/predictive";
-import type { EvidenceDataPoint, TrendDataPoint, ComparableOutcome } from "../engines/predictive";
+import type {
+  ComparableOutcome,
+  EvidenceDataPoint,
+  TrendDataPoint,
+} from "../engines/predictive";
 import { requireProjectForOrg } from "../_core/project-access";
+import {
+  ORGANIZATION_CORPUS_POLICY_VERSION,
+  type CorpusMetadata,
+} from "../../shared/data-corpus";
+
+function toEvidenceDataPoint(
+  evidence: any,
+  geography: string
+): EvidenceDataPoint {
+  return {
+    priceMin: Number(evidence.priceMin) || 0,
+    priceTypical: Number(evidence.priceTypical) || 0,
+    priceMax: Number(evidence.priceMax) || 0,
+    unit: evidence.unit || "sqm",
+    reliabilityGrade: evidence.reliabilityGrade,
+    confidenceScore: evidence.confidenceScore,
+    captureDate: evidence.captureDate,
+    category: evidence.category,
+    geography,
+  };
+}
+
+function toTrendDataPoint(trend: any): TrendDataPoint {
+  return {
+    category: trend.category,
+    direction: trend.direction,
+    percentChange: Number(trend.percentChange) || 0,
+    confidence: trend.confidence,
+  };
+}
+
+async function buildScopedComparisonInputs(
+  project: any,
+  projectId: number,
+  orgId: number
+) {
+  const outcome = await db.getLatestProjectOutcomeForOrg(projectId, orgId);
+  if (!outcome) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "No outcome found for project",
+    });
+  }
+
+  const matrices = await db.getScoreMatricesByProject(projectId);
+  const scoreMatrix = matrices[0];
+  if (!scoreMatrix) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "No score matrix found for project",
+    });
+  }
+
+  const [
+    projectEvidence,
+    organizationEvidence,
+    publicEvidence,
+    trends,
+    comparableRows,
+  ] = await Promise.all([
+    db.listOrganizationEvidenceRecords(orgId, { projectId, limit: 500 }),
+    db.listOrganizationEvidenceRecords(orgId, { limit: 1000 }),
+    db.listPublicCorpusEvidence({ limit: 1000 }),
+    db.getTrendSnapshotsForOrg(orgId, { limit: 10 }),
+    db.getComparableScoreMatricesForOrg(orgId, projectId),
+  ]);
+
+  const geography = project.ctx04Location || "UAE";
+  const evidence = projectEvidence.map((row: any) =>
+    toEvidenceDataPoint(row, geography)
+  );
+  const safeFallbackEvidence = [...organizationEvidence, ...publicEvidence].map(
+    (row: any) => toEvidenceDataPoint(row, geography)
+  );
+  const trendData = trends.map(toTrendDataPoint);
+  const comparableOutcomes: ComparableOutcome[] = comparableRows.map(
+    ({ scoreMatrix: matrix, project: comparableProject }: any) => ({
+      projectId: matrix.projectId,
+      compositeScore: Number(matrix.compositeScore) || 0,
+      decisionStatus: matrix.decisionStatus,
+      typology: comparableProject.ctx01Typology || "Residential",
+      tier: comparableProject.mkt01Tier || "Mid",
+      geography: comparableProject.ctx04Location || undefined,
+    })
+  );
+
+  const costPrediction = predictCostRange(evidence, trendData, {
+    geography: project.ctx04Location || undefined,
+    uaeWideEvidence: safeFallbackEvidence,
+  });
+  const outcomePrediction = predictOutcome(
+    Number(scoreMatrix.compositeScore) || 0,
+    comparableOutcomes,
+    (scoreMatrix.variableContributions as Record<string, any>) || {},
+    {
+      typology: project.ctx01Typology || "Residential",
+      tier: project.mkt01Tier || "Mid",
+      geography: project.ctx04Location || undefined,
+    }
+  );
+
+  const corpus: CorpusMetadata = {
+    status:
+      costPrediction.confidence === "insufficient" &&
+      comparableOutcomes.length === 0
+        ? "insufficient_data"
+        : "ok",
+    corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
+    organizationSampleCount: organizationEvidence.length,
+    publicSampleCount: publicEvidence.length,
+    confidence:
+      comparableOutcomes.length === 0
+        ? costPrediction.confidence
+        : outcomePrediction.confidenceLevel,
+    insufficiencyReason:
+      costPrediction.confidence === "insufficient" &&
+      comparableOutcomes.length === 0
+        ? "no_same_organization_comparables"
+        : undefined,
+  };
+
+  return {
+    outcome,
+    scoreMatrix,
+    costPrediction,
+    outcomePrediction,
+    corpus,
+  };
+}
 
 export const learningRouter = router({
-    getAccuracyLedger: protectedProcedure
-        .query(async () => {
-            const ormDb = await db.getDb();
-            const rows = await ormDb.select().from(accuracySnapshots)
-                .orderBy(desc(accuracySnapshots.snapshotDate))
-                .limit(1);
-            return rows[0] || null;
-        }),
+  getAccuracyLedger: adminProcedure.query(async () => {
+    const rows = await db.getGovernedAccuracySnapshots(1);
+    return rows[0] || null;
+  }),
 
-    getAccuracyHistory: protectedProcedure
-        .input(z.object({ limit: z.number().default(20) }).optional())
-        .query(async ({ input }) => {
-            const ormDb = await db.getDb();
-            return await ormDb.select().from(accuracySnapshots)
-                .orderBy(desc(accuracySnapshots.snapshotDate))
-                .limit(input?.limit || 20);
-        }),
+  getAccuracyHistory: adminProcedure
+    .input(
+      z
+        .object({ limit: z.number().int().min(1).max(100).default(20) })
+        .optional()
+    )
+    .query(({ input }) => db.getGovernedAccuracySnapshots(input?.limit || 20)),
 
-    getPendingLogicProposals: protectedProcedure
-        .query(async () => {
-            const ormDb = await db.getDb();
-            return await ormDb.select().from(logicChangeLog)
-                .where(eq(logicChangeLog.status, "proposed"))
-                .orderBy(desc(logicChangeLog.createdAt));
-        }),
+  getPendingLogicProposals: adminProcedure.query(() =>
+    db.getGovernedLogicChangeLog("proposed")
+  ),
 
-    getPendingBenchmarkSuggestions: protectedProcedure
-        .query(async () => {
-            const ormDb = await db.getDb();
-            return await ormDb.select().from(benchmarkSuggestions)
-                .where(eq(benchmarkSuggestions.status, "pending"))
-                .orderBy(desc(benchmarkSuggestions.createdAt));
-        }),
+  getPendingBenchmarkSuggestions: adminProcedure.query(() =>
+    db.getGovernedBenchmarkSuggestions("pending")
+  ),
 
-    getComparison: orgProcedure
-        .input(z.object({ projectId: z.number() }))
-        .query(async ({ ctx, input }) => {
-            await requireProjectForOrg(input.projectId, ctx.orgId);
-            const ormDb = await db.getDb();
-            const rows = await ormDb.select().from(outcomeComparisons)
-                .where(eq(outcomeComparisons.projectId, input.projectId))
-                .orderBy(desc(outcomeComparisons.comparedAt))
-                .limit(1);
-            return rows[0] || null;
-        }),
+  getComparison: orgProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      return (await db.getLatestOutcomeComparisonForOrg(
+        input.projectId,
+        ctx.orgId
+      )) || null;
+    }),
 
-    // ─── Post-Mortem / Handover (V4) ────────────────────────────────────────
+  submitPostMortem: orgMutationProcedure
+    .input(
+      z.object({
+        projectId: z.number(),
+        actualTotalCost: z.string().optional(),
+        actualFitoutCostPerSqm: z.string().optional(),
+        procurementActualCosts: z.record(z.string(), z.number()).optional(),
+        projectDeliveredOnTime: z.boolean().optional(),
+        leadTimesActual: z.record(z.string(), z.number()).optional(),
+        reworkOccurred: z.boolean().optional(),
+        reworkCostAed: z.string().optional(),
+        clientSatisfactionScore: z.number().min(1).max(5).optional(),
+        tenderIterations: z.number().optional(),
+        rfqResults: z.record(z.string(), z.number()).optional(),
+        keyLessonsLearned: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
+      const outcomeId = await db.createProjectOutcomeForOrg(
+        {
+          projectId: input.projectId,
+          actualTotalCost: input.actualTotalCost,
+          actualFitoutCostPerSqm: input.actualFitoutCostPerSqm,
+          procurementActualCosts: input.procurementActualCosts,
+          projectDeliveredOnTime: input.projectDeliveredOnTime,
+          leadTimesActual: input.leadTimesActual,
+          reworkOccurred: input.reworkOccurred,
+          reworkCostAed: input.reworkCostAed,
+          clientSatisfactionScore: input.clientSatisfactionScore,
+          tenderIterations: input.tenderIterations,
+          rfqResults: input.rfqResults,
+          keyLessonsLearned: input.keyLessonsLearned,
+          capturedBy: ctx.user.id,
+        },
+        ctx.orgId
+      );
+      if (outcomeId === null) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
 
-    submitPostMortem: orgMutationProcedure
-        .input(z.object({
-            projectId: z.number(),
-            // Actual costs
-            actualTotalCost: z.string().optional(),
-            actualFitoutCostPerSqm: z.string().optional(),
-            procurementActualCosts: z.record(z.string(), z.number()).optional(),
-            // Timeline
-            projectDeliveredOnTime: z.boolean().optional(),
-            leadTimesActual: z.record(z.string(), z.number()).optional(),
-            // Quality
-            reworkOccurred: z.boolean().optional(),
-            reworkCostAed: z.string().optional(),
-            clientSatisfactionScore: z.number().min(1).max(5).optional(),
-            // Procurement
-            tenderIterations: z.number().optional(),
-            rfqResults: z.record(z.string(), z.number()).optional(),
-            // Lessons
-            keyLessonsLearned: z.string().optional(),
-        }))
-        .mutation(async ({ ctx, input }) => {
-            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
+      let comparison = null;
+      let learningSummary = null;
+      let corpus: CorpusMetadata = {
+        status: "insufficient_data",
+        corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
+        organizationSampleCount: 0,
+        publicSampleCount: 0,
+        confidence: "insufficient",
+        insufficiencyReason: "no_same_organization_comparables",
+      };
 
-            // 1. Save the outcome
-            const outcomeId = await db.createProjectOutcome({
-                projectId: input.projectId,
-                actualTotalCost: input.actualTotalCost,
-                actualFitoutCostPerSqm: input.actualFitoutCostPerSqm,
-                procurementActualCosts: input.procurementActualCosts,
-                projectDeliveredOnTime: input.projectDeliveredOnTime,
-                leadTimesActual: input.leadTimesActual,
-                reworkOccurred: input.reworkOccurred,
-                reworkCostAed: input.reworkCostAed,
-                clientSatisfactionScore: input.clientSatisfactionScore,
-                tenderIterations: input.tenderIterations,
-                rfqResults: input.rfqResults,
-                keyLessonsLearned: input.keyLessonsLearned,
-                capturedBy: ctx.user.id,
-            });
+      try {
+        const inputs = await buildScopedComparisonInputs(
+          project,
+          input.projectId,
+          ctx.orgId
+        );
+        corpus = inputs.corpus;
+        comparison = compareOutcomeToPrediction({
+          projectId: input.projectId,
+          outcome: inputs.outcome,
+          scoreMatrix: inputs.scoreMatrix,
+          costPrediction: inputs.costPrediction,
+          outcomePrediction: inputs.outcomePrediction,
+        });
+        const comparisonId = await db.createOutcomeComparisonForOrg(
+          input.projectId,
+          ctx.orgId,
+          comparison
+        );
+        if (comparisonId === null) {
+          await requireProjectForOrg(input.projectId, ctx.orgId);
+        }
+        learningSummary = summarizeLearningSignals(comparison.learningSignals);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.warn("[PostMortem] Auto-comparison failed (non-fatal):", error);
+      }
 
-            // 2. Auto-run comparison (if score matrix exists)
-            let comparison = null;
-            let learningSummary = null;
-            let evidenceGenerated = 0;
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "project.submit_post_mortem",
+        entityType: "project",
+        entityId: input.projectId,
+        details: {
+          outcomeId,
+          comparisonRun: comparison !== null,
+          accuracyGrade: comparison?.overallAccuracyGrade || null,
+          evidenceGenerated: 0,
+          corpusPolicyVersion: corpus.corpusPolicyVersion,
+        },
+      });
 
-            try {
-                const ormDb = await db.getDb();
+      return {
+        success: true,
+        outcomeId,
+        comparison,
+        learningSummary,
+        evidenceGenerated: 0,
+        corpus,
+      };
+    }),
 
-                const outcomes = await ormDb.select().from(projectOutcomes)
-                    .where(eq(projectOutcomes.projectId, input.projectId))
-                    .orderBy(desc(projectOutcomes.capturedAt))
-                    .limit(1);
+  getPostMortemStatus: orgProcedure
+    .input(z.object({ projectId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      const [outcome, comparison] = await Promise.all([
+        db.getLatestProjectOutcomeForOrg(input.projectId, ctx.orgId),
+        db.getLatestOutcomeComparisonForOrg(input.projectId, ctx.orgId),
+      ]);
+      return {
+        hasOutcome: outcome !== undefined,
+        outcome: outcome || null,
+        hasComparison: comparison !== undefined,
+        comparison: comparison || null,
+        accuracyGrade: comparison?.overallAccuracyGrade || null,
+        learningSummary: comparison?.learningSignals
+          ? summarizeLearningSignals(comparison.learningSignals as any)
+          : null,
+      };
+    }),
 
-                const matrices = await ormDb.select().from(scoreMatrices)
-                    .where(eq(scoreMatrices.projectId, input.projectId))
-                    .orderBy(desc(scoreMatrices.computedAt))
-                    .limit(1);
-
-                if (outcomes.length > 0 && matrices.length > 0) {
-                    const outcome = outcomes[0];
-                    const scoreMatrix = matrices[0];
-
-                    // Build cost prediction
-                    const projectEvidence = await db.listEvidenceRecords({ projectId: input.projectId, limit: 500 });
-                    const allEvidence = await db.listEvidenceRecords({ limit: 1000 });
-
-                    const toDataPoint = (e: any): EvidenceDataPoint => ({
-                        priceMin: Number(e.priceMin) || 0,
-                        priceTypical: Number(e.priceTypical) || 0,
-                        priceMax: Number(e.priceMax) || 0,
-                        unit: e.unit || "sqm",
-                        reliabilityGrade: e.reliabilityGrade,
-                        confidenceScore: e.confidenceScore,
-                        captureDate: e.captureDate,
-                        category: e.category,
-                        geography: project.ctx04Location || "UAE",
-                    });
-
-                    const evidence = projectEvidence.map(toDataPoint);
-                    const uaeWideEvidence = allEvidence.map(toDataPoint);
-                    const trends = await db.getTrendSnapshots({ limit: 10 });
-                    const trendData: TrendDataPoint[] = trends.map((t: any) => ({
-                        category: t.category,
-                        direction: t.direction,
-                        percentChange: Number(t.percentChange) || 0,
-                        confidence: t.confidence,
-                    }));
-
-                    const costPrediction = predictCostRange(evidence, trendData, {
-                        category: undefined,
-                        geography: project.ctx04Location || undefined,
-                        uaeWideEvidence,
-                    });
-
-                    // Build outcome prediction
-                    const allScores = await db.getAllScoreMatrices();
-                    const comparableOutcomes: ComparableOutcome[] = [];
-                    for (const sm of allScores) {
-                        if (sm.projectId === input.projectId) continue;
-                        const proj = await db.getProjectById(sm.projectId);
-                        if (!proj) continue;
-                        comparableOutcomes.push({
-                            projectId: sm.projectId,
-                            compositeScore: Number(sm.compositeScore) || 0,
-                            decisionStatus: sm.decisionStatus as any,
-                            typology: proj.ctx01Typology || "Residential",
-                            tier: proj.mkt01Tier || "Mid",
-                            geography: proj.ctx04Location || undefined,
-                        });
-                    }
-
-                    const outcomePrediction = predictOutcome(
-                        Number(scoreMatrix.compositeScore) || 0,
-                        comparableOutcomes,
-                        (scoreMatrix.variableContributions as Record<string, any>) || {},
-                        {
-                            typology: project.ctx01Typology || "Residential",
-                            tier: project.mkt01Tier || "Mid",
-                            geography: project.ctx04Location || undefined,
-                        }
-                    );
-
-                    // Run comparator
-                    comparison = compareOutcomeToPrediction({
-                        projectId: input.projectId,
-                        outcome,
-                        scoreMatrix,
-                        costPrediction,
-                        outcomePrediction,
-                    });
-
-                    // Save comparison
-                    await ormDb.insert(outcomeComparisons).values(comparison);
-
-                    // Generate learning summary
-                    learningSummary = summarizeLearningSignals(comparison.learningSignals);
-
-                    // 3. Generate evidence records from deltas
-                    const postMortemEvidence = generatePostMortemEvidence(
-                        input.projectId,
-                        comparison,
-                        {
-                            typology: project.ctx01Typology || undefined,
-                            tier: project.mkt01Tier || undefined,
-                            location: project.ctx04Location || undefined,
-                            gfa: null,
-                        },
-                    );
-
-                    // Insert evidence records
-                    for (const ev of postMortemEvidence) {
-                        try {
-                            await db.createEvidenceRecord({
-                                sourceId: ev.sourceId,
-                                sourceType: ev.sourceType,
-                                category: ev.category,
-                                evidencePhase: ev.evidencePhase,
-                                priceMin: ev.priceMin !== null ? String(ev.priceMin) : undefined,
-                                priceTypical: ev.priceTypical !== null ? String(ev.priceTypical) : undefined,
-                                priceMax: ev.priceMax !== null ? String(ev.priceMax) : undefined,
-                                unit: ev.unit,
-                                reliabilityGrade: ev.reliability,
-                                confidenceScore: ev.confidenceScore,
-                                geography: ev.geography,
-                                notes: ev.notes,
-                                tags: ev.tags,
-                            } as any);
-                            evidenceGenerated++;
-                        } catch (evErr) {
-                            console.warn("[PostMortem] Evidence insert failed:", evErr);
-                        }
-                    }
-                }
-            } catch (compErr) {
-                console.warn("[PostMortem] Auto-comparison failed (non-fatal):", compErr);
-            }
-
-            // 4. Audit log
-            await db.createAuditLog({
-                userId: ctx.user.id,
-                action: "project.submit_post_mortem",
-                entityType: "project",
-                entityId: input.projectId,
-                details: {
-                    outcomeId,
-                    actualTotalCost: input.actualTotalCost,
-                    comparisonRun: comparison !== null,
-                    accuracyGrade: comparison?.overallAccuracyGrade || null,
-                    evidenceGenerated,
-                },
-            });
-
-            return {
-                success: true,
-                outcomeId,
-                comparison,
-                learningSummary,
-                evidenceGenerated,
-            };
-        }),
-
-    getPostMortemStatus: orgProcedure
-        .input(z.object({ projectId: z.number() }))
-        .query(async ({ ctx, input }) => {
-            await requireProjectForOrg(input.projectId, ctx.orgId);
-            const ormDb = await db.getDb();
-
-            // Check if outcome exists
-            const outcomes = await ormDb.select().from(projectOutcomes)
-                .where(eq(projectOutcomes.projectId, input.projectId))
-                .orderBy(desc(projectOutcomes.capturedAt))
-                .limit(1);
-
-            // Check if comparison exists
-            const comparisons = await ormDb.select().from(outcomeComparisons)
-                .where(eq(outcomeComparisons.projectId, input.projectId))
-                .orderBy(desc(outcomeComparisons.comparedAt))
-                .limit(1);
-
-            return {
-                hasOutcome: outcomes.length > 0,
-                outcome: outcomes[0] || null,
-                hasComparison: comparisons.length > 0,
-                comparison: comparisons[0] || null,
-                accuracyGrade: comparisons[0]?.overallAccuracyGrade || null,
-                learningSummary: comparisons[0]?.learningSignals
-                    ? summarizeLearningSignals(comparisons[0].learningSignals as any)
-                    : null,
-            };
-        }),
-
-    runComparison: orgHeavyMutationProcedure
-        .input(z.object({ projectId: z.number() }))
-        .mutation(async ({ ctx, input }) => {
-            const project = await requireProjectForOrg(input.projectId, ctx.orgId);
-            const ormDb = await db.getDb();
-
-            const outcomes = await ormDb.select().from(projectOutcomes)
-                .where(eq(projectOutcomes.projectId, input.projectId))
-                .limit(1);
-
-            if (!outcomes.length) {
-                throw new TRPCError({ code: "NOT_FOUND", message: "No outcome found for project" });
-            }
-            const outcome = outcomes[0];
-
-            const matrices = await ormDb.select().from(scoreMatrices)
-                .where(eq(scoreMatrices.projectId, input.projectId))
-                .orderBy(desc(scoreMatrices.computedAt))
-                .limit(1);
-
-            if (!matrices.length) {
-                throw new TRPCError({ code: "NOT_FOUND", message: "No score matrix found for project" });
-            }
-            const scoreMatrix = matrices[0];
-
-            // Build cost prediction
-            const projectEvidence = await db.listEvidenceRecords({ projectId: input.projectId, limit: 500 });
-            const allEvidence = await db.listEvidenceRecords({ limit: 1000 });
-
-            const toDataPoint = (e: any): EvidenceDataPoint => ({
-                priceMin: Number(e.priceMin) || 0,
-                priceTypical: Number(e.priceTypical) || 0,
-                priceMax: Number(e.priceMax) || 0,
-                unit: e.unit || "sqm",
-                reliabilityGrade: e.reliabilityGrade,
-                confidenceScore: e.confidenceScore,
-                captureDate: e.captureDate,
-                category: e.category,
-                geography: project.ctx04Location || "UAE",
-            });
-
-            const evidence = projectEvidence.map(toDataPoint);
-            const uaeWideEvidence = allEvidence.map(toDataPoint);
-            const trends = await db.getTrendSnapshots({ limit: 10 });
-            const trendData: TrendDataPoint[] = trends.map((t: any) => ({
-                category: t.category,
-                direction: t.direction,
-                percentChange: Number(t.percentChange) || 0,
-                confidence: t.confidence,
-            }));
-
-            const costPrediction = predictCostRange(evidence, trendData, {
-                category: undefined,
-                geography: project.ctx04Location || undefined,
-                uaeWideEvidence,
-            });
-
-            // Build outcome prediction
-            const allScores = await db.getAllScoreMatrices();
-            const comparableOutcomes: ComparableOutcome[] = [];
-            for (const sm of allScores) {
-                if (sm.projectId === input.projectId) continue;
-                const proj = await db.getProjectById(sm.projectId);
-                if (!proj) continue;
-                comparableOutcomes.push({
-                    projectId: sm.projectId,
-                    compositeScore: Number(sm.compositeScore) || 0,
-                    decisionStatus: sm.decisionStatus as any,
-                    typology: proj.ctx01Typology || "Residential",
-                    tier: proj.mkt01Tier || "Mid",
-                    geography: proj.ctx04Location || undefined,
-                });
-            }
-
-            const outcomePrediction = predictOutcome(
-                Number(scoreMatrix.compositeScore) || 0,
-                comparableOutcomes,
-                (scoreMatrix.variableContributions as Record<string, any>) || {},
-                {
-                    typology: project.ctx01Typology || "Residential",
-                    tier: project.mkt01Tier || "Mid",
-                    geography: project.ctx04Location || undefined,
-                }
-            );
-
-            // Run Comparator
-            const comparison = compareOutcomeToPrediction({
-                projectId: input.projectId,
-                outcome,
-                scoreMatrix,
-                costPrediction,
-                outcomePrediction
-            });
-
-            // Save comparison
-            const [insertResult] = await ormDb.insert(outcomeComparisons).values(comparison);
-            return { success: true, comparisonId: Number((insertResult as any).insertId), comparison };
-        }),
+  runComparison: orgHeavyMutationProcedure
+    .input(z.object({ projectId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
+      const inputs = await buildScopedComparisonInputs(
+        project,
+        input.projectId,
+        ctx.orgId
+      );
+      const comparison = compareOutcomeToPrediction({
+        projectId: input.projectId,
+        outcome: inputs.outcome,
+        scoreMatrix: inputs.scoreMatrix,
+        costPrediction: inputs.costPrediction,
+        outcomePrediction: inputs.outcomePrediction,
+      });
+      const comparisonId = await db.createOutcomeComparisonForOrg(
+        input.projectId,
+        ctx.orgId,
+        comparison
+      );
+      if (comparisonId === null) {
+        await requireProjectForOrg(input.projectId, ctx.orgId);
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return {
+        success: true,
+        comparisonId,
+        comparison,
+        corpus: inputs.corpus,
+      };
+    }),
 });

@@ -91,7 +91,7 @@ if (exitCode === 0) {
       targetClass: "disposable localhost database",
       command: "pnpm test:authorization:mysql",
       testFile: MYSQL_INTEGRATION_TEST,
-      testCount: 13,
+      testCount: 18,
       cleanupVerified: true,
       fileHashes: Object.fromEntries(
         REQUIRED_MYSQL_EVIDENCE_FILES.map(file => [file, fileHash(file)])
