@@ -379,6 +379,11 @@ export const projects = mysqlTable("projects", {
   floorPlanAssetId: int("floorPlanAssetId"), // FK to project_assets
   floorPlanAnalysis: json("floorPlanAnalysis"), // AI-extracted room breakdown
 
+  // UX-01: records whether authoritative evaluation inputs were explicitly
+  // supplied, assumed by defaults, suggested by AI, or confirmed by a user.
+  // Null is reserved for legacy projects created before this contract.
+  inputProvenance: json("inputProvenance"),
+
   modelVersionId: int("modelVersionId"),
   benchmarkVersionId: int("benchmarkVersionId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

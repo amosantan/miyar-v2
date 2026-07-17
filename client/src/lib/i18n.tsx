@@ -9,7 +9,7 @@
  *   t("dashboard.title")  → "Dashboard" | "لوحة القيادة"
  */
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 // ─── Translation Dictionaries ───────────────────────────────────────────────
 
@@ -19,6 +19,7 @@ const translations: Record<string, TranslationMap> = {
     en: {
         // Navigation
         "nav.dashboard": "Dashboard",
+        "nav.overview": "Overview",
         "nav.projects": "Projects",
         "nav.newProject": "New Project",
         "nav.results": "Results",
@@ -31,6 +32,13 @@ const translations: Record<string, TranslationMap> = {
         "nav.customerSuccess": "Customer Success",
         "nav.sustainability": "Sustainability",
         "nav.admin": "Administration",
+        "nav.market": "Market",
+        "nav.controlCenter": "Control center",
+        "workspace.decision": "Decision",
+        "workspace.design": "Design",
+        "workspace.evidence": "Evidence",
+        "workspace.deliverables": "Deliverables",
+        "workspace.settings": "Settings",
         // Common actions
         "action.save": "Save",
         "action.cancel": "Cancel",
@@ -79,6 +87,7 @@ const translations: Record<string, TranslationMap> = {
     ar: {
         // Navigation
         "nav.dashboard": "لوحة القيادة",
+        "nav.overview": "نظرة عامة",
         "nav.projects": "المشاريع",
         "nav.newProject": "مشروع جديد",
         "nav.results": "النتائج",
@@ -91,6 +100,13 @@ const translations: Record<string, TranslationMap> = {
         "nav.customerSuccess": "نجاح العملاء",
         "nav.sustainability": "الاستدامة",
         "nav.admin": "الإدارة",
+        "nav.market": "السوق",
+        "nav.controlCenter": "مركز التحكم",
+        "workspace.decision": "القرار",
+        "workspace.design": "التصميم",
+        "workspace.evidence": "الأدلة",
+        "workspace.deliverables": "المخرجات",
+        "workspace.settings": "الإعدادات",
         // Common actions
         "action.save": "حفظ",
         "action.cancel": "إلغاء",
@@ -170,6 +186,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         document.documentElement.dir = newLocale === "ar" ? "rtl" : "ltr";
         document.documentElement.lang = newLocale;
     }, []);
+
+    useEffect(() => {
+        document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
+        document.documentElement.lang = locale;
+    }, [locale]);
 
     const t = useCallback(
         (key: string, fallback?: string): string => {

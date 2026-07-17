@@ -18,6 +18,13 @@ import { generateDesignBrief as generateNewDesignBrief } from "../engines/design
 import { storagePut } from "../storage";
 import { nanoid } from "nanoid";
 import type { ProjectInputs } from "../../shared/miyar-types";
+import {
+  createInitialProvenance,
+  EVALUATION_REQUIRED_FIELDS,
+  getProjectReadiness,
+  INPUT_PROVENANCE_STATUSES,
+  type InputProvenance,
+} from "../../shared/project-readiness";
 import { tierToDes05 } from "../engines/sustainability/sustainability-multipliers";
 import { computeRoi, type RoiInputs } from "../engines/roi";
 import { computeFiveLens } from "../engines/five-lens";
@@ -155,6 +162,7 @@ const projectInputSchema = z.object({
   // City & Sustainability Certification
   city: z.enum(["Dubai", "Abu Dhabi"]).default("Dubai"),
   sustainCertTarget: z.string().default("silver"),
+  inputProvenance: z.record(z.string(), z.enum(INPUT_PROVENANCE_STATUSES)).optional(),
 });
 
 function projectToInputs(p: any): ProjectInputs {
@@ -250,11 +258,19 @@ export const projectRouter = router({
       return requireProjectForOrg(input.id, ctx.orgId);
     }),
 
+  readiness: orgProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.id, ctx.orgId);
+      return getProjectReadiness(project as unknown as Record<string, unknown>);
+    }),
+
   create: orgMutationProcedure
     .input(projectInputSchema)
     .mutation(async ({ ctx, input }) => {
       const result = await db.createProject({
         ...input,
+        inputProvenance: createInitialProvenance(input.inputProvenance),
         userId: ctx.user.id,
         orgId: ctx.orgId,
         status: "draft",
@@ -273,6 +289,39 @@ export const projectRouter = router({
       // Dispatch webhook
       dispatchWebhook("project.created", { projectId: result.id, name: input.name, tier: input.mkt01Tier }).catch(() => { });
       return result;
+    }),
+
+  confirmInputs: orgMutationProcedure
+    .input(z.object({
+      id: z.number(),
+      fields: z.array(z.enum(EVALUATION_REQUIRED_FIELDS)).min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const project = await requireProjectForOrg(input.id, ctx.orgId);
+      const existing = createInitialProvenance(
+        (project.inputProvenance ?? {}) as Partial<InputProvenance>
+      );
+      for (const field of input.fields) {
+        const value = (project as any)[field];
+        if (value === null || value === undefined || (typeof value === "string" && !value.trim())) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `${field} must have a value before it can be confirmed`,
+          });
+        }
+        existing[field] = "confirmed";
+      }
+      if (!(await db.updateProjectForOrg(input.id, ctx.orgId, { inputProvenance: existing }))) {
+        await requireProjectForOrg(input.id, ctx.orgId);
+      }
+      await db.createAuditLog({
+        userId: ctx.user.id,
+        action: "project.inputs.confirm",
+        entityType: "project",
+        entityId: input.id,
+        details: { fields: input.fields },
+      });
+      return getProjectReadiness({ ...project, inputProvenance: existing } as unknown as Record<string, unknown>);
     }),
 
   update: orgMutationProcedure
@@ -323,6 +372,14 @@ export const projectRouter = router({
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.id, ctx.orgId);
+      const readiness = getProjectReadiness(project as unknown as Record<string, unknown>);
+      if (!readiness.canEvaluate) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Project inputs are incomplete: ${readiness.missingInputs.length} missing and ${readiness.unconfirmedAssumptions.length} unconfirmed`,
+          cause: readiness,
+        });
+      }
 
       const modelVersion = await db.getActiveModelVersion();
       if (!modelVersion) throw new Error("No active model version found");

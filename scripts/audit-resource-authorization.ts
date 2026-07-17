@@ -142,6 +142,10 @@ const SCOPED_WRITE_EVIDENCE: Record<
   string,
   { finalScopedWrite: string; integrationTestName: string }
 > = {
+  "project.confirmInputs": {
+    finalScopedWrite: "db.updateProjectForOrg",
+    integrationTestName: "scopes project readiness and confirmed-input writes to the organization",
+  },
   "design.addComment": {
     finalScopedWrite: "db.createCommentForOrg",
     integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",

@@ -1,16 +1,19 @@
 import React, { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Route, Switch } from "wouter";
+import { Redirect, Route, Switch, useParams } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { RequireAuth, RequireAdmin } from "./components/RouteGuards";
 import { PageErrorBoundary } from "./components/PageErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { buildWorkspaceAliasUrl } from "./lib/workspace-routes";
 
 // Route-level splitting keeps specialist editors, admin tooling, and visualization
 // dependencies out of the initial application payload.
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const DashboardLayout = lazy(() => import("@/components/DashboardLayout"));
+const AdminLayout = lazy(() => import("@/components/AdminLayout"));
+const AdminOverview = lazy(() => import("@/components/AdminLayout").then(module => ({ default: module.AdminOverview })));
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -21,7 +24,6 @@ const Results = lazy(() => import("./pages/Results"));
 const Scenarios = lazy(() => import("./pages/Scenarios"));
 const ScenarioTemplates = lazy(() => import("./pages/ScenarioTemplates"));
 const Reports = lazy(() => import("./pages/Reports"));
-const EvidenceVault = lazy(() => import("./pages/EvidenceVault"));
 const DesignBrief = lazy(() => import("./pages/DesignBrief"));
 const DesignStudio = lazy(() => import("./pages/DesignStudio"));
 const Collaboration = lazy(() => import("./pages/Collaboration"));
@@ -45,7 +47,6 @@ const LogicRegistry = lazy(() => import("./pages/admin/LogicRegistry"));
 const Calibration = lazy(() => import("./pages/admin/Calibration"));
 const BenchmarkLearning = lazy(() => import("./pages/admin/BenchmarkLearning"));
 const LearningDashboard = lazy(() => import("./pages/admin/LearningDashboard"));
-const Explainability = lazy(() => import("./pages/Explainability"));
 const ScenarioComparison = lazy(() => import("./pages/ScenarioComparison"));
 const Outcomes = lazy(() => import("./pages/Outcomes"));
 const EvidenceVaultMI = lazy(
@@ -84,7 +85,6 @@ const ShareView = lazy(() => import("./pages/ShareView"));
 const BriefEditor = lazy(() => import("./pages/BriefEditor"));
 const Methodology = lazy(() => import("./pages/Methodology"));
 const AreaVerification = lazy(() => import("./pages/AreaVerification"));
-const SpacePlanner = lazy(() => import("./pages/SpacePlanner"));
 
 // Helper: wrap a component with RequireAuth and DashboardLayout
 function Protected({ Component }: { Component: React.ComponentType<any> }) {
@@ -116,12 +116,17 @@ function AdminOnly({ Component }: { Component: React.ComponentType<any> }) {
   return (
     <RequireAuth>
       <RequireAdmin>
-        <DashboardLayout>
+        <AdminLayout>
           <Component />
-        </DashboardLayout>
+        </AdminLayout>
       </RequireAdmin>
     </RequireAuth>
   );
+}
+
+function ProjectWorkspaceAlias({ section, view }: { section: "decision" | "design" | "evidence" | "deliverables"; view: string }) {
+  const { id } = useParams<{ id: string }>();
+  return <Redirect to={buildWorkspaceAliasUrl(id, section, view, window.location.search)} replace />;
 }
 
 function Router() {
@@ -144,7 +149,7 @@ function Router() {
         {() => <ProjectPage Component={ProjectDetail} />}
       </Route>
       <Route path="/projects/:id/evidence">
-        {() => <ProjectPage Component={EvidenceVault} />}
+        {() => <ProjectWorkspaceAlias section="evidence" view="evidence" />}
       </Route>
       <Route path="/projects/:id/brief">
         {() => <ProjectPage Component={DesignBrief} />}
@@ -165,7 +170,7 @@ function Router() {
         {() => <ProjectPage Component={BriefEditor} />}
       </Route>
       <Route path="/projects/:id/explainability">
-        {() => <ProjectPage Component={Explainability} />}
+        {() => <ProjectWorkspaceAlias section="decision" view="explainability" />}
       </Route>
       <Route path="/projects/:id/outcomes">
         {() => <ProjectPage Component={Outcomes} />}
@@ -174,7 +179,7 @@ function Router() {
         {() => <ProjectPage Component={AreaVerification} />}
       </Route>
       <Route path="/projects/:id/space-planner">
-        {() => <ProjectPage Component={SpacePlanner} />}
+        {() => <ProjectWorkspaceAlias section="design" view="spaceProgram" />}
       </Route>
       <Route path="/results">{() => <Protected Component={Results} />}</Route>
       <Route path="/scenarios">
@@ -245,6 +250,9 @@ function Router() {
       </Route>
 
       {/* Admin routes (admin-only) */}
+      <Route path="/admin">
+        {() => <AdminOnly Component={AdminOverview} />}
+      </Route>
       <Route path="/admin/benchmarks">
         {() => <AdminOnly Component={Benchmarks} />}
       </Route>
@@ -311,7 +319,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider defaultTheme="light" switchable>
         <TooltipProvider>
           <Toaster />
           <Suspense

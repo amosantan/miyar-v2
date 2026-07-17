@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-10` (`READY`)
+- Next executable step: `UX-01` (`ACTIVE`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -43,6 +43,7 @@ Rules:
 | ---------------------------------- | ------------------------------------------------------------------ | ----: | ------------------------------------------------------------------------------------------- |
 | `RM` Roadmap system                | Shared persistent execution memory                                 |     1 | Both agents use one roadmap, task, worklog, and lessons protocol                            |
 | `TR` Trust recovery                | Tenant-safe and verifiably releasable baseline                     |    14 | Authorization inventory closed; checks/tests green; critical workflow certified             |
+| `UX` Product experience            | A simpler, credible, workflow-first application experience         |     1 | Core journey, compatibility, readiness, accessibility, and browser verification pass        |
 | `BR` Brief operating system        | One governed issued-design-brief workflow                          |     8 | Readiness, typology, version, report, and AI-evaluation contracts operate end to end        |
 | `EV` Evidence and procurement moat | Time-versioned UAE cost, source, supplier, and market intelligence |     7 | Displayed claims resolve to governed evidence and procurement comparisons                   |
 | `SC` Scale and governance          | Maintainable architecture, enterprise controls, and integrations   |     8 | Operational profiles, privacy, collaboration, commercial controls, and handoff are verified |
@@ -52,7 +53,7 @@ Rules:
 
 ### RM-00 — Persistent Codex and Claude Code roadmap
 
-- Status: `CLOSED`
+- Status: `ACTIVE`
 - Class / priority: Documentation foundation / P0
 - Dependencies: None
 - Human gate: None
@@ -356,6 +357,29 @@ Rules:
 - Done when: A clean environment can reproduce the intended schema and recovery evidence exists.
 - Verification: Migration inspection, safe-target application, integrity checks, rollback/restore rehearsal.
 - Expected artifacts: Migration decision, runbook evidence, updated project state.
+
+## Phase UX — Product Experience
+
+### UX-01 — Simplify the developer journey and establish the warm architectural interface
+
+- Status: `CLOSED`
+- Class / priority: UI/workflow/schema / P0
+- Dependencies: `TR-05`; approved interaction direction supersedes the UI slice of `BR-04` and conservative copy satisfies the interim path of `TR-11`.
+- Human gate: Shared/production schema application, deployment, and removal of compatibility routes remain separately gated.
+- Evidence: The live application exposes 39 navigation destinations, 13 project tabs, a seven-step form that submits unconfirmed defaults, dark-only presentation, and unsupported public claims.
+- Change set:
+  - Establish light-first warm architectural tokens, optional dark mode, print-safe output, responsive navigation, Arabic/RTL foundations, and a separate admin shell.
+  - Replace public, dashboard, onboarding, intake, and project-workspace journeys while preserving legacy routes and server authorization.
+  - Add project input provenance and deterministic readiness so assumed values cannot silently authorize evaluation.
+  - Preserve existing scoring, financial, prediction, tenant-isolation, report identity, and sharing contracts.
+- Done when: The approved workflow works for new and existing users; route compatibility, authorization, readiness, accessibility, responsive behavior, reports, tests, builds, and authenticated browser journeys pass.
+- Verification: Targeted router/component tests, migration review and disposable apply, authorization audit, safe full suite, type-check, build, diff review, and in-app browser verification at desktop/tablet/mobile widths.
+- Expected artifacts: Semantic design system, simplified shells and workspace, quick-start/readiness contract, compatibility tests, browser evidence, and durable handover.
+- Closed: 2026-07-17
+- Terminal task state: `PASS`
+- Completion evidence: Warm light/dark semantic themes, simplified application and admin shells, six-field quick start, persisted provenance/readiness gating, four-section workspace, conservative homepage/dashboard/onboarding, and route compatibility are implemented; disposable MySQL passed 19/19, safe suite 971/22, targeted UX/readiness 9/9, authorization audit 333/0, TypeScript/build/diff checks pass, authenticated in-app browser checks passed at 360/390/768/1440 plus themes/RTL/admin/readiness, and Claude Code returned a corrected no-blocker `APPROVE_WITH_CHANGES` verdict.
+- Residual risk: Migration 0048, production deployment, route removal, commit/push/merge, and issued-report page certification remain separately gated; `TR-10` is next.
+- Reopened: 2026-07-17 for the user-authorized migration 0048, compatibility-route contraction, protected-branch integration, and production deployment gates.
 
 ## Phase BR — Brief Operating System
 

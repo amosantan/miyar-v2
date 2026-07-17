@@ -1064,4 +1064,38 @@ describe("TR-03H/TR-04 real MySQL authorization boundary", () => {
     expect(rejected).toBeNull();
     expect(await count("outcome_comparisons")).toBe(0);
   });
+
+  it("scopes project readiness and confirmed-input writes to the organization", async () => {
+    const caller = projectRouter.createCaller(orgContext());
+    const created = await caller.create({
+      name: "Readiness project",
+      ctx01Typology: "Residential",
+      ctx03Gfa: 12000,
+      ctx04Location: "Prime",
+      projectPurpose: "sell_offplan",
+      fin01BudgetCap: 650,
+      inputProvenance: {
+        name: "explicit",
+        ctx01Typology: "explicit",
+        ctx03Gfa: "explicit",
+        ctx04Location: "explicit",
+        projectPurpose: "explicit",
+        fin01BudgetCap: "explicit",
+      },
+    });
+    const before = await caller.readiness({ id: created.id });
+    expect(before.canEvaluate).toBe(false);
+    expect(before.unconfirmedAssumptions.length).toBeGreaterThan(0);
+
+    const foreign = projectRouter.createCaller(viewerContext());
+    await expect(foreign.readiness({ id: created.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(foreign.confirmInputs({ id: created.id, fields: before.unconfirmedAssumptions })).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    const after = await caller.confirmInputs({ id: created.id, fields: before.unconfirmedAssumptions });
+    expect(after).toMatchObject({ canEvaluate: true, status: "ready", policyVersion: "input-readiness-v1" });
+    const [rows] = await pool.query("select inputProvenance from projects where id = ?", [created.id]);
+    const stored = (rows as Array<{ inputProvenance: string | Record<string, string> }>)[0].inputProvenance;
+    const provenance = typeof stored === "string" ? JSON.parse(stored) : stored;
+    expect(provenance.mkt01Tier).toBe("confirmed");
+  });
 });

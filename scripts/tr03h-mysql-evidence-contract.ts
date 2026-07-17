@@ -31,6 +31,7 @@ export const REQUIRED_MYSQL_EVIDENCE_FILES = [
   "drizzle/0045_steady_amazoness.sql",
   "drizzle/0046_far_blob.sql",
   "drizzle/0047_sharp_grandmaster.sql",
+  "drizzle/0048_youthful_morlocks.sql",
   "scripts/run-guarded-mysql-tests.ts",
   "scripts/cleanup-mysql-auth-test.ts",
   "scripts/tr03h-mysql-evidence-contract.ts",

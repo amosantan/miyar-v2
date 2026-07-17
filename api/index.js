@@ -437,6 +437,10 @@ var init_schema = __esm({
       // FK to project_assets
       floorPlanAnalysis: json("floorPlanAnalysis"),
       // AI-extracted room breakdown
+      // UX-01: records whether authoritative evaluation inputs were explicitly
+      // supplied, assumed by defaults, suggested by AI, or confirmed by a user.
+      // Null is reserved for legacy projects created before this contract.
+      inputProvenance: json("inputProvenance"),
       modelVersionId: int("modelVersionId"),
       benchmarkVersionId: int("benchmarkVersionId"),
       createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -16082,6 +16086,82 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
 init_storage();
 import { nanoid as nanoid2 } from "nanoid";
 
+// shared/project-readiness.ts
+var INPUT_PROVENANCE_STATUSES = ["explicit", "assumed", "ai_suggested", "confirmed"];
+var EVALUATION_REQUIRED_FIELDS = [
+  "name",
+  "ctx01Typology",
+  "ctx02Scale",
+  "ctx03Gfa",
+  "ctx04Location",
+  "ctx05Horizon",
+  "projectPurpose",
+  "str01BrandClarity",
+  "str02Differentiation",
+  "str03BuyerMaturity",
+  "mkt01Tier",
+  "mkt02Competitor",
+  "mkt03Trend",
+  "fin01BudgetCap",
+  "fin02Flexibility",
+  "fin03ShockTolerance",
+  "fin04SalesPremium",
+  "des01Style",
+  "des02MaterialLevel",
+  "des03Complexity",
+  "des04Experience",
+  "des05Sustainability",
+  "exe01SupplyChain",
+  "exe02Contractor",
+  "exe03Approvals",
+  "exe04QaMaturity"
+];
+function isMissing(value) {
+  return value === null || value === void 0 || typeof value === "string" && value.trim() === "";
+}
+function getProjectReadiness(project) {
+  const raw = project.inputProvenance;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {
+      status: "ready",
+      policyVersion: "legacy-compatible-v1",
+      confirmedFields: [...EVALUATION_REQUIRED_FIELDS],
+      unconfirmedAssumptions: [],
+      missingInputs: [],
+      canEvaluate: true,
+      completionPercent: 100
+    };
+  }
+  const provenance = raw;
+  const missingInputs = [];
+  const confirmedFields = [];
+  const unconfirmedAssumptions = [];
+  for (const field of EVALUATION_REQUIRED_FIELDS) {
+    if (isMissing(project[field])) {
+      missingInputs.push(field);
+      continue;
+    }
+    const status = provenance[field] ?? "assumed";
+    if (status === "explicit" || status === "confirmed") confirmedFields.push(field);
+    else unconfirmedAssumptions.push(field);
+  }
+  const canEvaluate = missingInputs.length === 0 && unconfirmedAssumptions.length === 0;
+  return {
+    status: canEvaluate ? "ready" : "incomplete",
+    policyVersion: "input-readiness-v1",
+    confirmedFields,
+    unconfirmedAssumptions,
+    missingInputs,
+    canEvaluate,
+    completionPercent: Math.round(confirmedFields.length / EVALUATION_REQUIRED_FIELDS.length * 100)
+  };
+}
+function createInitialProvenance(supplied = {}) {
+  return Object.fromEntries(
+    EVALUATION_REQUIRED_FIELDS.map((field) => [field, supplied[field] ?? (field === "name" ? "explicit" : "assumed")])
+  );
+}
+
 // server/engines/roi.ts
 var DEFAULT_COEFFICIENTS = {
   hourlyRate: 350,
@@ -17339,7 +17419,8 @@ var projectInputSchema = z3.object({
   projectPurpose: z3.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
   // City & Sustainability Certification
   city: z3.enum(["Dubai", "Abu Dhabi"]).default("Dubai"),
-  sustainCertTarget: z3.string().default("silver")
+  sustainCertTarget: z3.string().default("silver"),
+  inputProvenance: z3.record(z3.string(), z3.enum(INPUT_PROVENANCE_STATUSES)).optional()
 });
 function projectToInputs(p) {
   return {
@@ -17423,9 +17504,14 @@ var projectRouter = router({
   get: orgProcedure.input(z3.object({ id: z3.number() })).query(async ({ ctx, input }) => {
     return requireProjectForOrg(input.id, ctx.orgId);
   }),
+  readiness: orgProcedure.input(z3.object({ id: z3.number() })).query(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.id, ctx.orgId);
+    return getProjectReadiness(project);
+  }),
   create: orgMutationProcedure.input(projectInputSchema).mutation(async ({ ctx, input }) => {
     const result = await createProject({
       ...input,
+      inputProvenance: createInitialProvenance(input.inputProvenance),
       userId: ctx.user.id,
       orgId: ctx.orgId,
       status: "draft",
@@ -17444,6 +17530,36 @@ var projectRouter = router({
     dispatchWebhook("project.created", { projectId: result.id, name: input.name, tier: input.mkt01Tier }).catch(() => {
     });
     return result;
+  }),
+  confirmInputs: orgMutationProcedure.input(z3.object({
+    id: z3.number(),
+    fields: z3.array(z3.enum(EVALUATION_REQUIRED_FIELDS)).min(1)
+  })).mutation(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.id, ctx.orgId);
+    const existing = createInitialProvenance(
+      project.inputProvenance ?? {}
+    );
+    for (const field of input.fields) {
+      const value = project[field];
+      if (value === null || value === void 0 || typeof value === "string" && !value.trim()) {
+        throw new TRPCError7({
+          code: "BAD_REQUEST",
+          message: `${field} must have a value before it can be confirmed`
+        });
+      }
+      existing[field] = "confirmed";
+    }
+    if (!await updateProjectForOrg(input.id, ctx.orgId, { inputProvenance: existing })) {
+      await requireProjectForOrg(input.id, ctx.orgId);
+    }
+    await createAuditLog({
+      userId: ctx.user.id,
+      action: "project.inputs.confirm",
+      entityType: "project",
+      entityId: input.id,
+      details: { fields: input.fields }
+    });
+    return getProjectReadiness({ ...project, inputProvenance: existing });
   }),
   update: orgMutationProcedure.input(z3.object({ id: z3.number() }).merge(projectInputSchema.partial())).mutation(async ({ ctx, input }) => {
     const { id, ...data } = input;
@@ -17485,6 +17601,14 @@ var projectRouter = router({
   }),
   evaluate: orgHeavyMutationProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.id, ctx.orgId);
+    const readiness = getProjectReadiness(project);
+    if (!readiness.canEvaluate) {
+      throw new TRPCError7({
+        code: "PRECONDITION_FAILED",
+        message: `Project inputs are incomplete: ${readiness.missingInputs.length} missing and ${readiness.unconfirmedAssumptions.length} unconfirmed`,
+        cause: readiness
+      });
+    }
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) throw new Error("No active model version found");
     const inputs = projectToInputs(project);

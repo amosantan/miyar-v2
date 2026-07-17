@@ -2,8 +2,8 @@
 
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **331**
-- Generated: 2026-07-17T11:48:38.843Z
+- Procedures inventoried: **333**
+- Generated: 2026-07-17T13:09:40.956Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
@@ -30,20 +30,20 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `admin_governed`       |    82 |
 | `global_governed`      |    54 |
 | `not_project_scoped`   |    22 |
-| `org_guarded`          |   172 |
+| `org_guarded`          |   174 |
 | `public_token_guarded` |     1 |
 
 ## Severity Summary
 
 | Severity | Count |
 | -------- | ----: |
-| `none`   |   331 |
+| `none`   |   333 |
 
 ## Remediation Summary
 
 | Target | Count |
 | ------ | ----: |
-| `none` |   331 |
+| `none` |   333 |
 
 ### Remediation ownership
 
@@ -91,6 +91,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `design.uploadAsset`             | db.createProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
 | `design.uploadFloorPlan`         | db.createFloorPlanAssetAndLinkForOrg                                                          | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `executed` |
 | `portfolio.checkAlerts`          | db.insertPortfolioAlertsForOrg                                                                | `tests/mysql/design-authorization.mysql.test.ts` | keeps tenant portfolio alerts organization scoped and deduplicated            | `executed` |
+| `project.confirmInputs`          | db.updateProjectForOrg                                                                        | `tests/mysql/design-authorization.mysql.test.ts` | scopes project readiness and confirmed-input writes to the organization       | `executed` |
 | `project.generateReport`         | db.createReportArtifactsForOrg                                                                | `tests/mysql/design-authorization.mysql.test.ts` | persists report artifacts atomically and rechecks project ownership           | `executed` |
 
 ## Remediation Inventory
@@ -387,6 +388,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `predictive.getScenarioProjection`                   | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `predictive.getUaeCostRanges`                        | `org_guarded`          | session organization context -> organization-scoped query/write                                                                                                                                                                                                 | No remediation assigned; retain classification evidence. |
 | `project.applyScenarioTemplate`                      | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
+| `project.confirmInputs`                              | `org_guarded`          | input.id -> projects.id -> projects.orgId                                                                                                                                                                                                                       | No remediation assigned; retain classification evidence. |
 | `project.create`                                     | `org_guarded`          | session organization context -> organization-scoped query/write                                                                                                                                                                                                 | No remediation assigned; retain classification evidence. |
 | `project.delete`                                     | `org_guarded`          | input.id -> projects.id -> projects.orgId                                                                                                                                                                                                                       | No remediation assigned; retain classification evidence. |
 | `project.evaluate`                                   | `org_guarded`          | input.id -> projects.id -> projects.orgId                                                                                                                                                                                                                       | No remediation assigned; retain classification evidence. |
@@ -400,6 +402,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `project.list`                                       | `org_guarded`          | session organization context -> organization-scoped query/write                                                                                                                                                                                                 | No remediation assigned; retain classification evidence. |
 | `project.listReports`                                | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `project.listWithScores`                             | `org_guarded`          | session organization context -> organization-scoped query/write                                                                                                                                                                                                 | No remediation assigned; retain classification evidence. |
+| `project.readiness`                                  | `org_guarded`          | input.id -> projects.id -> projects.orgId                                                                                                                                                                                                                       | No remediation assigned; retain classification evidence. |
 | `project.roi`                                        | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `project.scenarioTemplates`                          | `global_governed`      | governed global project data -> no project/org-owned identifier is accepted                                                                                                                                                                                     | No remediation assigned; retain classification evidence. |
 | `project.sensitivity`                                | `org_guarded`          | input.id -> projects.id -> projects.orgId                                                                                                                                                                                                                       | No remediation assigned; retain classification evidence. |

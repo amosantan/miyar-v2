@@ -1,90 +1,63 @@
 # Current Task
 
-- ID: TR-05
-- Roadmap step: `TR-05`
-- Title: Isolate learning and prediction data by organization
-- Status: PASS
+- ID: UX-01
+- Roadmap step: `UX-01`
+- Title: Release the warm architectural UX to production
+- Status: ACTIVE
 - Owner: Codex
-- Started: 2026-07-16
-- Closed: 2026-07-17
-- Branch: `codex/tr-05-data-isolation`
-- Base: `7b3866b`
-- Risk: Critical tenant data-influence, derived-data provenance, API, schema, and background-job work
-- Selected loop: Data/security defect loop with deterministic and real-SQL isolation verification
-- Retry budget: 3 evidence-based attempts per failure class
-- Resource budget: One bounded roadmap step; stop before production migration, data promotion, deployment, or pooled-cohort activation
-- Approval gates: shared/production migration, data classification or public promotion, deployment, push/merge, and any pooled learning activation require separate approval
+- Started: 2026-07-17
+- Branch: `codex/miyar-ux-redesign`
+- Base: `ae2cfed`
+- Prior production application commit: `1f8c97d288ce97315664229049db3db38ec65bb2`
+- Risk: Critical release with additive production schema, protected-branch integration, route compatibility, and user-facing deployment
+- Selected loops: Release decision loop and schema migration loop
+- Retry budget: 3 evidence-based preflight attempts per failure class; no automatic retry after a failed production migration or deployment
+- Resource budget: One user-authorized production release window
+- Approver: User authorization in the active Codex task on 2026-07-17
 
 ## Goal
 
-Ensure organization calculations use only records owned by the current organization plus explicitly governed platform-public UAE evidence. Other-organization and legacy-unscoped records must have zero influence on predictions, comparisons, recommendations, and derived trends.
+Publish UX-01 as an exact, reproducible production release: replace safely removable specialist implementations with compatibility redirects, apply additive migration 0048, commit and push the verified branch, integrate it into canonical main, deploy the exact commit, and certify the live application.
 
-## Locked Decisions
+## Compatibility Decision
 
-- Corpus scopes are `organization`, `platform_public`, and `legacy_unscoped`.
-- Tenant calculations use policy `org-public-v1`; governed shared evidence uses `public-v1`; historical unknown rows use `legacy-v0`.
-- Null ownership does not prove public governance.
-- Tenant trend detection remains available but writes organization-owned snapshots. Platform-public trend generation is admin/ingestion-only.
-- Insufficient safe data is returned explicitly; MIYAR does not silently pool tenants.
-- Pooled anonymized learning is hard-disabled. A future implementation requires consent, anonymization, at least 10 organizations and 30 projects, policy/version identity, and separate approval.
-- Scoring weights, prediction formulas, financial assumptions, and confidence thresholds do not change.
-- Historical unscoped data is retained but hidden from tenant calculations.
-- The post-mortem derived-evidence writer is removed for this release.
-
-## Non-Goals
-
-- Production schema application, data backfill, public-evidence promotion, deployment, or release.
-- Enabling anonymized or pooled learning.
-- Changing deterministic scoring, pricing, prediction, or confidence policy.
-- Repairing unrelated ingestion, UI, or reporting behavior.
+- Existing bookmarks must not become 404s.
+- Route removal means removing redundant page implementations only where the same capability already exists in the four-section workspace.
+- Removed implementations remain compatibility aliases that preserve project ID and query parameters.
+- Specialist workflows not yet represented inside the workspace remain registered.
 
 ## Acceptance Criteria
 
-- [x] Corpus metadata exists on evidence and every tenant-visible or policy-influencing derived-data table named in the approved plan.
-- [x] Existing rows default to `legacy_unscoped`; only explicit organization rows and exact seed-pattern allowlists receive deterministic local classification tooling.
-- [x] Tenant evidence, score, outcome, project, trend, design-trend, and pattern reads use fail-closed scoped helpers.
-- [x] The eight canonical TR-05 procedures cannot read or derive from another organization's records.
-- [x] Predictive project routes authorize the target project before any side effect or data read.
-- [x] Tenant trend snapshots are organization-owned; public trend writes require global administration or ingestion governance.
-- [x] Post-mortem comparison writes are organization-locked and no derived evidence is emitted.
-- [x] Pooled weekly learning reads and writes are disabled.
-- [x] Insufficient-data responses expose corpus policy and safe sample counts without revealing excluded tenant data.
-- [x] Authorization audit rejects tenant use of unscoped learning helpers and tenant writes to platform-public derived data.
-- [x] Two-organization fixtures prove other-organization inserts and changes cannot alter the current organization's deterministic outputs.
-- [x] Targeted tests, disposable MySQL isolation, safe full suite, TypeScript, authorization audit, build, diff review, browser checks, and independent Claude Code review pass.
-- [x] `KF-007` closes only with objective evidence and durable roadmap/worklog/lesson updates.
+- [x] `/projects/:id/evidence`, `/projects/:id/explainability`, and `/projects/:id/space-planner` redirect to the corresponding workspace section/view without losing existing query parameters.
+- [x] Every other supported project and admin route remains available and authorized.
+- [x] Migration 0048 is confirmed additive/backward compatible, a production recovery point is recorded, and the column shape/default/nullability is verified after apply.
+- [x] The release diff is reviewed and all mandatory local gates remain green.
+- [ ] The scoped files are staged, committed, pushed, and integrated into canonical `main` without discarding unrelated history.
+- [ ] Production deploys the exact integrated commit and reports `READY`.
+- [ ] Health, unauthenticated authorization, invalid-share privacy, authenticated homepage/dashboard/project/admin/theme/RTL, and readiness smoke checks pass.
+- [ ] Release identity, migration evidence, deployment ID, rollback position, and residual risks are recorded.
 
-## Planned Verification
+## Non-Goals
 
-- `pnpm vitest run server/routers/tr05.authorization.test.ts`
-- `pnpm test:authorization:mysql`
-- `pnpm audit:authorization`
-- `DATABASE_URL='' pnpm test`
-- `pnpm check`
-- `pnpm build`
-- `git diff --check`
-- Browser verification of predictive, analytics, cost forecasting, design advisor, and learning administration insufficiency states
-- Independent Claude Code adversarial review
+- Removing specialist routes whose functionality is not yet represented in the workspace.
+- Changing scoring, financial, prediction, tenant-isolation, public-share, evidence, or report contracts.
+- Destructive schema rollback; migration 0048 remains in place if application rollback is needed.
 
-## Baseline
+## Rollback
 
-- Live base is `7b3866b`, which includes the complete released TR-04 history and later state-only release records.
-- Authorization inventory contains exactly eight `TR-05` procedures.
-- `KF-007` is open.
-- Production/shared mutations are not authorized by this task.
-
-## Verification Evidence
-
-- `DATABASE_URL='' pnpm vitest run --reporter=dot`: PASS, 962 passed and 22 skipped.
-- `pnpm test:authorization:mysql`: PASS, 18/18 against disposable MySQL 8; cleanup and evidence hashes refreshed.
-- `pnpm audit:authorization`: PASS, 331 procedures and zero remediation rows after clean regeneration.
-- `pnpm check`: PASS.
-- `pnpm build`: PASS across Vite, Node bundle, and serverless bundle.
-- `git diff --check`: PASS.
-- Migration 0047 and the classification script were applied to disposable MySQL; a second classification dry run reported zero changes and null-owned legacy rows remained unpromoted.
-- Independent Claude Code review initially returned `CHANGES_REQUIRED`; the project-insight leak, outcome read hardening, admin evidence classification, public change-detection boundary, audit coverage, and adjacent intelligence outcome read were remediated. Focused re-review returned `APPROVED_NO_OBJECTION`.
-- In-app browser verification: PASS against a disposable local MySQL 8 environment. Analytics showed governed-data insufficiency instead of a market tier; UAE cost forecasting showed nine insufficient categories and the own-plus-public corpus label; project cost, outcome, and cost-over-time prediction cards showed explicit insufficiency without zero forecasts; design advisor abstained without calling the LLM; learning administration showed no governed accuracy snapshot instead of `0.0%`. Browser review found and drove fixes for the cost-over-time zero table and learning-dashboard zero accuracy cards before the final PASS.
+- Application rollback target: prior known-good production commit `1f8c97d288ce97315664229049db3db38ec65bb2`.
+- Migration 0048 is nullable and additive; leave it in place during application rollback.
+- Stop and transfer to incident handling for authentication, tenant-isolation, data-integrity, or critical workflow regressions.
 
 ## Next Action
 
-TR-05 is closed and released. Application commit `1f8c97d288ce97315664229049db3db38ec65bb2` is pushed and deployed as Vercel production deployment `dpl_G7hPvJk7WUqwxYBdrjZN6noNxNFn`; migration 0047 and the controlled production classifier pass. Production had zero organization-owned evidence and zero seed patterns, so classification changed zero rows. No public evidence was promoted: all 1,755 null-owned records remain `legacy_unscoped` because no approved source allowlist exists. Begin bounded planning for `TR-10`; canonical-main merge and any future governed public-evidence promotion or pooled cohort remain separate decisions.
+Commit and push the immutable release candidate, integrate it into canonical main, deploy that exact application commit, and run production certification.
+
+## Migration Evidence
+
+- Target: production `miyar-v2` on Vitess 8.0.42, explicitly authorized by the user.
+- Preflight: migration 0047 marker present; `inputProvenance` absent; 11 project rows.
+- Recovery snapshot: encrypted AES-256-GCM affected-table snapshot outside the repository, 11 rows, decryption verified, SHA-256 `913e526c6dc68e5f793a65ce2e6b40793930224d2719f98ede3251f97f2324ef`.
+- Applied: `0048_youthful_morlocks` from `2026-07-17T14:00:13.395Z` to `2026-07-17T14:00:14.591Z`.
+- Integrity: project count remained 11; `inputProvenance` is nullable JSON with no default at ordinal 73; all 11 legacy projects remain null and therefore use the explicit legacy-compatibility policy.
+- Recovery: leave the additive nullable column in place and redeploy prior application commit `1f8c97d288ce97315664229049db3db38ec65bb2` if application rollback is required.
