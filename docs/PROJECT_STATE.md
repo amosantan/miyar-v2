@@ -5,13 +5,13 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-17
-- Application release commit: `85f98db305e5fe983a9ab578f6d129592fa6cfc7`, merging test-only TR-07 candidate `15d29c5f5d7baa240fd79976d04dfb2254219415`
-- Branch identity: canonical `origin/main` is state commit `1736129bc3733356b5d105669d8adb53a46d80af`; application release identity remains `85f98db305e5fe983a9ab578f6d129592fa6cfc7`
+- Production source commit: `e49029d566fa032862c91fa7c0ce00c14aa8ef45` on `codex/tr-08-contract-recertification`; its diff from the application release contains characterization tests and durable records only
+- Branch identity: canonical `origin/main` is state commit `1736129bc3733356b5d105669d8adb53a46d80af`; runtime application release identity remains `85f98db305e5fe983a9ab578f6d129592fa6cfc7`
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU` completed successfully for exact application release commit `85f98db`; root and health return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and the public homepage renders
+- Production: Vercel deployment `dpl_5wEjCcgpCVH2boFmgwA7nMxRMe5M` is `READY` for exact source commit `e49029d`; root and health return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and three follow-up health observations return 200
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Active worktree observation: TR-08 recertification on `codex/tr-08-contract-recertification` at base `1736129`; the scoped diff changes characterization tests and durable state/decision records only, with no runtime, schema, migration, dependency, scoring, authorization, or report-rendering behavior
+- Active worktree observation: TR-08 release closeout on `codex/tr-08-contract-recertification`; candidate `e49029d` is pushed and deployed, and the remaining local diff records release evidence only
 
 ## Technology Observed
 
@@ -72,6 +72,7 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - Production deployment `dpl_7ndQvn6N7NpoJqx13fjBdgU5V8vM` is `READY`. Root and `system.health` return 200, unauthenticated `project.get` returns 401, invalid public shares return concealed 404 with `private, no-store` and `noindex, nofollow, noarchive`, and post-deployment ownership/table/index integrity checks pass.
 - TR-05 production deployment `dpl_G7hPvJk7WUqwxYBdrjZN6noNxNFn` is `READY` and Vercel identifies exact commit `1f8c97d288ce97315664229049db3db38ec65bb2`. Root and `system.health` return 200, unauthenticated `project.get` returns 401, invalid shares return concealed 404 with privacy headers, and post-deployment corpus integrity checks pass.
 - TR-07 test-only release commit `85f98db305e5fe983a9ab578f6d129592fa6cfc7` deployed successfully as Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU`. Post-deployment root/health, unauthenticated tenant rejection, invalid-share privacy, rendered homepage, and a three-observation health window pass. No database or schema operation was part of the release.
+- TR-08 test/documentation release commit `e49029d566fa032862c91fa7c0ce00c14aa8ef45` deployed successfully as Vercel target `dpl_5wEjCcgpCVH2boFmgwA7nMxRMe5M` after exact-commit preview `dpl_7vTDyhEv63paho4xkw426BjVdATH` passed. Root/health, unauthenticated tenant rejection, invalid-share privacy, and a three-observation health window pass. No runtime source, schema, migration, dependency, configuration, database, numerical, authorization, API, or report-rendering change was part of the release.
 - Canonical `main` contains the reviewed TR-05, UX-01, TR-06H, and TR-07 histories through application release commit `85f98db`.
 
 ## Environment Uncertainties

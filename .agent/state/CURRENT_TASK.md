@@ -14,7 +14,7 @@
 - Selected loops: Defect, ingestion, scoring/pricing, and report loops from `LOOP_ENGINEERING.md`
 - Retry budget: 3 evidence-based attempts per failure class
 - Resource budget: One decision record, three characterization groups, and one repository verification pass
-- Approval gates: No production logic, numerical policy, API, shared type, schema, authorization, dependency, deployment, database, commit, push, or pull-request action
+- Approval gates: Initial implementation authorized no commit, push, deployment, database, merge, or pull-request action. On 2026-07-17, the user separately authorized staging, committing, pushing the review branch, and production deployment; no merge, pull request, or database action was authorized or performed.
 
 ## Goal
 
@@ -83,3 +83,13 @@ The policy bundle is `TR-08-v1`, effective 2026-07-16 at verified implementation
 ## Next Action
 
 Plan reopened TR-09 as the sole next executable roadmap step. Its first gate is an approved behavioral design for the distinctions recorded in KF-016; TR-08 does not choose implementation interfaces.
+
+## Release Closeout
+
+- Candidate commit: `e49029d566fa032862c91fa7c0ce00c14aa8ef45` (`test(governance): recertify TR-08 baseline contracts`).
+- Push: `origin/codex/tr-08-contract-recertification` points to the exact candidate.
+- Hosted preview: Git-integrated Vercel deployment `dpl_7vTDyhEv63paho4xkw426BjVdATH` reached `READY` for the exact candidate commit.
+- Production: Vercel deployment `dpl_5wEjCcgpCVH2boFmgwA7nMxRMe5M` rebuilt the verified candidate with production-scoped configuration, reached `READY`, and was aliased to `https://www.miyar.dev`.
+- Smoke: root and `system.health` returned 200; unauthenticated `project.get` returned 401; an invalid public share returned concealed 404 with `private, no-store`, `no-cache`, and `noindex, nofollow, noarchive`; three follow-up health observations returned 200.
+- Release scope: characterization tests and durable documentation/state only. No runtime source, schema, migration, dependency, configuration, database, numerical, authorization, API, or report-rendering behavior changed.
+- Rollback: prior production deployment/source remains available; no schema or data rollback is required.

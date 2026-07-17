@@ -270,6 +270,7 @@ Rules:
 - Reclosed: 2026-07-17 with terminal state `PASS` after accepted ADR-0003 established policy bundle `TR-08-v1`, characterization strengthened all three contracts without production-source changes, and `KF-016` captured the verified downstream ambiguity.
 - Recertification evidence: Targeted contracts pass 80/80; the safe full suite passes 1,023 with 22 skipped; TypeScript, the 335-procedure authorization audit, all build targets, scoped documentation formatting, link/status checks, and diff checks pass; independent code review and Claude Sonnet both returned `APPROVED`.
 - Lessons: `LES-023`
+- Production release: User-authorized candidate `e49029d` was pushed to `origin/codex/tr-08-contract-recertification`; Vercel preview `dpl_7vTDyhEv63paho4xkw426BjVdATH` and production deployment `dpl_5wEjCcgpCVH2boFmgwA7nMxRMe5M` reached `READY` for the exact commit. Root/health, unauthenticated tenant rejection, invalid-share privacy, and a three-observation health window passed. The release changes tests and durable records only.
 
 ### TR-09 — Implement decided baseline contracts
 
