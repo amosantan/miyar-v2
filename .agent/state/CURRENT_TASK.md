@@ -87,4 +87,4 @@ Ensure organization calculations use only records owned by the current organizat
 
 ## Next Action
 
-TR-05 is closed. Begin bounded planning for `TR-10`, the next dependency-valid roadmap step. Production migration, classification, promotion, deployment, commit, push, and merge remain separately gated.
+TR-05 is closed and released. Application commit `1f8c97d288ce97315664229049db3db38ec65bb2` is pushed and deployed as Vercel production deployment `dpl_G7hPvJk7WUqwxYBdrjZN6noNxNFn`; migration 0047 and the controlled production classifier pass. Production had zero organization-owned evidence and zero seed patterns, so classification changed zero rows. No public evidence was promoted: all 1,755 null-owned records remain `legacy_unscoped` because no approved source allowlist exists. Begin bounded planning for `TR-10`; canonical-main merge and any future governed public-evidence promotion or pooled cohort remain separate decisions.

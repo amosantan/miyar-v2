@@ -200,7 +200,8 @@ Rules:
 - Closed: 2026-07-17
 - Terminal task state: `PASS`
 - Completion evidence: Corpus policy and migration 0047 are implemented; safe organization/public database helpers cover evidence, comparables, outcomes, trends, design trends, patterns, and insights; all eight canonical procedures and adjacent consumers are scoped; pooled scheduling is hard-disabled; authorization inventory is 331/331 with zero remediation rows; disposable MySQL passes 18/18; safe suite passes 962 with 22 skipped; TypeScript/build/diff checks pass; final Claude Code review is `APPROVED_NO_OBJECTION`. In-app browser verification passed analytics, UAE cost forecasting, project prediction, design advisor, and learning administration against disposable local MySQL; it also exposed and verified fixes for two misleading zero-value states.
-- Residual risk: Applying migration 0047, classifying shared/production data, promoting evidence to `platform_public`, deployment, and any future pooled cohort remain explicit human gates. Historical `legacy_unscoped` rows stay retained and excluded.
+- Production release: Migration 0047 is applied and verified; controlled classification changed zero rows; application commit `1f8c97d` is deployed `READY` as `dpl_G7hPvJk7WUqwxYBdrjZN6noNxNFn` with passing health, authorization, share-privacy, and corpus-integrity smoke checks.
+- Residual risk: Production has no approved public-evidence source allowlist, so all 1,755 null-owned evidence rows remain retained as `legacy_unscoped` and excluded. Any future `platform_public` promotion or pooled cohort remains a separate governed human gate.
 - Lessons: `LES-020`
 
 ### TR-06 — Resolve TypeScript failures by contract group
