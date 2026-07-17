@@ -10,6 +10,7 @@
 
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 import { InsufficientDataState } from "@/components/InsufficientDataState";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -417,7 +418,7 @@ function InsightFeedPanel() {
       refetch();
     },
     onError: (err) => {
-      toast.error(err.message);
+      toast.error(withReference(formatAiOperationError(err, "We could not generate insights. Please try again.")));
     },
   });
 

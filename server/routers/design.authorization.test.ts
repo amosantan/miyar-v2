@@ -7,6 +7,9 @@ import {
 const mocks = vi.hoisted(() => ({
   storagePut: vi.fn(),
   storageDelete: vi.fn(),
+  storageCreatePresignedPut: vi.fn(),
+  storageGet: vi.fn(),
+  storageRead: vi.fn(),
   generateImage: vi.fn(),
   runFloorPlanAnalysis: vi.fn(),
   nanoid: vi.fn(),
@@ -52,6 +55,9 @@ vi.mock("../db", () => mocks.db);
 vi.mock("../storage", () => ({
   storagePut: mocks.storagePut,
   storageDelete: mocks.storageDelete,
+  storageCreatePresignedPut: mocks.storageCreatePresignedPut,
+  storageGet: mocks.storageGet,
+  storageRead: mocks.storageRead,
 }));
 vi.mock("../_core/imageGeneration", () => ({
   generateImage: mocks.generateImage,
@@ -107,6 +113,9 @@ const scenarios = {
   orgA: { id: 711, projectId: projects.orgA.id, orgId: projects.orgA.orgId },
   orgB: { id: 722, projectId: projects.orgB.id, orgId: projects.orgB.orgId },
 };
+
+// Valid 1×1 PNG: legacy compatibility paths must validate bytes before storage.
+const VALID_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEklEQVQImWMwTptpnDaTAUIBAB/uBMm6iK1UAAAAAElFTkSuQmCC";
 
 function byId<T extends { id: number }>(...records: T[]) {
   return async (id: number) => records.find(record => record.id === id);
@@ -168,6 +177,11 @@ describe("design router authorization", () => {
       url: "https://example.invalid/upload.png",
     });
     mocks.storageDelete.mockResolvedValue(undefined);
+    mocks.storageCreatePresignedPut.mockResolvedValue({
+      key: `projects/${projects.orgA.orgId}/${projects.orgA.id}/uploads/upload-token`,
+      uploadUrl: "https://example.invalid/upload-token",
+    });
+    mocks.storageGet.mockResolvedValue({ url: "https://example.invalid/upload-token" });
     mocks.nanoid.mockReturnValue("share-token-default-123456789012");
   });
 
@@ -231,6 +245,32 @@ describe("design router authorization", () => {
     expect(mocks.db.createAuditLog).not.toHaveBeenCalled();
   });
 
+  it("does not issue a direct-upload URL for a project in another organization", async () => {
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.createAssetUpload({
+      projectId: projects.orgB.id,
+      mimeType: "image/png",
+    })).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    expect(mocks.storageCreatePresignedPut).not.toHaveBeenCalled();
+  });
+
+  it("rejects a tampered direct-upload key before reading or persisting media", async () => {
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.finalizeAssetUpload({
+      projectId: projects.orgA.id,
+      storageKey: `projects/${projects.orgB.orgId}/${projects.orgB.id}/uploads/foreign-token`,
+      filename: "foreign.png",
+      mimeType: "image/png",
+      category: "other",
+    })).rejects.toMatchObject({ code: "NOT_FOUND", message: "Upload not found" });
+
+    expect(mocks.storageRead).not.toHaveBeenCalled();
+    expect(mocks.db.createProjectAssetForOrg).not.toHaveBeenCalled();
+  });
+
   it("keeps design viewers read-only before resource access", async () => {
     mocks.db.getOrganizationMemberships.mockResolvedValue([{
       id: 1,
@@ -245,7 +285,7 @@ describe("design router authorization", () => {
       projectId: projects.orgA.id,
       filename: "blocked.png",
       mimeType: "image/png",
-      base64Data: "AA==",
+      base64Data: VALID_PNG_BASE64,
     })).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(mocks.db.getProjectById).not.toHaveBeenCalled();
     expect(mocks.storagePut).not.toHaveBeenCalled();
@@ -365,7 +405,7 @@ describe("design router authorization", () => {
       projectId: projects.orgA.id,
       filename: "rejected.png",
       mimeType: "image/png",
-      base64Data: "AA==",
+      base64Data: VALID_PNG_BASE64,
     })).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(mocks.storageDelete).toHaveBeenCalledWith("projects/11/upload.png");
     expect(mocks.db.createAuditLog).not.toHaveBeenCalled();
@@ -379,7 +419,7 @@ describe("design router authorization", () => {
       projectId: projects.orgA.id,
       filename: "uncertain.png",
       mimeType: "image/png",
-      base64Data: "AA==",
+      base64Data: VALID_PNG_BASE64,
     })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
     expect(mocks.storageDelete).not.toHaveBeenCalled();
   });

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { AlertTriangle, ArrowRight, BarChart3, CheckCircle2, Clock3, FolderKanban, Loader2, Plus, Search, Sparkles } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
-  const ask = trpc.autonomous.nlQuery.useMutation({ onSuccess: data => setAnswer(data.textOutput), onError: error => setAnswer(error.message) });
+  const ask = trpc.autonomous.nlQuery.useMutation({ onSuccess: data => setAnswer(data.textOutput), onError: error => setAnswer(withReference(formatAiOperationError(error, "I could not process that request. Please try again."))) });
 
   const evaluated = useMemo(() => projects?.filter(project => project.latestScore) ?? [], [projects]);
   const attention = useMemo(() => projects?.filter(project => !project.latestScore || project.latestScore.decisionStatus !== "validated") ?? [], [projects]);

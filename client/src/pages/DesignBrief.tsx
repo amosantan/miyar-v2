@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Palette, Package, DollarSign, Truck, CheckSquare, RefreshCw, History, ChevronRight, Download, LayoutGrid, Layers } from "lucide-react";
 import { toast } from "sonner";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -56,7 +57,7 @@ export default function DesignBrief() {
       latestBrief.refetch();
       allBriefs.refetch();
     },
-    onError: (err) => toast.error("Generation failed", { description: err.message }),
+    onError: (err) => toast.error("Generation failed", { description: withReference(formatAiOperationError(err, "We could not generate the design brief. Please try again.")) }),
   });
 
   const exportDocxMut = trpc.design.exportBriefDocx.useMutation({

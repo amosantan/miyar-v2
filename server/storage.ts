@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  HeadObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Buffer } from "node:buffer";
@@ -78,6 +79,59 @@ export async function storagePut(
   const url = await getSignedUrl(client as any, getCommand as any, { expiresIn: 3600 * 24 * 7 });
 
   return { key, url };
+}
+
+/**
+ * Creates a short-lived, write-only URL for a browser upload. The object is not
+ * trusted until the server reads and validates it during finalization.
+ */
+export async function storageCreatePresignedPut(
+  relKey: string,
+  contentType: string,
+  expiresIn = 15 * 60,
+): Promise<{ key: string; uploadUrl: string }> {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for direct uploads");
+  }
+
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType,
+  });
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  return { key, uploadUrl };
+}
+
+export async function storageRead(
+  relKey: string,
+  maxBytes: number,
+): Promise<{ key: string; contentType?: string; sizeBytes: number; buffer: Buffer }> {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for server-side validation");
+  }
+
+  const head = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
+  const sizeBytes = head.ContentLength ?? 0;
+  if (sizeBytes <= 0 || sizeBytes > maxBytes) {
+    return { key, contentType: head.ContentType, sizeBytes, buffer: Buffer.alloc(0) };
+  }
+
+  const object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
+  if (!object.Body) throw new Error("Object storage returned no body");
+  const data = await object.Body.transformToByteArray();
+  const buffer = Buffer.from(data);
+  if (buffer.length !== sizeBytes || buffer.length > maxBytes) {
+    throw new Error("Object storage size changed during validation");
+  }
+
+  return { key, contentType: head.ContentType, sizeBytes, buffer };
 }
 
 export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {

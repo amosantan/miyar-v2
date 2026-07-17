@@ -61,14 +61,6 @@ export class PageErrorBoundary extends Component<Props, State> {
                                 you can try again or go back.
                             </p>
 
-                            {this.state.error && (
-                                <div className="w-full rounded-md bg-muted/50 p-3 mb-6 text-left">
-                                    <p className="text-xs font-mono text-muted-foreground break-all">
-                                        {this.state.error.message}
-                                    </p>
-                                </div>
-                            )}
-
                             <div className="flex items-center gap-3">
                                 <Button
                                     variant="outline"

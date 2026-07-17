@@ -136,6 +136,14 @@ Gemini-backed functions support:
 
 AI outputs are proposals or content. Validate structure, preserve provenance, handle parse failure, and keep numerical decisions in deterministic code.
 
+### AI media-operation boundary
+
+Customer-facing media reaches an AI provider only through the server-owned media boundary in `server/_core/`. The browser receives a short-lived signed S3 `PUT` URL, then the server reads the uploaded object, validates its actual bytes, derives MIME type/size/SHA-256 checksum, and only then persists it or sends it to a provider. Client MIME labels, sizes, object paths, URLs, and asset-type labels are never authoritative.
+
+PNG, JPEG, and WebP are decoded with Sharp and bounded by byte and pixel limits. PDFs are checked with the PDF parser; audio and video require matching supported container signatures. Invalid, unsupported, empty, unavailable, and oversized media stops before an AI call. Validated larger images and PDFs/audio/video use Gemini's temporary Files API; the boundary polls only to its fixed deadline and attempts provider-file cleanup in `finally`.
+
+`server/_core/ai-operation.ts` defines the shared failure taxonomy, retryability, safe customer message, and correlation ID. Provider details are structured telemetry only. Customer surfaces receive a safe MIYAR message and reference ID, never a provider response, stack trace, key, temporary URL, or raw exception. Architecture-contract tests keep direct Gemini REST usage confined to the shared operation boundary and prohibit designated customer surfaces from rendering raw operation errors.
+
 ### Ingestion and intelligence
 
 The ingestion subsystem contains connectors, crawling, extraction, normalization, verification, change detection, orchestration, scheduling, health, and audit behavior.

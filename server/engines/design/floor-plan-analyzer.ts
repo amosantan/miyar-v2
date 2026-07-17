@@ -7,6 +7,9 @@
  */
 
 import { invokeLLM } from "../../_core/llm";
+import { AiOperationError } from "../../_core/ai-operation";
+import type { ValidatedMedia } from "../../_core/media-validation";
+import { z } from "zod";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -88,29 +91,11 @@ Analyze the floor plan now.`;
 
 /**
  * Analyze a floor plan image using Gemini Vision.
- * @param imageUrl - The URL of the uploaded floor plan image/PDF
- * @param mimeType - The MIME type of the uploaded file
+ * @param media - Server-validated image or PDF bytes owned by the project
  */
 export async function analyzeFloorPlan(
-    imageUrl: string,
-    mimeType: string = "image/jpeg"
+    media: ValidatedMedia,
 ): Promise<FloorPlanAnalysis> {
-    // Fetch the image as a buffer for Gemini Vision
-    let imageBuffer: Buffer;
-    try {
-        const response = await fetch(imageUrl, {
-            signal: AbortSignal.timeout(30_000),
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        imageBuffer = Buffer.from(await response.arrayBuffer());
-    } catch (err) {
-        throw new Error(
-            `Failed to fetch floor plan image: ${err instanceof Error ? err.message : String(err)}`
-        );
-    }
-
-    const base64Image = imageBuffer.toString("base64");
-
     // Use Gemini with vision capability
     const result = await invokeLLM({
         messages: [
@@ -124,12 +109,10 @@ export async function analyzeFloorPlan(
                 content: [
                     { type: "text", text: FLOOR_PLAN_PROMPT },
                     {
-                        type: "image_url",
-                        image_url: {
-                            url: `data:${mimeType};base64,${base64Image}`,
-                        },
+                        type: "media",
+                        media,
                     },
-                ] as any,
+                ],
             },
         ],
         response_format: { type: "json_object" },
@@ -141,31 +124,37 @@ export async function analyzeFloorPlan(
             : "";
 
     if (!content) {
-        throw new Error("Gemini returned empty response for floor plan analysis");
+        throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "floor-plan.analyze" }).report();
     }
 
-    const parsed = JSON.parse(content);
+    let parsed: z.infer<typeof FLOOR_PLAN_RESULT_SCHEMA>;
+    try {
+        parsed = FLOOR_PLAN_RESULT_SCHEMA.parse(JSON.parse(content));
+    } catch (error) {
+        throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "floor-plan.analyze", cause: error }).report();
+    }
 
     // Validate the response
     if (!parsed.rooms || !Array.isArray(parsed.rooms) || parsed.rooms.length === 0) {
-        throw new Error("Gemini could not identify any rooms in the floor plan");
+        throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "floor-plan.analyze" }).report();
     }
 
     // Normalize and validate each room
     const rooms: AnalyzedRoom[] = parsed.rooms
-        .filter((r: any) => r.name && r.estimatedSqm > 0)
-        .map((r: any) => ({
+        .filter(r => r.name && r.estimatedSqm > 0)
+        .map(r => ({
             name: String(r.name).substring(0, 100),
-            type: validateRoomType(r.type),
+            type: validateRoomType(r.type ?? "other"),
             estimatedSqm: Math.round(Number(r.estimatedSqm) * 100) / 100,
             percentOfTotal: Math.round(Number(r.percentOfTotal) * 100) / 100,
-            finishGrade: (["A", "B", "C"].includes(r.finishGrade) ? r.finishGrade : "B") as
+            finishGrade: (["A", "B", "C"].includes(r.finishGrade ?? "B") ? r.finishGrade : "B") as
                 | "A"
                 | "B"
                 | "C",
         }));
 
     const totalSqm = rooms.reduce((sum, r) => sum + r.estimatedSqm, 0);
+    if (totalSqm <= 0) throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "floor-plan.analyze" }).report();
 
     // Recalculate percentages to ensure they sum to 100
     for (const room of rooms) {
@@ -222,10 +211,27 @@ function validateRoomType(type: string): AnalyzedRoom["type"] {
     return "other";
 }
 
-function validateConfidence(val: string): "high" | "medium" | "low" {
+function validateConfidence(val: unknown): "high" | "medium" | "low" {
     if (val === "high" || val === "medium" || val === "low") return val;
     return "medium";
 }
+
+const FLOOR_PLAN_RESULT_SCHEMA = z.object({
+    rooms: z.array(z.object({
+        name: z.string(),
+        type: z.string().optional(),
+        estimatedSqm: z.number().finite(),
+        percentOfTotal: z.number().finite().optional().default(0),
+        finishGrade: z.string().optional(),
+    })).min(1),
+    bedroomCount: z.number().finite().optional(),
+    bathroomCount: z.number().finite().optional(),
+    balconyPercentage: z.number().finite().optional(),
+    circulationPercentage: z.number().finite().optional(),
+    unitType: z.string().optional(),
+    analysisConfidence: z.string().optional(),
+    rawNotes: z.string().optional(),
+});
 
 function deriveUnitType(rooms: AnalyzedRoom[]): string {
     const bedrooms = rooms.filter((r) => r.type === "bedroom").length;

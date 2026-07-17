@@ -1,20 +1,18 @@
-import { ENV } from "./env";
+import {
+  AiOperationError,
+  toAiOperationError,
+  type AiOperationCode,
+} from "./ai-operation";
+import type { ValidatedMedia } from "./media-validation";
+import { z } from "zod";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
-export type TextContent = {
-  type: "text";
-  text: string;
-};
-
+export type TextContent = { type: "text"; text: string };
 export type ImageContent = {
   type: "image_url";
-  image_url: {
-    url: string;
-    detail?: "auto" | "low" | "high";
-  };
+  image_url: { url: string; detail?: "auto" | "low" | "high" };
 };
-
 export type FileContent = {
   type: "file_url";
   file_url: {
@@ -22,8 +20,9 @@ export type FileContent = {
     mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4";
   };
 };
-
-export type MessageContent = string | TextContent | ImageContent | FileContent;
+/** Server-only, validated media. New media callers must use this form. */
+export type MediaContent = { type: "media"; media: ValidatedMedia };
+export type MessageContent = string | TextContent | ImageContent | FileContent | MediaContent;
 
 export type Message = {
   role: Role;
@@ -34,26 +33,19 @@ export type Message = {
 
 export type Tool = {
   type: "function";
-  function: {
-    name: string;
-    description?: string;
-    parameters?: Record<string, unknown>;
-  };
+  function: { name: string; description?: string; parameters?: Record<string, unknown> };
 };
-
 export type ToolChoicePrimitive = "none" | "auto" | "required";
 export type ToolChoiceByName = { name: string };
-export type ToolChoiceExplicit = {
-  type: "function";
-  function: {
-    name: string;
-  };
-};
+export type ToolChoiceExplicit = { type: "function"; function: { name: string } };
+export type ToolChoice = ToolChoicePrimitive | ToolChoiceByName | ToolChoiceExplicit;
 
-export type ToolChoice =
-  | ToolChoicePrimitive
-  | ToolChoiceByName
-  | ToolChoiceExplicit;
+export type JsonSchema = { name: string; schema: Record<string, unknown>; strict?: boolean };
+export type OutputSchema = JsonSchema;
+export type ResponseFormat =
+  | { type: "text" }
+  | { type: "json_object" }
+  | { type: "json_schema"; json_schema: JsonSchema };
 
 export type InvokeParams = {
   messages: Message[];
@@ -71,386 +63,323 @@ export type InvokeParams = {
 export type ToolCall = {
   id: string;
   type: "function";
-  function: {
-    name: string;
-    arguments: string;
-  };
+  function: { name: string; arguments: string };
 };
-
 export type InvokeResult = {
   id: string;
   created: number;
   model: string;
   choices: Array<{
     index: number;
-    message: {
-      role: Role;
-      content: string | Array<TextContent | ImageContent | FileContent>;
-      tool_calls?: ToolCall[];
-    };
+    message: { role: Role; content: string | Array<TextContent | ImageContent | FileContent>; tool_calls?: ToolCall[] };
     finish_reason: string | null;
   }>;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 };
-
-export type JsonSchema = {
-  name: string;
-  schema: Record<string, unknown>;
-  strict?: boolean;
-};
-
-export type OutputSchema = JsonSchema;
-
-export type ResponseFormat =
-  | { type: "text" }
-  | { type: "json_object" }
-  | { type: "json_schema"; json_schema: JsonSchema };
-
-const ensureArray = (
-  value: MessageContent | MessageContent[]
-): MessageContent[] => (Array.isArray(value) ? value : [value]);
-
-const normalizeContentPart = (
-  part: MessageContent
-): TextContent | ImageContent | FileContent => {
-  if (typeof part === "string") {
-    return { type: "text", text: part };
-  }
-
-  if (part.type === "text") {
-    return part;
-  }
-
-  if (part.type === "image_url") {
-    return part;
-  }
-
-  if (part.type === "file_url") {
-    return part;
-  }
-
-  throw new Error("Unsupported message content part");
-};
-
-const normalizeMessage = (message: Message) => {
-  const { role, name, tool_call_id } = message;
-
-  if (role === "tool" || role === "function") {
-    const content = ensureArray(message.content)
-      .map(part => (typeof part === "string" ? part : JSON.stringify(part)))
-      .join("\n");
-
-    return {
-      role,
-      name,
-      tool_call_id,
-      content,
-    };
-  }
-
-  const contentParts = ensureArray(message.content).map(normalizeContentPart);
-
-  // If there's only text content, collapse to a single string for compatibility
-  if (contentParts.length === 1 && contentParts[0].type === "text") {
-    return {
-      role,
-      name,
-      content: contentParts[0].text,
-    };
-  }
-
-  return {
-    role,
-    name,
-    content: contentParts,
-  };
-};
-
-// ============================================================================
-// GEMINI API TRANSLATION LAYER
-// ============================================================================
 
 type GeminiPart =
   | { text: string }
   | { inlineData: { mimeType: string; data: string } }
+  | { fileData: { fileUri: string; mimeType: string } }
   | { functionCall: { name: string; args: Record<string, unknown> } }
   | { functionResponse: { name: string; response: Record<string, unknown> } };
+type GeminiContent = { role: "user" | "model"; parts: GeminiPart[] };
+type GeminiTool = { functionDeclarations: Array<{ name: string; description?: string; parameters?: Record<string, unknown> }> };
+type GeminiFile = { name: string; uri: string; mimeType: string; state?: "PROCESSING" | "ACTIVE" | "FAILED" };
 
-type GeminiContent = {
-  role: "user" | "model";
-  parts: GeminiPart[];
+const GEMINI_OPERATION = "gemini.generate-content";
+const INLINE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const PROVIDER_TIMEOUT_MS = 60_000;
+const FILE_PROCESS_TIMEOUT_MS = 120_000;
+const FILE_PROCESS_POLL_MS = 2_000;
+const MAX_RETRIES = 2;
+
+const GEMINI_GENERATE_RESPONSE_SCHEMA = z.object({
+  candidates: z.array(z.object({
+    content: z.object({
+      parts: z.array(z.object({
+        text: z.string().optional(),
+        functionCall: z.object({
+          name: z.string(),
+          args: z.record(z.string(), z.unknown()).optional(),
+        }).optional(),
+      }).passthrough()),
+    }).optional(),
+    finishReason: z.string().optional(),
+  })).optional().default([]),
+  promptFeedback: z.unknown().optional(),
+  usageMetadata: z.object({
+    promptTokenCount: z.number().optional(),
+    candidatesTokenCount: z.number().optional(),
+    totalTokenCount: z.number().optional(),
+  }).optional(),
+});
+
+const ensureArray = (value: MessageContent | MessageContent[]): MessageContent[] => Array.isArray(value) ? value : [value];
+
+const normalizeContentPart = (part: MessageContent): Exclude<MessageContent, string> => {
+  if (typeof part === "string") return { type: "text", text: part };
+  return part;
 };
 
-type GeminiTool = {
-  functionDeclarations: Array<{
-    name: string;
-    description?: string;
-    parameters?: Record<string, unknown>;
-  }>;
-};
+const mapRoleToGemini = (role: Role): "user" | "model" => role === "assistant" ? "model" : "user";
 
-const mapRoleToGemini = (role: Role): "user" | "model" => {
-  if (role === "assistant") return "model";
-  // "system", "user", "tool", "function" all become "user" (or are handled specially)
-  return "user";
-};
+function geminiApiUrl(path: string): string {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    throw new AiOperationError("PROVIDER_UNAUTHORIZED", { operation: GEMINI_OPERATION }).report();
+  }
+  return `https://generativelanguage.googleapis.com/v1beta/${path}?key=${encodeURIComponent(key)}`;
+}
 
-const normalizeContentToGeminiParts = async (
-  content: MessageContent | MessageContent[]
-): Promise<GeminiPart[]> => {
+function classifyProviderError(status: number, operation: string): AiOperationError {
+  const mappings: Record<number, { code: AiOperationCode; retryable?: boolean }> = {
+    400: { code: "PROVIDER_REJECTED_INPUT" },
+    401: { code: "PROVIDER_UNAUTHORIZED" },
+    403: { code: "PROVIDER_UNAUTHORIZED" },
+    408: { code: "PROVIDER_TIMEOUT", retryable: true },
+    429: { code: "PROVIDER_RATE_LIMITED", retryable: true },
+    500: { code: "PROVIDER_UNAVAILABLE", retryable: true },
+    502: { code: "PROVIDER_UNAVAILABLE", retryable: true },
+    503: { code: "PROVIDER_UNAVAILABLE", retryable: true },
+    504: { code: "PROVIDER_TIMEOUT", retryable: true },
+  };
+  const mapped = mappings[status] ?? { code: "PROVIDER_UNAVAILABLE" as const, retryable: status >= 500 };
+  return new AiOperationError(mapped.code, { operation, retryable: mapped.retryable, providerStatus: status });
+}
+
+async function providerFetch(url: string, init: RequestInit, operation: string): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS) });
+  } catch (error) {
+    throw toAiOperationError(error, operation).report();
+  }
+}
+
+async function parseGeminiFile(response: Response, operation: string): Promise<GeminiFile> {
+  if (!response.ok) throw classifyProviderError(response.status, operation).report();
+  let body: { file?: GeminiFile };
+  try {
+    body = await response.json() as { file?: GeminiFile };
+  } catch (error) {
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation, cause: error }).report();
+  }
+  if (!body.file?.name || !body.file.uri || !body.file.mimeType) {
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation }).report();
+  }
+  return body.file;
+}
+
+async function uploadGeminiFile(media: ValidatedMedia, cleanup: string[]): Promise<GeminiFile> {
+  const operation = "gemini.files.upload";
+  const start = await providerFetch(geminiApiUrl("upload/v1beta/files"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Upload-Protocol": "resumable",
+      "X-Goog-Upload-Command": "start",
+      "X-Goog-Upload-Header-Content-Length": String(media.sizeBytes),
+      "X-Goog-Upload-Header-Content-Type": media.mimeType,
+    },
+    body: JSON.stringify({ file: { displayName: `miyar-${media.checksum.slice(0, 12)}` } }),
+  }, operation);
+  if (!start.ok) throw classifyProviderError(start.status, operation).report();
+  const uploadUrl = start.headers.get("x-goog-upload-url");
+  if (!uploadUrl) throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation }).report();
+
+  const finalized = await providerFetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Length": String(media.sizeBytes),
+      "Content-Type": media.mimeType,
+      "X-Goog-Upload-Offset": "0",
+      "X-Goog-Upload-Command": "upload, finalize",
+    },
+    body: new Uint8Array(media.buffer),
+  }, operation);
+  let file = await parseGeminiFile(finalized, operation);
+  // Register cleanup before polling. If provider processing later fails or
+  // times out, invokeLLM's finally block still knows which temporary file to
+  // delete.
+  cleanup.push(file.name);
+
+  const deadline = Date.now() + FILE_PROCESS_TIMEOUT_MS;
+  while (file.state === "PROCESSING" && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, FILE_PROCESS_POLL_MS));
+    const state = await providerFetch(geminiApiUrl(file.name), { method: "GET" }, "gemini.files.get");
+    file = await parseGeminiFile(state, "gemini.files.get");
+  }
+  if (file.state === "FAILED") {
+    throw new AiOperationError("PROVIDER_REJECTED_INPUT", { operation }).report();
+  }
+  if (file.state === "PROCESSING") {
+    throw new AiOperationError("PROVIDER_TIMEOUT", { operation, retryable: true }).report();
+  }
+  return file;
+}
+
+async function deleteGeminiFile(fileName: string): Promise<void> {
+  try {
+    const response = await providerFetch(geminiApiUrl(fileName), { method: "DELETE" }, "gemini.files.delete");
+    if (!response.ok) loggerSafeDeleteFailure(response.status);
+  } catch {
+    // Gemini deletes files after 48 hours. Deletion failure is telemetry-only.
+  }
+}
+
+function loggerSafeDeleteFailure(status: number) {
+  // Avoid surfacing provider response bodies or file URLs in application logs.
+  console.warn(`[Gemini Files] cleanup failed with HTTP ${status}`);
+}
+
+async function mediaToGeminiPart(media: ValidatedMedia, cleanup: string[]): Promise<GeminiPart> {
+  if (media.kind === "image" && media.sizeBytes <= INLINE_IMAGE_MAX_BYTES) {
+    return { inlineData: { mimeType: media.mimeType, data: media.buffer.toString("base64") } };
+  }
+  const file = await uploadGeminiFile(media, cleanup);
+  return { fileData: { fileUri: file.uri, mimeType: file.mimeType } };
+}
+
+async function normalizeContentToGeminiParts(
+  content: MessageContent | MessageContent[],
+  cleanup: string[],
+): Promise<GeminiPart[]> {
   const parts = ensureArray(content).map(normalizeContentPart);
-  return await Promise.all(parts.map(async (part) => {
+  return Promise.all(parts.map(async part => {
     if (part.type === "text") return { text: part.text };
-    if (part.type === "image_url") {
-      try {
-        const response = await fetch(part.image_url.url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const mimeType = response.headers.get("content-type") || "image/jpeg";
-        return {
-          inlineData: {
-            mimeType,
-            data: buffer.toString("base64")
-          }
-        };
-      } catch (err: any) {
-        console.error("Failed to fetch image for Gemini inlineData:", err.message);
-        return { text: `[Image reference: ${part.image_url.url}]` };
-      }
-    }
-    if (part.type === "file_url") {
-      return { text: `[File reference: ${part.file_url.url}]` };
+    if (part.type === "media") return mediaToGeminiPart(part.media, cleanup);
+    // URL-shaped media was the source of the original incident. Only a router
+    // that has read and validated storage bytes may create MediaContent.
+    if (part.type === "image_url" || part.type === "file_url") {
+      throw new AiOperationError("MEDIA_UNAVAILABLE", { operation: GEMINI_OPERATION }).report();
     }
     return { text: "" };
   }));
-};
+}
 
-const convertMessagesToGemini = async (
-  messages: Message[]
-): Promise<{
-  systemInstruction?: { parts: { text: string }[] };
+async function convertMessagesToGemini(messages: Message[], cleanup: string[]): Promise<{
+  systemInstruction?: { parts: Array<{ text: string }> };
   contents: GeminiContent[];
-}> => {
-  let systemInstruction: { parts: { text: string }[] } | undefined;
+}> {
+  let systemInstruction: { parts: Array<{ text: string }> } | undefined;
   const contents: GeminiContent[] = [];
 
-  for (const msg of messages) {
-    if (msg.role === "system") {
-      const parts = await normalizeContentToGeminiParts(msg.content);
-      if (!systemInstruction) systemInstruction = { parts: [] };
-      systemInstruction.parts.push(...(parts as { text: string }[]));
-      continue;
-    }
-
-    if (msg.role === "tool" || msg.role === "function") {
-      // Tool responses must be functionResponse parts in a user message
-      const responseText = ensureArray(msg.content)
-        .map(p => (typeof p === "string" ? p : JSON.stringify(p)))
-        .join("\n");
-
-      let parsedResponse: Record<string, unknown>;
-      try {
-        parsedResponse = JSON.parse(responseText);
-      } catch {
-        parsedResponse = { result: responseText };
+  for (const message of messages) {
+    if (message.role === "system") {
+      const parts = await normalizeContentToGeminiParts(message.content, cleanup);
+      const textParts = parts.filter((part): part is { text: string } => "text" in part);
+      if (textParts.length !== parts.length) {
+        throw new AiOperationError("MEDIA_INVALID", { operation: GEMINI_OPERATION }).report();
       }
-
-      contents.push({
-        role: "user",
-        parts: [{
-          functionResponse: {
-            name: msg.name || "unknown_tool",
-            response: parsedResponse,
-          }
-        }]
-      });
+      if (!systemInstruction) systemInstruction = { parts: [] };
+      systemInstruction.parts.push(...textParts);
       continue;
     }
 
-    const role = mapRoleToGemini(msg.role);
-    const parts = await normalizeContentToGeminiParts(msg.content);
-
-    // If there were tool_calls in an assistant message, they become functionCall parts
-    if (msg.role === "assistant" && (msg as any).tool_calls?.length > 0) {
-      const functionCalls = (msg as any).tool_calls.map((tc: ToolCall) => ({
-        functionCall: {
-          name: tc.function.name,
-          args: JSON.parse(tc.function.arguments || "{}"),
-        }
-      }));
-      contents.push({
-        role: "model",
-        parts: [...(parts as any), ...functionCalls]
-      });
+    if (message.role === "tool" || message.role === "function") {
+      const responseText = ensureArray(message.content)
+        .map(part => typeof part === "string" ? part : JSON.stringify(part))
+        .join("\n");
+      let response: Record<string, unknown>;
+      try { response = JSON.parse(responseText) as Record<string, unknown>; }
+      catch { response = { result: responseText }; }
+      contents.push({ role: "user", parts: [{ functionResponse: { name: message.name || "unknown_tool", response } }] });
       continue;
     }
 
-    contents.push({ role, parts });
+    const parts = await normalizeContentToGeminiParts(message.content, cleanup);
+    contents.push({ role: mapRoleToGemini(message.role), parts });
   }
-
-  // Gemini doesn't allow two adjacent user/model messages. It must strictly alternate.
-  // Real implementation sometimes requires merging adjacent roles. For MVP handover logic,
-  // we pass them directly as it usually aligns correctly.
 
   return { systemInstruction, contents };
-};
+}
 
-const resolveApiUrl = () => {
+function resolveApiUrl(): string {
   const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-};
+  return geminiApiUrl(`models/${encodeURIComponent(model)}:generateContent`);
+}
 
-const assertApiKey = () => {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured in the environment");
-  }
-};
+function retryDelay(attempt: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, (2 ** attempt) * 1_000));
+}
 
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
-  assertApiKey();
-
-  const {
-    messages,
-    tools,
-    outputSchema,
-    output_schema,
-    responseFormat,
-    response_format,
-  } = params;
-
-  const { systemInstruction, contents } = await convertMessagesToGemini(messages);
-
-  const payload: Record<string, unknown> = {
-    contents,
-  };
-
-  if (systemInstruction) {
-    payload.systemInstruction = systemInstruction;
-  }
-
-  // Tools formatting
-  if (tools && tools.length > 0) {
-    const geminiTools: GeminiTool[] = [
-      {
-        functionDeclarations: tools.map((t) => ({
-          name: t.function.name,
-          description: t.function.description,
-          parameters: t.function.parameters,
-        })),
-      },
-    ];
-    payload.tools = geminiTools;
-  }
-
-  // Response format formatting (simulated JSON schema for Gemini config)
-  const schema = outputSchema || output_schema;
-  const explicitFormat = responseFormat || response_format;
-
-  if (schema) {
-    payload.generationConfig = {
-      responseMimeType: "application/json",
-      responseSchema: schema.schema,
-    };
-  } else if (explicitFormat?.type === "json_object") {
-    payload.generationConfig = {
-      responseMimeType: "application/json",
-    };
-  }
-
-  let response: Response | undefined;
-  let attempt = 0;
-  const maxRetries = 2; // Reduced from 5 to prevent UI hanging forever
-
-  while (attempt <= maxRetries) {
-    response = await fetch(resolveApiUrl(), {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (response.ok) {
-      break;
+  const cleanup: string[] = [];
+  try {
+    const { systemInstruction, contents } = await convertMessagesToGemini(params.messages, cleanup);
+    const payload: Record<string, unknown> = { contents };
+    if (systemInstruction) payload.systemInstruction = systemInstruction;
+    if (params.tools?.length) {
+      payload.tools = [{ functionDeclarations: params.tools.map(tool => ({
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters,
+      })) } satisfies GeminiTool];
     }
 
-    if (response.status === 429 || response.status === 503) {
-      attempt++;
-      if (attempt > maxRetries) break;
-
-      const errorText = await response.text();
-      console.warn(`[Gemini API] HTTP ${response.status} hit. Retrying attempt ${attempt}/${maxRetries}... Error details: ${errorText.substring(0, 200)}`);
-
-      // Shorter exponential backoff: 2s, 4s to prevent massive tRPC timeouts
-      const delay = (Math.pow(2, attempt) * 1000) + Math.random() * 500;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    } else {
-      break;
+    const schema = params.outputSchema || params.output_schema;
+    const responseFormat = params.responseFormat || params.response_format;
+    if (schema) {
+      payload.generationConfig = {
+        responseMimeType: "application/json",
+        responseSchema: schema.schema,
+        maxOutputTokens: params.maxTokens || params.max_tokens,
+      };
+    } else if (responseFormat?.type === "json_object") {
+      payload.generationConfig = { responseMimeType: "application/json", maxOutputTokens: params.maxTokens || params.max_tokens };
     }
-  }
 
-  if (!response || !response.ok) {
-    const errorText = response ? await response.text().catch(() => "Unknown error") : "No response";
-    const isRateLimit = response?.status === 429;
+    let response: Response | undefined;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      response = await providerFetch(resolveApiUrl(), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      }, GEMINI_OPERATION);
+      if (response.ok) break;
+      const providerError = classifyProviderError(response.status, GEMINI_OPERATION);
+      if (!providerError.retryable || attempt === MAX_RETRIES) throw providerError.report();
+      await retryDelay(attempt + 1);
+    }
+    if (!response?.ok) throw new AiOperationError("PROVIDER_UNAVAILABLE", { operation: GEMINI_OPERATION, retryable: true }).report();
 
-    throw new Error(
-      isRateLimit
-        ? `Gemini Request Limit Reached: Your API key is on the Free Tier (15 requests/min). Please update GEMINI_API_KEY in .env with a billing-enabled key from Google AI Studio.`
-        : `Gemini LLM invoke failed: ${response?.status} ${response?.statusText} – ${errorText}`
-    );
-  }
+    let data: z.infer<typeof GEMINI_GENERATE_RESPONSE_SCHEMA>;
+    try { data = GEMINI_GENERATE_RESPONSE_SCHEMA.parse(await response.json()); }
+    catch (error) { throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: GEMINI_OPERATION, cause: error }).report(); }
+    const candidate = data.candidates?.[0];
+    if (!candidate) {
+      const code: AiOperationCode = data.promptFeedback ? "CONTENT_BLOCKED" : "PROVIDER_INVALID_RESPONSE";
+      throw new AiOperationError(code, { operation: GEMINI_OPERATION }).report();
+    }
 
-  const data = await response.json();
-  const candidate = data.candidates?.[0];
+    const parts = candidate.content?.parts ?? [];
+    const text = parts.flatMap(part => typeof part.text === "string" ? [part.text] : []).join("");
+    const functionCalls = parts.flatMap(part => part.functionCall ? [part.functionCall] : []);
+    if (!text && functionCalls.length === 0) {
+      throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: GEMINI_OPERATION }).report();
+    }
+    const toolCalls = functionCalls.length ? functionCalls.map((functionCall, index: number) => ({
+      id: `call_${Date.now()}_${index}`,
+      type: "function" as const,
+      function: { name: functionCall.name, arguments: JSON.stringify(functionCall.args || {}) },
+    })) : undefined;
 
-  if (!candidate) {
-    throw new Error("No candidates returned from Gemini API");
-  }
-
-  // Convert Gemini Candidate back to OpenAI InvokeResult
-  const parts = candidate.content?.parts || [];
-
-  // Extract text and tool calls
-  const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text).join("");
-  const functionCallParts = parts.filter((p: any) => p.functionCall);
-
-  let tool_calls: ToolCall[] | undefined;
-  if (functionCallParts.length > 0) {
-    tool_calls = functionCallParts.map((fc: any, idx: number) => ({
-      id: `call_${Date.now()}_${idx}`,
-      type: "function",
-      function: {
-        name: fc.functionCall.name,
-        arguments: JSON.stringify(fc.functionCall.args || {}),
-      },
-    }));
-  }
-
-  return {
-    id: `gemini-${Date.now()}`,
-    created: Math.floor(Date.now() / 1000),
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-    choices: [
-      {
+    return {
+      id: `gemini-${Date.now()}`,
+      created: Math.floor(Date.now() / 1_000),
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      choices: [{
         index: 0,
-        message: {
-          role: "assistant",
-          content: textParts,
-          tool_calls,
-        },
-        finish_reason: candidate.finishReason === "STOP" ? "stop" :
-          functionCallParts.length > 0 ? "tool_calls" : "length",
+        message: { role: "assistant", content: text, tool_calls: toolCalls },
+        finish_reason: candidate.finishReason === "STOP" ? "stop" : functionCalls.length ? "tool_calls" : "length",
+      }],
+      usage: {
+        prompt_tokens: data.usageMetadata?.promptTokenCount || 0,
+        completion_tokens: data.usageMetadata?.candidatesTokenCount || 0,
+        total_tokens: data.usageMetadata?.totalTokenCount || 0,
       },
-    ],
-    usage: {
-      prompt_tokens: data.usageMetadata?.promptTokenCount || 0,
-      completion_tokens: data.usageMetadata?.candidatesTokenCount || 0,
-      total_tokens: data.usageMetadata?.totalTokenCount || 0,
-    },
-  };
+    };
+  } finally {
+    await Promise.all(cleanup.map(deleteGeminiFile));
+  }
 }

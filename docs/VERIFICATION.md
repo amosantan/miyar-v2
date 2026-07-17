@@ -82,6 +82,14 @@ Every change requires:
 - Redirects, timeouts, empty content, parse errors, and provider failure are covered.
 - Evidence does not become an authoritative benchmark without the intended gate.
 
+### AI and multimodal media
+
+- Accepted image, PDF, audio, and video fixtures exercise byte validation; include zero-byte, spoofed MIME, malformed, oversized, and excessive-pixel cases.
+- Mocked provider tests cover invalid input, authentication, rate limiting, temporary outage, timeout, malformed output, retry bounds, and temporary-file cleanup.
+- Router tests reject cross-organization assets, caller-controlled media URLs/keys, tampered metadata, and unfinalized objects.
+- Customer error tests prove that provider bodies, URLs, credentials, and stacks cannot reach a toast, persisted customer-visible error field, or error boundary.
+- Browser evidence covers partial batch success plus desktop and mobile upload/error/retry states. A production canary uses disposable synthetic media only and requires release approval.
+
 ### Reports and visual outputs
 
 - Required sections, numbers, evidence, disclaimers, and document IDs exist.

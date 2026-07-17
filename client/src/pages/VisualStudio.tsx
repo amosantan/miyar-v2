@@ -11,6 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Wand2, Image, Loader2, AlertCircle, Sparkles, Palette, Camera, Eye, Clock, Hash } from "lucide-react";
 import { toast } from "sonner";
 import type { PromptTemplate } from "@shared/entity-types";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
+
+const safeAiError = (error: unknown, fallback: string) => withReference(formatAiOperationError(error, fallback));
+const safeResultFailure = (referenceId: string | null | undefined, fallback: string) =>
+  referenceId ? `${fallback} Reference: ${referenceId}` : fallback;
 
 export default function VisualStudio() {
   const [, params] = useRoute("/projects/:id/visuals");
@@ -30,11 +35,11 @@ export default function VisualStudio() {
       if (result.status === "completed") {
         toast.success("Visual generated", { description: "Image created and saved to Evidence Vault" });
       } else {
-        toast.error("Generation failed", { description: result.error || "Unknown error" });
+        toast.error("Generation failed", { description: safeResultFailure(result.referenceId, "We could not generate this visual. Please try again.") });
       }
       visuals.refetch();
     },
-    onError: (err) => toast.error("Generation failed", { description: err.message }),
+    onError: (err) => toast.error("Generation failed", { description: safeAiError(err, "We could not generate this visual. Please try again.") }),
   });
 
   const handleGenerate = () => {
@@ -199,7 +204,7 @@ export default function VisualStudio() {
                         {visual.status === "failed" && (
                           <div className="aspect-video bg-destructive/5 flex flex-col items-center justify-center gap-2">
                             <AlertCircle className="h-8 w-8 text-destructive" />
-                            <span className="text-xs text-destructive">{visual.errorMessage || "Generation failed"}</span>
+                            <span className="text-xs text-destructive">Generation failed. Please try again.</span>
                           </div>
                         )}
                         <CardContent className="pt-3 space-y-1.5">
@@ -326,7 +331,7 @@ export default function VisualStudio() {
                 {previewVisual.errorMessage && (
                   <div className="bg-destructive/10 rounded p-3 text-sm text-destructive">
                     <AlertCircle className="h-4 w-4 inline mr-2" />
-                    {previewVisual.errorMessage}
+                    Generation failed. Please try again.
                   </div>
                 )}
               </div>

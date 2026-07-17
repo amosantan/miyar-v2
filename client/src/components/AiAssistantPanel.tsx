@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Button } from "@/components/ui/button";
 import { AIChatBox, Message } from "./AIChatBox";
 import { trpc } from "@/lib/trpc";
+import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 
 export function AiAssistantPanel() {
     const [open, setOpen] = useState(false);
@@ -21,7 +22,7 @@ export function AiAssistantPanel() {
         onError: (err) => {
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: `I encountered an error processing your query: ${err.message}` }
+                { role: "assistant", content: withReference(formatAiOperationError(err, "I could not process that request. Please try again.")) }
             ]);
         }
     });

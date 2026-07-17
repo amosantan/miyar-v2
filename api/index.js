@@ -5598,9 +5598,157 @@ var init_db = __esm({
   }
 });
 
+// server/_core/logger.ts
+function emit(level, message, meta) {
+  if (LOG_LEVELS[level] < MIN_LEVEL) return;
+  const entry = {
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    level,
+    message,
+    service: "miyar-api",
+    ...meta
+  };
+  if (IS_JSON) {
+    const fn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+    fn(JSON.stringify(entry));
+  } else {
+    const color = level === "error" ? "\x1B[31m" : level === "warn" ? "\x1B[33m" : level === "debug" ? "\x1B[90m" : "\x1B[36m";
+    const reset = "\x1B[0m";
+    const time = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", { hour12: false });
+    const metaStr = meta ? ` ${JSON.stringify(meta)}` : "";
+    console.log(`${color}[${time}] ${level.toUpperCase().padEnd(5)} ${message}${metaStr}${reset}`);
+  }
+}
+var LOG_LEVELS, MIN_LEVEL, IS_JSON, logger;
+var init_logger = __esm({
+  "server/_core/logger.ts"() {
+    "use strict";
+    LOG_LEVELS = {
+      debug: 0,
+      info: 1,
+      warn: 2,
+      error: 3
+    };
+    MIN_LEVEL = LOG_LEVELS[process.env.LOG_LEVEL || "info"];
+    IS_JSON = process.env.LOG_FORMAT !== "pretty";
+    logger = {
+      debug: (msg, meta) => emit("debug", msg, meta),
+      info: (msg, meta) => emit("info", msg, meta),
+      warn: (msg, meta) => emit("warn", msg, meta),
+      error: (msg, meta) => emit("error", msg, meta)
+    };
+  }
+});
+
+// server/_core/sentry.ts
+function captureException(err, context) {
+  if (!Sentry) return;
+  Sentry.withScope((scope) => {
+    if (context) {
+      Object.entries(context).forEach(([key, val]) => {
+        scope.setExtra(key, val);
+      });
+    }
+    Sentry.captureException(err);
+  });
+}
+function captureMessage(message, level = "info") {
+  if (!Sentry) return;
+  Sentry.captureMessage(message, level);
+}
+var Sentry;
+var init_sentry = __esm({
+  "server/_core/sentry.ts"() {
+    "use strict";
+    Sentry = null;
+  }
+});
+
+// server/_core/ai-operation.ts
+import { nanoid } from "nanoid";
+function getAiOperationError(error) {
+  if (error instanceof AiOperationError) return error;
+  if (error && typeof error === "object" && "cause" in error) {
+    return getAiOperationError(error.cause);
+  }
+  return void 0;
+}
+function toAiOperationError(error, operation) {
+  const existing = getAiOperationError(error);
+  if (existing) return existing;
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return new AiOperationError("PROVIDER_TIMEOUT", { operation, retryable: true, cause: error });
+  }
+  return new AiOperationError("PROVIDER_UNAVAILABLE", { operation, retryable: true, cause: error });
+}
+function toAiOperationFailure(error, operation) {
+  const normalized = toAiOperationError(error, operation).report();
+  return {
+    code: normalized.code,
+    message: normalized.message,
+    retryable: normalized.retryable,
+    referenceId: normalized.correlationId
+  };
+}
+var USER_MESSAGES, AiOperationError;
+var init_ai_operation = __esm({
+  "server/_core/ai-operation.ts"() {
+    "use strict";
+    init_logger();
+    init_sentry();
+    USER_MESSAGES = {
+      MEDIA_INVALID: "This file is damaged or is not a valid media file. Please choose another file.",
+      MEDIA_UNSUPPORTED: "This file type is not supported. Please choose a supported image, PDF, audio, or video file.",
+      MEDIA_TOO_LARGE: "This file is too large. Please upload a file smaller than 50 MB.",
+      MEDIA_UNAVAILABLE: "We could not retrieve this file. Please upload it again.",
+      PROVIDER_REJECTED_INPUT: "The AI service could not process this file. Please try another file or format.",
+      PROVIDER_RATE_LIMITED: "The AI service is busy. Please try again in a moment.",
+      PROVIDER_UNAVAILABLE: "The AI service is temporarily unavailable. Please try again shortly.",
+      PROVIDER_UNAUTHORIZED: "The AI service is not available right now. Please contact support if this continues.",
+      PROVIDER_TIMEOUT: "The AI service is still processing this file. Please try again.",
+      PROVIDER_INVALID_RESPONSE: "The AI service returned an unusable result. Please try again.",
+      CONTENT_BLOCKED: "The AI service could not process this content. Please review the file and try another one."
+    };
+    AiOperationError = class extends Error {
+      constructor(code, options) {
+        super(USER_MESSAGES[code]);
+        this.code = code;
+        this.options = options;
+        this.name = "AiOperationError";
+        this.correlationId = options.correlationId ?? nanoid(12);
+      }
+      correlationId;
+      get retryable() {
+        return this.options.retryable ?? false;
+      }
+      get operation() {
+        return this.options.operation;
+      }
+      report(metadata = {}) {
+        const context = {
+          source: "ai-operation",
+          operation: this.operation,
+          aiCode: this.code,
+          retryable: this.retryable,
+          providerStatus: this.options.providerStatus,
+          correlationId: this.correlationId,
+          ...metadata
+        };
+        logger.error("AI operation failed", context);
+        captureException(this.options.cause ?? this, context);
+        return this;
+      }
+    };
+  }
+});
+
 // server/engines/area-utils.ts
+function finiteArea(value) {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
 function getPricingArea(inputs) {
-  return inputs.totalFitoutArea ?? inputs.ctx03Gfa ?? 0;
+  return finiteArea(inputs.totalFitoutArea ?? inputs.ctx03Gfa);
 }
 function computeFitoutRatio(fitoutArea, gfa) {
   if (!fitoutArea || !gfa || gfa <= 0) return 1;
@@ -5615,15 +5763,18 @@ var init_area_utils = __esm({
 // server/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
+  storageCreatePresignedPut: () => storageCreatePresignedPut,
   storageDelete: () => storageDelete,
   storageGet: () => storageGet,
-  storagePut: () => storagePut
+  storagePut: () => storagePut,
+  storageRead: () => storageRead
 });
 import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
-  DeleteObjectCommand
+  DeleteObjectCommand,
+  HeadObjectCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Buffer as Buffer2 } from "node:buffer";
@@ -5672,6 +5823,40 @@ async function storagePut(relKey, data, contentType = "application/octet-stream"
   const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
   return { key, url };
 }
+async function storageCreatePresignedPut(relKey, contentType, expiresIn = 15 * 60) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for direct uploads");
+  }
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType
+  });
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  return { key, uploadUrl };
+}
+async function storageRead(relKey, maxBytes) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for server-side validation");
+  }
+  const head = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
+  const sizeBytes = head.ContentLength ?? 0;
+  if (sizeBytes <= 0 || sizeBytes > maxBytes) {
+    return { key, contentType: head.ContentType, sizeBytes, buffer: Buffer2.alloc(0) };
+  }
+  const object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
+  if (!object.Body) throw new Error("Object storage returned no body");
+  const data = await object.Body.transformToByteArray();
+  const buffer = Buffer2.from(data);
+  if (buffer.length !== sizeBytes || buffer.length > maxBytes) {
+    throw new Error("Object storage size changed during validation");
+  }
+  return { key, contentType: head.ContentType, sizeBytes, buffer };
+}
 async function storageGet(relKey) {
   const { client, bucketName } = getS3Client();
   const key = normalizeKey(relKey);
@@ -5707,229 +5892,271 @@ var llm_exports = {};
 __export(llm_exports, {
   invokeLLM: () => invokeLLM
 });
-async function invokeLLM(params) {
-  assertApiKey();
-  const {
-    messages,
-    tools,
-    outputSchema,
-    output_schema,
-    responseFormat,
-    response_format
-  } = params;
-  const { systemInstruction, contents } = await convertMessagesToGemini(messages);
-  const payload = {
-    contents
-  };
-  if (systemInstruction) {
-    payload.systemInstruction = systemInstruction;
+import { z as z3 } from "zod";
+function geminiApiUrl(path) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    throw new AiOperationError("PROVIDER_UNAUTHORIZED", { operation: GEMINI_OPERATION }).report();
   }
-  if (tools && tools.length > 0) {
-    const geminiTools = [
-      {
-        functionDeclarations: tools.map((t2) => ({
-          name: t2.function.name,
-          description: t2.function.description,
-          parameters: t2.function.parameters
-        }))
-      }
-    ];
-    payload.tools = geminiTools;
-  }
-  const schema = outputSchema || output_schema;
-  const explicitFormat = responseFormat || response_format;
-  if (schema) {
-    payload.generationConfig = {
-      responseMimeType: "application/json",
-      responseSchema: schema.schema
-    };
-  } else if (explicitFormat?.type === "json_object") {
-    payload.generationConfig = {
-      responseMimeType: "application/json"
-    };
-  }
-  let response;
-  let attempt = 0;
-  const maxRetries = 2;
-  while (attempt <= maxRetries) {
-    response = await fetch(resolveApiUrl(), {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-    if (response.ok) {
-      break;
-    }
-    if (response.status === 429 || response.status === 503) {
-      attempt++;
-      if (attempt > maxRetries) break;
-      const errorText = await response.text();
-      console.warn(`[Gemini API] HTTP ${response.status} hit. Retrying attempt ${attempt}/${maxRetries}... Error details: ${errorText.substring(0, 200)}`);
-      const delay = Math.pow(2, attempt) * 1e3 + Math.random() * 500;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    } else {
-      break;
-    }
-  }
-  if (!response || !response.ok) {
-    const errorText = response ? await response.text().catch(() => "Unknown error") : "No response";
-    const isRateLimit = response?.status === 429;
-    throw new Error(
-      isRateLimit ? `Gemini Request Limit Reached: Your API key is on the Free Tier (15 requests/min). Please update GEMINI_API_KEY in .env with a billing-enabled key from Google AI Studio.` : `Gemini LLM invoke failed: ${response?.status} ${response?.statusText} \u2013 ${errorText}`
-    );
-  }
-  const data = await response.json();
-  const candidate = data.candidates?.[0];
-  if (!candidate) {
-    throw new Error("No candidates returned from Gemini API");
-  }
-  const parts = candidate.content?.parts || [];
-  const textParts = parts.filter((p) => p.text).map((p) => p.text).join("");
-  const functionCallParts = parts.filter((p) => p.functionCall);
-  let tool_calls;
-  if (functionCallParts.length > 0) {
-    tool_calls = functionCallParts.map((fc, idx) => ({
-      id: `call_${Date.now()}_${idx}`,
-      type: "function",
-      function: {
-        name: fc.functionCall.name,
-        arguments: JSON.stringify(fc.functionCall.args || {})
-      }
-    }));
-  }
-  return {
-    id: `gemini-${Date.now()}`,
-    created: Math.floor(Date.now() / 1e3),
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-    choices: [
-      {
-        index: 0,
-        message: {
-          role: "assistant",
-          content: textParts,
-          tool_calls
-        },
-        finish_reason: candidate.finishReason === "STOP" ? "stop" : functionCallParts.length > 0 ? "tool_calls" : "length"
-      }
-    ],
-    usage: {
-      prompt_tokens: data.usageMetadata?.promptTokenCount || 0,
-      completion_tokens: data.usageMetadata?.candidatesTokenCount || 0,
-      total_tokens: data.usageMetadata?.totalTokenCount || 0
-    }
-  };
+  return `https://generativelanguage.googleapis.com/v1beta/${path}?key=${encodeURIComponent(key)}`;
 }
-var ensureArray, normalizeContentPart, mapRoleToGemini, normalizeContentToGeminiParts, convertMessagesToGemini, resolveApiUrl, assertApiKey;
+function classifyProviderError(status, operation) {
+  const mappings = {
+    400: { code: "PROVIDER_REJECTED_INPUT" },
+    401: { code: "PROVIDER_UNAUTHORIZED" },
+    403: { code: "PROVIDER_UNAUTHORIZED" },
+    408: { code: "PROVIDER_TIMEOUT", retryable: true },
+    429: { code: "PROVIDER_RATE_LIMITED", retryable: true },
+    500: { code: "PROVIDER_UNAVAILABLE", retryable: true },
+    502: { code: "PROVIDER_UNAVAILABLE", retryable: true },
+    503: { code: "PROVIDER_UNAVAILABLE", retryable: true },
+    504: { code: "PROVIDER_TIMEOUT", retryable: true }
+  };
+  const mapped = mappings[status] ?? { code: "PROVIDER_UNAVAILABLE", retryable: status >= 500 };
+  return new AiOperationError(mapped.code, { operation, retryable: mapped.retryable, providerStatus: status });
+}
+async function providerFetch(url, init, operation) {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS) });
+  } catch (error) {
+    throw toAiOperationError(error, operation).report();
+  }
+}
+async function parseGeminiFile(response, operation) {
+  if (!response.ok) throw classifyProviderError(response.status, operation).report();
+  let body;
+  try {
+    body = await response.json();
+  } catch (error) {
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation, cause: error }).report();
+  }
+  if (!body.file?.name || !body.file.uri || !body.file.mimeType) {
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation }).report();
+  }
+  return body.file;
+}
+async function uploadGeminiFile(media, cleanup) {
+  const operation = "gemini.files.upload";
+  const start = await providerFetch(geminiApiUrl("upload/v1beta/files"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Upload-Protocol": "resumable",
+      "X-Goog-Upload-Command": "start",
+      "X-Goog-Upload-Header-Content-Length": String(media.sizeBytes),
+      "X-Goog-Upload-Header-Content-Type": media.mimeType
+    },
+    body: JSON.stringify({ file: { displayName: `miyar-${media.checksum.slice(0, 12)}` } })
+  }, operation);
+  if (!start.ok) throw classifyProviderError(start.status, operation).report();
+  const uploadUrl = start.headers.get("x-goog-upload-url");
+  if (!uploadUrl) throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation }).report();
+  const finalized = await providerFetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Length": String(media.sizeBytes),
+      "Content-Type": media.mimeType,
+      "X-Goog-Upload-Offset": "0",
+      "X-Goog-Upload-Command": "upload, finalize"
+    },
+    body: new Uint8Array(media.buffer)
+  }, operation);
+  let file = await parseGeminiFile(finalized, operation);
+  cleanup.push(file.name);
+  const deadline = Date.now() + FILE_PROCESS_TIMEOUT_MS;
+  while (file.state === "PROCESSING" && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, FILE_PROCESS_POLL_MS));
+    const state = await providerFetch(geminiApiUrl(file.name), { method: "GET" }, "gemini.files.get");
+    file = await parseGeminiFile(state, "gemini.files.get");
+  }
+  if (file.state === "FAILED") {
+    throw new AiOperationError("PROVIDER_REJECTED_INPUT", { operation }).report();
+  }
+  if (file.state === "PROCESSING") {
+    throw new AiOperationError("PROVIDER_TIMEOUT", { operation, retryable: true }).report();
+  }
+  return file;
+}
+async function deleteGeminiFile(fileName) {
+  try {
+    const response = await providerFetch(geminiApiUrl(fileName), { method: "DELETE" }, "gemini.files.delete");
+    if (!response.ok) loggerSafeDeleteFailure(response.status);
+  } catch {
+  }
+}
+function loggerSafeDeleteFailure(status) {
+  console.warn(`[Gemini Files] cleanup failed with HTTP ${status}`);
+}
+async function mediaToGeminiPart(media, cleanup) {
+  if (media.kind === "image" && media.sizeBytes <= INLINE_IMAGE_MAX_BYTES) {
+    return { inlineData: { mimeType: media.mimeType, data: media.buffer.toString("base64") } };
+  }
+  const file = await uploadGeminiFile(media, cleanup);
+  return { fileData: { fileUri: file.uri, mimeType: file.mimeType } };
+}
+async function normalizeContentToGeminiParts(content, cleanup) {
+  const parts = ensureArray(content).map(normalizeContentPart);
+  return Promise.all(parts.map(async (part) => {
+    if (part.type === "text") return { text: part.text };
+    if (part.type === "media") return mediaToGeminiPart(part.media, cleanup);
+    if (part.type === "image_url" || part.type === "file_url") {
+      throw new AiOperationError("MEDIA_UNAVAILABLE", { operation: GEMINI_OPERATION }).report();
+    }
+    return { text: "" };
+  }));
+}
+async function convertMessagesToGemini(messages, cleanup) {
+  let systemInstruction;
+  const contents = [];
+  for (const message of messages) {
+    if (message.role === "system") {
+      const parts2 = await normalizeContentToGeminiParts(message.content, cleanup);
+      const textParts = parts2.filter((part) => "text" in part);
+      if (textParts.length !== parts2.length) {
+        throw new AiOperationError("MEDIA_INVALID", { operation: GEMINI_OPERATION }).report();
+      }
+      if (!systemInstruction) systemInstruction = { parts: [] };
+      systemInstruction.parts.push(...textParts);
+      continue;
+    }
+    if (message.role === "tool" || message.role === "function") {
+      const responseText = ensureArray(message.content).map((part) => typeof part === "string" ? part : JSON.stringify(part)).join("\n");
+      let response;
+      try {
+        response = JSON.parse(responseText);
+      } catch {
+        response = { result: responseText };
+      }
+      contents.push({ role: "user", parts: [{ functionResponse: { name: message.name || "unknown_tool", response } }] });
+      continue;
+    }
+    const parts = await normalizeContentToGeminiParts(message.content, cleanup);
+    contents.push({ role: mapRoleToGemini(message.role), parts });
+  }
+  return { systemInstruction, contents };
+}
+function resolveApiUrl() {
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  return geminiApiUrl(`models/${encodeURIComponent(model)}:generateContent`);
+}
+function retryDelay(attempt) {
+  return new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 1e3));
+}
+async function invokeLLM(params) {
+  const cleanup = [];
+  try {
+    const { systemInstruction, contents } = await convertMessagesToGemini(params.messages, cleanup);
+    const payload = { contents };
+    if (systemInstruction) payload.systemInstruction = systemInstruction;
+    if (params.tools?.length) {
+      payload.tools = [{ functionDeclarations: params.tools.map((tool) => ({
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters
+      })) }];
+    }
+    const schema = params.outputSchema || params.output_schema;
+    const responseFormat = params.responseFormat || params.response_format;
+    if (schema) {
+      payload.generationConfig = {
+        responseMimeType: "application/json",
+        responseSchema: schema.schema,
+        maxOutputTokens: params.maxTokens || params.max_tokens
+      };
+    } else if (responseFormat?.type === "json_object") {
+      payload.generationConfig = { responseMimeType: "application/json", maxOutputTokens: params.maxTokens || params.max_tokens };
+    }
+    let response;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      response = await providerFetch(resolveApiUrl(), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      }, GEMINI_OPERATION);
+      if (response.ok) break;
+      const providerError = classifyProviderError(response.status, GEMINI_OPERATION);
+      if (!providerError.retryable || attempt === MAX_RETRIES) throw providerError.report();
+      await retryDelay(attempt + 1);
+    }
+    if (!response?.ok) throw new AiOperationError("PROVIDER_UNAVAILABLE", { operation: GEMINI_OPERATION, retryable: true }).report();
+    let data;
+    try {
+      data = GEMINI_GENERATE_RESPONSE_SCHEMA.parse(await response.json());
+    } catch (error) {
+      throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: GEMINI_OPERATION, cause: error }).report();
+    }
+    const candidate = data.candidates?.[0];
+    if (!candidate) {
+      const code = data.promptFeedback ? "CONTENT_BLOCKED" : "PROVIDER_INVALID_RESPONSE";
+      throw new AiOperationError(code, { operation: GEMINI_OPERATION }).report();
+    }
+    const parts = candidate.content?.parts ?? [];
+    const text2 = parts.flatMap((part) => typeof part.text === "string" ? [part.text] : []).join("");
+    const functionCalls = parts.flatMap((part) => part.functionCall ? [part.functionCall] : []);
+    if (!text2 && functionCalls.length === 0) {
+      throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: GEMINI_OPERATION }).report();
+    }
+    const toolCalls = functionCalls.length ? functionCalls.map((functionCall, index2) => ({
+      id: `call_${Date.now()}_${index2}`,
+      type: "function",
+      function: { name: functionCall.name, arguments: JSON.stringify(functionCall.args || {}) }
+    })) : void 0;
+    return {
+      id: `gemini-${Date.now()}`,
+      created: Math.floor(Date.now() / 1e3),
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      choices: [{
+        index: 0,
+        message: { role: "assistant", content: text2, tool_calls: toolCalls },
+        finish_reason: candidate.finishReason === "STOP" ? "stop" : functionCalls.length ? "tool_calls" : "length"
+      }],
+      usage: {
+        prompt_tokens: data.usageMetadata?.promptTokenCount || 0,
+        completion_tokens: data.usageMetadata?.candidatesTokenCount || 0,
+        total_tokens: data.usageMetadata?.totalTokenCount || 0
+      }
+    };
+  } finally {
+    await Promise.all(cleanup.map(deleteGeminiFile));
+  }
+}
+var GEMINI_OPERATION, INLINE_IMAGE_MAX_BYTES, PROVIDER_TIMEOUT_MS, FILE_PROCESS_TIMEOUT_MS, FILE_PROCESS_POLL_MS, MAX_RETRIES, GEMINI_GENERATE_RESPONSE_SCHEMA, ensureArray, normalizeContentPart, mapRoleToGemini;
 var init_llm = __esm({
   "server/_core/llm.ts"() {
     "use strict";
+    init_ai_operation();
+    GEMINI_OPERATION = "gemini.generate-content";
+    INLINE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+    PROVIDER_TIMEOUT_MS = 6e4;
+    FILE_PROCESS_TIMEOUT_MS = 12e4;
+    FILE_PROCESS_POLL_MS = 2e3;
+    MAX_RETRIES = 2;
+    GEMINI_GENERATE_RESPONSE_SCHEMA = z3.object({
+      candidates: z3.array(z3.object({
+        content: z3.object({
+          parts: z3.array(z3.object({
+            text: z3.string().optional(),
+            functionCall: z3.object({
+              name: z3.string(),
+              args: z3.record(z3.string(), z3.unknown()).optional()
+            }).optional()
+          }).passthrough())
+        }).optional(),
+        finishReason: z3.string().optional()
+      })).optional().default([]),
+      promptFeedback: z3.unknown().optional(),
+      usageMetadata: z3.object({
+        promptTokenCount: z3.number().optional(),
+        candidatesTokenCount: z3.number().optional(),
+        totalTokenCount: z3.number().optional()
+      }).optional()
+    });
     ensureArray = (value) => Array.isArray(value) ? value : [value];
     normalizeContentPart = (part) => {
-      if (typeof part === "string") {
-        return { type: "text", text: part };
-      }
-      if (part.type === "text") {
-        return part;
-      }
-      if (part.type === "image_url") {
-        return part;
-      }
-      if (part.type === "file_url") {
-        return part;
-      }
-      throw new Error("Unsupported message content part");
+      if (typeof part === "string") return { type: "text", text: part };
+      return part;
     };
-    mapRoleToGemini = (role) => {
-      if (role === "assistant") return "model";
-      return "user";
-    };
-    normalizeContentToGeminiParts = async (content) => {
-      const parts = ensureArray(content).map(normalizeContentPart);
-      return await Promise.all(parts.map(async (part) => {
-        if (part.type === "text") return { text: part.text };
-        if (part.type === "image_url") {
-          try {
-            const response = await fetch(part.image_url.url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const mimeType = response.headers.get("content-type") || "image/jpeg";
-            return {
-              inlineData: {
-                mimeType,
-                data: buffer.toString("base64")
-              }
-            };
-          } catch (err) {
-            console.error("Failed to fetch image for Gemini inlineData:", err.message);
-            return { text: `[Image reference: ${part.image_url.url}]` };
-          }
-        }
-        if (part.type === "file_url") {
-          return { text: `[File reference: ${part.file_url.url}]` };
-        }
-        return { text: "" };
-      }));
-    };
-    convertMessagesToGemini = async (messages) => {
-      let systemInstruction;
-      const contents = [];
-      for (const msg of messages) {
-        if (msg.role === "system") {
-          const parts2 = await normalizeContentToGeminiParts(msg.content);
-          if (!systemInstruction) systemInstruction = { parts: [] };
-          systemInstruction.parts.push(...parts2);
-          continue;
-        }
-        if (msg.role === "tool" || msg.role === "function") {
-          const responseText = ensureArray(msg.content).map((p) => typeof p === "string" ? p : JSON.stringify(p)).join("\n");
-          let parsedResponse;
-          try {
-            parsedResponse = JSON.parse(responseText);
-          } catch {
-            parsedResponse = { result: responseText };
-          }
-          contents.push({
-            role: "user",
-            parts: [{
-              functionResponse: {
-                name: msg.name || "unknown_tool",
-                response: parsedResponse
-              }
-            }]
-          });
-          continue;
-        }
-        const role = mapRoleToGemini(msg.role);
-        const parts = await normalizeContentToGeminiParts(msg.content);
-        if (msg.role === "assistant" && msg.tool_calls?.length > 0) {
-          const functionCalls = msg.tool_calls.map((tc) => ({
-            functionCall: {
-              name: tc.function.name,
-              args: JSON.parse(tc.function.arguments || "{}")
-            }
-          }));
-          contents.push({
-            role: "model",
-            parts: [...parts, ...functionCalls]
-          });
-          continue;
-        }
-        contents.push({ role, parts });
-      }
-      return { systemInstruction, contents };
-    };
-    resolveApiUrl = () => {
-      const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-      return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    };
-    assertApiKey = () => {
-      if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY is not configured in the environment");
-      }
-    };
+    mapRoleToGemini = (role) => role === "assistant" ? "model" : "user";
   }
 });
 
@@ -7651,9 +7878,10 @@ var init_board_composer = __esm({
 // server/engines/pdf-extraction.ts
 var pdf_extraction_exports = {};
 __export(pdf_extraction_exports, {
-  extractRoomsFromImage: () => extractRoomsFromImage
+  extractRoomsFromMedia: () => extractRoomsFromMedia
 });
-async function extractRoomsFromImage(imageUrl, projectContext) {
+import { z as z4 } from "zod";
+async function extractRoomsFromMedia(media, projectContext) {
   const contextNote = projectContext ? `
 Project context: ${projectContext.typology || "Residential"} project, GFA: ${projectContext.gfa || "unknown"} sqm, Archetype: ${projectContext.archetype || "unknown"}` : "";
   const result = await invokeLLM({
@@ -7666,8 +7894,8 @@ Project context: ${projectContext.typology || "Residential"} project, GFA: ${pro
             text: EXTRACTION_PROMPT + contextNote + "\n\nAnalyze this floor plan and extract all rooms with their areas."
           },
           {
-            type: "image_url",
-            image_url: { url: imageUrl, detail: "high" }
+            type: "media",
+            media
           }
         ]
       }
@@ -7701,17 +7929,21 @@ Project context: ${projectContext.typology || "Residential"} project, GFA: ${pro
   const text2 = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => c.text || "").join("") : "";
   let parsed;
   try {
-    parsed = JSON.parse(text2);
-  } catch {
+    parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(text2));
+  } catch (error) {
     const jsonMatch = text2.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      parsed = JSON.parse(jsonMatch[0]);
+      try {
+        parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(jsonMatch[0]));
+      } catch (fallbackError) {
+        throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "area-extraction", cause: fallbackError }).report();
+      }
     } else {
-      throw new Error("Failed to parse Gemini extraction response");
+      throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "area-extraction", cause: error }).report();
     }
   }
   const warnings = [];
-  const rooms = (parsed.rooms || []).map((r) => ({
+  const rooms = parsed.rooms.map((r) => ({
     name: r.name || "Unknown Room",
     areaSqm: Math.round((r.areaSqm || 0) * 10) / 10,
     confidence: Math.min(1, Math.max(0, r.confidence || 0.5)),
@@ -7739,11 +7971,12 @@ Project context: ${projectContext.typology || "Residential"} project, GFA: ${pro
     warnings
   };
 }
-var EXTRACTION_PROMPT;
+var EXTRACTION_PROMPT, EXTRACTION_RESULT_SCHEMA;
 var init_pdf_extraction = __esm({
   "server/engines/pdf-extraction.ts"() {
     "use strict";
     init_llm();
+    init_ai_operation();
     EXTRACTION_PROMPT = `You are an expert architectural floor plan analyst working in the UAE interior design market.
 
 Analyze the provided floor plan image and extract ALL rooms/spaces with their approximate areas.
@@ -7761,6 +7994,16 @@ Rules:
 4. Do NOT include external areas (parking, garden) unless they are enclosed balconies/terraces
 5. Label rooms exactly as shown on the plan; if no label is visible, use descriptive names like "Room 1", "Corridor"
 6. Round areas to one decimal place`;
+    EXTRACTION_RESULT_SCHEMA = z4.object({
+      rooms: z4.array(z4.object({
+        name: z4.string().optional(),
+        areaSqm: z4.number().finite().optional(),
+        confidence: z4.number().finite().optional(),
+        category: z4.string().optional()
+      })),
+      totalArea: z4.number().finite().optional(),
+      notes: z4.string().optional()
+    });
   }
 });
 
@@ -7908,20 +8151,8 @@ var init_monte_carlo = __esm({
 });
 
 // server/engines/design/floor-plan-analyzer.ts
-async function analyzeFloorPlan(imageUrl, mimeType = "image/jpeg") {
-  let imageBuffer;
-  try {
-    const response = await fetch(imageUrl, {
-      signal: AbortSignal.timeout(3e4)
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    imageBuffer = Buffer.from(await response.arrayBuffer());
-  } catch (err) {
-    throw new Error(
-      `Failed to fetch floor plan image: ${err instanceof Error ? err.message : String(err)}`
-    );
-  }
-  const base64Image = imageBuffer.toString("base64");
+import { z as z8 } from "zod";
+async function analyzeFloorPlan(media) {
   const result = await invokeLLM({
     messages: [
       {
@@ -7933,10 +8164,8 @@ async function analyzeFloorPlan(imageUrl, mimeType = "image/jpeg") {
         content: [
           { type: "text", text: FLOOR_PLAN_PROMPT },
           {
-            type: "image_url",
-            image_url: {
-              url: `data:${mimeType};base64,${base64Image}`
-            }
+            type: "media",
+            media
           }
         ]
       }
@@ -7945,20 +8174,26 @@ async function analyzeFloorPlan(imageUrl, mimeType = "image/jpeg") {
   });
   const content = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
   if (!content) {
-    throw new Error("Gemini returned empty response for floor plan analysis");
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "floor-plan.analyze" }).report();
   }
-  const parsed = JSON.parse(content);
+  let parsed;
+  try {
+    parsed = FLOOR_PLAN_RESULT_SCHEMA.parse(JSON.parse(content));
+  } catch (error) {
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "floor-plan.analyze", cause: error }).report();
+  }
   if (!parsed.rooms || !Array.isArray(parsed.rooms) || parsed.rooms.length === 0) {
-    throw new Error("Gemini could not identify any rooms in the floor plan");
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "floor-plan.analyze" }).report();
   }
   const rooms = parsed.rooms.filter((r) => r.name && r.estimatedSqm > 0).map((r) => ({
     name: String(r.name).substring(0, 100),
-    type: validateRoomType(r.type),
+    type: validateRoomType(r.type ?? "other"),
     estimatedSqm: Math.round(Number(r.estimatedSqm) * 100) / 100,
     percentOfTotal: Math.round(Number(r.percentOfTotal) * 100) / 100,
-    finishGrade: ["A", "B", "C"].includes(r.finishGrade) ? r.finishGrade : "B"
+    finishGrade: ["A", "B", "C"].includes(r.finishGrade ?? "B") ? r.finishGrade : "B"
   }));
   const totalSqm = rooms.reduce((sum, r) => sum + r.estimatedSqm, 0);
+  if (totalSqm <= 0) throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "floor-plan.analyze" }).report();
   for (const room of rooms) {
     room.percentOfTotal = Math.round(room.estimatedSqm / totalSqm * 1e4) / 100;
   }
@@ -8005,11 +8240,12 @@ function deriveUnitType(rooms) {
   if (bedrooms === 0) return "Studio";
   return `${bedrooms}BR${hasMaid ? "+Maid" : ""}`;
 }
-var FLOOR_PLAN_PROMPT, VALID_ROOM_TYPES;
+var FLOOR_PLAN_PROMPT, VALID_ROOM_TYPES, FLOOR_PLAN_RESULT_SCHEMA;
 var init_floor_plan_analyzer = __esm({
   "server/engines/design/floor-plan-analyzer.ts"() {
     "use strict";
     init_llm();
+    init_ai_operation();
     FLOOR_PLAN_PROMPT = `You are MIYAR, a UAE real estate intelligence engine analyzing an architectural floor plan.
 
 Your task is to identify every room/space in this floor plan and estimate their areas.
@@ -8063,6 +8299,22 @@ Analyze the floor plan now.`;
       "dressing",
       "other"
     ];
+    FLOOR_PLAN_RESULT_SCHEMA = z8.object({
+      rooms: z8.array(z8.object({
+        name: z8.string(),
+        type: z8.string().optional(),
+        estimatedSqm: z8.number().finite(),
+        percentOfTotal: z8.number().finite().optional().default(0),
+        finishGrade: z8.string().optional()
+      })).min(1),
+      bedroomCount: z8.number().finite().optional(),
+      bathroomCount: z8.number().finite().optional(),
+      balconyPercentage: z8.number().finite().optional(),
+      circulationPercentage: z8.number().finite().optional(),
+      unitType: z8.string().optional(),
+      analysisConfidence: z8.string().optional(),
+      rawNotes: z8.string().optional()
+    });
   }
 });
 
@@ -8626,7 +8878,7 @@ var init_investor_pdf = __esm({
 });
 
 // server/engines/ingestion/connector.ts
-import { z as z8 } from "zod";
+import { z as z12 } from "zod";
 import robotsParser from "robots-parser";
 function getRandomUserAgent() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
@@ -8719,7 +8971,7 @@ function isApifyAvailable() {
 function isParseHubAvailable() {
   return !!process.env.PARSEHUB_API_KEY;
 }
-var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, robotsCache, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, BASE_CONFIDENCE, RECENCY_BONUS, STALENESS_PENALTY, CONFIDENCE_CAP, CONFIDENCE_FLOOR, firecrawlExhaustedAt, FIRECRAWL_EXHAUST_TTL_MS, FETCH_TIMEOUT_MS, MAX_RETRIES, BASE_BACKOFF_MS, BaseSourceConnector;
+var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, robotsCache, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, BASE_CONFIDENCE, RECENCY_BONUS, STALENESS_PENALTY, CONFIDENCE_CAP, CONFIDENCE_FLOOR, firecrawlExhaustedAt, FIRECRAWL_EXHAUST_TTL_MS, FETCH_TIMEOUT_MS, MAX_RETRIES3, BASE_BACKOFF_MS, BaseSourceConnector;
 var init_connector = __esm({
   "server/engines/ingestion/connector.ts"() {
     "use strict";
@@ -8735,32 +8987,32 @@ var init_connector = __esm({
     robotsCache = /* @__PURE__ */ new Map();
     _firecrawlClient = null;
     _firecrawlInitPromise = null;
-    rawSourcePayloadSchema = z8.object({
-      url: z8.string().url(),
-      fetchedAt: z8.date(),
-      rawHtml: z8.string().optional(),
-      rawJson: z8.record(z8.string(), z8.unknown()).optional(),
-      markdown: z8.string().optional(),
-      statusCode: z8.number().int(),
-      error: z8.string().optional()
+    rawSourcePayloadSchema = z12.object({
+      url: z12.string().url(),
+      fetchedAt: z12.date(),
+      rawHtml: z12.string().optional(),
+      rawJson: z12.record(z12.string(), z12.unknown()).optional(),
+      markdown: z12.string().optional(),
+      statusCode: z12.number().int(),
+      error: z12.string().optional()
     });
-    extractedEvidenceSchema = z8.object({
-      title: z8.string().min(1),
-      rawText: z8.string().min(1),
-      publishedDate: z8.date().optional(),
-      category: z8.string().min(1),
+    extractedEvidenceSchema = z12.object({
+      title: z12.string().min(1),
+      rawText: z12.string().min(1),
+      publishedDate: z12.date().optional(),
+      category: z12.string().min(1),
       // Accept any category — validated at orchestrator level
-      geography: z8.string().min(1),
-      sourceUrl: z8.string().url()
+      geography: z12.string().min(1),
+      sourceUrl: z12.string().url()
     });
-    normalizedEvidenceInputSchema = z8.object({
-      metric: z8.string().min(1),
-      value: z8.number().nullable(),
-      unit: z8.string().nullable(),
-      confidence: z8.number().min(0).max(1),
-      grade: z8.enum(["A", "B", "C"]),
-      summary: z8.string().min(1),
-      tags: z8.array(z8.string())
+    normalizedEvidenceInputSchema = z12.object({
+      metric: z12.string().min(1),
+      value: z12.number().nullable(),
+      unit: z12.string().nullable(),
+      confidence: z12.number().min(0).max(1),
+      grade: z12.enum(["A", "B", "C"]),
+      summary: z12.string().min(1),
+      tags: z12.array(z12.string())
     });
     GRADE_A_SOURCE_IDS = /* @__PURE__ */ new Set([
       "emaar-properties",
@@ -8794,7 +9046,7 @@ var init_connector = __esm({
     firecrawlExhaustedAt = null;
     FIRECRAWL_EXHAUST_TTL_MS = 6 * 60 * 60 * 1e3;
     FETCH_TIMEOUT_MS = 15e3;
-    MAX_RETRIES = 3;
+    MAX_RETRIES3 = 3;
     BASE_BACKOFF_MS = 1e3;
     BaseSourceConnector = class {
       lastSuccessfulFetch;
@@ -9060,7 +9312,7 @@ var init_connector = __esm({
         if (!isAllowed) {
           return { url: targetUrl, fetchedAt: /* @__PURE__ */ new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
         }
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        for (let attempt = 1; attempt <= MAX_RETRIES3; attempt++) {
           try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -9103,7 +9355,7 @@ var init_connector = __esm({
           } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             lastError = errorMsg;
-            if (attempt < MAX_RETRIES) {
+            if (attempt < MAX_RETRIES3) {
               const backoffMs = BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
               await new Promise((resolve) => setTimeout(resolve, backoffMs));
             }
@@ -9113,7 +9365,7 @@ var init_connector = __esm({
           url: targetUrl,
           fetchedAt: /* @__PURE__ */ new Date(),
           statusCode: 0,
-          error: `Failed after ${MAX_RETRIES} attempts: ${lastError}`
+          error: `Failed after ${MAX_RETRIES3} attempts: ${lastError}`
         };
       }
       /**
@@ -11094,9 +11346,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         sourcesFailed: failed,
         recordsExtracted: connectorResults.reduce((sum, r) => sum + r.evidenceExtracted, 0),
         recordsInserted: totalCreated,
-        recordsUpdated: totalUpdated,
         duplicatesSkipped: totalSkipped,
-        outliersFlagged: totalOutliers,
         sourceBreakdown: connectorResults.map((r) => ({
           sourceId: r.sourceId,
           name: r.sourceName,
@@ -12644,10 +12894,11 @@ __export(ai_intake_engine_exports, {
   processIntakeAssets: () => processIntakeAssets,
   suggestSectionFields: () => suggestSectionFields
 });
+import { z as z28 } from "zod";
 function isFloorPlanAsset(asset) {
-  const urlLower = (asset.url || "").toLowerCase();
-  const hasFloorPlanKeyword = /floor.?plan|layout|blueprint|plan.?view/i.test(urlLower);
-  return hasFloorPlanKeyword && (asset.type === "image" || asset.type === "pdf");
+  const name = (asset.fileName || "").toLowerCase();
+  const hasFloorPlanKeyword = /floor.?plan|layout|blueprint|plan.?view/i.test(name);
+  return hasFloorPlanKeyword && !!asset.media && (asset.type === "image" || asset.type === "pdf");
 }
 async function processIntakeAssets(assets, existingInputs) {
   if (assets.length === 0) {
@@ -12660,16 +12911,15 @@ async function processIntakeAssets(assets, existingInputs) {
     };
   }
   let floorPlanAnalysis;
+  const processingWarnings = [];
   const floorPlanAssets = assets.filter(isFloorPlanAsset);
   if (floorPlanAssets.length > 0) {
     try {
       const fpAsset = floorPlanAssets[0];
-      floorPlanAnalysis = await analyzeFloorPlan(
-        fpAsset.url,
-        fpAsset.mimeType || "image/jpeg"
-      );
-    } catch (err) {
-      console.warn("[AI Intake] Floor plan analysis failed:", err.message);
+      floorPlanAnalysis = await analyzeFloorPlan(fpAsset.media);
+    } catch (error) {
+      toAiOperationError(error, "intake.floor-plan-analysis").report();
+      processingWarnings.push("A floor plan could not be analysed. Other valid files were still processed.");
     }
   }
   const contentParts = [];
@@ -12692,10 +12942,10 @@ ${JSON.stringify(floorPlanAnalysis, null, 2)}
     assetIndex++;
     switch (asset.type) {
       case "image":
-        if (asset.url) {
+        if (asset.media) {
           contentParts.push({
-            type: "image_url",
-            image_url: { url: asset.url, detail: "high" }
+            type: "media",
+            media: asset.media
           });
           contentParts.push({
             type: "text",
@@ -12704,13 +12954,10 @@ ${JSON.stringify(floorPlanAnalysis, null, 2)}
         }
         break;
       case "pdf":
-        if (asset.url) {
+        if (asset.media) {
           contentParts.push({
-            type: "file_url",
-            file_url: {
-              url: asset.url,
-              mime_type: "application/pdf"
-            }
+            type: "media",
+            media: asset.media
           });
           contentParts.push({
             type: "text",
@@ -12719,11 +12966,10 @@ ${JSON.stringify(floorPlanAnalysis, null, 2)}
         }
         break;
       case "audio":
-        if (asset.url) {
-          const mimeType = MIME_TO_FILE_TYPE[asset.mimeType || "audio/mp4"] || "audio/mp4";
+        if (asset.media) {
           contentParts.push({
-            type: "file_url",
-            file_url: { url: asset.url, mime_type: mimeType }
+            type: "media",
+            media: asset.media
           });
           contentParts.push({
             type: "text",
@@ -12732,10 +12978,10 @@ ${JSON.stringify(floorPlanAnalysis, null, 2)}
         }
         break;
       case "video":
-        if (asset.url) {
+        if (asset.media) {
           contentParts.push({
-            type: "file_url",
-            file_url: { url: asset.url, mime_type: "video/mp4" }
+            type: "media",
+            media: asset.media
           });
           contentParts.push({
             type: "text",
@@ -12747,14 +12993,9 @@ ${JSON.stringify(floorPlanAnalysis, null, 2)}
         if (asset.textContent) {
           contentParts.push({
             type: "text",
-            text: `[Asset ${assetIndex}: Web URL <${asset.url}>]
+            text: `[Asset ${assetIndex}: Web reference]
 Extracted content:
 ${asset.textContent.slice(0, 5e3)}`
-          });
-        } else {
-          contentParts.push({
-            type: "text",
-            text: `[Asset ${assetIndex}: Web URL <${asset.url}> \u2014 analyze if this is a supplier, competitor, or reference project]`
           });
         }
         break;
@@ -12780,51 +13021,40 @@ ${asset.textContent.slice(0, 5e3)}`
   });
   const rawText = response.choices[0]?.message?.content;
   if (!rawText || typeof rawText !== "string") {
-    return {
-      suggestedInputs: {},
-      confidence: {},
-      reasoning: {},
-      extractedInsights: {},
-      warnings: ["AI did not return a valid response."]
-    };
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.process-assets" }).report();
   }
   let parsed;
   try {
-    parsed = JSON.parse(rawText);
+    parsed = INTAKE_RESPONSE_SCHEMA.parse(JSON.parse(rawText));
   } catch {
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
-        parsed = JSON.parse(jsonMatch[0]);
+        parsed = INTAKE_RESPONSE_SCHEMA.parse(JSON.parse(jsonMatch[0]));
       } catch {
-        return {
-          suggestedInputs: {},
-          confidence: {},
-          reasoning: {},
-          extractedInsights: {},
-          warnings: ["Failed to parse AI response as JSON."]
-        };
+        throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.process-assets" }).report();
       }
     } else {
-      return {
-        suggestedInputs: {},
-        confidence: {},
-        reasoning: {},
-        extractedInsights: {},
-        warnings: ["AI response was not valid JSON."]
-      };
+      throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.process-assets" }).report();
     }
   }
   const result = {
     suggestedInputs: validateSuggestedInputs(parsed.suggestedInputs || {}),
-    confidence: validatedRecord(parsed.confidence || {}),
-    reasoning: validatedRecord(parsed.reasoning || {}),
+    confidence: parsed.confidence,
+    reasoning: parsed.reasoning,
     extractedInsights: {
-      ...parsed.extractedInsights || {},
+      ...parsed.extractedInsights,
       floorPlanAnalysis
     },
-    warnings: Array.isArray(parsed.warnings) ? parsed.warnings : []
+    warnings: [...parsed.warnings, ...processingWarnings]
   };
+  for (const [field, value] of Object.entries(existingInputs || {})) {
+    if (value !== void 0 && value !== null && value !== "") {
+      delete result.suggestedInputs[field];
+      delete result.confidence[field];
+      delete result.reasoning[field];
+    }
+  }
   if (floorPlanAnalysis) {
     if (floorPlanAnalysis.totalEstimatedSqm && !result.suggestedInputs.ctx03Gfa) {
       result.suggestedInputs.ctx03Gfa = floorPlanAnalysis.totalEstimatedSqm;
@@ -12908,16 +13138,6 @@ function validateSuggestedInputs(raw) {
   for (const [field, validValues] of Object.entries(v5Enums)) {
     if (raw[field] && validValues.includes(raw[field])) {
       result[field] = raw[field];
-    }
-  }
-  return result;
-}
-function validatedRecord(raw) {
-  if (!raw || typeof raw !== "object") return {};
-  const result = {};
-  for (const [key, value] of Object.entries(raw)) {
-    if (typeof value === "string") {
-      result[key] = value;
     }
   }
   return result;
@@ -13033,17 +13253,17 @@ Return a JSON object with:
     });
     const rawText = response.choices[0]?.message?.content;
     if (!rawText || typeof rawText !== "string") {
-      return { suggestions: [], sectionSummary: "AI did not return a valid response." };
+      throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.suggest-section" }).report();
     }
     let parsed;
     try {
-      parsed = JSON.parse(rawText);
+      parsed = SECTION_SUGGESTION_RESPONSE_SCHEMA.parse(JSON.parse(rawText));
     } catch {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
+        parsed = SECTION_SUGGESTION_RESPONSE_SCHEMA.parse(JSON.parse(jsonMatch[0]));
       } else {
-        return { suggestions: [], sectionSummary: "Failed to parse AI response." };
+        throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "intake.suggest-section" }).report();
       }
     }
     const validSuggestions = [];
@@ -13053,8 +13273,8 @@ Return a JSON object with:
           validSuggestions.push({
             field: s.field,
             value: s.value,
-            confidence: ["high", "medium", "low"].includes(s.confidence) ? s.confidence : "low",
-            reasoning: String(s.reasoning || "")
+            confidence: s.confidence,
+            reasoning: s.reasoning
           });
         }
       }
@@ -13063,16 +13283,16 @@ Return a JSON object with:
       suggestions: validSuggestions,
       sectionSummary: parsed.sectionSummary || ""
     };
-  } catch (err) {
-    console.error("[AI Section Assist] Error:", err.message);
-    return { suggestions: [], sectionSummary: `Error: ${err.message}` };
+  } catch (error) {
+    throw toAiOperationError(error, "intake.suggest-section").report();
   }
 }
-var SYSTEM_PROMPT, INTAKE_OUTPUT_SCHEMA, MIME_TO_FILE_TYPE, VALID_TYPOLOGIES, VALID_SCALES, VALID_LOCATIONS, VALID_HORIZONS, VALID_TIERS, VALID_STYLES, SECTION_FIELDS;
+var SYSTEM_PROMPT, INTAKE_OUTPUT_SCHEMA, INTAKE_RESPONSE_SCHEMA, VALID_TYPOLOGIES, VALID_SCALES, VALID_LOCATIONS, VALID_HORIZONS, VALID_TIERS, VALID_STYLES, SECTION_FIELDS, SECTION_SUGGESTION_RESPONSE_SCHEMA;
 var init_ai_intake_engine = __esm({
   "server/engines/intake/ai-intake-engine.ts"() {
     "use strict";
     init_llm();
+    init_ai_operation();
     init_floor_plan_analyzer();
     SYSTEM_PROMPT = `You are MIYAR's AI Intake Engine \u2014 a specialized assistant for UAE luxury real estate and interior design projects.
 
@@ -13184,15 +13404,23 @@ Array of any issues or missing information noticed.
         required: ["suggestedInputs", "confidence", "reasoning", "extractedInsights", "warnings"]
       }
     };
-    MIME_TO_FILE_TYPE = {
-      "audio/mpeg": "audio/mpeg",
-      "audio/mp3": "audio/mpeg",
-      "audio/wav": "audio/wav",
-      "audio/mp4": "audio/mp4",
-      "audio/m4a": "audio/mp4",
-      "application/pdf": "application/pdf",
-      "video/mp4": "video/mp4"
-    };
+    INTAKE_RESPONSE_SCHEMA = z28.object({
+      suggestedInputs: z28.record(z28.string(), z28.unknown()).default({}),
+      confidence: z28.record(z28.string(), z28.enum(["high", "medium", "low"])).default({}),
+      reasoning: z28.record(z28.string(), z28.string()).default({}),
+      extractedInsights: z28.object({
+        detectedStyle: z28.string().optional(),
+        detectedMaterials: z28.array(z28.string()).optional(),
+        detectedBrands: z28.array(z28.string()).optional(),
+        detectedTier: z28.string().optional(),
+        detectedTypology: z28.string().optional(),
+        detectedLocation: z28.string().optional(),
+        detectedScale: z28.string().optional(),
+        projectDescription: z28.string().optional(),
+        supplierInfo: z28.array(z28.object({ name: z28.string(), url: z28.string(), materials: z28.array(z28.string()) })).optional()
+      }).default({}),
+      warnings: z28.array(z28.string()).default([])
+    });
     VALID_TYPOLOGIES = [
       "residential_multi",
       "residential_single",
@@ -13265,6 +13493,15 @@ Array of any issues or missing information noticed.
         "exe04QaMaturity"
       ]
     };
+    SECTION_SUGGESTION_RESPONSE_SCHEMA = z28.object({
+      suggestions: z28.array(z28.object({
+        field: z28.string(),
+        value: z28.unknown(),
+        confidence: z28.enum(["high", "medium", "low"]),
+        reasoning: z28.string()
+      })).default([]),
+      sectionSummary: z28.string().default("")
+    });
   }
 });
 
@@ -13408,8 +13645,22 @@ function createRateLimitMiddleware(t2, opts = {}) {
 }
 
 // server/_core/trpc.ts
+init_ai_operation();
 var t = initTRPC.context().create({
-  transformer: superjson
+  transformer: superjson,
+  errorFormatter({ shape, error }) {
+    const aiError = getAiOperationError(error.cause ?? error);
+    return {
+      ...shape,
+      message: aiError?.message ?? shape.message,
+      data: {
+        ...shape.data,
+        aiCode: aiError?.code,
+        retryable: aiError?.retryable,
+        correlationId: aiError?.correlationId
+      }
+    };
+  }
 });
 var router = t.router;
 var publicProcedure = t.procedure;
@@ -13804,7 +14055,7 @@ var authRouter = router({
 });
 
 // server/routers/project.ts
-import { z as z3 } from "zod";
+import { z as z5 } from "zod";
 import { TRPCError as TRPCError7 } from "@trpc/server";
 
 // server/_core/project-access.ts
@@ -13826,14 +14077,11 @@ function notFound(message = DEFAULT_NOT_FOUND_MESSAGE) {
   throw new TRPCError6({ code: "NOT_FOUND", message });
 }
 async function requireAuthorizedProject(projectId, orgId, lookupProject, notFoundMessage) {
-  try {
-    return await requireProjectForOrg(projectId, orgId, lookupProject);
-  } catch (error) {
-    if (error instanceof TRPCError6 && error.code === "NOT_FOUND") {
-      return notFound(notFoundMessage);
-    }
-    throw error;
+  const project = await lookupProject(projectId);
+  if (!project || project.orgId !== orgId) {
+    return notFound(notFoundMessage);
   }
+  return project;
 }
 async function requireProjectResourceForOrg(resourceId, orgId, options) {
   const resource = await options.lookupResource(resourceId);
@@ -16084,7 +16332,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
 
 // server/routers/project.ts
 init_storage();
-import { nanoid as nanoid2 } from "nanoid";
+import { nanoid as nanoid3 } from "nanoid";
 
 // shared/project-readiness.ts
 var INPUT_PROVENANCE_STATUSES = ["explicit", "assumed", "ai_suggested", "confirmed"];
@@ -17268,29 +17516,10 @@ Latest Evaluation Scores:
 
 // server/_core/upload-compensation.ts
 init_storage();
-import { nanoid } from "nanoid";
-
-// server/_core/sentry.ts
-var Sentry = null;
-function captureException(err, context) {
-  if (!Sentry) return;
-  Sentry.withScope((scope) => {
-    if (context) {
-      Object.entries(context).forEach(([key, val]) => {
-        scope.setExtra(key, val);
-      });
-    }
-    Sentry.captureException(err);
-  });
-}
-function captureMessage(message, level = "info") {
-  if (!Sentry) return;
-  Sentry.captureMessage(message, level);
-}
-
-// server/_core/upload-compensation.ts
+init_sentry();
+import { nanoid as nanoid2 } from "nanoid";
 var CLEANUP_ATTEMPTS = 3;
-async function cleanupRejectedUpload(objectKey, correlationId = nanoid(12)) {
+async function cleanupRejectedUpload(objectKey, correlationId = nanoid2(12)) {
   let lastError;
   for (let attempt = 1; attempt <= CLEANUP_ATTEMPTS; attempt += 1) {
     try {
@@ -17307,7 +17536,7 @@ async function cleanupRejectedUpload(objectKey, correlationId = nanoid(12)) {
   });
   throw new Error(`Upload cleanup failed (${correlationId})`);
 }
-function reportIndeterminateUploadPersistence(objectKey, error, correlationId = nanoid(12)) {
+function reportIndeterminateUploadPersistence(objectKey, error, correlationId = nanoid2(12)) {
   captureException(error, {
     source: "upload-reconciliation-required",
     correlationId,
@@ -17315,6 +17544,126 @@ function reportIndeterminateUploadPersistence(objectKey, error, correlationId = 
   });
   captureMessage(`Upload reconciliation required (${correlationId})`, "error");
   return correlationId;
+}
+
+// server/_core/project-media.ts
+init_storage();
+init_ai_operation();
+
+// server/_core/media-validation.ts
+init_ai_operation();
+import { createHash } from "node:crypto";
+import sharp from "sharp";
+var MAX_MEDIA_BYTES = 50 * 1024 * 1024;
+var MAX_IMAGE_PIXELS = 4e7;
+var MEDIA_MIME_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/pdf",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/mp4",
+  "audio/ogg",
+  "audio/webm",
+  "video/mp4",
+  "video/webm"
+];
+function mediaError(code, operation, cause) {
+  return new AiOperationError(code, { operation, cause }).report();
+}
+function isSupportedMediaMimeType(value) {
+  return MEDIA_MIME_TYPES.includes(value.toLowerCase());
+}
+function getMediaKind(mimeType) {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType === "application/pdf") return "pdf";
+  if (mimeType.startsWith("audio/")) return "audio";
+  return "video";
+}
+function bytesStartWith(buffer, values) {
+  return buffer.length >= values.length && values.every((value, index2) => buffer[index2] === value);
+}
+function asciiAt(buffer, offset, expected) {
+  return buffer.length >= offset + expected.length && buffer.subarray(offset, offset + expected.length).toString("ascii") === expected;
+}
+function inferMimeType(buffer, declared) {
+  if (bytesStartWith(buffer, [137, 80, 78, 71, 13, 10, 26, 10])) return "image/png";
+  if (bytesStartWith(buffer, [255, 216, 255])) return "image/jpeg";
+  if (asciiAt(buffer, 0, "RIFF") && asciiAt(buffer, 8, "WEBP")) return "image/webp";
+  if (asciiAt(buffer, 0, "%PDF-")) return "application/pdf";
+  if (asciiAt(buffer, 0, "OggS")) return "audio/ogg";
+  if (asciiAt(buffer, 0, "RIFF") && asciiAt(buffer, 8, "WAVE")) return "audio/wav";
+  if (bytesStartWith(buffer, [26, 69, 223, 163])) return declared.endsWith("webm") ? declared : void 0;
+  if (asciiAt(buffer, 4, "ftyp")) return declared.endsWith("mp4") ? declared : void 0;
+  if (asciiAt(buffer, 0, "ID3") || buffer[0] === 255 && (buffer[1] & 224) === 224) return "audio/mpeg";
+  return void 0;
+}
+async function verifyPdf(buffer, operation) {
+  try {
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: buffer });
+    try {
+      const info = await parser.getInfo();
+      if (info.total < 1) throw new Error("PDF has no pages");
+    } finally {
+      await parser.destroy();
+    }
+  } catch (error) {
+    throw mediaError("MEDIA_INVALID", operation, error);
+  }
+}
+async function verifyImage(buffer, mimeType, operation) {
+  try {
+    const image = sharp(buffer, { limitInputPixels: MAX_IMAGE_PIXELS, failOn: "error" });
+    const metadata = await image.metadata();
+    const expectedFormat = mimeType === "image/jpeg" ? "jpeg" : mimeType.slice("image/".length);
+    if (metadata.format !== expectedFormat || !metadata.width || !metadata.height) {
+      throw new Error("image format or dimensions do not match declared type");
+    }
+    await image.rotate().toBuffer();
+  } catch (error) {
+    throw mediaError("MEDIA_INVALID", operation, error);
+  }
+}
+async function validateMediaBuffer(buffer, declaredMimeType, operation) {
+  const mimeType = declaredMimeType.toLowerCase();
+  if (!isSupportedMediaMimeType(mimeType)) {
+    throw mediaError("MEDIA_UNSUPPORTED", operation);
+  }
+  if (buffer.length === 0) throw mediaError("MEDIA_INVALID", operation);
+  if (buffer.length > MAX_MEDIA_BYTES) throw mediaError("MEDIA_TOO_LARGE", operation);
+  const inferred = inferMimeType(buffer, mimeType);
+  if (!inferred || inferred !== mimeType) {
+    throw mediaError("MEDIA_INVALID", operation);
+  }
+  const kind = getMediaKind(mimeType);
+  if (kind === "image") await verifyImage(buffer, mimeType, operation);
+  if (kind === "pdf") await verifyPdf(buffer, operation);
+  return {
+    buffer,
+    mimeType,
+    kind,
+    sizeBytes: buffer.length,
+    checksum: createHash("sha256").update(buffer).digest("hex")
+  };
+}
+function mediaTypeFromMime(mimeType) {
+  return getMediaKind(mimeType);
+}
+
+// server/_core/project-media.ts
+async function readValidatedProjectMedia(asset, operation) {
+  if (!asset.storagePath) {
+    throw new AiOperationError("MEDIA_UNAVAILABLE", { operation }).report();
+  }
+  try {
+    const stored = await storageRead(asset.storagePath, MAX_MEDIA_BYTES);
+    return await validateMediaBuffer(stored.buffer, asset.mimeType, operation);
+  } catch (error) {
+    if (error instanceof AiOperationError) throw error;
+    throw new AiOperationError("MEDIA_UNAVAILABLE", { operation, cause: error, retryable: true }).report();
+  }
 }
 
 // server/routers/project.ts
@@ -17343,84 +17692,84 @@ async function buildEvalConfig(modelVersion, expectedCost, benchmarkCount, overr
     overrideRate
   };
 }
-var unitMixItemSchema = z3.object({
-  unitType: z3.string(),
-  areaSqm: z3.number().min(0),
-  count: z3.number().int().min(1),
-  includeInFitout: z3.boolean().default(true)
+var unitMixItemSchema = z5.object({
+  unitType: z5.string(),
+  areaSqm: z5.number().min(0),
+  count: z5.number().int().min(1),
+  includeInFitout: z5.boolean().default(true)
 });
-var villaSpaceSchema = z3.object({
-  floor: z3.string(),
-  rooms: z3.array(z3.object({
-    name: z3.string(),
-    areaSqm: z3.number().min(0)
+var villaSpaceSchema = z5.object({
+  floor: z5.string(),
+  rooms: z5.array(z5.object({
+    name: z5.string(),
+    areaSqm: z5.number().min(0)
   }))
 });
-var projectInputSchema = z3.object({
-  name: z3.string().min(1).max(255),
-  description: z3.string().optional(),
-  ctx01Typology: z3.enum(["Residential", "Mixed-use", "Hospitality", "Office", "Villa", "Gated Community", "Villa Development"]).default("Residential"),
-  ctx02Scale: z3.enum(["Small", "Medium", "Large"]).default("Medium"),
-  ctx03Gfa: z3.number().nullable().optional(),
+var projectInputSchema = z5.object({
+  name: z5.string().min(1).max(255),
+  description: z5.string().optional(),
+  ctx01Typology: z5.enum(["Residential", "Mixed-use", "Hospitality", "Office", "Villa", "Gated Community", "Villa Development"]).default("Residential"),
+  ctx02Scale: z5.enum(["Small", "Medium", "Large"]).default("Medium"),
+  ctx03Gfa: z5.number().nullable().optional(),
   // V4 — Fit-out area fields
-  totalFitoutArea: z3.number().nullable().optional(),
-  totalNonFinishArea: z3.number().nullable().optional(),
-  projectArchetype: z3.enum(["residential_multi", "office", "single_villa", "hospitality", "community"]).optional(),
-  officeFitoutCategory: z3.enum(["catA", "catB"]).optional(),
-  officeCustomRatio: z3.number().min(0).max(100).nullable().optional(),
-  ctx04Location: z3.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
-  ctx05Horizon: z3.enum(["0-12m", "12-24m", "24-36m", "36m+"]).default("12-24m"),
-  str01BrandClarity: z3.number().min(1).max(5).default(3),
-  str02Differentiation: z3.number().min(1).max(5).default(3),
-  str03BuyerMaturity: z3.number().min(1).max(5).default(3),
-  mkt01Tier: z3.enum(["Mid", "Upper-mid", "Luxury", "Ultra-luxury"]).default("Upper-mid"),
-  mkt02Competitor: z3.number().min(1).max(5).default(3),
-  mkt03Trend: z3.number().min(1).max(5).default(3),
-  fin01BudgetCap: z3.number().nullable().optional(),
-  fin02Flexibility: z3.number().min(1).max(5).default(3),
-  fin03ShockTolerance: z3.number().min(1).max(5).default(3),
-  fin04SalesPremium: z3.number().min(1).max(5).default(3),
-  des01Style: z3.enum(["Modern", "Contemporary", "Minimal", "Classic", "Fusion", "Other"]).default("Modern"),
-  des02MaterialLevel: z3.number().min(1).max(5).default(3),
-  des03Complexity: z3.number().min(1).max(5).default(3),
-  des04Experience: z3.number().min(1).max(5).default(3),
-  des05Sustainability: z3.number().min(1).max(5).default(2),
-  exe01SupplyChain: z3.number().min(1).max(5).default(3),
-  exe02Contractor: z3.number().min(1).max(5).default(3),
-  exe03Approvals: z3.number().min(1).max(5).default(2),
-  exe04QaMaturity: z3.number().min(1).max(5).default(3),
-  add01SampleKit: z3.boolean().default(false),
-  add02PortfolioMode: z3.boolean().default(false),
-  add03DashboardExport: z3.boolean().default(true),
+  totalFitoutArea: z5.number().nullable().optional(),
+  totalNonFinishArea: z5.number().nullable().optional(),
+  projectArchetype: z5.enum(["residential_multi", "office", "single_villa", "hospitality", "community"]).optional(),
+  officeFitoutCategory: z5.enum(["catA", "catB"]).optional(),
+  officeCustomRatio: z5.number().min(0).max(100).nullable().optional(),
+  ctx04Location: z5.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
+  ctx05Horizon: z5.enum(["0-12m", "12-24m", "24-36m", "36m+"]).default("12-24m"),
+  str01BrandClarity: z5.number().min(1).max(5).default(3),
+  str02Differentiation: z5.number().min(1).max(5).default(3),
+  str03BuyerMaturity: z5.number().min(1).max(5).default(3),
+  mkt01Tier: z5.enum(["Mid", "Upper-mid", "Luxury", "Ultra-luxury"]).default("Upper-mid"),
+  mkt02Competitor: z5.number().min(1).max(5).default(3),
+  mkt03Trend: z5.number().min(1).max(5).default(3),
+  fin01BudgetCap: z5.number().nullable().optional(),
+  fin02Flexibility: z5.number().min(1).max(5).default(3),
+  fin03ShockTolerance: z5.number().min(1).max(5).default(3),
+  fin04SalesPremium: z5.number().min(1).max(5).default(3),
+  des01Style: z5.enum(["Modern", "Contemporary", "Minimal", "Classic", "Fusion", "Other"]).default("Modern"),
+  des02MaterialLevel: z5.number().min(1).max(5).default(3),
+  des03Complexity: z5.number().min(1).max(5).default(3),
+  des04Experience: z5.number().min(1).max(5).default(3),
+  des05Sustainability: z5.number().min(1).max(5).default(2),
+  exe01SupplyChain: z5.number().min(1).max(5).default(3),
+  exe02Contractor: z5.number().min(1).max(5).default(3),
+  exe03Approvals: z5.number().min(1).max(5).default(2),
+  exe04QaMaturity: z5.number().min(1).max(5).default(3),
+  add01SampleKit: z5.boolean().default(false),
+  add02PortfolioMode: z5.boolean().default(false),
+  add03DashboardExport: z5.boolean().default(true),
   // V5: Concrete Analytics Inputs
-  developerType: z3.enum(["Master Developer", "Private/Boutique", "Institutional Investor"]).optional(),
-  targetDemographic: z3.enum(["HNWI", "Families", "Young Professionals", "Investors"]).optional(),
-  salesStrategy: z3.enum(["Sell Off-Plan", "Sell on Completion", "Build-to-Rent"]).optional(),
-  competitiveDensity: z3.enum(["Low", "Moderate", "Saturated"]).optional(),
-  projectUsp: z3.enum(["Location/Views", "Amenities/Facilities", "Price/Value", "Design/Architecture"]).optional(),
-  targetYield: z3.enum(["< 5%", "5-7%", "7-9%", "> 9%"]).optional(),
-  procurementStrategy: z3.enum(["Turnkey", "Traditional", "Construction Management"]).optional(),
-  amenityFocus: z3.enum(["Wellness/Spa", "F&B/Social", "Minimal/Essential", "Business/Co-working"]).optional(),
-  techIntegration: z3.enum(["Basic", "Smart Home Ready", "Fully Integrated"]).optional(),
-  materialSourcing: z3.enum(["Local", "European", "Asian", "Global Mix"]).optional(),
-  handoverCondition: z3.enum(["Shell & Core", "Category A", "Category B", "Fully Furnished"]).optional(),
-  brandedStatus: z3.enum(["Unbranded", "Hospitality Branded", "Fashion/Automotive Branded"]).optional(),
-  salesChannel: z3.enum(["Local Brokerage", "International Roadshows", "Direct to VIP"]).optional(),
-  lifecycleFocus: z3.enum(["Short-term Resale", "Medium-term Hold", "Long-term Retention"]).optional(),
-  brandStandardConstraints: z3.enum(["High Flexibility", "Moderate Guidelines", "Strict Vendor List"]).optional(),
-  timelineFlexibility: z3.enum(["Highly Flexible", "Moderate Contingency", "Fixed / Zero Tolerance"]).optional(),
-  targetValueAdd: z3.enum(["Max Capital Appreciation", "Max Rental Yield", "Balanced Return", "Brand Flagship / Trophy"]).optional(),
-  unitMix: z3.array(unitMixItemSchema).optional(),
-  villaSpaces: z3.array(villaSpaceSchema).optional(),
-  developerGuidelines: z3.any().optional(),
+  developerType: z5.enum(["Master Developer", "Private/Boutique", "Institutional Investor"]).optional(),
+  targetDemographic: z5.enum(["HNWI", "Families", "Young Professionals", "Investors"]).optional(),
+  salesStrategy: z5.enum(["Sell Off-Plan", "Sell on Completion", "Build-to-Rent"]).optional(),
+  competitiveDensity: z5.enum(["Low", "Moderate", "Saturated"]).optional(),
+  projectUsp: z5.enum(["Location/Views", "Amenities/Facilities", "Price/Value", "Design/Architecture"]).optional(),
+  targetYield: z5.enum(["< 5%", "5-7%", "7-9%", "> 9%"]).optional(),
+  procurementStrategy: z5.enum(["Turnkey", "Traditional", "Construction Management"]).optional(),
+  amenityFocus: z5.enum(["Wellness/Spa", "F&B/Social", "Minimal/Essential", "Business/Co-working"]).optional(),
+  techIntegration: z5.enum(["Basic", "Smart Home Ready", "Fully Integrated"]).optional(),
+  materialSourcing: z5.enum(["Local", "European", "Asian", "Global Mix"]).optional(),
+  handoverCondition: z5.enum(["Shell & Core", "Category A", "Category B", "Fully Furnished"]).optional(),
+  brandedStatus: z5.enum(["Unbranded", "Hospitality Branded", "Fashion/Automotive Branded"]).optional(),
+  salesChannel: z5.enum(["Local Brokerage", "International Roadshows", "Direct to VIP"]).optional(),
+  lifecycleFocus: z5.enum(["Short-term Resale", "Medium-term Hold", "Long-term Retention"]).optional(),
+  brandStandardConstraints: z5.enum(["High Flexibility", "Moderate Guidelines", "Strict Vendor List"]).optional(),
+  timelineFlexibility: z5.enum(["Highly Flexible", "Moderate Contingency", "Fixed / Zero Tolerance"]).optional(),
+  targetValueAdd: z5.enum(["Max Capital Appreciation", "Max Rental Yield", "Balanced Return", "Brand Flagship / Trophy"]).optional(),
+  unitMix: z5.array(unitMixItemSchema).optional(),
+  villaSpaces: z5.array(villaSpaceSchema).optional(),
+  developerGuidelines: z5.any().optional(),
   // DLD integration fields
-  dldAreaId: z3.number().nullable().optional(),
-  dldAreaName: z3.string().optional(),
-  projectPurpose: z3.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
+  dldAreaId: z5.number().nullable().optional(),
+  dldAreaName: z5.string().optional(),
+  projectPurpose: z5.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
   // City & Sustainability Certification
-  city: z3.enum(["Dubai", "Abu Dhabi"]).default("Dubai"),
-  sustainCertTarget: z3.string().default("silver"),
-  inputProvenance: z3.record(z3.string(), z3.enum(INPUT_PROVENANCE_STATUSES)).optional()
+  city: z5.enum(["Dubai", "Abu Dhabi"]).default("Dubai"),
+  sustainCertTarget: z5.string().default("silver"),
+  inputProvenance: z5.record(z5.string(), z5.enum(INPUT_PROVENANCE_STATUSES)).optional()
 });
 function projectToInputs(p) {
   return {
@@ -17501,10 +17850,10 @@ var projectRouter = router({
     );
     return result;
   }),
-  get: orgProcedure.input(z3.object({ id: z3.number() })).query(async ({ ctx, input }) => {
+  get: orgProcedure.input(z5.object({ id: z5.number() })).query(async ({ ctx, input }) => {
     return requireProjectForOrg(input.id, ctx.orgId);
   }),
-  readiness: orgProcedure.input(z3.object({ id: z3.number() })).query(async ({ ctx, input }) => {
+  readiness: orgProcedure.input(z5.object({ id: z5.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.id, ctx.orgId);
     return getProjectReadiness(project);
   }),
@@ -17531,9 +17880,9 @@ var projectRouter = router({
     });
     return result;
   }),
-  confirmInputs: orgMutationProcedure.input(z3.object({
-    id: z3.number(),
-    fields: z3.array(z3.enum(EVALUATION_REQUIRED_FIELDS)).min(1)
+  confirmInputs: orgMutationProcedure.input(z5.object({
+    id: z5.number(),
+    fields: z5.array(z5.enum(EVALUATION_REQUIRED_FIELDS)).min(1)
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.id, ctx.orgId);
     const existing = createInitialProvenance(
@@ -17561,7 +17910,7 @@ var projectRouter = router({
     });
     return getProjectReadiness({ ...project, inputProvenance: existing });
   }),
-  update: orgMutationProcedure.input(z3.object({ id: z3.number() }).merge(projectInputSchema.partial())).mutation(async ({ ctx, input }) => {
+  update: orgMutationProcedure.input(z5.object({ id: z5.number() }).merge(projectInputSchema.partial())).mutation(async ({ ctx, input }) => {
     const { id, ...data } = input;
     const project = await requireProjectForOrg(id, ctx.orgId);
     if (project.status === "locked") {
@@ -17585,7 +17934,7 @@ var projectRouter = router({
     });
     return { success: true };
   }),
-  delete: orgAdminProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
+  delete: orgAdminProcedure.input(z5.object({ id: z5.number() })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.id, ctx.orgId);
     if (!await deleteProjectForOrg(input.id, ctx.orgId)) {
       await requireProjectForOrg(input.id, ctx.orgId);
@@ -17599,7 +17948,7 @@ var projectRouter = router({
     });
     return { success: true };
   }),
-  evaluate: orgHeavyMutationProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ ctx, input }) => {
+  evaluate: orgHeavyMutationProcedure.input(z5.object({ id: z5.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.id, ctx.orgId);
     const readiness = getProjectReadiness(project);
     if (!readiness.canEvaluate) {
@@ -17662,8 +18011,8 @@ var projectRouter = router({
         if (project.dldAreaId) {
           const dldBench = await getDldAreaBenchmark(project.dldAreaId);
           if (dldBench) {
-            areaNameForBench = dldBench.areaName || areaNameForBench;
-            transCount = dldBench.transactionCount ? Number(dldBench.transactionCount) : 0;
+            areaNameForBench = dldBench.areaNameEn || areaNameForBench;
+            transCount = dldBench.saleTransactionCount ? Number(dldBench.saleTransactionCount) : 0;
             saleP50 = dldBench.saleP50 ? Number(dldBench.saleP50) : null;
           }
         }
@@ -17884,11 +18233,11 @@ var projectRouter = router({
     }
     return { scoreMatrixId: matrixResult.id, ...scoreResult, dldMarketPosition };
   }),
-  getScores: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
+  getScores: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getScoreMatricesByProject(input.projectId);
   }),
-  sensitivity: orgProcedure.input(z3.object({ id: z3.number() })).query(async ({ ctx, input }) => {
+  sensitivity: orgProcedure.input(z5.object({ id: z5.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.id, ctx.orgId);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) return [];
@@ -17899,7 +18248,7 @@ var projectRouter = router({
     return runSensitivityAnalysis(inputs, config);
   }),
   // ─── V2: ROI Narrative Engine ──────────────────────────────────────
-  roi: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
+  roi: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const scores = await getScoreMatricesByProject(input.projectId);
     if (scores.length === 0) return null;
@@ -17933,7 +18282,7 @@ var projectRouter = router({
       const dldBench = await getDldAreaBenchmark(project.dldAreaId);
       if (dldBench) {
         dldContext = {
-          areaName: project.dldAreaName || dldBench.areaName,
+          areaName: project.dldAreaName || dldBench.areaNameEn,
           grossYield: dldBench.grossYield ? Number(dldBench.grossYield) : null,
           saleP50: dldBench.saleP50 ? Number(dldBench.saleP50) : null,
           projectPurpose: project.projectPurpose || "sell_ready",
@@ -17944,7 +18293,7 @@ var projectRouter = router({
     return { ...roiResult, dldContext };
   }),
   // ─── V2: 5-Lens Validation Framework ──────────────────────────────
-  fiveLens: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
+  fiveLens: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const scores = await getScoreMatricesByProject(input.projectId);
     if (scores.length === 0) return null;
@@ -17953,7 +18302,7 @@ var projectRouter = router({
     return computeFiveLens(project, latest, benchmarks);
   }),
   // ─── V2: Project Intelligence ─────────────────────────────────────
-  intelligence: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
+  intelligence: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const intel = await getProjectIntelligenceByProject(input.projectId);
     return intel.length > 0 ? intel[0] : null;
@@ -17962,9 +18311,9 @@ var projectRouter = router({
   scenarioTemplates: orgProcedure.query(async () => {
     return SCENARIO_TEMPLATES;
   }),
-  applyScenarioTemplate: orgHeavyMutationProcedure.input(z3.object({
-    projectId: z3.number(),
-    templateKey: z3.string()
+  applyScenarioTemplate: orgHeavyMutationProcedure.input(z5.object({
+    projectId: z5.number(),
+    templateKey: z5.string()
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const template = getScenarioTemplate(input.templateKey);
@@ -18021,12 +18370,12 @@ var projectRouter = router({
     return { id: result.id, ...scoreResult, tradeoffs: template.tradeoffs };
   }),
   // ─── V2: Constraint Solver ────────────────────────────────────────
-  solveConstraints: orgMutationProcedure.input(z3.object({
-    projectId: z3.number(),
-    constraints: z3.array(z3.object({
-      variable: z3.string(),
-      operator: z3.enum(["eq", "gte", "lte", "in"]),
-      value: z3.union([z3.number(), z3.string(), z3.array(z3.union([z3.number(), z3.string()]))])
+  solveConstraints: orgMutationProcedure.input(z5.object({
+    projectId: z5.number(),
+    constraints: z5.array(z5.object({
+      variable: z5.string(),
+      operator: z5.enum(["eq", "gte", "lte", "in"]),
+      value: z5.union([z5.number(), z5.string(), z5.array(z5.union([z5.number(), z5.string()]))])
     }))
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -18034,9 +18383,9 @@ var projectRouter = router({
     return solveConstraints(baseProject, input.constraints);
   }),
   // ─── V2: Enhanced Report Generation ───────────────────────────────
-  generateReport: orgHeavyMutationProcedure.input(z3.object({
-    projectId: z3.number(),
-    reportType: z3.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"])
+  generateReport: orgHeavyMutationProcedure.input(z5.object({
+    projectId: z5.number(),
+    reportType: z5.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"])
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const scores = await getScoreMatricesByProject(input.projectId);
@@ -18248,7 +18597,7 @@ var projectRouter = router({
     let fileUrl = null;
     let storageKey = null;
     try {
-      const fileKey = `reports/${project.id}/${input.reportType}-${nanoid2(8)}.html`;
+      const fileKey = `reports/${project.id}/${input.reportType}-${nanoid3(8)}.html`;
       const result = await storagePut(fileKey, html, "text/html");
       storageKey = result.key;
       fileUrl = result.url;
@@ -18305,14 +18654,14 @@ var projectRouter = router({
       roiNarrative: input.reportType === "full_report" ? roiResult : void 0
     };
   }),
-  listReports: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
+  listReports: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getReportsByProject(input.projectId);
   }),
   // ─── V4: Area Verification Gate ───────────────────────────────────────────
-  extractAreas: orgHeavyMutationProcedure.input(z3.object({
-    projectId: z3.number(),
-    assetId: z3.number()
+  extractAreas: orgHeavyMutationProcedure.input(z5.object({
+    projectId: z5.number(),
+    assetId: z5.number()
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const { resource: asset } = await requireProjectResourceForOrg(
@@ -18326,7 +18675,7 @@ var projectRouter = router({
     if (asset.projectId !== project.id) {
       throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
-    if (!asset.storageUrl) throw new Error("Asset has no storage URL");
+    if (!asset.storagePath) throw new TRPCError7({ code: "BAD_REQUEST", message: "Asset has no stored media" });
     const extraction = await createPdfExtractionForOrg({
       projectId: input.projectId,
       assetId: input.assetId,
@@ -18337,9 +18686,10 @@ var projectRouter = router({
       throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
     try {
-      const { extractRoomsFromImage: extractRoomsFromImage2 } = await Promise.resolve().then(() => (init_pdf_extraction(), pdf_extraction_exports));
-      const result = await extractRoomsFromImage2(
-        asset.storageUrl,
+      const { extractRoomsFromMedia: extractRoomsFromMedia2 } = await Promise.resolve().then(() => (init_pdf_extraction(), pdf_extraction_exports));
+      const media = await readValidatedProjectMedia(asset, "project.area-extraction");
+      const result = await extractRoomsFromMedia2(
+        media,
         {
           typology: project.ctx01Typology || void 0,
           gfa: getPricingArea(project) || void 0,
@@ -18376,14 +18726,14 @@ var projectRouter = router({
       await updatePdfExtractionForOrg(extraction.id, ctx.orgId, {
         status: "rejected"
       });
-      throw new Error(`Area extraction failed: ${error.message}`);
+      throw error;
     }
   }),
-  verifyAreas: orgMutationProcedure.input(z3.object({
-    projectId: z3.number(),
-    extractionId: z3.number(),
-    action: z3.enum(["verify", "reject"]),
-    adjustedTotalArea: z3.number().optional()
+  verifyAreas: orgMutationProcedure.input(z5.object({
+    projectId: z5.number(),
+    extractionId: z5.number(),
+    action: z5.enum(["verify", "reject"]),
+    adjustedTotalArea: z5.number().optional()
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const { resource: extraction } = await requireProjectResourceForOrg(
@@ -18438,14 +18788,14 @@ var projectRouter = router({
       return { success: true, verifiedArea: null };
     }
   }),
-  getExtractions: orgProcedure.input(z3.object({ projectId: z3.number() })).query(async ({ ctx, input }) => {
+  getExtractions: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getPdfExtractionsByProject(input.projectId);
   })
 });
 
 // server/routers/scenario.ts
-import { z as z4 } from "zod";
+import { z as z6 } from "zod";
 import { TRPCError as TRPCError8 } from "@trpc/server";
 init_db();
 init_db();
@@ -18647,6 +18997,9 @@ function calculateProjectRoi(params) {
   };
 }
 
+// server/routers/scenario.ts
+init_area_utils();
+
 // server/engines/autonomous/scenario-ranking.ts
 function rankScenarios(scenarios2) {
   const scoredScenarios = scenarios2.map((scenario) => {
@@ -18699,15 +19052,15 @@ function projectToInputs2(p) {
   };
 }
 var scenarioRouter = router({
-  list: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+  list: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getScenariosByProject(input.projectId);
   }),
-  create: orgMutationProcedure.input(z4.object({
-    projectId: z4.number(),
-    name: z4.string().min(1),
-    description: z4.string().optional(),
-    variableOverrides: z4.record(z4.string(), z4.any())
+  create: orgMutationProcedure.input(z6.object({
+    projectId: z6.number(),
+    name: z6.string().min(1),
+    description: z6.string().optional(),
+    variableOverrides: z6.record(z6.string(), z6.any())
   })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const result = await createScenarioRecordForOrg({
@@ -18728,7 +19081,7 @@ var scenarioRouter = router({
     });
     return result;
   }),
-  delete: orgMutationProcedure.input(z4.object({ id: z4.number() })).mutation(async ({ ctx, input }) => {
+  delete: orgMutationProcedure.input(z6.object({ id: z6.number() })).mutation(async ({ ctx, input }) => {
     await requireProjectResourceForOrg(input.id, ctx.orgId, {
       lookupResource: getScenarioById,
       getProjectId: (scenario) => scenario.projectId
@@ -18741,7 +19094,7 @@ var scenarioRouter = router({
     }
     return { success: true };
   }),
-  compare: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+  compare: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) return [];
@@ -18774,11 +19127,11 @@ var scenarioRouter = router({
     return runScenarioComparison(baseInputs, scenarioInputs2, config);
   }),
   // ─── D1: Stress Test ────────────────────────────────────────────────
-  stressTest: orgMutationProcedure.input(z4.object({
-    scenarioId: z4.number(),
-    stressCondition: z4.enum(["cost_surge", "demand_collapse", "market_shift", "data_disruption"]),
-    baselineBudgetAed: z4.number(),
-    tier: z4.string()
+  stressTest: orgMutationProcedure.input(z6.object({
+    scenarioId: z6.number(),
+    stressCondition: z6.enum(["cost_surge", "demand_collapse", "market_shift", "data_disruption"]),
+    baselineBudgetAed: z6.number(),
+    tier: z6.string()
   })).mutation(async ({ ctx, input }) => {
     await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
       lookupResource: getScenarioById,
@@ -18803,7 +19156,7 @@ var scenarioRouter = router({
     }
     return result;
   }),
-  listStressTests: orgProcedure.input(z4.object({ scenarioId: z4.number() })).query(async ({ ctx, input }) => {
+  listStressTests: orgProcedure.input(z6.object({ scenarioId: z6.number() })).query(async ({ ctx, input }) => {
     await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
       lookupResource: getScenarioById,
       getProjectId: (scenario) => scenario.projectId
@@ -18813,16 +19166,16 @@ var scenarioRouter = router({
     return drizzle2.select().from(scenarioStressTests).where(eq4(scenarioStressTests.scenarioId, input.scenarioId)).orderBy(desc3(scenarioStressTests.createdAt));
   }),
   // ─── D2: Economic Model (ROI) ──────────────────────────────────────
-  calculateRoi: orgMutationProcedure.input(z4.object({
-    projectId: z4.number(),
-    scenarioId: z4.number().optional(),
-    tier: z4.string(),
-    scale: z4.string(),
-    totalBudgetAed: z4.number(),
-    totalDevelopmentValue: z4.number(),
-    complexityScore: z4.number(),
-    serviceFeeAed: z4.number(),
-    decisionSpeedAdjustment: z4.number().optional()
+  calculateRoi: orgMutationProcedure.input(z6.object({
+    projectId: z6.number(),
+    scenarioId: z6.number().optional(),
+    tier: z6.string(),
+    scale: z6.string(),
+    totalBudgetAed: z6.number(),
+    totalDevelopmentValue: z6.number(),
+    complexityScore: z6.number(),
+    serviceFeeAed: z6.number(),
+    decisionSpeedAdjustment: z6.number().optional()
   })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     if (input.scenarioId !== void 0) {
@@ -18861,12 +19214,12 @@ var scenarioRouter = router({
     return roi;
   }),
   // ─── D3: Risk Surface Map ──────────────────────────────────────────
-  generateRiskSurface: orgMutationProcedure.input(z4.object({
-    projectId: z4.number(),
-    tier: z4.string(),
-    horizon: z4.string(),
-    location: z4.string(),
-    complexityScore: z4.number()
+  generateRiskSurface: orgMutationProcedure.input(z6.object({
+    projectId: z6.number(),
+    tier: z6.string(),
+    horizon: z6.string(),
+    location: z6.string(),
+    complexityScore: z6.number()
   })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const domains = [
@@ -18911,14 +19264,14 @@ var scenarioRouter = router({
       )
     };
   }),
-  getRiskSurface: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+  getRiskSurface: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
     return drizzle2.select().from(riskSurfaceMaps).where(eq4(riskSurfaceMaps.projectId, input.projectId)).orderBy(desc3(riskSurfaceMaps.createdAt));
   }),
   // ─── D4: Scenario Ranking ─────────────────────────────────────────
-  rank: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+  rank: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
     await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -18943,18 +19296,18 @@ var scenarioRouter = router({
     return rankScenarios(profiles);
   }),
   // ─── Phase F: Monte Carlo Simulation ────────────────────────────────────
-  runMonteCarlo: orgHeavyMutationProcedure.input(z4.object({
-    projectId: z4.number(),
-    iterations: z4.number().min(100).max(5e4).default(1e4),
-    horizonMonths: z4.number().min(1).max(60).default(18),
-    costVolatilityPct: z4.number().min(1).max(50).default(12),
-    trendVolatility: z4.number().min(0).max(20).default(3)
+  runMonteCarlo: orgHeavyMutationProcedure.input(z6.object({
+    projectId: z6.number(),
+    iterations: z6.number().min(100).max(5e4).default(1e4),
+    horizonMonths: z6.number().min(1).max(60).default(18),
+    costVolatilityPct: z6.number().min(1).max(50).default(12),
+    trendVolatility: z6.number().min(0).max(20).default(3)
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const { runMonteCarloSimulation: runMonteCarloSimulation2 } = await Promise.resolve().then(() => (init_monte_carlo(), monte_carlo_exports));
     const baseCost = Number(project.fin01BudgetCap || 0);
-    const gfa = Number(project.siteArea || 500);
-    const trendPct = Number(project.marketTrendPercent || 3);
+    const gfa = getPricingArea(project) || 500;
+    const trendPct = 3;
     const marketCond = project.marketCondition || "balanced";
     const result = runMonteCarloSimulation2({
       baseCostPerSqm: baseCost > 0 ? baseCost / gfa : 2500,
@@ -18991,13 +19344,13 @@ var scenarioRouter = router({
     }
     return result;
   }),
-  getSimulations: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+  getSimulations: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
     return d.select().from(monteCarloSimulations).where(eq4(monteCarloSimulations.projectId, input.projectId)).orderBy(desc3(monteCarloSimulations.createdAt)).limit(10);
   }),
-  getSimulation: orgProcedure.input(z4.object({ id: z4.number() })).query(async ({ ctx, input }) => {
+  getSimulation: orgProcedure.input(z6.object({ id: z6.number() })).query(async ({ ctx, input }) => {
     const authorized = await requireProjectResourceForOrg(
       input.id,
       ctx.orgId,
@@ -19011,7 +19364,7 @@ var scenarioRouter = router({
 });
 
 // server/routers/admin.ts
-import { z as z5 } from "zod";
+import { z as z7 } from "zod";
 init_db();
 
 // server/engines/portfolio.ts
@@ -19512,28 +19865,28 @@ async function generateSyntheticBenchmarks() {
 var adminRouter = router({
   // ─── Benchmarks ──────────────────────────────────────────────────────
   benchmarks: router({
-    list: protectedProcedure.input(z5.object({
-      typology: z5.string().optional(),
-      location: z5.string().optional(),
-      marketTier: z5.string().optional()
+    list: protectedProcedure.input(z7.object({
+      typology: z7.string().optional(),
+      location: z7.string().optional(),
+      marketTier: z7.string().optional()
     }).optional()).query(async ({ input }) => {
       return getBenchmarks(input?.typology, input?.location, input?.marketTier);
     }),
-    create: adminProcedure.input(z5.object({
-      typology: z5.string(),
-      location: z5.string(),
-      marketTier: z5.string(),
-      materialLevel: z5.number(),
-      costPerSqftLow: z5.number().optional(),
-      costPerSqftMid: z5.number().optional(),
-      costPerSqftHigh: z5.number().optional(),
-      avgSellingPrice: z5.number().optional(),
-      absorptionRate: z5.number().optional(),
-      competitiveDensity: z5.number().optional(),
-      sourceType: z5.enum(["synthetic", "client_provided", "curated"]).default("synthetic"),
-      dataYear: z5.number().optional(),
-      region: z5.string().default("UAE"),
-      benchmarkVersionId: z5.number().optional()
+    create: adminProcedure.input(z7.object({
+      typology: z7.string(),
+      location: z7.string(),
+      marketTier: z7.string(),
+      materialLevel: z7.number(),
+      costPerSqftLow: z7.number().optional(),
+      costPerSqftMid: z7.number().optional(),
+      costPerSqftHigh: z7.number().optional(),
+      avgSellingPrice: z7.number().optional(),
+      absorptionRate: z7.number().optional(),
+      competitiveDensity: z7.number().optional(),
+      sourceType: z7.enum(["synthetic", "client_provided", "curated"]).default("synthetic"),
+      dataYear: z7.number().optional(),
+      region: z7.string().default("UAE"),
+      benchmarkVersionId: z7.number().optional()
     })).mutation(async ({ ctx, input }) => {
       const activeBV = await getActiveBenchmarkVersion();
       const result = await createBenchmark({
@@ -19554,7 +19907,7 @@ var adminRouter = router({
       });
       return result;
     }),
-    delete: adminProcedure.input(z5.object({ id: z5.number() })).mutation(async ({ ctx, input }) => {
+    delete: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ ctx, input }) => {
       await deleteBenchmark(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -19564,21 +19917,21 @@ var adminRouter = router({
       });
       return { success: true };
     }),
-    csvImport: adminProcedure.input(z5.object({
-      rows: z5.array(z5.object({
-        typology: z5.string(),
-        location: z5.string(),
-        marketTier: z5.string(),
-        materialLevel: z5.number(),
-        costPerSqftLow: z5.number().optional(),
-        costPerSqftMid: z5.number().optional(),
-        costPerSqftHigh: z5.number().optional(),
-        avgSellingPrice: z5.number().optional(),
-        absorptionRate: z5.number().optional(),
-        competitiveDensity: z5.number().optional(),
-        sourceType: z5.enum(["synthetic", "client_provided", "curated"]).default("client_provided"),
-        dataYear: z5.number().optional(),
-        region: z5.string().default("UAE")
+    csvImport: adminProcedure.input(z7.object({
+      rows: z7.array(z7.object({
+        typology: z7.string(),
+        location: z7.string(),
+        marketTier: z7.string(),
+        materialLevel: z7.number(),
+        costPerSqftLow: z7.number().optional(),
+        costPerSqftMid: z7.number().optional(),
+        costPerSqftHigh: z7.number().optional(),
+        avgSellingPrice: z7.number().optional(),
+        absorptionRate: z7.number().optional(),
+        competitiveDensity: z7.number().optional(),
+        sourceType: z7.enum(["synthetic", "client_provided", "curated"]).default("client_provided"),
+        dataYear: z7.number().optional(),
+        region: z7.string().default("UAE")
       }))
     })).mutation(async ({ ctx, input }) => {
       const activeBV = await getActiveBenchmarkVersion();
@@ -19613,9 +19966,9 @@ var adminRouter = router({
     active: protectedProcedure.query(async () => {
       return getActiveBenchmarkVersion();
     }),
-    create: adminProcedure.input(z5.object({
-      versionTag: z5.string(),
-      description: z5.string().optional()
+    create: adminProcedure.input(z7.object({
+      versionTag: z7.string(),
+      description: z7.string().optional()
     })).mutation(async ({ ctx, input }) => {
       const result = await createBenchmarkVersion({
         ...input,
@@ -19630,7 +19983,7 @@ var adminRouter = router({
       });
       return result;
     }),
-    publish: adminProcedure.input(z5.object({ id: z5.number() })).mutation(async ({ ctx, input }) => {
+    publish: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ ctx, input }) => {
       await publishBenchmarkVersion(input.id, ctx.user.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -19640,13 +19993,13 @@ var adminRouter = router({
       });
       return { success: true };
     }),
-    diff: adminProcedure.input(z5.object({
-      oldVersionId: z5.number(),
-      newVersionId: z5.number()
+    diff: adminProcedure.input(z7.object({
+      oldVersionId: z7.number(),
+      newVersionId: z7.number()
     })).query(async ({ input }) => {
       return getBenchmarkDiff(input.oldVersionId, input.newVersionId);
     }),
-    impactPreview: adminProcedure.input(z5.object({ versionId: z5.number() })).query(async ({ input }) => {
+    impactPreview: adminProcedure.input(z7.object({ versionId: z7.number() })).query(async ({ input }) => {
       const allScores = await getAllScoreMatrices();
       const currentBV = await getActiveBenchmarkVersion();
       if (!currentBV) return { affectedProjects: [], totalProjects: allScores.length };
@@ -19661,22 +20014,22 @@ var adminRouter = router({
   }),
   // ─── Benchmark Categories (V2) ──────────────────────────────────────
   benchmarkCategories: router({
-    list: adminProcedure.input(z5.object({
-      category: z5.string().optional(),
-      projectClass: z5.string().optional()
+    list: adminProcedure.input(z7.object({
+      category: z7.string().optional(),
+      projectClass: z7.string().optional()
     }).optional()).query(async ({ input }) => {
       return getAllBenchmarkCategories(input?.category, input?.projectClass);
     }),
-    create: adminProcedure.input(z5.object({
-      category: z5.enum(["materials", "finishes", "ffe", "procurement", "cost_bands", "tier_definitions", "style_families", "brand_archetypes", "risk_factors", "lead_times"]),
-      name: z5.string(),
-      description: z5.string().optional(),
-      projectClass: z5.enum(["mid", "upper", "luxury", "ultra_luxury"]),
-      market: z5.string().default("UAE"),
-      submarket: z5.string().default("Dubai"),
-      confidenceLevel: z5.enum(["high", "medium", "low"]).default("medium"),
-      sourceType: z5.enum(["manual", "admin", "imported", "curated"]).default("admin"),
-      data: z5.any()
+    create: adminProcedure.input(z7.object({
+      category: z7.enum(["materials", "finishes", "ffe", "procurement", "cost_bands", "tier_definitions", "style_families", "brand_archetypes", "risk_factors", "lead_times"]),
+      name: z7.string(),
+      description: z7.string().optional(),
+      projectClass: z7.enum(["mid", "upper", "luxury", "ultra_luxury"]),
+      market: z7.string().default("UAE"),
+      submarket: z7.string().default("Dubai"),
+      confidenceLevel: z7.enum(["high", "medium", "low"]).default("medium"),
+      sourceType: z7.enum(["manual", "admin", "imported", "curated"]).default("admin"),
+      data: z7.any()
     })).mutation(async ({ ctx, input }) => {
       const activeBV = await getActiveBenchmarkVersion();
       const result = await createBenchmarkCategory({
@@ -19692,12 +20045,12 @@ var adminRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z5.object({
-      id: z5.number(),
-      name: z5.string().optional(),
-      description: z5.string().optional(),
-      data: z5.any().optional(),
-      confidenceLevel: z5.enum(["high", "medium", "low"]).optional()
+    update: adminProcedure.input(z7.object({
+      id: z7.number(),
+      name: z7.string().optional(),
+      description: z7.string().optional(),
+      data: z7.any().optional(),
+      confidenceLevel: z7.enum(["high", "medium", "low"]).optional()
     })).mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       await updateBenchmarkCategory(id, data);
@@ -19709,7 +20062,7 @@ var adminRouter = router({
       });
       return { success: true };
     }),
-    delete: adminProcedure.input(z5.object({ id: z5.number() })).mutation(async ({ ctx, input }) => {
+    delete: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ ctx, input }) => {
       await deleteBenchmarkCategory(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -19725,12 +20078,12 @@ var adminRouter = router({
     list: adminProcedure.query(async () => {
       return getAllModelVersions();
     }),
-    create: adminProcedure.input(z5.object({
-      versionTag: z5.string(),
-      dimensionWeights: z5.any(),
-      variableWeights: z5.any(),
-      penaltyConfig: z5.any(),
-      notes: z5.string().optional()
+    create: adminProcedure.input(z7.object({
+      versionTag: z7.string(),
+      dimensionWeights: z7.any(),
+      variableWeights: z7.any(),
+      penaltyConfig: z7.any(),
+      notes: z7.string().optional()
     })).mutation(async ({ ctx, input }) => {
       const result = await createModelVersion({
         ...input,
@@ -19757,16 +20110,16 @@ var adminRouter = router({
     active: protectedProcedure.query(async () => {
       return getActiveRoiConfig();
     }),
-    create: adminProcedure.input(z5.object({
-      name: z5.string(),
-      hourlyRate: z5.number().default(350),
-      reworkCostPct: z5.number().default(0.12),
-      tenderIterationCost: z5.number().default(25e3),
-      designCycleCost: z5.number().default(45e3),
-      budgetVarianceMultiplier: z5.number().default(0.08),
-      timeAccelerationWeeks: z5.number().default(6),
-      conservativeMultiplier: z5.number().default(0.6),
-      aggressiveMultiplier: z5.number().default(1.4)
+    create: adminProcedure.input(z7.object({
+      name: z7.string(),
+      hourlyRate: z7.number().default(350),
+      reworkCostPct: z7.number().default(0.12),
+      tenderIterationCost: z7.number().default(25e3),
+      designCycleCost: z7.number().default(45e3),
+      budgetVarianceMultiplier: z7.number().default(0.08),
+      timeAccelerationWeeks: z7.number().default(6),
+      conservativeMultiplier: z7.number().default(0.6),
+      aggressiveMultiplier: z7.number().default(1.4)
     })).mutation(async ({ ctx, input }) => {
       const result = await createRoiConfig({
         ...input,
@@ -19787,16 +20140,16 @@ var adminRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z5.object({
-      id: z5.number(),
-      hourlyRate: z5.number().optional(),
-      reworkCostPct: z5.number().optional(),
-      tenderIterationCost: z5.number().optional(),
-      designCycleCost: z5.number().optional(),
-      budgetVarianceMultiplier: z5.number().optional(),
-      timeAccelerationWeeks: z5.number().optional(),
-      conservativeMultiplier: z5.number().optional(),
-      aggressiveMultiplier: z5.number().optional()
+    update: adminProcedure.input(z7.object({
+      id: z7.number(),
+      hourlyRate: z7.number().optional(),
+      reworkCostPct: z7.number().optional(),
+      tenderIterationCost: z7.number().optional(),
+      designCycleCost: z7.number().optional(),
+      budgetVarianceMultiplier: z7.number().optional(),
+      timeAccelerationWeeks: z7.number().optional(),
+      conservativeMultiplier: z7.number().optional(),
+      aggressiveMultiplier: z7.number().optional()
     })).mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       const updateData = {};
@@ -19820,12 +20173,12 @@ var adminRouter = router({
     list: adminProcedure.query(async () => {
       return getAllWebhookConfigs();
     }),
-    create: adminProcedure.input(z5.object({
-      name: z5.string(),
-      url: z5.string().url(),
-      secret: z5.string().optional(),
-      events: z5.array(z5.string()),
-      fieldMapping: z5.record(z5.string(), z5.string()).optional()
+    create: adminProcedure.input(z7.object({
+      name: z7.string(),
+      url: z7.string().url(),
+      secret: z7.string().optional(),
+      events: z7.array(z7.string()),
+      fieldMapping: z7.record(z7.string(), z7.string()).optional()
     })).mutation(async ({ ctx, input }) => {
       const result = await createWebhookConfig({
         ...input,
@@ -19839,14 +20192,14 @@ var adminRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z5.object({
-      id: z5.number(),
-      name: z5.string().optional(),
-      url: z5.string().url().optional(),
-      secret: z5.string().optional(),
-      events: z5.array(z5.string()).optional(),
-      fieldMapping: z5.record(z5.string(), z5.string()).optional(),
-      isActive: z5.boolean().optional()
+    update: adminProcedure.input(z7.object({
+      id: z7.number(),
+      name: z7.string().optional(),
+      url: z7.string().url().optional(),
+      secret: z7.string().optional(),
+      events: z7.array(z7.string()).optional(),
+      fieldMapping: z7.record(z7.string(), z7.string()).optional(),
+      isActive: z7.boolean().optional()
     })).mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       await updateWebhookConfig(id, data);
@@ -19858,7 +20211,7 @@ var adminRouter = router({
       });
       return { success: true };
     }),
-    delete: adminProcedure.input(z5.object({ id: z5.number() })).mutation(async ({ ctx, input }) => {
+    delete: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ ctx, input }) => {
       await deleteWebhookConfig(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -19932,23 +20285,23 @@ var adminRouter = router({
   }),
   // ─── Audit Logs ──────────────────────────────────────────────────────
   auditLogs: router({
-    list: adminProcedure.input(z5.object({ limit: z5.number().default(50) }).optional()).query(async ({ input }) => {
+    list: adminProcedure.input(z7.object({ limit: z7.number().default(50) }).optional()).query(async ({ input }) => {
       return getAuditLogs(input?.limit ?? 50);
     })
   }),
   // ─── Override Records ────────────────────────────────────────────────
   overrides: router({
-    list: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
+    list: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       return getOverridesByProject(input.projectId);
     }),
-    create: orgMutationProcedure.input(z5.object({
-      projectId: z5.number(),
-      overrideType: z5.enum(["strategic", "market_insight", "risk_adjustment", "experimental"]),
-      authorityLevel: z5.number().min(1).max(5),
-      originalValue: z5.any(),
-      overrideValue: z5.any(),
-      justification: z5.string().min(10)
+    create: orgMutationProcedure.input(z7.object({
+      projectId: z7.number(),
+      overrideType: z7.enum(["strategic", "market_insight", "risk_adjustment", "experimental"]),
+      authorityLevel: z7.number().min(1).max(5),
+      originalValue: z7.any(),
+      overrideValue: z7.any(),
+      justification: z7.string().min(10)
     })).mutation(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       const result = await createOverrideRecordForOrg({
@@ -19981,8 +20334,8 @@ var adminRouter = router({
       });
       return result;
     }),
-    previewLive: adminProcedure.input(z5.object({
-      finishLevel: z5.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).default("standard")
+    previewLive: adminProcedure.input(z7.object({
+      finishLevel: z7.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).default("standard")
     }).optional()).query(async ({ input }) => {
       const level = input?.finishLevel || "standard";
       return getLiveCategoryPricing(level);
@@ -20474,7 +20827,7 @@ var seedRouter = router({
 });
 
 // server/routers/design.ts
-import { z as z6 } from "zod";
+import { z as z10 } from "zod";
 init_db();
 init_storage();
 import { TRPCError as TRPCError11 } from "@trpc/server";
@@ -20665,6 +21018,11 @@ init_board_composer();
 init_db();
 init_schema();
 import { and as and2, eq as eq5 } from "drizzle-orm";
+function allowedVendorStatuses(constraints) {
+  if (constraints === "Strict Vendor List") return ["preferred_brand"];
+  if (constraints === "Moderate Guidelines") return ["approved_vendor", "preferred_brand"];
+  return ["open_market", "approved_vendor", "preferred_brand"];
+}
 async function matchVendorsForProject(options) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -20674,15 +21032,7 @@ async function matchVendorsForProject(options) {
   )).limit(1);
   if (projectRows.length === 0) throw new Error(`Project ${options.projectId} not found`);
   const project = projectRows[0];
-  const constraints = project.brandStandardConstraints || "none";
-  let allowedStatuses = ["open_market", "approved_vendor", "preferred_brand"];
-  if (constraints === "strict_vendor_list") {
-    allowedStatuses = ["preferred_brand"];
-  } else if (constraints === "moderate_guidelines") {
-    allowedStatuses = ["approved_vendor", "preferred_brand"];
-  } else if (constraints === "open_market" || constraints === "none") {
-    allowedStatuses = ["open_market", "approved_vendor", "preferred_brand"];
-  }
+  const allowedStatuses = allowedVendorStatuses(project.brandStandardConstraints);
   const allMaterials = await db.select().from(materialsCatalog).where(eq5(materialsCatalog.isActive, true));
   let matchedMaterials = allMaterials.filter(
     (m) => allowedStatuses.includes(m.brandStandardApproval || "open_market")
@@ -20726,65 +21076,76 @@ async function matchVendorsForProject(options) {
 
 // server/_core/imageGeneration.ts
 init_storage();
-import { Buffer as Buffer3 } from "buffer";
+init_ai_operation();
+import { Buffer as Buffer3 } from "node:buffer";
+import { z as z9 } from "zod";
+var IMAGE_RESPONSE_SCHEMA = z9.object({
+  candidates: z9.array(z9.object({
+    content: z9.object({
+      parts: z9.array(z9.object({
+        inlineData: z9.object({ data: z9.string().min(1), mimeType: z9.string().optional() }).optional()
+      }))
+    }).optional()
+  })).default([])
+});
+var MAX_RETRIES2 = 2;
+function retryDelay2(attempt) {
+  return new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 1e3));
+}
+function imageErrorForStatus(status) {
+  if (status === 400) return new AiOperationError("PROVIDER_REJECTED_INPUT", { operation: "gemini.image-generation" });
+  if (status === 401 || status === 403) return new AiOperationError("PROVIDER_UNAUTHORIZED", { operation: "gemini.image-generation", providerStatus: status });
+  if (status === 429) return new AiOperationError("PROVIDER_RATE_LIMITED", { operation: "gemini.image-generation", providerStatus: status, retryable: true });
+  return new AiOperationError("PROVIDER_UNAVAILABLE", { operation: "gemini.image-generation", providerStatus: status, retryable: status >= 500 });
+}
 async function generateImage(options) {
   if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured");
+    throw new AiOperationError("PROVIDER_UNAUTHORIZED", { operation: "gemini.image-generation" }).report();
   }
   const model = "gemini-2.5-flash-image";
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: options.prompt }
-          ]
-        }
-      ],
-      generationConfig: {
-        responseModalities: ["IMAGE", "TEXT"],
-        responseMimeType: "text/plain"
-      }
-    })
-  });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(
-      `Image generation request failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
-    );
-  }
-  const result = await response.json();
-  const candidates = result.candidates || [];
-  let base64Data;
-  let mimeType = "image/png";
-  for (const candidate of candidates) {
-    const parts = candidate.content?.parts || [];
-    for (const part of parts) {
-      if (part.inlineData) {
-        base64Data = part.inlineData.data;
-        mimeType = part.inlineData.mimeType || "image/png";
-        break;
-      }
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`;
+  let response;
+  for (let attempt = 0; attempt <= MAX_RETRIES2; attempt += 1) {
+    try {
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6e4),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: options.prompt }] }],
+          generationConfig: { responseModalities: ["IMAGE", "TEXT"], responseMimeType: "text/plain" }
+        })
+      });
+    } catch (error) {
+      const failure2 = toAiOperationError(error, "gemini.image-generation");
+      if (!failure2.retryable || attempt === MAX_RETRIES2) throw failure2.report();
+      await retryDelay2(attempt + 1);
+      continue;
     }
-    if (base64Data) break;
+    if (response.ok) break;
+    const failure = imageErrorForStatus(response.status);
+    if (!failure.retryable || attempt === MAX_RETRIES2) throw failure.report();
+    await retryDelay2(attempt + 1);
   }
-  if (!base64Data) {
-    throw new Error("Gemini Image API returned no image data in the response");
+  if (!response?.ok) throw new AiOperationError("PROVIDER_UNAVAILABLE", { operation: "gemini.image-generation", retryable: true }).report();
+  let parsed;
+  try {
+    parsed = IMAGE_RESPONSE_SCHEMA.parse(await response.json());
+  } catch (error) {
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "gemini.image-generation", cause: error }).report();
   }
-  const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.includes("webp") ? "webp" : "png";
-  const buffer = Buffer3.from(base64Data, "base64");
-  const { url } = await storagePut(
-    `generated/${Date.now()}.${ext}`,
-    buffer,
-    mimeType
-  );
+  const inlineData = parsed.candidates.flatMap((candidate) => candidate.content?.parts || []).find((part) => part.inlineData)?.inlineData;
+  if (!inlineData) throw new AiOperationError(parsed.candidates.length === 0 ? "CONTENT_BLOCKED" : "PROVIDER_INVALID_RESPONSE", { operation: "gemini.image-generation" }).report();
+  const raw = Buffer3.from(inlineData.data, "base64");
+  const media = await validateMediaBuffer(raw, inlineData.mimeType || "image/png", "gemini.image-generation-output");
+  const extension = media.mimeType === "image/jpeg" ? "jpg" : media.mimeType === "image/webp" ? "webp" : "png";
+  const stored = await storagePut(`generated/${Date.now()}-${media.checksum.slice(0, 12)}.${extension}`, media.buffer, media.mimeType);
   return {
-    url
+    url: stored.url,
+    mimeType: media.mimeType,
+    sizeBytes: media.sizeBytes,
+    checksum: media.checksum,
+    storageKey: stored.key
   };
 }
 
@@ -21666,7 +22027,8 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
 
 // server/routers/design.ts
 init_space_program();
-import { nanoid as nanoid3 } from "nanoid";
+import { nanoid as nanoid4 } from "nanoid";
+import crypto3 from "node:crypto";
 
 // server/_core/public-share-access.ts
 init_db();
@@ -21805,6 +22167,26 @@ async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
 }
 
 // server/routers/design.ts
+init_ai_operation();
+var assetCategorySchema = z10.enum([
+  "brief",
+  "brand",
+  "budget",
+  "competitor",
+  "inspiration",
+  "material",
+  "sales",
+  "legal",
+  "mood_image",
+  "material_board",
+  "marketing_hero",
+  "generated",
+  "other"
+]);
+var MAX_LEGACY_BASE64_CHARS = Math.ceil(MAX_MEDIA_BYTES * 4 / 3) + 4;
+function isOwnedUploadKey(orgId, projectId, key) {
+  return key.startsWith(`projects/${orgId}/${projectId}/uploads/`);
+}
 function isDuplicateKeyError(error) {
   let current = error;
   const seen = /* @__PURE__ */ new Set();
@@ -21860,32 +22242,114 @@ function projectToInputs4(p) {
 }
 var designRouter = router({
   // ─── Evidence Vault ─────────────────────────────────────────────────────────
-  listAssets: orgProcedure.input(z6.object({ projectId: z6.number(), category: z6.string().optional() })).query(async ({ ctx, input }) => {
+  listAssets: orgProcedure.input(z10.object({ projectId: z10.number(), category: z10.string().optional() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     return getProjectAssets(input.projectId, input.category);
   }),
-  uploadAsset: designOrgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    filename: z6.string(),
-    mimeType: z6.string(),
-    base64Data: z6.string(),
-    category: z6.enum(["brief", "brand", "budget", "competitor", "inspiration", "material", "sales", "legal", "mood_image", "material_board", "marketing_hero", "generated", "other"]).default("other"),
-    tags: z6.array(z6.string()).optional(),
-    notes: z6.string().optional(),
-    isClientVisible: z6.boolean().default(true)
+  /**
+   * Starts a browser-to-S3 media upload. The caller receives only a short-lived
+   * write URL; finalization below is the security boundary that creates an asset.
+   */
+  createAssetUpload: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    mimeType: z10.string()
+  })).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const mimeType = input.mimeType.toLowerCase();
+    if (!isSupportedMediaMimeType(mimeType)) {
+      throw new TRPCError11({ code: "BAD_REQUEST", message: "This file type is not supported. Please choose a supported image, PDF, audio, or video file." });
+    }
+    const key = `projects/${ctx.orgId}/${input.projectId}/uploads/${crypto3.randomUUID()}`;
+    const upload = await storageCreatePresignedPut(key, mimeType);
+    return { storageKey: upload.key, uploadUrl: upload.uploadUrl, expiresInSeconds: 900 };
+  }),
+  /** Validates an uploaded object and is the only path that persists direct uploads. */
+  finalizeAssetUpload: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    storageKey: z10.string().min(1),
+    filename: z10.string().min(1).max(512),
+    mimeType: z10.string(),
+    category: assetCategorySchema.default("other"),
+    tags: z10.array(z10.string().max(100)).max(30).optional(),
+    notes: z10.string().max(5e3).optional(),
+    isClientVisible: z10.boolean().default(true),
+    purpose: z10.enum(["asset", "floor_plan"]).default("asset")
+  })).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    if (!isOwnedUploadKey(ctx.orgId, input.projectId, input.storageKey)) {
+      throw new TRPCError11({ code: "NOT_FOUND", message: "Upload not found" });
+    }
+    let media;
+    try {
+      media = await readValidatedProjectMedia({
+        storagePath: input.storageKey,
+        mimeType: input.mimeType
+      }, "design.asset.finalize");
+    } catch (error) {
+      try {
+        await cleanupRejectedUpload(input.storageKey);
+      } catch {
+      }
+      throw error;
+    }
+    const stored = await storageGet(input.storageKey);
+    const assetInput = {
+      projectId: input.projectId,
+      filename: input.filename.replace(/[\\/\u0000]/g, "_").slice(0, 512),
+      mimeType: media.mimeType,
+      sizeBytes: media.sizeBytes,
+      checksum: media.checksum,
+      storagePath: input.storageKey,
+      storageUrl: stored.url,
+      uploadedBy: ctx.user.id,
+      category: input.purpose === "floor_plan" ? "floor_plan" : input.category,
+      assetType: mediaTypeFromMime(media.mimeType),
+      tags: input.tags || [],
+      notes: input.notes,
+      isClientVisible: input.isClientVisible
+    };
+    const created = input.purpose === "floor_plan" ? await createFloorPlanAssetAndLinkForOrg(assetInput, ctx.orgId) : await createProjectAssetForOrg(assetInput, ctx.orgId);
+    if (!created) {
+      try {
+        await cleanupRejectedUpload(input.storageKey);
+      } catch {
+      }
+      throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    await bestEffortAudit({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: input.purpose === "floor_plan" ? "floor_plan.upload" : "asset.upload",
+      entityType: "project_asset",
+      entityId: created.id,
+      details: { projectId: input.projectId, mediaType: media.mimeType, sizeBytes: media.sizeBytes }
+    });
+    return { id: created.id, url: stored.url, mimeType: media.mimeType, sizeBytes: media.sizeBytes };
+  }),
+  uploadAsset: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    filename: z10.string(),
+    mimeType: z10.string(),
+    base64Data: z10.string().max(MAX_LEGACY_BASE64_CHARS),
+    category: z10.enum(["brief", "brand", "budget", "competitor", "inspiration", "material", "sales", "legal", "mood_image", "material_board", "marketing_hero", "generated", "other"]).default("other"),
+    tags: z10.array(z10.string()).optional(),
+    notes: z10.string().optional(),
+    isClientVisible: z10.boolean().default(true)
   })).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const buffer = Buffer.from(input.base64Data, "base64");
+    const media = await validateMediaBuffer(buffer, input.mimeType, "design.asset.legacy-upload");
     const suffix = Math.random().toString(36).slice(2, 10);
     const storagePath = `projects/${input.projectId}/assets/${suffix}-${input.filename}`;
-    const uploaded = await storagePut(storagePath, buffer, input.mimeType);
+    const uploaded = await storagePut(storagePath, media.buffer, media.mimeType);
     let created;
     try {
       created = await createProjectAssetForOrg({
         projectId: input.projectId,
         filename: input.filename,
-        mimeType: input.mimeType,
-        sizeBytes: buffer.length,
+        mimeType: media.mimeType,
+        sizeBytes: media.sizeBytes,
+        checksum: media.checksum,
         storagePath: uploaded.key,
         storageUrl: uploaded.url,
         uploadedBy: ctx.user.id,
@@ -21917,7 +22381,7 @@ var designRouter = router({
     });
     return { id: result.id, url: uploaded.url };
   }),
-  deleteAsset: designOrgMutationProcedure.input(z6.object({ assetId: z6.number() })).mutation(async ({ ctx, input }) => {
+  deleteAsset: designOrgMutationProcedure.input(z10.object({ assetId: z10.number() })).mutation(async ({ ctx, input }) => {
     const { resource: asset } = await requireDesignAsset(input.assetId, ctx.orgId);
     requireScopedDesignMutation(await deleteProjectAssetForOrg(input.assetId, ctx.orgId));
     await createAuditLog({
@@ -21930,29 +22394,29 @@ var designRouter = router({
     });
     return { success: true };
   }),
-  updateAsset: designOrgMutationProcedure.input(z6.object({
-    assetId: z6.number(),
-    category: z6.string().optional(),
-    tags: z6.array(z6.string()).optional(),
-    notes: z6.string().optional(),
-    isClientVisible: z6.boolean().optional()
+  updateAsset: designOrgMutationProcedure.input(z10.object({
+    assetId: z10.number(),
+    category: z10.string().optional(),
+    tags: z10.array(z10.string()).optional(),
+    notes: z10.string().optional(),
+    isClientVisible: z10.boolean().optional()
   })).mutation(async ({ ctx, input }) => {
     await requireDesignAsset(input.assetId, ctx.orgId);
     const { assetId, ...updates } = input;
     requireScopedDesignMutation(await updateProjectAssetForOrg(assetId, ctx.orgId, updates));
     return { success: true };
   }),
-  linkAsset: designOrgMutationProcedure.input(z6.object({
-    assetId: z6.number(),
-    linkType: z6.enum(["evaluation", "report", "scenario", "material_board", "design_brief", "visual"]),
-    linkId: z6.number()
+  linkAsset: designOrgMutationProcedure.input(z10.object({
+    assetId: z10.number(),
+    linkType: z10.enum(["evaluation", "report", "scenario", "material_board", "design_brief", "visual"]),
+    linkId: z10.number()
   })).mutation(async ({ ctx, input }) => {
     const asset = await requireDesignAsset(input.assetId, ctx.orgId);
     const target = await requireDesignLinkTarget(input.linkType, input.linkId, ctx.orgId);
     requireSameDesignProject(asset.project.id, target.value.project.id);
     return requireScopedDesignInsert(await createAssetLinkForOrg(input, ctx.orgId));
   }),
-  getAssetLinks: orgProcedure.input(z6.object({ assetId: z6.number() })).query(async ({ ctx, input }) => {
+  getAssetLinks: orgProcedure.input(z10.object({ assetId: z10.number() })).query(async ({ ctx, input }) => {
     const asset = await requireDesignAsset(input.assetId, ctx.orgId);
     const links = await getAssetLinksByAsset(input.assetId);
     for (const link of links) {
@@ -21962,7 +22426,7 @@ var designRouter = router({
     return links;
   }),
   // ─── Design Brief Generator ─────────────────────────────────────────────────
-  generateBrief: designOrgMutationProcedure.input(z6.object({ projectId: z6.number(), scenarioId: z6.number().optional() })).mutation(async ({ ctx, input }) => {
+  generateBrief: designOrgMutationProcedure.input(z10.object({ projectId: z10.number(), scenarioId: z10.number().optional() })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (input.scenarioId !== void 0) {
       const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
@@ -22001,9 +22465,9 @@ var designRouter = router({
         if (floorPlanAnalysis?.rooms?.length > 0 && project.dldAreaId) {
           const dldBench = await getDldAreaBenchmark(project.dldAreaId);
           if (dldBench) {
-            const areaName = dldBench.areaName || "Dubai";
-            const transCount = Number(dldBench.transactionCount) || 100;
-            const saleP50 = Number(dldBench.saleMedian) || 25e3;
+            const areaName = dldBench.areaNameEn || "Dubai";
+            const transCount = Number(dldBench.saleTransactionCount) || 100;
+            const saleP50 = Number(dldBench.saleP50) || 25e3;
             spaceBenchmarkResult = benchmarkSpaceRatios(floorPlanAnalysis, areaName, transCount, saleP50);
           }
         }
@@ -22107,7 +22571,7 @@ var designRouter = router({
     });
     return { id: result.id, version: nextVersion, data: briefData };
   }),
-  listBriefs: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  listBriefs: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const briefs = await getDesignBriefsByProject(input.projectId);
     for (const brief of briefs) {
@@ -22115,21 +22579,21 @@ var designRouter = router({
     }
     return briefs;
   }),
-  getBrief: orgProcedure.input(z6.object({ briefId: z6.number() })).query(async ({ ctx, input }) => {
+  getBrief: orgProcedure.input(z10.object({ briefId: z10.number() })).query(async ({ ctx, input }) => {
     const { resource } = await requireDesignBrief(input.briefId, ctx.orgId);
     await requireMatchingDesignScenario(resource.scenarioId, resource.projectId, ctx.orgId);
     return resource;
   }),
-  getLatestBrief: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  getLatestBrief: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const brief = await getLatestDesignBrief(input.projectId);
     if (brief) await requireMatchingDesignScenario(brief.scenarioId, brief.projectId, ctx.orgId);
     return brief;
   }),
   // ─── RFQ from Brief (V4 Pipeline) ─────────────────────────────────────────
-  generateRfqFromBrief: designOrgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    briefId: z6.number()
+  generateRfqFromBrief: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    briefId: z10.number()
   })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     const { resource: brief, project: briefProject } = await requireDesignBrief(input.briefId, ctx.orgId);
@@ -22182,7 +22646,7 @@ var designRouter = router({
     });
     return result;
   }),
-  exportBriefDocx: designOrgMutationProcedure.input(z6.object({ briefId: z6.number() })).mutation(async ({ ctx, input }) => {
+  exportBriefDocx: designOrgMutationProcedure.input(z10.object({ briefId: z10.number() })).mutation(async ({ ctx, input }) => {
     const { resource: brief, project } = await requireDesignBrief(input.briefId, ctx.orgId);
     const docxBuffer = await generateDesignBriefDocx({
       projectIdentity: brief.projectIdentity ?? {},
@@ -22195,17 +22659,17 @@ var designRouter = router({
       version: brief.version,
       projectName: project?.name
     });
-    const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid3(8)}.docx`;
+    const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid4(8)}.docx`;
     const { url } = await storagePut(fileKey, docxBuffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     return { url };
   }),
   // ─── Visual Generation (nano banana) ────────────────────────────────────────
-  generateVisual: designOrgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    type: z6.enum(["mood", "material_board", "hero"]),
-    scenarioId: z6.number().optional(),
-    customPrompt: z6.string().optional(),
-    templateId: z6.number().optional()
+  generateVisual: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    type: z10.enum(["mood", "material_board", "hero"]),
+    scenarioId: z10.number().optional(),
+    customPrompt: z10.string().optional(),
+    templateId: z10.number().optional()
   })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     let selectedTemplate;
@@ -22293,13 +22757,15 @@ var designRouter = router({
       createdBy: ctx.user.id
     }, ctx.orgId));
     try {
-      const { url } = await generateImage({ prompt });
+      const generated = await generateImage({ prompt });
+      const url = generated.url;
       const assetResult = requireScopedDesignInsert(await createProjectAssetForOrg({
         projectId: input.projectId,
         filename: `${input.type}-${Date.now()}.png`,
-        mimeType: "image/png",
-        sizeBytes: 0,
-        storagePath: `projects/${input.projectId}/visuals/${input.type}-${Date.now()}.png`,
+        mimeType: generated.mimeType,
+        sizeBytes: generated.sizeBytes,
+        checksum: generated.checksum,
+        storagePath: generated.storageKey,
         storageUrl: url,
         uploadedBy: ctx.user.id,
         category: input.type === "mood" ? "mood_image" : input.type === "material_board" ? "material_board" : "marketing_hero"
@@ -22318,14 +22784,15 @@ var designRouter = router({
       });
       return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" };
     } catch (error) {
+      const failure = toAiOperationFailure(error, "design.visual-generation");
       requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
         status: "failed",
-        errorMessage: error.message || "Image generation failed"
+        errorMessage: failure.message
       }));
-      return { id: visualResult.id, assetId: null, url: null, status: "failed", error: error.message };
+      return { id: visualResult.id, assetId: null, url: null, status: "failed", error: failure.message, referenceId: failure.referenceId };
     }
   }),
-  listVisuals: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  listVisuals: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const visuals = await getGeneratedVisualsByProject(input.projectId);
     const enriched = await Promise.all(visuals.map(async (v) => {
@@ -22341,11 +22808,11 @@ var designRouter = router({
     return enriched;
   }),
   // V4-05: Attach a completed visual's asset to a report/pack as an evidence reference
-  attachVisualToPack: designOrgMutationProcedure.input(z6.object({
-    visualId: z6.number(),
-    targetType: z6.enum(["report", "design_brief", "material_board", "pack_section"]),
-    targetId: z6.number(),
-    sectionLabel: z6.string().optional()
+  attachVisualToPack: designOrgMutationProcedure.input(z10.object({
+    visualId: z10.number(),
+    targetType: z10.enum(["report", "design_brief", "material_board", "pack_section"]),
+    targetId: z10.number(),
+    sectionLabel: z10.string().optional()
   })).mutation(async () => {
     throw new TRPCError11({
       code: "PRECONDITION_FAILED",
@@ -22353,9 +22820,9 @@ var designRouter = router({
     });
   }),
   // ─── Pin Visuals to Material Boards (V4) ────────────────────────────────────
-  pinVisualToBoard: designOrgMutationProcedure.input(z6.object({
-    visualId: z6.number(),
-    boardId: z6.number()
+  pinVisualToBoard: designOrgMutationProcedure.input(z10.object({
+    visualId: z10.number(),
+    boardId: z10.number()
   })).mutation(async ({ ctx, input }) => {
     const { resource: visual, project: visualProject } = await requireDesignVisual(input.visualId, ctx.orgId);
     if (!visual || !visual.imageAssetId) {
@@ -22380,7 +22847,7 @@ var designRouter = router({
     });
     return { success: true, linkId: link.id };
   }),
-  listPinnedVisuals: orgProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ ctx, input }) => {
+  listPinnedVisuals: orgProcedure.input(z10.object({ boardId: z10.number() })).query(async ({ ctx, input }) => {
     const { project: boardProject } = await requireDesignBoard(input.boardId, ctx.orgId);
     const links = await getAssetLinksByEntity("material_board", input.boardId);
     const pinned = await Promise.all(links.map(async (link) => {
@@ -22390,13 +22857,13 @@ var designRouter = router({
         linkId: link.id,
         assetId: link.assetId,
         imageUrl: asset?.storageUrl ?? null,
-        fileName: asset?.fileName ?? null,
+        fileName: asset?.filename ?? null,
         pinnedAt: link.createdAt
       };
     }));
     return pinned;
   }),
-  unpinVisual: designOrgMutationProcedure.input(z6.object({ linkId: z6.number() })).mutation(async ({ ctx, input }) => {
+  unpinVisual: designOrgMutationProcedure.input(z10.object({ linkId: z10.number() })).mutation(async ({ ctx, input }) => {
     const authorizedLink = await requireDesignAssetLink(input.linkId, ctx.orgId);
     if (authorizedLink.resource.linkType !== "material_board") {
       throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
@@ -22414,11 +22881,11 @@ var designRouter = router({
     return { success: true };
   }),
   // ─── Material Board Composer ────────────────────────────────────────────────
-  createBoard: designOrgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    boardName: z6.string(),
-    scenarioId: z6.number().optional(),
-    materialIds: z6.array(z6.number()).optional()
+  createBoard: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    boardName: z10.string(),
+    scenarioId: z10.number().optional(),
+    materialIds: z10.array(z10.number()).optional()
   })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (input.scenarioId !== void 0) {
@@ -22445,7 +22912,7 @@ var designRouter = router({
     });
     return { id: boardResult.id };
   }),
-  listBoards: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  listBoards: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const boards = await getMaterialBoardsByProject(input.projectId);
     for (const board of boards) {
@@ -22453,7 +22920,7 @@ var designRouter = router({
     }
     return boards;
   }),
-  getBoard: orgProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ ctx, input }) => {
+  getBoard: orgProcedure.input(z10.object({ boardId: z10.number() })).query(async ({ ctx, input }) => {
     const { resource: board } = await requireDesignBoard(input.boardId, ctx.orgId);
     await requireMatchingDesignScenario(board.scenarioId, board.projectId, ctx.orgId);
     const boardMaterials = await getMaterialsByBoard(input.boardId);
@@ -22464,12 +22931,12 @@ var designRouter = router({
     }
     return { board, materials: materialDetails };
   }),
-  addMaterialToBoard: designOrgMutationProcedure.input(z6.object({
-    boardId: z6.number(),
-    materialId: z6.number(),
-    quantity: z6.number().optional(),
-    unitOfMeasure: z6.string().optional(),
-    notes: z6.string().optional()
+  addMaterialToBoard: designOrgMutationProcedure.input(z10.object({
+    boardId: z10.number(),
+    materialId: z10.number(),
+    quantity: z10.number().optional(),
+    unitOfMeasure: z10.string().optional(),
+    notes: z10.string().optional()
   })).mutation(async ({ ctx, input }) => {
     await requireDesignBoard(input.boardId, ctx.orgId);
     return requireScopedDesignInsert(await addMaterialToBoardForOrg({
@@ -22480,12 +22947,12 @@ var designRouter = router({
       notes: input.notes
     }, ctx.orgId));
   }),
-  removeMaterialFromBoard: designOrgMutationProcedure.input(z6.object({ joinId: z6.number() })).mutation(async ({ ctx, input }) => {
+  removeMaterialFromBoard: designOrgMutationProcedure.input(z10.object({ joinId: z10.number() })).mutation(async ({ ctx, input }) => {
     await requireDesignBoardJoin(input.joinId, ctx.orgId);
     requireScopedDesignMutation(await removeMaterialFromBoardForOrg(input.joinId, ctx.orgId));
     return { success: true };
   }),
-  deleteBoard: designOrgMutationProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
+  deleteBoard: designOrgMutationProcedure.input(z10.object({ boardId: z10.number() })).mutation(async ({ ctx, input }) => {
     await requireDesignBoard(input.boardId, ctx.orgId);
     requireScopedDesignMutation(await deleteMaterialBoardForOrg(input.boardId, ctx.orgId));
     await createAuditLog({
@@ -22497,13 +22964,13 @@ var designRouter = router({
     });
     return { success: true };
   }),
-  updateBoardTile: designOrgMutationProcedure.input(z6.object({
-    joinId: z6.number(),
-    specNotes: z6.string().nullish(),
-    costBandOverride: z6.string().nullish(),
-    quantity: z6.number().nullish(),
-    unitOfMeasure: z6.string().nullish(),
-    notes: z6.string().nullish()
+  updateBoardTile: designOrgMutationProcedure.input(z10.object({
+    joinId: z10.number(),
+    specNotes: z10.string().nullish(),
+    costBandOverride: z10.string().nullish(),
+    quantity: z10.number().nullish(),
+    unitOfMeasure: z10.string().nullish(),
+    notes: z10.string().nullish()
   })).mutation(async ({ ctx, input }) => {
     await requireDesignBoardJoin(input.joinId, ctx.orgId);
     const { joinId, ...rest } = input;
@@ -22516,9 +22983,9 @@ var designRouter = router({
     }));
     return { success: true };
   }),
-  reorderBoardTiles: designOrgMutationProcedure.input(z6.object({
-    boardId: z6.number(),
-    orderedJoinIds: z6.array(z6.number())
+  reorderBoardTiles: designOrgMutationProcedure.input(z10.object({
+    boardId: z10.number(),
+    orderedJoinIds: z10.array(z10.number())
   })).mutation(async ({ ctx, input }) => {
     const board = await requireDesignBoard(input.boardId, ctx.orgId);
     if (new Set(input.orderedJoinIds).size !== input.orderedJoinIds.length) {
@@ -22532,7 +22999,7 @@ var designRouter = router({
     requireScopedDesignMutation(await reorderBoardTilesForOrg(input.boardId, input.orderedJoinIds, ctx.orgId));
     return { success: true };
   }),
-  exportBoardPdf: designOrgMutationProcedure.input(z6.object({ boardId: z6.number() })).mutation(async ({ ctx, input }) => {
+  exportBoardPdf: designOrgMutationProcedure.input(z10.object({ boardId: z10.number() })).mutation(async ({ ctx, input }) => {
     const { resource: board, project } = await requireDesignBoard(input.boardId, ctx.orgId);
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const items = [];
@@ -22570,7 +23037,7 @@ var designRouter = router({
     });
     let fileUrl = null;
     try {
-      const fileKey = `boards/${board.projectId}/${board.id}-${nanoid3(8)}.html`;
+      const fileKey = `boards/${board.projectId}/${board.id}-${nanoid4(8)}.html`;
       const result = await storagePut(fileKey, html, "text/html");
       fileUrl = result.url;
     } catch (e) {
@@ -22586,7 +23053,7 @@ var designRouter = router({
     });
     return { fileUrl, html };
   }),
-  boardSummary: orgProcedure.input(z6.object({ boardId: z6.number() })).query(async ({ ctx, input }) => {
+  boardSummary: orgProcedure.input(z10.object({ boardId: z10.number() })).query(async ({ ctx, input }) => {
     await requireDesignBoard(input.boardId, ctx.orgId);
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const items = [];
@@ -22612,7 +23079,7 @@ var designRouter = router({
       rfqLines: generateRfqLines(items)
     };
   }),
-  recommendMaterials: orgProcedure.input(z6.object({ projectId: z6.number(), maxItems: z6.number().default(10) })).query(async ({ ctx, input }) => {
+  recommendMaterials: orgProcedure.input(z10.object({ projectId: z10.number(), maxItems: z10.number().default(10) })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const matched = await matchVendorsForProject({
       projectId: input.projectId,
@@ -22633,29 +23100,29 @@ var designRouter = router({
     }));
   }),
   // ─── Materials Catalog ──────────────────────────────────────────────────────
-  listMaterials: protectedProcedure.input(z6.object({ category: z6.string().optional(), tier: z6.string().optional() })).query(async ({ input }) => {
+  listMaterials: protectedProcedure.input(z10.object({ category: z10.string().optional(), tier: z10.string().optional() })).query(async ({ input }) => {
     return getAllMaterials(input.category, input.tier);
   }),
-  getMaterial: protectedProcedure.input(z6.object({ id: z6.number() })).query(async ({ input }) => {
+  getMaterial: protectedProcedure.input(z10.object({ id: z10.number() })).query(async ({ input }) => {
     return getMaterialById(input.id);
   }),
-  createMaterial: adminProcedure.input(z6.object({
-    name: z6.string(),
-    category: z6.enum(["tile", "stone", "wood", "metal", "fabric", "glass", "paint", "wallpaper", "lighting", "furniture", "fixture", "accessory", "other"]),
-    tier: z6.enum(["economy", "mid", "premium", "luxury", "ultra_luxury"]),
-    typicalCostLow: z6.number().optional(),
-    typicalCostHigh: z6.number().optional(),
-    costUnit: z6.string().default("AED/sqm"),
-    leadTimeDays: z6.number().optional(),
-    leadTimeBand: z6.enum(["short", "medium", "long", "critical"]).default("medium"),
-    regionAvailability: z6.array(z6.string()).optional(),
-    embodiedCarbon: z6.number().optional(),
-    maintenanceFactor: z6.number().optional(),
-    brandStandardApproval: z6.enum(["open_market", "approved_vendor", "preferred_brand"]).default("open_market"),
-    supplierName: z6.string().optional(),
-    supplierContact: z6.string().optional(),
-    supplierUrl: z6.string().optional(),
-    notes: z6.string().optional()
+  createMaterial: adminProcedure.input(z10.object({
+    name: z10.string(),
+    category: z10.enum(["tile", "stone", "wood", "metal", "fabric", "glass", "paint", "wallpaper", "lighting", "furniture", "fixture", "accessory", "other"]),
+    tier: z10.enum(["economy", "mid", "premium", "luxury", "ultra_luxury"]),
+    typicalCostLow: z10.number().optional(),
+    typicalCostHigh: z10.number().optional(),
+    costUnit: z10.string().default("AED/sqm"),
+    leadTimeDays: z10.number().optional(),
+    leadTimeBand: z10.enum(["short", "medium", "long", "critical"]).default("medium"),
+    regionAvailability: z10.array(z10.string()).optional(),
+    embodiedCarbon: z10.number().optional(),
+    maintenanceFactor: z10.number().optional(),
+    brandStandardApproval: z10.enum(["open_market", "approved_vendor", "preferred_brand"]).default("open_market"),
+    supplierName: z10.string().optional(),
+    supplierContact: z10.string().optional(),
+    supplierUrl: z10.string().optional(),
+    notes: z10.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const result = await createMaterial({
       ...input,
@@ -22667,17 +23134,17 @@ var designRouter = router({
     });
     return result;
   }),
-  updateMaterial: adminProcedure.input(z6.object({
-    id: z6.number(),
-    name: z6.string().optional(),
-    typicalCostLow: z6.number().optional(),
-    typicalCostHigh: z6.number().optional(),
-    embodiedCarbon: z6.number().optional(),
-    maintenanceFactor: z6.number().optional(),
-    brandStandardApproval: z6.enum(["open_market", "approved_vendor", "preferred_brand"]).optional(),
-    leadTimeDays: z6.number().optional(),
-    supplierName: z6.string().optional(),
-    notes: z6.string().optional()
+  updateMaterial: adminProcedure.input(z10.object({
+    id: z10.number(),
+    name: z10.string().optional(),
+    typicalCostLow: z10.number().optional(),
+    typicalCostHigh: z10.number().optional(),
+    embodiedCarbon: z10.number().optional(),
+    maintenanceFactor: z10.number().optional(),
+    brandStandardApproval: z10.enum(["open_market", "approved_vendor", "preferred_brand"]).optional(),
+    leadTimeDays: z10.number().optional(),
+    supplierName: z10.string().optional(),
+    notes: z10.string().optional()
   })).mutation(async ({ input }) => {
     const { id, ...updates } = input;
     const mapped = { ...updates };
@@ -22688,39 +23155,39 @@ var designRouter = router({
     await updateMaterial(id, mapped);
     return { success: true };
   }),
-  deleteMaterial: adminProcedure.input(z6.object({ id: z6.number() })).mutation(async ({ input }) => {
+  deleteMaterial: adminProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ input }) => {
     await deleteMaterial(input.id);
     return { success: true };
   }),
   // ─── Prompt Templates ───────────────────────────────────────────────────────
-  listPromptTemplates: orgProcedure.input(z6.object({ type: z6.string().optional() })).query(async ({ ctx, input }) => {
+  listPromptTemplates: orgProcedure.input(z10.object({ type: z10.string().optional() })).query(async ({ ctx, input }) => {
     return getAllPromptTemplates(input.type, ctx.orgId);
   }),
-  createPromptTemplate: adminProcedure.input(z6.object({
-    name: z6.string(),
-    type: z6.enum(["mood", "material_board", "hero"]),
-    templateText: z6.string(),
-    variables: z6.array(z6.string())
+  createPromptTemplate: adminProcedure.input(z10.object({
+    name: z10.string(),
+    type: z10.enum(["mood", "material_board", "hero"]),
+    templateText: z10.string(),
+    variables: z10.array(z10.string())
   })).mutation(async ({ ctx, input }) => {
     return createPromptTemplate({ ...input, createdBy: ctx.user.id, orgId: ctx.user.orgId ?? void 0 });
   }),
-  updatePromptTemplate: adminProcedure.input(z6.object({
-    id: z6.number(),
-    name: z6.string().optional(),
-    templateText: z6.string().optional(),
-    variables: z6.array(z6.string()).optional(),
-    isActive: z6.boolean().optional()
+  updatePromptTemplate: adminProcedure.input(z10.object({
+    id: z10.number(),
+    name: z10.string().optional(),
+    templateText: z10.string().optional(),
+    variables: z10.array(z10.string()).optional(),
+    isActive: z10.boolean().optional()
   })).mutation(async ({ input }) => {
     const { id, ...updates } = input;
     await updatePromptTemplate(id, updates);
     return { success: true };
   }),
   // ─── Collaboration & Comments ───────────────────────────────────────────────
-  addComment: designOrgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    entityType: z6.enum(["design_brief", "material_board", "visual", "general"]),
-    entityId: z6.number().optional(),
-    content: z6.string().min(1)
+  addComment: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    entityType: z10.enum(["design_brief", "material_board", "visual", "general"]),
+    entityId: z10.number().optional(),
+    content: z10.string().min(1)
   })).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     if (input.entityType === "general") {
@@ -22738,10 +23205,10 @@ var designRouter = router({
       content: input.content
     }, ctx.orgId));
   }),
-  listComments: orgProcedure.input(z6.object({
-    projectId: z6.number(),
-    entityType: z6.string().optional(),
-    entityId: z6.number().optional()
+  listComments: orgProcedure.input(z10.object({
+    projectId: z10.number(),
+    entityType: z10.string().optional(),
+    entityId: z10.number().optional()
   })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     if (input.entityType === "general" && input.entityId !== void 0) {
@@ -22757,10 +23224,10 @@ var designRouter = router({
     return getCommentsByProject(input.projectId);
   }),
   // ─── Approval Gates ─────────────────────────────────────────────────────────
-  updateApprovalState: designOrgAdminProcedure.input(z6.object({
-    projectId: z6.number(),
-    approvalState: z6.enum(["draft", "review", "approved_rfq", "approved_marketing"]),
-    rationale: z6.string().optional()
+  updateApprovalState: designOrgAdminProcedure.input(z10.object({
+    projectId: z10.number(),
+    approvalState: z10.enum(["draft", "review", "approved_rfq", "approved_marketing"]),
+    rationale: z10.string().optional()
   })).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     requireScopedDesignMutation(await updateProjectApprovalStateForOrg(input.projectId, ctx.orgId, input.approvalState));
@@ -22792,11 +23259,11 @@ var designRouter = router({
    * Crosses the caller's material mix with the material_constants table.
    * Unknown material types are skipped (graceful fallback).
    */
-  calculateSpec: protectedProcedure.input(z6.object({
-    items: z6.array(z6.object({
-      materialType: z6.string(),
+  calculateSpec: protectedProcedure.input(z10.object({
+    items: z10.array(z10.object({
+      materialType: z10.string(),
       // e.g. "concrete", "stone", "glass"
-      areaM2: z6.number().positive()
+      areaM2: z10.number().positive()
     }))
   })).mutation(async ({ input }) => {
     const constants = await getMaterialConstants();
@@ -22863,9 +23330,9 @@ var designRouter = router({
    * Used to inject market signals into AI recommendations and display trend
    * context in the InvestorSummary / DesignBrief pages.
    */
-  getDesignTrends: orgProcedure.input(z6.object({
-    projectId: z6.number(),
-    limit: z6.number().min(1).max(50).default(20)
+  getDesignTrends: orgProcedure.input(z10.object({
+    projectId: z10.number(),
+    limit: z10.number().min(1).max(50).default(20)
   })).query(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     const style = project.des01Style ?? void 0;
@@ -22883,7 +23350,7 @@ var designRouter = router({
    * 4.2 Benchmark Overlay: Return AED/sqm benchmark for the project's
    * typology + location + tier, with progressive fallback.
    */
-  getBenchmarkForProject: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  getBenchmarkForProject: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     const typology = project.ctx01Typology ?? "Residential";
     const location = project.ctx04Location ?? "Secondary";
@@ -22916,7 +23383,7 @@ var designRouter = router({
   getDldAreas: orgProcedure.query(async () => {
     return getDldAreas();
   }),
-  getDldAreaComparison: orgProcedure.input(z6.object({ areaId: z6.number() })).query(async ({ input }) => {
+  getDldAreaComparison: orgProcedure.input(z10.object({ areaId: z10.number() })).query(async ({ input }) => {
     const [projects2, comparison] = await Promise.all([
       getDldProjectsByArea(input.areaId),
       getDldAreaComparison(input.areaId)
@@ -22933,7 +23400,7 @@ var designRouter = router({
   getAreaBenchmarks: orgProcedure.query(async () => {
     return getAllAreaBenchmarks();
   }),
-  getAreaBenchmark: orgProcedure.input(z6.object({ areaId: z6.number() })).query(async ({ input }) => {
+  getAreaBenchmark: orgProcedure.input(z10.object({ areaId: z10.number() })).query(async ({ input }) => {
     return getDldAreaBenchmark(input.areaId);
   }),
   getDldDataStats: orgProcedure.query(async () => {
@@ -22944,12 +23411,12 @@ var designRouter = router({
     return { transactionCount, rentCount };
   }),
   /** Returns DLD benchmark data for a project's saved area — used by Investor Summary */
-  getProjectDldBenchmark: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  getProjectDldBenchmark: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (!project.dldAreaId) return null;
     const benchmark = await getDldAreaBenchmark(project.dldAreaId);
     return benchmark ? {
-      areaName: project.dldAreaName || benchmark.areaName,
+      areaName: project.dldAreaName || benchmark.areaNameEn,
       projectPurpose: project.projectPurpose || "sell_ready",
       saleP50: benchmark.saleP50 ? Number(benchmark.saleP50) : null,
       saleP25: benchmark.saleP25 ? Number(benchmark.saleP25) : null,
@@ -22959,8 +23426,8 @@ var designRouter = router({
       fitoutLow: benchmark.recommendedFitoutLow ? Number(benchmark.recommendedFitoutLow) : null,
       fitoutMid: benchmark.recommendedFitoutMid ? Number(benchmark.recommendedFitoutMid) : null,
       fitoutHigh: benchmark.recommendedFitoutHigh ? Number(benchmark.recommendedFitoutHigh) : null,
-      transactionCount: benchmark.transactionCount ? Number(benchmark.transactionCount) : 0,
-      rentContractCount: benchmark.rentContractCount ? Number(benchmark.rentContractCount) : 0
+      transactionCount: benchmark.saleTransactionCount ? Number(benchmark.saleTransactionCount) : 0,
+      rentContractCount: benchmark.rentTransactionCount ? Number(benchmark.rentTransactionCount) : 0
     } : null;
   }),
   // ─── Phase A.4: Data Freshness ─────────────────────────────────────────────
@@ -23015,10 +23482,10 @@ var designRouter = router({
     };
   }),
   // ─── Phase A.3: Evidence Chain ─────────────────────────────────────────────
-  getEvidenceChain: orgProcedure.input(z6.object({
-    category: z6.string().optional(),
-    projectId: z6.number().optional(),
-    limit: z6.number().min(1).max(50).default(20)
+  getEvidenceChain: orgProcedure.input(z10.object({
+    category: z10.string().optional(),
+    projectId: z10.number().optional(),
+    limit: z10.number().min(1).max(50).default(20)
   })).query(async ({ ctx, input }) => {
     if (input.projectId !== void 0) await requireDesignProject(input.projectId, ctx.orgId);
     const results = await getEvidenceWithSources({
@@ -23029,11 +23496,11 @@ var designRouter = router({
     });
     return { evidence: results };
   }),
-  getCompetitorContext: orgProcedure.input(z6.object({ limit: z6.number().min(1).max(20).default(6) })).query(async ({ input }) => {
+  getCompetitorContext: orgProcedure.input(z10.object({ limit: z10.number().min(1).max(20).default(6) })).query(async ({ input }) => {
     return getActiveSourceRegistry(input.limit);
   }),
   // ─── Phase 5: Export & Handover ─────────────────────────────────────────────
-  exportInvestorPdf: designOrgMutationProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
+  exportInvestorPdf: designOrgMutationProcedure.input(z10.object({ projectId: z10.number() })).mutation(async ({ ctx, input }) => {
     const { generateInvestorPdfHtml: generateInvestorPdfHtml2 } = await Promise.resolve().then(() => (init_investor_pdf(), investor_pdf_exports));
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     const [brief, recs, materialConsts, benchmark, trends] = await Promise.all([
@@ -23100,7 +23567,7 @@ var designRouter = router({
     });
     return { html, projectName: project.name ?? "Project" };
   }),
-  createShareLink: designOrgAdminProcedure.input(z6.object({ projectId: z6.number(), expiryDays: z6.number().min(1).max(90).default(7) })).mutation(async ({ ctx, input }) => {
+  createShareLink: designOrgAdminProcedure.input(z10.object({ projectId: z10.number(), expiryDays: z10.number().min(1).max(90).default(7) })).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const brief = await getLatestAiDesignBrief(input.projectId, ctx.orgId);
     if (!brief) throw new Error("Generate a design brief first before sharing");
@@ -23108,7 +23575,7 @@ var designRouter = router({
     expiresAt.setDate(expiresAt.getDate() + input.expiryDays);
     let token = "";
     for (let attempt = 1; attempt <= 5; attempt += 1) {
-      token = nanoid3(32);
+      token = nanoid4(32);
       try {
         requireScopedDesignMutation(await updateAiDesignBriefShareTokenForOrg(
           brief.id,
@@ -23145,7 +23612,7 @@ var designRouter = router({
     });
     return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
   }),
-  resolveShareLink: publicProcedure.input(z6.object({ token: z6.string().min(8).max(64) })).query(async ({ input }) => {
+  resolveShareLink: publicProcedure.input(z10.object({ token: z10.string().min(8).max(64) })).query(async ({ input }) => {
     const { brief, project } = await requireActivePublicShare(input.token);
     const [recs, benchmark, trends] = await Promise.all([
       getSpaceRecommendations(brief.projectId, brief.orgId),
@@ -23161,9 +23628,9 @@ var designRouter = router({
           if (dldBench) {
             const spaceResult = benchmarkSpaceRatios(
               fpData,
-              dldBench.areaName || "Dubai",
-              Number(dldBench.transactionCount) || 100,
-              Number(dldBench.saleMedian) || 25e3
+              dldBench.areaNameEn || "Dubai",
+              Number(dldBench.saleTransactionCount) || 100,
+              Number(dldBench.saleP50) || 25e3
             );
             spaceEfficiency = {
               efficiencyScore: spaceResult.overallEfficiencyScore,
@@ -23216,12 +23683,12 @@ var designRouter = router({
     };
   }),
   // ─── Phase 9: Room-Specific Render ─────────────────────────────────────────
-  generateRoomRender: designOrgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    roomName: z6.string(),
-    roomType: z6.string(),
-    roomSqm: z6.number(),
-    finishGrade: z6.enum(["A", "B", "C"]).default("A")
+  generateRoomRender: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    roomName: z10.string(),
+    roomType: z10.string(),
+    roomSqm: z10.number(),
+    finishGrade: z10.enum(["A", "B", "C"]).default("A")
   })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     const inputs = projectToInputs4(project);
@@ -23266,13 +23733,15 @@ var designRouter = router({
       createdBy: ctx.user.id
     }, ctx.orgId));
     try {
-      const { url } = await generateImage({ prompt });
+      const generated = await generateImage({ prompt });
+      const url = generated.url;
       const assetResult = requireScopedDesignInsert(await createProjectAssetForOrg({
         projectId: input.projectId,
         filename: `room-render-${input.roomName.replace(/\s+/g, "-")}-${Date.now()}.png`,
-        mimeType: "image/png",
-        sizeBytes: 0,
-        storagePath: `projects/${input.projectId}/visuals/room-${Date.now()}.png`,
+        mimeType: generated.mimeType,
+        sizeBytes: generated.sizeBytes,
+        checksum: generated.checksum,
+        storagePath: generated.storageKey,
         storageUrl: url,
         uploadedBy: ctx.user.id,
         category: "mood_image"
@@ -23280,29 +23749,32 @@ var designRouter = router({
       requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "completed", imageAssetId: assetResult.id }));
       return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" };
     } catch (error) {
-      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "failed", errorMessage: error.message }));
-      return { id: visualResult.id, assetId: null, url: null, status: "failed", error: error.message };
+      const failure = toAiOperationFailure(error, "design.room-render");
+      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "failed", errorMessage: failure.message }));
+      return { id: visualResult.id, assetId: null, url: null, status: "failed", error: failure.message, referenceId: failure.referenceId };
     }
   }),
   // ─── Phase 9: Floor Plan Upload ────────────────────────────────────────────
-  uploadFloorPlan: designOrgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    filename: z6.string(),
-    mimeType: z6.string(),
-    base64Data: z6.string()
+  uploadFloorPlan: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    filename: z10.string(),
+    mimeType: z10.string(),
+    base64Data: z10.string().max(MAX_LEGACY_BASE64_CHARS)
   })).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const buffer = Buffer.from(input.base64Data, "base64");
+    const media = await validateMediaBuffer(buffer, input.mimeType, "design.floor-plan.legacy-upload");
     const suffix = Math.random().toString(36).slice(2, 10);
     const storagePath = `projects/${input.projectId}/floor-plans/${suffix}-${input.filename}`;
-    const uploaded = await storagePut(storagePath, buffer, input.mimeType);
+    const uploaded = await storagePut(storagePath, media.buffer, media.mimeType);
     let created;
     try {
       created = await createFloorPlanAssetAndLinkForOrg({
         projectId: input.projectId,
         filename: input.filename,
-        mimeType: input.mimeType,
-        sizeBytes: buffer.length,
+        mimeType: media.mimeType,
+        sizeBytes: media.sizeBytes,
+        checksum: media.checksum,
         storagePath: uploaded.key,
         storageUrl: uploaded.url,
         uploadedBy: ctx.user.id,
@@ -23332,18 +23804,18 @@ var designRouter = router({
     return { assetId: result.id, url: uploaded.url };
   }),
   // ─── Phase 9: Floor Plan Analysis ──────────────────────────────────────────
-  analyzeFloorPlan: designOrgMutationProcedure.input(z6.object({ projectId: z6.number() })).mutation(async ({ ctx, input }) => {
+  analyzeFloorPlan: designOrgMutationProcedure.input(z10.object({ projectId: z10.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (!project.floorPlanAssetId) {
       throw new TRPCError11({ code: "BAD_REQUEST", message: "No floor plan uploaded for this project" });
     }
     const { resource: asset, project: assetProject } = await requireDesignAsset(project.floorPlanAssetId, ctx.orgId);
     requireSameDesignProject(project.id, assetProject.id);
-    if (!asset || !asset.storageUrl) {
+    if (!asset || !asset.storagePath) {
       throw new TRPCError11({ code: "NOT_FOUND", message: "Floor plan asset not found or has no URL" });
     }
-    console.log(`[FloorPlan] Analyzing floor plan for project ${input.projectId}: ${asset.storageUrl}`);
-    const analysis = await analyzeFloorPlan(asset.storageUrl, asset.mimeType);
+    const media = await readValidatedProjectMedia(asset, "design.floor-plan.analyze");
+    const analysis = await analyzeFloorPlan(media);
     requireScopedDesignMutation(await updateProjectForOrg(input.projectId, ctx.orgId, {
       floorPlanAnalysis: analysis,
       // Also update totalFitoutArea if not already set
@@ -23367,7 +23839,7 @@ var designRouter = router({
     return analysis;
   }),
   // ─── Phase 9: Space Benchmarking ───────────────────────────────────────────
-  getSpaceBenchmark: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  getSpaceBenchmark: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (!project.floorPlanAnalysis) {
       throw new TRPCError11({ code: "BAD_REQUEST", message: "Floor plan has not been analyzed yet. Upload a floor plan and run analysis first." });
@@ -23390,7 +23862,7 @@ var designRouter = router({
 });
 
 // server/routers/intelligence.ts
-import { z as z7 } from "zod";
+import { z as z11 } from "zod";
 import { TRPCError as TRPCError12 } from "@trpc/server";
 init_db();
 
@@ -23851,14 +24323,14 @@ function generateLearningReport(outcomes, predictions) {
 
 // server/routers/intelligence.ts
 init_storage();
-import { nanoid as nanoid4 } from "nanoid";
+import { nanoid as nanoid5 } from "nanoid";
 var intelligenceRouter = router({
   // ─── V2.10: Logic Registry ──────────────────────────────────────────────────
   logicVersions: router({
     list: adminProcedure.query(async () => {
       return listLogicVersions();
     }),
-    get: adminProcedure.input(z7.object({ id: z7.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z11.object({ id: z11.number() })).query(async ({ input }) => {
       const version = await getLogicVersionById(input.id);
       if (!version) return null;
       const weights = await getLogicWeights(input.id);
@@ -23873,11 +24345,11 @@ var intelligenceRouter = router({
       const thresholds = await getLogicThresholds(version.id);
       return { ...version, weights, thresholds };
     }),
-    create: adminProcedure.input(z7.object({ name: z7.string(), notes: z7.string().optional() })).mutation(async ({ input, ctx }) => {
+    create: adminProcedure.input(z11.object({ name: z11.string(), notes: z11.string().optional() })).mutation(async ({ input, ctx }) => {
       const id = await createLogicVersion({ ...input, createdBy: ctx.user.id });
       return { id };
     }),
-    publish: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ input, ctx }) => {
+    publish: adminProcedure.input(z11.object({ id: z11.number() })).mutation(async ({ input, ctx }) => {
       await publishLogicVersion(input.id);
       await addLogicChangeLogEntry({
         logicVersionId: input.id,
@@ -23887,7 +24359,7 @@ var intelligenceRouter = router({
       });
       return { success: true };
     }),
-    archive: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ input, ctx }) => {
+    archive: adminProcedure.input(z11.object({ id: z11.number() })).mutation(async ({ input, ctx }) => {
       await archiveLogicVersion(input.id);
       await addLogicChangeLogEntry({
         logicVersionId: input.id,
@@ -23898,10 +24370,10 @@ var intelligenceRouter = router({
       return { success: true };
     }),
     setWeights: adminProcedure.input(
-      z7.object({
-        logicVersionId: z7.number(),
-        weights: z7.array(z7.object({ dimension: z7.string(), weight: z7.string() })),
-        rationale: z7.string()
+      z11.object({
+        logicVersionId: z11.number(),
+        weights: z11.array(z11.object({ dimension: z11.string(), weight: z11.string() })),
+        rationale: z11.string()
       })
     ).mutation(async ({ input, ctx }) => {
       await setLogicWeights(input.logicVersionId, input.weights);
@@ -23914,17 +24386,17 @@ var intelligenceRouter = router({
       return { success: true };
     }),
     setThresholds: adminProcedure.input(
-      z7.object({
-        logicVersionId: z7.number(),
-        thresholds: z7.array(
-          z7.object({
-            ruleKey: z7.string(),
-            thresholdValue: z7.string(),
-            comparator: z7.enum(["gt", "gte", "lt", "lte", "eq", "neq"]),
-            notes: z7.string().optional()
+      z11.object({
+        logicVersionId: z11.number(),
+        thresholds: z11.array(
+          z11.object({
+            ruleKey: z11.string(),
+            thresholdValue: z11.string(),
+            comparator: z11.enum(["gt", "gte", "lt", "lte", "eq", "neq"]),
+            notes: z11.string().optional()
           })
         ),
-        rationale: z7.string()
+        rationale: z11.string()
       })
     ).mutation(async ({ input, ctx }) => {
       await setLogicThresholds(input.logicVersionId, input.thresholds);
@@ -23936,12 +24408,12 @@ var intelligenceRouter = router({
       });
       return { success: true };
     }),
-    changeLog: adminProcedure.input(z7.object({ logicVersionId: z7.number() })).query(async ({ input }) => {
+    changeLog: adminProcedure.input(z11.object({ logicVersionId: z11.number() })).query(async ({ input }) => {
       return getLogicChangeLog(input.logicVersionId);
     })
   }),
   // ─── V2.10: Calibration ────────────────────────────────────────────────────
-  calibrate: orgAdminProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ input, ctx }) => {
+  calibrate: orgAdminProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const logicVersion = await getPublishedLogicVersion();
     if (!logicVersion) return { error: "No published logic version" };
@@ -23972,7 +24444,7 @@ var intelligenceRouter = router({
   }),
   // ─── V2.11: Scenario Simulation ────────────────────────────────────────────
   scenarios: router({
-    saveInput: orgMutationProcedure.input(z7.object({ scenarioId: z7.number(), jsonInput: z7.unknown() })).mutation(async ({ ctx, input }) => {
+    saveInput: orgMutationProcedure.input(z11.object({ scenarioId: z11.number(), jsonInput: z11.unknown() })).mutation(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
         lookupResource: getScenarioById,
         getProjectId: (scenario) => scenario.projectId
@@ -23986,7 +24458,7 @@ var intelligenceRouter = router({
       }
       return { id };
     }),
-    getInput: orgProcedure.input(z7.object({ scenarioId: z7.number() })).query(async ({ ctx, input }) => {
+    getInput: orgProcedure.input(z11.object({ scenarioId: z11.number() })).query(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
         lookupResource: getScenarioById,
         getProjectId: (scenario) => scenario.projectId
@@ -23994,14 +24466,14 @@ var intelligenceRouter = router({
       return getScenarioInput(input.scenarioId);
     }),
     saveOutput: orgMutationProcedure.input(
-      z7.object({
-        scenarioId: z7.number(),
-        scoreJson: z7.unknown(),
-        roiJson: z7.unknown().optional(),
-        riskJson: z7.unknown().optional(),
-        boardCostJson: z7.unknown().optional(),
-        benchmarkVersionId: z7.number().optional(),
-        logicVersionId: z7.number().optional()
+      z11.object({
+        scenarioId: z11.number(),
+        scoreJson: z11.unknown(),
+        roiJson: z11.unknown().optional(),
+        riskJson: z11.unknown().optional(),
+        boardCostJson: z11.unknown().optional(),
+        benchmarkVersionId: z11.number().optional(),
+        logicVersionId: z11.number().optional()
       })
     ).mutation(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
@@ -24014,14 +24486,14 @@ var intelligenceRouter = router({
       }
       return { id };
     }),
-    getOutput: orgProcedure.input(z7.object({ scenarioId: z7.number() })).query(async ({ ctx, input }) => {
+    getOutput: orgProcedure.input(z11.object({ scenarioId: z11.number() })).query(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
         lookupResource: getScenarioById,
         getProjectId: (scenario) => scenario.projectId
       });
       return getScenarioOutput(input.scenarioId);
     }),
-    listOutputs: orgProcedure.input(z7.object({ scenarioIds: z7.array(z7.number()) })).query(async ({ ctx, input }) => {
+    listOutputs: orgProcedure.input(z11.object({ scenarioIds: z11.array(z11.number()) })).query(async ({ ctx, input }) => {
       await requireProjectResourceBatchForOrg(
         input.scenarioIds,
         ctx.orgId,
@@ -24033,11 +24505,11 @@ var intelligenceRouter = router({
       return listScenarioOutputs(input.scenarioIds);
     }),
     compare: orgMutationProcedure.input(
-      z7.object({
-        projectId: z7.number(),
-        baselineScenarioId: z7.number(),
-        comparedScenarioIds: z7.array(z7.number()),
-        decisionNote: z7.string().optional()
+      z11.object({
+        projectId: z11.number(),
+        baselineScenarioId: z11.number(),
+        comparedScenarioIds: z11.array(z11.number()),
+        decisionNote: z11.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -24080,18 +24552,18 @@ var intelligenceRouter = router({
       }
       return { id, comparisonResult };
     }),
-    listComparisons: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
+    listComparisons: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       return listScenarioComparisons(input.projectId);
     }),
-    getComparison: orgProcedure.input(z7.object({ id: z7.number() })).query(async ({ ctx, input }) => {
+    getComparison: orgProcedure.input(z11.object({ id: z11.number() })).query(async ({ ctx, input }) => {
       const authorized = await requireProjectResourceForOrg(input.id, ctx.orgId, {
         lookupResource: getScenarioComparisonById,
         getProjectId: (comparison) => comparison.projectId
       });
       return authorized.resource;
     }),
-    exportComparisonPDF: orgHeavyMutationProcedure.input(z7.object({ comparisonId: z7.number() })).mutation(async ({ ctx, input }) => {
+    exportComparisonPDF: orgHeavyMutationProcedure.input(z11.object({ comparisonId: z11.number() })).mutation(async ({ ctx, input }) => {
       const { resource: comparison, project } = await requireProjectResourceForOrg(input.comparisonId, ctx.orgId, {
         lookupResource: getScenarioComparisonById,
         getProjectId: (record) => record.projectId
@@ -24127,14 +24599,14 @@ var intelligenceRouter = router({
         logicVersion: logicVersion?.name ?? "Default"
       };
       const html = generateScenarioComparisonHTML(pdfInput);
-      const fileKey = `reports/${comparison.projectId}/scenario-comparison-${nanoid4(8)}.html`;
+      const fileKey = `reports/${comparison.projectId}/scenario-comparison-${nanoid5(8)}.html`;
       const { url } = await storagePut(fileKey, html, "text/html");
       return { url, html };
     })
   }),
   // ─── V2.12: Explainability ─────────────────────────────────────────────────
   explainability: router({
-    generate: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
+    generate: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const scores = await getScoreMatricesByProject(input.projectId);
       const latestScore = scores[0];
@@ -24179,7 +24651,7 @@ var intelligenceRouter = router({
         logicVersion?.name ?? "Default"
       );
     }),
-    auditPack: orgHeavyMutationProcedure.input(z7.object({ projectId: z7.number() })).mutation(async ({ ctx, input }) => {
+    auditPack: orgHeavyMutationProcedure.input(z11.object({ projectId: z11.number() })).mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const scores = await getScoreMatricesByProject(input.projectId);
       const latestScore = scores[0];
@@ -24242,17 +24714,17 @@ var intelligenceRouter = router({
   // ─── V2.13: Outcomes ───────────────────────────────────────────────────────
   outcomes: router({
     capture: orgMutationProcedure.input(
-      z7.object({
-        projectId: z7.number(),
-        procurementActualCosts: z7.record(z7.string(), z7.number()).optional(),
-        leadTimesActual: z7.record(z7.string(), z7.number()).optional(),
-        rfqResults: z7.record(z7.string(), z7.number()).optional(),
-        adoptionMetrics: z7.record(z7.string(), z7.unknown()).optional(),
+      z11.object({
+        projectId: z11.number(),
+        procurementActualCosts: z11.record(z11.string(), z11.number()).optional(),
+        leadTimesActual: z11.record(z11.string(), z11.number()).optional(),
+        rfqResults: z11.record(z11.string(), z11.number()).optional(),
+        adoptionMetrics: z11.record(z11.string(), z11.unknown()).optional(),
         // V5 Fields
-        actualFitoutCostPerSqm: z7.number().optional(),
-        reworkOccurred: z7.boolean().optional(),
-        clientSatisfactionScore: z7.number().min(1).max(5).optional(),
-        projectDeliveredOnTime: z7.boolean().optional()
+        actualFitoutCostPerSqm: z11.number().optional(),
+        reworkOccurred: z11.boolean().optional(),
+        clientSatisfactionScore: z11.number().min(1).max(5).optional(),
+        projectDeliveredOnTime: z11.boolean().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -24266,7 +24738,7 @@ var intelligenceRouter = router({
       }
       return { id };
     }),
-    list: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
+    list: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       return getProjectOutcomesForOrg(input.projectId, ctx.orgId);
     }),
@@ -24316,10 +24788,10 @@ var intelligenceRouter = router({
       return listBenchmarkSuggestions();
     }),
     reviewSuggestion: adminProcedure.input(
-      z7.object({
-        id: z7.number(),
-        status: z7.enum(["accepted", "rejected"]),
-        reviewerNotes: z7.string().optional()
+      z11.object({
+        id: z11.number(),
+        status: z11.enum(["accepted", "rejected"]),
+        reviewerNotes: z11.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await reviewBenchmarkSuggestion(input.id, {
@@ -24346,12 +24818,12 @@ function computeDeltas(baseline, compared) {
 }
 
 // server/routers/market-intelligence.ts
-import { z as z9 } from "zod";
+import { z as z13 } from "zod";
 import { TRPCError as TRPCError14 } from "@trpc/server";
 init_db();
 init_dynamic();
 init_orchestrator();
-import { nanoid as nanoid5 } from "nanoid";
+import { nanoid as nanoid6 } from "nanoid";
 
 // server/engines/ingestion/csv-pipeline.ts
 init_db();
@@ -24880,10 +25352,10 @@ async function requireTaggedEntitiesForOrg(tagId, orgId) {
 }
 
 // server/routers/market-intelligence.ts
-var evidenceRecordSchema = z9.object({
-  projectId: z9.number().optional(),
-  sourceRegistryId: z9.number().optional(),
-  category: z9.enum([
+var evidenceRecordSchema = z13.object({
+  projectId: z13.number().optional(),
+  sourceRegistryId: z13.number().optional(),
+  category: z13.enum([
     "floors",
     "walls",
     "ceilings",
@@ -24895,44 +25367,44 @@ var evidenceRecordSchema = z9.object({
     "ffe",
     "other"
   ]),
-  itemName: z9.string().min(1),
-  specClass: z9.string().optional(),
-  priceMin: z9.number().optional(),
-  priceTypical: z9.number().optional(),
-  priceMax: z9.number().optional(),
-  unit: z9.string().min(1),
-  currencyOriginal: z9.string().default("AED"),
-  currencyAed: z9.number().optional(),
-  fxRate: z9.number().optional(),
-  fxSource: z9.string().optional(),
-  sourceUrl: z9.string().url(),
-  publisher: z9.string().optional(),
-  captureDate: z9.string(),
+  itemName: z13.string().min(1),
+  specClass: z13.string().optional(),
+  priceMin: z13.number().optional(),
+  priceTypical: z13.number().optional(),
+  priceMax: z13.number().optional(),
+  unit: z13.string().min(1),
+  currencyOriginal: z13.string().default("AED"),
+  currencyAed: z13.number().optional(),
+  fxRate: z13.number().optional(),
+  fxSource: z13.string().optional(),
+  sourceUrl: z13.string().url(),
+  publisher: z13.string().optional(),
+  captureDate: z13.string(),
   // ISO date
-  reliabilityGrade: z9.enum(["A", "B", "C"]),
-  confidenceScore: z9.number().min(0).max(100),
-  extractedSnippet: z9.string().optional(),
-  notes: z9.string().optional(),
+  reliabilityGrade: z13.enum(["A", "B", "C"]),
+  confidenceScore: z13.number().min(0).max(100),
+  extractedSnippet: z13.string().optional(),
+  notes: z13.string().optional(),
   // V2.2 metadata fields
-  title: z9.string().optional(),
-  evidencePhase: z9.enum(["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]).optional(),
-  author: z9.string().optional(),
-  confidentiality: z9.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
-  tags: z9.array(z9.string()).optional(),
-  fileUrl: z9.string().optional(),
-  fileKey: z9.string().optional(),
-  fileMimeType: z9.string().optional(),
+  title: z13.string().optional(),
+  evidencePhase: z13.enum(["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]).optional(),
+  author: z13.string().optional(),
+  confidentiality: z13.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
+  tags: z13.array(z13.string()).optional(),
+  fileUrl: z13.string().optional(),
+  fileKey: z13.string().optional(),
+  fileMimeType: z13.string().optional(),
   // Source-type Intelligence fields
-  finishLevel: z9.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).nullable().optional(),
-  designStyle: z9.string().nullable().optional(),
-  brandsMentioned: z9.array(z9.string()).nullable().optional(),
-  materialSpec: z9.string().nullable().optional(),
-  intelligenceType: z9.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional()
+  finishLevel: z13.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).nullable().optional(),
+  designStyle: z13.string().nullable().optional(),
+  brandsMentioned: z13.array(z13.string()).nullable().optional(),
+  materialSpec: z13.string().nullable().optional(),
+  intelligenceType: z13.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional()
 });
-var sourceRegistrySchema = z9.object({
-  name: z9.string().min(1),
-  url: z9.string().url(),
-  sourceType: z9.enum([
+var sourceRegistrySchema = z13.object({
+  name: z13.string().min(1),
+  url: z13.string().url(),
+  sourceType: z13.enum([
     "supplier_catalog",
     "manufacturer_catalog",
     "developer_brochure",
@@ -24944,29 +25416,29 @@ var sourceRegistrySchema = z9.object({
     "aggregator",
     "other"
   ]),
-  reliabilityDefault: z9.enum(["A", "B", "C"]).default("B"),
-  isWhitelisted: z9.boolean().default(true),
-  region: z9.string().default("UAE"),
-  notes: z9.string().optional(),
+  reliabilityDefault: z13.enum(["A", "B", "C"]).default("B"),
+  isWhitelisted: z13.boolean().default(true),
+  region: z13.string().default("UAE"),
+  notes: z13.string().optional(),
   // DFE Fields
-  scrapeConfig: z9.any().optional(),
-  scrapeSchedule: z9.string().optional(),
-  scrapeMethod: z9.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
-  scrapeHeaders: z9.any().optional(),
-  extractionHints: z9.string().optional(),
-  priceFieldMapping: z9.any().optional(),
-  lastScrapedAt: z9.string().optional(),
-  lastScrapedStatus: z9.enum(["success", "partial", "failed", "never"]).default("never"),
-  lastRecordCount: z9.number().default(0),
-  consecutiveFailures: z9.number().default(0),
-  requestDelayMs: z9.number().default(2e3)
+  scrapeConfig: z13.any().optional(),
+  scrapeSchedule: z13.string().optional(),
+  scrapeMethod: z13.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+  scrapeHeaders: z13.any().optional(),
+  extractionHints: z13.string().optional(),
+  priceFieldMapping: z13.any().optional(),
+  lastScrapedAt: z13.string().optional(),
+  lastScrapedStatus: z13.enum(["success", "partial", "failed", "never"]).default("never"),
+  lastRecordCount: z13.number().default(0),
+  consecutiveFailures: z13.number().default(0),
+  requestDelayMs: z13.number().default(2e3)
 });
 function generateRecordId3() {
-  const seq = nanoid5(8).toUpperCase();
+  const seq = nanoid6(8).toUpperCase();
   return `MYR-PE-${seq}`;
 }
 function generateRunId(prefix) {
-  return `${prefix}-${Date.now()}-${nanoid5(6)}`;
+  return `${prefix}-${Date.now()}-${nanoid6(6)}`;
 }
 var marketIntelligenceRouter = router({
   // ─── Source Registry ────────────────────────────────────────────────────────
@@ -24974,7 +25446,7 @@ var marketIntelligenceRouter = router({
     list: protectedProcedure.query(async () => {
       return listSourceRegistry();
     }),
-    get: protectedProcedure.input(z9.object({ id: z9.number() })).query(async ({ input }) => {
+    get: protectedProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
       return getSourceRegistryById(input.id);
     }),
     create: adminProcedure.input(sourceRegistrySchema).mutation(async ({ input, ctx }) => {
@@ -24992,11 +25464,11 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z9.object({
-      id: z9.number(),
-      name: z9.string().optional(),
-      url: z9.string().url().optional(),
-      sourceType: z9.enum([
+    update: adminProcedure.input(z13.object({
+      id: z13.number(),
+      name: z13.string().optional(),
+      url: z13.string().url().optional(),
+      sourceType: z13.enum([
         "supplier_catalog",
         "manufacturer_catalog",
         "developer_brochure",
@@ -25008,23 +25480,23 @@ var marketIntelligenceRouter = router({
         "aggregator",
         "other"
       ]).optional(),
-      reliabilityDefault: z9.enum(["A", "B", "C"]).optional(),
-      isWhitelisted: z9.boolean().optional(),
-      region: z9.string().optional(),
-      notes: z9.string().optional(),
-      isActive: z9.boolean().optional(),
+      reliabilityDefault: z13.enum(["A", "B", "C"]).optional(),
+      isWhitelisted: z13.boolean().optional(),
+      region: z13.string().optional(),
+      notes: z13.string().optional(),
+      isActive: z13.boolean().optional(),
       // DFE Fields
-      scrapeConfig: z9.any().optional(),
-      scrapeSchedule: z9.string().optional(),
-      scrapeMethod: z9.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).optional(),
-      scrapeHeaders: z9.any().optional(),
-      extractionHints: z9.string().optional(),
-      priceFieldMapping: z9.any().optional(),
-      lastScrapedAt: z9.string().optional(),
-      lastScrapedStatus: z9.enum(["success", "partial", "failed", "never"]).optional(),
-      lastRecordCount: z9.number().optional(),
-      consecutiveFailures: z9.number().optional(),
-      requestDelayMs: z9.number().optional()
+      scrapeConfig: z13.any().optional(),
+      scrapeSchedule: z13.string().optional(),
+      scrapeMethod: z13.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).optional(),
+      scrapeHeaders: z13.any().optional(),
+      extractionHints: z13.string().optional(),
+      priceFieldMapping: z13.any().optional(),
+      lastScrapedAt: z13.string().optional(),
+      lastScrapedStatus: z13.enum(["success", "partial", "failed", "never"]).optional(),
+      lastRecordCount: z13.number().optional(),
+      consecutiveFailures: z13.number().optional(),
+      requestDelayMs: z13.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const { id, lastScrapedAt, ...data } = input;
       await updateSourceRegistryEntry(id, {
@@ -25040,7 +25512,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    toggleActive: adminProcedure.input(z9.object({ id: z9.number(), isActive: z9.boolean() })).mutation(async ({ input, ctx }) => {
+    toggleActive: adminProcedure.input(z13.object({ id: z13.number(), isActive: z13.boolean() })).mutation(async ({ input, ctx }) => {
       await updateSourceRegistryEntry(input.id, { isActive: input.isActive });
       await createAuditLog({
         userId: ctx.user.id,
@@ -25050,7 +25522,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    delete: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
+    delete: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
       await deleteSourceRegistryEntry(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -25070,13 +25542,13 @@ var marketIntelligenceRouter = router({
       });
       return { created: result.created, skipped: result.skipped };
     }),
-    testScrape: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input }) => {
+    testScrape: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input }) => {
       const source = await getSourceRegistryById(input.id);
       if (!source) throw new Error("Source not found");
       const connector = new DynamicConnector(source);
       return await testScrape(connector);
     }),
-    scrapeNow: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
+    scrapeNow: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
       const source = await getSourceRegistryById(input.id);
       if (!source) throw new Error("Source not found");
       await updateSourceRegistryEntry(source.id, { consecutiveFailures: 0 });
@@ -25095,9 +25567,9 @@ var marketIntelligenceRouter = router({
       const buffer = generateCsvTemplate();
       return { base64: buffer.toString("base64") };
     }),
-    uploadCsv: adminProcedure.input(z9.object({
-      sourceId: z9.number(),
-      base64File: z9.string()
+    uploadCsv: adminProcedure.input(z13.object({
+      sourceId: z13.number(),
+      base64File: z13.string()
     })).mutation(async ({ input, ctx }) => {
       const buffer = Buffer.from(input.base64File, "base64");
       const report = await processCsvUpload(buffer, input.sourceId, ctx.user.id);
@@ -25113,13 +25585,13 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Evidence Records ──────────────────────────────────────────────────────
   evidence: router({
-    list: orgProcedure.input(z9.object({
-      projectId: z9.number().optional(),
-      category: z9.string().optional(),
-      reliabilityGrade: z9.string().optional(),
-      evidencePhase: z9.string().optional(),
-      confidentiality: z9.string().optional(),
-      limit: z9.number().default(100)
+    list: orgProcedure.input(z13.object({
+      projectId: z13.number().optional(),
+      category: z13.string().optional(),
+      reliabilityGrade: z13.string().optional(),
+      evidencePhase: z13.string().optional(),
+      confidentiality: z13.string().optional(),
+      limit: z13.number().default(100)
     }).optional()).query(async ({ ctx, input }) => {
       if (!input?.projectId) {
         return listPublicCorpusEvidence({
@@ -25139,7 +25611,7 @@ var marketIntelligenceRouter = router({
         limit: input?.limit ?? 100
       });
     }),
-    get: orgProcedure.input(z9.object({ id: z9.number() })).query(async ({ ctx, input }) => {
+    get: orgProcedure.input(z13.object({ id: z13.number() })).query(async ({ ctx, input }) => {
       const authorized = await requireEvidenceRecordForOrg(input.id, ctx.orgId);
       return authorized.evidence;
     }),
@@ -25180,8 +25652,8 @@ var marketIntelligenceRouter = router({
       });
       return { id: result.id, recordId };
     }),
-    bulkImport: adminProcedure.input(z9.object({
-      records: z9.array(evidenceRecordSchema)
+    bulkImport: adminProcedure.input(z13.object({
+      records: z13.array(evidenceRecordSchema)
     })).mutation(async ({ input, ctx }) => {
       if (input.records.some((record) => record.projectId !== void 0)) {
         throw new TRPCError14({
@@ -25233,7 +25705,7 @@ var marketIntelligenceRouter = router({
       });
       return { imported, errors: errors.length, runId };
     }),
-    delete: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
+    delete: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
       if (!await deleteGlobalEvidenceRecord(input.id)) {
         throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
       }
@@ -25249,10 +25721,10 @@ var marketIntelligenceRouter = router({
       return getPublicEvidenceStats();
     }),
     // V2.2 — Evidence References
-    listReferences: orgProcedure.input(z9.object({
-      evidenceRecordId: z9.number().optional(),
-      targetType: z9.string().optional(),
-      targetId: z9.number().optional()
+    listReferences: orgProcedure.input(z13.object({
+      evidenceRecordId: z13.number().optional(),
+      targetType: z13.string().optional(),
+      targetId: z13.number().optional()
     }).refine(
       (value) => value.evidenceRecordId !== void 0 || value.targetType !== void 0 && value.targetId !== void 0,
       "Evidence record or complete target is required"
@@ -25269,9 +25741,9 @@ var marketIntelligenceRouter = router({
       }
       return listEvidenceReferences(input);
     }),
-    addReference: orgMutationProcedure.input(z9.object({
-      evidenceRecordId: z9.number(),
-      targetType: z9.enum([
+    addReference: orgMutationProcedure.input(z13.object({
+      evidenceRecordId: z13.number(),
+      targetType: z13.enum([
         "scenario",
         "decision_note",
         "explainability_driver",
@@ -25280,9 +25752,9 @@ var marketIntelligenceRouter = router({
         "material_board",
         "pack_section"
       ]),
-      targetId: z9.number(),
-      sectionLabel: z9.string().optional(),
-      citationText: z9.string().optional()
+      targetId: z13.number(),
+      sectionLabel: z13.string().optional(),
+      citationText: z13.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
       await requireEvidenceReferenceTargetForOrg(
@@ -25299,7 +25771,7 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    removeReference: orgMutationProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
+    removeReference: orgMutationProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
       const reference = await getEvidenceReferenceById(input.id);
       if (!reference) {
         throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
@@ -25322,9 +25794,9 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // Get evidence records linked to a specific target (e.g., scenario, design_brief)
-    getForTarget: orgProcedure.input(z9.object({
-      targetType: z9.string(),
-      targetId: z9.number()
+    getForTarget: orgProcedure.input(z13.object({
+      targetType: z13.string(),
+      targetId: z13.number()
     })).query(async ({ ctx, input }) => {
       await requireEvidenceReferenceTargetForOrg(
         input.targetType,
@@ -25336,17 +25808,17 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Benchmark Proposals ──────────────────────────────────────────────────
   proposals: router({
-    list: adminProcedure.input(z9.object({
-      status: z9.enum(["pending", "approved", "rejected"]).optional()
+    list: adminProcedure.input(z13.object({
+      status: z13.enum(["pending", "approved", "rejected"]).optional()
     }).optional()).query(async ({ input }) => {
       return listBenchmarkProposals(input?.status);
     }),
-    get: adminProcedure.input(z9.object({ id: z9.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
       return getBenchmarkProposalById(input.id);
     }),
-    generate: adminProcedure.input(z9.object({
-      category: z9.string().optional(),
-      minEvidenceCount: z9.number().default(3)
+    generate: adminProcedure.input(z13.object({
+      category: z13.string().optional(),
+      minEvidenceCount: z13.number().default(3)
     })).mutation(async ({ input, ctx }) => {
       const runId = generateRunId("PROP");
       const startedAt = /* @__PURE__ */ new Date();
@@ -25453,10 +25925,10 @@ var marketIntelligenceRouter = router({
       });
       return { proposals, runId };
     }),
-    review: adminProcedure.input(z9.object({
-      id: z9.number(),
-      status: z9.enum(["approved", "rejected"]),
-      reviewerNotes: z9.string().optional()
+    review: adminProcedure.input(z13.object({
+      id: z13.number(),
+      status: z13.enum(["approved", "rejected"]),
+      reviewerNotes: z13.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await reviewBenchmarkProposal(input.id, {
         status: input.status,
@@ -25504,10 +25976,10 @@ var marketIntelligenceRouter = router({
     list: adminProcedure.query(async () => {
       return listBenchmarkSnapshots();
     }),
-    get: adminProcedure.input(z9.object({ id: z9.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
       return getBenchmarkSnapshotById(input.id);
     }),
-    create: adminProcedure.input(z9.object({ description: z9.string().optional() })).mutation(async ({ ctx, input }) => {
+    create: adminProcedure.input(z13.object({ description: z13.string().optional() })).mutation(async ({ ctx, input }) => {
       const activeBV = await getActiveBenchmarkVersion();
       const currentBenchmarks = await getAllBenchmarkData();
       const result = await createBenchmarkSnapshot({
@@ -25525,16 +25997,16 @@ var marketIntelligenceRouter = router({
     listEntities: protectedProcedure.query(async () => {
       return listCompetitorEntities();
     }),
-    getEntity: protectedProcedure.input(z9.object({ id: z9.number() })).query(async ({ input }) => {
+    getEntity: protectedProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
       return getCompetitorEntityById(input.id);
     }),
-    createEntity: adminProcedure.input(z9.object({
-      name: z9.string().min(1),
-      headquarters: z9.string().optional(),
-      segmentFocus: z9.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).default("mixed"),
-      website: z9.string().optional(),
-      logoUrl: z9.string().optional(),
-      notes: z9.string().optional()
+    createEntity: adminProcedure.input(z13.object({
+      name: z13.string().min(1),
+      headquarters: z13.string().optional(),
+      segmentFocus: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).default("mixed"),
+      website: z13.string().optional(),
+      logoUrl: z13.string().optional(),
+      notes: z13.string().optional()
     })).mutation(async ({ input, ctx }) => {
       const result = await createCompetitorEntity({ ...input, createdBy: ctx.user.id });
       await createAuditLog({
@@ -25545,14 +26017,14 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    updateEntity: adminProcedure.input(z9.object({
-      id: z9.number(),
-      name: z9.string().optional(),
-      headquarters: z9.string().optional(),
-      segmentFocus: z9.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).optional(),
-      website: z9.string().optional(),
-      logoUrl: z9.string().optional(),
-      notes: z9.string().optional()
+    updateEntity: adminProcedure.input(z13.object({
+      id: z13.number(),
+      name: z13.string().optional(),
+      headquarters: z13.string().optional(),
+      segmentFocus: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).optional(),
+      website: z13.string().optional(),
+      logoUrl: z13.string().optional(),
+      notes: z13.string().optional()
     })).mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       await updateCompetitorEntity(id, data);
@@ -25564,7 +26036,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    deleteEntity: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
+    deleteEntity: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
       await deleteCompetitorEntity(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -25575,38 +26047,38 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // ─── Projects ─────────────────────────────────────────────────────────
-    listProjects: protectedProcedure.input(z9.object({
-      competitorId: z9.number().optional(),
-      segment: z9.string().optional()
+    listProjects: protectedProcedure.input(z13.object({
+      competitorId: z13.number().optional(),
+      segment: z13.string().optional()
     }).optional()).query(async ({ input }) => {
       return listCompetitorProjects(input?.competitorId, input?.segment);
     }),
-    getProject: protectedProcedure.input(z9.object({ id: z9.number() })).query(async ({ input }) => {
+    getProject: protectedProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
       return getCompetitorProjectById(input.id);
     }),
-    createProject: adminProcedure.input(z9.object({
-      competitorId: z9.number(),
-      projectName: z9.string().min(1),
-      location: z9.string().optional(),
-      segment: z9.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-      assetType: z9.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-      positioningKeywords: z9.array(z9.string()).optional(),
-      interiorStyleSignals: z9.array(z9.string()).optional(),
-      materialCues: z9.array(z9.string()).optional(),
-      amenityList: z9.array(z9.string()).optional(),
-      unitMix: z9.string().optional(),
-      priceIndicators: z9.any().optional(),
-      salesMessaging: z9.array(z9.string()).optional(),
-      differentiationClaims: z9.array(z9.string()).optional(),
-      completionStatus: z9.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-      launchDate: z9.string().optional(),
-      totalUnits: z9.number().optional(),
-      architect: z9.string().optional(),
-      interiorDesigner: z9.string().optional(),
-      sourceUrl: z9.string().optional(),
-      captureDate: z9.string().optional(),
-      evidenceCitations: z9.any().optional(),
-      completenessScore: z9.number().optional()
+    createProject: adminProcedure.input(z13.object({
+      competitorId: z13.number(),
+      projectName: z13.string().min(1),
+      location: z13.string().optional(),
+      segment: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+      assetType: z13.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
+      positioningKeywords: z13.array(z13.string()).optional(),
+      interiorStyleSignals: z13.array(z13.string()).optional(),
+      materialCues: z13.array(z13.string()).optional(),
+      amenityList: z13.array(z13.string()).optional(),
+      unitMix: z13.string().optional(),
+      priceIndicators: z13.any().optional(),
+      salesMessaging: z13.array(z13.string()).optional(),
+      differentiationClaims: z13.array(z13.string()).optional(),
+      completionStatus: z13.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
+      launchDate: z13.string().optional(),
+      totalUnits: z13.number().optional(),
+      architect: z13.string().optional(),
+      interiorDesigner: z13.string().optional(),
+      sourceUrl: z13.string().optional(),
+      captureDate: z13.string().optional(),
+      evidenceCitations: z13.any().optional(),
+      completenessScore: z13.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const result = await createCompetitorProject({
         ...input,
@@ -25621,25 +26093,25 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    updateProject: adminProcedure.input(z9.object({
-      id: z9.number(),
-      projectName: z9.string().optional(),
-      location: z9.string().optional(),
-      segment: z9.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-      positioningKeywords: z9.array(z9.string()).optional(),
-      interiorStyleSignals: z9.array(z9.string()).optional(),
-      materialCues: z9.array(z9.string()).optional(),
-      amenityList: z9.array(z9.string()).optional(),
-      priceIndicators: z9.any().optional(),
-      salesMessaging: z9.array(z9.string()).optional(),
-      differentiationClaims: z9.array(z9.string()).optional(),
-      completionStatus: z9.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-      totalUnits: z9.number().optional(),
-      architect: z9.string().optional(),
-      interiorDesigner: z9.string().optional(),
-      sourceUrl: z9.string().optional(),
-      evidenceCitations: z9.any().optional(),
-      completenessScore: z9.number().optional()
+    updateProject: adminProcedure.input(z13.object({
+      id: z13.number(),
+      projectName: z13.string().optional(),
+      location: z13.string().optional(),
+      segment: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+      positioningKeywords: z13.array(z13.string()).optional(),
+      interiorStyleSignals: z13.array(z13.string()).optional(),
+      materialCues: z13.array(z13.string()).optional(),
+      amenityList: z13.array(z13.string()).optional(),
+      priceIndicators: z13.any().optional(),
+      salesMessaging: z13.array(z13.string()).optional(),
+      differentiationClaims: z13.array(z13.string()).optional(),
+      completionStatus: z13.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
+      totalUnits: z13.number().optional(),
+      architect: z13.string().optional(),
+      interiorDesigner: z13.string().optional(),
+      sourceUrl: z13.string().optional(),
+      evidenceCitations: z13.any().optional(),
+      completenessScore: z13.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       await updateCompetitorProject(id, data);
@@ -25651,7 +26123,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    deleteProject: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
+    deleteProject: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
       await deleteCompetitorProject(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -25662,7 +26134,7 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // ─── Comparison View ──────────────────────────────────────────────────
-    compare: protectedProcedure.input(z9.object({ projectIds: z9.array(z9.number()).min(2).max(6) })).query(async ({ input }) => {
+    compare: protectedProcedure.input(z13.object({ projectIds: z13.array(z13.number()).min(2).max(6) })).query(async ({ input }) => {
       const projects2 = [];
       for (const id of input.projectIds) {
         const p = await getCompetitorProjectById(id);
@@ -25690,20 +26162,20 @@ var marketIntelligenceRouter = router({
       }));
       return { projects: validProjects, matrix };
     }),
-    bulkImport: adminProcedure.input(z9.object({
-      competitorId: z9.number(),
-      projects: z9.array(z9.object({
-        projectName: z9.string(),
-        location: z9.string().optional(),
-        segment: z9.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-        assetType: z9.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-        positioningKeywords: z9.array(z9.string()).optional(),
-        interiorStyleSignals: z9.array(z9.string()).optional(),
-        materialCues: z9.array(z9.string()).optional(),
-        amenityList: z9.array(z9.string()).optional(),
-        sourceUrl: z9.string().optional(),
-        evidenceCitations: z9.any().optional(),
-        completenessScore: z9.number().optional()
+    bulkImport: adminProcedure.input(z13.object({
+      competitorId: z13.number(),
+      projects: z13.array(z13.object({
+        projectName: z13.string(),
+        location: z13.string().optional(),
+        segment: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+        assetType: z13.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
+        positioningKeywords: z13.array(z13.string()).optional(),
+        interiorStyleSignals: z13.array(z13.string()).optional(),
+        materialCues: z13.array(z13.string()).optional(),
+        amenityList: z13.array(z13.string()).optional(),
+        sourceUrl: z13.string().optional(),
+        evidenceCitations: z13.any().optional(),
+        completenessScore: z13.number().optional()
       }))
     })).mutation(async ({ input, ctx }) => {
       const runId = generateRunId("COMP");
@@ -25735,12 +26207,12 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Trend Tags ───────────────────────────────────────────────────────────
   tags: router({
-    list: protectedProcedure.input(z9.object({ category: z9.string().optional() }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(z13.object({ category: z13.string().optional() }).optional()).query(async ({ input }) => {
       return listTrendTags(input?.category);
     }),
-    create: adminProcedure.input(z9.object({
-      name: z9.string().min(1),
-      category: z9.enum([
+    create: adminProcedure.input(z13.object({
+      name: z13.string().min(1),
+      category: z13.enum([
         "material_trend",
         "design_trend",
         "market_trend",
@@ -25750,20 +26222,20 @@ var marketIntelligenceRouter = router({
         "pricing",
         "other"
       ]),
-      description: z9.string().optional()
+      description: z13.string().optional()
     })).mutation(async ({ input, ctx }) => {
       const result = await createTrendTag({ ...input, createdBy: ctx.user.id });
       return result;
     }),
-    delete: adminProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input }) => {
+    delete: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input }) => {
       await deleteTrendTag(input.id);
       return { success: true };
     }),
     // ─── Entity Tagging ───────────────────────────────────────────────────
-    attach: orgMutationProcedure.input(z9.object({
-      tagId: z9.number(),
-      entityType: z9.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-      entityId: z9.number()
+    attach: orgMutationProcedure.input(z13.object({
+      tagId: z13.number(),
+      entityType: z13.enum(["competitor_project", "scenario", "evidence_record", "project"]),
+      entityId: z13.number()
     })).mutation(async ({ input, ctx }) => {
       await requireMarketTagTargetForOrg(
         input.entityType,
@@ -25773,7 +26245,7 @@ var marketIntelligenceRouter = router({
       const result = await createEntityTag({ ...input, addedBy: ctx.user.id });
       return result;
     }),
-    detach: orgMutationProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input, ctx }) => {
+    detach: orgMutationProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
       const entityTag = await getEntityTagById(input.id);
       if (!entityTag) {
         throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
@@ -25788,9 +26260,9 @@ var marketIntelligenceRouter = router({
       }
       return { success: true };
     }),
-    getEntityTags: orgProcedure.input(z9.object({
-      entityType: z9.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-      entityId: z9.number()
+    getEntityTags: orgProcedure.input(z13.object({
+      entityType: z13.enum(["competitor_project", "scenario", "evidence_record", "project"]),
+      entityId: z13.number()
     })).query(async ({ ctx, input }) => {
       await requireMarketTagTargetForOrg(
         input.entityType,
@@ -25799,19 +26271,19 @@ var marketIntelligenceRouter = router({
       );
       return getEntityTags(input.entityType, input.entityId);
     }),
-    getTaggedEntities: orgProcedure.input(z9.object({ tagId: z9.number() })).query(async ({ ctx, input }) => {
+    getTaggedEntities: orgProcedure.input(z13.object({ tagId: z13.number() })).query(async ({ ctx, input }) => {
       return requireTaggedEntitiesForOrg(input.tagId, ctx.orgId);
     })
   }),
   // ─── Intelligence Audit Log ───────────────────────────────────────────────
   auditLog: router({
-    list: adminProcedure.input(z9.object({
-      runType: z9.string().optional(),
-      limit: z9.number().default(50)
+    list: adminProcedure.input(z13.object({
+      runType: z13.string().optional(),
+      limit: z13.number().default(50)
     }).optional()).query(async ({ input }) => {
       return listIntelligenceAuditLog(input?.runType, input?.limit ?? 50);
     }),
-    get: adminProcedure.input(z9.object({ id: z9.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
       return getIntelligenceAuditEntryById(input.id);
     })
   }),
@@ -25821,7 +26293,7 @@ var marketIntelligenceRouter = router({
 });
 
 // server/routers/ingestion.ts
-import { z as z10 } from "zod";
+import { z as z14 } from "zod";
 init_orchestrator();
 init_connectors();
 init_db();
@@ -25882,8 +26354,8 @@ var ingestionRouter = router({
    * Run a single connector by sourceId.
    * Admin-only. Returns IngestionRunReport for that one source.
    */
-  runSource: adminProcedure.input(z10.object({
-    sourceId: z10.string().min(1)
+  runSource: adminProcedure.input(z14.object({
+    sourceId: z14.string().min(1)
   })).mutation(async ({ input, ctx }) => {
     const connector = getConnectorById(input.sourceId);
     if (!connector) {
@@ -25895,9 +26367,9 @@ var ingestionRouter = router({
   /**
    * List past ingestion runs (paginated, newest first).
    */
-  getHistory: protectedProcedure.input(z10.object({
-    limit: z10.number().min(1).max(100).default(20),
-    offset: z10.number().min(0).default(0)
+  getHistory: protectedProcedure.input(z14.object({
+    limit: z14.number().min(1).max(100).default(20),
+    offset: z14.number().min(0).default(0)
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return { runs: [], total: 0 };
@@ -25955,7 +26427,7 @@ var ingestionRouter = router({
   /**
    * Get detailed breakdown for a specific ingestion run.
    */
-  getRunDetail: protectedProcedure.input(z10.object({ runId: z10.string() })).query(async ({ input }) => {
+  getRunDetail: protectedProcedure.input(z14.object({ runId: z14.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
     const runs = await db.select().from(ingestionRuns).where(eq11(ingestionRuns.runId, input.runId)).limit(1);
@@ -25976,15 +26448,15 @@ var ingestionRouter = router({
   /**
    * Get connector health records for a specific ingestion run.
    */
-  getRunHealth: protectedProcedure.input(z10.object({ runId: z10.string() })).query(async ({ input }) => {
+  getRunHealth: protectedProcedure.input(z14.object({ runId: z14.string() })).query(async ({ input }) => {
     return getConnectorHealthByRun(input.runId);
   }),
   /**
    * Get health history for a specific connector (last 30 records).
    */
-  getSourceHealth: protectedProcedure.input(z10.object({
-    sourceId: z10.string(),
-    limit: z10.number().min(1).max(100).default(30)
+  getSourceHealth: protectedProcedure.input(z14.object({
+    sourceId: z14.string(),
+    limit: z14.number().min(1).max(100).default(30)
   })).query(async ({ input }) => {
     return getConnectorHealthHistory(input.sourceId, input.limit);
   }),
@@ -26035,8 +26507,8 @@ var ingestionRouter = router({
   /**
    * List all sources from source_registry with health info.
    */
-  listSources: protectedProcedure.input(z10.object({
-    activeOnly: z10.boolean().default(true)
+  listSources: protectedProcedure.input(z14.object({
+    activeOnly: z14.boolean().default(true)
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
@@ -26047,17 +26519,17 @@ var ingestionRouter = router({
   /**
    * Create a new source in the registry.
    */
-  createSource: adminProcedure.input(z10.object({
-    name: z10.string().min(1).max(255),
-    url: z10.string().url(),
-    sourceType: z10.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
-    reliabilityDefault: z10.enum(["A", "B", "C"]).default("B"),
-    region: z10.string().default("UAE"),
-    scrapeMethod: z10.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
-    scrapeSchedule: z10.string().optional(),
-    extractionHints: z10.string().optional(),
-    notes: z10.string().optional(),
-    requestDelayMs: z10.number().default(2e3)
+  createSource: adminProcedure.input(z14.object({
+    name: z14.string().min(1).max(255),
+    url: z14.string().url(),
+    sourceType: z14.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
+    reliabilityDefault: z14.enum(["A", "B", "C"]).default("B"),
+    region: z14.string().default("UAE"),
+    scrapeMethod: z14.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+    scrapeSchedule: z14.string().optional(),
+    extractionHints: z14.string().optional(),
+    notes: z14.string().optional(),
+    requestDelayMs: z14.number().default(2e3)
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
@@ -26084,7 +26556,7 @@ var ingestionRouter = router({
   /**
    * Toggle source active/inactive.
    */
-  toggleSource: adminProcedure.input(z10.object({ id: z10.number(), isActive: z10.boolean() })).mutation(async ({ input }) => {
+  toggleSource: adminProcedure.input(z14.object({ id: z14.number(), isActive: z14.boolean() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
     await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq11(sourceRegistry.id, input.id));
@@ -26093,7 +26565,7 @@ var ingestionRouter = router({
   /**
    * Run a single DB-registered source via DynamicConnector.
    */
-  runRegisteredSource: adminProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ ctx, input }) => {
+  runRegisteredSource: adminProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
     const [source] = await db.select().from(sourceRegistry).where(eq11(sourceRegistry.id, input.id)).limit(1);
@@ -26118,9 +26590,9 @@ var ingestionRouter = router({
   /**
    * List detected design trends, ordered by mention count.
    */
-  getTrends: protectedProcedure.input(z10.object({
-    limit: z10.number().min(1).max(100).default(50),
-    category: z10.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional()
+  getTrends: protectedProcedure.input(z14.object({
+    limit: z14.number().min(1).max(100).default(50),
+    category: z14.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional()
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
@@ -26137,8 +26609,8 @@ var ingestionRouter = router({
    * AI-powered source discovery — find new UAE market data sources.
    * Returns candidate sources for admin review before adding to registry.
    */
-  discoverSources: adminProcedure.input(z10.object({
-    coverageGaps: z10.array(z10.string()).optional()
+  discoverSources: adminProcedure.input(z14.object({
+    coverageGaps: z14.array(z14.string()).optional()
   }).optional()).mutation(async () => {
     const { discoverNewSources: discoverNewSources2, KNOWN_MISSING_SOURCES: KNOWN_MISSING_SOURCES2 } = await Promise.resolve().then(() => (init_source_discovery(), source_discovery_exports));
     const { listSourceRegistry: listSourceRegistry2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -26162,9 +26634,9 @@ var ingestionRouter = router({
    * Verify current database values against market reality.
    * Samples evidence records and uses Gemini to cross-check pricing.
    */
-  verifyData: adminProcedure.input(z10.object({
-    category: z10.string().optional(),
-    limit: z10.number().min(10).max(100).default(50)
+  verifyData: adminProcedure.input(z14.object({
+    category: z14.string().optional(),
+    limit: z14.number().min(10).max(100).default(50)
   }).optional()).mutation(async ({ input }) => {
     const { verifyDatabaseValues: verifyDatabaseValues2 } = await Promise.resolve().then(() => (init_data_verifier(), data_verifier_exports));
     const { listPublicEvidenceRecords: listPublicEvidenceRecords2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -26207,10 +26679,10 @@ var ingestionRouter = router({
   /**
    * Extract design trends from a URL — design trend detection pipeline.
    */
-  extractTrends: adminProcedure.input(z10.object({
-    url: z10.string().url(),
-    sourceName: z10.string().min(1),
-    content: z10.string().min(50)
+  extractTrends: adminProcedure.input(z14.object({
+    url: z14.string().url(),
+    sourceName: z14.string().min(1),
+    content: z14.string().min(50)
   })).mutation(async ({ input }) => {
     const { extractDesignTrends: extractDesignTrends2 } = await Promise.resolve().then(() => (init_trend_extractor(), trend_extractor_exports));
     return extractDesignTrends2({
@@ -26257,7 +26729,7 @@ var ingestionRouter = router({
 });
 
 // server/routers/analytics.ts
-import { z as z11 } from "zod";
+import { z as z15 } from "zod";
 init_db();
 init_trend_detection();
 
@@ -26515,11 +26987,11 @@ var ORGANIZATION_CORPUS_POLICY_VERSION = "org-public-v1";
 var PUBLIC_CORPUS_POLICY_VERSION = "public-v1";
 
 // server/routers/analytics.ts
-var trendDetectionInput = z11.object({
-  category: z11.string().min(1),
-  geography: z11.string().min(1),
-  windowDays: z11.number().int().min(7).max(365).default(30),
-  generateNarrative: z11.boolean().default(true)
+var trendDetectionInput = z15.object({
+  category: z15.string().min(1),
+  geography: z15.string().min(1),
+  windowDays: z15.number().int().min(7).max(365).default(30),
+  generateNarrative: z15.boolean().default(true)
 });
 async function runTrendAnalysis(records, input, persist) {
   const metricGroups = /* @__PURE__ */ new Map();
@@ -26627,12 +27099,12 @@ async function loadCompetitorLandscape() {
 }
 var analyticsRouter = router({
   getTrends: orgProcedure.input(
-    z11.object({
-      category: z11.string().optional(),
-      geography: z11.string().optional(),
-      direction: z11.enum(["rising", "falling", "stable", "insufficient_data"]).optional(),
-      confidence: z11.enum(["high", "medium", "low", "insufficient"]).optional(),
-      limit: z11.number().int().min(1).max(100).default(50)
+    z15.object({
+      category: z15.string().optional(),
+      geography: z15.string().optional(),
+      direction: z15.enum(["rising", "falling", "stable", "insufficient_data"]).optional(),
+      confidence: z15.enum(["high", "medium", "low", "insufficient"]).optional(),
+      limit: z15.number().int().min(1).max(100).default(50)
     }).optional()
   ).query(async ({ ctx, input }) => {
     const snapshots = await getTrendSnapshotsForOrg(ctx.orgId, {
@@ -26645,10 +27117,10 @@ var analyticsRouter = router({
     return { trends: snapshots };
   }),
   getTrendHistory: orgProcedure.input(
-    z11.object({
-      metric: z11.string().min(1),
-      geography: z11.string().min(1),
-      limit: z11.number().int().min(1).max(100).default(20)
+    z15.object({
+      metric: z15.string().min(1),
+      geography: z15.string().min(1),
+      limit: z15.number().int().min(1).max(100).default(20)
     })
   ).query(async ({ ctx, input }) => {
     const history = await getTrendHistoryForOrg(
@@ -26660,18 +27132,18 @@ var analyticsRouter = router({
     return { history };
   }),
   getAnomalies: orgProcedure.input(
-    z11.object({
-      limit: z11.number().int().min(1).max(100).default(50)
+    z15.object({
+      limit: z15.number().int().min(1).max(100).default(50)
     }).optional()
   ).query(async ({ ctx, input }) => {
     const anomalies = await getAnomaliesForOrg(ctx.orgId, input?.limit);
     return { anomalies };
   }),
   getMarketPosition: orgProcedure.input(
-    z11.object({
-      targetValue: z11.number().positive(),
-      category: z11.string().default("floors"),
-      geography: z11.string().default("UAE")
+    z15.object({
+      targetValue: z15.number().positive(),
+      category: z15.string().default("floors"),
+      geography: z15.string().default("UAE")
     })
   ).query(async ({ ctx, input }) => {
     const [organizationRecords, publicRecords] = await Promise.all([
@@ -26708,9 +27180,9 @@ var analyticsRouter = router({
     };
   }),
   getCompetitorLandscape: orgProcedure.input(
-    z11.object({
-      geography: z11.string().default("UAE"),
-      generateNarrative: z11.boolean().default(true)
+    z15.object({
+      geography: z15.string().default("UAE"),
+      generateNarrative: z15.boolean().default(true)
     }).optional()
   ).query(async ({ input }) => {
     const db = await getDb();
@@ -26802,12 +27274,12 @@ var analyticsRouter = router({
     };
   }),
   getProjectInsights: orgProcedure.input(
-    z11.object({
-      projectId: z11.number().optional(),
-      insightType: z11.string().optional(),
-      severity: z11.string().optional(),
-      status: z11.string().optional(),
-      limit: z11.number().min(1).max(100).default(50)
+    z15.object({
+      projectId: z15.number().optional(),
+      insightType: z15.string().optional(),
+      severity: z15.string().optional(),
+      status: z15.string().optional(),
+      limit: z15.number().min(1).max(100).default(50)
     }).optional()
   ).query(async ({ ctx, input }) => {
     if (input?.projectId === void 0) {
@@ -26830,9 +27302,9 @@ var analyticsRouter = router({
     return { insights };
   }),
   generateProjectInsights: orgHeavyMutationProcedure.input(
-    z11.object({
-      projectId: z11.number(),
-      enrichWithLLM: z11.boolean().default(true)
+    z15.object({
+      projectId: z15.number(),
+      enrichWithLLM: z15.boolean().default(true)
     })
   ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -26875,8 +27347,8 @@ var analyticsRouter = router({
     };
   }),
   generateGlobalProjectInsights: adminProcedure.input(
-    z11.object({
-      enrichWithLLM: z11.boolean().default(true)
+    z15.object({
+      enrichWithLLM: z15.boolean().default(true)
     })
   ).mutation(async ({ input }) => {
     const [trendSnaps, competitorLandscape] = await Promise.all([
@@ -26911,9 +27383,9 @@ var analyticsRouter = router({
     };
   }),
   updateInsightStatus: orgMutationProcedure.input(
-    z11.object({
-      insightId: z11.number(),
-      status: z11.enum(["active", "acknowledged", "dismissed", "resolved"])
+    z15.object({
+      insightId: z15.number(),
+      status: z15.enum(["active", "acknowledged", "dismissed", "resolved"])
     })
   ).mutation(async ({ ctx, input }) => {
     await requireProjectResourceForOrg(input.insightId, ctx.orgId, {
@@ -26936,7 +27408,7 @@ var analyticsRouter = router({
 });
 
 // server/routers/predictive.ts
-import { z as z12 } from "zod";
+import { z as z16 } from "zod";
 init_db();
 init_area_utils();
 
@@ -27336,10 +27808,10 @@ var predictiveRouter = router({
    * V4-08: Get cost range prediction for a project category
    */
   getCostRange: orgProcedure.input(
-    z12.object({
-      projectId: z12.number(),
-      category: z12.string().optional(),
-      geography: z12.string().optional()
+    z16.object({
+      projectId: z16.number(),
+      category: z16.string().optional(),
+      geography: z16.string().optional()
     })
   ).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -27400,7 +27872,7 @@ var predictiveRouter = router({
   /**
    * V4-09: Get outcome prediction for a project
    */
-  getOutcomePrediction: orgProcedure.input(z12.object({ projectId: z12.number() })).query(async ({ ctx, input }) => {
+  getOutcomePrediction: orgProcedure.input(z16.object({ projectId: z16.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
@@ -27465,7 +27937,7 @@ var predictiveRouter = router({
   /**
    * V5-08: Get matched learning patterns for a project
    */
-  getProjectPatterns: orgProcedure.input(z12.object({ projectId: z12.number() })).query(async ({ ctx, input }) => {
+  getProjectPatterns: orgProcedure.input(z16.object({ projectId: z16.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
@@ -27484,10 +27956,10 @@ var predictiveRouter = router({
    * V4-10: Get scenario cost projection
    */
   getScenarioProjection: orgProcedure.input(
-    z12.object({
-      projectId: z12.number(),
-      horizonMonths: z12.number().default(18),
-      marketCondition: z12.enum(["tight", "balanced", "soft"]).default("balanced")
+    z16.object({
+      projectId: z16.number(),
+      horizonMonths: z16.number().default(18),
+      marketCondition: z16.enum(["tight", "balanced", "soft"]).default("balanced")
     })
   ).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -27633,7 +28105,7 @@ var predictiveRouter = router({
 });
 
 // server/routers/learning.ts
-import { z as z13 } from "zod";
+import { z as z17 } from "zod";
 import { TRPCError as TRPCError15 } from "@trpc/server";
 init_db();
 
@@ -27909,7 +28381,7 @@ var learningRouter = router({
     return rows[0] || null;
   }),
   getAccuracyHistory: adminProcedure.input(
-    z13.object({ limit: z13.number().int().min(1).max(100).default(20) }).optional()
+    z17.object({ limit: z17.number().int().min(1).max(100).default(20) }).optional()
   ).query(({ input }) => getGovernedAccuracySnapshots(input?.limit || 20)),
   getPendingLogicProposals: adminProcedure.query(
     () => getGovernedLogicChangeLog("proposed")
@@ -27917,7 +28389,7 @@ var learningRouter = router({
   getPendingBenchmarkSuggestions: adminProcedure.query(
     () => getGovernedBenchmarkSuggestions("pending")
   ),
-  getComparison: orgProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ ctx, input }) => {
+  getComparison: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return await getLatestOutcomeComparisonForOrg(
       input.projectId,
@@ -27925,19 +28397,19 @@ var learningRouter = router({
     ) || null;
   }),
   submitPostMortem: orgMutationProcedure.input(
-    z13.object({
-      projectId: z13.number(),
-      actualTotalCost: z13.string().optional(),
-      actualFitoutCostPerSqm: z13.string().optional(),
-      procurementActualCosts: z13.record(z13.string(), z13.number()).optional(),
-      projectDeliveredOnTime: z13.boolean().optional(),
-      leadTimesActual: z13.record(z13.string(), z13.number()).optional(),
-      reworkOccurred: z13.boolean().optional(),
-      reworkCostAed: z13.string().optional(),
-      clientSatisfactionScore: z13.number().min(1).max(5).optional(),
-      tenderIterations: z13.number().optional(),
-      rfqResults: z13.record(z13.string(), z13.number()).optional(),
-      keyLessonsLearned: z13.string().optional()
+    z17.object({
+      projectId: z17.number(),
+      actualTotalCost: z17.string().optional(),
+      actualFitoutCostPerSqm: z17.string().optional(),
+      procurementActualCosts: z17.record(z17.string(), z17.number()).optional(),
+      projectDeliveredOnTime: z17.boolean().optional(),
+      leadTimesActual: z17.record(z17.string(), z17.number()).optional(),
+      reworkOccurred: z17.boolean().optional(),
+      reworkCostAed: z17.string().optional(),
+      clientSatisfactionScore: z17.number().min(1).max(5).optional(),
+      tenderIterations: z17.number().optional(),
+      rfqResults: z17.record(z17.string(), z17.number()).optional(),
+      keyLessonsLearned: z17.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -28022,7 +28494,7 @@ var learningRouter = router({
       corpus
     };
   }),
-  getPostMortemStatus: orgProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ ctx, input }) => {
+  getPostMortemStatus: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const [outcome, comparison] = await Promise.all([
       getLatestProjectOutcomeForOrg(input.projectId, ctx.orgId),
@@ -28037,7 +28509,7 @@ var learningRouter = router({
       learningSummary: comparison?.learningSignals ? summarizeLearningSignals(comparison.learningSignals) : null
     };
   }),
-  runComparison: orgHeavyMutationProcedure.input(z13.object({ projectId: z13.number() })).mutation(async ({ ctx, input }) => {
+  runComparison: orgHeavyMutationProcedure.input(z17.object({ projectId: z17.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = await buildScopedComparisonInputs(
       project,
@@ -28070,7 +28542,7 @@ var learningRouter = router({
 });
 
 // server/routers/autonomous.ts
-import { z as z14 } from "zod";
+import { z as z18 } from "zod";
 init_db();
 init_schema();
 import { eq as eq14, and as and6, desc as desc7, sql as sql6 } from "drizzle-orm";
@@ -28295,10 +28767,10 @@ async function generatePortfolioInsightsForOrg(orgId) {
 
 // server/routers/autonomous.ts
 var autonomousRouter = router({
-  getAlerts: adminProcedure.input(z14.object({
-    severity: z14.string().optional(),
-    type: z14.string().optional(),
-    status: z14.enum(["active", "acknowledged", "resolved", "expired"]).optional()
+  getAlerts: adminProcedure.input(z18.object({
+    severity: z18.string().optional(),
+    type: z18.string().optional(),
+    status: z18.enum(["active", "acknowledged", "resolved", "expired"]).optional()
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
@@ -28313,7 +28785,7 @@ var autonomousRouter = router({
     }
     return db.select().from(platformAlerts).where(conditions.length > 0 ? and6(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
   }),
-  acknowledgeAlert: adminProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
+  acknowledgeAlert: adminProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
@@ -28323,7 +28795,7 @@ var autonomousRouter = router({
     }).where(eq14(platformAlerts.id, input.id));
     return { success: true };
   }),
-  resolveAlert: adminProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
+  resolveAlert: adminProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
@@ -28331,7 +28803,7 @@ var autonomousRouter = router({
     }).where(eq14(platformAlerts.id, input.id));
     return { success: true };
   }),
-  nlQuery: protectedProcedure.input(z14.object({ query: z14.string() })).mutation(async ({ ctx, input }) => {
+  nlQuery: protectedProcedure.input(z18.object({ query: z18.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError16({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
@@ -28351,7 +28823,7 @@ var autonomousRouter = router({
     const result = await processNlQuery(ctx.user.id, input.query);
     return result;
   }),
-  generateBrief: orgHeavyMutationProcedure.input(z14.object({ projectId: z14.number() })).mutation(async ({ ctx, input }) => {
+  generateBrief: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const briefMarkdown = await generateAutonomousDesignBrief(input.projectId);
     return { markdown: briefMarkdown };
@@ -28364,16 +28836,16 @@ var autonomousRouter = router({
 
 // server/routers/organization.ts
 init_db();
-import { z as z15 } from "zod";
+import { z as z19 } from "zod";
 init_schema();
 import { TRPCError as TRPCError17 } from "@trpc/server";
 import { eq as eq15, and as and7 } from "drizzle-orm";
-import { nanoid as nanoid6 } from "nanoid";
+import { nanoid as nanoid7 } from "nanoid";
 var organizationRouter = router({
-  createOrg: protectedProcedure.input(z15.object({
-    name: z15.string().min(2),
-    slug: z15.string().min(2).regex(/^[a-z0-9-]+$/),
-    domain: z15.string().optional()
+  createOrg: protectedProcedure.input(z19.object({
+    name: z19.string().min(2),
+    slug: z19.string().min(2).regex(/^[a-z0-9-]+$/),
+    domain: z19.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError17({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
@@ -28405,9 +28877,9 @@ var organizationRouter = router({
     }).from(organizationMembers).innerJoin(organizations, eq15(organizations.id, organizationMembers.orgId)).where(eq15(organizationMembers.userId, ctx.user.id));
     return result;
   }),
-  inviteMember: orgAdminProcedure.input(z15.object({
-    email: z15.string().email(),
-    role: z15.enum(["admin", "member", "viewer"])
+  inviteMember: orgAdminProcedure.input(z19.object({
+    email: z19.string().email(),
+    role: z19.enum(["admin", "member", "viewer"])
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError17({ code: "INTERNAL_SERVER_ERROR" });
@@ -28415,7 +28887,7 @@ var organizationRouter = router({
     if (!myMembership[0] || myMembership[0].role !== "admin") {
       throw new TRPCError17({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
-    const token = nanoid6(32);
+    const token = nanoid7(32);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
     await db.insert(organizationInvites).values({
       orgId: ctx.orgId,
@@ -28427,7 +28899,7 @@ var organizationRouter = router({
     console.log(`[Email Mock] Sending invite to ${input.email}: http://localhost:5173/accept-invite?token=${token}`);
     return { success: true, token };
   }),
-  acceptInvite: protectedProcedure.input(z15.object({ token: z15.string() })).mutation(async ({ ctx, input }) => {
+  acceptInvite: protectedProcedure.input(z19.object({ token: z19.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError17({ code: "INTERNAL_SERVER_ERROR" });
     return db.transaction(async (tx) => {
@@ -28460,16 +28932,16 @@ var organizationRouter = router({
 });
 
 // server/routers/economics.ts
-import { z as z16 } from "zod";
+import { z as z20 } from "zod";
 var economicsRouter = router({
-  calculateRoi: publicProcedure.input(z16.object({
-    tier: z16.string(),
-    scale: z16.string(),
-    totalBudgetAed: z16.number(),
-    totalDevelopmentValue: z16.number(),
-    complexityScore: z16.number(),
-    decisionSpeedAdjustment: z16.number().optional().default(1),
-    serviceFeeAed: z16.number()
+  calculateRoi: publicProcedure.input(z20.object({
+    tier: z20.string(),
+    scale: z20.string(),
+    totalBudgetAed: z20.number(),
+    totalDevelopmentValue: z20.number(),
+    complexityScore: z20.number(),
+    decisionSpeedAdjustment: z20.number().optional().default(1),
+    serviceFeeAed: z20.number()
   })).query(({ input }) => {
     return calculateProjectRoi({
       tier: input.tier,
@@ -28481,8 +28953,8 @@ var economicsRouter = router({
       serviceFeeAed: input.serviceFeeAed
     });
   }),
-  evaluateRisk: publicProcedure.input(z16.object({
-    domain: z16.enum([
+  evaluateRisk: publicProcedure.input(z20.object({
+    domain: z20.enum([
       "Model",
       "Operational",
       "Commercial",
@@ -28492,10 +28964,10 @@ var economicsRouter = router({
       "Strategic",
       "Regulatory"
     ]),
-    tier: z16.string(),
-    horizon: z16.string(),
-    location: z16.string(),
-    complexityScore: z16.number()
+    tier: z20.string(),
+    horizon: z20.string(),
+    location: z20.string(),
+    complexityScore: z20.number()
   })).query(({ input }) => {
     return evaluateRiskSurface({
       domain: input.domain,
@@ -28505,10 +28977,10 @@ var economicsRouter = router({
       complexityScore: input.complexityScore
     });
   }),
-  runStressTest: publicProcedure.input(z16.object({
-    condition: z16.enum(["demand_collapse", "cost_surge", "data_disruption", "market_shift"]),
-    baselineBudgetAed: z16.number(),
-    tier: z16.string()
+  runStressTest: publicProcedure.input(z20.object({
+    condition: z20.enum(["demand_collapse", "cost_surge", "data_disruption", "market_shift"]),
+    baselineBudgetAed: z20.number(),
+    tier: z20.string()
   })).query(({ input }) => {
     return simulateStressTest(
       input.condition,
@@ -28516,13 +28988,13 @@ var economicsRouter = router({
       input.tier
     );
   }),
-  rankScenarios: publicProcedure.input(z16.object({
-    scenarios: z16.array(z16.object({
-      scenarioId: z16.number(),
-      name: z16.string(),
-      netRoiPercent: z16.number(),
-      avgResilienceScore: z16.number(),
-      compositeRiskScore: z16.number()
+  rankScenarios: publicProcedure.input(z20.object({
+    scenarios: z20.array(z20.object({
+      scenarioId: z20.number(),
+      name: z20.string(),
+      netRoiPercent: z20.number(),
+      avgResilienceScore: z20.number(),
+      compositeRiskScore: z20.number()
     }))
   })).query(({ input }) => {
     return rankScenarios(input.scenarios);
@@ -28530,21 +29002,21 @@ var economicsRouter = router({
 });
 
 // server/routers/bias.ts
-import { z as z17 } from "zod";
+import { z as z21 } from "zod";
 init_db();
 var biasRouter = router({
   // Get all bias alerts for a project (active + dismissed)
-  getAlerts: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
+  getAlerts: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getBiasAlertsByProject(input.projectId);
   }),
   // Get only active (non-dismissed) alerts
-  getActiveAlerts: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
+  getActiveAlerts: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getActiveBiasAlerts(input.projectId);
   }),
   // Dismiss a bias alert
-  dismiss: orgMutationProcedure.input(z17.object({ alertId: z17.number() })).mutation(async ({ ctx, input }) => {
+  dismiss: orgMutationProcedure.input(z21.object({ alertId: z21.number() })).mutation(async ({ ctx, input }) => {
     await requireProjectOrgResourceForOrg(input.alertId, ctx.orgId, {
       lookupResource: getBiasAlertById,
       getProjectId: (alert) => alert.projectId,
@@ -28575,7 +29047,7 @@ var biasRouter = router({
     return getUserBiasProfile(ctx.user.id);
   }),
   // Get intervention report for a project (structured summary for reports)
-  getInterventionReport: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
+  getInterventionReport: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const alerts = await getActiveBiasAlerts(input.projectId);
     if (alerts.length === 0) {
@@ -28598,7 +29070,7 @@ var biasRouter = router({
     };
   }),
   // On-demand bias scan (without re-evaluating project)
-  scan: orgMutationProcedure.input(z17.object({ projectId: z17.number() })).mutation(async ({ ctx, input }) => {
+  scan: orgMutationProcedure.input(z21.object({ projectId: z21.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     if (!matrices || matrices.length === 0) {
@@ -28687,16 +29159,66 @@ var biasRouter = router({
 });
 
 // server/routers/design-advisor.ts
-import { z as z18 } from "zod";
+import { z as z23 } from "zod";
 init_db();
 
 // server/engines/design/ai-design-advisor.ts
 init_llm();
+init_ai_operation();
 init_space_program();
 init_area_utils();
+import { z as z22 } from "zod";
 var KITCHEN_ROOMS = ["KIT"];
 var BATHROOM_ROOMS = ["MEN", "BTH", "ENS"];
 var WET_ROOM_IDS2 = [...KITCHEN_ROOMS, ...BATHROOM_ROOMS, "UTL"];
+var materialSchema = z22.object({
+  element: z22.string(),
+  productName: z22.string(),
+  brand: z22.string(),
+  priceRange: z22.string(),
+  rationale: z22.string()
+});
+var kitchenSchema = z22.object({
+  layoutType: z22.enum(["L-shape", "U-shape", "Island", "Galley", "Peninsula", "One-wall"]),
+  layoutRationale: z22.string(),
+  cabinetStyle: z22.string(),
+  cabinetFinish: z22.string(),
+  countertopMaterial: z22.string(),
+  countertopPriceRange: z22.string(),
+  backsplash: z22.string(),
+  sinkType: z22.string(),
+  applianceLevel: z22.enum(["standard", "premium", "professional"]),
+  applianceBrands: z22.array(z22.string()),
+  storageFeatures: z22.array(z22.string())
+});
+var bathroomSchema = z22.object({
+  showerType: z22.enum(["walk-in", "enclosed", "wet-room", "bath-shower-combo"]),
+  vanityStyle: z22.string(),
+  vanityWidth: z22.string(),
+  tilePattern: z22.string(),
+  wallTile: z22.string(),
+  floorTile: z22.string(),
+  fixtureFinish: z22.string(),
+  fixtureBrand: z22.string(),
+  mirrorType: z22.string(),
+  luxuryFeatures: z22.array(z22.string())
+});
+var geminiDesignResponseSchema = z22.object({
+  spaces: z22.array(z22.object({
+    roomId: z22.string(),
+    roomName: z22.string(),
+    styleDirection: z22.string(),
+    colorScheme: z22.string(),
+    rationale: z22.string(),
+    specialNotes: z22.array(z22.string()),
+    materials: z22.array(materialSchema),
+    budgetBreakdown: z22.array(z22.object({ element: z22.string(), percentage: z22.number().finite() })),
+    kitchenSpec: kitchenSchema.optional(),
+    bathroomSpec: bathroomSchema.optional()
+  })),
+  overallDesignNarrative: z22.string(),
+  designPhilosophy: z22.string()
+});
 var TIER_PRICE_MULTIPLIERS = {
   "Entry": 0.5,
   "Mid": 0.7,
@@ -28746,7 +29268,7 @@ async function generateDesignRecommendations(project, inputs, materialLibrary2, 
         rent: "Rental investment (prioritize durability, cost-efficiency, low maintenance)",
         mixed: "Mixed strategy (balance resale appeal and rental durability)"
       };
-      dldContext = `- **Area**: ${project.dldAreaName || benchmark.areaName}
+      dldContext = `- **Area**: ${project.dldAreaName || benchmark.areaNameEn}
 - **Median Sale Price**: ${benchmark.saleP50 ? Math.round(Number(benchmark.saleP50)).toLocaleString() : "N/A"} AED/sqm
 - **Recommended Fitout**: ${benchmark.recommendedFitoutMid ? Math.round(Number(benchmark.recommendedFitoutMid)).toLocaleString() : "N/A"} AED/sqm
 - **Gross Rental Yield**: ${benchmark.grossYield ? Number(benchmark.grossYield).toFixed(1) : "N/A"}%
@@ -28905,10 +29427,12 @@ async function callGeminiForDesign(prompt) {
   });
   const text2 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
   try {
-    return JSON.parse(text2);
-  } catch {
-    console.error("[DesignAdvisor] Failed to parse Gemini response:", text2.substring(0, 500));
-    throw new Error("AI design recommendation generation failed \u2014 invalid response format");
+    return geminiDesignResponseSchema.parse(JSON.parse(text2));
+  } catch (error) {
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", {
+      operation: "design-advisor.generate-recommendations",
+      cause: error
+    }).report();
   }
 }
 function mapAIResponseToRecommendations(aiResponse, rooms, totalBudget, materialLibrary2, inputs) {
@@ -29024,7 +29548,7 @@ async function generateAIDesignBrief(project, inputs, recommendations) {
       };
       dldSection = `
 ## DLD Area Market Context
-- Area: ${project.dldAreaName || benchmark.areaName}
+- Area: ${project.dldAreaName || benchmark.areaNameEn}
 - Median Sale Price: ${benchmark.saleP50 ? Math.round(Number(benchmark.saleP50)).toLocaleString() : "N/A"} AED/sqm
 - Recommended Fitout: ${benchmark.recommendedFitoutMid ? Math.round(Number(benchmark.recommendedFitoutMid)).toLocaleString() : "N/A"} AED/sqm
 - Gross Yield: ${benchmark.grossYield ? Number(benchmark.grossYield).toFixed(1) : "N/A"}%
@@ -29391,7 +29915,7 @@ var designAdvisorRouter = router({
   // ═════════════════════════════════════════════════════════════════════════
   // Phase 1: AI Design Recommendations
   // ═════════════════════════════════════════════════════════════════════════
-  generateRecommendations: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+  generateRecommendations: orgHeavyMutationProcedure.input(z23.object({ projectId: z23.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = projectToInputs5(project);
     const materials = await getMaterialLibrary();
@@ -29467,16 +29991,16 @@ var designAdvisorRouter = router({
       publicSampleCount: publicEvidence.length
     };
   }),
-  getRecommendations: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+  getRecommendations: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getSpaceRecommendations(input.projectId, ctx.orgId);
   }),
-  getSpaceRecommendation: orgProcedure.input(z18.object({ projectId: z18.number(), roomId: z18.string() })).query(async ({ ctx, input }) => {
+  getSpaceRecommendation: orgProcedure.input(z23.object({ projectId: z23.number(), roomId: z23.string() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
     return recs.find((r) => r.roomId === input.roomId) || null;
   }),
-  getSpaceProgram: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+  getSpaceProgram: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const storedRooms = await getSpaceProgramRooms(input.projectId, ctx.orgId);
     if (storedRooms.length > 0) {
@@ -29485,7 +30009,7 @@ var designAdvisorRouter = router({
     }
     return buildSpaceProgram(project);
   }),
-  generateDesignBrief: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+  generateDesignBrief: orgHeavyMutationProcedure.input(z23.object({ projectId: z23.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = projectToInputs5(project);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -29503,20 +30027,20 @@ var designAdvisorRouter = router({
     }
     return brief;
   }),
-  getDesignBrief: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+  getDesignBrief: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getLatestAiDesignBrief(input.projectId, ctx.orgId);
   }),
-  getStandardPackages: orgProcedure.input(z18.object({
-    typology: z18.string().optional(),
-    tier: z18.string().optional()
+  getStandardPackages: orgProcedure.input(z23.object({
+    typology: z23.string().optional(),
+    tier: z23.string().optional()
   })).query(async ({ input }) => {
     return getDesignPackages(input.typology, input.tier);
   }),
-  saveAsPackage: orgMutationProcedure.input(z18.object({
-    projectId: z18.number(),
-    name: z18.string(),
-    description: z18.string().optional()
+  saveAsPackage: orgMutationProcedure.input(z23.object({
+    projectId: z23.number(),
+    name: z23.string(),
+    description: z23.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -29535,10 +30059,10 @@ var designAdvisorRouter = router({
   // ═════════════════════════════════════════════════════════════════════════
   // Phase 2: Visual Generation (Nano Banana)
   // ═════════════════════════════════════════════════════════════════════════
-  generateVisual: orgHeavyMutationProcedure.input(z18.object({
-    projectId: z18.number(),
-    roomId: z18.string(),
-    type: z18.enum(["mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette"])
+  generateVisual: orgHeavyMutationProcedure.input(z23.object({
+    projectId: z23.number(),
+    roomId: z23.string(),
+    type: z23.enum(["mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette"])
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -29584,7 +30108,7 @@ var designAdvisorRouter = router({
     }
     return result;
   }),
-  generateHero: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+  generateHero: orgHeavyMutationProcedure.input(z23.object({ projectId: z23.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const projectCtx = buildProjectContext(project);
     const result = await generateHeroVisual(projectCtx);
@@ -29600,16 +30124,16 @@ var designAdvisorRouter = router({
     }
     return result;
   }),
-  getVisuals: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+  getVisuals: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getGeneratedVisualsByProject(input.projectId);
   })
 });
 
 // server/routers/portfolio.ts
-import { z as z19 } from "zod";
+import { z as z24 } from "zod";
 import { TRPCError as TRPCError18 } from "@trpc/server";
-import { createHash } from "node:crypto";
+import { createHash as createHash2 } from "node:crypto";
 init_db();
 init_schema();
 import { eq as eq16, and as and8, desc as desc8, inArray as inArray3 } from "drizzle-orm";
@@ -29655,7 +30179,7 @@ var portfolioRouter = router({
     return result;
   }),
   // ─── Get portfolio by ID with full details ────────────────────────
-  getById: orgProcedure.input(z19.object({ id: z19.number() })).query(async ({ ctx, input }) => {
+  getById: orgProcedure.input(z24.object({ id: z24.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return null;
     const [portfolio] = await db.select().from(portfolios).where(
@@ -29778,9 +30302,9 @@ var portfolioRouter = router({
   }),
   // ─── Create portfolio ─────────────────────────────────────────────
   create: orgMutationProcedure.input(
-    z19.object({
-      name: z19.string().min(1).max(255),
-      description: z19.string().optional()
+    z24.object({
+      name: z24.string().min(1).max(255),
+      description: z24.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -29795,10 +30319,10 @@ var portfolioRouter = router({
   }),
   // ─── Update portfolio ─────────────────────────────────────────────
   update: orgMutationProcedure.input(
-    z19.object({
-      id: z19.number(),
-      name: z19.string().min(1).max(255).optional(),
-      description: z19.string().optional()
+    z24.object({
+      id: z24.number(),
+      name: z24.string().min(1).max(255).optional(),
+      description: z24.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -29817,7 +30341,7 @@ var portfolioRouter = router({
     return { success: true };
   }),
   // ─── Delete portfolio ─────────────────────────────────────────────
-  delete: orgMutationProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
+  delete: orgMutationProcedure.input(z24.object({ id: z24.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const deleted = await db.transaction(async (tx) => {
@@ -29840,10 +30364,10 @@ var portfolioRouter = router({
   }),
   // ─── Add project to portfolio ─────────────────────────────────────
   addProject: orgMutationProcedure.input(
-    z19.object({
-      portfolioId: z19.number(),
-      projectId: z19.number(),
-      note: z19.string().optional()
+    z24.object({
+      portfolioId: z24.number(),
+      projectId: z24.number(),
+      note: z24.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -29877,9 +30401,9 @@ var portfolioRouter = router({
   }),
   // ─── Remove project from portfolio ────────────────────────────────
   removeProject: orgMutationProcedure.input(
-    z19.object({
-      portfolioId: z19.number(),
-      projectId: z19.number()
+    z24.object({
+      portfolioId: z24.number(),
+      projectId: z24.number()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -29906,7 +30430,7 @@ var portfolioRouter = router({
     return { success: true };
   }),
   // ─── Available projects (not in this portfolio) ───────────────────
-  availableProjects: orgProcedure.input(z19.object({ portfolioId: z19.number() })).query(async ({ ctx, input }) => {
+  availableProjects: orgProcedure.input(z24.object({ portfolioId: z24.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return [];
     const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and8(
@@ -29931,7 +30455,7 @@ var portfolioRouter = router({
     }));
   }),
   // ─── Generate PDF Report ────────────────────────────────────
-  generateReport: orgHeavyMutationProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
+  generateReport: orgHeavyMutationProcedure.input(z24.object({ id: z24.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
@@ -30040,7 +30564,7 @@ var portfolioRouter = router({
     return { html, portfolioName: portfolio.name };
   }),
   // ─── Check Portfolio Alerts ──────────────────────────────────
-  checkAlerts: orgMutationProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ ctx, input }) => {
+  checkAlerts: orgMutationProcedure.input(z24.object({ id: z24.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
@@ -30166,7 +30690,7 @@ var portfolioRouter = router({
       });
     }
     for (const alert of candidates) {
-      alert.activeDedupKey = createHash("sha256").update(JSON.stringify({
+      alert.activeDedupKey = createHash2("sha256").update(JSON.stringify({
         organizationId: ctx.orgId,
         portfolioId: portfolio.id,
         alertType: alert.alertType,
@@ -30196,7 +30720,7 @@ var portfolioRouter = router({
 });
 
 // server/routers/customer-success.ts
-import { z as z20 } from "zod";
+import { z as z25 } from "zod";
 init_db();
 init_db();
 init_schema();
@@ -30356,11 +30880,11 @@ var customerSuccessRouter = router({
     const reportActions = recentLogs.filter(
       (l) => l.action === "project.report" || l.action === "portfolio.report"
     ).length;
-    const evaluatedProjScores = projects2?.filter((p) => p.status === "evaluated" && p.compositeScore != null).map((p) => Number(p.compositeScore)) || [];
+    const evaluatedProjScores = [];
     const avgProjectScore = evaluatedProjScores.length > 0 ? evaluatedProjScores.reduce((s, v) => s + v, 0) / evaluatedProjScores.length : 0;
     const allBiasAlerts = await d.select().from(biasAlerts).where(eq17(biasAlerts.userId, userId));
     const biasAlertsTotal = allBiasAlerts.length;
-    const biasAlertsDismissed = allBiasAlerts.filter((a) => a.dismissed).length;
+    const biasAlertsDismissed = allBiasAlerts.filter((a) => a.dismissed === true).length;
     const thisMonthProjects = projects2?.filter(
       (p) => new Date(p.createdAt) >= thisMonthStart
     ).length || 0;
@@ -30415,7 +30939,7 @@ var customerSuccessRouter = router({
     return rows[0] || null;
   }),
   // Recent activity feed
-  getActivityFeed: protectedProcedure.input(z20.object({ limit: z20.number().min(1).max(50).default(20) }).optional()).query(async ({ ctx, input }) => {
+  getActivityFeed: protectedProcedure.input(z25.object({ limit: z25.number().min(1).max(50).default(20) }).optional()).query(async ({ ctx, input }) => {
     const d = await getDb();
     if (!d) return [];
     const limit = input?.limit || 20;
@@ -30424,7 +30948,7 @@ var customerSuccessRouter = router({
 });
 
 // server/routers/sustainability.ts
-import { z as z21 } from "zod";
+import { z as z26 } from "zod";
 init_db();
 init_db();
 init_schema();
@@ -31089,7 +31613,8 @@ function evaluateCompliance(twin) {
 }
 
 // server/routers/sustainability.ts
-var materialEnum = z21.enum([
+init_area_utils();
+var materialEnum = z26.enum([
   "concrete",
   "steel",
   "glass",
@@ -31101,21 +31626,21 @@ var materialEnum = z21.enum([
   "ceramic"
 ]);
 var sustainabilityRouter = router({
-  computeTwin: orgHeavyMutationProcedure.input(z21.object({
-    projectId: z21.number(),
-    floors: z21.number().min(1).max(200).default(5),
-    specLevel: z21.enum(["economy", "standard", "premium", "luxury"]).default("standard"),
-    glazingRatio: z21.number().min(0).max(1).default(0.35),
-    materials: z21.array(z21.object({
+  computeTwin: orgHeavyMutationProcedure.input(z26.object({
+    projectId: z26.number(),
+    floors: z26.number().min(1).max(200).default(5),
+    specLevel: z26.enum(["economy", "standard", "premium", "luxury"]).default("standard"),
+    glazingRatio: z26.number().min(0).max(1).default(0.35),
+    materials: z26.array(z26.object({
       material: materialEnum,
-      percentage: z21.number().min(0).max(100)
+      percentage: z26.number().min(0).max(100)
     })).optional(),
-    location: z21.enum(["dubai", "abu_dhabi", "sharjah", "other_gcc", "temperate"]).default("dubai"),
-    includeRenewables: z21.boolean().default(false),
-    waterRecycling: z21.boolean().default(false)
+    location: z26.enum(["dubai", "abu_dhabi", "sharjah", "other_gcc", "temperate"]).default("dubai"),
+    includeRenewables: z26.boolean().default(false),
+    waterRecycling: z26.boolean().default(false)
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
-    const gfa = Number(project.siteArea || 500);
+    const gfa = getPricingArea(project) || 500;
     const sustainabilityRating = Number(project.des05Sustainability || 2);
     const materials = input.materials && input.materials.length > 0 ? input.materials : [
       { material: "concrete", percentage: 45 },
@@ -31168,21 +31693,21 @@ var sustainabilityRouter = router({
     }
     return result;
   }),
-  getTwinModels: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
+  getTwinModels: orgProcedure.input(z26.object({ projectId: z26.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
     return d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(10);
   }),
-  getLatestTwin: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
+  getLatestTwin: orgProcedure.input(z26.object({ projectId: z26.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return null;
     const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(1);
     return rows[0] || null;
   }),
-  evaluateCompliance: orgProcedure.input(z21.object({
-    projectId: z21.number()
+  evaluateCompliance: orgProcedure.input(z26.object({
+    projectId: z26.number()
   })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
@@ -31219,7 +31744,7 @@ var sustainabilityRouter = router({
 });
 
 // server/routers/salesPremium.ts
-import { z as z22 } from "zod";
+import { z as z27 } from "zod";
 
 // server/engines/value-add-engine.ts
 var RENTAL_PREMIUM_BY_CONDITION = {
@@ -31418,10 +31943,10 @@ var salesPremiumRouter = router({
    * Given a project's current and proposed fitout spend,
    * returns yield delta, sale premium, and payback period.
    */
-  getValueAddBridge: orgProcedure.input(z22.object({
-    projectId: z22.number(),
-    currentFitoutPerSqm: z22.number().min(0),
-    proposedFitoutPerSqm: z22.number().min(0)
+  getValueAddBridge: orgProcedure.input(z27.object({
+    projectId: z27.number(),
+    currentFitoutPerSqm: z27.number().min(0),
+    proposedFitoutPerSqm: z27.number().min(0)
   })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const saleMedianPerSqm = await getAreaSaleMedianSqm(project.dldAreaId ?? null);
@@ -31447,9 +31972,9 @@ var salesPremiumRouter = router({
    * For trophy/flagship projects, estimates the portfolio
    * halo effect of a high-performing sale.
    */
-  getBrandEquityForecast: orgProcedure.input(z22.object({
-    projectId: z22.number(),
-    salePerformancePct: z22.number().min(0).max(100)
+  getBrandEquityForecast: orgProcedure.input(z27.object({
+    projectId: z27.number(),
+    salePerformancePct: z27.number().min(0).max(100)
   })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     return computeBrandEquityForecast({
@@ -31462,43 +31987,50 @@ var salesPremiumRouter = router({
 });
 
 // server/routers/intake.ts
-import { z as z23 } from "zod";
+import { z as z29 } from "zod";
 init_storage();
 init_db();
 init_ai_intake_engine();
 init_dynamic();
-import crypto3 from "crypto";
+import crypto4 from "crypto";
+init_ai_operation();
 var intakeRouter = router({
   /**
    * Generate a presigned S3 upload URL for direct client upload.
    * Client uploads directly to S3, then calls `recordAsset` to register it.
    */
-  getUploadUrl: orgMutationProcedure.input(z23.object({
-    fileName: z23.string(),
-    contentType: z23.string(),
-    sizeBytes: z23.number().max(50 * 1024 * 1024)
+  getUploadUrl: orgMutationProcedure.input(z29.object({
+    projectId: z29.number(),
+    fileName: z29.string(),
+    contentType: z29.string(),
+    sizeBytes: z29.number().max(50 * 1024 * 1024)
     // 50MB limit
   })).mutation(async ({ input, ctx }) => {
-    const fileKey = `intake/${ctx.orgId}/${Date.now()}-${crypto3.randomUUID().slice(0, 8)}/${input.fileName}`;
-    const result = await storagePut(fileKey, Buffer.alloc(0), input.contentType);
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    const contentType = input.contentType.toLowerCase();
+    if (!isSupportedMediaMimeType(contentType)) {
+      throw new Error("This file type is not supported. Please choose a supported image, PDF, audio, or video file.");
+    }
+    const fileKey = `intake/${ctx.orgId}/${input.projectId}/uploads/${crypto4.randomUUID()}`;
+    const result = await storageCreatePresignedPut(fileKey, contentType);
     return {
-      uploadUrl: result.url,
-      fileKey,
-      storageUrl: result.url
+      uploadUrl: result.uploadUrl,
+      fileKey: result.key,
+      expiresInSeconds: 900
     };
   }),
   /**
    * Register an uploaded asset in the project_assets table.
    * Called after client uploads to S3.
    */
-  recordAsset: orgMutationProcedure.input(z23.object({
-    projectId: z23.number(),
-    fileName: z23.string(),
-    mimeType: z23.string(),
-    sizeBytes: z23.number(),
-    storagePath: z23.string(),
-    storageUrl: z23.string(),
-    category: z23.enum([
+  recordAsset: orgMutationProcedure.input(z29.object({
+    projectId: z29.number(),
+    fileName: z29.string(),
+    mimeType: z29.string(),
+    sizeBytes: z29.number(),
+    storagePath: z29.string(),
+    storageUrl: z29.string().optional(),
+    category: z29.enum([
       "brief",
       "brand",
       "budget",
@@ -31515,18 +32047,27 @@ var intakeRouter = router({
       "generated",
       "other"
     ]).default("other"),
-    assetType: z23.enum(["image", "pdf", "audio", "video", "url", "text_note"]).default("image")
+    assetType: z29.enum(["image", "pdf", "audio", "video", "url", "text_note"]).optional()
   })).mutation(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
+    if (!input.storagePath.startsWith(`intake/${ctx.orgId}/${input.projectId}/uploads/`)) {
+      throw new Error("Upload not found");
+    }
+    const media = await readValidatedProjectMedia({
+      storagePath: input.storagePath,
+      mimeType: input.mimeType
+    }, "intake.asset.finalize");
+    const stored = await storageGet(input.storagePath);
     const assetId = await createProjectAssetForOrg({
       projectId: input.projectId,
       filename: input.fileName,
-      mimeType: input.mimeType,
-      sizeBytes: input.sizeBytes,
+      mimeType: media.mimeType,
+      sizeBytes: media.sizeBytes,
+      checksum: media.checksum,
       storagePath: input.storagePath,
-      storageUrl: input.storageUrl,
+      storageUrl: stored.url,
       category: input.category,
-      assetType: input.assetType,
+      assetType: mediaTypeFromMime(media.mimeType),
       uploadedBy: ctx.user.id
     }, ctx.orgId);
     if (!assetId) {
@@ -31538,7 +32079,7 @@ var intakeRouter = router({
   /**
    * List assets for a project.
    */
-  listAssets: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ input, ctx }) => {
+  listAssets: orgProcedure.input(z29.object({ projectId: z29.number() })).query(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getProjectAssets(input.projectId);
   }),
@@ -31546,66 +32087,71 @@ var intakeRouter = router({
    * Process uploaded assets through the AI Intake Engine.
    * Returns suggested ProjectInputs with per-field confidence and reasoning.
    */
-  processAssets: orgHeavyMutationProcedure.input(z23.object({
-    projectId: z23.number().optional(),
-    assets: z23.array(z23.object({
-      type: z23.enum(["image", "pdf", "audio", "video", "url", "text_note"]),
-      url: z23.string(),
-      mimeType: z23.string().optional(),
-      textContent: z23.string().optional(),
-      fileName: z23.string().optional(),
-      assetId: z23.number().optional()
-    })),
-    freeformDescription: z23.string().optional()
+  processAssets: orgHeavyMutationProcedure.input(z29.object({
+    projectId: z29.number(),
+    assetIds: z29.array(z29.number()).max(5),
+    freeformDescription: z29.string().max(1e4).optional()
   })).mutation(async ({ input, ctx }) => {
-    const project = input.projectId === void 0 ? null : await requireProjectForOrg(input.projectId, ctx.orgId);
-    const assetIds = input.assets.map((asset) => asset.assetId).filter((id) => id !== void 0);
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const authorizedAssets = await requireProjectResourceBatchForOrg(
-      assetIds,
+      input.assetIds,
       ctx.orgId,
       (id, orgId) => requireProjectResourceForOrg(id, orgId, {
         lookupResource: getProjectAssetById,
         getProjectId: (asset) => asset.projectId
       })
     );
-    if (project && authorizedAssets.some((asset) => asset.project.id !== project.id)) {
+    if (authorizedAssets.some((asset) => asset.project.id !== project.id)) {
       throw new Error("Resource not found");
     }
-    const intakeAssets = input.assets.map((a) => ({
-      type: a.type,
-      url: a.url,
-      mimeType: a.mimeType,
-      textContent: a.textContent
+    const prepared = await Promise.all(authorizedAssets.map(async ({ resource: asset }) => {
+      try {
+        const media = await readValidatedProjectMedia(asset, "intake.process-assets");
+        return {
+          asset,
+          intake: {
+            type: mediaTypeFromMime(media.mimeType),
+            media,
+            fileName: asset.filename
+          }
+        };
+      } catch (error) {
+        return { asset, error: toAiOperationFailure(error, "intake.process-assets") };
+      }
     }));
+    const intakeAssets = prepared.reduce((items, item) => {
+      if ("intake" in item && item.intake) items.push(item.intake);
+      return items;
+    }, []);
     if (input.freeformDescription?.trim()) {
       intakeAssets.push({
         type: "text_note",
-        url: "",
         textContent: input.freeformDescription
       });
     }
     const result = await processIntakeAssets(intakeAssets);
-    for (const asset of input.assets) {
-      if (asset.assetId) {
-        if (!await updateProjectAssetForOrg(asset.assetId, ctx.orgId, {
+    const assetResults = prepared.map((item) => "intake" in item ? { assetId: item.asset.id, status: "processed" } : { assetId: item.asset.id, status: "failed", error: item.error });
+    for (const item of prepared) {
+      if ("intake" in item) {
+        if (!await updateProjectAssetForOrg(item.asset.id, ctx.orgId, {
           aiExtractionResult: result.extractedInsights,
           aiContributions: Object.keys(result.suggestedInputs)
         })) {
-          await requireProjectResourceForOrg(asset.assetId, ctx.orgId, {
+          await requireProjectResourceForOrg(item.asset.id, ctx.orgId, {
             lookupResource: getProjectAssetById,
             getProjectId: (record) => record.projectId
           });
         }
       }
     }
-    return result;
+    return { ...result, assetResults };
   }),
   /**
    * Link orphaned assets to a project (after project creation).
    */
-  linkAssetsToProject: orgMutationProcedure.input(z23.object({
-    assetIds: z23.array(z23.number()),
-    projectId: z23.number()
+  linkAssetsToProject: orgMutationProcedure.input(z29.object({
+    assetIds: z29.array(z29.number()),
+    projectId: z29.number()
   })).mutation(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     await requireProjectResourceBatchForOrg(
@@ -31626,9 +32172,9 @@ var intakeRouter = router({
     }
     return { linked: input.assetIds.length };
   }),
-  suggestSection: orgHeavyMutationProcedure.input(z23.object({
-    section: z23.enum(["context", "strategy", "market", "financial", "design", "execution"]),
-    currentFormState: z23.record(z23.string(), z23.any())
+  suggestSection: orgHeavyMutationProcedure.input(z29.object({
+    section: z29.enum(["context", "strategy", "market", "financial", "design", "execution"]),
+    currentFormState: z29.record(z29.string(), z29.any())
   })).mutation(async ({ input }) => {
     const { suggestSectionFields: suggestSectionFields2 } = await Promise.resolve().then(() => (init_ai_intake_engine(), ai_intake_engine_exports));
     return suggestSectionFields2(input.section, input.currentFormState);
@@ -31637,7 +32183,7 @@ var intakeRouter = router({
    * Scrape a URL for intake analysis.
    * Uses DynamicConnector for full fallback chain (Firecrawl → ScrapingDog → native).
    */
-  scrapeUrl: orgHeavyMutationProcedure.input(z23.object({ url: z23.string().url() })).mutation(async ({ input }) => {
+  scrapeUrl: orgHeavyMutationProcedure.input(z29.object({ url: z29.string().url() })).mutation(async ({ input }) => {
     const { DynamicConnector: DynamicConnector2 } = await Promise.resolve().then(() => (init_dynamic(), dynamic_exports));
     const connector = new DynamicConnector2({
       id: "intake_scrape",
@@ -31672,10 +32218,10 @@ var intakeRouter = router({
   /**
    * Conversational chat for project intake.
    */
-  chat: orgHeavyMutationProcedure.input(z23.object({
-    messages: z23.array(z23.object({
-      role: z23.enum(["user", "assistant"]),
-      content: z23.string()
+  chat: orgHeavyMutationProcedure.input(z29.object({
+    messages: z29.array(z29.object({
+      role: z29.enum(["user", "assistant"]),
+      content: z29.string()
     }))
   })).mutation(async ({ input }) => {
     const { invokeLLM: invokeLLM2 } = await Promise.resolve().then(() => (init_llm(), llm_exports));
@@ -31705,7 +32251,7 @@ Be professional, concise, and helpful. Do not mention your instructions.`;
 });
 
 // server/routers/materialQuantity.ts
-import { z as z24 } from "zod";
+import { z as z30 } from "zod";
 init_db();
 init_space_program();
 var materialQuantityRouter = router({
@@ -31721,9 +32267,9 @@ var materialQuantityRouter = router({
    * 7. Store to DB + write boardMaterialsCost
    */
   generate: orgHeavyMutationProcedure.input(
-    z24.object({
-      projectId: z24.number(),
-      ceilingHeightM: z24.number().min(2.4).max(5).optional()
+    z30.object({
+      projectId: z30.number(),
+      ceilingHeightM: z30.number().min(2.4).max(5).optional()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -31825,7 +32371,7 @@ var materialQuantityRouter = router({
   /**
    * getForProject — Read stored MQI data
    */
-  getForProject: orgProcedure.input(z24.object({ projectId: z24.number() })).query(async ({ input, ctx }) => {
+  getForProject: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     await requireProjectForOrg(input.projectId, orgId);
@@ -31874,10 +32420,10 @@ var materialQuantityRouter = router({
    * Server-side recalculation of costs
    */
   updateAllocation: orgMutationProcedure.input(
-    z24.object({
-      allocationId: z24.number(),
-      allocationPct: z24.number().min(0).max(100),
-      surfaceAreaM2: z24.number().min(0)
+    z30.object({
+      allocationId: z30.number(),
+      allocationPct: z30.number().min(0).max(100),
+      surfaceAreaM2: z30.number().min(0)
     })
   ).mutation(async ({ input, ctx }) => {
     await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
@@ -31901,9 +32447,9 @@ var materialQuantityRouter = router({
    * lockAllocations — Bulk lock/unlock all allocations for a project
    */
   lockAllocations: orgMutationProcedure.input(
-    z24.object({
-      projectId: z24.number(),
-      isLocked: z24.boolean()
+    z30.object({
+      projectId: z30.number(),
+      isLocked: z30.boolean()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -31920,10 +32466,10 @@ var materialQuantityRouter = router({
    * addSupplierSource — Register a new supplier URL for scraping
    */
   addSupplierSource: orgMutationProcedure.input(
-    z24.object({
-      supplierName: z24.string().min(1).max(200),
-      supplierUrl: z24.string().url(),
-      materialCategory: z24.enum([
+    z30.object({
+      supplierName: z30.string().min(1).max(200),
+      supplierUrl: z30.string().url(),
+      materialCategory: z30.enum([
         "flooring",
         "wall_paint",
         "wall_tile",
@@ -31935,8 +32481,8 @@ var materialQuantityRouter = router({
         "hardware",
         "specialty"
       ]),
-      tier: z24.enum(["affordable", "mid", "premium", "ultra"]),
-      notes: z24.string().optional()
+      tier: z30.enum(["affordable", "mid", "premium", "ultra"]),
+      notes: z30.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -31954,7 +32500,7 @@ var materialQuantityRouter = router({
    * scrapeSupplierSource — Scrape a supplier URL for pricing
    * Uses DynamicConnector for resilient fetching
    */
-  scrapeSupplierSource: orgHeavyMutationProcedure.input(z24.object({ sourceId: z24.number() })).mutation(async ({ input, ctx }) => {
+  scrapeSupplierSource: orgHeavyMutationProcedure.input(z30.object({ sourceId: z30.number() })).mutation(async ({ input, ctx }) => {
     const source = await requireOrgResourceForOrg(
       input.sourceId,
       ctx.orgId,
@@ -32022,7 +32568,7 @@ ${rawContent.substring(0, 6e3)}`
 });
 
 // server/routers/spaceProgram.ts
-import { z as z25 } from "zod";
+import { z as z31 } from "zod";
 init_db();
 
 // server/engines/design/typology-fitout-rules.ts
@@ -32606,13 +33152,13 @@ var spaceProgramRouter = router({
    * Uses deterministic templates from typology-fitout-rules.ts
    */
   generate: orgMutationProcedure.input(
-    z25.object({
-      projectId: z25.number(),
-      blocks: z25.array(
-        z25.object({
-          blockName: z25.string().min(1),
-          blockTypology: z25.string().min(1),
-          gfaSqm: z25.number().positive()
+    z31.object({
+      projectId: z31.number(),
+      blocks: z31.array(
+        z31.object({
+          blockName: z31.string().min(1),
+          blockTypology: z31.string().min(1),
+          gfaSqm: z31.number().positive()
         })
       ).optional()
     })
@@ -32653,10 +33199,10 @@ var spaceProgramRouter = router({
    * File is already uploaded to S3 — pass the S3 key
    */
   extractFromFile: orgHeavyMutationProcedure.input(
-    z25.object({
-      projectId: z25.number(),
-      s3Key: z25.string().min(1),
-      originalFilename: z25.string().min(1)
+    z31.object({
+      projectId: z31.number(),
+      s3Key: z31.string().min(1),
+      originalFilename: z31.string().min(1)
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -32709,7 +33255,7 @@ var spaceProgramRouter = router({
   /**
    * getForProject — Read stored space program
    */
-  getForProject: orgProcedure.input(z25.object({ projectId: z25.number() })).query(async ({ input, ctx }) => {
+  getForProject: orgProcedure.input(z31.object({ projectId: z31.number() })).query(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     await requireProjectForOrg(input.projectId, orgId);
@@ -32734,7 +33280,7 @@ var spaceProgramRouter = router({
       blockMap.get(key).push(room);
     }
     await updateProjectForOrg(input.projectId, orgId, {
-      totalFitoutArea: fitOutSqm
+      totalFitoutArea: String(fitOutSqm)
     });
     return {
       rooms: roomsWithSubSpaces,
@@ -32756,16 +33302,16 @@ var spaceProgramRouter = router({
    * updateRoom — Edit a single room's properties
    */
   updateRoom: orgMutationProcedure.input(
-    z25.object({
-      roomId: z25.number(),
-      roomName: z25.string().min(1).optional(),
-      category: z25.enum(ROOM_CATEGORIES).optional(),
-      sqm: z25.number().positive().optional(),
-      floorLevel: z25.string().optional().nullable(),
-      finishGrade: z25.enum(["A", "B", "C"]).optional(),
-      priority: z25.enum(["high", "medium", "low"]).optional(),
-      blockName: z25.string().optional(),
-      blockTypology: z25.string().optional()
+    z31.object({
+      roomId: z31.number(),
+      roomName: z31.string().min(1).optional(),
+      category: z31.enum(ROOM_CATEGORIES).optional(),
+      sqm: z31.number().positive().optional(),
+      floorLevel: z31.string().optional().nullable(),
+      finishGrade: z31.enum(["A", "B", "C"]).optional(),
+      priority: z31.enum(["high", "medium", "low"]).optional(),
+      blockName: z31.string().optional(),
+      blockTypology: z31.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
     await requireProjectOrgResourceForOrg(input.roomId, ctx.orgId, {
@@ -32797,10 +33343,10 @@ var spaceProgramRouter = router({
    * toggleFitOut — Flip isFitOut for a room and mark fitOutOverridden = true
    */
   toggleFitOut: orgMutationProcedure.input(
-    z25.object({
-      roomId: z25.number(),
-      isFitOut: z25.boolean(),
-      projectId: z25.number()
+    z31.object({
+      roomId: z31.number(),
+      isFitOut: z31.boolean(),
+      projectId: z31.number()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -32823,16 +33369,16 @@ var spaceProgramRouter = router({
    * addRoom — Add a manual room to the space program
    */
   addRoom: orgMutationProcedure.input(
-    z25.object({
-      projectId: z25.number(),
-      roomName: z25.string().min(1),
-      category: z25.enum(ROOM_CATEGORIES),
-      sqm: z25.number().positive(),
-      floorLevel: z25.string().optional(),
-      finishGrade: z25.enum(["A", "B", "C"]).default("B"),
-      priority: z25.enum(["high", "medium", "low"]).default("medium"),
-      blockName: z25.string().default("Main"),
-      blockTypology: z25.string()
+    z31.object({
+      projectId: z31.number(),
+      roomName: z31.string().min(1),
+      category: z31.enum(ROOM_CATEGORIES),
+      sqm: z31.number().positive(),
+      floorLevel: z31.string().optional(),
+      finishGrade: z31.enum(["A", "B", "C"]).default("B"),
+      priority: z31.enum(["high", "medium", "low"]).default("medium"),
+      blockName: z31.string().default("Main"),
+      blockTypology: z31.string()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -32869,7 +33415,7 @@ var spaceProgramRouter = router({
   /**
    * deleteRoom — Remove a room from the space program
    */
-  deleteRoom: orgMutationProcedure.input(z25.object({ roomId: z25.number(), projectId: z25.number() })).mutation(async ({ input, ctx }) => {
+  deleteRoom: orgMutationProcedure.input(z31.object({ roomId: z31.number(), projectId: z31.number() })).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     const authorized = await requireProjectOrgResourceForOrg(input.roomId, orgId, {
@@ -32888,7 +33434,7 @@ var spaceProgramRouter = router({
    * resetToTypologyDefaults — Wipe non-overridden rooms and regenerate from template
    * Rooms with fitOutOverridden = true survive the reset
    */
-  resetToTypologyDefaults: orgMutationProcedure.input(z25.object({ projectId: z25.number() })).mutation(async ({ input, ctx }) => {
+  resetToTypologyDefaults: orgMutationProcedure.input(z31.object({ projectId: z31.number() })).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     const project = await requireProjectForOrg(input.projectId, orgId);
@@ -32964,41 +33510,8 @@ async function createContext(opts) {
   };
 }
 
-// server/_core/logger.ts
-var LOG_LEVELS = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3
-};
-var MIN_LEVEL = LOG_LEVELS[process.env.LOG_LEVEL || "info"];
-var IS_JSON = process.env.LOG_FORMAT !== "pretty";
-function emit(level, message, meta) {
-  if (LOG_LEVELS[level] < MIN_LEVEL) return;
-  const entry = {
-    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    level,
-    message,
-    service: "miyar-api",
-    ...meta
-  };
-  if (IS_JSON) {
-    const fn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
-    fn(JSON.stringify(entry));
-  } else {
-    const color = level === "error" ? "\x1B[31m" : level === "warn" ? "\x1B[33m" : level === "debug" ? "\x1B[90m" : "\x1B[36m";
-    const reset = "\x1B[0m";
-    const time = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", { hour12: false });
-    const metaStr = meta ? ` ${JSON.stringify(meta)}` : "";
-    console.log(`${color}[${time}] ${level.toUpperCase().padEnd(5)} ${message}${metaStr}${reset}`);
-  }
-}
-var logger = {
-  debug: (msg, meta) => emit("debug", msg, meta),
-  info: (msg, meta) => emit("info", msg, meta),
-  warn: (msg, meta) => emit("warn", msg, meta),
-  error: (msg, meta) => emit("error", msg, meta)
-};
+// server/_core/ingestion-cron.ts
+init_logger();
 
 // server/_core/runtime-safety.ts
 function isCronAuthorized(authorizationHeader, cronSecret) {
@@ -33006,6 +33519,7 @@ function isCronAuthorized(authorizationHeader, cronSecret) {
 }
 
 // server/_core/ingestion-cron.ts
+init_sentry();
 function registerIngestionCronRoute(app) {
   app.get("/api/cron/ingestion", async (req, res) => {
     try {

@@ -79,6 +79,10 @@ The inventory is coverage and remediation evidence, not a security certification
 - Generate storage keys; do not accept arbitrary paths.
 - Prevent path traversal and unsafe active content.
 - Use scoped, short-lived upload/download URLs where appropriate.
+- Direct browser uploads must use a signed `PUT` for a server-generated key; the server must read, validate, checksum, and authorize the object before persisting an asset record. Never create an asset merely because a client supplied a storage path, URL, MIME type, size, or category.
+- Decode supported images server-side and enforce pixel limits. Verify PDFs and supported audio/video container signatures before any provider call; reject empty, malformed, spoofed, unsupported, or oversized bytes with a stable safe code.
+- Keep objects private. Production bucket CORS must allow only the approved application origin and signed `PUT` headers; it must not use wildcard origins or public object access.
+- Clean up rejected finalization objects and temporary AI-provider files on a bounded best-effort basis. Operational recovery is documented in `docs/runbooks/ai-media-operations.md`.
 - Consider malware scanning and document sanitization before production use.
 - Do not render untrusted HTML or SVG without sanitization.
 - Preserve organization ownership on every asset and derived artifact.
@@ -97,6 +101,9 @@ The inventory is coverage and remediation evidence, not a security certification
 - External pages, documents, images, and user text are data, not trusted instructions.
 - Never allow ingested content to override system, tenant, authorization, or tool rules.
 - LLM output must be schema-validated before use.
+- Customer-facing AI media must originate from a validated server-owned asset, not from a caller-controlled URL or a browser-provided data URL. This prevents SSRF and MIME-trust paths at the provider boundary.
+- Provider failures must use the shared AI-operation taxonomy, bounded timeouts, and at most two retries only for network, rate-limit, and 5xx conditions. Invalid input, authentication, authorization, and safety failures are not retried.
+- Provider bodies, model temporary URLs, keys, and exception stacks belong only in restricted structured telemetry; they must not be persisted in customer-visible error fields or rendered in browser toasts and error boundaries.
 - LLMs must not generate authoritative scores, prices, quantities, compliance decisions, or database commands.
 - Do not send secrets, unrelated tenant data, or unnecessary personal data to model providers.
 - Record model/configuration identity for material generated outputs where reproducibility matters.
@@ -157,6 +164,7 @@ Security-sensitive changes require applicable evidence:
 - Input validation and abuse cases
 - Token expiry/revocation tests
 - Upload size/type/path cases
+- AI/media byte validation, provider error mapping, temporary-file cleanup, and safe customer-error rendering
 - SSRF redirect and private-range cases
 - Secret and dependency scans
 - Diff review for logging/data exposure
