@@ -7,13 +7,14 @@
 - Owner: Codex
 - Started: 2026-07-17
 - Closed: 2026-07-17
+- Released: 2026-07-17
 - Branch: `codex/tr-07-test-baseline`
 - Base: `a5e0b94088af01e0b89d3380d1db90f5d9ad1db5` (`origin/main` after fetch)
 - Risk: Medium test-harness/authentication isolation; no runtime product behavior
 - Selected loop: Defect loop from `LOOP_ENGINEERING.md`
 - Retry budget: 3 evidence-based attempts per failure class
 - Resource budget: One bounded test-harness increment and repository verification pass
-- Approval gates: No product behavior, schema/migration, scoring/financial policy, shared database access, commit, push, PR, merge, deployment, or production mutation was performed
+- Approval gates: Initial implementation performed no release action; the user separately authorized final smoke, commit, push, canonical-main merge, and production deployment on 2026-07-17
 
 ## Goal
 
@@ -70,3 +71,14 @@ No mutation sentinel, CommonJS normalization import, or missing mock export rema
 - `KF-008` remains open. TR-07 proves auth-specific isolation, but ordinary test commands still lack the systemic fail-closed database profile owned by `TR-12`.
 - UX-01 remains `NEEDS_HUMAN` because no authenticated production browser session was available for independent smoke re-verification; its merged PR, Vercel status, public root, and health endpoint were independently verified.
 - `TR-10` is the next dependency-valid roadmap step and remains `READY`.
+
+## Production Release Closeout
+
+- Candidate commit: `15d29c5f5d7baa240fd79976d04dfb2254219415` (`test(auth): harden TR-07 baseline isolation`).
+- Canonical merge: PR `#5` merged the pinned candidate into `main` as `85f98db305e5fe983a9ab578f6d129592fa6cfc7` at `2026-07-17T18:39:05Z`.
+- Deployment: Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU` completed successfully for the exact merge commit at `2026-07-17T18:40:01Z`.
+- Pre-deploy evidence: clean frozen install; TypeScript; safe full suite with 1,021 passed and 22 skipped; 335/0 authorization audit; client, Node, and serverless builds; diff check; rendered public homepage; root/health 200; unauthenticated project 401; invalid share 404 with privacy headers.
+- Post-deploy evidence: the homepage rendered after deployment; root and health returned 200; unauthenticated project access returned 401; invalid share returned concealed 404 with `private, no-store` and `noindex, nofollow, noarchive`; three additional health observations remained 200.
+- CI limitation: GitHub Actions run `29604504677` created both configured jobs with zero steps because the owner account remains billing-locked (`KF-014`). The user-authorized release used the passing clean local gates plus the successful Vercel hosted build/deployment; the underlying failure remains open.
+- Rollback target: prior canonical production line `a5e0b94088af01e0b89d3380d1db90f5d9ad1db5`. No schema, data, configuration, dependency, or runtime application change accompanied this release.
+- Authenticated production smoke was not possible because neither available browser had a signed-in MIYAR session. This does not alter the test-only release result and remains recorded under the existing UX-01 human gate.
