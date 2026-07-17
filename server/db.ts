@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, inArray, gte, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray, gte, isNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import {
@@ -36,6 +36,9 @@ import {
   scenarioOutputs,
   scenarioComparisons,
   projectOutcomes,
+  outcomeComparisons,
+  accuracySnapshots,
+  decisionPatterns,
   benchmarkSuggestions,
   sourceRegistry,
   evidenceRecords,
@@ -298,6 +301,18 @@ export async function getAllScoreMatrices() {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(scoreMatrices).orderBy(desc(scoreMatrices.computedAt));
+}
+
+export async function getComparableScoreMatricesForOrg(orgId: number, excludeProjectId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(projects.orgId, orgId)];
+  if (excludeProjectId !== undefined) conditions.push(sql`${scoreMatrices.projectId} <> ${excludeProjectId}`);
+  return db.select({ scoreMatrix: scoreMatrices, project: projects })
+    .from(scoreMatrices)
+    .innerJoin(projects, eq(scoreMatrices.projectId, projects.id))
+    .where(and(...conditions))
+    .orderBy(desc(scoreMatrices.computedAt));
 }
 
 // ─── Scenarios ───────────────────────────────────────────────────────────────
@@ -2017,6 +2032,69 @@ export async function getProjectOutcomes(projectId: number) {
     .orderBy(desc(projectOutcomes.capturedAt));
 }
 
+export async function getProjectOutcomesForOrg(projectId: number, orgId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows: Array<{ outcome: typeof projectOutcomes.$inferSelect }> =
+    await db.select({ outcome: projectOutcomes })
+    .from(projectOutcomes)
+    .innerJoin(projects, eq(projectOutcomes.projectId, projects.id))
+    .where(and(eq(projectOutcomes.projectId, projectId), eq(projects.orgId, orgId)))
+    .orderBy(desc(projectOutcomes.capturedAt));
+  return rows.map(row => row.outcome);
+}
+
+export async function getLatestProjectOutcomeForOrg(projectId: number, orgId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select({ outcome: projectOutcomes })
+    .from(projectOutcomes)
+    .innerJoin(projects, eq(projectOutcomes.projectId, projects.id))
+    .where(and(eq(projectOutcomes.projectId, projectId), eq(projects.orgId, orgId)))
+    .orderBy(desc(projectOutcomes.capturedAt))
+    .limit(1);
+  return rows[0]?.outcome;
+}
+
+export async function getLatestOutcomeComparisonForOrg(projectId: number, orgId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select({ comparison: outcomeComparisons })
+    .from(outcomeComparisons)
+    .innerJoin(projects, eq(outcomeComparisons.projectId, projects.id))
+    .where(and(eq(outcomeComparisons.projectId, projectId), eq(projects.orgId, orgId)))
+    .orderBy(desc(outcomeComparisons.comparedAt))
+    .limit(1);
+  return rows[0]?.comparison;
+}
+
+export async function createOutcomeComparisonForOrg<T extends { projectId: number }>(
+  projectId: number,
+  orgId: number,
+  data: T
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const ownedProject = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (ownedProject.length !== 1 || data.projectId !== projectId) return null;
+    const values = data as T & Record<string, unknown>;
+    const [result] = await tx.insert(outcomeComparisons).values({
+      ...data,
+      predictedCostMid: values.predictedCostMid == null ? null : String(values.predictedCostMid),
+      actualCost: values.actualCost == null ? null : String(values.actualCost),
+      costDeltaPct: values.costDeltaPct == null ? null : String(values.costDeltaPct),
+      predictedComposite: String(values.predictedComposite),
+      predictedRisk: String(values.predictedRisk),
+    } as unknown as typeof outcomeComparisons.$inferInsert);
+    return Number(result.insertId);
+  });
+}
+
 export async function listAllOutcomes() {
   const db = await getDb();
   if (!db) return [];
@@ -2124,7 +2202,32 @@ export async function listEvidenceRecords(filters?: {
   return (query as any).orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
 }
 
-export async function listPublicEvidenceRecords(filters?: {
+export async function listOrganizationEvidenceRecords(orgId: number, filters?: {
+  projectId?: number;
+  category?: string;
+  reliabilityGrade?: string;
+  evidencePhase?: string;
+  confidentiality?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    eq(evidenceRecords.orgId, orgId),
+    eq(evidenceRecords.corpusScope, "organization"),
+  ];
+  if (filters?.projectId !== undefined) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+  if (filters?.category) conditions.push(eq(evidenceRecords.category, filters.category as any));
+  if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade as any));
+  if (filters?.evidencePhase) conditions.push(eq(evidenceRecords.evidencePhase, filters.evidencePhase as any));
+  if (filters?.confidentiality) conditions.push(eq(evidenceRecords.confidentiality, filters.confidentiality as any));
+  return db.select().from(evidenceRecords)
+    .where(and(...conditions))
+    .orderBy(desc(evidenceRecords.createdAt))
+    .limit(filters?.limit ?? 100);
+}
+
+export async function listPublicCorpusEvidence(filters?: {
   category?: string;
   reliabilityGrade?: string;
   evidencePhase?: string;
@@ -2135,7 +2238,7 @@ export async function listPublicEvidenceRecords(filters?: {
   const conditions = [
     isNull(evidenceRecords.projectId),
     isNull(evidenceRecords.orgId),
-    eq(evidenceRecords.confidentiality, "public"),
+    eq(evidenceRecords.corpusScope, "platform_public"),
   ];
   if (filters?.category) conditions.push(eq(evidenceRecords.category, filters.category as any));
   if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade as any));
@@ -2145,6 +2248,9 @@ export async function listPublicEvidenceRecords(filters?: {
     .orderBy(desc(evidenceRecords.createdAt))
     .limit(filters?.limit ?? 100);
 }
+
+/** @deprecated Tenant code must use listPublicCorpusEvidence. */
+export const listPublicEvidenceRecords = listPublicCorpusEvidence;
 
 export async function getEvidenceRecordById(id: number) {
   const db = await getDb();
@@ -2158,6 +2264,31 @@ export async function createEvidenceRecord(data: typeof evidenceRecords.$inferIn
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(evidenceRecords).values(data);
   return { id: Number(result.insertId) };
+}
+
+export async function createEvidenceRecordForOrg(
+  orgId: number,
+  projectId: number,
+  data: Omit<typeof evidenceRecords.$inferInsert, "orgId" | "projectId" | "corpusScope" | "corpusPolicyVersion">
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const ownedProject = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (ownedProject.length !== 1) return null;
+    const [result] = await tx.insert(evidenceRecords).values({
+      ...data,
+      projectId,
+      orgId,
+      corpusScope: "organization",
+      corpusPolicyVersion: "org-public-v1",
+    });
+    return { id: Number(result.insertId) };
+  });
 }
 
 export async function deleteEvidenceRecord(id: number) {
@@ -2177,7 +2308,11 @@ export async function deleteGlobalEvidenceRecord(id: number) {
   return Number(result[0].affectedRows) === 1;
 }
 
-export async function getPreviousEvidenceRecord(itemName: string, sourceRegistryId: number, beforeDate: Date) {
+export async function getPreviousPublicEvidenceRecord(
+  itemName: string,
+  sourceRegistryId: number,
+  beforeDate: Date
+) {
   const db = await getDb();
   if (!db) return undefined;
 
@@ -2187,6 +2322,8 @@ export async function getPreviousEvidenceRecord(itemName: string, sourceRegistry
       and(
         eq(evidenceRecords.itemName, itemName),
         eq(evidenceRecords.sourceRegistryId, sourceRegistryId),
+        isNull(evidenceRecords.orgId),
+        eq(evidenceRecords.corpusScope, "platform_public"),
         sql`${evidenceRecords.captureDate} < ${beforeDate}`
       )
     )
@@ -2830,6 +2967,29 @@ export async function insertTrendSnapshot(data: typeof trendSnapshots.$inferInse
   return result;
 }
 
+export async function insertOrganizationTrendSnapshot(
+  orgId: number,
+  data: Omit<typeof trendSnapshots.$inferInsert, "orgId" | "corpusScope" | "corpusPolicyVersion">
+) {
+  return insertTrendSnapshot({
+    ...data,
+    orgId,
+    corpusScope: "organization",
+    corpusPolicyVersion: "org-public-v1",
+  });
+}
+
+export async function insertPublicTrendSnapshot(
+  data: Omit<typeof trendSnapshots.$inferInsert, "orgId" | "corpusScope" | "corpusPolicyVersion">
+) {
+  return insertTrendSnapshot({
+    ...data,
+    orgId: null,
+    corpusScope: "platform_public",
+    corpusPolicyVersion: "public-v1",
+  });
+}
+
 export async function getTrendSnapshots(filters?: {
   category?: string;
   geography?: string;
@@ -2855,6 +3015,83 @@ export async function getTrendSnapshots(filters?: {
   return query.orderBy(desc(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
 }
 
+export async function getTrendSnapshotsForOrg(orgId: number, filters?: {
+  category?: string;
+  geography?: string;
+  direction?: string;
+  confidence?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [or(
+    and(eq(trendSnapshots.corpusScope, "organization"), eq(trendSnapshots.orgId, orgId)),
+    and(eq(trendSnapshots.corpusScope, "platform_public"), isNull(trendSnapshots.orgId))
+  )!];
+  if (filters?.category) conditions.push(eq(trendSnapshots.category, filters.category));
+  if (filters?.geography) conditions.push(eq(trendSnapshots.geography, filters.geography));
+  if (filters?.direction) conditions.push(eq(trendSnapshots.direction, filters.direction as any));
+  if (filters?.confidence) conditions.push(eq(trendSnapshots.confidence, filters.confidence as any));
+  return db.select().from(trendSnapshots)
+    .where(and(...conditions))
+    .orderBy(desc(trendSnapshots.createdAt))
+    .limit(filters?.limit ?? 50);
+}
+
+export async function getPublicTrendSnapshots(filters?: {
+  category?: string;
+  geography?: string;
+  direction?: string;
+  confidence?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    eq(trendSnapshots.corpusScope, "platform_public"),
+    isNull(trendSnapshots.orgId),
+  ];
+  if (filters?.category) conditions.push(eq(trendSnapshots.category, filters.category));
+  if (filters?.geography) conditions.push(eq(trendSnapshots.geography, filters.geography));
+  if (filters?.direction) conditions.push(eq(trendSnapshots.direction, filters.direction as any));
+  if (filters?.confidence) conditions.push(eq(trendSnapshots.confidence, filters.confidence as any));
+  return db.select().from(trendSnapshots)
+    .where(and(...conditions))
+    .orderBy(desc(trendSnapshots.createdAt))
+    .limit(filters?.limit ?? 50);
+}
+
+export async function getTrendHistoryForOrg(orgId: number, metric: string, geography: string, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(trendSnapshots)
+    .where(and(
+      eq(trendSnapshots.metric, metric),
+      eq(trendSnapshots.geography, geography),
+      or(
+        and(eq(trendSnapshots.corpusScope, "organization"), eq(trendSnapshots.orgId, orgId)),
+        and(eq(trendSnapshots.corpusScope, "platform_public"), isNull(trendSnapshots.orgId))
+      )
+    ))
+    .orderBy(desc(trendSnapshots.createdAt))
+    .limit(limit);
+}
+
+export async function getAnomaliesForOrg(orgId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(trendSnapshots)
+    .where(and(
+      sql`${trendSnapshots.anomalyCount} > 0`,
+      or(
+        and(eq(trendSnapshots.corpusScope, "organization"), eq(trendSnapshots.orgId, orgId)),
+        and(eq(trendSnapshots.corpusScope, "platform_public"), isNull(trendSnapshots.orgId))
+      )
+    ))
+    .orderBy(desc(trendSnapshots.createdAt))
+    .limit(limit);
+}
+
 export async function getTrendHistory(metric: string, geography: string, limit = 20) {
   const db = await getDb();
   if (!db) return [];
@@ -2878,10 +3115,22 @@ export async function getAnomalies(limit = 50) {
 
 // ─── Project Insights (V3 — Analytical Intelligence) ───────────────────────
 
-export async function insertProjectInsight(data: typeof projectInsights.$inferInsert) {
+async function insertProjectInsight(data: typeof projectInsights.$inferInsert) {
   const db = await getDb();
   if (!db) return;
   return db.insert(projectInsights).values(data);
+}
+
+export async function insertPublicProjectInsight(
+  data: Omit<typeof projectInsights.$inferInsert, "orgId" | "projectId" | "corpusScope" | "corpusPolicyVersion">
+) {
+  return insertProjectInsight({
+    ...data,
+    projectId: null,
+    orgId: null,
+    corpusScope: "platform_public",
+    corpusPolicyVersion: "public-v1",
+  });
 }
 
 export async function insertProjectInsightForOrg(
@@ -2897,7 +3146,12 @@ export async function insertProjectInsightForOrg(
       .limit(1)
       .for("update");
     if (project.length !== 1) return false;
-    await tx.insert(projectInsights).values(data);
+    await tx.insert(projectInsights).values({
+      ...data,
+      orgId,
+      corpusScope: "organization",
+      corpusPolicyVersion: "org-public-v1",
+    });
     return true;
   });
 }
@@ -2936,6 +3190,37 @@ export async function getProjectInsights(filters?: {
   return query.orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
 }
 
+export async function getProjectInsightsForOrg(
+  orgId: number,
+  filters: {
+    projectId: number;
+    insightType?: string;
+    severity?: string;
+    status?: string;
+    limit?: number;
+  }
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    eq(projectInsights.projectId, filters.projectId),
+    eq(projectInsights.orgId, orgId),
+    eq(projectInsights.corpusScope, "organization"),
+    eq(projects.orgId, orgId),
+  ];
+  if (filters.insightType) conditions.push(eq(projectInsights.insightType, filters.insightType as any));
+  if (filters.severity) conditions.push(eq(projectInsights.severity, filters.severity as any));
+  if (filters.status) conditions.push(eq(projectInsights.status, filters.status as any));
+  const rows: Array<{ insight: typeof projectInsights.$inferSelect }> =
+    await db.select({ insight: projectInsights })
+    .from(projectInsights)
+    .innerJoin(projects, eq(projectInsights.projectId, projects.id))
+    .where(and(...conditions))
+    .orderBy(desc(projectInsights.createdAt))
+    .limit(filters.limit ?? 50);
+  return rows.map(row => row.insight);
+}
+
 export async function getGlobalProjectInsights(filters?: {
   insightType?: string;
   severity?: string;
@@ -2944,7 +3229,11 @@ export async function getGlobalProjectInsights(filters?: {
 }) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [isNull(projectInsights.projectId)];
+  const conditions = [
+    isNull(projectInsights.projectId),
+    isNull(projectInsights.orgId),
+    eq(projectInsights.corpusScope, "platform_public"),
+  ];
   if (filters?.insightType) conditions.push(eq(projectInsights.insightType, filters.insightType as any));
   if (filters?.severity) conditions.push(eq(projectInsights.severity, filters.severity as any));
   if (filters?.status) conditions.push(eq(projectInsights.status, filters.status as any));
@@ -3489,6 +3778,59 @@ export async function getDesignTrends(filters?: {
   if (conditions.length > 0) query.where(and(...conditions));
   const rows = await query.orderBy(desc(designTrends.mentionCount)).limit(filters?.limit ?? 30);
   return rows;
+}
+
+export async function getPublicDesignTrends(filters?: {
+  styleClassification?: string;
+  region?: string;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(designTrends.corpusScope, "platform_public")];
+  if (filters?.region) conditions.push(eq(designTrends.region, filters.region));
+  if (filters?.styleClassification) conditions.push(eq(designTrends.styleClassification, filters.styleClassification));
+  return db.select().from(designTrends)
+    .where(and(...conditions))
+    .orderBy(desc(designTrends.mentionCount))
+    .limit(filters?.limit ?? 30);
+}
+
+export async function getPublicDecisionPatterns() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(decisionPatterns)
+    .where(eq(decisionPatterns.corpusScope, "platform_public"))
+    .orderBy(decisionPatterns.id);
+}
+
+export async function getGovernedAccuracySnapshots(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(accuracySnapshots)
+    .where(eq(accuracySnapshots.corpusScope, "platform_public"))
+    .orderBy(desc(accuracySnapshots.snapshotDate))
+    .limit(limit);
+}
+
+export async function getGovernedBenchmarkSuggestions(status?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(benchmarkSuggestions.corpusScope, "platform_public")];
+  if (status) conditions.push(eq(benchmarkSuggestions.status, status as any));
+  return db.select().from(benchmarkSuggestions)
+    .where(and(...conditions))
+    .orderBy(desc(benchmarkSuggestions.createdAt));
+}
+
+export async function getGovernedLogicChangeLog(status?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(logicChangeLog.corpusScope, "platform_public")];
+  if (status) conditions.push(eq(logicChangeLog.status, status as any));
+  return db.select().from(logicChangeLog)
+    .where(and(...conditions))
+    .orderBy(desc(logicChangeLog.createdAt));
 }
 
 /**

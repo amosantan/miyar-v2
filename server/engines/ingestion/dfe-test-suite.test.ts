@@ -2,15 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateCsvTemplate, processCsvUpload } from './csv-pipeline';
 import { detectPriceChange } from './change-detector';
 import { DynamicConnector } from './connectors/dynamic';
-import { getDb, getPreviousEvidenceRecord } from '../../db';
+import { getDb, getPreviousPublicEvidenceRecord } from '../../db';
 
 const mockGetSourceRegistryById = vi.fn().mockResolvedValue({ id: 1, name: 'Test Source', isActive: true });
 
 vi.mock('../../db', () => ({
     getDb: vi.fn(),
-    insertProjectInsight: vi.fn(),
+    insertPublicProjectInsight: vi.fn(),
     createPriceChangeEvent: vi.fn().mockResolvedValue({ id: 1 }),
-    getPreviousEvidenceRecord: vi.fn(),
+    getPreviousPublicEvidenceRecord: vi.fn(),
     getSourceRegistryById: (...args: any[]) => mockGetSourceRegistryById(...args),
     createEvidenceRecord: vi.fn().mockResolvedValue({ id: 99 }),
     getEvidenceRecordById: vi.fn().mockResolvedValue({ id: 99, category: 'material_cost' }),
@@ -64,7 +64,7 @@ MockItem${i},material_cost,Dubai,Price,${10 + i},sqm`;
         });
 
         it('detects no price change when previous record is missing', async () => {
-            vi.mocked(getPreviousEvidenceRecord).mockResolvedValue(undefined as any);
+            vi.mocked(getPreviousPublicEvidenceRecord).mockResolvedValue(undefined as any);
 
             const result = await detectPriceChange({
                 id: 10,
@@ -78,7 +78,7 @@ MockItem${i},material_cost,Dubai,Price,${10 + i},sqm`;
         });
 
         it('detects a notable price increase (>= 5%)', async () => {
-            vi.mocked(getPreviousEvidenceRecord).mockResolvedValue({
+            vi.mocked(getPreviousPublicEvidenceRecord).mockResolvedValue({
                 id: 1,
                 itemName: 'Test Marble',
                 priceTypical: '100',
@@ -102,7 +102,7 @@ MockItem${i},material_cost,Dubai,Price,${10 + i},sqm`;
         });
 
         it('detects a significant price drop (>= 10%)', async () => {
-            vi.mocked(getPreviousEvidenceRecord).mockResolvedValue({
+            vi.mocked(getPreviousPublicEvidenceRecord).mockResolvedValue({
                 id: 1,
                 itemName: 'Test Marble',
                 priceTypical: '200',
@@ -131,7 +131,7 @@ MockItem${i},material_cost,Dubai,Price,${10 + i},sqm`;
                 const current = 100 + (i - 7); // varies from 93 to 107
                 const pct = ((current - prev) / prev) * 100;
 
-                vi.mocked(getPreviousEvidenceRecord).mockResolvedValue({
+                vi.mocked(getPreviousPublicEvidenceRecord).mockResolvedValue({
                     id: 1,
                     itemName: `Item ${i}`,
                     priceTypical: String(prev),

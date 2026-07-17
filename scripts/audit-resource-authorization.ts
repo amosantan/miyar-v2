@@ -132,12 +132,20 @@ const RESOURCE_HELPER_PATTERN =
   /(Project|Asset|Brief|Scenario|Report|Board|Visual|Comment|Room|Outcome|Evidence|Portfolio|BiasAlert|Simulation|Allocation|Checklist|Recommendation|Rfq|Share)/i;
 const GLOBAL_PLATFORM_ALERT_EFFECT_PATTERN =
   /\b(?:triggerAlertEngine\s*\(|platformAlerts\b)/;
+const CROSS_ORG_LEARNING_EFFECT_PATTERN =
+  /\b(?:getAllScoreMatrices|getProjectInsights\s*\(|getProjectOutcomes\s*\(|listAllOutcomes\s*\(|listPublicEvidenceRecords|getPreviousEvidenceRecord\s*\(|getTrendSnapshots\s*\(|getTrendHistory\s*\(|getAnomalies\s*\(|getDesignTrends\s*\(|listEvidenceRecords\s*\()/;
+const PLATFORM_PUBLIC_DERIVED_WRITE_PATTERN =
+  /\b(?:insertPublicTrendSnapshot|insertPublicProjectInsight)\s*\(/;
 
 const GLOBAL_ROUTER_PATTERN = /^(admin|ingestion|market-intelligence)$/;
 const SCOPED_WRITE_EVIDENCE: Record<
   string,
   { finalScopedWrite: string; integrationTestName: string }
 > = {
+  "project.confirmInputs": {
+    finalScopedWrite: "db.updateProjectForOrg",
+    integrationTestName: "scopes project readiness and confirmed-input writes to the organization",
+  },
   "design.addComment": {
     finalScopedWrite: "db.createCommentForOrg",
     integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",
@@ -849,16 +857,15 @@ function defaultAnnotation(
   const hasOrgScopedPredicate =
     /eq\([^,]*(orgId|organizationId),\s*ctx\.(orgId|user\.orgId)\)/s.test(text);
   const hasOrgScopedHelper =
-    /\b[A-Za-z][A-Za-z0-9]*(?:ByOrg|ForOrg)\s*\([^)]*ctx\.orgId/s.test(text);
+    /\b(?:[A-Za-z][A-Za-z0-9]*(?:ByOrg|ForOrg)|(?:listOrganization|insertOrganization)[A-Za-z0-9]*)\s*\([^)]*ctx\.orgId/s.test(text);
   const hasOrgScopedInsert =
     /\b(orgId|organizationId)\s*:\s*ctx\.(orgId|user\.orgId)\b/.test(text);
 
   const globalGovernedKeys = new Set([
     "admin.portfolio.overview",
-    "analytics.getTrends",
-    "analytics.getTrendHistory",
-    "analytics.getAnomalies",
+    "analytics.generateGlobalProjectInsights",
     "analytics.getCompetitorLandscape",
+    "analytics.runPublicTrendDetection",
     "design.calculateSpec",
     "design.getAreaBenchmark",
     "design.getAreaBenchmarks",
@@ -870,10 +877,6 @@ function defaultAnnotation(
     "design.getMaterial",
     "design.getMaterialConstants",
     "design.listMaterials",
-    "learning.getAccuracyHistory",
-    "learning.getAccuracyLedger",
-    "learning.getPendingBenchmarkSuggestions",
-    "learning.getPendingLogicProposals",
     "ingestion.verifyData",
     "intelligence.benchmarkLearning.generateSuggestions",
     "intelligence.outcomes.listAll",
@@ -904,15 +907,8 @@ function defaultAnnotation(
     "design.attachVisualToPack",
   ]);
 
-  const unsafeKeys = new Set([
-    "analytics.getMarketPosition",
-    "analytics.runTrendDetection",
-  ]);
-
   let classification: Classification;
-  if (unsafeKeys.has(procedure.key)) {
-    classification = "unsafe";
-  } else if (
+  if (
     intentionallyDisabledKeys.has(procedure.key) &&
     /PRECONDITION_FAILED/.test(text)
   ) {
@@ -978,17 +974,10 @@ function defaultAnnotation(
   }
   if (classification === "legacy_null") targetStep = "NEEDS_HUMAN";
 
-  const contaminationKeys = new Set([
-    "analytics.getMarketPosition",
-    "analytics.runTrendDetection",
-    "design-advisor.generateRecommendations",
-    "learning.runComparison",
-    "learning.submitPostMortem",
-    "predictive.getCostRange",
-    "predictive.getOutcomePrediction",
-    "predictive.getUaeCostRanges",
-  ]);
-  if (contaminationKeys.has(procedure.key)) {
+  const hasCrossOrgLearningEffect =
+    ORG_ACCESS_PRIMITIVES.has(procedure.accessPrimitive) &&
+    CROSS_ORG_LEARNING_EFFECT_PATTERN.test(text);
+  if (hasCrossOrgLearningEffect) {
     targetStep = "TR-05";
     severity =
       procedure.key === "analytics.runTrendDetection" ? "critical" : "high";
@@ -1060,7 +1049,7 @@ function defaultAnnotation(
           ? "Fails closed with PRECONDITION_FAILED and performs no data access until a typed visual-attachment model is approved."
           : procedure.key === "design.listAssets"
             ? "Requires the canonical design project guard before listing project assets."
-            : contaminationKeys.has(procedure.key)
+            : hasCrossOrgLearningEffect
               ? "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
               : procedure.key === "organization.acceptInvite"
                 ? "Invite-token authorization is distinct from session organization context; the token selects one organization and expiry is checked before membership mutation."
@@ -1147,7 +1136,7 @@ async function requireReclassificationAcknowledgement(
     ack.keysSha256 !== hash
   ) {
     throw new Error(
-      "Security reclassification acknowledgement is missing or does not match the removed remediation keys"
+      `Security reclassification acknowledgement is missing or does not match the removed remediation keys: count=${removed.length} sha256=${hash} keys=${removed.join(",")}`
     );
   }
 }
@@ -1363,6 +1352,22 @@ function validateInventory(
     ) {
       errors.push(
         `Tenant procedure reaches globally governed platform alerts: ${key}`
+      );
+    }
+    if (
+      ORG_ACCESS_PRIMITIVES.has(procedure.accessPrimitive) &&
+      CROSS_ORG_LEARNING_EFFECT_PATTERN.test(procedure.sourceText)
+    ) {
+      errors.push(
+        `Tenant procedure reaches an unscoped learning or prediction helper: ${key}`
+      );
+    }
+    if (
+      ORG_ACCESS_PRIMITIVES.has(procedure.accessPrimitive) &&
+      PLATFORM_PUBLIC_DERIVED_WRITE_PATTERN.test(procedure.sourceText)
+    ) {
+      errors.push(
+        `Tenant procedure writes a platform-public derived artifact: ${key}`
       );
     }
     if (

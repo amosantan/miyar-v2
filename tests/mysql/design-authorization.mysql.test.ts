@@ -38,8 +38,16 @@ const tables = [
   "project_assets",
   "report_instances",
   "score_matrices",
+  "outcome_comparisons",
+  "project_outcomes",
   "scenarios",
   "evidence_records",
+  "trend_snapshots",
+  "design_trends",
+  "decision_patterns",
+  "accuracy_snapshots",
+  "benchmark_suggestions",
+  "logic_change_log",
   "project_insights",
   "material_allocations",
   "material_supplier_sources",
@@ -936,5 +944,158 @@ describe("TR-03H/TR-04 real MySQL authorization boundary", () => {
     `);
     const evidence = await db.getEvidenceWithSources({ orgId: 101 });
     expect(evidence.map((row: any) => row.recordId)).toEqual(["E-A"]);
+  });
+
+  it("pools learning and prediction reads strictly by organization", async () => {
+    await pool.query(`
+      insert into evidence_records
+        (recordId, projectId, orgId, category, itemName, priceMin, priceTypical, priceMax, unit, sourceUrl, captureDate, reliabilityGrade, confidenceScore, confidentiality, corpusScope, corpusPolicyVersion)
+      values
+        ('ORG-A-1', 11, 101, 'floors', 'Floor A1', 100, 100, 100, 'sqm', 'https://example.invalid/a1', now(), 'A', 90, 'internal', 'organization', 'org-public-v1'),
+        ('ORG-A-2', 11, 101, 'floors', 'Floor A2', 110, 110, 110, 'sqm', 'https://example.invalid/a2', now(), 'A', 90, 'internal', 'organization', 'org-public-v1'),
+        ('ORG-A-3', 11, 101, 'floors', 'Floor A3', 120, 120, 120, 'sqm', 'https://example.invalid/a3', now(), 'A', 90, 'internal', 'organization', 'org-public-v1'),
+        ('PUBLIC-1', null, null, 'floors', 'Public Floor', 115, 115, 115, 'sqm', 'https://example.invalid/public', now(), 'A', 95, 'public', 'platform_public', 'public-v1'),
+        ('LEGACY-1', null, null, 'floors', 'Legacy Floor', 9000, 9000, 9000, 'sqm', 'https://example.invalid/legacy', now(), 'A', 95, 'public', 'legacy_unscoped', 'legacy-v0')
+    `);
+    const caller = predictiveRouter.createCaller(orgContext());
+    const before = await caller.getCostRange({ projectId: 11, category: "floors" });
+    await pool.query(`
+      insert into evidence_records
+        (recordId, projectId, orgId, category, itemName, priceMin, priceTypical, priceMax, unit, sourceUrl, captureDate, reliabilityGrade, confidenceScore, confidentiality, corpusScope, corpusPolicyVersion)
+      values
+        ('ORG-B-1', 22, 202, 'floors', 'Foreign Floor 1', 5000, 5000, 5000, 'sqm', 'https://example.invalid/b1', now(), 'A', 90, 'confidential', 'organization', 'org-public-v1'),
+        ('ORG-B-2', 22, 202, 'floors', 'Foreign Floor 2', 6000, 6000, 6000, 'sqm', 'https://example.invalid/b2', now(), 'A', 90, 'confidential', 'organization', 'org-public-v1'),
+        ('ORG-B-3', 22, 202, 'floors', 'Foreign Floor 3', 7000, 7000, 7000, 'sqm', 'https://example.invalid/b3', now(), 'A', 90, 'confidential', 'organization', 'org-public-v1')
+    `);
+    const after = await caller.getCostRange({ projectId: 11, category: "floors" });
+    expect(after).toEqual(before);
+    expect(after.organizationSampleCount).toBe(3);
+    expect(after.publicSampleCount).toBe(1);
+  });
+
+  it("only returns explicitly classified platform-public evidence", async () => {
+    await pool.query(`
+      insert into evidence_records
+        (recordId, projectId, orgId, category, itemName, unit, sourceUrl, captureDate, reliabilityGrade, confidenceScore, confidentiality, corpusScope, corpusPolicyVersion)
+      values
+        ('PUBLIC-SAFE', null, null, 'walls', 'Safe', 'sqm', 'https://example.invalid/safe', now(), 'A', 95, 'public', 'platform_public', 'public-v1'),
+        ('PUBLIC-LEGACY', null, null, 'walls', 'Legacy', 'sqm', 'https://example.invalid/legacy', now(), 'A', 95, 'public', 'legacy_unscoped', 'legacy-v0'),
+        ('PUBLIC-FOREIGN', 22, 202, 'walls', 'Foreign', 'sqm', 'https://example.invalid/foreign', now(), 'A', 95, 'public', 'organization', 'org-public-v1')
+    `);
+    const rows = await db.listPublicCorpusEvidence({ category: "walls" });
+    expect(rows.map(row => row.recordId)).toEqual(["PUBLIC-SAFE"]);
+  });
+
+  it("excludes legacy and inconsistent project insights from tenant reads", async () => {
+    await pool.query(`
+      insert into project_insights
+        (projectId, orgId, insightType, insightSeverity, title, corpusScope, corpusPolicyVersion)
+      values
+        (11, 101, 'cost_pressure', 'warning', 'Owned insight', 'organization', 'org-public-v1'),
+        (11, null, 'cost_pressure', 'critical', 'Legacy insight', 'legacy_unscoped', 'legacy-v0'),
+        (11, 202, 'cost_pressure', 'critical', 'Foreign-tagged insight', 'organization', 'org-public-v1'),
+        (null, null, 'market_opportunity', 'info', 'Governed public insight', 'platform_public', 'public-v1'),
+        (null, null, 'market_opportunity', 'warning', 'Legacy global insight', 'legacy_unscoped', 'legacy-v0')
+    `);
+    const caller = analyticsRouter.createCaller(orgContext());
+    const projectResult = await caller.getProjectInsights({ projectId: 11, limit: 50 });
+    expect(projectResult.insights.map(row => row.title)).toEqual(["Owned insight"]);
+    const globalResult = await caller.getProjectInsights({ limit: 50 });
+    expect(globalResult.insights.map(row => row.title)).toEqual(["Governed public insight"]);
+  });
+
+  it("stores tenant trends with organization identity and conceals other corpora", async () => {
+    await pool.query(`
+      insert into evidence_records
+        (recordId, projectId, orgId, category, itemName, priceMin, priceTypical, priceMax, unit, sourceUrl, captureDate, reliabilityGrade, confidenceScore, corpusScope, corpusPolicyVersion)
+      values
+        ('TREND-A-1', 11, 101, 'floors', 'Stone', 100, 100, 100, 'sqm', 'https://example.invalid/t1', date_sub(now(), interval 40 day), 'A', 90, 'organization', 'org-public-v1'),
+        ('TREND-A-2', 11, 101, 'floors', 'Stone', 120, 120, 120, 'sqm', 'https://example.invalid/t2', now(), 'A', 90, 'organization', 'org-public-v1')
+    `);
+    const result = await analyticsRouter.createCaller(orgContext()).runTrendDetection({
+      category: "floors",
+      geography: "UAE",
+      windowDays: 30,
+      generateNarrative: false,
+    });
+    expect(result.metricsAnalyzed).toBe(1);
+    const [stored] = await pool.query(`
+      select orgId, corpusScope, corpusPolicyVersion
+      from trend_snapshots
+    `);
+    expect(stored).toEqual([
+      expect.objectContaining({
+        orgId: 101,
+        corpusScope: "organization",
+        corpusPolicyVersion: "org-public-v1",
+      }),
+    ]);
+    await pool.query(`
+      insert into trend_snapshots
+        (metric, category, geography, direction, trendConfidence, orgId, corpusScope, corpusPolicyVersion)
+      values
+        ('foreign', 'floors', 'UAE', 'rising', 'high', 202, 'organization', 'org-public-v1'),
+        ('legacy', 'floors', 'UAE', 'rising', 'high', null, 'legacy_unscoped', 'legacy-v0')
+    `);
+    const visible = await db.getTrendSnapshotsForOrg(101, { category: "floors" });
+    expect(visible.map(row => row.metric)).toEqual(["Stone"]);
+  });
+
+  it("refuses cross-organization comparable outcomes and scoped comparison writes", async () => {
+    await seedScore(801, 11);
+    await seedScore(802, 22);
+    const comparables = await db.getComparableScoreMatricesForOrg(101, 11);
+    expect(comparables).toEqual([]);
+    const rejected = await db.createOutcomeComparisonForOrg(22, 101, {
+      projectId: 22,
+      predictedCostMid: null,
+      actualCost: null,
+      costDeltaPct: null,
+      costAccuracyBand: "no_prediction",
+      predictedComposite: 60,
+      predictedDecision: "validated",
+      actualOutcomeSuccess: true,
+      scorePredictionCorrect: true,
+      predictedRisk: 40,
+      actualReworkOccurred: false,
+      riskPredictionCorrect: true,
+      overallAccuracyGrade: "A",
+    });
+    expect(rejected).toBeNull();
+    expect(await count("outcome_comparisons")).toBe(0);
+  });
+
+  it("scopes project readiness and confirmed-input writes to the organization", async () => {
+    const caller = projectRouter.createCaller(orgContext());
+    const created = await caller.create({
+      name: "Readiness project",
+      ctx01Typology: "Residential",
+      ctx03Gfa: 12000,
+      ctx04Location: "Prime",
+      projectPurpose: "sell_offplan",
+      fin01BudgetCap: 650,
+      inputProvenance: {
+        name: "explicit",
+        ctx01Typology: "explicit",
+        ctx03Gfa: "explicit",
+        ctx04Location: "explicit",
+        projectPurpose: "explicit",
+        fin01BudgetCap: "explicit",
+      },
+    });
+    const before = await caller.readiness({ id: created.id });
+    expect(before.canEvaluate).toBe(false);
+    expect(before.unconfirmedAssumptions.length).toBeGreaterThan(0);
+
+    const foreign = projectRouter.createCaller(viewerContext());
+    await expect(foreign.readiness({ id: created.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(foreign.confirmInputs({ id: created.id, fields: before.unconfirmedAssumptions })).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    const after = await caller.confirmInputs({ id: created.id, fields: before.unconfirmedAssumptions });
+    expect(after).toMatchObject({ canEvaluate: true, status: "ready", policyVersion: "input-readiness-v1" });
+    const [rows] = await pool.query("select inputProvenance from projects where id = ?", [created.id]);
+    const stored = (rows as Array<{ inputProvenance: string | Record<string, string> }>)[0].inputProvenance;
+    const provenance = typeof stored === "string" ? JSON.parse(stored) : stored;
+    expect(provenance.mkt01Tier).toBe("confirmed");
   });
 });

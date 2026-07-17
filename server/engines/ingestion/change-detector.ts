@@ -1,4 +1,4 @@
-import { getPreviousEvidenceRecord, createPriceChangeEvent, insertProjectInsight } from "../../db";
+import { getPreviousPublicEvidenceRecord, createPriceChangeEvent, insertPublicProjectInsight } from "../../db";
 import { EvidenceRecord } from "../../../drizzle/schema";
 
 export async function detectPriceChange(currentRecord: EvidenceRecord) {
@@ -9,7 +9,7 @@ export async function detectPriceChange(currentRecord: EvidenceRecord) {
     if (isNaN(currentPrice)) return null;
 
     // Find the most recent record prior to this current one
-    const previousRecord = await getPreviousEvidenceRecord(
+    const previousRecord = await getPreviousPublicEvidenceRecord(
         currentRecord.itemName,
         currentRecord.sourceRegistryId,
         currentRecord.captureDate
@@ -52,7 +52,7 @@ export async function detectPriceChange(currentRecord: EvidenceRecord) {
     // Raise intelligence project insight if notable or significant
     if (severity === "significant" || severity === "notable") {
         const insightType = changeDirection === "increased" ? "cost_pressure" : "market_opportunity";
-        await insertProjectInsight({
+        await insertPublicProjectInsight({
             insightType,
             severity: severity === "significant" ? "critical" : "warning",
             title: `${changeDirection === "increased" ? "Price Spike" : "Price Drop"} Detected: ${currentRecord.itemName}`.substring(0, 512),

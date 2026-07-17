@@ -23,6 +23,8 @@ import {
   Link, FileText,
 } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
+import { EVALUATION_FIELD_LABELS, EVALUATION_REQUIRED_FIELDS, type EvaluationRequiredField, type InputProvenance } from "@shared/project-readiness";
+import { useTranslation } from "@/lib/i18n";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis,
@@ -61,12 +63,33 @@ const DIMENSION_LABELS: Record<string, string> = {
 };
 
 const DIMENSION_COLORS: Record<string, string> = {
-  sa: "#4ecdc4",
-  ff: "#f0c674",
-  mp: "#81b29a",
-  ds: "#e07a5f",
-  er: "#7c8cf0",
+  sa: "var(--chart-1)",
+  ff: "var(--chart-3)",
+  mp: "var(--chart-2)",
+  ds: "var(--chart-5)",
+  er: "var(--chart-4)",
 };
+
+export type WorkspaceSection = "decision" | "design" | "evidence" | "deliverables";
+
+const WORKSPACE_TABS: Record<WorkspaceSection, { value: string; label: string }[]> = {
+  decision: [
+    { value: "overview", label: "Overview" }, { value: "explainability", label: "Why this score" },
+    { value: "risk", label: "Risk & actions" }, { value: "five-lens", label: "5-Lens" },
+    { value: "roi", label: "ROI impact" }, { value: "intelligence", label: "Intelligence" },
+    { value: "predictive", label: "Predictive" },
+  ],
+  design: [
+    { value: "assets", label: "Assets" }, { value: "spaceProgram", label: "Space programme" },
+    { value: "materials", label: "Material cost" },
+  ],
+  evidence: [{ value: "evidence", label: "Evidence library" }],
+  deliverables: [{ value: "reports", label: "Reports & exports" }],
+};
+
+function sectionForTab(tab: string): WorkspaceSection {
+  return (Object.entries(WORKSPACE_TABS).find(([, tabs]) => tabs.some(item => item.value === tab))?.[0] as WorkspaceSection) ?? "decision";
+}
 
 function statusBadge(status: string) {
   if (status === "validated")
@@ -118,17 +141,17 @@ function ContributionWaterfall({ variableContributions, dimensions }: {
       <CardContent>
         <ResponsiveContainer width="100%" height={320}>
           <BarChart data={allContributions} layout="vertical" margin={{ left: 120, right: 20, top: 5, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis type="number" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis type="number" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
             <YAxis
               type="category"
               dataKey="label"
-              tick={{ fill: "#d1d5db", fontSize: 11 }}
+              tick={{ fill: "var(--foreground)", fontSize: 11 }}
               width={115}
             />
             <RechartsTooltip
-              contentStyle={{ backgroundColor: "#1a1f3a", border: "1px solid #2d3354", borderRadius: 8 }}
-              labelStyle={{ color: "#e5e7eb" }}
+              contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }}
+              labelStyle={{ color: "var(--foreground)" }}
               formatter={(value: number, _name: string, props: any) => [
                 `${value.toFixed(2)}% (${DIMENSION_LABELS[props.payload.dimension] || props.payload.dimension})`,
                 "Contribution",
@@ -138,7 +161,7 @@ function ContributionWaterfall({ variableContributions, dimensions }: {
               {allContributions.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={DIMENSION_COLORS[entry.dimension] || "#4ecdc4"}
+                  fill={DIMENSION_COLORS[entry.dimension] || "var(--chart-1)"}
                   opacity={0.85}
                 />
               ))}
@@ -284,13 +307,13 @@ function ConfidenceExplanation({ confidenceScore, benchmarkCount }: {
               <path
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 fill="none"
-                stroke="rgba(255,255,255,0.05)"
+                stroke="var(--border)"
                 strokeWidth="3"
               />
               <path
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 fill="none"
-                stroke={confidenceScore >= 75 ? "#4ecdc4" : confidenceScore >= 50 ? "#f0c674" : "#e07a5f"}
+                stroke={confidenceScore >= 75 ? "var(--chart-1)" : confidenceScore >= 50 ? "var(--chart-3)" : "var(--chart-5)"}
                 strokeWidth="3"
                 strokeDasharray={`${confidenceScore}, 100`}
                 strokeLinecap="round"
@@ -324,7 +347,7 @@ function ConfidenceExplanation({ confidenceScore, benchmarkCount }: {
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${f.value * 100}%`,
-                    backgroundColor: f.value >= 0.7 ? "#4ecdc4" : f.value >= 0.4 ? "#f0c674" : "#e07a5f",
+                    backgroundColor: f.value >= 0.7 ? "var(--chart-1)" : f.value >= 0.4 ? "var(--chart-3)" : "var(--chart-5)",
                   }}
                 />
               </div>
@@ -362,10 +385,10 @@ function DimensionRadar({ dimensions }: { dimensions: Record<string, number> }) 
       <CardContent>
         <ResponsiveContainer width="100%" height={280}>
           <RadarChart data={data}>
-            <PolarGrid stroke="rgba(255,255,255,0.08)" />
-            <PolarAngleAxis dataKey="dimension" tick={{ fill: "#9ca3af", fontSize: 10 }} />
-            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: "#6b7280", fontSize: 9 }} />
-            <Radar name="Score" dataKey="score" stroke="#4ecdc4" fill="#4ecdc4" fillOpacity={0.2} strokeWidth={2} />
+            <PolarGrid stroke="var(--border)" />
+            <PolarAngleAxis dataKey="dimension" tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} />
+            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: "var(--muted-foreground)", fontSize: 9 }} />
+            <Radar name="Score" dataKey="score" stroke="var(--chart-1)" fill="var(--chart-1)" fillOpacity={0.2} strokeWidth={2} />
           </RadarChart>
         </ResponsiveContainer>
       </CardContent>
@@ -378,9 +401,20 @@ function DimensionRadar({ dimensions }: { dimensions: Record<string, number> }) 
 function ProjectDetailContent() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
+  const { t } = useTranslation();
   const projectId = Number(params.id);
+  const requestedSection = new URLSearchParams(window.location.search).get("section") as WorkspaceSection | null;
+  const requestedView = new URLSearchParams(window.location.search).get("view");
+  const initialSection = requestedSection && WORKSPACE_TABS[requestedSection] ? requestedSection : "decision";
+  const [workspaceSection, setWorkspaceSection] = useState<WorkspaceSection>(initialSection);
+  const [activeTab, setActiveTab] = useState(
+    requestedView && WORKSPACE_TABS[initialSection].some(item => item.value === requestedView)
+      ? requestedView
+      : WORKSPACE_TABS[initialSection][0].value
+  );
 
   const { data: project, isLoading } = trpc.project.get.useQuery({ id: projectId });
+  const { data: readiness } = trpc.project.readiness.useQuery({ id: projectId });
   const { data: scores } = trpc.project.getScores.useQuery({ projectId });
   const { data: sensitivityData } = trpc.project.sensitivity.useQuery({ id: projectId });
   const { data: roiData } = trpc.project.roi.useQuery({ projectId });
@@ -425,6 +459,34 @@ function ProjectDetailContent() {
   const utils = trpc.useUtils();
 
   const handleEvaluate = () => evaluateMutation.mutate({ id: projectId });
+
+  const confirmInputsMutation = trpc.project.confirmInputs.useMutation({
+    onSuccess: () => {
+      toast.success("Current assumptions confirmed");
+      utils.project.readiness.invalidate({ id: projectId });
+      utils.project.get.invalidate({ id: projectId });
+    },
+    onError: error => toast.error(error.message),
+  });
+
+  const changeWorkspace = (section: WorkspaceSection, view = WORKSPACE_TABS[section][0].value) => {
+    setWorkspaceSection(section);
+    setActiveTab(view);
+    const params = new URLSearchParams(window.location.search);
+    params.set("section", section);
+    params.set("view", view);
+    setLocation(`/projects/${projectId}?${params.toString()}`);
+  };
+
+  const changeTab = (view: string) => {
+    setActiveTab(view);
+    const section = sectionForTab(view);
+    setWorkspaceSection(section);
+    const params = new URLSearchParams(window.location.search);
+    params.set("section", section);
+    params.set("view", view);
+    setLocation(`/projects/${projectId}?${params.toString()}`);
+  };
 
   const updateMutation = trpc.project.update.useMutation({
     onSuccess: () => {
@@ -475,7 +537,7 @@ function ProjectDetailContent() {
   return (
     <div className="space-y-6 max-w-6xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => setLocation("/projects")}>
             <ArrowLeft className="h-4 w-4" />
@@ -487,13 +549,13 @@ function ProjectDetailContent() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="text-xs">
             {project.status}
           </Badge>
           <Button
             onClick={handleEvaluate}
-            disabled={evaluateMutation.isPending}
+            disabled={evaluateMutation.isPending || readiness?.canEvaluate === false}
             size="sm"
             className="gap-1.5"
           >
@@ -505,40 +567,20 @@ function ProjectDetailContent() {
             {hasScores ? "Re-evaluate" : "Evaluate"}
           </Button>
           <Button
-            onClick={() => setLocation(`/projects/${project.id}/design-advisor`)}
+            onClick={() => hasScores ? changeWorkspace("design") : setLocation(`/projects/${project.id}/brief`)}
             size="sm"
             variant="outline"
-            className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+            className="gap-1.5"
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            AI Design Advisor
+            <Building2 className="h-3.5 w-3.5" /> Design
           </Button>
           <Button
-            onClick={() => setLocation(`/projects/${project.id}/investor-summary`)}
+            onClick={() => hasScores ? changeWorkspace("deliverables") : setLocation("/reports")}
             size="sm"
             variant="outline"
-            className="gap-1.5 border-violet-500/30 text-violet-400 hover:bg-violet-500/10"
+            className="gap-1.5"
           >
-            <Building2 className="h-3.5 w-3.5" />
-            Investor View
-          </Button>
-          <Button
-            onClick={() => setLocation(`/projects/${project.id}/brief-editor`)}
-            size="sm"
-            variant="outline"
-            className="gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-          >
-            <Calculator className="h-3.5 w-3.5" />
-            Brief Editor
-          </Button>
-          <Button
-            onClick={() => setLocation(`/projects/${project.id}/space-planner`)}
-            size="sm"
-            variant="outline"
-            className="gap-1.5 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
-          >
-            <BarChart3 className="h-3.5 w-3.5" />
-            Space Planner
+            <FileText className="h-3.5 w-3.5" /> Deliverables
           </Button>
         </div>
       </div>
@@ -568,6 +610,30 @@ function ProjectDetailContent() {
             Run Evaluation
           </Button>
         </div>
+      )}
+
+      {readiness && !readiness.canEvaluate && (
+        <Card className="border-primary/25 bg-card">
+          <CardContent className="p-5 md:p-6">
+            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+              <div className="max-w-2xl">
+                <div className="flex items-center gap-2"><Info className="h-5 w-5 text-primary" /><h2 className="font-semibold">Complete the decision inputs</h2></div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">MIYAR will not evaluate this project until missing facts are added and current assumptions are confirmed.</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {readiness.missingInputs.map(field => <span key={field} className="rounded-full border border-destructive/25 bg-destructive/5 px-2.5 py-1 text-xs text-destructive">Missing: {EVALUATION_FIELD_LABELS[field]}</span>)}
+                  {readiness.unconfirmedAssumptions.slice(0, 5).map(field => <span key={field} className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs">Assumed: {EVALUATION_FIELD_LABELS[field]}</span>)}
+                  {readiness.unconfirmedAssumptions.length > 5 && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">+{readiness.unconfirmedAssumptions.length - 5} more</span>}
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col">
+                <Button variant="outline" onClick={() => setActiveTab("settings")}>Review detailed inputs</Button>
+                {readiness.missingInputs.length === 0 && readiness.unconfirmedAssumptions.length > 0 && (
+                  <Button disabled={confirmInputsMutation.isPending} onClick={() => confirmInputsMutation.mutate({ id: projectId, fields: readiness.unconfirmedAssumptions })}>{confirmInputsMutation.isPending ? "Confirming…" : "Confirm current assumptions"}</Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {projectAlerts.length > 0 && (
@@ -601,22 +667,20 @@ function ProjectDetailContent() {
       )}
 
       {hasScores ? (
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="bg-secondary/50 flex-wrap">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="assets">Assets</TabsTrigger>
-            <TabsTrigger value="explainability">Why This Score?</TabsTrigger>
-            <TabsTrigger value="risk">Risk & Actions</TabsTrigger>
-            <TabsTrigger value="five-lens">5-Lens</TabsTrigger>
-            <TabsTrigger value="roi">ROI Impact</TabsTrigger>
-            <TabsTrigger value="intelligence">Intelligence</TabsTrigger>
-            <TabsTrigger value="evidence">Evidence</TabsTrigger>
-            <TabsTrigger value="spaceProgram">Space Program</TabsTrigger>
-            <TabsTrigger value="materials">Material Cost</TabsTrigger>
-            <TabsTrigger value="predictive">Predictive</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={changeTab} className="space-y-4">
+          <div className="rounded-xl border border-border bg-card p-2">
+            <div className="flex items-center gap-1 overflow-x-auto" aria-label="Project workspace sections">
+              {(Object.keys(WORKSPACE_TABS) as WorkspaceSection[]).map(section => (
+                <button key={section} onClick={() => changeWorkspace(section)} className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium capitalize ${workspaceSection === section && activeTab !== "settings" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>{t(`workspace.${section}`, section)}</button>
+              ))}
+              <button onClick={() => setActiveTab("settings")} className={`ml-auto whitespace-nowrap rounded-lg px-3 py-2 text-sm ${activeTab === "settings" ? "bg-secondary font-medium" : "text-muted-foreground hover:bg-secondary"}`}>{t("workspace.settings", "Settings")}</button>
+            </div>
+          </div>
+          {activeTab !== "settings" && WORKSPACE_TABS[workspaceSection].length > 1 && (
+            <TabsList className="h-auto max-w-full justify-start overflow-x-auto bg-secondary/60 p-1">
+              {WORKSPACE_TABS[workspaceSection].map(tab => <TabsTrigger key={tab.value} value={tab.value} className="whitespace-nowrap">{tab.label}</TabsTrigger>)}
+            </TabsList>
+          )}
 
           {/* ─── Overview Tab ──────────────────────────────────────────── */}
           <TabsContent value="overview" className="space-y-4">
@@ -922,14 +986,14 @@ function ProjectDetailContent() {
                         name: d.name.replace(/ /g, '\n'),
                         value: d.costAvoided.mid,
                       }))} margin={{ left: 20, right: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 9 }} interval={0} />
-                        <YAxis tick={{ fill: "#9ca3af", fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <XAxis dataKey="name" tick={{ fill: "var(--muted-foreground)", fontSize: 9 }} interval={0} />
+                        <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
                         <RechartsTooltip
-                          contentStyle={{ backgroundColor: "#1a1f3a", border: "1px solid #2d3354", borderRadius: 8 }}
+                          contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }}
                           formatter={(value: number) => [`${(value / 1000).toFixed(0)}K AED`, "Cost Avoided"]}
                         />
-                        <Bar dataKey="value" fill="#4ecdc4" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="value" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -1245,25 +1309,54 @@ function ProjectDetailContent() {
             <ProjectForm
               initialData={project as any}
               onSubmit={async (data) => {
-                await updateMutation.mutateAsync({ id: projectId, ...data });
+                const provenance = { ...((project.inputProvenance ?? {}) as InputProvenance) };
+                for (const field of EVALUATION_REQUIRED_FIELDS) {
+                  if (data[field] !== null && data[field] !== undefined && data[field] !== "") provenance[field] = "confirmed";
+                }
+                await updateMutation.mutateAsync({ id: projectId, ...data, inputProvenance: provenance });
+                await utils.project.readiness.invalidate({ id: projectId });
               }}
               isPending={updateMutation.isPending}
               submitLabel="Save Changes"
             />
           </TabsContent>
         </Tabs>
+      ) : activeTab === "settings" ? (
+        <Card><CardContent className="p-5 md:p-7"><ProjectForm
+          initialData={project as any}
+          onSubmit={async data => {
+            const provenance = { ...((project.inputProvenance ?? {}) as InputProvenance) };
+            for (const field of EVALUATION_REQUIRED_FIELDS) if (data[field] !== null && data[field] !== undefined && data[field] !== "") provenance[field] = "confirmed";
+            await updateMutation.mutateAsync({ id: projectId, ...data, inputProvenance: provenance });
+            await utils.project.readiness.invalidate({ id: projectId });
+            setActiveTab("overview");
+          }}
+          isPending={updateMutation.isPending}
+          submitLabel="Save and confirm inputs"
+          onCancel={() => setActiveTab("overview")}
+        /></CardContent></Card>
       ) : (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <Zap className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-            <p className="text-muted-foreground mb-4">
-              This project has not been evaluated yet. Click Evaluate to run the scoring engine.
-            </p>
-            <Button onClick={handleEvaluate} disabled={evaluateMutation.isPending} className="gap-2">
-              <Zap className="h-4 w-4" /> Run Evaluation
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 md:grid-cols-4">
+            <button className="rounded-lg bg-primary px-3 py-3 text-sm font-medium text-primary-foreground">Decision</button>
+            <button onClick={() => setLocation(`/projects/${projectId}/brief`)} className="rounded-lg px-3 py-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">Design</button>
+            <button onClick={() => setLocation(`/projects/${projectId}/evidence`)} className="rounded-lg px-3 py-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">Evidence</button>
+            <button onClick={() => setLocation("/reports")} className="rounded-lg px-3 py-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">Deliverables</button>
+          </div>
+          <Card>
+            <CardContent className="py-14 text-center">
+              <Zap className="mx-auto mb-4 h-10 w-10 text-primary" />
+              <h2 className="text-lg font-semibold">Prepare the first decision</h2>
+              <p className="mx-auto mb-5 mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+                Complete and confirm the readiness checklist. MIYAR will then run the deterministic evaluation and open the full decision workspace.
+              </p>
+              <div className="flex flex-col justify-center gap-2 sm:flex-row">
+                <Button variant="outline" onClick={() => setActiveTab("settings")}>Review inputs</Button>
+                <Button onClick={handleEvaluate} disabled={evaluateMutation.isPending || readiness?.canEvaluate === false} className="gap-2"><Zap className="h-4 w-4" /> Run evaluation</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Project Parameters */}

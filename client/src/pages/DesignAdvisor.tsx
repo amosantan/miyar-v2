@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
+import { InsufficientDataState } from "@/components/InsufficientDataState";
 import { toast } from "sonner";
 import { useParams } from "wouter";
 import {
@@ -196,6 +197,7 @@ function DesignAdvisorContent() {
     const params = useParams<{ id: string }>();
     const projectId = Number(params.id);
     const utils = trpc.useUtils();
+    const [recommendationInsufficient, setRecommendationInsufficient] = useState(false);
 
     const { data: project } = trpc.project.get.useQuery({ id: projectId });
     const { data: recommendations, isLoading: recsLoading } = trpc.designAdvisor.getRecommendations.useQuery(
@@ -213,7 +215,13 @@ function DesignAdvisorContent() {
 
     const generateMutation = trpc.designAdvisor.generateRecommendations.useMutation({
         onSuccess: (data) => {
-            toast.success(`Generated ${data.count} space recommendations`);
+            if (data.status === "insufficient_data") {
+                setRecommendationInsufficient(true);
+                toast.warning("Insufficient organization or governed public evidence for recommendations");
+            } else {
+                setRecommendationInsufficient(false);
+                toast.success(`Generated ${data.count} space recommendations`);
+            }
             utils.designAdvisor.getRecommendations.invalidate({ projectId });
         },
         onError: (err) => toast.error(err.message),
@@ -345,6 +353,12 @@ function DesignAdvisorContent() {
             {!hasRecs && !recsLoading ? (
                 <Card>
                     <CardContent className="py-16 text-center space-y-4">
+                      {recommendationInsufficient ? (
+                        <InsufficientDataState
+                          message="Add organization evidence or wait for governed public UAE evidence before generating AI recommendations."
+                        />
+                      ) : (
+                        <>
                         <Wand2 className="h-12 w-12 text-primary/30 mx-auto" />
                         <div>
                             <h3 className="text-lg font-semibold text-foreground">No Recommendations Yet</h3>
@@ -364,6 +378,8 @@ function DesignAdvisorContent() {
                             )}
                             Generate Now
                         </Button>
+                        </>
+                      )}
                     </CardContent>
                 </Card>
             ) : recsLoading ? (

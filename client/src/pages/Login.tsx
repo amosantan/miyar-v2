@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { trpc as api } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 export default function Login() {
     const [email, setEmail] = useState("");
@@ -48,14 +50,16 @@ export default function Login() {
     const isPending = loginMutation.isPending || registerMutation.isPending;
 
     return (
-        <div className="flex h-screen w-screen items-center justify-center bg-background">
-            <Card className="w-full max-w-sm">
+        <div className="relative flex min-h-screen items-center justify-center bg-background px-5 py-12">
+            <div className="absolute right-5 top-5 flex gap-2"><ThemeToggle compact /><LanguageToggle compact /></div>
+            <Card className="w-full max-w-md">
                 <CardHeader>
-                    <CardTitle className="text-2xl">{isRegister ? "Create Account" : "Login"}</CardTitle>
+                    <a href="/" className="mb-6 flex items-baseline gap-2"><span className="font-serif text-2xl">MIYAR</span><span className="text-xs text-muted-foreground">مِعيار</span></a>
+                    <CardTitle className="font-serif text-3xl">{isRegister ? "Create your account" : "Welcome back"}</CardTitle>
                     <CardDescription>
                         {isRegister
-                            ? "Enter your email and password to create an account."
-                            : "Enter your email and password to access your account."}
+                            ? "Create an account to start your first project decision."
+                            : "Sign in to continue to your organization workspace."}
                     </CardDescription>
                 </CardHeader>
                 <form onSubmit={onSubmit}>

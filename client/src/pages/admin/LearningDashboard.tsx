@@ -11,6 +11,7 @@ import type {
     BenchmarkSuggestion,
     LogicChangeLogEntry,
 } from "@shared/entity-types";
+import { InsufficientDataState } from "@/components/InsufficientDataState";
 
 export default function LearningDashboard() {
     const ledger = trpc.learning.getAccuracyLedger.useQuery();
@@ -49,15 +50,25 @@ export default function LearningDashboard() {
             </div>
 
             {/* Accuracy Ledger Summary */}
+            {!lData ? (
+                <Card>
+                    <CardContent>
+                        <InsufficientDataState
+                            title="No governed accuracy snapshot"
+                            message="Platform accuracy remains unavailable until an administrator creates a governed public snapshot. Tenant outcomes are not pooled."
+                        />
+                    </CardContent>
+                </Card>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card>
                     <CardContent className="pt-6 relative">
                         <TrendingUp className="h-6 w-6 text-indigo-500 absolute top-6 right-6 opacity-20" />
                         <p className="text-sm font-medium text-muted-foreground mb-1">Overall Platform Accuracy</p>
-                        <p className="text-3xl font-bold">{lData ? Number(lData.overallPlatformAccuracy).toFixed(1) : "0.0"}%</p>
+                        <p className="text-3xl font-bold">{Number(lData.overallPlatformAccuracy).toFixed(1)}%</p>
                         <div className="flex items-center gap-2 mt-2">
                             <Badge variant="outline" className="text-xs font-normal">
-                                {lData?.totalComparisons ?? 0} total evaluations
+                                {lData.totalComparisons} total evaluations
                             </Badge>
                         </div>
                     </CardContent>
@@ -66,7 +77,7 @@ export default function LearningDashboard() {
                 <Card>
                     <CardContent className="pt-6 relative">
                         <p className="text-sm font-medium text-muted-foreground mb-1">Cost Prediction (MAE)</p>
-                        <p className="text-3xl font-bold">{lData ? Number(lData.costMaePct).toFixed(1) : "0.0"}%</p>
+                        <p className="text-3xl font-bold">{Number(lData.costMaePct).toFixed(1)}%</p>
                         <div className="flex items-center gap-2 mt-2">
                             <Badge variant={lData?.costTrend === "improving" ? "default" : "secondary"} className="text-xs font-normal">
                                 {lData?.costTrend?.replace("_", " ") ?? "Unknown"}
@@ -78,7 +89,7 @@ export default function LearningDashboard() {
                 <Card>
                     <CardContent className="pt-6 relative">
                         <p className="text-sm font-medium text-muted-foreground mb-1">Score Accuracy</p>
-                        <p className="text-3xl font-bold">{lData ? Number(lData.scoreAccuracyRate).toFixed(1) : "0.0"}%</p>
+                        <p className="text-3xl font-bold">{Number(lData.scoreAccuracyRate).toFixed(1)}%</p>
                         <div className="flex items-center gap-2 mt-2">
                             <Badge variant={lData?.scoreTrend === "improving" ? "default" : "secondary"} className="text-xs font-normal">
                                 {lData?.scoreTrend?.replace("_", " ") ?? "Unknown"}
@@ -90,7 +101,7 @@ export default function LearningDashboard() {
                 <Card>
                     <CardContent className="pt-6 relative">
                         <p className="text-sm font-medium text-muted-foreground mb-1">Risk Predict Hit Rate</p>
-                        <p className="text-3xl font-bold">{lData ? Number(lData.riskAccuracyRate).toFixed(1) : "0.0"}%</p>
+                        <p className="text-3xl font-bold">{Number(lData.riskAccuracyRate).toFixed(1)}%</p>
                         <div className="flex items-center gap-2 mt-2">
                             <Badge variant={lData?.riskTrend === "improving" ? "default" : "secondary"} className="text-xs font-normal">
                                 {lData?.riskTrend?.replace("_", " ") ?? "Unknown"}
@@ -99,6 +110,7 @@ export default function LearningDashboard() {
                     </CardContent>
                 </Card>
             </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Logic Registry Proposals */}

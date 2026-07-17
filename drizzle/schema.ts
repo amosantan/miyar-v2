@@ -10,6 +10,7 @@ import {
   boolean,
   float,
   json,
+  index,
   uniqueIndex,
 } from "drizzle-orm/mysql-core";
 
@@ -378,6 +379,11 @@ export const projects = mysqlTable("projects", {
   floorPlanAssetId: int("floorPlanAssetId"), // FK to project_assets
   floorPlanAnalysis: json("floorPlanAnalysis"), // AI-extracted room breakdown
 
+  // UX-01: records whether authoritative evaluation inputs were explicitly
+  // supplied, assumed by defaults, suggested by AI, or confirmed by a user.
+  // Null is reserved for legacy projects created before this contract.
+  inputProvenance: json("inputProvenance"),
+
   modelVersionId: int("modelVersionId"),
   benchmarkVersionId: int("benchmarkVersionId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -722,8 +728,12 @@ export const designTrends = mysqlTable("design_trends", {
   lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
   mentionCount: int("mentionCount").default(1).notNull(),
   runId: varchar("runId", { length: 64 }),
+  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, table => [
+  index("design_trends_corpus_region_style_idx").on(table.corpusScope, table.region, table.styleClassification),
+]);
 
 export type DesignTrend = typeof designTrends.$inferSelect;
 export type InsertDesignTrend = typeof designTrends.$inferInsert;
@@ -926,8 +936,12 @@ export const logicChangeLog = mysqlTable("logic_change_log", {
   changeSummary: text("changeSummary").notNull(),
   rationale: text("rationale").notNull(),
   status: mysqlEnum("status", ["applied", "proposed", "rejected"]).default("applied").notNull(),
+  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, table => [
+  index("logic_change_log_corpus_status_idx").on(table.corpusScope, table.status),
+]);
 
 export type LogicChangeLogEntry = typeof logicChangeLog.$inferSelect;
 export type InsertLogicChangeLogEntry = typeof logicChangeLog.$inferInsert;
@@ -941,8 +955,12 @@ export const decisionPatterns = mysqlTable("decision_patterns", {
   conditions: json("conditions").notNull(), // array of logic defining the pattern
   matchCount: int("matchCount").default(0).notNull(), // times it appeared
   reliabilityScore: decimal("reliabilityScore", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, table => [
+  index("decision_patterns_corpus_idx").on(table.corpusScope),
+]);
 
 export type DecisionPattern = typeof decisionPatterns.$inferSelect;
 export type InsertDecisionPattern = typeof decisionPatterns.$inferInsert;
@@ -1090,6 +1108,8 @@ export const accuracySnapshots = mysqlTable("accuracy_snapshots", {
   gradeA: int("gradeA").notNull(),
   gradeB: int("gradeB").notNull(),
   gradeC: int("gradeC").notNull(),
+  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
 });
 
 export type AccuracySnapshot = typeof accuracySnapshots.$inferSelect;
@@ -1105,6 +1125,8 @@ export const benchmarkSuggestions = mysqlTable("benchmark_suggestions", {
   reviewerNotes: text("reviewerNotes"),
   reviewedBy: int("reviewedBy"),
   reviewedAt: timestamp("reviewedAt"),
+  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -1222,9 +1244,13 @@ export const evidenceRecords = mysqlTable("evidence_records", {
     "material_price", "finish_specification", "design_trend",
     "market_statistic", "competitor_positioning", "regulation",
   ]).default("material_price"),
+  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
   createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, table => [
+  index("evidence_records_corpus_org_project_category_idx").on(table.corpusScope, table.orgId, table.projectId, table.category),
+]);
 
 export type EvidenceRecord = typeof evidenceRecords.$inferSelect;
 export type InsertEvidenceRecord = typeof evidenceRecords.$inferInsert;
@@ -1489,6 +1515,7 @@ export type InsertConnectorHealth = typeof connectorHealth.$inferInsert;
 // ─── Trend Snapshots (V3 — Analytical Intelligence) ──────────────────────────
 export const trendSnapshots = mysqlTable("trend_snapshots", {
   id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId"),
   metric: varchar("metric", { length: 255 }).notNull(),
   category: varchar("category", { length: 128 }).notNull(),
   geography: varchar("geography", { length: 128 }).notNull(),
@@ -1509,8 +1536,12 @@ export const trendSnapshots = mysqlTable("trend_snapshots", {
   narrative: text("narrative"),
   movingAverages: json("movingAverages"), // MovingAveragePoint[]
   ingestionRunId: varchar("ingestionRunId", { length: 64 }), // FK to ingestion_runs.runId
+  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, table => [
+  index("trend_snapshots_corpus_org_category_geography_idx").on(table.corpusScope, table.orgId, table.category, table.geography),
+]);
 
 export type TrendSnapshot = typeof trendSnapshots.$inferSelect;
 export type InsertTrendSnapshot = typeof trendSnapshots.$inferInsert;
@@ -1519,6 +1550,7 @@ export type InsertTrendSnapshot = typeof trendSnapshots.$inferInsert;
 export const projectInsights = mysqlTable("project_insights", {
   id: int("id").autoincrement().primaryKey(),
   projectId: int("projectId"), // nullable for system-wide insights
+  orgId: int("orgId"),
   insightType: mysqlEnum("insightType", [
     "cost_pressure",
     "market_opportunity",
@@ -1539,6 +1571,8 @@ export const projectInsights = mysqlTable("project_insights", {
   status: mysqlEnum("insightStatus", ["active", "acknowledged", "dismissed", "resolved"]).default("active").notNull(),
   acknowledgedBy: int("acknowledgedBy"),
   acknowledgedAt: timestamp("acknowledgedAt"),
+  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

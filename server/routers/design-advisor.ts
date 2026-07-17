@@ -16,6 +16,7 @@ import {
     generateHeroVisual,
     type VisualType,
 } from "../engines/design/nano-banana-client";
+import { ORGANIZATION_CORPUS_POLICY_VERSION } from "../../shared/data-corpus";
 
 function projectToInputs(p: any) {
     return {
@@ -126,10 +127,14 @@ export const designAdvisorRouter = router({
 
             const inputs = projectToInputs(project);
             const materials = await db.getMaterialLibrary();
-            const recentEvidence = await db.listEvidenceRecords({ limit: 100 });
+            const [organizationEvidence, publicEvidence] = await Promise.all([
+                db.listOrganizationEvidenceRecords(ctx.orgId, { limit: 100 }),
+                db.listPublicCorpusEvidence({ limit: 100 }),
+            ]);
+            const recentEvidence = [...organizationEvidence, ...publicEvidence];
 
             // Phase 4: Fetch UAE design trends, filtered by project style
-            const designTrends = await db.getDesignTrends({
+            const designTrends = await db.getPublicDesignTrends({
                 styleClassification: project.des01Style ?? undefined,
                 region: "UAE",
                 limit: 20,
@@ -137,7 +142,19 @@ export const designAdvisorRouter = router({
             // Fallback: all UAE trends if no style match
             const trends = designTrends.length > 0
                 ? designTrends
-                : await db.getDesignTrends({ region: "UAE", limit: 20 });
+                : await db.getPublicDesignTrends({ region: "UAE", limit: 20 });
+
+            if (recentEvidence.length === 0 && trends.length === 0) {
+                return {
+                    recommendations: [],
+                    count: 0,
+                    status: "insufficient_data" as const,
+                    corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
+                    organizationSampleCount: 0,
+                    publicSampleCount: 0,
+                    insufficiencyReason: "no_safe_evidence" as const,
+                };
+            }
 
             // Phase B: read stored fit-out rooms to drive recommendations
             const storedRooms = await db.getSpaceProgramRooms(input.projectId, ctx.orgId);
@@ -183,7 +200,14 @@ export const designAdvisorRouter = router({
                 await requireProjectForOrg(input.projectId, ctx.orgId);
             }
 
-            return { recommendations, count: recommendations.length };
+            return {
+                recommendations,
+                count: recommendations.length,
+                status: "ok" as const,
+                corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
+                organizationSampleCount: organizationEvidence.length,
+                publicSampleCount: publicEvidence.length,
+            };
         }),
 
     getRecommendations: orgProcedure

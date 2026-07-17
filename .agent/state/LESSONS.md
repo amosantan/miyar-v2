@@ -234,3 +234,25 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The router regression rejects either symbol, the live inventory passes with zero TR-04 rows, the safe suite passes 950 tests, and the final Claude Code adversarial review returned `APPROVED_NO_OBJECTION`.
 - Reuse rule: Trace imported engines and external side-effect helpers as part of the authorization path; a tenant-scoped router may not inherit global-write authority through an indirect call.
 - Supersedes / related: Extends `LES-007`, `LES-014`, and `LES-018`.
+
+### LES-020 — Ownership checks do not make derived data trustworthy
+
+- Date / roadmap step: 2026-07-16 / `TR-05`
+- Context: Tenant projects were access-controlled, but prediction and learning paths consumed evidence, trends, outcomes, patterns, and insights whose source corpus was global, null-owned, or historically unclassified.
+- Observed: A caller could be authorized for its own project while another organization's records still changed the caller's forecast or recommendation; independent review also found that legacy project-insight rows survived a project ownership check.
+- Cause: Resource authorization and analytical corpus authorization were treated as the same boundary, and null ownership was implicitly treated as public governance.
+- Fix or decision: Classify every policy-influencing record as `organization`, `platform_public`, or `legacy_unscoped`; require organization joins or explicit governed-public predicates at the final read/write boundary; return insufficiency instead of pooling; make the authorization audit reject unscoped learning helpers.
+- Proof: Disposable MySQL passes 18/18 including owned/foreign/legacy/public influence fixtures; the safe suite passes 962 tests, the 331-procedure authorization audit has zero remediation rows, in-app browser verification passes all five affected surfaces after correcting two misleading zero states, and Claude Code's final verdict is `APPROVED_NO_OBJECTION`.
+- Reuse rule: Tenant access to a target resource never authorizes the data corpus used to calculate its result; derived and historical data need an independently explicit ownership/provenance policy.
+- Supersedes / related: Extends `LES-014`, `LES-018`, and `LES-019`; applies to all future learning, analytics, recommendation, and prediction work.
+
+### LES-021 — Semantic token migrations require rendered contrast checks
+
+- Date / roadmap step: 2026-07-17 / `UX-01`
+- Context: MIYAR moved from a dark-only palette to light-first semantic themes while preserving a large legacy component surface.
+- Observed: TypeScript, unit contracts, and build passed, but the first in-app browser capture showed the public headline nearly invisible because a late global heading rule still forced the former dark-theme text color.
+- Cause: The new semantic foreground token was correct, but a more specific legacy base rule bypassed it with a hard-coded color.
+- Fix or decision: Replace the hard-coded heading color with `text-foreground`, then verify the rendered light and dark surfaces at real breakpoints; keep print tokens fixed independently.
+- Proof: The before/after browser captures changed the headline from `rgb(240, 235, 227)` on the warm light canvas to the governed foreground, and authenticated checks passed at 360, 390, 768, and 1440 pixels with no overflow.
+- Reuse rule: A token migration is incomplete until representative rendered pages are inspected in every supported theme; search for late global rules and hard-coded colors even when compilation and component contracts are green.
+- Supersedes / related: Applies to future theme, typography, RTL, chart, report, and accessibility work.

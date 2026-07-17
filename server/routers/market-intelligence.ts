@@ -299,7 +299,7 @@ export const marketIntelligenceRouter = router({
       }).optional())
       .query(async ({ ctx, input }) => {
         if (!input?.projectId) {
-          return db.listPublicEvidenceRecords({
+          return db.listPublicCorpusEvidence({
             category: input?.category,
             reliabilityGrade: input?.reliabilityGrade,
             evidencePhase: input?.evidencePhase,
@@ -307,7 +307,7 @@ export const marketIntelligenceRouter = router({
           });
         }
         await requireProjectForOrg(input.projectId, ctx.orgId);
-        return db.listEvidenceRecords({
+        return db.listOrganizationEvidenceRecords(ctx.orgId, {
           projectId: input.projectId,
           category: input?.category,
           reliabilityGrade: input?.reliabilityGrade,
@@ -338,6 +338,8 @@ export const marketIntelligenceRouter = router({
           ...input,
           projectId: null,
           orgId: null,
+          corpusScope: "platform_public",
+          corpusPolicyVersion: "public-v1",
           recordId,
           priceMin: input.priceMin ? String(input.priceMin) as any : null,
           priceTypical: input.priceTypical ? String(input.priceTypical) as any : null,
@@ -389,6 +391,8 @@ export const marketIntelligenceRouter = router({
               ...rec,
               projectId: null,
               orgId: null,
+              corpusScope: "platform_public",
+              corpusPolicyVersion: "public-v1",
               recordId,
               priceMin: rec.priceMin ? String(rec.priceMin) as any : null,
               priceTypical: rec.priceTypical ? String(rec.priceTypical) as any : null,

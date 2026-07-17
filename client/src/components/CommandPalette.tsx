@@ -6,6 +6,7 @@ import {
     HeartPulse, Leaf, Globe, BookOpen, Search, Settings,
     Database, Zap, TrendingUp,
 } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 interface CommandItem {
     id: string;
@@ -14,6 +15,7 @@ interface CommandItem {
     path: string;
     icon: React.FC<{ className?: string }>;
     keywords?: string[];
+    adminOnly?: boolean;
 }
 
 const COMMANDS: CommandItem[] = [
@@ -32,17 +34,18 @@ const COMMANDS: CommandItem[] = [
     { id: "health", label: "Customer Success", category: "Analysis", path: "/customer-success", icon: HeartPulse, keywords: ["health", "score"] },
     { id: "sustainability", label: "Sustainability", category: "Analysis", path: "/sustainability", icon: Leaf, keywords: ["carbon", "green", "twin"] },
     // Market Intelligence
-    { id: "evidence", label: "Evidence Vault", category: "Market Intel", path: "/market-intel/evidence", icon: Globe },
-    { id: "sources", label: "Source Registry", category: "Market Intel", path: "/market-intel/sources", icon: BookOpen },
+    { id: "evidence", label: "Evidence Vault", category: "Market Intel", path: "/market-intel/evidence", icon: Globe, adminOnly: true },
+    { id: "sources", label: "Source Registry", category: "Market Intel", path: "/market-intel/sources", icon: BookOpen, adminOnly: true },
     { id: "competitors", label: "Competitors", category: "Market Intel", path: "/market-intel/competitors", icon: Search, keywords: ["competition"] },
-    { id: "analytics", label: "Analytics Intelligence", category: "Market Intel", path: "/market-intel/analytics", icon: TrendingUp },
-    { id: "ingestion", label: "Ingestion Monitor", category: "Market Intel", path: "/market-intel/ingestion", icon: Zap },
+    { id: "analytics", label: "Analytics Intelligence", category: "Market Intel", path: "/market-intel/analytics", icon: TrendingUp, adminOnly: true },
+    { id: "ingestion", label: "Ingestion Monitor", category: "Market Intel", path: "/market-intel/ingestion", icon: Zap, adminOnly: true },
     // Admin
-    { id: "benchmarks", label: "Benchmarks", category: "Admin", path: "/admin/benchmarks", icon: Database },
-    { id: "settings", label: "Model Versions", category: "Admin", path: "/admin/models", icon: Settings },
+    { id: "benchmarks", label: "Benchmarks", category: "Admin", path: "/admin/benchmarks", icon: Database, adminOnly: true },
+    { id: "settings", label: "Model Versions", category: "Admin", path: "/admin/models", icon: Settings, adminOnly: true },
 ];
 
 export function CommandPalette() {
+    const { user } = useAuth();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -76,15 +79,16 @@ export function CommandPalette() {
 
     // Filter commands
     const filtered = useMemo(() => {
-        if (!query.trim()) return COMMANDS;
+        const available = COMMANDS.filter(command => !command.adminOnly || user?.role === "admin");
+        if (!query.trim()) return available;
         const q = query.toLowerCase();
-        return COMMANDS.filter(
+        return available.filter(
             (cmd) =>
                 cmd.label.toLowerCase().includes(q) ||
                 cmd.category.toLowerCase().includes(q) ||
                 cmd.keywords?.some((kw) => kw.includes(q))
         );
-    }, [query]);
+    }, [query, user?.role]);
 
     // Reset index when filtered list changes
     useEffect(() => {

@@ -10,6 +10,7 @@
 
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { InsufficientDataState } from "@/components/InsufficientDataState";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -210,6 +211,10 @@ function MarketPositionPanel() {
           </div>
         ) : isLoading ? (
           <div className="h-32 bg-muted animate-pulse rounded-lg" />
+        ) : data?.status === "insufficient_data" ? (
+          <InsufficientDataState
+            message="Add organization evidence or wait for governed public UAE evidence before assigning a market tier."
+          />
         ) : position ? (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -406,7 +411,7 @@ function InsightFeedPanel() {
     limit: 50,
   });
 
-  const generateMutation = trpc.analytics.generateProjectInsights.useMutation({
+  const generateMutation = trpc.analytics.generateGlobalProjectInsights.useMutation({
     onSuccess: (result) => {
       toast.success(`${result.generated} new insights created`);
       refetch();

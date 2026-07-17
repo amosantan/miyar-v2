@@ -1,9 +1,16 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { NotificationBell } from "./NotificationBell";
-import { AiAssistantPanel } from "./AiAssistantPanel";
-import { AdminSystemHealthMenu } from "./AdminSystemHealthMenu";
-import { CommandPalette } from "./CommandPalette";
-import { OnboardingFlow } from "./OnboardingFlow";
+import { getLoginUrl } from "@/const";
+import { useLocation } from "wouter";
+import {
+  BarChart3,
+  Building2,
+  FolderKanban,
+  LayoutDashboard,
+  LogOut,
+  Plus,
+  Search,
+  Settings2,
+} from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -11,537 +18,158 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
-import { useIsMobile } from "@/hooks/useMobile";
-import {
-  LayoutDashboard,
-  LogOut,
-  PanelLeft,
-  FolderKanban,
-  PlusCircle,
-  BarChart3,
-  GitCompare,
-  FileText,
-  Settings,
-  Database,
-  Shield,
-  ClipboardList,
-  HeartPulse,
-  Activity,
-  Wand2,
-  GitBranch,
-  Layers,
-  DollarSign,
-  Webhook,
-  PieChart,
-  FileSpreadsheet,
-  FolderOpen,
-  Palette,
-  Camera,
-  Package,
-  MessageSquare,
-  Sparkles,
-  Brain,
-  Sliders,
-  Lightbulb,
-  Search,
-  Target,
-  Scale,
-  Globe,
-  FileCheck,
-  Building2,
-  Tags,
-  ScrollText,
-  BookOpen,
-  Zap,
-  TrendingUp,
-  Dices,
-  Leaf,
-  MapPin,
-} from "lucide-react";
-import { CSSProperties, useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { AiAssistantPanel } from "./AiAssistantPanel";
+import { CommandPalette } from "./CommandPalette";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
-import { Button } from "./ui/button";
+import { NotificationBell } from "./NotificationBell";
+import { OnboardingFlow } from "./OnboardingFlow";
+import { ThemeToggle } from "./ThemeToggle";
+import { LanguageToggle } from "./LanguageToggle";
+import { useTranslation } from "@/lib/i18n";
 
-// ─── Client-facing navigation (simplified) ─────────────────────
-const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: FolderKanban, label: "Projects", path: "/projects" },
-  { icon: PlusCircle, label: "New Project", path: "/projects/new" },
-];
+const navigation = [
+  { label: "Overview", key: "nav.overview", path: "/dashboard", icon: LayoutDashboard, matches: ["/dashboard", "/alerts"] },
+  { label: "Projects", key: "nav.projects", path: "/projects", icon: FolderKanban, matches: ["/projects", "/results", "/scenarios"] },
+  { label: "Portfolio", key: "nav.portfolio", path: "/portfolio", icon: BarChart3, matches: ["/portfolio", "/reports", "/risk-heatmap", "/bias-insights", "/simulations", "/customer-success"] },
+  { label: "Market", key: "nav.market", path: "/market-intel/dld-insights", icon: Building2, matches: ["/market-intel/dld-insights", "/market-intel/competitors"] },
+] as const;
 
-// Project tools — shown only when user is on a project page
-const projectToolItems = [
-  { icon: Palette, label: "Design Brief", path: "/projects/:id/brief", dynamic: true },
-  { icon: Layers, label: "Design Studio", path: "/projects/:id/design-studio", dynamic: true },
-  { icon: Sparkles, label: "AI Advisor", path: "/projects/:id/design-advisor", dynamic: true },
-  { icon: BarChart3, label: "Investor Summary", path: "/projects/:id/investor-summary", dynamic: true },
-  { icon: FileText, label: "Reports", path: "/reports" },
-];
+function isActive(location: string, matches: readonly string[]) {
+  return matches.some((path) => location === path || location.startsWith(`${path}/`));
+}
 
-// Market section — only high-value pages for clients
-const marketItems = [
-  { icon: MapPin, label: "DLD Area Insights", path: "/market-intel/dld-insights" },
-  { icon: Building2, label: "Competitor Overview", path: "/market-intel/competitors" },
-];
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { loading, user, logout } = useAuth();
+  const { t } = useTranslation();
+  const [location, setLocation] = useLocation();
 
-// Analysis — advanced features, shown as secondary section
-const analysisItems = [
-  { icon: GitCompare, label: "Scenarios", path: "/scenarios" },
-  { icon: PieChart, label: "Portfolio", path: "/portfolio" },
-  { icon: Activity, label: "Alerts", path: "/alerts" },
-];
-
-// ─── Admin-only navigation (full access) ────────────────────────
-const adminItems = [
-  { icon: Database, label: "Benchmarks", path: "/admin/benchmarks" },
-  { icon: GitBranch, label: "Benchmark Versions", path: "/admin/benchmark-versions" },
-  { icon: Layers, label: "Benchmark Categories", path: "/admin/benchmark-categories" },
-  { icon: Settings, label: "Model Versions", path: "/admin/models" },
-  { icon: DollarSign, label: "ROI Config", path: "/admin/roi-config" },
-  { icon: Webhook, label: "Webhooks", path: "/admin/webhooks" },
-  { icon: PieChart, label: "Admin Portfolio", path: "/admin/portfolio" },
-  { icon: ClipboardList, label: "Audit Logs", path: "/admin/audit" },
-  { icon: Shield, label: "Overrides", path: "/admin/overrides" },
-  { icon: FileSpreadsheet, label: "CSV Import", path: "/admin/csv-import" },
-  { icon: HeartPulse, label: "Benchmark Health", path: "/admin/benchmark-health" },
-  { icon: Activity, label: "Connector Health", path: "/admin/connector-health" },
-  { icon: Sparkles, label: "Materials Library", path: "/admin/materials" },
-  { icon: Wand2, label: "Prompt Templates", path: "/admin/prompt-templates" },
-  { icon: Brain, label: "Logic Registry", path: "/admin/logic-registry" },
-  { icon: Sliders, label: "Calibration", path: "/admin/calibration" },
-  { icon: Lightbulb, label: "Benchmark Learning", path: "/admin/benchmark-learning" },
-  { icon: BarChart3, label: "Learning Dashboard", path: "/admin/learning-dashboard" },
-];
-
-// Market Intel admin tools (hidden from clients)
-const marketIntelAdminItems = [
-  { icon: Globe, label: "Evidence Vault", path: "/market-intel/evidence" },
-  { icon: BookOpen, label: "Source Registry", path: "/market-intel/sources" },
-  { icon: FileCheck, label: "Benchmark Proposals", path: "/market-intel/proposals" },
-  { icon: Tags, label: "Trend Tags", path: "/market-intel/tags" },
-  { icon: ScrollText, label: "Intel Audit Log", path: "/market-intel/audit" },
-  { icon: HeartPulse, label: "Data Health", path: "/market-intel/data-health" },
-  { icon: Zap, label: "Ingestion Monitor", path: "/market-intel/ingestion" },
-  { icon: TrendingUp, label: "Analytics Intelligence", path: "/market-intel/analytics" },
-];
-
-const SIDEBAR_WIDTH_KEY = "sidebar-width";
-const DEFAULT_WIDTH = 260;
-const MIN_WIDTH = 200;
-const MAX_WIDTH = 480;
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
-    return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
-  });
-  const { loading, user } = useAuth();
-
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
-  }, [sidebarWidth]);
-
-  if (loading) {
-    return <DashboardLayoutSkeleton />;
-  }
+  if (loading) return <DashboardLayoutSkeleton />;
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0A1628]">
-        <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
-          <div className="flex flex-col items-center gap-4">
-            <div className="text-3xl font-bold tracking-tight text-gold-gradient">
-              MIYAR
-            </div>
-            <p className="text-xs tracking-[0.3em] uppercase text-[#8B9CB7]">
-              مِعيار — Design Intelligence
-            </p>
-          </div>
-          <div className="glass-card rounded-2xl p-8 w-full">
-            <div className="flex flex-col items-center gap-3">
-              <h1 className="text-xl font-semibold tracking-tight text-center text-[#F0EBE3]">
-                Sign in to continue
-              </h1>
-              <p className="text-sm text-[#8B9CB7] text-center max-w-sm">
-                Access the MIYAR platform to validate interior design directions
-                with data-driven intelligence.
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                window.location.href = getLoginUrl();
-              }}
-              size="lg"
-              className="w-full mt-6 bg-[#C9A96E] hover:bg-[#B08D4C] text-[#0A1628] font-semibold shadow-lg shadow-[#C9A96E]/20 hover:shadow-[#C9A96E]/30 transition-all"
-            >
-              Sign in
-            </Button>
-          </div>
-        </div>
-      </div>
+      <main className="grid min-h-screen place-items-center bg-background px-6">
+        <section className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+          <p className="font-serif text-3xl text-foreground">MIYAR</p>
+          <p className="mt-1 text-sm text-muted-foreground">مِعيار — Decision intelligence</p>
+          <h1 className="mt-8 text-xl font-semibold">Sign in to continue</h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Review projects, evidence and decisions for your organization.
+          </p>
+          <Button className="mt-6 w-full" onClick={() => { window.location.href = getLoginUrl(); }}>
+            Sign in
+          </Button>
+        </section>
+      </main>
     );
   }
 
-  return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": `${sidebarWidth}px`,
-        } as CSSProperties
-      }
-    >
-      <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
-        {children}
-      </DashboardLayoutContent>
-    </SidebarProvider>
-  );
-}
-
-type DashboardLayoutContentProps = {
-  children: React.ReactNode;
-  setSidebarWidth: (width: number) => void;
-};
-
-function DashboardLayoutContent({
-  children,
-  setSidebarWidth,
-}: DashboardLayoutContentProps) {
-  const { user, logout } = useAuth();
-  const [location, setLocation] = useLocation();
-  const { state, toggleSidebar } = useSidebar();
-  const isCollapsed = state === "collapsed";
-  const [isResizing, setIsResizing] = useState(false);
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const allItems = [...menuItems, ...analysisItems, ...marketItems, ...projectToolItems, ...adminItems, ...marketIntelAdminItems];
-  const activeMenuItem = allItems.find((item) => location.startsWith(item.path));
-  const isMobile = useIsMobile();
-  const isAdmin = user?.role === "admin";
-
-  useEffect(() => {
-    if (isCollapsed) setIsResizing(false);
-  }, [isCollapsed]);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-      const sidebarLeft =
-        sidebarRef.current?.getBoundingClientRect().left ?? 0;
-      const newWidth = e.clientX - sidebarLeft;
-      if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) {
-        setSidebarWidth(newWidth);
-      }
-    };
-    const handleMouseUp = () => setIsResizing(false);
-    if (isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-    }
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, [isResizing, setSidebarWidth]);
+  const current = navigation.find((item) => isActive(location, item.matches));
+  const projectMatch = location.match(/^\/projects\/(\d+)/);
+  const pageLabel = projectMatch ? "Project workspace" : current ? t(current.key, current.label) : "MIYAR";
 
   return (
-    <>
-      <div className="relative" ref={sidebarRef}>
-        <Sidebar
-          collapsible="icon"
-          className="border-r-0"
-          disableTransition={isResizing}
-        >
-          <SidebarHeader className="h-16 justify-center">
-            <div className="flex items-center gap-3 px-2 transition-all w-full">
-              <button
-                onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-[#C9A96E]/10 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A96E]/30 shrink-0"
-                aria-label="Toggle navigation"
-              >
-                <PanelLeft className="h-4 w-4 text-[#8B9CB7]" />
-              </button>
-              {!isCollapsed ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-bold tracking-tight text-gold-gradient text-lg">
-                    MIYAR
-                  </span>
-                  <span className="text-[9px] tracking-[0.2em] text-[#8B9CB7]/60 uppercase">مِعيار</span>
-                </div>
-              ) : null}
-            </div>
-          </SidebarHeader>
+    <div className="min-h-screen bg-background text-foreground" data-app-shell>
+      <aside data-main-sidebar className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
+        <button className="flex h-20 items-center gap-3 px-6 text-left" onClick={() => setLocation("/dashboard")}>
+          <span className="font-serif text-2xl tracking-tight">MIYAR</span>
+          <span className="text-xs text-muted-foreground">مِعيار</span>
+        </button>
 
-          <SidebarContent>
-            {/* Main Navigation */}
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {menuItems.map((item) => {
-                    const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
-                    return (
-                      <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          isActive={isActive}
-                          onClick={() => setLocation(item.path)}
-                          tooltip={item.label}
-                        >
-                          <item.icon
-                            className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                          />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            {/* Analysis — condensed */}
-            <SidebarGroup>
-              <SidebarGroupLabel>Analysis</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {analysisItems.map((item) => {
-                    const isActive = location.startsWith(item.path);
-                    return (
-                      <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          isActive={isActive}
-                          onClick={() => setLocation(item.path)}
-                          tooltip={item.label}
-                        >
-                          <item.icon
-                            className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                          />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            {/* Project Tools — contextual, only when viewing a project */}
-            {(() => {
-              const projectMatch = location.match(/\/projects\/(\d+)/);
-              if (!projectMatch) return null;
-              const pid = projectMatch[1];
+        <nav className="flex-1 px-3" aria-label="Primary navigation">
+          <Button className="mb-5 w-full justify-start gap-2" onClick={() => setLocation("/projects/new")}>
+            <Plus className="h-4 w-4" /> {t("nav.newProject", "New Project")}
+          </Button>
+          <div className="space-y-1">
+            {navigation.map((item) => {
+              const active = isActive(location, item.matches);
               return (
-                <SidebarGroup>
-                  <SidebarGroupLabel>Project Tools</SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {projectToolItems.map((item) => {
-                        const resolvedPath = (item as any).dynamic
-                          ? item.path.replace(":id", pid)
-                          : item.path;
-                        const isActive = location === resolvedPath || location.startsWith(resolvedPath);
-                        return (
-                          <SidebarMenuItem key={item.path}>
-                            <SidebarMenuButton
-                              isActive={isActive}
-                              onClick={() => setLocation(resolvedPath)}
-                              tooltip={item.label}
-                            >
-                              <item.icon
-                                className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                              />
-                              <span>{item.label}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        );
-                      })}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              );
-            })()}
-
-            {/* Market — client-facing, only 2 items */}
-            <SidebarGroup>
-              <SidebarGroupLabel>Market</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {marketItems.map((item) => {
-                    const isActive = location.startsWith(item.path);
-                    return (
-                      <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          isActive={isActive}
-                          onClick={() => setLocation(item.path)}
-                          tooltip={item.label}
-                        >
-                          <item.icon
-                            className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                          />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            {/* Admin Section — includes admin tools + market intel admin tools */}
-            {isAdmin && (
-              <>
-                <SidebarGroup>
-                  <SidebarGroupLabel>Market Intelligence</SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {marketIntelAdminItems.map((item) => {
-                        const isActive = location.startsWith(item.path);
-                        return (
-                          <SidebarMenuItem key={item.path}>
-                            <SidebarMenuButton
-                              isActive={isActive}
-                              onClick={() => setLocation(item.path)}
-                              tooltip={item.label}
-                            >
-                              <item.icon
-                                className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                              />
-                              <span>{item.label}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        );
-                      })}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarGroup>
-                  <SidebarGroupLabel>Administration</SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {adminItems.map((item) => {
-                        const isActive = location.startsWith(item.path);
-                        return (
-                          <SidebarMenuItem key={item.path}>
-                            <SidebarMenuButton
-                              isActive={isActive}
-                              onClick={() => setLocation(item.path)}
-                              tooltip={item.label}
-                            >
-                              <item.icon
-                                className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                              />
-                              <span>{item.label}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        );
-                      })}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              </>
-            )}
-          </SidebarContent>
-
-          <SidebarFooter className="p-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/20 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-9 w-9 border border-border shrink-0">
-                    <AvatarFallback className="text-xs font-medium bg-primary/20 text-primary">
-                      {user?.name?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="text-sm font-medium truncate leading-none text-foreground">
-                      {user?.name || "-"}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate mt-1.5">
-                      {user?.email || "-"}
-                    </p>
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  onClick={logout}
-                  className="cursor-pointer text-destructive focus:text-destructive"
+                <button
+                  key={item.path}
+                  onClick={() => setLocation(item.path)}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"}`}
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarFooter>
-        </Sidebar>
-        <div
-          className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors ${isCollapsed ? "hidden" : ""}`}
-          onMouseDown={() => {
-            if (isCollapsed) return;
-            setIsResizing(true);
-          }}
-          style={{ zIndex: 50 }}
-        />
-      </div>
-
-      <SidebarInset className="premium-bg-dark-marble min-h-screen">
-        <div className="flex border-b border-[#1E2D42] h-14 items-center justify-between bg-[#0A1628]/80 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
-          <div className="flex items-center gap-2">
-            {isMobile || isCollapsed ? (
-              <SidebarTrigger className="h-9 w-9 rounded-lg bg-[#111827]" />
-            ) : null}
-            <div className="flex items-center gap-3">
-              <span className="tracking-tight text-[#F0EBE3] font-medium">
-                {activeMenuItem?.label ?? "MIYAR"}
-              </span>
-            </div>
+                  <item.icon className="h-4 w-4" /> {t(item.key, item.label)}
+                </button>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-3">
-            {/* Cmd+K shortcut hint */}
+        </nav>
+
+        <div className="space-y-2 border-t border-sidebar-border p-3">
+          {user.role === "admin" && (
             <button
-              onClick={() => {
-                window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
-              }}
-              className="hidden md:inline-flex items-center gap-1.5 rounded-lg border border-[#1E2D42] bg-[#111827]/50 px-3 py-1.5 text-xs text-[#8B9CB7] hover:bg-[#C9A96E]/10 hover:border-[#C9A96E]/30 hover:text-[#C9A96E] transition-colors"
+              onClick={() => setLocation("/admin")}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent"
             >
-              <Search className="h-3 w-3" />
-              <span>Search</span>
-              <kbd className="ml-1 rounded border border-[#1E2D42] bg-[#0A1628] px-1 font-mono text-[10px]">⌘K</kbd>
+              <Settings2 className="h-4 w-4" /> {t("nav.controlCenter", "Control center")}
             </button>
-            {isAdmin && <AdminSystemHealthMenu />}
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+                <Avatar className="h-9 w-9 border border-sidebar-border">
+                  <AvatarFallback>{user.name?.charAt(0).toUpperCase() || "M"}</AvatarFallback>
+                </Avatar>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{user.name || "MIYAR user"}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </aside>
+
+      <div data-main-content className="lg:pl-64">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur md:px-6">
+          <div>
+            <span className="font-serif text-lg lg:hidden">MIYAR</span>
+            <span className="hidden text-sm font-semibold lg:block">{pageLabel}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+              className="hidden h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs text-muted-foreground hover:bg-secondary md:flex"
+              aria-label="Search MIYAR"
+            >
+              <Search className="h-3.5 w-3.5" /> Search <kbd className="rounded bg-muted px-1.5 py-0.5">⌘K</kbd>
+            </button>
+            <ThemeToggle compact />
+            <LanguageToggle compact />
             <AiAssistantPanel />
             <NotificationBell />
           </div>
-        </div>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
-      </SidebarInset>
+        </header>
+        <main className="mx-auto w-full max-w-[1600px] px-4 py-5 pb-24 md:px-6 md:py-7 lg:pb-8">{children}</main>
+      </div>
 
-      {/* Global overlays */}
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-border bg-card px-1 pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Mobile navigation" data-mobile-nav>
+        {navigation.slice(0, 2).map((item) => <MobileItem key={item.path} item={item} location={location} navigate={setLocation} label={t(item.key, item.label)} />)}
+        <button onClick={() => setLocation("/projects/new")} className="flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-semibold text-primary" aria-label="New Project">
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground"><Plus className="h-5 w-5" /></span>
+          New
+        </button>
+        {navigation.slice(2).map((item) => <MobileItem key={item.path} item={item} location={location} navigate={setLocation} label={t(item.key, item.label)} />)}
+      </nav>
+
       <CommandPalette />
       <OnboardingFlow />
-    </>
+    </div>
+  );
+}
+
+function MobileItem({ item, location, navigate, label }: { item: (typeof navigation)[number]; location: string; navigate: (path: string) => void; label: string }) {
+  const active = isActive(location, item.matches);
+  return (
+    <button onClick={() => navigate(item.path)} aria-current={active ? "page" : undefined} className={`flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] ${active ? "text-primary" : "text-muted-foreground"}`}>
+      <item.icon className="h-5 w-5" /> {label}
+    </button>
   );
 }

@@ -41,7 +41,7 @@ import {
   getScenarioComparisonById,
   getScenarioById,
   createProjectOutcomeForOrg,
-  getProjectOutcomes,
+  getProjectOutcomesForOrg,
   listAllOutcomes,
   createBenchmarkSuggestion,
   listBenchmarkSuggestions,
@@ -582,7 +582,7 @@ export const intelligenceRouter = router({
       .input(z.object({ projectId: z.number() }))
       .query(async ({ ctx, input }) => {
         await requireProjectForOrg(input.projectId, ctx.orgId);
-        return getProjectOutcomes(input.projectId);
+        return getProjectOutcomesForOrg(input.projectId, ctx.orgId);
       }),
 
     listAll: adminProcedure.query(async () => {

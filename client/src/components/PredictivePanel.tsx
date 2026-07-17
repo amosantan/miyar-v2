@@ -18,6 +18,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Legend,
 } from "recharts";
+import { InsufficientDataState } from "@/components/InsufficientDataState";
 
 interface PredictivePanelProps {
   projectId: number;
@@ -255,6 +256,21 @@ function CostProjectionChart({ projectId }: { projectId: number }) {
   const { data, isLoading } = trpc.predictive.getScenarioProjection.useQuery({ projectId });
 
   if (isLoading) return <CardSkeleton title="Cost-Over-Time Projection" />;
+  if (data?.status === "insufficient_data") {
+    return (
+      <Card className="border-border/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="w-4 h-4 text-cyan-400" />
+            Cost-Over-Time Projection
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InsufficientDataState message="Add organization trend evidence or wait for governed public UAE trends before projecting future costs." />
+        </CardContent>
+      </Card>
+    );
+  }
   if (!data || data.baseCostPerSqm === 0) {
     return (
       <Card className="border-border/50">
