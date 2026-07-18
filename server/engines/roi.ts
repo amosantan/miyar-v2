@@ -3,6 +3,12 @@
  * Deterministic ROI computation based on project inputs, scores, and admin-configurable coefficients.
  */
 
+import type { SpaceEfficiencyEvidence } from "../../shared/miyar-types";
+import {
+  isMeasuredSpaceEfficiencyEvidence,
+  resolveSpaceEfficiencyEvidence,
+} from "./space-evidence";
+
 export interface RoiCoefficients {
   hourlyRate: number;
   reworkCostPct: number;
@@ -25,6 +31,7 @@ export interface RoiInputs {
   tier: string;
   horizon: string;
   spaceEfficiencyScore?: number;  // 0-100 from Phase 9 floor plan analysis
+  spaceEfficiencyEvidence?: SpaceEfficiencyEvidence;
 }
 
 export interface RoiDriver {
@@ -214,7 +221,14 @@ export function computeRoi(inputs: RoiInputs, coefficients?: Partial<RoiCoeffici
   ];
 
   // Driver 6: Space Optimization Savings (Phase 9)
-  if (inputs.spaceEfficiencyScore !== undefined && inputs.spaceEfficiencyScore > 0) {
+  const spaceEvidence = resolveSpaceEfficiencyEvidence(
+    inputs as unknown as Record<string, unknown>,
+  );
+  if (
+    isMeasuredSpaceEfficiencyEvidence(spaceEvidence) &&
+    inputs.spaceEfficiencyScore !== undefined &&
+    inputs.spaceEfficiencyScore > 0
+  ) {
     const spaceNorm = inputs.spaceEfficiencyScore / 100;
     // High space efficiency means less wasted sqm → lower fitout costs
     // A 10% improvement in efficiency can save 3-5% of fitout budget

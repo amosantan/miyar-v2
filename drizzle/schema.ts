@@ -1223,6 +1223,8 @@ export const evidenceRecords = mysqlTable("evidence_records", {
   captureDate: timestamp("captureDate").notNull(),
   reliabilityGrade: mysqlEnum("reliabilityGrade", ["A", "B", "C"]).notNull(),
   confidenceScore: int("confidenceScore").notNull(), // 0-100
+  currentConfidenceAssessmentId: int("currentConfidenceAssessmentId"),
+  confidencePolicyVersion: varchar("confidencePolicyVersion", { length: 64 }),
   extractedSnippet: text("extractedSnippet"),
   notes: text("notes"),
   // V2.2 metadata fields
@@ -1246,14 +1248,59 @@ export const evidenceRecords = mysqlTable("evidence_records", {
   ]).default("material_price"),
   corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
   corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+  publicObservationKey: varchar("publicObservationKey", { length: 64 }),
   createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, table => [
   index("evidence_records_corpus_org_project_category_idx").on(table.corpusScope, table.orgId, table.projectId, table.category),
+  uniqueIndex("evidence_records_public_observation_key_unique").on(table.publicObservationKey),
 ]);
 
 export type EvidenceRecord = typeof evidenceRecords.$inferSelect;
 export type InsertEvidenceRecord = typeof evidenceRecords.$inferInsert;
+
+// Append-only calculation and assertion provenance for evidence confidence.
+// Existing evidence rows intentionally keep a null pointer/policy and are
+// interpreted as legacy_unknown rather than receiving fabricated history.
+export const evidenceConfidenceAssessments = mysqlTable("evidence_confidence_assessments", {
+  id: int("id").autoincrement().primaryKey(),
+  evidenceRecordId: int("evidenceRecordId"),
+  runId: varchar("runId", { length: 64 }),
+  sourceId: varchar("sourceId", { length: 64 }),
+  actorId: int("actorId"),
+  corpusScope: mysqlEnum("assessmentCorpusScope", ["organization", "platform_public", "legacy_unscoped"]),
+  origin: mysqlEnum("origin", ["connector", "csv_upload", "manual_entry", "bulk_entry"]).notNull(),
+  outcome: mysqlEnum("outcome", ["accepted", "rejected"]).notNull(),
+  evaluationClock: timestamp("evaluationClock").notNull(),
+  rawPublicationText: text("rawPublicationText"),
+  datePrecision: mysqlEnum("datePrecision", ["missing", "date", "timestamp", "unknown"]).notNull(),
+  parsingStatus: mysqlEnum("parsingStatus", ["valid", "missing", "invalid", "future"]).notNull(),
+  parsedPublicationDate: timestamp("parsedPublicationDate"),
+  staticGradePolicyId: varchar("staticGradePolicyId", { length: 64 }),
+  registryGradePolicyId: varchar("registryGradePolicyId", { length: 64 }),
+  confidencePolicyId: varchar("confidencePolicyId", { length: 64 }).notNull(),
+  qualityPolicyId: varchar("qualityPolicyId", { length: 64 }),
+  mergePolicyId: varchar("mergePolicyId", { length: 64 }),
+  grade: mysqlEnum("assessmentGrade", ["A", "B", "C"]),
+  baseConfidence: decimal("baseConfidence", { precision: 6, scale: 4 }),
+  recencyAdjustment: decimal("recencyAdjustment", { precision: 6, scale: 4 }),
+  confidenceAfterRecency: decimal("confidenceAfterRecency", { precision: 6, scale: 4 }),
+  qualityMultiplier: decimal("qualityMultiplier", { precision: 6, scale: 4 }),
+  qualityFloor: decimal("qualityFloor", { precision: 6, scale: 4 }),
+  qualityFlags: json("qualityFlags"),
+  previousScore: int("previousScore"),
+  candidateScore: int("candidateScore"),
+  finalScore: int("finalScore"),
+  mergeDecision: mysqlEnum("mergeDecision", ["inserted", "latest_accepted", "manual_assertion", "rejected"]),
+  rejectionCode: varchar("rejectionCode", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => [
+  index("evidence_confidence_assessments_evidence_time_idx").on(table.evidenceRecordId, table.createdAt),
+  index("evidence_confidence_assessments_run_outcome_idx").on(table.runId, table.outcome),
+]);
+
+export type EvidenceConfidenceAssessment = typeof evidenceConfidenceAssessments.$inferSelect;
+export type InsertEvidenceConfidenceAssessment = typeof evidenceConfidenceAssessments.$inferInsert;
 
 // ─── Benchmark Proposals (Stage 1) ──────────────────────────────────────────
 export const benchmarkProposals = mysqlTable("benchmark_proposals", {
@@ -1477,6 +1524,7 @@ export const ingestionRuns = mysqlTable("ingestion_runs", {
   recordsExtracted: int("recordsExtracted").default(0).notNull(),
   recordsInserted: int("recordsInserted").default(0).notNull(),
   duplicatesSkipped: int("duplicatesSkipped").default(0).notNull(),
+  recordsRejected: int("recordsRejected").default(0).notNull(),
   // Detail
   sourceBreakdown: json("sourceBreakdown"), // per-source { sourceId, name, status, extracted, inserted, duplicates, errors }
   errorSummary: json("errorSummary"), // [{ sourceId, error }]

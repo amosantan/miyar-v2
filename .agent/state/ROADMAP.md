@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-10` (`READY`)
+- Next executable step: `TR-09` (`NEEDS_HUMAN`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -265,13 +265,19 @@ Rules:
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
 - Completion evidence: The user approved a neutral empty-space result, retained the versioned Grade A confidence rule with deterministic time, and required the Material Board Annex in both design briefs and full reports with an explicit empty state.
+- Reopened: 2026-07-17 at the product owner's direction to create the missing durable decision record, recertify exact boundary behavior, trace current consumers, and hand verified runtime gaps to a separately bounded `TR-09` remediation.
+- Current scope: Decision documentation and characterization tests only. No production logic, numerical policy, API, schema, authorization, or report-rendering change is authorized under this reopening.
+- Reclosed: 2026-07-17 with terminal state `PASS` after accepted ADR-0003 established policy bundle `TR-08-v1`, characterization strengthened all three contracts without production-source changes, and `KF-016` captured the verified downstream ambiguity.
+- Recertification evidence: Targeted contracts pass 80/80; the safe full suite passes 1,023 with 22 skipped; TypeScript, the 335-procedure authorization audit, all build targets, scoped documentation formatting, link/status checks, and diff checks pass; independent code review and Claude Sonnet both returned `APPROVED`.
+- Lessons: `LES-023`
+- Production release: User-authorized candidate `e49029d` was pushed to `origin/codex/tr-08-contract-recertification`; Vercel preview `dpl_7vTDyhEv63paho4xkw426BjVdATH` and production deployment `dpl_5wEjCcgpCVH2boFmgwA7nMxRMe5M` reached `READY` for the exact commit. Root/health, unauthenticated tenant rejection, invalid-share privacy, and a three-observation health window passed. The release changes tests and durable records only.
 
 ### TR-09 — Implement decided baseline contracts
 
-- Status: `CLOSED`
+- Status: `NEEDS_HUMAN`
 - Class / priority: Engine/test / P0
 - Dependencies: `TR-07`, `TR-08`
-- Human gate: Decisions from `TR-08` must be recorded first.
+- Human gate: Candidate commit/push/draft PR are complete. The human owner must separately authorize shared migration 0049, protected merge/deployment, and production smoke.
 - Evidence: `KF-002`, `KF-003`, and remaining behavior portion of `KF-004`.
 - Change set:
   - Implement approved empty-space behavior and edge cases.
@@ -284,10 +290,18 @@ Rules:
 - Closed: 2026-07-16
 - Terminal task state: `PASS`
 - Completion evidence: Fixing commit `db36254`; SCAD uses the typed ESM PDF parser, RICS recency is deterministic with 90/91-day coverage, empty space analysis is neutral, and design briefs always render the board annex; targeted and full tests plus PDF visual QA pass.
+- Reopened: 2026-07-17 after TR-08 recertification verified the unresolved consumer and provenance gaps recorded in `KF-016`. The original closure evidence above remains valid for the behavior it delivered.
+- Remediation acceptance boundary:
+  - Distinguish an empty neutral fallback from measured space evidence across presentation, scoring, and ROI.
+  - Retain and explain the full confidence-policy chain across connector calculation, quality adjustment, update merge, and non-connector ingestion, including clock, invalid/future-date, and rejection-visibility semantics.
+  - Distinguish genuine no-board, retrieval failure, and zero, partial, or wholly unresolvable existing-board states in both issued-report paths.
+- Current gate: The current committed candidate is pushed on `codex/tr-09-baseline-provenance` with draft PR #7. Vercel Preview Comments passed; the latest GitHub Actions run reproduced the zero-step `KF-014` failure. On 2026-07-18, the user approved the documented replacement evidence. Shared/production migration 0049, protected merge, deployment, and production smoke remain separately human-gated.
+- Local implementation evidence: Safe suite 1,074/22; type-check, 336/0 authorization audit, build, diff check, disposable-MySQL migration/concurrency/rollback, responsive browser checks, eight-page PDF inspection, three specialist reviews, and final Claude Sonnet review all pass. Release preflight reconciled the verified TR-08 production record. No shared migration, merge, deployment, or production smoke was performed.
+- Required decision: Name the production target, migration owner, backup/rollback owner, and observation window; authorize the controlled provider migration 0049 workflow. After target/schema/count verification, stop at the separate application deployment gate. `TR-09` remains the only next executable step and `TR-10` remains `PLANNED`.
 
 ### TR-10 — Certify report integrity and visual rendering
 
-- Status: `READY`
+- Status: `PLANNED`
 - Class / priority: Report / P1
 - Dependencies: `TR-09`
 - Human gate: Report contract/branding approval for any changed issued content.

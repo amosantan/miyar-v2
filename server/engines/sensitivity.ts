@@ -5,6 +5,10 @@
  */
 import type { ProjectInputs, SensitivityEntry } from "../../shared/miyar-types";
 import { evaluate, type EvaluationConfig } from "./scoring";
+import {
+  isMeasuredSpaceEfficiencyEvidence,
+  resolveSpaceEfficiencyEvidence,
+} from "./space-evidence";
 
 const PERTURBABLE_FIELDS: { key: keyof ProjectInputs; step: number; type: "ordinal" | "numeric" }[] = [
   { key: "str01BrandClarity", step: 1, type: "ordinal" },
@@ -34,8 +38,17 @@ export function runSensitivityAnalysis(
   const baseResult = evaluate(baseInputs, config);
   const baseScore = baseResult.compositeScore;
   const entries: SensitivityEntry[] = [];
+  const spaceEvidence = resolveSpaceEfficiencyEvidence(
+    baseInputs as unknown as Record<string, unknown>,
+  );
 
   for (const field of PERTURBABLE_FIELDS) {
+    if (
+      field.key === "spaceEfficiencyScore" &&
+      !isMeasuredSpaceEfficiencyEvidence(spaceEvidence)
+    ) {
+      continue;
+    }
     const currentVal = baseInputs[field.key] as number | null;
     if (currentVal === null || currentVal === undefined) continue;
 

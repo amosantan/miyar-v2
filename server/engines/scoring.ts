@@ -15,6 +15,7 @@ import type {
 } from "../../shared/miyar-types";
 import { normalizeInputs } from "./normalization";
 import { getPricingArea } from "./area-utils";
+import { resolveSpaceEfficiencyEvidence } from "./space-evidence";
 
 // ─── Dimension Scoring ───────────────────────────────────────────────────────
 
@@ -216,12 +217,22 @@ export function computePenalties(
 
   // Phase 9: P8 - Critical space allocation deviations from floor plan analysis
   if (inputs.spaceCriticalCount && inputs.spaceCriticalCount >= 2) {
+    const spaceEvidence = resolveSpaceEfficiencyEvidence(
+      inputs as unknown as Record<string, unknown>,
+    );
+    const comparisonLabel = spaceEvidence.status === "measured" &&
+      spaceEvidence.benchmarkBasis === "dld_area" &&
+      spaceEvidence.transactionCount > 0
+      ? "transaction-backed DLD area benchmark"
+      : spaceEvidence.status === "measured"
+        ? "MIYAR UAE benchmark"
+        : "space benchmark with legacy provenance";
     penalties.push({
       id: "P8",
       trigger: "space_critical_deviations",
       effect: penaltyConfig?.P8?.effect ?? -7,
       flag: "SPACE_CRITICAL",
-      description: `Floor plan has ${inputs.spaceCriticalCount} critical room ratio deviations vs DLD benchmarks`,
+      description: `Floor plan has ${inputs.spaceCriticalCount} critical room ratio deviations vs ${comparisonLabel}`,
     });
     riskFlags.push("SPACE_CRITICAL");
   }
@@ -233,7 +244,8 @@ export function computePenalties(
 
 export function generateConditionalActions(
   dimensions: DimensionScores,
-  riskFlags: string[]
+  riskFlags: string[],
+  inputs?: ProjectInputs,
 ): ConditionalAction[] {
   const actions: ConditionalAction[] = [];
 
@@ -297,10 +309,20 @@ export function generateConditionalActions(
   }
   // Phase 9: Space Efficiency
   if (riskFlags.includes("SPACE_CRITICAL")) {
+    const spaceEvidence = resolveSpaceEfficiencyEvidence(
+      inputs as unknown as Record<string, unknown> | undefined,
+    );
+    const evidenceWording = spaceEvidence.status === "measured" &&
+      spaceEvidence.benchmarkBasis === "dld_area" &&
+      spaceEvidence.transactionCount > 0
+      ? "The comparison uses transaction-backed DLD area data."
+      : spaceEvidence.status === "measured"
+        ? "The comparison uses the MIYAR UAE space benchmark."
+        : "The historical measurement provenance is unavailable, so no DLD or correlation claim is made.";
     actions.push({
       trigger: "SPACE_CRITICAL",
       recommendation:
-        "Floor plan has critical space allocation deviations. Review room ratios in Space Planner — undersized rooms correlate with lower sale prices per DLD data.",
+        `Floor plan has critical space allocation deviations. Review room ratios in Space Planner. ${evidenceWording}`,
       variables: ["spaceEfficiencyScore"],
     });
   }
@@ -355,8 +377,11 @@ export function computeConfidence(
   benchmarkCount: number,
   overrideRate: number
 ): number {
-  // Input completeness
-  const allFields = Object.values(inputs);
+  // Input completeness. Provenance metadata travels beside the score in the
+  // immutable snapshot but is not an additional scoring input.
+  const allFields = Object.entries(inputs)
+    .filter(([key]) => key !== "spaceEfficiencyEvidence")
+    .map(([, value]) => value);
   const provided = allFields.filter(
     (v) => v !== null && v !== undefined
   ).length;
@@ -558,7 +583,7 @@ export function evaluate(
   const decisionStatus = classifyDecision(compositeScore, riskScore);
 
   // Step 9: Conditional actions
-  const conditionalActions = generateConditionalActions(dimensions, riskFlags);
+  const conditionalActions = generateConditionalActions(dimensions, riskFlags, inputs);
 
   // Step 10: Variable contributions
   const variableContributions = computeVariableContributions(

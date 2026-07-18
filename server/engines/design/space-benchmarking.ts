@@ -11,6 +11,7 @@
  */
 
 import type { FloorPlanAnalysis, AnalyzedRoom } from "./floor-plan-analyzer";
+import type { SpaceEfficiencyEvidence } from "../../../shared/miyar-types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ export interface SpaceBenchmarkResult {
     totalOptimal: number;
     unitType: string;
     areaName: string;
+    evidence: SpaceEfficiencyEvidence;
 }
 
 // ─── Benchmark Data ──────────────────────────────────────────────────────────
@@ -129,6 +131,13 @@ export function benchmarkSpaceRatios(
             totalOptimal: 0,
             unitType: analysis.unitType,
             areaName,
+            evidence: {
+                status: "neutral_fallback",
+                reason: "no_rooms_detected",
+                roomCount: 0,
+                benchmarkBasis: "not_applied",
+                transactionCount: 0,
+            },
         };
     }
 
@@ -246,5 +255,11 @@ export function benchmarkSpaceRatios(
         totalOptimal,
         unitType: analysis.unitType,
         areaName,
+        evidence: {
+            status: "measured",
+            roomCount: analysis.rooms.length,
+            benchmarkBasis: transactionCount > 0 ? "dld_area" : "miyar_uae",
+            transactionCount: Math.max(0, Math.trunc(transactionCount)),
+        },
     };
 }

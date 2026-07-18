@@ -7,6 +7,11 @@
  * Used by the orchestrator after normalization, before upsert.
  */
 
+import {
+    buildQualityConfidenceStage,
+    type QualityConfidenceStage,
+} from "./confidence-policy";
+
 // ─── Quality Rule Types ──────────────────────────────────────────
 
 interface QualityRule {
@@ -28,6 +33,32 @@ export interface QualityResult {
     status: "valid" | "outlier_flagged" | "missing_value";
     flags: string[];
     adjustedConfidence?: number;
+    confidencePolicy: QualityConfidenceStage;
+}
+
+function createQualityResult(input: {
+    status: QualityResult["status"];
+    flags: string[];
+    confidence: number;
+    multiplier?: number;
+    floor?: number | null;
+}): QualityResult {
+    const confidencePolicy = buildQualityConfidenceStage({
+        status: input.status,
+        flags: input.flags,
+        inputScore: input.confidence,
+        multiplier: input.multiplier,
+        floor: input.floor,
+    });
+    return {
+        status: input.status,
+        flags: input.flags,
+        adjustedConfidence:
+            confidencePolicy.score === input.confidence
+                ? undefined
+                : confidencePolicy.score,
+        confidencePolicy,
+    };
 }
 
 // ─── UAE Market Quality Rules ────────────────────────────────────
@@ -100,17 +131,23 @@ export function validateEvidence(record: {
 
     // Missing value — still valid, just flagged
     if (record.value === null || record.value === undefined) {
-        return { status: "missing_value", flags: ["no_price_value"] };
+        return createQualityResult({
+            status: "missing_value",
+            flags: ["no_price_value"],
+            confidence: record.confidence,
+        });
     }
 
     // Non-positive value
     if (record.value <= 0) {
         flags.push("non_positive_value");
-        return {
+        return createQualityResult({
             status: "outlier_flagged",
             flags,
-            adjustedConfidence: Math.max(record.confidence * 0.5, 0.10),
-        };
+            confidence: record.confidence,
+            multiplier: 0.5,
+            floor: 0.10,
+        });
     }
 
     // Find matching rules
@@ -123,7 +160,11 @@ export function validateEvidence(record: {
 
     if (matchingRules.length === 0) {
         // No rules for this category/unit — pass through
-        return { status: "valid", flags: [] };
+        return createQualityResult({
+            status: "valid",
+            flags: [],
+            confidence: record.confidence,
+        });
     }
 
     // Check against rules (any matching rule must pass)
@@ -155,18 +196,21 @@ export function validateEvidence(record: {
             flags.push(`above_maximum: ${record.value} > ${rule.maxValue} ${rule.unit} (${rule.description})`);
         }
 
-        return {
+        return createQualityResult({
             status: "outlier_flagged",
             flags,
-            adjustedConfidence: Math.max(record.confidence * 0.3, 0.10),
-        };
+            confidence: record.confidence,
+            multiplier: 0.3,
+            floor: 0.10,
+        });
     }
 
-    return {
+    return createQualityResult({
         status: flags.length > 0 ? "outlier_flagged" : "valid",
         flags,
-        adjustedConfidence: flags.length > 0 ? record.confidence * 0.8 : undefined,
-    };
+        confidence: record.confidence,
+        multiplier: flags.length > 0 ? 0.8 : 1,
+    });
 }
 
 /**

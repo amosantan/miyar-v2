@@ -15,7 +15,13 @@
 
 import { BaseSourceConnector } from "./connector";
 import type { RawSourcePayload, ExtractedEvidence, NormalizedEvidenceInput } from "./connector";
-import { assignGrade, computeConfidence } from "./connector";
+import {
+    evaluateEvidenceConfidence,
+    publicationDateFields,
+    resolveGradePolicy,
+    type ConfidenceEvaluationContext,
+    type ReliabilityGrade,
+} from "./connector";
 import { invokeLLM } from "../../_core/llm";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -120,6 +126,7 @@ export class CrawlingConnector extends BaseSourceConnector {
     geography: string;
     crawlConfig: CrawlConfig;
     extractionHints: string;
+    private readonly reliabilityGrade?: ReliabilityGrade;
 
     constructor(config: {
         id: number | string;
@@ -131,6 +138,7 @@ export class CrawlingConnector extends BaseSourceConnector {
         extractionHints?: string;
         lastSuccessfulFetch?: Date | null;
         requestDelayMs?: number;
+        reliabilityDefault?: ReliabilityGrade;
     }) {
         super();
         this.sourceId = String(config.id);
@@ -139,6 +147,7 @@ export class CrawlingConnector extends BaseSourceConnector {
         this.category = config.category || "material_cost";
         this.geography = config.geography || "UAE";
         this.extractionHints = config.extractionHints || "";
+        this.reliabilityGrade = config.reliabilityDefault;
         this.crawlConfig = { ...DEFAULT_CRAWL_CONFIG, ...config.crawlConfig };
         if (config.requestDelayMs) {
             this.crawlConfig.requestDelayMs = config.requestDelayMs;
@@ -263,7 +272,8 @@ ${textContent.substring(0, 8000)}`
                 .map((item: any) => ({
                     title: `${this.sourceName} - ${String(item.title).substring(0, 255)}`,
                     rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
-                    publishedDate: item.publishedDate ? new Date(item.publishedDate) : undefined,
+                    ...publicationDateFields(item.publishedDate, raw.fetchedAt),
+                    observedAt: raw.fetchedAt,
                     category: this.category,
                     geography: this.geography,
                     sourceUrl: raw.url,
@@ -277,9 +287,14 @@ ${textContent.substring(0, 8000)}`
         }
     }
 
-    async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-        const grade = assignGrade(this.sourceId);
-        const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    async normalize(
+        evidence: ExtractedEvidence,
+        context?: ConfidenceEvaluationContext
+    ): Promise<NormalizedEvidenceInput> {
+        const gradePolicy = resolveGradePolicy(this.sourceId, this.reliabilityGrade);
+        const grade = gradePolicy.grade;
+        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade, context);
+        const confidence = confidencePolicy.initial.score;
         const llmEvidence = evidence as any;
 
         return {
@@ -288,6 +303,8 @@ ${textContent.substring(0, 8000)}`
             unit: llmEvidence._llmUnit ?? "unit",
             confidence,
             grade,
+            confidencePolicy,
+            gradePolicy,
             summary: (evidence.rawText || "").replace(/\s+/g, " ").trim().substring(0, 500),
             tags: [],
         };

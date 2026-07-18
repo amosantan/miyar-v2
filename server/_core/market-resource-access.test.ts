@@ -98,6 +98,20 @@ describe("market resource authorization", () => {
     });
   });
 
+  it("allows platform-public confidence provenance without exposing tenant evidence", async () => {
+    mocks.getEvidenceRecordById.mockResolvedValue({
+      id: 8,
+      projectId: null,
+      orgId: null,
+      corpusScope: "platform_public",
+      confidentiality: "internal",
+    });
+    await expect(requireEvidenceRecordForOrg(8, 101)).resolves.toMatchObject({
+      evidence: { id: 8, corpusScope: "platform_public" },
+      project: null,
+    });
+  });
+
   it("keeps the market tag registry closed", async () => {
     await expect(
       requireMarketTagTargetForOrg("unsupported", 1, 101)

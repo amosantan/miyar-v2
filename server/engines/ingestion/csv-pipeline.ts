@@ -1,6 +1,17 @@
 import * as xlsx from "xlsx";
-import { createEvidenceRecord, getSourceRegistryById, getEvidenceRecordById } from "../../db";
+import { randomUUID } from "crypto";
+import {
+    createEvidenceRecordWithConfidenceAssessment,
+    getSourceRegistryById,
+    getEvidenceRecordById,
+    recordRejectedConfidenceAssessment,
+} from "../../db";
 import { detectPriceChange } from "./change-detector";
+import {
+    evaluateConnectorConfidence,
+    classifyPublicationDate,
+    REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+} from "./confidence-policy";
 
 function generateRecordId(): string {
     const ts = Date.now().toString(36);
@@ -22,10 +33,12 @@ export function generateCsvTemplate(): Buffer {
 }
 
 export async function processCsvUpload(buffer: Buffer, sourceId: number, addedByUserId: number) {
+    const receiptClock = new Date();
+    const runId = `CSV-${randomUUID().substring(0, 8)}`;
     const source = await getSourceRegistryById(sourceId);
     if (!source) throw new Error("Source not found");
 
-    const wb = xlsx.read(buffer, { type: "buffer" });
+    const wb = xlsx.read(buffer, { type: "buffer", cellDates: true });
     if (!wb.SheetNames.length) throw new Error("Empty spreadsheet");
 
     const ws = wb.Sheets[wb.SheetNames[0]];
@@ -51,12 +64,12 @@ export async function processCsvUpload(buffer: Buffer, sourceId: number, addedBy
             const value = parseFloat(valRaw);
             const unit = row["Unit"] || row["unit"] || "unit";
 
-            const dateRaw = row["Date (YYYY-MM-DD)"] || row["Date"] || row["date"];
-            let publishedDate = new Date();
-            if (dateRaw) {
-                const parsed = new Date(dateRaw);
-                if (!isNaN(parsed.getTime())) publishedDate = parsed;
-            }
+            const dateRawValue = row["Date (YYYY-MM-DD)"] ?? row["Date"] ?? row["date"];
+            const dateRaw = dateRawValue instanceof Date
+                ? dateRawValue.toISOString()
+                : dateRawValue == null || dateRawValue === ""
+                    ? null
+                    : String(dateRawValue);
 
             const tagsRaw = row["Tags"] || row["tags"];
             const tags = tagsRaw && typeof tagsRaw === "string"
@@ -66,36 +79,144 @@ export async function processCsvUpload(buffer: Buffer, sourceId: number, addedBy
             const notes = row["Notes"] || row["notes"] || "";
 
             if (!title) {
+                const publication = classifyPublicationDate(dateRaw, receiptClock);
+                await recordRejectedConfidenceAssessment({
+                    runId,
+                    sourceId: String(source.id),
+                    actorId: addedByUserId,
+                    corpusScope: "legacy_unscoped",
+                    origin: "csv_upload",
+                    outcome: "rejected",
+                    evaluationClock: receiptClock,
+                    rawPublicationText: publication.raw,
+                    datePrecision: publication.status === "missing" ? "missing" : publication.precision === "datetime" ? "timestamp" : publication.precision,
+                    parsingStatus: publication.status,
+                    parsedPublicationDate: publication.parsedAt,
+                    registryGradePolicyId: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+                    confidencePolicyId: "ingestion-confidence-v1",
+                    mergePolicyId: "evidence-confidence-merge-latest-v1",
+                    grade: source.reliabilityDefault,
+                    mergeDecision: "rejected",
+                    rejectionCode: "missing_item_name",
+                });
                 errors.push(`Row ${i + 2}: Missing Item Name/Title`);
                 skippedCount++;
                 continue;
             }
             if (isNaN(value)) {
+                const publication = classifyPublicationDate(dateRaw, receiptClock);
+                await recordRejectedConfidenceAssessment({
+                    runId,
+                    sourceId: String(source.id),
+                    actorId: addedByUserId,
+                    corpusScope: "legacy_unscoped",
+                    origin: "csv_upload",
+                    outcome: "rejected",
+                    evaluationClock: receiptClock,
+                    rawPublicationText: publication.raw,
+                    datePrecision: publication.status === "missing" ? "missing" : publication.precision === "datetime" ? "timestamp" : publication.precision,
+                    parsingStatus: publication.status,
+                    parsedPublicationDate: publication.parsedAt,
+                    registryGradePolicyId: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+                    confidencePolicyId: "ingestion-confidence-v1",
+                    mergePolicyId: "evidence-confidence-merge-latest-v1",
+                    grade: source.reliabilityDefault,
+                    mergeDecision: "rejected",
+                    rejectionCode: "invalid_numeric_value",
+                });
                 errors.push(`Row ${i + 2}: Invalid or missing numeric Value`);
+                skippedCount++;
+                continue;
+            }
+
+            const confidence = evaluateConnectorConfidence({
+                grade: source.reliabilityDefault,
+                publicationDate: dateRaw,
+                evaluatedAt: receiptClock,
+            });
+            if (!confidence.accepted) {
+                await recordRejectedConfidenceAssessment({
+                    runId,
+                    sourceId: String(source.id),
+                    actorId: addedByUserId,
+                    corpusScope: "legacy_unscoped",
+                    origin: "csv_upload",
+                    outcome: "rejected",
+                    evaluationClock: receiptClock,
+                    rawPublicationText: confidence.publicationDate.raw,
+                    datePrecision: confidence.publicationDate.status === "missing"
+                        ? "missing"
+                        : confidence.publicationDate.precision === "datetime" ? "timestamp" : confidence.publicationDate.precision,
+                    parsingStatus: confidence.publicationDate.status,
+                    parsedPublicationDate: confidence.publicationDate.parsedAt,
+                    registryGradePolicyId: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+                    confidencePolicyId: "ingestion-confidence-v1",
+                    mergePolicyId: "evidence-confidence-merge-latest-v1",
+                    grade: source.reliabilityDefault,
+                    mergeDecision: "rejected",
+                    rejectionCode: confidence.rejectionCode,
+                });
+                errors.push(`Row ${i + 2}: ${confidence.rejectionCode}`);
                 skippedCount++;
                 continue;
             }
 
             const summary = notes ? `Uploaded Data: ${notes}` : `Bulk uploaded value for ${title}`;
 
-            const { id: newRecordId } = await createEvidenceRecord({
+            const categoryMap: Record<string, string> = {
+                material_cost: "floors",
+                fitout_rate: "other",
+                market_trend: "other",
+                competitor_project: "other",
+            };
+            const acceptedCategories = new Set(["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"]);
+            const normalizedCategory = acceptedCategories.has(String(category))
+                ? String(category)
+                : categoryMap[String(category)] || "other";
+            const confidenceScore = Math.round(confidence.initial.score * 100);
+            const { id: newRecordId } = await createEvidenceRecordWithConfidenceAssessment({
                 recordId: generateRecordId(),
                 sourceRegistryId: source.id,
                 sourceUrl: source.url,
-                category: String(category).substring(0, 64) as any,
+                category: normalizedCategory as any,
                 itemName: String(title).substring(0, 255),
                 title: String(metric).substring(0, 512), // mapping metric to title for context
                 priceTypical: isNaN(value) ? null : value.toString(),
                 unit: String(unit).substring(0, 32),
                 currencyOriginal: "AED",
-                captureDate: publishedDate,
+                captureDate: confidence.publicationDate.parsedAt || receiptClock,
                 reliabilityGrade: source.reliabilityDefault as any,
-                confidenceScore: source.reliabilityDefault === "A" ? 90 : 70, // 0-100 scale
+                confidenceScore,
                 extractedSnippet: summary.substring(0, 500),
                 publisher: source.name,
                 tags: tags,
                 notes: `Uploaded via CSV bulk tool. Row context: ${JSON.stringify(row).substring(0, 200)}`,
+                runId,
                 createdBy: addedByUserId,
+            }, {
+                runId,
+                sourceId: String(source.id),
+                actorId: addedByUserId,
+                corpusScope: "legacy_unscoped",
+                origin: "csv_upload",
+                outcome: "accepted",
+                evaluationClock: receiptClock,
+                rawPublicationText: confidence.publicationDate.raw,
+                datePrecision: confidence.publicationDate.status === "missing"
+                    ? "missing"
+                    : confidence.publicationDate.precision === "datetime" ? "timestamp" : confidence.publicationDate.precision,
+                parsingStatus: confidence.publicationDate.status,
+                parsedPublicationDate: confidence.publicationDate.parsedAt,
+                registryGradePolicyId: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+                confidencePolicyId: confidence.initial.policyVersion,
+                mergePolicyId: "evidence-confidence-merge-latest-v1",
+                grade: source.reliabilityDefault,
+                baseConfidence: confidence.initial.baseScore,
+                recencyAdjustment: confidence.initial.dateAdjustment,
+                confidenceAfterRecency: confidence.initial.score,
+                candidateScore: confidenceScore,
+                finalScore: confidenceScore,
+                mergeDecision: "inserted",
             });
 
             const insertedRecord = await getEvidenceRecordById(newRecordId);

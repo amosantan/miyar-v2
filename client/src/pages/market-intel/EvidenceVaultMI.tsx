@@ -327,6 +327,18 @@ function EvidenceDetailPanel({ record }: { record: any }) {
   const { data: refs } = trpc.marketIntel.evidence.listReferences.useQuery({
     evidenceRecordId: record.id,
   });
+  const hasConfidenceProvenance = Boolean(
+    record.currentConfidenceAssessmentId && record.confidencePolicyVersion
+  );
+  const { data: confidenceHistory } = trpc.marketIntel.evidence.confidenceHistory.useQuery(
+    { id: record.id, limit: 20 },
+    { enabled: hasConfidenceProvenance }
+  );
+  const confidenceMode = !hasConfidenceProvenance
+    ? "Legacy — calculation provenance unavailable"
+    : record.confidencePolicyVersion === "manual-asserted-confidence-v1"
+      ? "Operator asserted"
+      : "Computed";
 
   return (
     <div className="space-y-4">
@@ -334,6 +346,7 @@ function EvidenceDetailPanel({ record }: { record: any }) {
         <TabsList className="bg-muted/50">
           <TabsTrigger value="metadata">Metadata</TabsTrigger>
           <TabsTrigger value="snippet">Snippet & Notes</TabsTrigger>
+          <TabsTrigger value="confidence">Confidence provenance</TabsTrigger>
           <TabsTrigger value="references">
             References {refs && refs.length > 0 && <Badge variant="secondary" className="ml-1 text-xs">{refs.length}</Badge>}
           </TabsTrigger>
@@ -415,6 +428,41 @@ function EvidenceDetailPanel({ record }: { record: any }) {
             )}
             {!record.extractedSnippet && !record.notes && (
               <div className="text-sm text-muted-foreground">No snippet or notes recorded.</div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="confidence" className="mt-3">
+          <div className="space-y-3 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{confidenceMode}</Badge>
+              <span className="font-mono text-xs text-muted-foreground">
+                {record.confidencePolicyVersion || "legacy_unknown"}
+              </span>
+            </div>
+            {!hasConfidenceProvenance ? (
+              <p className="text-muted-foreground">
+                This historical record predates confidence-stage persistence. MIYAR does not reconstruct its clock or calculation from current data.
+              </p>
+            ) : (!confidenceHistory || confidenceHistory.length === 0) ? (
+              <p className="text-muted-foreground">Confidence history is unavailable.</p>
+            ) : (
+              confidenceHistory.map((assessment: any) => (
+                <div key={assessment.id} className="rounded border border-border/50 p-3">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span>{assessment.outcome === "rejected" ? "Rejected" : "Accepted"}</span>
+                    <span>Grade {assessment.grade || "—"}</span>
+                    <span>Base {assessment.baseConfidence ?? "—"}</span>
+                    <span>Date adjustment {assessment.recencyAdjustment ?? "—"}</span>
+                    <span>Quality multiplier {assessment.qualityMultiplier ?? "—"}</span>
+                    <span>Final {assessment.finalScore ?? "—"}%</span>
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    Evaluated {new Date(assessment.evaluationClock).toLocaleString()} · {assessment.parsingStatus} publication date
+                    {assessment.rejectionCode ? ` · ${assessment.rejectionCode}` : ""}
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </TabsContent>

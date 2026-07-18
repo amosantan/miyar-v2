@@ -10,8 +10,10 @@
 
 import {
     BaseSourceConnector,
-    assignGrade,
-    computeConfidence,
+    evaluateEvidenceConfidence,
+    publicationDateFields,
+    resolveGradePolicy,
+    type ConfidenceEvaluationContext,
     type RawSourcePayload,
     type ExtractedEvidence,
     type NormalizedEvidenceInput,
@@ -179,7 +181,8 @@ export class SCADPdfConnector extends BaseSourceConnector {
                         item.changePercent ? `YoY: ${item.changePercent > 0 ? "+" : ""}${item.changePercent}%` : null,
                         item.yearQuarter,
                     ].filter(Boolean).join(" | "),
-                    publishedDate: undefined,
+                    ...publicationDateFields(undefined, raw.fetchedAt),
+                    observedAt: raw.fetchedAt,
                     category: "material_cost",
                     geography: "Abu Dhabi",
                     sourceUrl: raw.url,
@@ -195,9 +198,14 @@ export class SCADPdfConnector extends BaseSourceConnector {
     /**
      * Normalize: convert extracted items into evidence record format.
      */
-    async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-        const grade = assignGrade(this.sourceId);
-        const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    async normalize(
+        evidence: ExtractedEvidence,
+        context?: ConfidenceEvaluationContext
+    ): Promise<NormalizedEvidenceInput> {
+        const gradePolicy = resolveGradePolicy(this.sourceId);
+        const grade = gradePolicy.grade;
+        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade, context);
+        const confidence = confidencePolicy.initial.score;
         const scadItem: SCADMaterialItem | undefined = (evidence as any)._scadItem;
 
         const metric = scadItem
@@ -227,6 +235,8 @@ export class SCADPdfConnector extends BaseSourceConnector {
             unit,
             confidence,
             grade,
+            confidencePolicy,
+            gradePolicy,
             summary: summaryParts.join(" — ").substring(0, 500),
             tags,
         };

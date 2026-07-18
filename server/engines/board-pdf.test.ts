@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { generateBoardPdfHtml } from "./board-pdf";
 import { computeBoardSummary, generateRfqLines, recommendMaterials, type BoardItem } from "./board-composer";
+import { buildBoardAnnexData, type BoardAnnexData } from "./board-annex";
+import { generateDesignBriefHTML, generateFullReportHTML, generateReportHTML } from "./pdf-report";
 
 // ─── Board Composer Engine Tests ──────────────────────────────────────────────
 
@@ -271,72 +273,153 @@ describe("V4-06: Board PDF HTML Generation", () => {
 // ─── Board Annex in Report Tests ──────────────────────────────────────────────
 
 describe("V4-06: Board Annex in PDF Reports", () => {
-  it("renderBoardAnnex is called in design brief HTML", async () => {
-    // We test the integration by importing the report generator
-    const { generateDesignBriefHTML } = await import("./pdf-report");
-    const mockData = {
-      projectName: "Test Project",
-      projectId: 1,
-      inputs: {} as any,
-      scoreResult: {
-        dimensions: { sa: 70, ff: 65, mp: 72, ds: 68, er: 60 },
-        dimensionWeights: { sa: 0.25, ff: 0.20, mp: 0.20, ds: 0.20, er: 0.15 },
-        compositeScore: 67.5,
-        riskScore: 25,
-        rasScore: 72,
-        confidenceScore: 80,
-        decisionStatus: "conditional" as const,
-        penalties: [],
-        riskFlags: [],
-        conditionalActions: [],
-        variableContributions: {},
-        inputSnapshot: {},
-      },
-      sensitivity: [],
-      boardSummaries: [
-        {
-          boardName: "Master Suite Board",
-          totalItems: 5,
-          estimatedCostLow: 1000,
-          estimatedCostHigh: 2500,
-          currency: "AED",
-          longestLeadTimeDays: 90,
-          criticalPathItems: ["Italian Marble"],
-          tierDistribution: { premium: 3, luxury: 2 },
-        },
-      ],
-    };
-    const html = generateDesignBriefHTML(mockData);
-    expect(html).toContain("Material Board Annex");
-    expect(html).toContain("Master Suite Board");
-    expect(html).toContain("5 items");
+  const reportData = {
+    projectName: "Test Project",
+    projectId: 1,
+    inputs: {} as any,
+    scoreResult: {
+      dimensions: { sa: 70, ff: 65, mp: 72, ds: 68, er: 60 },
+      dimensionWeights: { sa: 0.25, ff: 0.20, mp: 0.20, ds: 0.20, er: 0.15 },
+      compositeScore: 67.5,
+      riskScore: 25,
+      rasScore: 72,
+      confidenceScore: 80,
+      decisionStatus: "conditional" as const,
+      penalties: [],
+      riskFlags: [],
+      conditionalActions: [],
+      variableContributions: {},
+      inputSnapshot: {},
+    },
+    sensitivity: [],
+  };
+  const item = (name = "Italian Marble"): BoardItem => ({
+    materialId: 1,
+    name,
+    category: "stone",
+    tier: "ultra_luxury",
+    costLow: 1_000,
+    costHigh: 2_500,
+    costUnit: "AED/sqm",
+    leadTimeDays: 90,
+    leadTimeBand: "critical",
+    supplierName: "Supplier",
+  });
+  const renderBoth = (boardAnnex: BoardAnnexData) => {
+    const data = { ...reportData, boardAnnex };
+    return [generateDesignBriefHTML(data), generateFullReportHTML(data)];
+  };
+
+  it("renders a mandatory complete annex in design-brief and full-report HTML", () => {
+    const boardAnnex = buildBoardAnnexData([{
+      boardName: "Master Suite Board",
+      linkedItemCount: 1,
+      resolvedItems: [item()],
+    }]);
+
+    for (const html of renderBoth(boardAnnex)) {
+      expect(html).toContain("Material Board Annex");
+      expect(html).toContain("Master Suite Board");
+      expect(html).toContain("Complete board — the linked item is resolved");
+      expect(html).toContain("1 of 1 items resolved");
+      expect(html).toContain("Resolved-item Cost Range");
+      expect(html).toContain("1,000 – 2,500 AED");
+    }
   });
 
-  it("renderBoardAnnex shows empty message when no boards", async () => {
-    const { generateDesignBriefHTML } = await import("./pdf-report");
-    const mockData = {
-      projectName: "Test Project",
-      projectId: 1,
-      inputs: {} as any,
-      scoreResult: {
-        dimensions: { sa: 70, ff: 65, mp: 72, ds: 68, er: 60 },
-        dimensionWeights: { sa: 0.25, ff: 0.20, mp: 0.20, ds: 0.20, er: 0.15 },
-        compositeScore: 67.5,
-        riskScore: 25,
-        rasScore: 72,
-        confidenceScore: 80,
-        decisionStatus: "conditional" as const,
-        penalties: [],
-        riskFlags: [],
-        conditionalActions: [],
-        variableContributions: {},
-        inputSnapshot: {},
-      },
-      sensitivity: [],
-      boardSummaries: [],
-    };
-    const html = generateDesignBriefHTML(mockData);
-    expect(html).toContain("Material Board Annex");
-    expect(html).toContain("No material boards have been created");
+  it("renders the genuine no-board state in both issued paths", () => {
+    for (const html of renderBoth(buildBoardAnnexData([]))) {
+      expect(html).toContain("Material Board Annex");
+      expect(html).toContain("No material boards have been created");
+    }
+  });
+
+  it("renders an existing zero-item board without claiming no board or showing fake costs", () => {
+    const boardAnnex = buildBoardAnnexData([{
+      boardName: "Unspecified Finishes",
+      linkedItemCount: 0,
+      resolvedItems: [],
+    }]);
+
+    for (const html of renderBoth(boardAnnex)) {
+      expect(html).toContain("Unspecified Finishes");
+      expect(html).toContain("Empty board — no materials are attached");
+      expect(html).not.toContain("No material boards have been created");
+      expect(html).not.toContain("Resolved-item Cost Range");
+      expect(html).not.toContain("0 – 0 AED");
+    }
+  });
+
+  it("renders a partial board with qualified resolved-only figures", () => {
+    const boardAnnex = buildBoardAnnexData([{
+      boardName: "Partial Board",
+      linkedItemCount: 3,
+      resolvedItems: [item()],
+    }]);
+
+    for (const html of renderBoth(boardAnnex)) {
+      expect(html).toContain("Partial board — 1 of 3 linked items resolved");
+      expect(html).toContain("2 unresolved items are excluded from the figures below");
+      expect(html).toContain("Any figures shown are calculated only from resolved catalog items");
+      expect(html).toContain("Resolved-item Cost Range");
+      expect(html).not.toContain("No material boards have been created");
+    }
+  });
+
+  it("renders a wholly unresolvable board without summary figures or missing IDs", () => {
+    const boardAnnex = buildBoardAnnexData([{
+      boardName: "Broken Links",
+      linkedItemCount: 2,
+      resolvedItems: [],
+    }]);
+
+    for (const html of renderBoth(boardAnnex)) {
+      expect(html).toContain("Unresolvable board — none of the 2 linked items could be resolved");
+      expect(html).toContain("repair the board links before relying on it");
+      expect(html).not.toContain("No material boards have been created");
+      expect(html).not.toContain("Resolved-item Cost Range");
+      expect(html).not.toMatch(/material(?:Id| ID)/);
+      expect(html).not.toContain("0 – 0 AED");
+    }
+  });
+
+  it("escapes board and resolved critical-item names in issued HTML", () => {
+    const boardAnnex = buildBoardAnnexData([{
+      boardName: '<Board & "Suite">',
+      linkedItemCount: 1,
+      resolvedItems: [item("<Marble & Stone>")],
+    }]);
+
+    for (const html of renderBoth(boardAnnex)) {
+      expect(html).toContain("&lt;Board &amp; &quot;Suite&quot;&gt;");
+      expect(html).toContain("&lt;Marble &amp; Stone&gt;");
+      expect(html).not.toContain('<Board & "Suite">');
+      expect(html).not.toContain("<Marble & Stone>");
+    }
+  });
+
+  it("requires annex data only for the two supported issued report types", () => {
+    expect(() => generateReportHTML("design_brief", reportData)).toThrow(
+      "Material Board Annex data is required for this issued report"
+    );
+    expect(() => generateReportHTML("full_report", reportData)).toThrow(
+      "Material Board Annex data is required for this issued report"
+    );
+    expect(() => generateReportHTML("validation_summary", reportData)).not.toThrow();
+    expect(() => generateReportHTML("autonomous_design_brief", reportData)).not.toThrow();
+  });
+
+  it("never describes a reference with omitted provenance as computed", () => {
+    const html = generateFullReportHTML({
+      ...reportData,
+      boardAnnex: buildBoardAnnexData([]),
+      evidenceRefs: [{
+        title: "Historical row without provenance",
+        reliabilityGrade: "B",
+      } as any],
+    });
+
+    expect(html).toContain("Legacy — calculation provenance unavailable");
+    expect(html).not.toContain("Computed (policy unavailable)");
   });
 });

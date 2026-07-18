@@ -41,6 +41,7 @@ __export(schema_exports, {
   dldTransactions: () => dldTransactions,
   dmComplianceChecklists: () => dmComplianceChecklists,
   entityTags: () => entityTags,
+  evidenceConfidenceAssessments: () => evidenceConfidenceAssessments,
   evidenceRecords: () => evidenceRecords,
   evidenceReferences: () => evidenceReferences,
   finishScheduleItems: () => finishScheduleItems,
@@ -114,7 +115,7 @@ import {
   index,
   uniqueIndex
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -1125,6 +1126,8 @@ var init_schema = __esm({
       reliabilityGrade: mysqlEnum("reliabilityGrade", ["A", "B", "C"]).notNull(),
       confidenceScore: int("confidenceScore").notNull(),
       // 0-100
+      currentConfidenceAssessmentId: int("currentConfidenceAssessmentId"),
+      confidencePolicyVersion: varchar("confidencePolicyVersion", { length: 64 }),
       extractedSnippet: text("extractedSnippet"),
       notes: text("notes"),
       // V2.2 metadata fields
@@ -1157,10 +1160,48 @@ var init_schema = __esm({
       ]).default("material_price"),
       corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
       corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+      publicObservationKey: varchar("publicObservationKey", { length: 64 }),
       createdBy: int("createdBy"),
       createdAt: timestamp("createdAt").defaultNow().notNull()
     }, (table) => [
-      index("evidence_records_corpus_org_project_category_idx").on(table.corpusScope, table.orgId, table.projectId, table.category)
+      index("evidence_records_corpus_org_project_category_idx").on(table.corpusScope, table.orgId, table.projectId, table.category),
+      uniqueIndex("evidence_records_public_observation_key_unique").on(table.publicObservationKey)
+    ]);
+    evidenceConfidenceAssessments = mysqlTable("evidence_confidence_assessments", {
+      id: int("id").autoincrement().primaryKey(),
+      evidenceRecordId: int("evidenceRecordId"),
+      runId: varchar("runId", { length: 64 }),
+      sourceId: varchar("sourceId", { length: 64 }),
+      actorId: int("actorId"),
+      corpusScope: mysqlEnum("assessmentCorpusScope", ["organization", "platform_public", "legacy_unscoped"]),
+      origin: mysqlEnum("origin", ["connector", "csv_upload", "manual_entry", "bulk_entry"]).notNull(),
+      outcome: mysqlEnum("outcome", ["accepted", "rejected"]).notNull(),
+      evaluationClock: timestamp("evaluationClock").notNull(),
+      rawPublicationText: text("rawPublicationText"),
+      datePrecision: mysqlEnum("datePrecision", ["missing", "date", "timestamp", "unknown"]).notNull(),
+      parsingStatus: mysqlEnum("parsingStatus", ["valid", "missing", "invalid", "future"]).notNull(),
+      parsedPublicationDate: timestamp("parsedPublicationDate"),
+      staticGradePolicyId: varchar("staticGradePolicyId", { length: 64 }),
+      registryGradePolicyId: varchar("registryGradePolicyId", { length: 64 }),
+      confidencePolicyId: varchar("confidencePolicyId", { length: 64 }).notNull(),
+      qualityPolicyId: varchar("qualityPolicyId", { length: 64 }),
+      mergePolicyId: varchar("mergePolicyId", { length: 64 }),
+      grade: mysqlEnum("assessmentGrade", ["A", "B", "C"]),
+      baseConfidence: decimal("baseConfidence", { precision: 6, scale: 4 }),
+      recencyAdjustment: decimal("recencyAdjustment", { precision: 6, scale: 4 }),
+      confidenceAfterRecency: decimal("confidenceAfterRecency", { precision: 6, scale: 4 }),
+      qualityMultiplier: decimal("qualityMultiplier", { precision: 6, scale: 4 }),
+      qualityFloor: decimal("qualityFloor", { precision: 6, scale: 4 }),
+      qualityFlags: json("qualityFlags"),
+      previousScore: int("previousScore"),
+      candidateScore: int("candidateScore"),
+      finalScore: int("finalScore"),
+      mergeDecision: mysqlEnum("mergeDecision", ["inserted", "latest_accepted", "manual_assertion", "rejected"]),
+      rejectionCode: varchar("rejectionCode", { length: 64 }),
+      createdAt: timestamp("createdAt").defaultNow().notNull()
+    }, (table) => [
+      index("evidence_confidence_assessments_evidence_time_idx").on(table.evidenceRecordId, table.createdAt),
+      index("evidence_confidence_assessments_run_outcome_idx").on(table.runId, table.outcome)
     ]);
     benchmarkProposals = mysqlTable("benchmark_proposals", {
       id: int("id").autoincrement().primaryKey(),
@@ -1368,6 +1409,7 @@ var init_schema = __esm({
       recordsExtracted: int("recordsExtracted").default(0).notNull(),
       recordsInserted: int("recordsInserted").default(0).notNull(),
       duplicatesSkipped: int("duplicatesSkipped").default(0).notNull(),
+      recordsRejected: int("recordsRejected").default(0).notNull(),
       // Detail
       sourceBreakdown: json("sourceBreakdown"),
       // per-source { sourceId, name, status, extracted, inserted, duplicates, errors }
@@ -2219,6 +2261,7 @@ __export(db_exports, {
   createEntityTag: () => createEntityTag,
   createEvidenceRecord: () => createEvidenceRecord,
   createEvidenceRecordForOrg: () => createEvidenceRecordForOrg,
+  createEvidenceRecordWithConfidenceAssessment: () => createEvidenceRecordWithConfidenceAssessment,
   createEvidenceReference: () => createEvidenceReference,
   createFloorPlanAssetAndLinkForOrg: () => createFloorPlanAssetAndLinkForOrg,
   createGeneratedVisual: () => createGeneratedVisual,
@@ -2414,6 +2457,7 @@ __export(db_exports, {
   getPublicEvidenceStats: () => getPublicEvidenceStats,
   getPublicTrendSnapshots: () => getPublicTrendSnapshots,
   getPublishedLogicVersion: () => getPublishedLogicVersion,
+  getReportBoardSnapshotForOrg: () => getReportBoardSnapshotForOrg,
   getReportById: () => getReportById,
   getReportsByProject: () => getReportsByProject,
   getScenarioById: () => getScenarioById,
@@ -2461,6 +2505,7 @@ __export(db_exports, {
   listBenchmarkSuggestions: () => listBenchmarkSuggestions,
   listCompetitorEntities: () => listCompetitorEntities,
   listCompetitorProjects: () => listCompetitorProjects,
+  listConfidenceAssessmentHistory: () => listConfidenceAssessmentHistory,
   listEvidenceRecords: () => listEvidenceRecords,
   listEvidenceReferences: () => listEvidenceReferences,
   listIntelligenceAuditLog: () => listIntelligenceAuditLog,
@@ -2475,6 +2520,7 @@ __export(db_exports, {
   lockMaterialAllocations: () => lockMaterialAllocations,
   publishBenchmarkVersion: () => publishBenchmarkVersion,
   publishLogicVersion: () => publishLogicVersion,
+  recordRejectedConfidenceAssessment: () => recordRejectedConfidenceAssessment,
   removeMaterialFromBoard: () => removeMaterialFromBoard,
   removeMaterialFromBoardForOrg: () => removeMaterialFromBoardForOrg,
   reorderBoardTiles: () => reorderBoardTiles,
@@ -2522,12 +2568,14 @@ __export(db_exports, {
   updateWebhookConfig: () => updateWebhookConfig,
   upsertAreaBenchmark: () => upsertAreaBenchmark,
   upsertBiasProfile: () => upsertBiasProfile,
+  upsertPublicEvidenceObservation: () => upsertPublicEvidenceObservation,
   upsertUser: () => upsertUser,
   verifyPdfExtractionForOrg: () => verifyPdfExtractionForOrg
 });
 import { eq, and, desc, asc, sql, inArray, gte, isNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
+import { createHash } from "node:crypto";
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -3392,6 +3440,69 @@ async function getMaterialBoardsByProject(projectId) {
   if (!db) return [];
   return db.select().from(materialBoards).where(eq(materialBoards.projectId, projectId)).orderBy(desc(materialBoards.createdAt));
 }
+async function getReportBoardSnapshotForOrg(projectId, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("REPORT_BOARD_RETRIEVAL_FAILED");
+  const rows = await db.select({
+    boardId: materialBoards.id,
+    boardName: materialBoards.boardName,
+    boardCreatedAt: materialBoards.createdAt,
+    linkId: materialsToBoards.id,
+    materialId: materialsCatalog.id,
+    name: materialsCatalog.name,
+    category: materialsCatalog.category,
+    tier: materialsCatalog.tier,
+    costLow: materialsCatalog.typicalCostLow,
+    costHigh: materialsCatalog.typicalCostHigh,
+    costUnit: materialsCatalog.costUnit,
+    leadTimeDays: materialsCatalog.leadTimeDays,
+    leadTimeBand: materialsCatalog.leadTimeBand,
+    supplierName: materialsCatalog.supplierName,
+    maintenanceFactor: materialsCatalog.maintenanceFactor,
+    quantity: materialsToBoards.quantity,
+    unitOfMeasure: materialsToBoards.unitOfMeasure,
+    notes: materialsToBoards.notes,
+    sortOrder: materialsToBoards.sortOrder
+  }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).leftJoin(materialsToBoards, eq(materialsToBoards.boardId, materialBoards.id)).leftJoin(materialsCatalog, eq(materialsCatalog.id, materialsToBoards.materialId)).where(and(eq(materialBoards.projectId, projectId), eq(projects.orgId, orgId))).orderBy(
+    desc(materialBoards.createdAt),
+    desc(materialBoards.id),
+    asc(materialsToBoards.sortOrder),
+    asc(materialsToBoards.id)
+  );
+  const boards = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    let board = boards.get(row.boardId);
+    if (!board) {
+      board = {
+        boardId: row.boardId,
+        boardName: row.boardName,
+        linkedItemCount: 0,
+        resolvedItems: []
+      };
+      boards.set(row.boardId, board);
+    }
+    if (row.linkId == null) continue;
+    board.linkedItemCount += 1;
+    if (row.materialId == null || row.name == null || row.category == null || row.tier == null) continue;
+    board.resolvedItems.push({
+      materialId: row.materialId,
+      name: row.name,
+      category: row.category,
+      tier: row.tier,
+      costLow: Number(row.costLow) || 0,
+      costHigh: Number(row.costHigh) || 0,
+      costUnit: row.costUnit || "AED/unit",
+      leadTimeDays: row.leadTimeDays || 30,
+      leadTimeBand: row.leadTimeBand || "medium",
+      supplierName: row.supplierName || "TBD",
+      quantity: row.quantity == null ? void 0 : Number(row.quantity),
+      unitOfMeasure: row.unitOfMeasure || void 0,
+      notes: row.notes || void 0,
+      maintenanceFactor: row.maintenanceFactor == null ? void 0 : Number(row.maintenanceFactor)
+    });
+  }
+  return Array.from(boards.values());
+}
 async function getMaterialBoardById(id) {
   const db = await getDb();
   if (!db) return void 0;
@@ -4041,6 +4152,146 @@ async function createEvidenceRecord(data) {
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(evidenceRecords).values(data);
   return { id: Number(result.insertId) };
+}
+async function createEvidenceRecordWithConfidenceAssessment(data, assessment) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const [recordResult] = await tx.insert(evidenceRecords).values({
+      ...data,
+      confidencePolicyVersion: assessment.confidencePolicyId
+    });
+    const evidenceRecordId = Number(recordResult.insertId);
+    const [assessmentResult] = await tx.insert(evidenceConfidenceAssessments).values({
+      ...assessment,
+      evidenceRecordId
+    });
+    const assessmentId = Number(assessmentResult.insertId);
+    await tx.update(evidenceRecords).set({ currentConfidenceAssessmentId: assessmentId }).where(eq(evidenceRecords.id, evidenceRecordId));
+    return { id: evidenceRecordId, assessmentId };
+  });
+}
+async function upsertPublicEvidenceObservation(data, assessment) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (data.orgId != null || data.projectId != null || data.corpusScope !== "platform_public") {
+    throw new Error("Public connector observations must be platform_public with no organization or project");
+  }
+  const publicObservationKey = createHash("sha256").update(JSON.stringify([data.sourceUrl, data.itemName])).digest("hex");
+  return db.transaction(async (tx) => {
+    const legacyMatches = await tx.select({
+      id: evidenceRecords.id
+    }).from(evidenceRecords).where(and(
+      eq(evidenceRecords.sourceUrl, data.sourceUrl),
+      eq(evidenceRecords.itemName, data.itemName),
+      isNull(evidenceRecords.orgId),
+      isNull(evidenceRecords.projectId),
+      eq(evidenceRecords.corpusScope, "platform_public")
+    )).orderBy(desc(evidenceRecords.captureDate)).limit(1);
+    let existing;
+    let evidenceRecordId;
+    let created = false;
+    if (legacyMatches[0]) {
+      const locked = await tx.select({
+        id: evidenceRecords.id,
+        confidenceScore: evidenceRecords.confidenceScore,
+        priceTypical: evidenceRecords.priceTypical,
+        recordId: evidenceRecords.recordId
+      }).from(evidenceRecords).where(and(
+        eq(evidenceRecords.id, legacyMatches[0].id),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        eq(evidenceRecords.corpusScope, "platform_public")
+      )).limit(1).for("update");
+      existing = locked[0];
+      if (!existing) throw new Error("Public observation disappeared before it could be locked");
+      evidenceRecordId = existing.id;
+    } else {
+      const [insertResult] = await tx.insert(evidenceRecords).values({
+        ...data,
+        publicObservationKey,
+        confidencePolicyVersion: assessment.confidencePolicyId
+      }).onDuplicateKeyUpdate({
+        set: { id: sql`LAST_INSERT_ID(${evidenceRecords.id})` }
+      });
+      evidenceRecordId = Number(insertResult.insertId);
+      const locked = await tx.select({
+        id: evidenceRecords.id,
+        confidenceScore: evidenceRecords.confidenceScore,
+        priceTypical: evidenceRecords.priceTypical,
+        recordId: evidenceRecords.recordId
+      }).from(evidenceRecords).where(and(
+        eq(evidenceRecords.id, evidenceRecordId),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        eq(evidenceRecords.corpusScope, "platform_public"),
+        eq(evidenceRecords.publicObservationKey, publicObservationKey)
+      )).limit(1).for("update");
+      if (!locked[0]) throw new Error("Public observation conflict resolved outside the public corpus");
+      created = locked[0].recordId === data.recordId;
+      if (!created) existing = locked[0];
+    }
+    if (!created) {
+      const {
+        id: _ignoredId,
+        recordId: _ignoredRecordId,
+        currentConfidenceAssessmentId: _ignoredAssessmentId,
+        ...latestObservation
+      } = data;
+      await tx.update(evidenceRecords).set({
+        ...latestObservation,
+        publicObservationKey,
+        confidencePolicyVersion: assessment.confidencePolicyId
+      }).where(and(
+        eq(evidenceRecords.id, evidenceRecordId),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        eq(evidenceRecords.corpusScope, "platform_public")
+      ));
+    }
+    const finalScore = Number(data.confidenceScore);
+    const [assessmentResult] = await tx.insert(evidenceConfidenceAssessments).values({
+      ...assessment,
+      evidenceRecordId,
+      previousScore: existing?.confidenceScore ?? null,
+      finalScore,
+      mergeDecision: existing ? "latest_accepted" : "inserted",
+      outcome: "accepted"
+    });
+    const assessmentId = Number(assessmentResult.insertId);
+    await tx.update(evidenceRecords).set({
+      currentConfidenceAssessmentId: assessmentId,
+      confidencePolicyVersion: assessment.confidencePolicyId
+    }).where(and(
+      eq(evidenceRecords.id, evidenceRecordId),
+      isNull(evidenceRecords.orgId),
+      isNull(evidenceRecords.projectId),
+      eq(evidenceRecords.corpusScope, "platform_public")
+    ));
+    return {
+      id: evidenceRecordId,
+      assessmentId,
+      created,
+      previousConfidenceScore: existing?.confidenceScore ?? null,
+      previousPriceTypical: existing?.priceTypical ?? null
+    };
+  });
+}
+async function recordRejectedConfidenceAssessment(assessment) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(evidenceConfidenceAssessments).values({
+    ...assessment,
+    evidenceRecordId: null,
+    outcome: "rejected",
+    mergeDecision: "rejected"
+  });
+  return { id: Number(result.insertId) };
+}
+async function listConfidenceAssessmentHistory(evidenceRecordId, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(evidenceConfidenceAssessments).where(eq(evidenceConfidenceAssessments.evidenceRecordId, evidenceRecordId)).orderBy(desc(evidenceConfidenceAssessments.createdAt)).limit(Math.min(Math.max(limit, 1), 100));
 }
 async function createEvidenceRecordForOrg(orgId, projectId, data) {
   const db = await getDb();
@@ -6176,7 +6427,14 @@ function benchmarkSpaceRatios(analysis, areaName, transactionCount = 0, saleP50 
       totalAdvisory: 0,
       totalOptimal: 0,
       unitType: analysis.unitType,
-      areaName
+      areaName,
+      evidence: {
+        status: "neutral_fallback",
+        reason: "no_rooms_detected",
+        roomCount: 0,
+        benchmarkBasis: "not_applied",
+        transactionCount: 0
+      }
     };
   }
   const bedroomCount = analysis.bedroomCount;
@@ -6259,7 +6517,13 @@ function benchmarkSpaceRatios(analysis, areaName, transactionCount = 0, saleP50 
     totalAdvisory,
     totalOptimal,
     unitType: analysis.unitType,
-    areaName
+    areaName,
+    evidence: {
+      status: "measured",
+      roomCount: analysis.rooms.length,
+      benchmarkBasis: transactionCount > 0 ? "dld_area" : "miyar_uae",
+      transactionCount: Math.max(0, Math.trunc(transactionCount))
+    }
   };
 }
 var RESIDENTIAL_BENCHMARKS;
@@ -7764,117 +8028,6 @@ var init_dm_compliance = __esm({
   }
 });
 
-// server/engines/board-composer.ts
-var board_composer_exports = {};
-__export(board_composer_exports, {
-  computeBoardSummary: () => computeBoardSummary,
-  generateRfqLines: () => generateRfqLines,
-  recommendMaterials: () => recommendMaterials
-});
-function computeBoardSummary(items, briefConstraints) {
-  const tierDist = {};
-  const catDist = {};
-  let costLow = 0;
-  let costHigh = 0;
-  let maxLead = 0;
-  const criticalItems = [];
-  for (const item of items) {
-    tierDist[item.tier] = (tierDist[item.tier] || 0) + 1;
-    catDist[item.category] = (catDist[item.category] || 0) + 1;
-    costLow += item.costLow;
-    costHigh += item.costHigh;
-    if (item.leadTimeDays > maxLead) maxLead = item.leadTimeDays;
-    if (item.leadTimeBand === "critical" || item.leadTimeDays >= 90) {
-      criticalItems.push(item.name);
-    }
-  }
-  let budgetComplianceCheck;
-  if (briefConstraints) {
-    const capStr = briefConstraints.totalBudgetCap.replace(/[^0-9.]/g, "");
-    const cap = Number(capStr) || null;
-    const utilizationPct = cap ? Math.round(costHigh / cap * 100) : null;
-    budgetComplianceCheck = {
-      budgetCapAed: cap,
-      utilizationPct,
-      status: cap ? costHigh <= cap ? "within_budget" : "over_budget" : "unknown"
-    };
-  }
-  return {
-    totalItems: items.length,
-    estimatedCostLow: costLow,
-    estimatedCostHigh: costHigh,
-    currency: "AED",
-    longestLeadTimeDays: maxLead,
-    criticalPathItems: criticalItems,
-    tierDistribution: tierDist,
-    categoryDistribution: catDist,
-    budgetComplianceCheck
-  };
-}
-function generateRfqLines(items, briefConstraints) {
-  return items.map((item, idx) => {
-    const notes = [];
-    if (item.notes) notes.push(item.notes);
-    if (briefConstraints) {
-      if (briefConstraints.pricingVerified) notes.push("(market-verified)");
-      const prohibited = briefConstraints.prohibitedMaterials.map((p) => p.toLowerCase());
-      const itemLower = item.name.toLowerCase();
-      if (prohibited.some((p) => itemLower.includes(p.split("(")[0].trim().toLowerCase()))) {
-        notes.push("\u26A0 Not in approved materials list");
-      }
-    }
-    return {
-      lineNo: idx + 1,
-      materialName: item.name,
-      category: item.category,
-      specification: `${item.tier} grade \u2014 ${item.name}`,
-      quantity: item.quantity ? `${item.quantity}` : "TBD",
-      unit: item.unitOfMeasure || item.costUnit.replace("AED/", ""),
-      estimatedUnitCostLow: item.costLow,
-      estimatedUnitCostHigh: item.costHigh,
-      leadTimeDays: item.leadTimeDays,
-      supplierSuggestion: item.supplierName,
-      notes: notes.join(" | ") || ""
-    };
-  });
-}
-function recommendMaterials(catalog, projectTier, maxItems = 10) {
-  const tierMap = {
-    Mid: ["economy", "mid"],
-    "Upper-mid": ["mid", "premium"],
-    Luxury: ["premium", "luxury"],
-    "Ultra-luxury": ["luxury", "ultra_luxury"]
-  };
-  const allowedTiers = tierMap[projectTier] || ["mid", "premium"];
-  const scored = catalog.filter((m) => allowedTiers.includes(m.tier)).map((m) => ({
-    materialId: m.id,
-    name: m.name,
-    category: m.category,
-    tier: m.tier,
-    costLow: Number(m.typicalCostLow) || 0,
-    costHigh: Number(m.typicalCostHigh) || 0,
-    costUnit: m.costUnit || "AED/unit",
-    leadTimeDays: m.leadTimeDays || 30,
-    leadTimeBand: m.leadTimeBand || "medium",
-    supplierName: m.supplierName || "TBD"
-  }));
-  const byCategory = {};
-  for (const item of scored) {
-    if (!byCategory[item.category]) byCategory[item.category] = [];
-    byCategory[item.category].push(item);
-  }
-  const result = [];
-  for (const [, items] of Object.entries(byCategory)) {
-    result.push(...items.slice(0, 2));
-  }
-  return result.slice(0, maxItems);
-}
-var init_board_composer = __esm({
-  "server/engines/board-composer.ts"() {
-    "use strict";
-  }
-});
-
 // server/engines/pdf-extraction.ts
 var pdf_extraction_exports = {};
 __export(pdf_extraction_exports, {
@@ -8877,6 +9030,171 @@ var init_investor_pdf = __esm({
   }
 });
 
+// server/engines/ingestion/confidence-policy.ts
+function isValidDate(value) {
+  return Number.isFinite(value.getTime());
+}
+function normalizeScore(value) {
+  return Number(value.toFixed(12));
+}
+function isValidCalendarDate(year, month, day) {
+  if (month < 1 || month > 12 || day < 1) return false;
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return day <= daysInMonth[month - 1];
+}
+function parseDateOnly(raw) {
+  const [yearText, monthText, dayText] = raw.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (!isValidCalendarDate(year, month, day)) return null;
+  const parsed = /* @__PURE__ */ new Date(0);
+  parsed.setUTCFullYear(year, month - 1, day);
+  parsed.setUTCHours(0, 0, 0, 0);
+  return parsed;
+}
+function utcDayOrdinal(value) {
+  return Math.floor(
+    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()) / MILLIS_PER_DAY
+  );
+}
+function classifyPublicationDate(input, evaluatedAt) {
+  if (input === null || input === void 0 || input === "") {
+    return { raw: null, parsedAt: null, precision: "unknown", status: "missing" };
+  }
+  const raw = input instanceof Date ? isValidDate(input) ? input.toISOString() : String(input) : String(input).trim();
+  const datetimeMatch = typeof input === "string" ? raw.match(ISO_DATETIME_PATTERN) : null;
+  const precision = typeof input !== "string" ? "datetime" : DATE_ONLY_PATTERN.test(raw) ? "date" : datetimeMatch ? "datetime" : "unknown";
+  const hasInvalidDatetimeCalendarDate = datetimeMatch !== null && !isValidCalendarDate(
+    Number(datetimeMatch[1]),
+    Number(datetimeMatch[2]),
+    Number(datetimeMatch[3])
+  );
+  const parsedAt = precision === "date" ? parseDateOnly(raw) : precision === "unknown" || hasInvalidDatetimeCalendarDate ? null : input instanceof Date ? new Date(input.getTime()) : new Date(raw);
+  if (!parsedAt || !isValidDate(parsedAt)) {
+    return { raw, parsedAt: null, precision, status: "invalid" };
+  }
+  if (!isValidDate(evaluatedAt)) {
+    return { raw, parsedAt, precision, status: "valid" };
+  }
+  const isFuture = precision === "date" ? utcDayOrdinal(parsedAt) > utcDayOrdinal(evaluatedAt) : parsedAt.getTime() > evaluatedAt.getTime();
+  return {
+    raw,
+    parsedAt,
+    precision,
+    status: isFuture ? "future" : "valid"
+  };
+}
+function evaluateConnectorConfidence(input) {
+  const evaluatedAt = isValidDate(input.evaluatedAt) ? new Date(input.evaluatedAt.getTime()) : null;
+  const publicationDate = classifyPublicationDate(
+    input.publicationDate,
+    input.evaluatedAt
+  );
+  if (!evaluatedAt) {
+    return {
+      accepted: false,
+      chainPolicyVersion: CONFIDENCE_CHAIN_POLICY_VERSION,
+      evaluatedAt: null,
+      publicationDate,
+      rejectionCode: "invalid_evaluation_clock"
+    };
+  }
+  if (publicationDate.status === "invalid") {
+    return {
+      accepted: false,
+      chainPolicyVersion: CONFIDENCE_CHAIN_POLICY_VERSION,
+      evaluatedAt,
+      publicationDate,
+      rejectionCode: "invalid_publication_date"
+    };
+  }
+  if (publicationDate.status === "future") {
+    return {
+      accepted: false,
+      chainPolicyVersion: CONFIDENCE_CHAIN_POLICY_VERSION,
+      evaluatedAt,
+      publicationDate,
+      rejectionCode: "future_publication_date"
+    };
+  }
+  const baseScore = BASE_CONFIDENCE[input.grade];
+  let ageDays = null;
+  let dateAdjustment = STALENESS_PENALTY;
+  if (publicationDate.status === "valid" && publicationDate.parsedAt) {
+    ageDays = publicationDate.precision === "date" ? utcDayOrdinal(evaluatedAt) - utcDayOrdinal(publicationDate.parsedAt) : Math.floor(
+      (evaluatedAt.getTime() - publicationDate.parsedAt.getTime()) / MILLIS_PER_DAY
+    );
+    dateAdjustment = ageDays <= 90 ? RECENCY_BONUS : ageDays > 365 ? STALENESS_PENALTY : 0;
+  }
+  const unclampedScore = normalizeScore(baseScore + dateAdjustment);
+  const score = normalizeScore(
+    Math.min(CONFIDENCE_CAP, Math.max(CONFIDENCE_FLOOR, unclampedScore))
+  );
+  return {
+    accepted: true,
+    chainPolicyVersion: CONFIDENCE_CHAIN_POLICY_VERSION,
+    evaluatedAt,
+    publicationDate,
+    initial: {
+      policyVersion: CONNECTOR_CONFIDENCE_POLICY_VERSION,
+      grade: input.grade,
+      baseScore,
+      ageDays,
+      dateAdjustment,
+      unclampedScore,
+      floor: CONFIDENCE_FLOOR,
+      cap: CONFIDENCE_CAP,
+      score
+    }
+  };
+}
+function buildQualityConfidenceStage(input) {
+  const multiplier = input.multiplier ?? 1;
+  const floor = input.floor ?? null;
+  const multiplied = normalizeScore(input.inputScore * multiplier);
+  return {
+    policyVersion: QUALITY_CONFIDENCE_POLICY_VERSION,
+    status: input.status,
+    flags: [...input.flags],
+    inputScore: input.inputScore,
+    multiplier,
+    floor,
+    score: normalizeScore(floor === null ? multiplied : Math.max(multiplied, floor))
+  };
+}
+var CONFIDENCE_CHAIN_POLICY_VERSION, CONNECTOR_CONFIDENCE_POLICY_VERSION, STATIC_SOURCE_GRADE_POLICY_VERSION, REGISTRY_SOURCE_GRADE_POLICY_VERSION, QUALITY_CONFIDENCE_POLICY_VERSION, BASE_CONFIDENCE, RECENCY_BONUS, STALENESS_PENALTY, CONFIDENCE_CAP, CONFIDENCE_FLOOR, MILLIS_PER_DAY, DATE_ONLY_PATTERN, ISO_DATETIME_PATTERN, ConfidencePolicyError;
+var init_confidence_policy = __esm({
+  "server/engines/ingestion/confidence-policy.ts"() {
+    "use strict";
+    CONFIDENCE_CHAIN_POLICY_VERSION = "evidence-confidence-chain-v1";
+    CONNECTOR_CONFIDENCE_POLICY_VERSION = "ingestion-confidence-v1";
+    STATIC_SOURCE_GRADE_POLICY_VERSION = "source-grade-v1";
+    REGISTRY_SOURCE_GRADE_POLICY_VERSION = "source-registry-grade-v1";
+    QUALITY_CONFIDENCE_POLICY_VERSION = "evidence-quality-confidence-v1";
+    BASE_CONFIDENCE = {
+      A: 0.85,
+      B: 0.7,
+      C: 0.55
+    };
+    RECENCY_BONUS = 0.1;
+    STALENESS_PENALTY = -0.15;
+    CONFIDENCE_CAP = 1;
+    CONFIDENCE_FLOOR = 0.2;
+    MILLIS_PER_DAY = 864e5;
+    DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+    ISO_DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+    ConfidencePolicyError = class extends Error {
+      constructor(rejection) {
+        super(`Confidence evaluation rejected: ${rejection.rejectionCode}`);
+        this.rejection = rejection;
+        this.name = "ConfidencePolicyError";
+      }
+    };
+  }
+});
+
 // server/engines/ingestion/connector.ts
 import { z as z12 } from "zod";
 import robotsParser from "robots-parser";
@@ -8931,21 +9249,41 @@ function assignGrade(sourceId) {
   if (GRADE_C_SOURCE_IDS.has(sourceId)) return "C";
   return "C";
 }
-function computeConfidence2(grade2, publishedDate, fetchedAt) {
-  let confidence = BASE_CONFIDENCE[grade2];
-  if (!publishedDate) {
-    confidence += STALENESS_PENALTY;
-  } else {
-    const daysSincePublished = Math.floor(
-      (fetchedAt.getTime() - publishedDate.getTime()) / (1e3 * 60 * 60 * 24)
-    );
-    if (daysSincePublished <= 90) {
-      confidence += RECENCY_BONUS;
-    } else if (daysSincePublished > 365) {
-      confidence += STALENESS_PENALTY;
-    }
+function resolveGradePolicy(sourceId, registryGrade) {
+  if (registryGrade) {
+    return {
+      grade: registryGrade,
+      policyVersion: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+      source: "source_registry",
+      sourceId
+    };
   }
-  return Math.min(CONFIDENCE_CAP, Math.max(CONFIDENCE_FLOOR, confidence));
+  return {
+    grade: assignGrade(sourceId),
+    policyVersion: STATIC_SOURCE_GRADE_POLICY_VERSION,
+    source: "static_source_registry",
+    sourceId
+  };
+}
+function publicationDateFields(raw, evaluatedAt) {
+  const candidate = raw instanceof Date || typeof raw === "string" ? raw : raw == null ? void 0 : String(raw);
+  const publicationDate = classifyPublicationDate(candidate, evaluatedAt);
+  return {
+    publishedDate: publicationDate.parsedAt ?? void 0,
+    publishedDateRaw: publicationDate.raw ?? void 0,
+    publicationDate
+  };
+}
+function evaluateEvidenceConfidence(evidence, grade2, context) {
+  const evaluatedAt = context?.evaluatedAt ?? evidence.observedAt ?? new Date(Number.NaN);
+  const publicationInput = evidence.publicationDate?.raw ?? evidence.publishedDateRaw ?? evidence.publishedDate;
+  const result = evaluateConnectorConfidence({
+    grade: grade2,
+    publicationDate: publicationInput,
+    evaluatedAt
+  });
+  if (!result.accepted) throw new ConfidencePolicyError(result);
+  return result;
 }
 function markFirecrawlExhausted() {
   firecrawlExhaustedAt = Date.now();
@@ -8971,10 +9309,12 @@ function isApifyAvailable() {
 function isParseHubAvailable() {
   return !!process.env.PARSEHUB_API_KEY;
 }
-var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, robotsCache, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, BASE_CONFIDENCE, RECENCY_BONUS, STALENESS_PENALTY, CONFIDENCE_CAP, CONFIDENCE_FLOOR, firecrawlExhaustedAt, FIRECRAWL_EXHAUST_TTL_MS, FETCH_TIMEOUT_MS, MAX_RETRIES3, BASE_BACKOFF_MS, BaseSourceConnector;
+var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, robotsCache, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, firecrawlExhaustedAt, FIRECRAWL_EXHAUST_TTL_MS, FETCH_TIMEOUT_MS, MAX_RETRIES3, BASE_BACKOFF_MS, BaseSourceConnector;
 var init_connector = __esm({
   "server/engines/ingestion/connector.ts"() {
     "use strict";
+    init_confidence_policy();
+    init_confidence_policy();
     USER_AGENTS = [
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -9000,6 +9340,14 @@ var init_connector = __esm({
       title: z12.string().min(1),
       rawText: z12.string().min(1),
       publishedDate: z12.date().optional(),
+      publishedDateRaw: z12.string().optional(),
+      publicationDate: z12.object({
+        raw: z12.string().nullable(),
+        parsedAt: z12.date().nullable(),
+        precision: z12.enum(["date", "datetime", "unknown"]),
+        status: z12.enum(["missing", "valid", "invalid", "future"])
+      }).optional(),
+      observedAt: z12.date().optional(),
       category: z12.string().min(1),
       // Accept any category — validated at orchestrator level
       geography: z12.string().min(1),
@@ -9038,11 +9386,6 @@ var init_connector = __esm({
       "property-monitor-dubai"
     ]);
     GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set(["dera-interiors"]);
-    BASE_CONFIDENCE = { A: 0.85, B: 0.7, C: 0.55 };
-    RECENCY_BONUS = 0.1;
-    STALENESS_PENALTY = -0.15;
-    CONFIDENCE_CAP = 1;
-    CONFIDENCE_FLOOR = 0.2;
     firecrawlExhaustedAt = null;
     FIRECRAWL_EXHAUST_TTL_MS = 6 * 60 * 60 * 1e3;
     FETCH_TIMEOUT_MS = 15e3;
@@ -9735,11 +10078,15 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       /** Accumulates extracted evidence from all crawled pages */
       _allPageEvidence = [];
       _crawled = false;
+      reliabilityGrade;
+      gradePolicy;
       constructor(config) {
         super();
         this.sourceId = String(config.id);
         this.sourceName = config.name;
         this.sourceUrl = config.url;
+        this.reliabilityGrade = config.reliabilityDefault;
+        this.gradePolicy = resolveGradePolicy(this.sourceId, this.reliabilityGrade);
         const typeCategoryMap = {
           supplier_catalog: "floors",
           manufacturer_catalog: "floors",
@@ -9814,7 +10161,12 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           pagesProcessed++;
           try {
             const content = payload.markdown || payload.rawHtml || "";
-            const evidence = await this.extractFromContent(content, url, !!payload.markdown);
+            const evidence = await this.extractFromContent(
+              content,
+              url,
+              !!payload.markdown,
+              payload.fetchedAt
+            );
             if (evidence.length > 0) {
               console.log(`[DynamicConnector]   \u{1F4C4} ${url} \u2192 ${evidence.length} items`);
               allEvidence.push(...evidence);
@@ -9849,7 +10201,7 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
        * Extract evidence from content using LLM.
        * Uses source-type-specific prompts for targeted extraction.
        */
-      async extractFromContent(content, pageUrl, isMarkdown) {
+      async extractFromContent(content, pageUrl, isMarkdown, observedAt) {
         let textContent;
         if (isMarkdown) {
           textContent = content.trim();
@@ -9886,7 +10238,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           return items.filter((item) => item && typeof item.title === "string" && item.title.length > 0).slice(0, 50).map((item) => ({
             title: String(item.title).substring(0, 255),
             rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
-            publishedDate: item.publishedDate ? new Date(item.publishedDate) : void 0,
+            ...publicationDateFields(item.publishedDate, observedAt),
+            observedAt,
             category: item.category || this.category,
             geography: this.geography,
             sourceUrl: pageUrl,
@@ -9926,12 +10279,15 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         return this.extractFromContent(
           isMarkdown ? content : raw.rawHtml ? content : `<pre>${content}</pre>`,
           raw.url,
-          isMarkdown
+          isMarkdown,
+          raw.fetchedAt
         );
       }
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const gradePolicy = this.gradePolicy;
+        const grade2 = gradePolicy.grade;
+        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context);
+        const confidence = confidencePolicy.initial.score;
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -9940,6 +10296,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? this.defaultUnit,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: (evidence.rawText || "").replace(/\s+/g, " ").trim().substring(0, 500),
           tags: this.defaultTags,
           brand: llmEvidence._llmBrand ?? null,
@@ -10413,24 +10771,49 @@ var init_alert_engine = __esm({
 });
 
 // server/engines/ingestion/data-quality.ts
+function createQualityResult(input) {
+  const confidencePolicy = buildQualityConfidenceStage({
+    status: input.status,
+    flags: input.flags,
+    inputScore: input.confidence,
+    multiplier: input.multiplier,
+    floor: input.floor
+  });
+  return {
+    status: input.status,
+    flags: input.flags,
+    adjustedConfidence: confidencePolicy.score === input.confidence ? void 0 : confidencePolicy.score,
+    confidencePolicy
+  };
+}
 function validateEvidence(record) {
   const flags = [];
   if (record.value === null || record.value === void 0) {
-    return { status: "missing_value", flags: ["no_price_value"] };
+    return createQualityResult({
+      status: "missing_value",
+      flags: ["no_price_value"],
+      confidence: record.confidence
+    });
   }
   if (record.value <= 0) {
     flags.push("non_positive_value");
-    return {
+    return createQualityResult({
       status: "outlier_flagged",
       flags,
-      adjustedConfidence: Math.max(record.confidence * 0.5, 0.1)
-    };
+      confidence: record.confidence,
+      multiplier: 0.5,
+      floor: 0.1
+    });
   }
   const matchingRules = QUALITY_RULES.filter(
     (rule) => rule.category === record.category && rule.unit === (record.unit || "unit") && (!rule.itemPattern || rule.itemPattern.test(record.itemName))
   );
   if (matchingRules.length === 0) {
-    return { status: "valid", flags: [] };
+    return createQualityResult({
+      status: "valid",
+      flags: [],
+      confidence: record.confidence
+    });
   }
   let passedAnyRule = false;
   for (const rule of matchingRules) {
@@ -10455,22 +10838,26 @@ function validateEvidence(record) {
     if (record.value > rule.maxValue) {
       flags.push(`above_maximum: ${record.value} > ${rule.maxValue} ${rule.unit} (${rule.description})`);
     }
-    return {
+    return createQualityResult({
       status: "outlier_flagged",
       flags,
-      adjustedConfidence: Math.max(record.confidence * 0.3, 0.1)
-    };
+      confidence: record.confidence,
+      multiplier: 0.3,
+      floor: 0.1
+    });
   }
-  return {
+  return createQualityResult({
     status: flags.length > 0 ? "outlier_flagged" : "valid",
     flags,
-    adjustedConfidence: flags.length > 0 ? record.confidence * 0.8 : void 0
-  };
+    confidence: record.confidence,
+    multiplier: flags.length > 0 ? 0.8 : 1
+  });
 }
 var QUALITY_RULES;
 var init_data_quality = __esm({
   "server/engines/ingestion/data-quality.ts"() {
     "use strict";
+    init_confidence_policy();
     QUALITY_RULES = [
       // Flooring
       { category: "floors", minValue: 15, maxValue: 5e3, unit: "sqm", description: "Floor materials AED/sqm" },
@@ -10973,7 +11360,7 @@ __export(orchestrator_exports, {
   testScrape: () => testScrape
 });
 import { randomUUID as randomUUID2 } from "crypto";
-import { and as and4, eq as eq8, sql as sql3 } from "drizzle-orm";
+import { eq as eq8, sql as sql3 } from "drizzle-orm";
 async function runWithConcurrencyLimit(tasks, limit) {
   const results = [];
   let index2 = 0;
@@ -10990,59 +11377,6 @@ async function runWithConcurrencyLimit(tasks, limit) {
   await Promise.all(workers);
   return results;
 }
-async function findExistingRecord(sourceUrl, itemName) {
-  const db = await getDb();
-  if (!db) return null;
-  const existing = await db.select({
-    id: evidenceRecords.id,
-    recordId: evidenceRecords.recordId,
-    priceMin: evidenceRecords.priceMin,
-    priceTypical: evidenceRecords.priceTypical,
-    priceMax: evidenceRecords.priceMax,
-    confidenceScore: evidenceRecords.confidenceScore,
-    captureDate: evidenceRecords.captureDate,
-    sourceRegistryId: evidenceRecords.sourceRegistryId,
-    itemName: evidenceRecords.itemName,
-    category: evidenceRecords.category,
-    publisher: evidenceRecords.publisher
-  }).from(evidenceRecords).where(
-    and4(
-      eq8(evidenceRecords.sourceUrl, sourceUrl),
-      eq8(evidenceRecords.itemName, itemName)
-    )
-  ).orderBy(sql3`${evidenceRecords.captureDate} DESC`).limit(1);
-  return existing.length > 0 ? existing[0] : null;
-}
-async function updateExistingRecord(existing, newData) {
-  const db = await getDb();
-  if (!db) return { priceChanged: false, changePct: 0 };
-  const oldPrice = existing.priceTypical ? parseFloat(existing.priceTypical) : null;
-  const newPrice = newData.priceTypical ? parseFloat(newData.priceTypical) : null;
-  let changePct = 0;
-  let priceChanged = false;
-  if (oldPrice !== null && newPrice !== null && oldPrice > 0) {
-    changePct = (newPrice - oldPrice) / oldPrice * 100;
-    priceChanged = Math.abs(changePct) > 2;
-  } else if (oldPrice === null !== (newPrice === null)) {
-    priceChanged = true;
-  }
-  const updatePayload = {
-    captureDate: newData.captureDate,
-    confidenceScore: Math.max(newData.confidenceScore, existing.confidenceScore),
-    extractedSnippet: newData.extractedSnippet,
-    runId: newData.runId
-  };
-  if (newData.priceMin !== null) updatePayload.priceMin = newData.priceMin;
-  if (newData.priceTypical !== null) updatePayload.priceTypical = newData.priceTypical;
-  if (newData.priceMax !== null) updatePayload.priceMax = newData.priceMax;
-  if (newData.reliabilityGrade) updatePayload.reliabilityGrade = newData.reliabilityGrade;
-  if (newData.finishLevel) updatePayload.finishLevel = newData.finishLevel;
-  if (newData.designStyle) updatePayload.designStyle = newData.designStyle;
-  if (newData.brandsMentioned) updatePayload.brandsMentioned = newData.brandsMentioned;
-  if (newData.materialSpec) updatePayload.materialSpec = newData.materialSpec;
-  await db.update(evidenceRecords).set(updatePayload).where(eq8(evidenceRecords.id, existing.id));
-  return { priceChanged, changePct };
-}
 function mapCategory(category) {
   return CATEGORY_MAP[category] || "other";
 }
@@ -11051,6 +11385,67 @@ function generateRecordId() {
   const ts = Date.now().toString(36);
   const rand = Math.random().toString(36).substring(2, 6);
   return `MYR-PE-${ts}-${rand}`.toUpperCase();
+}
+function persistedDatePrecision(precision, status) {
+  if (status === "missing") return "missing";
+  return precision === "datetime" ? "timestamp" : precision;
+}
+function confidenceAssessmentStages(input) {
+  const { evaluation, gradePolicy, quality } = input;
+  return {
+    runId: input.runId,
+    sourceId: input.sourceId,
+    actorId: input.actorId ?? null,
+    corpusScope: "platform_public",
+    origin: "connector",
+    outcome: "accepted",
+    evaluationClock: evaluation.evaluatedAt,
+    rawPublicationText: evaluation.publicationDate.raw,
+    datePrecision: persistedDatePrecision(
+      evaluation.publicationDate.precision,
+      evaluation.publicationDate.status
+    ),
+    parsingStatus: evaluation.publicationDate.status,
+    parsedPublicationDate: evaluation.publicationDate.parsedAt,
+    staticGradePolicyId: gradePolicy.source === "static_source_registry" ? gradePolicy.policyVersion : null,
+    registryGradePolicyId: gradePolicy.source === "source_registry" ? gradePolicy.policyVersion : null,
+    confidencePolicyId: evaluation.initial.policyVersion,
+    qualityPolicyId: quality.policyVersion,
+    mergePolicyId: CONFIDENCE_MERGE_POLICY_VERSION,
+    grade: gradePolicy.grade,
+    baseConfidence: evaluation.initial.baseScore,
+    recencyAdjustment: evaluation.initial.dateAdjustment,
+    confidenceAfterRecency: evaluation.initial.score,
+    qualityMultiplier: quality.multiplier,
+    qualityFloor: quality.floor,
+    qualityFlags: quality.flags,
+    candidateScore: Math.round(quality.score * 100),
+    finalScore: Math.round(quality.score * 100),
+    mergeDecision: "inserted"
+  };
+}
+async function persistConnectorRejection(input) {
+  await recordRejectedConfidenceAssessment({
+    runId: input.runId,
+    sourceId: input.sourceId,
+    actorId: input.actorId ?? null,
+    corpusScope: "platform_public",
+    origin: "connector",
+    outcome: "rejected",
+    evaluationClock: input.evaluationClock,
+    rawPublicationText: input.rawPublicationText,
+    datePrecision: input.datePrecision ?? "unknown",
+    parsingStatus: input.parsingStatus ?? "invalid",
+    parsedPublicationDate: input.parsedPublicationDate ?? null,
+    staticGradePolicyId: input.gradePolicy?.source === "static_source_registry" ? input.gradePolicy.policyVersion : null,
+    registryGradePolicyId: input.gradePolicy?.source === "source_registry" ? input.gradePolicy.policyVersion : null,
+    confidencePolicyId: "ingestion-confidence-v1",
+    qualityPolicyId: "evidence-quality-confidence-v1",
+    mergePolicyId: CONFIDENCE_MERGE_POLICY_VERSION,
+    grade: input.gradePolicy?.grade ?? null,
+    mergeDecision: "rejected",
+    rejectionCode: input.rejectionCode
+  });
 }
 async function runIngestion(connectors, triggeredBy = "manual", actorId) {
   const runId = `ING-${randomUUID2().substring(0, 8)}`;
@@ -11081,7 +11476,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           evidenceCreated: 0,
           evidenceUpdated: 0,
           evidenceSkipped: 0,
+          evidenceRejected: 0,
           outliersFlagged: 0,
+          rejectionReasons: {},
           error: raw.error
         };
       }
@@ -11094,7 +11491,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           evidenceCreated: 0,
           evidenceUpdated: 0,
           evidenceSkipped: 0,
+          evidenceRejected: 0,
           outliersFlagged: 0,
+          rejectionReasons: {},
           error: raw.error || `HTTP ${raw.statusCode}`
         };
       }
@@ -11110,45 +11509,99 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           evidenceCreated: 0,
           evidenceUpdated: 0,
           evidenceSkipped: 0,
+          evidenceRejected: 0,
           outliersFlagged: 0,
+          rejectionReasons: {},
           error: `Extract failed: ${err instanceof Error ? err.message : String(err)}`
         };
       }
-      const validExtracted = extracted.filter((e) => {
-        const result = extractedEvidenceSchema.safeParse(e);
-        return result.success;
-      });
+      const validExtracted = extracted.filter((e) => extractedEvidenceSchema.safeParse(e).success);
       let created = 0;
       let updated = 0;
       let skipped = 0;
       let outliers = 0;
+      let rejected = extracted.length - validExtracted.length;
+      const rejectionReasons = {};
+      if (rejected > 0) rejectionReasons.invalid_extracted_evidence = rejected;
+      for (let i = 0; i < rejected; i++) {
+        await persistConnectorRejection({
+          runId,
+          sourceId: String(connector.sourceId),
+          actorId,
+          evaluationClock: raw.fetchedAt,
+          rawPublicationText: null,
+          rejectionCode: "invalid_extracted_evidence"
+        });
+      }
       for (const evidence of validExtracted) {
         try {
           let normalized;
           try {
-            normalized = await connector.normalize(evidence);
+            normalized = await connector.normalize(evidence, { evaluatedAt: raw.fetchedAt });
           } catch (err) {
-            normalized = {
-              metric: evidence.title,
-              value: null,
-              unit: null,
-              confidence: 0.2,
-              grade: "C",
-              summary: evidence.rawText.substring(0, 500),
-              tags: []
-            };
+            const confidenceRejection = err instanceof ConfidencePolicyError ? err.rejection : null;
+            const reason = confidenceRejection?.rejectionCode ?? "normalization_failed";
+            rejected++;
+            rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+            await persistConnectorRejection({
+              runId,
+              sourceId: String(connector.sourceId),
+              actorId,
+              evaluationClock: raw.fetchedAt,
+              rawPublicationText: confidenceRejection?.publicationDate.raw ?? evidence.publishedDateRaw ?? evidence.publicationDate?.raw ?? null,
+              datePrecision: confidenceRejection ? persistedDatePrecision(
+                confidenceRejection.publicationDate.precision,
+                confidenceRejection.publicationDate.status
+              ) : void 0,
+              parsingStatus: confidenceRejection?.publicationDate.status,
+              parsedPublicationDate: confidenceRejection?.publicationDate.parsedAt,
+              rejectionCode: reason,
+              gradePolicy: confidenceRejection ? connector.gradePolicy ?? resolveGradePolicy(String(connector.sourceId)) : void 0
+            });
+            continue;
           }
           const validationResult = normalizedEvidenceInputSchema.safeParse(normalized);
           if (!validationResult.success) {
-            normalized = {
-              metric: evidence.title || "Unknown metric",
-              value: null,
-              unit: null,
-              confidence: 0.2,
-              grade: "C",
-              summary: evidence.rawText.substring(0, 500) || "Extraction failed",
-              tags: []
-            };
+            const reason = "invalid_normalization";
+            rejected++;
+            rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+            await persistConnectorRejection({
+              runId,
+              sourceId: String(connector.sourceId),
+              actorId,
+              evaluationClock: raw.fetchedAt,
+              rawPublicationText: evidence.publishedDateRaw ?? evidence.publicationDate?.raw ?? null,
+              rejectionCode: reason
+            });
+            continue;
+          }
+          const gradePolicy = normalized.gradePolicy ?? resolveGradePolicy(String(connector.sourceId));
+          const publicationInput = evidence.publicationDate?.raw ?? evidence.publishedDateRaw ?? evidence.publishedDate ?? null;
+          const confidenceEvaluation = evaluateConnectorConfidence({
+            grade: gradePolicy.grade,
+            publicationDate: publicationInput,
+            evaluatedAt: raw.fetchedAt
+          });
+          if (!confidenceEvaluation.accepted) {
+            const reason = confidenceEvaluation.rejectionCode;
+            rejected++;
+            rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+            await persistConnectorRejection({
+              runId,
+              sourceId: String(connector.sourceId),
+              actorId,
+              evaluationClock: raw.fetchedAt,
+              rawPublicationText: confidenceEvaluation.publicationDate.raw,
+              datePrecision: persistedDatePrecision(
+                confidenceEvaluation.publicationDate.precision,
+                confidenceEvaluation.publicationDate.status
+              ),
+              parsingStatus: confidenceEvaluation.publicationDate.status,
+              parsedPublicationDate: confidenceEvaluation.publicationDate.parsedAt,
+              rejectionCode: reason,
+              gradePolicy
+            });
+            continue;
           }
           const qualityResult = validateEvidence({
             category: evidence.category,
@@ -11156,81 +11609,59 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             value: normalized.value ?? null,
             valueMax: normalized.valueMax ?? null,
             unit: normalized.unit,
-            confidence: normalized.confidence
+            confidence: confidenceEvaluation.initial.score
           });
+          const qualityStage = qualityResult.confidencePolicy;
           if (qualityResult.status === "outlier_flagged") {
             outliers++;
-            if (qualityResult.adjustedConfidence !== void 0) {
-              normalized.confidence = qualityResult.adjustedConfidence;
-            }
             console.warn(`[Ingestion] \u{1F6A9} Outlier flagged: ${normalized.metric} = ${normalized.value} (${qualityResult.flags.join(", ")})`);
           }
-          const captureDate = evidence.publishedDate || raw.fetchedAt;
+          const captureDate = confidenceEvaluation.publicationDate.parsedAt || raw.fetchedAt;
           const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
           const evidenceCategory = validCategories.includes(evidence.category) ? evidence.category : mapCategory(evidence.category);
           const sourceRegistryId = typeof connector.sourceId === "number" ? connector.sourceId : parseInt(connector.sourceId) || void 0;
-          const existing = await findExistingRecord(
-            evidence.sourceUrl,
-            normalized.metric
-          );
-          if (existing) {
-            const { priceChanged } = await updateExistingRecord(existing, {
-              priceMin: normalized.value?.toString() ?? null,
-              priceTypical: normalized.value?.toString() ?? null,
-              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
-              confidenceScore: Math.round(normalized.confidence * 100),
-              captureDate,
-              extractedSnippet: normalized.summary,
-              reliabilityGrade: normalized.grade,
-              runId,
-              finishLevel: normalized.finishLevel ?? null,
-              designStyle: normalized.designStyle ?? null,
-              brandsMentioned: normalized.brandsMentioned ?? null,
-              materialSpec: normalized.materialSpec ?? null
-            });
-            if (priceChanged) {
-              const updatedRecord = await getEvidenceRecordById(existing.id);
-              if (updatedRecord) {
-                await detectPriceChange(updatedRecord);
-              }
-            }
-            updated++;
-          } else {
-            const { id: newRecordId } = await createEvidenceRecord({
-              recordId: generateRecordId(),
-              sourceRegistryId,
-              sourceUrl: evidence.sourceUrl,
-              category: evidenceCategory,
-              itemName: normalized.metric,
-              priceMin: normalized.value?.toString() ?? null,
-              priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
-              priceTypical: normalized.value?.toString() ?? null,
-              unit: normalized.unit || "unit",
-              currencyOriginal: "AED",
-              captureDate,
-              reliabilityGrade: normalized.grade,
-              confidenceScore: Math.round(normalized.confidence * 100),
-              extractedSnippet: normalized.summary,
-              publisher: connector.sourceName,
-              title: evidence.title,
-              tags: normalized.tags,
-              notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
-              runId,
-              // V7: Design Intelligence Fields
-              finishLevel: normalized.finishLevel ?? null,
-              designStyle: normalized.designStyle ?? null,
-              brandsMentioned: normalized.brandsMentioned ?? null,
-              materialSpec: normalized.materialSpec ?? null,
-              intelligenceType: normalized.intelligenceType ?? "material_price",
-              corpusScope: "platform_public",
-              corpusPolicyVersion: "public-v1"
-            });
-            const insertedRecord = await getEvidenceRecordById(newRecordId);
-            if (insertedRecord) {
-              await detectPriceChange(insertedRecord);
-            }
-            created++;
-          }
+          const candidateScore = Math.round(qualityStage.score * 100);
+          const persisted = await upsertPublicEvidenceObservation({
+            recordId: generateRecordId(),
+            projectId: null,
+            orgId: null,
+            sourceRegistryId,
+            sourceUrl: evidence.sourceUrl,
+            category: evidenceCategory,
+            itemName: normalized.metric,
+            priceMin: normalized.value?.toString() ?? null,
+            priceMax: normalized.valueMax?.toString() ?? normalized.value?.toString() ?? null,
+            priceTypical: normalized.value?.toString() ?? null,
+            unit: normalized.unit || "unit",
+            currencyOriginal: "AED",
+            captureDate,
+            reliabilityGrade: gradePolicy.grade,
+            confidenceScore: candidateScore,
+            extractedSnippet: normalized.summary,
+            publisher: connector.sourceName,
+            title: evidence.title,
+            tags: normalized.tags,
+            notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
+            runId,
+            finishLevel: normalized.finishLevel ?? null,
+            designStyle: normalized.designStyle ?? null,
+            brandsMentioned: normalized.brandsMentioned ?? null,
+            materialSpec: normalized.materialSpec ?? null,
+            intelligenceType: normalized.intelligenceType ?? "material_price",
+            corpusScope: "platform_public",
+            corpusPolicyVersion: "public-v1"
+          }, confidenceAssessmentStages({
+            runId,
+            sourceId: String(connector.sourceId),
+            actorId,
+            evaluation: confidenceEvaluation,
+            gradePolicy,
+            quality: qualityStage
+          }));
+          const currentRecord = await getEvidenceRecordById(persisted.id);
+          if (currentRecord) await detectPriceChange(currentRecord);
+          if (persisted.created) created++;
+          else updated++;
         } catch (err) {
           console.error(`[Ingestion] Record persist failed for ${connector.sourceId}:`, err);
         }
@@ -11243,7 +11674,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         evidenceCreated: created,
         evidenceUpdated: updated,
         evidenceSkipped: skipped,
-        outliersFlagged: outliers
+        evidenceRejected: rejected,
+        outliersFlagged: outliers,
+        rejectionReasons
       };
     } catch (err) {
       return {
@@ -11254,7 +11687,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         evidenceCreated: 0,
         evidenceUpdated: 0,
         evidenceSkipped: 0,
+        evidenceRejected: 0,
         outliersFlagged: 0,
+        rejectionReasons: {},
         error: `Unhandled: ${err instanceof Error ? err.message : String(err)}`
       };
     }
@@ -11327,12 +11762,21 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
   const totalCreated = connectorResults.reduce((sum, r) => sum + r.evidenceCreated, 0);
   const totalUpdated = connectorResults.reduce((sum, r) => sum + r.evidenceUpdated, 0);
   const totalSkipped = connectorResults.reduce((sum, r) => sum + r.evidenceSkipped, 0);
+  const totalRejected = connectorResults.reduce((sum, r) => sum + r.evidenceRejected, 0);
   const totalOutliers = connectorResults.reduce((sum, r) => sum + r.outliersFlagged, 0);
-  const errors = connectorResults.filter((r) => r.status === "failed" && r.error).map((r) => ({
+  const sourceErrors = connectorResults.filter((r) => r.status === "failed" && r.error).map((r) => ({
     sourceId: r.sourceId,
     sourceName: r.sourceName,
     error: r.error
   }));
+  const rejectionErrors = connectorResults.flatMap(
+    (result) => Object.entries(result.rejectionReasons).map(([reason, count2]) => ({
+      sourceId: result.sourceId,
+      sourceName: result.sourceName,
+      error: `record_rejected:${reason} (${count2})`
+    }))
+  );
+  const errors = [...sourceErrors, ...rejectionErrors];
   try {
     const db = await getDb();
     if (db) {
@@ -11346,6 +11790,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         sourcesFailed: failed,
         recordsExtracted: connectorResults.reduce((sum, r) => sum + r.evidenceExtracted, 0),
         recordsInserted: totalCreated,
+        recordsRejected: totalRejected,
         duplicatesSkipped: totalSkipped,
         sourceBreakdown: connectorResults.map((r) => ({
           sourceId: r.sourceId,
@@ -11355,6 +11800,8 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           inserted: r.evidenceCreated,
           updated: r.evidenceUpdated,
           duplicates: r.evidenceSkipped,
+          rejected: r.evidenceRejected,
+          rejectionReasons: r.rejectionReasons,
           outliers: r.outliersFlagged,
           error: r.error || null
         })),
@@ -11384,6 +11831,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         evidenceCreated: totalCreated,
         evidenceUpdated: totalUpdated,
         evidenceSkipped: totalSkipped,
+        evidenceRejected: totalRejected,
         outliersFlagged: totalOutliers
       },
       sourcesProcessed: connectors.length,
@@ -11487,7 +11935,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
       console.error("[Ingestion] Post-run materials sync failed:", err);
     }
   }
-  console.log(`[Ingestion] Run ${runId} complete: ${totalCreated} created, ${totalUpdated} updated, ${totalSkipped} skipped, ${totalOutliers} outliers flagged`);
+  console.log(`[Ingestion] Run ${runId} complete: ${totalCreated} created, ${totalUpdated} updated, ${totalSkipped} skipped, ${totalRejected} rejected, ${totalOutliers} outliers flagged`);
   const report = {
     runId,
     startedAt,
@@ -11500,6 +11948,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     evidenceCreated: totalCreated,
     evidenceUpdated: totalUpdated,
     evidenceSkipped: totalSkipped,
+    evidenceRejected: totalRejected,
     outliersFlagged: totalOutliers,
     errors,
     perSource: connectorResults
@@ -11537,7 +11986,7 @@ async function testScrape(connector) {
     durationMs: (/* @__PURE__ */ new Date()).getTime() - startedAt.getTime()
   };
 }
-var MAX_CONCURRENT, CATEGORY_MAP, recordCounter;
+var CONFIDENCE_MERGE_POLICY_VERSION, MAX_CONCURRENT, CATEGORY_MAP, recordCounter;
 var init_orchestrator = __esm({
   "server/engines/ingestion/orchestrator.ts"() {
     "use strict";
@@ -11549,6 +11998,8 @@ var init_orchestrator = __esm({
     init_change_detector();
     init_trend_detection();
     init_schema();
+    init_connector();
+    CONFIDENCE_MERGE_POLICY_VERSION = "evidence-confidence-merge-latest-v1";
     MAX_CONCURRENT = 3;
     CATEGORY_MAP = {
       material_cost: "floors",
@@ -11702,7 +12153,8 @@ ${parsed.text}
               item.changePercent ? `YoY: ${item.changePercent > 0 ? "+" : ""}${item.changePercent}%` : null,
               item.yearQuarter
             ].filter(Boolean).join(" | "),
-            publishedDate: void 0,
+            ...publicationDateFields(void 0, raw.fetchedAt),
+            observedAt: raw.fetchedAt,
             category: "material_cost",
             geography: "Abu Dhabi",
             sourceUrl: raw.url,
@@ -11717,9 +12169,11 @@ ${parsed.text}
       /**
        * Normalize: convert extracted items into evidence record format.
        */
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const gradePolicy = resolveGradePolicy(this.sourceId);
+        const grade2 = gradePolicy.grade;
+        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context);
+        const confidence = confidencePolicy.initial.score;
         const scadItem = evidence._scadItem;
         const metric = scadItem ? `${scadItem.materialName} (${scadItem.category})` : evidence.title;
         const value = scadItem?.priceAed ?? scadItem?.indexValue ?? null;
@@ -11742,6 +12196,8 @@ ${parsed.text}
           unit,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: summaryParts.join(" \u2014 ").substring(0, 500),
           tags
         };
@@ -11921,6 +12377,20 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
     SQFT_REGEX = /(?:per\s+)?(?:sq\.?\s*ft\.?|sqft|square\s+foot|square\s+feet)/i;
     SQM_REGEX = /(?:per\s+)?(?:sq\.?\s*m\.?|sqm|m²|square\s+met(?:er|re))/i;
     HTMLSourceConnector = class extends BaseSourceConnector {
+      confidenceMetadata(evidence, context) {
+        const gradePolicy = resolveGradePolicy(this.sourceId);
+        const confidencePolicy = evaluateEvidenceConfidence(
+          evidence,
+          gradePolicy.grade,
+          context
+        );
+        return {
+          grade: gradePolicy.grade,
+          confidence: confidencePolicy.initial.score,
+          confidencePolicy,
+          gradePolicy
+        };
+      }
       async extract(raw) {
         const html = raw.rawHtml || "";
         if (!html || html.length < 50) return [];
@@ -11935,7 +12405,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           return llmItems.map((item) => ({
             title: `${this.sourceName} - ${item.title}`,
             rawText: item.rawText || item.title,
-            publishedDate: item.publishedDate ? new Date(item.publishedDate) : void 0,
+            ...publicationDateFields(item.publishedDate, raw.fetchedAt),
+            observedAt: raw.fetchedAt,
             category: this.category,
             geography: this.geography,
             sourceUrl: raw.url,
@@ -11963,6 +12434,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
             title: `${this.sourceName} - ${title}`,
             rawText: text2,
             publishedDate: void 0,
+            ...publicationDateFields(void 0, raw.fetchedAt),
+            observedAt: raw.fetchedAt,
             category: this.category,
             geography: this.geography,
             sourceUrl: raw.url
@@ -11974,6 +12447,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
             title: `${this.sourceName} - Page Content`,
             rawText: extractSnippet(plainText),
             publishedDate: void 0,
+            ...publicationDateFields(void 0, raw.fetchedAt),
+            observedAt: raw.fetchedAt,
             category: this.category,
             geography: this.geography,
             sourceUrl: raw.url
@@ -11981,9 +12456,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         }
         return evidence;
       }
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         if (llmEvidence._llmValue !== void 0) {
           return {
@@ -11992,6 +12466,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
             unit: llmEvidence._llmUnit || this.defaultUnit,
             confidence,
             grade: grade2,
+            confidencePolicy,
+            gradePolicy,
             summary: extractSnippet(evidence.rawText),
             tags: this.defaultTags
           };
@@ -12003,6 +12479,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: prices.length > 0 ? prices[0].unit : this.defaultUnit,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12079,9 +12557,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-survey", "construction", "industry-report", "rics"];
       defaultUnit = "sqm";
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -12089,6 +12566,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? null,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12102,9 +12581,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "mena", "jll"];
       defaultUnit = "sqm";
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -12112,6 +12590,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? null,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12125,9 +12605,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Dubai";
       defaultTags = ["government", "statistics", "dubai", "economic-indicators"];
       defaultUnit = "sqm";
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -12135,6 +12614,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? null,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12166,9 +12647,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Dubai";
       defaultTags = ["government", "material-prices", "construction", "dubai-pulse"];
       defaultUnit = "unit";
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -12176,6 +12656,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? "unit",
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12189,9 +12671,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Abu Dhabi";
       defaultTags = ["government", "statistics", "abu-dhabi", "material-prices"];
       defaultUnit = "unit";
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -12199,6 +12680,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? "unit",
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12212,9 +12695,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Dubai";
       defaultTags = ["government", "transactions", "real-estate", "dld"];
       defaultUnit = "sqft";
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -12222,6 +12704,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? "sqft",
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12244,9 +12728,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "commercial", "cbre"];
       defaultUnit = "sqft";
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -12254,6 +12737,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? null,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12267,9 +12752,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "residential", "knight-frank"];
       defaultUnit = "sqft";
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -12277,6 +12761,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? null,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12290,9 +12776,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "investment", "savills"];
       defaultUnit = "sqft";
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -12300,6 +12785,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit: llmEvidence._llmUnit ?? null,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: this.defaultTags
         };
@@ -12334,9 +12821,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         }
         return this.fetchWithFirecrawl();
       }
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         let metric = llmEvidence._llmMetric || evidence.title;
         let value = llmEvidence._llmValue ?? null;
@@ -12358,6 +12844,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: [...this.defaultTags, "listing"]
         };
@@ -12382,9 +12870,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         }
         return this.fetchWithFirecrawl();
       }
-      async normalize(evidence) {
-        const grade2 = assignGrade(this.sourceId);
-        const confidence = computeConfidence2(grade2, evidence.publishedDate, /* @__PURE__ */ new Date());
+      async normalize(evidence, context) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
         const llmEvidence = evidence;
         let metric = llmEvidence._llmMetric || evidence.title;
         let value = llmEvidence._llmValue ?? null;
@@ -12406,6 +12893,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           unit,
           confidence,
           grade: grade2,
+          confidencePolicy,
+          gradePolicy,
           summary: extractSnippet(evidence.rawText),
           tags: [...this.defaultTags, "listing"]
         };
@@ -14338,6 +14827,37 @@ function normalizeInputs(inputs, expectedCost) {
 
 // server/engines/scoring.ts
 init_area_utils();
+
+// server/engines/space-evidence.ts
+var NEUTRAL_SPACE_EFFICIENCY_LABEL = "Neutral fallback \u2014 no rooms measured";
+function resolveSpaceEfficiencyEvidence(snapshot) {
+  const candidate = snapshot?.spaceEfficiencyEvidence;
+  if (!candidate || typeof candidate !== "object") {
+    return { status: "legacy_unknown" };
+  }
+  const evidence = candidate;
+  if (evidence.status === "neutral_fallback" && evidence.reason === "no_rooms_detected" && evidence.roomCount === 0 && evidence.benchmarkBasis === "not_applied" && evidence.transactionCount === 0) {
+    return evidence;
+  }
+  if (evidence.status === "measured" && typeof evidence.roomCount === "number" && Number.isInteger(evidence.roomCount) && evidence.roomCount > 0 && (evidence.benchmarkBasis === "dld_area" || evidence.benchmarkBasis === "miyar_uae") && typeof evidence.transactionCount === "number" && Number.isInteger(evidence.transactionCount) && evidence.transactionCount >= 0 && (evidence.benchmarkBasis !== "dld_area" || evidence.transactionCount > 0)) {
+    return evidence;
+  }
+  return { status: "legacy_unknown" };
+}
+function isMeasuredSpaceEfficiencyEvidence(evidence) {
+  return evidence?.status === "measured";
+}
+function spaceBenchmarkLabel(evidence) {
+  if (evidence.status === "neutral_fallback") {
+    return NEUTRAL_SPACE_EFFICIENCY_LABEL;
+  }
+  if (evidence.status === "legacy_unknown") {
+    return "Legacy score \u2014 measurement provenance unavailable";
+  }
+  return evidence.benchmarkBasis === "dld_area" && evidence.transactionCount > 0 ? `DLD area benchmark \xB7 ${evidence.transactionCount} transactions` : "MIYAR UAE benchmark";
+}
+
+// server/engines/scoring.ts
 function computeStrategicAlignment(n, w) {
   let raw = (w.str01 ?? 0.35) * n.str01_n + (w.str03 ?? 0.25) * n.str03_n + (w.compatVisionMarket ?? 0.25) * n.compatVisionMarket + (w.compatVisionDesign ?? 0.15) * n.compatVisionDesign;
   if (n.brandedPremiumMultiplier) raw *= n.brandedPremiumMultiplier;
@@ -14458,18 +14978,22 @@ function computePenalties(inputs, n, penaltyConfig) {
     }
   }
   if (inputs.spaceCriticalCount && inputs.spaceCriticalCount >= 2) {
+    const spaceEvidence = resolveSpaceEfficiencyEvidence(
+      inputs
+    );
+    const comparisonLabel = spaceEvidence.status === "measured" && spaceEvidence.benchmarkBasis === "dld_area" && spaceEvidence.transactionCount > 0 ? "transaction-backed DLD area benchmark" : spaceEvidence.status === "measured" ? "MIYAR UAE benchmark" : "space benchmark with legacy provenance";
     penalties.push({
       id: "P8",
       trigger: "space_critical_deviations",
       effect: penaltyConfig?.P8?.effect ?? -7,
       flag: "SPACE_CRITICAL",
-      description: `Floor plan has ${inputs.spaceCriticalCount} critical room ratio deviations vs DLD benchmarks`
+      description: `Floor plan has ${inputs.spaceCriticalCount} critical room ratio deviations vs ${comparisonLabel}`
     });
     riskFlags.push("SPACE_CRITICAL");
   }
   return { penalties, riskFlags };
 }
-function generateConditionalActions(dimensions, riskFlags) {
+function generateConditionalActions(dimensions, riskFlags, inputs) {
   const actions = [];
   if (riskFlags.includes("FIN_SEVERE")) {
     actions.push({
@@ -14521,9 +15045,13 @@ function generateConditionalActions(dimensions, riskFlags) {
     });
   }
   if (riskFlags.includes("SPACE_CRITICAL")) {
+    const spaceEvidence = resolveSpaceEfficiencyEvidence(
+      inputs
+    );
+    const evidenceWording = spaceEvidence.status === "measured" && spaceEvidence.benchmarkBasis === "dld_area" && spaceEvidence.transactionCount > 0 ? "The comparison uses transaction-backed DLD area data." : spaceEvidence.status === "measured" ? "The comparison uses the MIYAR UAE space benchmark." : "The historical measurement provenance is unavailable, so no DLD or correlation claim is made.";
     actions.push({
       trigger: "SPACE_CRITICAL",
-      recommendation: "Floor plan has critical space allocation deviations. Review room ratios in Space Planner \u2014 undersized rooms correlate with lower sale prices per DLD data.",
+      recommendation: `Floor plan has critical space allocation deviations. Review room ratios in Space Planner. ${evidenceWording}`,
       variables: ["spaceEfficiencyScore"]
     });
   }
@@ -14544,7 +15072,7 @@ function classifyDecision(compositeScore, riskScore) {
   return "conditional";
 }
 function computeConfidence(inputs, benchmarkCount, overrideRate) {
-  const allFields = Object.values(inputs);
+  const allFields = Object.entries(inputs).filter(([key]) => key !== "spaceEfficiencyEvidence").map(([, value]) => value);
   const provided = allFields.filter(
     (v) => v !== null && v !== void 0
   ).length;
@@ -14650,7 +15178,7 @@ function evaluate(inputs, config) {
     config.overrideRate
   );
   const decisionStatus = classifyDecision(compositeScore, riskScore);
-  const conditionalActions = generateConditionalActions(dimensions, riskFlags);
+  const conditionalActions = generateConditionalActions(dimensions, riskFlags, inputs);
   const variableContributions = computeVariableContributions(
     n,
     config.variableWeights
@@ -14697,7 +15225,13 @@ function runSensitivityAnalysis(baseInputs, config) {
   const baseResult = evaluate(baseInputs, config);
   const baseScore = baseResult.compositeScore;
   const entries = [];
+  const spaceEvidence = resolveSpaceEfficiencyEvidence(
+    baseInputs
+  );
   for (const field of PERTURBABLE_FIELDS) {
+    if (field.key === "spaceEfficiencyScore" && !isMeasuredSpaceEfficiencyEvidence(spaceEvidence)) {
+      continue;
+    }
     const currentVal = baseInputs[field.key];
     if (currentVal === null || currentVal === void 0) continue;
     const upInputs = { ...baseInputs };
@@ -14938,6 +15472,7 @@ function renderEvidenceReferences(refs) {
     <td>${r.category || "\u2014"}</td>
     <td style="color:${gradeColor2}; font-weight:600;">${r.reliabilityGrade || "\u2014"}</td>
     <td>${r.captureDate ? new Date(r.captureDate).toLocaleDateString() : "\u2014"}</td>
+    <td>${!r.confidenceStatus || r.confidenceStatus === "legacy_unknown" ? "Legacy \u2014 calculation provenance unavailable" : r.confidenceStatus === "asserted" ? `Operator asserted (${r.confidencePolicyVersion || "manual-asserted-confidence-v1"})` : `Computed (${r.confidencePolicyVersion || "policy unavailable"})`}</td>
     <td>${r.sourceUrl ? `<a href="${r.sourceUrl}" style="color:#0f3460;">[link]</a>` : "\u2014"}</td>
   </tr>`;
   }).join("");
@@ -14946,7 +15481,7 @@ function renderEvidenceReferences(refs) {
   <h2>Evidence References</h2>
   <p style="font-size:9px; color:#666; margin-bottom:8px;">The following evidence records were linked to this project at the time of report generation. Inline citations <span class="citation-ref">[n]</span> in the report body reference entries in this table.</p>
   <table>
-    <tr><th>Ref</th><th>Title</th><th>Category</th><th>Grade</th><th>Captured</th><th>Source</th></tr>
+    <tr><th>Ref</th><th>Title</th><th>Category</th><th>Grade</th><th>Captured</th><th>Confidence provenance</th><th>Source</th></tr>
     ${rows}
   </table>
   <p style="font-size:8px; color:#999; margin-top:4px;">Grade A = Primary institutional source | Grade B = Verified commercial source | Grade C = Self-reported or unverified</p>
@@ -15334,8 +15869,59 @@ function renderROI(roi) {
 </div>
 `;
 }
-function renderBoardAnnex(boardSummaries) {
-  if (!boardSummaries || boardSummaries.length === 0) {
+function escapeHtml(value) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+}
+function renderBoardResolutionMessage(board) {
+  if (board.state === "empty") {
+    return "Empty board \u2014 no materials are attached. Cost and lead-time summary is unavailable.";
+  }
+  if (board.state === "unresolvable") {
+    return `Unresolvable board \u2014 none of the ${board.linkedItemCount} linked items could be resolved. Cost and lead-time summary is unavailable; repair the board links before relying on it.`;
+  }
+  if (board.state === "partial") {
+    return `Partial board \u2014 ${board.resolvedItemCount} of ${board.linkedItemCount} linked items resolved. ${board.unresolvedItemCount} unresolved ${board.unresolvedItemCount === 1 ? "item is" : "items are"} excluded from the figures below.`;
+  }
+  return board.linkedItemCount === 1 ? "Complete board \u2014 the linked item is resolved." : `Complete board \u2014 all ${board.linkedItemCount} linked items are resolved.`;
+}
+function renderBoardCard(board) {
+  const stateColor = board.state === "complete" ? "#166534" : board.state === "partial" ? "#92400e" : "#991b1b";
+  const summary = "summary" in board ? board.summary : void 0;
+  const summaryHtml = summary ? (() => {
+    const tierRows = Object.entries(summary.tierDistribution).map(
+      ([tier, count2]) => `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${escapeHtml(tier.replaceAll("_", " "))}:</strong> ${count2}</span>`
+    ).join("");
+    const criticalItems = summary.criticalPathItems.map(escapeHtml).join(", ");
+    return `
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
+        <div style="text-align:center;">
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved-item Cost Range</div>
+          <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.estimatedCostLow.toLocaleString()} \u2013 ${summary.estimatedCostHigh.toLocaleString()} ${escapeHtml(summary.currency)}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved-item Longest Lead</div>
+          <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.longestLeadTimeDays}d</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved Critical Items</div>
+          <div style="font-size:12px; font-weight:700; color:${summary.criticalPathItems.length > 0 ? "#dc2626" : "#16a34a"};">${summary.criticalPathItems.length}</div>
+        </div>
+      </div>
+      <div style="font-size:9px; color:#444;">${tierRows}</div>
+      ${criticalItems ? `<div style="margin-top:6px;"><span style="font-size:9px; color:#dc2626; font-weight:600;">Critical:</span> <span style="font-size:9px; color:#666;">${criticalItems}</span></div>` : ""}`;
+  })() : "";
+  return `
+    <div style="border:1px solid #e0e0e0; border-radius:6px; padding:12px; margin:8px 0; page-break-inside:avoid;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-size:12px; font-weight:700; color:#0f3460;">${escapeHtml(board.boardName)}</span>
+        <span style="font-size:10px; color:#666;">${board.resolvedItemCount} of ${board.linkedItemCount} items resolved</span>
+      </div>
+      <div style="font-size:9px; color:${stateColor}; margin-bottom:${summary ? "8px" : "0"};">${renderBoardResolutionMessage(board)}</div>
+      ${summaryHtml}
+    </div>`;
+}
+function renderBoardAnnex(boardAnnex) {
+  if (boardAnnex.state === "no_boards") {
     return `
 <div class="section">
   <h2>Material Board Annex</h2>
@@ -15343,38 +15929,11 @@ function renderBoardAnnex(boardSummaries) {
 </div>
 `;
   }
-  const boardCards = boardSummaries.map((b) => {
-    const tierRows = Object.entries(b.tierDistribution).map(
-      ([tier, count2]) => `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${tier.replace("_", " ")}:</strong> ${count2}</span>`
-    ).join("");
-    return `
-    <div style="border:1px solid #e0e0e0; border-radius:6px; padding:12px; margin:8px 0; page-break-inside:avoid;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span style="font-size:12px; font-weight:700; color:#0f3460;">${b.boardName}</span>
-        <span style="font-size:10px; color:#666;">${b.totalItems} items</span>
-      </div>
-      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
-        <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Cost Range</div>
-          <div style="font-size:12px; font-weight:700; color:#0f3460;">${b.estimatedCostLow.toLocaleString()} \u2013 ${b.estimatedCostHigh.toLocaleString()} ${b.currency}</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Longest Lead</div>
-          <div style="font-size:12px; font-weight:700; color:#0f3460;">${b.longestLeadTimeDays}d</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Critical Items</div>
-          <div style="font-size:12px; font-weight:700; color:${b.criticalPathItems.length > 0 ? "#dc2626" : "#16a34a"};">${b.criticalPathItems.length}</div>
-        </div>
-      </div>
-      <div style="font-size:9px; color:#444;">${tierRows}</div>
-      ${b.criticalPathItems.length > 0 ? `<div style="margin-top:6px;"><span style="font-size:9px; color:#dc2626; font-weight:600;">Critical:</span> <span style="font-size:9px; color:#666;">${b.criticalPathItems.join(", ")}</span></div>` : ""}
-    </div>`;
-  }).join("");
+  const boardCards = boardAnnex.boards.map(renderBoardCard).join("");
   return `
 <div class="section">
   <h2>Material Board Annex</h2>
-  <p style="font-size:10px; color:#666; margin-bottom:8px;">The following material boards have been composed for this project. Each board includes cost estimates, lead time analysis, and tier distribution. Full RFQ-ready procurement schedules are available via the Board Composer export.</p>
+  <p style="font-size:10px; color:#666; margin-bottom:8px;">Board availability and resolution are shown explicitly. Any figures shown are calculated only from resolved catalog items. Full RFQ-ready procurement schedules are available via the Board Composer export.</p>
   ${boardCards}
 </div>
 `;
@@ -15582,7 +16141,7 @@ function generateDesignBriefHTML(data) {
     htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, watermark),
     `<div class="content-wrapper">`,
     renderDesignBrief(data.designBrief),
-    renderBoardAnnex(data.boardSummaries),
+    renderBoardAnnex(data.boardAnnex),
     renderEvidenceReferences(data.evidenceRefs),
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
     `</div>`,
@@ -15608,7 +16167,7 @@ function generateFullReportHTML(data) {
   } else if (data.roi) {
     sections.push(renderROI(data.roi));
   }
-  sections.push(renderBoardAnnex(data.boardSummaries));
+  sections.push(renderBoardAnnex(data.boardAnnex));
   sections.push(renderEvidenceReferences(data.evidenceRefs));
   sections.push(renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion));
   sections.push(renderInputSummary(data.inputs));
@@ -15733,14 +16292,20 @@ function generateScenarioComparisonHTML(data) {
     htmlFooter(data.projectId, "scenario_comparison", watermark, data.benchmarkVersion, data.logicVersion)
   ].join("\n");
 }
+function requireBoardAnnex(data) {
+  if (!data.boardAnnex) {
+    throw new Error("Material Board Annex data is required for this issued report");
+  }
+  return data;
+}
 function generateReportHTML(reportType, data) {
   switch (reportType) {
     case "validation_summary":
       return generateValidationSummaryHTML(data);
     case "design_brief":
-      return generateDesignBriefHTML(data);
+      return generateDesignBriefHTML(requireBoardAnnex(data));
     case "full_report":
-      return generateFullReportHTML(data);
+      return generateFullReportHTML(requireBoardAnnex(data));
     case "autonomous_design_brief":
       return generateAutonomousBriefHTML(data);
     default:
@@ -15889,6 +16454,148 @@ function generatePortfolioReportHTML(data) {
 </html>
 `;
   return [cover, summary, projectTable, distSection, heatmapSection, fpSection, leverSection, footer].join("\n");
+}
+
+// server/engines/board-composer.ts
+function computeBoardSummary(items, briefConstraints) {
+  const tierDist = {};
+  const catDist = {};
+  let costLow = 0;
+  let costHigh = 0;
+  let maxLead = 0;
+  const criticalItems = [];
+  for (const item of items) {
+    tierDist[item.tier] = (tierDist[item.tier] || 0) + 1;
+    catDist[item.category] = (catDist[item.category] || 0) + 1;
+    costLow += item.costLow;
+    costHigh += item.costHigh;
+    if (item.leadTimeDays > maxLead) maxLead = item.leadTimeDays;
+    if (item.leadTimeBand === "critical" || item.leadTimeDays >= 90) {
+      criticalItems.push(item.name);
+    }
+  }
+  let budgetComplianceCheck;
+  if (briefConstraints) {
+    const capStr = briefConstraints.totalBudgetCap.replace(/[^0-9.]/g, "");
+    const cap = Number(capStr) || null;
+    const utilizationPct = cap ? Math.round(costHigh / cap * 100) : null;
+    budgetComplianceCheck = {
+      budgetCapAed: cap,
+      utilizationPct,
+      status: cap ? costHigh <= cap ? "within_budget" : "over_budget" : "unknown"
+    };
+  }
+  return {
+    totalItems: items.length,
+    estimatedCostLow: costLow,
+    estimatedCostHigh: costHigh,
+    currency: "AED",
+    longestLeadTimeDays: maxLead,
+    criticalPathItems: criticalItems,
+    tierDistribution: tierDist,
+    categoryDistribution: catDist,
+    budgetComplianceCheck
+  };
+}
+function generateRfqLines(items, briefConstraints) {
+  return items.map((item, idx) => {
+    const notes = [];
+    if (item.notes) notes.push(item.notes);
+    if (briefConstraints) {
+      if (briefConstraints.pricingVerified) notes.push("(market-verified)");
+      const prohibited = briefConstraints.prohibitedMaterials.map((p) => p.toLowerCase());
+      const itemLower = item.name.toLowerCase();
+      if (prohibited.some((p) => itemLower.includes(p.split("(")[0].trim().toLowerCase()))) {
+        notes.push("\u26A0 Not in approved materials list");
+      }
+    }
+    return {
+      lineNo: idx + 1,
+      materialName: item.name,
+      category: item.category,
+      specification: `${item.tier} grade \u2014 ${item.name}`,
+      quantity: item.quantity ? `${item.quantity}` : "TBD",
+      unit: item.unitOfMeasure || item.costUnit.replace("AED/", ""),
+      estimatedUnitCostLow: item.costLow,
+      estimatedUnitCostHigh: item.costHigh,
+      leadTimeDays: item.leadTimeDays,
+      supplierSuggestion: item.supplierName,
+      notes: notes.join(" | ") || ""
+    };
+  });
+}
+function recommendMaterials(catalog, projectTier, maxItems = 10) {
+  const tierMap = {
+    Mid: ["economy", "mid"],
+    "Upper-mid": ["mid", "premium"],
+    Luxury: ["premium", "luxury"],
+    "Ultra-luxury": ["luxury", "ultra_luxury"]
+  };
+  const allowedTiers = tierMap[projectTier] || ["mid", "premium"];
+  const scored = catalog.filter((m) => allowedTiers.includes(m.tier)).map((m) => ({
+    materialId: m.id,
+    name: m.name,
+    category: m.category,
+    tier: m.tier,
+    costLow: Number(m.typicalCostLow) || 0,
+    costHigh: Number(m.typicalCostHigh) || 0,
+    costUnit: m.costUnit || "AED/unit",
+    leadTimeDays: m.leadTimeDays || 30,
+    leadTimeBand: m.leadTimeBand || "medium",
+    supplierName: m.supplierName || "TBD"
+  }));
+  const byCategory = {};
+  for (const item of scored) {
+    if (!byCategory[item.category]) byCategory[item.category] = [];
+    byCategory[item.category].push(item);
+  }
+  const result = [];
+  for (const [, items] of Object.entries(byCategory)) {
+    result.push(...items.slice(0, 2));
+  }
+  return result.slice(0, maxItems);
+}
+
+// server/engines/board-annex.ts
+function assertValidCounts(input) {
+  if (!Number.isSafeInteger(input.linkedItemCount) || input.linkedItemCount < 0) {
+    throw new RangeError("linkedItemCount must be a non-negative safe integer");
+  }
+  if (input.resolvedItems.length > input.linkedItemCount) {
+    throw new RangeError("resolved item count cannot exceed linked item count");
+  }
+}
+function buildBoard(input) {
+  assertValidCounts(input);
+  const resolvedItemCount = input.resolvedItems.length;
+  const unresolvedItemCount = input.linkedItemCount - resolvedItemCount;
+  const counts = {
+    boardName: input.boardName,
+    linkedItemCount: input.linkedItemCount,
+    resolvedItemCount,
+    unresolvedItemCount
+  };
+  if (input.linkedItemCount === 0) {
+    return { ...counts, state: "empty" };
+  }
+  if (resolvedItemCount === 0) {
+    return { ...counts, state: "unresolvable" };
+  }
+  return {
+    ...counts,
+    state: unresolvedItemCount === 0 ? "complete" : "partial",
+    summary: computeBoardSummary([...input.resolvedItems])
+  };
+}
+function buildBoardAnnexData(inputs) {
+  if (inputs.length === 0) {
+    return { state: "no_boards", boards: [] };
+  }
+  const boards = inputs.map(buildBoard);
+  return {
+    state: "available",
+    boards
+  };
 }
 
 // server/engines/design-brief.ts
@@ -16570,7 +17277,10 @@ function computeRoi(inputs, coefficients) {
       ]
     }
   ];
-  if (inputs.spaceEfficiencyScore !== void 0 && inputs.spaceEfficiencyScore > 0) {
+  const spaceEvidence = resolveSpaceEfficiencyEvidence(
+    inputs
+  );
+  if (isMeasuredSpaceEfficiencyEvidence(spaceEvidence) && inputs.spaceEfficiencyScore !== void 0 && inputs.spaceEfficiencyScore > 0) {
     const spaceNorm = inputs.spaceEfficiencyScore / 100;
     const wastePct = Math.max(0, (1 - spaceNorm) * 0.08);
     const optimizedWastePct = wastePct * 0.4;
@@ -16646,6 +17356,8 @@ function overallGradeFromScore(score) {
 }
 function computeFiveLens(project, scoreMatrix, benchmarks) {
   const rawContrib = scoreMatrix.variableContributions || {};
+  const inputSnapshot = scoreMatrix.inputSnapshot || {};
+  const spaceEvidence = resolveSpaceEfficiencyEvidence(inputSnapshot);
   const penalties = scoreMatrix.penalties || [];
   const penaltyNames = penalties.map((p) => p.name || p.type || "Unknown");
   const CONTRIB_MAP = {
@@ -16720,14 +17432,16 @@ function computeFiveLens(project, scoreMatrix, benchmarks) {
     { variable: "des04Experience", label: "Experience Quality", value: project.des04Experience || 3, weight: 0.3, contribution: contributions.des04Experience?.contribution || 0 },
     { variable: "des05Sustainability", label: "Sustainability", value: project.des05Sustainability || 2, weight: 0.25, contribution: contributions.des05Sustainability?.contribution || 0 }
   ];
-  if (project.spaceEfficiencyScore) {
+  const rawSnapshotSpaceScore = inputSnapshot.spaceEfficiencyScore;
+  const snapshotSpaceScore = typeof rawSnapshotSpaceScore === "number" ? rawSnapshotSpaceScore : typeof rawSnapshotSpaceScore === "string" && rawSnapshotSpaceScore.trim() !== "" ? Number(rawSnapshotSpaceScore) : Number.NaN;
+  if (Number.isFinite(snapshotSpaceScore)) {
     brandEvidence.push({
       variable: "spaceEfficiency",
       label: "Floor Plan Efficiency",
-      value: Number(project.spaceEfficiencyScore),
+      value: spaceEvidence.status === "neutral_fallback" ? NEUTRAL_SPACE_EFFICIENCY_LABEL : spaceEvidence.status === "legacy_unknown" ? `${snapshotSpaceScore}/100 \u2014 legacy provenance unknown` : snapshotSpaceScore,
       weight: 0.15,
       contribution: contributions.spaceEfficiency?.contribution || 0,
-      benchmarkRef: "DLD area benchmark comparison"
+      benchmarkRef: spaceEvidence.status === "neutral_fallback" ? "No benchmark applied" : spaceBenchmarkLabel(spaceEvidence)
     });
   }
   const lenses = [
@@ -17552,7 +18266,7 @@ init_ai_operation();
 
 // server/_core/media-validation.ts
 init_ai_operation();
-import { createHash } from "node:crypto";
+import { createHash as createHash2 } from "node:crypto";
 import sharp from "sharp";
 var MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 var MAX_IMAGE_PIXELS = 4e7;
@@ -17645,7 +18359,7 @@ async function validateMediaBuffer(buffer, declaredMimeType, operation) {
     mimeType,
     kind,
     sizeBytes: buffer.length,
-    checksum: createHash("sha256").update(buffer).digest("hex")
+    checksum: createHash2("sha256").update(buffer).digest("hex")
   };
 }
 function mediaTypeFromMime(mimeType) {
@@ -17823,7 +18537,8 @@ function projectToInputs(p) {
     sustainCertTarget: p.sustainCertTarget || "silver",
     // Phase 9: Will be populated during evaluation if floor plan analyzed
     spaceEfficiencyScore: void 0,
-    spaceCriticalCount: void 0
+    spaceCriticalCount: void 0,
+    spaceEfficiencyEvidence: void 0
   };
 }
 var projectRouter = router({
@@ -18024,17 +18739,19 @@ var projectRouter = router({
         );
         inputs.spaceEfficiencyScore = spaceResult.overallEfficiencyScore;
         inputs.spaceCriticalCount = spaceResult.totalCritical;
+        inputs.spaceEfficiencyEvidence = spaceResult.evidence;
         console.log(`[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`);
         if (spaceResult.totalCritical >= 2) {
           try {
+            const isTransactionBackedDld = spaceResult.evidence.status === "measured" && spaceResult.evidence.benchmarkBasis === "dld_area" && spaceResult.evidence.transactionCount > 0;
             const criticalRooms = spaceResult.recommendations.filter((r) => r.severity === "critical").map((r) => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`).join(", ");
             await insertProjectInsightForOrg({
               projectId: input.id,
               insightType: "positioning_gap",
               severity: "warning",
               title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
-              body: `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside DLD benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
-              actionableRecommendation: "Review floor plan allocations in Space Planner. Critical room ratios are correlated with lower sale prices in this area.",
+              body: isTransactionBackedDld ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside transaction-backed DLD area benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.` : `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR UAE space benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
+              actionableRecommendation: isTransactionBackedDld ? "Review floor plan allocations in Space Planner against the transaction-backed DLD area benchmark." : "Review floor plan allocations in Space Planner against the MIYAR UAE space benchmark.",
               dataPoints: { spaceResult }
             }, ctx.orgId);
           } catch (alertErr) {
@@ -18242,6 +18959,14 @@ var projectRouter = router({
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) return [];
     const inputs = projectToInputs(project);
+    const scoreMatrices2 = await getScoreMatricesByProject(input.id);
+    const latestSnapshot = scoreMatrices2[0]?.inputSnapshot;
+    if (latestSnapshot) {
+      const savedEvidence = resolveSpaceEfficiencyEvidence(latestSnapshot);
+      const savedScore = Number(latestSnapshot.spaceEfficiencyScore);
+      if (Number.isFinite(savedScore)) inputs.spaceEfficiencyScore = savedScore;
+      inputs.spaceEfficiencyEvidence = savedEvidence.status === "legacy_unknown" ? void 0 : savedEvidence;
+    }
     const expectedCost = await getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
     const benchmarks = await getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
     const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
@@ -18274,7 +18999,11 @@ var projectRouter = router({
       materialLevel: project.des02MaterialLevel || 3,
       tier: project.mkt01Tier || "Upper-mid",
       horizon: project.ctx05Horizon || "12-24m",
-      spaceEfficiencyScore: project.spaceEfficiencyScore || void 0
+      spaceEfficiencyScore: Number(latest.inputSnapshot?.spaceEfficiencyScore) || void 0,
+      spaceEfficiencyEvidence: (() => {
+        const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot);
+        return evidence.status === "legacy_unknown" ? void 0 : evidence;
+      })()
     };
     const roiResult = computeRoi(roiInputs, coefficients);
     let dldContext = null;
@@ -18388,26 +19117,63 @@ var projectRouter = router({
     reportType: z5.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"])
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
+    const requiresBoardAnnex = input.reportType === "design_brief" || input.reportType === "full_report";
+    let reportBoardSnapshot = null;
+    let boardAnnex;
+    if (requiresBoardAnnex) {
+      try {
+        reportBoardSnapshot = await getReportBoardSnapshotForOrg(input.projectId, ctx.orgId);
+        boardAnnex = buildBoardAnnexData(reportBoardSnapshot);
+      } catch (error) {
+        console.error("[Report] Board annex retrieval failed", {
+          projectId: input.projectId,
+          reportType: input.reportType,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw new TRPCError7({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "REPORT_BOARD_RETRIEVAL_FAILED"
+        });
+      }
+    }
     const scores = await getScoreMatricesByProject(input.projectId);
     if (scores.length === 0) throw new Error("No scores available. Evaluate first.");
     const latest = scores[0];
     const inputs = projectToInputs(project);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) throw new Error("No active model version");
-    const boards = await getMaterialBoardsByProject(input.projectId);
-    if (boards && boards.length > 0) {
-      const activeBoard = boards[0];
-      const boardMaterials = await getMaterialsByBoard(activeBoard.id);
+    let boardMaterials = [];
+    if (reportBoardSnapshot && reportBoardSnapshot.length > 0) {
+      const activeBoard = reportBoardSnapshot[0];
+      boardMaterials = activeBoard.resolvedItems.map((item) => ({
+        materialId: item.materialId,
+        quantity: item.quantity,
+        material: {
+          typicalCostLow: item.costLow,
+          typicalCostHigh: item.costHigh,
+          maintenanceFactor: item.maintenanceFactor
+        }
+      }));
+    } else if (!reportBoardSnapshot) {
+      const legacyBoards = await getMaterialBoardsByProject(input.projectId);
+      if (legacyBoards.length > 0) {
+        boardMaterials = (await getMaterialsByBoard(legacyBoards[0].id)).map((item) => ({
+          ...item,
+          material: null
+        }));
+      }
+    }
+    if (boardMaterials.length > 0) {
       let totalLow = 0;
       let totalHigh = 0;
       let totalVariance = 0;
       for (const bm of boardMaterials) {
-        const mat = await getMaterialById(bm.materialId);
+        const mat = bm.material ?? await getMaterialById(bm.materialId);
         if (mat) {
           const qty = Number(bm.quantity) || 1;
           totalLow += (Number(mat.typicalCostLow) || 0) * qty;
           totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
-          const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+          const matMaint = parseFloat(String(mat.maintenanceFactor ?? "0.05"));
           totalVariance += (matMaint - 0.05) * 100;
         }
       }
@@ -18439,7 +19205,15 @@ var projectRouter = router({
       variableContributions: latest.variableContributions,
       inputSnapshot: latest.inputSnapshot
     };
-    const sensitivity = runSensitivityAnalysis(inputs, config);
+    const sensitivityInputs = {
+      ...inputs,
+      spaceEfficiencyScore: Number(latest.inputSnapshot?.spaceEfficiencyScore) || void 0,
+      spaceEfficiencyEvidence: (() => {
+        const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot);
+        return evidence.status === "legacy_unknown" ? void 0 : evidence;
+      })()
+    };
+    const sensitivity = runSensitivityAnalysis(sensitivityInputs, config);
     const allBenchmarks = await getAllBenchmarkData();
     const fiveLens = computeFiveLens(project, latest, allBenchmarks);
     const roiConfig = await getActiveRoiConfig();
@@ -18463,7 +19237,11 @@ var projectRouter = router({
       materialLevel: project.des02MaterialLevel || 3,
       tier: project.mkt01Tier || "Upper-mid",
       horizon: project.ctx05Horizon || "12-24m",
-      spaceEfficiencyScore: project.spaceEfficiencyScore || void 0
+      spaceEfficiencyScore: Number(latest.inputSnapshot?.spaceEfficiencyScore) || void 0,
+      spaceEfficiencyEvidence: (() => {
+        const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot);
+        return evidence.status === "legacy_unknown" ? void 0 : evidence;
+      })()
     };
     const roiResult = computeRoi(roiInputs, coefficients);
     const roi = input.reportType === "full_report" ? computeROI(inputs, scoreResult.compositeScore, 15e4) : void 0;
@@ -18542,38 +19320,10 @@ var projectRouter = router({
           sourceUrl: e.sourceUrl || void 0,
           category: e.category || void 0,
           reliabilityGrade: e.reliabilityGrade || void 0,
-          captureDate: e.captureDate ? String(e.captureDate) : void 0
+          captureDate: e.captureDate ? String(e.captureDate) : void 0,
+          confidenceStatus: !e.currentConfidenceAssessmentId || !e.confidencePolicyVersion ? "legacy_unknown" : e.confidencePolicyVersion === "manual-asserted-confidence-v1" ? "asserted" : "computed",
+          confidencePolicyVersion: e.confidencePolicyVersion || void 0
         }));
-      }
-    } catch {
-    }
-    let boardSummaries = [];
-    try {
-      const boards2 = await getMaterialBoardsByProject(input.projectId);
-      const { computeBoardSummary: computeBoardSummary2 } = await Promise.resolve().then(() => (init_board_composer(), board_composer_exports));
-      for (const board of boards2) {
-        const boardMaterials = await getMaterialsByBoard(board.id);
-        const items = [];
-        for (const bm of boardMaterials) {
-          const mat = await getMaterialById(bm.materialId);
-          if (mat) {
-            items.push({
-              materialId: mat.id,
-              name: mat.name,
-              category: mat.category,
-              tier: mat.tier,
-              costLow: Number(mat.typicalCostLow) || 0,
-              costHigh: Number(mat.typicalCostHigh) || 0,
-              costUnit: mat.costUnit || "AED/unit",
-              leadTimeDays: mat.leadTimeDays || 30,
-              leadTimeBand: mat.leadTimeBand || "medium",
-              supplierName: mat.supplierName || "TBD"
-            });
-          }
-        }
-        if (items.length > 0) {
-          boardSummaries.push({ boardName: board.boardName, ...computeBoardSummary2(items) });
-        }
       }
     } catch {
     }
@@ -18589,7 +19339,7 @@ var projectRouter = router({
       benchmarkVersion: benchmarkVersionTag,
       logicVersion: logicVersionTag,
       evidenceRefs,
-      boardSummaries,
+      boardAnnex,
       autonomousContent: input.reportType === "autonomous_design_brief" ? reportData.content : void 0,
       designBrief: input.reportType === "design_brief" || input.reportType === "full_report" ? generateDesignBrief2({ name: project.name, description: project.description }, inputs, scoreResult) : void 0
     };
@@ -20394,7 +21144,6 @@ var adminRouter = router({
 
 // server/routers/seed.ts
 init_db();
-init_board_composer();
 async function buildEvalConfigForSeed(modelVersion, expectedCost, benchmarkCount) {
   const baseWeights = modelVersion.dimensionWeights;
   const publishedLogic = await getPublishedLogicVersion();
@@ -21012,7 +21761,6 @@ ${lines.join("\n")}`;
 // server/routers/design.ts
 init_floor_plan_analyzer();
 init_space_benchmarking();
-init_board_composer();
 
 // server/engines/procurement/vendor-matching.ts
 init_db();
@@ -23901,6 +24649,7 @@ var VARIABLE_LABELS = {
   des03Complexity: "Design Complexity",
   des04Experience: "Experience Ambition",
   des05Sustainability: "Sustainability Commitment",
+  spaceEfficiencyScore: "Floor Plan Efficiency",
   // Execution (4 variables)
   exe01SupplyChain: "Supply Chain Readiness",
   exe02Contractor: "Contractor Capability",
@@ -23940,8 +24689,9 @@ var VARIABLE_TO_CONTRIBUTION_KEY = {
     des03Complexity: "des04_n",
     // complexity is in ds via des04 weight
     des04Experience: "des04_n",
-    des05Sustainability: "competitorInverse"
+    des05Sustainability: "competitorInverse",
     // closest proxy
+    spaceEfficiencyScore: "spaceEfficiency"
   },
   er: {
     exe01SupplyChain: "supplyChainInverse",
@@ -24015,6 +24765,7 @@ function generateExplainabilityReport(projectId, inputSnapshot, scoreData, bench
     ds: scoreData.dsScore,
     er: scoreData.erScore
   };
+  const spaceEvidence = resolveSpaceEfficiencyEvidence(inputSnapshot);
   const flatContributions = {};
   for (const [dim, val] of Object.entries(scoreData.variableContributions)) {
     if (typeof val === "object" && val !== null) {
@@ -24025,7 +24776,7 @@ function generateExplainabilityReport(projectId, inputSnapshot, scoreData, bench
     sa: ["str01BrandClarity", "str02Differentiation", "str03BuyerMaturity", "ctx01Typology"],
     ff: ["fin01BudgetCap", "fin02Flexibility", "fin03ShockTolerance", "fin04SalesPremium", "ctx03Gfa", "totalFitoutArea"],
     mp: ["mkt01Tier", "mkt02Competitor", "mkt03Trend", "ctx04Location"],
-    ds: ["des01Style", "des02MaterialLevel", "des03Complexity", "des04Experience", "des05Sustainability", "ctx02Scale"],
+    ds: ["des01Style", "des02MaterialLevel", "des03Complexity", "des04Experience", "des05Sustainability", "ctx02Scale", "spaceEfficiencyScore"],
     er: ["exe01SupplyChain", "exe02Contractor", "exe03Approvals", "exe04QaMaturity", "ctx05Horizon", "add01SampleKit", "add02PortfolioMode", "add03DashboardExport"]
   };
   const allDrivers = [];
@@ -24038,9 +24789,13 @@ function generateExplainabilityReport(projectId, inputSnapshot, scoreData, bench
       const isStringEnum = STRING_ENUM_VARS.has(v);
       const isBooleanVar = BOOLEAN_VARS.has(v);
       const isRawNumeric = RAW_NUMERIC_VARS.has(v);
+      const isSpaceEfficiency = v === "spaceEfficiencyScore";
       let numVal = null;
       let normalizedValue = null;
-      if (!isStringEnum && !isBooleanVar && !isRawNumeric && typeof rawVal === "number") {
+      if (isSpaceEfficiency && typeof rawVal === "number") {
+        numVal = rawVal;
+        normalizedValue = Math.max(0, Math.min(1, rawVal / 100));
+      } else if (!isStringEnum && !isBooleanVar && !isRawNumeric && typeof rawVal === "number") {
         numVal = rawVal;
         normalizedValue = Math.max(0, Math.min(1, (rawVal - 1) / 4));
       } else if (!isStringEnum && !isBooleanVar && !isRawNumeric && typeof rawVal === "string") {
@@ -24056,7 +24811,9 @@ function generateExplainabilityReport(projectId, inputSnapshot, scoreData, bench
       const contribKey = VARIABLE_TO_CONTRIBUTION_KEY[dim]?.[v];
       const contribution = contribKey ? dimContribs[contribKey] ?? 0 : 0;
       let direction;
-      if (isStringEnum) {
+      if (isSpaceEfficiency) {
+        direction = spaceEvidence.status === "measured" ? numVal !== null && numVal >= 75 ? "positive" : numVal !== null && numVal < 50 ? "negative" : "neutral" : "neutral";
+      } else if (isStringEnum) {
         const enumMap = ENUM_QUALITY_MAP[v];
         direction = enumMap?.[String(rawVal)] ?? "neutral";
       } else if (isBooleanVar) {
@@ -24069,7 +24826,11 @@ function generateExplainabilityReport(projectId, inputSnapshot, scoreData, bench
         direction = "neutral";
       }
       let displayValue;
-      if (rawVal === void 0 || rawVal === null) {
+      if (isSpaceEfficiency && spaceEvidence.status === "neutral_fallback") {
+        displayValue = NEUTRAL_SPACE_EFFICIENCY_LABEL;
+      } else if (isSpaceEfficiency && spaceEvidence.status === "legacy_unknown" && rawVal !== void 0 && rawVal !== null) {
+        displayValue = `${rawVal}/100 \u2014 Legacy score; measurement provenance unavailable`;
+      } else if (rawVal === void 0 || rawVal === null) {
         displayValue = "N/A";
       } else if (isBooleanVar) {
         displayValue = rawVal ? "Yes" : "No";
@@ -24081,7 +24842,7 @@ function generateExplainabilityReport(projectId, inputSnapshot, scoreData, bench
       } else {
         displayValue = String(rawVal);
       }
-      const explanation = buildVariableExplanation(v, displayValue, numVal, direction, isStringEnum || isBooleanVar);
+      const explanation = isSpaceEfficiency ? spaceEvidence.status === "neutral_fallback" ? `${NEUTRAL_SPACE_EFFICIENCY_LABEL}. The approved neutral score remains in the calculation, but it is not a measured result and does not support a benchmark or financial-saving claim.` : spaceEvidence.status === "legacy_unknown" ? "The historical snapshot has no immutable space-measurement provenance. Its score is retained for compatibility and must not be described as measured or benchmark-backed." : `Floor plan efficiency was measured from ${spaceEvidence.roomCount} rooms using ${spaceBenchmarkLabel(spaceEvidence)}.` : buildVariableExplanation(v, displayValue, numVal, direction, isStringEnum || isBooleanVar);
       const driver = {
         variable: v,
         label: VARIABLE_LABELS[v] ?? v,
@@ -24180,8 +24941,11 @@ function buildDecisionRationale(composite, status, penalties, topPositive, topNe
   return rationale;
 }
 function buildConfidenceExplanation(confidenceScore, inputs) {
-  const filledCount = Object.values(inputs).filter((v) => v !== null && v !== void 0 && v !== "").length;
-  const totalVars = Object.keys(inputs).length;
+  const scoringInputs = Object.entries(inputs).filter(
+    ([key]) => key !== "spaceEfficiencyEvidence"
+  );
+  const filledCount = scoringInputs.filter(([, value]) => value !== null && value !== void 0 && value !== "").length;
+  const totalVars = scoringInputs.length;
   const completeness = totalVars > 0 ? filledCount / totalVars * 100 : 0;
   let explanation = `Confidence score: ${confidenceScore.toFixed(1)}/100. `;
   explanation += `Input completeness: ${completeness.toFixed(0)}% (${filledCount}/${totalVars} variables provided). `;
@@ -24828,7 +25592,9 @@ import { nanoid as nanoid6 } from "nanoid";
 // server/engines/ingestion/csv-pipeline.ts
 init_db();
 init_change_detector();
+init_confidence_policy();
 import * as xlsx from "xlsx";
+import { randomUUID as randomUUID3 } from "crypto";
 function generateRecordId2() {
   const ts = Date.now().toString(36);
   const rand = Math.random().toString(36).substring(2, 6);
@@ -24845,9 +25611,11 @@ function generateCsvTemplate() {
   return xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
 }
 async function processCsvUpload(buffer, sourceId, addedByUserId) {
+  const receiptClock = /* @__PURE__ */ new Date();
+  const runId = `CSV-${randomUUID3().substring(0, 8)}`;
   const source = await getSourceRegistryById(sourceId);
   if (!source) throw new Error("Source not found");
-  const wb = xlsx.read(buffer, { type: "buffer" });
+  const wb = xlsx.read(buffer, { type: "buffer", cellDates: true });
   if (!wb.SheetNames.length) throw new Error("Empty spreadsheet");
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rawData = xlsx.utils.sheet_to_json(ws);
@@ -24867,46 +25635,142 @@ async function processCsvUpload(buffer, sourceId, addedByUserId) {
       const valRaw = row["Value"] || row["Price"] || row["Cost"];
       const value = parseFloat(valRaw);
       const unit = row["Unit"] || row["unit"] || "unit";
-      const dateRaw = row["Date (YYYY-MM-DD)"] || row["Date"] || row["date"];
-      let publishedDate = /* @__PURE__ */ new Date();
-      if (dateRaw) {
-        const parsed = new Date(dateRaw);
-        if (!isNaN(parsed.getTime())) publishedDate = parsed;
-      }
+      const dateRawValue = row["Date (YYYY-MM-DD)"] ?? row["Date"] ?? row["date"];
+      const dateRaw = dateRawValue instanceof Date ? dateRawValue.toISOString() : dateRawValue == null || dateRawValue === "" ? null : String(dateRawValue);
       const tagsRaw = row["Tags"] || row["tags"];
       const tags = tagsRaw && typeof tagsRaw === "string" ? tagsRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
       const notes = row["Notes"] || row["notes"] || "";
       if (!title) {
+        const publication = classifyPublicationDate(dateRaw, receiptClock);
+        await recordRejectedConfidenceAssessment({
+          runId,
+          sourceId: String(source.id),
+          actorId: addedByUserId,
+          corpusScope: "legacy_unscoped",
+          origin: "csv_upload",
+          outcome: "rejected",
+          evaluationClock: receiptClock,
+          rawPublicationText: publication.raw,
+          datePrecision: publication.status === "missing" ? "missing" : publication.precision === "datetime" ? "timestamp" : publication.precision,
+          parsingStatus: publication.status,
+          parsedPublicationDate: publication.parsedAt,
+          registryGradePolicyId: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+          confidencePolicyId: "ingestion-confidence-v1",
+          mergePolicyId: "evidence-confidence-merge-latest-v1",
+          grade: source.reliabilityDefault,
+          mergeDecision: "rejected",
+          rejectionCode: "missing_item_name"
+        });
         errors.push(`Row ${i + 2}: Missing Item Name/Title`);
         skippedCount++;
         continue;
       }
       if (isNaN(value)) {
+        const publication = classifyPublicationDate(dateRaw, receiptClock);
+        await recordRejectedConfidenceAssessment({
+          runId,
+          sourceId: String(source.id),
+          actorId: addedByUserId,
+          corpusScope: "legacy_unscoped",
+          origin: "csv_upload",
+          outcome: "rejected",
+          evaluationClock: receiptClock,
+          rawPublicationText: publication.raw,
+          datePrecision: publication.status === "missing" ? "missing" : publication.precision === "datetime" ? "timestamp" : publication.precision,
+          parsingStatus: publication.status,
+          parsedPublicationDate: publication.parsedAt,
+          registryGradePolicyId: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+          confidencePolicyId: "ingestion-confidence-v1",
+          mergePolicyId: "evidence-confidence-merge-latest-v1",
+          grade: source.reliabilityDefault,
+          mergeDecision: "rejected",
+          rejectionCode: "invalid_numeric_value"
+        });
         errors.push(`Row ${i + 2}: Invalid or missing numeric Value`);
         skippedCount++;
         continue;
       }
+      const confidence = evaluateConnectorConfidence({
+        grade: source.reliabilityDefault,
+        publicationDate: dateRaw,
+        evaluatedAt: receiptClock
+      });
+      if (!confidence.accepted) {
+        await recordRejectedConfidenceAssessment({
+          runId,
+          sourceId: String(source.id),
+          actorId: addedByUserId,
+          corpusScope: "legacy_unscoped",
+          origin: "csv_upload",
+          outcome: "rejected",
+          evaluationClock: receiptClock,
+          rawPublicationText: confidence.publicationDate.raw,
+          datePrecision: confidence.publicationDate.status === "missing" ? "missing" : confidence.publicationDate.precision === "datetime" ? "timestamp" : confidence.publicationDate.precision,
+          parsingStatus: confidence.publicationDate.status,
+          parsedPublicationDate: confidence.publicationDate.parsedAt,
+          registryGradePolicyId: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+          confidencePolicyId: "ingestion-confidence-v1",
+          mergePolicyId: "evidence-confidence-merge-latest-v1",
+          grade: source.reliabilityDefault,
+          mergeDecision: "rejected",
+          rejectionCode: confidence.rejectionCode
+        });
+        errors.push(`Row ${i + 2}: ${confidence.rejectionCode}`);
+        skippedCount++;
+        continue;
+      }
       const summary = notes ? `Uploaded Data: ${notes}` : `Bulk uploaded value for ${title}`;
-      const { id: newRecordId } = await createEvidenceRecord({
+      const categoryMap = {
+        material_cost: "floors",
+        fitout_rate: "other",
+        market_trend: "other",
+        competitor_project: "other"
+      };
+      const acceptedCategories = /* @__PURE__ */ new Set(["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"]);
+      const normalizedCategory = acceptedCategories.has(String(category)) ? String(category) : categoryMap[String(category)] || "other";
+      const confidenceScore = Math.round(confidence.initial.score * 100);
+      const { id: newRecordId } = await createEvidenceRecordWithConfidenceAssessment({
         recordId: generateRecordId2(),
         sourceRegistryId: source.id,
         sourceUrl: source.url,
-        category: String(category).substring(0, 64),
+        category: normalizedCategory,
         itemName: String(title).substring(0, 255),
         title: String(metric).substring(0, 512),
         // mapping metric to title for context
         priceTypical: isNaN(value) ? null : value.toString(),
         unit: String(unit).substring(0, 32),
         currencyOriginal: "AED",
-        captureDate: publishedDate,
+        captureDate: confidence.publicationDate.parsedAt || receiptClock,
         reliabilityGrade: source.reliabilityDefault,
-        confidenceScore: source.reliabilityDefault === "A" ? 90 : 70,
-        // 0-100 scale
+        confidenceScore,
         extractedSnippet: summary.substring(0, 500),
         publisher: source.name,
         tags,
         notes: `Uploaded via CSV bulk tool. Row context: ${JSON.stringify(row).substring(0, 200)}`,
+        runId,
         createdBy: addedByUserId
+      }, {
+        runId,
+        sourceId: String(source.id),
+        actorId: addedByUserId,
+        corpusScope: "legacy_unscoped",
+        origin: "csv_upload",
+        outcome: "accepted",
+        evaluationClock: receiptClock,
+        rawPublicationText: confidence.publicationDate.raw,
+        datePrecision: confidence.publicationDate.status === "missing" ? "missing" : confidence.publicationDate.precision === "datetime" ? "timestamp" : confidence.publicationDate.precision,
+        parsingStatus: confidence.publicationDate.status,
+        parsedPublicationDate: confidence.publicationDate.parsedAt,
+        registryGradePolicyId: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+        confidencePolicyId: confidence.initial.policyVersion,
+        mergePolicyId: "evidence-confidence-merge-latest-v1",
+        grade: source.reliabilityDefault,
+        baseConfidence: confidence.initial.baseScore,
+        recencyAdjustment: confidence.initial.dateAdjustment,
+        confidenceAfterRecency: confidence.initial.score,
+        candidateScore: confidenceScore,
+        finalScore: confidenceScore,
+        mergeDecision: "inserted"
       });
       const insertedRecord = await getEvidenceRecordById(newRecordId);
       if (insertedRecord) {
@@ -25287,6 +26151,9 @@ Seeder complete: ${created} sources created, ${skipped} skipped`);
   });
 }
 
+// server/routers/market-intelligence.ts
+init_confidence_policy();
+
 // server/_core/market-resource-access.ts
 init_db();
 import { TRPCError as TRPCError13 } from "@trpc/server";
@@ -25310,7 +26177,7 @@ async function requireEvidenceRecordForOrg(evidenceId, orgId) {
     return { evidence, project };
   }
   if (evidence.orgId === orgId) return { evidence, project: null };
-  if (evidence.orgId === null && evidence.confidentiality === "public") {
+  if (evidence.orgId === null && (evidence.corpusScope === "platform_public" || evidence.confidentiality === "public")) {
     return { evidence, project: null };
   }
   return notFound3();
@@ -25401,6 +26268,53 @@ var evidenceRecordSchema = z13.object({
   materialSpec: z13.string().nullable().optional(),
   intelligenceType: z13.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional()
 });
+var MANUAL_ASSERTED_CONFIDENCE_POLICY = "manual-asserted-confidence-v1";
+async function assertedConfidenceAssessment(origin, rawPublicationText, evaluationClock, grade2, score, runId, actorId) {
+  const publication = classifyPublicationDate(rawPublicationText, evaluationClock);
+  if (publication.status !== "valid" || !publication.parsedAt) {
+    const rejectionCode = publication.status === "future" ? "future_publication_date" : "invalid_publication_date";
+    await recordRejectedConfidenceAssessment({
+      runId,
+      sourceId: null,
+      actorId,
+      corpusScope: "platform_public",
+      origin,
+      outcome: "rejected",
+      evaluationClock,
+      rawPublicationText: publication.raw,
+      datePrecision: publication.status === "missing" ? "missing" : publication.precision === "datetime" ? "timestamp" : publication.precision,
+      parsingStatus: publication.status,
+      parsedPublicationDate: publication.parsedAt,
+      confidencePolicyId: MANUAL_ASSERTED_CONFIDENCE_POLICY,
+      grade: grade2,
+      candidateScore: score,
+      mergeDecision: "rejected",
+      rejectionCode
+    });
+    throw new TRPCError14({
+      code: "BAD_REQUEST",
+      message: publication.status === "future" ? "Publication date cannot be in the future" : "Publication date is invalid"
+    });
+  }
+  return {
+    runId,
+    sourceId: null,
+    actorId,
+    corpusScope: "platform_public",
+    origin,
+    outcome: "accepted",
+    evaluationClock,
+    rawPublicationText: publication.raw,
+    datePrecision: publication.precision === "datetime" ? "timestamp" : publication.precision,
+    parsingStatus: publication.status,
+    parsedPublicationDate: publication.parsedAt,
+    confidencePolicyId: MANUAL_ASSERTED_CONFIDENCE_POLICY,
+    grade: grade2,
+    candidateScore: score,
+    finalScore: score,
+    mergeDecision: "manual_assertion"
+  };
+}
 var sourceRegistrySchema = z13.object({
   name: z13.string().min(1),
   url: z13.string().url(),
@@ -25615,6 +26529,10 @@ var marketIntelligenceRouter = router({
       const authorized = await requireEvidenceRecordForOrg(input.id, ctx.orgId);
       return authorized.evidence;
     }),
+    confidenceHistory: orgProcedure.input(z13.object({ id: z13.number(), limit: z13.number().min(1).max(100).default(50) })).query(async ({ ctx, input }) => {
+      await requireEvidenceRecordForOrg(input.id, ctx.orgId);
+      return listConfidenceAssessmentHistory(input.id, input.limit);
+    }),
     create: adminProcedure.input(evidenceRecordSchema).mutation(async ({ input, ctx }) => {
       if (input.projectId !== void 0) {
         throw new TRPCError14({
@@ -25622,8 +26540,19 @@ var marketIntelligenceRouter = router({
           message: "Project-linked evidence must be created within an organization workflow"
         });
       }
+      const receiptClock = /* @__PURE__ */ new Date();
+      const runId = generateRunId("MAN");
+      const assessment = await assertedConfidenceAssessment(
+        "manual_entry",
+        input.captureDate,
+        receiptClock,
+        input.reliabilityGrade,
+        input.confidenceScore,
+        runId,
+        ctx.user.id
+      );
       const recordId = generateRecordId3();
-      const result = await createEvidenceRecord({
+      const result = await createEvidenceRecordWithConfidenceAssessment({
         ...input,
         projectId: null,
         orgId: null,
@@ -25635,12 +26564,13 @@ var marketIntelligenceRouter = router({
         priceMax: input.priceMax ? String(input.priceMax) : null,
         currencyAed: input.currencyAed ? String(input.currencyAed) : null,
         fxRate: input.fxRate ? String(input.fxRate) : null,
-        captureDate: new Date(input.captureDate),
+        captureDate: assessment.parsedPublicationDate,
+        runId,
         createdBy: ctx.user.id
-      });
+      }, assessment);
       await createIntelligenceAuditEntry({
         runType: "manual_entry",
-        runId: generateRunId("MAN"),
+        runId,
         actor: ctx.user.id,
         inputSummary: { category: input.category, itemName: input.itemName },
         outputSummary: { recordId, evidenceId: result.id },
@@ -25663,13 +26593,23 @@ var marketIntelligenceRouter = router({
       }
       const runId = generateRunId("BULK");
       const startedAt = /* @__PURE__ */ new Date();
+      const receiptClock = new Date(startedAt.getTime());
       let imported = 0;
       const errors = [];
       for (let i = 0; i < input.records.length; i++) {
         try {
           const rec = input.records[i];
+          const assessment = await assertedConfidenceAssessment(
+            "bulk_entry",
+            rec.captureDate,
+            receiptClock,
+            rec.reliabilityGrade,
+            rec.confidenceScore,
+            runId,
+            ctx.user.id
+          );
           const recordId = generateRecordId3();
-          await createEvidenceRecord({
+          await createEvidenceRecordWithConfidenceAssessment({
             ...rec,
             projectId: null,
             orgId: null,
@@ -25681,10 +26621,10 @@ var marketIntelligenceRouter = router({
             priceMax: rec.priceMax ? String(rec.priceMax) : null,
             currencyAed: rec.currencyAed ? String(rec.currencyAed) : null,
             fxRate: rec.fxRate ? String(rec.fxRate) : null,
-            captureDate: new Date(rec.captureDate),
+            captureDate: assessment.parsedPublicationDate,
             runId,
             createdBy: ctx.user.id
-          });
+          }, assessment);
           imported++;
         } catch (e) {
           errors.push({ index: i, error: e.message });
@@ -26413,6 +27353,7 @@ var ingestionRouter = router({
         sourcesSucceeded: lastRun.sourcesSucceeded,
         sourcesFailed: lastRun.sourcesFailed,
         recordsInserted: lastRun.recordsInserted,
+        recordsRejected: lastRun.recordsRejected,
         duplicatesSkipped: lastRun.duplicatesSkipped,
         startedAt: lastRun.startedAt,
         completedAt: lastRun.completedAt,
@@ -28545,7 +29486,7 @@ var learningRouter = router({
 import { z as z18 } from "zod";
 init_db();
 init_schema();
-import { eq as eq14, and as and6, desc as desc7, sql as sql6 } from "drizzle-orm";
+import { eq as eq14, and as and5, desc as desc7, sql as sql6 } from "drizzle-orm";
 import { TRPCError as TRPCError16 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
@@ -28680,11 +29621,11 @@ ${JSON.stringify(truncatedData, null, 2)}` }
 init_llm();
 init_db();
 init_schema();
-import { and as and5, eq as eq13, desc as desc6 } from "drizzle-orm";
+import { and as and4, eq as eq13, desc as desc6 } from "drizzle-orm";
 async function generatePortfolioInsightsForOrg(orgId) {
   const db = await getDb();
   if (!db) throw new Error("Database error");
-  const allProjects = await db.select().from(projects).where(and5(
+  const allProjects = await db.select().from(projects).where(and4(
     eq13(projects.status, "evaluated"),
     eq13(projects.orgId, orgId)
   ));
@@ -28783,7 +29724,7 @@ var autonomousRouter = router({
     if (input?.type) {
       conditions.push(eq14(platformAlerts.alertType, input.type));
     }
-    return db.select().from(platformAlerts).where(conditions.length > 0 ? and6(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
+    return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
   }),
   acknowledgeAlert: adminProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -28808,7 +29749,7 @@ var autonomousRouter = router({
     if (!db) throw new TRPCError16({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
     const recentQueries = await db.select({ count: sql6`count(*)` }).from(nlQueryLog).where(
-      and6(
+      and5(
         eq14(nlQueryLog.userId, ctx.user.id),
         sql6`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
@@ -28839,7 +29780,7 @@ init_db();
 import { z as z19 } from "zod";
 init_schema();
 import { TRPCError as TRPCError17 } from "@trpc/server";
-import { eq as eq15, and as and7 } from "drizzle-orm";
+import { eq as eq15, and as and6 } from "drizzle-orm";
 import { nanoid as nanoid7 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z19.object({
@@ -28883,7 +29824,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError17({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and7(eq15(organizationMembers.orgId, ctx.orgId), eq15(organizationMembers.userId, ctx.user.id))).limit(1);
+    const myMembership = await db.select().from(organizationMembers).where(and6(eq15(organizationMembers.orgId, ctx.orgId), eq15(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
       throw new TRPCError17({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
@@ -28907,7 +29848,7 @@ var organizationRouter = router({
       const invite = inviteResult[0];
       if (!invite) throw new TRPCError17({ code: "NOT_FOUND", message: "Invalid invite token" });
       if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError17({ code: "BAD_REQUEST", message: "Invite expired" });
-      const memberships = await tx.select().from(organizationMembers).where(and7(
+      const memberships = await tx.select().from(organizationMembers).where(and6(
         eq15(organizationMembers.orgId, invite.orgId),
         eq15(organizationMembers.userId, ctx.user.id)
       )).limit(2).for("update");
@@ -30133,10 +31074,10 @@ var designAdvisorRouter = router({
 // server/routers/portfolio.ts
 import { z as z24 } from "zod";
 import { TRPCError as TRPCError18 } from "@trpc/server";
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 init_db();
 init_schema();
-import { eq as eq16, and as and8, desc as desc8, inArray as inArray3 } from "drizzle-orm";
+import { eq as eq16, and as and7, desc as desc8, inArray as inArray3 } from "drizzle-orm";
 var portfolioRouter = router({
   // ─── List all portfolios for current org ──────────────────────────
   list: orgProcedure.query(async ({ ctx }) => {
@@ -30183,7 +31124,7 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) return null;
     const [portfolio] = await db.select().from(portfolios).where(
-      and8(
+      and7(
         eq16(portfolios.id, input.id),
         eq16(portfolios.organizationId, ctx.orgId)
       )
@@ -30198,7 +31139,7 @@ var portfolioRouter = router({
       };
     }
     const projectIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(and8(
+    const projectList = await db.select().from(projects).where(and7(
       inArray3(projects.id, projectIds),
       eq16(projects.orgId, ctx.orgId)
     ));
@@ -30331,7 +31272,7 @@ var portfolioRouter = router({
     if (input.name !== void 0) updates.name = input.name;
     if (input.description !== void 0)
       updates.description = input.description;
-    const [result] = await db.update(portfolios).set(updates).where(and8(
+    const [result] = await db.update(portfolios).set(updates).where(and7(
       eq16(portfolios.id, input.id),
       eq16(portfolios.organizationId, ctx.orgId)
     ));
@@ -30345,13 +31286,13 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const deleted = await db.transaction(async (tx) => {
-      const rows = await tx.select({ id: portfolios.id }).from(portfolios).where(and8(
+      const rows = await tx.select({ id: portfolios.id }).from(portfolios).where(and7(
         eq16(portfolios.id, input.id),
         eq16(portfolios.organizationId, ctx.orgId)
       )).limit(1).for("update");
       if (rows.length !== 1) return false;
       await tx.delete(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
-      const [result] = await tx.delete(portfolios).where(and8(
+      const [result] = await tx.delete(portfolios).where(and7(
         eq16(portfolios.id, input.id),
         eq16(portfolios.organizationId, ctx.orgId)
       ));
@@ -30373,16 +31314,16 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const result = await db.transaction(async (tx) => {
-      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and8(
+      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and7(
         eq16(portfolios.id, input.portfolioId),
         eq16(portfolios.organizationId, ctx.orgId)
       )).limit(1).for("update");
-      const [project] = await tx.select({ id: projects.id }).from(projects).where(and8(
+      const [project] = await tx.select({ id: projects.id }).from(projects).where(and7(
         eq16(projects.id, input.projectId),
         eq16(projects.orgId, ctx.orgId)
       )).limit(1).for("update");
       if (!portfolio || !project) return "not_found";
-      const existing = await tx.select({ portfolioId: portfolioProjects.portfolioId }).from(portfolioProjects).where(and8(
+      const existing = await tx.select({ portfolioId: portfolioProjects.portfolioId }).from(portfolioProjects).where(and7(
         eq16(portfolioProjects.portfolioId, input.portfolioId),
         eq16(portfolioProjects.projectId, input.projectId)
       )).limit(1);
@@ -30409,16 +31350,16 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const removed = await db.transaction(async (tx) => {
-      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and8(
+      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and7(
         eq16(portfolios.id, input.portfolioId),
         eq16(portfolios.organizationId, ctx.orgId)
       )).limit(1).for("update");
-      const [project] = await tx.select({ id: projects.id }).from(projects).where(and8(
+      const [project] = await tx.select({ id: projects.id }).from(projects).where(and7(
         eq16(projects.id, input.projectId),
         eq16(projects.orgId, ctx.orgId)
       )).limit(1).for("update");
       if (!portfolio || !project) return false;
-      await tx.delete(portfolioProjects).where(and8(
+      await tx.delete(portfolioProjects).where(and7(
         eq16(portfolioProjects.portfolioId, input.portfolioId),
         eq16(portfolioProjects.projectId, input.projectId)
       ));
@@ -30433,7 +31374,7 @@ var portfolioRouter = router({
   availableProjects: orgProcedure.input(z24.object({ portfolioId: z24.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return [];
-    const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and8(
+    const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and7(
       eq16(portfolios.id, input.portfolioId),
       eq16(portfolios.organizationId, ctx.orgId)
     ));
@@ -30459,7 +31400,7 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and8(
+      and7(
         eq16(portfolios.id, input.id),
         eq16(portfolios.organizationId, ctx.orgId)
       )
@@ -30470,7 +31411,7 @@ var portfolioRouter = router({
       throw new Error("Portfolio has no projects \u2014 add projects before generating a report.");
     }
     const pIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(and8(
+    const projectList = await db.select().from(projects).where(and7(
       inArray3(projects.id, pIds),
       eq16(projects.orgId, ctx.orgId)
     ));
@@ -30568,7 +31509,7 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and8(
+      and7(
         eq16(portfolios.id, input.id),
         eq16(portfolios.organizationId, ctx.orgId)
       )
@@ -30577,7 +31518,7 @@ var portfolioRouter = router({
     const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) return { alerts: [], message: "No projects in portfolio" };
     const pIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(and8(
+    const projectList = await db.select().from(projects).where(and7(
       inArray3(projects.id, pIds),
       eq16(projects.orgId, ctx.orgId)
     ));
@@ -30690,7 +31631,7 @@ var portfolioRouter = router({
       });
     }
     for (const alert of candidates) {
-      alert.activeDedupKey = createHash2("sha256").update(JSON.stringify({
+      alert.activeDedupKey = createHash3("sha256").update(JSON.stringify({
         organizationId: ctx.orgId,
         portfolioId: portfolio.id,
         alertType: alert.alertType,
@@ -30724,7 +31665,7 @@ import { z as z25 } from "zod";
 init_db();
 init_db();
 init_schema();
-import { eq as eq17, desc as desc9, gte as gte2, and as and9, count } from "drizzle-orm";
+import { eq as eq17, desc as desc9, gte as gte2, and as and8, count } from "drizzle-orm";
 
 // server/engines/customer/health-score.ts
 function clamp2(v, min = 0, max = 100) {
@@ -30859,7 +31800,7 @@ var customerSuccessRouter = router({
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1e3);
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const recentLogs = await d.select().from(auditLogs).where(and9(
+    const recentLogs = await d.select().from(auditLogs).where(and8(
       eq17(auditLogs.userId, userId),
       gte2(auditLogs.createdAt, thirtyDaysAgo)
     ));

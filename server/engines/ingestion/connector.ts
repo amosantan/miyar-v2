@@ -19,6 +19,20 @@
 
 import { z } from "zod";
 import robotsParser from "robots-parser";
+import {
+  ConfidencePolicyError,
+  REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+  STATIC_SOURCE_GRADE_POLICY_VERSION,
+  classifyPublicationDate,
+  computeConfidenceScore,
+  evaluateConnectorConfidence,
+  type AcceptedConfidenceEvaluation,
+  type GradePolicyMetadata,
+  type PublicationDateMetadata,
+  type ReliabilityGrade,
+} from "./confidence-policy";
+
+export * from "./confidence-policy";
 
 // ─── Constants & Resilience Data ─────────────────────────────────
 
@@ -104,9 +118,19 @@ export interface SourceConnector {
   lastSuccessfulFetch?: Date;
   /** Optional: artificial delay applied before the specific request fires */
   requestDelayMs?: number;
+  /** Grade provenance is exposed even when normalization rejects the item. */
+  gradePolicy?: GradePolicyMetadata;
   fetch(): Promise<RawSourcePayload>;
   extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
-  normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
+  normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput>;
+}
+
+export interface ConfidenceEvaluationContext {
+  /** Immutable fetch/request receipt clock supplied by the caller. */
+  evaluatedAt: Date;
 }
 
 export interface RawSourcePayload {
@@ -124,6 +148,11 @@ export interface ExtractedEvidence {
   title: string;
   rawText: string;
   publishedDate?: Date;
+  /** Raw provider value retained for audit and invalid-date visibility. */
+  publishedDateRaw?: string;
+  publicationDate?: PublicationDateMetadata;
+  /** Immutable page fetch clock; required when normalize() has no context. */
+  observedAt?: Date;
   category: string;
   geography: string;
   sourceUrl: string;
@@ -136,6 +165,8 @@ export interface NormalizedEvidenceInput {
   unit: string | null;
   confidence: number;
   grade: "A" | "B" | "C";
+  confidencePolicy?: AcceptedConfidenceEvaluation;
+  gradePolicy?: GradePolicyMetadata;
   summary: string;
   tags: string[];
   brand?: string | null;
@@ -163,6 +194,14 @@ export const extractedEvidenceSchema = z.object({
   title: z.string().min(1),
   rawText: z.string().min(1),
   publishedDate: z.date().optional(),
+  publishedDateRaw: z.string().optional(),
+  publicationDate: z.object({
+    raw: z.string().nullable(),
+    parsedAt: z.date().nullable(),
+    precision: z.enum(["date", "datetime", "unknown"]),
+    status: z.enum(["missing", "valid", "invalid", "future"]),
+  }).optional(),
+  observedAt: z.date().optional(),
   category: z.string().min(1), // Accept any category — validated at orchestrator level
   geography: z.string().min(1),
   sourceUrl: z.string().url(),
@@ -201,35 +240,70 @@ export function assignGrade(sourceId: string): "A" | "B" | "C" {
   return "C";
 }
 
-// ─── Deterministic Confidence Rules ──────────────────────────────
+export function resolveGradePolicy(
+  sourceId: string,
+  registryGrade?: ReliabilityGrade
+): GradePolicyMetadata {
+  if (registryGrade) {
+    return {
+      grade: registryGrade,
+      policyVersion: REGISTRY_SOURCE_GRADE_POLICY_VERSION,
+      source: "source_registry",
+      sourceId,
+    };
+  }
+  return {
+    grade: assignGrade(sourceId),
+    policyVersion: STATIC_SOURCE_GRADE_POLICY_VERSION,
+    source: "static_source_registry",
+    sourceId,
+  };
+}
 
-const BASE_CONFIDENCE: Record<string, number> = { A: 0.85, B: 0.70, C: 0.55 };
-const RECENCY_BONUS = 0.10;
-const STALENESS_PENALTY = -0.15;
-const CONFIDENCE_CAP = 1.0;
-const CONFIDENCE_FLOOR = 0.20;
+// ─── Deterministic Confidence Rules ──────────────────────────────
 
 export function computeConfidence(
   grade: "A" | "B" | "C",
   publishedDate: Date | undefined,
   fetchedAt: Date
 ): number {
-  let confidence = BASE_CONFIDENCE[grade];
+  return computeConfidenceScore(grade, publishedDate, fetchedAt);
+}
 
-  if (!publishedDate) {
-    confidence += STALENESS_PENALTY;
-  } else {
-    const daysSincePublished = Math.floor(
-      (fetchedAt.getTime() - publishedDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    if (daysSincePublished <= 90) {
-      confidence += RECENCY_BONUS;
-    } else if (daysSincePublished > 365) {
-      confidence += STALENESS_PENALTY;
-    }
-  }
+/** Convert an untrusted provider date into explicit extraction metadata. */
+export function publicationDateFields(
+  raw: unknown,
+  evaluatedAt: Date
+): Pick<ExtractedEvidence, "publishedDate" | "publishedDateRaw" | "publicationDate"> {
+  const candidate =
+    raw instanceof Date || typeof raw === "string" ? raw : raw == null ? undefined : String(raw);
+  const publicationDate = classifyPublicationDate(candidate, evaluatedAt);
+  return {
+    publishedDate: publicationDate.parsedAt ?? undefined,
+    publishedDateRaw: publicationDate.raw ?? undefined,
+    publicationDate,
+  };
+}
 
-  return Math.min(CONFIDENCE_CAP, Math.max(CONFIDENCE_FLOOR, confidence));
+/**
+ * Evaluate connector confidence from an explicit clock. Orchestration should
+ * catch ConfidencePolicyError and persist the rejection rather than fallback.
+ */
+export function evaluateEvidenceConfidence(
+  evidence: ExtractedEvidence,
+  grade: ReliabilityGrade,
+  context?: ConfidenceEvaluationContext
+): AcceptedConfidenceEvaluation {
+  const evaluatedAt = context?.evaluatedAt ?? evidence.observedAt ?? new Date(Number.NaN);
+  const publicationInput =
+    evidence.publicationDate?.raw ?? evidence.publishedDateRaw ?? evidence.publishedDate;
+  const result = evaluateConnectorConfidence({
+    grade,
+    publicationDate: publicationInput,
+    evaluatedAt,
+  });
+  if (!result.accepted) throw new ConfidencePolicyError(result);
+  return result;
 }
 
 // ─── Firecrawl Credit Cache ─────────────────────────────────────
@@ -738,5 +812,8 @@ export abstract class BaseSourceConnector implements SourceConnector {
   }
 
   abstract extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]>;
-  abstract normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput>;
+  abstract normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput>;
 }

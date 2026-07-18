@@ -380,7 +380,7 @@ export default function IngestionMonitor() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Run ID</p>
                   <p className="text-sm font-mono">{status.lastRun.runId}</p>
@@ -409,6 +409,10 @@ export default function IngestionMonitor() {
                 <div>
                   <p className="text-xs text-muted-foreground">Duplicates Skipped</p>
                   <p className="text-sm">{status.lastRun.duplicatesSkipped}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Rejected</p>
+                  <p className="text-sm text-red-400">{status.lastRun.recordsRejected}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Duration</p>
@@ -449,6 +453,7 @@ export default function IngestionMonitor() {
                       <th className="text-right py-2 px-3 font-medium">Sources</th>
                       <th className="text-right py-2 px-3 font-medium">Records</th>
                       <th className="text-right py-2 px-3 font-medium">Duplicates</th>
+                      <th className="text-right py-2 px-3 font-medium">Rejected</th>
                       <th className="text-right py-2 px-3 font-medium">Duration</th>
                       <th className="text-left py-2 px-3 font-medium">Started</th>
                       <th className="text-center py-2 px-3 font-medium">Detail</th>
@@ -480,6 +485,7 @@ export default function IngestionMonitor() {
                         </td>
                         <td className="py-2 px-3 text-right font-medium">{run.recordsInserted}</td>
                         <td className="py-2 px-3 text-right text-muted-foreground">{run.duplicatesSkipped}</td>
+                        <td className="py-2 px-3 text-right text-red-400">{run.recordsRejected}</td>
                         <td className="py-2 px-3 text-right">{formatDuration(run.durationMs)}</td>
                         <td className="py-2 px-3 text-xs">{formatDate(run.startedAt)}</td>
                         <td className="py-2 px-3 text-center">
@@ -642,6 +648,10 @@ export default function IngestionMonitor() {
                   <div>
                     <p className="text-xs text-muted-foreground">Duplicates Skipped</p>
                     <p>{runDetail.duplicatesSkipped}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Records Rejected</p>
+                    <p className="text-red-400">{runDetail.recordsRejected}</p>
                   </div>
                 </div>
 

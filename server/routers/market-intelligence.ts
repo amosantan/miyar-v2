@@ -19,6 +19,7 @@ import { runSingleConnector, testScrape } from "../engines/ingestion/orchestrato
 import { generateCsvTemplate, processCsvUpload } from "../engines/ingestion/csv-pipeline";
 import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
 import { requireProjectForOrg } from "../_core/project-access";
+import { classifyPublicationDate } from "../engines/ingestion/confidence-policy";
 import {
   requireEvidenceRecordForOrg,
   requireEvidenceReferenceTargetForOrg,
@@ -69,6 +70,69 @@ const evidenceRecordSchema = z.object({
   materialSpec: z.string().nullable().optional(),
   intelligenceType: z.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional(),
 });
+
+const MANUAL_ASSERTED_CONFIDENCE_POLICY = "manual-asserted-confidence-v1" as const;
+
+async function assertedConfidenceAssessment(
+  origin: "manual_entry" | "bulk_entry",
+  rawPublicationText: string,
+  evaluationClock: Date,
+  grade: "A" | "B" | "C",
+  score: number,
+  runId: string,
+  actorId: number
+) {
+  const publication = classifyPublicationDate(rawPublicationText, evaluationClock);
+  if (publication.status !== "valid" || !publication.parsedAt) {
+    const rejectionCode = publication.status === "future"
+      ? "future_publication_date"
+      : "invalid_publication_date";
+    await db.recordRejectedConfidenceAssessment({
+      runId,
+      sourceId: null,
+      actorId,
+      corpusScope: "platform_public",
+      origin,
+      outcome: "rejected",
+      evaluationClock,
+      rawPublicationText: publication.raw,
+      datePrecision: publication.status === "missing"
+        ? "missing"
+        : publication.precision === "datetime" ? "timestamp" : publication.precision,
+      parsingStatus: publication.status,
+      parsedPublicationDate: publication.parsedAt,
+      confidencePolicyId: MANUAL_ASSERTED_CONFIDENCE_POLICY,
+      grade,
+      candidateScore: score,
+      mergeDecision: "rejected",
+      rejectionCode,
+    });
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: publication.status === "future"
+        ? "Publication date cannot be in the future"
+        : "Publication date is invalid",
+    });
+  }
+  return {
+    runId,
+    sourceId: null,
+    actorId,
+    corpusScope: "platform_public" as const,
+    origin,
+    outcome: "accepted" as const,
+    evaluationClock,
+    rawPublicationText: publication.raw,
+    datePrecision: publication.precision === "datetime" ? "timestamp" as const : publication.precision,
+    parsingStatus: publication.status,
+    parsedPublicationDate: publication.parsedAt,
+    confidencePolicyId: MANUAL_ASSERTED_CONFIDENCE_POLICY,
+    grade,
+    candidateScore: score,
+    finalScore: score,
+    mergeDecision: "manual_assertion" as const,
+  };
+}
 
 const sourceRegistrySchema = z.object({
   name: z.string().min(1),
@@ -324,6 +388,13 @@ export const marketIntelligenceRouter = router({
         return authorized.evidence;
       }),
 
+    confidenceHistory: orgProcedure
+      .input(z.object({ id: z.number(), limit: z.number().min(1).max(100).default(50) }))
+      .query(async ({ ctx, input }) => {
+        await requireEvidenceRecordForOrg(input.id, ctx.orgId);
+        return db.listConfidenceAssessmentHistory(input.id, input.limit);
+      }),
+
     create: adminProcedure
       .input(evidenceRecordSchema)
       .mutation(async ({ input, ctx }) => {
@@ -333,8 +404,19 @@ export const marketIntelligenceRouter = router({
             message: "Project-linked evidence must be created within an organization workflow",
           });
         }
+        const receiptClock = new Date();
+        const runId = generateRunId("MAN");
+        const assessment = await assertedConfidenceAssessment(
+          "manual_entry",
+          input.captureDate,
+          receiptClock,
+          input.reliabilityGrade,
+          input.confidenceScore,
+          runId,
+          ctx.user.id
+        );
         const recordId = generateRecordId();
-        const result = await db.createEvidenceRecord({
+        const result = await db.createEvidenceRecordWithConfidenceAssessment({
           ...input,
           projectId: null,
           orgId: null,
@@ -346,14 +428,15 @@ export const marketIntelligenceRouter = router({
           priceMax: input.priceMax ? String(input.priceMax) as any : null,
           currencyAed: input.currencyAed ? String(input.currencyAed) as any : null,
           fxRate: input.fxRate ? String(input.fxRate) as any : null,
-          captureDate: new Date(input.captureDate),
+          captureDate: assessment.parsedPublicationDate,
+          runId,
           createdBy: ctx.user.id,
-        });
+        }, assessment);
 
         // Log to intelligence audit
         await db.createIntelligenceAuditEntry({
           runType: "manual_entry",
-          runId: generateRunId("MAN"),
+          runId,
           actor: ctx.user.id,
           inputSummary: { category: input.category, itemName: input.itemName },
           outputSummary: { recordId, evidenceId: result.id },
@@ -380,14 +463,24 @@ export const marketIntelligenceRouter = router({
         }
         const runId = generateRunId("BULK");
         const startedAt = new Date();
+        const receiptClock = new Date(startedAt.getTime());
         let imported = 0;
         const errors: { index: number; error: string }[] = [];
 
         for (let i = 0; i < input.records.length; i++) {
           try {
             const rec = input.records[i];
+            const assessment = await assertedConfidenceAssessment(
+              "bulk_entry",
+              rec.captureDate,
+              receiptClock,
+              rec.reliabilityGrade,
+              rec.confidenceScore,
+              runId,
+              ctx.user.id
+            );
             const recordId = generateRecordId();
-            await db.createEvidenceRecord({
+            await db.createEvidenceRecordWithConfidenceAssessment({
               ...rec,
               projectId: null,
               orgId: null,
@@ -399,10 +492,10 @@ export const marketIntelligenceRouter = router({
               priceMax: rec.priceMax ? String(rec.priceMax) as any : null,
               currencyAed: rec.currencyAed ? String(rec.currencyAed) as any : null,
               fxRate: rec.fxRate ? String(rec.fxRate) as any : null,
-              captureDate: new Date(rec.captureDate),
+              captureDate: assessment.parsedPublicationDate,
               runId,
               createdBy: ctx.user.id,
-            });
+            }, assessment);
             imported++;
           } catch (e: any) {
             errors.push({ index: i, error: e.message });
