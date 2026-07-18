@@ -3,7 +3,7 @@
 - ID: TR-09
 - Roadmap step: `TR-09`
 - Title: Truthful baseline provenance and issued-report states
-- Status: NEEDS_HUMAN
+- Status: PASS
 - Owner: Codex
 - Started: 2026-07-18
 - Branch: `codex/tr-09-baseline-provenance`
@@ -12,7 +12,7 @@
 - Selected loops: Defect, scoring/pricing, ingestion, schema-migration, feature, and report-visual-QA loops
 - Retry budget: 3 evidence-based attempts per unchanged failure class
 - Resource budget: One isolated worktree, one additive migration, three bounded implementation streams, one disposable-MySQL verification cycle, and one independent-review cycle
-- Human gates: Shared/production migration, protected merge, deployment, production smoke, or external publication. Candidate commit/push/draft-PR preparation is authorized and complete.
+- Human gates: The user authorized the shared migration, protected merge, production deployment, and production smoke on 2026-07-18; all completed with recorded verification.
 
 ## Goal
 
@@ -35,7 +35,7 @@ Make empty-space results, evidence confidence, and Material Board Annex states t
 - [x] Additive migration 0049 retains append-only confidence assessments, current pointers, and rejection counts with legacy-compatible reads and no fabricated backfill.
 - [x] Material Board Annex distinguishes no-board, empty, complete, partial, unresolvable, and retrieval-failure states in both issued paths; retrieval failure occurs before report side effects.
 - [x] Targeted, safe full-suite, TypeScript, authorization, build, disposable MySQL, provider compatibility, browser, rendered-artifact, migration-integrity, diff, and independent-review gates pass.
-- [x] Durable state records only verified evidence; shared migration and release actions remain human-gated.
+- [x] Shared migration 0049, protected merge, production deployment, and production smoke completed with verified recovery and integrity evidence.
 
 ## Non-Goals
 
@@ -43,7 +43,7 @@ Make empty-space results, evidence confidence, and Material Board Annex states t
 - Backfilling historical confidence chains or space provenance from current mutable data.
 - Changing evidence corpus governance, promoting CSV/manual rows, or enabling pooled learning.
 - Expanding the board annex to validation, autonomous, DOCX, or other report types.
-- Performing a shared/production migration, Git publication, merge, deployment, or production smoke without explicit approval.
+- Performing further shared-environment writes without a scoped authorization.
 
 ## Baseline Evidence
 
@@ -57,7 +57,7 @@ Make empty-space results, evidence confidence, and Material Board Annex states t
 - [x] Implement deterministic confidence policy, assessment persistence, atomic public-only upsert, rejection visibility, and migration 0049.
 - [x] Implement organization-scoped Board Annex state loading, rendering, and fail-closed report behavior.
 - [x] Run the full verification ladder, rendered inspection, and independent reviews.
-- [x] Stop at `NEEDS_HUMAN` for shared migration and release authorization unless explicitly granted.
+- [x] Complete the user-authorized shared migration and release workflow with recovery, deployment, and smoke evidence.
 
 ## Verification Evidence
 
@@ -67,7 +67,8 @@ Make empty-space results, evidence confidence, and Material Board Annex states t
 - Browser: truthful changed states passed at 1440×900 and 390×844 without page overflow.
 - Reports: three-page mixed-board design brief and five-page no-board full report rendered through the production HTML-to-PDF path; all eight A4 pages were inspected without clipping, overflow, blank pages, or false state copy.
 - Independent reviews: space/scoring, confidence/security, and board/report specialists returned `APPROVED`; the final Claude Sonnet completion review returned `APPROVED`.
-- Release candidate: the current committed branch head is pushed to `origin/codex/tr-09-baseline-provenance` and draft PR #7 is open. Vercel Preview Comments passed; the latest GitHub Actions run reproduced `KF-014` with both jobs failing at zero steps and no job log. No shared migration, merge, deployment, or production smoke was performed.
+- Release: User-authorized migration 0049 ran sequentially against PlanetScale production after restorable backup `jqb2igl1ebgl` succeeded. All eight reviewed statements applied; the assessment table has 31 columns, the three nullable evidence fields, zero-defaulted `recordsRejected`, required indexes, and legacy-null integrity. Counts remained 1,755 evidence records, 368 ingestion runs, and zero assessments.
+- Deployment: PR #7 merged as canonical-main commit `bd09c3fdafca885d40b564eafe94ecc67197c7ad`; Vercel deployment `GQyoYH8hnMXwPRMYmzdsCgTg6wNV` is READY. Root returned 200, timestamped health returned 200 in three observations, unauthenticated project access returned 401, and invalid shares returned concealed 404 with privacy headers. Post-deployment database counts and orphan/pointer/duplicate-key integrity checks remained zero.
 - Hosted-CI replacement: On 2026-07-18, the user approved the documented replacement evidence: frozen install, 1,074/22 safe suite, type-check, 336/0 authorization audit, production build, diff check, disposable-MySQL migration/concurrency/rollback, Vercel preview, and independent reviews.
 
 ## Recovery
@@ -78,4 +79,4 @@ Make empty-space results, evidence confidence, and Material Board Annex states t
 
 ## Next Action
 
-Before application deployment, the named production owner must approve the controlled PlanetScale migration 0049 workflow, target/backup preflight, and schema/count verification. Do not use `scripts/apply-migrations.ts` or `pnpm db:push` for this migration. After migration verification, stop at the separate deployment gate; `TR-09` remains the sole next step and `TR-10` remains planned.
+`TR-09` is closed. Begin `TR-10`, now the sole `READY` roadmap step, under its report-integrity and visual-rendering scope.

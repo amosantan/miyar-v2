@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-09` (`NEEDS_HUMAN`)
+- Next executable step: `TR-10` (`READY`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -274,10 +274,10 @@ Rules:
 
 ### TR-09 — Implement decided baseline contracts
 
-- Status: `NEEDS_HUMAN`
+- Status: `CLOSED`
 - Class / priority: Engine/test / P0
 - Dependencies: `TR-07`, `TR-08`
-- Human gate: Candidate commit/push/draft PR are complete. The human owner must separately authorize shared migration 0049, protected merge/deployment, and production smoke.
+- Human gate: Cleared by the user's 2026-07-18 authorization for shared migration 0049, protected merge/deployment, and production smoke.
 - Evidence: `KF-002`, `KF-003`, and remaining behavior portion of `KF-004`.
 - Change set:
   - Implement approved empty-space behavior and edge cases.
@@ -295,13 +295,13 @@ Rules:
   - Distinguish an empty neutral fallback from measured space evidence across presentation, scoring, and ROI.
   - Retain and explain the full confidence-policy chain across connector calculation, quality adjustment, update merge, and non-connector ingestion, including clock, invalid/future-date, and rejection-visibility semantics.
   - Distinguish genuine no-board, retrieval failure, and zero, partial, or wholly unresolvable existing-board states in both issued-report paths.
-- Current gate: The current committed candidate is pushed on `codex/tr-09-baseline-provenance` with draft PR #7. Vercel Preview Comments passed; the latest GitHub Actions run reproduced the zero-step `KF-014` failure. On 2026-07-18, the user approved the documented replacement evidence. Shared/production migration 0049, protected merge, deployment, and production smoke remain separately human-gated.
-- Local implementation evidence: Safe suite 1,074/22; type-check, 336/0 authorization audit, build, diff check, disposable-MySQL migration/concurrency/rollback, responsive browser checks, eight-page PDF inspection, three specialist reviews, and final Claude Sonnet review all pass. Release preflight reconciled the verified TR-08 production record. No shared migration, merge, deployment, or production smoke was performed.
-- Required decision: Name the production target, migration owner, backup/rollback owner, and observation window; authorize the controlled provider migration 0049 workflow. After target/schema/count verification, stop at the separate application deployment gate. `TR-09` remains the only next executable step and `TR-10` remains `PLANNED`.
+- Reclosed: 2026-07-18 with terminal state `PASS` after the user authorized the controlled production release.
+- Completion evidence: PlanetScale production target `miyar-v2/main` was confirmed at the TR-08 schema. Restorable backup `jqb2igl1ebgl` completed, then all eight statements of reviewed additive migration 0049 applied sequentially. The 31-column assessment table, three nullable evidence fields, zero-defaulted rejection count, primary/composite/unique indexes, and legacy-null integrity verified; evidence and run counts remained 1,755 and 368. PR #7 merged as canonical-main commit `bd09c3fdafca885d40b564eafe94ecc67197c7ad`; Vercel deployment `GQyoYH8hnMXwPRMYmzdsCgTg6wNV` reached READY. Root/health, tenant rejection, invalid-share privacy, three health observations, and post-deployment orphan/pointer/unique-key checks passed. The user-approved `KF-014` replacement evidence remains bounded to this release; `KF-014` stays open.
+- Lessons: `LES-024`
 
 ### TR-10 — Certify report integrity and visual rendering
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: Report / P1
 - Dependencies: `TR-09`
 - Human gate: Report contract/branding approval for any changed issued content.
