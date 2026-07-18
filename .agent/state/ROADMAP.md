@@ -367,7 +367,8 @@ Rules:
 - Closed: 2026-07-18
 - Terminal task state: `PASS`
 - Completion evidence: Central pre-dotenv profile/target/operation policy; final-use connection assertion; guarded Node, serverless, Drizzle, migration, seed, reset, import, backfill, and ingestion paths; DB-free Vitest; disposable integration; sanitized `env:check`; and a fail-closed AST inventory are implemented. Focused tests pass 74/74; hostile-parent full suite passes 1,206/22; disposable MySQL passes 19/19 with cleanup; TypeScript, authorization 337/0, database-entrypoint audit 106/2/0, build, stale-bundle CI check, startup matrix, and diff checks pass. Independent GPT-5.6 security and Claude Opus reviews approve.
-- Residual risk: Command-scoped approval is a technical acknowledgement, not organizational authority; shared mutations, preview binding changes, migrations, deployment, commit, push, PR, and merge remain separately gated. The generated serverless bundle has two exact owner-qualified audit exceptions and is protected by a post-build stale-output check.
+- Production release: Reviewed candidate `1169fed` merged through PR #17 as canonical-main commit `43e5019`; canonical-main CI run `29654957839` passed both required jobs, and Vercel target `4ixzzXRp886bet8XDRhc439czfWd` completed for the exact merge commit. Three root/health observations, unauthenticated tenant rejection, invalid-share privacy, and rendered landing-page browser verification pass. No schema, migration, dependency, shared configuration, or database operation was required or performed.
+- Residual risk: Command-scoped approval is a technical acknowledgement, not organizational authority; shared mutations, preview binding changes, and migrations remain separately gated. The generated serverless bundle has two exact owner-qualified audit exceptions and is protected by a post-build stale-output check.
 - Lessons: `LES-029`
 
 ### TR-13 — Critical workflow certification

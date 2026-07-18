@@ -72,7 +72,8 @@ All profile and documentation changes must be reversible. Stop immediately if a 
 - Bounded startup checks prove local DB-free startup, remote denial before listen, complete production/preview signal handling, and worker authorization failure exiting status 1 with sanitized logs that exclude credentials and approval values.
 - The tracked serverless bundle was regenerated from the guarded source; CI rebuilds it and fails if `api/index.js` is stale.
 - Independent GPT-5.6 security review returned `APPROVED`; final Claude Opus implementation review returned `APPROVED`.
-- No schema, migration, dependency, shared/production database write, deployment, shared configuration mutation, commit, push, PR, or merge was performed.
+- At implementation closure, no schema, migration, dependency, shared/production database write, deployment, shared configuration mutation, commit, push, PR, or merge had been performed.
+- The owner subsequently authorized publication and deployment. Candidate `1169fed` merged through PR #17 as canonical-main commit `43e5019`; canonical-main CI run `29654957839` passed, Vercel target `4ixzzXRp886bet8XDRhc439czfWd` completed, and three root/health observations plus tenant/share negative checks and rendered landing-page browser verification pass. No database, schema, migration, dependency, or shared-configuration operation was required.
 
 ## Next Action
 
