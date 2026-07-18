@@ -5,13 +5,13 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-18
-- Production source commit: `55917a145a87c218c34457e054850326fc1e1a1a` on canonical `main`, merging TR-10 PR #12.
-- Branch identity: canonical `origin/main` contains runtime application release `55917a145a87c218c34457e054850326fc1e1a1a`; later commits may record state only and do not change the runtime release identity.
+- Production source commit: `d0c84da5292193aa90b68a315a8c1eeaa8db4394` on canonical `main`, merging TR-11 PR #14.
+- Branch identity: canonical `origin/main` contains runtime application release `d0c84da5292193aa90b68a315a8c1eeaa8db4394`; later commits may record state only and do not change the runtime release identity.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel target `8A9iDiHwfT3wnXsYXFwqQWLtpPB2` completed for exact source commit `55917a1`; three root/login/health observations return 200, unauthenticated project access returns 401, and invalid English/Arabic shares return concealed 404 with privacy headers.
+- Production: Vercel target `ExfGpuVC4UQ83Jy46i6xQnSKdJDP` completed for exact source commit `d0c84da`; three root/health/evidence observations return 200, unauthenticated project access returns 401, and invalid shares return concealed 404 with privacy headers.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `TR-11` is locally closed at `PASS` on the unreleased `codex/tr-11-public-claims` worktree; `TR-12` is the sole next executable step. Production remains on the TR-10 release identified above.
+- Roadmap state: `TR-11` is released and closed at `PASS`; `TR-12` is the sole next executable step.
 
 ## Technology Observed
 
@@ -40,11 +40,11 @@ At the observation above:
 
 | Command                         | Result | Evidence summary                                                                                                                        |
 | ------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL='' pnpm test`     | PASS   | 1,114 passed and 22 skipped; no database connection attempt occurred                                                                    |
+| `DATABASE_URL='' pnpm test`     | PASS   | 1,138 passed and 22 skipped; no database connection attempt occurred                                                                    |
 | Guarded MySQL authorization run | PASS   | Disposable MySQL 8 verification passed migration, concurrency, rollback, tenant-collision, and authorization contracts                 |
 | PlanetScale compatibility       | PASS   | Production applied additive migration 0050 after backup; `report_instances.storageKey` is nullable `TEXT`, all 29 rows remain, and no row was backfilled |
 | `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                                             |
-| `pnpm audit:authorization`      | PASS   | All 336 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence                  |
+| `pnpm audit:authorization`      | PASS   | All 337 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence                  |
 | `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                                               |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
@@ -70,15 +70,18 @@ These facts describe the reviewed TR-10 implementation merged through PR #12 and
 - The browser safety policy blocked generated download/print/new-page clicks and forbade alternate automation; the task owner explicitly waived those remaining UI clicks before release.
 - Independent high-reasoning security/integration review and Claude Opus review returned `APPROVED`. On 2026-07-18 the product/report owner approved the exact bilingual issued legal/disclaimer/financial copy and authorized one sixth post-fix render plus a safe synthetic authenticated browser environment.
 
-## TR-11 Local Worktree Observation (Not Released)
+## TR-11 Release Observation
 
-These facts describe `/Users/amrosaleh/Maiyar/miyar-v2-tr11` on `codex/tr-11-public-claims`; they do not describe production.
+These facts describe the reviewed TR-11 implementation merged through PR #14 and released from canonical commit `d0c84da5292193aa90b68a315a8c1eeaa8db4394`.
 
-- The worktree implements a bilingual governed claim registry and a read-only cached/rate-limited `system.marketEvidenceSnapshot` that exposes only official DLD source identity, indexed-subset counts, and observed-through record dates, failing closed when evidence is empty, unavailable, or malformed.
+- The release implements a bilingual governed claim registry and a read-only cached/rate-limited `system.marketEvidenceSnapshot` that exposes only official DLD source identity, indexed-subset counts, and observed-through record dates, failing closed when evidence is empty, unavailable, or malformed.
 - Home, Methodology, public shares, customer surfaces, and generated brief/DOCX copy distinguish official DLD observations from MIYAR guidelines, assumptions, estimates, targets, and proxies. Legal pages remain unpublished, and no weekly/live claim is enabled.
 - Focused verification passes 103/103; `DATABASE_URL='' pnpm test` passes 1,138 with 22 skipped; `pnpm check`, authorization inventory 337/337 with zero remediation, all build targets, and `git diff --check` pass.
 - English/Arabic browser QA passed the evidence unavailable state and Methodology at 1280px with correct LTR/RTL behavior, no horizontal overflow, and no console errors. Independent security/design review and Claude Opus returned `APPROVED`.
-- No schema, migration, dependency, formula, scoring, financial-policy, benchmark-promotion, report-catalog, ingestion-cadence, database, or production change is part of this worktree. `EV-08` records the future weekly governed refresh and report-evidence binding gate.
+- PR #14 merged reviewed commit `e26e07e` as `d0c84da`; Vercel target `ExfGpuVC4UQ83Jy46i6xQnSKdJDP` completed for that exact merge SHA, and canonical-main CI run `29645745114` passed both `lint-and-test` and isolated `mysql-authorization` jobs.
+- Three production observations passed with root, health, and market-evidence HTTP 200; unauthenticated project reads returned 401 and invalid share resolution returned concealed 404 with `private, no-store` and `noindex, nofollow, noarchive`. The evidence snapshot currently fails closed as `{available:false}` and exposes no operational fields.
+- Production English/Arabic Home and Methodology render at 1280px with correct LTR/RTL direction, no horizontal overflow, no fixed-weight or former live/verified claim, and no browser errors.
+- No schema, migration, dependency, formula, scoring, financial-policy, benchmark-promotion, report-catalog, ingestion-cadence, database write, or backfill occurred. `EV-08` records the future weekly governed refresh and report-evidence binding gate.
 
 ## Production Database Observation
 
@@ -99,7 +102,8 @@ These facts describe `/Users/amrosaleh/Maiyar/miyar-v2-tr11` on `codex/tr-11-pub
 - TR-08 test/documentation release commit `e49029d566fa032862c91fa7c0ce00c14aa8ef45` deployed successfully as Vercel target `dpl_5wEjCcgpCVH2boFmgwA7nMxRMe5M` after exact-commit preview `dpl_7vTDyhEv63paho4xkw426BjVdATH` passed. Root/health, unauthenticated tenant rejection, invalid-share privacy, and a three-observation health window pass. No runtime source, schema, migration, dependency, configuration, database, numerical, authorization, API, or report-rendering change was part of the release.
 - TR-09 release commit `bd09c3fdafca885d40b564eafe94ecc67197c7ad` deployed successfully as Vercel target `GQyoYH8hnMXwPRMYmzdsCgTg6wNV`. Root/health, unauthenticated tenant rejection, invalid-share privacy, a three-observation health window, unchanged counts, and zero orphan assessment/current-pointer/duplicate-public-key integrity failures pass.
 - TR-10 release commit `55917a145a87c218c34457e054850326fc1e1a1a` deployed successfully as Vercel target `8A9iDiHwfT3wnXsYXFwqQWLtpPB2`. Canonical-main CI run `29641839449`, three root/login/health observations, unauthenticated tenant rejection, English/Arabic invalid-share privacy, and post-deployment migration 0050 integrity pass.
-- Canonical `main` contains the reviewed TR-10 production release.
+- TR-11 release commit `d0c84da5292193aa90b68a315a8c1eeaa8db4394` deployed successfully as Vercel target `ExfGpuVC4UQ83Jy46i6xQnSKdJDP`. Canonical-main CI run `29645745114`, three production observations, tenant/share negative checks, endpoint minimization, and bilingual rendered-claim checks pass; no database operation was required or performed.
+- Canonical `main` contains the reviewed TR-11 production release.
 
 ## Environment Uncertainties
 
@@ -122,7 +126,7 @@ These facts describe `/Users/amrosaleh/Maiyar/miyar-v2-tr11` on `codex/tr-11-pub
 - `TR-04` closes all 93 remaining project-router authorization/global-governance paths, including the later ultra-review remediation for atomic report persistence and tenant-owned portfolio alerts. The live inventory has zero `TR-04` and exactly eight pooled-data rows under `TR-05`; targeted, disposable MySQL, safe full-suite, TypeScript, audit, build, diff, and independent-review gates pass.
 - `TR-05` and `KF-007` are closed on `codex/tr-05-data-isolation`. Corpus isolation, migration 0047, fail-closed organization/public reads, scheduler disablement, insufficiency contracts, UI states, and enhanced audit enforcement are implemented. Verified gates: disposable MySQL 18/18, safe suite 962 passed with 22 skipped, authorization inventory 331/331 with zero remediation rows, TypeScript/build/diff PASS, in-app browser PASS across analytics, cost forecasting, project prediction, design advisor, and learning administration, and independent Claude Code `APPROVED_NO_OBJECTION`.
 - `UX-01` is merged into canonical main through commit `029f5c1`. Its implementation and prior authenticated verification remain recorded, but an authenticated browser session was unavailable during the independent TR-07 release smoke; the roadmap retains that explicit UX-01 human gate.
-- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. TR-10 is released; TR-11 is locally verified but unreleased; `TR-12` is the sole next executable step.
+- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. TR-10 and TR-11 are released; `TR-12` is the sole next executable step.
 
 ## Refresh Procedure
 
