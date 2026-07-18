@@ -42,7 +42,9 @@ describe("UX-01 compatibility and safety contracts", () => {
 
   it("sends successful authentication to the organization workspace", () => {
     const login = read("client/src/pages/Login.tsx");
-    expect(login.match(/setLocation\("\/dashboard"\)/g)).toHaveLength(2);
+    const navigation = read("client/src/lib/auth-navigation.ts");
+    expect(login.match(/enterAuthenticatedApp\(window\.location\)/g)).toHaveLength(3);
+    expect(navigation).toContain('AUTHENTICATED_ENTRY_PATH = "/dashboard"');
     expect(login).not.toContain('setLocation("/")');
   });
 

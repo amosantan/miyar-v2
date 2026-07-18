@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,18 +8,24 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { enterAuthenticatedApp } from "@/lib/auth-navigation";
 
 export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isRegister, setIsRegister] = useState(false);
-    const [, setLocation] = useLocation();
+    const { user, loading: sessionLoading } = useAuth();
 
+    useEffect(() => {
+        if (!sessionLoading && user) {
+            enterAuthenticatedApp(window.location);
+        }
+    }, [sessionLoading, user]);
 
     const loginMutation = api.auth.login.useMutation({
         onSuccess: () => {
-            setLocation("/dashboard");
-            window.location.reload();
+            enterAuthenticatedApp(window.location);
         },
         onError: (error) => {
             toast.error("Login failed", { description: error.message });
@@ -30,8 +35,7 @@ export default function Login() {
     const registerMutation = api.auth.register.useMutation({
         onSuccess: () => {
             toast.success("Account created", { description: "You are now logged in." });
-            setLocation("/dashboard");
-            window.location.reload();
+            enterAuthenticatedApp(window.location);
         },
         onError: (error) => {
             toast.error("Registration failed", { description: error.message });
@@ -48,6 +52,14 @@ export default function Login() {
     };
 
     const isPending = loginMutation.isPending || registerMutation.isPending;
+
+    if (sessionLoading || user) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-background">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     return (
         <div className="relative flex min-h-screen items-center justify-center bg-background px-5 py-12">
