@@ -5,11 +5,11 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-18
-- Production source commit: `bd09c3fdafca885d40b564eafe94ecc67197c7ad` on canonical `main`, merging TR-09 PR #7.
-- Branch identity: canonical `origin/main` contains runtime application release `bd09c3fdafca885d40b564eafe94ecc67197c7ad`; later commits may record state only and do not change the runtime release identity.
+- Production source commit: `55917a145a87c218c34457e054850326fc1e1a1a` on canonical `main`, merging TR-10 PR #12.
+- Branch identity: canonical `origin/main` contains runtime application release `55917a145a87c218c34457e054850326fc1e1a1a`; later commits may record state only and do not change the runtime release identity.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel deployment `GQyoYH8hnMXwPRMYmzdsCgTg6wNV` is `READY` for exact source commit `bd09c3f`; root and three timestamped health observations return 200, unauthenticated project access returns 401, and invalid shares return concealed 404 with privacy headers.
+- Production: Vercel target `8A9iDiHwfT3wnXsYXFwqQWLtpPB2` completed for exact source commit `55917a1`; three root/login/health observations return 200, unauthenticated project access returns 401, and invalid English/Arabic shares return concealed 404 with privacy headers.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
 - Roadmap state: `TR-10` is closed at `PASS` after the owner waived the final browser-policy-blocked generated download/print clicks; `TR-12` is the sole next executable step.
 
@@ -40,9 +40,9 @@ At the observation above:
 
 | Command                         | Result | Evidence summary                                                                                                                        |
 | ------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL='' pnpm test`     | PASS   | 1,074 passed and 22 skipped; no database connection attempt occurred                                                                    |
+| `DATABASE_URL='' pnpm test`     | PASS   | 1,114 passed and 22 skipped; no database connection attempt occurred                                                                    |
 | Guarded MySQL authorization run | PASS   | Disposable MySQL 8 verification passed migration, concurrency, rollback, tenant-collision, and authorization contracts                 |
-| PlanetScale compatibility       | PASS   | Production MySQL applied reviewed additive migration 0049; 31 assessment columns, three evidence fields, three indexes, defaults, and counts verified |
+| PlanetScale compatibility       | PASS   | Production applied additive migration 0050 after backup; `report_instances.storageKey` is nullable `TEXT`, all 29 rows remain, and no row was backfilled |
 | `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                                             |
 | `pnpm audit:authorization`      | PASS   | All 336 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence                  |
 | `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                                               |
@@ -58,16 +58,16 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - Current/future priorities live in `docs/ROADMAP.md`.
 - Historical reports are non-authoritative unless reverified.
 
-## TR-10 Candidate Observation
+## TR-10 Release Observation
 
-These facts describe only the isolated, uncommitted worktree `codex/tr-10-report-certification` based on `18da870d37f9181b75bfa7f0f8aa1f9480b456f9`; they do not describe canonical production behavior.
+These facts describe the reviewed TR-10 implementation merged through PR #12 and released from canonical commit `55917a145a87c218c34457e054850326fc1e1a1a`.
 
 - The targeted report/share/storage/localization/migration suites pass 156/156; the release-candidate safe suite passes 1,114 tests with 22 skipped.
 - TypeScript, report-output auditing, the authorization inventory (336/336 with zero remediation), and all build targets pass.
-- Disposable MySQL 8 verifies additive migration 0050 forward application, legacy-null compatibility, stable-key updates, application rollback compatibility, and column rollback. Migration 0050 has not been applied to shared or production data.
+- Disposable MySQL 8 verifies additive migration 0050 forward application, legacy-null compatibility, stable-key updates, application rollback compatibility, and column rollback. Production migration 0050 is applied and independently verified.
 - The explicitly authorized sixth post-fix certification iteration passed 23/23 artifacts through browser-print PDF and production DOCX/LibreOffice paths; all 83/83 pages were inspected with no remaining defect.
 - A fail-closed, loopback-only synthetic MySQL/application environment verified login, authenticated English/Arabic selectors and previews across every report surface, and valid/invalid public shares. Browser QA found and drove fixes for successful authentication returning to the public homepage, project route wiring, optional display-label crashes, the legacy project-less comparison URL, and the duplicate/misdirected room-render action. Live recheck proves sign-in reaches `/dashboard`.
-- The browser safety policy blocks generated download/print/new-page clicks and forbids alternate automation. Those UI clicks remain a human gate; no shared data was touched.
+- The browser safety policy blocked generated download/print/new-page clicks and forbade alternate automation; the task owner explicitly waived those remaining UI clicks before release.
 - Independent high-reasoning security/integration review and Claude Opus review returned `APPROVED`. On 2026-07-18 the product/report owner approved the exact bilingual issued legal/disclaimer/financial copy and authorized one sixth post-fix render plus a safe synthetic authenticated browser environment.
 
 ## Production Database Observation
@@ -80,6 +80,7 @@ These facts describe only the isolated, uncommitted worktree `codex/tr-10-report
 - Migration 0047 is complete on production: all 19 expected corpus/ownership columns and all five corpus indexes were verified. A restricted encrypted affected-table recovery snapshot was verified before DDL (SHA-256 `197bfc7ac04f31c44f987bebb2ae8b593011b0ddd064440aded468ded1192977`).
 - Migration 0048 is complete on production: `projects.inputProvenance` is nullable JSON with no default, project count remained 11, and all 11 legacy rows remain null for explicit legacy-compatible readiness. The encrypted affected-table recovery snapshot was decrypted and verified before DDL (SHA-256 `913e526c6dc68e5f793a65ce2e6b40793930224d2719f98ede3251f97f2324ef`).
 - Migration 0049 is complete on production: restorable backup `jqb2igl1ebgl` succeeded before sequential application of eight reviewed additive statements. `evidence_confidence_assessments` has 31 columns and its primary/composite indexes; `evidence_records` has nullable current-assessment/policy/public-observation fields and a unique public-observation index; `ingestion_runs.recordsRejected` is non-null default zero. Evidence and ingestion-run counts remained 1,755 and 368, zero assessments were backfilled, and all legacy provenance fields remain null.
+- Migration 0050 is complete on production: restorable backup `q0zq6eqznlcq` succeeded before the reviewed additive statement. `report_instances.storageKey` is nullable `TEXT` with default `NULL`; report count remained 29 and all 29 legacy rows remain null with no backfill.
 - Controlled classification ran in dry-run, apply, and idempotency modes. It classified zero organization evidence rows and zero seed patterns because production contains no eligible rows. All 1,755 evidence records, 79 project insights, and 548 trend snapshots remain `legacy_unscoped/legacy-v0`; zero records were promoted to `platform_public` because no governed source allowlist exists.
 - TR-04 release preflight found 2 null-owned projects, 4 null-owned scenarios, and 8 reports attached to null-owned projects. The user approved the unique organization-1 mapping; one transaction updated the 2 projects and 4 scenarios, and all three post-remediation counts are zero. `KF-015` is closed.
 - Production deployment `dpl_7ndQvn6N7NpoJqx13fjBdgU5V8vM` is `READY`. Root and `system.health` return 200, unauthenticated `project.get` returns 401, invalid public shares return concealed 404 with `private, no-store` and `noindex, nofollow, noarchive`, and post-deployment ownership/table/index integrity checks pass.
@@ -87,7 +88,8 @@ These facts describe only the isolated, uncommitted worktree `codex/tr-10-report
 - TR-07 test-only release commit `85f98db305e5fe983a9ab578f6d129592fa6cfc7` deployed successfully as Vercel target `FTnLtBnDYeRkqu5rYeKiKrAowRuU`. Post-deployment root/health, unauthenticated tenant rejection, invalid-share privacy, rendered homepage, and a three-observation health window pass. No database or schema operation was part of the release.
 - TR-08 test/documentation release commit `e49029d566fa032862c91fa7c0ce00c14aa8ef45` deployed successfully as Vercel target `dpl_5wEjCcgpCVH2boFmgwA7nMxRMe5M` after exact-commit preview `dpl_7vTDyhEv63paho4xkw426BjVdATH` passed. Root/health, unauthenticated tenant rejection, invalid-share privacy, and a three-observation health window pass. No runtime source, schema, migration, dependency, configuration, database, numerical, authorization, API, or report-rendering change was part of the release.
 - TR-09 release commit `bd09c3fdafca885d40b564eafe94ecc67197c7ad` deployed successfully as Vercel target `GQyoYH8hnMXwPRMYmzdsCgTg6wNV`. Root/health, unauthenticated tenant rejection, invalid-share privacy, a three-observation health window, unchanged counts, and zero orphan assessment/current-pointer/duplicate-public-key integrity failures pass.
-- Canonical `main` contains the reviewed TR-09 production release.
+- TR-10 release commit `55917a145a87c218c34457e054850326fc1e1a1a` deployed successfully as Vercel target `8A9iDiHwfT3wnXsYXFwqQWLtpPB2`. Canonical-main CI run `29641839449`, three root/login/health observations, unauthenticated tenant rejection, English/Arabic invalid-share privacy, and post-deployment migration 0050 integrity pass.
+- Canonical `main` contains the reviewed TR-10 production release.
 
 ## Environment Uncertainties
 
