@@ -79,11 +79,12 @@ Prove that every supported MIYAR report and export is data-correct, tenant-safe,
 
 - Targeted report, router, storage, migration, DOCX, localization, and share suites pass 156/156.
 - The release-candidate `DATABASE_URL='' pnpm test` passes 1,114 tests with 22 skipped; `pnpm check`, `pnpm tsx scripts/audit-report-output.ts`, `pnpm audit:authorization` (336/336, zero remediation), and `pnpm build` pass.
-- Disposable MySQL 8 proves migration 0050 forward application, nullable legacy compatibility, stable-key update, application rollback compatibility, and column rollback without altering legacy report data. No shared database was touched.
+- Disposable MySQL 8 proves migration 0050 forward application, nullable legacy compatibility, stable-key update, application rollback compatibility, and column rollback without altering legacy report data. Production migration 0050 was subsequently applied after backup `q0zq6eqznlcq`; all 29 report rows remained and the new nullable `TEXT` column has zero backfilled values.
 - The owner-authorized sixth post-fix render iteration generated and checked 23/23 HTML/browser-PDF/DOCX artifacts through production-compatible paths. All 83/83 pages were inspected at readable resolution with no remaining artifact defect.
 - A fail-closed, loopback-only synthetic MySQL/application environment exercised login plus authenticated English/Arabic selectors and previews across project reports, stored reports, design brief, material boards, investor summary, scenario comparison, portfolio, and public shares. It exposed and drove fixes for successful authentication returning to the public homepage, missing project-specific routes, a fail-hard optional ROI label, a duplicate/misdirected room-render card, and the unsafe legacy project-less comparison URL. Rechecks show login reaches `/dashboard` and no new browser errors.
-- Valid and invalid public shares have identical authorization outcomes in English and Arabic, correct root locale/direction and privacy metadata, and the valid English document geometry is 1280/1280 with all card bounds inside the viewport. The browser safety layer rejected generated download/new-page actions and explicitly forbids bypassing that policy, so the final UI download/print clicks require a human.
+- Valid and invalid public shares have identical authorization outcomes in English and Arabic, correct root locale/direction and privacy metadata, and the valid English document geometry is 1280/1280 with all card bounds inside the viewport. The browser safety layer rejected generated download/new-page actions and explicitly forbade bypassing that policy; the task owner explicitly waived those remaining UI clicks.
 - The independent high-reasoning security/integration reviewer and Claude Opus returned `APPROVED` for the implementation boundaries and final reviewed diff.
+- PR #12 merged as canonical-main commit `55917a145a87c218c34457e054850326fc1e1a1a`; hosted main CI run `29641839449` passed, Vercel target `8A9iDiHwfT3wnXsYXFwqQWLtpPB2` completed, and three production root/login/health/tenant/share observations passed.
 
 ## Human Gate
 
@@ -95,4 +96,4 @@ Prove that every supported MIYAR report and export is data-correct, tenant-safe,
 
 ## Next Action
 
-Complete the separately authorized release: apply migration 0050 after a verified production backup, merge the green protected-branch candidate, deploy the exact merged SHA, and run production smoke and observation checks.
+TR-10 and its production release are complete. Begin `TR-12`, the sole dependency-valid next executable roadmap step, in a fresh worktree when authorized.

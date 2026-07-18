@@ -321,7 +321,8 @@ Rules:
 - Closed: 2026-07-18
 - Terminal task state: `PASS`
 - Completion evidence: Targeted suites pass 156/156; the release-candidate safe suite passes 1,114/22; TypeScript, report-output, 336/0 authorization, build, disposable migration 0050, 23/23 artifacts, 83/83 inspected pages, authenticated bilingual browser workflows, security review, and Claude Opus review pass; issued bilingual copy and the final UI-click waiver are owner-approved.
-- Residual risk: Production migration, merge, deployment, and smoke are authorized release actions and remain recorded separately from TR-10 acceptance.
+- Production release: Restorable backup `q0zq6eqznlcq` completed before additive migration 0050. Production retained 29 report rows; `storageKey` is nullable `TEXT`, default `NULL`, with zero backfilled values. PR #12 merged as `55917a145a87c218c34457e054850326fc1e1a1a`; canonical-main CI `29641839449` passed, Vercel target `8A9iDiHwfT3wnXsYXFwqQWLtpPB2` completed for the exact merge commit, and three production root/login/health/tenant/share observations plus post-deploy schema verification passed.
+- Residual risk: Authenticated production report generation was not exercised because no production test credential was placed in scope; local authenticated workflows and production unauthenticated tenant/share boundaries passed.
 
 ### TR-11 — Replace unsupported public claims
 
