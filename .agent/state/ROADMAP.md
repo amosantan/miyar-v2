@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-10` (`READY`)
+- Next executable step: `TR-10` (`NEEDS_HUMAN` — generated download/print clicks are blocked by the browser safety policy)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -301,11 +301,11 @@ Rules:
 
 ### TR-10 — Certify report integrity and visual rendering
 
-- Status: `READY`
+- Status: `NEEDS_HUMAN`
 - Class / priority: Report / P1
 - Dependencies: `TR-09`
 - Human gate: Report contract/branding approval for any changed issued content.
-- Evidence: Report generation spans multiple engines and board-annex tests are red.
+- Evidence: Report generation spans multiple engines; the former annex-boundary gap is now covered by importer/output assertions, while final issued-copy approval and post-fix rendering remain open.
 - Change set:
   - Establish complete, partial, empty, large, Arabic, long-content, and board-heavy fixtures.
   - Assert document identity, evidence, assumptions, disclaimer, version, and annex presence.
@@ -314,6 +314,10 @@ Rules:
 - Done when: Required report variants pass data assertions and visual QA with reproducible fixtures.
 - Verification: Targeted report tests, render pipeline, page images/screenshots, link/share checks.
 - Expected artifacts: Approved fixtures, rendered QA evidence, report runbook updates.
+- Activated: 2026-07-18 on `codex/tr-10-report-certification` from canonical base `18da870` after TR-09 closure and release.
+- Implementation evidence: Locale controls/contracts, deterministic bilingual catalogs, output-safety boundaries, per-artifact identity and fingerprinting, stable-key signing, share privacy, fixtures, and the real render harness are implemented. Targeted suites pass 156/156; the release-candidate safe suite passes 1,114 with 22 skipped; TypeScript, report-output audit, the 336/0 authorization audit, build, disposable-MySQL migration 0050 forward/rollback, and independent security/Claude reviews pass.
+- Visual evidence: The owner-authorized sixth post-fix iteration passed 23/23 artifacts; all 83/83 browser-PDF and LibreOffice-rendered pages were inspected with no remaining defect.
+- Browser evidence and remaining gate: A loopback-only synthetic authenticated environment verified login, every English/Arabic selector, inline preview, stored artifact, project-specific route, and valid/invalid public-share authorization path. It exposed and drove fixes for the post-login homepage redirect, route wiring, fail-hard optional display labels, and the room-render quick action. Login now reaches `/dashboard`. The browser safety policy blocks generated download/print/new-page clicks and explicitly forbids an automation workaround. TR-10 therefore remains `NEEDS_HUMAN` for those exact UI clicks; any explicit owner waiver must be recorded in `.agent/state/CURRENT_TASK.md#Human Gate` and appended to `WORKLOG.md`. The task owner authorized commit, push, merge, shared migration, and deployment on 2026-07-18, but did not state that this separate acceptance gate is waived.
 
 ### TR-11 — Replace unsupported public claims
 

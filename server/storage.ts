@@ -45,7 +45,7 @@ export async function storagePut(
   relKey: string,
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream"
-): Promise<{ key: string; url: string }> {
+): Promise<{ key: string; url: string; persistent: boolean }> {
   const { client, bucketName } = getS3Client();
   const key = normalizeKey(relKey);
 
@@ -55,7 +55,7 @@ export async function storagePut(
       : typeof data === "string" ? Buffer.from(data, "utf-8").toString("base64")
         : Buffer.from(data).toString("base64");
     const dataUrl = `data:${contentType};base64,${b64}`;
-    return { key, url: dataUrl };
+    return { key, url: dataUrl, persistent: false };
   }
 
   const command = new PutObjectCommand({
@@ -78,7 +78,7 @@ export async function storagePut(
 
   const url = await getSignedUrl(client as any, getCommand as any, { expiresIn: 3600 * 24 * 7 });
 
-  return { key, url };
+  return { key, url, persistent: true };
 }
 
 /**

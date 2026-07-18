@@ -16,7 +16,7 @@ import { generateValidationSummary, generateDesignBrief, generateFullReport } fr
 import { generateReportHTML, type PDFReportInput } from "../engines/pdf-report";
 import { buildBoardAnnexData, type BoardAnnexData } from "../engines/board-annex";
 import { generateDesignBrief as generateNewDesignBrief } from "../engines/design-brief";
-import { storagePut } from "../storage";
+import { storageGet, storagePut } from "../storage";
 import { nanoid } from "nanoid";
 import type { ProjectInputs } from "../../shared/miyar-types";
 import {
@@ -948,6 +948,7 @@ export const projectRouter = router({
     .input(z.object({
       projectId: z.number(),
       reportType: z.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"]),
+      locale: z.enum(["en", "ar"]).default("en"),
     }))
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -1157,7 +1158,7 @@ export const projectRouter = router({
         // Output legacy format for the PDF template to continue working seamlessly
         reportData = generateDesignBrief(project.name, project.id, inputs, scoreResult, sensitivity);
       } else if (input.reportType === "autonomous_design_brief") {
-        const mdContent = await generateAutonomousDesignBrief(project.id);
+        const mdContent = await generateAutonomousDesignBrief(project.id, input.locale);
         reportData = {
           reportType: "autonomous_design_brief",
           generatedAt: new Date().toISOString(),
@@ -1212,6 +1213,8 @@ export const projectRouter = router({
         roiNarrative: roiResult,
         benchmarkVersion: benchmarkVersionTag,
         logicVersion: logicVersionTag,
+        modelVersion: modelVersion.versionTag,
+        locale: input.locale,
         evidenceRefs,
         boardAnnex,
         autonomousContent: input.reportType === "autonomous_design_brief" ? (reportData as any).content : undefined,
@@ -1226,7 +1229,7 @@ export const projectRouter = router({
       try {
         const fileKey = `reports/${project.id}/${input.reportType}-${nanoid(8)}.html`;
         const result = await storagePut(fileKey, html, "text/html");
-        storageKey = result.key;
+        storageKey = result.persistent ? result.key : null;
         fileUrl = result.url;
       } catch (e) {
         console.warn("[Report] S3 upload failed, storing HTML content inline:", e);
@@ -1241,10 +1244,16 @@ export const projectRouter = router({
             projectId: input.projectId,
             scoreMatrixId: latest.id,
             reportType: input.reportType as any,
-            fileUrl,
-            content: fileUrl ? reportData : { ...reportData, html },
+            // New persistent objects are re-signed after tenant authorization.
+            // Legacy URLs and local data URLs remain read-only fallbacks.
+            fileUrl: storageKey ? null : fileUrl,
+            storageKey,
+            content: storageKey
+              ? { ...reportData, locale: input.locale }
+              : { ...reportData, locale: input.locale, html },
             generatedBy: ctx.user.id,
             benchmarkVersionId: activeBV?.id ?? null,
+            modelVersionId: modelVersion.id,
           },
           designArtifacts,
         });
@@ -1265,7 +1274,7 @@ export const projectRouter = router({
         action: "report.generate",
         entityType: "report",
         entityId: input.projectId,
-        details: { reportType: input.reportType, fileUrl },
+        details: { reportType: input.reportType, stored: Boolean(storageKey || fileUrl) },
         benchmarkVersionId: activeBV?.id,
       });
 
@@ -1274,12 +1283,13 @@ export const projectRouter = router({
         projectId: input.projectId,
         name: project.name,
         reportType: input.reportType,
-        fileUrl,
+        stored: Boolean(storageKey || fileUrl),
         compositeScore: scoreResult.compositeScore,
       }).catch(() => { });
 
       return {
         ...reportData,
+        locale: input.locale,
         fileUrl,
         fiveLens: input.reportType === "full_report" ? fiveLens : undefined,
         roiNarrative: input.reportType === "full_report" ? roiResult : undefined,
@@ -1290,7 +1300,21 @@ export const projectRouter = router({
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
-      return db.getReportsByProject(input.projectId);
+      const reports = await db.getReportsByProject(input.projectId);
+      return Promise.all(reports.map(async report => {
+        const { storageKey, ...publicReport } = report;
+        if (!storageKey) return publicReport;
+        try {
+          const signed = await storageGet(storageKey);
+          return { ...publicReport, fileUrl: signed.url };
+        } catch (error) {
+          console.warn("[Report] Failed to refresh stored report URL", {
+            reportId: report.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return publicReport;
+        }
+      }));
     }),
 
   // ─── V4: Area Verification Gate ───────────────────────────────────────────

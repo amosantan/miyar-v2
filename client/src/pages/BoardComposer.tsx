@@ -14,12 +14,15 @@ import {
   AlertTriangle, ChevronUp, ChevronDown, FileText, Pencil, Save, X, Download,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
+import { useTranslation } from "@/lib/i18n";
 
 const COST_BANDS = ["Economy", "Mid-Range", "Premium", "Luxury", "Ultra-Luxury", "Custom"];
 
 export default function BoardComposer() {
   const [, params] = useRoute("/projects/:id/boards");
   const projectId = Number(params?.id);
+  const { locale: appLocale } = useTranslation();
 
   const [newBoardName, setNewBoardName] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -27,6 +30,7 @@ export default function BoardComposer() {
   const [addMaterialOpen, setAddMaterialOpen] = useState(false);
   const [materialFilter, setMaterialFilter] = useState("");
   const [editingTileId, setEditingTileId] = useState<number | null>(null);
+  const [reportLocale, setReportLocale] = useState(appLocale);
   const [editForm, setEditForm] = useState<{ specNotes: string; costBandOverride: string; quantity: string; unitOfMeasure: string; notes: string }>({
     specNotes: "", costBandOverride: "", quantity: "", unitOfMeasure: "", notes: "",
   });
@@ -175,16 +179,19 @@ export default function BoardComposer() {
           <h2 className="text-2xl font-bold tracking-tight">Board Composer</h2>
           <p className="text-muted-foreground">Create material boards with cost estimates, spec notes, and RFQ-ready lists</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           {selectedBoardId && (
-            <Button
-              variant="outline"
-              onClick={() => exportPdfMutation.mutate({ boardId: selectedBoardId })}
-              disabled={exportPdfMutation.isPending}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              {exportPdfMutation.isPending ? "Exporting..." : "Export PDF"}
-            </Button>
+            <>
+              <ReportLocaleSelect value={reportLocale} onValueChange={setReportLocale} />
+              <Button
+                variant="outline"
+                onClick={() => exportPdfMutation.mutate({ boardId: selectedBoardId, locale: reportLocale })}
+                disabled={exportPdfMutation.isPending}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {exportPdfMutation.isPending ? "Exporting..." : "Export PDF"}
+              </Button>
+            </>
           )}
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>

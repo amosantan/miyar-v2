@@ -107,11 +107,11 @@ export const autonomousRouter = router({
         }),
 
     generateBrief: orgHeavyMutationProcedure
-        .input(z.object({ projectId: z.number() }))
+        .input(z.object({ projectId: z.number(), locale: z.enum(["en", "ar"]).default("en") }))
         .mutation(async ({ ctx, input }) => {
             await requireProjectForOrg(input.projectId, ctx.orgId);
-            const briefMarkdown = await generateAutonomousDesignBrief(input.projectId);
-            return { markdown: briefMarkdown };
+            const briefMarkdown = await generateAutonomousDesignBrief(input.projectId, input.locale);
+            return { markdown: briefMarkdown, locale: input.locale };
         }),
 
     portfolioInsights: orgRateLimitedProcedure

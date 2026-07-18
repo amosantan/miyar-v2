@@ -587,6 +587,7 @@ var init_schema = __esm({
         "autonomous_design_brief"
       ]).notNull(),
       fileUrl: text("fileUrl"),
+      storageKey: text("storageKey"),
       bundleUrl: text("bundleUrl"),
       content: json("content"),
       benchmarkVersionId: int("benchmarkVersionId"),
@@ -6011,6 +6012,721 @@ var init_area_utils = __esm({
   }
 });
 
+// shared/report-locale.ts
+function isReportLocale(value) {
+  return typeof value === "string" && REPORT_LOCALES.includes(value);
+}
+function reportLocaleOrDefault(value, fallback = "en") {
+  return isReportLocale(value) ? value : fallback;
+}
+function reportDirection(locale) {
+  return locale === "ar" ? "rtl" : "ltr";
+}
+function reportLanguageTag(locale) {
+  return locale;
+}
+var REPORT_LOCALES;
+var init_report_locale = __esm({
+  "shared/report-locale.ts"() {
+    "use strict";
+    REPORT_LOCALES = ["en", "ar"];
+  }
+});
+
+// server/engines/report-catalog.ts
+function reportCopy(locale, key) {
+  return REPORT_COPY[locale][key];
+}
+function reportIntlLocale(locale) {
+  return REPORT_INTL_LOCALES[locale];
+}
+function formatReportNumber(value, locale, options = {}) {
+  if (!Number.isFinite(value)) return reportCopy(locale, "notAvailable");
+  return new Intl.NumberFormat(reportIntlLocale(locale), options).format(value);
+}
+function toValidDate(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+function formatReportDate(value, locale, options = { year: "numeric", month: "long", day: "numeric" }) {
+  const date = toValidDate(value);
+  if (!date) return reportCopy(locale, "notAvailable");
+  return new Intl.DateTimeFormat(reportIntlLocale(locale), options).format(date);
+}
+function formatReportDateTime(value, locale) {
+  return formatReportDate(value, locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+function reportDocumentMetadata(locale) {
+  return {
+    lang: reportLanguageTag(locale),
+    dir: reportDirection(locale),
+    fontFamily: locale === "ar" ? '"Noto Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif' : '"Manrope", "Segoe UI", Tahoma, Arial, sans-serif',
+    dynamicTextDir: "auto"
+  };
+}
+function reportLocaleCss(locale) {
+  const metadata = reportDocumentMetadata(locale);
+  return [
+    `html { direction: ${metadata.dir}; }`,
+    `body { font-family: ${metadata.fontFamily}; direction: ${metadata.dir}; }`,
+    "[data-report-dynamic] { unicode-bidi: plaintext; }",
+    "table { direction: inherit; }",
+    "th, td { text-align: start; }"
+  ].join("\n");
+}
+function localizeGovernedReportCopy(html, locale) {
+  if (locale === "en") return html;
+  const governed = Object.keys(EN_COPY).map((key) => [EN_COPY[key], AR_COPY[key]]);
+  const replacements = [...governed, ...Object.entries(LEGACY_REPORT_AR_COPY)].sort((a, b) => b[0].length - a[0].length);
+  const localizeStaticSegment = (segment) => replacements.reduce((output2, [english, arabic]) => output2.replaceAll(english, arabic), segment);
+  const dynamicValue = /<(?:bdi|span)\b[^>]*\bdata-report-dynamic\b[^>]*>[\s\S]*?<\/(?:bdi|span)>/g;
+  let output = "";
+  let index2 = 0;
+  for (const match of Array.from(html.matchAll(dynamicValue))) {
+    const start = match.index ?? 0;
+    output += localizeStaticSegment(html.slice(index2, start));
+    output += match[0];
+    index2 = start + match[0].length;
+  }
+  return output + localizeStaticSegment(html.slice(index2));
+}
+var EN_COPY, AR_COPY, LEGACY_REPORT_AR_COPY, REPORT_COPY, REPORT_INTL_LOCALES;
+var init_report_catalog = __esm({
+  "server/engines/report-catalog.ts"() {
+    "use strict";
+    init_report_locale();
+    EN_COPY = {
+      language: "Report language",
+      english: "English",
+      arabic: "Arabic",
+      generated: "Generated",
+      generatedAt: "Generated at",
+      documentId: "Document ID",
+      renderInputFingerprint: "Render-input fingerprint",
+      renderInputFingerprintHelp: "Debugging fingerprint of the documented render inputs; it is not an immutable issued snapshot or evidence-chain hash.",
+      artifactVersion: "Artifact version",
+      rendererVersion: "Renderer version",
+      modelVersion: "Model version",
+      benchmarkVersion: "Benchmark version",
+      logicVersion: "Logic version",
+      reportLocale: "Report language",
+      readOnly: "Read-only",
+      sharedBrief: "Shared brief",
+      expires: "Expires",
+      linkUnavailable: "Link unavailable",
+      sharedLinkUnavailable: "This share link is invalid or has expired.",
+      loadingSharedBrief: "Loading shared brief\u2026",
+      noData: "No data available.",
+      noContentGenerated: "No content generated.",
+      noAllocations: "No allocations available.",
+      notAvailable: "\u2014",
+      confidentialInternalOnly: "Confidential \u2014 For Internal Use Only",
+      executiveDecisionPack: "Executive Decision Pack",
+      validationSummarySubtitle: "Interior Design Direction Assessment",
+      designBriefTitle: "Interior Design Instruction Brief",
+      designBriefSubtitle: "Technical Specification & Execution Workflows",
+      fullReport: "Full Evaluation Report",
+      fullReportSubtitle: "Comprehensive Decision Intelligence Analysis",
+      autonomousDesignBrief: "Autonomous Design Brief",
+      autonomousDesignBriefSubtitle: "AI-Generated Concept & Technical Specification",
+      scenarioComparisonPack: "Scenario Comparison Pack",
+      scenarioComparisonSubtitle: "Decision Trade-off Analysis",
+      scenarioPoints: "points",
+      portfolioReport: "Portfolio Intelligence Report",
+      portfolioTotalProjects: "Total Projects",
+      portfolioScored: "Scored",
+      portfolioAverageComposite: "Avg Composite",
+      portfolioAverageRisk: "Avg Risk",
+      portfolioGeneratedBy: "Generated by MIYAR Decision Intelligence",
+      portfolioId: "Portfolio ID",
+      portfolioProjectsAnalyzed: "projects analyzed",
+      portfolioConditional: "Conditional",
+      materialBoard: "Material Board",
+      investorSummary: "Investor Summary",
+      executiveSummary: "Executive Summary",
+      dimensionScores: "Dimension Scores",
+      radarProfile: "Radar Profile",
+      riskAssessment: "Risk Assessment",
+      sensitivityAnalysis: "Sensitivity Analysis",
+      conditionalActions: "Conditional Actions",
+      designDirectionParameters: "Design Direction Parameters",
+      variableContributions: "Variable Contributions",
+      roiAnalysis: "ROI Analysis",
+      evidenceReferences: "Evidence References",
+      evidenceReferenceDescription: "The following evidence records were linked to this project at the time of report generation.",
+      evidenceInlineCitationHelp: "Inline citations [n] in the report body reference entries in this table.",
+      evidenceGradeLegend: "Grade A = Primary institutional source | Grade B = Verified commercial source | Grade C = Self-reported or unverified",
+      confidenceProvenance: "Confidence provenance",
+      legacyCalculationProvenanceUnavailable: "Legacy \u2014 calculation provenance unavailable",
+      operatorAssertedConfidence: "Operator asserted ({policy})",
+      computedConfidence: "Computed ({policy})",
+      evidenceLink: "[link]",
+      evidenceTrace: "Evidence Trace & Render Context",
+      inputSummary: "Input Summary",
+      materialBoardAnnex: "Material Board Annex",
+      scenarioScoreComparison: "Scenario Score Comparison",
+      roiComparison: "ROI Comparison",
+      tradeoffAnalysis: "Trade-off Analysis",
+      decisionNote: "Decision Note",
+      baseline: "Baseline",
+      scenario: "Scenario",
+      dimension: "Dimension",
+      compositeScore: "Composite Score",
+      roiMetric: "ROI Metric",
+      amountAed: "Amount (AED)",
+      roiNarrativeFallbackDenominator: "ROI multiple is calculated as total value divided by the ungoverned MIYAR fallback denominator of AED 150,000. It is indicative only and is not a market valuation or investment recommendation.",
+      totalValueCreated: "Total Value Created",
+      reworkAvoided: "Rework Avoided",
+      procurementSavings: "Procurement Savings",
+      timeValueGain: "Time-Value Gain",
+      projectIdentity: "Project Identity",
+      designNarrative: "Design Narrative",
+      materialSpecifications: "Material Specifications",
+      targetBoqFramework: "Target BOQ Framework",
+      detailedBudgetGuardrails: "Detailed Budget Guardrails",
+      workflowExecutionInstructions: "Workflow and Execution Instructions",
+      phasedDeliverables: "Phased Deliverables",
+      parameter: "Parameter",
+      title: "Title",
+      value: "Value",
+      category: "Category",
+      allocation: "Allocation",
+      estimatedBudget: "Estimated Budget",
+      notes: "Notes",
+      source: "Source",
+      captured: "Captured",
+      grade: "Grade",
+      reference: "Reference",
+      validated: "Validated",
+      conditionallyValidated: "Conditionally validated",
+      notValidated: "Not validated",
+      recommendedActions: "Recommended Actions",
+      noConditionalActions: "No conditional actions required. All parameters are within acceptable ranges.",
+      conditionalActionsIdentified: "{count} conditional action(s) identified:",
+      actionTrigger: "Trigger:",
+      actionRecommendation: "Recommendation:",
+      actionVariables: "Variables:",
+      importantDisclaimer: "Important disclaimer",
+      disclaimer: "This document is a concept-level assessment generated by the MIYAR Decision Intelligence Platform. Scores, recommendations, specifications, cost estimates, and procurement guidance are advisory only. They require detailed design, engineering review, professional validation, and formal tender confirmation where applicable. MIYAR does not warrant third-party benchmark data or market intelligence. This document is not professional design, financial, or legal advice.",
+      investorFallbackAssumption: "Ungoverned MIYAR fallback assumption",
+      investorFallbackAssumptionHelp: "This calculation uses hardcoded MIYAR tier mappings and the AED 25,000 per m\xB2 baseline unconditionally, regardless of available project evidence. It is indicative only and must not be treated as a market valuation or investment recommendation.",
+      scoresAdvisory: "Scores are advisory and do not constitute professional design or financial advice.",
+      allSpaces: "All spaces",
+      costPerSquareMetre: "Cost / m\xB2",
+      totalFitout: "Total fit-out",
+      designPremium: "Design premium",
+      sensitivityIntroduction: "Top {count} variables ranked by impact on composite score when adjusted \xB11 unit:",
+      boardEmptyResolution: "Empty board \u2014 no materials are attached. Cost and lead-time summary is unavailable.",
+      boardUnresolvableResolution: "Unresolvable board \u2014 none of the {linked} linked items could be resolved. Cost and lead-time summary is unavailable; repair the board links before relying on it.",
+      boardPartialResolution: "Partial board \u2014 {resolved} of {linked} linked items resolved. {unresolved} unresolved {itemStatus} excluded from the figures below.",
+      boardCompleteSingleResolution: "Complete board \u2014 the linked item is resolved.",
+      boardCompleteMultipleResolution: "Complete board \u2014 all {linked} linked items are resolved.",
+      boardResolvedCount: "{resolved} of {linked} items resolved",
+      boardItemIs: "item is",
+      boardItemsAre: "items are",
+      resolvedItemCostRange: "Resolved-item Cost Range",
+      resolvedItemLongestLead: "Resolved-item Longest Lead",
+      resolvedCriticalItems: "Resolved Critical Items",
+      materialBoardAnnexDescription: "Board availability and resolution are shown explicitly. Any figures shown are calculated only from resolved catalog items. Full RFQ-ready procurement schedules are available via the Board Composer export.",
+      noMaterialBoards: "No material boards have been created for this project. Use the Board Composer to build material boards with cost estimates and RFQ-ready procurement schedules."
+    };
+    AR_COPY = {
+      language: "\u0644\u063A\u0629 \u0627\u0644\u062A\u0642\u0631\u064A\u0631",
+      english: "\u0627\u0644\u0625\u0646\u062C\u0644\u064A\u0632\u064A\u0629",
+      arabic: "\u0627\u0644\u0639\u0631\u0628\u064A\u0629",
+      generated: "\u062A\u0645 \u0627\u0644\u0625\u0646\u0634\u0627\u0621",
+      generatedAt: "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0625\u0646\u0634\u0627\u0621",
+      documentId: "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0645\u0633\u062A\u0646\u062F",
+      renderInputFingerprint: "\u0628\u0635\u0645\u0629 \u0645\u062F\u062E\u0644\u0627\u062A \u0627\u0644\u0639\u0631\u0636",
+      renderInputFingerprintHelp: "\u0628\u0635\u0645\u0629 \u062A\u0635\u062D\u064A\u062D \u0623\u062E\u0637\u0627\u0621 \u0644\u0645\u062F\u062E\u0644\u0627\u062A \u0627\u0644\u0639\u0631\u0636 \u0627\u0644\u0645\u0648\u062B\u0642\u0629\u061B \u0648\u0644\u064A\u0633\u062A \u0644\u0642\u0637\u0629 \u0625\u0635\u062F\u0627\u0631 \u063A\u064A\u0631 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062A\u063A\u064A\u064A\u0631 \u0623\u0648 \u062A\u062C\u0632\u0626\u0629 \u0644\u0633\u0644\u0633\u0644\u0629 \u0623\u062F\u0644\u0629.",
+      artifactVersion: "\u0625\u0635\u062F\u0627\u0631 \u0627\u0644\u0645\u062E\u0631\u062C",
+      rendererVersion: "\u0625\u0635\u062F\u0627\u0631 \u0645\u062D\u0631\u0643 \u0627\u0644\u0639\u0631\u0636",
+      modelVersion: "\u0625\u0635\u062F\u0627\u0631 \u0627\u0644\u0646\u0645\u0648\u0630\u062C",
+      benchmarkVersion: "\u0625\u0635\u062F\u0627\u0631 \u0627\u0644\u0645\u0639\u064A\u0627\u0631 \u0627\u0644\u0645\u0631\u062C\u0639\u064A",
+      logicVersion: "\u0625\u0635\u062F\u0627\u0631 \u0627\u0644\u0645\u0646\u0637\u0642",
+      reportLocale: "\u0644\u063A\u0629 \u0627\u0644\u062A\u0642\u0631\u064A\u0631",
+      readOnly: "\u0644\u0644\u0639\u0631\u0636 \u0641\u0642\u0637",
+      sharedBrief: "\u0645\u0648\u062C\u0632 \u0645\u0634\u062A\u0631\u0643",
+      expires: "\u062A\u0646\u062A\u0647\u064A \u0627\u0644\u0635\u0644\u0627\u062D\u064A\u0629",
+      linkUnavailable: "\u0627\u0644\u0631\u0627\u0628\u0637 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D",
+      sharedLinkUnavailable: "\u0631\u0627\u0628\u0637 \u0627\u0644\u0645\u0634\u0627\u0631\u0643\u0629 \u0647\u0630\u0627 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D \u0623\u0648 \u0627\u0646\u062A\u0647\u062A \u0635\u0644\u0627\u062D\u064A\u062A\u0647.",
+      loadingSharedBrief: "\u062C\u0627\u0631\u064D \u062A\u062D\u0645\u064A\u0644 \u0627\u0644\u0645\u0648\u062C\u0632 \u0627\u0644\u0645\u0634\u062A\u0631\u0643\u2026",
+      noData: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0628\u064A\u0627\u0646\u0627\u062A \u0645\u062A\u0627\u062D\u0629.",
+      noContentGenerated: "\u0644\u0645 \u064A\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0645\u062D\u062A\u0648\u0649.",
+      noAllocations: "\u0644\u0627 \u062A\u0648\u062C\u062F \u062A\u062E\u0635\u064A\u0635\u0627\u062A \u0645\u062A\u0627\u062D\u0629.",
+      notAvailable: "\u2014",
+      confidentialInternalOnly: "\u0633\u0631\u064A \u2014 \u0644\u0644\u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u062F\u0627\u062E\u0644\u064A \u0641\u0642\u0637",
+      executiveDecisionPack: "\u062D\u0632\u0645\u0629 \u0627\u0644\u0642\u0631\u0627\u0631 \u0627\u0644\u062A\u0646\u0641\u064A\u0630\u064A",
+      validationSummarySubtitle: "\u062A\u0642\u064A\u064A\u0645 \u062A\u0648\u062C\u0647 \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062F\u0627\u062E\u0644\u064A",
+      designBriefTitle: "\u0645\u0648\u062C\u0632 \u062A\u0639\u0644\u064A\u0645\u0627\u062A \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062F\u0627\u062E\u0644\u064A",
+      designBriefSubtitle: "\u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0627\u062A \u0627\u0644\u0641\u0646\u064A\u0629 \u0648\u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0627\u0644\u062A\u0646\u0641\u064A\u0630",
+      fullReport: "\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u062A\u0642\u064A\u064A\u0645 \u0627\u0644\u0643\u0627\u0645\u0644",
+      fullReportSubtitle: "\u062A\u062D\u0644\u064A\u0644 \u0634\u0627\u0645\u0644 \u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0642\u0631\u0627\u0631",
+      autonomousDesignBrief: "\u0645\u0648\u062C\u0632 \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u0645\u0633\u062A\u0642\u0644",
+      autonomousDesignBriefSubtitle: "\u0645\u0648\u0627\u0635\u0641\u0627\u062A \u0645\u0641\u0627\u0647\u064A\u0645\u064A\u0629 \u0648\u0641\u0646\u064A\u0629 \u0645\u0648\u0644\u0651\u062F\u0629 \u0628\u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064A",
+      scenarioComparisonPack: "\u062D\u0632\u0645\u0629 \u0645\u0642\u0627\u0631\u0646\u0629 \u0627\u0644\u0633\u064A\u0646\u0627\u0631\u064A\u0648\u0647\u0627\u062A",
+      scenarioComparisonSubtitle: "\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0645\u0641\u0627\u0636\u0644\u0627\u062A \u0641\u064A \u0627\u0644\u0642\u0631\u0627\u0631",
+      scenarioPoints: "\u0646\u0642\u0637\u0629",
+      portfolioReport: "\u062A\u0642\u0631\u064A\u0631 \u0630\u0643\u0627\u0621 \u0627\u0644\u0645\u062D\u0641\u0638\u0629",
+      portfolioTotalProjects: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639",
+      portfolioScored: "\u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639 \u0627\u0644\u0645\u0642\u064A\u0651\u0645\u0629",
+      portfolioAverageComposite: "\u0645\u062A\u0648\u0633\u0637 \u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u0631\u0643\u0628\u0629",
+      portfolioAverageRisk: "\u0645\u062A\u0648\u0633\u0637 \u0627\u0644\u0645\u062E\u0627\u0637\u0631",
+      portfolioGeneratedBy: "\u0623\u064F\u0646\u0634\u0626 \u0628\u0648\u0627\u0633\u0637\u0629 MIYAR \u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0642\u0631\u0627\u0631",
+      portfolioId: "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0645\u062D\u0641\u0638\u0629",
+      portfolioProjectsAnalyzed: "\u0645\u0634\u0631\u0648\u0639\u0627\u064B \u062A\u0645 \u062A\u062D\u0644\u064A\u0644\u0647",
+      portfolioConditional: "\u0645\u0634\u0631\u0648\u0637",
+      materialBoard: "\u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0648\u0627\u062F",
+      investorSummary: "\u0645\u0644\u062E\u0635 \u0627\u0644\u0645\u0633\u062A\u062B\u0645\u0631",
+      executiveSummary: "\u0627\u0644\u0645\u0644\u062E\u0635 \u0627\u0644\u062A\u0646\u0641\u064A\u0630\u064A",
+      dimensionScores: "\u062F\u0631\u062C\u0627\u062A \u0627\u0644\u0623\u0628\u0639\u0627\u062F",
+      radarProfile: "\u0645\u0644\u0641 \u0627\u0644\u0631\u0627\u062F\u0627\u0631",
+      riskAssessment: "\u062A\u0642\u064A\u064A\u0645 \u0627\u0644\u0645\u062E\u0627\u0637\u0631",
+      sensitivityAnalysis: "\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u062D\u0633\u0627\u0633\u064A\u0629",
+      conditionalActions: "\u0627\u0644\u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0627\u0644\u0645\u0634\u0631\u0648\u0637\u0629",
+      designDirectionParameters: "\u0645\u0639\u0627\u064A\u064A\u0631 \u062A\u0648\u062C\u0647 \u0627\u0644\u062A\u0635\u0645\u064A\u0645",
+      variableContributions: "\u0645\u0633\u0627\u0647\u0645\u0627\u062A \u0627\u0644\u0645\u062A\u063A\u064A\u0631\u0627\u062A",
+      roiAnalysis: "\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631",
+      evidenceReferences: "\u0645\u0631\u0627\u062C\u0639 \u0627\u0644\u0623\u062F\u0644\u0629",
+      evidenceReferenceDescription: "\u062A\u0645 \u0631\u0628\u0637 \u0633\u062C\u0644\u0627\u062A \u0627\u0644\u0623\u062F\u0644\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0634\u0631\u0648\u0639 \u0639\u0646\u062F \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062A\u0642\u0631\u064A\u0631.",
+      evidenceInlineCitationHelp: "\u062A\u0634\u064A\u0631 \u0627\u0644\u0627\u0633\u062A\u0634\u0647\u0627\u062F\u0627\u062A \u0627\u0644\u0645\u0636\u0645\u0646\u0629 [n] \u0641\u064A \u0645\u062A\u0646 \u0627\u0644\u062A\u0642\u0631\u064A\u0631 \u0625\u0644\u0649 \u0627\u0644\u0625\u062F\u062E\u0627\u0644\u0627\u062A \u0627\u0644\u0648\u0627\u0631\u062F\u0629 \u0641\u064A \u0647\u0630\u0627 \u0627\u0644\u062C\u062F\u0648\u0644.",
+      evidenceGradeLegend: "\u0627\u0644\u062F\u0631\u062C\u0629 A = \u0645\u0635\u062F\u0631 \u0645\u0624\u0633\u0633\u064A \u0623\u0648\u0644\u064A | \u0627\u0644\u062F\u0631\u062C\u0629 B = \u0645\u0635\u062F\u0631 \u062A\u062C\u0627\u0631\u064A \u062A\u0645 \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646\u0647 | \u0627\u0644\u062F\u0631\u062C\u0629 C = \u0645\u064F\u0628\u0644\u0651\u063A \u0639\u0646\u0647 \u0630\u0627\u062A\u064A\u0627\u064B \u0623\u0648 \u063A\u064A\u0631 \u0645\u062A\u062D\u0642\u0642 \u0645\u0646\u0647",
+      confidenceProvenance: "\u0645\u0635\u062F\u0631 \u0627\u0644\u062B\u0642\u0629",
+      legacyCalculationProvenanceUnavailable: "\u0642\u062F\u064A\u0645 \u2014 \u0645\u0635\u062F\u0631 \u0627\u0644\u062D\u0633\u0627\u0628 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D",
+      operatorAssertedConfidence: "\u0623\u0643\u062F\u0647 \u0627\u0644\u0645\u0634\u063A\u0651\u0644 ({policy})",
+      computedConfidence: "\u0645\u062D\u0633\u0648\u0628 ({policy})",
+      evidenceLink: "[\u0631\u0627\u0628\u0637]",
+      evidenceTrace: "\u0633\u064A\u0627\u0642 \u0627\u0644\u0623\u062F\u0644\u0629 \u0648\u0627\u0644\u0639\u0631\u0636",
+      inputSummary: "\u0645\u0644\u062E\u0635 \u0627\u0644\u0645\u062F\u062E\u0644\u0627\u062A",
+      materialBoardAnnex: "\u0645\u0644\u062D\u0642 \u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0648\u0627\u062F",
+      scenarioScoreComparison: "\u0645\u0642\u0627\u0631\u0646\u0629 \u062F\u0631\u062C\u0627\u062A \u0627\u0644\u0633\u064A\u0646\u0627\u0631\u064A\u0648\u0647\u0627\u062A",
+      roiComparison: "\u0645\u0642\u0627\u0631\u0646\u0629 \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631",
+      tradeoffAnalysis: "\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0645\u0641\u0627\u0636\u0644\u0627\u062A",
+      decisionNote: "\u0645\u0644\u0627\u062D\u0638\u0629 \u0627\u0644\u0642\u0631\u0627\u0631",
+      baseline: "\u062E\u0637 \u0627\u0644\u0623\u0633\u0627\u0633",
+      scenario: "\u0627\u0644\u0633\u064A\u0646\u0627\u0631\u064A\u0648",
+      dimension: "\u0627\u0644\u0628\u0639\u062F",
+      compositeScore: "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u0631\u0643\u0628\u0629",
+      roiMetric: "\u0645\u0624\u0634\u0631 \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631",
+      amountAed: "\u0627\u0644\u0645\u0628\u0644\u063A (\u062F\u0631\u0647\u0645)",
+      roiNarrativeFallbackDenominator: "\u064A\u064F\u062D\u0633\u0628 \u0645\u0636\u0627\u0639\u0641 \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631 \u0628\u0642\u0633\u0645\u0629 \u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0642\u064A\u0645\u0629 \u0639\u0644\u0649 \u0645\u0642\u0627\u0645 \u0627\u062D\u062A\u064A\u0627\u0637\u064A \u063A\u064A\u0631 \u0645\u062D\u0643\u0648\u0645 \u0645\u0646 MIYAR \u0642\u062F\u0631\u0647 150,000 \u062F\u0631\u0647\u0645. \u0648\u0647\u0648 \u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A \u0641\u0642\u0637 \u0648\u0644\u0627 \u064A\u0645\u062B\u0644 \u062A\u0642\u064A\u064A\u0645\u0627\u064B \u0633\u0648\u0642\u064A\u0627\u064B \u0623\u0648 \u062A\u0648\u0635\u064A\u0629 \u0627\u0633\u062A\u062B\u0645\u0627\u0631\u064A\u0629.",
+      totalValueCreated: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0642\u064A\u0645\u0629 \u0627\u0644\u0645\u062A\u062D\u0642\u0642\u0629",
+      reworkAvoided: "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u0645\u062A\u062C\u0646\u0628\u0629",
+      procurementSavings: "\u0648\u0641\u0648\u0631\u0627\u062A \u0627\u0644\u0634\u0631\u0627\u0621",
+      timeValueGain: "\u0645\u0643\u0633\u0628 \u0642\u064A\u0645\u0629 \u0627\u0644\u0648\u0642\u062A",
+      projectIdentity: "\u0647\u0648\u064A\u0629 \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+      designNarrative: "\u0627\u0644\u0633\u0631\u062F \u0627\u0644\u062A\u0635\u0645\u064A\u0645\u064A",
+      materialSpecifications: "\u0645\u0648\u0627\u0635\u0641\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
+      targetBoqFramework: "\u0625\u0637\u0627\u0631 \u062C\u062F\u0648\u0644 \u0627\u0644\u0643\u0645\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u0647\u062F\u0641",
+      detailedBudgetGuardrails: "\u0636\u0648\u0627\u0628\u0637 \u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629 \u0627\u0644\u062A\u0641\u0635\u064A\u0644\u064A\u0629",
+      workflowExecutionInstructions: "\u062A\u0639\u0644\u064A\u0645\u0627\u062A \u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u0627\u0644\u062A\u0646\u0641\u064A\u0630",
+      phasedDeliverables: "\u0627\u0644\u0645\u062E\u0631\u062C\u0627\u062A \u0627\u0644\u0645\u0631\u062D\u0644\u064A\u0629",
+      parameter: "\u0627\u0644\u0645\u0639\u064A\u0627\u0631",
+      title: "\u0627\u0644\u0639\u0646\u0648\u0627\u0646",
+      value: "\u0627\u0644\u0642\u064A\u0645\u0629",
+      category: "\u0627\u0644\u0641\u0626\u0629",
+      allocation: "\u0627\u0644\u062A\u062E\u0635\u064A\u0635",
+      estimatedBudget: "\u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629 \u0627\u0644\u062A\u0642\u062F\u064A\u0631\u064A\u0629",
+      notes: "\u0645\u0644\u0627\u062D\u0638\u0627\u062A",
+      source: "\u0627\u0644\u0645\u0635\u062F\u0631",
+      captured: "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637",
+      grade: "\u0627\u0644\u062F\u0631\u062C\u0629",
+      reference: "\u0627\u0644\u0645\u0631\u062C\u0639",
+      validated: "\u062A\u0645 \u0627\u0644\u062A\u062D\u0642\u0642",
+      conditionallyValidated: "\u062A\u0645 \u0627\u0644\u062A\u062D\u0642\u0642 \u0628\u0634\u0631\u0648\u0637",
+      notValidated: "\u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u062A\u062D\u0642\u0642",
+      recommendedActions: "\u0627\u0644\u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0627\u0644\u0645\u0648\u0635\u0649 \u0628\u0647\u0627",
+      noConditionalActions: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0645\u0634\u0631\u0648\u0637\u0629 \u0645\u0637\u0644\u0648\u0628\u0629. \u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u0639\u0627\u064A\u064A\u0631 \u0636\u0645\u0646 \u0627\u0644\u0646\u0637\u0627\u0642\u0627\u062A \u0627\u0644\u0645\u0642\u0628\u0648\u0644\u0629.",
+      conditionalActionsIdentified: "\u062A\u0645 \u062A\u062D\u062F\u064A\u062F {count} \u0625\u062C\u0631\u0627\u0621/\u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0645\u0634\u0631\u0648\u0637\u0629:",
+      actionTrigger: "\u0627\u0644\u0645\u062D\u0641\u0632:",
+      actionRecommendation: "\u0627\u0644\u062A\u0648\u0635\u064A\u0629:",
+      actionVariables: "\u0627\u0644\u0645\u062A\u063A\u064A\u0631\u0627\u062A:",
+      importantDisclaimer: "\u0625\u062E\u0644\u0627\u0621 \u0645\u0633\u0624\u0648\u0644\u064A\u0629 \u0645\u0647\u0645",
+      disclaimer: "\u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u062A\u0642\u064A\u064A\u0645 \u0639\u0644\u0649 \u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0641\u0647\u0648\u0645 \u0623\u064F\u0646\u0634\u0626 \u0628\u0648\u0627\u0633\u0637\u0629 \u0645\u0646\u0635\u0629 MIYAR \u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0642\u0631\u0627\u0631. \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0648\u0627\u0644\u062A\u0648\u0635\u064A\u0627\u062A \u0648\u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0627\u062A \u0648\u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0648\u0625\u0631\u0634\u0627\u062F\u0627\u062A \u0627\u0644\u0634\u0631\u0627\u0621 \u0627\u0633\u062A\u0634\u0627\u0631\u064A\u0629 \u0641\u0642\u0637. \u0648\u0647\u064A \u062A\u062A\u0637\u0644\u0628 \u062A\u0635\u0645\u064A\u0645\u0627\u064B \u062A\u0641\u0635\u064A\u0644\u064A\u0627\u064B \u0648\u0645\u0631\u0627\u062C\u0639\u0629 \u0647\u0646\u062F\u0633\u064A\u0629 \u0648\u062A\u062D\u0642\u0642\u0627\u064B \u0645\u0647\u0646\u064A\u0627\u064B \u0648\u062A\u0623\u0643\u064A\u062F\u0627\u064B \u0645\u0646 \u062E\u0644\u0627\u0644 \u0645\u0646\u0627\u0642\u0635\u0629 \u0631\u0633\u0645\u064A\u0629 \u0639\u0646\u062F \u0627\u0644\u0627\u0642\u062A\u0636\u0627\u0621. \u0644\u0627 \u062A\u0636\u0645\u0646 MIYAR \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0645\u0639\u0627\u064A\u064A\u0631 \u0627\u0644\u0645\u0631\u062C\u0639\u064A\u0629 \u0623\u0648 \u0645\u0639\u0644\u0648\u0645\u0627\u062A \u0627\u0644\u0633\u0648\u0642 \u0627\u0644\u0645\u0642\u062F\u0645\u0629 \u0645\u0646 \u0623\u0637\u0631\u0627\u0641 \u062B\u0627\u0644\u062B\u0629. \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0644\u064A\u0633 \u0645\u0634\u0648\u0631\u0629 \u0645\u0647\u0646\u064A\u0629 \u0641\u064A \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0623\u0648 \u0627\u0644\u0634\u0624\u0648\u0646 \u0627\u0644\u0645\u0627\u0644\u064A\u0629 \u0623\u0648 \u0627\u0644\u0642\u0627\u0646\u0648\u0646\u064A\u0629.",
+      investorFallbackAssumption: "\u0627\u0641\u062A\u0631\u0627\u0636 \u0627\u062D\u062A\u064A\u0627\u0637\u064A \u063A\u064A\u0631 \u0645\u062D\u0643\u0648\u0645 \u0645\u0646 MIYAR",
+      investorFallbackAssumptionHelp: "\u064A\u0633\u062A\u062E\u062F\u0645 \u0647\u0630\u0627 \u0627\u0644\u062D\u0633\u0627\u0628 \u062A\u0639\u064A\u064A\u0646\u0627\u062A \u0634\u0631\u0627\u0626\u062D MIYAR \u0645\u064F\u0634\u0641\u0651\u0631\u0629 \u0645\u0633\u0628\u0642\u0627\u064B \u0648\u0623\u0633\u0627\u0633\u0627\u064B \u0642\u062F\u0631\u0647 25,000 \u062F\u0631\u0647\u0645 \u0644\u0643\u0644 \u0645\xB2 \u062F\u0648\u0646 \u0642\u064A\u062F\u060C \u0628\u0635\u0631\u0641 \u0627\u0644\u0646\u0638\u0631 \u0639\u0646 \u062A\u0648\u0641\u0631 \u0623\u062F\u0644\u0629 \u0627\u0644\u0645\u0634\u0631\u0648\u0639. \u0648\u0647\u0648 \u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A \u0641\u0642\u0637 \u0648\u0644\u0627 \u064A\u062C\u0648\u0632 \u0627\u0639\u062A\u0628\u0627\u0631\u0647 \u062A\u0642\u064A\u064A\u0645\u0627\u064B \u0633\u0648\u0642\u064A\u0627\u064B \u0623\u0648 \u062A\u0648\u0635\u064A\u0629 \u0627\u0633\u062A\u062B\u0645\u0627\u0631\u064A\u0629.",
+      scoresAdvisory: "\u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0627\u0633\u062A\u0634\u0627\u0631\u064A\u0629 \u0648\u0644\u0627 \u062A\u0634\u0643\u0644 \u0645\u0634\u0648\u0631\u0629 \u0645\u0647\u0646\u064A\u0629 \u0641\u064A \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0623\u0648 \u0627\u0644\u0634\u0624\u0648\u0646 \u0627\u0644\u0645\u0627\u0644\u064A\u0629.",
+      allSpaces: "\u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A",
+      costPerSquareMetre: "\u0627\u0644\u062A\u0643\u0644\u0641\u0629 / \u0645\xB2",
+      totalFitout: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u062A\u062C\u0647\u064A\u0632 \u0627\u0644\u062F\u0627\u062E\u0644\u064A",
+      designPremium: "\u0627\u0644\u0639\u0644\u0627\u0648\u0629 \u0627\u0644\u062A\u0635\u0645\u064A\u0645\u064A\u0629",
+      sensitivityIntroduction: "\u0623\u0639\u0644\u0649 {count} \u0645\u062A\u063A\u064A\u0631\u0627\u062A \u0645\u0631\u062A\u0628\u0629 \u0628\u062D\u0633\u0628 \u0623\u062B\u0631\u0647\u0627 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u0631\u0643\u0628\u0629 \u0639\u0646\u062F \u062A\u0639\u062F\u064A\u0644\u0647\u0627 \u0628\u0645\u0642\u062F\u0627\u0631 \xB11 \u0648\u062D\u062F\u0629:",
+      boardEmptyResolution: "\u0644\u0648\u062D\u0629 \u0641\u0627\u0631\u063A\u0629 \u2014 \u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u0648\u0627\u062F \u0645\u0631\u0641\u0642\u0629. \u0645\u0644\u062E\u0635 \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0648\u0627\u0644\u0645\u0647\u0644\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D.",
+      boardUnresolvableResolution: "\u0644\u0648\u062D\u0629 \u063A\u064A\u0631 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062D\u0644 \u2014 \u0644\u0645 \u064A\u062A\u0645 \u062D\u0644 \u0623\u064A \u0645\u0646 \u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629 \u0648\u0639\u062F\u062F\u0647\u0627 {linked}. \u0645\u0644\u062E\u0635 \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0648\u0627\u0644\u0645\u0647\u0644\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u061B \u0623\u0635\u0644\u062D \u0631\u0648\u0627\u0628\u0637 \u0627\u0644\u0644\u0648\u062D\u0629 \u0642\u0628\u0644 \u0627\u0644\u0627\u0639\u062A\u0645\u0627\u062F \u0639\u0644\u064A\u0647\u0627.",
+      boardPartialResolution: "\u0644\u0648\u062D\u0629 \u062C\u0632\u0626\u064A\u0629 \u2014 \u062A\u0645 \u062D\u0644 {resolved} \u0645\u0646 \u0623\u0635\u0644 {linked} \u0639\u0646\u0627\u0635\u0631 \u0645\u0631\u062A\u0628\u0637\u0629. \u0627\u0633\u062A\u064F\u0628\u0639\u062F {unresolved} {itemStatus} \u063A\u064A\u0631 \u0645\u062D\u0644\u0648\u0644 \u0645\u0646 \u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0623\u062F\u0646\u0627\u0647.",
+      boardCompleteSingleResolution: "\u0644\u0648\u062D\u0629 \u0645\u0643\u062A\u0645\u0644\u0629 \u2014 \u062A\u0645 \u062D\u0644 \u0627\u0644\u0639\u0646\u0635\u0631 \u0627\u0644\u0645\u0631\u062A\u0628\u0637.",
+      boardCompleteMultipleResolution: "\u0644\u0648\u062D\u0629 \u0645\u0643\u062A\u0645\u0644\u0629 \u2014 \u062A\u0645 \u062D\u0644 \u062C\u0645\u064A\u0639 \u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629 \u0648\u0639\u062F\u062F\u0647\u0627 {linked}.",
+      boardResolvedCount: "\u062A\u0645 \u062D\u0644 {resolved} \u0645\u0646 \u0623\u0635\u0644 {linked} \u0639\u0646\u0627\u0635\u0631",
+      boardItemIs: "\u0639\u0646\u0635\u0631",
+      boardItemsAre: "\u0639\u0646\u0627\u0635\u0631",
+      resolvedItemCostRange: "\u0646\u0637\u0627\u0642 \u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u062D\u0644\u0648\u0644\u0629",
+      resolvedItemLongestLead: "\u0623\u0637\u0648\u0644 \u0645\u0647\u0644\u0629 \u0644\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u062D\u0644\u0648\u0644\u0629",
+      resolvedCriticalItems: "\u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u062D\u0631\u062C\u0629 \u0627\u0644\u0645\u062D\u0644\u0648\u0644\u0629",
+      materialBoardAnnexDescription: "\u064A\u062A\u0645 \u0639\u0631\u0636 \u062A\u0648\u0641\u0631 \u0627\u0644\u0644\u0648\u062D\u0627\u062A \u0648\u062D\u0627\u0644\u0629 \u062D\u0644 \u0639\u0646\u0627\u0635\u0631\u0647\u0627 \u0628\u0648\u0636\u0648\u062D. \u062A\u064F\u062D\u0633\u0628 \u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0645\u0639\u0631\u0648\u0636\u0629 \u0641\u0642\u0637 \u0645\u0646 \u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0643\u062A\u0627\u0644\u0648\u062C \u0627\u0644\u062A\u064A \u062A\u0645 \u062D\u0644\u0647\u0627. \u062A\u062A\u0648\u0641\u0631 \u062C\u062F\u0627\u0648\u0644 \u0634\u0631\u0627\u0621 \u0643\u0627\u0645\u0644\u0629 \u062C\u0627\u0647\u0632\u0629 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631 \u0639\u0628\u0631 \u062A\u0635\u062F\u064A\u0631 \u0623\u062F\u0627\u0629 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0644\u0648\u062D\u0627\u062A.",
+      noMaterialBoards: "\u0644\u0645 \u064A\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0644\u0648\u062D\u0627\u062A \u0645\u0648\u0627\u062F \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0634\u0631\u0648\u0639. \u0627\u0633\u062A\u062E\u062F\u0645 \u0623\u062F\u0627\u0629 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0644\u0648\u062D\u0627\u062A \u0644\u0628\u0646\u0627\u0621 \u0644\u0648\u062D\u0627\u062A \u0645\u0648\u0627\u062F \u062A\u062A\u0636\u0645\u0646 \u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0648\u062C\u062F\u0627\u0648\u0644 \u0634\u0631\u0627\u0621 \u062C\u0627\u0647\u0632\u0629 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631."
+    };
+    LEGACY_REPORT_AR_COPY = {
+      "Decision Tradeoff Analysis": "\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0645\u0641\u0627\u0636\u0644\u0627\u062A \u0641\u064A \u0627\u0644\u0642\u0631\u0627\u0631",
+      "Portfolio Analysis Report": "\u062A\u0642\u0631\u064A\u0631 \u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0645\u062D\u0641\u0638\u0629",
+      "Multi-Project Decision Intelligence Summary": "\u0645\u0644\u062E\u0635 \u0630\u0643\u0627\u0621 \u0627\u0644\u0642\u0631\u0627\u0631 \u0645\u062A\u0639\u062F\u062F \u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639",
+      "Portfolio Executive Summary": "\u0627\u0644\u0645\u0644\u062E\u0635 \u0627\u0644\u062A\u0646\u0641\u064A\u0630\u064A \u0644\u0644\u0645\u062D\u0641\u0638\u0629",
+      "Project Comparison": "\u0645\u0642\u0627\u0631\u0646\u0629 \u0627\u0644\u0645\u0634\u0627\u0631\u064A\u0639",
+      "Score Distributions by Dimension": "\u062A\u0648\u0632\u064A\u0639\u0627\u062A \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u062D\u0633\u0628 \u0627\u0644\u0628\u0639\u062F",
+      "Failure Patterns": "\u0623\u0646\u0645\u0627\u0637 \u0627\u0644\u0625\u062E\u0641\u0627\u0642",
+      "Improvement Levers": "\u0639\u0648\u0627\u0645\u0644 \u0627\u0644\u062A\u062D\u0633\u064A\u0646",
+      "Compliance Heatmap (Tier \xD7 Dimension)": "\u0627\u0644\u062E\u0631\u064A\u0637\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0644\u0644\u0627\u0645\u062A\u062B\u0627\u0644 (\u0627\u0644\u0634\u0631\u064A\u062D\u0629 \xD7 \u0627\u0644\u0628\u0639\u062F)",
+      "Strategic Alignment": "\u0627\u0644\u0645\u0648\u0627\u0621\u0645\u0629 \u0627\u0644\u0627\u0633\u062A\u0631\u0627\u062A\u064A\u062C\u064A\u0629",
+      "Financial Feasibility": "\u0627\u0644\u062C\u062F\u0648\u0649 \u0627\u0644\u0645\u0627\u0644\u064A\u0629",
+      "Market Positioning": "\u0627\u0644\u062A\u0645\u0648\u0636\u0639 \u0627\u0644\u0633\u0648\u0642\u064A",
+      "Differentiation Strength": "\u0642\u0648\u0629 \u0627\u0644\u062A\u0645\u0627\u064A\u0632",
+      "Execution Risk": "\u0645\u062E\u0627\u0637\u0631 \u0627\u0644\u062A\u0646\u0641\u064A\u0630",
+      "Evidence Trace & Provenance": "\u062A\u062A\u0628\u0639 \u0627\u0644\u0623\u062F\u0644\u0629 \u0648\u0645\u0635\u062F\u0631\u0647\u0627",
+      "Risk Score": "\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u062E\u0627\u0637\u0631",
+      "Penalties Applied": "\u0627\u0644\u0639\u0642\u0648\u0628\u0627\u062A \u0627\u0644\u0645\u0637\u0628\u0642\u0629",
+      "Active Penalties": "\u0627\u0644\u0639\u0642\u0648\u0628\u0627\u062A \u0627\u0644\u0646\u0634\u0637\u0629",
+      "Risk Flags": "\u062A\u0646\u0628\u064A\u0647\u0627\u062A \u0627\u0644\u0645\u062E\u0627\u0637\u0631",
+      "No risk flags triggered.": "\u0644\u0645 \u064A\u062A\u0645 \u062A\u0641\u0639\u064A\u0644 \u0623\u064A \u062A\u0646\u0628\u064A\u0647\u0627\u062A \u0645\u062E\u0627\u0637\u0631.",
+      "Recommended Actions": "\u0627\u0644\u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0627\u0644\u0645\u0648\u0635\u0649 \u0628\u0647\u0627",
+      "No conditional actions required. All parameters are within acceptable ranges.": "\u0644\u0627 \u062A\u0648\u062C\u062F \u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0645\u0634\u0631\u0648\u0637\u0629 \u0645\u0637\u0644\u0648\u0628\u0629. \u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u0639\u0627\u064A\u064A\u0631 \u0636\u0645\u0646 \u0627\u0644\u0646\u0637\u0627\u0642\u0627\u062A \u0627\u0644\u0645\u0642\u0628\u0648\u0644\u0629.",
+      "Project Input Summary": "\u0645\u0644\u062E\u0635 \u0645\u062F\u062E\u0644\u0627\u062A \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+      "Variable Contribution Analysis": "\u062A\u062D\u0644\u064A\u0644 \u0645\u0633\u0627\u0647\u0645\u0629 \u0627\u0644\u0645\u062A\u063A\u064A\u0631\u0627\u062A",
+      "ROI & Economic Impact Analysis": "\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631 \u0648\u0627\u0644\u0623\u062B\u0631 \u0627\u0644\u0627\u0642\u062A\u0635\u0627\u062F\u064A",
+      "Value Breakdown": "\u062A\u0641\u0635\u064A\u0644 \u0627\u0644\u0642\u064A\u0645\u0629",
+      "Executive Narrative": "\u0627\u0644\u0633\u0631\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630\u064A",
+      "Key Assumptions": "\u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u0627\u062A \u0627\u0644\u0631\u0626\u064A\u0633\u064A\u0629",
+      "5-Lens Defensibility Framework": "\u0625\u0637\u0627\u0631 \u0627\u0644\u0642\u0627\u0628\u0644\u064A\u0629 \u0644\u0644\u062F\u0641\u0627\u0639 \u0628\u062E\u0645\u0633 \u0639\u062F\u0633\u0627\u062A",
+      "Overall Defensibility": "\u0627\u0644\u0642\u0627\u0628\u0644\u064A\u0629 \u0644\u0644\u062F\u0641\u0627\u0639 \u0625\u062C\u0645\u0627\u0644\u0627\u064B",
+      "Weakest Lens": "\u0623\u0636\u0639\u0641 \u0639\u062F\u0633\u0629",
+      "Table of Contents": "\u062C\u062F\u0648\u0644 \u0627\u0644\u0645\u062D\u062A\u0648\u064A\u0627\u062A",
+      "Design Narrative & Positioning": "\u0627\u0644\u0633\u0631\u062F \u0627\u0644\u062A\u0635\u0645\u064A\u0645\u064A \u0648\u0627\u0644\u062A\u0645\u0648\u0636\u0639",
+      "Design Narrative &amp; Positioning": "\u0627\u0644\u0633\u0631\u062F \u0627\u0644\u062A\u0635\u0645\u064A\u0645\u064A \u0648\u0627\u0644\u062A\u0645\u0648\u0636\u0639",
+      "Primary Style": "\u0627\u0644\u0623\u0633\u0644\u0648\u0628 \u0627\u0644\u0623\u0633\u0627\u0633\u064A",
+      "Mood Keywords": "\u0643\u0644\u0645\u0627\u062A \u0627\u0644\u0623\u062C\u0648\u0627\u0621",
+      "Color Palette": "\u0644\u0648\u062D\u0629 \u0627\u0644\u0623\u0644\u0648\u0627\u0646",
+      "Texture Direction": "\u062A\u0648\u062C\u0647 \u0627\u0644\u0645\u0644\u0645\u0633",
+      "Lighting Approach": "\u0646\u0647\u062C \u0627\u0644\u0625\u0636\u0627\u0621\u0629",
+      "Tier Requirement": "\u0645\u062A\u0637\u0644\u0628 \u0627\u0644\u0634\u0631\u064A\u062D\u0629",
+      "Quality Benchmark": "\u0645\u0639\u064A\u0627\u0631 \u0627\u0644\u062C\u0648\u062F\u0629",
+      "Sustainability": "\u0627\u0644\u0627\u0633\u062A\u062F\u0627\u0645\u0629",
+      "Approved Materials (Primary)": "\u0627\u0644\u0645\u0648\u0627\u062F \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629 (\u0627\u0644\u0623\u0633\u0627\u0633\u064A\u0629)",
+      "Approved Finishes & Textures": "\u0627\u0644\u062A\u0634\u0637\u064A\u0628\u0627\u062A \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629",
+      "Approved Finishes &amp; Textures": "\u0627\u0644\u062A\u0634\u0637\u064A\u0628\u0627\u062A \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629",
+      "Prohibited Materials (Value Engineering Flags)": "\u0627\u0644\u0645\u0648\u0627\u062F \u0627\u0644\u0645\u062D\u0638\u0648\u0631\u0629 (\u062A\u0646\u0628\u064A\u0647\u0627\u062A \u0647\u0646\u062F\u0633\u0629 \u0627\u0644\u0642\u064A\u0645\u0629)",
+      "Total Estimated Project Area": "\u0625\u062C\u0645\u0627\u0644\u064A \u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u0642\u062F\u064A\u0631\u064A\u0629",
+      "Cost Per Sqm Target": "\u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0645\u0633\u062A\u0647\u062F\u0641\u0629 \u0644\u0643\u0644 \u0645\xB2",
+      "Total Budget Cap": "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0639\u0644\u0649 \u0644\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629",
+      "Cost Band": "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+      "Contingency": "\u0627\u0644\u0627\u062D\u062A\u064A\u0627\u0637\u064A",
+      "Flexibility Level": "\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0631\u0648\u0646\u0629",
+      "Value Engineering Directives": "\u062A\u0648\u062C\u064A\u0647\u0627\u062A \u0647\u0646\u062F\u0633\u0629 \u0627\u0644\u0642\u064A\u0645\u0629",
+      "Lead Time Window": "\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0647\u0644\u0629 \u0627\u0644\u0632\u0645\u0646\u064A\u0629",
+      "Critical Path Procurement Items": "\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0634\u0631\u0627\u0621 \u0639\u0644\u0649 \u0627\u0644\u0645\u0633\u0627\u0631 \u0627\u0644\u062D\u0631\u062C",
+      "Local Authority Approvals (Dubai)": "\u0627\u0639\u062A\u0645\u0627\u062F\u0627\u062A \u0627\u0644\u062C\u0647\u0627\u062A \u0627\u0644\u0645\u062D\u0644\u064A\u0629 (\u062F\u0628\u064A)",
+      "Contractor Coordination Requirements": "\u0645\u062A\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u062A\u0646\u0633\u064A\u0642 \u0645\u0639 \u0627\u0644\u0645\u0642\u0627\u0648\u0644",
+      "Phase 1 \u2014 Concept & Schematic": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 1 \u2014 \u0627\u0644\u0645\u0641\u0647\u0648\u0645 \u0648\u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062A\u062E\u0637\u064A\u0637\u064A",
+      "Phase 2 \u2014 Detailed Design": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 2 \u2014 \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062A\u0641\u0635\u064A\u0644\u064A",
+      "Phase 3 \u2014 IFC & Tender": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 3 \u2014 \u0645\u062E\u0637\u0637\u0627\u062A \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0648\u0627\u0644\u0645\u0646\u0627\u0642\u0635\u0629",
+      "Phase 1 \u2014 Concept &amp; Schematic": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 1 \u2014 \u0627\u0644\u0645\u0641\u0647\u0648\u0645 \u0648\u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062A\u062E\u0637\u064A\u0637\u064A",
+      "Phase 3 \u2014 IFC &amp; Tender": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 3 \u2014 \u0645\u062E\u0637\u0637\u0627\u062A \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0648\u0627\u0644\u0645\u0646\u0627\u0642\u0635\u0629",
+      "Technical Specification &amp; Execution Workflows": "\u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0627\u062A \u0627\u0644\u0641\u0646\u064A\u0629 \u0648\u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0627\u0644\u062A\u0646\u0641\u064A\u0630",
+      "AI-Generated Concept &amp; Technical Specification": "\u0645\u0648\u0627\u0635\u0641\u0627\u062A \u0645\u0641\u0627\u0647\u064A\u0645\u064A\u0629 \u0648\u0641\u0646\u064A\u0629 \u0645\u0648\u0644\u0651\u062F\u0629 \u0628\u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064A",
+      "Workflow &amp; Execution Instructions": "\u062A\u0639\u0644\u064A\u0645\u0627\u062A \u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u0627\u0644\u062A\u0646\u0641\u064A\u0630",
+      "No material boards have been created for this project. Use the Board Composer to build material boards with cost estimates and RFQ-ready procurement schedules.": "\u0644\u0645 \u064A\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0644\u0648\u062D\u0627\u062A \u0645\u0648\u0627\u062F \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0634\u0631\u0648\u0639. \u0627\u0633\u062A\u062E\u062F\u0645 \u0623\u062F\u0627\u0629 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0644\u0648\u062D\u0627\u062A \u0644\u0628\u0646\u0627\u0621 \u0644\u0648\u062D\u0627\u062A \u0645\u0648\u0627\u062F \u062A\u062A\u0636\u0645\u0646 \u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0648\u062C\u062F\u0627\u0648\u0644 \u0634\u0631\u0627\u0621 \u062C\u0627\u0647\u0632\u0629 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631.",
+      "Board availability and resolution are shown explicitly. Any figures shown are calculated only from resolved catalog items. Full RFQ-ready procurement schedules are available via the Board Composer export.": "\u064A\u062A\u0645 \u0639\u0631\u0636 \u062A\u0648\u0641\u0631 \u0627\u0644\u0644\u0648\u062D\u0627\u062A \u0648\u062D\u0627\u0644\u0629 \u062D\u0644 \u0639\u0646\u0627\u0635\u0631\u0647\u0627 \u0628\u0648\u0636\u0648\u062D. \u062A\u064F\u062D\u0633\u0628 \u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0645\u0639\u0631\u0648\u0636\u0629 \u0641\u0642\u0637 \u0645\u0646 \u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0643\u062A\u0627\u0644\u0648\u062C \u0627\u0644\u062A\u064A \u062A\u0645 \u062D\u0644\u0647\u0627. \u062A\u062A\u0648\u0641\u0631 \u062C\u062F\u0627\u0648\u0644 \u0634\u0631\u0627\u0621 \u0643\u0627\u0645\u0644\u0629 \u062C\u0627\u0647\u0632\u0629 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631 \u0639\u0628\u0631 \u062A\u0635\u062F\u064A\u0631 \u0623\u062F\u0627\u0629 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0644\u0648\u062D\u0627\u062A.",
+      "Scenario": "\u0627\u0644\u0633\u064A\u0646\u0627\u0631\u064A\u0648",
+      "Baseline": "\u062E\u0637 \u0627\u0644\u0623\u0633\u0627\u0633",
+      "Variable": "\u0627\u0644\u0645\u062A\u063A\u064A\u0631",
+      "Sensitivity": "\u0627\u0644\u062D\u0633\u0627\u0633\u064A\u0629",
+      "Range": "\u0627\u0644\u0646\u0637\u0627\u0642",
+      "Weight": "\u0627\u0644\u0648\u0632\u0646",
+      "Weighted Score": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u0648\u0632\u0648\u0646\u0629",
+      "Status": "\u0627\u0644\u062D\u0627\u0644\u0629",
+      "Decision": "\u0627\u0644\u0642\u0631\u0627\u0631",
+      "Project": "\u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+      "Tier": "\u0627\u0644\u0634\u0631\u064A\u062D\u0629",
+      "Style": "\u0627\u0644\u0623\u0633\u0644\u0648\u0628",
+      "Risk": "\u0627\u0644\u0645\u062E\u0627\u0637\u0631",
+      "Group": "\u0627\u0644\u0645\u062C\u0645\u0648\u0639\u0629",
+      "Count": "\u0627\u0644\u0639\u062F\u062F",
+      "Avg Score": "\u0645\u062A\u0648\u0633\u0637 \u0627\u0644\u062F\u0631\u062C\u0629",
+      "Description": "\u0627\u0644\u0648\u0635\u0641",
+      "Impact": "\u0627\u0644\u0623\u062B\u0631",
+      "Contribution": "\u0627\u0644\u0645\u0633\u0627\u0647\u0645\u0629",
+      "Trigger": "\u0627\u0644\u0645\u062D\u0641\u0632",
+      "Recommendation": "\u0627\u0644\u062A\u0648\u0635\u064A\u0629",
+      "Variables": "\u0627\u0644\u0645\u062A\u063A\u064A\u0631\u0627\u062A",
+      "Improvements vs Baseline": "\u0627\u0644\u062A\u062D\u0633\u064A\u0646\u0627\u062A \u0645\u0642\u0627\u0628\u0644 \u062E\u0637 \u0627\u0644\u0623\u0633\u0627\u0633",
+      "Trade-offs vs Baseline": "\u0627\u0644\u0645\u0641\u0627\u0636\u0644\u0627\u062A \u0645\u0642\u0627\u0628\u0644 \u062E\u0637 \u0627\u0644\u0623\u0633\u0627\u0633",
+      "No improvements over baseline.": "\u0644\u0627 \u062A\u0648\u062C\u062F \u062A\u062D\u0633\u064A\u0646\u0627\u062A \u0645\u0642\u0627\u0631\u0646\u0629 \u0628\u062E\u0637 \u0627\u0644\u0623\u0633\u0627\u0633.",
+      "No trade-offs identified.": "\u0644\u0645 \u064A\u062A\u0645 \u062A\u062D\u062F\u064A\u062F \u0645\u0641\u0627\u0636\u0644\u0627\u062A.",
+      "Confidence provenance": "\u0645\u0635\u062F\u0631 \u0627\u0644\u062B\u0642\u0629",
+      "Legacy \u2014 calculation provenance unavailable": "\u0642\u062F\u064A\u0645 \u2014 \u0645\u0635\u062F\u0631 \u0627\u0644\u062D\u0633\u0627\u0628 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D",
+      "VALIDATED": "\u062A\u0645 \u0627\u0644\u062A\u062D\u0642\u0642",
+      "CONDITIONALLY VALIDATED": "\u062A\u0645 \u0627\u0644\u062A\u062D\u0642\u0642 \u0628\u0634\u0631\u0648\u0637",
+      "NOT VALIDATED": "\u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u062A\u062D\u0642\u0642",
+      Excellent: "\u0645\u0645\u062A\u0627\u0632",
+      Strong: "\u0642\u0648\u064A",
+      Moderate: "\u0645\u062A\u0648\u0633\u0637",
+      Weak: "\u0636\u0639\u064A\u0641",
+      Critical: "\u062D\u0631\u062C",
+      High: "\u0645\u0631\u062A\u0641\u0639",
+      Low: "\u0645\u0646\u062E\u0641\u0636",
+      Confidence: "\u0627\u0644\u062B\u0642\u0629",
+      "Risk-Adjusted Score": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u0639\u062F\u0644\u0629 \u062D\u0633\u0628 \u0627\u0644\u0645\u062E\u0627\u0637\u0631",
+      "Dimension Score Breakdown": "\u062A\u0641\u0635\u064A\u0644 \u062F\u0631\u062C\u0627\u062A \u0627\u0644\u0623\u0628\u0639\u0627\u062F",
+      "Score (0-100)": "\u0627\u0644\u062F\u0631\u062C\u0629 (0-100)",
+      Weighted: "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u0648\u0632\u0648\u0646\u0629",
+      Composite: "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u0631\u0643\u0628\u0629",
+      "Sensitivity Analysis": "\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u062D\u0633\u0627\u0633\u064A\u0629",
+      "Top": "\u0623\u0639\u0644\u0649",
+      "Score (+1)": "\u0627\u0644\u062F\u0631\u062C\u0629 (+1)",
+      "Score (-1)": "\u0627\u0644\u062F\u0631\u062C\u0629 (-1)",
+      Context: "\u0627\u0644\u0633\u064A\u0627\u0642",
+      Strategy: "\u0627\u0644\u0627\u0633\u062A\u0631\u0627\u062A\u064A\u062C\u064A\u0629",
+      Market: "\u0627\u0644\u0633\u0648\u0642",
+      Financial: "\u0627\u0644\u0645\u0627\u0644\u064A",
+      Design: "\u0627\u0644\u062A\u0635\u0645\u064A\u0645",
+      Execution: "\u0627\u0644\u062A\u0646\u0641\u064A\u0630",
+      Typology: "\u0646\u0648\u0639 \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+      Scale: "\u0627\u0644\u062D\u062C\u0645",
+      "Gross Floor Area (sqm)": "\u0627\u0644\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u0629 (\u0645\xB2)",
+      "Interior Fit-out Area (sqm)": "\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u062A\u062C\u0647\u064A\u0632 \u0627\u0644\u062F\u0627\u062E\u0644\u064A (\u0645\xB2)",
+      "Fitout Efficiency Ratio": "\u0646\u0633\u0628\u0629 \u0643\u0641\u0627\u0621\u0629 \u0627\u0644\u062A\u062C\u0647\u064A\u0632 \u0627\u0644\u062F\u0627\u062E\u0644\u064A",
+      Location: "\u0627\u0644\u0645\u0648\u0642\u0639",
+      "Delivery Horizon": "\u0623\u0641\u0642 \u0627\u0644\u062A\u0633\u0644\u064A\u0645",
+      City: "\u0627\u0644\u0645\u062F\u064A\u0646\u0629",
+      "Brand Clarity": "\u0648\u0636\u0648\u062D \u0627\u0644\u0639\u0644\u0627\u0645\u0629 \u0627\u0644\u062A\u062C\u0627\u0631\u064A\u0629",
+      Differentiation: "\u0627\u0644\u062A\u0645\u064A\u0651\u0632",
+      "Buyer Maturity": "\u0646\u0636\u062C \u0627\u0644\u0645\u0634\u062A\u0631\u064A",
+      "Market Tier": "\u0634\u0631\u064A\u062D\u0629 \u0627\u0644\u0633\u0648\u0642",
+      "Competitor Intensity": "\u062D\u062F\u0629 \u0627\u0644\u0645\u0646\u0627\u0641\u0633\u0629",
+      "Trend Sensitivity": "\u062D\u0633\u0627\u0633\u064A\u0629 \u0627\u0644\u0627\u062A\u062C\u0627\u0647\u0627\u062A",
+      "Budget Cap (AED/sqm)": "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0639\u0644\u0649 \u0644\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629 (\u062F\u0631\u0647\u0645/\u0645\xB2)",
+      Flexibility: "\u0627\u0644\u0645\u0631\u0648\u0646\u0629",
+      "Shock Tolerance": "\u062A\u062D\u0645\u0644 \u0627\u0644\u0635\u062F\u0645\u0627\u062A",
+      "Sales Premium": "\u0639\u0644\u0627\u0648\u0629 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A",
+      "Material Level": "\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0648\u0627\u062F",
+      Complexity: "\u0627\u0644\u062A\u0639\u0642\u064A\u062F",
+      Experience: "\u0627\u0644\u062A\u062C\u0631\u0628\u0629",
+      "Supply Chain": "\u0633\u0644\u0633\u0644\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
+      Contractor: "\u0627\u0644\u0645\u0642\u0627\u0648\u0644",
+      Approvals: "\u0627\u0644\u0627\u0639\u062A\u0645\u0627\u062F\u0627\u062A",
+      "QA Maturity": "\u0646\u0636\u062C \u0636\u0645\u0627\u0646 \u0627\u0644\u062C\u0648\u062F\u0629",
+      "How each input variable contributes to each dimension score:": "\u0643\u064A\u0641 \u064A\u0633\u0627\u0647\u0645 \u0643\u0644 \u0645\u062A\u063A\u064A\u0631 \u0625\u062F\u062E\u0627\u0644 \u0641\u064A \u062F\u0631\u062C\u0629 \u0643\u0644 \u0628\u064F\u0639\u062F:",
+      "ROI Multiple": "\u0645\u0636\u0627\u0639\u0641 \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631",
+      "Value Component": "\u0645\u0643\u0648\u0651\u0646 \u0627\u0644\u0642\u064A\u0645\u0629",
+      Conservative: "\u0645\u062A\u062D\u0641\u0638",
+      Base: "\u0623\u0633\u0627\u0633\u064A",
+      Aggressive: "\u0645\u062A\u0641\u0627\u0626\u0644",
+      "Spec Efficiency": "\u0643\u0641\u0627\u0621\u0629 \u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0627\u062A",
+      "Positioning Premium": "\u0639\u0644\u0627\u0648\u0629 \u0627\u0644\u062A\u0645\u0648\u0636\u0639",
+      "MIYAR Fee": "\u0631\u0633\u0648\u0645 MIYAR",
+      "Net ROI": "\u0635\u0627\u0641\u064A \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631",
+      Evidence: "\u0627\u0644\u0623\u062F\u0644\u0629",
+      Gaps: "\u0627\u0644\u0641\u062C\u0648\u0627\u062A",
+      "Priority improvement area": "\u0645\u062C\u0627\u0644 \u0627\u0644\u062A\u062D\u0633\u064A\u0646 \u0630\u064A \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629",
+      "Resolved-item Cost Range": "\u0646\u0637\u0627\u0642 \u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u062D\u0644\u0648\u0644\u0629",
+      "Resolved-item Longest Lead": "\u0623\u0637\u0648\u0644 \u0645\u0647\u0644\u0629 \u0644\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u062D\u0644\u0648\u0644\u0629",
+      "Resolved Critical Items": "\u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u062D\u0631\u062C\u0629 \u0627\u0644\u0645\u062D\u0644\u0648\u0644\u0629",
+      "Empty board": "\u0644\u0648\u062D\u0629 \u0641\u0627\u0631\u063A\u0629",
+      "Partial board": "\u0644\u0648\u062D\u0629 \u062C\u0632\u0626\u064A\u0629",
+      "Complete board": "\u0644\u0648\u062D\u0629 \u0645\u0643\u062A\u0645\u0644\u0629",
+      "Unresolvable board": "\u0644\u0648\u062D\u0629 \u063A\u064A\u0631 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062D\u0644",
+      "Critical:": "\u062D\u0631\u062C:",
+      "items resolved": "\u0639\u0646\u0627\u0635\u0631 \u062A\u0645 \u062D\u0644\u0647\u0627"
+    };
+    REPORT_COPY = {
+      en: EN_COPY,
+      ar: AR_COPY
+    };
+    REPORT_INTL_LOCALES = {
+      en: "en-AE",
+      ar: "ar-AE"
+    };
+  }
+});
+
+// server/engines/report-render-context.ts
+import { createHash as createHash2, randomUUID } from "node:crypto";
+function toReportFingerprintValue(value) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TypeError("Render fingerprint inputs must be finite numbers");
+    return value;
+  }
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) throw new TypeError("Render fingerprint dates must be valid");
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => item === void 0 ? null : toReportFingerprintValue(item));
+  }
+  if (typeof value === "object") {
+    const output = {};
+    for (const [key, item] of Object.entries(value)) {
+      if (item !== void 0 && typeof item !== "function" && typeof item !== "symbol") {
+        output[key] = toReportFingerprintValue(item);
+      }
+    }
+    return output;
+  }
+  throw new TypeError(`Unsupported render fingerprint input type: ${typeof value}`);
+}
+function createRenderFingerprintPayload(reportType, locale, labels, rendered) {
+  return toReportFingerprintValue({
+    reportType,
+    locale,
+    labels: {
+      artifactVersion: labels.artifactVersion.trim(),
+      rendererVersion: labels.rendererVersion.trim(),
+      modelVersion: normalizeVersion(labels.modelVersion),
+      benchmarkVersion: normalizeVersion(labels.benchmarkVersion),
+      logicVersion: normalizeVersion(labels.logicVersion)
+    },
+    rendered
+  });
+}
+function canonicalize(value) {
+  if (value === null) return "null";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TypeError("Render fingerprint inputs must be finite numbers");
+    return Object.is(value, -0) ? "0" : String(value);
+  }
+  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
+  const record = value;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(record[key])}`).join(",")}}`;
+}
+function createRenderInputFingerprint(input) {
+  return createHash2("sha256").update(canonicalize(input), "utf8").digest("hex");
+}
+function normalizeVersion(value) {
+  if (value === null || value === void 0 || value.trim().length === 0) return null;
+  return value.trim();
+}
+function normalizeGeneratedAt(value) {
+  const date = value === void 0 ? /* @__PURE__ */ new Date() : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new TypeError("generatedAt must be a valid date");
+  return date.toISOString();
+}
+function createReportRenderContext(input) {
+  if (!isReportLocale(input.locale ?? "en")) throw new TypeError("locale must be en or ar");
+  if (input.artifactVersion.trim().length === 0) throw new TypeError("artifactVersion is required");
+  if (input.rendererVersion.trim().length === 0) throw new TypeError("rendererVersion is required");
+  const documentId = input.documentId?.trim() || `MYR-${randomUUID()}`;
+  return {
+    documentId,
+    generatedAt: normalizeGeneratedAt(input.generatedAt),
+    locale: input.locale ?? "en",
+    artifactVersion: input.artifactVersion.trim(),
+    rendererVersion: input.rendererVersion.trim(),
+    modelVersion: normalizeVersion(input.modelVersion),
+    benchmarkVersion: normalizeVersion(input.benchmarkVersion),
+    logicVersion: normalizeVersion(input.logicVersion),
+    renderInputFingerprint: createRenderInputFingerprint(input.fingerprintInput)
+  };
+}
+var init_report_render_context = __esm({
+  "server/engines/report-render-context.ts"() {
+    "use strict";
+    init_report_locale();
+  }
+});
+
+// server/engines/report-safe-output.ts
+function normalizeUntrustedValue(value) {
+  return String(value ?? "").replace(ATTRIBUTE_CONTROL_CHARACTERS, "\uFFFD").replace(BIDI_OVERRIDE_CHARACTERS, "\uFFFD");
+}
+function normalizeMarkdownValue(value) {
+  return String(value ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "\uFFFD").replace(BIDI_OVERRIDE_CHARACTERS, "\uFFFD");
+}
+function escapeReportText(value) {
+  return normalizeUntrustedValue(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function escapeReportAttribute(value) {
+  return escapeReportText(value);
+}
+function normalizeReportEvidenceUrl(value) {
+  if (typeof value !== "string" || value.length === 0) return null;
+  if (/[\u0000-\u001F\u007F]/.test(value)) return null;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+function escapeReportEvidenceUrl(value) {
+  const url = normalizeReportEvidenceUrl(value);
+  return url === null ? null : escapeReportAttribute(url);
+}
+function formatInlineMarkdown(value) {
+  let output = escapeReportText(value);
+  output = output.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  output = output.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+  return output;
+}
+function renderReportMarkdown(markdown) {
+  const lines = normalizeMarkdownValue(markdown).replace(/\r\n?/g, "\n").split("\n");
+  const output = [];
+  let paragraph = [];
+  let inList = false;
+  const closeParagraph = () => {
+    if (paragraph.length > 0) {
+      output.push(`<p>${formatInlineMarkdown(paragraph.join(" "))}</p>`);
+      paragraph = [];
+    }
+  };
+  const closeList = () => {
+    if (inList) {
+      output.push("</ul>");
+      inList = false;
+    }
+  };
+  for (const line of lines) {
+    const heading2 = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+    const listItem = /^\s*[-+*]\s+(.+?)\s*$/.exec(line);
+    if (heading2) {
+      closeParagraph();
+      closeList();
+      const level = heading2[1].length;
+      output.push(`<h${level}>${formatInlineMarkdown(heading2[2])}</h${level}>`);
+    } else if (listItem) {
+      closeParagraph();
+      if (!inList) {
+        output.push("<ul>");
+        inList = true;
+      }
+      output.push(`<li>${formatInlineMarkdown(listItem[1])}</li>`);
+    } else if (line.trim().length === 0) {
+      closeParagraph();
+      closeList();
+    } else {
+      closeList();
+      paragraph.push(line.trim());
+    }
+  }
+  closeParagraph();
+  closeList();
+  return output.join("\n");
+}
+var ATTRIBUTE_CONTROL_CHARACTERS, BIDI_OVERRIDE_CHARACTERS;
+var init_report_safe_output = __esm({
+  "server/engines/report-safe-output.ts"() {
+    "use strict";
+    ATTRIBUTE_CONTROL_CHARACTERS = /[\u0000-\u001F\u007F]/g;
+    BIDI_OVERRIDE_CHARACTERS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+  }
+});
+
 // server/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
@@ -6058,7 +6774,7 @@ async function storagePut(relKey, data, contentType = "application/octet-stream"
   if (!bucketName) {
     const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
     const dataUrl = `data:${contentType};base64,${b64}`;
-    return { key, url: dataUrl };
+    return { key, url: dataUrl, persistent: false };
   }
   const command = new PutObjectCommand({
     Bucket: bucketName,
@@ -6072,7 +6788,7 @@ async function storagePut(relKey, data, contentType = "application/octet-stream"
     Key: key
   });
   const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
-  return { key, url };
+  return { key, url, persistent: true };
 }
 async function storageCreatePresignedPut(relKey, contentType, expiresIn = 15 * 60) {
   const { client, bucketName } = getS3Client();
@@ -6342,9 +7058,9 @@ async function invokeLLM(params) {
       throw new AiOperationError(code, { operation: GEMINI_OPERATION }).report();
     }
     const parts = candidate.content?.parts ?? [];
-    const text2 = parts.flatMap((part) => typeof part.text === "string" ? [part.text] : []).join("");
+    const text4 = parts.flatMap((part) => typeof part.text === "string" ? [part.text] : []).join("");
     const functionCalls = parts.flatMap((part) => part.functionCall ? [part.functionCall] : []);
-    if (!text2 && functionCalls.length === 0) {
+    if (!text4 && functionCalls.length === 0) {
       throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: GEMINI_OPERATION }).report();
     }
     const toolCalls = functionCalls.length ? functionCalls.map((functionCall, index2) => ({
@@ -6358,7 +7074,7 @@ async function invokeLLM(params) {
       model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
       choices: [{
         index: 0,
-        message: { role: "assistant", content: text2, tool_calls: toolCalls },
+        message: { role: "assistant", content: text4, tool_calls: toolCalls },
         finish_reason: candidate.finishReason === "STOP" ? "stop" : functionCalls.length ? "tool_calls" : "length"
       }],
       usage: {
@@ -8079,12 +8795,12 @@ Project context: ${projectContext.typology || "Residential"} project, GFA: ${pro
     }
   });
   const content = result.choices[0]?.message?.content;
-  const text2 = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => c.text || "").join("") : "";
+  const text4 = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => c.text || "").join("") : "";
   let parsed;
   try {
-    parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(text2));
+    parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(text4));
   } catch (error) {
-    const jsonMatch = text2.match(/\{[\s\S]*\}/);
+    const jsonMatch = text4.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
         parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(jsonMatch[0]));
@@ -8474,254 +9190,256 @@ Analyze the floor plan now.`;
 // server/engines/board-pdf.ts
 var board_pdf_exports = {};
 __export(board_pdf_exports, {
+  createBoardPdfRenderContext: () => createBoardPdfRenderContext,
   generateBoardPdfHtml: () => generateBoardPdfHtml
 });
-function formatDate2() {
-  return (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  });
+import { randomUUID as randomUUID3 } from "node:crypto";
+function finite(value) {
+  return Number.isFinite(value) ? value : null;
+}
+function text2(value) {
+  return `<span dir="auto" data-report-dynamic>${escapeReportText(value)}</span>`;
+}
+function number(value, locale) {
+  return formatReportNumber(value, locale);
 }
 function tierColor(tier) {
-  const map = {
-    economy: "#6b7280",
-    mid: "#3b82f6",
-    premium: "#8b5cf6",
-    luxury: "#d97706",
-    ultra_luxury: "#e11d48"
-  };
-  return map[tier] || "#6b7280";
+  return { economy: "#6b7280", mid: "#3b82f6", premium: "#8b5cf6", luxury: "#d97706", ultra_luxury: "#e11d48" }[tier] ?? "#6b7280";
 }
 function leadBadgeColor(band) {
-  const map = {
-    short: "#16a34a",
-    medium: "#ca8a04",
-    long: "#ea580c",
-    critical: "#dc2626"
+  return { short: "#16a34a", medium: "#ca8a04", long: "#ea580c", critical: "#dc2626" }[band] ?? "#ca8a04";
+}
+function renderMetadata(context, locale) {
+  const c = (key) => reportCopy(locale, key);
+  const value = (entry) => text2(entry ?? c("notAvailable"));
+  return `<div class="render-meta">
+    <div><b>${c("documentId")}:</b> ${text2(context.documentId)}</div>
+    <div><b>${c("generatedAt")}:</b> ${text2(formatReportDateTime(context.generatedAt, locale))}</div>
+    <div><b>${c("renderInputFingerprint")}:</b> ${text2(context.renderInputFingerprint)}</div>
+    <div><b>${c("artifactVersion")}:</b> ${value(context.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context.rendererVersion)}</div>
+    <div><b>${c("modelVersion")}:</b> ${value(context.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context.logicVersion)}</div>
+  </div>`;
+}
+function createBoardPdfRenderContext(input) {
+  const locale = reportLocaleOrDefault(input.locale);
+  const { boardName, projectName, items, summary, rfqLines } = input;
+  const versions = {
+    artifactVersion: input.artifactVersion ?? "material-board-html-v1",
+    rendererVersion: input.rendererVersion ?? "standalone-html-v1",
+    modelVersion: input.modelVersion ?? null,
+    benchmarkVersion: input.benchmarkVersion ?? null,
+    logicVersion: input.logicVersion ?? null
   };
-  return map[band] || "#ca8a04";
+  return createReportRenderContext({
+    documentId: input.documentId ?? `MYR-BRD-${randomUUID3().toUpperCase()}`,
+    generatedAt: input.generatedAt,
+    locale,
+    ...versions,
+    fingerprintInput: createRenderFingerprintPayload("material_board", locale, versions, {
+      project: { name: projectName },
+      board: {
+        name: boardName,
+        items: items.map((item) => ({
+          name: item.name,
+          category: item.category,
+          tier: item.tier,
+          costLow: finite(item.costLow),
+          costHigh: finite(item.costHigh),
+          costUnit: item.costUnit,
+          leadTimeDays: finite(item.leadTimeDays),
+          leadTimeBand: item.leadTimeBand,
+          supplierName: item.supplierName,
+          quantity: item.quantity,
+          unitOfMeasure: item.unitOfMeasure,
+          specNotes: item.specNotes,
+          costBandOverride: item.costBandOverride,
+          notes: item.notes
+        })),
+        summary: {
+          totalItems: finite(summary.totalItems),
+          estimatedCostLow: finite(summary.estimatedCostLow),
+          estimatedCostHigh: finite(summary.estimatedCostHigh),
+          currency: summary.currency,
+          longestLeadTimeDays: finite(summary.longestLeadTimeDays),
+          criticalPathItems: summary.criticalPathItems,
+          tierDistribution: Object.fromEntries(Object.entries(summary.tierDistribution).map(([key, value]) => [key, finite(value)])),
+          categoryDistribution: Object.fromEntries(Object.entries(summary.categoryDistribution).map(([key, value]) => [key, finite(value)]))
+        },
+        rfqLines: rfqLines.map((line) => ({
+          lineNo: finite(line.lineNo),
+          materialName: line.materialName,
+          category: line.category,
+          specification: line.specification,
+          quantity: line.quantity,
+          unit: line.unit,
+          estimatedUnitCostLow: finite(line.estimatedUnitCostLow),
+          estimatedUnitCostHigh: finite(line.estimatedUnitCostHigh),
+          leadTimeDays: finite(line.leadTimeDays),
+          supplierSuggestion: line.supplierSuggestion,
+          notes: line.notes
+        }))
+      }
+    })
+  });
 }
 function generateBoardPdfHtml(input) {
+  const locale = reportLocaleOrDefault(input.locale);
+  const c = (key) => reportCopy(locale, key);
+  const labels = BOARD_COPY[locale];
   const { boardName, projectName, items, summary, rfqLines } = input;
-  const date = formatDate2();
-  const watermark = `MYR-BRD-${Date.now().toString(36)}`;
-  const tileCards = items.map((item, idx) => `
-    <div class="tile-card">
-      <div class="tile-header">
-        <span class="tile-num">${idx + 1}</span>
-        <span class="tile-name">${item.name}</span>
-        <span class="tier-badge" style="background:${tierColor(item.tier)}">${item.tier.replace("_", " ")}</span>
-      </div>
-      <div class="tile-body">
-        <div class="tile-row"><span class="tile-label">Category</span><span>${item.category}</span></div>
-        <div class="tile-row"><span class="tile-label">Cost Range</span><span>${item.costLow.toLocaleString()} \u2013 ${item.costHigh.toLocaleString()} ${item.costUnit}</span></div>
-        <div class="tile-row"><span class="tile-label">Lead Time</span><span style="color:${leadBadgeColor(item.leadTimeBand)}">${item.leadTimeDays}d (${item.leadTimeBand})</span></div>
-        <div class="tile-row"><span class="tile-label">Supplier</span><span>${item.supplierName}</span></div>
-        ${item.quantity ? `<div class="tile-row"><span class="tile-label">Quantity</span><span>${item.quantity} ${item.unitOfMeasure || ""}</span></div>` : ""}
-        ${item.costBandOverride ? `<div class="tile-row"><span class="tile-label">Cost Band</span><span class="cost-band-badge">${item.costBandOverride}</span></div>` : ""}
-        ${item.specNotes ? `<div class="tile-spec">${item.specNotes}</div>` : ""}
-        ${item.notes ? `<div class="tile-notes">${item.notes}</div>` : ""}
-      </div>
-    </div>
-  `).join("");
-  const rfqRows = rfqLines.map((line) => `
-    <tr>
-      <td>${line.lineNo}</td>
-      <td class="font-medium">${line.materialName}</td>
-      <td>${line.category}</td>
-      <td>${line.specification}</td>
-      <td>${line.quantity}</td>
-      <td>${line.unit}</td>
-      <td class="text-right">${line.estimatedUnitCostLow.toLocaleString()}</td>
-      <td class="text-right">${line.estimatedUnitCostHigh.toLocaleString()}</td>
-      <td>${line.leadTimeDays}d</td>
-      <td>${line.supplierSuggestion}</td>
-      <td>${line.notes}</td>
-    </tr>
-  `).join("");
-  const tierDistRows = Object.entries(summary.tierDistribution).map(([tier, count2]) => `
-    <div class="dist-item">
-      <span class="dist-badge" style="background:${tierColor(tier)}">${tier.replace("_", " ")}</span>
-      <span class="dist-count">${count2}</span>
-    </div>
-  `).join("");
-  const catDistRows = Object.entries(summary.categoryDistribution).map(([cat, count2]) => `
-    <div class="dist-item">
-      <span class="dist-label">${cat}</span>
-      <span class="dist-count">${count2}</span>
-    </div>
-  `).join("");
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  @page { size: A4 landscape; margin: 15mm 12mm; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.5; font-size: 10px; }
-
-  .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 70vh; text-align: center; }
-  .cover .logo { font-size: 32px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 24px; }
-  .cover h1 { font-size: 24px; color: #0f3460; margin-bottom: 6px; }
-  .cover h2 { font-size: 14px; color: #4ecdc4; font-weight: 400; margin-bottom: 16px; }
-  .cover .project { font-size: 18px; color: #1a1a2e; font-weight: 600; }
-  .cover .date { font-size: 11px; color: #666; margin-top: 12px; }
-  .cover .confidential { font-size: 9px; color: #999; margin-top: 32px; text-transform: uppercase; letter-spacing: 2px; }
-  .cover .watermark { font-size: 8px; color: #ccc; margin-top: 6px; font-family: monospace; }
-
-  h2 { font-size: 14px; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 4px; margin: 20px 0 10px; }
-  h3 { font-size: 12px; color: #0f3460; margin: 14px 0 6px; }
-
-  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
-  .summary-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px; text-align: center; }
-  .summary-card .label { font-size: 8px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
-  .summary-card .value { font-size: 20px; font-weight: 700; color: #0f3460; margin: 2px 0; }
-  .summary-card .sub { font-size: 9px; color: #888; }
-
-  .tile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
-  .tile-card { border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; page-break-inside: avoid; }
-  .tile-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0; }
-  .tile-num { font-size: 10px; font-weight: 700; color: #0f3460; background: #e8f4fd; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .tile-name { font-size: 10px; font-weight: 600; flex: 1; }
-  .tier-badge { font-size: 8px; color: #fff; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .tile-body { padding: 8px 10px; }
-  .tile-row { display: flex; justify-content: space-between; font-size: 9px; padding: 2px 0; border-bottom: 1px dotted #f0f0f0; }
-  .tile-label { color: #666; font-weight: 500; }
-  .tile-spec { font-size: 9px; color: #0f3460; background: #e8f4fd; padding: 4px 6px; border-radius: 3px; margin-top: 4px; font-style: italic; }
-  .tile-notes { font-size: 8px; color: #888; margin-top: 3px; }
-  .cost-band-badge { background: #fef3c7; color: #92400e; padding: 0 4px; border-radius: 2px; font-weight: 600; }
-
-  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9px; }
-  th { background: #0f3460; color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; }
-  td { padding: 5px 8px; border-bottom: 1px solid #e0e0e0; }
-  tr:nth-child(even) td { background: #f8f9fa; }
-  .text-right { text-align: right; }
-  .font-medium { font-weight: 600; }
-
-  .dist-grid { display: flex; gap: 16px; margin: 8px 0; flex-wrap: wrap; }
-  .dist-item { display: flex; align-items: center; gap: 6px; }
-  .dist-badge { font-size: 8px; color: #fff; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; }
-  .dist-label { font-size: 9px; color: #444; }
-  .dist-count { font-size: 11px; font-weight: 700; color: #0f3460; }
-
-  .critical-list { margin: 8px 0; }
-  .critical-item { background: #fef2f2; border-left: 3px solid #dc2626; padding: 4px 8px; margin: 3px 0; font-size: 9px; color: #991b1b; }
-
-  .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e0e0e0; font-size: 8px; color: #999; text-align: center; }
-  .section { page-break-inside: avoid; margin-bottom: 16px; }
-</style>
-</head>
-<body>
-
-<div class="cover">
-  <div class="logo">MIYAR</div>
-  <h1>Material Board</h1>
-  <h2>${boardName}</h2>
-  <div class="project">${projectName}</div>
-  <div class="date">${date}</div>
-  <div class="confidential">Confidential \u2014 For Internal Use Only</div>
-  <div class="watermark">Document ID: ${watermark}</div>
-</div>
-
-<div class="section">
-  <h2>Board Summary</h2>
-  <div class="summary-grid">
-    <div class="summary-card">
-      <div class="label">Total Items</div>
-      <div class="value">${summary.totalItems}</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">Estimated Cost Range</div>
-      <div class="value" style="font-size:14px">${summary.estimatedCostLow.toLocaleString()} \u2013 ${summary.estimatedCostHigh.toLocaleString()}</div>
-      <div class="sub">${summary.currency}</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">Longest Lead Time</div>
-      <div class="value">${summary.longestLeadTimeDays}d</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">Critical Path Items</div>
-      <div class="value">${summary.criticalPathItems.length}</div>
-    </div>
-  </div>
-
-  <h3>Tier Distribution</h3>
-  <div class="dist-grid">${tierDistRows}</div>
-
-  <h3>Category Distribution</h3>
-  <div class="dist-grid">${catDistRows}</div>
-
-  ${summary.criticalPathItems.length > 0 ? `
-  <h3>Critical Path Items</h3>
-  <div class="critical-list">
-    ${summary.criticalPathItems.map((item) => `<div class="critical-item">${item}</div>`).join("")}
-  </div>
-  ` : ""}
-</div>
-
-<div class="section">
-  <h2>Material Tiles</h2>
-  <div class="tile-grid">
-    ${tileCards}
-  </div>
-</div>
-
-<div class="section">
-  <h2>RFQ-Ready Procurement Schedule</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Material</th>
-        <th>Category</th>
-        <th>Specification</th>
-        <th>Qty</th>
-        <th>Unit</th>
-        <th class="text-right">Cost Low (AED)</th>
-        <th class="text-right">Cost High (AED)</th>
-        <th>Lead</th>
-        <th>Supplier</th>
-        <th>Notes</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rfqRows}
-    </tbody>
-  </table>
-</div>
-
-<div class="footer">
-  MIYAR Decision Intelligence Platform \u2014 Material Board Export \u2014 ${date} \u2014 ${watermark}<br/>
-  This document is auto-generated. All cost estimates are indicative and subject to supplier confirmation.
-</div>
-
-</body>
-</html>`;
+  const context = input.renderContext ?? createBoardPdfRenderContext(input);
+  const tileCards = items.map((item, index2) => `<div class="tile-card">
+    <div class="tile-header"><span class="tile-num">${number(index2 + 1, locale)}</span><span class="tile-name">${text2(item.name)}</span><span class="tier-badge" style="background:${tierColor(item.tier)}">${text2(item.tier.replace(/_/g, " "))}</span></div>
+    <div class="tile-body">
+      <div class="tile-row"><span class="tile-label">${c("category")}</span>${text2(item.category)}</div>
+      <div class="tile-row"><span class="tile-label">${labels.costRange}</span><span>${number(item.costLow, locale)} \u2013 ${number(item.costHigh, locale)} ${text2(item.costUnit)}</span></div>
+      <div class="tile-row"><span class="tile-label">${labels.leadTime}</span><span style="color:${leadBadgeColor(item.leadTimeBand)}">${number(item.leadTimeDays, locale)}d (${item.leadTimeBand === "critical" ? labels.criticalLeadBand : text2(item.leadTimeBand)})</span></div>
+      <div class="tile-row"><span class="tile-label">${labels.supplier}</span>${text2(item.supplierName)}</div>
+      ${item.quantity ? `<div class="tile-row"><span class="tile-label">${labels.quantity}</span><span>${text2(item.quantity)} ${text2(item.unitOfMeasure ?? "")}</span></div>` : ""}
+      ${item.costBandOverride ? `<div class="tile-row"><span class="tile-label">${labels.costBand}</span><span class="cost-band-badge">${text2(item.costBandOverride)}</span></div>` : ""}
+      ${item.specNotes ? `<div class="tile-spec">${text2(item.specNotes)}</div>` : ""}
+      ${item.notes ? `<div class="tile-notes">${text2(item.notes)}</div>` : ""}
+    </div></div>`).join("");
+  const rfqRows = rfqLines.map((line) => `<tr><td>${number(line.lineNo, locale)}</td><td class="font-medium">${text2(line.materialName)}</td><td>${text2(line.category)}</td><td>${text2(line.specification)}</td><td>${text2(line.quantity)}</td><td>${text2(line.unit)}</td><td class="text-end">${number(line.estimatedUnitCostLow, locale)}</td><td class="text-end">${number(line.estimatedUnitCostHigh, locale)}</td><td>${number(line.leadTimeDays, locale)}d</td><td>${text2(line.supplierSuggestion)}</td><td>${text2(line.notes)}</td></tr>`).join("");
+  const tierRows = Object.entries(summary.tierDistribution).map(([tier, count2]) => `<div class="dist-item"><span class="dist-badge" style="background:${tierColor(tier)}">${text2(tier.replace(/_/g, " "))}</span><span class="dist-count">${number(count2, locale)}</span></div>`).join("");
+  const categoryRows = Object.entries(summary.categoryDistribution).map(([category, count2]) => `<div class="dist-item"><span class="dist-label">${text2(category)}</span><span class="dist-count">${number(count2, locale)}</span></div>`).join("");
+  const criticalItems = summary.criticalPathItems.map((item) => `<div class="critical-item">${text2(item)}</div>`).join("");
+  return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`${c("materialBoard")} \u2014 ${boardName}`)}</title><style>
+    @page { size: A4 landscape; margin: 15mm 12mm; } * { box-sizing: border-box; margin: 0; padding: 0; }
+    ${reportLocaleCss(locale)} body { color:#1a1a2e; line-height:1.5; font-size:10px; } .cover { page-break-after:always; display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:70vh; text-align:center; }
+    .logo { font-size:32px; font-weight:800; color:#0f3460; letter-spacing:3px; margin-block-end:24px; } .cover h1 { font-size:24px; color:#0f3460; margin-block-end:6px; } .cover h2 { font-size:14px; color:#4ecdc4; font-weight:400; margin-block-end:16px; } .project { font-size:18px; font-weight:600; } .date,.confidential,.watermark { font-size:9px; color:#666; margin-block-start:12px; } .confidential,.watermark { color:#999; text-transform:uppercase; letter-spacing:2px; } .watermark { font-family:monospace; }
+    h2 { font-size:14px; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:20px 0 10px; } h3 { font-size:12px; color:#0f3460; margin:14px 0 6px; } .section { break-inside:avoid; margin-block-end:16px; } .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0; } .summary-card { border:1px solid #e0e0e0; border-radius:6px; padding:10px; text-align:center; } .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:1px; } .value { font-size:20px; font-weight:700; color:#0f3460; margin:2px 0; } .sub { font-size:9px; color:#888; }
+    .tile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; } .tile-card { border:1px solid #e0e0e0; border-radius:6px; overflow:hidden; break-inside:avoid; } .tile-header { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#f8f9fa; border-block-end:1px solid #e0e0e0; } .tile-num { font-weight:700; background:#e8f4fd; border-radius:50%; inline-size:20px; block-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; } .tile-name { font-weight:600; flex:1; } .tier-badge,.dist-badge { font-size:8px; color:#fff; padding:1px 6px; border-radius:3px; text-transform:uppercase; } .tile-body { padding:8px 10px; } .tile-row { display:flex; justify-content:space-between; gap:8px; padding-block:2px; border-block-end:1px dotted #f0f0f0; } .tile-label,.dist-label { color:#666; font-weight:500; } .tile-spec { color:#0f3460; background:#e8f4fd; padding:4px 6px; border-radius:3px; margin-block-start:4px; font-style:italic; } .tile-notes { color:#888; margin-block-start:3px; } .cost-band-badge { background:#fef3c7; color:#92400e; padding-inline:4px; border-radius:2px; font-weight:600; }
+    table { width:100%; border-collapse:collapse; margin:10px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:6px 8px; font-weight:600; } td { padding:5px 8px; border-block-end:1px solid #e0e0e0; } tr:nth-child(even) td { background:#f8f9fa; } .text-end { text-align:end; } .font-medium { font-weight:600; } .dist-grid { display:flex; gap:16px; margin:8px 0; flex-wrap:wrap; } .dist-item { display:flex; align-items:center; gap:6px; } .dist-count { font-weight:700; color:#0f3460; } .critical-item { background:#fef2f2; border-inline-start:3px solid #dc2626; padding:4px 8px; margin-block:3px; color:#991b1b; } .render-meta { margin:10px auto; max-inline-size:620px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .closing { break-inside:avoid-page; page-break-inside:avoid; } .footer { margin-block-start:12px; padding-block-start:10px; border-block-start:1px solid #e0e0e0; font-size:8px; color:#999; text-align:center; break-before:avoid-page; page-break-before:avoid; }
+  </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text2(boardName)}</h2><div class="project">${text2(projectName)}</div><div class="date">${text2(formatReportDateTime(context.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata(context, locale)}</div>
+  <div class="section"><h2>${labels.boardSummary}</h2><div class="summary-grid"><div class="summary-card"><div class="label">${labels.totalItems}</div><div class="value">${number(summary.totalItems, locale)}</div></div><div class="summary-card"><div class="label">${labels.estimatedCostRange}</div><div class="value" style="font-size:14px">${number(summary.estimatedCostLow, locale)} \u2013 ${number(summary.estimatedCostHigh, locale)}</div><div class="sub">${text2(summary.currency)}</div></div><div class="summary-card"><div class="label">${labels.longestLeadTime}</div><div class="value">${number(summary.longestLeadTimeDays, locale)}d</div></div><div class="summary-card"><div class="label">${labels.criticalPathItems}</div><div class="value">${number(summary.criticalPathItems.length, locale)}</div></div></div><h3>${labels.tierDistribution}</h3><div class="dist-grid">${tierRows}</div><h3>${labels.categoryDistribution}</h3><div class="dist-grid">${categoryRows}</div>${summary.criticalPathItems.length > 0 ? `<h3>${labels.criticalPathItems}</h3><div>${criticalItems}</div>` : ""}</div>
+  <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR \xB7 ${c("materialBoard")} \xB7 ${text2(formatReportDateTime(context.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
 }
+var BOARD_COPY;
 var init_board_pdf = __esm({
   "server/engines/board-pdf.ts"() {
     "use strict";
+    init_report_locale();
+    init_report_catalog();
+    init_report_render_context();
+    init_report_safe_output();
+    BOARD_COPY = {
+      en: {
+        boardSummary: "Board Summary",
+        totalItems: "Total Items",
+        estimatedCostRange: "Estimated Cost Range",
+        longestLeadTime: "Longest Lead Time",
+        criticalPathItems: "Critical Path Items",
+        tierDistribution: "Tier Distribution",
+        categoryDistribution: "Category Distribution",
+        materialTiles: "Material Tiles",
+        rfqSchedule: "RFQ-Ready Procurement Schedule",
+        material: "Material",
+        specification: "Specification",
+        quantity: "Quantity",
+        unit: "Unit",
+        costLow: "Cost Low (AED)",
+        costHigh: "Cost High (AED)",
+        lead: "Lead",
+        supplier: "Supplier",
+        costRange: "Cost Range",
+        leadTime: "Lead Time",
+        costBand: "Cost Band",
+        criticalLeadBand: "critical",
+        generatedNotice: "This document is auto-generated. All cost estimates are indicative and subject to supplier confirmation."
+      },
+      ar: {
+        boardSummary: "\u0645\u0644\u062E\u0635 \u0627\u0644\u0644\u0648\u062D\u0629",
+        totalItems: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0639\u0646\u0627\u0635\u0631",
+        estimatedCostRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u062A\u0642\u062F\u064A\u0631\u064A\u0629",
+        longestLeadTime: "\u0623\u0637\u0648\u0644 \u0645\u062F\u0629 \u062A\u0648\u0631\u064A\u062F",
+        criticalPathItems: "\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u0633\u0627\u0631 \u0627\u0644\u062D\u0631\u062C",
+        tierDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0634\u0631\u0627\u0626\u062D",
+        categoryDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0641\u0626\u0627\u062A",
+        materialTiles: "\u0628\u0637\u0627\u0642\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
+        rfqSchedule: "\u062C\u062F\u0648\u0644 \u0627\u0644\u0634\u0631\u0627\u0621 \u0627\u0644\u062C\u0627\u0647\u0632 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631",
+        material: "\u0627\u0644\u0645\u0627\u062F\u0629",
+        specification: "\u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0629",
+        quantity: "\u0627\u0644\u0643\u0645\u064A\u0629",
+        unit: "\u0627\u0644\u0648\u062D\u062F\u0629",
+        costLow: "\u0623\u0642\u0644 \u062A\u0643\u0644\u0641\u0629 (\u062F\u0631\u0647\u0645)",
+        costHigh: "\u0623\u0639\u0644\u0649 \u062A\u0643\u0644\u0641\u0629 (\u062F\u0631\u0647\u0645)",
+        lead: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
+        supplier: "\u0627\u0644\u0645\u0648\u0631\u0651\u062F",
+        costRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+        leadTime: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
+        costBand: "\u0634\u0631\u064A\u062D\u0629 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+        criticalLeadBand: "\u062D\u0631\u062C",
+        generatedNotice: "\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0622\u0644\u064A\u0627\u064B. \u062C\u0645\u064A\u0639 \u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A\u0629 \u0648\u062A\u062E\u0636\u0639 \u0644\u062A\u0623\u0643\u064A\u062F \u0627\u0644\u0645\u0648\u0631\u0651\u062F."
+      }
+    };
   }
 });
 
 // server/engines/investor-pdf.ts
 var investor_pdf_exports = {};
 __export(investor_pdf_exports, {
+  createInvestorPdfRenderContext: () => createInvestorPdfRenderContext,
   generateInvestorPdfHtml: () => generateInvestorPdfHtml
 });
-function fmtAed(n) {
-  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M AED`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K AED`;
-  return `${n.toLocaleString()} AED`;
+import { randomUUID as randomUUID4 } from "node:crypto";
+function finite2(value) {
+  return Number.isFinite(value) ? value : null;
 }
-function gradeColor(g) {
-  return { A: "#10b981", B: "#22c55e", C: "#f59e0b", D: "#f97316", E: "#ef4444" }[g] ?? "#94a3b8";
+function pct(value) {
+  return Number.isFinite(value) ? Math.max(0, Math.min(value, 100)).toFixed(1) : "0.0";
 }
-function confColor(c) {
-  return { established: "#10b981", emerging: "#8b5cf6", declining: "#ef4444" }[c] ?? "#94a3b8";
+function text3(value) {
+  return `<span dir="auto" data-report-dynamic>${escapeReportText(value)}</span>`;
+}
+function number2(value, locale) {
+  return formatReportNumber(value, locale);
+}
+function aed(value, locale) {
+  return `${number2(value, locale)} AED`;
+}
+function gradeColor(grade2) {
+  return { A: "#10b981", B: "#22c55e", C: "#f59e0b", D: "#f97316", E: "#ef4444" }[grade2] ?? "#94a3b8";
+}
+function confColor(confidence) {
+  return { established: "#10b981", emerging: "#8b5cf6", declining: "#ef4444" }[confidence] ?? "#94a3b8";
+}
+function renderMetadata2(context, locale) {
+  const c = (key) => reportCopy(locale, key);
+  const value = (entry) => text3(entry ?? c("notAvailable"));
+  return `<div class="render-meta"><div><b>${c("documentId")}:</b> ${text3(context.documentId)}</div><div><b>${c("generatedAt")}:</b> ${text3(formatReportDateTime(context.generatedAt, locale))}</div><div><b>${c("renderInputFingerprint")}:</b> ${text3(context.renderInputFingerprint)}</div><div><b>${c("artifactVersion")}:</b> ${value(context.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context.rendererVersion)}</div><div><b>${c("modelVersion")}:</b> ${value(context.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context.logicVersion)}</div></div>`;
+}
+function createInvestorPdfRenderContext(input) {
+  const locale = reportLocaleOrDefault(input.locale);
+  const labels = {
+    artifactVersion: input.artifactVersion ?? "investor-summary-html-v1",
+    rendererVersion: input.rendererVersion ?? "standalone-html-v1",
+    modelVersion: input.modelVersion ?? null,
+    benchmarkVersion: input.benchmarkVersion ?? null,
+    logicVersion: input.logicVersion ?? null
+  };
+  return createReportRenderContext({
+    documentId: input.documentId ?? `MYR-INV-${randomUUID4().toUpperCase()}`,
+    generatedAt: input.generatedAt,
+    locale,
+    ...labels,
+    fingerprintInput: createRenderFingerprintPayload("investor_summary", locale, labels, {
+      project: { name: input.projectName, typology: input.typology, location: input.location, tier: input.tier, style: input.style, gfaSqm: finite2(input.gfaSqm), execSummary: input.execSummary },
+      designDirection: Object.fromEntries(Object.entries(input.designDirection ?? {}).slice(0, 6)),
+      spaces: input.spaces.slice(0, 12).map((space) => ({ name: space.name, budgetAed: finite2(space.budgetAed), sqm: finite2(space.sqm), pct: finite2(space.pct), styleDirection: space.styleDirection })),
+      materials: input.materials.slice(0, 16).map((material) => ({ name: material.name, brand: material.brand, room: material.room, price: material.price })),
+      materialConstants: input.materialConstants.slice(0, 9).map((constant) => ({ materialType: constant.materialType, costPerM2: finite2(constant.costPerM2), carbonIntensity: finite2(constant.carbonIntensity), sustainabilityGrade: constant.sustainabilityGrade })),
+      budget: { totalFitoutBudget: finite2(input.totalFitoutBudget), costPerSqm: finite2(input.costPerSqm), sustainabilityGrade: input.sustainabilityGrade, salePremiumPct: finite2(input.salePremiumPct), estimatedSalesPremiumAed: finite2(input.estimatedSalesPremiumAed) },
+      benchmark: input.benchmark ? { costPerSqmLow: input.benchmark.costPerSqmLow ?? null, costPerSqmMid: input.benchmark.costPerSqmMid ?? null, costPerSqmHigh: input.benchmark.costPerSqmHigh ?? null, typology: input.benchmark.typology, location: input.benchmark.location, marketTier: input.benchmark.marketTier, dataYear: input.benchmark.dataYear ?? null } : null,
+      designTrends: input.designTrends?.slice(0, 8).map((trend) => ({ trendName: trend.trendName, confidenceLevel: trend.confidenceLevel, trendCategory: trend.trendCategory })),
+      spaceEfficiency: input.spaceEfficiency ? { efficiencyScore: finite2(input.spaceEfficiency.efficiencyScore), criticalCount: finite2(input.spaceEfficiency.criticalCount), advisoryCount: finite2(input.spaceEfficiency.advisoryCount), circulationPct: finite2(input.spaceEfficiency.circulationPct), rooms: input.spaceEfficiency.rooms.slice(0, 10).map((room) => ({ name: room.name, currentPct: finite2(room.currentPct), benchmarkPct: finite2(room.benchmarkPct), severity: room.severity })) } : null
+    })
+  });
 }
 function generateInvestorPdfHtml(input) {
+  const locale = reportLocaleOrDefault(input.locale);
+  const c = (key) => reportCopy(locale, key);
+  const labels = INVESTOR_COPY[locale];
   const {
     projectName,
     typology,
@@ -8741,292 +9459,142 @@ function generateInvestorPdfHtml(input) {
     estimatedSalesPremiumAed,
     benchmark,
     designTrends: designTrends2,
-    shareToken,
     spaceEfficiency
   } = input;
-  const watermark = `MYR-INV-${Date.now().toString(36).toUpperCase()}`;
-  const date = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-  const spaceBars = spaces.slice(0, 12).map((s) => `
-    <div class="bar-row">
-      <span class="bar-label">${s.name}</span>
-      <div class="bar-track">
-        <div class="bar-fill" style="width:${Math.min(s.pct, 100).toFixed(1)}%"></div>
-      </div>
-      <span class="bar-pct">${s.pct.toFixed(0)}%</span>
-      <span class="bar-amt">${fmtAed(s.budgetAed)}</span>
-    </div>
-  `).join("");
-  const matRows = materials.slice(0, 16).map((m, i) => `
-    <tr class="${i % 2 === 0 ? "even" : ""}">
-      <td>${m.name}</td>
-      <td>${m.brand}</td>
-      <td>${m.room}</td>
-      <td>${m.price ?? "\u2014"}</td>
-    </tr>
-  `).join("");
-  const constRows = materialConstants2.slice(0, 9).map((c, i) => `
-    <tr class="${i % 2 === 0 ? "even" : ""}">
-      <td class="capitalize">${c.materialType}</td>
-      <td>${c.costPerM2.toLocaleString()} AED</td>
-      <td>${Number(c.carbonIntensity).toFixed(0)} kg/m\xB2</td>
-      <td><span class="grade-badge" style="background:${gradeColor(c.sustainabilityGrade)}">${c.sustainabilityGrade}</span></td>
-    </tr>
-  `).join("");
-  const bmSection = benchmark ? `
-    <div class="panel">
-      <div class="panel-title">Market Benchmark \u2014 ${benchmark.typology ?? typology} \xB7 ${benchmark.marketTier ?? tier}${benchmark.dataYear ? ` \xB7 ${benchmark.dataYear}` : ""}</div>
-      <div class="kpi-grid">
-        ${benchmark.costPerSqmLow != null ? `<div class="kpi"><div class="kpi-label">Low</div><div class="kpi-value">${benchmark.costPerSqmLow.toLocaleString()} AED/m\xB2</div></div>` : ""}
-        ${benchmark.costPerSqmMid != null ? `<div class="kpi"><div class="kpi-label">Mid</div><div class="kpi-value">${benchmark.costPerSqmMid.toLocaleString()} AED/m\xB2</div></div>` : ""}
-        ${benchmark.costPerSqmHigh != null ? `<div class="kpi"><div class="kpi-label">High</div><div class="kpi-value">${benchmark.costPerSqmHigh.toLocaleString()} AED/m\xB2</div></div>` : ""}
-        <div class="kpi"><div class="kpi-label">Your Estimate</div><div class="kpi-value" style="color:${costPerSqm <= (benchmark.costPerSqmMid ?? Infinity) ? "#10b981" : "#f59e0b"}">${costPerSqm.toLocaleString()} AED/m\xB2</div></div>
-      </div>
-    </div>
-  ` : "";
-  const trendRows = (designTrends2 ?? []).slice(0, 8).map((t2) => `
-    <div class="trend-row">
-      <span class="conf-badge" style="background:${confColor(t2.confidenceLevel)}">${t2.confidenceLevel}</span>
-      <span class="trend-name">${t2.trendName}</span>
-      <span class="trend-cat">${t2.trendCategory}</span>
-    </div>
-  `).join("");
-  const ddPills = Object.entries(designDirection ?? {}).slice(0, 6).map(([k, v]) => `
-    <div class="dd-row">
-      <span class="dd-key">${k.replace(/([A-Z])/g, " $1").trim()}</span>
-      <span class="dd-val">${Array.isArray(v) ? v.join(", ") : String(v)}</span>
-    </div>
-  `).join("");
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>MIYAR Investor Brief \u2014 ${projectName}</title>
-<style>
-  @page { size: A4 portrait; margin: 15mm 14mm; }
-  @media print { .no-print { display: none; } }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #0f172a; font-size: 10px; line-height: 1.5; background: #fff; }
-
-  /* Cover */
-  .cover { page-break-after: always; padding: 40mm 0 20mm; text-align: center; }
-  .cover .brand { font-size: 30px; font-weight: 800; letter-spacing: 4px; color: #0f3460; }
-  .cover .subtitle { font-size: 12px; color: #4ecdc4; margin: 4px 0 20px; letter-spacing: 2px; text-transform: uppercase; }
-  .cover .project-name { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
-  .cover .meta { font-size: 10px; color: #64748b; margin-bottom: 6px; }
-  .cover .divider { width: 60px; height: 3px; background: #4ecdc4; margin: 20px auto; }
-  .cover .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 340px; margin: 24px auto 0; }
-  .cover .kpi-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 8px; background: #f8fafc; }
-  .cover .kpi-card .cv { font-size: 16px; font-weight: 800; color: #0f3460; }
-  .cover .kpi-card .cl { font-size: 7px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
-  .cover .watermark { font-size: 7px; color: #cbd5e1; margin-top: 30px; font-family: monospace; }
-
-  /* Sections */
-  h2 { font-size: 12px; font-weight: 700; color: #0f3460; border-bottom: 2px solid #4ecdc4; padding-bottom: 4px; margin: 18px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
-  h3 { font-size: 10px; font-weight: 700; color: #334155; margin: 12px 0 6px; }
-
-  .section { page-break-inside: avoid; margin-bottom: 14px; }
-  .section-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-  /* KPI row */
-  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
-  .kpi { border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; text-align: center; background: #f8fafc; }
-  .kpi-label { font-size: 7px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-  .kpi-value { font-size: 14px; font-weight: 800; color: #0f3460; margin: 2px 0; }
-  .kpi-sub { font-size: 7px; color: #64748b; }
-
-  /* Panel */
-  .panel { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin: 8px 0; background: #f8fafc; }
-  .panel-title { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 8px; }
-
-  /* Exec summary */
-  .exec-body { font-size: 10px; color: #334155; line-height: 1.65; padding: 8px 0; }
-
-  /* Design direction */
-  .dd-row { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px dotted #e2e8f0; font-size: 9px; }
-  .dd-key { width: 110px; color: #64748b; font-weight: 600; text-transform: capitalize; flex-shrink: 0; }
-  .dd-val { color: #0f172a; flex: 1; }
-
-  /* Budget bars */
-  .bar-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 9px; }
-  .bar-label { width: 90px; color: #475569; flex-shrink: 0; }
-  .bar-track { flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
-  .bar-fill { height: 100%; background: linear-gradient(90deg, #4ecdc4, #0f3460); border-radius: 4px; }
-  .bar-pct { width: 28px; color: #475569; text-align: right; flex-shrink: 0; }
-  .bar-amt { width: 60px; color: #0f3460; font-weight: 600; text-align: right; flex-shrink: 0; font-size: 8px; }
-
-  /* Tables */
-  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9px; }
-  th { background: #0f3460; color: #fff; padding: 5px 8px; text-align: left; font-weight: 600; font-size: 8px; letter-spacing: 0.5px; }
-  td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; }
-  tr.even td { background: #f8fafc; }
-  .capitalize { text-transform: capitalize; }
-
-  /* ROI grid */
-  .roi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .roi-card { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; }
-  .roi-big { font-size: 20px; font-weight: 800; color: #0f3460; }
-  .roi-label { font-size: 7px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-  .roi-sub { font-size: 8px; color: #64748b; margin-top: 3px; }
-  .text-emerald { color: #10b981; }
-  .text-amber { color: #f59e0b; }
-
-  /* Sustainability */
-  .grade-chip { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; font-weight: 800; color: #fff; }
-  .grade-badge { font-size: 8px; color: #fff; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
-
-  /* Trends */
-  .trend-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px dotted #e2e8f0; font-size: 9px; }
-  .conf-badge { font-size: 7px; color: #fff; padding: 1px 5px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
-  .trend-name { flex: 1; font-weight: 600; color: #0f172a; }
-  .trend-cat { font-size: 7px; color: #94a3b8; text-transform: uppercase; }
-
-  /* Footer */
-  .footer { margin-top: 20px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 7px; color: #94a3b8; text-align: center; }
-
-  /* Print button */
-  .no-print { position: fixed; top: 16px; right: 16px; z-index: 999; background: #0f3460; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-  .no-print:hover { background: #1e4a7a; }
-</style>
-</head>
-<body>
-
-<button class="no-print" onclick="window.print()">\u2B07 Download / Print PDF</button>
-
-<!-- COVER -->
-<div class="cover">
-  <div class="brand">MIYAR</div>
-  <div class="subtitle">Investor Intelligence Brief</div>
-  <div class="project-name">${projectName}</div>
-  <div class="meta">${typology} \xB7 ${tier} \xB7 ${location}</div>
-  <div class="meta">${gfaSqm.toLocaleString()} sqm GFA \xB7 ${style} Design</div>
-  <div class="divider"></div>
-  <div class="kpi-grid">
-    <div class="kpi-card"><div class="cv">${fmtAed(totalFitoutBudget)}</div><div class="cl">Total Fitout</div></div>
-    <div class="kpi-card"><div class="cv">${costPerSqm.toLocaleString()}</div><div class="cl">AED/m\xB2</div></div>
-    <div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${sustainabilityGrade}</div><div class="cl">Sust. Grade</div></div>
-  </div>
-  <div class="meta" style="margin-top:20px">${date}</div>
-  <div class="watermark">Document ID: ${watermark}${shareToken ? ` \xB7 Share: /share/${shareToken}` : ""}</div>
-</div>
-
-<!-- SECTION A: DESIGN IDENTITY -->
-<div class="section">
-  <h2>A \xB7 Design Identity</h2>
-  <div class="kpi-grid">
-    <div class="kpi"><div class="kpi-label">Typology</div><div class="kpi-value" style="font-size:11px">${typology}</div></div>
-    <div class="kpi"><div class="kpi-label">Style</div><div class="kpi-value" style="font-size:11px">${style}</div></div>
-    <div class="kpi"><div class="kpi-label">Tier</div><div class="kpi-value" style="font-size:11px">${tier}</div></div>
-    <div class="kpi"><div class="kpi-label">Location</div><div class="kpi-value" style="font-size:11px">${location}</div></div>
-  </div>
-  ${execSummary ? `<p class="exec-body">${execSummary}</p>` : ""}
-  ${ddPills ? `<div class="panel" style="margin-top:8px">${ddPills}</div>` : ""}
-</div>
-
-<!-- SECTION B: MATERIAL SPEC -->
-${materials.length > 0 ? `
-<div class="section">
-  <h2>B \xB7 Material Specification</h2>
-  <table>
-    <thead><tr><th>Product</th><th>Brand</th><th>Space</th><th>Price Range</th></tr></thead>
-    <tbody>${matRows}</tbody>
-  </table>
-  ${materialConstants2.length > 0 ? `
-  <h3>UAE Market Constants (AED/m\xB2)</h3>
-  <table>
-    <thead><tr><th>Material</th><th>Cost/m\xB2</th><th>Carbon</th><th>Grade</th></tr></thead>
-    <tbody>${constRows}</tbody>
-  </table>` : ""}
-</div>
-` : ""}
-
-<!-- SECTION C: BUDGET SYNTHESIS -->
-<div class="section">
-  <h2>C \xB7 Budget Synthesis</h2>
-  <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr)">
-    <div class="kpi"><div class="kpi-label">Total Fitout Budget</div><div class="kpi-value" style="font-size:13px">${fmtAed(totalFitoutBudget)}</div></div>
-    <div class="kpi"><div class="kpi-label">Cost / m\xB2</div><div class="kpi-value" style="font-size:13px">${costPerSqm.toLocaleString()} AED</div></div>
-    <div class="kpi"><div class="kpi-label">GFA</div><div class="kpi-value" style="font-size:13px">${gfaSqm.toLocaleString()} sqm</div></div>
-  </div>
-  ${spaceBars ? `<h3>Budget by Space</h3><div class="panel">${spaceBars}</div>` : ""}
-  ${bmSection}
-</div>
-
-${spaceEfficiency ? `
-<!-- SECTION C\xBD: SPACE PLANNING INTELLIGENCE -->
-<div class="section">
-  <h2>C\xBD \xB7 Space Planning Intelligence</h2>
-  <div class="kpi-grid">
-    <div class="kpi"><div class="kpi-label">Efficiency Score</div><div class="kpi-value" style="color:${spaceEfficiency.efficiencyScore >= 75 ? "#10b981" : spaceEfficiency.efficiencyScore >= 50 ? "#f59e0b" : "#ef4444"}">${spaceEfficiency.efficiencyScore}/100</div></div>
-    <div class="kpi"><div class="kpi-label">Critical Issues</div><div class="kpi-value" style="color:${spaceEfficiency.criticalCount > 0 ? "#ef4444" : "#10b981"}">${spaceEfficiency.criticalCount}</div></div>
-    <div class="kpi"><div class="kpi-label">Advisory Issues</div><div class="kpi-value" style="color:#f59e0b">${spaceEfficiency.advisoryCount}</div></div>
-    <div class="kpi"><div class="kpi-label">Circulation</div><div class="kpi-value">${spaceEfficiency.circulationPct?.toFixed(1)}%</div></div>
-  </div>
-  ${spaceEfficiency.rooms.length > 0 ? `
-  <h3>Room Allocation vs DLD Benchmark</h3>
-  <div class="panel">
-    ${spaceEfficiency.rooms.slice(0, 10).map((r) => `
-    <div class="bar-row">
-      <span class="bar-label">${r.name}</span>
-      <div class="bar-track">
-        <div class="bar-fill" style="width:${Math.min(r.currentPct, 100).toFixed(1)}%;background:${r.severity === "critical" ? "#ef4444" : r.severity === "advisory" ? "#f59e0b" : "#10b981"}"></div>
-      </div>
-      <span class="bar-pct">${r.currentPct?.toFixed(0)}%</span>
-      <span class="bar-amt" style="font-weight:400;color:#94a3b8">vs ${r.benchmarkPct?.toFixed(0)}%</span>
-    </div>`).join("")}
-  </div>` : ""}
-</div>
-` : ""}
-
-<!-- SECTION D: ROI BRIDGE -->
-<div class="section">
-  <h2>D \xB7 ROI Bridge</h2>
-  <div class="roi-grid">
-    <div class="roi-card">
-      <div class="roi-label">Sustainability Grade</div>
-      <div style="margin-top: 6px; display: flex; align-items: center; gap: 10px;">
-        <div class="grade-chip" style="background:${gradeColor(sustainabilityGrade)}">${sustainabilityGrade}</div>
-        <div class="roi-sub">Based on material selection and tier for ${location}</div>
-      </div>
-    </div>
-    <div class="roi-card">
-      <div class="roi-label">Design Premium Potential</div>
-      <div class="roi-big text-emerald">+${salePremiumPct}%</div>
-      <div class="roi-sub">\u2248 ${fmtAed(estimatedSalesPremiumAed)} uplift vs. standard fitout</div>
-    </div>
-    <div class="roi-card" style="grid-column: span 2">
-      <div class="roi-label">ROI Summary</div>
-      <div style="display: flex; gap: 30px; margin-top: 6px; font-size: 9px;">
-        <div><div style="color: #64748b">Fitout Investment</div><div style="font-weight:700; color:#0f3460">${fmtAed(totalFitoutBudget)}</div></div>
-        <div><div style="color: #64748b">Design Premium</div><div style="font-weight:700; color:#10b981">+${fmtAed(estimatedSalesPremiumAed)}</div></div>
-        <div><div style="color: #64748b">Net Uplift</div><div style="font-weight:700; color:${estimatedSalesPremiumAed > totalFitoutBudget ? "#10b981" : "#f59e0b"}">${fmtAed(estimatedSalesPremiumAed - totalFitoutBudget)}</div></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- SECTION E: MARKET INTELLIGENCE -->
-${(designTrends2 ?? []).length > 0 ? `
-<div class="section">
-  <h2>E \xB7 Market Intelligence</h2>
-  ${trendRows ? `
-  <h3>UAE Design Trends (${style} \xB7 UAE)</h3>
-  <div class="panel">${trendRows}</div>` : ""}
-</div>
-` : ""}
-
-<!-- FOOTER -->
-<div class="footer">
-  MIYAR Decision Intelligence Platform \xB7 Investor Brief \xB7 ${date} \xB7 ${watermark}<br>
-  This document is auto-generated. All estimates are indicative and should be professionally validated before investment decisions.
-  ${shareToken ? `\xB7 Accessible at /share/${shareToken}` : ""}
-</div>
-
-</body>
-</html>`;
+  const context = input.renderContext ?? createInvestorPdfRenderContext(input);
+  const spaceBars = spaces.slice(0, 12).map((space) => `<div class="bar-row"><span class="bar-label">${text3(space.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(space.pct)}%"></div></div><span class="bar-pct">${number2(space.pct, locale)}%</span><span class="bar-amt">${aed(space.budgetAed, locale)}</span></div>`).join("");
+  const materialRows = materials.slice(0, 16).map((material, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text3(material.name)}</td><td>${text3(material.brand)}</td><td>${text3(material.room)}</td><td>${text3(material.price ?? c("notAvailable"))}</td></tr>`).join("");
+  const constantRows = materialConstants2.slice(0, 9).map((constant, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text3(constant.materialType)}</td><td>${aed(constant.costPerM2, locale)}</td><td>${number2(constant.carbonIntensity, locale)} ${labels.kilogramsPerSquareMetre}</td><td><span class="grade-badge" style="background:${gradeColor(constant.sustainabilityGrade)}">${text3(constant.sustainabilityGrade)}</span></td></tr>`).join("");
+  const designDirectionLabel = (key) => {
+    const normalized = key.replace(/([A-Z])/g, " $1").trim();
+    if (normalized.toLowerCase() === "direction") return labels.direction;
+    if (normalized.toLowerCase() === "content") return labels.content;
+    return text3(normalized);
+  };
+  const designDirectionRows = Object.entries(designDirection ?? {}).slice(0, 6).map(([key, value]) => `<div class="dd-row"><span class="dd-key">${designDirectionLabel(key)}</span><span class="dd-val">${text3(Array.isArray(value) ? value.join(", ") : String(value))}</span></div>`).join("");
+  const trendRows = (designTrends2 ?? []).slice(0, 8).map((trend) => `<div class="trend-row"><span class="conf-badge" style="background:${confColor(trend.confidenceLevel)}">${text3(trend.confidenceLevel)}</span><span class="trend-name">${text3(trend.trendName)}</span><span class="trend-cat">${text3(trend.trendCategory)}</span></div>`).join("");
+  const benchmarkSection = benchmark ? `<div class="panel"><div class="panel-title">${labels.marketBenchmark} \u2014 ${text3(benchmark.typology ?? typology)} \xB7 ${text3(benchmark.marketTier ?? tier)}${benchmark.dataYear ? ` \xB7 ${number2(benchmark.dataYear, locale)}` : ""}</div><div class="kpi-grid">${benchmark.costPerSqmLow != null ? `<div class="kpi"><div class="kpi-label">${labels.low}</div><div class="kpi-value">${aed(benchmark.costPerSqmLow, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmMid != null ? `<div class="kpi"><div class="kpi-label">${labels.mid}</div><div class="kpi-value">${aed(benchmark.costPerSqmMid, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmHigh != null ? `<div class="kpi"><div class="kpi-label">${labels.high}</div><div class="kpi-value">${aed(benchmark.costPerSqmHigh, locale)}/m\xB2</div></div>` : ""}<div class="kpi"><div class="kpi-label">${labels.yourEstimate}</div><div class="kpi-value" style="color:${costPerSqm <= (benchmark.costPerSqmMid ?? Infinity) ? "#10b981" : "#f59e0b"}">${aed(costPerSqm, locale)}/m\xB2</div></div></div></div>` : "";
+  const spaceEfficiencySection = spaceEfficiency ? `<div class="section"><h2>${labels.spacePlanning}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.efficiencyScore}</div><div class="kpi-value" style="color:${spaceEfficiency.efficiencyScore >= 75 ? "#10b981" : spaceEfficiency.efficiencyScore >= 50 ? "#f59e0b" : "#ef4444"}">${number2(spaceEfficiency.efficiencyScore, locale)}/100</div></div><div class="kpi"><div class="kpi-label">${labels.criticalIssues}</div><div class="kpi-value">${number2(spaceEfficiency.criticalCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.advisoryIssues}</div><div class="kpi-value">${number2(spaceEfficiency.advisoryCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.circulation}</div><div class="kpi-value">${number2(spaceEfficiency.circulationPct, locale)}%</div></div></div>${spaceEfficiency.rooms.length > 0 ? `<h3>${labels.roomAllocation}</h3><div class="panel">${spaceEfficiency.rooms.slice(0, 10).map((room) => `<div class="bar-row"><span class="bar-label">${text3(room.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(room.currentPct)}%;background:${room.severity === "critical" ? "#ef4444" : room.severity === "advisory" ? "#f59e0b" : "#10b981"}"></div></div><span class="bar-pct">${number2(room.currentPct, locale)}%</span><span class="bar-amt">${labels.versus} ${number2(room.benchmarkPct, locale)}%</span></div>`).join("")}</div>` : ""}</div>` : "";
+  return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`MIYAR ${labels.investorBrief} \u2014 ${projectName}`)}</title><style>
+    @page { size:A4 portrait; margin:15mm 14mm; } @media print { .no-print { display:none; } } * { box-sizing:border-box; margin:0; padding:0; } ${reportLocaleCss(locale)} body { color:#0f172a; font-size:10px; line-height:1.5; background:#fff; } .cover { break-after:page; padding-block:40mm 20mm; text-align:center; } .brand { font-size:30px; font-weight:800; letter-spacing:4px; color:#0f3460; } .subtitle { font-size:12px; color:#4ecdc4; margin:4px 0 20px; letter-spacing:2px; text-transform:uppercase; } .project-name { font-size:22px; font-weight:700; margin-block-end:8px; } .meta { font-size:10px; color:#64748b; margin-block-end:6px; } .divider { inline-size:60px; block-size:3px; background:#4ecdc4; margin:20px auto; } .cover .kpi-grid { max-inline-size:340px; margin:24px auto 0; } .cover .kpi-card { border:1px solid #e2e8f0; border-radius:8px; padding:10px 8px; background:#f8fafc; } .cv { font-size:16px; font-weight:800; color:#0f3460; } .cl,.kpi-label,.roi-label { font-size:7px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin-block-start:2px; }
+    h2 { font-size:12px; font-weight:700; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:18px 0 10px; text-transform:uppercase; letter-spacing:1px; } h3 { font-size:10px; font-weight:700; color:#334155; margin:12px 0 6px; } .section { break-inside:avoid; margin-block-end:14px; } .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0; } .kpi { border:1px solid #e2e8f0; border-radius:6px; padding:8px; text-align:center; background:#f8fafc; } .kpi-value { font-size:14px; font-weight:800; color:#0f3460; margin:2px 0; } .panel { border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin:8px 0; background:#f8fafc; } .panel-title { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b; margin-block-end:8px; } .exec-body { color:#334155; line-height:1.65; padding-block:8px; } .dd-row { display:flex; gap:8px; padding-block:3px; border-block-end:1px dotted #e2e8f0; } .dd-key { inline-size:110px; color:#64748b; font-weight:600; flex-shrink:0; } .dd-val { flex:1; } .bar-row { display:flex; align-items:center; gap:6px; margin-block:4px; font-size:9px; } .bar-label { inline-size:90px; color:#475569; flex-shrink:0; } .bar-track { flex:1; block-size:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; } .bar-fill { block-size:100%; background:linear-gradient(90deg,#4ecdc4,#0f3460); border-radius:4px; } .bar-pct,.bar-amt { text-align:end; flex-shrink:0; } .bar-pct { inline-size:32px; } .bar-amt { inline-size:76px; color:#0f3460; font-weight:600; font-size:8px; } table { width:100%; border-collapse:collapse; margin:8px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:5px 8px; font-weight:600; font-size:8px; letter-spacing:.5px; } td { padding:4px 8px; border-block-end:1px solid #f1f5f9; } tr.even td { background:#f8fafc; } .roi-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .roi-card { border:1px solid #e2e8f0; border-radius:6px; padding:10px; } .roi-big { font-size:20px; font-weight:800; color:#10b981; } .roi-sub { font-size:8px; color:#64748b; margin-block-start:3px; } .grade-chip,.grade-badge,.conf-badge { color:#fff; font-weight:700; } .grade-chip { display:inline-flex; align-items:center; justify-content:center; inline-size:32px; block-size:32px; border-radius:50%; font-size:16px; } .grade-badge,.conf-badge { font-size:8px; padding:1px 5px; border-radius:3px; } .trend-row { display:flex; align-items:center; gap:6px; padding-block:3px; border-block-end:1px dotted #e2e8f0; font-size:9px; } .trend-name { flex:1; font-weight:600; } .trend-cat { font-size:7px; color:#94a3b8; text-transform:uppercase; } .render-meta { margin:12px auto; max-inline-size:520px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .fallback { border-inline-start:3px solid #f59e0b; background:#fffbeb; padding:8px; margin-block:10px; font-size:9px; } .footer { margin-block-start:20px; padding-block-start:8px; border-block-start:1px solid #e2e8f0; font-size:7px; color:#94a3b8; text-align:center; }
+  </style></head><body><div class="cover"><div class="brand">MIYAR</div><div class="subtitle">${labels.investorBrief}</div><div class="project-name">${text3(projectName)}</div><div class="meta">${text3(typology)} \xB7 ${text3(tier)} \xB7 ${text3(location)}</div><div class="meta">${number2(gfaSqm, locale)} ${labels.squareMetres} ${labels.gfa} \xB7 ${text3(style)} ${labels.design}</div><div class="divider"></div><div class="kpi-grid"><div class="kpi-card"><div class="cv">${aed(totalFitoutBudget, locale)}</div><div class="cl">${c("totalFitout")}</div></div><div class="kpi-card"><div class="cv">${aed(costPerSqm, locale)}</div><div class="cl">${labels.costPerSquareMetre}</div></div><div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${text3(sustainabilityGrade)}</div><div class="cl">${labels.sustainabilityGrade}</div></div></div>${renderMetadata2(context, locale)}</div>
+    <div class="section"><h2>${labels.designIdentity}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.typology}</div><div class="kpi-value">${text3(typology)}</div></div><div class="kpi"><div class="kpi-label">${labels.style}</div><div class="kpi-value">${text3(style)}</div></div><div class="kpi"><div class="kpi-label">${labels.tier}</div><div class="kpi-value">${text3(tier)}</div></div><div class="kpi"><div class="kpi-label">${labels.location}</div><div class="kpi-value">${text3(location)}</div></div></div>${execSummary ? `<p class="exec-body">${text3(execSummary)}</p>` : ""}${designDirectionRows ? `<div class="panel">${designDirectionRows}</div>` : ""}</div>
+    ${materials.length > 0 ? `<div class="section"><h2>${labels.materialSpecification}</h2><table><thead><tr><th>${labels.product}</th><th>${labels.brand}</th><th>${labels.space}</th><th>${labels.priceRange}</th></tr></thead><tbody>${materialRows}</tbody></table>${materialConstants2.length > 0 ? `<h3>${labels.marketConstants}</h3><table><thead><tr><th>${labels.material}</th><th>${labels.costPerSquareMetre}</th><th>${labels.carbon}</th><th>${labels.sustainabilityGrade}</th></tr></thead><tbody>${constantRows}</tbody></table>` : ""}</div>` : ""}
+    <div class="section"><h2>${labels.budgetSynthesis}</h2><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="kpi-label">${c("totalFitout")}</div><div class="kpi-value">${aed(totalFitoutBudget, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.costPerSquareMetre}</div><div class="kpi-value">${aed(costPerSqm, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.gfa}</div><div class="kpi-value">${number2(gfaSqm, locale)} ${labels.squareMetres}</div></div></div>${spaceBars ? `<h3>${labels.budgetBySpace}</h3><div class="panel">${spaceBars}</div>` : ""}${benchmarkSection}</div>${spaceEfficiencySection}
+    <div class="section"><h2>${labels.roiBridge}</h2><div class="roi-grid"><div class="roi-card"><div class="roi-label">${labels.sustainabilityGrade}</div><div style="margin-block-start:6px;display:flex;align-items:center;gap:10px"><div class="grade-chip" style="background:${gradeColor(sustainabilityGrade)}">${text3(sustainabilityGrade)}</div><div class="roi-sub">${labels.basedOnMaterialSelectionAndTierFor} ${text3(location)}</div></div></div><div class="roi-card"><div class="roi-label">${labels.designPremiumPotential}</div><div class="roi-big">+${number2(salePremiumPct, locale)}%</div><div class="roi-sub">\u2248 ${aed(estimatedSalesPremiumAed, locale)} ${labels.upliftVsStandardFitout}</div></div><div class="roi-card" style="grid-column:span 2"><div class="roi-label">${labels.roiSummary}</div><div style="display:flex;gap:30px;margin-block-start:6px;font-size:9px"><div><div>${labels.fitoutInvestment}</div><b>${aed(totalFitoutBudget, locale)}</b></div><div><div>${c("designPremium")}</div><b>+${aed(estimatedSalesPremiumAed, locale)}</b></div><div><div>${labels.netUplift}</div><b>${aed(estimatedSalesPremiumAed - totalFitoutBudget, locale)}</b></div></div></div></div><div class="fallback"><b>${c("investorFallbackAssumption")}:</b> ${c("investorFallbackAssumptionHelp")}</div></div>
+    ${(designTrends2 ?? []).length > 0 ? `<div class="section"><h2>${labels.marketIntelligence}</h2><h3>${labels.uaeDesignTrends} (${text3(style)} \xB7 ${labels.uae})</h3><div class="panel">${trendRows}</div></div>` : ""}<div class="footer">MIYAR \xB7 ${labels.investorBrief} \xB7 ${text3(formatReportDateTime(context.generatedAt, locale))}<br>${labels.generatedNotice}</div></body></html>`;
 }
+var INVESTOR_COPY;
 var init_investor_pdf = __esm({
   "server/engines/investor-pdf.ts"() {
     "use strict";
+    init_report_locale();
+    init_report_catalog();
+    init_report_render_context();
+    init_report_safe_output();
+    INVESTOR_COPY = {
+      en: {
+        investorBrief: "Investor Intelligence Brief",
+        designIdentity: "Design Identity",
+        materialSpecification: "Material Specification",
+        budgetSynthesis: "Budget Synthesis",
+        roiBridge: "ROI Bridge",
+        marketIntelligence: "Market Intelligence",
+        product: "Product",
+        material: "Material",
+        brand: "Brand",
+        space: "Space",
+        priceRange: "Price Range",
+        marketConstants: "UAE Market Constants (AED/m\xB2)",
+        costPerSquareMetre: "Cost/m\xB2",
+        carbon: "Carbon",
+        sustainabilityGrade: "Sustainability Grade",
+        budgetBySpace: "Budget by Space",
+        marketBenchmark: "Market Benchmark",
+        low: "Low",
+        mid: "Mid",
+        high: "High",
+        yourEstimate: "Your Estimate",
+        spacePlanning: "Space Planning Intelligence",
+        efficiencyScore: "Efficiency Score",
+        criticalIssues: "Critical Issues",
+        advisoryIssues: "Advisory Issues",
+        circulation: "Circulation",
+        roomAllocation: "Room Allocation vs DLD Benchmark",
+        designPremiumPotential: "Design Premium Potential",
+        roiSummary: "ROI Summary",
+        fitoutInvestment: "Fit-out Investment",
+        netUplift: "Net Uplift",
+        generatedNotice: "This document is auto-generated. All estimates are indicative and should be professionally validated before investment decisions.",
+        print: "Download / Print PDF",
+        typology: "Typology",
+        style: "Style",
+        tier: "Tier",
+        location: "Location",
+        gfa: "GFA",
+        squareMetres: "m\xB2",
+        design: "Design",
+        kilogramsPerSquareMetre: "kg/m\xB2",
+        versus: "vs",
+        basedOnMaterialSelectionAndTierFor: "Based on material selection and tier for",
+        upliftVsStandardFitout: "uplift vs. standard fit-out",
+        uaeDesignTrends: "UAE Design Trends",
+        uae: "UAE",
+        direction: "Direction",
+        content: "Content"
+      },
+      ar: {
+        investorBrief: "\u0645\u0648\u062C\u0632 \u0630\u0643\u0627\u0621 \u0627\u0644\u0645\u0633\u062A\u062B\u0645\u0631",
+        designIdentity: "\u0647\u0648\u064A\u0629 \u0627\u0644\u062A\u0635\u0645\u064A\u0645",
+        materialSpecification: "\u0645\u0648\u0627\u0635\u0641\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
+        budgetSynthesis: "\u062A\u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629",
+        roiBridge: "\u062C\u0633\u0631 \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631",
+        marketIntelligence: "\u0645\u0639\u0644\u0648\u0645\u0627\u062A \u0627\u0644\u0633\u0648\u0642",
+        product: "\u0627\u0644\u0645\u0646\u062A\u062C",
+        material: "\u0627\u0644\u0645\u0627\u062F\u0629",
+        brand: "\u0627\u0644\u0639\u0644\u0627\u0645\u0629 \u0627\u0644\u062A\u062C\u0627\u0631\u064A\u0629",
+        space: "\u0627\u0644\u0645\u0633\u0627\u062D\u0629",
+        priceRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u0633\u0639\u0631",
+        marketConstants: "\u062B\u0648\u0627\u0628\u062A \u0633\u0648\u0642 \u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062A (\u062F\u0631\u0647\u0645/\u0645\xB2)",
+        costPerSquareMetre: "\u0627\u0644\u062A\u0643\u0644\u0641\u0629/\u0645\xB2",
+        carbon: "\u0627\u0644\u0643\u0631\u0628\u0648\u0646",
+        sustainabilityGrade: "\u062F\u0631\u062C\u0629 \u0627\u0644\u0627\u0633\u062A\u062F\u0627\u0645\u0629",
+        budgetBySpace: "\u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629 \u062D\u0633\u0628 \u0627\u0644\u0645\u0633\u0627\u062D\u0629",
+        marketBenchmark: "\u0627\u0644\u0645\u0639\u064A\u0627\u0631 \u0627\u0644\u0645\u0631\u062C\u0639\u064A \u0644\u0644\u0633\u0648\u0642",
+        low: "\u0645\u0646\u062E\u0641\u0636",
+        mid: "\u0645\u062A\u0648\u0633\u0637",
+        high: "\u0645\u0631\u062A\u0641\u0639",
+        yourEstimate: "\u062A\u0642\u062F\u064A\u0631\u0643",
+        spacePlanning: "\u0630\u0643\u0627\u0621 \u062A\u062E\u0637\u064A\u0637 \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A",
+        efficiencyScore: "\u062F\u0631\u062C\u0629 \u0627\u0644\u0643\u0641\u0627\u0621\u0629",
+        criticalIssues: "\u0627\u0644\u0645\u0634\u0643\u0644\u0627\u062A \u0627\u0644\u062D\u0631\u062C\u0629",
+        advisoryIssues: "\u0627\u0644\u0645\u0634\u0643\u0644\u0627\u062A \u0627\u0644\u0627\u0633\u062A\u0634\u0627\u0631\u064A\u0629",
+        circulation: "\u0627\u0644\u062D\u0631\u0643\u0629",
+        roomAllocation: "\u062A\u062E\u0635\u064A\u0635 \u0627\u0644\u063A\u0631\u0641 \u0645\u0642\u0627\u0631\u0646\u0629 \u0628\u0645\u0639\u064A\u0627\u0631 DLD",
+        designPremiumPotential: "\u0625\u0645\u0643\u0627\u0646\u0627\u062A \u0627\u0644\u0639\u0644\u0627\u0648\u0629 \u0627\u0644\u062A\u0635\u0645\u064A\u0645\u064A\u0629",
+        roiSummary: "\u0645\u0644\u062E\u0635 \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631",
+        fitoutInvestment: "\u0627\u0633\u062A\u062B\u0645\u0627\u0631 \u0627\u0644\u062A\u062C\u0647\u064A\u0632 \u0627\u0644\u062F\u0627\u062E\u0644\u064A",
+        netUplift: "\u0635\u0627\u0641\u064A \u0627\u0644\u0632\u064A\u0627\u062F\u0629",
+        generatedNotice: "\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0622\u0644\u064A\u0627\u064B. \u062C\u0645\u064A\u0639 \u0627\u0644\u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A\u0629 \u0648\u064A\u062C\u0628 \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646\u0647\u0627 \u0645\u0647\u0646\u064A\u0627\u064B \u0642\u0628\u0644 \u0642\u0631\u0627\u0631\u0627\u062A \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631.",
+        print: "\u062A\u0646\u0632\u064A\u0644 / \u0637\u0628\u0627\u0639\u0629 PDF",
+        typology: "\u0646\u0648\u0639 \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+        style: "\u0627\u0644\u0623\u0633\u0644\u0648\u0628",
+        tier: "\u0627\u0644\u0634\u0631\u064A\u062D\u0629",
+        location: "\u0627\u0644\u0645\u0648\u0642\u0639",
+        gfa: "\u0627\u0644\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u0629",
+        squareMetres: "\u0645\xB2",
+        design: "\u0627\u0644\u062A\u0635\u0645\u064A\u0645",
+        kilogramsPerSquareMetre: "\u0643\u063A/\u0645\xB2",
+        versus: "\u0645\u0642\u0627\u0628\u0644",
+        basedOnMaterialSelectionAndTierFor: "\u0627\u0633\u062A\u0646\u0627\u062F\u0627\u064B \u0625\u0644\u0649 \u0627\u062E\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0648\u0627\u062F \u0648\u0627\u0644\u0634\u0631\u064A\u062D\u0629 \u0641\u064A",
+        upliftVsStandardFitout: "\u0632\u064A\u0627\u062F\u0629 \u0645\u0642\u0627\u0631\u0646\u0629 \u0628\u0627\u0644\u062A\u062C\u0647\u064A\u0632 \u0627\u0644\u062F\u0627\u062E\u0644\u064A \u0627\u0644\u0642\u064A\u0627\u0633\u064A",
+        uaeDesignTrends: "\u0627\u062A\u062C\u0627\u0647\u0627\u062A \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0641\u064A \u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062A",
+        uae: "\u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062A",
+        direction: "\u0627\u0644\u062A\u0648\u062C\u0647",
+        content: "\u0627\u0644\u0645\u062D\u062A\u0648\u0649"
+      }
+    };
   }
 });
 
@@ -9210,8 +9778,8 @@ async function checkRobotsTxt(targetUrl, userAgent) {
       const robotsUrl = `${origin}/robots.txt`;
       const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
       if (res.ok) {
-        const text2 = await res.text();
-        robots = robotsParser(robotsUrl, text2);
+        const text4 = await res.text();
+        robots = robotsParser(robotsUrl, text4);
       } else {
         robots = robotsParser(robotsUrl, "");
       }
@@ -9864,8 +10432,8 @@ function cleanHtmlForLLM(html) {
   cleaned = cleaned.replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "").replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "").replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "").replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "");
   const mainMatch = cleaned.match(/<main[^>]*>([\s\S]*?)<\/main>/i) || cleaned.match(/<article[^>]*>([\s\S]*?)<\/article>/i) || cleaned.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i) || cleaned.match(/<div[^>]*id="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i) || cleaned.match(/<div[^>]*role="main"[^>]*>([\s\S]*?)<\/div>/i);
   const contentArea = mainMatch ? mainMatch[1] : cleaned;
-  const text2 = contentArea.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&[a-z]+;/gi, " ");
-  return text2.replace(/\s+/g, " ").trim();
+  const text4 = contentArea.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&[a-z]+;/gi, " ");
+  return text4.replace(/\s+/g, " ").trim();
 }
 function buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
   const hintsFilter = hints ? `
@@ -10407,10 +10975,10 @@ var init_freshness = __esm({
 });
 
 // server/engines/ingestion/proposal-generator.ts
-import { randomUUID } from "crypto";
+import { randomUUID as randomUUID5 } from "crypto";
 async function generateBenchmarkProposals(options = {}) {
   const { category, minEvidenceCount = 3, actorId, ingestionRunId } = options;
-  const runId = `PROP-${randomUUID().substring(0, 8)}`;
+  const runId = `PROP-${randomUUID5().substring(0, 8)}`;
   const startedAt = /* @__PURE__ */ new Date();
   const evidence = await listEvidenceRecords({
     category,
@@ -11359,7 +11927,7 @@ __export(orchestrator_exports, {
   runSingleConnector: () => runSingleConnector,
   testScrape: () => testScrape
 });
-import { randomUUID as randomUUID2 } from "crypto";
+import { randomUUID as randomUUID6 } from "crypto";
 import { eq as eq8, sql as sql3 } from "drizzle-orm";
 async function runWithConcurrencyLimit(tasks, limit) {
   const results = [];
@@ -11448,7 +12016,7 @@ async function persistConnectorRejection(input) {
   });
 }
 async function runIngestion(connectors, triggeredBy = "manual", actorId) {
-  const runId = `ING-${randomUUID2().substring(0, 8)}`;
+  const runId = `ING-${randomUUID6().substring(0, 8)}`;
   const startedAt = /* @__PURE__ */ new Date();
   const connectorResults = [];
   try {
@@ -12122,9 +12690,9 @@ ${parsed.text}
        * Extract: send PDF text to Gemini for structured material price extraction.
        */
       async extract(raw) {
-        const text2 = raw.rawHtml || "";
-        if (!text2 || text2.length < 100) return [];
-        const truncated = text2.substring(0, 15e3);
+        const text4 = raw.rawHtml || "";
+        if (!text4 || text4.length < 100) return [];
+        const truncated = text4.substring(0, 15e3);
         try {
           const response = await invokeLLM({
             messages: [
@@ -12299,19 +12867,19 @@ async function extractViaLLM(sourceName, category, geography, html, lastFetch) {
     return [];
   }
 }
-function extractPricesFromText(text2) {
+function extractPricesFromText(text4) {
   const prices = [];
   const seen = /* @__PURE__ */ new Set();
   for (const regex of [AED_PRICE_REGEX, NUMERIC_PRICE_REGEX]) {
     regex.lastIndex = 0;
     let match;
-    while ((match = regex.exec(text2)) !== null) {
+    while ((match = regex.exec(text4)) !== null) {
       const val = parseFloat(match[1].replace(/,/g, ""));
       if (!isNaN(val) && val > 0 && val < 1e8 && !seen.has(val)) {
         seen.add(val);
-        const context = text2.substring(
+        const context = text4.substring(
           Math.max(0, match.index - 30),
-          Math.min(text2.length, match.index + match[0].length + 30)
+          Math.min(text4.length, match.index + match[0].length + 30)
         );
         let unit = "unit";
         if (SQM_REGEX.test(context)) unit = "sqm";
@@ -12322,8 +12890,8 @@ function extractPricesFromText(text2) {
   }
   return prices;
 }
-function extractSnippet(text2, maxLen = 500) {
-  return text2.replace(/\s+/g, " ").trim().substring(0, maxLen);
+function extractSnippet(text4, maxLen = 500) {
+  return text4.replace(/\s+/g, " ").trim().substring(0, maxLen);
 }
 function getConnectorById(sourceId) {
   const factory = ALL_CONNECTORS[sourceId];
@@ -12429,10 +12997,10 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           const titleMatch = section.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/i);
           const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
           if (!title) continue;
-          const text2 = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          const text4 = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
           evidence.push({
             title: `${this.sourceName} - ${title}`,
-            rawText: text2,
+            rawText: text4,
             publishedDate: void 0,
             ...publicationDateFields(void 0, raw.fetchedAt),
             observedAt: raw.fetchedAt,
@@ -15343,6 +15911,10 @@ function generateFullReport(projectName, projectId, inputs, scoreResult, sensiti
 }
 
 // server/engines/pdf-report.ts
+init_report_catalog();
+init_report_render_context();
+init_report_safe_output();
+import { randomUUID as randomUUID2 } from "node:crypto";
 var DIMENSION_LABELS = {
   sa: "Strategic Alignment",
   ff: "Financial Feasibility",
@@ -15367,28 +15939,23 @@ function scoreGrade(score) {
   if (score >= 50) return "Weak";
   return "Critical";
 }
-function formatDate() {
-  return (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  });
+var REPORT_ARTIFACT_VERSION = "tr10-report-artifact-v1";
+var REPORT_RENDERER_VERSION = "pdf-report-html-v3";
+function dynamicText(value) {
+  return `<bdi dir="auto" data-report-dynamic>${escapeReportText(value)}</bdi>`;
 }
-function generateWatermark(projectId, reportType) {
-  const ts = Date.now().toString(36);
-  const hash = `MYR-${reportType.toUpperCase().slice(0, 3)}-${projectId}-${ts}`;
-  return hash;
-}
-function htmlHeader(title, subtitle, projectName, watermark) {
+function htmlHeader(title, subtitle, projectName, context) {
+  const metadata = reportDocumentMetadata(context.locale);
   return `
 <!DOCTYPE html>
-<html>
+<html lang="${metadata.lang}" dir="${metadata.dir}">
 <head>
 <meta charset="utf-8">
 <style>
+  ${reportLocaleCss(context.locale)}
   @page { size: A4; margin: 20mm 15mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.6; font-size: 11px; }
+  body { color: #1a1a2e; line-height: 1.6; font-size: 11px; overflow-wrap: anywhere; }
   .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 80vh; text-align: center; }
   .cover h1 { font-size: 28px; color: #0f3460; margin-bottom: 8px; letter-spacing: 1px; }
   .cover h2 { font-size: 16px; color: #4ecdc4; font-weight: 400; margin-bottom: 24px; }
@@ -15406,13 +15973,13 @@ function htmlHeader(title, subtitle, projectName, watermark) {
   td { padding: 10px 16px; border-bottom: 1px solid #e0e0e0; }
   tr:nth-child(even) td { background: #f8f9fa; }
   .content-wrapper { max-width: 900px; margin: 0 auto; padding: 0 48px; }
-  .brief-list { list-style: disc; padding-left: 24px; margin: 8px 0; }
+  .brief-list { list-style: disc; padding-inline-start: 24px; margin: 8px 0; }
   .brief-list li { margin-bottom: 4px; font-size: 10px; line-height: 1.5; }
   .color-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
   .color-chip { background: #f4f4f0; border: 1px solid #ddd; border-radius: 20px; padding: 4px 14px; font-size: 11px; color: #333; }
   .boq-bar { height: 8px; border-radius: 4px; background: #4ecdc4; min-width: 4px; }
   .boq-bar-wrap { display: flex; align-items: center; gap: 8px; }
-  .phase-header { font-size: 12px; font-weight: 700; color: #0f3460; margin: 14px 0 6px; border-left: 3px solid #4ecdc4; padding-left: 10px; }
+  .phase-header { font-size: 12px; font-weight: 700; color: #0f3460; margin: 14px 0 6px; border-inline-start: 3px solid #4ecdc4; padding-inline-start: 10px; }
   .toc { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px 24px; margin: 24px 0 32px; }
   .toc-title { font-size: 13px; font-weight: 700; color: #0f3460; margin-bottom: 10px; }
   .toc a { color: #0f3460; text-decoration: none; font-size: 11px; display: block; padding: 3px 0; }
@@ -15424,9 +15991,9 @@ function htmlHeader(title, subtitle, projectName, watermark) {
   .metric-card .label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
   .metric-card .value { font-size: 22px; font-weight: 700; color: #0f3460; margin: 4px 0; }
   .metric-card .grade { font-size: 10px; }
-  .risk-flag { background: #fff3cd; border-left: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
-  .action-item { background: #e8f5e9; border-left: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
-  .penalty-item { background: #fce4ec; border-left: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .risk-flag { background: #fff3cd; border-inline-start: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .action-item { background: #e8f5e9; border-inline-start: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .penalty-item { background: #fce4ec; border-inline-start: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
   .lens-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; margin: 8px 0; }
   .lens-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .lens-title { font-size: 12px; font-weight: 700; color: #0f3460; }
@@ -15436,7 +16003,8 @@ function htmlHeader(title, subtitle, projectName, watermark) {
   .roi-value { font-size: 28px; font-weight: 800; color: #2e7d32; }
   .roi-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
   .evidence-trace { background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px 12px; margin: 8px 0; font-size: 9px; font-family: monospace; color: #666; }
-  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
+  .report-closing { break-inside: avoid-page; page-break-inside: avoid; }
+  .footer { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; break-before: avoid-page; page-break-before: avoid; }
   .section { page-break-inside: avoid; margin-bottom: 28px; }
   .repro-meta { background: #f0f4f8; border: 1px solid #d0d7de; border-radius: 6px; padding: 10px 14px; margin: 16px auto; max-width: 400px; font-size: 9px; color: #444; text-align: left; }
   .repro-meta .label { font-weight: 600; color: #0f3460; display: inline-block; min-width: 120px; }
@@ -15446,70 +16014,68 @@ function htmlHeader(title, subtitle, projectName, watermark) {
 <body>
 <div class="cover">
   <div class="logo">MIYAR</div>
-  <h1>${title}</h1>
-  <h2>${subtitle}</h2>
-  <div class="project">${projectName}</div>
-  <div class="date">${formatDate()}</div>
-  <div class="confidential">Confidential \u2014 For Internal Use Only</div>
-  <div class="watermark">Document ID: ${watermark}</div>
+  <h1>${escapeReportText(title)}</h1>
+  <h2>${escapeReportText(subtitle)}</h2>
+  <div class="project">${dynamicText(projectName)}</div>
+  <div class="date">${formatReportDate(context.generatedAt, context.locale)}</div>
+  <div class="confidential">${reportCopy(context.locale, "confidentialInternalOnly")}</div>
+  <div class="watermark">${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}</div>
   <div class="repro-meta">
-    <div><span class="label">Scoring Engine:</span> MIYAR Decision Intelligence V2</div>
-    <div><span class="label">Model Version:</span> v2.0.0</div>
-    <div><span class="label">Generated:</span> ${(/* @__PURE__ */ new Date()).toISOString()}</div>
-    <div><span class="label">Document ID:</span> ${watermark}</div>
-    <div><span class="label">Reproducibility:</span> All inputs, weights, thresholds, and benchmark data are frozen at generation time. Re-evaluation with identical inputs and the same benchmark/logic version will produce identical scores.</div>
+    <div><span class="label">${reportCopy(context.locale, "modelVersion")}:</span> ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context.locale, "benchmarkVersion")}:</span> ${escapeReportText(context.benchmarkVersion ?? reportCopy(context.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context.locale, "logicVersion")}:</span> ${escapeReportText(context.logicVersion ?? reportCopy(context.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context.locale, "generatedAt")}:</span> ${escapeReportText(context.generatedAt)}</div>
+    <div><span class="label">${reportCopy(context.locale, "documentId")}:</span> ${escapeReportText(context.documentId)}</div>
+    <div><span class="label">${reportCopy(context.locale, "renderInputFingerprint")}:</span> ${escapeReportText(context.renderInputFingerprint)}</div>
+    <div>${reportCopy(context.locale, "renderInputFingerprintHelp")}</div>
   </div>
 </div>
 `;
 }
-function renderEvidenceReferences(refs) {
+function renderEvidenceReferences(refs, locale) {
   if (!refs || refs.length === 0) return "";
   const rows = refs.map((r, i) => {
     const gradeColor2 = r.reliabilityGrade === "A" ? "#2e7d32" : r.reliabilityGrade === "B" ? "#f57c00" : "#c62828";
+    const sourceUrl = escapeReportEvidenceUrl(r.sourceUrl);
     return `<tr>
     <td><span class="citation-ref">[${i + 1}]</span></td>
-    <td>${r.title}</td>
-    <td>${r.category || "\u2014"}</td>
-    <td style="color:${gradeColor2}; font-weight:600;">${r.reliabilityGrade || "\u2014"}</td>
-    <td>${r.captureDate ? new Date(r.captureDate).toLocaleDateString() : "\u2014"}</td>
-    <td>${!r.confidenceStatus || r.confidenceStatus === "legacy_unknown" ? "Legacy \u2014 calculation provenance unavailable" : r.confidenceStatus === "asserted" ? `Operator asserted (${r.confidencePolicyVersion || "manual-asserted-confidence-v1"})` : `Computed (${r.confidencePolicyVersion || "policy unavailable"})`}</td>
-    <td>${r.sourceUrl ? `<a href="${r.sourceUrl}" style="color:#0f3460;">[link]</a>` : "\u2014"}</td>
+    <td>${dynamicText(r.title)}</td>
+    <td>${r.category ? dynamicText(r.category) : "\u2014"}</td>
+    <td style="color:${gradeColor2}; font-weight:600;">${r.reliabilityGrade ? dynamicText(r.reliabilityGrade) : "\u2014"}</td>
+    <td>${r.captureDate ? formatReportDate(r.captureDate, locale) : "\u2014"}</td>
+    <td>${!r.confidenceStatus || r.confidenceStatus === "legacy_unknown" ? reportCopy(locale, "legacyCalculationProvenanceUnavailable") : r.confidenceStatus === "asserted" ? reportCopy(locale, "operatorAssertedConfidence").replace("{policy}", dynamicText(r.confidencePolicyVersion || "manual-asserted-confidence-v1")) : reportCopy(locale, "computedConfidence").replace("{policy}", dynamicText(r.confidencePolicyVersion || "policy unavailable"))}</td>
+    <td>${sourceUrl ? `<a href="${sourceUrl}" rel="noopener noreferrer" style="color:#0f3460;">${reportCopy(locale, "evidenceLink")}</a>` : "\u2014"}</td>
   </tr>`;
   }).join("");
   return `
 <div class="section">
-  <h2>Evidence References</h2>
-  <p style="font-size:9px; color:#666; margin-bottom:8px;">The following evidence records were linked to this project at the time of report generation. Inline citations <span class="citation-ref">[n]</span> in the report body reference entries in this table.</p>
+  <h2>${reportCopy(locale, "evidenceReferences")}</h2>
+  <p style="font-size:9px; color:#666; margin-bottom:8px;">${reportCopy(locale, "evidenceReferenceDescription")} ${reportCopy(locale, "evidenceInlineCitationHelp").replace("[n]", '<span class="citation-ref">[n]</span>')}</p>
   <table>
-    <tr><th>Ref</th><th>Title</th><th>Category</th><th>Grade</th><th>Captured</th><th>Confidence provenance</th><th>Source</th></tr>
+    <tr><th>${reportCopy(locale, "reference")}</th><th>${reportCopy(locale, "title")}</th><th>${reportCopy(locale, "category")}</th><th>${reportCopy(locale, "grade")}</th><th>${reportCopy(locale, "captured")}</th><th>${reportCopy(locale, "confidenceProvenance")}</th><th>${reportCopy(locale, "source")}</th></tr>
     ${rows}
   </table>
-  <p style="font-size:8px; color:#999; margin-top:4px;">Grade A = Primary institutional source | Grade B = Verified commercial source | Grade C = Self-reported or unverified</p>
+  <p style="font-size:8px; color:#999; margin-top:4px;">${reportCopy(locale, "evidenceGradeLegend")}</p>
 </div>
 `;
 }
-function renderDisclaimer() {
+function renderDisclaimer(locale) {
   return `
 <div class="section" style="margin-top:24px; padding:12px; background:#fff8e1; border:1px solid #ffe082; border-radius:6px;">
-  <h3 style="color:#e65100; font-size:11px; margin-bottom:6px;">Important Disclaimer</h3>
-  <p style="font-size:9px; color:#5d4037; line-height:1.5;">
-    This document is a <strong>concept-level assessment</strong> generated by the MIYAR Decision Intelligence Platform.
-    All scores, recommendations, and specifications are <strong>advisory only</strong> and are subject to detailed design,
-    engineering review, and professional validation. Material specifications, cost estimates, and procurement guidance
-    are indicative and must be confirmed through formal tender processes. MIYAR does not warrant the accuracy of
-    third-party benchmark data or market intelligence used in this assessment. This document does not constitute
-    professional design, financial, or legal advice.
-  </p>
+  <h3 style="color:#e65100; font-size:11px; margin-bottom:6px;">${reportCopy(locale, "importantDisclaimer")}</h3>
+  <p style="font-size:9px; color:#5d4037; line-height:1.5;">${reportCopy(locale, "disclaimer")}</p>
 </div>
 `;
 }
-function htmlFooter(projectId, reportType, watermark, benchmarkVersion, logicVersion) {
+function htmlFooter(context) {
   return `
-${renderDisclaimer()}
+<div class="report-closing">
+${renderDisclaimer(context.locale)}
 <div class="footer">
-  MIYAR Decision Intelligence Platform V2 | Document ID: ${watermark} | Generated: ${formatDate()}<br>
-  Model Version: v2.0.0 | Benchmark Version: ${benchmarkVersion || "v1.0-baseline"} | Logic Version: ${logicVersion || "v1.0-default"}<br>
-  <span style="font-size:8px;">This report is auto-generated and watermarked. Scores are advisory and do not constitute professional design or financial advice.</span>
+  MIYAR Decision Intelligence Platform | ${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)} | ${reportCopy(context.locale, "generated")}: ${formatReportDate(context.generatedAt, context.locale)}<br>
+  ${reportCopy(context.locale, "modelVersion")}: ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))} | ${reportCopy(context.locale, "benchmarkVersion")}: ${escapeReportText(context.benchmarkVersion ?? reportCopy(context.locale, "notAvailable"))} | ${reportCopy(context.locale, "logicVersion")}: ${escapeReportText(context.logicVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
+  <span style="font-size:8px;">${reportCopy(context.locale, "scoresAdvisory")}</span>
+</div>
 </div>
 </body>
 </html>
@@ -15577,10 +16143,10 @@ function renderDimensionTable(scoreResult) {
 }
 function renderRiskAssessment(scoreResult) {
   const penalties = scoreResult.penalties.map(
-    (p) => `<div class="penalty-item"><strong>${p.id}:</strong> ${p.description} (Effect: ${p.effect > 0 ? "+" : ""}${p.effect.toFixed(1)})</div>`
+    (p) => `<div class="penalty-item"><strong>${dynamicText(p.id)}:</strong> ${dynamicText(p.description)} (Effect: ${p.effect > 0 ? "+" : ""}${p.effect.toFixed(1)})</div>`
   ).join("");
   const flags = scoreResult.riskFlags.map(
-    (f) => `<div class="risk-flag">${f}</div>`
+    (f) => `<div class="risk-flag">${dynamicText(f)}</div>`
   ).join("");
   return `
 <div class="section">
@@ -15600,11 +16166,11 @@ function renderRiskAssessment(scoreResult) {
 </div>
 `;
 }
-function renderSensitivity(sensitivity) {
+function renderSensitivity(sensitivity, locale) {
   const top = sensitivity.slice(0, 8);
   const rows = top.map((s) => {
     return `<tr>
-      <td>${s.variable}</td>
+      <td>${dynamicText(s.variable)}</td>
       <td style="text-align:center;">${Math.abs(s.sensitivity).toFixed(2)}</td>
       <td style="text-align:center;">${s.scoreUp.toFixed(1)}</td>
       <td style="text-align:center;">${s.scoreDown.toFixed(1)}</td>
@@ -15613,8 +16179,8 @@ function renderSensitivity(sensitivity) {
   }).join("");
   return `
 <div class="section">
-  <h2>Sensitivity Analysis</h2>
-  <p>Top ${top.length} variables ranked by impact on composite score when adjusted \xB11 unit:</p>
+  <h2>${reportCopy(locale, "sensitivityAnalysis")}</h2>
+  <p>${reportCopy(locale, "sensitivityIntroduction").replace("{count}", String(top.length))}</p>
   <table>
     <tr><th>Variable</th><th>Sensitivity</th><th>Score (+1)</th><th>Score (-1)</th><th>Range</th></tr>
     ${rows}
@@ -15622,21 +16188,21 @@ function renderSensitivity(sensitivity) {
 </div>
 `;
 }
-function renderConditionalActions(scoreResult) {
+function renderConditionalActions(scoreResult, locale) {
   if (scoreResult.conditionalActions.length === 0) {
-    return `<div class="section"><h2>Recommended Actions</h2><p>No conditional actions required. All parameters are within acceptable ranges.</p></div>`;
+    return `<div class="section"><h2>${reportCopy(locale, "recommendedActions")}</h2><p>${reportCopy(locale, "noConditionalActions")}</p></div>`;
   }
   const actions = scoreResult.conditionalActions.map(
     (a) => `<div class="action-item">
-      <strong>Trigger:</strong> ${a.trigger}<br>
-      <strong>Recommendation:</strong> ${a.recommendation}<br>
-      <strong>Variables:</strong> ${a.variables.join(", ")}
+      <strong>${reportCopy(locale, "actionTrigger")}</strong> ${dynamicText(a.trigger)}<br>
+      <strong>${reportCopy(locale, "actionRecommendation")}</strong> ${dynamicText(a.recommendation)}<br>
+      <strong>${reportCopy(locale, "actionVariables")}</strong> ${dynamicText(a.variables.join(", "))}
     </div>`
   ).join("");
   return `
 <div class="section">
-  <h2>Recommended Actions</h2>
-  <p>${scoreResult.conditionalActions.length} conditional action(s) identified:</p>
+  <h2>${reportCopy(locale, "recommendedActions")}</h2>
+  <p>${reportCopy(locale, "conditionalActionsIdentified").replace("{count}", String(scoreResult.conditionalActions.length))}</p>
   ${actions}
 </div>
 `;
@@ -15702,8 +16268,8 @@ function renderInputSummary(inputs) {
     }
   ];
   const tables = groups.map((g) => {
-    const rows = g.items.map(([k, v]) => `<tr><td style="width:50%;">${k}</td><td>${v}</td></tr>`).join("");
-    return `<h3>${g.title}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table>`;
+    const rows = g.items.map(([k, v]) => `<tr><td style="width:50%;">${escapeReportText(k)}</td><td>${dynamicText(v)}</td></tr>`).join("");
+    return `<h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table>`;
   }).join("");
   return `<div class="section"><h2>Project Input Summary</h2>${tables}</div>`;
 }
@@ -15713,13 +16279,13 @@ function renderVariableContributions(contributions) {
     const vars = contributions[dim];
     const sorted = Object.entries(vars).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
     const rows = sorted.map(
-      ([v, c]) => `<tr><td>${v}</td><td style="text-align:center; color: ${c >= 0 ? "#4ecdc4" : "#e07a5f"}; font-weight:600;">${c >= 0 ? "+" : ""}${c.toFixed(2)}</td></tr>`
+      ([v, c]) => `<tr><td>${dynamicText(v)}</td><td style="text-align:center; color: ${c >= 0 ? "#4ecdc4" : "#e07a5f"}; font-weight:600;">${c >= 0 ? "+" : ""}${c.toFixed(2)}</td></tr>`
     ).join("");
     return `<h3>${DIMENSION_LABELS[dim] || dim}</h3><table><tr><th>Variable</th><th>Contribution</th></tr>${rows}</table>`;
   }).join("");
   return `<div class="section"><h2>Variable Contribution Analysis</h2><p>How each input variable contributes to each dimension score:</p>${sections}</div>`;
 }
-function renderROINarrative(roi) {
+function renderROINarrative(roi, locale) {
   if (!roi) return "";
   const totalValue = roi.totalCostAvoided?.mid || roi.totalCostAvoided?.base || roi.totalValue || roi.totalValueCreated || 0;
   const roiMultiple = roi.roiMultiple || (totalValue > 0 ? totalValue / 15e4 : 0);
@@ -15733,13 +16299,14 @@ function renderROINarrative(roi) {
     <div class="roi-value">AED ${Number(totalValue).toLocaleString()}</div>
     <div style="font-size:10px; color:#666; margin-top:4px;">ROI Multiple: ${Number(roiMultiple).toFixed(1)}x</div>
   </div>
+  <p class="fallback" style="font-size:9px;">${reportCopy(locale, "roiNarrativeFallbackDenominator")}</p>
 
   <h3>Value Breakdown</h3>
   <table>
     <tr><th>Value Component</th><th>Conservative</th><th>Base</th><th>Aggressive</th></tr>
     ${drivers.length > 0 ? drivers.map((c) => `
     <tr>
-      <td><strong>${c.name}</strong><br><span style="font-size:9px; color:#666;">${c.description || c.narrative || ""}</span></td>
+      <td><strong>${dynamicText(c.name)}</strong><br><span style="font-size:9px; color:#666;">${dynamicText(c.description || c.narrative || "")}</span></td>
       <td style="text-align:right;">AED ${Number(c.costAvoided?.conservative || c.conservative || (c.value ? c.value * 0.8 : 0)).toLocaleString()}</td>
       <td style="text-align:right; font-weight:600;">AED ${Number(c.costAvoided?.mid || c.base || c.value || 0).toLocaleString()}</td>
       <td style="text-align:right;">AED ${Number(c.costAvoided?.aggressive || c.aggressive || (c.value ? c.value * 1.2 : 0)).toLocaleString()}</td>
@@ -15754,13 +16321,13 @@ function renderROINarrative(roi) {
 
   ${roi.narrative ? `
   <h3>Executive Narrative</h3>
-  <p style="font-size:10px; line-height:1.6;">${roi.narrative}</p>
+  <p style="font-size:10px; line-height:1.6;">${dynamicText(roi.narrative)}</p>
   ` : ""}
 
   ${roi.assumptions ? `
   <h3>Key Assumptions</h3>
   <ul style="font-size:9px; color:#666; padding-left:16px;">
-    ${roi.assumptions.map((a) => `<li>${a}</li>`).join("")}
+    ${roi.assumptions.map((a) => `<li>${dynamicText(a)}</li>`).join("")}
   </ul>
   ` : `
   <p style="margin-top:12px; font-size:10px; color:#666;">
@@ -15786,18 +16353,18 @@ function renderFiveLens(fiveLens) {
     return `
     <div class="lens-card">
       <div class="lens-header">
-        <div class="lens-title">${icon} ${lens.lensName}</div>
+        <div class="lens-title">${escapeReportText(icon)} ${dynamicText(lens.lensName)}</div>
         <div class="lens-score" style="color:${color};">${(lens.score || 0).toFixed(0)}/100</div>
       </div>
-      <p style="font-size:10px; margin-bottom:6px;">${lens.rationale || ""}</p>
+      <p style="font-size:10px; margin-bottom:6px;">${dynamicText(lens.rationale || "")}</p>
       ${lens.evidence && lens.evidence.length > 0 ? `
       <div class="lens-evidence">
-        <strong>Evidence:</strong> ${lens.evidence.slice(0, 3).map((e) => typeof e === "string" ? e : e.label && e.value ? `${e.label}: ${e.value}` : JSON.stringify(e)).join(" \u2022 ")}
+        <strong>Evidence:</strong> ${dynamicText(lens.evidence.slice(0, 3).map((e) => typeof e === "string" ? e : e.label && e.value ? `${e.label}: ${e.value}` : JSON.stringify(e)).join(" \u2022 "))}
       </div>
       ` : ""}
       ${lens.gaps && lens.gaps.length > 0 ? `
       <div style="font-size:9px; color:#e07a5f; margin-top:4px;">
-        <strong>Gaps:</strong> ${lens.gaps.slice(0, 2).join(" \u2022 ")}
+        <strong>Gaps:</strong> ${dynamicText(lens.gaps.slice(0, 2).join(" \u2022 "))}
       </div>
       ` : ""}
     </div>`;
@@ -15811,11 +16378,11 @@ function renderFiveLens(fiveLens) {
       <div class="value" style="color: ${fiveLens.overallScore >= 70 ? "#4ecdc4" : fiveLens.overallScore >= 50 ? "#f0c674" : "#e07a5f"};">
         ${fiveLens.overallScore.toFixed(0)}
       </div>
-      <div class="grade">${fiveLens.overallVerdict || scoreGrade(fiveLens.overallScore)}</div>
+      <div class="grade">${dynamicText(fiveLens.overallVerdict || scoreGrade(fiveLens.overallScore))}</div>
     </div>
     <div class="metric-card">
       <div class="label">Weakest Lens</div>
-      <div class="value" style="font-size:14px; color:#e07a5f;">${fiveLens.weakestLens || "\u2014"}</div>
+      <div class="value" style="font-size:14px; color:#e07a5f;">${dynamicText(fiveLens.weakestLens || "\u2014")}</div>
       <div class="grade">Priority improvement area</div>
     </div>
   </div>
@@ -15823,39 +16390,36 @@ function renderFiveLens(fiveLens) {
 </div>
 `;
 }
-function renderEvidenceTrace(projectId, watermark, benchmarkVersion, logicVersion) {
+function renderEvidenceTrace(projectId, context) {
   return `
 <div class="section">
-  <h2>Evidence Trace & Provenance</h2>
+  <h2>${reportCopy(context.locale, "evidenceTrace")}</h2>
   <div class="evidence-trace">
-    Document ID: ${watermark}<br>
+    ${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}<br>
     Project ID: ${projectId}<br>
-    Benchmark Version: ${benchmarkVersion || "v1.0-baseline"}<br>
-    Logic Version: ${logicVersion || "v1.0-default"}<br>
-    Model Version: v2.0.0<br>
-    Generated: ${(/* @__PURE__ */ new Date()).toISOString()}<br>
-    Scoring Engine: MIYAR Decision Intelligence V2<br>
-    Hash: ${Buffer.from(watermark + projectId).toString("base64").slice(0, 16)}
+    ${reportCopy(context.locale, "benchmarkVersion")}: ${escapeReportText(context.benchmarkVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
+    ${reportCopy(context.locale, "logicVersion")}: ${escapeReportText(context.logicVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
+    ${reportCopy(context.locale, "modelVersion")}: ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
+    ${reportCopy(context.locale, "generatedAt")}: ${escapeReportText(context.generatedAt)}<br>
+    ${reportCopy(context.locale, "artifactVersion")}: ${escapeReportText(context.artifactVersion)}<br>
+    ${reportCopy(context.locale, "rendererVersion")}: ${escapeReportText(context.rendererVersion)}<br>
+    ${reportCopy(context.locale, "renderInputFingerprint")}: ${escapeReportText(context.renderInputFingerprint)}
   </div>
-  <p style="font-size:9px; color:#666; margin-top:8px;">
-    This document contains a cryptographic evidence trace linking the scoring inputs, benchmark data version,
-    logic version (weights + thresholds), and model configuration used at the time of generation. Any modification
-    to the underlying data would produce a different document hash, ensuring auditability and defensibility of the decision record.
-  </p>
+  <p style="font-size:9px; color:#666; margin-top:8px;">${reportCopy(context.locale, "renderInputFingerprintHelp")}</p>
 </div>
 `;
 }
-function renderROI(roi) {
+function renderROI(roi, locale) {
   return `
 <div class="section">
-  <h2>ROI & Economic Impact Analysis</h2>
+  <h2>${locale === "ar" ? "\u062A\u062D\u0644\u064A\u0644 \u0627\u0644\u0639\u0627\u0626\u062F \u0639\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631 \u0648\u0627\u0644\u0623\u062B\u0631 \u0627\u0644\u0627\u0642\u062A\u0635\u0627\u062F\u064A" : "ROI & Economic Impact Analysis"}</h2>
   <div class="roi-highlight">
     <div class="roi-label">Total Value Created</div>
     <div class="roi-value">AED ${roi.totalValue.toLocaleString()}</div>
     <div style="font-size:10px; color:#666; margin-top:4px;">ROI Multiple: ${roi.roiMultiple.toFixed(1)}x</div>
   </div>
   <table>
-    <tr><th>Value Component</th><th>Amount (AED)</th></tr>
+    <tr><th>${locale === "ar" ? "\u0645\u0643\u0648\u0651\u0646 \u0627\u0644\u0642\u064A\u0645\u0629" : "Value Component"}</th><th>${reportCopy(locale, "amountAed")}</th></tr>
     <tr><td>Rework Avoided</td><td style="text-align:right;">${roi.reworkAvoided.toLocaleString()}</td></tr>
     <tr><td>Procurement Savings</td><td style="text-align:right;">${roi.procurementSavings.toLocaleString()}</td></tr>
     <tr><td>Time-Value Gain</td><td style="text-align:right;">${roi.timeValueGain.toLocaleString()}</td></tr>
@@ -15870,143 +16434,213 @@ function renderROI(roi) {
 `;
 }
 function escapeHtml(value) {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+  return escapeReportText(value);
 }
-function renderBoardResolutionMessage(board) {
+function renderBoardResolutionMessage(board, locale) {
+  const copy = (key) => reportCopy(locale, key);
   if (board.state === "empty") {
-    return "Empty board \u2014 no materials are attached. Cost and lead-time summary is unavailable.";
+    return copy("boardEmptyResolution");
   }
   if (board.state === "unresolvable") {
-    return `Unresolvable board \u2014 none of the ${board.linkedItemCount} linked items could be resolved. Cost and lead-time summary is unavailable; repair the board links before relying on it.`;
+    return copy("boardUnresolvableResolution").replace("{linked}", String(board.linkedItemCount));
   }
   if (board.state === "partial") {
-    return `Partial board \u2014 ${board.resolvedItemCount} of ${board.linkedItemCount} linked items resolved. ${board.unresolvedItemCount} unresolved ${board.unresolvedItemCount === 1 ? "item is" : "items are"} excluded from the figures below.`;
+    return copy("boardPartialResolution").replace("{resolved}", String(board.resolvedItemCount)).replace("{linked}", String(board.linkedItemCount)).replace("{unresolved}", String(board.unresolvedItemCount)).replace("{itemStatus}", reportCopy(locale, board.unresolvedItemCount === 1 ? "boardItemIs" : "boardItemsAre"));
   }
-  return board.linkedItemCount === 1 ? "Complete board \u2014 the linked item is resolved." : `Complete board \u2014 all ${board.linkedItemCount} linked items are resolved.`;
+  return board.linkedItemCount === 1 ? copy("boardCompleteSingleResolution") : copy("boardCompleteMultipleResolution").replace("{linked}", String(board.linkedItemCount));
 }
-function renderBoardCard(board) {
+function renderBoardCard(board, locale) {
   const stateColor = board.state === "complete" ? "#166534" : board.state === "partial" ? "#92400e" : "#991b1b";
   const summary = "summary" in board ? board.summary : void 0;
   const summaryHtml = summary ? (() => {
     const tierRows = Object.entries(summary.tierDistribution).map(
-      ([tier, count2]) => `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${escapeHtml(tier.replaceAll("_", " "))}:</strong> ${count2}</span>`
+      ([tier, count2]) => `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${dynamicText(tier.replaceAll("_", " "))}:</strong> ${count2}</span>`
     ).join("");
-    const criticalItems = summary.criticalPathItems.map(escapeHtml).join(", ");
+    const criticalItems = summary.criticalPathItems;
     return `
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
         <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved-item Cost Range</div>
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedItemCostRange")}</div>
           <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.estimatedCostLow.toLocaleString()} \u2013 ${summary.estimatedCostHigh.toLocaleString()} ${escapeHtml(summary.currency)}</div>
         </div>
         <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved-item Longest Lead</div>
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedItemLongestLead")}</div>
           <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.longestLeadTimeDays}d</div>
         </div>
         <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved Critical Items</div>
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedCriticalItems")}</div>
           <div style="font-size:12px; font-weight:700; color:${summary.criticalPathItems.length > 0 ? "#dc2626" : "#16a34a"};">${summary.criticalPathItems.length}</div>
         </div>
       </div>
       <div style="font-size:9px; color:#444;">${tierRows}</div>
-      ${criticalItems ? `<div style="margin-top:6px;"><span style="font-size:9px; color:#dc2626; font-weight:600;">Critical:</span> <span style="font-size:9px; color:#666;">${criticalItems}</span></div>` : ""}`;
+      ${criticalItems.length > 0 ? `<div style="margin-top:6px;"><span style="font-size:9px; color:#dc2626; font-weight:600;">${locale === "ar" ? "\u062D\u0631\u062C:" : "Critical:"}</span> <span style="font-size:9px; color:#666;">${criticalItems.map(dynamicText).join(", ")}</span></div>` : ""}`;
   })() : "";
   return `
     <div style="border:1px solid #e0e0e0; border-radius:6px; padding:12px; margin:8px 0; page-break-inside:avoid;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span style="font-size:12px; font-weight:700; color:#0f3460;">${escapeHtml(board.boardName)}</span>
-        <span style="font-size:10px; color:#666;">${board.resolvedItemCount} of ${board.linkedItemCount} items resolved</span>
+        <span style="font-size:12px; font-weight:700; color:#0f3460;">${dynamicText(board.boardName)}</span>
+        <span style="font-size:10px; color:#666;">${reportCopy(locale, "boardResolvedCount").replace("{resolved}", String(board.resolvedItemCount)).replace("{linked}", String(board.linkedItemCount))}</span>
       </div>
-      <div style="font-size:9px; color:${stateColor}; margin-bottom:${summary ? "8px" : "0"};">${renderBoardResolutionMessage(board)}</div>
+      <div style="font-size:9px; color:${stateColor}; margin-bottom:${summary ? "8px" : "0"};">${renderBoardResolutionMessage(board, locale)}</div>
       ${summaryHtml}
     </div>`;
 }
-function renderBoardAnnex(boardAnnex) {
+function renderBoardAnnex(boardAnnex, locale) {
   if (boardAnnex.state === "no_boards") {
     return `
 <div class="section">
-  <h2>Material Board Annex</h2>
-  <p style="font-size:10px; color:#666;">No material boards have been created for this project. Use the Board Composer to build material boards with cost estimates and RFQ-ready procurement schedules.</p>
+  <h2>${reportCopy(locale, "materialBoardAnnex")}</h2>
+  <p style="font-size:10px; color:#666;">${reportCopy(locale, "noMaterialBoards")}</p>
 </div>
 `;
   }
-  const boardCards = boardAnnex.boards.map(renderBoardCard).join("");
+  const boardCards = boardAnnex.boards.map((board) => renderBoardCard(board, locale)).join("");
   return `
 <div class="section">
-  <h2>Material Board Annex</h2>
-  <p style="font-size:10px; color:#666; margin-bottom:8px;">Board availability and resolution are shown explicitly. Any figures shown are calculated only from resolved catalog items. Full RFQ-ready procurement schedules are available via the Board Composer export.</p>
+  <h2>${reportCopy(locale, "materialBoardAnnex")}</h2>
+  <p style="font-size:10px; color:#666; margin-bottom:8px;">${reportCopy(locale, "materialBoardAnnexDescription")}</p>
   ${boardCards}
 </div>
 `;
 }
-function parseMarkdownToHTML(markdown) {
-  let html = markdown || "";
-  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
-  const lines = html.split("\\n");
-  const parsedLines = [];
-  let inList = false;
-  for (let line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("### ")) {
-      if (inList) {
-        parsedLines.push("</ul>");
-        inList = false;
-      }
-      parsedLines.push(`<h3>${trimmed.slice(4)}</h3>`);
-    } else if (trimmed.startsWith("## ")) {
-      if (inList) {
-        parsedLines.push("</ul>");
-        inList = false;
-      }
-      parsedLines.push(`<h2>${trimmed.slice(3)}</h2>`);
-    } else if (trimmed.startsWith("# ")) {
-      if (inList) {
-        parsedLines.push("</ul>");
-        inList = false;
-      }
-      parsedLines.push(`<h2>${trimmed.slice(2)}</h2>`);
-    } else if (trimmed.match(/^[\\-\\*]\\s+/)) {
-      if (!inList) {
-        parsedLines.push('<ul style="margin-left: 20px; margin-bottom: 8px;">');
-        inList = true;
-      }
-      parsedLines.push(`<li style="margin-bottom: 4px;">${trimmed.replace(/^[\\-\\*]\\s+/, "")}</li>`);
-    } else if (trimmed !== "") {
-      if (inList) {
-        parsedLines.push("</ul>");
-        inList = false;
-      }
-      parsedLines.push(`<p>${trimmed}</p>`);
-    }
+function scoreFingerprint(score, includeContributions) {
+  return {
+    dimensions: score.dimensions,
+    dimensionWeights: score.dimensionWeights,
+    compositeScore: score.compositeScore,
+    riskScore: score.riskScore,
+    rasScore: score.rasScore,
+    confidenceScore: score.confidenceScore,
+    decisionStatus: score.decisionStatus,
+    penalties: score.penalties,
+    riskFlags: score.riskFlags,
+    conditionalActions: score.conditionalActions,
+    ...includeContributions ? { variableContributions: score.variableContributions } : {}
+  };
+}
+function renderedEvidenceReferences(refs) {
+  return refs?.map((ref) => ({
+    title: ref.title,
+    sourceUrl: ref.sourceUrl,
+    category: ref.category,
+    reliabilityGrade: ref.reliabilityGrade,
+    captureDate: ref.captureDate,
+    confidenceStatus: ref.confidenceStatus,
+    confidencePolicyVersion: ref.confidencePolicyVersion
+  }));
+}
+function pdfFingerprintRenderedValues(reportType, data) {
+  if (reportType === "scenario_comparison") {
+    const scenario = data;
+    return {
+      project: { id: scenario.projectId, name: scenario.projectName },
+      baselineScenario: scenario.baselineScenario,
+      comparedScenarios: scenario.comparedScenarios,
+      decisionNote: scenario.decisionNote
+    };
   }
-  if (inList) parsedLines.push("</ul>");
-  return `<div class="section markdown-body">${parsedLines.join("")}</div>`;
+  if (reportType === "portfolio") {
+    const portfolio = data;
+    return {
+      portfolio: {
+        id: portfolio.portfolioId,
+        name: portfolio.portfolioName,
+        description: portfolio.description,
+        totalProjects: portfolio.totalProjects,
+        scoredCount: portfolio.scoredCount,
+        avgComposite: portfolio.avgComposite,
+        avgRisk: portfolio.avgRisk,
+        projects: portfolio.projects,
+        distributions: portfolio.distributions,
+        failurePatterns: portfolio.failurePatterns,
+        improvementLevers: portfolio.improvementLevers,
+        complianceHeatmap: portfolio.complianceHeatmap
+      }
+    };
+  }
+  const report = data;
+  const common = {
+    project: { id: report.projectId, name: report.projectName }
+  };
+  if (reportType === "autonomous_design_brief") {
+    return { ...common, autonomousContent: report.autonomousContent, evidenceReferences: renderedEvidenceReferences(report.evidenceRefs) };
+  }
+  if (reportType === "design_brief") {
+    return { ...common, designBrief: report.designBrief, boardAnnex: report.boardAnnex, evidenceReferences: renderedEvidenceReferences(report.evidenceRefs) };
+  }
+  if (reportType === "full_report") {
+    return {
+      ...common,
+      inputs: report.inputs,
+      score: scoreFingerprint(report.scoreResult, true),
+      sensitivity: report.sensitivity,
+      fiveLens: report.fiveLens,
+      roiNarrative: report.roiNarrative,
+      roi: report.roiNarrative ? void 0 : report.roi,
+      boardAnnex: report.boardAnnex,
+      evidenceReferences: renderedEvidenceReferences(report.evidenceRefs)
+    };
+  }
+  return {
+    ...common,
+    inputs: report.inputs,
+    score: scoreFingerprint(report.scoreResult, false),
+    sensitivity: report.sensitivity,
+    fiveLens: report.fiveLens,
+    evidenceReferences: renderedEvidenceReferences(report.evidenceRefs)
+  };
+}
+function createPdfReportRenderContext(reportType, data, overrides = {}) {
+  const locale = overrides.locale ?? data.locale ?? "en";
+  const labels = {
+    artifactVersion: overrides.artifactVersion ?? REPORT_ARTIFACT_VERSION,
+    rendererVersion: overrides.rendererVersion ?? REPORT_RENDERER_VERSION,
+    modelVersion: overrides.modelVersion ?? data.modelVersion ?? null,
+    benchmarkVersion: overrides.benchmarkVersion ?? data.benchmarkVersion ?? null,
+    logicVersion: overrides.logicVersion ?? data.logicVersion ?? null
+  };
+  const prefix = reportType === "scenario_comparison" ? "SCE" : reportType === "portfolio" ? "PFL" : reportType.toUpperCase().slice(0, 3);
+  const subjectId = "projectId" in data ? data.projectId : data.portfolioId;
+  return createReportRenderContext({
+    documentId: overrides.documentId ?? `MYR-${prefix}-${subjectId}-${randomUUID2()}`,
+    generatedAt: overrides.generatedAt,
+    locale,
+    ...labels,
+    fingerprintInput: createRenderFingerprintPayload(reportType, locale, labels, pdfFingerprintRenderedValues(reportType, data))
+  });
+}
+function resolveReportContext(reportType, data) {
+  if (data.renderContext) return data.renderContext;
+  return createPdfReportRenderContext(reportType, data);
+}
+function finalizeReportHtml(html, context) {
+  return localizeGovernedReportCopy(html, context.locale);
 }
 function generateAutonomousBriefHTML(data) {
-  const watermark = generateWatermark(data.projectId, "autonomous_design_brief");
-  const contentHtml = parseMarkdownToHTML(data.autonomousContent || "No content generated.");
-  return [
-    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, watermark),
+  const context = resolveReportContext("autonomous_design_brief", data);
+  const contentHtml = `<div class="section markdown-body">${renderReportMarkdown(data.autonomousContent || reportCopy(context.locale, "noContentGenerated"))}</div>`;
+  return finalizeReportHtml([
+    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, context),
     contentHtml,
-    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
-    htmlFooter(data.projectId, "autonomous_design_brief", watermark, data.benchmarkVersion, data.logicVersion)
-  ].join("");
+    renderEvidenceTrace(data.projectId, context),
+    htmlFooter(context)
+  ].join(""), context);
 }
 function generateValidationSummaryHTML(data) {
-  const watermark = generateWatermark(data.projectId, "validation_summary");
-  return [
-    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, watermark),
+  const context = resolveReportContext("validation_summary", data);
+  return finalizeReportHtml([
+    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, context),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderRiskAssessment(data.scoreResult),
-    renderSensitivity(data.sensitivity),
-    renderConditionalActions(data.scoreResult),
+    renderSensitivity(data.sensitivity, context.locale),
+    renderConditionalActions(data.scoreResult, context.locale),
     data.fiveLens ? renderFiveLens(data.fiveLens) : "",
-    renderEvidenceReferences(data.evidenceRefs),
-    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
+    renderEvidenceReferences(data.evidenceRefs, context.locale),
+    renderEvidenceTrace(data.projectId, context),
     renderInputSummary(data.inputs),
-    htmlFooter(data.projectId, "validation_summary", watermark, data.benchmarkVersion, data.logicVersion)
-  ].join("\n");
+    htmlFooter(context)
+  ].join("\n"), context);
 }
 function renderDesignBrief(brief) {
   if (!brief) return "<div class='section'><p>No Design Brief data available.</p></div>";
@@ -16016,21 +16650,22 @@ function renderDesignBrief(brief) {
   const budget = brief.detailedBudget || {};
   const instructions = brief.designerInstructions || { phasedDeliverables: {} };
   const colorChips = (narrative.colorPalette || []).map(
-    (c) => `<span class="color-chip">${c}</span>`
+    (c) => `<span class="color-chip">${dynamicText(c)}</span>`
   ).join("");
   const boqRows = (boq.coreAllocations || []).map((b) => {
-    const pct = b.percentage || 0;
+    const rawPct = Number(b.percentage);
+    const pct2 = Number.isFinite(rawPct) ? Math.max(0, Math.min(100, rawPct)) : 0;
     return `
     <tr>
-      <td>${b.category || "\u2014"}</td>
+      <td>${dynamicText(b.category || "\u2014")}</td>
       <td>
         <div class="boq-bar-wrap">
-          <div class="boq-bar" style="width:${pct}%;"></div>
-          <span>${pct}%</span>
+          <div class="boq-bar" style="width:${pct2}%;"></div>
+          <span>${pct2}%</span>
         </div>
       </td>
-      <td style="text-align:right;">${b.estimatedCostLabel || "\u2014"}</td>
-      <td><span style="font-size: 10px; color: #666;">${b.notes || "\u2014"}</span></td>
+      <td style="text-align:right;">${dynamicText(b.estimatedCostLabel || "\u2014")}</td>
+      <td><span style="font-size: 10px; color: #666;">${dynamicText(b.notes || "\u2014")}</span></td>
     </tr>
   `;
   }).join("");
@@ -16049,14 +16684,14 @@ ${toc}
 
 <div class="section">
   <h2 id="sec-narrative">Design Narrative &amp; Positioning</h2>
-  <p>${narrative.positioningStatement || "\u2014"}</p>
+  <p>${dynamicText(narrative.positioningStatement || "\u2014")}</p>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
-    <tr><td style="font-weight:bold;">Primary Style</td><td>${narrative.primaryStyle || "\u2014"}</td></tr>
-    <tr><td style="font-weight:bold;">Mood Keywords</td><td>${(narrative.moodKeywords || []).join(", ") || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Primary Style</td><td>${dynamicText(narrative.primaryStyle || "\u2014")}</td></tr>
+    <tr><td style="font-weight:bold;">Mood Keywords</td><td>${dynamicText((narrative.moodKeywords || []).join(", ") || "\u2014")}</td></tr>
     <tr><td style="font-weight:bold;">Color Palette</td><td><div class="color-chips">${colorChips || "\u2014"}</div></td></tr>
-    <tr><td style="font-weight:bold;">Texture Direction</td><td>${narrative.textureDirection || "\u2014"}</td></tr>
-    <tr><td style="font-weight:bold;">Lighting Approach</td><td>${narrative.lightingApproach || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Texture Direction</td><td>${dynamicText(narrative.textureDirection || "\u2014")}</td></tr>
+    <tr><td style="font-weight:bold;">Lighting Approach</td><td>${dynamicText(narrative.lightingApproach || "\u2014")}</td></tr>
   </table>
 </div>
 
@@ -16064,19 +16699,19 @@ ${toc}
   <h2 id="sec-materials">Material Specifications</h2>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
-    <tr><td style="font-weight:bold;">Tier Requirement</td><td>${materials.tierRequirement || "\u2014"}</td></tr>
-    <tr><td style="font-weight:bold;">Quality Benchmark</td><td>${materials.qualityBenchmark || "\u2014"}</td></tr>
-    <tr><td style="font-weight:bold;">Sustainability</td><td>${materials.sustainabilityMandate || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Tier Requirement</td><td>${dynamicText(materials.tierRequirement || "\u2014")}</td></tr>
+    <tr><td style="font-weight:bold;">Quality Benchmark</td><td>${dynamicText(materials.qualityBenchmark || "\u2014")}</td></tr>
+    <tr><td style="font-weight:bold;">Sustainability</td><td>${dynamicText(materials.sustainabilityMandate || "\u2014")}</td></tr>
   </table>
   
   <h3>Approved Materials (Primary)</h3>
-  <ul class="brief-list">${(materials.approvedMaterials || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.approvedMaterials || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
   
   <h3>Approved Finishes &amp; Textures</h3>
-  <ul class="brief-list">${(materials.finishesAndTextures || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.finishesAndTextures || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
   
   <h3 style="color: #c62828;">Prohibited Materials (Value Engineering Flags)</h3>
-  <ul class="brief-list">${(materials.prohibitedMaterials || []).map((m) => `<li><span style="color: #c62828;">${m}</span></li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.prohibitedMaterials || []).map((m) => `<li><span style="color: #c62828;">${dynamicText(m)}</span></li>`).join("")}</ul>
 </div>
 
 <div class="section">
@@ -16097,91 +16732,91 @@ ${toc}
   <h2 id="sec-budget">Detailed Budget Guardrails</h2>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
-    <tr><td style="font-weight:bold;">Cost Per Sqm Target</td><td>${budget.costPerSqmTarget || "\u2014"}</td></tr>
-    <tr><td style="font-weight:bold;">Total Budget Cap</td><td>${budget.totalBudgetCap || "\u2014"}</td></tr>
-    <tr><td style="font-weight:bold;">Cost Band</td><td>${budget.costBand || "\u2014"}</td></tr>
-    <tr><td style="font-weight:bold;">Contingency</td><td>${budget.contingencyRecommendation || "\u2014"}</td></tr>
-    <tr><td style="font-weight:bold;">Flexibility Level</td><td>${budget.flexibilityLevel || "\u2014"}</td></tr>
+    <tr><td style="font-weight:bold;">Cost Per Sqm Target</td><td>${dynamicText(budget.costPerSqmTarget || "\u2014")}</td></tr>
+    <tr><td style="font-weight:bold;">Total Budget Cap</td><td>${dynamicText(budget.totalBudgetCap || "\u2014")}</td></tr>
+    <tr><td style="font-weight:bold;">Cost Band</td><td>${dynamicText(budget.costBand || "\u2014")}</td></tr>
+    <tr><td style="font-weight:bold;">Contingency</td><td>${dynamicText(budget.contingencyRecommendation || "\u2014")}</td></tr>
+    <tr><td style="font-weight:bold;">Flexibility Level</td><td>${dynamicText(budget.flexibilityLevel || "\u2014")}</td></tr>
   </table>
   
   <h3>Value Engineering Directives</h3>
-  <ul class="brief-list">${(budget.valueEngineeringMandates || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(budget.valueEngineeringMandates || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
 
 <div class="section">
   <h2 id="sec-workflow">Workflow &amp; Execution Instructions</h2>
-  <p><strong>Lead Time Window:</strong> ${(instructions.procurementAndLogistics || {}).leadTimeWindow || "\u2014"}</p>
+  <p><strong>Lead Time Window:</strong> ${dynamicText((instructions.procurementAndLogistics || {}).leadTimeWindow || "\u2014")}</p>
   
   <h3>Critical Path Procurement Items</h3>
-  <ul class="brief-list">${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
   
   <h3>Local Authority Approvals (Dubai)</h3>
-  <ul class="brief-list">${(instructions.authorityApprovals || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.authorityApprovals || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
   
   <h3>Contractor Coordination Requirements</h3>
-  <ul class="brief-list">${(instructions.coordinationRequirements || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.coordinationRequirements || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
 
 <div class="section">
   <h2 id="sec-deliverables">Phased Deliverables</h2>
   <h4 class="phase-header">Phase 1 \u2014 Concept &amp; Schematic</h4>
-  <ul class="brief-list">${(instructions.phasedDeliverables.conceptDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.phasedDeliverables.conceptDesign || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 
   <h4 class="phase-header">Phase 2 \u2014 Detailed Design</h4>
-  <ul class="brief-list">${(instructions.phasedDeliverables.schematicDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.phasedDeliverables.schematicDesign || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 
   <h4 class="phase-header">Phase 3 \u2014 IFC &amp; Tender</h4>
-  <ul class="brief-list">${(instructions.phasedDeliverables.detailedDesign || []).map((m) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.phasedDeliverables.detailedDesign || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
 `;
 }
 function generateDesignBriefHTML(data) {
-  const watermark = generateWatermark(data.projectId, "design_brief");
-  return [
-    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, watermark),
+  const context = resolveReportContext("design_brief", data);
+  return finalizeReportHtml([
+    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, context),
     `<div class="content-wrapper">`,
     renderDesignBrief(data.designBrief),
-    renderBoardAnnex(data.boardAnnex),
-    renderEvidenceReferences(data.evidenceRefs),
-    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
+    renderBoardAnnex(data.boardAnnex, context.locale),
+    renderEvidenceReferences(data.evidenceRefs, context.locale),
+    renderEvidenceTrace(data.projectId, context),
     `</div>`,
-    htmlFooter(data.projectId, "design_brief", watermark, data.benchmarkVersion, data.logicVersion)
-  ].join("");
+    htmlFooter(context)
+  ].join(""), context);
 }
 function generateFullReportHTML(data) {
-  const watermark = generateWatermark(data.projectId, "full_report");
+  const context = resolveReportContext("full_report", data);
   const sections = [
-    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, watermark),
+    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, context),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderVariableContributions(data.scoreResult.variableContributions),
-    renderSensitivity(data.sensitivity),
+    renderSensitivity(data.sensitivity, context.locale),
     renderRiskAssessment(data.scoreResult),
-    renderConditionalActions(data.scoreResult)
+    renderConditionalActions(data.scoreResult, context.locale)
   ];
   if (data.fiveLens) {
     sections.push(renderFiveLens(data.fiveLens));
   }
   if (data.roiNarrative) {
-    sections.push(renderROINarrative(data.roiNarrative));
+    sections.push(renderROINarrative(data.roiNarrative, context.locale));
   } else if (data.roi) {
-    sections.push(renderROI(data.roi));
+    sections.push(renderROI(data.roi, context.locale));
   }
-  sections.push(renderBoardAnnex(data.boardAnnex));
-  sections.push(renderEvidenceReferences(data.evidenceRefs));
-  sections.push(renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion));
+  sections.push(renderBoardAnnex(data.boardAnnex, context.locale));
+  sections.push(renderEvidenceReferences(data.evidenceRefs, context.locale));
+  sections.push(renderEvidenceTrace(data.projectId, context));
   sections.push(renderInputSummary(data.inputs));
-  sections.push(htmlFooter(data.projectId, "full_report", watermark, data.benchmarkVersion, data.logicVersion));
-  return sections.join("\n");
+  sections.push(htmlFooter(context));
+  return finalizeReportHtml(sections.join("\n"), context);
 }
 function renderScenarioComparisonTable(data) {
   const dims = ["sa", "ff", "mp", "ds", "er"];
   const baseScores = data.baselineScenario.scores ?? {};
   const headerCols = [
     `<th>Dimension</th>`,
-    `<th style="text-align:center;">Baseline<br><span style="font-size:8px;font-weight:400;">${data.baselineScenario.name}</span></th>`,
+    `<th style="text-align:center;">Baseline<br><span style="font-size:8px;font-weight:400;">${dynamicText(data.baselineScenario.name)}</span></th>`,
     ...data.comparedScenarios.map(
-      (s, i) => `<th style="text-align:center;">Scenario ${String.fromCharCode(65 + i)}<br><span style="font-size:8px;font-weight:400;">${s.name}</span></th>`
+      (s, i) => `<th style="text-align:center;">Scenario ${String.fromCharCode(65 + i)}<br><span style="font-size:8px;font-weight:400;">${dynamicText(s.name)}</span></th>`
     )
   ].join("");
   const rows = dims.map((d) => {
@@ -16256,19 +16891,19 @@ function renderROIComparison(data) {
 </div>
 `;
 }
-function renderTradeoffAnalysis(data) {
+function renderTradeoffAnalysis(data, locale) {
   const analyses = data.comparedScenarios.map((s, i) => {
     const deltas = s.deltas ?? {};
     const positives = Object.entries(deltas).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
     const negatives = Object.entries(deltas).filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1]);
     const posItems = positives.slice(0, 3).map(
-      ([k, v]) => `<div class="action-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: +${v.toFixed(1)} points</div>`
+      ([k, v]) => `<div class="action-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: +${v.toFixed(1)} ${reportCopy(locale, "scenarioPoints")}</div>`
     ).join("");
     const negItems = negatives.slice(0, 3).map(
-      ([k, v]) => `<div class="penalty-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: ${v.toFixed(1)} points</div>`
+      ([k, v]) => `<div class="penalty-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: ${v.toFixed(1)} ${reportCopy(locale, "scenarioPoints")}</div>`
     ).join("");
     return `
-    <h3>Scenario ${String.fromCharCode(65 + i)}: ${s.name}</h3>
+    <h3>Scenario ${String.fromCharCode(65 + i)}: ${dynamicText(s.name)}</h3>
     ${positives.length > 0 ? `<p><strong>Improvements vs Baseline:</strong></p>${posItems}` : "<p>No improvements over baseline.</p>"}
     ${negatives.length > 0 ? `<p><strong>Trade-offs vs Baseline:</strong></p>${negItems}` : "<p>No trade-offs identified.</p>"}
     `;
@@ -16277,20 +16912,20 @@ function renderTradeoffAnalysis(data) {
 <div class="section">
   <h2>Trade-off Analysis</h2>
   ${analyses}
-  ${data.decisionNote ? `<h3>Decision Note</h3><p>${data.decisionNote}</p>` : ""}
+  ${data.decisionNote ? `<h3>Decision Note</h3><p>${dynamicText(data.decisionNote)}</p>` : ""}
 </div>
 `;
 }
 function generateScenarioComparisonHTML(data) {
-  const watermark = generateWatermark(data.projectId, "scenario_comparison");
-  return [
-    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, watermark),
+  const context = resolveReportContext("scenario_comparison", data);
+  return finalizeReportHtml([
+    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, context),
     renderScenarioComparisonTable(data),
     renderROIComparison(data),
-    renderTradeoffAnalysis(data),
-    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
-    htmlFooter(data.projectId, "scenario_comparison", watermark, data.benchmarkVersion, data.logicVersion)
-  ].join("\n");
+    renderTradeoffAnalysis(data, context.locale),
+    renderEvidenceTrace(data.projectId, context),
+    htmlFooter(context)
+  ].join("\n"), context);
 }
 function requireBoardAnnex(data) {
   if (!data.boardAnnex) {
@@ -16313,16 +16948,18 @@ function generateReportHTML(reportType, data) {
   }
 }
 function generatePortfolioReportHTML(data) {
-  const watermark = `MYR-PFL-${data.portfolioId}-${Date.now().toString(36)}`;
+  const context = resolveReportContext("portfolio", data);
+  const metadata = reportDocumentMetadata(context.locale);
   const cover = `
 <!DOCTYPE html>
-<html>
+<html lang="${metadata.lang}" dir="${metadata.dir}">
 <head>
 <meta charset="utf-8">
 <style>
+  ${reportLocaleCss(context.locale)}
   @page { size: A4; margin: 20mm 15mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.6; font-size: 11px; }
+  body { color: #1a1a2e; line-height: 1.6; font-size: 11px; overflow-wrap: anywhere; }
   .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 80vh; text-align: center; }
   .cover .logo { font-size: 36px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 32px; }
   .cover h1 { font-size: 28px; color: #0f3460; margin-bottom: 8px; }
@@ -16342,9 +16979,9 @@ function generatePortfolioReportHTML(data) {
   .metric-card .label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
   .metric-card .value { font-size: 22px; font-weight: 700; color: #0f3460; margin: 4px 0; }
   .section { page-break-inside: avoid; margin-bottom: 20px; }
-  .risk-flag { background: #fff3cd; border-left: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
-  .action-item { background: #e8f5e9; border-left: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
-  .penalty-item { background: #fce4ec; border-left: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .risk-flag { background: #fff3cd; border-inline-start: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .action-item { background: #e8f5e9; border-inline-start: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .penalty-item { background: #fce4ec; border-inline-start: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
   .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
   .status-go { color: #2e7d32; font-weight: 700; }
   .status-conditional { color: #f57f17; font-weight: 700; }
@@ -16356,30 +16993,31 @@ function generatePortfolioReportHTML(data) {
   <div class="logo">MIYAR</div>
   <h1>Portfolio Analysis Report</h1>
   <h2>Multi-Project Decision Intelligence Summary</h2>
-  <div class="project">${data.portfolioName}</div>
-  <div class="date">${formatDate()}</div>
-  <div class="confidential">Confidential \u2014 For Internal Use Only</div>
+  <div class="project">${dynamicText(data.portfolioName)}</div>
+  <div class="date">${formatReportDate(context.generatedAt, context.locale)}</div>
+  <div class="confidential">${reportCopy(context.locale, "confidentialInternalOnly")}</div>
+  <div class="watermark">${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}</div>
 </div>
 `;
   const summary = `
 <div class="section">
   <h2>Portfolio Executive Summary</h2>
-  ${data.description ? `<p>${data.description}</p>` : ""}
+  ${data.description ? `<p>${dynamicText(data.description)}</p>` : ""}
   <div class="metric-grid">
     <div class="metric-card">
-      <div class="label">Total Projects</div>
+      <div class="label">${reportCopy(context.locale, "portfolioTotalProjects")}</div>
       <div class="value">${data.totalProjects}</div>
     </div>
     <div class="metric-card">
-      <div class="label">Scored</div>
+      <div class="label">${reportCopy(context.locale, "portfolioScored")}</div>
       <div class="value">${data.scoredCount}</div>
     </div>
     <div class="metric-card">
-      <div class="label">Avg Composite</div>
+      <div class="label">${reportCopy(context.locale, "portfolioAverageComposite")}</div>
       <div class="value" style="color: ${data.avgComposite >= 75 ? "#4ecdc4" : data.avgComposite >= 55 ? "#f0c674" : "#e07a5f"};">${data.avgComposite}</div>
     </div>
     <div class="metric-card">
-      <div class="label">Avg Risk</div>
+      <div class="label">${reportCopy(context.locale, "portfolioAverageRisk")}</div>
       <div class="value" style="color: ${data.avgRisk <= 45 ? "#4ecdc4" : data.avgRisk <= 60 ? "#f0c674" : "#e07a5f"};">${data.avgRisk}</div>
     </div>
   </div>
@@ -16388,12 +17026,12 @@ function generatePortfolioReportHTML(data) {
   const projectRows = data.projects.map((p) => {
     const statusClass = p.decisionStatus === "GO" ? "status-go" : p.decisionStatus === "CONDITIONAL_GO" ? "status-conditional" : p.decisionStatus === "NO_GO" ? "status-nogo" : "";
     return `<tr>
-      <td>${p.name}</td>
-      <td>${p.tier || "\u2014"}</td>
-      <td>${p.style || "\u2014"}</td>
+      <td>${dynamicText(p.name)}</td>
+      <td>${p.tier ? dynamicText(p.tier) : "\u2014"}</td>
+      <td>${p.style ? dynamicText(p.style) : "\u2014"}</td>
       <td style="text-align:center; font-weight:700; color: ${(p.compositeScore || 0) >= 75 ? "#4ecdc4" : (p.compositeScore || 0) >= 55 ? "#f0c674" : "#e07a5f"};">${p.compositeScore ?? "N/A"}</td>
       <td style="text-align:center;">${p.riskScore ?? "N/A"}</td>
-      <td style="text-align:center;" class="${statusClass}">${(p.decisionStatus || "\u2014").replace(/_/g, " ")}</td>
+      <td style="text-align:center;" class="${statusClass}">${p.decisionStatus?.toLowerCase() === "conditional" ? reportCopy(context.locale, "portfolioConditional") : dynamicText((p.decisionStatus || "\u2014").replace(/_/g, " "))}</td>
     </tr>`;
   }).join("");
   const projectTable = `
@@ -16408,8 +17046,8 @@ function generatePortfolioReportHTML(data) {
   let distSection = "";
   if (data.distributions.length > 0) {
     const distTables = data.distributions.map((dist) => {
-      const rows = dist.buckets.filter((b) => b.count > 0).map((b) => `<tr><td>${b.label}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`).join("");
-      return `<h3>${dist.dimension}</h3><table><tr><th>Group</th><th>Count</th><th>Avg Score</th></tr>${rows}</table>`;
+      const rows = dist.buckets.filter((b) => b.count > 0).map((b) => `<tr><td>${dynamicText(b.label)}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`).join("");
+      return `<h3>${dynamicText(dist.dimension)}</h3><table><tr><th>Group</th><th>Count</th><th>Avg Score</th></tr>${rows}</table>`;
     }).join("");
     distSection = `<div class="section"><h2>Score Distributions by Dimension</h2>${distTables}</div>`;
   }
@@ -16417,14 +17055,14 @@ function generatePortfolioReportHTML(data) {
   if (data.failurePatterns.length > 0) {
     const fpItems = data.failurePatterns.map((fp) => {
       const css = fp.severity === "high" ? "penalty-item" : fp.severity === "medium" ? "risk-flag" : "action-item";
-      return `<div class="${css}"><strong>${fp.pattern}</strong> (${fp.severity}, ${fp.frequency} project(s))<br>${fp.description}</div>`;
+      return `<div class="${css}"><strong>${dynamicText(fp.pattern)}</strong> (${dynamicText(fp.severity)}, ${fp.frequency} project(s))<br>${dynamicText(fp.description)}</div>`;
     }).join("");
     fpSection = `<div class="section"><h2>Failure Patterns</h2>${fpItems}</div>`;
   }
   let leverSection = "";
   if (data.improvementLevers.length > 0) {
     const leverRows = data.improvementLevers.map(
-      (l) => `<tr><td style="text-align:center; font-weight:700;">${l.rank}</td><td>${l.lever}</td><td>${l.description}</td><td style="text-align:center; color: ${l.estimatedImpact === "High" ? "#4ecdc4" : l.estimatedImpact === "Medium" ? "#f0c674" : "#666"}; font-weight:700;">${l.estimatedImpact}</td></tr>`
+      (l) => `<tr><td style="text-align:center; font-weight:700;">${l.rank}</td><td>${dynamicText(l.lever)}</td><td>${dynamicText(l.description)}</td><td style="text-align:center; color: ${l.estimatedImpact === "High" ? "#4ecdc4" : l.estimatedImpact === "Medium" ? "#f0c674" : "#666"}; font-weight:700;">${dynamicText(l.estimatedImpact)}</td></tr>`
     ).join("");
     leverSection = `<div class="section"><h2>Improvement Levers</h2><table><tr><th>#</th><th>Lever</th><th>Description</th><th>Impact</th></tr>${leverRows}</table></div>`;
   }
@@ -16441,19 +17079,30 @@ function generatePortfolioReportHTML(data) {
         const textColor = cell.avg >= 75 ? "#2e7d32" : cell.avg >= 55 ? "#f57f17" : "#c62828";
         return `<td style="text-align:center; background:${color}; color:${textColor}; font-weight:700;">${cell.avg} <span style="font-size:8px; font-weight:400;">(${cell.count})</span></td>`;
       }).join("");
-      return `<tr><td style="font-weight:700;">${row.tier}</td>${cells}</tr>`;
+      return `<tr><td style="font-weight:700;">${dynamicText(row.tier)}</td>${cells}</tr>`;
     }).join("");
     heatmapSection = `<div class="section"><h2>Compliance Heatmap (Tier \xD7 Dimension)</h2><table><tr><th>Tier</th>${headerCols}</tr>${heatRows}</table></div>`;
   }
   const footer = `
 <div class="footer">
-  <p>Generated by MIYAR Decision Intelligence \u2022 ${formatDate()} \u2022 Document ID: ${watermark}</p>
-  <p>Portfolio ID: ${data.portfolioId} \u2022 Model Version: v2.0.0 \u2022 ${data.totalProjects} projects analyzed</p>
+  <p>${reportCopy(context.locale, "portfolioGeneratedBy")} \u2022 ${formatReportDate(context.generatedAt, context.locale)} \u2022 ${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}</p>
+  <p>${reportCopy(context.locale, "portfolioId")}: ${data.portfolioId} \u2022 ${reportCopy(context.locale, "modelVersion")}: ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))} \u2022 ${data.totalProjects} ${reportCopy(context.locale, "portfolioProjectsAnalyzed")}</p>
+  <p>${reportCopy(context.locale, "renderInputFingerprint")}: ${escapeReportText(context.renderInputFingerprint)}</p>
 </div>
 </body>
 </html>
 `;
-  return [cover, summary, projectTable, distSection, heatmapSection, fpSection, leverSection, footer].join("\n");
+  return finalizeReportHtml([
+    cover,
+    summary,
+    projectTable,
+    distSection,
+    heatmapSection,
+    fpSection,
+    leverSection,
+    renderDisclaimer(context.locale),
+    footer
+  ].join("\n"), context);
 }
 
 // server/engines/board-composer.ts
@@ -17730,10 +18379,10 @@ function solveConstraints(baseProject, constraints) {
         satisfied++;
       }
     }
-    const pct = constraints.length > 0 ? satisfied / constraints.length * 100 : 100;
+    const pct2 = constraints.length > 0 ? satisfied / constraints.length * 100 : 100;
     let impact = "neutral";
-    if (pct >= 80) impact = "positive \u2014 meets most constraints";
-    else if (pct >= 50) impact = "mixed \u2014 partial constraint satisfaction";
+    if (pct2 >= 80) impact = "positive \u2014 meets most constraints";
+    else if (pct2 >= 50) impact = "mixed \u2014 partial constraint satisfaction";
     else impact = "negative \u2014 significant constraint violations";
     results.push({
       name: template.name,
@@ -18178,7 +18827,7 @@ init_db();
 init_llm();
 init_schema();
 import { eq as eq3, desc as desc2 } from "drizzle-orm";
-async function generateAutonomousDesignBrief(projectId) {
+async function generateAutonomousDesignBrief(projectId, locale = "en") {
   const db = await getDb();
   if (!db) throw new Error("Database not connected");
   const [project] = await db.select().from(projects).where(eq3(projects.id, projectId));
@@ -18197,6 +18846,7 @@ The output MUST be presented in well - structured Markdown, containing:
 5. 5 - Lens Assessment(if scores are available)
 
 Make the tone professional, persuasive, and highly analytical.
+Write the narrative in ${locale === "ar" ? "Modern Standard Arabic" : "English"}. Preserve MIYAR branding and all numeric values exactly.
 
 Project Context:
 - Name: ${project.name}
@@ -18266,7 +18916,7 @@ init_ai_operation();
 
 // server/_core/media-validation.ts
 init_ai_operation();
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 import sharp from "sharp";
 var MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 var MAX_IMAGE_PIXELS = 4e7;
@@ -18359,7 +19009,7 @@ async function validateMediaBuffer(buffer, declaredMimeType, operation) {
     mimeType,
     kind,
     sizeBytes: buffer.length,
-    checksum: createHash2("sha256").update(buffer).digest("hex")
+    checksum: createHash3("sha256").update(buffer).digest("hex")
   };
 }
 function mediaTypeFromMime(mimeType) {
@@ -19114,7 +19764,8 @@ var projectRouter = router({
   // ─── V2: Enhanced Report Generation ───────────────────────────────
   generateReport: orgHeavyMutationProcedure.input(z5.object({
     projectId: z5.number(),
-    reportType: z5.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"])
+    reportType: z5.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"]),
+    locale: z5.enum(["en", "ar"]).default("en")
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const requiresBoardAnnex = input.reportType === "design_brief" || input.reportType === "full_report";
@@ -19294,7 +19945,7 @@ var projectRouter = router({
       };
       reportData = generateDesignBrief(project.name, project.id, inputs, scoreResult, sensitivity);
     } else if (input.reportType === "autonomous_design_brief") {
-      const mdContent = await generateAutonomousDesignBrief(project.id);
+      const mdContent = await generateAutonomousDesignBrief(project.id, input.locale);
       reportData = {
         reportType: "autonomous_design_brief",
         generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -19338,6 +19989,8 @@ var projectRouter = router({
       roiNarrative: roiResult,
       benchmarkVersion: benchmarkVersionTag,
       logicVersion: logicVersionTag,
+      modelVersion: modelVersion.versionTag,
+      locale: input.locale,
       evidenceRefs,
       boardAnnex,
       autonomousContent: input.reportType === "autonomous_design_brief" ? reportData.content : void 0,
@@ -19349,7 +20002,7 @@ var projectRouter = router({
     try {
       const fileKey = `reports/${project.id}/${input.reportType}-${nanoid3(8)}.html`;
       const result = await storagePut(fileKey, html, "text/html");
-      storageKey = result.key;
+      storageKey = result.persistent ? result.key : null;
       fileUrl = result.url;
     } catch (e) {
       console.warn("[Report] S3 upload failed, storing HTML content inline:", e);
@@ -19363,10 +20016,14 @@ var projectRouter = router({
           projectId: input.projectId,
           scoreMatrixId: latest.id,
           reportType: input.reportType,
-          fileUrl,
-          content: fileUrl ? reportData : { ...reportData, html },
+          // New persistent objects are re-signed after tenant authorization.
+          // Legacy URLs and local data URLs remain read-only fallbacks.
+          fileUrl: storageKey ? null : fileUrl,
+          storageKey,
+          content: storageKey ? { ...reportData, locale: input.locale } : { ...reportData, locale: input.locale, html },
           generatedBy: ctx.user.id,
-          benchmarkVersionId: activeBV?.id ?? null
+          benchmarkVersionId: activeBV?.id ?? null,
+          modelVersionId: modelVersion.id
         },
         designArtifacts
       });
@@ -19386,19 +20043,20 @@ var projectRouter = router({
       action: "report.generate",
       entityType: "report",
       entityId: input.projectId,
-      details: { reportType: input.reportType, fileUrl },
+      details: { reportType: input.reportType, stored: Boolean(storageKey || fileUrl) },
       benchmarkVersionId: activeBV?.id
     });
     dispatchWebhook("report.generated", {
       projectId: input.projectId,
       name: project.name,
       reportType: input.reportType,
-      fileUrl,
+      stored: Boolean(storageKey || fileUrl),
       compositeScore: scoreResult.compositeScore
     }).catch(() => {
     });
     return {
       ...reportData,
+      locale: input.locale,
       fileUrl,
       fiveLens: input.reportType === "full_report" ? fiveLens : void 0,
       roiNarrative: input.reportType === "full_report" ? roiResult : void 0
@@ -19406,7 +20064,21 @@ var projectRouter = router({
   }),
   listReports: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
-    return getReportsByProject(input.projectId);
+    const reports = await getReportsByProject(input.projectId);
+    return Promise.all(reports.map(async (report) => {
+      const { storageKey, ...publicReport } = report;
+      if (!storageKey) return publicReport;
+      try {
+        const signed = await storageGet(storageKey);
+        return { ...publicReport, fileUrl: signed.url };
+      } catch (error) {
+        console.warn("[Report] Failed to refresh stored report URL", {
+          reportId: report.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return publicReport;
+      }
+    }));
   }),
   // ─── V4: Area Verification Gate ───────────────────────────────────────────
   extractAreas: orgHeavyMutationProcedure.input(z5.object({
@@ -21898,6 +22570,8 @@ async function generateImage(options) {
 }
 
 // server/engines/docx-brief.ts
+init_report_catalog();
+init_report_render_context();
 import {
   Document,
   Paragraph,
@@ -21914,36 +22588,115 @@ import {
   Footer,
   PageNumber
 } from "docx";
-function heading(text2, level = HeadingLevel.HEADING_1) {
-  return new Paragraph({ heading: level, children: [new TextRun({ text: text2, bold: true })] });
+var DOCX_AR_COPY = {
+  "MIYAR Design Instruction Brief": "\u0645\u0648\u062C\u0632 \u062A\u0639\u0644\u064A\u0645\u0627\u062A \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0645\u0646 MIYAR",
+  "Project Identity": "\u0647\u0648\u064A\u0629 \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+  "Design Narrative": "\u0627\u0644\u0633\u0631\u062F \u0627\u0644\u062A\u0635\u0645\u064A\u0645\u064A",
+  "Material Specifications": "\u0645\u0648\u0627\u0635\u0641\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
+  "Target BOQ Framework": "\u0625\u0637\u0627\u0631 \u062C\u062F\u0648\u0644 \u0627\u0644\u0643\u0645\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u062A\u0647\u062F\u0641",
+  "Detailed Budget Guardrails": "\u0636\u0648\u0627\u0628\u0637 \u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629 \u0627\u0644\u062A\u0641\u0635\u064A\u0644\u064A\u0629",
+  "Space Allocation Analysis": "\u062A\u062D\u0644\u064A\u0644 \u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A",
+  "Workflow & Execution Instructions": "\u062A\u0639\u0644\u064A\u0645\u0627\u062A \u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u0627\u0644\u062A\u0646\u0641\u064A\u0630",
+  "Phased Deliverables": "\u0627\u0644\u0645\u062E\u0631\u062C\u0627\u062A \u0627\u0644\u0645\u0631\u062D\u0644\u064A\u0629",
+  "Project Name": "\u0627\u0633\u0645 \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+  Typology: "\u0646\u0648\u0639 \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+  Scale: "\u0627\u0644\u062D\u062C\u0645",
+  GFA: "\u0627\u0644\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u0629",
+  Location: "\u0627\u0644\u0645\u0648\u0642\u0639",
+  "Delivery Horizon": "\u0623\u0641\u0642 \u0627\u0644\u062A\u0633\u0644\u064A\u0645",
+  "Market Tier": "\u0627\u0644\u0634\u0631\u064A\u062D\u0629 \u0627\u0644\u0633\u0648\u0642\u064A\u0629",
+  "Design Style": "\u0623\u0633\u0644\u0648\u0628 \u0627\u0644\u062A\u0635\u0645\u064A\u0645",
+  "Primary Style": "\u0627\u0644\u0623\u0633\u0644\u0648\u0628 \u0627\u0644\u0623\u0633\u0627\u0633\u064A",
+  "Mood Keywords": "\u0643\u0644\u0645\u0627\u062A \u0627\u0644\u0623\u062C\u0648\u0627\u0621",
+  "Color Palette": "\u0644\u0648\u062D\u0629 \u0627\u0644\u0623\u0644\u0648\u0627\u0646",
+  "Texture Direction": "\u062A\u0648\u062C\u0647 \u0627\u0644\u0645\u0644\u0645\u0633",
+  "Lighting Approach": "\u0646\u0647\u062C \u0627\u0644\u0625\u0636\u0627\u0621\u0629",
+  "Spatial Philosophy": "\u0627\u0644\u0641\u0644\u0633\u0641\u0629 \u0627\u0644\u0645\u0643\u0627\u0646\u064A\u0629",
+  "Target Tier Requirement": "\u0645\u062A\u0637\u0644\u0628 \u0627\u0644\u0634\u0631\u064A\u062D\u0629 \u0627\u0644\u0645\u0633\u062A\u0647\u062F\u0641\u0629",
+  "Quality Benchmark": "\u0645\u0639\u064A\u0627\u0631 \u0627\u0644\u062C\u0648\u062F\u0629",
+  "Sustainability Mandate": "\u0645\u062A\u0637\u0644\u0628 \u0627\u0644\u0627\u0633\u062A\u062F\u0627\u0645\u0629",
+  "Total Estimated Project Area": "\u0625\u062C\u0645\u0627\u0644\u064A \u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u0642\u062F\u064A\u0631\u064A\u0629",
+  "Cost Per Sqm Target": "\u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0645\u0633\u062A\u0647\u062F\u0641\u0629 \u0644\u0643\u0644 \u0645\xB2",
+  "Total Budget Cap": "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0639\u0644\u0649 \u0644\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629",
+  "Cost Band": "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+  "Contingency Recommendation": "\u062A\u0648\u0635\u064A\u0629 \u0627\u0644\u0627\u062D\u062A\u064A\u0627\u0637\u064A",
+  "Budget Flexibility Level": "\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u0648\u0646\u0629 \u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629",
+  "Lead Time Window": "\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0647\u0644\u0629 \u0627\u0644\u0632\u0645\u0646\u064A\u0629",
+  Parameter: "\u0627\u0644\u0645\u0639\u064A\u0627\u0631",
+  Value: "\u0627\u0644\u0642\u064A\u0645\u0629",
+  Category: "\u0627\u0644\u0641\u0626\u0629",
+  Allocation: "\u0627\u0644\u062A\u062E\u0635\u064A\u0635",
+  "Estimated Budget": "\u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629 \u0627\u0644\u062A\u0642\u062F\u064A\u0631\u064A\u0629",
+  Notes: "\u0645\u0644\u0627\u062D\u0638\u0627\u062A",
+  "Overall Efficiency Score": "\u062F\u0631\u062C\u0629 \u0627\u0644\u0643\u0641\u0627\u0621\u0629 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u0629",
+  "Total Analysed Area": "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0645\u062D\u0644\u0644\u0629",
+  "Room Count": "\u0639\u062F\u062F \u0627\u0644\u063A\u0631\u0641",
+  "Circulation Percentage": "\u0646\u0633\u0628\u0629 \u0627\u0644\u062D\u0631\u0643\u0629",
+  "No positioning statement generated.": "\u0644\u0645 \u064A\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0628\u064A\u0627\u0646 \u0644\u0644\u062A\u0645\u0648\u0636\u0639.",
+  "No BOQ framework generated.": "\u0644\u0645 \u064A\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0625\u0637\u0627\u0631 \u0644\u062C\u062F\u0648\u0644 \u0627\u0644\u0643\u0645\u064A\u0627\u062A.",
+  "Approved Materials (Primary):": "\u0627\u0644\u0645\u0648\u0627\u062F \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629 (\u0627\u0644\u0623\u0633\u0627\u0633\u064A\u0629):",
+  "Approved Finishes & Textures:": "\u0627\u0644\u062A\u0634\u0637\u064A\u0628\u0627\u062A \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629:",
+  "Prohibited Materials (Value Engineering Flags):": "\u0627\u0644\u0645\u0648\u0627\u062F \u0627\u0644\u0645\u062D\u0638\u0648\u0631\u0629 (\u062A\u0646\u0628\u064A\u0647\u0627\u062A \u0647\u0646\u062F\u0633\u0629 \u0627\u0644\u0642\u064A\u0645\u0629):",
+  "Indicative Budget Allocations per Category:": "\u062A\u0648\u0632\u064A\u0639\u0627\u062A \u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629 \u0627\u0644\u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A\u0629 \u062D\u0633\u0628 \u0627\u0644\u0641\u0626\u0629:",
+  "Value Engineering Directives:": "\u062A\u0648\u062C\u064A\u0647\u0627\u062A \u0647\u0646\u062F\u0633\u0629 \u0627\u0644\u0642\u064A\u0645\u0629:",
+  "Document ID": "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0645\u0633\u062A\u0646\u062F",
+  "Page": "\u0627\u0644\u0635\u0641\u062D\u0629",
+  Version: "\u0627\u0644\u0625\u0635\u062F\u0627\u0631",
+  "MIYAR Interior Design Instruction": "\u062A\u0639\u0644\u064A\u0645\u0627\u062A \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062F\u0627\u062E\u0644\u064A \u0645\u0646 MIYAR",
+  "Room Breakdown:": "\u062A\u0641\u0635\u064A\u0644 \u0627\u0644\u063A\u0631\u0641:",
+  "DLD-Backed Recommendations:": "\u062A\u0648\u0635\u064A\u0627\u062A \u0645\u062F\u0639\u0648\u0645\u0629 \u0628\u0628\u064A\u0627\u0646\u0627\u062A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0623\u0631\u0627\u0636\u064A:",
+  Room: "\u0627\u0644\u063A\u0631\u0641\u0629",
+  "Area (sqft)": "\u0627\u0644\u0645\u0633\u0627\u062D\u0629 (\u0642\u062F\u0645\xB2)",
+  "% of Total": "% \u0645\u0646 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A",
+  Grade: "\u0627\u0644\u062F\u0631\u062C\u0629",
+  "Critical Path Procurement Items:": "\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0634\u0631\u0627\u0621 \u0639\u0644\u0649 \u0627\u0644\u0645\u0633\u0627\u0631 \u0627\u0644\u062D\u0631\u062C:",
+  "Import Logistics Dependencies:": "\u0627\u0639\u062A\u0645\u0627\u062F\u064A\u0627\u062A \u0644\u0648\u062C\u0633\u062A\u064A\u0627\u062A \u0627\u0644\u0627\u0633\u062A\u064A\u0631\u0627\u062F:",
+  "Local Authority Approvals (Dubai):": "\u0627\u0639\u062A\u0645\u0627\u062F\u0627\u062A \u0627\u0644\u062C\u0647\u0627\u062A \u0627\u0644\u0645\u062D\u0644\u064A\u0629 (\u062F\u0628\u064A):",
+  "Contractor Coordination Requirements:": "\u0645\u062A\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u062A\u0646\u0633\u064A\u0642 \u0645\u0639 \u0627\u0644\u0645\u0642\u0627\u0648\u0644:",
+  "Phase 1 \u2014 Concept & Schematic": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 1 \u2014 \u0627\u0644\u0645\u0641\u0647\u0648\u0645 \u0648\u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062A\u062E\u0637\u064A\u0637\u064A",
+  "Phase 2 \u2014 Detailed Design": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 2 \u2014 \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062A\u0641\u0635\u064A\u0644\u064A",
+  "Phase 3 \u2014 IFC & Tender": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 3 \u2014 \u0645\u062E\u0637\u0637\u0627\u062A \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0648\u0627\u0644\u0645\u0646\u0627\u0642\u0635\u0629"
+};
+function docxFixed(text4, rtl) {
+  if (!rtl) return text4;
+  const numbered = /^(\d+\.\s+)(.+)$/.exec(text4);
+  if (numbered) return `${numbered[1]}${DOCX_AR_COPY[numbered[2]] ?? numbered[2]}`;
+  return DOCX_AR_COPY[text4] ?? text4;
 }
-function bodyText(text2) {
+function heading(text4, level = HeadingLevel.HEADING_1, rtl = false) {
+  return new Paragraph({ heading: level, bidirectional: rtl, children: [new TextRun({ text: docxFixed(text4, rtl), bold: true, rightToLeft: rtl })] });
+}
+function bodyText(text4, rtl = false) {
   return new Paragraph({
+    bidirectional: rtl,
     spacing: { after: 120 },
-    children: [new TextRun({ text: text2, size: 22 })]
+    children: [new TextRun({ text: docxFixed(text4, rtl), size: 22, rightToLeft: rtl })]
   });
 }
-function bulletItem(text2) {
+function bulletItem(text4, rtl = false) {
   return new Paragraph({
+    bidirectional: rtl,
     bullet: { level: 0 },
     spacing: { after: 60 },
-    children: [new TextRun({ text: text2, size: 22 })]
+    children: [new TextRun({ text: text4, size: 22, rightToLeft: rtl })]
   });
 }
-function labelValue(label, value) {
+function labelValue(label, value, rtl = false) {
   return new Paragraph({
+    bidirectional: rtl,
     spacing: { after: 80 },
     children: [
-      new TextRun({ text: `${label}: `, bold: true, size: 22 }),
-      new TextRun({ text: value, size: 22 })
+      new TextRun({ text: `${docxFixed(label, rtl)}: `, bold: true, size: 22, rightToLeft: rtl }),
+      new TextRun({ text: value, size: 22, rightToLeft: rtl })
     ]
   });
 }
-function spacer() {
-  return new Paragraph({ spacing: { after: 200 }, children: [] });
+function spacer(rtl = false) {
+  return new Paragraph({ bidirectional: rtl, spacing: { after: 200 }, children: [] });
 }
-function twoColumnTable(rows) {
+function twoColumnTable(rows, rtl = false) {
   return new Table({
+    visuallyRightToLeft: rtl,
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
       new TableRow({
@@ -21952,12 +22705,12 @@ function twoColumnTable(rows) {
           new TableCell({
             width: { size: 35, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.SOLID, color: "1a3a4a" },
-            children: [new Paragraph({ children: [new TextRun({ text: "Parameter", bold: true, color: "ffffff", size: 20 })] })]
+            children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("Parameter", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })]
           }),
           new TableCell({
             width: { size: 65, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.SOLID, color: "1a3a4a" },
-            children: [new Paragraph({ children: [new TextRun({ text: "Value", bold: true, color: "ffffff", size: 20 })] })]
+            children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("Value", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })]
           })
         ]
       }),
@@ -21966,11 +22719,11 @@ function twoColumnTable(rows) {
           children: [
             new TableCell({
               shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
-              children: [new Paragraph({ children: [new TextRun({ text: k, size: 20 })] })]
+              children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed(k, rtl), size: 20, rightToLeft: rtl })] })]
             }),
             new TableCell({
               shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
-              children: [new Paragraph({ children: [new TextRun({ text: v, size: 20 })] })]
+              children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: v, size: 20, rightToLeft: rtl })] })]
             })
           ]
         })
@@ -21978,8 +22731,9 @@ function twoColumnTable(rows) {
     ]
   });
 }
-function boqTable(allocations) {
+function boqTable(allocations, rtl = false) {
   return new Table({
+    visuallyRightToLeft: rtl,
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
       new TableRow({
@@ -21988,22 +22742,22 @@ function boqTable(allocations) {
           new TableCell({
             width: { size: 30, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.SOLID, color: "1a3a4a" },
-            children: [new Paragraph({ children: [new TextRun({ text: "Category", bold: true, color: "ffffff", size: 20 })] })]
+            children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("Category", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })]
           }),
           new TableCell({
             width: { size: 15, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.SOLID, color: "1a3a4a" },
-            children: [new Paragraph({ children: [new TextRun({ text: "Allocation", bold: true, color: "ffffff", size: 20 })] })]
+            children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("Allocation", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })]
           }),
           new TableCell({
             width: { size: 25, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.SOLID, color: "1a3a4a" },
-            children: [new Paragraph({ children: [new TextRun({ text: "Estimated Budget", bold: true, color: "ffffff", size: 20 })] })]
+            children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("Estimated Budget", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })]
           }),
           new TableCell({
             width: { size: 30, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.SOLID, color: "1a3a4a" },
-            children: [new Paragraph({ children: [new TextRun({ text: "Notes", bold: true, color: "ffffff", size: 20 })] })]
+            children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("Notes", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })]
           })
         ]
       }),
@@ -22012,19 +22766,19 @@ function boqTable(allocations) {
           children: [
             new TableCell({
               shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
-              children: [new Paragraph({ children: [new TextRun({ text: alloc.category, size: 20 })] })]
+              children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: alloc.category, size: 20, rightToLeft: rtl })] })]
             }),
             new TableCell({
               shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
-              children: [new Paragraph({ children: [new TextRun({ text: `${alloc.percentage}%`, size: 20 })] })]
+              children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: `${alloc.percentage}%`, size: 20, rightToLeft: rtl })] })]
             }),
             new TableCell({
               shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
-              children: [new Paragraph({ children: [new TextRun({ text: alloc.estimatedCostLabel, size: 20 })] })]
+              children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: alloc.estimatedCostLabel, size: 20, rightToLeft: rtl })] })]
             }),
             new TableCell({
               shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0,
-              children: [new Paragraph({ children: [new TextRun({ text: alloc.notes, size: 20 })] })]
+              children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: alloc.notes, size: 20, rightToLeft: rtl })] })]
             })
           ]
         })
@@ -22032,7 +22786,55 @@ function boqTable(allocations) {
     ]
   });
 }
+function createDesignBriefDocxRenderContext(data, overrides = {}) {
+  const locale = data.locale ?? "en";
+  const identity = data.projectIdentity ?? {};
+  const narrative = data.designNarrative ?? {};
+  const materials = data.materialSpecifications ?? {};
+  const boq = data.boqFramework ?? { totalEstimatedSqm: null, coreAllocations: [] };
+  const budget = data.detailedBudget ?? {};
+  const instructions = data.designerInstructions ?? { phasedDeliverables: {}, authorityApprovals: [], coordinationRequirements: [], procurementAndLogistics: {} };
+  const labels = {
+    artifactVersion: overrides.artifactVersion ?? "tr10-report-artifact-v1",
+    rendererVersion: overrides.rendererVersion ?? "docx-brief-v2",
+    modelVersion: overrides.modelVersion ?? data.modelVersion ?? null,
+    benchmarkVersion: overrides.benchmarkVersion ?? data.benchmarkVersion ?? null,
+    logicVersion: overrides.logicVersion ?? data.logicVersion ?? null
+  };
+  const pick = (value, keys) => Object.fromEntries(keys.filter((key) => value[key] !== void 0).map((key) => [key, value[key]]));
+  return createReportRenderContext({
+    documentId: overrides.documentId,
+    generatedAt: overrides.generatedAt,
+    locale,
+    ...labels,
+    fingerprintInput: createRenderFingerprintPayload("design_brief_docx", locale, labels, {
+      version: data.version,
+      projectName: data.projectName ?? identity.projectName ?? "MIYAR Project",
+      projectIdentity: pick(identity, ["projectName", "typology", "scale", "gfa", "location", "horizon", "marketTier", "style"]),
+      designNarrative: pick(narrative, ["positioningStatement", "primaryStyle", "moodKeywords", "colorPalette", "textureDirection", "lightingApproach", "spatialPhilosophy"]),
+      materialSpecifications: pick(materials, ["tierRequirement", "qualityBenchmark", "sustainabilityMandate", "approvedMaterials", "finishesAndTextures", "prohibitedMaterials"]),
+      boqFramework: { totalEstimatedSqm: boq.totalEstimatedSqm, coreAllocations: boq.coreAllocations },
+      detailedBudget: pick(budget, ["costPerSqmTarget", "totalBudgetCap", "costBand", "contingencyRecommendation", "flexibilityLevel", "valueEngineeringMandates"]),
+      designerInstructions: {
+        phasedDeliverables: instructions.phasedDeliverables,
+        authorityApprovals: instructions.authorityApprovals,
+        coordinationRequirements: instructions.coordinationRequirements,
+        procurementAndLogistics: pick(instructions.procurementAndLogistics ?? {}, ["leadTimeWindow", "criticalPathItems", "importDependencies"])
+      },
+      spaceAllocation: data.spaceAllocation ? {
+        efficiencyScore: data.spaceAllocation.efficiencyScore,
+        totalArea: data.spaceAllocation.totalArea,
+        roomCount: data.spaceAllocation.roomCount,
+        circulationPct: data.spaceAllocation.circulationPct,
+        rooms: data.spaceAllocation.rooms,
+        recommendations: data.spaceAllocation.recommendations
+      } : null
+    })
+  });
+}
 async function generateDesignBriefDocx(data) {
+  const locale = data.locale ?? "en";
+  const rtl = locale === "ar";
   const identity = data.projectIdentity ?? {};
   const narrative = data.designNarrative ?? {};
   const materials = data.materialSpecifications ?? {};
@@ -22040,32 +22842,37 @@ async function generateDesignBriefDocx(data) {
   const budget = data.detailedBudget ?? {};
   const instructions = data.designerInstructions ?? { phasedDeliverables: {}, authorityApprovals: [], coordinationRequirements: [], procurementAndLogistics: {} };
   const projectName = String(data.projectName ?? identity.projectName ?? "MIYAR Project");
-  const watermark = `MYR-BRIEF-${Date.now().toString(36)}`;
+  const context = data.renderContext ?? createDesignBriefDocxRenderContext(data);
+  const watermark = context.documentId;
   const sections = [];
   sections.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
+      bidirectional: rtl,
       spacing: { before: 3e3, after: 400 },
-      children: [new TextRun({ text: "MIYAR Design Instruction Brief", size: 56, bold: true, color: "1a3a4a" })]
+      children: [new TextRun({ text: docxFixed("MIYAR Design Instruction Brief", rtl), size: 56, bold: true, color: "1a3a4a", rightToLeft: rtl })]
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
+      bidirectional: rtl,
       spacing: { after: 200 },
       children: [new TextRun({ text: projectName, size: 36, color: "4ecdc4" })]
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
+      bidirectional: rtl,
       spacing: { after: 200 },
-      children: [new TextRun({ text: `Version ${data.version} \u2014 ${(/* @__PURE__ */ new Date()).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, size: 22, color: "666666" })]
+      children: [new TextRun({ text: `${docxFixed("Version", rtl)} ${data.version} \u2014 ${formatReportDate(context.generatedAt, locale)}`, size: 22, color: "666666", rightToLeft: rtl })]
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
+      bidirectional: rtl,
       spacing: { after: 400 },
-      children: [new TextRun({ text: `Document ID: ${watermark}`, size: 18, color: "999999" })]
+      children: [new TextRun({ text: `${docxFixed("Document ID", rtl)}: ${watermark}`, size: 18, color: "999999", rightToLeft: rtl })]
     }),
-    spacer()
+    spacer(rtl)
   );
-  sections.push(heading("1. Project Identity"));
+  sections.push(heading("1. Project Identity", HeadingLevel.HEADING_1, rtl));
   sections.push(
     twoColumnTable([
       ["Project Name", identity.projectName ?? "\u2014"],
@@ -22076,57 +22883,69 @@ async function generateDesignBriefDocx(data) {
       ["Delivery Horizon", identity.horizon ?? "\u2014"],
       ["Market Tier", identity.marketTier ?? "\u2014"],
       ["Design Style", identity.style ?? "\u2014"]
-    ])
+    ], rtl)
   );
-  sections.push(spacer());
-  sections.push(heading("2. Design Narrative"));
-  sections.push(bodyText(narrative.positioningStatement ?? "No positioning statement generated."));
-  sections.push(labelValue("Primary Style", narrative.primaryStyle ?? "\u2014"));
+  sections.push(spacer(rtl));
+  sections.push(
+    labelValue(reportCopy(locale, "documentId"), context.documentId, rtl),
+    labelValue(reportCopy(locale, "generatedAt"), context.generatedAt, rtl),
+    labelValue(reportCopy(locale, "artifactVersion"), context.artifactVersion, rtl),
+    labelValue(reportCopy(locale, "rendererVersion"), context.rendererVersion, rtl),
+    labelValue(reportCopy(locale, "modelVersion"), context.modelVersion ?? reportCopy(locale, "notAvailable"), rtl),
+    labelValue(reportCopy(locale, "benchmarkVersion"), context.benchmarkVersion ?? reportCopy(locale, "notAvailable"), rtl),
+    labelValue(reportCopy(locale, "logicVersion"), context.logicVersion ?? reportCopy(locale, "notAvailable"), rtl),
+    labelValue(reportCopy(locale, "renderInputFingerprint"), context.renderInputFingerprint, rtl),
+    bodyText(reportCopy(locale, "renderInputFingerprintHelp"), rtl),
+    spacer(rtl)
+  );
+  sections.push(heading("2. Design Narrative", HeadingLevel.HEADING_1, rtl));
+  sections.push(bodyText(narrative.positioningStatement ?? "No positioning statement generated.", rtl));
+  sections.push(labelValue("Primary Style", narrative.primaryStyle ?? "\u2014", rtl));
   if (Array.isArray(narrative.moodKeywords) && narrative.moodKeywords.length > 0) {
-    sections.push(labelValue("Mood Keywords", narrative.moodKeywords.join(", ")));
+    sections.push(labelValue("Mood Keywords", narrative.moodKeywords.join(", "), rtl));
   }
   if (Array.isArray(narrative.colorPalette) && narrative.colorPalette.length > 0) {
-    sections.push(labelValue("Color Palette", narrative.colorPalette.join(", ")));
+    sections.push(labelValue("Color Palette", narrative.colorPalette.join(", "), rtl));
   }
-  sections.push(labelValue("Texture Direction", narrative.textureDirection ?? "\u2014"));
-  sections.push(labelValue("Lighting Approach", narrative.lightingApproach ?? "\u2014"));
-  sections.push(labelValue("Spatial Philosophy", narrative.spatialPhilosophy ?? "\u2014"));
-  sections.push(spacer());
-  sections.push(heading("3. Material Specifications"));
-  sections.push(labelValue("Target Tier Requirement", materials.tierRequirement ?? "\u2014"));
-  sections.push(labelValue("Quality Benchmark", materials.qualityBenchmark ?? "\u2014"));
-  sections.push(labelValue("Sustainability Mandate", materials.sustainabilityMandate ?? "\u2014"));
+  sections.push(labelValue("Texture Direction", narrative.textureDirection ?? "\u2014", rtl));
+  sections.push(labelValue("Lighting Approach", narrative.lightingApproach ?? "\u2014", rtl));
+  sections.push(labelValue("Spatial Philosophy", narrative.spatialPhilosophy ?? "\u2014", rtl));
+  sections.push(spacer(rtl));
+  sections.push(heading("3. Material Specifications", HeadingLevel.HEADING_1, rtl));
+  sections.push(labelValue("Target Tier Requirement", materials.tierRequirement ?? "\u2014", rtl));
+  sections.push(labelValue("Quality Benchmark", materials.qualityBenchmark ?? "\u2014", rtl));
+  sections.push(labelValue("Sustainability Mandate", materials.sustainabilityMandate ?? "\u2014", rtl));
   if (Array.isArray(materials.approvedMaterials) && materials.approvedMaterials.length > 0) {
-    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Approved Materials (Primary):", bold: true, size: 22 })] }));
+    sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 120, after: 80 }, children: [new TextRun({ text: docxFixed("Approved Materials (Primary):", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
     for (const m of materials.approvedMaterials) {
-      sections.push(bulletItem(m));
+      sections.push(bulletItem(m, rtl));
     }
   }
   if (Array.isArray(materials.finishesAndTextures) && materials.finishesAndTextures.length > 0) {
-    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Approved Finishes & Textures:", bold: true, size: 22 })] }));
+    sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 120, after: 80 }, children: [new TextRun({ text: docxFixed("Approved Finishes & Textures:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
     for (const m of materials.finishesAndTextures) {
-      sections.push(bulletItem(m));
+      sections.push(bulletItem(m, rtl));
     }
   }
   if (Array.isArray(materials.prohibitedMaterials) && materials.prohibitedMaterials.length > 0) {
-    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Prohibited Materials (Value Engineering Flags):", bold: true, size: 22, color: "c62828" })] }));
+    sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 120, after: 80 }, children: [new TextRun({ text: docxFixed("Prohibited Materials (Value Engineering Flags):", rtl), bold: true, size: 22, color: "c62828", rightToLeft: rtl })] }));
     for (const m of materials.prohibitedMaterials) {
-      sections.push(bulletItem(m));
+      sections.push(bulletItem(m, rtl));
     }
   }
-  sections.push(spacer());
-  sections.push(heading("4. Target BOQ Framework"));
+  sections.push(spacer(rtl));
+  sections.push(heading("4. Target BOQ Framework", HeadingLevel.HEADING_1, rtl));
   if (boq.totalEstimatedSqm) {
-    sections.push(labelValue("Total Estimated Project Area", `${boq.totalEstimatedSqm.toLocaleString()} Sqm`));
+    sections.push(labelValue("Total Estimated Project Area", `${boq.totalEstimatedSqm.toLocaleString()} Sqm`, rtl));
   }
   if (Array.isArray(boq.coreAllocations) && boq.coreAllocations.length > 0) {
-    sections.push(new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: "Indicative Budget Allocations per Category:", size: 22 })] }));
-    sections.push(boqTable(boq.coreAllocations));
+    sections.push(new Paragraph({ bidirectional: rtl, spacing: { after: 120 }, children: [new TextRun({ text: docxFixed("Indicative Budget Allocations per Category:", rtl), size: 22, rightToLeft: rtl })] }));
+    sections.push(boqTable(boq.coreAllocations, rtl));
   } else {
-    sections.push(bodyText("No BOQ framework generated."));
+    sections.push(bodyText("No BOQ framework generated.", rtl));
   }
-  sections.push(spacer());
-  sections.push(heading("5. Detailed Budget Guardrails"));
+  sections.push(spacer(rtl));
+  sections.push(heading("5. Detailed Budget Guardrails", HeadingLevel.HEADING_1, rtl));
   sections.push(
     twoColumnTable([
       ["Cost Per Sqm Target", budget.costPerSqmTarget ?? "\u2014"],
@@ -22134,46 +22953,47 @@ async function generateDesignBriefDocx(data) {
       ["Cost Band", budget.costBand ?? "\u2014"],
       ["Contingency Recommendation", budget.contingencyRecommendation ?? "\u2014"],
       ["Budget Flexibility Level", budget.flexibilityLevel ?? "\u2014"]
-    ])
+    ], rtl)
   );
   if (Array.isArray(budget.valueEngineeringMandates) && budget.valueEngineeringMandates.length > 0) {
-    sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "Value Engineering Directives:", bold: true, size: 22 })] }));
+    sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: docxFixed("Value Engineering Directives:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
     for (const note of budget.valueEngineeringMandates) {
-      sections.push(bulletItem(note));
+      sections.push(bulletItem(note, rtl));
     }
   }
-  sections.push(spacer());
+  sections.push(spacer(rtl));
   if (data.spaceAllocation) {
     const space = data.spaceAllocation;
-    sections.push(heading("7. Space Allocation Analysis"));
+    sections.push(heading("7. Space Allocation Analysis", HeadingLevel.HEADING_1, rtl));
     sections.push(
       twoColumnTable([
         ["Overall Efficiency Score", `${space.efficiencyScore}/100`],
         ["Total Analysed Area", `${space.totalArea?.toLocaleString()} sqft`],
         ["Room Count", String(space.roomCount)],
         ["Circulation Percentage", `${space.circulationPct?.toFixed(1)}%`]
-      ])
+      ], rtl)
     );
     if (space.rooms && space.rooms.length > 0) {
-      sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "Room Breakdown:", bold: true, size: 22 })] }));
+      sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: docxFixed("Room Breakdown:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
       const roomTable = new Table({
+        visuallyRightToLeft: rtl,
         width: { size: 100, type: WidthType.PERCENTAGE },
         rows: [
           new TableRow({
             tableHeader: true,
             children: [
-              new TableCell({ width: { size: 35, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "Room", bold: true, color: "ffffff", size: 20 })] })] }),
-              new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "Area (sqft)", bold: true, color: "ffffff", size: 20 })] })] }),
-              new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "% of Total", bold: true, color: "ffffff", size: 20 })] })] }),
-              new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ children: [new TextRun({ text: "Grade", bold: true, color: "ffffff", size: 20 })] })] })
+              new TableCell({ width: { size: 35, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("Room", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })] }),
+              new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("Area (sqft)", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })] }),
+              new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("% of Total", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })] }),
+              new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "1a3a4a" }, children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: docxFixed("Grade", rtl), bold: true, color: "ffffff", size: 20, rightToLeft: rtl })] })] })
             ]
           }),
           ...space.rooms.map((room, i) => new TableRow({
             children: [
-              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ children: [new TextRun({ text: room.name, size: 20 })] })] }),
-              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ children: [new TextRun({ text: String(Math.round(room.area)), size: 20 })] })] }),
-              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ children: [new TextRun({ text: `${room.pctOfTotal?.toFixed(1)}%`, size: 20 })] })] }),
-              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ children: [new TextRun({ text: room.finishGrade || "\u2014", size: 20 })] })] })
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: room.name, size: 20, rightToLeft: rtl })] })] }),
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: String(Math.round(room.area)), size: 20, rightToLeft: rtl })] })] }),
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: `${room.pctOfTotal?.toFixed(1)}%`, size: 20, rightToLeft: rtl })] })] }),
+              new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: "f0f4f8" } : void 0, children: [new Paragraph({ bidirectional: rtl, children: [new TextRun({ text: room.finishGrade || "\u2014", size: 20, rightToLeft: rtl })] })] })
             ]
           }))
         ]
@@ -22181,42 +23001,42 @@ async function generateDesignBriefDocx(data) {
       sections.push(roomTable);
     }
     if (space.recommendations && space.recommendations.length > 0) {
-      sections.push(new Paragraph({ spacing: { before: 200, after: 80 }, children: [new TextRun({ text: "DLD-Backed Recommendations:", bold: true, size: 22 })] }));
+      sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: docxFixed("DLD-Backed Recommendations:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
       for (const rec of space.recommendations) {
-        sections.push(bulletItem(`[${rec.severity?.toUpperCase()}] ${rec.advice}`));
+        sections.push(bulletItem(`[${rec.severity?.toUpperCase()}] ${rec.advice}`, rtl));
       }
     }
-    sections.push(spacer());
+    sections.push(spacer(rtl));
   }
-  sections.push(heading("6. Workflow & Execution Instructions"));
+  sections.push(heading("6. Workflow & Execution Instructions", HeadingLevel.HEADING_1, rtl));
   const pLogic = instructions.procurementAndLogistics ?? {};
-  sections.push(labelValue("Lead Time Window", pLogic.leadTimeWindow ?? "\u2014"));
+  sections.push(labelValue("Lead Time Window", pLogic.leadTimeWindow ?? "\u2014", rtl));
   if (Array.isArray(pLogic.criticalPathItems) && pLogic.criticalPathItems.length > 0) {
-    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Critical Path Procurement Items:", bold: true, size: 22 })] }));
+    sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 120, after: 80 }, children: [new TextRun({ text: docxFixed("Critical Path Procurement Items:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
     for (const item of pLogic.criticalPathItems) {
-      sections.push(bulletItem(item));
+      sections.push(bulletItem(item, rtl));
     }
   }
   if (Array.isArray(pLogic.importDependencies) && pLogic.importDependencies.length > 0) {
-    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Import Logistics Dependencies:", bold: true, size: 22 })] }));
+    sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 120, after: 80 }, children: [new TextRun({ text: docxFixed("Import Logistics Dependencies:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
     for (const item of pLogic.importDependencies) {
-      sections.push(bulletItem(item));
+      sections.push(bulletItem(item, rtl));
     }
   }
   if (Array.isArray(instructions.authorityApprovals) && instructions.authorityApprovals.length > 0) {
-    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Local Authority Approvals (Dubai):", bold: true, size: 22 })] }));
+    sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 120, after: 80 }, children: [new TextRun({ text: docxFixed("Local Authority Approvals (Dubai):", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
     for (const item of instructions.authorityApprovals) {
-      sections.push(bulletItem(item));
+      sections.push(bulletItem(item, rtl));
     }
   }
   if (Array.isArray(instructions.coordinationRequirements) && instructions.coordinationRequirements.length > 0) {
-    sections.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: "Contractor Coordination Requirements:", bold: true, size: 22 })] }));
+    sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 120, after: 80 }, children: [new TextRun({ text: docxFixed("Contractor Coordination Requirements:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
     for (const item of instructions.coordinationRequirements) {
-      sections.push(bulletItem(item));
+      sections.push(bulletItem(item, rtl));
     }
   }
-  sections.push(spacer());
-  sections.push(heading("Phased Deliverables", HeadingLevel.HEADING_2));
+  sections.push(spacer(rtl));
+  sections.push(heading("Phased Deliverables", HeadingLevel.HEADING_2, rtl));
   const phases = [
     { label: "Phase 1 \u2014 Concept & Schematic", items: instructions.phasedDeliverables?.conceptDesign },
     { label: "Phase 2 \u2014 Detailed Design", items: instructions.phasedDeliverables?.schematicDesign },
@@ -22224,47 +23044,23 @@ async function generateDesignBriefDocx(data) {
   ];
   for (const phase of phases) {
     if (Array.isArray(phase.items) && phase.items.length > 0) {
-      sections.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [new TextRun({ text: phase.label, bold: true, size: 22 })] }));
+      sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 80, after: 60 }, children: [new TextRun({ text: docxFixed(phase.label, rtl), bold: true, size: 22, rightToLeft: rtl })] }));
       for (const item of phase.items) {
-        sections.push(bulletItem(`\u2610 ${item}`));
+        sections.push(bulletItem(`\u2610 ${item}`, rtl));
       }
     }
   }
-  sections.push(spacer());
-  sections.push(heading("Important Disclaimer", HeadingLevel.HEADING_2));
+  sections.push(spacer(rtl));
+  sections.push(heading(reportCopy(locale, "importantDisclaimer"), HeadingLevel.HEADING_2, rtl));
   sections.push(
     new Paragraph({
+      bidirectional: rtl,
       spacing: { after: 120 },
       children: [
         new TextRun({
-          text: "This document is a concept-level interior design instruction brief generated by the MIYAR platform. ",
+          text: reportCopy(locale, "disclaimer"),
           size: 20,
           color: "5D4037"
-        }),
-        new TextRun({
-          text: "All material directives, BOQ targets, and workflows are advisory and must be professionally validated. ",
-          size: 20,
-          color: "5D4037"
-        }),
-        new TextRun({
-          text: "This document does not constitute professional engineering, financial, or legal advice.",
-          size: 20,
-          color: "5D4037"
-        })
-      ]
-    })
-  );
-  sections.push(spacer());
-  sections.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 400 },
-      children: [
-        new TextRun({
-          text: `MIYAR Interior Design Instruction \u2014 Document ID: ${watermark}`,
-          size: 16,
-          color: "999999",
-          italics: true
         })
       ]
     })
@@ -22273,6 +23069,16 @@ async function generateDesignBriefDocx(data) {
     creator: "MIYAR Decision Intelligence Platform",
     title: `Design Instruction Brief \u2014 ${projectName}`,
     description: `MIYAR Design Brief v${data.version} for ${projectName}`,
+    styles: {
+      default: {
+        document: {
+          run: {
+            rightToLeft: rtl,
+            font: rtl ? { ascii: "Noto Sans Arabic", hAnsi: "Noto Sans Arabic", cs: "Noto Sans Arabic" } : "Aptos"
+          }
+        }
+      }
+    },
     sections: [
       {
         properties: {
@@ -22284,8 +23090,9 @@ async function generateDesignBriefDocx(data) {
           default: new Header({
             children: [
               new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [new TextRun({ text: `MIYAR Design Instruction \u2014 ${projectName}`, size: 16, color: "999999" })]
+                alignment: rtl ? AlignmentType.RIGHT : AlignmentType.RIGHT,
+                bidirectional: rtl,
+                children: [new TextRun({ text: `${docxFixed("MIYAR Interior Design Instruction", rtl)} \u2014 ${projectName}`, size: 16, color: "999999", rightToLeft: rtl })]
               })
             ]
           })
@@ -22295,8 +23102,9 @@ async function generateDesignBriefDocx(data) {
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
+                bidirectional: rtl,
                 children: [
-                  new TextRun({ text: "Page ", size: 16, color: "999999" }),
+                  new TextRun({ text: `${docxFixed("Page", rtl)} `, size: 16, color: "999999", rightToLeft: rtl }),
                   new TextRun({ children: [PageNumber.CURRENT], size: 16, color: "999999" }),
                   new TextRun({ text: ` \u2014 ${watermark}`, size: 16, color: "999999" })
                 ]
@@ -22311,6 +23119,9 @@ async function generateDesignBriefDocx(data) {
   const buffer = await Packer.toBuffer(doc);
   return Buffer.from(buffer);
 }
+
+// server/routers/design.ts
+init_report_catalog();
 
 // server/engines/design/material-quantity-engine.ts
 init_llm();
@@ -22543,8 +23354,8 @@ RULES:
       outputSchema
     });
     const rawContent = response.choices[0]?.message?.content;
-    const text2 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
-    geminiResult = JSON.parse(text2);
+    const text4 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    geminiResult = JSON.parse(text4);
   }
   for (const room of geminiResult.rooms) {
     for (const element of ["floor", "walls", "ceiling", "joinery"]) {
@@ -23174,7 +23985,11 @@ var designRouter = router({
     return links;
   }),
   // ─── Design Brief Generator ─────────────────────────────────────────────────
-  generateBrief: designOrgMutationProcedure.input(z10.object({ projectId: z10.number(), scenarioId: z10.number().optional() })).mutation(async ({ ctx, input }) => {
+  generateBrief: designOrgMutationProcedure.input(z10.object({
+    projectId: z10.number(),
+    scenarioId: z10.number().optional(),
+    locale: z10.enum(["en", "ar"]).default("en")
+  })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (input.scenarioId !== void 0) {
       const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
@@ -23394,8 +24209,13 @@ var designRouter = router({
     });
     return result;
   }),
-  exportBriefDocx: designOrgMutationProcedure.input(z10.object({ briefId: z10.number() })).mutation(async ({ ctx, input }) => {
+  exportBriefDocx: designOrgMutationProcedure.input(z10.object({ briefId: z10.number(), locale: z10.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
     const { resource: brief, project } = await requireDesignBrief(input.briefId, ctx.orgId);
+    const [modelVersion, benchmarkVersion, logicVersion] = await Promise.all([
+      getActiveModelVersion(),
+      getActiveBenchmarkVersion(),
+      getPublishedLogicVersion()
+    ]);
     const docxBuffer = await generateDesignBriefDocx({
       projectIdentity: brief.projectIdentity ?? {},
       designNarrative: brief.designNarrative ?? {},
@@ -23405,7 +24225,11 @@ var designRouter = router({
       designerInstructions: brief.designerInstructions,
       spaceAllocation: brief.briefData?.spaceAllocation ?? brief.spaceAllocation ?? void 0,
       version: brief.version,
-      projectName: project?.name
+      projectName: project?.name,
+      locale: input.locale,
+      modelVersion: modelVersion?.versionTag,
+      benchmarkVersion: benchmarkVersion?.versionTag,
+      logicVersion: logicVersion?.name
     });
     const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid4(8)}.docx`;
     const { url } = await storagePut(fileKey, docxBuffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
@@ -23747,7 +24571,7 @@ var designRouter = router({
     requireScopedDesignMutation(await reorderBoardTilesForOrg(input.boardId, input.orderedJoinIds, ctx.orgId));
     return { success: true };
   }),
-  exportBoardPdf: designOrgMutationProcedure.input(z10.object({ boardId: z10.number() })).mutation(async ({ ctx, input }) => {
+  exportBoardPdf: designOrgMutationProcedure.input(z10.object({ boardId: z10.number(), locale: z10.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
     const { resource: board, project } = await requireDesignBoard(input.boardId, ctx.orgId);
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const items = [];
@@ -23776,12 +24600,21 @@ var designRouter = router({
     const { generateBoardPdfHtml: generateBoardPdfHtml2 } = await Promise.resolve().then(() => (init_board_pdf(), board_pdf_exports));
     const summary = computeBoardSummary(items);
     const rfqLines = generateRfqLines(items);
+    const [modelVersion, benchmarkVersion, logicVersion] = await Promise.all([
+      getActiveModelVersion(),
+      getActiveBenchmarkVersion(),
+      getPublishedLogicVersion()
+    ]);
     const html = generateBoardPdfHtml2({
       boardName: board.boardName,
       projectName: project.name,
       items,
       summary,
-      rfqLines
+      rfqLines,
+      locale: input.locale,
+      modelVersion: modelVersion?.versionTag,
+      benchmarkVersion: benchmarkVersion?.versionTag,
+      logicVersion: logicVersion?.name
     });
     let fileUrl = null;
     try {
@@ -24248,15 +25081,18 @@ var designRouter = router({
     return getActiveSourceRegistry(input.limit);
   }),
   // ─── Phase 5: Export & Handover ─────────────────────────────────────────────
-  exportInvestorPdf: designOrgMutationProcedure.input(z10.object({ projectId: z10.number() })).mutation(async ({ ctx, input }) => {
+  exportInvestorPdf: designOrgMutationProcedure.input(z10.object({ projectId: z10.number(), locale: z10.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
     const { generateInvestorPdfHtml: generateInvestorPdfHtml2 } = await Promise.resolve().then(() => (init_investor_pdf(), investor_pdf_exports));
     const project = await requireDesignProject(input.projectId, ctx.orgId);
-    const [brief, recs, materialConsts, benchmark, trends] = await Promise.all([
+    const [brief, recs, materialConsts, benchmark, trends, modelVersion, activeBenchmarkVersion, logicVersion] = await Promise.all([
       getLatestAiDesignBrief(input.projectId, ctx.orgId),
       getSpaceRecommendations(input.projectId, ctx.orgId),
       getMaterialConstants(),
       getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
-      getPublicDesignTrends({ styleClassification: project.des01Style ?? void 0, region: "UAE", limit: 8 })
+      getPublicDesignTrends({ styleClassification: project.des01Style ?? void 0, region: "UAE", limit: 8 }),
+      getActiveModelVersion(),
+      getActiveBenchmarkVersion(),
+      getPublishedLogicVersion()
     ]);
     const totalFitoutBudget = (recs ?? []).reduce((s, r) => s + Number(r.budgetAllocation || 0), 0);
     const gfa = getPricingArea(project);
@@ -24311,7 +25147,10 @@ var designRouter = router({
       estimatedSalesPremiumAed,
       benchmark: bmFmt,
       designTrends: trends,
-      shareToken: brief?.shareToken ?? void 0
+      locale: input.locale,
+      modelVersion: modelVersion?.versionTag,
+      benchmarkVersion: activeBenchmarkVersion?.versionTag,
+      logicVersion: logicVersion?.name
     });
     return { html, projectName: project.name ?? "Project" };
   }),
@@ -24360,7 +25199,10 @@ var designRouter = router({
     });
     return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
   }),
-  resolveShareLink: publicProcedure.input(z10.object({ token: z10.string().min(8).max(64) })).query(async ({ input }) => {
+  resolveShareLink: publicProcedure.input(z10.object({
+    token: z10.string().min(8).max(64),
+    locale: z10.enum(["en", "ar"]).default("en")
+  })).query(async ({ input }) => {
     const { brief, project } = await requireActivePublicShare(input.token);
     const [recs, benchmark, trends] = await Promise.all([
       getSpaceRecommendations(brief.projectId, brief.orgId),
@@ -24398,6 +25240,15 @@ var designRouter = router({
     const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
     const SQF = 10.7639;
     return {
+      locale: input.locale,
+      readOnly: true,
+      briefVersion: brief.version,
+      disclaimer: reportCopy(input.locale, "disclaimer"),
+      assumptions: [reportCopy(input.locale, "investorFallbackAssumptionHelp")],
+      evidence: benchmark ? [{
+        label: reportCopy(input.locale, "benchmarkVersion"),
+        value: `${benchmark.typology} / ${benchmark.location} / ${benchmark.marketTier}${benchmark.dataYear ? ` / ${benchmark.dataYear}` : ""}`
+      }] : [],
       projectName: project.name ?? "Untitled Project",
       typology: project.ctx01Typology ?? "Residential",
       location: project.ctx04Location ?? "UAE",
@@ -25327,7 +26178,7 @@ var intelligenceRouter = router({
       });
       return authorized.resource;
     }),
-    exportComparisonPDF: orgHeavyMutationProcedure.input(z11.object({ comparisonId: z11.number() })).mutation(async ({ ctx, input }) => {
+    exportComparisonPDF: orgHeavyMutationProcedure.input(z11.object({ comparisonId: z11.number(), locale: z11.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
       const { resource: comparison, project } = await requireProjectResourceForOrg(input.comparisonId, ctx.orgId, {
         lookupResource: getScenarioComparisonById,
         getProjectId: (record) => record.projectId
@@ -25337,8 +26188,11 @@ var intelligenceRouter = router({
       const compResult = comparison.comparisonResult ?? {};
       const baseline = compResult.baseline ?? {};
       const compared = compResult.compared ?? [];
-      const benchmarkVersion = await getActiveBenchmarkVersion();
-      const logicVersion = await getPublishedLogicVersion();
+      const [benchmarkVersion, logicVersion, modelVersion] = await Promise.all([
+        getActiveBenchmarkVersion(),
+        getPublishedLogicVersion(),
+        getActiveModelVersion()
+      ]);
       const pdfInput = {
         projectName: project.name,
         projectId: comparison.projectId,
@@ -25360,7 +26214,9 @@ var intelligenceRouter = router({
         }),
         decisionNote: comparison.decisionNote ?? void 0,
         benchmarkVersion: benchmarkVersion?.versionTag ?? "v1.0-baseline",
-        logicVersion: logicVersion?.name ?? "Default"
+        logicVersion: logicVersion?.name ?? "Default",
+        modelVersion: modelVersion?.versionTag,
+        locale: input.locale
       };
       const html = generateScenarioComparisonHTML(pdfInput);
       const fileKey = `reports/${comparison.projectId}/scenario-comparison-${nanoid5(8)}.html`;
@@ -25594,7 +26450,7 @@ init_db();
 init_change_detector();
 init_confidence_policy();
 import * as xlsx from "xlsx";
-import { randomUUID as randomUUID3 } from "crypto";
+import { randomUUID as randomUUID7 } from "crypto";
 function generateRecordId2() {
   const ts = Date.now().toString(36);
   const rand = Math.random().toString(36).substring(2, 6);
@@ -25612,7 +26468,7 @@ function generateCsvTemplate() {
 }
 async function processCsvUpload(buffer, sourceId, addedByUserId) {
   const receiptClock = /* @__PURE__ */ new Date();
-  const runId = `CSV-${randomUUID3().substring(0, 8)}`;
+  const runId = `CSV-${randomUUID7().substring(0, 8)}`;
   const source = await getSourceRegistryById(sourceId);
   if (!source) throw new Error("Source not found");
   const wb = xlsx.read(buffer, { type: "buffer", cellDates: true });
@@ -29764,10 +30620,10 @@ var autonomousRouter = router({
     const result = await processNlQuery(ctx.user.id, input.query);
     return result;
   }),
-  generateBrief: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+  generateBrief: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number(), locale: z18.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
-    const briefMarkdown = await generateAutonomousDesignBrief(input.projectId);
-    return { markdown: briefMarkdown };
+    const briefMarkdown = await generateAutonomousDesignBrief(input.projectId, input.locale);
+    return { markdown: briefMarkdown, locale: input.locale };
   }),
   portfolioInsights: orgRateLimitedProcedure.query(async ({ ctx }) => {
     const markdown = await generatePortfolioInsightsForOrg(ctx.orgId);
@@ -30366,9 +31222,9 @@ async function callGeminiForDesign(prompt) {
     responseFormat: { type: "json_object" },
     maxTokens: 8e3
   });
-  const text2 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
+  const text4 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
   try {
-    return geminiDesignResponseSchema.parse(JSON.parse(text2));
+    return geminiDesignResponseSchema.parse(JSON.parse(text4));
   } catch (error) {
     throw new AiOperationError("PROVIDER_INVALID_RESPONSE", {
       operation: "design-advisor.generate-recommendations",
@@ -30534,10 +31390,10 @@ Respond in JSON format.`;
     responseFormat: { type: "json_object" },
     maxTokens: 6e3
   });
-  const text2 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
+  const text4 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
   let parsed;
   try {
-    parsed = JSON.parse(text2);
+    parsed = JSON.parse(text4);
   } catch {
     throw new Error("AI design brief generation failed \u2014 invalid response");
   }
@@ -31074,7 +31930,7 @@ var designAdvisorRouter = router({
 // server/routers/portfolio.ts
 import { z as z24 } from "zod";
 import { TRPCError as TRPCError18 } from "@trpc/server";
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 init_db();
 init_schema();
 import { eq as eq16, and as and7, desc as desc8, inArray as inArray3 } from "drizzle-orm";
@@ -31396,7 +32252,7 @@ var portfolioRouter = router({
     }));
   }),
   // ─── Generate PDF Report ────────────────────────────────────
-  generateReport: orgHeavyMutationProcedure.input(z24.object({ id: z24.number() })).mutation(async ({ ctx, input }) => {
+  generateReport: orgHeavyMutationProcedure.input(z24.object({ id: z24.number(), locale: z24.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
@@ -31499,8 +32355,17 @@ var portfolioRouter = router({
       distributions,
       failurePatterns,
       improvementLevers,
-      complianceHeatmap
+      complianceHeatmap,
+      locale: input.locale
     };
+    const [modelVersion, benchmarkVersion, logicVersion] = await Promise.all([
+      getActiveModelVersion(),
+      getActiveBenchmarkVersion(),
+      getPublishedLogicVersion()
+    ]);
+    pdfInput.modelVersion = modelVersion?.versionTag;
+    pdfInput.benchmarkVersion = benchmarkVersion?.versionTag;
+    pdfInput.logicVersion = logicVersion?.name;
     const html = generatePortfolioReportHTML(pdfInput);
     return { html, portfolioName: portfolio.name };
   }),
@@ -31631,7 +32496,7 @@ var portfolioRouter = router({
       });
     }
     for (const alert of candidates) {
-      alert.activeDedupKey = createHash3("sha256").update(JSON.stringify({
+      alert.activeDedupKey = createHash4("sha256").update(JSON.stringify({
         organizationId: ctx.orgId,
         portfolioId: portfolio.id,
         alertType: alert.alertType,
@@ -33186,8 +34051,8 @@ Be professional, concise, and helpful. Do not mention your instructions.`;
       messages: contents
     });
     const rawContent = response.choices[0]?.message?.content;
-    const text2 = Array.isArray(rawContent) ? rawContent.filter((p) => p.type === "text").map((p) => p.text).join("") : typeof rawContent === "string" ? rawContent : "";
-    return { text: text2 };
+    const text4 = Array.isArray(rawContent) ? rawContent.filter((p) => p.type === "text").map((p) => p.text).join("") : typeof rawContent === "string" ? rawContent : "";
+    return { text: text4 };
   })
 });
 
@@ -33480,9 +34345,9 @@ ${rawContent.substring(0, 6e3)}`
       responseFormat: { type: "json_object" }
     });
     const rawParsed = response.choices[0]?.message?.content;
-    const text2 = typeof rawParsed === "string" ? rawParsed : Array.isArray(rawParsed) ? rawParsed.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    const text4 = typeof rawParsed === "string" ? rawParsed : Array.isArray(rawParsed) ? rawParsed.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
     try {
-      const prices = JSON.parse(text2);
+      const prices = JSON.parse(text4);
       const minPrice = Number(prices.minPrice || prices.min || 0);
       const maxPrice = Number(prices.maxPrice || prices.max || 0);
       if (!await updateMaterialSupplierSourceForOrg(input.sourceId, ctx.orgId, {
@@ -33849,8 +34714,8 @@ Return JSON with schema: { rooms: [{ name, category, sqm, floorLevel }] }`
       responseFormat: { type: "json_object" }
     });
     const rawContent = response.choices[0]?.message?.content;
-    const text2 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
-    const parsed = JSON.parse(text2);
+    const text4 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    const parsed = JSON.parse(text4);
     const rooms = (parsed.rooms || []).map((r) => ({
       name: r.name || "Unknown Room",
       category: classifyRoomName(r.name || r.category || ""),

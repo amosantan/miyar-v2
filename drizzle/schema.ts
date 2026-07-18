@@ -559,6 +559,7 @@ export const reportInstances = mysqlTable("report_instances", {
     "autonomous_design_brief",
   ]).notNull(),
   fileUrl: text("fileUrl"),
+  storageKey: text("storageKey"),
   bundleUrl: text("bundleUrl"),
   content: json("content"),
   benchmarkVersionId: int("benchmarkVersionId"),

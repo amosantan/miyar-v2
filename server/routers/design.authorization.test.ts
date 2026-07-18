@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
     getSpaceRecommendations: vi.fn(),
     getBenchmarkForProject: vi.fn(),
     getDesignTrends: vi.fn(),
+    getPublicDesignTrends: vi.fn(),
     getDldAreaBenchmark: vi.fn(),
     getEvidenceWithSources: vi.fn(),
     reorderBoardTilesForOrg: vi.fn(),
@@ -47,6 +48,10 @@ const mocks = vi.hoisted(() => ({
     updateAiDesignBriefShareTokenForOrg: vi.fn(),
     createFloorPlanAssetAndLinkForOrg: vi.fn(),
     getLatestAiDesignBrief: vi.fn(),
+    getMaterialConstants: vi.fn(),
+    getActiveModelVersion: vi.fn(),
+    getActiveBenchmarkVersion: vi.fn(),
+    getPublishedLogicVersion: vi.fn(),
     updateProjectForOrg: vi.fn(),
   },
 }));
@@ -172,6 +177,10 @@ describe("design router authorization", () => {
     mocks.db.updateAiDesignBriefShareTokenForOrg.mockResolvedValue(true);
     mocks.db.createFloorPlanAssetAndLinkForOrg.mockResolvedValue({ id: 902 });
     mocks.db.updateProjectForOrg.mockResolvedValue(true);
+    mocks.db.getMaterialConstants.mockResolvedValue([]);
+    mocks.db.getActiveModelVersion.mockResolvedValue(undefined);
+    mocks.db.getActiveBenchmarkVersion.mockResolvedValue(undefined);
+    mocks.db.getPublishedLogicVersion.mockResolvedValue(undefined);
     mocks.storagePut.mockResolvedValue({
       key: "projects/11/upload.png",
       url: "https://example.invalid/upload.png",
@@ -586,14 +595,86 @@ describe("design router authorization", () => {
     });
     const caller = designRouter.createCaller(contexts.unauthenticated);
 
-    await expect(
-      caller.resolveShareLink({ token: "expired-token" })
-    ).rejects.toMatchObject({
-      code: "NOT_FOUND",
-      message: "Share link not found or expired",
-    });
+    for (const locale of ["en", "ar"] as const) {
+      await expect(
+        caller.resolveShareLink({ token: "expired-token", locale })
+      ).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: "Share link not found or expired",
+      });
+    }
     expect(mocks.db.getSpaceRecommendations).not.toHaveBeenCalled();
     expect(mocks.db.getBenchmarkForProject).not.toHaveBeenCalled();
     expect(mocks.db.getDesignTrends).not.toHaveBeenCalled();
+  });
+
+  it("keeps public-share authorization identical across English and Arabic", async () => {
+    mocks.db.getAiDesignBriefByShareToken.mockResolvedValue({
+      id: 700,
+      projectId: projects.orgA.id,
+      orgId: projects.orgA.orgId,
+      version: 3,
+      briefData: { executiveSummary: "Shared summary", designDirection: {} },
+      shareExpiresAt: new Date("2099-01-01T00:00:00.000Z"),
+    });
+    mocks.db.getSpaceRecommendations.mockResolvedValue([]);
+    mocks.db.getBenchmarkForProject.mockResolvedValue(null);
+    mocks.db.getPublicDesignTrends.mockResolvedValue([]);
+    const caller = designRouter.createCaller(contexts.unauthenticated);
+
+    const english = await caller.resolveShareLink({ token: "active-token", locale: "en" });
+    const arabic = await caller.resolveShareLink({ token: "active-token", locale: "ar" });
+
+    expect(english).toMatchObject({ locale: "en", readOnly: true, briefVersion: 3 });
+    expect(arabic).toMatchObject({ locale: "ar", readOnly: true, briefVersion: 3 });
+    expect(arabic.projectName).toBe(english.projectName);
+    expect(arabic.totalFitoutBudget).toBe(english.totalFitoutBudget);
+    expect(mocks.db.getAiDesignBriefByShareToken).toHaveBeenNthCalledWith(1, "active-token");
+    expect(mocks.db.getAiDesignBriefByShareToken).toHaveBeenNthCalledWith(2, "active-token");
+  });
+
+  it("does not disclose an active public-share token through authenticated investor export", async () => {
+    const secretShareToken = "SENTINEL-ACTIVE-SHARE-TOKEN-DO-NOT-EXPORT";
+    mocks.db.getLatestAiDesignBrief.mockResolvedValue({
+      id: 700,
+      projectId: projects.orgA.id,
+      orgId: projects.orgA.orgId,
+      shareToken: secretShareToken,
+      briefData: { executiveSummary: "Investor summary", designDirection: {} },
+    });
+    mocks.db.getSpaceRecommendations.mockResolvedValue([]);
+    mocks.db.getBenchmarkForProject.mockResolvedValue(null);
+    mocks.db.getPublicDesignTrends.mockResolvedValue([]);
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    const result = await caller.exportInvestorPdf({
+      projectId: projects.orgA.id,
+      locale: "en",
+    });
+
+    expect(result.html).toContain("Render-input fingerprint");
+    expect(result.html).not.toContain(secretShareToken);
+    expect(mocks.db.getLatestAiDesignBrief).toHaveBeenCalledWith(
+      projects.orgA.id,
+      projects.orgA.orgId,
+    );
+  });
+
+  it("conceals invalid public-share tokens identically in both locales", async () => {
+    mocks.db.getAiDesignBriefByShareToken.mockResolvedValue(undefined);
+    const caller = designRouter.createCaller(contexts.unauthenticated);
+    for (const locale of ["en", "ar"] as const) {
+      await expect(caller.resolveShareLink({ token: "missing-token", locale }))
+        .rejects.toMatchObject({ code: "NOT_FOUND", message: "Share link not found or expired" });
+    }
+    expect(mocks.db.getProjectById).not.toHaveBeenCalled();
+    expect(mocks.db.getSpaceRecommendations).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed public-share locale before token lookup", async () => {
+    const caller = designRouter.createCaller(contexts.unauthenticated);
+    await expect(caller.resolveShareLink({ token: "active-token", locale: "fr" } as any))
+      .rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(mocks.db.getAiDesignBriefByShareToken).not.toHaveBeenCalled();
   });
 });

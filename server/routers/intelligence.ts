@@ -50,6 +50,7 @@ import {
   getScoreMatricesByProject,
   getScenariosByProject,
   getActiveBenchmarkVersion,
+  getActiveModelVersion,
 } from "../db";
 import { generateExplainabilityReport, buildAuditPack, explainMaterialSelection } from "../engines/explainability";
 import { generateLearningReport, suggestBenchmarkAdjustments, compareOutcomes } from "../engines/outcome-learning";
@@ -362,7 +363,7 @@ export const intelligenceRouter = router({
       }),
 
     exportComparisonPDF: orgHeavyMutationProcedure
-      .input(z.object({ comparisonId: z.number() }))
+      .input(z.object({ comparisonId: z.number(), locale: z.enum(["en", "ar"]).default("en") }))
       .mutation(async ({ ctx, input }) => {
         const { resource: comparison, project } =
           await requireProjectResourceForOrg(input.comparisonId, ctx.orgId, {
@@ -378,8 +379,9 @@ export const intelligenceRouter = router({
         const baseline = (compResult.baseline ?? {}) as Record<string, unknown>;
         const compared = ((compResult.compared ?? []) as Array<Record<string, unknown>>);
 
-        const benchmarkVersion = await getActiveBenchmarkVersion();
-        const logicVersion = await getPublishedLogicVersion();
+        const [benchmarkVersion, logicVersion, modelVersion] = await Promise.all([
+          getActiveBenchmarkVersion(), getPublishedLogicVersion(), getActiveModelVersion(),
+        ]);
 
         const pdfInput: ScenarioComparisonPDFInput = {
           projectName: project.name,
@@ -403,6 +405,8 @@ export const intelligenceRouter = router({
           decisionNote: comparison.decisionNote ?? undefined,
           benchmarkVersion: benchmarkVersion?.versionTag ?? "v1.0-baseline",
           logicVersion: logicVersion?.name ?? "Default",
+          modelVersion: modelVersion?.versionTag,
+          locale: input.locale,
         };
 
         const html = generateScenarioComparisonHTML(pdfInput);

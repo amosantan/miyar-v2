@@ -10,7 +10,8 @@ describe("UX-01 compatibility and safety contracts", () => {
     const app = read("client/src/App.tsx");
     for (const route of [
       "/projects/:id", "/projects/:id/evidence", "/projects/:id/brief",
-      "/projects/:id/design-studio", "/projects/:id/collaboration",
+      "/projects/:id/design-studio", "/projects/:id/boards",
+      "/projects/:id/scenario-compare", "/projects/:id/collaboration",
       "/projects/:id/design-advisor", "/projects/:id/investor-summary",
       "/projects/:id/brief-editor", "/projects/:id/explainability",
       "/projects/:id/outcomes", "/projects/:id/verify-areas", "/projects/:id/space-planner",
@@ -31,6 +32,18 @@ describe("UX-01 compatibility and safety contracts", () => {
     expect(
       buildWorkspaceAliasUrl("7", "design", "spaceProgram", "?source=email&section=decision")
     ).toBe("/projects/7?source=email&section=design&view=spaceProgram");
+  });
+
+  it("keeps the legacy project-less scenario comparison URL safe", () => {
+    const app = read("client/src/App.tsx");
+    expect(app).toContain('<Route path="/scenarios/compare">');
+    expect(app).toContain('<Redirect to="/scenarios" />');
+  });
+
+  it("sends successful authentication to the organization workspace", () => {
+    const login = read("client/src/pages/Login.tsx");
+    expect(login.match(/setLocation\("\/dashboard"\)/g)).toHaveLength(2);
+    expect(login).not.toContain('setLocation("/")');
   });
 
   it("uses separate application and admin shells without weakening admin guards", () => {

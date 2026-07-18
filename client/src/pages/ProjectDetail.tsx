@@ -25,6 +25,7 @@ import {
 import { useState, useMemo, useCallback } from "react";
 import { EVALUATION_FIELD_LABELS, EVALUATION_REQUIRED_FIELDS, type EvaluationRequiredField, type InputProvenance } from "@shared/project-readiness";
 import { useTranslation } from "@/lib/i18n";
+import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis,
@@ -215,7 +216,7 @@ function SensitivityToggles({ sensitivityData, baseScore }: {
                 }`}
             >
               <p className="font-medium text-foreground truncate">
-                {VARIABLE_LABELS[entry.variable] || entry.variable.replace(/([A-Z])/g, " $1").replace(/^\w/, (c: string) => c.toUpperCase())}
+                {VARIABLE_LABELS[entry.variable] || String(entry.variable ?? "Variable").replace(/([A-Z])/g, " $1").replace(/^\w/, (c: string) => c.toUpperCase())}
               </p>
               <p className="text-muted-foreground mt-0.5">
                 Impact: <span className={entry.sensitivity > 3 ? "text-miyar-gold" : "text-muted-foreground"}>
@@ -401,7 +402,7 @@ function DimensionRadar({ dimensions }: { dimensions: Record<string, number> }) 
 function ProjectDetailContent() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const { t } = useTranslation();
+  const { t, locale: appLocale } = useTranslation();
   const projectId = Number(params.id);
   const requestedSection = new URLSearchParams(window.location.search).get("section") as WorkspaceSection | null;
   const requestedView = new URLSearchParams(window.location.search).get("view");
@@ -412,6 +413,7 @@ function ProjectDetailContent() {
       ? requestedView
       : WORKSPACE_TABS[initialSection][0].value
   );
+  const [reportLocale, setReportLocale] = useState(appLocale);
 
   const { data: project, isLoading } = trpc.project.get.useQuery({ id: projectId });
   const { data: readiness } = trpc.project.readiness.useQuery({ id: projectId });
@@ -989,8 +991,8 @@ function ProjectDetailContent() {
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={240}>
-                      <BarChart data={roiData.drivers.map(d => ({
-                        name: d.name.replace(/ /g, '\n'),
+                      <BarChart data={roiData.drivers.map((d, index) => ({
+                        name: String(d.name ?? `ROI Driver ${index + 1}`).replace(/ /g, '\n'),
                         value: d.costAvoided.mid,
                       }))} margin={{ left: 20, right: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -1236,7 +1238,7 @@ function ProjectDetailContent() {
                                 <Info className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
                               )}
                               <div>
-                                <p className="text-xs font-medium text-foreground">{flag.flag.replace(/_/g, " ")}</p>
+                                <p className="text-xs font-medium text-foreground">{String(flag.flag ?? "Unspecified flag").replace(/_/g, " ")}</p>
                                 <p className="text-[10px] text-muted-foreground">{flag.description}</p>
                               </div>
                             </div>
@@ -1306,6 +1308,9 @@ function ProjectDetailContent() {
                 </p>
               </CardHeader>
               <CardContent>
+                <div className="mb-4">
+                  <ReportLocaleSelect value={reportLocale} onValueChange={setReportLocale} />
+                </div>
                 <div className="grid md:grid-cols-3 gap-3">
                   {[
                     { type: "validation_summary" as const, title: "Executive Decision Pack", desc: "Scores, recommendations, risk table, ROI narrative" },
@@ -1314,7 +1319,7 @@ function ProjectDetailContent() {
                   ].map((r) => (
                     <button
                       key={r.type}
-                      onClick={() => reportMutation.mutate({ projectId, reportType: r.type })}
+                      onClick={() => reportMutation.mutate({ projectId, reportType: r.type, locale: reportLocale })}
                       disabled={reportMutation.isPending}
                       className="p-4 rounded-lg border border-border hover:border-primary/40 bg-card text-left transition-all"
                     >

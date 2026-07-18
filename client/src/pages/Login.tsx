@@ -19,7 +19,7 @@ export default function Login() {
 
     const loginMutation = api.auth.login.useMutation({
         onSuccess: () => {
-            setLocation("/");
+            setLocation("/dashboard");
             window.location.reload();
         },
         onError: (error) => {
@@ -30,7 +30,7 @@ export default function Login() {
     const registerMutation = api.auth.register.useMutation({
         onSuccess: () => {
             toast.success("Account created", { description: "You are now logged in." });
-            setLocation("/");
+            setLocation("/dashboard");
             window.location.reload();
         },
         onError: (error) => {

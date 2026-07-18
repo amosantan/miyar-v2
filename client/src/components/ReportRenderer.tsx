@@ -15,6 +15,7 @@ interface ReportContent {
     sections: ReportSection[];
     content?: string; // For autonomous_design_brief (markdown)
     html?: string; // HTML content if stored
+    locale?: "en" | "ar";
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -360,6 +361,17 @@ export default function ReportRenderer({ content, reportType }: ReportRendererPr
             <div className="p-4 prose prose-invert prose-sm max-w-none whitespace-pre-wrap text-foreground">
                 {content}
             </div>
+        );
+    }
+
+    if (typeof content.html === "string") {
+        return (
+            <iframe
+                srcDoc={content.html}
+                sandbox="allow-same-origin"
+                className="w-full h-[600px] bg-white"
+                title={`Stored report preview: ${reportType ?? content.reportType ?? "report"}`}
+            />
         );
     }
 

@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { FileText, Palette, Package, DollarSign, Truck, CheckSquare, RefreshCw, History, ChevronRight, Download, LayoutGrid, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
+import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
+import { useTranslation } from "@/lib/i18n";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -47,6 +49,8 @@ function recordList(record: JsonRecord | null, key: string): JsonRecord[] {
 export default function DesignBrief() {
   const [, params] = useRoute("/projects/:id/brief");
   const projectId = Number(params?.id);
+  const { locale: appLocale } = useTranslation();
+  const [reportLocale, setReportLocale] = useState(appLocale);
 
   const latestBrief = trpc.design.getLatestBrief.useQuery({ projectId }, { enabled: !!projectId });
   const allBriefs = trpc.design.listBriefs.useQuery({ projectId }, { enabled: !!projectId });
@@ -145,21 +149,22 @@ export default function DesignBrief() {
             {brief ? `Version ${brief.version} — Generated from MIYAR evaluation` : "Generate a structured design brief from project evaluation"}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           {allBriefs.data && allBriefs.data.length > 1 && (
             <Badge variant="outline"><History className="mr-1 h-3 w-3" /> {allBriefs.data.length} versions</Badge>
           )}
           {brief && (
             <Button
               variant="outline"
-              onClick={() => exportDocxMut.mutate({ briefId: brief.id })}
+              onClick={() => exportDocxMut.mutate({ briefId: brief.id, locale: reportLocale })}
               disabled={exportDocxMut.isPending}
             >
               <Download className="mr-2 h-4 w-4" />
               {exportDocxMut.isPending ? "Exporting..." : "Export DOCX"}
             </Button>
           )}
-          <Button onClick={() => generateMutation.mutate({ projectId })} disabled={generateMutation.isPending}>
+          <ReportLocaleSelect value={reportLocale} onValueChange={setReportLocale} />
+          <Button onClick={() => generateMutation.mutate({ projectId, locale: reportLocale })} disabled={generateMutation.isPending}>
             <RefreshCw className={`mr-2 h-4 w-4 ${generateMutation.isPending ? "animate-spin" : ""}`} />
             {brief ? "Regenerate" : "Generate Brief"}
           </Button>
@@ -172,7 +177,7 @@ export default function DesignBrief() {
             <FileText className="mx-auto h-16 w-16 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Design Brief Yet</h3>
             <p className="text-muted-foreground mb-4">Generate a 7-section design brief from the project's MIYAR evaluation results.</p>
-            <Button onClick={() => generateMutation.mutate({ projectId })} disabled={generateMutation.isPending}>
+            <Button onClick={() => generateMutation.mutate({ projectId, locale: reportLocale })} disabled={generateMutation.isPending}>
               Generate Design Brief
             </Button>
           </CardContent>

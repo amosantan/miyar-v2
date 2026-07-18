@@ -11,7 +11,13 @@ import {
     orgProcedure,
     router,
 } from "../_core/trpc";
-import { getDb, insertPortfolioAlertsForOrg } from "../db";
+import {
+    getActiveBenchmarkVersion,
+    getActiveModelVersion,
+    getDb,
+    getPublishedLogicVersion,
+    insertPortfolioAlertsForOrg,
+} from "../db";
 import {
     portfolios,
     portfolioProjects,
@@ -504,7 +510,7 @@ export const portfolioRouter = router({
 
     // ─── Generate PDF Report ────────────────────────────────────
     generateReport: orgHeavyMutationProcedure
-        .input(z.object({ id: z.number() }))
+        .input(z.object({ id: z.number(), locale: z.enum(["en", "ar"]).default("en") }))
         .mutation(async ({ ctx, input }) => {
             const db = await getDb();
             if (!db) throw new Error("Database unavailable");
@@ -663,7 +669,15 @@ export const portfolioRouter = router({
                 failurePatterns,
                 improvementLevers,
                 complianceHeatmap,
+                locale: input.locale,
             };
+
+            const [modelVersion, benchmarkVersion, logicVersion] = await Promise.all([
+                getActiveModelVersion(), getActiveBenchmarkVersion(), getPublishedLogicVersion(),
+            ]);
+            pdfInput.modelVersion = modelVersion?.versionTag;
+            pdfInput.benchmarkVersion = benchmarkVersion?.versionTag;
+            pdfInput.logicVersion = logicVersion?.name;
 
             const html = generatePortfolioReportHTML(pdfInput);
             return { html, portfolioName: portfolio.name };

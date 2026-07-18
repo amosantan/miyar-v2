@@ -30,6 +30,8 @@ import {
     DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
+import { useTranslation } from "@/lib/i18n";
 import {
     Dialog,
     DialogContent,
@@ -238,6 +240,7 @@ function PortfolioDetail({
     portfolioId: number;
     onBack: () => void;
 }) {
+    const { locale: appLocale } = useTranslation();
     const utils = trpc.useUtils();
     const detailQuery = trpc.portfolio.getById.useQuery({ id: portfolioId });
     const availableQuery = trpc.portfolio.availableProjects.useQuery({
@@ -263,6 +266,7 @@ function PortfolioDetail({
     });
 
     const [showAddDialog, setShowAddDialog] = useState(false);
+    const [reportLocale, setReportLocale] = useState(appLocale);
 
     const reportMut = trpc.portfolio.generateReport.useMutation({
         onSuccess: (data) => {
@@ -352,11 +356,12 @@ function PortfolioDetail({
                         )}
                         Check Alerts
                     </Button>
+                    <ReportLocaleSelect value={reportLocale} onValueChange={setReportLocale} />
                     <Button
                         variant="outline"
                         className="gap-2"
                         disabled={reportMut.isPending || !portfolio.projects?.length}
-                        onClick={() => reportMut.mutate({ id: portfolioId })}
+                        onClick={() => reportMut.mutate({ id: portfolioId, locale: reportLocale })}
                     >
                         {reportMut.isPending ? (
                             <Loader2 className="w-4 h-4 animate-spin" />

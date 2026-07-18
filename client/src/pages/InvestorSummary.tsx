@@ -20,6 +20,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 // ─── Helpers ────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
+import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
+import { useTranslation } from "@/lib/i18n";
 
 function formatAed(amount: number) {
     if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M AED`;
@@ -61,7 +63,9 @@ function InvestorSummaryContent() {
     const params = useParams<{ id: string }>();
     const projectId = Number(params.id);
     const [, navigate] = useLocation();
+    const { locale: appLocale } = useTranslation();
     const [shareCopied, setShareCopied] = useState(false);
+    const [reportLocale, setReportLocale] = useState(appLocale);
     const exportInvestorPdfMut = trpc.design.exportInvestorPdf.useMutation({
         onSuccess: ({ html, projectName }) => {
             const blob = new Blob([html], { type: "text/html" });
@@ -230,7 +234,7 @@ function InvestorSummaryContent() {
                         {project?.name ?? "Project"} · {tier} Market Tier
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-end gap-2">
                     <Button variant="outline" size="sm" className="gap-1.5 text-xs"
                         onClick={() => navigate(`/projects/${projectId}/design-advisor`)}>
                         <Sparkles className="h-3.5 w-3.5" /> AI Advisor
@@ -239,9 +243,10 @@ function InvestorSummaryContent() {
                         onClick={() => navigate(`/projects/${projectId}/brief`)}>
                         <Download className="h-3.5 w-3.5" /> Export DOCX
                     </Button>
+                    <ReportLocaleSelect value={reportLocale} onValueChange={setReportLocale} />
                     <Button variant="outline" size="sm" className="gap-1.5 text-xs"
                         disabled={exportInvestorPdfMut.isPending}
-                        onClick={() => exportInvestorPdfMut.mutate({ projectId: Number(projectId) })}>
+                        onClick={() => exportInvestorPdfMut.mutate({ projectId: Number(projectId), locale: reportLocale })}>
                         <FileText className="h-3.5 w-3.5" /> {exportInvestorPdfMut.isPending ? "Generating…" : "Export PDF"}
                     </Button>
                     <Button variant="outline" size="sm" className="gap-1.5 text-xs"

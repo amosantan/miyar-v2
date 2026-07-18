@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   getScenarioById: vi.fn(),
   deleteScenarioForOrg: vi.fn(),
   storagePut: vi.fn(),
+  storageGet: vi.fn(),
+  getReportsByProject: vi.fn(),
 }));
 
 vi.mock("../db", async importOriginal => {
@@ -23,6 +25,7 @@ vi.mock("../db", async importOriginal => {
 
 vi.mock("../storage", () => ({
   storagePut: mocks.storagePut,
+  storageGet: mocks.storageGet,
   storageDelete: vi.fn(),
 }));
 
@@ -80,6 +83,8 @@ describe("TR-04 project and scenario authorization contracts", () => {
     mocks.updateProjectForOrg.mockResolvedValue(true);
     mocks.deleteProjectForOrg.mockResolvedValue(true);
     mocks.deleteScenarioForOrg.mockResolvedValue(true);
+    mocks.getReportsByProject.mockResolvedValue([]);
+    mocks.storageGet.mockResolvedValue({ key: "reports/11/report.html", url: "https://signed.example/report" });
   });
 
   it.each([
@@ -162,6 +167,49 @@ describe("TR-04 project and scenario authorization contracts", () => {
       })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(mocks.storagePut).not.toHaveBeenCalled();
+  });
+
+  it("re-signs stable report keys only after authorization and never exposes them", async () => {
+    mocks.getOrganizationMemberships.mockResolvedValue([membership(101, "member")]);
+    mocks.getReportsByProject.mockResolvedValue([{
+      id: 501,
+      projectId: 11,
+      scoreMatrixId: 91,
+      reportType: "full_report",
+      fileUrl: null,
+      storageKey: "reports/11/report.html",
+      bundleUrl: null,
+      content: {},
+      benchmarkVersionId: 2,
+      modelVersionId: 3,
+      generatedAt: new Date(),
+      generatedBy: 7,
+    }, {
+      id: 502,
+      projectId: 11,
+      scoreMatrixId: 90,
+      reportType: "validation_summary",
+      fileUrl: "https://legacy.example/report",
+      storageKey: null,
+      bundleUrl: null,
+      content: {},
+      benchmarkVersionId: null,
+      modelVersionId: null,
+      generatedAt: new Date(),
+      generatedBy: 7,
+    }]);
+
+    const reports = await projectRouter.createCaller(context(101, "member")).listReports({ projectId: 11 });
+    expect(mocks.storageGet).toHaveBeenCalledWith("reports/11/report.html");
+    expect(reports[0]).toMatchObject({ id: 501, fileUrl: "https://signed.example/report" });
+    expect(reports[0]).not.toHaveProperty("storageKey");
+    expect(reports[1]).toMatchObject({ id: 502, fileUrl: "https://legacy.example/report" });
+    expect(reports[1]).not.toHaveProperty("storageKey");
+
+    await expect(projectRouter.createCaller(context(101, "member")).listReports({ projectId: 22 }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(mocks.getReportsByProject).toHaveBeenCalledTimes(1);
+    expect(mocks.storageGet).toHaveBeenCalledTimes(1);
   });
 
   it("rejects viewers before tenant portfolio-alert calculation or persistence", async () => {

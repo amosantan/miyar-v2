@@ -2,8 +2,9 @@ import { getDb } from "../../db";
 import { invokeLLM } from "../../_core/llm";
 import { projects, scoreMatrices } from "../../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
+import type { ReportLocale } from "../../../shared/report-locale";
 
-export async function generateAutonomousDesignBrief(projectId: number): Promise<string> {
+export async function generateAutonomousDesignBrief(projectId: number, locale: ReportLocale = "en"): Promise<string> {
     const db = await getDb();
     if (!db) throw new Error("Database not connected");
 
@@ -33,6 +34,7 @@ The output MUST be presented in well - structured Markdown, containing:
 5. 5 - Lens Assessment(if scores are available)
 
 Make the tone professional, persuasive, and highly analytical.
+Write the narrative in ${locale === "ar" ? "Modern Standard Arabic" : "English"}. Preserve MIYAR branding and all numeric values exactly.
 
 Project Context:
 - Name: ${project.name}
