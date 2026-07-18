@@ -5,13 +5,13 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-18
-- Production source commit: `d0c84da5292193aa90b68a315a8c1eeaa8db4394` on canonical `main`, merging TR-11 PR #14.
-- Branch identity: canonical `origin/main` contains runtime application release `d0c84da5292193aa90b68a315a8c1eeaa8db4394`; later commits may record state only and do not change the runtime release identity.
+- Production source commit: `43e5019c02c0f25848c31df0d1dfa2158b076723` on canonical `main`, merging TR-12 PR #17.
+- Branch identity: canonical `origin/main` contains runtime application release `43e5019c02c0f25848c31df0d1dfa2158b076723`; later commits may record state only and do not change the runtime release identity.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel target `ExfGpuVC4UQ83Jy46i6xQnSKdJDP` completed for exact source commit `d0c84da`; three root/health/evidence observations return 200, unauthenticated project access returns 401, and invalid shares return concealed 404 with privacy headers.
+- Production: Vercel target `4ixzzXRp886bet8XDRhc439czfWd` completed for exact source commit `43e5019`; three root/health observations return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and the rendered landing page has no browser console errors.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `TR-11` is released and closed at `PASS`; `TR-12` is the sole next executable step.
+- Roadmap state: `TR-12` is released and closed at `PASS`; `TR-13` is the sole next executable step.
 
 ## Technology Observed
 
@@ -103,7 +103,8 @@ These facts describe the reviewed TR-11 implementation merged through PR #14 and
 - TR-09 release commit `bd09c3fdafca885d40b564eafe94ecc67197c7ad` deployed successfully as Vercel target `GQyoYH8hnMXwPRMYmzdsCgTg6wNV`. Root/health, unauthenticated tenant rejection, invalid-share privacy, a three-observation health window, unchanged counts, and zero orphan assessment/current-pointer/duplicate-public-key integrity failures pass.
 - TR-10 release commit `55917a145a87c218c34457e054850326fc1e1a1a` deployed successfully as Vercel target `8A9iDiHwfT3wnXsYXFwqQWLtpPB2`. Canonical-main CI run `29641839449`, three root/login/health observations, unauthenticated tenant rejection, English/Arabic invalid-share privacy, and post-deployment migration 0050 integrity pass.
 - TR-11 release commit `d0c84da5292193aa90b68a315a8c1eeaa8db4394` deployed successfully as Vercel target `ExfGpuVC4UQ83Jy46i6xQnSKdJDP`. Canonical-main CI run `29645745114`, three production observations, tenant/share negative checks, endpoint minimization, and bilingual rendered-claim checks pass; no database operation was required or performed.
-- Canonical `main` contains the reviewed TR-11 production release.
+- TR-12 release commit `43e5019c02c0f25848c31df0d1dfa2158b076723` deployed successfully as Vercel target `4ixzzXRp886bet8XDRhc439czfWd`. PR #17, canonical-main CI run `29654957839`, three production root/health observations, tenant/share negative checks, and rendered landing-page browser verification pass; no schema, migration, dependency, shared configuration, or database operation was required or performed.
+- Canonical `main` contains the reviewed TR-12 production release.
 
 ## Environment Uncertainties
 
@@ -116,7 +117,7 @@ These facts describe the reviewed TR-11 implementation merged through PR #14 and
 - CI configuration uses pnpm and the committed lockfile, with fail-closed TypeScript, test, build, and isolated MySQL jobs.
 - GitHub now executes both required jobs normally. The workflow resolves pnpm from the repository `packageManager` field, avoiding a competing workflow-level version.
 - The observed local TypeScript, safe full-suite, authorization, build, isolated MySQL, and PlanetScale compatibility gates are green.
-- The TR-12 candidate adds a centralized fail-closed database profile/operation/target policy, final-use target rechecks, guarded database entrypoints, and a CI-enforced AST inventory. A hostile-parent full suite passes 1,206/22, the inventory reports 106 entrypoints with two exact generated-bundle exceptions and zero findings, and disposable MySQL passes 19/19 with cleanup.
+- TR-12 adds a centralized fail-closed database profile/operation/target policy, final-use target rechecks, guarded database entrypoints, and a CI-enforced AST inventory. A hostile-parent full suite passes 1,206/22, the rebased release suite passes 1,210/22, the inventory reports 106 entrypoints with two exact generated-bundle exceptions and zero findings, and disposable MySQL passes 19/19 with cleanup.
 
 ## Authorization Foundation
 
@@ -127,7 +128,7 @@ These facts describe the reviewed TR-11 implementation merged through PR #14 and
 - `TR-04` closes all 93 remaining project-router authorization/global-governance paths, including the later ultra-review remediation for atomic report persistence and tenant-owned portfolio alerts. The live inventory has zero `TR-04` and exactly eight pooled-data rows under `TR-05`; targeted, disposable MySQL, safe full-suite, TypeScript, audit, build, diff, and independent-review gates pass.
 - `TR-05` and `KF-007` are closed on `codex/tr-05-data-isolation`. Corpus isolation, migration 0047, fail-closed organization/public reads, scheduler disablement, insufficiency contracts, UI states, and enhanced audit enforcement are implemented. Verified gates: disposable MySQL 18/18, safe suite 962 passed with 22 skipped, authorization inventory 331/331 with zero remediation rows, TypeScript/build/diff PASS, in-app browser PASS across analytics, cost forecasting, project prediction, design advisor, and learning administration, and independent Claude Code `APPROVED_NO_OBJECTION`.
 - `UX-01` is merged into canonical main through commit `029f5c1`. Its implementation and prior authenticated verification remain recorded, but an authenticated browser session was unavailable during the independent TR-07 release smoke; the roadmap retains that explicit UX-01 human gate.
-- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. TR-10 and TR-11 are released; `TR-12` is the sole next executable step.
+- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. TR-10, TR-11, and TR-12 are released; `TR-13` is the sole next executable step.
 
 ## Refresh Procedure
 
