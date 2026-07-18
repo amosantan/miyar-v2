@@ -1,85 +1,81 @@
 # Current Task
 
-- ID: TR-08
-- Roadmap step: `TR-08`
-- Title: Recertify ambiguous baseline contracts
-- Status: PASS
+- ID: TR-09
+- Roadmap step: `TR-09`
+- Title: Truthful baseline provenance and issued-report states
+- Status: NEEDS_HUMAN
 - Owner: Codex
-- Product and domain approver: Amro Saleh, acting as Product Owner and Data/Decision-model and Design/Report approver for this bounded decision
-- Started: 2026-07-17
-- Closed: 2026-07-17
-- Branch: `codex/tr-08-contract-recertification`
-- Base: `1736129bc3733356b5d105669d8adb53a46d80af` (`origin/main` after fetch)
-- Risk: Medium product/data/report governance; characterization tests only
-- Selected loops: Defect, ingestion, scoring/pricing, and report loops from `LOOP_ENGINEERING.md`
-- Retry budget: 3 evidence-based attempts per failure class
-- Resource budget: One decision record, three characterization groups, and one repository verification pass
-- Approval gates: No production logic, numerical policy, API, shared type, schema, authorization, dependency, deployment, database, commit, push, or pull-request action
+- Started: 2026-07-18
+- Branch: `codex/tr-09-baseline-provenance`
+- Base: `e49029d566fa032862c91fa7c0ce00c14aa8ef45`
+- Risk: Critical cross-layer scoring, ingestion, schema, tenant-isolation, financial-claim, and issued-report change
+- Selected loops: Defect, scoring/pricing, ingestion, schema-migration, feature, and report-visual-QA loops
+- Retry budget: 3 evidence-based attempts per unchanged failure class
+- Resource budget: One isolated worktree, one additive migration, three bounded implementation streams, one disposable-MySQL verification cycle, and one independent-review cycle
+- Human gates: Shared/production migration, protected merge, deployment, production smoke, or external publication. Candidate commit/push/draft-PR preparation is authorized and complete.
 
 ## Goal
 
-Create the durable decision record originally required by TR-08, prove that the three approved baseline contracts still match current behavior, and route verified downstream ambiguity to a separately bounded TR-09 remediation without changing runtime behavior.
+Make empty-space results, evidence confidence, and Material Board Annex states truthful and reproducible without changing the approved neutral score or confidence boundaries, weakening tenant isolation, or issuing reports whose mandatory board data could not be verified.
 
-## Approved Contracts
+## Approved Behavioral Defaults
 
-- `space-empty-v1`: an empty AI floor-plan room list returns a neutral score of 50, no recommendations, and zero critical, advisory, and optimal counts.
-- `ingestion-confidence-v1`: connector-derived initial confidence uses Grade A/B/C bases of 0.85/0.70/0.55; publication age through day 90 adds 0.10; days 91–365 have no adjustment; day 366 onward or a missing date subtracts 0.15; the function output is bounded to 0.20–1.00. Later quality adjustment, update merge, and non-connector ingestion remain distinct live behaviors.
-- `material-board-annex-v1`: the Material Board Annex is mandatory in design briefs and full reports and renders either board content or an explicit no-board state.
-
-The policy bundle is `TR-08-v1`, effective 2026-07-16 at verified implementation commit `db362540dbccdc621faf38ef74c3270ebee6370b` and reaffirmed by the product owner on 2026-07-17.
+- Empty room analysis remains numeric 50 and normalized 0.5, is labelled `neutral_fallback`, and cannot create space-derived ROI savings.
+- Confidence uses explicit clocks, visible invalid/future-date rejection, latest-accepted-observation merge, common connector/CSV calculation, registry grades for dynamic sources, and labelled manual assertions.
+- Design briefs and full reports fail before side effects when board retrieval cannot be verified; partial and unresolvable boards remain issuable only with explicit resolved-item disclosures.
 
 ## Acceptance Criteria
 
-- [x] A fresh worktree and review branch were created from current `origin/main` before task mutation; the dirty primary checkout remains untouched.
-- [x] The frozen install and pre-change targeted baseline pass with 78 tests and no database connection.
-- [x] TR-08 was the sole active/next step during execution and its historical closure evidence remains intact.
-- [x] Accepted ADR-0003 records owners, rationale, exact examples/boundaries, affected consumers, limitations, effective versions, rejected alternatives, and supersession rules.
-- [x] The ADR index references ADR-0003 and all links resolve.
-- [x] Characterization tests lock the exact empty result, 90/91 and 365/366 confidence boundaries, missing-date penalty, and populated/empty annex in both design and full reports.
-- [x] No production source, numerical policy, API, shared type, schema, authorization, dependency, or report-rendering behavior changes.
-- [x] Reproduced downstream gaps are recorded under `KF-016` with prose-only TR-09 acceptance boundaries.
-- [x] Targeted, safe full-suite, TypeScript, authorization-audit, production-build, formatting, and diff gates pass.
-- [x] Independent code review and Claude Sonnet review find no unresolved blocker or hidden policy/interface choice.
-- [x] Roadmap, current task, known failures, worklog, lessons, and project state reflect only verified evidence; TR-09 is the sole next step and TR-10 waits in `PLANNED`.
+- [x] A fresh worktree and review branch were created from exact TR-08 commit `e49029d`; the dirty primary checkout remains untouched.
+- [x] `pnpm install --frozen-lockfile` and the pre-change 80-test characterization baseline pass with `DATABASE_URL=''`.
+- [x] Empty and measured space results carry typed provenance through evaluation snapshots, scoring/explainability, sensitivity, ROI/five-lens, API, and affected UI without changing approved numerical results.
+- [x] Only measured space evidence can create space-derived ROI savings; fallback, absent, and legacy-unknown states are explicit and non-financial.
+- [x] Every new computed or asserted confidence has deterministic policy/clock provenance; invalid/future/malformed items are visibly rejected; current records use latest accepted confidence.
+- [x] Connector upsert matches and locks only null-owned `platform_public` evidence; same-key organization evidence is never read or modified.
+- [x] Additive migration 0049 retains append-only confidence assessments, current pointers, and rejection counts with legacy-compatible reads and no fabricated backfill.
+- [x] Material Board Annex distinguishes no-board, empty, complete, partial, unresolvable, and retrieval-failure states in both issued paths; retrieval failure occurs before report side effects.
+- [x] Targeted, safe full-suite, TypeScript, authorization, build, disposable MySQL, provider compatibility, browser, rendered-artifact, migration-integrity, diff, and independent-review gates pass.
+- [x] Durable state records only verified evidence; shared migration and release actions remain human-gated.
 
 ## Non-Goals
 
-- Do not change the neutral value of 50 or any confidence value, grade, threshold, date boundary, cap, or floor.
-- Do not add an insufficiency status, change ROI/scoring/UI behavior, or decide its eventual interface.
-- Do not add confidence-policy columns or decide how initial confidence, quality adjustment, update merge, non-connector ingestion, or rejected evidence will be versioned, persisted, or presented.
-- Do not change report retrieval or rendering behavior or decide its eventual API shape.
-- Do not perform TR-09 remediation or TR-10 artifact certification.
+- Changing scoring weights, thresholds, the neutral 50/0.5 values, Grade A/B/C bases, or the 90/91 and 365/366 confidence boundaries.
+- Backfilling historical confidence chains or space provenance from current mutable data.
+- Changing evidence corpus governance, promoting CSV/manual rows, or enabling pooled learning.
+- Expanding the board annex to validation, autonomous, DOCX, or other report types.
+- Performing a shared/production migration, Git publication, merge, deployment, or production smoke without explicit approval.
 
-## Verified Baseline
+## Baseline Evidence
 
-- `pnpm install --frozen-lockfile` completed from the committed lockfile.
-- `DATABASE_URL='' pnpm vitest run server/engines/v9-space.test.ts server/engines/v2-connectors.test.ts server/engines/board-pdf.test.ts` passed 78/78 tests. Expected unauthorized-provider diagnostics exercised the existing rule-based fallback; no database connection occurred.
-- `git cat-file -t db36254` returned `commit`.
+- `pnpm install --frozen-lockfile`: PASS from the committed lockfile.
+- `DATABASE_URL='' pnpm vitest run server/engines/v9-space.test.ts server/engines/v2-connectors.test.ts server/engines/board-pdf.test.ts`: PASS, 80/80; expected unauthorized-provider diagnostics exercised existing fallbacks and no database connection occurred.
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-tr09` on `codex/tr-09-baseline-provenance` at `e49029d`.
 
-## Plan
+## Execution Plan
 
-- [x] Add and index the accepted ADR with a decision-to-consumer trace.
-- [x] Add characterization assertions without changing production code.
-- [x] Record the bounded TR-09 remediation and known failure.
-- [x] Run the full verification ladder and independent review.
-- [x] Close durable state from verified evidence only.
+- [x] Implement and regress space evidence, snapshot, financial, explainability, and presentation contracts.
+- [x] Implement deterministic confidence policy, assessment persistence, atomic public-only upsert, rejection visibility, and migration 0049.
+- [x] Implement organization-scoped Board Annex state loading, rendering, and fail-closed report behavior.
+- [x] Run the full verification ladder, rendered inspection, and independent reviews.
+- [x] Stop at `NEEDS_HUMAN` for shared migration and release authorization unless explicitly granted.
 
 ## Verification Evidence
 
-- Targeted characterization: 80/80 passed.
-- Safe full suite: 1,023 passed and 22 skipped with `DATABASE_URL=''`.
-- `pnpm check`, `pnpm audit:authorization` (335 procedures, zero remediation), and `pnpm build`: passed.
-- Scoped documentation formatting, ADR/index/path checks, roadmap uniqueness checks, `git diff --check`, and scoped-diff review: passed.
-- Independent code reviewer: `APPROVED` after exact confidence-chain, invalid-date, and board-resolution corrections.
-- Claude Sonnet: `APPROVED` after the ADR explicitly recorded reachable clamp bounds, named-source grade governance, max-merge masking, and partial-board resolution.
+- Safe full suite: 1,074 passed, 22 database-gated tests intentionally skipped with `DATABASE_URL=''`.
+- `pnpm check`, `pnpm audit:authorization` (336 procedures, zero remediation rows), `pnpm build`, and `git diff --check`: PASS.
+- Disposable MySQL: migration 0049 applied over the exact base schema; concurrent same-key writes produced one public row and two assessments; the tenant collision stayed unchanged; an assessment failure rolled back the evidence insert.
+- Browser: truthful changed states passed at 1440×900 and 390×844 without page overflow.
+- Reports: three-page mixed-board design brief and five-page no-board full report rendered through the production HTML-to-PDF path; all eight A4 pages were inspected without clipping, overflow, blank pages, or false state copy.
+- Independent reviews: space/scoring, confidence/security, and board/report specialists returned `APPROVED`; the final Claude Sonnet completion review returned `APPROVED`.
+- Release candidate: the current committed branch head is pushed to `origin/codex/tr-09-baseline-provenance` and draft PR #7 is open. Vercel Preview Comments passed; the latest GitHub Actions run reproduced `KF-014` with both jobs failing at zero steps and no job log. No shared migration, merge, deployment, or production smoke was performed.
+- Hosted-CI replacement: On 2026-07-18, the user approved the documented replacement evidence: frozen install, 1,074/22 safe suite, type-check, 336/0 authorization audit, production build, diff check, disposable-MySQL migration/concurrency/rollback, Vercel preview, and independent reviews.
 
-## Delivered Scope
+## Recovery
 
-- Accepted and indexed ADR-0003 for `TR-08-v1` at implementation commit `db362540dbccdc621faf38ef74c3270ebee6370b`.
-- Strengthened characterization only; no production source or runtime contract changed.
-- Opened `KF-016` and returned TR-09 to `READY` with prose-only behavioral acceptance boundaries.
-- Kept TR-10 `PLANNED` until TR-09 closes.
+- Application rollback retains additive migration 0049 and reads existing `confidenceScore` fields.
+- No historical row is recomputed or deleted.
+- Any possible tenant-boundary, data-integrity, scoring-policy, or report-publication regression stops execution immediately.
 
 ## Next Action
 
-Plan reopened TR-09 as the sole next executable roadmap step. Its first gate is an approved behavioral design for the distinctions recorded in KF-016; TR-08 does not choose implementation interfaces.
+Before application deployment, the named production owner must approve the controlled PlanetScale migration 0049 workflow, target/backup preflight, and schema/count verification. Do not use `scripts/apply-migrations.ts` or `pnpm db:push` for this migration. After migration verification, stop at the separate deployment gate; `TR-09` remains the sole next step and `TR-10` remains planned.

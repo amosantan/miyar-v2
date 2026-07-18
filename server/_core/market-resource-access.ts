@@ -37,7 +37,7 @@ export async function requireEvidenceRecordForOrg(
   if (evidence.orgId === orgId) return { evidence, project: null };
   if (
     evidence.orgId === null &&
-    evidence.confidentiality === "public"
+    (evidence.corpusScope === "platform_public" || evidence.confidentiality === "public")
   ) {
     return { evidence, project: null };
   }

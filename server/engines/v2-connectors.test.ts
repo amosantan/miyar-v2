@@ -318,6 +318,7 @@ describe("V2-04: Connector Extraction", () => {
 // ─── 5. Normalization ───────────────────────────────────────────
 
 describe("V2-04: Connector Normalization", () => {
+  const evaluatedAt = new Date("2026-02-20T12:00:00.000Z");
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -330,7 +331,7 @@ describe("V2-04: Connector Normalization", () => {
       geography: "UAE",
       sourceUrl: "https://www.rakceramics.com/ae/products",
     };
-    const normalized = await connector.normalize(evidence);
+    const normalized = await connector.normalize(evidence, { evaluatedAt });
     expect(normalized.grade).toBe("B");
     expect(normalized.confidence).toBeGreaterThanOrEqual(0.20);
     expect(normalized.confidence).toBeLessThanOrEqual(1.0);
@@ -349,7 +350,7 @@ describe("V2-04: Connector Normalization", () => {
       geography: "Dubai",
       sourceUrl: "https://www.emaar.com/en/projects",
     };
-    const normalized = await connector.normalize(evidence);
+    const normalized = await connector.normalize(evidence, { evaluatedAt });
     expect(normalized.grade).toBe("A");
     expect(normalized.tags).toContain("developer");
     expect(normalized.tags).toContain("luxury");
@@ -367,7 +368,9 @@ describe("V2-04: Connector Normalization", () => {
       geography: "UAE",
       sourceUrl: "https://www.rics.org/news-insights",
     };
-    const normalized = await connector.normalize(evidence);
+    const normalized = await connector.normalize(evidence, {
+      evaluatedAt: new Date("2026-02-15T00:00:00.000Z"),
+    });
     expect(normalized.grade).toBe("A");
     expect(normalized.value).toBeNull(); // Reports don't have single prices
     expect(normalized.unit).toBeNull();
@@ -385,7 +388,7 @@ describe("V2-04: Connector Normalization", () => {
       geography: "UAE",
       sourceUrl: "https://www.hafele.ae/en/products",
     };
-    const normalized = await connector.normalize(evidence);
+    const normalized = await connector.normalize(evidence, { evaluatedAt });
     expect(normalized.grade).toBe("B");
     expect(normalized.value).toBe(45);
     // Price regex extracts "AED 45" but context "per piece" needs exact match
@@ -404,7 +407,7 @@ describe("V2-04: Connector Normalization", () => {
       geography: "UAE",
       sourceUrl: "https://www.rakceramics.com/ae/test",
     };
-    const normalized = await connector.normalize(evidence);
+    const normalized = await connector.normalize(evidence, { evaluatedAt });
     const result = normalizedEvidenceInputSchema.safeParse(normalized);
     expect(result.success).toBe(true);
   });

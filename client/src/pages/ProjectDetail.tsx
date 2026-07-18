@@ -420,6 +420,13 @@ function ProjectDetailContent() {
   const { data: roiData } = trpc.project.roi.useQuery({ projectId });
   const { data: fiveLensData } = trpc.project.fiveLens.useQuery({ projectId });
   const { data: intelligenceData } = trpc.project.intelligence.useQuery({ projectId });
+  const { data: spaceBenchmark } = trpc.design.getSpaceBenchmark.useQuery(
+    { projectId },
+    { enabled: workspaceSection === "design" && activeTab === "spaceProgram" },
+  );
+  const latestSpaceSnapshot = (scores?.[0] as any)?.inputSnapshot as any;
+  const savedSpaceEvidence = latestSpaceSnapshot?.spaceEfficiencyEvidence;
+  const savedSpaceIsNeutralFallback = savedSpaceEvidence?.status === "neutral_fallback";
   const { data: assets, isLoading: assetsLoading } = trpc.intake.listAssets.useQuery({ projectId });
   const { data: benchmarks } = trpc.admin.benchmarks.list.useQuery();
   const { data: activeAlerts = [] } = trpc.autonomous.getAlerts.useQuery({ status: "active" });
@@ -1258,6 +1265,25 @@ function ProjectDetailContent() {
 
           {/* ─── Space Program Tab ────────────────────────────────────── */}
           <TabsContent value="spaceProgram" className="space-y-4">
+            {spaceBenchmark?.evidence?.status === "neutral_fallback" && (
+              <Card className="border-amber-500/30 bg-amber-500/5">
+                <CardContent className="pt-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-300">
+                        Neutral fallback — no rooms measured
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {savedSpaceIsNeutralFallback
+                          ? "The latest saved evaluation uses the approved neutral 50/100. No benchmark was applied, and it creates no space-derived financial saving."
+                          : "The current floor plan contains no measured rooms, so its analysis is the neutral 50/100. Re-evaluate before using it in decision outputs; existing ROI remains tied to the latest saved evaluation."}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             <SpaceProgramEditor projectId={projectId} />
           </TabsContent>
 

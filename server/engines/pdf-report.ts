@@ -7,6 +7,7 @@
  * - Three report types: Executive Decision Pack, Design Brief + RFQ, Full Report
  */
 import type { ScoreResult, ProjectInputs, SensitivityEntry, ROIResult, ReportType } from "../../shared/miyar-types";
+import type { BoardAnnexBoard, BoardAnnexData } from "./board-annex";
 
 const DIMENSION_LABELS: Record<string, string> = {
   sa: "Strategic Alignment",
@@ -136,7 +137,17 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
 `;
 }
 
-function renderEvidenceReferences(refs?: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }>): string {
+export interface ReportEvidenceReference {
+  title: string;
+  sourceUrl?: string;
+  category?: string;
+  reliabilityGrade?: string;
+  captureDate?: string;
+  confidenceStatus: "computed" | "asserted" | "legacy_unknown";
+  confidencePolicyVersion?: string;
+}
+
+function renderEvidenceReferences(refs?: ReportEvidenceReference[]): string {
   if (!refs || refs.length === 0) return "";
   const rows = refs.map((r, i) => {
     const gradeColor = r.reliabilityGrade === 'A' ? '#2e7d32' : r.reliabilityGrade === 'B' ? '#f57c00' : '#c62828';
@@ -146,6 +157,11 @@ function renderEvidenceReferences(refs?: Array<{ title: string; sourceUrl?: stri
     <td>${r.category || "\u2014"}</td>
     <td style="color:${gradeColor}; font-weight:600;">${r.reliabilityGrade || "\u2014"}</td>
     <td>${r.captureDate ? new Date(r.captureDate).toLocaleDateString() : "\u2014"}</td>
+    <td>${!r.confidenceStatus || r.confidenceStatus === "legacy_unknown"
+      ? "Legacy — calculation provenance unavailable"
+      : r.confidenceStatus === "asserted"
+        ? `Operator asserted (${r.confidencePolicyVersion || "manual-asserted-confidence-v1"})`
+        : `Computed (${r.confidencePolicyVersion || "policy unavailable"})`}</td>
     <td>${r.sourceUrl ? `<a href="${r.sourceUrl}" style="color:#0f3460;">[link]</a>` : "\u2014"}</td>
   </tr>`;
   }).join("");
@@ -154,7 +170,7 @@ function renderEvidenceReferences(refs?: Array<{ title: string; sourceUrl?: stri
   <h2>Evidence References</h2>
   <p style="font-size:9px; color:#666; margin-bottom:8px;">The following evidence records were linked to this project at the time of report generation. Inline citations <span class="citation-ref">[n]</span> in the report body reference entries in this table.</p>
   <table>
-    <tr><th>Ref</th><th>Title</th><th>Category</th><th>Grade</th><th>Captured</th><th>Source</th></tr>
+    <tr><th>Ref</th><th>Title</th><th>Category</th><th>Grade</th><th>Captured</th><th>Confidence provenance</th><th>Source</th></tr>
     ${rows}
   </table>
   <p style="font-size:8px; color:#999; margin-top:4px;">Grade A = Primary institutional source | Grade B = Verified commercial source | Grade C = Self-reported or unverified</p>
@@ -599,8 +615,78 @@ function renderROI(roi: ROIResult): string {
 
 // ─── Board Annex ────────────────────────────────────────────────────────────
 
-function renderBoardAnnex(boardSummaries?: PDFReportInput["boardSummaries"]): string {
-  if (!boardSummaries || boardSummaries.length === 0) {
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function renderBoardResolutionMessage(board: BoardAnnexBoard): string {
+  if (board.state === "empty") {
+    return "Empty board — no materials are attached. Cost and lead-time summary is unavailable.";
+  }
+  if (board.state === "unresolvable") {
+    return `Unresolvable board — none of the ${board.linkedItemCount} linked items could be resolved. Cost and lead-time summary is unavailable; repair the board links before relying on it.`;
+  }
+  if (board.state === "partial") {
+    return `Partial board — ${board.resolvedItemCount} of ${board.linkedItemCount} linked items resolved. ${board.unresolvedItemCount} unresolved ${board.unresolvedItemCount === 1 ? "item is" : "items are"} excluded from the figures below.`;
+  }
+  return board.linkedItemCount === 1
+    ? "Complete board — the linked item is resolved."
+    : `Complete board — all ${board.linkedItemCount} linked items are resolved.`;
+}
+
+function renderBoardCard(board: BoardAnnexBoard): string {
+  const stateColor = board.state === "complete"
+    ? "#166534"
+    : board.state === "partial"
+      ? "#92400e"
+      : "#991b1b";
+  const summary = "summary" in board ? board.summary : undefined;
+
+  const summaryHtml = summary
+    ? (() => {
+        const tierRows = Object.entries(summary.tierDistribution).map(([tier, count]) =>
+          `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${escapeHtml(tier.replaceAll("_", " "))}:</strong> ${count}</span>`
+        ).join("");
+        const criticalItems = summary.criticalPathItems.map(escapeHtml).join(", ");
+
+        return `
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
+        <div style="text-align:center;">
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved-item Cost Range</div>
+          <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.estimatedCostLow.toLocaleString()} – ${summary.estimatedCostHigh.toLocaleString()} ${escapeHtml(summary.currency)}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved-item Longest Lead</div>
+          <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.longestLeadTimeDays}d</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved Critical Items</div>
+          <div style="font-size:12px; font-weight:700; color:${summary.criticalPathItems.length > 0 ? "#dc2626" : "#16a34a"};">${summary.criticalPathItems.length}</div>
+        </div>
+      </div>
+      <div style="font-size:9px; color:#444;">${tierRows}</div>
+      ${criticalItems ? `<div style="margin-top:6px;"><span style="font-size:9px; color:#dc2626; font-weight:600;">Critical:</span> <span style="font-size:9px; color:#666;">${criticalItems}</span></div>` : ""}`;
+      })()
+    : "";
+
+  return `
+    <div style="border:1px solid #e0e0e0; border-radius:6px; padding:12px; margin:8px 0; page-break-inside:avoid;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-size:12px; font-weight:700; color:#0f3460;">${escapeHtml(board.boardName)}</span>
+        <span style="font-size:10px; color:#666;">${board.resolvedItemCount} of ${board.linkedItemCount} items resolved</span>
+      </div>
+      <div style="font-size:9px; color:${stateColor}; margin-bottom:${summary ? "8px" : "0"};">${renderBoardResolutionMessage(board)}</div>
+      ${summaryHtml}
+    </div>`;
+}
+
+function renderBoardAnnex(boardAnnex: BoardAnnexData): string {
+  if (boardAnnex.state === "no_boards") {
     return `
 <div class="section">
   <h2>Material Board Annex</h2>
@@ -609,40 +695,12 @@ function renderBoardAnnex(boardSummaries?: PDFReportInput["boardSummaries"]): st
 `;
   }
 
-  const boardCards = boardSummaries.map(b => {
-    const tierRows = Object.entries(b.tierDistribution).map(([tier, count]) =>
-      `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${tier.replace("_", " ")}:</strong> ${count}</span>`
-    ).join("");
-
-    return `
-    <div style="border:1px solid #e0e0e0; border-radius:6px; padding:12px; margin:8px 0; page-break-inside:avoid;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span style="font-size:12px; font-weight:700; color:#0f3460;">${b.boardName}</span>
-        <span style="font-size:10px; color:#666;">${b.totalItems} items</span>
-      </div>
-      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
-        <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Cost Range</div>
-          <div style="font-size:12px; font-weight:700; color:#0f3460;">${b.estimatedCostLow.toLocaleString()} – ${b.estimatedCostHigh.toLocaleString()} ${b.currency}</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Longest Lead</div>
-          <div style="font-size:12px; font-weight:700; color:#0f3460;">${b.longestLeadTimeDays}d</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Critical Items</div>
-          <div style="font-size:12px; font-weight:700; color:${b.criticalPathItems.length > 0 ? "#dc2626" : "#16a34a"};">${b.criticalPathItems.length}</div>
-        </div>
-      </div>
-      <div style="font-size:9px; color:#444;">${tierRows}</div>
-      ${b.criticalPathItems.length > 0 ? `<div style="margin-top:6px;"><span style="font-size:9px; color:#dc2626; font-weight:600;">Critical:</span> <span style="font-size:9px; color:#666;">${b.criticalPathItems.join(", ")}</span></div>` : ""}
-    </div>`;
-  }).join("");
+  const boardCards = boardAnnex.boards.map(renderBoardCard).join("");
 
   return `
 <div class="section">
   <h2>Material Board Annex</h2>
-  <p style="font-size:10px; color:#666; margin-bottom:8px;">The following material boards have been composed for this project. Each board includes cost estimates, lead time analysis, and tier distribution. Full RFQ-ready procurement schedules are available via the Board Composer export.</p>
+  <p style="font-size:10px; color:#666; margin-bottom:8px;">Board availability and resolution are shown explicitly. Any figures shown are calculated only from resolved catalog items. Full RFQ-ready procurement schedules are available via the Board Composer export.</p>
   ${boardCards}
 </div>
 `;
@@ -663,10 +721,12 @@ export interface PDFReportInput {
   designBrief?: any;
   benchmarkVersion?: string;
   logicVersion?: string;
-  evidenceRefs?: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }>;
-  boardSummaries?: Array<{ boardName: string; totalItems: number; estimatedCostLow: number; estimatedCostHigh: number; currency: string; longestLeadTimeDays: number; criticalPathItems: string[]; tierDistribution: Record<string, number> }>;
+  evidenceRefs?: ReportEvidenceReference[];
+  boardAnnex?: BoardAnnexData;
   autonomousContent?: string;
 }
+
+export type IssuedPDFReportInput = PDFReportInput & { boardAnnex: BoardAnnexData };
 
 function parseMarkdownToHTML(markdown: string): string {
   let html = markdown || "";
@@ -865,13 +925,13 @@ ${toc}
 `;
 }
 
-export function generateDesignBriefHTML(data: PDFReportInput): string {
+export function generateDesignBriefHTML(data: IssuedPDFReportInput): string {
   const watermark = generateWatermark(data.projectId, "design_brief");
   return [
     htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, watermark),
     `<div class="content-wrapper">`,
     renderDesignBrief(data.designBrief),
-    renderBoardAnnex(data.boardSummaries),
+    renderBoardAnnex(data.boardAnnex),
     renderEvidenceReferences(data.evidenceRefs),
     renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
     `</div>`,
@@ -879,7 +939,7 @@ export function generateDesignBriefHTML(data: PDFReportInput): string {
   ].join("");
 }
 
-export function generateFullReportHTML(data: PDFReportInput): string {
+export function generateFullReportHTML(data: IssuedPDFReportInput): string {
   const watermark = generateWatermark(data.projectId, "full_report");
   const sections = [
     htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, watermark),
@@ -904,7 +964,7 @@ export function generateFullReportHTML(data: PDFReportInput): string {
   }
 
   // V4: Board Annex
-  sections.push(renderBoardAnnex(data.boardSummaries));
+  sections.push(renderBoardAnnex(data.boardAnnex));
 
   // V2: Evidence References
   sections.push(renderEvidenceReferences(data.evidenceRefs));
@@ -1071,14 +1131,21 @@ export function generateScenarioComparisonHTML(data: ScenarioComparisonPDFInput)
   ].join("\n");
 }
 
+function requireBoardAnnex(data: PDFReportInput): IssuedPDFReportInput {
+  if (!data.boardAnnex) {
+    throw new Error("Material Board Annex data is required for this issued report");
+  }
+  return data as IssuedPDFReportInput;
+}
+
 export function generateReportHTML(reportType: ReportType, data: PDFReportInput): string {
   switch (reportType) {
     case "validation_summary":
       return generateValidationSummaryHTML(data);
     case "design_brief":
-      return generateDesignBriefHTML(data);
+      return generateDesignBriefHTML(requireBoardAnnex(data));
     case "full_report":
-      return generateFullReportHTML(data);
+      return generateFullReportHTML(requireBoardAnnex(data));
     case "autonomous_design_brief":
       return generateAutonomousBriefHTML(data);
     default:

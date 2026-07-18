@@ -14,6 +14,31 @@ export type OverrideType = "strategic" | "market_insight" | "risk_adjustment" | 
 export type ReportType = "validation_summary" | "design_brief" | "rfq_pack" | "full_report" | "autonomous_design_brief";
 export type BenchmarkSourceType = "synthetic" | "client_provided" | "curated";
 
+/**
+ * Point-in-time provenance for the space-efficiency score stored in a score
+ * matrix input snapshot. Historical snapshots may not contain this field; a
+ * reader must treat that absence as legacy_unknown rather than reconstructing
+ * evidence from the project's current floor plan.
+ */
+export type SpaceEfficiencyEvidence =
+  | {
+      status: "measured";
+      roomCount: number;
+      benchmarkBasis: "dld_area" | "miyar_uae";
+      transactionCount: number;
+    }
+  | {
+      status: "neutral_fallback";
+      reason: "no_rooms_detected";
+      roomCount: 0;
+      benchmarkBasis: "not_applied";
+      transactionCount: 0;
+    };
+
+export type SpaceEfficiencyEvidenceState =
+  | SpaceEfficiencyEvidence
+  | { status: "legacy_unknown" };
+
 // --- V5: Concrete Analytics Types ---
 export type DeveloperType = "Master Developer" | "Private/Boutique" | "Institutional Investor";
 export type TargetDemographic = "HNWI" | "Families" | "Young Professionals" | "Investors";
@@ -98,6 +123,7 @@ export interface ProjectInputs {
   // Phase 9: Space efficiency from floor plan analysis
   spaceEfficiencyScore?: number;  // 0-100, from benchmarkSpaceRatios
   spaceCriticalCount?: number;    // number of critical deviations
+  spaceEfficiencyEvidence?: SpaceEfficiencyEvidence;
 }
 
 export interface NormalizedInputs {

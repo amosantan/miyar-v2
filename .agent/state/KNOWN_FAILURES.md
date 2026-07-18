@@ -98,6 +98,8 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Owner: Repository owner / GitHub billing administrator.
 - Approved release exception: for the TR-03H release only, the user selected Vercel’s hosted build check on each pushed commit as the external gate, combined with the recorded local MySQL, PlanetScale, full-suite, audit, build, and Claude evidence.
 - TR-07 release disposition: The user explicitly authorized final smoke, commit, push, canonical-main merge, and production deployment. Run `29604504677` again created both jobs with zero steps and the billing-lock annotation. The release proceeded with a clean frozen install, passing TypeScript, safe 1,021/22 suite, 335/0 authorization audit, production build, successful Vercel preview/production builds, and passing production smoke. This bounded disposition does not close or normalize the CI failure.
+- TR-09 release preparation: The latest draft-PR run again created both required jobs with zero steps and no failed-job log, while Vercel Preview Comments passed. A production release needs an explicit owner-approved replacement-evidence disposition; this recurrence does not close or normalize the CI failure.
+- TR-09 disposition: On 2026-07-18, the user approved the documented local, disposable-MySQL, Vercel-preview, and independent-review evidence as the bounded release replacement for this unavailable hosted-CI gate. `KF-014` remains OPEN; the approval applies only to the TR-09 release candidate.
 - Exit criterion: restore Actions eligibility and obtain successful hosted Actions checks for future releases; the bounded TR-03H exception does not close the underlying billing failure.
 
 ## KF-015 — Production contains legacy null-organization resources
@@ -122,12 +124,23 @@ Known does not mean accepted. A failure remains open until its exit criterion is
   - Report generation converts board-summary retrieval failures to an empty list. An existing board with zero resolved items is also omitted from summaries, while a partially resolved board includes only resolved items without disclosing omissions. The renderer emits the genuine no-board message when no summaries remain in both issued-output paths.
 - Impact: A neutral fallback can look like measured evidence and influence derived value, historical confidence scores cannot identify or reproduce their full calculation path or masked quality reductions, and an issued report can falsely claim that no material boards exist or silently omit unresolved board content.
 - Owner: Reopened roadmap step `TR-09`.
+- Local remediation evidence: The current candidate is pushed with draft PR #7; safe suite, numerical contracts, browser states, eight rendered pages, disposable migration, and independent reviews pass. Status remains OPEN until the human-gated shared migration, deployment, and production verification complete.
 - Scope boundary: TR-08 records only behavioral acceptance boundaries. It does not prescribe TypeScript interfaces, API shapes, schema columns, migrations, UI components, or report failure mechanisms.
 - Exit criterion:
   - Empty and measured space results are distinguishable across presentation, scoring, and ROI without changing the approved neutral fallback silently.
   - Every newly computed confidence score retains an approved policy-chain identity and clock provenance across connector calculation, quality adjustment, update merge, and non-connector ingestion, with approved invalid/future-date and rejection-visibility behavior plus migration/backward-compatibility evidence where applicable.
   - Genuine no-board state, board-retrieval failure, and existing boards with zero, partial, or wholly unresolvable items produce distinct approved behavior in design briefs and full reports, with organization authorization and artifact tests passing.
   - Targeted, safe full-suite, TypeScript, authorization, build, rendered-artifact, migration/integrity where applicable, and independent-review gates pass.
+
+## KF-017 — Public ingestion upsert can collide with tenant evidence
+
+- Status: OPEN
+- Observed: 2026-07-18 at TR-09 baseline `e49029d` during confidence-chain tracing.
+- Evidence: `findExistingRecord` in `server/engines/ingestion/orchestrator.ts` matches only `sourceUrl + itemName`, and `updateExistingRecord` writes the returned row without requiring `orgId IS NULL` and `corpusScope = platform_public` in the lookup, lock, or final update.
+- Impact: A platform connector can pair public-ingestion confidence, capture date, snippet, run identity, or prices with an organization-owned same-key record, violating tenant isolation and evidence provenance.
+- Owner: Roadmap `TR-09`.
+- Local remediation evidence: The current candidate enforces null organization/project ownership and `platform_public`, uses a unique observation key and atomic transaction, and passed simultaneous-write, tenant-collision, rollback, and authorization verification on disposable MySQL. Status remains OPEN until the human-gated shared migration, deployment, and production verification complete.
+- Exit criterion: Connector insert/update and confidence-assessment persistence execute atomically against only null-owned `platform_public` rows; same-key organization and legacy-unscoped rows are invariant; disposable MySQL concurrency/rollback evidence and the authorization audit pass.
 
 ## Handling Protocol
 

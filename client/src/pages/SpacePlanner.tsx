@@ -108,6 +108,9 @@ export default function SpacePlanner() {
 
     const analysis = project?.floorPlanAnalysis as any;
     const benchmark = benchmarkQuery.data;
+    const spaceEvidence = benchmark?.evidence;
+    const isNeutralFallback = spaceEvidence?.status === "neutral_fallback";
+    const isDldMeasured = spaceEvidence?.status === "measured" && spaceEvidence.benchmarkBasis === "dld_area" && spaceEvidence.transactionCount > 0;
 
     return (
         <div className="space-y-6">
@@ -119,7 +122,7 @@ export default function SpacePlanner() {
                         Space Planner
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Upload floor plans for AI-powered room extraction and DLD-backed space advice
+                        Upload floor plans for AI-powered room extraction and evidence-labelled space advice
                     </p>
                 </div>
                 {project?.dldAreaName && (
@@ -324,7 +327,7 @@ export default function SpacePlanner() {
                             <div className="mt-4 flex justify-end">
                                 <Button onClick={() => benchmarkQuery.refetch()} className="gap-1" size="sm">
                                     <Sparkles className="h-3.5 w-3.5" />
-                                    Run DLD Benchmark
+                                    Run Space Benchmark
                                 </Button>
                             </div>
                         )}
@@ -332,21 +335,36 @@ export default function SpacePlanner() {
                 </Card>
             )}
 
-            {/* DLD-Backed Space Recommendations */}
+            {/* Evidence-labelled Space Recommendations */}
             {benchmark && (
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
                             <BarChart3 className="h-4 w-4 text-primary" />
-                            Space Optimization — DLD-Backed Recommendations
+                            {isNeutralFallback
+                                ? "Space Optimization — Neutral Result"
+                                : isDldMeasured
+                                    ? "Space Optimization — DLD-Backed Recommendations"
+                                    : "Space Optimization — MIYAR UAE Recommendations"}
                         </CardTitle>
                         <p className="text-xs text-muted-foreground">
-                            {benchmark.areaName} • DLD-backed benchmark analysis
+                            {isNeutralFallback
+                                ? "Neutral fallback — no rooms measured"
+                                : isDldMeasured
+                                    ? `${benchmark.areaName} • DLD area benchmark • ${spaceEvidence.transactionCount} transactions`
+                                    : `${benchmark.areaName} • MIYAR UAE benchmark`}
                         </p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {/* Summary Cards */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {isNeutralFallback ? (
+                            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                                <p className="text-sm font-semibold text-amber-300">Neutral fallback — no rooms measured</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    The approved neutral score of {benchmark.overallEfficiencyScore}/100 is retained for scoring continuity. It is not a measured result, no benchmark was applied, and no space-derived saving is claimed.
+                                </p>
+                            </div>
+                        ) : <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div className="bg-muted/30 rounded-lg p-3">
                                 <p className="text-xs text-muted-foreground">Efficiency Score</p>
                                 <p className="text-xl font-bold text-foreground">{benchmark.overallEfficiencyScore}<span className="text-xs font-normal text-muted-foreground">/100</span></p>
@@ -363,10 +381,10 @@ export default function SpacePlanner() {
                                 <p className="text-xs text-muted-foreground">Optimal Areas</p>
                                 <p className="text-xl font-bold text-emerald-400">{benchmark.totalOptimal}</p>
                             </div>
-                        </div>
+                        </div>}
 
                         {/* Detailed Recommendations */}
-                        <div className="space-y-3">
+                        {!isNeutralFallback && <div className="space-y-3">
                             {benchmark.recommendations?.map((rec: any, i: number) => {
                                 const style = SEVERITY_STYLES[rec.severity] || SEVERITY_STYLES.advisory;
                                 const Icon = style.icon;
@@ -404,7 +422,7 @@ export default function SpacePlanner() {
                                     </div>
                                 );
                             })}
-                        </div>
+                        </div>}
                     </CardContent>
                 </Card>
             )}
@@ -417,7 +435,7 @@ export default function SpacePlanner() {
                         <h3 className="text-lg font-semibold text-foreground">Ready for Analysis</h3>
                         <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
                             Your floor plan is uploaded. Click "Analyze with AI" to extract rooms, detect spatial ratios,
-                            and compare against DLD transaction data for your area.
+                            and compare them against the applicable evidence-labelled benchmark.
                         </p>
                         <Button onClick={handleAnalyze} disabled={analyzing} className="mt-4 gap-2">
                             {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
@@ -435,7 +453,7 @@ export default function SpacePlanner() {
                         <h3 className="text-lg font-semibold text-foreground">No Floor Plan Yet</h3>
                         <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
                             Upload a floor plan above to get started. MIYAR will extract room dimensions,
-                            compare them to DLD benchmark data, and give you actionable advice.
+                            compare them to the applicable benchmark, and give you actionable advice.
                         </p>
                     </CardContent>
                 </Card>

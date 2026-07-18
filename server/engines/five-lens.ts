@@ -5,6 +5,11 @@
  */
 
 import type { ScoreMatrix, Project, BenchmarkData } from "../../drizzle/schema";
+import {
+  NEUTRAL_SPACE_EFFICIENCY_LABEL,
+  resolveSpaceEfficiencyEvidence,
+  spaceBenchmarkLabel,
+} from "./space-evidence";
 
 export interface LensEvidence {
   variable: string;
@@ -56,6 +61,8 @@ export function computeFiveLens(
   benchmarks: BenchmarkData[]
 ): FiveLensOutput {
   const rawContrib = (scoreMatrix.variableContributions || {}) as Record<string, any>;
+  const inputSnapshot = (scoreMatrix.inputSnapshot || {}) as Record<string, unknown>;
+  const spaceEvidence = resolveSpaceEfficiencyEvidence(inputSnapshot);
   const penalties = (scoreMatrix.penalties || []) as any[];
   const penaltyNames = penalties.map((p: any) => p.name || p.type || "Unknown");
 
@@ -147,15 +154,28 @@ export function computeFiveLens(
     { variable: "des04Experience", label: "Experience Quality", value: project.des04Experience || 3, weight: 0.30, contribution: contributions.des04Experience?.contribution || 0 },
     { variable: "des05Sustainability", label: "Sustainability", value: project.des05Sustainability || 2, weight: 0.25, contribution: contributions.des05Sustainability?.contribution || 0 },
   ];
-  // Phase 9: Add space efficiency evidence when available
-  if ((project as any).spaceEfficiencyScore) {
+  // Phase 9: Read point-in-time space evidence from the matching score
+  // snapshot. Never reconstruct it from mutable project state.
+  const rawSnapshotSpaceScore = inputSnapshot.spaceEfficiencyScore;
+  const snapshotSpaceScore = typeof rawSnapshotSpaceScore === "number"
+    ? rawSnapshotSpaceScore
+    : typeof rawSnapshotSpaceScore === "string" && rawSnapshotSpaceScore.trim() !== ""
+      ? Number(rawSnapshotSpaceScore)
+      : Number.NaN;
+  if (Number.isFinite(snapshotSpaceScore)) {
     brandEvidence.push({
       variable: "spaceEfficiency",
       label: "Floor Plan Efficiency",
-      value: Number((project as any).spaceEfficiencyScore),
+      value: spaceEvidence.status === "neutral_fallback"
+        ? NEUTRAL_SPACE_EFFICIENCY_LABEL
+        : spaceEvidence.status === "legacy_unknown"
+          ? `${snapshotSpaceScore}/100 — legacy provenance unknown`
+          : snapshotSpaceScore,
       weight: 0.15,
       contribution: contributions.spaceEfficiency?.contribution || 0,
-      benchmarkRef: "DLD area benchmark comparison",
+      benchmarkRef: spaceEvidence.status === "neutral_fallback"
+        ? "No benchmark applied"
+        : spaceBenchmarkLabel(spaceEvidence),
     });
   }
 

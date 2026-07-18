@@ -14,6 +14,7 @@ import { evaluate, computeROI, type EvaluationConfig } from "../engines/scoring"
 import { runSensitivityAnalysis } from "../engines/sensitivity";
 import { generateValidationSummary, generateDesignBrief, generateFullReport } from "../engines/report";
 import { generateReportHTML, type PDFReportInput } from "../engines/pdf-report";
+import { buildBoardAnnexData, type BoardAnnexData } from "../engines/board-annex";
 import { generateDesignBrief as generateNewDesignBrief } from "../engines/design-brief";
 import { storagePut } from "../storage";
 import { nanoid } from "nanoid";
@@ -39,6 +40,7 @@ import {
   reportIndeterminateUploadPersistence,
 } from "../_core/upload-compensation";
 import { readValidatedProjectMedia } from "../_core/project-media";
+import { resolveSpaceEfficiencyEvidence } from "../engines/space-evidence";
 
 /**
  * Build evaluation config that respects the Logic Registry.
@@ -222,6 +224,7 @@ function projectToInputs(p: any): ProjectInputs {
     // Phase 9: Will be populated during evaluation if floor plan analyzed
     spaceEfficiencyScore: undefined,
     spaceCriticalCount: undefined,
+    spaceEfficiencyEvidence: undefined,
   };
 }
 
@@ -465,11 +468,16 @@ export const projectRouter = router({
           );
           inputs.spaceEfficiencyScore = spaceResult.overallEfficiencyScore;
           inputs.spaceCriticalCount = spaceResult.totalCritical;
+          inputs.spaceEfficiencyEvidence = spaceResult.evidence;
           console.log(`[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`);
 
           // Phase 9 Gap 6: Space-critical tenant insight
           if (spaceResult.totalCritical >= 2) {
             try {
+              const isTransactionBackedDld =
+                spaceResult.evidence.status === "measured" &&
+                spaceResult.evidence.benchmarkBasis === "dld_area" &&
+                spaceResult.evidence.transactionCount > 0;
               const criticalRooms = spaceResult.recommendations
                 .filter(r => r.severity === "critical")
                 .map(r => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`)
@@ -479,8 +487,12 @@ export const projectRouter = router({
                 insightType: "positioning_gap",
                 severity: "warning",
                 title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
-                body: `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside DLD benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
-                actionableRecommendation: "Review floor plan allocations in Space Planner. Critical room ratios are correlated with lower sale prices in this area.",
+                body: isTransactionBackedDld
+                  ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside transaction-backed DLD area benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`
+                  : `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR UAE space benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
+                actionableRecommendation: isTransactionBackedDld
+                  ? "Review floor plan allocations in Space Planner against the transaction-backed DLD area benchmark."
+                  : "Review floor plan allocations in Space Planner against the MIYAR UAE space benchmark.",
                 dataPoints: { spaceResult },
               }, ctx.orgId);
             } catch (alertErr) {
@@ -731,6 +743,16 @@ export const projectRouter = router({
       if (!modelVersion) return [];
 
       const inputs = projectToInputs(project);
+      const scoreMatrices = await db.getScoreMatricesByProject(input.id);
+      const latestSnapshot = scoreMatrices[0]?.inputSnapshot as any;
+      if (latestSnapshot) {
+        const savedEvidence = resolveSpaceEfficiencyEvidence(latestSnapshot);
+        const savedScore = Number(latestSnapshot.spaceEfficiencyScore);
+        if (Number.isFinite(savedScore)) inputs.spaceEfficiencyScore = savedScore;
+        inputs.spaceEfficiencyEvidence = savedEvidence.status === "legacy_unknown"
+          ? undefined
+          : savedEvidence;
+      }
       const expectedCost = await db.getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
       const benchmarks = await db.getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
 
@@ -772,7 +794,11 @@ export const projectRouter = router({
         materialLevel: project.des02MaterialLevel || 3,
         tier: project.mkt01Tier || "Upper-mid",
         horizon: project.ctx05Horizon || "12-24m",
-        spaceEfficiencyScore: (project as any).spaceEfficiencyScore || undefined,
+        spaceEfficiencyScore: Number((latest.inputSnapshot as any)?.spaceEfficiencyScore) || undefined,
+        spaceEfficiencyEvidence: (() => {
+          const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot as any);
+          return evidence.status === "legacy_unknown" ? undefined : evidence;
+        })(),
       };
 
       const roiResult = computeRoi(roiInputs, coefficients);
@@ -926,6 +952,29 @@ export const projectRouter = router({
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
+      // Issued report types that make board assertions must acquire one truthful,
+      // organization-scoped snapshot before scoring, AI work, storage, audit, or
+      // webhook side effects. A retrieval failure is not equivalent to no boards.
+      const requiresBoardAnnex = input.reportType === "design_brief" || input.reportType === "full_report";
+      let reportBoardSnapshot: Awaited<ReturnType<typeof db.getReportBoardSnapshotForOrg>> | null = null;
+      let boardAnnex: BoardAnnexData | undefined;
+      if (requiresBoardAnnex) {
+        try {
+          reportBoardSnapshot = await db.getReportBoardSnapshotForOrg(input.projectId, ctx.orgId);
+          boardAnnex = buildBoardAnnexData(reportBoardSnapshot);
+        } catch (error) {
+          console.error("[Report] Board annex retrieval failed", {
+            projectId: input.projectId,
+            reportType: input.reportType,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "REPORT_BOARD_RETRIEVAL_FAILED",
+          });
+        }
+      }
+
       const scores = await db.getScoreMatricesByProject(input.projectId);
       if (scores.length === 0) throw new Error("No scores available. Evaluate first.");
       const latest = scores[0];
@@ -935,22 +984,40 @@ export const projectRouter = router({
       if (!modelVersion) throw new Error("No active model version");
 
       // Phase 8: Fetch real-world material costs from tied boards to override budgets
-      const boards = await db.getMaterialBoardsByProject(input.projectId);
-      if (boards && boards.length > 0) {
-        const activeBoard = boards[0];
-        const boardMaterials = await db.getMaterialsByBoard(activeBoard.id);
+      let boardMaterials: Array<any> = [];
+      if (reportBoardSnapshot && reportBoardSnapshot.length > 0) {
+        const activeBoard = reportBoardSnapshot[0];
+        boardMaterials = activeBoard.resolvedItems.map((item: any) => ({
+              materialId: item.materialId,
+              quantity: item.quantity,
+              material: {
+                typicalCostLow: item.costLow,
+                typicalCostHigh: item.costHigh,
+                maintenanceFactor: item.maintenanceFactor,
+              },
+            }));
+      } else if (!reportBoardSnapshot) {
+        const legacyBoards = await db.getMaterialBoardsByProject(input.projectId);
+        if (legacyBoards.length > 0) {
+          boardMaterials = (await db.getMaterialsByBoard(legacyBoards[0].id)).map(item => ({
+              ...item,
+              material: null,
+            }));
+        }
+      }
 
+      if (boardMaterials.length > 0) {
         let totalLow = 0;
         let totalHigh = 0;
         let totalVariance = 0;
 
         for (const bm of boardMaterials) {
-          const mat = await db.getMaterialById(bm.materialId);
+          const mat = bm.material ?? await db.getMaterialById(bm.materialId);
           if (mat) {
             const qty = Number(bm.quantity) || 1;
             totalLow += (Number(mat.typicalCostLow) || 0) * qty;
             totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
-            const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+            const matMaint = parseFloat(String((mat as any).maintenanceFactor ?? "0.05"));
             totalVariance += (matMaint - 0.05) * 100;
           }
         }
@@ -987,7 +1054,15 @@ export const projectRouter = router({
         inputSnapshot: latest.inputSnapshot as any,
       };
 
-      const sensitivity = runSensitivityAnalysis(inputs, config);
+      const sensitivityInputs = {
+        ...inputs,
+        spaceEfficiencyScore: Number((latest.inputSnapshot as any)?.spaceEfficiencyScore) || undefined,
+        spaceEfficiencyEvidence: (() => {
+          const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot as any);
+          return evidence.status === "legacy_unknown" ? undefined : evidence;
+        })(),
+      };
+      const sensitivity = runSensitivityAnalysis(sensitivityInputs, config);
 
       // V2: Compute 5-lens and ROI for full reports
       const allBenchmarks = await db.getAllBenchmarkData();
@@ -1015,7 +1090,11 @@ export const projectRouter = router({
         materialLevel: project.des02MaterialLevel || 3,
         tier: project.mkt01Tier || "Upper-mid",
         horizon: project.ctx05Horizon || "12-24m",
-        spaceEfficiencyScore: (project as any).spaceEfficiencyScore || undefined,
+        spaceEfficiencyScore: Number((latest.inputSnapshot as any)?.spaceEfficiencyScore) || undefined,
+        spaceEfficiencyEvidence: (() => {
+          const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot as any);
+          return evidence.status === "legacy_unknown" ? undefined : evidence;
+        })(),
       };
       const roiResult = computeRoi(roiInputs, coefficients);
 
@@ -1099,7 +1178,7 @@ export const projectRouter = router({
       const logicVersionTag = publishedLV?.name || "v1.0-default";
 
       // Get evidence references linked to this project
-      let evidenceRefs: Array<{ title: string; sourceUrl?: string; category?: string; reliabilityGrade?: string; captureDate?: string }> = [];
+      let evidenceRefs: NonNullable<PDFReportInput["evidenceRefs"]> = [];
       try {
         const allEvidence = await db.listOrganizationEvidenceRecords(ctx.orgId, {
           projectId: input.projectId,
@@ -1112,40 +1191,15 @@ export const projectRouter = router({
               category: e.category || undefined,
               reliabilityGrade: e.reliabilityGrade || undefined,
               captureDate: e.captureDate ? String(e.captureDate) : undefined,
+              confidenceStatus: !e.currentConfidenceAssessmentId || !e.confidencePolicyVersion
+                ? "legacy_unknown"
+                : e.confidencePolicyVersion === "manual-asserted-confidence-v1"
+                  ? "asserted"
+                  : "computed",
+              confidencePolicyVersion: e.confidencePolicyVersion || undefined,
             }));
         }
       } catch { /* evidence refs are optional */ }
-
-      // V4: Collect board summaries for annex
-      let boardSummaries: PDFReportInput["boardSummaries"] = [];
-      try {
-        const boards = await db.getMaterialBoardsByProject(input.projectId);
-        const { computeBoardSummary } = await import("../engines/board-composer");
-        for (const board of boards) {
-          const boardMaterials = await db.getMaterialsByBoard(board.id);
-          const items = [];
-          for (const bm of boardMaterials) {
-            const mat = await db.getMaterialById(bm.materialId);
-            if (mat) {
-              items.push({
-                materialId: mat.id,
-                name: mat.name,
-                category: mat.category,
-                tier: mat.tier,
-                costLow: Number(mat.typicalCostLow) || 0,
-                costHigh: Number(mat.typicalCostHigh) || 0,
-                costUnit: mat.costUnit || "AED/unit",
-                leadTimeDays: mat.leadTimeDays || 30,
-                leadTimeBand: mat.leadTimeBand || "medium",
-                supplierName: mat.supplierName || "TBD",
-              });
-            }
-          }
-          if (items.length > 0) {
-            boardSummaries.push({ boardName: board.boardName, ...computeBoardSummary(items) });
-          }
-        }
-      } catch { /* board summaries are optional */ }
 
       const pdfInput: PDFReportInput = {
         projectName: project.name,
@@ -1159,7 +1213,7 @@ export const projectRouter = router({
         benchmarkVersion: benchmarkVersionTag,
         logicVersion: logicVersionTag,
         evidenceRefs,
-        boardSummaries,
+        boardAnnex,
         autonomousContent: input.reportType === "autonomous_design_brief" ? (reportData as any).content : undefined,
         designBrief: input.reportType === "design_brief" || input.reportType === "full_report"
           ? generateNewDesignBrief({ name: project.name, description: project.description }, inputs, scoreResult)

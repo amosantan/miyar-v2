@@ -130,6 +130,7 @@ export const ingestionRouter = router({
             sourcesSucceeded: lastRun.sourcesSucceeded,
             sourcesFailed: lastRun.sourcesFailed,
             recordsInserted: lastRun.recordsInserted,
+            recordsRejected: lastRun.recordsRejected,
             duplicatesSkipped: lastRun.duplicatesSkipped,
             startedAt: lastRun.startedAt,
             completedAt: lastRun.completedAt,

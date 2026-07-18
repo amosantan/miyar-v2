@@ -2,8 +2,8 @@
 
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **335**
-- Generated: 2026-07-17T16:17:49.999Z
+- Procedures inventoried: **336**
+- Generated: 2026-07-17T21:17:58.007Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
@@ -30,20 +30,20 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `admin_governed`       |    82 |
 | `global_governed`      |    54 |
 | `not_project_scoped`   |    22 |
-| `org_guarded`          |   176 |
+| `org_guarded`          |   177 |
 | `public_token_guarded` |     1 |
 
 ## Severity Summary
 
 | Severity | Count |
 | -------- | ----: |
-| `none`   |   335 |
+| `none`   |   336 |
 
 ## Remediation Summary
 
 | Target | Count |
 | ------ | ----: |
-| `none` |   335 |
+| `none` |   336 |
 
 ### Remediation ownership
 
@@ -331,6 +331,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `market-intelligence.dataHealth`                     | `global_governed`      | governed global intelligence/administrative resource                                                                                                                                                                                                            | No remediation assigned; retain classification evidence. |
 | `market-intelligence.evidence.addReference`          | `org_guarded`          | input.evidenceRecordId -> evidence_records.id -> evidence_records.orgId/projectId or governed global<br>input.targetId -> polymorphic target -> ownership follows linkType/targetType                                                                           | No remediation assigned; retain classification evidence. |
 | `market-intelligence.evidence.bulkImport`            | `global_governed`      | authenticated global admin role -> governed administrative resource                                                                                                                                                                                             | No remediation assigned; retain classification evidence. |
+| `market-intelligence.evidence.confidenceHistory`     | `org_guarded`          | input.id -> evidence_records.id -> evidence_records.orgId/projectId or governed global                                                                                                                                                                          | No remediation assigned; retain classification evidence. |
 | `market-intelligence.evidence.create`                | `global_governed`      | authenticated global admin role -> governed administrative resource                                                                                                                                                                                             | No remediation assigned; retain classification evidence. |
 | `market-intelligence.evidence.delete`                | `global_governed`      | input.id -> evidence_records.id -> evidence_records.orgId/projectId or governed global                                                                                                                                                                          | No remediation assigned; retain classification evidence. |
 | `market-intelligence.evidence.get`                   | `org_guarded`          | input.id -> evidence_records.id -> evidence_records.orgId/projectId or governed global                                                                                                                                                                          | No remediation assigned; retain classification evidence. |

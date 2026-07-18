@@ -11,6 +11,12 @@
  * - driver.value is guaranteed to never be undefined.
  */
 
+import {
+  NEUTRAL_SPACE_EFFICIENCY_LABEL,
+  resolveSpaceEfficiencyEvidence,
+  spaceBenchmarkLabel,
+} from "./space-evidence";
+
 export interface ScoreDriver {
   variable: string;
   label: string;
@@ -92,6 +98,7 @@ const VARIABLE_LABELS: Record<string, string> = {
   des03Complexity: "Design Complexity",
   des04Experience: "Experience Ambition",
   des05Sustainability: "Sustainability Commitment",
+  spaceEfficiencyScore: "Floor Plan Efficiency",
   // Execution (4 variables)
   exe01SupplyChain: "Supply Chain Readiness",
   exe02Contractor: "Contractor Capability",
@@ -132,6 +139,7 @@ const VARIABLE_TO_CONTRIBUTION_KEY: Record<string, Record<string, string>> = {
     des03Complexity: "des04_n",            // complexity is in ds via des04 weight
     des04Experience: "des04_n",
     des05Sustainability: "competitorInverse", // closest proxy
+    spaceEfficiencyScore: "spaceEfficiency",
   },
   er: {
     exe01SupplyChain: "supplyChainInverse",
@@ -236,6 +244,7 @@ export function generateExplainabilityReport(
     ds: scoreData.dsScore,
     er: scoreData.erScore,
   };
+  const spaceEvidence = resolveSpaceEfficiencyEvidence(inputSnapshot);
 
   // Flatten nested variableContributions for lookup
   // Structure: { sa: { str01_n: 0.35, ... }, ff: { budgetFit: 0.45, ... } }
@@ -254,7 +263,7 @@ export function generateExplainabilityReport(
     sa: ["str01BrandClarity", "str02Differentiation", "str03BuyerMaturity", "ctx01Typology"],
     ff: ["fin01BudgetCap", "fin02Flexibility", "fin03ShockTolerance", "fin04SalesPremium", "ctx03Gfa", "totalFitoutArea"],
     mp: ["mkt01Tier", "mkt02Competitor", "mkt03Trend", "ctx04Location"],
-    ds: ["des01Style", "des02MaterialLevel", "des03Complexity", "des04Experience", "des05Sustainability", "ctx02Scale"],
+    ds: ["des01Style", "des02MaterialLevel", "des03Complexity", "des04Experience", "des05Sustainability", "ctx02Scale", "spaceEfficiencyScore"],
     er: ["exe01SupplyChain", "exe02Contractor", "exe03Approvals", "exe04QaMaturity", "ctx05Horizon", "add01SampleKit", "add02PortfolioMode", "add03DashboardExport"],
   };
 
@@ -271,11 +280,15 @@ export function generateExplainabilityReport(
       const isStringEnum = STRING_ENUM_VARS.has(v);
       const isBooleanVar = BOOLEAN_VARS.has(v);
       const isRawNumeric = RAW_NUMERIC_VARS.has(v);
+      const isSpaceEfficiency = v === "spaceEfficiencyScore";
 
       // Compute numeric value for ordinal variables (1-5 scale)
       let numVal: number | null = null;
       let normalizedValue: number | null = null;
-      if (!isStringEnum && !isBooleanVar && !isRawNumeric && typeof rawVal === "number") {
+      if (isSpaceEfficiency && typeof rawVal === "number") {
+        numVal = rawVal;
+        normalizedValue = Math.max(0, Math.min(1, rawVal / 100));
+      } else if (!isStringEnum && !isBooleanVar && !isRawNumeric && typeof rawVal === "number") {
         numVal = rawVal;
         normalizedValue = Math.max(0, Math.min(1, (rawVal - 1) / 4)); // ordinal normalization
       } else if (!isStringEnum && !isBooleanVar && !isRawNumeric && typeof rawVal === "string") {
@@ -295,7 +308,11 @@ export function generateExplainabilityReport(
 
       // Determine direction
       let direction: "positive" | "negative" | "neutral";
-      if (isStringEnum) {
+      if (isSpaceEfficiency) {
+        direction = spaceEvidence.status === "measured"
+          ? (numVal !== null && numVal >= 75 ? "positive" : numVal !== null && numVal < 50 ? "negative" : "neutral")
+          : "neutral";
+      } else if (isStringEnum) {
         const enumMap = ENUM_QUALITY_MAP[v];
         direction = enumMap?.[String(rawVal)] ?? "neutral";
       } else if (isBooleanVar) {
@@ -311,7 +328,11 @@ export function generateExplainabilityReport(
 
       // Safe display value — NEVER undefined
       let displayValue: number | string;
-      if (rawVal === undefined || rawVal === null) {
+      if (isSpaceEfficiency && spaceEvidence.status === "neutral_fallback") {
+        displayValue = NEUTRAL_SPACE_EFFICIENCY_LABEL;
+      } else if (isSpaceEfficiency && spaceEvidence.status === "legacy_unknown" && rawVal !== undefined && rawVal !== null) {
+        displayValue = `${rawVal}/100 — Legacy score; measurement provenance unavailable`;
+      } else if (rawVal === undefined || rawVal === null) {
         displayValue = "N/A";
       } else if (isBooleanVar) {
         displayValue = rawVal ? "Yes" : "No";
@@ -325,7 +346,13 @@ export function generateExplainabilityReport(
         displayValue = String(rawVal);
       }
 
-      const explanation = buildVariableExplanation(v, displayValue, numVal, direction, isStringEnum || isBooleanVar);
+      const explanation = isSpaceEfficiency
+        ? spaceEvidence.status === "neutral_fallback"
+          ? `${NEUTRAL_SPACE_EFFICIENCY_LABEL}. The approved neutral score remains in the calculation, but it is not a measured result and does not support a benchmark or financial-saving claim.`
+          : spaceEvidence.status === "legacy_unknown"
+            ? "The historical snapshot has no immutable space-measurement provenance. Its score is retained for compatibility and must not be described as measured or benchmark-backed."
+            : `Floor plan efficiency was measured from ${spaceEvidence.roomCount} rooms using ${spaceBenchmarkLabel(spaceEvidence)}.`
+        : buildVariableExplanation(v, displayValue, numVal, direction, isStringEnum || isBooleanVar);
 
       const driver: ScoreDriver = {
         variable: v,
@@ -462,8 +489,11 @@ function buildDecisionRationale(
 }
 
 function buildConfidenceExplanation(confidenceScore: number, inputs: Record<string, unknown>): string {
-  const filledCount = Object.values(inputs).filter((v) => v !== null && v !== undefined && v !== "").length;
-  const totalVars = Object.keys(inputs).length;
+  const scoringInputs = Object.entries(inputs).filter(
+    ([key]) => key !== "spaceEfficiencyEvidence",
+  );
+  const filledCount = scoringInputs.filter(([, value]) => value !== null && value !== undefined && value !== "").length;
+  const totalVars = scoringInputs.length;
   const completeness = totalVars > 0 ? (filledCount / totalVars) * 100 : 0;
 
   let explanation = `Confidence score: ${confidenceScore.toFixed(1)}/100. `;

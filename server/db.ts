@@ -1,6 +1,7 @@
 import { eq, and, desc, asc, sql, inArray, gte, isNull, or } from "drizzle-orm";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
+import { createHash } from "node:crypto";
 import {
   InsertUser,
   users,
@@ -42,6 +43,7 @@ import {
   benchmarkSuggestions,
   sourceRegistry,
   evidenceRecords,
+  evidenceConfidenceAssessments,
   benchmarkProposals,
   benchmarkSnapshots,
   competitorEntities,
@@ -1284,6 +1286,105 @@ export async function getMaterialBoardsByProject(projectId: number) {
   return db.select().from(materialBoards).where(eq(materialBoards.projectId, projectId)).orderBy(desc(materialBoards.createdAt));
 }
 
+/**
+ * One organization-scoped, throwing snapshot for issued report annexes and
+ * board-cost enrichment. Left joins intentionally preserve empty boards and
+ * missing catalog rows; boardJson is never consulted.
+ */
+export async function getReportBoardSnapshotForOrg(projectId: number, orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("REPORT_BOARD_RETRIEVAL_FAILED");
+
+  const rows = await db.select({
+    boardId: materialBoards.id,
+    boardName: materialBoards.boardName,
+    boardCreatedAt: materialBoards.createdAt,
+    linkId: materialsToBoards.id,
+    materialId: materialsCatalog.id,
+    name: materialsCatalog.name,
+    category: materialsCatalog.category,
+    tier: materialsCatalog.tier,
+    costLow: materialsCatalog.typicalCostLow,
+    costHigh: materialsCatalog.typicalCostHigh,
+    costUnit: materialsCatalog.costUnit,
+    leadTimeDays: materialsCatalog.leadTimeDays,
+    leadTimeBand: materialsCatalog.leadTimeBand,
+    supplierName: materialsCatalog.supplierName,
+    maintenanceFactor: materialsCatalog.maintenanceFactor,
+    quantity: materialsToBoards.quantity,
+    unitOfMeasure: materialsToBoards.unitOfMeasure,
+    notes: materialsToBoards.notes,
+    sortOrder: materialsToBoards.sortOrder,
+  })
+    .from(materialBoards)
+    .innerJoin(projects, eq(projects.id, materialBoards.projectId))
+    .leftJoin(materialsToBoards, eq(materialsToBoards.boardId, materialBoards.id))
+    .leftJoin(materialsCatalog, eq(materialsCatalog.id, materialsToBoards.materialId))
+    .where(and(eq(materialBoards.projectId, projectId), eq(projects.orgId, orgId)))
+    .orderBy(
+      desc(materialBoards.createdAt),
+      desc(materialBoards.id),
+      asc(materialsToBoards.sortOrder),
+      asc(materialsToBoards.id)
+    );
+
+  const boards = new Map<number, {
+    boardId: number;
+    boardName: string;
+    linkedItemCount: number;
+    resolvedItems: Array<{
+      materialId: number;
+      name: string;
+      category: string;
+      tier: string;
+      costLow: number;
+      costHigh: number;
+      costUnit: string;
+      leadTimeDays: number;
+      leadTimeBand: string;
+      supplierName: string;
+      quantity?: number;
+      unitOfMeasure?: string;
+      notes?: string;
+      maintenanceFactor?: number;
+    }>;
+  }>();
+
+  for (const row of rows) {
+    let board = boards.get(row.boardId);
+    if (!board) {
+      board = {
+        boardId: row.boardId,
+        boardName: row.boardName,
+        linkedItemCount: 0,
+        resolvedItems: [],
+      };
+      boards.set(row.boardId, board);
+    }
+    if (row.linkId == null) continue;
+    board.linkedItemCount += 1;
+    if (row.materialId == null || row.name == null || row.category == null || row.tier == null) continue;
+    board.resolvedItems.push({
+      materialId: row.materialId,
+      name: row.name,
+      category: row.category,
+      tier: row.tier,
+      costLow: Number(row.costLow) || 0,
+      costHigh: Number(row.costHigh) || 0,
+      costUnit: row.costUnit || "AED/unit",
+      leadTimeDays: row.leadTimeDays || 30,
+      leadTimeBand: row.leadTimeBand || "medium",
+      supplierName: row.supplierName || "TBD",
+      quantity: row.quantity == null ? undefined : Number(row.quantity),
+      unitOfMeasure: row.unitOfMeasure || undefined,
+      notes: row.notes || undefined,
+      maintenanceFactor: row.maintenanceFactor == null ? undefined : Number(row.maintenanceFactor),
+    });
+  }
+
+  return Array.from(boards.values());
+}
+
 export async function getMaterialBoardById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
@@ -2264,6 +2365,210 @@ export async function createEvidenceRecord(data: typeof evidenceRecords.$inferIn
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(evidenceRecords).values(data);
   return { id: Number(result.insertId) };
+}
+
+type ConfidenceDecimalField =
+  | "baseConfidence"
+  | "recencyAdjustment"
+  | "confidenceAfterRecency"
+  | "qualityMultiplier"
+  | "qualityFloor";
+
+type ConfidenceAssessmentInsert = Omit<
+  typeof evidenceConfidenceAssessments.$inferInsert,
+  "id" | "evidenceRecordId" | "createdAt" | ConfidenceDecimalField
+> & Partial<Record<ConfidenceDecimalField, string | number | null>>;
+
+/**
+ * Persist an evidence row and its first confidence assessment atomically.
+ * Use this for new computed or operator-asserted evidence. Legacy callers may
+ * continue to create rows without provenance, which the API labels legacy_unknown.
+ */
+export async function createEvidenceRecordWithConfidenceAssessment(
+  data: typeof evidenceRecords.$inferInsert,
+  assessment: ConfidenceAssessmentInsert
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  return db.transaction(async (tx: any) => {
+    const [recordResult] = await tx.insert(evidenceRecords).values({
+      ...data,
+      confidencePolicyVersion: assessment.confidencePolicyId,
+    });
+    const evidenceRecordId = Number(recordResult.insertId);
+    const [assessmentResult] = await tx.insert(evidenceConfidenceAssessments).values({
+      ...assessment,
+      evidenceRecordId,
+    });
+    const assessmentId = Number(assessmentResult.insertId);
+    await tx.update(evidenceRecords)
+      .set({ currentConfidenceAssessmentId: assessmentId })
+      .where(eq(evidenceRecords.id, evidenceRecordId));
+    return { id: evidenceRecordId, assessmentId };
+  });
+}
+
+export interface PublicEvidenceObservationResult {
+  id: number;
+  assessmentId: number;
+  created: boolean;
+  previousConfidenceScore: number | null;
+  previousPriceTypical: string | null;
+}
+
+/**
+ * Latest accepted connector observation wins. Matching and mutation are both
+ * restricted to the public platform corpus so a same-key tenant row is never
+ * read, locked, or changed. The evidence mutation, append-only assessment, and
+ * current pointer update share one transaction.
+ */
+export async function upsertPublicEvidenceObservation(
+  data: typeof evidenceRecords.$inferInsert,
+  assessment: ConfidenceAssessmentInsert
+): Promise<PublicEvidenceObservationResult> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (data.orgId != null || data.projectId != null || data.corpusScope !== "platform_public") {
+    throw new Error("Public connector observations must be platform_public with no organization or project");
+  }
+  const publicObservationKey = createHash("sha256")
+    .update(JSON.stringify([data.sourceUrl, data.itemName]))
+    .digest("hex");
+
+  return db.transaction(async (tx: any) => {
+    const legacyMatches = await tx.select({
+      id: evidenceRecords.id,
+    })
+      .from(evidenceRecords)
+      .where(and(
+        eq(evidenceRecords.sourceUrl, data.sourceUrl),
+        eq(evidenceRecords.itemName, data.itemName),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        eq(evidenceRecords.corpusScope, "platform_public")
+      ))
+      .orderBy(desc(evidenceRecords.captureDate))
+      .limit(1);
+
+    let existing: { id: number; confidenceScore: number; priceTypical: string | null; recordId: string } | undefined;
+    let evidenceRecordId: number;
+    let created = false;
+
+    if (legacyMatches[0]) {
+      const locked = await tx.select({
+        id: evidenceRecords.id,
+        confidenceScore: evidenceRecords.confidenceScore,
+        priceTypical: evidenceRecords.priceTypical,
+        recordId: evidenceRecords.recordId,
+      }).from(evidenceRecords).where(and(
+        eq(evidenceRecords.id, legacyMatches[0].id),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        eq(evidenceRecords.corpusScope, "platform_public")
+      )).limit(1).for("update");
+      existing = locked[0];
+      if (!existing) throw new Error("Public observation disappeared before it could be locked");
+      evidenceRecordId = existing.id;
+    } else {
+      const [insertResult] = await tx.insert(evidenceRecords).values({
+        ...data,
+        publicObservationKey,
+        confidencePolicyVersion: assessment.confidencePolicyId,
+      }).onDuplicateKeyUpdate({
+        set: { id: sql`LAST_INSERT_ID(${evidenceRecords.id})` },
+      });
+      evidenceRecordId = Number(insertResult.insertId);
+      const locked = await tx.select({
+        id: evidenceRecords.id,
+        confidenceScore: evidenceRecords.confidenceScore,
+        priceTypical: evidenceRecords.priceTypical,
+        recordId: evidenceRecords.recordId,
+      }).from(evidenceRecords).where(and(
+        eq(evidenceRecords.id, evidenceRecordId),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        eq(evidenceRecords.corpusScope, "platform_public"),
+        eq(evidenceRecords.publicObservationKey, publicObservationKey)
+      )).limit(1).for("update");
+      if (!locked[0]) throw new Error("Public observation conflict resolved outside the public corpus");
+      created = locked[0].recordId === data.recordId;
+      if (!created) existing = locked[0];
+    }
+
+    if (!created) {
+      const {
+        id: _ignoredId,
+        recordId: _ignoredRecordId,
+        currentConfidenceAssessmentId: _ignoredAssessmentId,
+        ...latestObservation
+      } = data;
+      await tx.update(evidenceRecords).set({
+        ...latestObservation,
+        publicObservationKey,
+        confidencePolicyVersion: assessment.confidencePolicyId,
+      }).where(and(
+        eq(evidenceRecords.id, evidenceRecordId),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        eq(evidenceRecords.corpusScope, "platform_public")
+      ));
+    }
+
+    const finalScore = Number(data.confidenceScore);
+    const [assessmentResult] = await tx.insert(evidenceConfidenceAssessments).values({
+      ...assessment,
+      evidenceRecordId,
+      previousScore: existing?.confidenceScore ?? null,
+      finalScore,
+      mergeDecision: existing ? "latest_accepted" : "inserted",
+      outcome: "accepted",
+    });
+    const assessmentId = Number(assessmentResult.insertId);
+    await tx.update(evidenceRecords)
+      .set({
+        currentConfidenceAssessmentId: assessmentId,
+        confidencePolicyVersion: assessment.confidencePolicyId,
+      })
+      .where(and(
+        eq(evidenceRecords.id, evidenceRecordId),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        eq(evidenceRecords.corpusScope, "platform_public")
+      ));
+
+    return {
+      id: evidenceRecordId,
+      assessmentId,
+      created,
+      previousConfidenceScore: existing?.confidenceScore ?? null,
+      previousPriceTypical: existing?.priceTypical ?? null,
+    };
+  });
+}
+
+/** Rejected observations have provenance but deliberately create no evidence row. */
+export async function recordRejectedConfidenceAssessment(
+  assessment: ConfidenceAssessmentInsert
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(evidenceConfidenceAssessments).values({
+    ...assessment,
+    evidenceRecordId: null,
+    outcome: "rejected",
+    mergeDecision: "rejected",
+  } as any);
+  return { id: Number(result.insertId) };
+}
+
+export async function listConfidenceAssessmentHistory(evidenceRecordId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(evidenceConfidenceAssessments)
+    .where(eq(evidenceConfidenceAssessments.evidenceRecordId, evidenceRecordId))
+    .orderBy(desc(evidenceConfidenceAssessments.createdAt))
+    .limit(Math.min(Math.max(limit, 1), 100));
 }
 
 export async function createEvidenceRecordForOrg(

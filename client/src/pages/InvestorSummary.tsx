@@ -83,6 +83,7 @@ function InvestorSummaryContent() {
     });
 
     const { data: project } = trpc.project.get.useQuery({ id: projectId });
+    const { data: scoreMatrices } = trpc.project.getScores.useQuery({ projectId });
     const { data: brief } = trpc.designAdvisor.getDesignBrief.useQuery({ projectId }, { enabled: !!projectId });
     const { data: recs, isLoading: recsLoading } = trpc.designAdvisor.getRecommendations.useQuery({ projectId }, { enabled: !!projectId });
     const { data: materialConstants } = trpc.design.getMaterialConstants.useQuery();
@@ -105,6 +106,13 @@ function InvestorSummaryContent() {
         { projectId },
         { enabled: !!projectId },
     );
+    const currentSpaceEvidence = (spaceBenchmark as any)?.evidence;
+    const latestSpaceSnapshot = (scoreMatrices?.[0] as any)?.inputSnapshot as any;
+    const scoredSpaceEvidence = latestSpaceSnapshot?.spaceEfficiencyEvidence;
+    const scoredSpaceScore = Number(latestSpaceSnapshot?.spaceEfficiencyScore);
+    const isScoredNeutralFallback = scoredSpaceEvidence?.status === "neutral_fallback";
+    const isScoredDldMeasurement = scoredSpaceEvidence?.status === "measured" && scoredSpaceEvidence.benchmarkBasis === "dld_area" && scoredSpaceEvidence.transactionCount > 0;
+    const isCurrentNeutralFallback = currentSpaceEvidence?.status === "neutral_fallback";
 
     // Derived numbers (moved before Phase 10 hooks that depend on them)
     const totalFitoutBudget = recs?.reduce((s: number, r: any) => s + Number(r.budgetAllocation || 0), 0) ?? 0;
@@ -244,6 +252,19 @@ function InvestorSummaryContent() {
                     </Button>
                 </div>
             </div>
+
+            {!hasData && (isScoredNeutralFallback || isCurrentNeutralFallback) && (
+                <Card className="border-amber-500/30 bg-amber-500/5">
+                    <CardContent className="py-4 text-left">
+                        <p className="text-sm font-semibold text-amber-300">Neutral fallback — no rooms measured</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {isScoredNeutralFallback
+                                ? `The latest saved evaluation retains the neutral ${Number.isFinite(scoredSpaceScore) ? scoredSpaceScore : 50}/100 score for scoring continuity. It is not a measured result and creates no space-derived ROI saving.`
+                                : "The current floor plan has no measured rooms. Re-evaluate before using this neutral analysis in decision outputs; existing ROI remains tied to the latest saved evaluation."}
+                        </p>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* If nothing is generated yet */}
             {!hasData && !recsLoading && (
@@ -435,16 +456,25 @@ function InvestorSummaryContent() {
                     </div>
 
                     {/* ── Section C½: Space Efficiency (Phase 9) ─────────────────── */}
-                    {spaceBenchmark && (spaceBenchmark as any).overallEfficiencyScore != null && (
+                    {Number.isFinite(scoredSpaceScore) && (
                         <div>
                             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
                                 <LayoutGrid className="h-3.5 w-3.5" /> Space Planning Intelligence
                             </h2>
-                            <div className="grid md:grid-cols-3 gap-3 mb-3">
+                            {isScoredNeutralFallback ? (
+                                <Card className="mb-3 border-amber-500/30 bg-amber-500/5">
+                                    <CardContent className="py-4">
+                                        <p className="text-sm font-semibold text-amber-300">Neutral fallback — no rooms measured</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            The latest saved evaluation retains the neutral {scoredSpaceScore}/100 score for scoring continuity. It is not a measured result, no room issues are claimed, and it creates no space-derived ROI saving.
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            ) : scoredSpaceEvidence?.status === "measured" ? <div className="grid md:grid-cols-3 gap-3 mb-3">
                                 {[
-                                    { label: "Space Efficiency", value: `${(spaceBenchmark as any).overallEfficiencyScore}/100`, sub: "vs DLD benchmarks" },
-                                    { label: "Critical Issues", value: String((spaceBenchmark as any).totalCritical ?? 0), sub: `${(spaceBenchmark as any).totalAdvisory ?? 0} advisory` },
-                                    { label: "Circulation Waste", value: `${((spaceBenchmark as any).circulationWastePercent ?? 0).toFixed(1)}%`, sub: "of total NFA" },
+                                    { label: "Space Efficiency", value: `${scoredSpaceScore}/100`, sub: isScoredDldMeasurement ? "Transaction-backed DLD area benchmark" : "MIYAR UAE benchmark" },
+                                    { label: "Rooms Measured", value: String(scoredSpaceEvidence.roomCount), sub: "saved evaluation snapshot" },
+                                    { label: "Transactions", value: String(scoredSpaceEvidence.transactionCount), sub: isScoredDldMeasurement ? "DLD observations" : "not DLD-backed" },
                                 ].map(m => (
                                     <Card key={m.label}>
                                         <CardContent className="pt-4 pb-3 text-center">
@@ -454,35 +484,11 @@ function InvestorSummaryContent() {
                                         </CardContent>
                                     </Card>
                                 ))}
-                            </div>
-                            {(spaceBenchmark as any).recommendations?.filter((r: any) => r.severity !== "optimal").length > 0 && (
-                                <Card>
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-sm flex items-center gap-1.5">
-                                            <LayoutGrid className="h-3.5 w-3.5 text-cyan-400" /> Room Allocation vs DLD Benchmarks
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        {(spaceBenchmark as any).recommendations
-                                            .filter((r: any) => r.severity !== "optimal")
-                                            .slice(0, 6)
-                                            .map((r: any, i: number) => (
-                                                <div key={i} className="flex items-center gap-3">
-                                                    <Badge variant="outline" className={`text-[9px] shrink-0 ${r.severity === "critical" ? "border-red-500/40 text-red-400" : "border-amber-500/40 text-amber-400"
-                                                        }`}>{r.severity}</Badge>
-                                                    <span className="w-20 text-xs text-muted-foreground truncate">{r.roomName || r.roomType}</span>
-                                                    <div className="flex-1 h-3 bg-[#0A1628] border border-[#1E2D42] rounded-full overflow-hidden shadow-inner relative">
-                                                        <div className="absolute inset-y-0 bg-primary/20 rounded-full" style={{ left: 0, width: `${Math.min(100, r.benchmarkPercent * 3)}%` }} />
-                                                        <div className={`absolute inset-y-0 rounded-full ${r.delta < 0 ? 'bg-red-500/60' : 'bg-amber-500/60'}`} style={{ left: 0, width: `${Math.min(100, r.currentPercent * 3)}%` }} />
-                                                    </div>
-                                                    <span className="text-[10px] text-muted-foreground w-14 text-right">
-                                                        {r.currentPercent.toFixed(1)}% → {r.benchmarkPercent}%
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        <p className="text-[10px] text-muted-foreground/60 pt-1">
-                                            Source: {(spaceBenchmark as any).areaName || "DLD UAE"} · Benchmarks based on sale price correlation
-                                        </p>
+                            </div> : (
+                                <Card className="mb-3 border-slate-500/30 bg-slate-500/5">
+                                    <CardContent className="py-4">
+                                        <p className="text-sm font-semibold text-foreground">Legacy space evidence — provenance unavailable</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">This historical score predates TR-09 space provenance. It is not treated as a measured DLD result and creates no space-derived ROI saving.</p>
                                     </CardContent>
                                 </Card>
                             )}

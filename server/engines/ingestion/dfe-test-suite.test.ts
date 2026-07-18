@@ -4,7 +4,15 @@ import { detectPriceChange } from './change-detector';
 import { DynamicConnector } from './connectors/dynamic';
 import { getDb, getPreviousPublicEvidenceRecord } from '../../db';
 
-const mockGetSourceRegistryById = vi.fn().mockResolvedValue({ id: 1, name: 'Test Source', isActive: true });
+const mockGetSourceRegistryById = vi.fn().mockResolvedValue({
+    id: 1,
+    name: 'Test Source',
+    url: 'https://example.test/source',
+    reliabilityDefault: 'B',
+    isActive: true,
+});
+const mockCreateEvidenceWithAssessment = vi.fn().mockResolvedValue({ id: 99, assessmentId: 1 });
+const mockRecordRejectedAssessment = vi.fn().mockResolvedValue({ id: 1 });
 
 vi.mock('../../db', () => ({
     getDb: vi.fn(),
@@ -12,7 +20,8 @@ vi.mock('../../db', () => ({
     createPriceChangeEvent: vi.fn().mockResolvedValue({ id: 1 }),
     getPreviousPublicEvidenceRecord: vi.fn(),
     getSourceRegistryById: (...args: any[]) => mockGetSourceRegistryById(...args),
-    createEvidenceRecord: vi.fn().mockResolvedValue({ id: 99 }),
+    createEvidenceRecordWithConfidenceAssessment: (...args: any[]) => mockCreateEvidenceWithAssessment(...args),
+    recordRejectedConfidenceAssessment: (...args: any[]) => mockRecordRejectedAssessment(...args),
     getEvidenceRecordById: vi.fn().mockResolvedValue({ id: 99, category: 'material_cost' }),
 }));
 
@@ -38,7 +47,7 @@ Premium Marble Tile,material_cost,Dubai,Price per SQM,150.50,sqm,2024-05-01,"mar
             const buffer = Buffer.from(csvStr, 'utf-8');
             const result = await processCsvUpload(buffer, 1, 999);
 
-            expect(result.successCount).toBe(1);
+            expect(result.successCount, JSON.stringify(result)).toBe(1);
             expect(result.skippedCount).toBe(1); // One bad row
         });
 
@@ -56,6 +65,33 @@ MockItem${i},material_cost,Dubai,Price,${10 + i},sqm`;
                 expect(result.skippedCount).toBe(0);
             });
         }
+
+        it("uses one receipt clock and the common missing-date adjustment", async () => {
+            mockCreateEvidenceWithAssessment.mockClear();
+            const buffer = Buffer.from(`Item Name,Category,Value,Unit\nFirst,other,10,unit\nSecond,other,20,unit`, "utf-8");
+            const result = await processCsvUpload(buffer, 1, 999);
+
+            expect(result.successCount).toBe(2);
+            const first = mockCreateEvidenceWithAssessment.mock.calls[0];
+            const second = mockCreateEvidenceWithAssessment.mock.calls[1];
+            expect(first[0].confidenceScore).toBe(55);
+            expect(first[1].recencyAdjustment).toBe(-0.15);
+            expect(first[1].evaluationClock).toEqual(second[1].evaluationClock);
+        });
+
+        it("records invalid and future publication dates as visible rejections", async () => {
+            mockRecordRejectedAssessment.mockClear();
+            const buffer = Buffer.from(`Item Name,Category,Value,Unit,Date\nInvalid,other,10,unit,not-a-date\nFuture,other,20,unit,2099-01-01`, "utf-8");
+            const result = await processCsvUpload(buffer, 1, 999);
+
+            expect(result.successCount).toBe(0);
+            expect(result.skippedCount).toBe(2);
+            expect(result.errors).toEqual([
+                "Row 2: invalid_publication_date",
+                "Row 3: future_publication_date",
+            ]);
+            expect(mockRecordRejectedAssessment).toHaveBeenCalledTimes(2);
+        });
     });
 
     describe('Change Detector (DFE-05)', () => {

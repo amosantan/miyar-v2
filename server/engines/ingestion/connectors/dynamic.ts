@@ -1,6 +1,14 @@
 import { BaseSourceConnector } from "../connector";
 import type { RawSourcePayload, ExtractedEvidence, NormalizedEvidenceInput } from "../connector";
-import { assignGrade, computeConfidence, isFirecrawlAvailable } from "../connector";
+import {
+    evaluateEvidenceConfidence,
+    isFirecrawlAvailable,
+    publicationDateFields,
+    resolveGradePolicy,
+    type ConfidenceEvaluationContext,
+    type GradePolicyMetadata,
+    type ReliabilityGrade,
+} from "../connector";
 import { invokeLLM } from "../../../_core/llm";
 import { discoverLinks, DEFAULT_CRAWL_CONFIG, type CrawlConfig } from "../crawler";
 
@@ -329,6 +337,8 @@ export class DynamicConnector extends BaseSourceConnector {
     /** Accumulates extracted evidence from all crawled pages */
     private _allPageEvidence: ExtractedEvidence[] = [];
     private _crawled = false;
+    private readonly reliabilityGrade?: ReliabilityGrade;
+    readonly gradePolicy: GradePolicyMetadata;
 
     constructor(config: {
         id: number | string;
@@ -341,11 +351,14 @@ export class DynamicConnector extends BaseSourceConnector {
         lastSuccessfulFetch?: Date | null;
         requestDelayMs?: number | null;
         scrapeConfig?: any;
+        reliabilityDefault?: ReliabilityGrade;
     }) {
         super();
         this.sourceId = String(config.id);
         this.sourceName = config.name;
         this.sourceUrl = config.url;
+        this.reliabilityGrade = config.reliabilityDefault;
+        this.gradePolicy = resolveGradePolicy(this.sourceId, this.reliabilityGrade);
 
         const typeCategoryMap: Record<string, string> = {
             supplier_catalog: "floors",
@@ -446,7 +459,12 @@ export class DynamicConnector extends BaseSourceConnector {
             // Extract evidence from this page using LLM
             try {
                 const content = payload.markdown || payload.rawHtml || "";
-                const evidence = await this.extractFromContent(content, url, !!payload.markdown);
+                const evidence = await this.extractFromContent(
+                    content,
+                    url,
+                    !!payload.markdown,
+                    payload.fetchedAt
+                );
                 if (evidence.length > 0) {
                     console.log(`[DynamicConnector]   📄 ${url} → ${evidence.length} items`);
                     allEvidence.push(...evidence);
@@ -489,7 +507,12 @@ export class DynamicConnector extends BaseSourceConnector {
      * Extract evidence from content using LLM.
      * Uses source-type-specific prompts for targeted extraction.
      */
-    private async extractFromContent(content: string, pageUrl: string, isMarkdown: boolean): Promise<ExtractedEvidence[]> {
+    private async extractFromContent(
+        content: string,
+        pageUrl: string,
+        isMarkdown: boolean,
+        observedAt: Date
+    ): Promise<ExtractedEvidence[]> {
         let textContent: string;
 
         if (isMarkdown) {
@@ -542,7 +565,8 @@ export class DynamicConnector extends BaseSourceConnector {
                 .map((item: any) => ({
                     title: String(item.title).substring(0, 255),
                     rawText: String(item.rawText || item.description || item.title || "").substring(0, 500),
-                    publishedDate: item.publishedDate ? new Date(item.publishedDate) : undefined,
+                    ...publicationDateFields(item.publishedDate, observedAt),
+                    observedAt,
                     category: item.category || this.category,
                     geography: this.geography,
                     sourceUrl: pageUrl,
@@ -587,12 +611,18 @@ export class DynamicConnector extends BaseSourceConnector {
             isMarkdown ? content : (raw.rawHtml ? content : `<pre>${content}</pre>`),
             raw.url,
             isMarkdown,
+            raw.fetchedAt,
         );
     }
 
-    async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-        const grade = assignGrade(this.sourceId);
-        const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+    async normalize(
+        evidence: ExtractedEvidence,
+        context?: ConfidenceEvaluationContext
+    ): Promise<NormalizedEvidenceInput> {
+        const gradePolicy = this.gradePolicy;
+        const grade = gradePolicy.grade;
+        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade, context);
+        const confidence = confidencePolicy.initial.score;
         const llmEvidence = evidence as any;
 
         return {
@@ -602,6 +632,8 @@ export class DynamicConnector extends BaseSourceConnector {
             unit: llmEvidence._llmUnit ?? this.defaultUnit,
             confidence,
             grade,
+            confidencePolicy,
+            gradePolicy,
             summary: (evidence.rawText || "").replace(/\s+/g, " ").trim().substring(0, 500),
             tags: this.defaultTags,
             brand: llmEvidence._llmBrand ?? null,

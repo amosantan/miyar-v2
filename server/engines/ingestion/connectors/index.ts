@@ -14,8 +14,10 @@
 
 import {
   BaseSourceConnector,
-  assignGrade,
-  computeConfidence,
+  evaluateEvidenceConfidence,
+  publicationDateFields,
+  resolveGradePolicy,
+  type ConfidenceEvaluationContext,
   type RawSourcePayload,
   type ExtractedEvidence,
   type NormalizedEvidenceInput,
@@ -214,6 +216,24 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
   abstract defaultTags: string[];
   abstract defaultUnit: string;
 
+  protected confidenceMetadata(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ) {
+    const gradePolicy = resolveGradePolicy(this.sourceId);
+    const confidencePolicy = evaluateEvidenceConfidence(
+      evidence,
+      gradePolicy.grade,
+      context
+    );
+    return {
+      grade: gradePolicy.grade,
+      confidence: confidencePolicy.initial.score,
+      confidencePolicy,
+      gradePolicy,
+    };
+  }
+
   async extract(raw: RawSourcePayload): Promise<ExtractedEvidence[]> {
     const html = raw.rawHtml || "";
     if (!html || html.length < 50) return [];
@@ -231,7 +251,8 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
       return llmItems.map((item) => ({
         title: `${this.sourceName} - ${item.title}`,
         rawText: item.rawText || item.title,
-        publishedDate: item.publishedDate ? new Date(item.publishedDate) : undefined,
+        ...publicationDateFields(item.publishedDate, raw.fetchedAt),
+        observedAt: raw.fetchedAt,
         category: this.category,
         geography: this.geography,
         sourceUrl: raw.url,
@@ -265,6 +286,8 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
         title: `${this.sourceName} - ${title}`,
         rawText: text,
         publishedDate: undefined,
+        ...publicationDateFields(undefined, raw.fetchedAt),
+        observedAt: raw.fetchedAt,
         category: this.category,
         geography: this.geography,
         sourceUrl: raw.url,
@@ -280,6 +303,8 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
         title: `${this.sourceName} - Page Content`,
         rawText: extractSnippet(plainText),
         publishedDate: undefined,
+        ...publicationDateFields(undefined, raw.fetchedAt),
+        observedAt: raw.fetchedAt,
         category: this.category,
         geography: this.geography,
         sourceUrl: raw.url,
@@ -289,9 +314,12 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
     return evidence;
   }
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
 
     // Check for LLM-extracted metadata
     const llmEvidence = evidence as any;
@@ -302,6 +330,8 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
         unit: llmEvidence._llmUnit || this.defaultUnit,
         confidence,
         grade,
+        confidencePolicy,
+        gradePolicy,
         summary: extractSnippet(evidence.rawText),
         tags: this.defaultTags,
       };
@@ -315,6 +345,8 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
       unit: prices.length > 0 ? prices[0].unit : this.defaultUnit,
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -416,9 +448,12 @@ export class RICSConnector extends HTMLSourceConnector {
   defaultTags = ["market-survey", "construction", "industry-report", "rics"];
   defaultUnit = "sqm";
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     return {
@@ -427,6 +462,8 @@ export class RICSConnector extends HTMLSourceConnector {
       unit: llmEvidence._llmUnit ?? null,
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -444,9 +481,12 @@ export class JLLConnector extends HTMLSourceConnector {
   defaultTags = ["market-research", "real-estate", "mena", "jll"];
   defaultUnit = "sqm";
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     return {
@@ -455,6 +495,8 @@ export class JLLConnector extends HTMLSourceConnector {
       unit: llmEvidence._llmUnit ?? null,
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -472,9 +514,12 @@ export class DubaiStatisticsConnector extends HTMLSourceConnector {
   defaultTags = ["government", "statistics", "dubai", "economic-indicators"];
   defaultUnit = "sqm";
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     return {
@@ -483,6 +528,8 @@ export class DubaiStatisticsConnector extends HTMLSourceConnector {
       unit: llmEvidence._llmUnit ?? null,
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -524,9 +571,12 @@ export class DubaiPulseConnector extends HTMLSourceConnector {
   defaultTags = ["government", "material-prices", "construction", "dubai-pulse"];
   defaultUnit = "unit";
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     return {
@@ -535,6 +585,8 @@ export class DubaiPulseConnector extends HTMLSourceConnector {
       unit: llmEvidence._llmUnit ?? "unit",
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -552,9 +604,12 @@ export class SCADConnector extends HTMLSourceConnector {
   defaultTags = ["government", "statistics", "abu-dhabi", "material-prices"];
   defaultUnit = "unit";
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     return {
@@ -563,6 +618,8 @@ export class SCADConnector extends HTMLSourceConnector {
       unit: llmEvidence._llmUnit ?? "unit",
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -580,9 +637,12 @@ export class DLDTransactionsConnector extends HTMLSourceConnector {
   defaultTags = ["government", "transactions", "real-estate", "dld"];
   defaultUnit = "sqft";
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     return {
@@ -591,6 +651,8 @@ export class DLDTransactionsConnector extends HTMLSourceConnector {
       unit: llmEvidence._llmUnit ?? "sqft",
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -620,9 +682,12 @@ export class CBREResearchConnector extends HTMLSourceConnector {
   defaultTags = ["market-research", "real-estate", "commercial", "cbre"];
   defaultUnit = "sqft";
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     return {
@@ -631,6 +696,8 @@ export class CBREResearchConnector extends HTMLSourceConnector {
       unit: llmEvidence._llmUnit ?? null,
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -648,9 +715,12 @@ export class KnightFrankConnector extends HTMLSourceConnector {
   defaultTags = ["market-research", "real-estate", "residential", "knight-frank"];
   defaultUnit = "sqft";
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     return {
@@ -659,6 +729,8 @@ export class KnightFrankConnector extends HTMLSourceConnector {
       unit: llmEvidence._llmUnit ?? null,
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -676,9 +748,12 @@ export class SavillsConnector extends HTMLSourceConnector {
   defaultTags = ["market-research", "real-estate", "investment", "savills"];
   defaultUnit = "sqft";
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     return {
@@ -687,6 +762,8 @@ export class SavillsConnector extends HTMLSourceConnector {
       unit: llmEvidence._llmUnit ?? null,
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
     };
@@ -729,9 +806,12 @@ export class BayutListingsConnector extends HTMLSourceConnector {
     return this.fetchWithFirecrawl();
   }
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     // Bayut-specific: extract price per sqft when available
@@ -758,6 +838,8 @@ export class BayutListingsConnector extends HTMLSourceConnector {
       unit,
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: [...this.defaultTags, "listing"],
     };
@@ -786,9 +868,12 @@ export class PropertyFinderListingsConnector extends HTMLSourceConnector {
     return this.fetchWithFirecrawl();
   }
 
-  async normalize(evidence: ExtractedEvidence): Promise<NormalizedEvidenceInput> {
-    const grade = assignGrade(this.sourceId);
-    const confidence = computeConfidence(grade, evidence.publishedDate, new Date());
+  async normalize(
+    evidence: ExtractedEvidence,
+    context?: ConfidenceEvaluationContext
+  ): Promise<NormalizedEvidenceInput> {
+    const { grade, confidence, confidencePolicy, gradePolicy } =
+      this.confidenceMetadata(evidence, context);
     const llmEvidence = evidence as any;
 
     let metric = llmEvidence._llmMetric || evidence.title;
@@ -814,6 +899,8 @@ export class PropertyFinderListingsConnector extends HTMLSourceConnector {
       unit,
       confidence,
       grade,
+      confidencePolicy,
+      gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: [...this.defaultTags, "listing"],
     };
