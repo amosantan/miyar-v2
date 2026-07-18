@@ -474,7 +474,7 @@ export const projectRouter = router({
           // Phase 9 Gap 6: Space-critical tenant insight
           if (spaceResult.totalCritical >= 2) {
             try {
-              const isTransactionBackedDld =
+              const hasDldAreaContext =
                 spaceResult.evidence.status === "measured" &&
                 spaceResult.evidence.benchmarkBasis === "dld_area" &&
                 spaceResult.evidence.transactionCount > 0;
@@ -487,11 +487,11 @@ export const projectRouter = router({
                 insightType: "positioning_gap",
                 severity: "warning",
                 title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
-                body: isTransactionBackedDld
-                  ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside transaction-backed DLD area benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`
+                body: hasDldAreaContext
+                  ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR ratio guidelines: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100. DLD transaction count is shown separately as area context and does not calibrate the guideline.`
                   : `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR UAE space benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
-                actionableRecommendation: isTransactionBackedDld
-                  ? "Review floor plan allocations in Space Planner against the transaction-backed DLD area benchmark."
+                actionableRecommendation: hasDldAreaContext
+                  ? "Review floor plan allocations in Space Planner against the MIYAR ratio guideline; treat DLD records as separate area context."
                   : "Review floor plan allocations in Space Planner against the MIYAR UAE space benchmark.",
                 dataPoints: { spaceResult },
               }, ctx.orgId);

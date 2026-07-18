@@ -405,7 +405,7 @@ export default function DesignBrief() {
                   {spaceAllocation.recommendations?.length > 0 && (
                     <>
                       <Separator />
-                      <p className="text-sm font-medium mb-2">DLD-Backed Recommendations</p>
+                      <p className="text-sm font-medium mb-2">Space-planning Recommendations</p>
                       {spaceAllocation.recommendations.map((rec: any, i: number) => (
                         <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground mb-1">
                           <Badge variant="outline" className={`text-xs shrink-0 mt-px ${rec.severity === "critical" ? "border-red-500/40 text-red-400" : "border-amber-500/40 text-amber-400"}`}>

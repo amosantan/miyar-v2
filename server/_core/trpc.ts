@@ -3,7 +3,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import * as db from "../db";
-import { createRateLimitMiddleware } from "./rate-limit";
+import { createPublicRateLimitMiddleware, createRateLimitMiddleware } from "./rate-limit";
 import { getAiOperationError } from "./ai-operation";
 
 const t = initTRPC.context<TrpcContext>().create({
@@ -25,6 +25,7 @@ const t = initTRPC.context<TrpcContext>().create({
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
+export const publicRateLimitedProcedure = t.procedure.use(createPublicRateLimitMiddleware(t));
 
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;

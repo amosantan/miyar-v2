@@ -618,8 +618,22 @@ describe("design router authorization", () => {
       shareExpiresAt: new Date("2099-01-01T00:00:00.000Z"),
     });
     mocks.db.getSpaceRecommendations.mockResolvedValue([]);
-    mocks.db.getBenchmarkForProject.mockResolvedValue(null);
-    mocks.db.getPublicDesignTrends.mockResolvedValue([]);
+    mocks.db.getBenchmarkForProject.mockResolvedValue({
+      typology: "Residential", location: "Prime", marketTier: "Upper-mid",
+      dataYear: 2026, sourceType: "curated", costPerSqftLow: 100,
+      costPerSqftMid: 120, costPerSqftHigh: 140,
+    });
+    mocks.db.getPublicDesignTrends.mockResolvedValue([{
+      id: 9,
+      trendName: "Warm minimalism",
+      description: "Public description",
+      trendCategory: "style",
+      confidenceLevel: "emerging",
+      sourceUrl: "SENTINEL-SOURCE-URL",
+      sourceRegistryId: 999,
+      runId: "SENTINEL-RUN",
+      corpusPolicy: "SENTINEL-CORPUS",
+    }]);
     const caller = designRouter.createCaller(contexts.unauthenticated);
 
     const english = await caller.resolveShareLink({ token: "active-token", locale: "en" });
@@ -629,8 +643,57 @@ describe("design router authorization", () => {
     expect(arabic).toMatchObject({ locale: "ar", readOnly: true, briefVersion: 3 });
     expect(arabic.projectName).toBe(english.projectName);
     expect(arabic.totalFitoutBudget).toBe(english.totalFitoutBudget);
+    expect(arabic.financialBasis).toEqual(english.financialBasis);
+    expect(english.financialBasis).toEqual({
+      fitout: "project_estimate",
+      salesPremium: "tier_assumption",
+      policyVersion: "share-tier-premium-v1",
+      assumedSalePriceAedPerSqm: 25000,
+    });
+    const serialized = JSON.stringify(english);
+    expect(serialized).not.toMatch(/SENTINEL-SOURCE-URL|SENTINEL-RUN|SENTINEL-CORPUS/);
+    expect(serialized).not.toMatch(/"orgId"|"projectId"|"shareToken"|"sustainCertTarget"/);
     expect(mocks.db.getAiDesignBriefByShareToken).toHaveBeenNthCalledWith(1, "active-token");
     expect(mocks.db.getAiDesignBriefByShareToken).toHaveBeenNthCalledWith(2, "active-token");
+  });
+
+  it("separates MIYAR ratio guidance from positive DLD context and suppresses invalid context", async () => {
+    mocks.db.getAiDesignBriefByShareToken.mockResolvedValue({
+      id: 700, projectId: projects.orgA.id, orgId: projects.orgA.orgId,
+      version: 3, briefData: {}, shareExpiresAt: new Date("2099-01-01T00:00:00.000Z"),
+    });
+    mocks.db.getProjectById.mockResolvedValue({
+      ...projects.orgA,
+      floorPlanAnalysis: {
+        totalEstimatedSqm: 100, bedroomCount: 1, bathroomCount: 1,
+        balconyPercentage: 0, circulationPercentage: 10, unitType: "1BR",
+        analysisConfidence: "high", rawNotes: "fixture",
+        rooms: [{ name: "Living", type: "living", estimatedSqm: 40, percentOfTotal: 40, finishGrade: "A" }],
+      },
+      dldAreaId: 7,
+    });
+    mocks.db.getSpaceRecommendations.mockResolvedValue([]);
+    mocks.db.getBenchmarkForProject.mockResolvedValue(null);
+    mocks.db.getPublicDesignTrends.mockResolvedValue([]);
+    mocks.db.getDldAreaBenchmark.mockResolvedValue({
+      areaNameEn: "Dubai Marina", period: "2026-Q1", saleTransactionCount: 412, saleP50: "25000",
+    });
+    const caller = designRouter.createCaller(contexts.unauthenticated);
+    const validContext = await caller.resolveShareLink({ token: "active-token", locale: "en" });
+    expect(validContext.spaceEfficiency).toMatchObject({
+      guidanceBasis: { kind: "miyar_ratio_guideline" },
+      marketContext: {
+        kind: "official_dld_observation", sourceName: "Dubai Land Department",
+        areaName: "Dubai Marina", period: "2026-Q1", transactionCount: 412,
+      },
+    });
+    expect(JSON.stringify(validContext.spaceEfficiency)).toContain("not a predicted or DLD-calibrated sale uplift");
+
+    mocks.db.getDldAreaBenchmark.mockResolvedValue({
+      areaNameEn: "Dubai Marina", period: "2026-Q1", saleTransactionCount: 0, saleP50: "25000",
+    });
+    const invalidContext = await caller.resolveShareLink({ token: "active-token", locale: "en" });
+    expect(invalidContext.spaceEfficiency).toBeUndefined();
   });
 
   it("does not disclose an active public-share token through authenticated investor export", async () => {

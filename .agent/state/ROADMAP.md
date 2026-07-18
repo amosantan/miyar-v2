@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-12` (`READY` — dependencies are closed and no infrastructure mutation is required for bounded planning)
+- Next executable step: `TR-12` (`READY` — TR-11 is verified locally and TR-12's dependencies are closed)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -45,7 +45,7 @@ Rules:
 | `TR` Trust recovery                | Tenant-safe and verifiably releasable baseline                     |    14 | Authorization inventory closed; checks/tests green; critical workflow certified             |
 | `UX` Product experience            | A simpler, credible, workflow-first application experience         |     1 | Core journey, compatibility, readiness, accessibility, and browser verification pass        |
 | `BR` Brief operating system        | One governed issued-design-brief workflow                          |     8 | Readiness, typology, version, report, and AI-evaluation contracts operate end to end        |
-| `EV` Evidence and procurement moat | Time-versioned UAE cost, source, supplier, and market intelligence |     7 | Displayed claims resolve to governed evidence and procurement comparisons                   |
+| `EV` Evidence and procurement moat | Time-versioned UAE cost, source, supplier, and market intelligence |     8 | Displayed claims resolve to governed evidence and procurement comparisons                   |
 | `SC` Scale and governance          | Maintainable architecture, enterprise controls, and integrations   |     8 | Operational profiles, privacy, collaboration, commercial controls, and handoff are verified |
 | `EX` Experiments                   | Controlled research after trustworthy foundations                  |     2 | Experiments have evaluation thresholds and cannot become numerical authority                |
 
@@ -326,7 +326,7 @@ Rules:
 
 ### TR-11 — Replace unsupported public claims
 
-- Status: `NEEDS_HUMAN`
+- Status: `CLOSED`
 - Class / priority: Product/commercial/legal / P0
 - Dependencies: Verified capability/freshness inventory from `TR-13` and `EV-04`, or conservative interim copy.
 - Human gate: Product owner and legal/commercial reviewer.
@@ -339,6 +339,12 @@ Rules:
 - Done when: Every public claim has runtime evidence or approved qualification.
 - Verification: Copy-to-source matrix, browser review, legal/product approval, automated check for governed counters where practical.
 - Expected artifacts: Approved claim registry and revised public pages.
+- Activated: 2026-07-18 on `codex/tr-11-public-claims` from canonical base `ee4b134`; the owner approved the conservative interim-copy path and explicitly kept legal publication behind named bilingual product/legal approval.
+- Closed: 2026-07-18
+- Terminal task state: `PASS`
+- Completion evidence: A bilingual claim registry, fail-closed cached/rate-limited public DLD indexed-subset snapshot, qualified Home/Methodology/share/customer/report copy, unknown freshness state, and future `EV-08` contract are implemented without schema, dependency, formula, benchmark, cadence, or legal-publication changes. Targeted tests pass 103/103; the safe suite passes 1,138 with 22 skipped; TypeScript, authorization inventory (337/337, zero remediation), all build targets, diff checks, English/Arabic browser QA, independent security/design review, and Claude Opus review pass.
+- Residual risk: Release and production observation are recorded separately from implementation closure. “Monitored weekly refresh” remains prohibited until `EV-08` closes and runtime health satisfies its approved SLA; legal pages remain unpublished pending exact bilingual product/legal approval.
+- Lessons: `LES-027`, `LES-028`
 
 ### TR-12 — Safe local and test database profiles
 
@@ -355,6 +361,7 @@ Rules:
 - Done when: Ordinary local/test commands cannot silently mutate a shared environment.
 - Verification: Configuration tests, dry startup logs, test-database smoke, runbook review.
 - Expected artifacts: Environment contract and updated local-development runbook.
+- Scheduling note: Restored as the sole next executable step after verified local closure of `TR-11`.
 
 ### TR-13 — Critical workflow certification
 
@@ -638,6 +645,32 @@ Rules:
 - Done when: A representative brief/cost plan round-trips classifications without losing MIYAR detail.
 - Verification: Mapping fixtures and qualified reviewer sign-off.
 - Expected artifacts: Versioned classification maps and export notes.
+
+### EV-08 — Weekly governed refresh and report-evidence binding
+
+- Status: `PLANNED`
+- Class / priority: Data/report/operations / P1
+- Dependencies: `TR-12`, `EV-03`, `EV-04`, `EV-05`, `BR-07`
+- Downstream consumer: `TR-11` future “monitored weekly refresh” public claim.
+- Human gates: Source terms/access, production cadence and cost budget, evidence-promotion policy, report stale/issue policy, and production cron deployment.
+- Evidence: Node and Vercel currently select scheduled connectors differently, and a successful cron does not prove that a report used fresh, governed evidence.
+- Change set:
+  - Establish one versioned critical-source manifest used by Node and Vercel, with a Monday 06:00 UTC attempt for approved Tier-A government/DLD and critical market-price sources; retain approved source-specific schedules for restricted, commercial, fragile, or lower-value sources.
+  - Define per-source terms/licensing, cadence/volume, bounded acquisition, units/currency/geography/category mappings, deduplication/retention, freshness, and anomaly policies. Prefer official APIs/downloads; allow documented, permitted, SSRF-safe bounded HTML acquisition only when necessary.
+  - Persist immutable run manifests with connector/source/policy versions, trigger/times, raw-capture identity/hash, observed-through dates, outcome counts, deterministic quality result, and per-source success/degraded/failed state.
+  - Treat required-source failure, unexpected zero, anomaly, invalid mapping, stale coverage, partial timeout, or incomplete run as non-green. Version deterministic thresholds so replaying the same capture/policy produces the same promotion decision.
+  - Automatically promote qualifying Tier-A snapshots only to `evidence_eligible` under a human-approved deterministic policy. Quarantine LLM-extracted, commercial, restricted, anomalous, or incomplete evidence. Never automatically change calculations, scores, prices, assumptions, or benchmark versions.
+  - Bind each new report draft to report-eligible source snapshots, ingestion runs, observed-through dates, benchmark version, freshness/insufficiency state, and fallback/omission reason. Issued artifacts remain immutable.
+  - Enforce deterministic report states: `current` when every mandatory contract/SLA passes; `degraded` when only non-mandatory evidence is stale/insufficient and unsupported numbers are suppressed; `blocked` when mandatory evidence lacks a current source or approved fallback, preventing issue/share/board-ready presentation.
+  - Permit stale fallback only when the report contract explicitly allows the last human-approved benchmark and displays its version, observed-through date, and stale/assumption label. Propagate freshness/insufficiency to private views and public shares.
+  - Alert on missed runs, required-source failures, unexpected zero/anomaly, quarantine backlog, SLA breach, stale mandatory report use, overlap, and timeout exhaustion. Default weekly SLA is eight days after the last successful required-source run unless EV-04 approves a superseding versioned threshold.
+- Done when:
+  - Four consecutive scheduled production windows record truthful outcomes; required sources meet SLA or expose a visible incident; and a real failure or non-writing production-path synthetic canary proves degraded/failed behavior.
+  - Repeated ingestion is idempotent; Node and Vercel select identical required sources/policies; recovery rehearsal passes.
+  - Fresh evidence updates report provenance without changing scores, prices, assumptions, or benchmarks; stale evidence deterministically produces the correct degraded/blocked state and public-share behavior.
+  - Independent data, security, tenant-isolation, and report reviews approve the implementation.
+- Verification: Valid/empty/malformed/redirect/timeout/blocked-destination/duplicate/mixed-unit/missing-source/stale/anomaly/partial-failure fixtures; provenance, deterministic-quality, policy-version, idempotency and promote/quarantine tests; Node/Vercel parity; report current/degraded/blocked/fallback/immutability/share tests; cross-organization snapshot-binding tests; safe full suite, type-check, authorization audit, build, bilingual report QA, four-week observation, failure canary, and recovery evidence.
+- Public wording gate: Only after closure may TR-11 say “monitored weekly refresh,” and only while the runtime satisfies the approved eight-day SLA. A miss must automatically say “refresh delayed” and show the last observed-through date; it may never continue saying “live.”
 
 ## Phase SC — Scale and Governance
 

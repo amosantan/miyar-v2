@@ -61,6 +61,6 @@ export function spaceBenchmarkLabel(evidence: SpaceEfficiencyEvidenceState): str
     return "Legacy score — measurement provenance unavailable";
   }
   return evidence.benchmarkBasis === "dld_area" && evidence.transactionCount > 0
-    ? `DLD area benchmark · ${evidence.transactionCount} transactions`
+    ? `MIYAR ratio guideline · separate DLD area context: ${evidence.transactionCount} transactions`
     : "MIYAR UAE benchmark";
 }

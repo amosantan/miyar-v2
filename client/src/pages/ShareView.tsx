@@ -13,9 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
     Building2, DollarSign, Leaf, TrendingUp, BarChart3,
-    AlertCircle, Loader2, ChevronRight, Globe, Lock, Shield, LayoutGrid,
+    AlertCircle, Loader2, ChevronRight, Globe, Lock, LayoutGrid,
 } from "lucide-react";
 import type { ReportLocale } from "@shared/report-locale";
+import { PUBLIC_CLAIMS } from "@shared/public-claims";
 
 const SHARE_COPY = {
     en: {
@@ -27,7 +28,7 @@ const SHARE_COPY = {
         designIdentity: "Design Identity", budgetSynthesis: "Budget Synthesis",
         budgetBySpace: "Budget Allocation by Space", marketBenchmark: "Market Benchmark",
         spacePlanning: "Space Planning Intelligence", roiBridge: "ROI Bridge",
-        sustainability: "Sustainability Grade", roiSummary: "ROI Summary",
+        sustainability: "Sustainability indicator", roiSummary: "ROI Summary",
         fitoutInvestment: "Fitout Investment", netUplift: "Net Uplift",
         marketIntelligence: "Market Intelligence", uaeTrends: "UAE Design Trends",
         assumptions: "Assumptions", evidence: "Evidence", disclaimer: "Important disclaimer",
@@ -43,7 +44,7 @@ const SHARE_COPY = {
         designIdentity: "هوية التصميم", budgetSynthesis: "ملخص الميزانية",
         budgetBySpace: "توزيع الميزانية حسب المساحة", marketBenchmark: "المعيار المرجعي للسوق",
         spacePlanning: "ذكاء تخطيط المساحات", roiBridge: "جسر العائد على الاستثمار",
-        sustainability: "درجة الاستدامة", roiSummary: "ملخص العائد على الاستثمار",
+        sustainability: "مؤشر الاستدامة", roiSummary: "ملخص العائد على الاستثمار",
         fitoutInvestment: "استثمار التجهيز الداخلي", netUplift: "صافي الزيادة",
         marketIntelligence: "ذكاء السوق", uaeTrends: "اتجاهات التصميم في الإمارات",
         assumptions: "الافتراضات", evidence: "الأدلة", disclaimer: "إخلاء مسؤولية مهم",
@@ -57,10 +58,6 @@ function fmtAed(n: number, locale: ReportLocale): string {
     if (n >= 1_000_000) return `${digits.format(n / 1_000_000)}M AED`;
     if (n >= 1_000) return `${digits.format(n / 1_000)}K AED`;
     return `${digits.format(n)} AED`;
-}
-
-function gradeColor(g: string) {
-    return { A: "text-emerald-400", B: "text-green-400", C: "text-amber-400", D: "text-orange-400", E: "text-red-400" }[g] ?? "text-muted-foreground";
 }
 
 export default function ShareView() {
@@ -127,13 +124,10 @@ export default function ShareView() {
     }
 
     const tier = data.tier ?? "Upper-mid";
-    const TIER_CARBON: Record<string, { grade: string }> = {
-        "Entry": { grade: "B" }, "Mid": { grade: "B" },
-        "Upper-mid": { grade: "C" }, "Luxury": { grade: "D" }, "Ultra-luxury": { grade: "D" },
-    };
-    const sustainabilityGrade = TIER_CARBON[tier]?.grade ?? "C";
     const totalFitoutBudget = data.totalFitoutBudget ?? 0;
     const estimatedSalesPremiumAed = data.estimatedSalesPremiumAed ?? 0;
+    const estimateQualifier = locale === "ar" ? PUBLIC_CLAIMS.estimateAssumption.copy.ar : PUBLIC_CLAIMS.estimateAssumption.copy.en;
+    const proxyQualifier = locale === "ar" ? PUBLIC_CLAIMS.marketTierProxy.copy.ar : PUBLIC_CLAIMS.marketTierProxy.copy.en;
 
     return (
         <div className="min-h-screen bg-background" lang={locale} dir={direction}>
@@ -180,16 +174,6 @@ export default function ShareView() {
                     <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                         {data.typology} · {tier} · {data.location} · {data.gfaSqm.toLocaleString()} sqm GFA · {data.style}
                     </p>
-                    {/* Sustainability cert badge (from new fields) */}
-                    {((data as any).city || (data as any).sustainCertTarget) && (
-                        <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400">
-                                <Shield className="h-2.5 w-2.5 mr-1" />
-                                {(data as any).city === "Abu Dhabi" ? "Estidama" : "Al Sa'fat"}
-                                {" "}{(data as any).sustainCertTarget || "Silver"}
-                            </Badge>
-                        </div>
-                    )}
                 </div>
 
 
@@ -209,6 +193,7 @@ export default function ShareView() {
                         </Card>
                     ))}
                 </div>
+                <p className="-mt-3 text-[10px] text-muted-foreground">{estimateQualifier}</p>
 
                 {/* Design Identity */}
                 {(data.execSummary || Object.keys(data.designDirection ?? {}).length > 0) && (
@@ -298,6 +283,7 @@ export default function ShareView() {
                                             </div>
                                         );
                                     })}
+                                    <p className="pt-1 text-[10px] text-muted-foreground">{estimateQualifier}{data.benchmark.sourceType ? ` · ${data.benchmark.sourceType}` : ""}</p>
                                 </CardContent>
                             </Card>
                         )}
@@ -328,7 +314,12 @@ export default function ShareView() {
                                 {((data as any).spaceEfficiency.recommendations ?? []).length > 0 && (
                                     <>
                                         <Separator className="mb-3" />
-                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">DLD-Backed Recommendations</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">
+                                            {locale === "ar" ? "إرشادات نسب المساحات لدى مِعيار" : "MIYAR space-ratio guidance"}
+                                        </p>
+                                        <p className="mb-2 text-[10px] text-muted-foreground">
+                                            {locale === "ar" ? "سياق سوق منفصل" : "Separate market context"}: {(data as any).spaceEfficiency.marketContext.sourceName} · {(data as any).spaceEfficiency.marketContext.areaName} · {(data as any).spaceEfficiency.marketContext.period} · {(data as any).spaceEfficiency.marketContext.transactionCount.toLocaleString()} {locale === "ar" ? "معاملة" : "transactions"}
+                                        </p>
                                         <div className="space-y-1">
                                             {((data as any).spaceEfficiency.recommendations ?? []).slice(0, 4).map((rec: any, i: number) => (
                                                 <div key={i} className="flex gap-2 items-start text-xs">
@@ -359,8 +350,8 @@ export default function ShareView() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className={`text-4xl font-black ${gradeColor(sustainabilityGrade)}`}>{sustainabilityGrade}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{tier} market tier</p>
+                                <p className="text-xl font-bold text-primary">{proxyQualifier}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{tier} {locale === "ar" ? "— ليس شهادة أو نتيجة امتثال" : "— not certification or a compliance result"}</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -383,6 +374,7 @@ export default function ShareView() {
                                         {fmtAed(estimatedSalesPremiumAed - totalFitoutBudget, locale)}
                                     </span>
                                 </div>
+                                <p className="pt-2 text-[10px] font-normal text-muted-foreground">{estimateQualifier} · {locale === "ar" ? "علاوة الفئة وافتراض سعر البيع" : "tier-premium and sale-price assumption"}</p>
                             </CardContent>
                         </Card>
                     </div>

@@ -47,7 +47,7 @@ export default function DesignStudio() {
                             Design Studio
                         </h2>
                         <p className="text-muted-foreground mt-1">
-                            Visual intelligence, material curation, and live market pricing — unified
+                            Visual intelligence, material curation, and approved benchmark observations — unified
                         </p>
                     </div>
                 </div>
@@ -993,8 +993,8 @@ function CostOverlayTab({ projectId }: { projectId: number }) {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-lg font-semibold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Live Market Pricing</h3>
-                    <p className="text-sm text-muted-foreground">Real-time benchmark data from approved market proposals</p>
+                    <h3 className="text-lg font-semibold flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Approved Benchmark Observations</h3>
+                    <p className="text-sm text-muted-foreground">Indicative values from approved benchmark proposals and their available provenance</p>
                 </div>
                 <div className="w-48">
                     <Select value={finishLevel} onValueChange={setFinishLevel}>
@@ -1013,7 +1013,7 @@ function CostOverlayTab({ projectId }: { projectId: number }) {
             {livePricing.isLoading && (
                 <Card className="design-studio-glass"><CardContent className="py-12 text-center">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-muted-foreground">Loading live market data...</p>
+                    <p className="text-muted-foreground">Loading approved benchmark observations...</p>
                 </CardContent></Card>
             )}
 
@@ -1021,7 +1021,7 @@ function CostOverlayTab({ projectId }: { projectId: number }) {
                 <Card className="design-studio-glass"><CardContent className="py-12 text-center">
                     <TrendingUp className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
                     <p className="text-muted-foreground">No approved benchmark data available for this finish level.</p>
-                    <p className="text-xs text-muted-foreground mt-2">Run the market ingestion pipeline and approve benchmark proposals to see live pricing here.</p>
+                    <p className="text-xs text-muted-foreground mt-2">Approved benchmark proposals will appear here with their available sample and confidence information.</p>
                 </CardContent></Card>
             )}
 
@@ -1055,7 +1055,7 @@ function CostOverlayTab({ projectId }: { projectId: number }) {
                                 </div>
                                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                                     <span>Unit: {pricing.unit}</span>
-                                    <Badge className="text-xs bg-green-500/10 text-green-600">Market-Verified ✓</Badge>
+                                    <Badge className="text-xs bg-green-500/10 text-green-600">Approved observation</Badge>
                                 </div>
                             </CardContent>
                         </Card>

@@ -311,3 +311,25 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The sixth artifact cycle passes 23/23 artifacts and 83/83 pages; authenticated selectors/previews/routes and public shares pass after the fixes; the final review's focused contracts pass 55/55, the safe suite passes 1,113/22, TypeScript and build pass, and the reloaded Design Studio emits no new browser errors.
 - Reuse rule: A clean rendered artifact does not prove that users can reach or invoke it correctly. Certify the application shell separately, with synthetic authenticated data and explicit human gates for interactions the approved automation surface will not perform.
 - Supersedes / related: Extends `LES-025` and the tenant-safe environment guidance that remains owned by `TR-12`.
+
+### LES-027 — Source context does not calibrate an unrelated deterministic guideline
+
+- Date / roadmap step: 2026-07-18 / `TR-11`
+- Context: MIYAR space recommendations use deterministic ratio guidelines while the same view may also show an area's DLD transaction count.
+- Observed: Copy described the ratio comparison and scenario coefficient as transaction-backed or DLD-calibrated even though the DLD sale value did not participate in those calculations.
+- Cause: Co-locating official observations with an internal guideline was mistaken for numerical provenance and causal validation.
+- Fix or decision: Label the deterministic rule as a MIYAR ratio guideline, expose positive DLD counts only as separate area context, and state that the context does not calibrate or validate a sale uplift.
+- Proof: Share, scoring, project-insight, space-evidence, design-brief, DOCX, and customer-copy contracts reject the prior causal wording; focused suites and independent review pass without changing numerical logic.
+- Reuse rule: A source displayed beside a calculation is not the calculation's provenance. Claim calibration, backing, prediction, or causality only when the versioned calculation contract actually consumes and validates that evidence.
+- Supersedes / related: Extends the numerical-authority and provenance boundaries in `AGENTS.md` and `TR-09`.
+
+### LES-028 — Rejected per-key traffic must not consume a shared anonymous quota
+
+- Date / roadmap step: 2026-07-18 / `TR-11`
+- Context: The public evidence snapshot needs both per-address and global process-local rate ceilings without requiring authentication.
+- Observed: Committing the global quota before checking the per-address ceiling allowed repeated rejected calls from one address to consume capacity for unrelated visitors.
+- Cause: The two rate-limit decisions were treated as sequential mutations instead of one atomic admission decision.
+- Fix or decision: Inspect both bounded buckets first and append to both only after both ceilings accept the request; trust forwarded addresses only under explicit proxy configuration.
+- Proof: The router test accepts 60 calls from one address, rejects 540 more without consuming the shared quota, and still accepts a second address; the safe suite and independent security review pass.
+- Reuse rule: Multi-bucket anonymous limiting must make one non-consuming admission decision before mutating any bucket, and must keep process memory bounded.
+- Supersedes / related: Applies to all future unauthenticated read-only endpoints and complements public-share privacy controls.

@@ -33,6 +33,7 @@ const ACCESS_PRIMITIVES = [
   "orgMutationProcedure",
   "designOrgAdminProcedure",
   "designOrgMutationProcedure",
+  "publicRateLimitedProcedure",
   "publicProcedure",
   "protectedProcedure",
   "orgProcedure",
@@ -917,7 +918,7 @@ function defaultAnnotation(
     classification = "global_governed";
   } else if (procedure.accessPrimitive === "adminProcedure") {
     classification = relevant ? "unsafe" : "admin_governed";
-  } else if (procedure.accessPrimitive === "publicProcedure") {
+  } else if (procedure.accessPrimitive === "publicProcedure" || procedure.accessPrimitive === "publicRateLimitedProcedure") {
     classification = /\b(token|shareToken|expiresAt|shareExpiresAt)\b/.test(
       text
     )
@@ -1471,7 +1472,7 @@ function renderReport(inventory: InventoryDocument) {
     "",
     "## Method and Scope",
     "",
-    "- The TypeScript compiler AST enumerates every procedure declared by the 24 router modules plus the two procedures in `systemRouter`.",
+    "- The TypeScript compiler AST enumerates every procedure declared by the router modules and `systemRouter`.",
     "- Extracted facts include access primitive, operation, input identifiers, helper calls, first resource access, and source location.",
     "- Semantic classification combines source-text rules, explicit governed/disabled registries, scoped-write evidence mappings, and manual ownership review; AST enumeration does not by itself prove authorization correctness.",
     "- The validator fails on missing/duplicate/stale procedures, source/helper/access drift, placeholder ownership paths, invalid classifications, and incomplete public-token evidence.",

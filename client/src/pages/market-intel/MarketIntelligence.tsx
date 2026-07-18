@@ -402,7 +402,7 @@ function MarketIntelligenceContent() {
                         </div>
                     )}
 
-                    {/* ─── DLD Live Feed + Market Status (Glass Overlay) ─── */}
+                    {/* ─── DLD indexed snapshot + market status (glass overlay) ─── */}
                     <div className="absolute top-6 left-6 w-[300px] flex flex-col gap-3 z-10">
                         {/* Selected Area Detail Card */}
                         {selectedAreaData && (
@@ -439,16 +439,16 @@ function MarketIntelligenceContent() {
                             </div>
                         )}
 
-                        {/* DLD Live Feed */}
+                        {/* DLD indexed snapshot */}
                         <div className="rounded-xl overflow-hidden shadow-2xl"
                             style={{ background: panelBg, backdropFilter: "blur(12px)", border: `1px solid ${gold}4d` }}>
                             <div className="px-4 py-2.5 flex items-center justify-between border-b"
                                 style={{ background: `${gold}1a`, borderColor: `${gold}33` }}>
                                 <div className="flex items-center gap-2">
                                     <Wifi className="h-3.5 w-3.5 animate-pulse" style={{ color: gold }} />
-                                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-200">DLD Live Feed</h3>
+                                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-200">DLD Indexed Snapshot</h3>
                                 </div>
-                                <span className="text-[10px] font-medium text-slate-400">Real-time</span>
+                                <span className="text-[10px] font-medium text-slate-400">Coverage as available</span>
                             </div>
                             <div className="max-h-[200px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                                 {feedItems.length > 0 ? feedItems.map((item: { title: string; subtitle: string; sqft: string | null; time: string; isNew: boolean }, i: number) => (

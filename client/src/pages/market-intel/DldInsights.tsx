@@ -42,6 +42,7 @@ interface BenchmarkItem {
 export default function DldInsights() {
     const { data: benchmarks, isLoading } = trpc.design.getAreaBenchmarks.useQuery();
     const { data: stats } = trpc.design.getDldDataStats.useQuery();
+    const { data: evidenceSnapshot } = trpc.system.marketEvidenceSnapshot.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
 
     const [search, setSearch] = useState("");
     const [sortKey, setSortKey] = useState<SortKey>("saleP50");
@@ -114,7 +115,7 @@ export default function DldInsights() {
         <div className="space-y-6 max-w-7xl">
             <PageHeader
                 title="DLD Market Insights"
-                description={`Dubai Land Department transaction & rent benchmarks across ${sorted.length} areas`}
+                description={`MIYAR indexed DLD observations and derived benchmarks across ${sorted.length} areas — not complete DLD coverage`}
                 icon={MapPin}
                 breadcrumbs={[{ label: "Market" }, { label: "DLD Insights" }]}
             />
@@ -282,7 +283,8 @@ export default function DldInsights() {
                 </div>
 
                 <p className="text-[10px] text-muted-foreground mt-2">
-                    Source: Dubai Land Department · {fmt(stats?.transactionCount)} transactions + {fmt(stats?.rentCount)} rent contracts · Units: AED/sqm
+                    Source: Dubai Land Department · MIYAR indexed subset · {fmt(stats?.transactionCount)} transactions + {fmt(stats?.rentCount)} rent contracts · Units: AED/sqm
+                    {evidenceSnapshot?.available ? ` · Records dated through ${evidenceSnapshot.datasets.transactions.recordsDatedThrough} (transactions) and ${evidenceSnapshot.datasets.rentContracts.recordsDatedThrough} (rents)` : " · Coverage date unavailable"}
                 </p>
             </div>
         </div>

@@ -477,9 +477,9 @@ function InvestorSummaryContent() {
                                 </Card>
                             ) : scoredSpaceEvidence?.status === "measured" ? <div className="grid md:grid-cols-3 gap-3 mb-3">
                                 {[
-                                    { label: "Space Efficiency", value: `${scoredSpaceScore}/100`, sub: isScoredDldMeasurement ? "Transaction-backed DLD area benchmark" : "MIYAR UAE benchmark" },
+                                    { label: "Space Efficiency", value: `${scoredSpaceScore}/100`, sub: isScoredDldMeasurement ? "MIYAR ratio proxy; DLD context shown separately" : "MIYAR UAE ratio proxy" },
                                     { label: "Rooms Measured", value: String(scoredSpaceEvidence.roomCount), sub: "saved evaluation snapshot" },
-                                    { label: "Transactions", value: String(scoredSpaceEvidence.transactionCount), sub: isScoredDldMeasurement ? "DLD observations" : "not DLD-backed" },
+                                    { label: "Transactions", value: String(scoredSpaceEvidence.transactionCount), sub: isScoredDldMeasurement ? "Separate DLD area context" : "DLD context unavailable" },
                                 ].map(m => (
                                     <Card key={m.label}>
                                         <CardContent className="pt-4 pb-3 text-center">

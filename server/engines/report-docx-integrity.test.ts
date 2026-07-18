@@ -64,7 +64,7 @@ describe("TR-10 design-brief DOCX integrity", () => {
       expect(documentXml).toContain("المساحة (قدم²)");
       expect(documentXml).toContain("% من الإجمالي");
       expect(documentXml).toContain("الدرجة");
-      expect(documentXml).toContain("توصيات مدعومة ببيانات دائرة الأراضي:");
+      expect(documentXml).toContain("إرشادات النسب من MIYAR:");
       expect(footerXml).toContain("الصفحة");
       expect(documentXml).toContain("w:bidi");
       expect(documentXml).toContain("w:rtl");
@@ -82,7 +82,7 @@ describe("TR-10 design-brief DOCX integrity", () => {
         "Room Breakdown:",
         "Area (sqft)",
         "% of Total",
-        "DLD-Backed Recommendations:",
+        "MIYAR Ratio Guidance:",
       ]) {
         expect(documentXml).not.toContain(untranslated);
       }

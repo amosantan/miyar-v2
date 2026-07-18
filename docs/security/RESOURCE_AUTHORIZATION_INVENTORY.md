@@ -2,14 +2,14 @@
 
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **336**
-- Generated: 2026-07-18T08:31:21.188Z
+- Procedures inventoried: **337**
+- Generated: 2026-07-18T12:48:01.641Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
 ## Method and Scope
 
-- The TypeScript compiler AST enumerates every procedure declared by the 24 router modules plus the two procedures in `systemRouter`.
+- The TypeScript compiler AST enumerates every procedure declared by the router modules and `systemRouter`.
 - Extracted facts include access primitive, operation, input identifiers, helper calls, first resource access, and source location.
 - Semantic classification combines source-text rules, explicit governed/disabled registries, scoped-write evidence mappings, and manual ownership review; AST enumeration does not by itself prove authorization correctness.
 - The validator fails on missing/duplicate/stale procedures, source/helper/access drift, placeholder ownership paths, invalid classifications, and incomplete public-token evidence.
@@ -29,7 +29,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | ---------------------- | ----: |
 | `admin_governed`       |    82 |
 | `global_governed`      |    54 |
-| `not_project_scoped`   |    22 |
+| `not_project_scoped`   |    23 |
 | `org_guarded`          |   177 |
 | `public_token_guarded` |     1 |
 
@@ -37,13 +37,13 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 
 | Severity | Count |
 | -------- | ----: |
-| `none`   |   336 |
+| `none`   |   337 |
 
 ## Remediation Summary
 
 | Target | Count |
 | ------ | ----: |
-| `none` |   336 |
+| `none` |   337 |
 
 ### Remediation ownership
 
@@ -103,7 +103,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 
 | Key                       | Operation | Evidence                                                                                                                                              | Notes                                                                                                                                                                  | Source                          |
 | ------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1804` |
+| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1803` |
 
 ## Complete Procedure Checklist
 
@@ -444,4 +444,5 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `sustainability.getLatestTwin`                       | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `sustainability.getTwinModels`                       | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `system.health`                                      | `not_project_scoped`   | session/user credential, deterministic input, or non-project workflow -> no project/org-owned identifier is accepted                                                                                                                                            | No remediation assigned; retain classification evidence. |
+| `system.marketEvidenceSnapshot`                      | `not_project_scoped`   | session/user credential, deterministic input, or non-project workflow -> no project/org-owned identifier is accepted                                                                                                                                            | No remediation assigned; retain classification evidence. |
 | `system.notifyOwner`                                 | `admin_governed`       | authenticated global admin role -> governed administrative resource                                                                                                                                                                                             | No remediation assigned; retain classification evidence. |
