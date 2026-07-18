@@ -343,7 +343,8 @@ Rules:
 - Closed: 2026-07-18
 - Terminal task state: `PASS`
 - Completion evidence: A bilingual claim registry, fail-closed cached/rate-limited public DLD indexed-subset snapshot, qualified Home/Methodology/share/customer/report copy, unknown freshness state, and future `EV-08` contract are implemented without schema, dependency, formula, benchmark, cadence, or legal-publication changes. Targeted tests pass 103/103; the safe suite passes 1,138 with 22 skipped; TypeScript, authorization inventory (337/337, zero remediation), all build targets, diff checks, English/Arabic browser QA, independent security/design review, and Claude Opus review pass.
-- Residual risk: Release and production observation are recorded separately from implementation closure. “Monitored weekly refresh” remains prohibited until `EV-08` closes and runtime health satisfies its approved SLA; legal pages remain unpublished pending exact bilingual product/legal approval.
+- Production release: PR #14 merged reviewed commit `e26e07e` as `d0c84da`; canonical-main CI `29645745114`, Vercel target `ExfGpuVC4UQ83Jy46i6xQnSKdJDP`, three production smoke observations, tenant/share negatives, endpoint minimization, and English/Arabic rendered-claim checks pass. No migration, dependency, scheduler, database write, or backfill was required or performed.
+- Residual risk: The production evidence snapshot currently fails closed as unavailable, so MIYAR truthfully shows no indexed counts until governed evidence is available. “Monitored weekly refresh” remains prohibited until `EV-08` closes and runtime health satisfies its approved SLA; legal pages remain unpublished pending exact bilingual product/legal approval.
 - Lessons: `LES-027`, `LES-028`
 
 ### TR-12 — Safe local and test database profiles

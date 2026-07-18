@@ -68,8 +68,9 @@ All runtime changes are additive or copy-level and can be reverted without data 
 - The regenerated authorization inventory validates all 337 procedures with zero remediation rows; `pnpm build` and `git diff --check` pass.
 - English/Arabic Home and Methodology browser QA passed in LTR/RTL at 1280px without horizontal overflow or console errors; unavailable evidence rendered fail-closed.
 - Independent security/design review returned `APPROVED` after the final generated-output correction; Claude Opus returned `APPROVED` on the final implementation boundaries.
-- No schema, migration, package, formula, scoring weight/threshold, financial-policy, benchmark-promotion, report-catalog, scheduler, legal-page, database, or production change was made.
+- PR #14 merged reviewed commit `e26e07e` as canonical-main release `d0c84da`; main CI `29645745114`, Vercel target `ExfGpuVC4UQ83Jy46i6xQnSKdJDP`, three production observations, tenant/share negative checks, endpoint minimization, and bilingual rendered-claim checks pass.
+- No schema, migration, package, formula, scoring weight/threshold, financial-policy, benchmark-promotion, report-catalog, scheduler, legal-page, database write, or backfill was required or performed.
 
 ## Next Action
 
-TR-11 is locally verified at `PASS`. Begin `TR-12` in a new worktree when authorized; do not publish “monitored weekly refresh” until `EV-08` closes and runtime health satisfies its approved SLA.
+TR-11 is released at `PASS`. Begin `TR-12` in a new worktree when authorized; do not publish “monitored weekly refresh” until `EV-08` closes and runtime health satisfies its approved SLA.
