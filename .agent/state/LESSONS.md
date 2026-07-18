@@ -278,3 +278,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: `TR-08-v1` is indexed and consumer-traced; targeted tests pass 80/80, the safe suite passes 1,023 with 22 skipped, repository gates pass, and independent code and Claude Sonnet reviews approved the corrected record.
 - Reuse rule: Do not close a human-gated product, numerical, data, or report decision until the durable accepted artifact exists and its approved behavior, limitations, effective version, consumers, and supersession process are all reviewable from the repository.
 - Supersedes / related: Extends the roadmap Definition of Done and applies to all future ADR-backed human approval gates.
+
+### LES-024 — Additive provenance migrations must prove legacy silence in production
+
+- Date / roadmap step: 2026-07-18 / `TR-09`
+- Context: Confidence provenance required an append-only assessment table and nullable current fields while thousands of historic evidence rows lacked reproducible clocks or policy stages.
+- Observed: A schema-only success would not prove that the release avoided inventing provenance, and the production branch did not enforce safe migrations.
+- Cause: Additive DDL statements commit independently on the provider, while legacy rows can look valid even when new nullable/default fields have been written unexpectedly.
+- Fix or decision: Take and verify a restorable backup, fingerprint the reviewed SQL, apply each statement once in order, then prove schema shape, indexes, counts, null legacy provenance, zero backfilled assessments, and pointer/key integrity before application deployment.
+- Proof: Migration 0049 applied all eight statements after backup `jqb2igl1ebgl`; production retained 1,755 evidence rows and 368 runs with zero assessments, null legacy provenance, and zero orphan/pointer/duplicate-key violations.
+- Reuse rule: For provenance migrations, record both structural success and the absence of fabricated historical state; after any partial DDL failure, inspect the exact live schema and apply only verified missing statements.
+- Supersedes / related: Extends `LES-017` and `LES-020`; applies to all append-only evidence and audit-schema migrations.

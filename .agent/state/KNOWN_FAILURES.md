@@ -116,7 +116,7 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 
 ## KF-016 — Baseline contract provenance and failure states are incomplete
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-17 at canonical-main state `1736129` during TR-08 consumer recertification.
 - Evidence:
   - `benchmarkSpaceRatios` returns the neutral fallback 50 for an empty room list, while project evaluation, normalization/scoring, ROI, Space Planner, and Investor Summary can consume or present it without distinguishing it from a measured DLD-backed score.
@@ -124,7 +124,7 @@ Known does not mean accepted. A failure remains open until its exit criterion is
   - Report generation converts board-summary retrieval failures to an empty list. An existing board with zero resolved items is also omitted from summaries, while a partially resolved board includes only resolved items without disclosing omissions. The renderer emits the genuine no-board message when no summaries remain in both issued-output paths.
 - Impact: A neutral fallback can look like measured evidence and influence derived value, historical confidence scores cannot identify or reproduce their full calculation path or masked quality reductions, and an issued report can falsely claim that no material boards exist or silently omit unresolved board content.
 - Owner: Reopened roadmap step `TR-09`.
-- Local remediation evidence: The current candidate is pushed with draft PR #7; safe suite, numerical contracts, browser states, eight rendered pages, disposable migration, and independent reviews pass. Status remains OPEN until the human-gated shared migration, deployment, and production verification complete.
+- Closed evidence: The user-authorized release applied migration 0049 sequentially after restorable backup `jqb2igl1ebgl` completed. Production verified the 31-column assessment table, provenance fields, indexes, legacy-null records, and unchanged 1,755 evidence / 368 ingestion-run counts. PR #7 merged as `bd09c3fdafca885d40b564eafe94ecc67197c7ad`; Vercel deployment `GQyoYH8hnMXwPRMYmzdsCgTg6wNV` is READY, public smoke and post-deploy database integrity passed, and the local numerical, rendered-artifact, authorization, migration, and independent-review evidence remains green.
 - Scope boundary: TR-08 records only behavioral acceptance boundaries. It does not prescribe TypeScript interfaces, API shapes, schema columns, migrations, UI components, or report failure mechanisms.
 - Exit criterion:
   - Empty and measured space results are distinguishable across presentation, scoring, and ROI without changing the approved neutral fallback silently.
@@ -134,12 +134,12 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 
 ## KF-017 — Public ingestion upsert can collide with tenant evidence
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-18 at TR-09 baseline `e49029d` during confidence-chain tracing.
 - Evidence: `findExistingRecord` in `server/engines/ingestion/orchestrator.ts` matches only `sourceUrl + itemName`, and `updateExistingRecord` writes the returned row without requiring `orgId IS NULL` and `corpusScope = platform_public` in the lookup, lock, or final update.
 - Impact: A platform connector can pair public-ingestion confidence, capture date, snippet, run identity, or prices with an organization-owned same-key record, violating tenant isolation and evidence provenance.
 - Owner: Roadmap `TR-09`.
-- Local remediation evidence: The current candidate enforces null organization/project ownership and `platform_public`, uses a unique observation key and atomic transaction, and passed simultaneous-write, tenant-collision, rollback, and authorization verification on disposable MySQL. Status remains OPEN until the human-gated shared migration, deployment, and production verification complete.
+- Closed evidence: The released application enforces null organization/project ownership and `platform_public`, uses a unique observation key and atomic transaction, and passed simultaneous-write, tenant-collision, rollback, and authorization verification on disposable MySQL. Production migration 0049 created the unique public-observation key; post-deployment integrity found zero duplicate keys, orphan assessments, or invalid current pointers, with all legacy records still null-provenance.
 - Exit criterion: Connector insert/update and confidence-assessment persistence execute atomically against only null-owned `platform_public` rows; same-key organization and legacy-unscoped rows are invariant; disposable MySQL concurrency/rollback evidence and the authorization audit pass.
 
 ## Handling Protocol
