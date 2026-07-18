@@ -1,7 +1,8 @@
-import 'dotenv/config';
 import * as db from '../server/db';
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
 
 async function main() {
+    initializeDatabaseSafety("seed", { loadDotenv: true });
     const now = new Date();
 
     console.log("🌱 Seeding Enriched Materials...");

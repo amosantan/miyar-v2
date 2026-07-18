@@ -8,6 +8,279 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// server/_core/database-safety.ts
+import { config as loadDotenvFile } from "dotenv";
+function isRuntimeProfile(value) {
+  return RUNTIME_PROFILES.includes(value);
+}
+function isDatabaseOperation(value) {
+  return DATABASE_OPERATIONS.includes(value);
+}
+function normalizeHost(hostname) {
+  const lower = hostname.toLowerCase();
+  return lower.startsWith("[") && lower.endsWith("]") ? lower.slice(1, -1) : lower;
+}
+function isLoopbackHost(host) {
+  if (host === "localhost" || host.endsWith(".localhost") || host === "::1") return true;
+  const parts = host.split(".");
+  return parts.length === 4 && parts.every((part) => /^\d+$/.test(part)) && Number(parts[0]) === 127;
+}
+function isUnspecifiedHost(host) {
+  return host === "0.0.0.0" || host === "::" || host === "*";
+}
+function canonicalHost(host) {
+  return host.includes(":") ? `[${host}]` : host;
+}
+function parseDatabaseName(pathname) {
+  if (!pathname.startsWith("/") || pathname === "/") return null;
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname.slice(1));
+  } catch {
+    return null;
+  }
+  if (!decoded || decoded.includes("/") || decoded.includes("\\")) return null;
+  return /^[A-Za-z0-9_.-]+$/.test(decoded) ? decoded : null;
+}
+function inspectDatabaseTarget(databaseUrl) {
+  if (!databaseUrl?.trim()) return { class: "absent" };
+  try {
+    const parsed = new URL(databaseUrl);
+    if (parsed.protocol !== "mysql:") throw new Error("Only mysql URLs are accepted");
+    if (parsed.hash) throw new Error("Fragments are not accepted");
+    const host = normalizeHost(parsed.hostname);
+    if (!host || isUnspecifiedHost(host)) throw new Error("Host is empty or unspecified");
+    const port = parsed.port ? Number(parsed.port) : 3306;
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port is invalid");
+    const database = parseDatabaseName(parsed.pathname);
+    if (!database) throw new Error("Database name is missing or ambiguous");
+    const canonical = `${canonicalHost(host)}:${port}/${database}`;
+    return {
+      class: isLoopbackHost(host) ? "safe-loopback" : "remote-shared",
+      host,
+      port,
+      database,
+      canonical
+    };
+  } catch (error) {
+    return {
+      class: "malformed",
+      error: error instanceof Error ? error.message : "Invalid database URL"
+    };
+  }
+}
+function parseTargetBinding(value) {
+  if (!value || value.includes("@") || value.includes("?") || value.includes("#")) return null;
+  const target = inspectDatabaseTarget(`mysql://${value}`);
+  if (target.class !== "remote-shared") return null;
+  return target.canonical ?? null;
+}
+function parseApproval(value) {
+  if (!value) return null;
+  const separator = value.indexOf("@");
+  if (separator <= 0 || separator !== value.lastIndexOf("@")) return null;
+  const operationTokens = value.slice(0, separator).split("+");
+  if (operationTokens.length === 0 || operationTokens.some((token) => !isDatabaseOperation(token)) || new Set(operationTokens).size !== operationTokens.length) return null;
+  const operations = operationTokens;
+  const expectedOrder = [...operations].sort(
+    (a, b) => DATABASE_OPERATIONS.indexOf(a) - DATABASE_OPERATIONS.indexOf(b)
+  );
+  if (operations.some((operation, index2) => operation !== expectedOrder[index2])) return null;
+  if (operations.includes("unit-test") || operations.includes("integration-test")) return null;
+  const target = parseTargetBinding(value.slice(separator + 1));
+  return target ? { operations: new Set(operations), target } : null;
+}
+function deploymentIdentity(input) {
+  const hasAnySignal = Boolean(input.vercel || input.vercelEnv || input.vercelUrl);
+  const validEnvironment = input.vercelEnv === "preview" || input.vercelEnv === "production";
+  const complete = input.vercel === "1" && validEnvironment && Boolean(input.vercelUrl?.trim());
+  return {
+    trusted: complete,
+    profile: complete ? input.vercelEnv : void 0,
+    invalid: hasAnySignal && !complete
+  };
+}
+function resolveProfile(input) {
+  const deployment = deploymentIdentity(input);
+  if (deployment.invalid) {
+    return { profile: "local", trustedDeployment: false, error: "DEPLOYMENT_IDENTITY_INVALID" };
+  }
+  if (input.runtimeProfile !== void 0 && !isRuntimeProfile(input.runtimeProfile)) {
+    return { profile: "local", trustedDeployment: false, error: "RUNTIME_PROFILE_INVALID" };
+  }
+  if (input.nodeEnv === "test") {
+    if (input.runtimeProfile && input.runtimeProfile !== "test") {
+      return { profile: "test", trustedDeployment: false, error: "RUNTIME_PROFILE_MISMATCH" };
+    }
+    return { profile: "test", trustedDeployment: false };
+  }
+  if (deployment.trusted && deployment.profile) {
+    if (input.runtimeProfile && input.runtimeProfile !== deployment.profile) {
+      return {
+        profile: deployment.profile,
+        trustedDeployment: true,
+        error: "RUNTIME_PROFILE_MISMATCH"
+      };
+    }
+    return { profile: deployment.profile, trustedDeployment: true };
+  }
+  return {
+    profile: isRuntimeProfile(input.runtimeProfile) ? input.runtimeProfile : "local",
+    trustedDeployment: false
+  };
+}
+function decision(allowed, profile, operation, trustedDeployment, target, reasonCode) {
+  return { allowed, profile, operation, trustedDeployment, target, reasonCode };
+}
+function evaluateDatabaseAccess(input) {
+  const resolved = resolveProfile(input);
+  const target = inspectDatabaseTarget(input.databaseUrl);
+  if (resolved.error) {
+    return decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, resolved.error);
+  }
+  if (target.class === "malformed") {
+    return decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "DATABASE_URL_INVALID");
+  }
+  if (input.operation === "unit-test") {
+    return target.class === "absent" ? decision(true, resolved.profile, input.operation, false, target, "DATABASE_DISABLED") : decision(false, resolved.profile, input.operation, false, target, "UNIT_TEST_DATABASE_FORBIDDEN");
+  }
+  if (input.operation === "integration-test") {
+    if (target.class === "absent") {
+      return decision(false, resolved.profile, input.operation, false, target, "INTEGRATION_TARGET_REQUIRED");
+    }
+    const safeName = target.database?.startsWith("miyar_test") || target.database?.startsWith("miyar_auth_test");
+    return target.class === "safe-loopback" && safeName ? decision(true, "test", input.operation, false, target, "SAFE_LOOPBACK_ALLOWED") : decision(false, "test", input.operation, false, target, "INTEGRATION_TARGET_INVALID");
+  }
+  if (target.class === "absent") {
+    return input.operation === "serve" ? decision(true, resolved.profile, input.operation, resolved.trustedDeployment, target, "DATABASE_DISABLED") : decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "DATABASE_TARGET_REQUIRED");
+  }
+  if (target.class === "safe-loopback") {
+    const safeName = resolved.profile === "test" ? target.database?.startsWith("miyar_test") || target.database?.startsWith("miyar_auth_test") : target.database?.startsWith("miyar_local") || target.database?.startsWith("miyar_dev");
+    return safeName ? decision(true, resolved.profile, input.operation, resolved.trustedDeployment, target, "SAFE_LOOPBACK_ALLOWED") : decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "LOCAL_DATABASE_NAME_INVALID");
+  }
+  if (resolved.profile === "production" && resolved.trustedDeployment && (input.operation === "serve" || input.operation === "ingest")) {
+    return decision(true, resolved.profile, input.operation, true, target, "TRUSTED_PRODUCTION_TARGET");
+  }
+  if (resolved.profile === "preview" && resolved.trustedDeployment) {
+    const binding = parseTargetBinding(input.deploymentDatabaseTarget);
+    if (!binding) {
+      return decision(false, resolved.profile, input.operation, true, target, "PREVIEW_TARGET_BINDING_REQUIRED");
+    }
+    if (binding !== target.canonical) {
+      return decision(false, resolved.profile, input.operation, true, target, "PREVIEW_TARGET_BINDING_MISMATCH");
+    }
+    if (input.operation === "serve") {
+      return decision(true, resolved.profile, input.operation, true, target, "TRUSTED_PREVIEW_TARGET");
+    }
+  }
+  const approval = parseApproval(input.approval);
+  if (!input.approval) {
+    return decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_REQUIRED");
+  }
+  if (!approval) {
+    return decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_INVALID");
+  }
+  return approval.operations.has(input.operation) && approval.target === target.canonical ? decision(true, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_ALLOWED") : decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_MISMATCH");
+}
+function restoreSpawnSafetyControls() {
+  for (const key of SAFETY_KEYS) {
+    const value = spawnedSafetyEnvironment[key];
+    if (value === void 0) delete process.env[key];
+    else process.env[key] = value;
+  }
+}
+function buildRuntimeContext(operation, options) {
+  if (options.loadDotenv !== false) loadDotenvFile({ override: false, quiet: true });
+  restoreSpawnSafetyControls();
+  const context = {
+    activeOperation: operation,
+    databaseUrl: options.databaseUrl ?? process.env.DATABASE_URL,
+    runtimeProfile: options.runtimeProfile ?? spawnedSafetyEnvironment.MIYAR_RUNTIME_PROFILE,
+    nodeEnv: options.nodeEnv ?? spawnedSafetyEnvironment.NODE_ENV,
+    vercel: options.vercel ?? spawnedSafetyEnvironment.VERCEL,
+    vercelEnv: options.vercelEnv ?? spawnedSafetyEnvironment.VERCEL_ENV,
+    vercelUrl: options.vercelUrl ?? spawnedSafetyEnvironment.VERCEL_URL,
+    approval: options.approval ?? spawnedSafetyEnvironment.MIYAR_DATABASE_APPROVAL,
+    deploymentDatabaseTarget: options.deploymentDatabaseTarget ?? spawnedSafetyEnvironment.MIYAR_DEPLOYMENT_DATABASE_TARGET
+  };
+  delete process.env.MIYAR_DATABASE_APPROVAL;
+  return Object.freeze(context);
+}
+function initializeDatabaseSafety(operation, options = {}) {
+  if (!runtimeContext) runtimeContext = buildRuntimeContext(operation, options);
+  const result = evaluateDatabaseAccess({ ...runtimeContext, operation });
+  decisions.set(operation, result);
+  if (options.logDecision) logDatabaseDecision(result);
+  if (!result.allowed) throw new DatabaseSafetyError(result);
+  return result;
+}
+function assertDatabaseAccess(operation) {
+  const selectedOperation = operation ?? runtimeContext?.activeOperation ?? (spawnedSafetyEnvironment.NODE_ENV === "test" ? "unit-test" : "serve");
+  if (!runtimeContext) return initializeDatabaseSafety(selectedOperation, { loadDotenv: false });
+  const result = evaluateDatabaseAccess({
+    ...runtimeContext,
+    databaseUrl: process.env.DATABASE_URL,
+    operation: selectedOperation
+  });
+  decisions.set(selectedOperation, result);
+  if (!result.allowed) throw new DatabaseSafetyError(result);
+  return result;
+}
+function formatDatabaseDecision(result) {
+  return {
+    profile: result.profile,
+    operation: result.operation,
+    targetClass: result.target.class,
+    host: result.target.host,
+    port: result.target.port,
+    database: result.target.database,
+    trustedDeployment: result.trustedDeployment,
+    allowed: result.allowed,
+    reasonCode: result.reasonCode
+  };
+}
+function logDatabaseDecision(result) {
+  console.info(`[database-safety] ${JSON.stringify(formatDatabaseDecision(result))}`);
+}
+var RUNTIME_PROFILES, DATABASE_OPERATIONS, SAFETY_KEYS, spawnedSafetyEnvironment, runtimeContext, decisions, DatabaseSafetyError;
+var init_database_safety = __esm({
+  "server/_core/database-safety.ts"() {
+    "use strict";
+    RUNTIME_PROFILES = ["local", "test", "preview", "production"];
+    DATABASE_OPERATIONS = [
+      "serve",
+      "unit-test",
+      "integration-test",
+      "seed",
+      "reset",
+      "migrate",
+      "ingest"
+    ];
+    SAFETY_KEYS = [
+      "MIYAR_RUNTIME_PROFILE",
+      "MIYAR_DATABASE_APPROVAL",
+      "MIYAR_DEPLOYMENT_DATABASE_TARGET",
+      "NODE_ENV",
+      "VERCEL",
+      "VERCEL_ENV",
+      "VERCEL_URL"
+    ];
+    spawnedSafetyEnvironment = Object.fromEntries(
+      SAFETY_KEYS.map((key) => [key, process.env[key]])
+    );
+    runtimeContext = null;
+    decisions = /* @__PURE__ */ new Map();
+    DatabaseSafetyError = class extends Error {
+      decision;
+      constructor(decision2) {
+        super(`Database access denied: ${decision2.reasonCode}`);
+        this.name = "DatabaseSafetyError";
+        this.decision = decision2;
+      }
+    };
+  }
+});
+
 // drizzle/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
@@ -2218,13 +2491,23 @@ var init_env = __esm({
     "use strict";
     ENV = {
       // Database
-      DATABASE_URL: process.env.DATABASE_URL || "",
+      get DATABASE_URL() {
+        return process.env.DATABASE_URL || "";
+      },
       // App / Auth
-      cookieSecret: process.env.JWT_SECRET ?? "",
-      isProduction: process.env.NODE_ENV === "production",
-      ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
+      get cookieSecret() {
+        return process.env.JWT_SECRET ?? "";
+      },
+      get isProduction() {
+        return process.env.NODE_ENV === "production";
+      },
+      get ownerOpenId() {
+        return process.env.OWNER_OPEN_ID ?? "";
+      },
       // Google Maps (optional — used by map.ts for geocoding & directions)
-      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? ""
+      get googleMapsApiKey() {
+        return process.env.GOOGLE_MAPS_API_KEY ?? "";
+      }
     };
   }
 });
@@ -2580,6 +2863,7 @@ import mysql from "mysql2";
 import { createHash } from "node:crypto";
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
+    assertDatabaseAccess();
     try {
       const url = new URL(process.env.DATABASE_URL);
       console.log("[Database] Connecting to:", url.hostname, "database:", url.pathname.slice(1));
@@ -2596,6 +2880,7 @@ async function getDb() {
       _db = drizzle(pool);
       console.log("[Database] Connected successfully");
     } catch (error) {
+      if (error instanceof DatabaseSafetyError) throw error;
       console.error("[Database] Failed to connect:", error);
       _db = null;
     }
@@ -5856,6 +6141,7 @@ var init_db = __esm({
     "use strict";
     init_schema();
     init_env();
+    init_database_safety();
     _db = null;
     assetLinkTargetResolvers = {
       evaluation: (tx, id, orgId) => tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq(projects.id, scoreMatrices.projectId)).where(and(eq(scoreMatrices.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
@@ -12039,6 +12325,7 @@ async function persistConnectorRejection(input) {
   });
 }
 async function runIngestion(connectors, triggeredBy = "manual", actorId) {
+  assertDatabaseAccess("ingest");
   const runId = `ING-${randomUUID6().substring(0, 8)}`;
   const startedAt = /* @__PURE__ */ new Date();
   const connectorResults = [];
@@ -12589,6 +12876,7 @@ var init_orchestrator = __esm({
     init_change_detector();
     init_trend_detection();
     init_schema();
+    init_database_safety();
     init_connector();
     CONFIDENCE_MERGE_POLICY_VERSION = "evidence-confidence-merge-latest-v1";
     MAX_CONCURRENT = 3;
@@ -14584,6 +14872,15 @@ Array of any issues or missing information noticed.
     });
   }
 });
+
+// server/_core/runtime-bootstrap.ts
+init_database_safety();
+var serveDatabaseDecision = initializeDatabaseSafety(
+  process.env.NODE_ENV === "test" ? "unit-test" : "serve"
+);
+if (process.env.NODE_ENV !== "test") {
+  logDatabaseDecision(serveDatabaseDecision);
+}
 
 // server/serverless/index.ts
 import express from "express";
@@ -26896,7 +27193,7 @@ async function processCsvUpload(buffer, sourceId, addedByUserId) {
 // server/engines/ingestion/seeds/uae-sources.ts
 init_db();
 init_schema();
-import "dotenv/config";
+init_database_safety();
 import { eq as eq9 } from "drizzle-orm";
 var UAE_SOURCES = [
   // ── Supplier Catalogs ─────────────────────────────────────────
@@ -27199,6 +27496,7 @@ var UAE_SOURCES = [
   }
 ];
 async function seedUAESources() {
+  initializeDatabaseSafety("seed", { loadDotenv: true });
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   let created = 0;
@@ -28382,6 +28680,7 @@ function getSchedulerStatus() {
 
 // server/routers/ingestion.ts
 init_dynamic();
+init_database_safety();
 var ingestionRouter = router({
   /**
    * Run all 12 UAE source connectors.
@@ -28609,6 +28908,7 @@ var ingestionRouter = router({
    * Run a single DB-registered source via DynamicConnector.
    */
   runRegisteredSource: adminProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
+    assertDatabaseAccess("ingest");
     const db = await getDb();
     if (!db) throw new Error("DB not available");
     const [source] = await db.select().from(sourceRegistry).where(eq11(sourceRegistry.id, input.id)).limit(1);
@@ -35566,6 +35866,7 @@ async function createContext(opts) {
 init_logger();
 
 // server/_core/runtime-safety.ts
+init_database_safety();
 function isCronAuthorized(authorizationHeader, cronSecret) {
   return Boolean(cronSecret) && authorizationHeader === `Bearer ${cronSecret}`;
 }

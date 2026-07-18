@@ -1,17 +1,50 @@
 import { describe, expect, it } from "vitest";
 import { isCronAuthorized, shouldStartBackgroundJobs } from "./runtime-safety";
+import type { DatabaseDecision } from "./database-safety";
+
+function decision(
+  profile: DatabaseDecision["profile"],
+  options: Partial<DatabaseDecision> = {}
+): DatabaseDecision {
+  return {
+    allowed: true,
+    profile,
+    operation: "ingest",
+    trustedDeployment: profile === "production",
+    target: {
+      class: "safe-loopback",
+      host: "127.0.0.1",
+      port: 3306,
+      database: "miyar_local",
+      canonical: "127.0.0.1:3306/miyar_local",
+    },
+    reasonCode: "SAFE_LOOPBACK_ALLOWED",
+    ...options,
+  };
+}
 
 describe("shouldStartBackgroundJobs", () => {
   it("keeps background jobs disabled by default in development", () => {
-    expect(shouldStartBackgroundJobs("development", undefined)).toBe(false);
+    expect(shouldStartBackgroundJobs(decision("local"), undefined)).toBe(false);
   });
 
   it("allows an explicit development opt-in", () => {
-    expect(shouldStartBackgroundJobs("development", "true")).toBe(true);
+    expect(shouldStartBackgroundJobs(decision("local"), "true")).toBe(true);
   });
 
   it("preserves production scheduler behavior", () => {
-    expect(shouldStartBackgroundJobs("production", undefined)).toBe(true);
+    expect(shouldStartBackgroundJobs(decision("production"), undefined)).toBe(true);
+  });
+
+  it("never starts jobs for tests, denied targets, or absent databases", () => {
+    expect(shouldStartBackgroundJobs(decision("test"), "true")).toBe(false);
+    expect(shouldStartBackgroundJobs(decision("local", { allowed: false }), "true")).toBe(false);
+    expect(
+      shouldStartBackgroundJobs(
+        decision("local", { target: { class: "absent" } }),
+        "true"
+      )
+    ).toBe(false);
   });
 });
 

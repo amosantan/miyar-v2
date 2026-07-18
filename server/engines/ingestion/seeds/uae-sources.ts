@@ -6,11 +6,10 @@
  *
  * Usage: npx tsx server/engines/ingestion/seeds/uae-sources.ts
  */
-import "dotenv/config";
-
 import { getDb } from "../../../db";
 import { sourceRegistry } from "../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { initializeDatabaseSafety } from "../../../_core/database-safety";
 
 // ─── Source Definitions ─────────────────────────────────────────
 
@@ -329,6 +328,7 @@ const UAE_SOURCES: SourceSeed[] = [
 // ─── Seeder Function ────────────────────────────────────────────
 
 export async function seedUAESources(): Promise<{ created: number; skipped: number; errors: string[] }> {
+    initializeDatabaseSafety("seed", { loadDotenv: true });
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 

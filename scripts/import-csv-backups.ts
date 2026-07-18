@@ -1,10 +1,10 @@
-import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as db from '../server/db';
 import { getDb } from '../server/db';
 import { sourceRegistry, competitorEntities, competitorProjects, evidenceRecords, materialsCatalog } from '../drizzle/schema';
 import { eq, and } from 'drizzle-orm';
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
 
 const BACKUP_DIR = '/Users/amrosaleh/Downloads/miyar-v2-csv-backup';
 const ADMIN_ID = 1;
@@ -277,6 +277,7 @@ async function importEvidenceRecords(sourceMap: Map<number, number>, projectMap:
 }
 
 async function main() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     process.stdout.write('🚀 Starting CSV Data Recovery...\n');
 
     // 1. Foundation: Sources & Competitors

@@ -2,15 +2,16 @@
  * Test: Verify source-type-specific extraction
  * Re-scrapes one developer + one supplier source to check prompt quality.
  */
-import "dotenv/config";
 import { getDb } from "../../../db";
 import { sourceRegistry } from "../../../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { DynamicConnector } from "../connectors/dynamic";
 import { runSingleConnector } from "../orchestrator";
 import type { SourceRegistryEntry } from "../../../../drizzle/schema";
+import { initializeDatabaseSafety } from "../../../_core/database-safety";
 
 async function main() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     const db = await getDb();
     if (!db) throw new Error("DB not available");
 

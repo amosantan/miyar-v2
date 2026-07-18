@@ -1,76 +1,79 @@
 # Current Task
 
-- ID: TR-11
-- Roadmap step: `TR-11`
-- Title: Replace unsupported public claims with evidence-backed qualification
+- ID: TR-12
+- Roadmap step: `TR-12`
+- Title: Safe local and test database profiles
 - Status: PASS
 - Owner: Codex
 - Started: 2026-07-18
-- Branch: `codex/tr-11-public-claims`
-- Base: `ee4b134` (`origin/main`)
-- Risk: High public trust, evidence, localization, API exposure, and public-share interpretation
-- Selected loops: Feature, ingestion/evidence, security, browser verification
-- Retry budget: Maximum 5 loop iterations and 3 evidence-based attempts per unchanged failure class
-- Resource budget: One isolated worktree, no schema/dependency change, one bounded public snapshot endpoint, one claim registry, focused UI repairs, and one independent final-review cycle
-- Human gates: Legal pages remain unpublished until exact bilingual copy and named product/legal approval; release, production scheduler changes, shared database writes, and benchmark/financial/scoring policy changes require separate authorization
+- Branch: `codex/tr-12-safe-db-profiles`
+- Base: `ee6c834` (`origin/main` TR-11 release-state commit; runtime application release remains `d0c84da`)
+- Risk: High operational and tenant-safety risk: an ordinary local command must not connect to or write a protected/shared database.
+- Selected loops: Operations/security, defect, configuration, and documentation
+- Retry budget: Maximum 3 evidence-based attempts per unchanged failure class
+- Resource budget: One isolated worktree; configuration guard, profile contract, focused tests/dry startup evidence, and documentation only. No schema, migration, dependency, shared-database write, deployment, or production configuration mutation.
+- Human gates: Any shared deployment configuration change, remote/shared database connection or write, migration, seed/reset, production worker change, deployment, merge, or publication requires separate named human authorization. Command-scoped remote-database approval must never be persisted in `.env` or committed.
 
 ## Goal
 
-Make MIYAR's public and customer-facing evidence claims truthful: identify the official DLD source, show only the indexed subset and its observed-through date, qualify estimates and targets, and prevent unavailable evidence from being presented as live/current/healthy.
+Make local, test, preview, and production database behavior explicit and fail closed so ordinary developer and test commands cannot silently contact or mutate a protected/shared environment.
 
 ## Acceptance Criteria
 
-- [x] A bilingual machine-readable registry owns fixed public/share/customer claim wording and its evidence/qualification requirements.
-- [x] `system.marketEvidenceSnapshot` is read-only, cached, rate-limited, and returns only official source identity/link, transaction/rent/project counts, coverage dates, explicit `indexed_subset` scope, and a fail-closed availability state.
-- [x] The endpoint exposes no tenant, project, benchmark value, connector-health, run, or internal operational data; empty, unavailable, or malformed evidence returns `available: false`.
-- [x] Home renders the official-source indexed subset and “observed through” wording in English and Arabic without claiming complete DLD coverage, daily refresh, or live data.
-- [x] Methodology retains the five deterministic scoring dimensions but removes unapproved fixed weights and separates official DLD observations from MIYAR fit-out assumptions and professional certification/conformity claims.
-- [x] Public shares remove the default Silver badge, present sustainability/certification only as explicit targets or proxies, qualify costs/premiums/yields/assumptions beside values, and show DLD-backed wording only for positive transaction evidence with explicit provenance.
-- [x] Customer-facing Design Studio and DLD insight copy uses observed/approved/indexed wording rather than live/current/market-verified absolutes.
-- [x] Zero-source and all-unknown freshness resolve to `unknown`, never `healthy`.
-- [x] Legal pages remain unpublished and TR-11 does not change schema, migrations, dependencies, formulas, scoring, financial policy, benchmark promotion, report catalog, or ingestion cadence.
-- [x] EV-08 is recorded as the future governed weekly refresh and report-evidence binding step with the approved operational, promotion, report-state, tenant, and four-week gates.
-- [x] Targeted tests, safe full suite, `pnpm check`, authorization audit, build, English/Arabic browser review, diff/security/tenant/numerical review, and independent review provide objective evidence.
+- [x] The runtime recognizes `local`, `test`, `preview`, and `production`, rejects invalid or contradictory profile signals, and treats a missing selector as untrusted `local` rather than inferring trust from a configured URL.
+- [x] Local and test profiles accept only loopback/disposable database targets by default; protected/shared remote targets fail before a connection is opened.
+- [x] A remote database is permitted only for a single explicitly authorized command, with approval absent from `.env`, examples, source control, startup defaults, and child-process inheritance where applicable.
+- [x] Ordinary `pnpm test` is database-free and cannot inherit a dotenv-restored shared `DATABASE_URL`; guarded database integration uses a separately named disposable test target.
+- [x] Preview and production profiles remain explicit operational profiles; their database access and worker behavior are not enabled by a local default.
+- [x] Background ingestion, learning, and alert workers stay disabled outside production unless explicitly enabled for an approved isolated workflow; workers never start as a side effect of test commands.
+- [x] `.env.example`, the local-development runbook, security requirements, and architecture state the profile, database-free-test, guarded-integration, command-scoped approval, worker, seed/reset, and human-gate contract without credentials or approval values.
+- [x] Focused configuration tests, DB-free full-suite evidence, guarded disposable-database smoke, dry startup logs, runbook consistency review, and diff review provide objective evidence; `KF-008` is closed because its exit criterion is verified.
 
 ## Assumptions and Approved Decisions
 
-- The checked-in/queried DLD corpus is an indexed subset, not a completeness claim.
-- “Observed through” describes record coverage; it is not an ingestion-success timestamp.
-- Fixed scoring weights appear publicly only when sourced from an approved versioned contract; TR-11 does not create that contract.
-- DLD transaction facts do not validate fit-out assumptions or establish causal design premiums.
-- EV-08 is roadmap documentation only during TR-11; no cadence or production ingestion mutation is authorized.
+- `MIYAR_RUNTIME_PROFILE` is a process/deployment profile selector that is intentionally ignored in dotenv files. `local` is the safe default; `test`, `preview`, and `production` must be intentionally selected by their invoking command or deployment configuration.
+- `MIYAR_DATABASE_APPROVAL` is a command-scoped binding only after named human authorization. Its canonical value is `sorted-operation-list@host:port/database`, for example `serve+ingest@dev.example:3306/miyar_dev`; it is intentionally absent from `.env.example` and must not be stored in `.env`.
+- `MIYAR_DEPLOYMENT_DATABASE_TARGET` is an optional managed-preview target binding. It requires infrastructure approval and is intentionally absent from `.env.example`.
+- `TEST_DATABASE_URL` names a disposable integration target and is never a fallback for ordinary unit tests.
+- A loopback host is necessary but not sufficient proof of safety: seed/reset, migration, and other writes remain separately gated by target verification and human approval when required.
 
 ## Non-Goals
 
-- No legal boilerplate, clickwrap, DSR, retention promise, or compliance assurance.
-- No schema, migration, package, formula, scoring threshold/weight, financial assumption, authoritative benchmark, report-catalog, or scheduler change.
-- No production deployment, shared database write, commit, push, merge, or publication without separate authorization.
+- No schema, migration, seed/reset, backfill, shared/production database write, deployment, production configuration mutation, dependency change, formula/policy change, commit, push, merge, or publication.
+- No attempt to close `KF-008` from documentation alone.
+- No stored approval token, credential, remote URL, production secret, or claim that a remote target is safe merely because an environment label says so.
 
 ## Recovery
 
-All runtime changes are additive or copy-level and can be reverted without data migration. Any tenant leakage, numerical-authority change, invented provenance, or legal/compliance overclaim stops work immediately.
+All profile and documentation changes must be reversible. Stop immediately if a command could connect to a shared/protected database without named authorization, a worker could write outside an approved isolated workflow, or a credential/approval value could be persisted or exposed.
 
 ## Execution Plan
 
-- [x] Establish the targeted baseline and inventory governed claims.
-- [x] Implement the registry, fail-closed evidence snapshot, and public/customer UI corrections.
-- [x] Add contract, endpoint, share, freshness, and localization tests.
-- [x] Run the full verification ladder and independent/Claude review.
-- [x] Close durable state only from verified evidence.
+- [x] Establish the current safety baseline, review `KF-008`, existing worker behavior, and the prior dotenv inheritance evidence.
+- [x] Implement the profile and connection guard with focused configuration tests.
+- [x] Make ordinary tests DB-free and preserve guarded disposable-database integration coverage.
+- [x] Document profile, worker, seed/reset, remote-approval, and human-gate operations.
+- [x] Run the proportionate verification ladder and close `KF-008` only from its proven exit criterion.
+
+## Initial Evidence
+
+- `KF-008` is open: historical ordinary `pnpm test` inherited a remote `DATABASE_URL`, while `DATABASE_URL='' pnpm test` was database-free because dotenv treats an explicit empty value differently from an unset value.
+- `scripts/run-guarded-mysql-tests.ts` already rejects caller-provided `DATABASE_URL` and requires `TEST_DATABASE_URL` for its disposable MySQL integration path.
+- The Node runtime starts workers by default in production and otherwise requires `ENABLE_BACKGROUND_JOBS=true`; the profile contract must preserve that fail-safe posture.
+- TR-11 closed at `PASS`; `.agent/state/ROADMAP.md` identifies TR-12 as the sole dependency-valid next step.
 
 ## Verified Evidence
 
-- Fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-tr11` was created first on `codex/tr-11-public-claims`, then fetched and fast-forward checked against `origin/main`; base is `ee4b134` and the worktree was clean before edits.
-- Mechanical claim inventory found fixed Methodology weights/absolutes, the public-share default Silver badge and unqualified figures, customer “live/verified” labels, and the zero/all-unknown freshness defect.
-- The ingestion skill constrains EV-08 to governed, bounded, provenance-preserving evidence with no silent benchmark promotion; runtime scheduling remains out of TR-11 scope.
-- Focused endpoint, rate-limit, cache, share, scoring, freshness, claim, and bilingual DOCX tests pass 103/103.
-- `DATABASE_URL='' pnpm test` passes 1,138 tests with 22 skipped; `pnpm check` passes with zero diagnostics.
-- The regenerated authorization inventory validates all 337 procedures with zero remediation rows; `pnpm build` and `git diff --check` pass.
-- English/Arabic Home and Methodology browser QA passed in LTR/RTL at 1280px without horizontal overflow or console errors; unavailable evidence rendered fail-closed.
-- Independent security/design review returned `APPROVED` after the final generated-output correction; Claude Opus returned `APPROVED` on the final implementation boundaries.
-- PR #14 merged reviewed commit `e26e07e` as canonical-main release `d0c84da`; main CI `29645745114`, Vercel target `ExfGpuVC4UQ83Jy46i6xQnSKdJDP`, three production observations, tenant/share negative checks, endpoint minimization, and bilingual rendered-claim checks pass.
-- No schema, migration, package, formula, scoring weight/threshold, financial-policy, benchmark-promotion, report-catalog, scheduler, legal-page, database write, or backfill was required or performed.
+- The worktree was created first at `/Users/amrosaleh/Maiyar/miyar-v2-tr12` on `codex/tr-12-safe-db-profiles` from exact `origin/main` commit `ee6c834`; the stale dirty root checkout was not modified.
+- The focused database policy, runtime, and AST-audit suites pass 74/74. They cover malformed and loopback targets, exact approvals, hostile dotenv controls, partial deployment signals, current-target rechecks, both MySQL constructor families, unit/integration separation, ingestion operation separation, worker decisions, and unreachable audit preflights.
+- A hostile parent `DATABASE_URL`, profile, approval, preview binding, Vercel signals, and worker opt-in cannot escape the ordinary Vitest configuration: `pnpm test` passes 1,206 tests with 22 skipped and emits no database connection attempt.
+- The guarded disposable MySQL 8 workflow passes 19/19 against `miyar_auth_test_tr12_final`; its cleanup passes and the bounded Docker container is removed. An initial setup-only attempt omitted database creation, failed with `ER_BAD_DB_ERROR`, and was corrected without changing product code.
+- `pnpm check`, `pnpm audit:authorization` (337 procedures, zero remediation), `pnpm audit:database-safety` (106 inventoried entrypoints, two exact generated-bundle exceptions, zero findings), `pnpm build`, and `git diff --check` pass.
+- Bounded startup checks prove local DB-free startup, remote denial before listen, complete production/preview signal handling, and worker authorization failure exiting status 1 with sanitized logs that exclude credentials and approval values.
+- The tracked serverless bundle was regenerated from the guarded source; CI rebuilds it and fails if `api/index.js` is stale.
+- Independent GPT-5.6 security review returned `APPROVED`; final Claude Opus implementation review returned `APPROVED`.
+- No schema, migration, dependency, shared/production database write, deployment, shared configuration mutation, commit, push, PR, or merge was performed.
 
 ## Next Action
 
-TR-11 is released at `PASS`. Begin `TR-12` in a new worktree when authorized; do not publish “monitored weekly refresh” until `EV-08` closes and runtime health satisfies its approved SLA.
+TR-12 is complete at `PASS`. Begin `TR-13`, the sole next executable step, in a new worktree when authorized.

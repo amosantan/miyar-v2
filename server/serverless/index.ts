@@ -1,3 +1,4 @@
+import "../_core/runtime-bootstrap";
 import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "../_core/oauth";

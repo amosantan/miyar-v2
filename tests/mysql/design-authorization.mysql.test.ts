@@ -20,7 +20,9 @@ import { seedRouter } from "../../server/routers/seed";
 import { sustainabilityRouter } from "../../server/routers/sustainability";
 import type { TrpcContext } from "../../server/_core/context";
 import { requireActivePublicShare } from "../../server/_core/public-share-access";
+import { initializeDatabaseSafety } from "../../server/_core/database-safety";
 
+initializeDatabaseSafety("integration-test", { loadDotenv: false });
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("Guarded MySQL suite requires DATABASE_URL");
 const pool = mysql.createPool(connectionString);

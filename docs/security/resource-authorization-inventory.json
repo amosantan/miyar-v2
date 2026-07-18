@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-18T12:48:01.641Z",
+  "generatedAt": "2026-07-18T17:50:01.267Z",
   "sourceRoot": "server/routers + server/_core/systemRouter.ts",
   "procedureCount": 337,
   "allowedClassifications": [
@@ -2039,7 +2039,7 @@
       "finalScopedWrite": "db.createCommentForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "validates all polymorphic link targets, typed comments and evidence isolation",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2065,7 +2065,7 @@
       "finalScopedWrite": "db.addMaterialToBoardForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "creates and rolls back scenario-bound boards atomically",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2095,7 +2095,7 @@
       "finalScopedWrite": "db.updateProjectForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2232,7 +2232,7 @@
       "finalScopedWrite": "db.createMaterialBoardWithMaterialsForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "creates and rolls back scenario-bound boards atomically",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2309,7 +2309,7 @@
       "finalScopedWrite": "db.updateAiDesignBriefShareTokenForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2338,7 +2338,7 @@
       "finalScopedWrite": "db.deleteProjectAssetForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "scopes project assets and generated visuals through project ownership",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2367,7 +2367,7 @@
       "finalScopedWrite": "db.deleteMaterialBoardForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "rolls back board, RFQ and floor-plan transactions after late SQL failures",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2571,7 +2571,7 @@
       "finalScopedWrite": "db.createDesignBriefForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2604,7 +2604,7 @@
       "finalScopedWrite": "db.insertRfqLineItemsForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "rolls back board, RFQ and floor-plan transactions after late SQL failures",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2638,7 +2638,7 @@
       "finalScopedWrite": "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "scopes project assets and generated visuals through project ownership",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -2683,7 +2683,7 @@
       "finalScopedWrite": "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "scopes project assets and generated visuals through project ownership",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3173,7 +3173,7 @@
       "finalScopedWrite": "db.createAssetLinkForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "validates all polymorphic link targets, typed comments and evidence isolation",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3425,7 +3425,7 @@
       "finalScopedWrite": "db.createAssetLinkForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "validates all polymorphic link targets, typed comments and evidence isolation",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3476,7 +3476,7 @@
       "finalScopedWrite": "db.removeMaterialFromBoardForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "creates and rolls back scenario-bound boards atomically",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3507,7 +3507,7 @@
       "finalScopedWrite": "db.reorderBoardTilesForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "creates and rolls back scenario-bound boards atomically",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3570,7 +3570,7 @@
       "finalScopedWrite": "db.deleteAssetLinkForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "validates all polymorphic link targets, typed comments and evidence isolation",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3597,7 +3597,7 @@
       "finalScopedWrite": "db.updateProjectApprovalStateForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3622,7 +3622,7 @@
       "finalScopedWrite": "db.updateProjectAssetForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "scopes project assets and generated visuals through project ownership",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3647,7 +3647,7 @@
       "finalScopedWrite": "db.updateBoardTileForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "creates and rolls back scenario-bound boards atomically",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3725,7 +3725,7 @@
       "finalScopedWrite": "db.createProjectAssetForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "scopes project assets and generated visuals through project ownership",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3753,7 +3753,7 @@
       "finalScopedWrite": "db.createFloorPlanAssetAndLinkForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "rolls back board, RFQ and floor-plan transactions after late SQL failures",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -3860,7 +3860,7 @@
       "key": "ingestion.createSource",
       "router": "ingestion",
       "procedure": "createSource",
-      "source": "server/routers/ingestion.ts:295",
+      "source": "server/routers/ingestion.ts:296",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -3885,7 +3885,7 @@
       "key": "ingestion.discoverSources",
       "router": "ingestion",
       "procedure": "discoverSources",
-      "source": "server/routers/ingestion.ts:404",
+      "source": "server/routers/ingestion.ts:406",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -3910,7 +3910,7 @@
       "key": "ingestion.extractTrends",
       "router": "ingestion",
       "procedure": "extractTrends",
-      "source": "server/routers/ingestion.ts:494",
+      "source": "server/routers/ingestion.ts:496",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -3935,7 +3935,7 @@
       "key": "ingestion.freshnessAnalysis",
       "router": "ingestion",
       "procedure": "freshnessAnalysis",
-      "source": "server/routers/ingestion.ts:468",
+      "source": "server/routers/ingestion.ts:470",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -3958,7 +3958,7 @@
       "key": "ingestion.getAvailableSources",
       "router": "ingestion",
       "procedure": "getAvailableSources",
-      "source": "server/routers/ingestion.ts:168",
+      "source": "server/routers/ingestion.ts:169",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -3981,7 +3981,7 @@
       "key": "ingestion.getHealthSummary",
       "router": "ingestion",
       "procedure": "getHealthSummary",
-      "source": "server/routers/ingestion.ts:205",
+      "source": "server/routers/ingestion.ts:206",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -4004,7 +4004,7 @@
       "key": "ingestion.getHistory",
       "router": "ingestion",
       "procedure": "getHistory",
-      "source": "server/routers/ingestion.ts:60",
+      "source": "server/routers/ingestion.ts:61",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -4034,7 +4034,7 @@
       "key": "ingestion.getRunDetail",
       "router": "ingestion",
       "procedure": "getRunDetail",
-      "source": "server/routers/ingestion.ts:150",
+      "source": "server/routers/ingestion.ts:151",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": ["runId"],
@@ -4059,7 +4059,7 @@
       "key": "ingestion.getRunHealth",
       "router": "ingestion",
       "procedure": "getRunHealth",
-      "source": "server/routers/ingestion.ts:183",
+      "source": "server/routers/ingestion.ts:184",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": ["runId"],
@@ -4084,7 +4084,7 @@
       "key": "ingestion.getSourceHealth",
       "router": "ingestion",
       "procedure": "getSourceHealth",
-      "source": "server/routers/ingestion.ts:192",
+      "source": "server/routers/ingestion.ts:193",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": ["sourceId"],
@@ -4109,7 +4109,7 @@
       "key": "ingestion.getStatus",
       "router": "ingestion",
       "procedure": "getStatus",
-      "source": "server/routers/ingestion.ts:89",
+      "source": "server/routers/ingestion.ts:90",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -4138,7 +4138,7 @@
       "key": "ingestion.getTrends",
       "router": "ingestion",
       "procedure": "getTrends",
-      "source": "server/routers/ingestion.ts:381",
+      "source": "server/routers/ingestion.ts:383",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -4167,7 +4167,7 @@
       "key": "ingestion.listSources",
       "router": "ingestion",
       "procedure": "listSources",
-      "source": "server/routers/ingestion.ts:278",
+      "source": "server/routers/ingestion.ts:279",
       "accessPrimitive": "protectedProcedure",
       "operation": "query",
       "inputIdentifiers": [],
@@ -4196,7 +4196,7 @@
       "key": "ingestion.runAll",
       "router": "ingestion",
       "procedure": "runAll",
-      "source": "server/routers/ingestion.ts:33",
+      "source": "server/routers/ingestion.ts:34",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -4221,7 +4221,7 @@
       "key": "ingestion.runRegisteredSource",
       "router": "ingestion",
       "procedure": "runRegisteredSource",
-      "source": "server/routers/ingestion.ts:347",
+      "source": "server/routers/ingestion.ts:348",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["id"],
@@ -4254,7 +4254,7 @@
       "key": "ingestion.runSource",
       "router": "ingestion",
       "procedure": "runSource",
-      "source": "server/routers/ingestion.ts:44",
+      "source": "server/routers/ingestion.ts:45",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["sourceId"],
@@ -4279,7 +4279,7 @@
       "key": "ingestion.runStaleSources",
       "router": "ingestion",
       "procedure": "runStaleSources",
-      "source": "server/routers/ingestion.ts:513",
+      "source": "server/routers/ingestion.ts:515",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -4304,7 +4304,7 @@
       "key": "ingestion.seedSources",
       "router": "ingestion",
       "procedure": "seedSources",
-      "source": "server/routers/ingestion.ts:371",
+      "source": "server/routers/ingestion.ts:373",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -4329,7 +4329,7 @@
       "key": "ingestion.toggleSource",
       "router": "ingestion",
       "procedure": "toggleSource",
-      "source": "server/routers/ingestion.ts:335",
+      "source": "server/routers/ingestion.ts:336",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": ["id"],
@@ -4354,7 +4354,7 @@
       "key": "ingestion.verifyData",
       "router": "ingestion",
       "procedure": "verifyData",
-      "source": "server/routers/ingestion.ts:437",
+      "source": "server/routers/ingestion.ts:439",
       "accessPrimitive": "adminProcedure",
       "operation": "mutation",
       "inputIdentifiers": [],
@@ -7224,7 +7224,7 @@
       "finalScopedWrite": "db.insertPortfolioAlertsForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "keeps tenant portfolio alerts organization scoped and deduplicated",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -7654,7 +7654,7 @@
       "finalScopedWrite": "db.updateProjectForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "scopes project readiness and confirmed-input writes to the organization",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {
@@ -7872,7 +7872,7 @@
       "finalScopedWrite": "db.createReportArtifactsForOrg",
       "integrationTest": "tests/mysql/design-authorization.mysql.test.ts",
       "integrationTestName": "persists report artifacts atomically and rechecks project ownership",
-      "integrationEvidenceStatus": "defined_not_executed",
+      "integrationEvidenceStatus": "executed",
       "notes": ""
     },
     {

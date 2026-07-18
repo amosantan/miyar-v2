@@ -1,6 +1,8 @@
 import mysql from 'mysql2/promise';
+import { initializeDatabaseSafety } from '../../server/_core/database-safety.ts';
 
 async function run() {
+    initializeDatabaseSafety('migrate', { loadDotenv: true });
     const url = process.env.DATABASE_URL || '';
     if (!url) {
         console.error("DATABASE_URL must be defined");

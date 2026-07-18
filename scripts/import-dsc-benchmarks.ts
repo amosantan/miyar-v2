@@ -1,9 +1,10 @@
-import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as db from '../server/db';
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
 
 async function main() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     const csvPath = '/Users/amrosaleh/Downloads/db-backup/Dsc_Average_Construction_Material_Prices_2025-03-06_09-55-00.csv';
 
     if (!fs.existsSync(csvPath)) {

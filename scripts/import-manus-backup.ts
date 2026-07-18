@@ -6,12 +6,12 @@
  * 
  * Usage: npx tsx scripts/import-manus-backup.ts
  */
-import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import { sql } from 'drizzle-orm';
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
 
 const BACKUP_PATH = '/Users/amrosaleh/Downloads/db-backup/02_data.sql';
 
@@ -29,6 +29,7 @@ const TABLES_TO_IMPORT = [
 ];
 
 async function main() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     console.log('📦 Reading Manus backup...');
     const sqlContent = fs.readFileSync(BACKUP_PATH, 'utf-8');
 

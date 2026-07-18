@@ -8,11 +8,11 @@
  * 3. Ingests 5,000 Transactions + 5,000 Rent Contracts
  * 4. Computes area benchmarks (P25/P50/P75/mean, yield) per area
  */
-import "dotenv/config";
 import mysql from "mysql2/promise";
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,6 +25,7 @@ const ns = (v: any, maxLen = 200): string | null => {
 };
 
 async function main() {
+    initializeDatabaseSafety("reset", { loadDotenv: true });
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL not set");
 

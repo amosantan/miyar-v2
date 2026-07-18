@@ -1,5 +1,7 @@
 import { defineConfig } from "drizzle-kit";
+import { initializeDatabaseSafety } from "./server/_core/database-safety";
 
+initializeDatabaseSafety("migrate", { loadDotenv: true });
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error("DATABASE_URL is required to run drizzle commands");

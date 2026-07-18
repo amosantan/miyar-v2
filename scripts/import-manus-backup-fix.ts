@@ -4,13 +4,14 @@
  * 
  * Usage: npx tsx scripts/import-manus-backup-fix.ts
  */
-import 'dotenv/config';
 import fs from 'fs';
 import mysql from 'mysql2/promise';
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
 
 const BACKUP_PATH = '/Users/amrosaleh/Downloads/db-backup/02_data.sql';
 
 async function main() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     console.log('📦 Reading Manus backup...');
     const sqlContent = fs.readFileSync(BACKUP_PATH, 'utf-8');
 

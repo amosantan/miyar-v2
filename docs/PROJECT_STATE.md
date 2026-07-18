@@ -108,7 +108,7 @@ These facts describe the reviewed TR-11 implementation merged through PR #14 and
 ## Environment Uncertainties
 
 - Documentation historically names both PlanetScale and TiDB. Treat the actual `DATABASE_URL` target and deployment configuration as authoritative for a given environment without exposing credentials.
-- The ordinary full Vitest command is not database-hermetic. Continue using the explicit safe `DATABASE_URL=''` profile until `KF-008` closes.
+- TR-12 makes the ordinary full Vitest command database-hermetic: the standard configuration selects the test/unit-test contract and explicitly blanks `DATABASE_URL` before modules load, while disposable MySQL remains exclusively behind the guarded `TEST_DATABASE_URL` runner. `KF-008` is closed.
 - GitHub Actions billing was restored on 2026-07-18. Rerun `29633531305` executed real job steps, revealing and confirming a separate duplicate pnpm-version setup error. After CI workflow commit `18da870`, hosted run `29634762518` passed both the unit/type/build and MySQL authorization jobs on canonical `main`; `KF-014` is closed.
 
 ## CI Configuration in the Current Worktree
@@ -116,6 +116,7 @@ These facts describe the reviewed TR-11 implementation merged through PR #14 and
 - CI configuration uses pnpm and the committed lockfile, with fail-closed TypeScript, test, build, and isolated MySQL jobs.
 - GitHub now executes both required jobs normally. The workflow resolves pnpm from the repository `packageManager` field, avoiding a competing workflow-level version.
 - The observed local TypeScript, safe full-suite, authorization, build, isolated MySQL, and PlanetScale compatibility gates are green.
+- The TR-12 candidate adds a centralized fail-closed database profile/operation/target policy, final-use target rechecks, guarded database entrypoints, and a CI-enforced AST inventory. A hostile-parent full suite passes 1,206/22, the inventory reports 106 entrypoints with two exact generated-bundle exceptions and zero findings, and disposable MySQL passes 19/19 with cleanup.
 
 ## Authorization Foundation
 

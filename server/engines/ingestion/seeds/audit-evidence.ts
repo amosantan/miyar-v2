@@ -2,12 +2,13 @@
  * Audit: What's actually in the evidence records?
  * Usage: npx tsx server/engines/ingestion/seeds/audit-evidence.ts
  */
-import "dotenv/config";
 import { getDb } from "../../../db";
 import { evidenceRecords } from "../../../../drizzle/schema";
 import { desc, sql } from "drizzle-orm";
+import { initializeDatabaseSafety } from "../../../_core/database-safety";
 
 async function main() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     const db = await getDb();
     if (!db) throw new Error("DB not available");
 

@@ -33,11 +33,17 @@ jobs:
       - name: TypeScript check
         run: pnpm check
 
+      - name: Audit database entrypoints
+        run: pnpm audit:database-safety
+
       - name: Run unit tests
         run: pnpm exec vitest run --reporter=verbose
 
       - name: Build production bundle
         run: pnpm build
+
+      - name: Verify tracked serverless bundle is current
+        run: git diff --exit-code -- api/index.js
 
   mysql-authorization:
     runs-on: ubuntu-latest

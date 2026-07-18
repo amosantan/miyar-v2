@@ -1,9 +1,14 @@
-/** Background workers remain enabled in production, but local development must opt in. */
+import {
+  type DatabaseDecision,
+  shouldStartBackgroundJobsForDecision,
+} from "./database-safety";
+
+/** Background jobs use the same trusted profile and database decision as connections. */
 export function shouldStartBackgroundJobs(
-  nodeEnv: string | undefined,
+  databaseDecision: DatabaseDecision,
   explicitEnable: string | undefined
 ): boolean {
-  return nodeEnv === "production" || explicitEnable === "true";
+  return shouldStartBackgroundJobsForDecision(databaseDecision, explicitEnable);
 }
 
 /** Cron endpoints fail closed when no shared secret is configured. */

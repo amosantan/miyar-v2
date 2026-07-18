@@ -1,8 +1,9 @@
-import "dotenv/config";
 import { getDb } from "../db";
 import { sql } from "drizzle-orm";
+import { initializeDatabaseSafety } from "../_core/database-safety";
 
 async function run() {
+    initializeDatabaseSafety("migrate", { loadDotenv: true });
     const db = await getDb();
     if (!db) throw new Error("DB not available");
     const queries = [

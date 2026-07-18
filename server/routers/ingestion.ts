@@ -24,6 +24,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import { getSchedulerStatus } from "../engines/ingestion/scheduler";
 import { DynamicConnector } from "../engines/ingestion/connectors/dynamic";
 import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
+import { assertDatabaseAccess } from "../_core/database-safety";
 
 export const ingestionRouter = router({
   /**
@@ -347,6 +348,7 @@ export const ingestionRouter = router({
   runRegisteredSource: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      assertDatabaseAccess("ingest");
       const db = await getDb();
       if (!db) throw new Error("DB not available");
       const [source] = await db.select().from(sourceRegistry).where(eq(sourceRegistry.id, input.id)).limit(1);

@@ -333,3 +333,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The router test accepts 60 calls from one address, rejects 540 more without consuming the shared quota, and still accepts a second address; the safe suite and independent security review pass.
 - Reuse rule: Multi-bucket anonymous limiting must make one non-consuming admission decision before mutating any bucket, and must keep process memory bounded.
 - Supersedes / related: Applies to all future unauthenticated read-only endpoints and complements public-share privacy controls.
+
+### LES-029 — Database safety must bind both the launch environment and the final target
+
+- Date / roadmap step: 2026-07-18 / `TR-12`
+- Context: Ordinary tests and local commands inherited whichever `DATABASE_URL` dotenv or the parent shell supplied, while multiple scripts opened MySQL directly.
+- Observed: Blanking the URL manually prevented the historical test connection, but an unset value could be restored by dotenv; an early cached decision could also become stale if `process.env.DATABASE_URL` changed before pool creation.
+- Cause: Environment loading, runtime intent, operation authority, and final connection construction were separate implicit decisions with no shared fail-closed contract.
+- Fix or decision: Capture safety controls before dotenv, ignore dotenv attempts to set them, explicitly blank ordinary-test `DATABASE_URL`, bind remote acknowledgement to an exact operation and normalized target, remove it from the live environment, and re-evaluate the current target immediately before every pool/connection. Inventory direct constructors and the canonical wrapper in CI.
+- Proof: Hostile dotenv and parent-environment tests, current-target mutation tests, pool/direct-connection denial tests, a 106-entrypoint audit with zero findings, hostile full suite 1,206/22, bounded startup exit evidence, and disposable MySQL 19/19 all pass; independent security and Claude Opus reviews approve.
+- Reuse rule: Never treat a profile name, `NODE_ENV`, an earlier URL check, or a technical acknowledgement as connection authority. Enforce intent at launch, operation boundaries, and the final socket construction site.
+- Supersedes / related: Closes `KF-008` and extends `LES-002` and `LES-011`.
