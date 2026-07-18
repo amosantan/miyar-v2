@@ -344,3 +344,25 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: Hostile dotenv and parent-environment tests, current-target mutation tests, pool/direct-connection denial tests, a 106-entrypoint audit with zero findings, hostile full suite 1,206/22, bounded startup exit evidence, and disposable MySQL 19/19 all pass; independent security and Claude Opus reviews approve.
 - Reuse rule: Never treat a profile name, `NODE_ENV`, an earlier URL check, or a technical acknowledgement as connection authority. Enforce intent at launch, operation boundaries, and the final socket construction site.
 - Supersedes / related: Closes `KF-008` and extends `LES-002` and `LES-011`.
+
+### LES-030 — Critical-workflow certification must join real boundaries, not concatenate isolated claims
+
+- Date / roadmap step: 2026-07-18 / `TR-13`
+- Context: MIYAR had broad unit, router, artifact, and runtime coverage, but no single clean lifecycle proved that one project could cross every critical boundary with the same reconciled values and tenant rules.
+- Observed: Early draft evidence could look complete while using independent fixtures, a mocked parity claim, or a report value that had not been traced back through stored room/allocation/material rows.
+- Cause: Passing component tests were being aggregated as if they represented one ordered journey, while cleanup, runtime state reset, source provenance, process-output secret scans, and exact cross-surface numerical identity were separate unproven assumptions.
+- Fix or decision: Use one versioned synthetic contract and disposable database; execute project, Grade A/B parser coverage, Grade C deterministic MQI, both briefs, stored report, share, public read, and revoke in order; reset state before each real application factory; reconcile formulas and costs at source; scan all durable/process evidence; and fail the run if cleanup or post-cleanup absence proof fails.
+- Proof: `pnpm certify:workflow` passes with matching Node/serverless fingerprints and reconciliations, a clean serial Node browser journey, nine inspected report pages, no secret-bearing durable output, and confirmed disposable-database absence. The hostile ordinary suite and all repository gates remain green.
+- Reuse rule: An end-to-end certification may cite isolated tests as supporting evidence, but its PASS gate must itself traverse the real boundaries in dependency order, carry one versioned identity across them, and prove both cleanup and absence of sensitive residue.
+- Supersedes / related: Extends `LES-025`, `LES-026`, `LES-028`, and `LES-029`; `SC-05` retains future runtime capability and observability architecture.
+
+### LES-031 — Router extraction needs an immutable semantic contract, not only a route list
+
+- Date / roadmap step: 2026-07-19 / `SC-01`
+- Context: The design router combined 63 tenant-sensitive, globally governed, admin, and public procedures in one file, and the existing authorization inventory described only the current checkout.
+- Observed: A flat runtime name/kind snapshot could miss a changed validator, handler, middleware chain, or access primitive; splitting files also made the source auditor derive incorrect namespaces unless module ownership was explicit.
+- Cause: Current-state inventories and public route names prove discoverability, not semantic equivalence to the pre-refactor boundary.
+- Fix or decision: Capture the monolith once as an immutable AST/runtime/middleware baseline; compare every complete initializer and authorization classification; assert reference-identical flat composition and unique ownership; give each bounded router an explicit canonical audit namespace.
+- Proof: All 63 initializers, operations, primitives, classifications, and middleware chains match; the composed router owns each procedure exactly once; authorization remains 338/0; focused, full, real-MySQL, workflow, build, and independent-review gates pass.
+- Reuse rule: Before moving a security-sensitive router, capture a semantic pre-change baseline and keep it executable in the ordinary test suite. Update both the contract file list and audit namespace registry whenever a bounded module is added or renamed.
+- Supersedes / related: Extends `LES-014` and `LES-030`; applies to future router, controller, resolver, and API-boundary decompositions.

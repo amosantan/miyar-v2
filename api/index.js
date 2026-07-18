@@ -2816,6 +2816,8 @@ __export(db_exports, {
   resetSpaceProgramRooms: () => resetSpaceProgramRooms,
   reviewBenchmarkProposal: () => reviewBenchmarkProposal,
   reviewBenchmarkSuggestion: () => reviewBenchmarkSuggestion,
+  revokeAiDesignBriefSharesForProjectForOrg: () => revokeAiDesignBriefSharesForProjectForOrg,
+  revokeAiDesignBriefSharesForProjectForOrgInDatabase: () => revokeAiDesignBriefSharesForProjectForOrgInDatabase,
   setLogicThresholds: () => setLogicThresholds,
   setLogicWeights: () => setLogicWeights,
   updateAiDesignBriefShareToken: () => updateAiDesignBriefShareToken,
@@ -2857,7 +2859,7 @@ __export(db_exports, {
   upsertUser: () => upsertUser,
   verifyPdfExtractionForOrg: () => verifyPdfExtractionForOrg
 });
-import { eq, and, desc, asc, sql, inArray, gte, isNull, or } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray, gte, isNull, isNotNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import { createHash } from "node:crypto";
@@ -5591,6 +5593,34 @@ async function updateAiDesignBriefShareTokenForOrg(briefId, projectId, orgId, to
     return Number(result[0].affectedRows) === 1;
   });
 }
+async function revokeAiDesignBriefSharesForProjectForOrg(projectId, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return revokeAiDesignBriefSharesForProjectForOrgInDatabase(db, projectId, orgId);
+}
+async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database, projectId, orgId) {
+  return database.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (owned.length !== 1) return null;
+    await tx.update(aiDesignBriefs).set({ shareExpiresAt: null }).where(and(
+      eq(aiDesignBriefs.projectId, projectId),
+      eq(aiDesignBriefs.orgId, orgId),
+      isNull(aiDesignBriefs.shareToken),
+      isNotNull(aiDesignBriefs.shareExpiresAt)
+    ));
+    const result = await tx.update(aiDesignBriefs).set({ shareToken: null, shareExpiresAt: null }).where(and(
+      eq(aiDesignBriefs.projectId, projectId),
+      eq(aiDesignBriefs.orgId, orgId),
+      isNotNull(aiDesignBriefs.shareToken),
+      sql`exists (
+          select 1 from ${projects}
+          where ${projects.id} = ${projectId}
+            and ${projects.orgId} = ${orgId}
+        )`
+    ));
+    return { revokedCount: Number(result[0].affectedRows) };
+  });
+}
 async function createFloorPlanAssetAndLinkForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -7036,133 +7066,6 @@ var init_report_safe_output = __esm({
   }
 });
 
-// server/storage.ts
-var storage_exports = {};
-__export(storage_exports, {
-  storageCreatePresignedPut: () => storageCreatePresignedPut,
-  storageDelete: () => storageDelete,
-  storageGet: () => storageGet,
-  storagePut: () => storagePut,
-  storageRead: () => storageRead
-});
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-  HeadObjectCommand
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { Buffer as Buffer2 } from "node:buffer";
-import process2 from "node:process";
-function getS3Client() {
-  const region = process2.env.AWS_REGION || "us-east-1";
-  const accessKeyId = process2.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process2.env.AWS_SECRET_ACCESS_KEY;
-  const bucketName = process2.env.AWS_S3_BUCKET;
-  if (!accessKeyId || !secretAccessKey || !bucketName) {
-    if (process2.env.NODE_ENV === "production") {
-      console.warn("Missing AWS S3 credentials");
-    }
-  }
-  const client = new S3Client({
-    region,
-    credentials: accessKeyId && secretAccessKey ? {
-      accessKeyId,
-      secretAccessKey
-    } : void 0
-  });
-  return { client, bucketName };
-}
-function normalizeKey(relKey) {
-  return relKey.replace(/^\/+/, "");
-}
-async function storagePut(relKey, data, contentType = "application/octet-stream") {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
-    const dataUrl = `data:${contentType};base64,${b64}`;
-    return { key, url: dataUrl, persistent: false };
-  }
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-    Body: typeof data === "string" ? Buffer2.from(data, "utf-8") : data,
-    ContentType: contentType
-  });
-  await client.send(command);
-  const getCommand = new GetObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  });
-  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
-  return { key, url, persistent: true };
-}
-async function storageCreatePresignedPut(relKey, contentType, expiresIn = 15 * 60) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    throw new Error("Object storage is not configured for direct uploads");
-  }
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-    ContentType: contentType
-  });
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
-  return { key, uploadUrl };
-}
-async function storageRead(relKey, maxBytes) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    throw new Error("Object storage is not configured for server-side validation");
-  }
-  const head = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
-  const sizeBytes = head.ContentLength ?? 0;
-  if (sizeBytes <= 0 || sizeBytes > maxBytes) {
-    return { key, contentType: head.ContentType, sizeBytes, buffer: Buffer2.alloc(0) };
-  }
-  const object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
-  if (!object.Body) throw new Error("Object storage returned no body");
-  const data = await object.Body.transformToByteArray();
-  const buffer = Buffer2.from(data);
-  if (buffer.length !== sizeBytes || buffer.length > maxBytes) {
-    throw new Error("Object storage size changed during validation");
-  }
-  return { key, contentType: head.ContentType, sizeBytes, buffer };
-}
-async function storageGet(relKey) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    return { key, url: `/uploads/${key}` };
-  }
-  const getCommand = new GetObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  });
-  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
-  return { key, url };
-}
-async function storageDelete(relKey) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    return;
-  }
-  await client.send(new DeleteObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  }));
-}
-var init_storage = __esm({
-  "server/storage.ts"() {
-    "use strict";
-  }
-});
-
 // server/_core/llm.ts
 var llm_exports = {};
 __export(llm_exports, {
@@ -7433,6 +7336,133 @@ var init_llm = __esm({
       return part;
     };
     mapRoleToGemini = (role) => role === "assistant" ? "model" : "user";
+  }
+});
+
+// server/storage.ts
+var storage_exports = {};
+__export(storage_exports, {
+  storageCreatePresignedPut: () => storageCreatePresignedPut,
+  storageDelete: () => storageDelete,
+  storageGet: () => storageGet,
+  storagePut: () => storagePut,
+  storageRead: () => storageRead
+});
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Buffer as Buffer2 } from "node:buffer";
+import process2 from "node:process";
+function getS3Client() {
+  const region = process2.env.AWS_REGION || "us-east-1";
+  const accessKeyId = process2.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process2.env.AWS_SECRET_ACCESS_KEY;
+  const bucketName = process2.env.AWS_S3_BUCKET;
+  if (!accessKeyId || !secretAccessKey || !bucketName) {
+    if (process2.env.NODE_ENV === "production") {
+      console.warn("Missing AWS S3 credentials");
+    }
+  }
+  const client = new S3Client({
+    region,
+    credentials: accessKeyId && secretAccessKey ? {
+      accessKeyId,
+      secretAccessKey
+    } : void 0
+  });
+  return { client, bucketName };
+}
+function normalizeKey(relKey) {
+  return relKey.replace(/^\/+/, "");
+}
+async function storagePut(relKey, data, contentType = "application/octet-stream") {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
+    const dataUrl = `data:${contentType};base64,${b64}`;
+    return { key, url: dataUrl, persistent: false };
+  }
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    Body: typeof data === "string" ? Buffer2.from(data, "utf-8") : data,
+    ContentType: contentType
+  });
+  await client.send(command);
+  const getCommand = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  });
+  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  return { key, url, persistent: true };
+}
+async function storageCreatePresignedPut(relKey, contentType, expiresIn = 15 * 60) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for direct uploads");
+  }
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType
+  });
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  return { key, uploadUrl };
+}
+async function storageRead(relKey, maxBytes) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for server-side validation");
+  }
+  const head = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
+  const sizeBytes = head.ContentLength ?? 0;
+  if (sizeBytes <= 0 || sizeBytes > maxBytes) {
+    return { key, contentType: head.ContentType, sizeBytes, buffer: Buffer2.alloc(0) };
+  }
+  const object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
+  if (!object.Body) throw new Error("Object storage returned no body");
+  const data = await object.Body.transformToByteArray();
+  const buffer = Buffer2.from(data);
+  if (buffer.length !== sizeBytes || buffer.length > maxBytes) {
+    throw new Error("Object storage size changed during validation");
+  }
+  return { key, contentType: head.ContentType, sizeBytes, buffer };
+}
+async function storageGet(relKey) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    return { key, url: `/uploads/${key}` };
+  }
+  const getCommand = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  });
+  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  return { key, url };
+}
+async function storageDelete(relKey) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    return;
+  }
+  await client.send(new DeleteObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  }));
+}
+var init_storage = __esm({
+  "server/storage.ts"() {
+    "use strict";
   }
 });
 
@@ -9496,15 +9526,18 @@ Analyze the floor plan now.`;
   }
 });
 
-// server/engines/board-pdf.ts
-var board_pdf_exports = {};
-__export(board_pdf_exports, {
-  createBoardPdfRenderContext: () => createBoardPdfRenderContext,
-  generateBoardPdfHtml: () => generateBoardPdfHtml
+// server/engines/investor-pdf.ts
+var investor_pdf_exports = {};
+__export(investor_pdf_exports, {
+  createInvestorPdfRenderContext: () => createInvestorPdfRenderContext,
+  generateInvestorPdfHtml: () => generateInvestorPdfHtml
 });
 import { randomUUID as randomUUID3 } from "node:crypto";
 function finite(value) {
   return Number.isFinite(value) ? value : null;
+}
+function pct(value) {
+  return Number.isFinite(value) ? Math.max(0, Math.min(value, 100)).toFixed(1) : "0.0";
 }
 function text2(value) {
   return `<span dir="auto" data-report-dynamic>${escapeReportText(value)}</span>`;
@@ -9512,200 +9545,8 @@ function text2(value) {
 function number(value, locale) {
   return formatReportNumber(value, locale);
 }
-function tierColor(tier) {
-  return { economy: "#6b7280", mid: "#3b82f6", premium: "#8b5cf6", luxury: "#d97706", ultra_luxury: "#e11d48" }[tier] ?? "#6b7280";
-}
-function leadBadgeColor(band) {
-  return { short: "#16a34a", medium: "#ca8a04", long: "#ea580c", critical: "#dc2626" }[band] ?? "#ca8a04";
-}
-function renderMetadata(context, locale) {
-  const c = (key) => reportCopy(locale, key);
-  const value = (entry) => text2(entry ?? c("notAvailable"));
-  return `<div class="render-meta">
-    <div><b>${c("documentId")}:</b> ${text2(context.documentId)}</div>
-    <div><b>${c("generatedAt")}:</b> ${text2(formatReportDateTime(context.generatedAt, locale))}</div>
-    <div><b>${c("renderInputFingerprint")}:</b> ${text2(context.renderInputFingerprint)}</div>
-    <div><b>${c("artifactVersion")}:</b> ${value(context.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context.rendererVersion)}</div>
-    <div><b>${c("modelVersion")}:</b> ${value(context.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context.logicVersion)}</div>
-  </div>`;
-}
-function createBoardPdfRenderContext(input) {
-  const locale = reportLocaleOrDefault(input.locale);
-  const { boardName, projectName, items, summary, rfqLines } = input;
-  const versions = {
-    artifactVersion: input.artifactVersion ?? "material-board-html-v1",
-    rendererVersion: input.rendererVersion ?? "standalone-html-v1",
-    modelVersion: input.modelVersion ?? null,
-    benchmarkVersion: input.benchmarkVersion ?? null,
-    logicVersion: input.logicVersion ?? null
-  };
-  return createReportRenderContext({
-    documentId: input.documentId ?? `MYR-BRD-${randomUUID3().toUpperCase()}`,
-    generatedAt: input.generatedAt,
-    locale,
-    ...versions,
-    fingerprintInput: createRenderFingerprintPayload("material_board", locale, versions, {
-      project: { name: projectName },
-      board: {
-        name: boardName,
-        items: items.map((item) => ({
-          name: item.name,
-          category: item.category,
-          tier: item.tier,
-          costLow: finite(item.costLow),
-          costHigh: finite(item.costHigh),
-          costUnit: item.costUnit,
-          leadTimeDays: finite(item.leadTimeDays),
-          leadTimeBand: item.leadTimeBand,
-          supplierName: item.supplierName,
-          quantity: item.quantity,
-          unitOfMeasure: item.unitOfMeasure,
-          specNotes: item.specNotes,
-          costBandOverride: item.costBandOverride,
-          notes: item.notes
-        })),
-        summary: {
-          totalItems: finite(summary.totalItems),
-          estimatedCostLow: finite(summary.estimatedCostLow),
-          estimatedCostHigh: finite(summary.estimatedCostHigh),
-          currency: summary.currency,
-          longestLeadTimeDays: finite(summary.longestLeadTimeDays),
-          criticalPathItems: summary.criticalPathItems,
-          tierDistribution: Object.fromEntries(Object.entries(summary.tierDistribution).map(([key, value]) => [key, finite(value)])),
-          categoryDistribution: Object.fromEntries(Object.entries(summary.categoryDistribution).map(([key, value]) => [key, finite(value)]))
-        },
-        rfqLines: rfqLines.map((line) => ({
-          lineNo: finite(line.lineNo),
-          materialName: line.materialName,
-          category: line.category,
-          specification: line.specification,
-          quantity: line.quantity,
-          unit: line.unit,
-          estimatedUnitCostLow: finite(line.estimatedUnitCostLow),
-          estimatedUnitCostHigh: finite(line.estimatedUnitCostHigh),
-          leadTimeDays: finite(line.leadTimeDays),
-          supplierSuggestion: line.supplierSuggestion,
-          notes: line.notes
-        }))
-      }
-    })
-  });
-}
-function generateBoardPdfHtml(input) {
-  const locale = reportLocaleOrDefault(input.locale);
-  const c = (key) => reportCopy(locale, key);
-  const labels = BOARD_COPY[locale];
-  const { boardName, projectName, items, summary, rfqLines } = input;
-  const context = input.renderContext ?? createBoardPdfRenderContext(input);
-  const tileCards = items.map((item, index2) => `<div class="tile-card">
-    <div class="tile-header"><span class="tile-num">${number(index2 + 1, locale)}</span><span class="tile-name">${text2(item.name)}</span><span class="tier-badge" style="background:${tierColor(item.tier)}">${text2(item.tier.replace(/_/g, " "))}</span></div>
-    <div class="tile-body">
-      <div class="tile-row"><span class="tile-label">${c("category")}</span>${text2(item.category)}</div>
-      <div class="tile-row"><span class="tile-label">${labels.costRange}</span><span>${number(item.costLow, locale)} \u2013 ${number(item.costHigh, locale)} ${text2(item.costUnit)}</span></div>
-      <div class="tile-row"><span class="tile-label">${labels.leadTime}</span><span style="color:${leadBadgeColor(item.leadTimeBand)}">${number(item.leadTimeDays, locale)}d (${item.leadTimeBand === "critical" ? labels.criticalLeadBand : text2(item.leadTimeBand)})</span></div>
-      <div class="tile-row"><span class="tile-label">${labels.supplier}</span>${text2(item.supplierName)}</div>
-      ${item.quantity ? `<div class="tile-row"><span class="tile-label">${labels.quantity}</span><span>${text2(item.quantity)} ${text2(item.unitOfMeasure ?? "")}</span></div>` : ""}
-      ${item.costBandOverride ? `<div class="tile-row"><span class="tile-label">${labels.costBand}</span><span class="cost-band-badge">${text2(item.costBandOverride)}</span></div>` : ""}
-      ${item.specNotes ? `<div class="tile-spec">${text2(item.specNotes)}</div>` : ""}
-      ${item.notes ? `<div class="tile-notes">${text2(item.notes)}</div>` : ""}
-    </div></div>`).join("");
-  const rfqRows = rfqLines.map((line) => `<tr><td>${number(line.lineNo, locale)}</td><td class="font-medium">${text2(line.materialName)}</td><td>${text2(line.category)}</td><td>${text2(line.specification)}</td><td>${text2(line.quantity)}</td><td>${text2(line.unit)}</td><td class="text-end">${number(line.estimatedUnitCostLow, locale)}</td><td class="text-end">${number(line.estimatedUnitCostHigh, locale)}</td><td>${number(line.leadTimeDays, locale)}d</td><td>${text2(line.supplierSuggestion)}</td><td>${text2(line.notes)}</td></tr>`).join("");
-  const tierRows = Object.entries(summary.tierDistribution).map(([tier, count2]) => `<div class="dist-item"><span class="dist-badge" style="background:${tierColor(tier)}">${text2(tier.replace(/_/g, " "))}</span><span class="dist-count">${number(count2, locale)}</span></div>`).join("");
-  const categoryRows = Object.entries(summary.categoryDistribution).map(([category, count2]) => `<div class="dist-item"><span class="dist-label">${text2(category)}</span><span class="dist-count">${number(count2, locale)}</span></div>`).join("");
-  const criticalItems = summary.criticalPathItems.map((item) => `<div class="critical-item">${text2(item)}</div>`).join("");
-  return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`${c("materialBoard")} \u2014 ${boardName}`)}</title><style>
-    @page { size: A4 landscape; margin: 15mm 12mm; } * { box-sizing: border-box; margin: 0; padding: 0; }
-    ${reportLocaleCss(locale)} body { color:#1a1a2e; line-height:1.5; font-size:10px; } .cover { page-break-after:always; display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:70vh; text-align:center; }
-    .logo { font-size:32px; font-weight:800; color:#0f3460; letter-spacing:3px; margin-block-end:24px; } .cover h1 { font-size:24px; color:#0f3460; margin-block-end:6px; } .cover h2 { font-size:14px; color:#4ecdc4; font-weight:400; margin-block-end:16px; } .project { font-size:18px; font-weight:600; } .date,.confidential,.watermark { font-size:9px; color:#666; margin-block-start:12px; } .confidential,.watermark { color:#999; text-transform:uppercase; letter-spacing:2px; } .watermark { font-family:monospace; }
-    h2 { font-size:14px; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:20px 0 10px; } h3 { font-size:12px; color:#0f3460; margin:14px 0 6px; } .section { break-inside:avoid; margin-block-end:16px; } .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0; } .summary-card { border:1px solid #e0e0e0; border-radius:6px; padding:10px; text-align:center; } .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:1px; } .value { font-size:20px; font-weight:700; color:#0f3460; margin:2px 0; } .sub { font-size:9px; color:#888; }
-    .tile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; } .tile-card { border:1px solid #e0e0e0; border-radius:6px; overflow:hidden; break-inside:avoid; } .tile-header { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#f8f9fa; border-block-end:1px solid #e0e0e0; } .tile-num { font-weight:700; background:#e8f4fd; border-radius:50%; inline-size:20px; block-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; } .tile-name { font-weight:600; flex:1; } .tier-badge,.dist-badge { font-size:8px; color:#fff; padding:1px 6px; border-radius:3px; text-transform:uppercase; } .tile-body { padding:8px 10px; } .tile-row { display:flex; justify-content:space-between; gap:8px; padding-block:2px; border-block-end:1px dotted #f0f0f0; } .tile-label,.dist-label { color:#666; font-weight:500; } .tile-spec { color:#0f3460; background:#e8f4fd; padding:4px 6px; border-radius:3px; margin-block-start:4px; font-style:italic; } .tile-notes { color:#888; margin-block-start:3px; } .cost-band-badge { background:#fef3c7; color:#92400e; padding-inline:4px; border-radius:2px; font-weight:600; }
-    table { width:100%; border-collapse:collapse; margin:10px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:6px 8px; font-weight:600; } td { padding:5px 8px; border-block-end:1px solid #e0e0e0; } tr:nth-child(even) td { background:#f8f9fa; } .text-end { text-align:end; } .font-medium { font-weight:600; } .dist-grid { display:flex; gap:16px; margin:8px 0; flex-wrap:wrap; } .dist-item { display:flex; align-items:center; gap:6px; } .dist-count { font-weight:700; color:#0f3460; } .critical-item { background:#fef2f2; border-inline-start:3px solid #dc2626; padding:4px 8px; margin-block:3px; color:#991b1b; } .render-meta { margin:10px auto; max-inline-size:620px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .closing { break-inside:avoid-page; page-break-inside:avoid; } .footer { margin-block-start:12px; padding-block-start:10px; border-block-start:1px solid #e0e0e0; font-size:8px; color:#999; text-align:center; break-before:avoid-page; page-break-before:avoid; }
-  </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text2(boardName)}</h2><div class="project">${text2(projectName)}</div><div class="date">${text2(formatReportDateTime(context.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata(context, locale)}</div>
-  <div class="section"><h2>${labels.boardSummary}</h2><div class="summary-grid"><div class="summary-card"><div class="label">${labels.totalItems}</div><div class="value">${number(summary.totalItems, locale)}</div></div><div class="summary-card"><div class="label">${labels.estimatedCostRange}</div><div class="value" style="font-size:14px">${number(summary.estimatedCostLow, locale)} \u2013 ${number(summary.estimatedCostHigh, locale)}</div><div class="sub">${text2(summary.currency)}</div></div><div class="summary-card"><div class="label">${labels.longestLeadTime}</div><div class="value">${number(summary.longestLeadTimeDays, locale)}d</div></div><div class="summary-card"><div class="label">${labels.criticalPathItems}</div><div class="value">${number(summary.criticalPathItems.length, locale)}</div></div></div><h3>${labels.tierDistribution}</h3><div class="dist-grid">${tierRows}</div><h3>${labels.categoryDistribution}</h3><div class="dist-grid">${categoryRows}</div>${summary.criticalPathItems.length > 0 ? `<h3>${labels.criticalPathItems}</h3><div>${criticalItems}</div>` : ""}</div>
-  <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR \xB7 ${c("materialBoard")} \xB7 ${text2(formatReportDateTime(context.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
-}
-var BOARD_COPY;
-var init_board_pdf = __esm({
-  "server/engines/board-pdf.ts"() {
-    "use strict";
-    init_report_locale();
-    init_report_catalog();
-    init_report_render_context();
-    init_report_safe_output();
-    BOARD_COPY = {
-      en: {
-        boardSummary: "Board Summary",
-        totalItems: "Total Items",
-        estimatedCostRange: "Estimated Cost Range",
-        longestLeadTime: "Longest Lead Time",
-        criticalPathItems: "Critical Path Items",
-        tierDistribution: "Tier Distribution",
-        categoryDistribution: "Category Distribution",
-        materialTiles: "Material Tiles",
-        rfqSchedule: "RFQ-Ready Procurement Schedule",
-        material: "Material",
-        specification: "Specification",
-        quantity: "Quantity",
-        unit: "Unit",
-        costLow: "Cost Low (AED)",
-        costHigh: "Cost High (AED)",
-        lead: "Lead",
-        supplier: "Supplier",
-        costRange: "Cost Range",
-        leadTime: "Lead Time",
-        costBand: "Cost Band",
-        criticalLeadBand: "critical",
-        generatedNotice: "This document is auto-generated. All cost estimates are indicative and subject to supplier confirmation."
-      },
-      ar: {
-        boardSummary: "\u0645\u0644\u062E\u0635 \u0627\u0644\u0644\u0648\u062D\u0629",
-        totalItems: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0639\u0646\u0627\u0635\u0631",
-        estimatedCostRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u062A\u0642\u062F\u064A\u0631\u064A\u0629",
-        longestLeadTime: "\u0623\u0637\u0648\u0644 \u0645\u062F\u0629 \u062A\u0648\u0631\u064A\u062F",
-        criticalPathItems: "\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u0633\u0627\u0631 \u0627\u0644\u062D\u0631\u062C",
-        tierDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0634\u0631\u0627\u0626\u062D",
-        categoryDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0641\u0626\u0627\u062A",
-        materialTiles: "\u0628\u0637\u0627\u0642\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
-        rfqSchedule: "\u062C\u062F\u0648\u0644 \u0627\u0644\u0634\u0631\u0627\u0621 \u0627\u0644\u062C\u0627\u0647\u0632 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631",
-        material: "\u0627\u0644\u0645\u0627\u062F\u0629",
-        specification: "\u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0629",
-        quantity: "\u0627\u0644\u0643\u0645\u064A\u0629",
-        unit: "\u0627\u0644\u0648\u062D\u062F\u0629",
-        costLow: "\u0623\u0642\u0644 \u062A\u0643\u0644\u0641\u0629 (\u062F\u0631\u0647\u0645)",
-        costHigh: "\u0623\u0639\u0644\u0649 \u062A\u0643\u0644\u0641\u0629 (\u062F\u0631\u0647\u0645)",
-        lead: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
-        supplier: "\u0627\u0644\u0645\u0648\u0631\u0651\u062F",
-        costRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
-        leadTime: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
-        costBand: "\u0634\u0631\u064A\u062D\u0629 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
-        criticalLeadBand: "\u062D\u0631\u062C",
-        generatedNotice: "\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0622\u0644\u064A\u0627\u064B. \u062C\u0645\u064A\u0639 \u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A\u0629 \u0648\u062A\u062E\u0636\u0639 \u0644\u062A\u0623\u0643\u064A\u062F \u0627\u0644\u0645\u0648\u0631\u0651\u062F."
-      }
-    };
-  }
-});
-
-// server/engines/investor-pdf.ts
-var investor_pdf_exports = {};
-__export(investor_pdf_exports, {
-  createInvestorPdfRenderContext: () => createInvestorPdfRenderContext,
-  generateInvestorPdfHtml: () => generateInvestorPdfHtml
-});
-import { randomUUID as randomUUID4 } from "node:crypto";
-function finite2(value) {
-  return Number.isFinite(value) ? value : null;
-}
-function pct(value) {
-  return Number.isFinite(value) ? Math.max(0, Math.min(value, 100)).toFixed(1) : "0.0";
-}
-function text3(value) {
-  return `<span dir="auto" data-report-dynamic>${escapeReportText(value)}</span>`;
-}
-function number2(value, locale) {
-  return formatReportNumber(value, locale);
-}
 function aed(value, locale) {
-  return `${number2(value, locale)} AED`;
+  return `${number(value, locale)} AED`;
 }
 function gradeColor(grade2) {
   return { A: "#10b981", B: "#22c55e", C: "#f59e0b", D: "#f97316", E: "#ef4444" }[grade2] ?? "#94a3b8";
@@ -9713,10 +9554,10 @@ function gradeColor(grade2) {
 function confColor(confidence) {
   return { established: "#10b981", emerging: "#8b5cf6", declining: "#ef4444" }[confidence] ?? "#94a3b8";
 }
-function renderMetadata2(context, locale) {
+function renderMetadata(context, locale) {
   const c = (key) => reportCopy(locale, key);
-  const value = (entry) => text3(entry ?? c("notAvailable"));
-  return `<div class="render-meta"><div><b>${c("documentId")}:</b> ${text3(context.documentId)}</div><div><b>${c("generatedAt")}:</b> ${text3(formatReportDateTime(context.generatedAt, locale))}</div><div><b>${c("renderInputFingerprint")}:</b> ${text3(context.renderInputFingerprint)}</div><div><b>${c("artifactVersion")}:</b> ${value(context.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context.rendererVersion)}</div><div><b>${c("modelVersion")}:</b> ${value(context.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context.logicVersion)}</div></div>`;
+  const value = (entry) => text2(entry ?? c("notAvailable"));
+  return `<div class="render-meta"><div><b>${c("documentId")}:</b> ${text2(context.documentId)}</div><div><b>${c("generatedAt")}:</b> ${text2(formatReportDateTime(context.generatedAt, locale))}</div><div><b>${c("renderInputFingerprint")}:</b> ${text2(context.renderInputFingerprint)}</div><div><b>${c("artifactVersion")}:</b> ${value(context.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context.rendererVersion)}</div><div><b>${c("modelVersion")}:</b> ${value(context.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context.logicVersion)}</div></div>`;
 }
 function createInvestorPdfRenderContext(input) {
   const locale = reportLocaleOrDefault(input.locale);
@@ -9728,20 +9569,20 @@ function createInvestorPdfRenderContext(input) {
     logicVersion: input.logicVersion ?? null
   };
   return createReportRenderContext({
-    documentId: input.documentId ?? `MYR-INV-${randomUUID4().toUpperCase()}`,
+    documentId: input.documentId ?? `MYR-INV-${randomUUID3().toUpperCase()}`,
     generatedAt: input.generatedAt,
     locale,
     ...labels,
     fingerprintInput: createRenderFingerprintPayload("investor_summary", locale, labels, {
-      project: { name: input.projectName, typology: input.typology, location: input.location, tier: input.tier, style: input.style, gfaSqm: finite2(input.gfaSqm), execSummary: input.execSummary },
+      project: { name: input.projectName, typology: input.typology, location: input.location, tier: input.tier, style: input.style, gfaSqm: finite(input.gfaSqm), execSummary: input.execSummary },
       designDirection: Object.fromEntries(Object.entries(input.designDirection ?? {}).slice(0, 6)),
-      spaces: input.spaces.slice(0, 12).map((space) => ({ name: space.name, budgetAed: finite2(space.budgetAed), sqm: finite2(space.sqm), pct: finite2(space.pct), styleDirection: space.styleDirection })),
+      spaces: input.spaces.slice(0, 12).map((space) => ({ name: space.name, budgetAed: finite(space.budgetAed), sqm: finite(space.sqm), pct: finite(space.pct), styleDirection: space.styleDirection })),
       materials: input.materials.slice(0, 16).map((material) => ({ name: material.name, brand: material.brand, room: material.room, price: material.price })),
-      materialConstants: input.materialConstants.slice(0, 9).map((constant) => ({ materialType: constant.materialType, costPerM2: finite2(constant.costPerM2), carbonIntensity: finite2(constant.carbonIntensity), sustainabilityGrade: constant.sustainabilityGrade })),
-      budget: { totalFitoutBudget: finite2(input.totalFitoutBudget), costPerSqm: finite2(input.costPerSqm), sustainabilityGrade: input.sustainabilityGrade, salePremiumPct: finite2(input.salePremiumPct), estimatedSalesPremiumAed: finite2(input.estimatedSalesPremiumAed) },
+      materialConstants: input.materialConstants.slice(0, 9).map((constant) => ({ materialType: constant.materialType, costPerM2: finite(constant.costPerM2), carbonIntensity: finite(constant.carbonIntensity), sustainabilityGrade: constant.sustainabilityGrade })),
+      budget: { totalFitoutBudget: finite(input.totalFitoutBudget), costPerSqm: finite(input.costPerSqm), sustainabilityGrade: input.sustainabilityGrade, salePremiumPct: finite(input.salePremiumPct), estimatedSalesPremiumAed: finite(input.estimatedSalesPremiumAed) },
       benchmark: input.benchmark ? { costPerSqmLow: input.benchmark.costPerSqmLow ?? null, costPerSqmMid: input.benchmark.costPerSqmMid ?? null, costPerSqmHigh: input.benchmark.costPerSqmHigh ?? null, typology: input.benchmark.typology, location: input.benchmark.location, marketTier: input.benchmark.marketTier, dataYear: input.benchmark.dataYear ?? null } : null,
       designTrends: input.designTrends?.slice(0, 8).map((trend) => ({ trendName: trend.trendName, confidenceLevel: trend.confidenceLevel, trendCategory: trend.trendCategory })),
-      spaceEfficiency: input.spaceEfficiency ? { efficiencyScore: finite2(input.spaceEfficiency.efficiencyScore), criticalCount: finite2(input.spaceEfficiency.criticalCount), advisoryCount: finite2(input.spaceEfficiency.advisoryCount), circulationPct: finite2(input.spaceEfficiency.circulationPct), rooms: input.spaceEfficiency.rooms.slice(0, 10).map((room) => ({ name: room.name, currentPct: finite2(room.currentPct), benchmarkPct: finite2(room.benchmarkPct), severity: room.severity })) } : null
+      spaceEfficiency: input.spaceEfficiency ? { efficiencyScore: finite(input.spaceEfficiency.efficiencyScore), criticalCount: finite(input.spaceEfficiency.criticalCount), advisoryCount: finite(input.spaceEfficiency.advisoryCount), circulationPct: finite(input.spaceEfficiency.circulationPct), rooms: input.spaceEfficiency.rooms.slice(0, 10).map((room) => ({ name: room.name, currentPct: finite(room.currentPct), benchmarkPct: finite(room.benchmarkPct), severity: room.severity })) } : null
     })
   });
 }
@@ -9771,28 +9612,28 @@ function generateInvestorPdfHtml(input) {
     spaceEfficiency
   } = input;
   const context = input.renderContext ?? createInvestorPdfRenderContext(input);
-  const spaceBars = spaces.slice(0, 12).map((space) => `<div class="bar-row"><span class="bar-label">${text3(space.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(space.pct)}%"></div></div><span class="bar-pct">${number2(space.pct, locale)}%</span><span class="bar-amt">${aed(space.budgetAed, locale)}</span></div>`).join("");
-  const materialRows = materials.slice(0, 16).map((material, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text3(material.name)}</td><td>${text3(material.brand)}</td><td>${text3(material.room)}</td><td>${text3(material.price ?? c("notAvailable"))}</td></tr>`).join("");
-  const constantRows = materialConstants2.slice(0, 9).map((constant, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text3(constant.materialType)}</td><td>${aed(constant.costPerM2, locale)}</td><td>${number2(constant.carbonIntensity, locale)} ${labels.kilogramsPerSquareMetre}</td><td><span class="grade-badge" style="background:${gradeColor(constant.sustainabilityGrade)}">${text3(constant.sustainabilityGrade)}</span></td></tr>`).join("");
+  const spaceBars = spaces.slice(0, 12).map((space) => `<div class="bar-row"><span class="bar-label">${text2(space.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(space.pct)}%"></div></div><span class="bar-pct">${number(space.pct, locale)}%</span><span class="bar-amt">${aed(space.budgetAed, locale)}</span></div>`).join("");
+  const materialRows = materials.slice(0, 16).map((material, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text2(material.name)}</td><td>${text2(material.brand)}</td><td>${text2(material.room)}</td><td>${text2(material.price ?? c("notAvailable"))}</td></tr>`).join("");
+  const constantRows = materialConstants2.slice(0, 9).map((constant, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text2(constant.materialType)}</td><td>${aed(constant.costPerM2, locale)}</td><td>${number(constant.carbonIntensity, locale)} ${labels.kilogramsPerSquareMetre}</td><td><span class="grade-badge" style="background:${gradeColor(constant.sustainabilityGrade)}">${text2(constant.sustainabilityGrade)}</span></td></tr>`).join("");
   const designDirectionLabel = (key) => {
     const normalized = key.replace(/([A-Z])/g, " $1").trim();
     if (normalized.toLowerCase() === "direction") return labels.direction;
     if (normalized.toLowerCase() === "content") return labels.content;
-    return text3(normalized);
+    return text2(normalized);
   };
-  const designDirectionRows = Object.entries(designDirection ?? {}).slice(0, 6).map(([key, value]) => `<div class="dd-row"><span class="dd-key">${designDirectionLabel(key)}</span><span class="dd-val">${text3(Array.isArray(value) ? value.join(", ") : String(value))}</span></div>`).join("");
-  const trendRows = (designTrends2 ?? []).slice(0, 8).map((trend) => `<div class="trend-row"><span class="conf-badge" style="background:${confColor(trend.confidenceLevel)}">${text3(trend.confidenceLevel)}</span><span class="trend-name">${text3(trend.trendName)}</span><span class="trend-cat">${text3(trend.trendCategory)}</span></div>`).join("");
-  const benchmarkSection = benchmark ? `<div class="panel"><div class="panel-title">${labels.marketBenchmark} \u2014 ${text3(benchmark.typology ?? typology)} \xB7 ${text3(benchmark.marketTier ?? tier)}${benchmark.dataYear ? ` \xB7 ${number2(benchmark.dataYear, locale)}` : ""}</div><div class="kpi-grid">${benchmark.costPerSqmLow != null ? `<div class="kpi"><div class="kpi-label">${labels.low}</div><div class="kpi-value">${aed(benchmark.costPerSqmLow, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmMid != null ? `<div class="kpi"><div class="kpi-label">${labels.mid}</div><div class="kpi-value">${aed(benchmark.costPerSqmMid, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmHigh != null ? `<div class="kpi"><div class="kpi-label">${labels.high}</div><div class="kpi-value">${aed(benchmark.costPerSqmHigh, locale)}/m\xB2</div></div>` : ""}<div class="kpi"><div class="kpi-label">${labels.yourEstimate}</div><div class="kpi-value" style="color:${costPerSqm <= (benchmark.costPerSqmMid ?? Infinity) ? "#10b981" : "#f59e0b"}">${aed(costPerSqm, locale)}/m\xB2</div></div></div></div>` : "";
-  const spaceEfficiencySection = spaceEfficiency ? `<div class="section"><h2>${labels.spacePlanning}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.efficiencyScore}</div><div class="kpi-value" style="color:${spaceEfficiency.efficiencyScore >= 75 ? "#10b981" : spaceEfficiency.efficiencyScore >= 50 ? "#f59e0b" : "#ef4444"}">${number2(spaceEfficiency.efficiencyScore, locale)}/100</div></div><div class="kpi"><div class="kpi-label">${labels.criticalIssues}</div><div class="kpi-value">${number2(spaceEfficiency.criticalCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.advisoryIssues}</div><div class="kpi-value">${number2(spaceEfficiency.advisoryCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.circulation}</div><div class="kpi-value">${number2(spaceEfficiency.circulationPct, locale)}%</div></div></div>${spaceEfficiency.rooms.length > 0 ? `<h3>${labels.roomAllocation}</h3><div class="panel">${spaceEfficiency.rooms.slice(0, 10).map((room) => `<div class="bar-row"><span class="bar-label">${text3(room.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(room.currentPct)}%;background:${room.severity === "critical" ? "#ef4444" : room.severity === "advisory" ? "#f59e0b" : "#10b981"}"></div></div><span class="bar-pct">${number2(room.currentPct, locale)}%</span><span class="bar-amt">${labels.versus} ${number2(room.benchmarkPct, locale)}%</span></div>`).join("")}</div>` : ""}</div>` : "";
+  const designDirectionRows = Object.entries(designDirection ?? {}).slice(0, 6).map(([key, value]) => `<div class="dd-row"><span class="dd-key">${designDirectionLabel(key)}</span><span class="dd-val">${text2(Array.isArray(value) ? value.join(", ") : String(value))}</span></div>`).join("");
+  const trendRows = (designTrends2 ?? []).slice(0, 8).map((trend) => `<div class="trend-row"><span class="conf-badge" style="background:${confColor(trend.confidenceLevel)}">${text2(trend.confidenceLevel)}</span><span class="trend-name">${text2(trend.trendName)}</span><span class="trend-cat">${text2(trend.trendCategory)}</span></div>`).join("");
+  const benchmarkSection = benchmark ? `<div class="panel"><div class="panel-title">${labels.marketBenchmark} \u2014 ${text2(benchmark.typology ?? typology)} \xB7 ${text2(benchmark.marketTier ?? tier)}${benchmark.dataYear ? ` \xB7 ${number(benchmark.dataYear, locale)}` : ""}</div><div class="kpi-grid">${benchmark.costPerSqmLow != null ? `<div class="kpi"><div class="kpi-label">${labels.low}</div><div class="kpi-value">${aed(benchmark.costPerSqmLow, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmMid != null ? `<div class="kpi"><div class="kpi-label">${labels.mid}</div><div class="kpi-value">${aed(benchmark.costPerSqmMid, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmHigh != null ? `<div class="kpi"><div class="kpi-label">${labels.high}</div><div class="kpi-value">${aed(benchmark.costPerSqmHigh, locale)}/m\xB2</div></div>` : ""}<div class="kpi"><div class="kpi-label">${labels.yourEstimate}</div><div class="kpi-value" style="color:${costPerSqm <= (benchmark.costPerSqmMid ?? Infinity) ? "#10b981" : "#f59e0b"}">${aed(costPerSqm, locale)}/m\xB2</div></div></div></div>` : "";
+  const spaceEfficiencySection = spaceEfficiency ? `<div class="section"><h2>${labels.spacePlanning}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.efficiencyScore}</div><div class="kpi-value" style="color:${spaceEfficiency.efficiencyScore >= 75 ? "#10b981" : spaceEfficiency.efficiencyScore >= 50 ? "#f59e0b" : "#ef4444"}">${number(spaceEfficiency.efficiencyScore, locale)}/100</div></div><div class="kpi"><div class="kpi-label">${labels.criticalIssues}</div><div class="kpi-value">${number(spaceEfficiency.criticalCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.advisoryIssues}</div><div class="kpi-value">${number(spaceEfficiency.advisoryCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.circulation}</div><div class="kpi-value">${number(spaceEfficiency.circulationPct, locale)}%</div></div></div>${spaceEfficiency.rooms.length > 0 ? `<h3>${labels.roomAllocation}</h3><div class="panel">${spaceEfficiency.rooms.slice(0, 10).map((room) => `<div class="bar-row"><span class="bar-label">${text2(room.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(room.currentPct)}%;background:${room.severity === "critical" ? "#ef4444" : room.severity === "advisory" ? "#f59e0b" : "#10b981"}"></div></div><span class="bar-pct">${number(room.currentPct, locale)}%</span><span class="bar-amt">${labels.versus} ${number(room.benchmarkPct, locale)}%</span></div>`).join("")}</div>` : ""}</div>` : "";
   return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`MIYAR ${labels.investorBrief} \u2014 ${projectName}`)}</title><style>
     @page { size:A4 portrait; margin:15mm 14mm; } @media print { .no-print { display:none; } } * { box-sizing:border-box; margin:0; padding:0; } ${reportLocaleCss(locale)} body { color:#0f172a; font-size:10px; line-height:1.5; background:#fff; } .cover { break-after:page; padding-block:40mm 20mm; text-align:center; } .brand { font-size:30px; font-weight:800; letter-spacing:4px; color:#0f3460; } .subtitle { font-size:12px; color:#4ecdc4; margin:4px 0 20px; letter-spacing:2px; text-transform:uppercase; } .project-name { font-size:22px; font-weight:700; margin-block-end:8px; } .meta { font-size:10px; color:#64748b; margin-block-end:6px; } .divider { inline-size:60px; block-size:3px; background:#4ecdc4; margin:20px auto; } .cover .kpi-grid { max-inline-size:340px; margin:24px auto 0; } .cover .kpi-card { border:1px solid #e2e8f0; border-radius:8px; padding:10px 8px; background:#f8fafc; } .cv { font-size:16px; font-weight:800; color:#0f3460; } .cl,.kpi-label,.roi-label { font-size:7px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin-block-start:2px; }
     h2 { font-size:12px; font-weight:700; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:18px 0 10px; text-transform:uppercase; letter-spacing:1px; } h3 { font-size:10px; font-weight:700; color:#334155; margin:12px 0 6px; } .section { break-inside:avoid; margin-block-end:14px; } .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0; } .kpi { border:1px solid #e2e8f0; border-radius:6px; padding:8px; text-align:center; background:#f8fafc; } .kpi-value { font-size:14px; font-weight:800; color:#0f3460; margin:2px 0; } .panel { border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin:8px 0; background:#f8fafc; } .panel-title { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b; margin-block-end:8px; } .exec-body { color:#334155; line-height:1.65; padding-block:8px; } .dd-row { display:flex; gap:8px; padding-block:3px; border-block-end:1px dotted #e2e8f0; } .dd-key { inline-size:110px; color:#64748b; font-weight:600; flex-shrink:0; } .dd-val { flex:1; } .bar-row { display:flex; align-items:center; gap:6px; margin-block:4px; font-size:9px; } .bar-label { inline-size:90px; color:#475569; flex-shrink:0; } .bar-track { flex:1; block-size:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; } .bar-fill { block-size:100%; background:linear-gradient(90deg,#4ecdc4,#0f3460); border-radius:4px; } .bar-pct,.bar-amt { text-align:end; flex-shrink:0; } .bar-pct { inline-size:32px; } .bar-amt { inline-size:76px; color:#0f3460; font-weight:600; font-size:8px; } table { width:100%; border-collapse:collapse; margin:8px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:5px 8px; font-weight:600; font-size:8px; letter-spacing:.5px; } td { padding:4px 8px; border-block-end:1px solid #f1f5f9; } tr.even td { background:#f8fafc; } .roi-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .roi-card { border:1px solid #e2e8f0; border-radius:6px; padding:10px; } .roi-big { font-size:20px; font-weight:800; color:#10b981; } .roi-sub { font-size:8px; color:#64748b; margin-block-start:3px; } .grade-chip,.grade-badge,.conf-badge { color:#fff; font-weight:700; } .grade-chip { display:inline-flex; align-items:center; justify-content:center; inline-size:32px; block-size:32px; border-radius:50%; font-size:16px; } .grade-badge,.conf-badge { font-size:8px; padding:1px 5px; border-radius:3px; } .trend-row { display:flex; align-items:center; gap:6px; padding-block:3px; border-block-end:1px dotted #e2e8f0; font-size:9px; } .trend-name { flex:1; font-weight:600; } .trend-cat { font-size:7px; color:#94a3b8; text-transform:uppercase; } .render-meta { margin:12px auto; max-inline-size:520px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .fallback { border-inline-start:3px solid #f59e0b; background:#fffbeb; padding:8px; margin-block:10px; font-size:9px; } .footer { margin-block-start:20px; padding-block-start:8px; border-block-start:1px solid #e2e8f0; font-size:7px; color:#94a3b8; text-align:center; }
-  </style></head><body><div class="cover"><div class="brand">MIYAR</div><div class="subtitle">${labels.investorBrief}</div><div class="project-name">${text3(projectName)}</div><div class="meta">${text3(typology)} \xB7 ${text3(tier)} \xB7 ${text3(location)}</div><div class="meta">${number2(gfaSqm, locale)} ${labels.squareMetres} ${labels.gfa} \xB7 ${text3(style)} ${labels.design}</div><div class="divider"></div><div class="kpi-grid"><div class="kpi-card"><div class="cv">${aed(totalFitoutBudget, locale)}</div><div class="cl">${c("totalFitout")}</div></div><div class="kpi-card"><div class="cv">${aed(costPerSqm, locale)}</div><div class="cl">${labels.costPerSquareMetre}</div></div><div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${text3(sustainabilityGrade)}</div><div class="cl">${labels.sustainabilityGrade}</div></div></div>${renderMetadata2(context, locale)}</div>
-    <div class="section"><h2>${labels.designIdentity}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.typology}</div><div class="kpi-value">${text3(typology)}</div></div><div class="kpi"><div class="kpi-label">${labels.style}</div><div class="kpi-value">${text3(style)}</div></div><div class="kpi"><div class="kpi-label">${labels.tier}</div><div class="kpi-value">${text3(tier)}</div></div><div class="kpi"><div class="kpi-label">${labels.location}</div><div class="kpi-value">${text3(location)}</div></div></div>${execSummary ? `<p class="exec-body">${text3(execSummary)}</p>` : ""}${designDirectionRows ? `<div class="panel">${designDirectionRows}</div>` : ""}</div>
+  </style></head><body><div class="cover"><div class="brand">MIYAR</div><div class="subtitle">${labels.investorBrief}</div><div class="project-name">${text2(projectName)}</div><div class="meta">${text2(typology)} \xB7 ${text2(tier)} \xB7 ${text2(location)}</div><div class="meta">${number(gfaSqm, locale)} ${labels.squareMetres} ${labels.gfa} \xB7 ${text2(style)} ${labels.design}</div><div class="divider"></div><div class="kpi-grid"><div class="kpi-card"><div class="cv">${aed(totalFitoutBudget, locale)}</div><div class="cl">${c("totalFitout")}</div></div><div class="kpi-card"><div class="cv">${aed(costPerSqm, locale)}</div><div class="cl">${labels.costPerSquareMetre}</div></div><div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="cl">${labels.sustainabilityGrade}</div></div></div>${renderMetadata(context, locale)}</div>
+    <div class="section"><h2>${labels.designIdentity}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.typology}</div><div class="kpi-value">${text2(typology)}</div></div><div class="kpi"><div class="kpi-label">${labels.style}</div><div class="kpi-value">${text2(style)}</div></div><div class="kpi"><div class="kpi-label">${labels.tier}</div><div class="kpi-value">${text2(tier)}</div></div><div class="kpi"><div class="kpi-label">${labels.location}</div><div class="kpi-value">${text2(location)}</div></div></div>${execSummary ? `<p class="exec-body">${text2(execSummary)}</p>` : ""}${designDirectionRows ? `<div class="panel">${designDirectionRows}</div>` : ""}</div>
     ${materials.length > 0 ? `<div class="section"><h2>${labels.materialSpecification}</h2><table><thead><tr><th>${labels.product}</th><th>${labels.brand}</th><th>${labels.space}</th><th>${labels.priceRange}</th></tr></thead><tbody>${materialRows}</tbody></table>${materialConstants2.length > 0 ? `<h3>${labels.marketConstants}</h3><table><thead><tr><th>${labels.material}</th><th>${labels.costPerSquareMetre}</th><th>${labels.carbon}</th><th>${labels.sustainabilityGrade}</th></tr></thead><tbody>${constantRows}</tbody></table>` : ""}</div>` : ""}
-    <div class="section"><h2>${labels.budgetSynthesis}</h2><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="kpi-label">${c("totalFitout")}</div><div class="kpi-value">${aed(totalFitoutBudget, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.costPerSquareMetre}</div><div class="kpi-value">${aed(costPerSqm, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.gfa}</div><div class="kpi-value">${number2(gfaSqm, locale)} ${labels.squareMetres}</div></div></div>${spaceBars ? `<h3>${labels.budgetBySpace}</h3><div class="panel">${spaceBars}</div>` : ""}${benchmarkSection}</div>${spaceEfficiencySection}
-    <div class="section"><h2>${labels.roiBridge}</h2><div class="roi-grid"><div class="roi-card"><div class="roi-label">${labels.sustainabilityGrade}</div><div style="margin-block-start:6px;display:flex;align-items:center;gap:10px"><div class="grade-chip" style="background:${gradeColor(sustainabilityGrade)}">${text3(sustainabilityGrade)}</div><div class="roi-sub">${labels.basedOnMaterialSelectionAndTierFor} ${text3(location)}</div></div></div><div class="roi-card"><div class="roi-label">${labels.designPremiumPotential}</div><div class="roi-big">+${number2(salePremiumPct, locale)}%</div><div class="roi-sub">\u2248 ${aed(estimatedSalesPremiumAed, locale)} ${labels.upliftVsStandardFitout}</div></div><div class="roi-card" style="grid-column:span 2"><div class="roi-label">${labels.roiSummary}</div><div style="display:flex;gap:30px;margin-block-start:6px;font-size:9px"><div><div>${labels.fitoutInvestment}</div><b>${aed(totalFitoutBudget, locale)}</b></div><div><div>${c("designPremium")}</div><b>+${aed(estimatedSalesPremiumAed, locale)}</b></div><div><div>${labels.netUplift}</div><b>${aed(estimatedSalesPremiumAed - totalFitoutBudget, locale)}</b></div></div></div></div><div class="fallback"><b>${c("investorFallbackAssumption")}:</b> ${c("investorFallbackAssumptionHelp")}</div></div>
-    ${(designTrends2 ?? []).length > 0 ? `<div class="section"><h2>${labels.marketIntelligence}</h2><h3>${labels.uaeDesignTrends} (${text3(style)} \xB7 ${labels.uae})</h3><div class="panel">${trendRows}</div></div>` : ""}<div class="footer">MIYAR \xB7 ${labels.investorBrief} \xB7 ${text3(formatReportDateTime(context.generatedAt, locale))}<br>${labels.generatedNotice}</div></body></html>`;
+    <div class="section"><h2>${labels.budgetSynthesis}</h2><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="kpi-label">${c("totalFitout")}</div><div class="kpi-value">${aed(totalFitoutBudget, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.costPerSquareMetre}</div><div class="kpi-value">${aed(costPerSqm, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.gfa}</div><div class="kpi-value">${number(gfaSqm, locale)} ${labels.squareMetres}</div></div></div>${spaceBars ? `<h3>${labels.budgetBySpace}</h3><div class="panel">${spaceBars}</div>` : ""}${benchmarkSection}</div>${spaceEfficiencySection}
+    <div class="section"><h2>${labels.roiBridge}</h2><div class="roi-grid"><div class="roi-card"><div class="roi-label">${labels.sustainabilityGrade}</div><div style="margin-block-start:6px;display:flex;align-items:center;gap:10px"><div class="grade-chip" style="background:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="roi-sub">${labels.basedOnMaterialSelectionAndTierFor} ${text2(location)}</div></div></div><div class="roi-card"><div class="roi-label">${labels.designPremiumPotential}</div><div class="roi-big">+${number(salePremiumPct, locale)}%</div><div class="roi-sub">\u2248 ${aed(estimatedSalesPremiumAed, locale)} ${labels.upliftVsStandardFitout}</div></div><div class="roi-card" style="grid-column:span 2"><div class="roi-label">${labels.roiSummary}</div><div style="display:flex;gap:30px;margin-block-start:6px;font-size:9px"><div><div>${labels.fitoutInvestment}</div><b>${aed(totalFitoutBudget, locale)}</b></div><div><div>${c("designPremium")}</div><b>+${aed(estimatedSalesPremiumAed, locale)}</b></div><div><div>${labels.netUplift}</div><b>${aed(estimatedSalesPremiumAed - totalFitoutBudget, locale)}</b></div></div></div></div><div class="fallback"><b>${c("investorFallbackAssumption")}:</b> ${c("investorFallbackAssumptionHelp")}</div></div>
+    ${(designTrends2 ?? []).length > 0 ? `<div class="section"><h2>${labels.marketIntelligence}</h2><h3>${labels.uaeDesignTrends} (${text2(style)} \xB7 ${labels.uae})</h3><div class="panel">${trendRows}</div></div>` : ""}<div class="footer">MIYAR \xB7 ${labels.investorBrief} \xB7 ${text2(formatReportDateTime(context.generatedAt, locale))}<br>${labels.generatedNotice}</div></body></html>`;
 }
 var INVESTOR_COPY;
 var init_investor_pdf = __esm({
@@ -9902,6 +9743,195 @@ var init_investor_pdf = __esm({
         uae: "\u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062A",
         direction: "\u0627\u0644\u062A\u0648\u062C\u0647",
         content: "\u0627\u0644\u0645\u062D\u062A\u0648\u0649"
+      }
+    };
+  }
+});
+
+// server/engines/board-pdf.ts
+var board_pdf_exports = {};
+__export(board_pdf_exports, {
+  createBoardPdfRenderContext: () => createBoardPdfRenderContext,
+  generateBoardPdfHtml: () => generateBoardPdfHtml
+});
+import { randomUUID as randomUUID4 } from "node:crypto";
+function finite2(value) {
+  return Number.isFinite(value) ? value : null;
+}
+function text3(value) {
+  return `<span dir="auto" data-report-dynamic>${escapeReportText(value)}</span>`;
+}
+function number2(value, locale) {
+  return formatReportNumber(value, locale);
+}
+function tierColor(tier) {
+  return { economy: "#6b7280", mid: "#3b82f6", premium: "#8b5cf6", luxury: "#d97706", ultra_luxury: "#e11d48" }[tier] ?? "#6b7280";
+}
+function leadBadgeColor(band) {
+  return { short: "#16a34a", medium: "#ca8a04", long: "#ea580c", critical: "#dc2626" }[band] ?? "#ca8a04";
+}
+function renderMetadata2(context, locale) {
+  const c = (key) => reportCopy(locale, key);
+  const value = (entry) => text3(entry ?? c("notAvailable"));
+  return `<div class="render-meta">
+    <div><b>${c("documentId")}:</b> ${text3(context.documentId)}</div>
+    <div><b>${c("generatedAt")}:</b> ${text3(formatReportDateTime(context.generatedAt, locale))}</div>
+    <div><b>${c("renderInputFingerprint")}:</b> ${text3(context.renderInputFingerprint)}</div>
+    <div><b>${c("artifactVersion")}:</b> ${value(context.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context.rendererVersion)}</div>
+    <div><b>${c("modelVersion")}:</b> ${value(context.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context.logicVersion)}</div>
+  </div>`;
+}
+function createBoardPdfRenderContext(input) {
+  const locale = reportLocaleOrDefault(input.locale);
+  const { boardName, projectName, items, summary, rfqLines } = input;
+  const versions = {
+    artifactVersion: input.artifactVersion ?? "material-board-html-v1",
+    rendererVersion: input.rendererVersion ?? "standalone-html-v1",
+    modelVersion: input.modelVersion ?? null,
+    benchmarkVersion: input.benchmarkVersion ?? null,
+    logicVersion: input.logicVersion ?? null
+  };
+  return createReportRenderContext({
+    documentId: input.documentId ?? `MYR-BRD-${randomUUID4().toUpperCase()}`,
+    generatedAt: input.generatedAt,
+    locale,
+    ...versions,
+    fingerprintInput: createRenderFingerprintPayload("material_board", locale, versions, {
+      project: { name: projectName },
+      board: {
+        name: boardName,
+        items: items.map((item) => ({
+          name: item.name,
+          category: item.category,
+          tier: item.tier,
+          costLow: finite2(item.costLow),
+          costHigh: finite2(item.costHigh),
+          costUnit: item.costUnit,
+          leadTimeDays: finite2(item.leadTimeDays),
+          leadTimeBand: item.leadTimeBand,
+          supplierName: item.supplierName,
+          quantity: item.quantity,
+          unitOfMeasure: item.unitOfMeasure,
+          specNotes: item.specNotes,
+          costBandOverride: item.costBandOverride,
+          notes: item.notes
+        })),
+        summary: {
+          totalItems: finite2(summary.totalItems),
+          estimatedCostLow: finite2(summary.estimatedCostLow),
+          estimatedCostHigh: finite2(summary.estimatedCostHigh),
+          currency: summary.currency,
+          longestLeadTimeDays: finite2(summary.longestLeadTimeDays),
+          criticalPathItems: summary.criticalPathItems,
+          tierDistribution: Object.fromEntries(Object.entries(summary.tierDistribution).map(([key, value]) => [key, finite2(value)])),
+          categoryDistribution: Object.fromEntries(Object.entries(summary.categoryDistribution).map(([key, value]) => [key, finite2(value)]))
+        },
+        rfqLines: rfqLines.map((line) => ({
+          lineNo: finite2(line.lineNo),
+          materialName: line.materialName,
+          category: line.category,
+          specification: line.specification,
+          quantity: line.quantity,
+          unit: line.unit,
+          estimatedUnitCostLow: finite2(line.estimatedUnitCostLow),
+          estimatedUnitCostHigh: finite2(line.estimatedUnitCostHigh),
+          leadTimeDays: finite2(line.leadTimeDays),
+          supplierSuggestion: line.supplierSuggestion,
+          notes: line.notes
+        }))
+      }
+    })
+  });
+}
+function generateBoardPdfHtml(input) {
+  const locale = reportLocaleOrDefault(input.locale);
+  const c = (key) => reportCopy(locale, key);
+  const labels = BOARD_COPY[locale];
+  const { boardName, projectName, items, summary, rfqLines } = input;
+  const context = input.renderContext ?? createBoardPdfRenderContext(input);
+  const tileCards = items.map((item, index2) => `<div class="tile-card">
+    <div class="tile-header"><span class="tile-num">${number2(index2 + 1, locale)}</span><span class="tile-name">${text3(item.name)}</span><span class="tier-badge" style="background:${tierColor(item.tier)}">${text3(item.tier.replace(/_/g, " "))}</span></div>
+    <div class="tile-body">
+      <div class="tile-row"><span class="tile-label">${c("category")}</span>${text3(item.category)}</div>
+      <div class="tile-row"><span class="tile-label">${labels.costRange}</span><span>${number2(item.costLow, locale)} \u2013 ${number2(item.costHigh, locale)} ${text3(item.costUnit)}</span></div>
+      <div class="tile-row"><span class="tile-label">${labels.leadTime}</span><span style="color:${leadBadgeColor(item.leadTimeBand)}">${number2(item.leadTimeDays, locale)}d (${item.leadTimeBand === "critical" ? labels.criticalLeadBand : text3(item.leadTimeBand)})</span></div>
+      <div class="tile-row"><span class="tile-label">${labels.supplier}</span>${text3(item.supplierName)}</div>
+      ${item.quantity ? `<div class="tile-row"><span class="tile-label">${labels.quantity}</span><span>${text3(item.quantity)} ${text3(item.unitOfMeasure ?? "")}</span></div>` : ""}
+      ${item.costBandOverride ? `<div class="tile-row"><span class="tile-label">${labels.costBand}</span><span class="cost-band-badge">${text3(item.costBandOverride)}</span></div>` : ""}
+      ${item.specNotes ? `<div class="tile-spec">${text3(item.specNotes)}</div>` : ""}
+      ${item.notes ? `<div class="tile-notes">${text3(item.notes)}</div>` : ""}
+    </div></div>`).join("");
+  const rfqRows = rfqLines.map((line) => `<tr><td>${number2(line.lineNo, locale)}</td><td class="font-medium">${text3(line.materialName)}</td><td>${text3(line.category)}</td><td>${text3(line.specification)}</td><td>${text3(line.quantity)}</td><td>${text3(line.unit)}</td><td class="text-end">${number2(line.estimatedUnitCostLow, locale)}</td><td class="text-end">${number2(line.estimatedUnitCostHigh, locale)}</td><td>${number2(line.leadTimeDays, locale)}d</td><td>${text3(line.supplierSuggestion)}</td><td>${text3(line.notes)}</td></tr>`).join("");
+  const tierRows = Object.entries(summary.tierDistribution).map(([tier, count2]) => `<div class="dist-item"><span class="dist-badge" style="background:${tierColor(tier)}">${text3(tier.replace(/_/g, " "))}</span><span class="dist-count">${number2(count2, locale)}</span></div>`).join("");
+  const categoryRows = Object.entries(summary.categoryDistribution).map(([category, count2]) => `<div class="dist-item"><span class="dist-label">${text3(category)}</span><span class="dist-count">${number2(count2, locale)}</span></div>`).join("");
+  const criticalItems = summary.criticalPathItems.map((item) => `<div class="critical-item">${text3(item)}</div>`).join("");
+  return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`${c("materialBoard")} \u2014 ${boardName}`)}</title><style>
+    @page { size: A4 landscape; margin: 15mm 12mm; } * { box-sizing: border-box; margin: 0; padding: 0; }
+    ${reportLocaleCss(locale)} body { color:#1a1a2e; line-height:1.5; font-size:10px; } .cover { page-break-after:always; display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:70vh; text-align:center; }
+    .logo { font-size:32px; font-weight:800; color:#0f3460; letter-spacing:3px; margin-block-end:24px; } .cover h1 { font-size:24px; color:#0f3460; margin-block-end:6px; } .cover h2 { font-size:14px; color:#4ecdc4; font-weight:400; margin-block-end:16px; } .project { font-size:18px; font-weight:600; } .date,.confidential,.watermark { font-size:9px; color:#666; margin-block-start:12px; } .confidential,.watermark { color:#999; text-transform:uppercase; letter-spacing:2px; } .watermark { font-family:monospace; }
+    h2 { font-size:14px; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:20px 0 10px; } h3 { font-size:12px; color:#0f3460; margin:14px 0 6px; } .section { break-inside:avoid; margin-block-end:16px; } .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0; } .summary-card { border:1px solid #e0e0e0; border-radius:6px; padding:10px; text-align:center; } .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:1px; } .value { font-size:20px; font-weight:700; color:#0f3460; margin:2px 0; } .sub { font-size:9px; color:#888; }
+    .tile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; } .tile-card { border:1px solid #e0e0e0; border-radius:6px; overflow:hidden; break-inside:avoid; } .tile-header { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#f8f9fa; border-block-end:1px solid #e0e0e0; } .tile-num { font-weight:700; background:#e8f4fd; border-radius:50%; inline-size:20px; block-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; } .tile-name { font-weight:600; flex:1; } .tier-badge,.dist-badge { font-size:8px; color:#fff; padding:1px 6px; border-radius:3px; text-transform:uppercase; } .tile-body { padding:8px 10px; } .tile-row { display:flex; justify-content:space-between; gap:8px; padding-block:2px; border-block-end:1px dotted #f0f0f0; } .tile-label,.dist-label { color:#666; font-weight:500; } .tile-spec { color:#0f3460; background:#e8f4fd; padding:4px 6px; border-radius:3px; margin-block-start:4px; font-style:italic; } .tile-notes { color:#888; margin-block-start:3px; } .cost-band-badge { background:#fef3c7; color:#92400e; padding-inline:4px; border-radius:2px; font-weight:600; }
+    table { width:100%; border-collapse:collapse; margin:10px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:6px 8px; font-weight:600; } td { padding:5px 8px; border-block-end:1px solid #e0e0e0; } tr:nth-child(even) td { background:#f8f9fa; } .text-end { text-align:end; } .font-medium { font-weight:600; } .dist-grid { display:flex; gap:16px; margin:8px 0; flex-wrap:wrap; } .dist-item { display:flex; align-items:center; gap:6px; } .dist-count { font-weight:700; color:#0f3460; } .critical-item { background:#fef2f2; border-inline-start:3px solid #dc2626; padding:4px 8px; margin-block:3px; color:#991b1b; } .render-meta { margin:10px auto; max-inline-size:620px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .closing { break-inside:avoid-page; page-break-inside:avoid; } .footer { margin-block-start:12px; padding-block-start:10px; border-block-start:1px solid #e0e0e0; font-size:8px; color:#999; text-align:center; break-before:avoid-page; page-break-before:avoid; }
+  </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text3(boardName)}</h2><div class="project">${text3(projectName)}</div><div class="date">${text3(formatReportDateTime(context.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata2(context, locale)}</div>
+  <div class="section"><h2>${labels.boardSummary}</h2><div class="summary-grid"><div class="summary-card"><div class="label">${labels.totalItems}</div><div class="value">${number2(summary.totalItems, locale)}</div></div><div class="summary-card"><div class="label">${labels.estimatedCostRange}</div><div class="value" style="font-size:14px">${number2(summary.estimatedCostLow, locale)} \u2013 ${number2(summary.estimatedCostHigh, locale)}</div><div class="sub">${text3(summary.currency)}</div></div><div class="summary-card"><div class="label">${labels.longestLeadTime}</div><div class="value">${number2(summary.longestLeadTimeDays, locale)}d</div></div><div class="summary-card"><div class="label">${labels.criticalPathItems}</div><div class="value">${number2(summary.criticalPathItems.length, locale)}</div></div></div><h3>${labels.tierDistribution}</h3><div class="dist-grid">${tierRows}</div><h3>${labels.categoryDistribution}</h3><div class="dist-grid">${categoryRows}</div>${summary.criticalPathItems.length > 0 ? `<h3>${labels.criticalPathItems}</h3><div>${criticalItems}</div>` : ""}</div>
+  <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR \xB7 ${c("materialBoard")} \xB7 ${text3(formatReportDateTime(context.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
+}
+var BOARD_COPY;
+var init_board_pdf = __esm({
+  "server/engines/board-pdf.ts"() {
+    "use strict";
+    init_report_locale();
+    init_report_catalog();
+    init_report_render_context();
+    init_report_safe_output();
+    BOARD_COPY = {
+      en: {
+        boardSummary: "Board Summary",
+        totalItems: "Total Items",
+        estimatedCostRange: "Estimated Cost Range",
+        longestLeadTime: "Longest Lead Time",
+        criticalPathItems: "Critical Path Items",
+        tierDistribution: "Tier Distribution",
+        categoryDistribution: "Category Distribution",
+        materialTiles: "Material Tiles",
+        rfqSchedule: "RFQ-Ready Procurement Schedule",
+        material: "Material",
+        specification: "Specification",
+        quantity: "Quantity",
+        unit: "Unit",
+        costLow: "Cost Low (AED)",
+        costHigh: "Cost High (AED)",
+        lead: "Lead",
+        supplier: "Supplier",
+        costRange: "Cost Range",
+        leadTime: "Lead Time",
+        costBand: "Cost Band",
+        criticalLeadBand: "critical",
+        generatedNotice: "This document is auto-generated. All cost estimates are indicative and subject to supplier confirmation."
+      },
+      ar: {
+        boardSummary: "\u0645\u0644\u062E\u0635 \u0627\u0644\u0644\u0648\u062D\u0629",
+        totalItems: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0639\u0646\u0627\u0635\u0631",
+        estimatedCostRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u062A\u0642\u062F\u064A\u0631\u064A\u0629",
+        longestLeadTime: "\u0623\u0637\u0648\u0644 \u0645\u062F\u0629 \u062A\u0648\u0631\u064A\u062F",
+        criticalPathItems: "\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u0633\u0627\u0631 \u0627\u0644\u062D\u0631\u062C",
+        tierDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0634\u0631\u0627\u0626\u062D",
+        categoryDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0641\u0626\u0627\u062A",
+        materialTiles: "\u0628\u0637\u0627\u0642\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
+        rfqSchedule: "\u062C\u062F\u0648\u0644 \u0627\u0644\u0634\u0631\u0627\u0621 \u0627\u0644\u062C\u0627\u0647\u0632 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631",
+        material: "\u0627\u0644\u0645\u0627\u062F\u0629",
+        specification: "\u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0629",
+        quantity: "\u0627\u0644\u0643\u0645\u064A\u0629",
+        unit: "\u0627\u0644\u0648\u062D\u062F\u0629",
+        costLow: "\u0623\u0642\u0644 \u062A\u0643\u0644\u0641\u0629 (\u062F\u0631\u0647\u0645)",
+        costHigh: "\u0623\u0639\u0644\u0649 \u062A\u0643\u0644\u0641\u0629 (\u062F\u0631\u0647\u0645)",
+        lead: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
+        supplier: "\u0627\u0644\u0645\u0648\u0631\u0651\u062F",
+        costRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+        leadTime: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
+        costBand: "\u0634\u0631\u064A\u062D\u0629 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+        criticalLeadBand: "\u062D\u0631\u062C",
+        generatedNotice: "\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0622\u0644\u064A\u0627\u064B. \u062C\u0645\u064A\u0639 \u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A\u0629 \u0648\u062A\u062E\u0636\u0639 \u0644\u062A\u0623\u0643\u064A\u062F \u0627\u0644\u0645\u0648\u0631\u0651\u062F."
       }
     };
   }
@@ -10073,7 +10103,7 @@ var init_confidence_policy = __esm({
 });
 
 // server/engines/ingestion/connector.ts
-import { z as z12 } from "zod";
+import { z as z19 } from "zod";
 import robotsParser from "robots-parser";
 function getRandomUserAgent() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
@@ -10204,40 +10234,40 @@ var init_connector = __esm({
     robotsCache = /* @__PURE__ */ new Map();
     _firecrawlClient = null;
     _firecrawlInitPromise = null;
-    rawSourcePayloadSchema = z12.object({
-      url: z12.string().url(),
-      fetchedAt: z12.date(),
-      rawHtml: z12.string().optional(),
-      rawJson: z12.record(z12.string(), z12.unknown()).optional(),
-      markdown: z12.string().optional(),
-      statusCode: z12.number().int(),
-      error: z12.string().optional()
+    rawSourcePayloadSchema = z19.object({
+      url: z19.string().url(),
+      fetchedAt: z19.date(),
+      rawHtml: z19.string().optional(),
+      rawJson: z19.record(z19.string(), z19.unknown()).optional(),
+      markdown: z19.string().optional(),
+      statusCode: z19.number().int(),
+      error: z19.string().optional()
     });
-    extractedEvidenceSchema = z12.object({
-      title: z12.string().min(1),
-      rawText: z12.string().min(1),
-      publishedDate: z12.date().optional(),
-      publishedDateRaw: z12.string().optional(),
-      publicationDate: z12.object({
-        raw: z12.string().nullable(),
-        parsedAt: z12.date().nullable(),
-        precision: z12.enum(["date", "datetime", "unknown"]),
-        status: z12.enum(["missing", "valid", "invalid", "future"])
+    extractedEvidenceSchema = z19.object({
+      title: z19.string().min(1),
+      rawText: z19.string().min(1),
+      publishedDate: z19.date().optional(),
+      publishedDateRaw: z19.string().optional(),
+      publicationDate: z19.object({
+        raw: z19.string().nullable(),
+        parsedAt: z19.date().nullable(),
+        precision: z19.enum(["date", "datetime", "unknown"]),
+        status: z19.enum(["missing", "valid", "invalid", "future"])
       }).optional(),
-      observedAt: z12.date().optional(),
-      category: z12.string().min(1),
+      observedAt: z19.date().optional(),
+      category: z19.string().min(1),
       // Accept any category — validated at orchestrator level
-      geography: z12.string().min(1),
-      sourceUrl: z12.string().url()
+      geography: z19.string().min(1),
+      sourceUrl: z19.string().url()
     });
-    normalizedEvidenceInputSchema = z12.object({
-      metric: z12.string().min(1),
-      value: z12.number().nullable(),
-      unit: z12.string().nullable(),
-      confidence: z12.number().min(0).max(1),
-      grade: z12.enum(["A", "B", "C"]),
-      summary: z12.string().min(1),
-      tags: z12.array(z12.string())
+    normalizedEvidenceInputSchema = z19.object({
+      metric: z19.string().min(1),
+      value: z19.number().nullable(),
+      unit: z19.string().nullable(),
+      confidence: z19.number().min(0).max(1),
+      grade: z19.enum(["A", "B", "C"]),
+      summary: z19.string().min(1),
+      tags: z19.array(z19.string())
     });
     GRADE_A_SOURCE_IDS = /* @__PURE__ */ new Set([
       "emaar-properties",
@@ -14262,7 +14292,7 @@ __export(ai_intake_engine_exports, {
   processIntakeAssets: () => processIntakeAssets,
   suggestSectionFields: () => suggestSectionFields
 });
-import { z as z28 } from "zod";
+import { z as z35 } from "zod";
 function isFloorPlanAsset(asset) {
   const name = (asset.fileName || "").toLowerCase();
   const hasFloorPlanKeyword = /floor.?plan|layout|blueprint|plan.?view/i.test(name);
@@ -14772,22 +14802,22 @@ Array of any issues or missing information noticed.
         required: ["suggestedInputs", "confidence", "reasoning", "extractedInsights", "warnings"]
       }
     };
-    INTAKE_RESPONSE_SCHEMA = z28.object({
-      suggestedInputs: z28.record(z28.string(), z28.unknown()).default({}),
-      confidence: z28.record(z28.string(), z28.enum(["high", "medium", "low"])).default({}),
-      reasoning: z28.record(z28.string(), z28.string()).default({}),
-      extractedInsights: z28.object({
-        detectedStyle: z28.string().optional(),
-        detectedMaterials: z28.array(z28.string()).optional(),
-        detectedBrands: z28.array(z28.string()).optional(),
-        detectedTier: z28.string().optional(),
-        detectedTypology: z28.string().optional(),
-        detectedLocation: z28.string().optional(),
-        detectedScale: z28.string().optional(),
-        projectDescription: z28.string().optional(),
-        supplierInfo: z28.array(z28.object({ name: z28.string(), url: z28.string(), materials: z28.array(z28.string()) })).optional()
+    INTAKE_RESPONSE_SCHEMA = z35.object({
+      suggestedInputs: z35.record(z35.string(), z35.unknown()).default({}),
+      confidence: z35.record(z35.string(), z35.enum(["high", "medium", "low"])).default({}),
+      reasoning: z35.record(z35.string(), z35.string()).default({}),
+      extractedInsights: z35.object({
+        detectedStyle: z35.string().optional(),
+        detectedMaterials: z35.array(z35.string()).optional(),
+        detectedBrands: z35.array(z35.string()).optional(),
+        detectedTier: z35.string().optional(),
+        detectedTypology: z35.string().optional(),
+        detectedLocation: z35.string().optional(),
+        detectedScale: z35.string().optional(),
+        projectDescription: z35.string().optional(),
+        supplierInfo: z35.array(z35.object({ name: z35.string(), url: z35.string(), materials: z35.array(z35.string()) })).optional()
       }).default({}),
-      warnings: z28.array(z28.string()).default([])
+      warnings: z35.array(z35.string()).default([])
     });
     VALID_TYPOLOGIES = [
       "residential_multi",
@@ -14861,14 +14891,14 @@ Array of any issues or missing information noticed.
         "exe04QaMaturity"
       ]
     };
-    SECTION_SUGGESTION_RESPONSE_SCHEMA = z28.object({
-      suggestions: z28.array(z28.object({
-        field: z28.string(),
-        value: z28.unknown(),
-        confidence: z28.enum(["high", "medium", "low"]),
-        reasoning: z28.string()
+    SECTION_SUGGESTION_RESPONSE_SCHEMA = z35.object({
+      suggestions: z35.array(z35.object({
+        field: z35.string(),
+        value: z35.unknown(),
+        confidence: z35.enum(["high", "medium", "low"]),
+        reasoning: z35.string()
       })).default([]),
-      sectionSummary: z28.string().default("")
+      sectionSummary: z35.string().default("")
     });
   }
 });
@@ -15205,7 +15235,18 @@ function createPublicRateLimitMiddleware(t2) {
     }
     globalEntry.timestamps.push(now);
     addressEntry.timestamps.push(now);
-    return next();
+    const releaseRejectedGlobalReservation = () => {
+      const reservation = globalEntry.timestamps.lastIndexOf(now);
+      if (reservation >= 0) globalEntry.timestamps.splice(reservation, 1);
+    };
+    try {
+      const result = await next();
+      if (result?.ok === false) releaseRejectedGlobalReservation();
+      return result;
+    } catch (error) {
+      releaseRejectedGlobalReservation();
+      throw error;
+    }
   });
 }
 
@@ -15228,6 +15269,7 @@ var t = initTRPC.context().create({
   }
 });
 var router = t.router;
+var mergeRouters = t.mergeRouters;
 var publicProcedure = t.procedure;
 var publicRateLimitedProcedure = t.procedure.use(createPublicRateLimitMiddleware(t));
 var requireUser = t.middleware(async (opts) => {
@@ -16479,6 +16521,8 @@ function htmlHeader(title, subtitle, projectName, context) {
   h4 { font-size: 12px; color: #0f3460; margin: 14px 0 6px; }
   p { margin-bottom: 8px; }
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
+  .keep-together { break-inside: avoid-page; page-break-inside: avoid; }
+  table.keep-together { break-inside: avoid-page; page-break-inside: avoid; }
   th { background: #0f3460; color: #fff; padding: 10px 16px; text-align: left; font-weight: 600; }
   td { padding: 10px 16px; border-bottom: 1px solid #e0e0e0; }
   tr:nth-child(even) td { background: #f8f9fa; }
@@ -16779,7 +16823,7 @@ function renderInputSummary(inputs) {
   ];
   const tables = groups.map((g) => {
     const rows = g.items.map(([k, v]) => `<tr><td style="width:50%;">${escapeReportText(k)}</td><td>${dynamicText(v)}</td></tr>`).join("");
-    return `<h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table>`;
+    return `<div class="keep-together"><h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table></div>`;
   }).join("");
   return `<div class="section"><h2>Project Input Summary</h2>${tables}</div>`;
 }
@@ -17013,6 +17057,154 @@ function renderBoardAnnex(boardAnnex, locale) {
 </div>
 `;
 }
+function renderWorkflowReconciliation(reconciliation, locale) {
+  const isArabic = locale === "ar";
+  const copy = isArabic ? {
+    heading: "\u0645\u0637\u0627\u0628\u0642\u0629 \u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A \u0648\u0643\u0645\u064A\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
+    description: "\u0645\u0637\u0627\u0628\u0642\u0629 \u062D\u062A\u0645\u064A\u0629 \u0644\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0645\u062E\u0632\u0646\u0629 \u0641\u064A \u0627\u0644\u0645\u0634\u0631\u0648\u0639 \u0648\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A \u0648\u062A\u062E\u0635\u064A\u0635\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F \u0648\u0623\u0633\u0639\u0627\u0631 \u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0645\u0648\u0627\u062F.",
+    projectFitOut: "\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u062A\u062C\u0647\u064A\u0632 \u0641\u064A \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+    roomFitOut: "\u0625\u062C\u0645\u0627\u0644\u064A \u063A\u0631\u0641 \u0627\u0644\u062A\u062C\u0647\u064A\u0632",
+    variance: "\u0641\u0631\u0642 \u0627\u0644\u0645\u0633\u0627\u062D\u0629",
+    unavailable: "\u063A\u064A\u0631 \u0645\u062A\u0627\u062D",
+    pass: "\u0645\u0637\u0627\u0628\u0642",
+    fail: "\u063A\u064A\u0631 \u0645\u0637\u0627\u0628\u0642",
+    rooms: "\u0627\u0644\u063A\u0631\u0641 \u0627\u0644\u0645\u062E\u0632\u0646\u0629 / \u063A\u0631\u0641 \u0627\u0644\u062A\u062C\u0647\u064A\u0632 / \u0627\u0644\u063A\u0631\u0641 \u0627\u0644\u064A\u062F\u0648\u064A\u0629",
+    allocationCount: "\u0635\u0641\u0648\u0641 / \u0645\u062C\u0645\u0648\u0639\u0627\u062A \u0627\u0644\u062A\u062E\u0635\u064A\u0635",
+    locked: "\u0635\u0641\u0648\u0641 / \u0645\u062C\u0645\u0648\u0639\u0627\u062A \u0627\u0644\u062A\u062E\u0635\u064A\u0635 \u0627\u0644\u0645\u0642\u0641\u0644\u0629",
+    surfaces: "\u0625\u062C\u0645\u0627\u0644\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A \u0627\u0644\u062D\u062A\u0645\u064A\u0629",
+    surface: "\u0627\u0644\u0633\u0637\u062D",
+    area: "\u0627\u0644\u0645\u0633\u0627\u062D\u0629 (\u0645\xB2)",
+    floor: "\u0627\u0644\u0623\u0631\u0636\u064A\u0627\u062A",
+    walls: "\u0627\u0644\u062C\u062F\u0631\u0627\u0646",
+    ceiling: "\u0627\u0644\u0623\u0633\u0642\u0641",
+    total: "\u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A",
+    formula: "\u0635\u064A\u063A\u0629 \u0627\u0644\u062D\u0633\u0627\u0628",
+    height: "\u0627\u0631\u062A\u0641\u0627\u0639 \u0627\u0644\u0633\u0642\u0641",
+    allocationChecks: "\u0641\u062D\u0648\u0635 \u0645\u062C\u0645\u0648\u0639\u0627\u062A \u0627\u0644\u062A\u062E\u0635\u064A\u0635 \u0628\u0646\u0633\u0628\u0629 100%",
+    room: "\u0627\u0644\u063A\u0631\u0641\u0629",
+    element: "\u0627\u0644\u0639\u0646\u0635\u0631",
+    allocationTotal: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u062A\u062E\u0635\u064A\u0635",
+    storedSurface: "\u0627\u0644\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0645\u062E\u0632\u0646\u0629 / \u0627\u0644\u0645\u062A\u0648\u0642\u0639\u0629",
+    allocationCheck: "\u0641\u062D\u0635 \u0627\u0644\u0646\u0633\u0628\u0629",
+    surfaceCheck: "\u0641\u062D\u0635 \u0627\u0644\u0645\u0633\u0627\u062D\u0629",
+    check: "\u0627\u0644\u0641\u062D\u0635",
+    noGroups: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u062C\u0645\u0648\u0639\u0627\u062A \u062A\u062E\u0635\u064A\u0635 \u0645\u062E\u0632\u0646\u0629.",
+    allGroups: "\u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u062C\u0645\u0648\u0639\u0627\u062A \u0628\u0646\u0633\u0628\u0629 100%",
+    allSurfaces: "\u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A \u0645\u0637\u0627\u0628\u0642\u0629 \u0644\u0644\u0635\u064A\u063A\u0629",
+    costs: "\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0645\u0648\u0627\u062F \u0645\u0646 \u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0645\u0648\u0627\u062F",
+    minimum: "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u062F\u0646\u0649",
+    midpoint: "\u0627\u0644\u0645\u062A\u0648\u0633\u0637",
+    maximum: "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0639\u0644\u0649",
+    priceCoverage: "\u062A\u063A\u0637\u064A\u0629 \u0627\u0644\u0623\u0633\u0639\u0627\u0631",
+    unpriced: "\u063A\u064A\u0631 \u0645\u0633\u0639\u0651\u0631",
+    source: "\u0627\u0644\u0645\u0635\u062F\u0631",
+    sourceTables: "\u062C\u062F\u0627\u0648\u0644 \u0627\u0644\u0645\u0635\u062F\u0631"
+  } : {
+    heading: "Workflow, Space & MQI Reconciliation",
+    description: "Deterministic reconciliation of stored project, space-programme, material-allocation, and material-library values.",
+    projectFitOut: "Project fit-out area",
+    roomFitOut: "Fit-out room total",
+    variance: "Area variance",
+    unavailable: "Unavailable",
+    pass: "PASS",
+    fail: "FAIL",
+    rooms: "Stored / fit-out / manual rooms",
+    allocationCount: "Allocation rows / groups",
+    locked: "Locked allocation rows / groups",
+    surfaces: "Deterministic surface totals",
+    surface: "Surface",
+    area: "Area (m\xB2)",
+    floor: "Floor",
+    walls: "Walls",
+    ceiling: "Ceiling",
+    total: "Total",
+    formula: "Formula",
+    height: "Ceiling height",
+    allocationChecks: "Allocation-group 100% checks",
+    room: "Room",
+    element: "Element",
+    allocationTotal: "Allocation total",
+    storedSurface: "Stored / expected surface",
+    allocationCheck: "Allocation check",
+    surfaceCheck: "Surface check",
+    check: "Check",
+    noGroups: "No stored allocation groups.",
+    allGroups: "All groups at 100%",
+    allSurfaces: "All surfaces match formula",
+    costs: "Material-library cost reconciliation",
+    minimum: "Minimum",
+    midpoint: "Midpoint",
+    maximum: "Maximum",
+    priceCoverage: "Price coverage",
+    unpriced: "unpriced",
+    source: "Source",
+    sourceTables: "Source tables"
+  };
+  const number3 = (value) => value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  const areaStatus = reconciliation.spaceProgram.reconciles === null ? copy.unavailable : reconciliation.spaceProgram.reconciles ? copy.pass : copy.fail;
+  const allocationRows = reconciliation.allocations.groups.map(
+    (group) => `
+    <tr>
+      <td>${dynamicText(group.roomName)} <span style="color:#777;">(${dynamicText(group.roomId)})</span></td>
+      <td>${dynamicText(group.element)}</td>
+      <td style="text-align:right;">${number3(group.allocationPctTotal)}%</td>
+      <td style="text-align:right; color:${group.surfaceReconciles ? "#2e7d32" : "#c62828"};">${number3(group.surfaceAreaM2Total)} / ${group.expectedSurfaceAreaM2 === null ? copy.unavailable : number3(group.expectedSurfaceAreaM2)} m\xB2</td>
+      <td style="font-weight:700; color:${group.passes100Pct ? "#2e7d32" : "#c62828"};">${group.passes100Pct ? copy.pass : copy.fail}</td>
+      <td style="font-weight:700; color:${group.surfaceReconciles ? "#2e7d32" : "#c62828"};">${group.surfaceReconciles ? copy.pass : copy.fail}</td>
+    </tr>`
+  ).join("");
+  const projectArea = reconciliation.spaceProgram.projectFitOutAreaM2;
+  const variance = reconciliation.spaceProgram.varianceM2;
+  return `
+<div class="section" id="sec-workflow-reconciliation" style="page-break-inside:auto;">
+  <h2>${copy.heading}</h2>
+  <p style="font-size:9px; color:#666;">${copy.description}</p>
+  <div class="metric-grid">
+    <div class="metric-card"><div class="label">${copy.projectFitOut}</div><div class="value" style="font-size:18px;">${projectArea === null ? copy.unavailable : `${number3(projectArea)} m\xB2`}</div></div>
+    <div class="metric-card"><div class="label">${copy.roomFitOut}</div><div class="value" style="font-size:18px;">${number3(reconciliation.spaceProgram.fitOutRoomAreaM2)} m\xB2</div></div>
+    <div class="metric-card"><div class="label">${copy.variance}</div><div class="value" style="font-size:18px; color:${reconciliation.spaceProgram.reconciles === false ? "#c62828" : "#2e7d32"};">${variance === null ? copy.unavailable : `${number3(variance)} m\xB2 \xB7 ${areaStatus}`}</div></div>
+  </div>
+  <table class="keep-together">
+    <tr><th>${copy.rooms}</th><th>${copy.allocationCount}</th><th>${copy.locked}</th><th>${copy.allGroups}</th><th>${copy.allSurfaces}</th></tr>
+    <tr>
+      <td>${reconciliation.spaceProgram.storedRoomCount} / ${reconciliation.spaceProgram.fitOutRoomCount} / ${reconciliation.spaceProgram.manualRoomCount}</td>
+      <td>${reconciliation.allocations.rowCount} / ${reconciliation.allocations.groupCount}</td>
+      <td>${reconciliation.allocations.lockedRowCount} / ${reconciliation.allocations.lockedGroupCount}</td>
+      <td style="font-weight:700; color:${reconciliation.allocations.allGroupsPass100Pct ? "#2e7d32" : "#c62828"};">${reconciliation.allocations.allGroupsPass100Pct ? copy.pass : copy.fail}</td>
+      <td style="font-weight:700; color:${reconciliation.allocations.allGroupsSurfaceReconcile ? "#2e7d32" : "#c62828"};">${reconciliation.allocations.allGroupsSurfaceReconcile ? copy.pass : copy.fail}</td>
+    </tr>
+  </table>
+
+  <h3>${copy.surfaces}</h3>
+  <p style="font-size:9px; color:#666;">${copy.formula}: ${dynamicText(reconciliation.surfaces.formulaVersion)} \xB7 ${copy.height}: ${number3(reconciliation.surfaces.ceilingHeightM)} m</p>
+  <table>
+    <tr><th>${copy.surface}</th><th style="text-align:right;">${copy.area}</th></tr>
+    <tr><td>${copy.floor}</td><td style="text-align:right;">${number3(reconciliation.surfaces.floorM2)}</td></tr>
+    <tr><td>${copy.walls}</td><td style="text-align:right;">${number3(reconciliation.surfaces.wallsM2)}</td></tr>
+    <tr><td>${copy.ceiling}</td><td style="text-align:right;">${number3(reconciliation.surfaces.ceilingM2)}</td></tr>
+    <tr style="font-weight:700; background:#f0f4f8;"><td>${copy.total}</td><td style="text-align:right;">${number3(reconciliation.surfaces.totalM2)}</td></tr>
+  </table>
+
+  <h3>${copy.allocationChecks}</h3>
+  ${allocationRows ? `<table><tr><th>${copy.room}</th><th>${copy.element}</th><th style="text-align:right;">${copy.allocationTotal}</th><th style="text-align:right;">${copy.storedSurface}</th><th>${copy.allocationCheck}</th><th>${copy.surfaceCheck}</th></tr>${allocationRows}</table>` : `<p>${copy.noGroups}</p>`}
+
+  <h3>${copy.costs}</h3>
+  <table>
+    <tr><th>${copy.minimum}</th><th>${copy.midpoint}</th><th>${copy.maximum}</th><th>${copy.priceCoverage}</th></tr>
+    <tr>
+      <td>${reconciliation.materialCosts.currency} ${number3(reconciliation.materialCosts.min)}</td>
+      <td>${reconciliation.materialCosts.currency} ${number3(reconciliation.materialCosts.mid)}</td>
+      <td>${reconciliation.materialCosts.currency} ${number3(reconciliation.materialCosts.max)}</td>
+      <td>${reconciliation.materialCosts.pricedAllocationCount}/${reconciliation.allocations.rowCount} \xB7 ${reconciliation.materialCosts.unpricedAllocationCount} ${copy.unpriced} \xB7 ${reconciliation.materialCosts.allAllocationsPriced ? copy.pass : copy.fail}</td>
+    </tr>
+  </table>
+  <p style="font-size:8px; color:#777;">${copy.source}: ${dynamicText(reconciliation.materialCosts.source)} \xB7 ${copy.sourceTables}: ${dynamicText(reconciliation.sourceTables.join(", "))} \xB7 ${dynamicText(reconciliation.version)}</p>
+</div>
+`;
+}
 function scoreFingerprint(score, includeContributions) {
   return {
     dimensions: score.dimensions,
@@ -17088,6 +17280,7 @@ function pdfFingerprintRenderedValues(reportType, data) {
       roiNarrative: report.roiNarrative,
       roi: report.roiNarrative ? void 0 : report.roi,
       boardAnnex: report.boardAnnex,
+      workflowReconciliation: report.workflowReconciliation,
       evidenceReferences: renderedEvidenceReferences(report.evidenceRefs)
     };
   }
@@ -17311,6 +17504,9 @@ function generateFullReportHTML(data) {
     sections.push(renderROINarrative(data.roiNarrative, context.locale));
   } else if (data.roi) {
     sections.push(renderROI(data.roi, context.locale));
+  }
+  if (data.workflowReconciliation) {
+    sections.push(renderWorkflowReconciliation(data.workflowReconciliation, context.locale));
   }
   sections.push(renderBoardAnnex(data.boardAnnex, context.locale));
   sections.push(renderEvidenceReferences(data.evidenceRefs, context.locale));
@@ -17754,6 +17950,611 @@ function buildBoardAnnexData(inputs) {
   return {
     state: "available",
     boards
+  };
+}
+
+// server/engines/design/material-quantity-engine.ts
+init_llm();
+var ASPECT_RATIOS = {
+  // Living / Dining / Lobby
+  LVG: 1.6,
+  DIN: 1.6,
+  LBY: 1.6,
+  // Master bedroom
+  MBR: 1.4,
+  // Secondary bedrooms
+  BD2: 1.3,
+  BD3: 1.3,
+  BD4: 1.3,
+  // Kitchen
+  KIT: 1.4,
+  // Bathrooms / Ensuite (near-square)
+  BTH: 1,
+  MEN: 1,
+  ENS: 1,
+  // Corridors / Hallways (long and narrow)
+  COR: 2.5,
+  ENT: 2.5,
+  HAL: 2.5,
+  // Office / Meeting
+  OFC: 1.5,
+  MET: 1.5,
+  OPN: 1.5,
+  // Back-of-house / Utility
+  BOH: 1.8,
+  UTL: 1.8,
+  // Hospitality
+  GRM: 1.4,
+  GRS: 1.5,
+  FBB: 1.6,
+  RCP: 1.5,
+  BRK: 1.4
+};
+var DEFAULT_ASPECT_RATIO = 1.4;
+var DEFAULT_CEILING_HEIGHT = 2.8;
+function calculateSurfaceAreas(rooms, ceilingHeightM) {
+  const height = ceilingHeightM ?? DEFAULT_CEILING_HEIGHT;
+  const clampedHeight = Math.max(2.4, Math.min(5, height));
+  if (clampedHeight !== height) {
+    console.warn(
+      `[MQI] Ceiling height ${height}m outside valid range [2.4, 5.0]. Clamped to ${clampedHeight}m.`
+    );
+  }
+  return rooms.map((room) => {
+    if (room.sqm <= 0) {
+      return {
+        roomId: room.id,
+        roomName: room.name,
+        floorM2: 0,
+        wallM2: 0,
+        ceilingM2: 0
+      };
+    }
+    const ratio = ASPECT_RATIOS[room.id] ?? DEFAULT_ASPECT_RATIO;
+    const sqm = room.sqm;
+    const floorM2 = sqm;
+    const sideA = Math.sqrt(sqm * ratio);
+    const sideB = Math.sqrt(sqm / ratio);
+    const perimeter = 2 * (sideA + sideB);
+    const rawWallM2 = perimeter * clampedHeight;
+    const wallM2 = rawWallM2 * 0.85;
+    const ceilingM2 = sqm * 0.95;
+    const wallFloorRatio = wallM2 / floorM2;
+    if (wallFloorRatio < 1.5 || wallFloorRatio > 3.5) {
+      console.warn(
+        `[MQI] Room ${room.id} wall/floor ratio ${wallFloorRatio.toFixed(2)} outside expected range [1.5, 3.5]`
+      );
+    }
+    return {
+      roomId: room.id,
+      roomName: room.name,
+      floorM2: Number(floorM2.toFixed(2)),
+      wallM2: Number(wallM2.toFixed(2)),
+      ceilingM2: Number(ceilingM2.toFixed(2))
+    };
+  });
+}
+var WET_ROOM_IDS = /* @__PURE__ */ new Set(["BTH", "MEN", "ENS", "KIT"]);
+async function generateMaterialAllocations(project, surfaces, materialLibrary2, rooms, existingLockedAllocations) {
+  const roomGradeMap = new Map(rooms.map((r) => [r.id, r.finishGrade]));
+  const lockedMap = /* @__PURE__ */ new Map();
+  if (existingLockedAllocations?.length) {
+    for (const locked of existingLockedAllocations) {
+      lockedMap.set(`${locked.roomId}:${locked.element}`, locked.allocations);
+    }
+  }
+  const gradeCRooms = surfaces.filter(
+    (s) => roomGradeMap.get(s.roomId) === "C"
+  );
+  const nonGradeCRooms = surfaces.filter(
+    (s) => roomGradeMap.get(s.roomId) !== "C"
+  );
+  const roomsForGemini = nonGradeCRooms.filter((s) => {
+    const elements = ["floor", "walls", "ceiling", "joinery"];
+    return elements.some((el) => !lockedMap.has(`${s.roomId}:${el}`));
+  });
+  const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
+  const projectStyle = (project.des01Style || "modern").toLowerCase();
+  const filteredLibrary = materialLibrary2.filter(
+    (m) => (m.tier === projectTier || m.tier === adjacentTier(projectTier)) && (m.style === projectStyle || m.style === "all")
+  );
+  const roomDescriptions = roomsForGemini.map((s) => {
+    const grade2 = roomGradeMap.get(s.roomId) || "B";
+    const isWet = WET_ROOM_IDS.has(s.roomId);
+    const elements = ["floor", "walls", "ceiling", "joinery"].filter((el) => !lockedMap.has(`${s.roomId}:${el}`));
+    return `- ${s.roomId} "${s.roomName}": floor=${s.floorM2}m\xB2, walls=${s.wallM2}m\xB2, ceiling=${s.ceilingM2}m\xB2, grade=${grade2}, wet=${isWet}, elements_needed=[${elements.join(",")}]`;
+  }).join("\n");
+  const libraryDescriptions = filteredLibrary.slice(0, 60).map(
+    (m) => `id=${m.id} category=${m.category} tier=${m.tier} style=${m.style} brand="${m.brand}" product="${m.productName}" AED_min=${m.priceAedMin} AED_max=${m.priceAedMax} unit=${m.unitLabel}`
+  ).join("\n");
+  const systemPrompt = `You are a UAE interior design cost consultant. Your job is to suggest how the surfaces of a project should be split across materials, based on the project's design style, market tier, and available material library.
+
+PROJECT:
+- Typology: ${project.ctx01Typology || "Residential"}
+- Style: ${project.des01Style || "Modern"}
+- Market Tier: ${projectTier}
+- Material Level: ${project.des02MaterialLevel || 3}/5
+- Purpose: ${project.projectPurpose || "Residential development"}
+
+ROOMS AND SURFACES (only rooms that need new allocations):
+${roomDescriptions}
+
+AVAILABLE MATERIAL LIBRARY (filtered to matching tier and style):
+${libraryDescriptions}
+
+RULES:
+1. For each room \xD7 element, provide 1 OR 2 materials with percentages summing to exactly 100.
+2. MAXIMUM 2 materials per surface \u2014 never return 3 or more.
+3. Use materials from the library when possible (reference by materialLibraryId). If no exact match, use a generic name and set materialLibraryId to null.
+4. Grade A rooms get premium finishes. Grade B rooms get mid-range.
+5. Wet room walls (BTH, MEN, ENS, KIT where wet=true) MUST use wall_tile, NEVER wall_paint or stone.
+6. Ceiling is almost always single material (gypsum or plaster). Only split ceiling if Grade A + ultra tier.
+7. For each allocation, write one sentence of reasoning (max 15 words).
+8. Never suggest materials that conflict with UAE climate (e.g. solid wood flooring in wet areas).
+9. Only provide allocations for the elements listed in elements_needed for each room.`;
+  const outputSchema = {
+    name: "material_allocations",
+    schema: {
+      type: "object",
+      properties: {
+        rooms: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              roomId: { type: "string" },
+              floor: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              walls: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              ceiling: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              joinery: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              }
+            },
+            required: ["roomId"]
+          }
+        },
+        designRationale: { type: "string" },
+        estimatedQualityLabel: { type: "string" }
+      },
+      required: ["rooms", "designRationale", "estimatedQualityLabel"]
+    }
+  };
+  let geminiResult;
+  if (roomsForGemini.length === 0) {
+    geminiResult = {
+      rooms: [],
+      designRationale: "All rooms are utility-grade or locked \u2014 deterministic allocation applied.",
+      estimatedQualityLabel: "Standard Utility"
+    };
+  } else {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: "Generate material allocations for all listed rooms. Return structured JSON."
+        }
+      ],
+      outputSchema
+    });
+    const rawContent = response.choices[0]?.message?.content;
+    const text4 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    geminiResult = JSON.parse(text4);
+  }
+  for (const room of geminiResult.rooms) {
+    for (const element of ["floor", "walls", "ceiling", "joinery"]) {
+      const slices = room[element];
+      if (!slices || slices.length === 0) continue;
+      if (slices.length > 2) {
+        slices.sort((a, b) => b.percentage - a.percentage);
+        slices.length = 2;
+      }
+      const sum = slices.reduce((s, sl) => s + sl.percentage, 0);
+      if (Math.abs(sum - 100) > 0.01) {
+        const scale = 100 / sum;
+        for (const sl of slices) {
+          sl.percentage = Number((sl.percentage * scale).toFixed(2));
+        }
+        const newSum = slices.reduce((s, sl) => s + sl.percentage, 0);
+        if (Math.abs(newSum - 100) > 0.01) {
+          slices[0].percentage += 100 - newSum;
+        }
+      }
+    }
+  }
+  for (const surface of gradeCRooms) {
+    const cheapFloor = materialLibrary2.find(
+      (m) => m.category === "flooring" && m.tier === "affordable"
+    );
+    const isWet = WET_ROOM_IDS.has(surface.roomId);
+    const cheapWall = materialLibrary2.find(
+      (m) => m.category === (isWet ? "wall_tile" : "wall_paint") && (m.tier === "affordable" || m.tier === "mid")
+    );
+    const cheapCeiling = materialLibrary2.find(
+      (m) => m.category === "ceiling" && (m.tier === "affordable" || m.tier === "mid")
+    );
+    geminiResult.rooms.push({
+      roomId: surface.roomId,
+      floor: [
+        {
+          materialLibraryId: cheapFloor?.id ?? null,
+          materialName: cheapFloor?.productName || "Basic Ceramic Tile",
+          percentage: 100,
+          reasoning: "Grade C utility room \u2014 affordable single material."
+        }
+      ],
+      walls: [
+        {
+          materialLibraryId: cheapWall?.id ?? null,
+          materialName: cheapWall?.productName || (isWet ? "Standard Ceramic Wall Tile" : "Standard Emulsion Paint"),
+          percentage: 100,
+          reasoning: isWet ? "Wet utility room \u2014 affordable wall tile." : "Grade C \u2014 standard paint."
+        }
+      ],
+      ceiling: [
+        {
+          materialLibraryId: cheapCeiling?.id ?? null,
+          materialName: cheapCeiling?.productName || "Basic Gypsum Board",
+          percentage: 100,
+          reasoning: "Grade C \u2014 basic gypsum ceiling."
+        }
+      ],
+      joinery: []
+    });
+  }
+  for (const [key, lockedSlices] of Array.from(lockedMap.entries())) {
+    const [roomId, element] = key.split(":");
+    let room = geminiResult.rooms.find((r) => r.roomId === roomId);
+    if (!room) {
+      room = { roomId, floor: [], walls: [], ceiling: [], joinery: [] };
+      geminiResult.rooms.push(room);
+    }
+    room[element] = lockedSlices;
+  }
+  return geminiResult;
+}
+function adjacentTier(tier) {
+  if (tier === "ultra") return "premium";
+  if (tier === "premium") return "mid";
+  if (tier === "mid") return "affordable";
+  return "mid";
+}
+function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, project) {
+  const materialLibraryMap = new Map(materialLibrary2.map((m) => [m.id, m]));
+  const roomBreakdowns = [];
+  const materialTotals = /* @__PURE__ */ new Map();
+  let totalFloorM2 = 0;
+  let totalWallM2 = 0;
+  let totalCeilingM2 = 0;
+  for (const surface of surfaces) {
+    const roomAllocation = allocations.rooms.find(
+      (r) => r.roomId === surface.roomId
+    );
+    totalFloorM2 += surface.floorM2;
+    totalWallM2 += surface.wallM2;
+    totalCeilingM2 += surface.ceilingM2;
+    const elements = [];
+    const elementDefs = [
+      { name: "floor", areaM2: surface.floorM2 },
+      { name: "walls", areaM2: surface.wallM2 },
+      { name: "ceiling", areaM2: surface.ceilingM2 },
+      { name: "joinery", areaM2: 0 }
+      // Joinery doesn't have a simple surface area
+    ];
+    let roomCostMin = 0;
+    let roomCostMax = 0;
+    for (const elDef of elementDefs) {
+      const slices = roomAllocation?.[elDef.name];
+      if (!slices || slices.length === 0) continue;
+      let elementCostMin = 0;
+      let elementCostMax = 0;
+      const allocationDetails = [];
+      for (const slice of slices) {
+        const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
+        let unitCostMin = 0;
+        let unitCostMax = 0;
+        if (slice.materialLibraryId) {
+          const libEntry = materialLibraryMap.get(slice.materialLibraryId);
+          if (libEntry) {
+            unitCostMin = Number(libEntry.priceAedMin) || 0;
+            unitCostMax = Number(libEntry.priceAedMax) || 0;
+          }
+        } else {
+          const categoryMap = {
+            floor: ["flooring"],
+            walls: ["wall_paint", "wall_tile"],
+            ceiling: ["ceiling"],
+            joinery: ["joinery"]
+          };
+          const elKey = elDef.name.toLowerCase();
+          const cats = categoryMap[elKey] || [];
+          const fallback = materialLibrary2.find(
+            (m) => cats.includes((m.category || "").toLowerCase())
+          );
+          if (fallback) {
+            unitCostMin = Number(fallback.priceAedMin) || 0;
+            unitCostMax = Number(fallback.priceAedMax) || 0;
+          }
+        }
+        const sliceCostMin = actualAreaM2 * unitCostMin;
+        const sliceCostMax = actualAreaM2 * unitCostMax;
+        elementCostMin += sliceCostMin;
+        elementCostMax += sliceCostMax;
+        allocationDetails.push({
+          materialLibraryId: slice.materialLibraryId,
+          materialName: slice.materialName,
+          percentage: slice.percentage,
+          actualAreaM2: Number(actualAreaM2.toFixed(2)),
+          unitCostMin,
+          unitCostMax,
+          totalCostMin: Number(sliceCostMin.toFixed(2)),
+          totalCostMax: Number(sliceCostMax.toFixed(2)),
+          reasoning: slice.reasoning
+        });
+        const existing = materialTotals.get(slice.materialName) || {
+          totalAreaM2: 0,
+          totalCostMin: 0,
+          totalCostMax: 0
+        };
+        existing.totalAreaM2 += actualAreaM2;
+        existing.totalCostMin += sliceCostMin;
+        existing.totalCostMax += sliceCostMax;
+        materialTotals.set(slice.materialName, existing);
+      }
+      elements.push({
+        element: elDef.name,
+        surfaceAreaM2: elDef.areaM2,
+        allocations: allocationDetails,
+        elementCostMin: Number(elementCostMin.toFixed(2)),
+        elementCostMax: Number(elementCostMax.toFixed(2))
+      });
+      roomCostMin += elementCostMin;
+      roomCostMax += elementCostMax;
+    }
+    roomBreakdowns.push({
+      roomId: surface.roomId,
+      roomName: surface.roomName,
+      floorM2: surface.floorM2,
+      wallM2: surface.wallM2,
+      ceilingM2: surface.ceilingM2,
+      elements,
+      roomCostMin: Number(roomCostMin.toFixed(2)),
+      roomCostMax: Number(roomCostMax.toFixed(2))
+    });
+  }
+  const totalSurfaceM2 = totalFloorM2 + totalWallM2 + totalCeilingM2;
+  const totalFinishCostMin = roomBreakdowns.reduce(
+    (s, r) => s + r.roomCostMin,
+    0
+  );
+  const totalFinishCostMax = roomBreakdowns.reduce(
+    (s, r) => s + r.roomCostMax,
+    0
+  );
+  const totalFinishCostMid = (totalFinishCostMin + totalFinishCostMax) / 2;
+  const SQFT_TO_SQM = 10.764;
+  const FINISH_BUDGET_RATIO = 0.35;
+  const budgetCapPerSqft = Number(project.fin01BudgetCap) || 0;
+  const gfa = Number(project.ctx03Gfa) || 0;
+  const budgetCapAed = budgetCapPerSqft > 0 && gfa > 0 ? budgetCapPerSqft * gfa * SQFT_TO_SQM * FINISH_BUDGET_RATIO : null;
+  const budgetUtilizationPct = budgetCapAed && budgetCapAed > 0 ? Number((totalFinishCostMid / budgetCapAed * 100).toFixed(1)) : null;
+  const isOverBudget = budgetCapAed ? totalFinishCostMid > budgetCapAed : false;
+  const overBudgetByAed = isOverBudget ? Number((totalFinishCostMid - (budgetCapAed || 0)).toFixed(2)) : 0;
+  const materialBreakdown = Array.from(materialTotals.entries()).map(([name, totals]) => ({
+    materialName: name,
+    totalAreaM2: Number(totals.totalAreaM2.toFixed(2)),
+    totalCostMin: Number(totals.totalCostMin.toFixed(2)),
+    totalCostMax: Number(totals.totalCostMax.toFixed(2)),
+    pctOfTotalSurface: totalSurfaceM2 > 0 ? Number((totals.totalAreaM2 / totalSurfaceM2 * 100).toFixed(1)) : 0
+  })).sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
+  return {
+    rooms: roomBreakdowns,
+    summary: {
+      totalFloorM2: Number(totalFloorM2.toFixed(2)),
+      totalWallM2: Number(totalWallM2.toFixed(2)),
+      totalCeilingM2: Number(totalCeilingM2.toFixed(2)),
+      totalSurfaceM2: Number(totalSurfaceM2.toFixed(2)),
+      materialBreakdown,
+      totalFinishCostMin: Number(totalFinishCostMin.toFixed(2)),
+      totalFinishCostMax: Number(totalFinishCostMax.toFixed(2)),
+      totalFinishCostMid: Number(totalFinishCostMid.toFixed(2)),
+      budgetCapAed,
+      budgetUtilizationPct,
+      isOverBudget,
+      overBudgetByAed,
+      qualityLabel: allocations.estimatedQualityLabel || "Standard"
+    },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+
+// server/engines/report-reconciliation.ts
+var RECONCILIATION_VERSION = "workflow-space-mqi-reconciliation-v1";
+var SURFACE_FORMULA_VERSION = "mqi-surface-area-v1";
+var DEFAULT_CEILING_HEIGHT_M = 2.8;
+var RECONCILIATION_TOLERANCE = 0.01;
+function finiteNumber(value) {
+  if (value === null || value === void 0 || value === "") return null;
+  const number3 = Number(value);
+  return Number.isFinite(number3) ? number3 : null;
+}
+function numberOrZero(value) {
+  return finiteNumber(value) ?? 0;
+}
+function round2(value) {
+  return Number(value.toFixed(2));
+}
+function buildWorkflowSpaceMqiReconciliation(input) {
+  const fitOutRooms = input.rooms.filter((room) => room.isFitOut);
+  const roomAreaM2 = round2(fitOutRooms.reduce(
+    (total, room) => total + numberOrZero(room.sqm),
+    0
+  ));
+  const projectArea = finiteNumber(input.projectFitOutAreaM2);
+  const varianceM2 = projectArea === null ? null : round2(projectArea - roomAreaM2);
+  const surfaces = calculateSurfaceAreas(
+    fitOutRooms.map((room) => ({
+      id: room.roomCode,
+      name: room.roomName,
+      sqm: numberOrZero(room.sqm),
+      budgetPct: numberOrZero(room.budgetPct),
+      priority: room.priority,
+      finishGrade: room.finishGrade
+    })),
+    DEFAULT_CEILING_HEIGHT_M
+  );
+  const floorM2 = round2(surfaces.reduce((total, room) => total + room.floorM2, 0));
+  const wallsM2 = round2(surfaces.reduce((total, room) => total + room.wallM2, 0));
+  const ceilingM2 = round2(surfaces.reduce((total, room) => total + room.ceilingM2, 0));
+  const allocationGroups = /* @__PURE__ */ new Map();
+  const surfacesByRoomId = new Map(surfaces.map((surface) => [surface.roomId, surface]));
+  for (const allocation of input.allocations) {
+    const key = `${allocation.roomId}\0${allocation.element}`;
+    const group = allocationGroups.get(key) ?? {
+      roomId: allocation.roomId,
+      roomName: allocation.roomName,
+      element: allocation.element,
+      allocationPctTotal: 0,
+      surfaceAreaM2Total: 0,
+      locked: false
+    };
+    group.allocationPctTotal += numberOrZero(allocation.allocationPct);
+    group.surfaceAreaM2Total += numberOrZero(allocation.surfaceAreaM2);
+    group.locked ||= allocation.isLocked;
+    allocationGroups.set(key, group);
+  }
+  const groups = Array.from(allocationGroups.values()).map((group) => {
+    const allocationPctTotal = round2(group.allocationPctTotal);
+    const surfaceAreaM2Total = round2(group.surfaceAreaM2Total);
+    const roomSurfaces = surfacesByRoomId.get(group.roomId);
+    const expectedSurfaceAreaM2 = roomSurfaces === void 0 ? null : group.element === "floor" ? round2(roomSurfaces.floorM2) : group.element === "walls" ? round2(roomSurfaces.wallM2) : group.element === "ceiling" ? round2(roomSurfaces.ceilingM2) : group.element === "joinery" ? 0 : null;
+    const surfaceVarianceM2 = expectedSurfaceAreaM2 === null ? null : round2(surfaceAreaM2Total - expectedSurfaceAreaM2);
+    return {
+      roomId: group.roomId,
+      roomName: group.roomName,
+      element: group.element,
+      allocationPctTotal,
+      passes100Pct: Math.abs(allocationPctTotal - 100) <= RECONCILIATION_TOLERANCE,
+      surfaceAreaM2Total,
+      expectedSurfaceAreaM2,
+      surfaceVarianceM2,
+      surfaceReconciles: surfaceVarianceM2 !== null && Math.abs(surfaceVarianceM2) <= RECONCILIATION_TOLERANCE
+    };
+  }).sort(
+    (left, right) => left.roomId.localeCompare(right.roomId) || left.element.localeCompare(right.element) || left.roomName.localeCompare(right.roomName)
+  );
+  const libraryById = new Map(input.materialLibrary.map((material) => [material.id, material]));
+  let pricedAllocationCount = 0;
+  let unpricedAllocationCount = 0;
+  let min = 0;
+  let max = 0;
+  for (const allocation of input.allocations) {
+    const material = allocation.materialLibraryId === null ? void 0 : libraryById.get(allocation.materialLibraryId);
+    const priceMin = finiteNumber(material?.priceAedMin);
+    const priceMax = finiteNumber(material?.priceAedMax);
+    if (priceMin === null || priceMax === null) {
+      unpricedAllocationCount += 1;
+      continue;
+    }
+    const areaM2 = numberOrZero(allocation.surfaceAreaM2);
+    pricedAllocationCount += 1;
+    min += areaM2 * priceMin;
+    max += areaM2 * priceMax;
+  }
+  min = round2(min);
+  max = round2(max);
+  return {
+    version: RECONCILIATION_VERSION,
+    sourceTables: [
+      "projects",
+      "space_program_rooms",
+      "material_allocations",
+      "material_library"
+    ],
+    spaceProgram: {
+      storedRoomCount: input.rooms.length,
+      fitOutRoomCount: fitOutRooms.length,
+      manualRoomCount: input.rooms.filter((room) => room.source === "user_manual").length,
+      projectFitOutAreaM2: projectArea === null ? null : round2(projectArea),
+      fitOutRoomAreaM2: roomAreaM2,
+      varianceM2,
+      reconciles: varianceM2 === null ? null : Math.abs(varianceM2) <= RECONCILIATION_TOLERANCE
+    },
+    surfaces: {
+      formulaVersion: SURFACE_FORMULA_VERSION,
+      ceilingHeightM: DEFAULT_CEILING_HEIGHT_M,
+      floorM2,
+      wallsM2,
+      ceilingM2,
+      totalM2: round2(floorM2 + wallsM2 + ceilingM2)
+    },
+    allocations: {
+      rowCount: input.allocations.length,
+      groupCount: groups.length,
+      lockedRowCount: input.allocations.filter((allocation) => allocation.isLocked).length,
+      lockedGroupCount: Array.from(allocationGroups.values()).filter((group) => group.locked).length,
+      allGroupsPass100Pct: groups.length > 0 && groups.every(
+        (group) => Math.abs(round2(group.allocationPctTotal) - 100) <= RECONCILIATION_TOLERANCE
+      ),
+      allGroupsSurfaceReconcile: groups.length > 0 && groups.every((group) => group.surfaceReconciles),
+      groups
+    },
+    materialCosts: {
+      currency: "AED",
+      source: "material_library.priceAedMin/priceAedMax",
+      pricedAllocationCount,
+      unpricedAllocationCount,
+      allAllocationsPriced: input.allocations.length > 0 && unpricedAllocationCount === 0,
+      min,
+      mid: round2((min + max) / 2),
+      max
+    }
   };
 }
 
@@ -20488,6 +21289,20 @@ var projectRouter = router({
       }
     } catch {
     }
+    let workflowReconciliation;
+    if (input.reportType === "full_report") {
+      const [storedRooms, storedAllocations, materialLibrary2] = await Promise.all([
+        getSpaceProgramRooms(input.projectId, ctx.orgId),
+        getMaterialAllocations(input.projectId, ctx.orgId),
+        getMaterialLibrary()
+      ]);
+      workflowReconciliation = buildWorkflowSpaceMqiReconciliation({
+        projectFitOutAreaM2: project.totalFitoutArea,
+        rooms: storedRooms,
+        allocations: storedAllocations,
+        materialLibrary: materialLibrary2
+      });
+    }
     const pdfInput = {
       projectName: project.name,
       projectId: project.id,
@@ -20503,6 +21318,7 @@ var projectRouter = router({
       locale: input.locale,
       evidenceRefs,
       boardAnnex,
+      workflowReconciliation,
       autonomousContent: input.reportType === "autonomous_design_brief" ? reportData.content : void 0,
       designBrief: input.reportType === "design_brief" || input.reportType === "full_report" ? generateDesignBrief2({ name: project.name, description: project.description }, inputs, scoreResult) : void 0
     };
@@ -22757,335 +23573,588 @@ var seedRouter = router({
   })
 });
 
-// server/routers/design.ts
+// server/routers/design-assets.ts
+import { TRPCError as TRPCError10 } from "@trpc/server";
+import crypto3 from "node:crypto";
+import { z as z9 } from "zod";
+
+// server/_core/design-resource-access.ts
+init_db();
+import { TRPCError as TRPCError9 } from "@trpc/server";
+var notFound2 = () => {
+  throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+};
+function requireDesignProject(projectId, orgId) {
+  return requireProjectForOrg(projectId, orgId);
+}
+function requireDesignAsset(assetId, orgId) {
+  return requireProjectResourceForOrg(assetId, orgId, {
+    lookupResource: getProjectAssetById,
+    getProjectId: (asset) => asset.projectId
+  });
+}
+function requireDesignBrief(briefId, orgId) {
+  return requireProjectResourceForOrg(briefId, orgId, {
+    lookupResource: getDesignBriefById,
+    getProjectId: (brief) => brief.projectId
+  });
+}
+function requireDesignVisual(visualId, orgId) {
+  return requireProjectResourceForOrg(visualId, orgId, {
+    lookupResource: getGeneratedVisualById,
+    getProjectId: (visual) => visual.projectId
+  });
+}
+function requireDesignBoard(boardId, orgId) {
+  return requireProjectResourceForOrg(boardId, orgId, {
+    lookupResource: getMaterialBoardById,
+    getProjectId: (board) => board.projectId
+  });
+}
+function requireDesignBoardJoin(joinId, orgId) {
+  return requireNestedProjectResourceForOrg(joinId, orgId, {
+    lookupResource: getMaterialToBoardById,
+    getParentId: (join) => join.boardId,
+    lookupParent: getMaterialBoardById,
+    getProjectId: (board) => board.projectId
+  });
+}
+function requireDesignScenario(scenarioId, orgId) {
+  return requireProjectOrgResourceForOrg(scenarioId, orgId, {
+    lookupResource: getScenarioById,
+    getProjectId: (scenario) => scenario.projectId,
+    getOrgId: (scenario) => scenario.orgId
+  });
+}
+function requireDesignReport(reportId, orgId) {
+  return requireProjectResourceForOrg(reportId, orgId, {
+    lookupResource: getReportById,
+    getProjectId: (report) => report.projectId
+  });
+}
+function requireDesignEvaluation(evaluationId, orgId) {
+  return requireProjectResourceForOrg(evaluationId, orgId, {
+    lookupResource: getScoreMatrixById,
+    getProjectId: (evaluation) => evaluation.projectId
+  });
+}
+function requireDesignPromptTemplate(templateId, orgId) {
+  return requireOrgResourceForOrg(templateId, orgId, {
+    lookupResource: getPromptTemplateById,
+    getOrgId: (template) => template.orgId
+  });
+}
+function requireDesignAssetLink(linkId, orgId) {
+  return requireNestedProjectResourceForOrg(linkId, orgId, {
+    lookupResource: getAssetLinkById,
+    getParentId: (link) => link.assetId,
+    lookupParent: getProjectAssetById,
+    getProjectId: (asset) => asset.projectId
+  });
+}
+var requireDesignLinkTarget = createPolymorphicResourceAuthorizer({
+  evaluation: requireDesignEvaluation,
+  report: requireDesignReport,
+  scenario: requireDesignScenario,
+  material_board: requireDesignBoard,
+  design_brief: requireDesignBrief,
+  visual: requireDesignVisual
+});
+var requireDesignCommentTarget = createPolymorphicResourceAuthorizer({
+  design_brief: requireDesignBrief,
+  material_board: requireDesignBoard,
+  visual: requireDesignVisual
+});
+function requireSameDesignProject(expectedProjectId, actualProjectId) {
+  if (expectedProjectId !== actualProjectId) {
+    return notFound2();
+  }
+}
+function requireScopedDesignMutation(succeeded) {
+  if (!succeeded) {
+    return notFound2();
+  }
+}
+function requireScopedDesignInsert(value) {
+  if (value === null || value === void 0) {
+    return notFound2();
+  }
+  return value;
+}
+async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
+  if (scenarioId === null || scenarioId === void 0) return;
+  const scenario = await requireDesignScenario(scenarioId, orgId);
+  requireSameDesignProject(projectId, scenario.project.id);
+}
+
+// server/routers/design-assets.ts
+init_db();
+init_floor_plan_analyzer();
+init_storage();
+
+// server/routers/design-router-shared.ts
+init_db();
+async function bestEffortAudit(data) {
+  try {
+    await createAuditLog(data);
+  } catch {
+  }
+}
+function projectToInputs4(p) {
+  return {
+    ctx01Typology: p.ctx01Typology ?? "Residential",
+    ctx02Scale: p.ctx02Scale ?? "Medium",
+    ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
+    ctx04Location: p.ctx04Location ?? "Secondary",
+    ctx05Horizon: p.ctx05Horizon ?? "12-24m",
+    str01BrandClarity: p.str01BrandClarity ?? 3,
+    str02Differentiation: p.str02Differentiation ?? 3,
+    str03BuyerMaturity: p.str03BuyerMaturity ?? 3,
+    mkt01Tier: p.mkt01Tier ?? "Upper-mid",
+    mkt02Competitor: p.mkt02Competitor ?? 3,
+    mkt03Trend: p.mkt03Trend ?? 3,
+    fin01BudgetCap: p.fin01BudgetCap ? Number(p.fin01BudgetCap) : null,
+    fin02Flexibility: p.fin02Flexibility ?? 3,
+    fin03ShockTolerance: p.fin03ShockTolerance ?? 3,
+    fin04SalesPremium: p.fin04SalesPremium ?? 3,
+    des01Style: p.des01Style ?? "Modern",
+    des02MaterialLevel: p.des02MaterialLevel ?? 3,
+    des03Complexity: p.des03Complexity ?? 3,
+    des04Experience: p.des04Experience ?? 3,
+    des05Sustainability: p.des05Sustainability ?? 2,
+    exe01SupplyChain: p.exe01SupplyChain ?? 3,
+    exe02Contractor: p.exe02Contractor ?? 3,
+    exe03Approvals: p.exe03Approvals ?? 2,
+    exe04QaMaturity: p.exe04QaMaturity ?? 3,
+    add01SampleKit: p.add01SampleKit ?? false,
+    add02PortfolioMode: p.add02PortfolioMode ?? false,
+    add03DashboardExport: p.add03DashboardExport ?? true,
+    city: p.city ?? "Dubai",
+    sustainCertTarget: p.sustainCertTarget || "silver"
+  };
+}
+
+// server/routers/design-assets.ts
+var assetCategorySchema = z9.enum([
+  "brief",
+  "brand",
+  "budget",
+  "competitor",
+  "inspiration",
+  "material",
+  "sales",
+  "legal",
+  "mood_image",
+  "material_board",
+  "marketing_hero",
+  "generated",
+  "other"
+]);
+var MAX_LEGACY_BASE64_CHARS = Math.ceil(MAX_MEDIA_BYTES * 4 / 3) + 4;
+function isOwnedUploadKey(orgId, projectId, key) {
+  return key.startsWith(`projects/${orgId}/${projectId}/uploads/`);
+}
+var designAssetsRouter = router({
+  listAssets: orgProcedure.input(z9.object({ projectId: z9.number(), category: z9.string().optional() })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    return getProjectAssets(input.projectId, input.category);
+  }),
+  createAssetUpload: designOrgMutationProcedure.input(
+    z9.object({
+      projectId: z9.number(),
+      mimeType: z9.string()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const mimeType = input.mimeType.toLowerCase();
+    if (!isSupportedMediaMimeType(mimeType)) {
+      throw new TRPCError10({
+        code: "BAD_REQUEST",
+        message: "This file type is not supported. Please choose a supported image, PDF, audio, or video file."
+      });
+    }
+    const key = `projects/${ctx.orgId}/${input.projectId}/uploads/${crypto3.randomUUID()}`;
+    const upload = await storageCreatePresignedPut(key, mimeType);
+    return {
+      storageKey: upload.key,
+      uploadUrl: upload.uploadUrl,
+      expiresInSeconds: 900
+    };
+  }),
+  finalizeAssetUpload: designOrgMutationProcedure.input(
+    z9.object({
+      projectId: z9.number(),
+      storageKey: z9.string().min(1),
+      filename: z9.string().min(1).max(512),
+      mimeType: z9.string(),
+      category: assetCategorySchema.default("other"),
+      tags: z9.array(z9.string().max(100)).max(30).optional(),
+      notes: z9.string().max(5e3).optional(),
+      isClientVisible: z9.boolean().default(true),
+      purpose: z9.enum(["asset", "floor_plan"]).default("asset")
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    if (!isOwnedUploadKey(ctx.orgId, input.projectId, input.storageKey)) {
+      throw new TRPCError10({ code: "NOT_FOUND", message: "Upload not found" });
+    }
+    let media;
+    try {
+      media = await readValidatedProjectMedia(
+        {
+          storagePath: input.storageKey,
+          mimeType: input.mimeType
+        },
+        "design.asset.finalize"
+      );
+    } catch (error) {
+      try {
+        await cleanupRejectedUpload(input.storageKey);
+      } catch {
+      }
+      throw error;
+    }
+    const stored = await storageGet(input.storageKey);
+    const assetInput = {
+      projectId: input.projectId,
+      filename: input.filename.replace(/[\\/\u0000]/g, "_").slice(0, 512),
+      mimeType: media.mimeType,
+      sizeBytes: media.sizeBytes,
+      checksum: media.checksum,
+      storagePath: input.storageKey,
+      storageUrl: stored.url,
+      uploadedBy: ctx.user.id,
+      category: input.purpose === "floor_plan" ? "floor_plan" : input.category,
+      assetType: mediaTypeFromMime(media.mimeType),
+      tags: input.tags || [],
+      notes: input.notes,
+      isClientVisible: input.isClientVisible
+    };
+    const created = input.purpose === "floor_plan" ? await createFloorPlanAssetAndLinkForOrg(assetInput, ctx.orgId) : await createProjectAssetForOrg(assetInput, ctx.orgId);
+    if (!created) {
+      try {
+        await cleanupRejectedUpload(input.storageKey);
+      } catch {
+      }
+      throw new TRPCError10({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
+    }
+    await bestEffortAudit({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: input.purpose === "floor_plan" ? "floor_plan.upload" : "asset.upload",
+      entityType: "project_asset",
+      entityId: created.id,
+      details: {
+        projectId: input.projectId,
+        mediaType: media.mimeType,
+        sizeBytes: media.sizeBytes
+      }
+    });
+    return {
+      id: created.id,
+      url: stored.url,
+      mimeType: media.mimeType,
+      sizeBytes: media.sizeBytes
+    };
+  }),
+  uploadAsset: designOrgMutationProcedure.input(
+    z9.object({
+      projectId: z9.number(),
+      filename: z9.string(),
+      mimeType: z9.string(),
+      base64Data: z9.string().max(MAX_LEGACY_BASE64_CHARS),
+      category: z9.enum([
+        "brief",
+        "brand",
+        "budget",
+        "competitor",
+        "inspiration",
+        "material",
+        "sales",
+        "legal",
+        "mood_image",
+        "material_board",
+        "marketing_hero",
+        "generated",
+        "other"
+      ]).default("other"),
+      tags: z9.array(z9.string()).optional(),
+      notes: z9.string().optional(),
+      isClientVisible: z9.boolean().default(true)
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const buffer = Buffer.from(input.base64Data, "base64");
+    const media = await validateMediaBuffer(
+      buffer,
+      input.mimeType,
+      "design.asset.legacy-upload"
+    );
+    const suffix = Math.random().toString(36).slice(2, 10);
+    const storagePath = `projects/${input.projectId}/assets/${suffix}-${input.filename}`;
+    const uploaded = await storagePut(
+      storagePath,
+      media.buffer,
+      media.mimeType
+    );
+    let created;
+    try {
+      created = await createProjectAssetForOrg(
+        {
+          projectId: input.projectId,
+          filename: input.filename,
+          mimeType: media.mimeType,
+          sizeBytes: media.sizeBytes,
+          checksum: media.checksum,
+          storagePath: uploaded.key,
+          storageUrl: uploaded.url,
+          uploadedBy: ctx.user.id,
+          category: input.category,
+          tags: input.tags || [],
+          notes: input.notes,
+          isClientVisible: input.isClientVisible
+        },
+        ctx.orgId
+      );
+    } catch (error) {
+      reportIndeterminateUploadPersistence(uploaded.key, error);
+      throw new TRPCError10({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Upload persistence could not be confirmed"
+      });
+    }
+    if (!created) {
+      try {
+        await cleanupRejectedUpload(uploaded.key);
+      } catch {
+        throw new TRPCError10({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Upload cleanup failed"
+        });
+      }
+      throw new TRPCError10({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
+    }
+    const result = requireScopedDesignInsert(created);
+    await bestEffortAudit({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "asset.upload",
+      entityType: "project_asset",
+      entityId: result.id,
+      details: {
+        projectId: input.projectId,
+        filename: input.filename,
+        category: input.category
+      }
+    });
+    return { id: result.id, url: uploaded.url };
+  }),
+  deleteAsset: designOrgMutationProcedure.input(z9.object({ assetId: z9.number() })).mutation(async ({ ctx, input }) => {
+    const { resource: asset } = await requireDesignAsset(
+      input.assetId,
+      ctx.orgId
+    );
+    requireScopedDesignMutation(
+      await deleteProjectAssetForOrg(input.assetId, ctx.orgId)
+    );
+    await createAuditLog({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "asset.delete",
+      entityType: "project_asset",
+      entityId: input.assetId,
+      details: { filename: asset.filename }
+    });
+    return { success: true };
+  }),
+  updateAsset: designOrgMutationProcedure.input(
+    z9.object({
+      assetId: z9.number(),
+      category: z9.string().optional(),
+      tags: z9.array(z9.string()).optional(),
+      notes: z9.string().optional(),
+      isClientVisible: z9.boolean().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignAsset(input.assetId, ctx.orgId);
+    const { assetId, ...updates } = input;
+    requireScopedDesignMutation(
+      await updateProjectAssetForOrg(assetId, ctx.orgId, updates)
+    );
+    return { success: true };
+  }),
+  linkAsset: designOrgMutationProcedure.input(
+    z9.object({
+      assetId: z9.number(),
+      linkType: z9.enum([
+        "evaluation",
+        "report",
+        "scenario",
+        "material_board",
+        "design_brief",
+        "visual"
+      ]),
+      linkId: z9.number()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const asset = await requireDesignAsset(input.assetId, ctx.orgId);
+    const target = await requireDesignLinkTarget(
+      input.linkType,
+      input.linkId,
+      ctx.orgId
+    );
+    requireSameDesignProject(asset.project.id, target.value.project.id);
+    return requireScopedDesignInsert(
+      await createAssetLinkForOrg(input, ctx.orgId)
+    );
+  }),
+  getAssetLinks: orgProcedure.input(z9.object({ assetId: z9.number() })).query(async ({ ctx, input }) => {
+    const asset = await requireDesignAsset(input.assetId, ctx.orgId);
+    const links = await getAssetLinksByAsset(input.assetId);
+    for (const link of links) {
+      const target = await requireDesignLinkTarget(
+        link.linkType,
+        link.linkId,
+        ctx.orgId
+      );
+      requireSameDesignProject(asset.project.id, target.value.project.id);
+    }
+    return links;
+  }),
+  uploadFloorPlan: designOrgMutationProcedure.input(
+    z9.object({
+      projectId: z9.number(),
+      filename: z9.string(),
+      mimeType: z9.string(),
+      base64Data: z9.string().max(MAX_LEGACY_BASE64_CHARS)
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const buffer = Buffer.from(input.base64Data, "base64");
+    const media = await validateMediaBuffer(
+      buffer,
+      input.mimeType,
+      "design.floor-plan.legacy-upload"
+    );
+    const suffix = Math.random().toString(36).slice(2, 10);
+    const storagePath = `projects/${input.projectId}/floor-plans/${suffix}-${input.filename}`;
+    const uploaded = await storagePut(
+      storagePath,
+      media.buffer,
+      media.mimeType
+    );
+    let created;
+    try {
+      created = await createFloorPlanAssetAndLinkForOrg(
+        {
+          projectId: input.projectId,
+          filename: input.filename,
+          mimeType: media.mimeType,
+          sizeBytes: media.sizeBytes,
+          checksum: media.checksum,
+          storagePath: uploaded.key,
+          storageUrl: uploaded.url,
+          uploadedBy: ctx.user.id,
+          category: "other"
+        },
+        ctx.orgId
+      );
+    } catch (error) {
+      reportIndeterminateUploadPersistence(uploaded.key, error);
+      throw new TRPCError10({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Upload persistence could not be confirmed"
+      });
+    }
+    if (!created) {
+      try {
+        await cleanupRejectedUpload(uploaded.key);
+      } catch {
+        throw new TRPCError10({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Upload cleanup failed"
+        });
+      }
+      throw new TRPCError10({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
+    }
+    const result = requireScopedDesignInsert(created);
+    await bestEffortAudit({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "floor_plan.upload",
+      entityType: "project",
+      entityId: input.projectId,
+      details: { assetId: result.id, filename: input.filename }
+    });
+    return { assetId: result.id, url: uploaded.url };
+  }),
+  analyzeFloorPlan: designOrgMutationProcedure.input(z9.object({ projectId: z9.number() })).mutation(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    if (!project.floorPlanAssetId) {
+      throw new TRPCError10({
+        code: "BAD_REQUEST",
+        message: "No floor plan uploaded for this project"
+      });
+    }
+    const { resource: asset, project: assetProject } = await requireDesignAsset(project.floorPlanAssetId, ctx.orgId);
+    requireSameDesignProject(project.id, assetProject.id);
+    if (!asset || !asset.storagePath) {
+      throw new TRPCError10({
+        code: "NOT_FOUND",
+        message: "Floor plan asset not found or has no URL"
+      });
+    }
+    const media = await readValidatedProjectMedia(
+      asset,
+      "design.floor-plan.analyze"
+    );
+    const analysis = await analyzeFloorPlan(media);
+    requireScopedDesignMutation(
+      await updateProjectForOrg(input.projectId, ctx.orgId, {
+        floorPlanAnalysis: analysis,
+        // Also update totalFitoutArea if not already set
+        ...!project.totalFitoutArea || Number(project.totalFitoutArea) === 0 ? {
+          totalFitoutArea: String(analysis.totalEstimatedSqm)
+        } : {}
+      })
+    );
+    await createAuditLog({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "floor_plan.analyze",
+      entityType: "project",
+      entityId: input.projectId,
+      details: {
+        roomCount: analysis.rooms.length,
+        totalSqm: analysis.totalEstimatedSqm,
+        unitType: analysis.unitType,
+        confidence: analysis.analysisConfidence
+      }
+    });
+    return analysis;
+  })
+});
+
+// server/routers/design-briefs.ts
+import { TRPCError as TRPCError11 } from "@trpc/server";
+import { nanoid as nanoid4 } from "nanoid";
 import { z as z10 } from "zod";
 init_db();
-init_storage();
-import { TRPCError as TRPCError11 } from "@trpc/server";
-init_dld_analytics();
 init_area_utils();
 init_rfq_generator();
-
-// server/engines/visual-gen.ts
-var CATEGORY_DISPLAY = {
-  tile: "Flooring/Tiling",
-  stone: "Stone (Wall/Floor)",
-  wood: "Wood/Timber",
-  metal: "Metal Hardware",
-  fabric: "Soft Furnishings",
-  glass: "Glass/Mirrors",
-  paint: "Paint/Coating",
-  wallpaper: "Wall Covering",
-  lighting: "Lighting",
-  furniture: "Furniture",
-  fixture: "Sanitaryware/Fixtures",
-  accessory: "Accessories/Hardware",
-  other: "Other Finishes"
-};
-function buildPromptContext(inputs) {
-  const materialLevelMap = {
-    1: "basic/economy",
-    2: "standard/mid-range",
-    3: "premium/upper-mid",
-    4: "luxury/high-end",
-    5: "ultra-luxury/bespoke"
-  };
-  const locationMap = {
-    Prime: "Dubai prime waterfront",
-    Secondary: "Dubai urban",
-    Emerging: "Dubai emerging district"
-  };
-  return {
-    typology: inputs.ctx01Typology,
-    location: locationMap[inputs.ctx04Location] || inputs.ctx04Location,
-    style: inputs.des01Style,
-    tier: inputs.mkt01Tier,
-    materialLevel: materialLevelMap[inputs.des02MaterialLevel] || "premium",
-    materialCount: "8",
-    accentColor: inputs.des01Style === "Minimal" ? "warm brass" : "deep emerald"
-  };
-}
-function buildBoardAwarePromptContext(inputs, boardMaterials, brandStandardConstraints) {
-  const base = buildPromptContext(inputs);
-  if (!boardMaterials || boardMaterials.length === 0) {
-    return base;
-  }
-  const grouped = /* @__PURE__ */ new Map();
-  for (const mat of boardMaterials) {
-    const category = mat.category || "other";
-    if (!grouped.has(category)) grouped.set(category, []);
-    grouped.get(category).push(mat);
-  }
-  const specParts = [];
-  for (const [category, mats] of Array.from(grouped.entries())) {
-    const categoryLabel = CATEGORY_DISPLAY[category] || category;
-    const matNames = mats.map((m) => {
-      const supplier = m.supplierName && m.supplierName !== "TBD" && m.supplierName !== "Market Data" ? ` by ${m.supplierName}` : "";
-      return `${m.name}${supplier}`;
-    }).join(", ");
-    specParts.push(`${categoryLabel}: ${matNames}`);
-  }
-  const materialSpec = specParts.join(". ");
-  const carbons = boardMaterials.map((m) => m.embodiedCarbon).filter((c) => c != null && c > 0);
-  let carbonGrade = "C";
-  if (carbons.length > 0) {
-    const avg = carbons.reduce((a, b) => a + b, 0) / carbons.length;
-    if (avg < 5) carbonGrade = "A";
-    else if (avg < 15) carbonGrade = "B";
-    else if (avg < 30) carbonGrade = "C";
-    else if (avg < 50) carbonGrade = "D";
-    else carbonGrade = "E";
-  }
-  return {
-    ...base,
-    materialSpec,
-    carbonGrade,
-    brandStandard: brandStandardConstraints || void 0,
-    materialCount: String(boardMaterials.length)
-  };
-}
-function buildRoomPromptContext(inputs, roomName, roomType, roomSqm, boardMaterials, brandStandardConstraints) {
-  const roomCategories = getRoomRelevantCategories(roomType);
-  const filteredMaterials = boardMaterials.filter(
-    (m) => roomCategories.includes(m.category)
-  );
-  const materialsToUse = filteredMaterials.length > 0 ? filteredMaterials : boardMaterials;
-  const context = buildBoardAwarePromptContext(inputs, materialsToUse, brandStandardConstraints);
-  context.typology = `${roomSqm} sqm ${roomName} in a ${inputs.ctx01Typology} unit`;
-  return context;
-}
-function getRoomRelevantCategories(roomType) {
-  switch (roomType) {
-    case "bathroom":
-      return ["tile", "stone", "fixture", "glass", "accessory", "lighting"];
-    case "kitchen":
-      return ["stone", "tile", "metal", "fixture", "accessory", "lighting"];
-    case "bedroom":
-    case "living":
-    case "dining":
-      return ["wood", "stone", "tile", "fabric", "lighting", "furniture", "paint", "wallpaper"];
-    case "corridor":
-    case "lobby":
-      return ["tile", "stone", "lighting", "paint", "wallpaper"];
-    case "balcony":
-      return ["tile", "stone", "furniture"];
-    default:
-      return ["tile", "stone", "wood", "paint", "lighting"];
-  }
-}
-function interpolateTemplate(template, context) {
-  let result = template;
-  for (const [key, value] of Object.entries(context)) {
-    if (typeof value === "string") {
-      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
-    }
-  }
-  return result;
-}
-function generateDefaultPrompt(type, context) {
-  const materialClause = context.materialSpec ? `
-
-MATERIAL SPECIFICATION (use these EXACT materials in the render):
-${context.materialSpec}` : "";
-  const carbonClause = context.carbonGrade ? ` Sustainability grade: ${context.carbonGrade}.` : "";
-  const brandClause = context.brandStandard ? ` Brand standard: ${context.brandStandard}.` : "";
-  switch (type) {
-    case "mood":
-      return `Create a sophisticated interior design mood board for a ${context.tier} ${context.typology} project in ${context.location}. Design style: ${context.style}. Material level: ${context.materialLevel}.${carbonClause}${brandClause} The mood board should convey the project's design direction through carefully curated images of materials, textures, colors, lighting, and spatial arrangements. Professional presentation with clean layout.${materialClause}`;
-    case "material_board":
-      return `Generate a detailed material and finish board for a ${context.tier} ${context.typology} interior. Style: ${context.style}.${carbonClause}${brandClause} Show ${context.materialCount || "8"} key material swatches arranged in a professional grid. Each swatch labeled with exact material name and supplier. Clean white background, architectural presentation style.${materialClause}`;
-    case "hero":
-      return `Create a photorealistic marketing hero image for a ${context.tier} ${context.typology} development in ${context.location}. Show a stunning interior living space with ${context.style} design aesthetic.${carbonClause}${brandClause} Natural light streaming through floor-to-ceiling windows. Aspirational lifestyle photography, warm color temperature, professional real estate marketing quality.${materialClause}`;
-  }
-}
-function generateRoomRenderPrompt(context, roomName, roomSqm, finishGrade) {
-  const gradeLabel = finishGrade === "A" ? "premium showcase-quality" : finishGrade === "B" ? "high-quality standard" : "functional utility-grade";
-  const materialClause = context.materialSpec ? `
-
-MATERIAL SPECIFICATION (use these EXACT materials in the render):
-${context.materialSpec}` : "";
-  return `Create a photorealistic interior render of a ${roomSqm} sqm ${roomName} in a ${context.tier} ${context.typology} in ${context.location}. Design style: ${context.style}. Finish grade: ${gradeLabel}. This is a ${context.tier} project \u2014 every detail must reflect the quality tier. Natural lighting, professional architectural photography quality, 8K resolution feel. Show furniture placement, material textures, and lighting design.${materialClause}`;
-}
-function validatePrompt(prompt) {
-  if (prompt.length < 20) return { valid: false, reason: "Prompt too short \u2014 minimum 20 characters" };
-  if (prompt.length > 4e3) return { valid: false, reason: "Prompt too long \u2014 maximum 4000 characters" };
-  const blockedTerms = ["nsfw", "explicit", "violent", "weapon", "gore"];
-  const lower = prompt.toLowerCase();
-  for (const term of blockedTerms) {
-    if (lower.includes(term)) return { valid: false, reason: `Blocked content term detected: ${term}` };
-  }
-  return { valid: true };
-}
-function buildMaterialAllocationPromptClause(allocations) {
-  if (!allocations || allocations.length === 0) return null;
-  const roomMap = /* @__PURE__ */ new Map();
-  for (const a of allocations) {
-    const roomKey = a.roomName || a.roomId;
-    if (!roomMap.has(roomKey)) roomMap.set(roomKey, /* @__PURE__ */ new Map());
-    const elementMap = roomMap.get(roomKey);
-    if (!elementMap.has(a.element)) elementMap.set(a.element, []);
-    elementMap.get(a.element).push({ name: a.materialName, pct: a.percentage });
-  }
-  const lines = [];
-  for (const [room, elements] of Array.from(roomMap.entries())) {
-    const parts = [];
-    for (const [element, mats] of Array.from(elements.entries())) {
-      const matList = mats.map((m) => `${m.name} (${m.pct}%)`).join(", ");
-      parts.push(`${element.charAt(0).toUpperCase() + element.slice(1)}: ${matList}`);
-    }
-    lines.push(`${room} \u2014 ${parts.join("; ")}`);
-  }
-  return `
-MATERIAL ALLOCATION (use EXACT materials per surface):
-${lines.join("\n")}`;
-}
-
-// server/routers/design.ts
-init_floor_plan_analyzer();
 init_space_benchmarking();
-
-// server/engines/ingestion/freshness-health.ts
-function deriveOverallFreshnessHealth(counts) {
-  if (counts.totalSources === 0 || counts.unknownCount === counts.totalSources) return "unknown";
-  if (counts.staleCount > counts.totalSources * 0.3) return "degraded";
-  if (counts.agingCount > counts.totalSources * 0.5) return "aging";
-  return "healthy";
-}
-
-// server/engines/procurement/vendor-matching.ts
-init_db();
-init_schema();
-import { and as and2, eq as eq5 } from "drizzle-orm";
-function allowedVendorStatuses(constraints) {
-  if (constraints === "Strict Vendor List") return ["preferred_brand"];
-  if (constraints === "Moderate Guidelines") return ["approved_vendor", "preferred_brand"];
-  return ["open_market", "approved_vendor", "preferred_brand"];
-}
-async function matchVendorsForProject(options) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const projectRows = await db.select().from(projects).where(and2(
-    eq5(projects.id, options.projectId),
-    eq5(projects.orgId, options.orgId)
-  )).limit(1);
-  if (projectRows.length === 0) throw new Error(`Project ${options.projectId} not found`);
-  const project = projectRows[0];
-  const allowedStatuses = allowedVendorStatuses(project.brandStandardConstraints);
-  const allMaterials = await db.select().from(materialsCatalog).where(eq5(materialsCatalog.isActive, true));
-  let matchedMaterials = allMaterials.filter(
-    (m) => allowedStatuses.includes(m.brandStandardApproval || "open_market")
-  );
-  if (options.category) {
-    matchedMaterials = matchedMaterials.filter((m) => m.category === options.category);
-  }
-  const targetTier = options.tier || project.mkt01Tier || "upper_mid";
-  const tierMap = {
-    "Economy": ["economy"],
-    "Mid": ["economy", "mid"],
-    "Upper-mid": ["mid", "premium"],
-    "Luxury": ["premium", "luxury"],
-    "Ultra-luxury": ["luxury", "ultra_luxury"],
-    // Handle camel/snake case variants
-    "economy": ["economy"],
-    "mid": ["economy", "mid"],
-    "upper_mid": ["mid", "premium"],
-    "luxury": ["premium", "luxury"],
-    "ultra_luxury": ["luxury", "ultra_luxury"]
-  };
-  const allowedTiers = tierMap[targetTier] || ["mid", "premium"];
-  matchedMaterials = matchedMaterials.filter((m) => allowedTiers.includes(m.tier));
-  matchedMaterials.sort((a, b) => {
-    const scoreMap = {
-      "preferred_brand": 3,
-      "approved_vendor": 2,
-      "open_market": 1
-    };
-    const aScore = scoreMap[a.brandStandardApproval || "open_market"] || 1;
-    const bScore = scoreMap[b.brandStandardApproval || "open_market"] || 1;
-    if (aScore !== bScore) {
-      return bScore - aScore;
-    }
-    const aCarbon = parseFloat(String(a.embodiedCarbon || "999"));
-    const bCarbon = parseFloat(String(b.embodiedCarbon || "999"));
-    return aCarbon - bCarbon;
-  });
-  return matchedMaterials.slice(0, options.maxItems || 20);
-}
-
-// server/_core/imageGeneration.ts
-init_storage();
-init_ai_operation();
-import { Buffer as Buffer3 } from "node:buffer";
-import { z as z9 } from "zod";
-var IMAGE_RESPONSE_SCHEMA = z9.object({
-  candidates: z9.array(z9.object({
-    content: z9.object({
-      parts: z9.array(z9.object({
-        inlineData: z9.object({ data: z9.string().min(1), mimeType: z9.string().optional() }).optional()
-      }))
-    }).optional()
-  })).default([])
-});
-var MAX_RETRIES2 = 2;
-function retryDelay2(attempt) {
-  return new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 1e3));
-}
-function imageErrorForStatus(status) {
-  if (status === 400) return new AiOperationError("PROVIDER_REJECTED_INPUT", { operation: "gemini.image-generation" });
-  if (status === 401 || status === 403) return new AiOperationError("PROVIDER_UNAUTHORIZED", { operation: "gemini.image-generation", providerStatus: status });
-  if (status === 429) return new AiOperationError("PROVIDER_RATE_LIMITED", { operation: "gemini.image-generation", providerStatus: status, retryable: true });
-  return new AiOperationError("PROVIDER_UNAVAILABLE", { operation: "gemini.image-generation", providerStatus: status, retryable: status >= 500 });
-}
-async function generateImage(options) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new AiOperationError("PROVIDER_UNAUTHORIZED", { operation: "gemini.image-generation" }).report();
-  }
-  const model = "gemini-2.5-flash-image";
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`;
-  let response;
-  for (let attempt = 0; attempt <= MAX_RETRIES2; attempt += 1) {
-    try {
-      response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(6e4),
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: options.prompt }] }],
-          generationConfig: { responseModalities: ["IMAGE", "TEXT"], responseMimeType: "text/plain" }
-        })
-      });
-    } catch (error) {
-      const failure2 = toAiOperationError(error, "gemini.image-generation");
-      if (!failure2.retryable || attempt === MAX_RETRIES2) throw failure2.report();
-      await retryDelay2(attempt + 1);
-      continue;
-    }
-    if (response.ok) break;
-    const failure = imageErrorForStatus(response.status);
-    if (!failure.retryable || attempt === MAX_RETRIES2) throw failure.report();
-    await retryDelay2(attempt + 1);
-  }
-  if (!response?.ok) throw new AiOperationError("PROVIDER_UNAVAILABLE", { operation: "gemini.image-generation", retryable: true }).report();
-  let parsed;
-  try {
-    parsed = IMAGE_RESPONSE_SCHEMA.parse(await response.json());
-  } catch (error) {
-    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "gemini.image-generation", cause: error }).report();
-  }
-  const inlineData = parsed.candidates.flatMap((candidate) => candidate.content?.parts || []).find((part) => part.inlineData)?.inlineData;
-  if (!inlineData) throw new AiOperationError(parsed.candidates.length === 0 ? "CONTENT_BLOCKED" : "PROVIDER_INVALID_RESPONSE", { operation: "gemini.image-generation" }).report();
-  const raw = Buffer3.from(inlineData.data, "base64");
-  const media = await validateMediaBuffer(raw, inlineData.mimeType || "image/png", "gemini.image-generation-output");
-  const extension = media.mimeType === "image/jpeg" ? "jpg" : media.mimeType === "image/webp" ? "webp" : "png";
-  const stored = await storagePut(`generated/${Date.now()}-${media.checksum.slice(0, 12)}.${extension}`, media.buffer, media.mimeType);
-  return {
-    url: stored.url,
-    mimeType: media.mimeType,
-    sizeBytes: media.sizeBytes,
-    checksum: media.checksum,
-    storageKey: stored.key
-  };
-}
+init_space_program();
+init_dld_analytics();
 
 // server/engines/docx-brief.ts
 init_report_catalog();
@@ -23638,884 +24707,31 @@ async function generateDesignBriefDocx(data) {
   return Buffer.from(buffer);
 }
 
-// server/routers/design.ts
-init_report_catalog();
-
-// server/engines/design/material-quantity-engine.ts
-init_llm();
-var ASPECT_RATIOS = {
-  // Living / Dining / Lobby
-  LVG: 1.6,
-  DIN: 1.6,
-  LBY: 1.6,
-  // Master bedroom
-  MBR: 1.4,
-  // Secondary bedrooms
-  BD2: 1.3,
-  BD3: 1.3,
-  BD4: 1.3,
-  // Kitchen
-  KIT: 1.4,
-  // Bathrooms / Ensuite (near-square)
-  BTH: 1,
-  MEN: 1,
-  ENS: 1,
-  // Corridors / Hallways (long and narrow)
-  COR: 2.5,
-  ENT: 2.5,
-  HAL: 2.5,
-  // Office / Meeting
-  OFC: 1.5,
-  MET: 1.5,
-  OPN: 1.5,
-  // Back-of-house / Utility
-  BOH: 1.8,
-  UTL: 1.8,
-  // Hospitality
-  GRM: 1.4,
-  GRS: 1.5,
-  FBB: 1.6,
-  RCP: 1.5,
-  BRK: 1.4
-};
-var DEFAULT_ASPECT_RATIO = 1.4;
-var DEFAULT_CEILING_HEIGHT = 2.8;
-function calculateSurfaceAreas(rooms, ceilingHeightM) {
-  const height = ceilingHeightM ?? DEFAULT_CEILING_HEIGHT;
-  const clampedHeight = Math.max(2.4, Math.min(5, height));
-  if (clampedHeight !== height) {
-    console.warn(
-      `[MQI] Ceiling height ${height}m outside valid range [2.4, 5.0]. Clamped to ${clampedHeight}m.`
-    );
-  }
-  return rooms.map((room) => {
-    if (room.sqm <= 0) {
-      return {
-        roomId: room.id,
-        roomName: room.name,
-        floorM2: 0,
-        wallM2: 0,
-        ceilingM2: 0
-      };
-    }
-    const ratio = ASPECT_RATIOS[room.id] ?? DEFAULT_ASPECT_RATIO;
-    const sqm = room.sqm;
-    const floorM2 = sqm;
-    const sideA = Math.sqrt(sqm * ratio);
-    const sideB = Math.sqrt(sqm / ratio);
-    const perimeter = 2 * (sideA + sideB);
-    const rawWallM2 = perimeter * clampedHeight;
-    const wallM2 = rawWallM2 * 0.85;
-    const ceilingM2 = sqm * 0.95;
-    const wallFloorRatio = wallM2 / floorM2;
-    if (wallFloorRatio < 1.5 || wallFloorRatio > 3.5) {
-      console.warn(
-        `[MQI] Room ${room.id} wall/floor ratio ${wallFloorRatio.toFixed(2)} outside expected range [1.5, 3.5]`
-      );
-    }
-    return {
-      roomId: room.id,
-      roomName: room.name,
-      floorM2: Number(floorM2.toFixed(2)),
-      wallM2: Number(wallM2.toFixed(2)),
-      ceilingM2: Number(ceilingM2.toFixed(2))
-    };
-  });
-}
-var WET_ROOM_IDS = /* @__PURE__ */ new Set(["BTH", "MEN", "ENS", "KIT"]);
-async function generateMaterialAllocations(project, surfaces, materialLibrary2, rooms, existingLockedAllocations) {
-  const roomGradeMap = new Map(rooms.map((r) => [r.id, r.finishGrade]));
-  const lockedMap = /* @__PURE__ */ new Map();
-  if (existingLockedAllocations?.length) {
-    for (const locked of existingLockedAllocations) {
-      lockedMap.set(`${locked.roomId}:${locked.element}`, locked.allocations);
-    }
-  }
-  const gradeCRooms = surfaces.filter(
-    (s) => roomGradeMap.get(s.roomId) === "C"
-  );
-  const nonGradeCRooms = surfaces.filter(
-    (s) => roomGradeMap.get(s.roomId) !== "C"
-  );
-  const roomsForGemini = nonGradeCRooms.filter((s) => {
-    const elements = ["floor", "walls", "ceiling", "joinery"];
-    return elements.some((el) => !lockedMap.has(`${s.roomId}:${el}`));
-  });
-  const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
-  const projectStyle = (project.des01Style || "modern").toLowerCase();
-  const filteredLibrary = materialLibrary2.filter(
-    (m) => (m.tier === projectTier || m.tier === adjacentTier(projectTier)) && (m.style === projectStyle || m.style === "all")
-  );
-  const roomDescriptions = roomsForGemini.map((s) => {
-    const grade2 = roomGradeMap.get(s.roomId) || "B";
-    const isWet = WET_ROOM_IDS.has(s.roomId);
-    const elements = ["floor", "walls", "ceiling", "joinery"].filter((el) => !lockedMap.has(`${s.roomId}:${el}`));
-    return `- ${s.roomId} "${s.roomName}": floor=${s.floorM2}m\xB2, walls=${s.wallM2}m\xB2, ceiling=${s.ceilingM2}m\xB2, grade=${grade2}, wet=${isWet}, elements_needed=[${elements.join(",")}]`;
-  }).join("\n");
-  const libraryDescriptions = filteredLibrary.slice(0, 60).map(
-    (m) => `id=${m.id} category=${m.category} tier=${m.tier} style=${m.style} brand="${m.brand}" product="${m.productName}" AED_min=${m.priceAedMin} AED_max=${m.priceAedMax} unit=${m.unitLabel}`
-  ).join("\n");
-  const systemPrompt = `You are a UAE interior design cost consultant. Your job is to suggest how the surfaces of a project should be split across materials, based on the project's design style, market tier, and available material library.
-
-PROJECT:
-- Typology: ${project.ctx01Typology || "Residential"}
-- Style: ${project.des01Style || "Modern"}
-- Market Tier: ${projectTier}
-- Material Level: ${project.des02MaterialLevel || 3}/5
-- Purpose: ${project.projectPurpose || "Residential development"}
-
-ROOMS AND SURFACES (only rooms that need new allocations):
-${roomDescriptions}
-
-AVAILABLE MATERIAL LIBRARY (filtered to matching tier and style):
-${libraryDescriptions}
-
-RULES:
-1. For each room \xD7 element, provide 1 OR 2 materials with percentages summing to exactly 100.
-2. MAXIMUM 2 materials per surface \u2014 never return 3 or more.
-3. Use materials from the library when possible (reference by materialLibraryId). If no exact match, use a generic name and set materialLibraryId to null.
-4. Grade A rooms get premium finishes. Grade B rooms get mid-range.
-5. Wet room walls (BTH, MEN, ENS, KIT where wet=true) MUST use wall_tile, NEVER wall_paint or stone.
-6. Ceiling is almost always single material (gypsum or plaster). Only split ceiling if Grade A + ultra tier.
-7. For each allocation, write one sentence of reasoning (max 15 words).
-8. Never suggest materials that conflict with UAE climate (e.g. solid wood flooring in wet areas).
-9. Only provide allocations for the elements listed in elements_needed for each room.`;
-  const outputSchema = {
-    name: "material_allocations",
-    schema: {
-      type: "object",
-      properties: {
-        rooms: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              roomId: { type: "string" },
-              floor: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              },
-              walls: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              },
-              ceiling: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              },
-              joinery: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              }
-            },
-            required: ["roomId"]
-          }
-        },
-        designRationale: { type: "string" },
-        estimatedQualityLabel: { type: "string" }
-      },
-      required: ["rooms", "designRationale", "estimatedQualityLabel"]
-    }
-  };
-  let geminiResult;
-  if (roomsForGemini.length === 0) {
-    geminiResult = {
-      rooms: [],
-      designRationale: "All rooms are utility-grade or locked \u2014 deterministic allocation applied.",
-      estimatedQualityLabel: "Standard Utility"
-    };
-  } else {
-    const response = await invokeLLM({
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: "Generate material allocations for all listed rooms. Return structured JSON."
-        }
-      ],
-      outputSchema
-    });
-    const rawContent = response.choices[0]?.message?.content;
-    const text4 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
-    geminiResult = JSON.parse(text4);
-  }
-  for (const room of geminiResult.rooms) {
-    for (const element of ["floor", "walls", "ceiling", "joinery"]) {
-      const slices = room[element];
-      if (!slices || slices.length === 0) continue;
-      if (slices.length > 2) {
-        slices.sort((a, b) => b.percentage - a.percentage);
-        slices.length = 2;
-      }
-      const sum = slices.reduce((s, sl) => s + sl.percentage, 0);
-      if (Math.abs(sum - 100) > 0.01) {
-        const scale = 100 / sum;
-        for (const sl of slices) {
-          sl.percentage = Number((sl.percentage * scale).toFixed(2));
-        }
-        const newSum = slices.reduce((s, sl) => s + sl.percentage, 0);
-        if (Math.abs(newSum - 100) > 0.01) {
-          slices[0].percentage += 100 - newSum;
-        }
-      }
-    }
-  }
-  for (const surface of gradeCRooms) {
-    const cheapFloor = materialLibrary2.find(
-      (m) => m.category === "flooring" && m.tier === "affordable"
-    );
-    const isWet = WET_ROOM_IDS.has(surface.roomId);
-    const cheapWall = materialLibrary2.find(
-      (m) => m.category === (isWet ? "wall_tile" : "wall_paint") && (m.tier === "affordable" || m.tier === "mid")
-    );
-    const cheapCeiling = materialLibrary2.find(
-      (m) => m.category === "ceiling" && (m.tier === "affordable" || m.tier === "mid")
-    );
-    geminiResult.rooms.push({
-      roomId: surface.roomId,
-      floor: [
-        {
-          materialLibraryId: cheapFloor?.id ?? null,
-          materialName: cheapFloor?.productName || "Basic Ceramic Tile",
-          percentage: 100,
-          reasoning: "Grade C utility room \u2014 affordable single material."
-        }
-      ],
-      walls: [
-        {
-          materialLibraryId: cheapWall?.id ?? null,
-          materialName: cheapWall?.productName || (isWet ? "Standard Ceramic Wall Tile" : "Standard Emulsion Paint"),
-          percentage: 100,
-          reasoning: isWet ? "Wet utility room \u2014 affordable wall tile." : "Grade C \u2014 standard paint."
-        }
-      ],
-      ceiling: [
-        {
-          materialLibraryId: cheapCeiling?.id ?? null,
-          materialName: cheapCeiling?.productName || "Basic Gypsum Board",
-          percentage: 100,
-          reasoning: "Grade C \u2014 basic gypsum ceiling."
-        }
-      ],
-      joinery: []
-    });
-  }
-  for (const [key, lockedSlices] of Array.from(lockedMap.entries())) {
-    const [roomId, element] = key.split(":");
-    let room = geminiResult.rooms.find((r) => r.roomId === roomId);
-    if (!room) {
-      room = { roomId, floor: [], walls: [], ceiling: [], joinery: [] };
-      geminiResult.rooms.push(room);
-    }
-    room[element] = lockedSlices;
-  }
-  return geminiResult;
-}
-function adjacentTier(tier) {
-  if (tier === "ultra") return "premium";
-  if (tier === "premium") return "mid";
-  if (tier === "mid") return "affordable";
-  return "mid";
-}
-function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, project) {
-  const materialLibraryMap = new Map(materialLibrary2.map((m) => [m.id, m]));
-  const roomBreakdowns = [];
-  const materialTotals = /* @__PURE__ */ new Map();
-  let totalFloorM2 = 0;
-  let totalWallM2 = 0;
-  let totalCeilingM2 = 0;
-  for (const surface of surfaces) {
-    const roomAllocation = allocations.rooms.find(
-      (r) => r.roomId === surface.roomId
-    );
-    totalFloorM2 += surface.floorM2;
-    totalWallM2 += surface.wallM2;
-    totalCeilingM2 += surface.ceilingM2;
-    const elements = [];
-    const elementDefs = [
-      { name: "floor", areaM2: surface.floorM2 },
-      { name: "walls", areaM2: surface.wallM2 },
-      { name: "ceiling", areaM2: surface.ceilingM2 },
-      { name: "joinery", areaM2: 0 }
-      // Joinery doesn't have a simple surface area
-    ];
-    let roomCostMin = 0;
-    let roomCostMax = 0;
-    for (const elDef of elementDefs) {
-      const slices = roomAllocation?.[elDef.name];
-      if (!slices || slices.length === 0) continue;
-      let elementCostMin = 0;
-      let elementCostMax = 0;
-      const allocationDetails = [];
-      for (const slice of slices) {
-        const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
-        let unitCostMin = 0;
-        let unitCostMax = 0;
-        if (slice.materialLibraryId) {
-          const libEntry = materialLibraryMap.get(slice.materialLibraryId);
-          if (libEntry) {
-            unitCostMin = Number(libEntry.priceAedMin) || 0;
-            unitCostMax = Number(libEntry.priceAedMax) || 0;
-          }
-        } else {
-          const categoryMap = {
-            floor: ["flooring"],
-            walls: ["wall_paint", "wall_tile"],
-            ceiling: ["ceiling"],
-            joinery: ["joinery"]
-          };
-          const elKey = elDef.name.toLowerCase();
-          const cats = categoryMap[elKey] || [];
-          const fallback = materialLibrary2.find(
-            (m) => cats.includes((m.category || "").toLowerCase())
-          );
-          if (fallback) {
-            unitCostMin = Number(fallback.priceAedMin) || 0;
-            unitCostMax = Number(fallback.priceAedMax) || 0;
-          }
-        }
-        const sliceCostMin = actualAreaM2 * unitCostMin;
-        const sliceCostMax = actualAreaM2 * unitCostMax;
-        elementCostMin += sliceCostMin;
-        elementCostMax += sliceCostMax;
-        allocationDetails.push({
-          materialLibraryId: slice.materialLibraryId,
-          materialName: slice.materialName,
-          percentage: slice.percentage,
-          actualAreaM2: Number(actualAreaM2.toFixed(2)),
-          unitCostMin,
-          unitCostMax,
-          totalCostMin: Number(sliceCostMin.toFixed(2)),
-          totalCostMax: Number(sliceCostMax.toFixed(2)),
-          reasoning: slice.reasoning
-        });
-        const existing = materialTotals.get(slice.materialName) || {
-          totalAreaM2: 0,
-          totalCostMin: 0,
-          totalCostMax: 0
-        };
-        existing.totalAreaM2 += actualAreaM2;
-        existing.totalCostMin += sliceCostMin;
-        existing.totalCostMax += sliceCostMax;
-        materialTotals.set(slice.materialName, existing);
-      }
-      elements.push({
-        element: elDef.name,
-        surfaceAreaM2: elDef.areaM2,
-        allocations: allocationDetails,
-        elementCostMin: Number(elementCostMin.toFixed(2)),
-        elementCostMax: Number(elementCostMax.toFixed(2))
-      });
-      roomCostMin += elementCostMin;
-      roomCostMax += elementCostMax;
-    }
-    roomBreakdowns.push({
-      roomId: surface.roomId,
-      roomName: surface.roomName,
-      floorM2: surface.floorM2,
-      wallM2: surface.wallM2,
-      ceilingM2: surface.ceilingM2,
-      elements,
-      roomCostMin: Number(roomCostMin.toFixed(2)),
-      roomCostMax: Number(roomCostMax.toFixed(2))
-    });
-  }
-  const totalSurfaceM2 = totalFloorM2 + totalWallM2 + totalCeilingM2;
-  const totalFinishCostMin = roomBreakdowns.reduce(
-    (s, r) => s + r.roomCostMin,
-    0
-  );
-  const totalFinishCostMax = roomBreakdowns.reduce(
-    (s, r) => s + r.roomCostMax,
-    0
-  );
-  const totalFinishCostMid = (totalFinishCostMin + totalFinishCostMax) / 2;
-  const SQFT_TO_SQM = 10.764;
-  const FINISH_BUDGET_RATIO = 0.35;
-  const budgetCapPerSqft = Number(project.fin01BudgetCap) || 0;
-  const gfa = Number(project.ctx03Gfa) || 0;
-  const budgetCapAed = budgetCapPerSqft > 0 && gfa > 0 ? budgetCapPerSqft * gfa * SQFT_TO_SQM * FINISH_BUDGET_RATIO : null;
-  const budgetUtilizationPct = budgetCapAed && budgetCapAed > 0 ? Number((totalFinishCostMid / budgetCapAed * 100).toFixed(1)) : null;
-  const isOverBudget = budgetCapAed ? totalFinishCostMid > budgetCapAed : false;
-  const overBudgetByAed = isOverBudget ? Number((totalFinishCostMid - (budgetCapAed || 0)).toFixed(2)) : 0;
-  const materialBreakdown = Array.from(materialTotals.entries()).map(([name, totals]) => ({
-    materialName: name,
-    totalAreaM2: Number(totals.totalAreaM2.toFixed(2)),
-    totalCostMin: Number(totals.totalCostMin.toFixed(2)),
-    totalCostMax: Number(totals.totalCostMax.toFixed(2)),
-    pctOfTotalSurface: totalSurfaceM2 > 0 ? Number((totals.totalAreaM2 / totalSurfaceM2 * 100).toFixed(1)) : 0
-  })).sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
-  return {
-    rooms: roomBreakdowns,
-    summary: {
-      totalFloorM2: Number(totalFloorM2.toFixed(2)),
-      totalWallM2: Number(totalWallM2.toFixed(2)),
-      totalCeilingM2: Number(totalCeilingM2.toFixed(2)),
-      totalSurfaceM2: Number(totalSurfaceM2.toFixed(2)),
-      materialBreakdown,
-      totalFinishCostMin: Number(totalFinishCostMin.toFixed(2)),
-      totalFinishCostMax: Number(totalFinishCostMax.toFixed(2)),
-      totalFinishCostMid: Number(totalFinishCostMid.toFixed(2)),
-      budgetCapAed,
-      budgetUtilizationPct,
-      isOverBudget,
-      overBudgetByAed,
-      qualityLabel: allocations.estimatedQualityLabel || "Standard"
-    },
-    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-}
-
-// server/routers/design.ts
-init_space_program();
-import { nanoid as nanoid4 } from "nanoid";
-import crypto3 from "node:crypto";
-
-// server/_core/public-share-access.ts
-init_db();
-import { TRPCError as TRPCError9 } from "@trpc/server";
-var PUBLIC_SHARE_NOT_FOUND_MESSAGE = "Share link not found or expired";
-function shareNotFound() {
-  throw new TRPCError9({
-    code: "NOT_FOUND",
-    message: PUBLIC_SHARE_NOT_FOUND_MESSAGE
-  });
-}
-async function requireActivePublicShare(token, options = {}) {
-  const lookupBrief = options.lookupBrief ?? getAiDesignBriefByShareToken;
-  const lookupProject = options.lookupProject ?? getProjectById;
-  const now = options.now ?? (() => /* @__PURE__ */ new Date());
-  const brief = await lookupBrief(token);
-  if (!brief) {
-    return shareNotFound();
-  }
-  const project = await lookupProject(brief.projectId);
-  const expiresAt = brief.shareExpiresAt ? new Date(brief.shareExpiresAt).getTime() : Number.NaN;
-  const nowTime = now().getTime();
-  if (!project || brief.orgId === null || project.orgId === null || brief.orgId !== project.orgId || !Number.isFinite(expiresAt) || expiresAt <= nowTime) {
-    return shareNotFound();
-  }
-  return { brief, project };
-}
-
-// server/_core/design-resource-access.ts
-init_db();
-import { TRPCError as TRPCError10 } from "@trpc/server";
-var notFound2 = () => {
-  throw new TRPCError10({ code: "NOT_FOUND", message: "Resource not found" });
-};
-function requireDesignProject(projectId, orgId) {
-  return requireProjectForOrg(projectId, orgId);
-}
-function requireDesignAsset(assetId, orgId) {
-  return requireProjectResourceForOrg(assetId, orgId, {
-    lookupResource: getProjectAssetById,
-    getProjectId: (asset) => asset.projectId
-  });
-}
-function requireDesignBrief(briefId, orgId) {
-  return requireProjectResourceForOrg(briefId, orgId, {
-    lookupResource: getDesignBriefById,
-    getProjectId: (brief) => brief.projectId
-  });
-}
-function requireDesignVisual(visualId, orgId) {
-  return requireProjectResourceForOrg(visualId, orgId, {
-    lookupResource: getGeneratedVisualById,
-    getProjectId: (visual) => visual.projectId
-  });
-}
-function requireDesignBoard(boardId, orgId) {
-  return requireProjectResourceForOrg(boardId, orgId, {
-    lookupResource: getMaterialBoardById,
-    getProjectId: (board) => board.projectId
-  });
-}
-function requireDesignBoardJoin(joinId, orgId) {
-  return requireNestedProjectResourceForOrg(joinId, orgId, {
-    lookupResource: getMaterialToBoardById,
-    getParentId: (join) => join.boardId,
-    lookupParent: getMaterialBoardById,
-    getProjectId: (board) => board.projectId
-  });
-}
-function requireDesignScenario(scenarioId, orgId) {
-  return requireProjectOrgResourceForOrg(scenarioId, orgId, {
-    lookupResource: getScenarioById,
-    getProjectId: (scenario) => scenario.projectId,
-    getOrgId: (scenario) => scenario.orgId
-  });
-}
-function requireDesignReport(reportId, orgId) {
-  return requireProjectResourceForOrg(reportId, orgId, {
-    lookupResource: getReportById,
-    getProjectId: (report) => report.projectId
-  });
-}
-function requireDesignEvaluation(evaluationId, orgId) {
-  return requireProjectResourceForOrg(evaluationId, orgId, {
-    lookupResource: getScoreMatrixById,
-    getProjectId: (evaluation) => evaluation.projectId
-  });
-}
-function requireDesignPromptTemplate(templateId, orgId) {
-  return requireOrgResourceForOrg(templateId, orgId, {
-    lookupResource: getPromptTemplateById,
-    getOrgId: (template) => template.orgId
-  });
-}
-function requireDesignAssetLink(linkId, orgId) {
-  return requireNestedProjectResourceForOrg(linkId, orgId, {
-    lookupResource: getAssetLinkById,
-    getParentId: (link) => link.assetId,
-    lookupParent: getProjectAssetById,
-    getProjectId: (asset) => asset.projectId
-  });
-}
-var requireDesignLinkTarget = createPolymorphicResourceAuthorizer({
-  evaluation: requireDesignEvaluation,
-  report: requireDesignReport,
-  scenario: requireDesignScenario,
-  material_board: requireDesignBoard,
-  design_brief: requireDesignBrief,
-  visual: requireDesignVisual
-});
-var requireDesignCommentTarget = createPolymorphicResourceAuthorizer({
-  design_brief: requireDesignBrief,
-  material_board: requireDesignBoard,
-  visual: requireDesignVisual
-});
-function requireSameDesignProject(expectedProjectId, actualProjectId) {
-  if (expectedProjectId !== actualProjectId) {
-    return notFound2();
-  }
-}
-function requireScopedDesignMutation(succeeded) {
-  if (!succeeded) {
-    return notFound2();
-  }
-}
-function requireScopedDesignInsert(value) {
-  if (value === null || value === void 0) {
-    return notFound2();
-  }
-  return value;
-}
-async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
-  if (scenarioId === null || scenarioId === void 0) return;
-  const scenario = await requireDesignScenario(scenarioId, orgId);
-  requireSameDesignProject(projectId, scenario.project.id);
-}
-
-// server/routers/design.ts
-init_ai_operation();
-var assetCategorySchema = z10.enum([
-  "brief",
-  "brand",
-  "budget",
-  "competitor",
-  "inspiration",
-  "material",
-  "sales",
-  "legal",
-  "mood_image",
-  "material_board",
-  "marketing_hero",
-  "generated",
-  "other"
-]);
-var MAX_LEGACY_BASE64_CHARS = Math.ceil(MAX_MEDIA_BYTES * 4 / 3) + 4;
-function isOwnedUploadKey(orgId, projectId, key) {
-  return key.startsWith(`projects/${orgId}/${projectId}/uploads/`);
-}
-function isDuplicateKeyError(error) {
-  let current = error;
-  const seen = /* @__PURE__ */ new Set();
-  while (current && typeof current === "object" && !seen.has(current)) {
-    seen.add(current);
-    const candidate = current;
-    if (candidate.code === "ER_DUP_ENTRY" || candidate.errno === 1062) {
-      return true;
-    }
-    current = candidate.cause;
-  }
-  return false;
-}
-async function bestEffortAudit(data) {
-  try {
-    await createAuditLog(data);
-  } catch {
-  }
-}
-function projectToInputs4(p) {
-  return {
-    ctx01Typology: p.ctx01Typology ?? "Residential",
-    ctx02Scale: p.ctx02Scale ?? "Medium",
-    ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
-    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
-    ctx04Location: p.ctx04Location ?? "Secondary",
-    ctx05Horizon: p.ctx05Horizon ?? "12-24m",
-    str01BrandClarity: p.str01BrandClarity ?? 3,
-    str02Differentiation: p.str02Differentiation ?? 3,
-    str03BuyerMaturity: p.str03BuyerMaturity ?? 3,
-    mkt01Tier: p.mkt01Tier ?? "Upper-mid",
-    mkt02Competitor: p.mkt02Competitor ?? 3,
-    mkt03Trend: p.mkt03Trend ?? 3,
-    fin01BudgetCap: p.fin01BudgetCap ? Number(p.fin01BudgetCap) : null,
-    fin02Flexibility: p.fin02Flexibility ?? 3,
-    fin03ShockTolerance: p.fin03ShockTolerance ?? 3,
-    fin04SalesPremium: p.fin04SalesPremium ?? 3,
-    des01Style: p.des01Style ?? "Modern",
-    des02MaterialLevel: p.des02MaterialLevel ?? 3,
-    des03Complexity: p.des03Complexity ?? 3,
-    des04Experience: p.des04Experience ?? 3,
-    des05Sustainability: p.des05Sustainability ?? 2,
-    exe01SupplyChain: p.exe01SupplyChain ?? 3,
-    exe02Contractor: p.exe02Contractor ?? 3,
-    exe03Approvals: p.exe03Approvals ?? 2,
-    exe04QaMaturity: p.exe04QaMaturity ?? 3,
-    add01SampleKit: p.add01SampleKit ?? false,
-    add02PortfolioMode: p.add02PortfolioMode ?? false,
-    add03DashboardExport: p.add03DashboardExport ?? true,
-    city: p.city ?? "Dubai",
-    sustainCertTarget: p.sustainCertTarget || "silver"
-  };
-}
-var designRouter = router({
-  // ─── Evidence Vault ─────────────────────────────────────────────────────────
-  listAssets: orgProcedure.input(z10.object({ projectId: z10.number(), category: z10.string().optional() })).query(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    return getProjectAssets(input.projectId, input.category);
-  }),
-  /**
-   * Starts a browser-to-S3 media upload. The caller receives only a short-lived
-   * write URL; finalization below is the security boundary that creates an asset.
-   */
-  createAssetUpload: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    mimeType: z10.string()
-  })).mutation(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    const mimeType = input.mimeType.toLowerCase();
-    if (!isSupportedMediaMimeType(mimeType)) {
-      throw new TRPCError11({ code: "BAD_REQUEST", message: "This file type is not supported. Please choose a supported image, PDF, audio, or video file." });
-    }
-    const key = `projects/${ctx.orgId}/${input.projectId}/uploads/${crypto3.randomUUID()}`;
-    const upload = await storageCreatePresignedPut(key, mimeType);
-    return { storageKey: upload.key, uploadUrl: upload.uploadUrl, expiresInSeconds: 900 };
-  }),
-  /** Validates an uploaded object and is the only path that persists direct uploads. */
-  finalizeAssetUpload: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    storageKey: z10.string().min(1),
-    filename: z10.string().min(1).max(512),
-    mimeType: z10.string(),
-    category: assetCategorySchema.default("other"),
-    tags: z10.array(z10.string().max(100)).max(30).optional(),
-    notes: z10.string().max(5e3).optional(),
-    isClientVisible: z10.boolean().default(true),
-    purpose: z10.enum(["asset", "floor_plan"]).default("asset")
-  })).mutation(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    if (!isOwnedUploadKey(ctx.orgId, input.projectId, input.storageKey)) {
-      throw new TRPCError11({ code: "NOT_FOUND", message: "Upload not found" });
-    }
-    let media;
-    try {
-      media = await readValidatedProjectMedia({
-        storagePath: input.storageKey,
-        mimeType: input.mimeType
-      }, "design.asset.finalize");
-    } catch (error) {
-      try {
-        await cleanupRejectedUpload(input.storageKey);
-      } catch {
-      }
-      throw error;
-    }
-    const stored = await storageGet(input.storageKey);
-    const assetInput = {
-      projectId: input.projectId,
-      filename: input.filename.replace(/[\\/\u0000]/g, "_").slice(0, 512),
-      mimeType: media.mimeType,
-      sizeBytes: media.sizeBytes,
-      checksum: media.checksum,
-      storagePath: input.storageKey,
-      storageUrl: stored.url,
-      uploadedBy: ctx.user.id,
-      category: input.purpose === "floor_plan" ? "floor_plan" : input.category,
-      assetType: mediaTypeFromMime(media.mimeType),
-      tags: input.tags || [],
-      notes: input.notes,
-      isClientVisible: input.isClientVisible
-    };
-    const created = input.purpose === "floor_plan" ? await createFloorPlanAssetAndLinkForOrg(assetInput, ctx.orgId) : await createProjectAssetForOrg(assetInput, ctx.orgId);
-    if (!created) {
-      try {
-        await cleanupRejectedUpload(input.storageKey);
-      } catch {
-      }
-      throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
-    }
-    await bestEffortAudit({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: input.purpose === "floor_plan" ? "floor_plan.upload" : "asset.upload",
-      entityType: "project_asset",
-      entityId: created.id,
-      details: { projectId: input.projectId, mediaType: media.mimeType, sizeBytes: media.sizeBytes }
-    });
-    return { id: created.id, url: stored.url, mimeType: media.mimeType, sizeBytes: media.sizeBytes };
-  }),
-  uploadAsset: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    filename: z10.string(),
-    mimeType: z10.string(),
-    base64Data: z10.string().max(MAX_LEGACY_BASE64_CHARS),
-    category: z10.enum(["brief", "brand", "budget", "competitor", "inspiration", "material", "sales", "legal", "mood_image", "material_board", "marketing_hero", "generated", "other"]).default("other"),
-    tags: z10.array(z10.string()).optional(),
-    notes: z10.string().optional(),
-    isClientVisible: z10.boolean().default(true)
-  })).mutation(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    const buffer = Buffer.from(input.base64Data, "base64");
-    const media = await validateMediaBuffer(buffer, input.mimeType, "design.asset.legacy-upload");
-    const suffix = Math.random().toString(36).slice(2, 10);
-    const storagePath = `projects/${input.projectId}/assets/${suffix}-${input.filename}`;
-    const uploaded = await storagePut(storagePath, media.buffer, media.mimeType);
-    let created;
-    try {
-      created = await createProjectAssetForOrg({
-        projectId: input.projectId,
-        filename: input.filename,
-        mimeType: media.mimeType,
-        sizeBytes: media.sizeBytes,
-        checksum: media.checksum,
-        storagePath: uploaded.key,
-        storageUrl: uploaded.url,
-        uploadedBy: ctx.user.id,
-        category: input.category,
-        tags: input.tags || [],
-        notes: input.notes,
-        isClientVisible: input.isClientVisible
-      }, ctx.orgId);
-    } catch (error) {
-      reportIndeterminateUploadPersistence(uploaded.key, error);
-      throw new TRPCError11({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
-    }
-    if (!created) {
-      try {
-        await cleanupRejectedUpload(uploaded.key);
-      } catch {
-        throw new TRPCError11({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
-      }
-      throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
-    }
-    const result = requireScopedDesignInsert(created);
-    await bestEffortAudit({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "asset.upload",
-      entityType: "project_asset",
-      entityId: result.id,
-      details: { projectId: input.projectId, filename: input.filename, category: input.category }
-    });
-    return { id: result.id, url: uploaded.url };
-  }),
-  deleteAsset: designOrgMutationProcedure.input(z10.object({ assetId: z10.number() })).mutation(async ({ ctx, input }) => {
-    const { resource: asset } = await requireDesignAsset(input.assetId, ctx.orgId);
-    requireScopedDesignMutation(await deleteProjectAssetForOrg(input.assetId, ctx.orgId));
-    await createAuditLog({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "asset.delete",
-      entityType: "project_asset",
-      entityId: input.assetId,
-      details: { filename: asset.filename }
-    });
-    return { success: true };
-  }),
-  updateAsset: designOrgMutationProcedure.input(z10.object({
-    assetId: z10.number(),
-    category: z10.string().optional(),
-    tags: z10.array(z10.string()).optional(),
-    notes: z10.string().optional(),
-    isClientVisible: z10.boolean().optional()
-  })).mutation(async ({ ctx, input }) => {
-    await requireDesignAsset(input.assetId, ctx.orgId);
-    const { assetId, ...updates } = input;
-    requireScopedDesignMutation(await updateProjectAssetForOrg(assetId, ctx.orgId, updates));
-    return { success: true };
-  }),
-  linkAsset: designOrgMutationProcedure.input(z10.object({
-    assetId: z10.number(),
-    linkType: z10.enum(["evaluation", "report", "scenario", "material_board", "design_brief", "visual"]),
-    linkId: z10.number()
-  })).mutation(async ({ ctx, input }) => {
-    const asset = await requireDesignAsset(input.assetId, ctx.orgId);
-    const target = await requireDesignLinkTarget(input.linkType, input.linkId, ctx.orgId);
-    requireSameDesignProject(asset.project.id, target.value.project.id);
-    return requireScopedDesignInsert(await createAssetLinkForOrg(input, ctx.orgId));
-  }),
-  getAssetLinks: orgProcedure.input(z10.object({ assetId: z10.number() })).query(async ({ ctx, input }) => {
-    const asset = await requireDesignAsset(input.assetId, ctx.orgId);
-    const links = await getAssetLinksByAsset(input.assetId);
-    for (const link of links) {
-      const target = await requireDesignLinkTarget(link.linkType, link.linkId, ctx.orgId);
-      requireSameDesignProject(asset.project.id, target.value.project.id);
-    }
-    return links;
-  }),
-  // ─── Design Brief Generator ─────────────────────────────────────────────────
-  generateBrief: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    scenarioId: z10.number().optional(),
-    locale: z10.enum(["en", "ar"]).default("en")
-  })).mutation(async ({ ctx, input }) => {
+// server/routers/design-briefs.ts
+init_storage();
+var designBriefsRouter = router({
+  generateBrief: designOrgMutationProcedure.input(
+    z10.object({
+      projectId: z10.number(),
+      scenarioId: z10.number().optional(),
+      locale: z10.enum(["en", "ar"]).default("en")
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (input.scenarioId !== void 0) {
-      const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
+      const scenario = await requireDesignScenario(
+        input.scenarioId,
+        ctx.orgId
+      );
       requireSameDesignProject(project.id, scenario.project.id);
     }
     const scores = await getScoreMatricesByProject(input.projectId);
     const latest = scores[0];
-    if (!latest) throw new TRPCError11({ code: "PRECONDITION_FAILED", message: "Project must be evaluated first" });
+    if (!latest)
+      throw new TRPCError11({
+        code: "PRECONDITION_FAILED",
+        message: "Project must be evaluated first"
+      });
     const inputs = projectToInputs4(project);
     const scoreResult = {
       compositeScore: Number(latest.compositeScore),
@@ -24529,9 +24745,9 @@ var designRouter = router({
       }
     };
     const tierToFinish = {
-      "Mid": "standard",
+      Mid: "standard",
       "Upper-mid": "premium",
-      "Luxury": "luxury",
+      Luxury: "luxury",
       "Ultra-luxury": "ultra_luxury"
     };
     const targetFinish = tierToFinish[inputs.mkt01Tier] || "standard";
@@ -24549,18 +24765,32 @@ var designRouter = router({
             const areaName = dldBench.areaNameEn || "Dubai";
             const transCount = Number(dldBench.saleTransactionCount) || 100;
             const saleP50 = Number(dldBench.saleP50) || 25e3;
-            spaceBenchmarkResult = benchmarkSpaceRatios(floorPlanAnalysis, areaName, transCount, saleP50);
+            spaceBenchmarkResult = benchmarkSpaceRatios(
+              floorPlanAnalysis,
+              areaName,
+              transCount,
+              saleP50
+            );
           }
         }
       } catch (e) {
-        console.warn("[GenerateBrief] Floor plan analysis parsing failed:", e);
+        console.warn(
+          "[GenerateBrief] Floor plan analysis parsing failed:",
+          e
+        );
       }
     }
     let mqiCostResult;
     try {
-      const allocations = await getMaterialAllocations(input.projectId, ctx.orgId);
+      const allocations = await getMaterialAllocations(
+        input.projectId,
+        ctx.orgId
+      );
       if (allocations.length > 0) {
-        const storedRooms = await getSpaceProgramRooms(input.projectId, ctx.orgId);
+        const storedRooms = await getSpaceProgramRooms(
+          input.projectId,
+          ctx.orgId
+        );
         let rooms;
         if (storedRooms.length > 0) {
           rooms = storedRooms.filter((r) => r.isFitOut).map((r) => ({
@@ -24579,7 +24809,13 @@ var designRouter = router({
         const roomAllocMap = /* @__PURE__ */ new Map();
         for (const alloc of allocations) {
           if (!roomAllocMap.has(alloc.roomId)) {
-            roomAllocMap.set(alloc.roomId, { roomId: alloc.roomId, floor: [], walls: [], ceiling: [], joinery: [] });
+            roomAllocMap.set(alloc.roomId, {
+              roomId: alloc.roomId,
+              floor: [],
+              walls: [],
+              ceiling: [],
+              joinery: []
+            });
           }
           const room = roomAllocMap.get(alloc.roomId);
           const slice = {
@@ -24606,10 +24842,15 @@ var designRouter = router({
             ctx03Gfa: project.ctx03Gfa ? Number(project.ctx03Gfa) : null
           }
         );
-        console.log(`[GenerateBrief] MQI data enrichment: ${mqiCostResult.rooms.length} rooms, mid cost AED ${mqiCostResult.summary.totalFinishCostMid.toFixed(0)}`);
+        console.log(
+          `[GenerateBrief] MQI data enrichment: ${mqiCostResult.rooms.length} rooms, mid cost AED ${mqiCostResult.summary.totalFinishCostMid.toFixed(0)}`
+        );
       }
     } catch (e) {
-      console.warn("[GenerateBrief] MQI data fetch failed, continuing without:", e);
+      console.warn(
+        "[GenerateBrief] MQI data fetch failed, continuing without:",
+        e
+      );
     }
     const briefData = generateDesignBrief2(
       { name: project.name, description: project.description },
@@ -24630,18 +24871,30 @@ var designRouter = router({
     );
     const existing = await getDesignBriefsByProject(input.projectId);
     const nextVersion = existing.length > 0 ? existing[0].version + 1 : 1;
-    const result = requireScopedDesignInsert(await createDesignBriefForOrg({
-      projectId: input.projectId,
-      scenarioId: input.scenarioId,
-      version: nextVersion,
-      projectIdentity: briefData.projectIdentity,
-      designNarrative: briefData.designNarrative,
-      materialSpecifications: briefData.materialSpecifications,
-      boqFramework: { ...briefData.boqFramework, pricingAnalytics: briefData.pricingAnalytics },
-      detailedBudget: { ...briefData.detailedBudget, mqiSummary: briefData.mqiSummary, spaceAllocation: briefData.spaceAllocation },
-      designerInstructions: briefData.designerInstructions,
-      createdBy: ctx.user.id
-    }, ctx.orgId));
+    const result = requireScopedDesignInsert(
+      await createDesignBriefForOrg(
+        {
+          projectId: input.projectId,
+          scenarioId: input.scenarioId,
+          version: nextVersion,
+          projectIdentity: briefData.projectIdentity,
+          designNarrative: briefData.designNarrative,
+          materialSpecifications: briefData.materialSpecifications,
+          boqFramework: {
+            ...briefData.boqFramework,
+            pricingAnalytics: briefData.pricingAnalytics
+          },
+          detailedBudget: {
+            ...briefData.detailedBudget,
+            mqiSummary: briefData.mqiSummary,
+            spaceAllocation: briefData.spaceAllocation
+          },
+          designerInstructions: briefData.designerInstructions,
+          createdBy: ctx.user.id
+        },
+        ctx.orgId
+      )
+    );
     await createAuditLog({
       orgId: ctx.orgId,
       userId: ctx.user.id,
@@ -24656,26 +24909,40 @@ var designRouter = router({
     await requireDesignProject(input.projectId, ctx.orgId);
     const briefs = await getDesignBriefsByProject(input.projectId);
     for (const brief of briefs) {
-      await requireMatchingDesignScenario(brief.scenarioId, brief.projectId, ctx.orgId);
+      await requireMatchingDesignScenario(
+        brief.scenarioId,
+        brief.projectId,
+        ctx.orgId
+      );
     }
     return briefs;
   }),
   getBrief: orgProcedure.input(z10.object({ briefId: z10.number() })).query(async ({ ctx, input }) => {
     const { resource } = await requireDesignBrief(input.briefId, ctx.orgId);
-    await requireMatchingDesignScenario(resource.scenarioId, resource.projectId, ctx.orgId);
+    await requireMatchingDesignScenario(
+      resource.scenarioId,
+      resource.projectId,
+      ctx.orgId
+    );
     return resource;
   }),
   getLatestBrief: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const brief = await getLatestDesignBrief(input.projectId);
-    if (brief) await requireMatchingDesignScenario(brief.scenarioId, brief.projectId, ctx.orgId);
+    if (brief)
+      await requireMatchingDesignScenario(
+        brief.scenarioId,
+        brief.projectId,
+        ctx.orgId
+      );
     return brief;
   }),
-  // ─── RFQ from Brief (V4 Pipeline) ─────────────────────────────────────────
-  generateRfqFromBrief: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    briefId: z10.number()
-  })).mutation(async ({ ctx, input }) => {
+  generateRfqFromBrief: designOrgMutationProcedure.input(
+    z10.object({
+      projectId: z10.number(),
+      briefId: z10.number()
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     const { resource: brief, project: briefProject } = await requireDesignBrief(input.briefId, ctx.orgId);
     requireSameDesignProject(project.id, briefProject.id);
@@ -24705,12 +24972,18 @@ var designRouter = router({
       materialList
     );
     if (result.items.length > 1e3) {
-      throw new TRPCError11({ code: "PRECONDITION_FAILED", message: "RFQ exceeds the 1,000 line limit" });
+      throw new TRPCError11({
+        code: "PRECONDITION_FAILED",
+        message: "RFQ exceeds the 1,000 line limit"
+      });
     }
-    requireScopedDesignMutation(await insertRfqLineItemsForOrg(
-      result.items,
-      { projectId: input.projectId, briefId: input.briefId, orgId: ctx.orgId }
-    ));
+    requireScopedDesignMutation(
+      await insertRfqLineItemsForOrg(result.items, {
+        projectId: input.projectId,
+        briefId: input.briefId,
+        orgId: ctx.orgId
+      })
+    );
     await bestEffortAudit({
       orgId: ctx.orgId,
       userId: ctx.user.id,
@@ -24727,8 +25000,16 @@ var designRouter = router({
     });
     return result;
   }),
-  exportBriefDocx: designOrgMutationProcedure.input(z10.object({ briefId: z10.number(), locale: z10.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
-    const { resource: brief, project } = await requireDesignBrief(input.briefId, ctx.orgId);
+  exportBriefDocx: designOrgMutationProcedure.input(
+    z10.object({
+      briefId: z10.number(),
+      locale: z10.enum(["en", "ar"]).default("en")
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const { resource: brief, project } = await requireDesignBrief(
+      input.briefId,
+      ctx.orgId
+    );
     const [modelVersion, benchmarkVersion, logicVersion] = await Promise.all([
       getActiveModelVersion(),
       getActiveBenchmarkVersion(),
@@ -24750,183 +25031,170 @@ var designRouter = router({
       logicVersion: logicVersion?.name
     });
     const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid4(8)}.docx`;
-    const { url } = await storagePut(fileKey, docxBuffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    const { url } = await storagePut(
+      fileKey,
+      docxBuffer,
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
     return { url };
   }),
-  // ─── Visual Generation (nano banana) ────────────────────────────────────────
-  generateVisual: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    type: z10.enum(["mood", "material_board", "hero"]),
-    scenarioId: z10.number().optional(),
-    customPrompt: z10.string().optional(),
-    templateId: z10.number().optional()
-  })).mutation(async ({ ctx, input }) => {
+  exportInvestorPdf: designOrgMutationProcedure.input(
+    z10.object({
+      projectId: z10.number(),
+      locale: z10.enum(["en", "ar"]).default("en")
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const { generateInvestorPdfHtml: generateInvestorPdfHtml2 } = await Promise.resolve().then(() => (init_investor_pdf(), investor_pdf_exports));
     const project = await requireDesignProject(input.projectId, ctx.orgId);
-    let selectedTemplate;
-    if (input.scenarioId !== void 0) {
-      const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
-      requireSameDesignProject(project.id, scenario.project.id);
-    }
-    if (input.templateId !== void 0) {
-      selectedTemplate = await requireDesignPromptTemplate(input.templateId, ctx.orgId);
-    }
-    let inputs = projectToInputs4(project);
-    if (input.scenarioId) {
-      const scenarioInput = await getScenarioInput(input.scenarioId);
-      if (scenarioInput?.jsonInput) {
-        const overrides = typeof scenarioInput.jsonInput === "string" ? JSON.parse(scenarioInput.jsonInput) : scenarioInput.jsonInput;
-        inputs = { ...inputs, ...overrides };
-      }
-    }
-    let context;
-    const boards = await getMaterialBoardsByProject(input.projectId);
-    if (boards && boards.length > 0) {
-      const activeBoard = boards[0];
-      const boardMaterials = await getMaterialsByBoard(activeBoard.id);
-      const enrichedMaterials = [];
-      for (const bm of boardMaterials) {
-        const mat = await getMaterialById(bm.materialId);
-        if (mat) {
-          enrichedMaterials.push({
-            name: mat.name,
-            category: mat.category,
-            tier: mat.tier,
-            supplierName: mat.supplierName,
-            costUnit: mat.costUnit,
-            costLow: Number(mat.typicalCostLow) || 0,
-            costHigh: Number(mat.typicalCostHigh) || 0,
-            embodiedCarbon: mat.embodiedCarbon ? parseFloat(String(mat.embodiedCarbon)) : null,
-            maintenanceFactor: mat.maintenanceFactor ? parseFloat(String(mat.maintenanceFactor)) : null,
-            brandStandardApproval: mat.brandStandardApproval || null
-          });
-        }
-      }
-      context = buildBoardAwarePromptContext(inputs, enrichedMaterials, project.brandStandardConstraints);
-      console.log(`[Visual] Using board-aware context with ${enrichedMaterials.length} materials for project ${input.projectId}`);
-    } else {
-      context = buildPromptContext(inputs);
-    }
-    try {
-      const allocations = await getMaterialAllocations(input.projectId, ctx.orgId);
-      if (allocations && allocations.length > 0) {
-        const mqiAllocs = allocations.map((a) => ({
-          roomId: a.roomId,
-          roomName: a.roomName,
-          element: a.element,
-          materialName: a.materialName,
-          percentage: Number(a.percentage) || 100
-        }));
-        const clause = buildMaterialAllocationPromptClause(mqiAllocs);
-        if (clause) {
-          context.materialSpec = (context.materialSpec || "") + clause;
-          console.log(`[Visual] Injected MQI allocation clause with ${mqiAllocs.length} allocations`);
-        }
-      }
-    } catch (e) {
-      console.warn("[Visual] MQI allocation fetch failed, continuing without:", e);
-    }
-    let prompt;
-    if (input.customPrompt) {
-      prompt = input.customPrompt;
-    } else if (selectedTemplate) {
-      prompt = interpolateTemplate(selectedTemplate.templateText, context);
-    } else {
-      const tmpl = await getActivePromptTemplate(input.type, ctx.orgId);
-      prompt = tmpl ? interpolateTemplate(tmpl.templateText, context) : generateDefaultPrompt(input.type, context);
-    }
-    const validation = validatePrompt(prompt);
-    if (!validation.valid) {
-      throw new TRPCError11({ code: "BAD_REQUEST", message: validation.reason });
-    }
-    const visualResult = requireScopedDesignInsert(await createGeneratedVisualForOrg({
-      projectId: input.projectId,
-      scenarioId: input.scenarioId,
-      type: input.type,
-      promptJson: { prompt, context, templateId: input.templateId },
-      status: "generating",
-      createdBy: ctx.user.id
-    }, ctx.orgId));
-    try {
-      const generated = await generateImage({ prompt });
-      const url = generated.url;
-      const assetResult = requireScopedDesignInsert(await createProjectAssetForOrg({
-        projectId: input.projectId,
-        filename: `${input.type}-${Date.now()}.png`,
-        mimeType: generated.mimeType,
-        sizeBytes: generated.sizeBytes,
-        checksum: generated.checksum,
-        storagePath: generated.storageKey,
-        storageUrl: url,
-        uploadedBy: ctx.user.id,
-        category: input.type === "mood" ? "mood_image" : input.type === "material_board" ? "material_board" : "marketing_hero"
-      }, ctx.orgId));
-      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
-        status: "completed",
-        imageAssetId: assetResult.id
-      }));
-      await createAuditLog({
-        orgId: ctx.orgId,
-        userId: ctx.user.id,
-        action: "visual.generate",
-        entityType: "generated_visual",
-        entityId: visualResult.id,
-        details: { type: input.type, projectId: input.projectId }
-      });
-      return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" };
-    } catch (error) {
-      const failure = toAiOperationFailure(error, "design.visual-generation");
-      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
-        status: "failed",
-        errorMessage: failure.message
-      }));
-      return { id: visualResult.id, assetId: null, url: null, status: "failed", error: failure.message, referenceId: failure.referenceId };
-    }
-  }),
-  listVisuals: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    const visuals = await getGeneratedVisualsByProject(input.projectId);
-    const enriched = await Promise.all(visuals.map(async (v) => {
-      await requireMatchingDesignScenario(v.scenarioId, v.projectId, ctx.orgId);
-      let imageUrl = null;
-      if (v.imageAssetId) {
-        const { resource: asset, project: assetProject } = await requireDesignAsset(v.imageAssetId, ctx.orgId);
-        requireSameDesignProject(input.projectId, assetProject.id);
-        imageUrl = asset?.storageUrl ?? null;
-      }
-      return { ...v, imageUrl };
+    const [
+      brief,
+      recs,
+      materialConsts,
+      benchmark,
+      trends,
+      modelVersion,
+      activeBenchmarkVersion,
+      logicVersion
+    ] = await Promise.all([
+      getLatestAiDesignBrief(input.projectId, ctx.orgId),
+      getSpaceRecommendations(input.projectId, ctx.orgId),
+      getMaterialConstants(),
+      getBenchmarkForProject(
+        project.ctx01Typology ?? "Residential",
+        project.ctx04Location ?? "Secondary",
+        project.mkt01Tier ?? "Upper-mid"
+      ),
+      getPublicDesignTrends({
+        styleClassification: project.des01Style ?? void 0,
+        region: "UAE",
+        limit: 8
+      }),
+      getActiveModelVersion(),
+      getActiveBenchmarkVersion(),
+      getPublishedLogicVersion()
+    ]);
+    const totalFitoutBudget = (recs ?? []).reduce(
+      (s, r) => s + Number(r.budgetAllocation || 0),
+      0
+    );
+    const gfa = getPricingArea(project);
+    const costPerSqm = gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0;
+    const TIER_PREMIUM_PCT2 = {
+      Entry: 0,
+      Mid: 3,
+      "Upper-mid": 8,
+      Luxury: 18,
+      "Ultra-luxury": 30
+    };
+    const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
+    const estimatedSalesPremiumAed = gfa > 0 ? Math.round(gfa * 25e3 * salePremiumPct / 100) : 0;
+    const TIER_GRADE = {
+      Entry: "B",
+      Mid: "B",
+      "Upper-mid": "C",
+      Luxury: "D",
+      "Ultra-luxury": "D"
+    };
+    const sustainabilityGrade = TIER_GRADE[project.mkt01Tier ?? "Upper-mid"] ?? "C";
+    const briefData = brief?.briefData ?? {};
+    const allMaterials = (recs ?? []).flatMap(
+      (r) => (r.materialPackage || []).map((m) => ({
+        name: m.productName,
+        brand: m.brand,
+        price: m.priceRangeAed,
+        room: r.roomName
+      }))
+    );
+    const spaces = (recs ?? []).map((r) => ({
+      name: r.roomName,
+      budgetAed: Number(r.budgetAllocation || 0),
+      sqm: Number(r.sqm || 0),
+      pct: totalFitoutBudget > 0 ? Number(r.budgetAllocation || 0) / totalFitoutBudget * 100 : 0,
+      styleDirection: r.styleDirection
     }));
-    return enriched;
-  }),
-  // V4-05: Attach a completed visual's asset to a report/pack as an evidence reference
-  attachVisualToPack: designOrgMutationProcedure.input(z10.object({
-    visualId: z10.number(),
-    targetType: z10.enum(["report", "design_brief", "material_board", "pack_section"]),
-    targetId: z10.number(),
-    sectionLabel: z10.string().optional()
-  })).mutation(async () => {
-    throw new TRPCError11({
-      code: "PRECONDITION_FAILED",
-      message: "Visual attachments are unavailable until a typed attachment model is configured"
+    const SQF = 10.7639;
+    const bmFmt = benchmark ? {
+      costPerSqmLow: benchmark.costPerSqftLow != null ? Math.round(Number(benchmark.costPerSqftLow) * SQF) : null,
+      costPerSqmMid: benchmark.costPerSqftMid != null ? Math.round(Number(benchmark.costPerSqftMid) * SQF) : null,
+      costPerSqmHigh: benchmark.costPerSqftHigh != null ? Math.round(Number(benchmark.costPerSqftHigh) * SQF) : null,
+      typology: benchmark.typology,
+      location: benchmark.location,
+      marketTier: benchmark.marketTier,
+      dataYear: benchmark.dataYear
+    } : null;
+    const html = generateInvestorPdfHtml2({
+      projectName: project.name ?? "Untitled Project",
+      typology: project.ctx01Typology ?? "Residential",
+      location: project.ctx04Location ?? "UAE",
+      tier: project.mkt01Tier ?? "Upper-mid",
+      style: project.des01Style ?? "Modern",
+      gfaSqm: gfa,
+      execSummary: briefData.executiveSummary ?? "",
+      designDirection: briefData.designDirection ?? {},
+      spaces,
+      materials: allMaterials,
+      materialConstants: (materialConsts ?? []).map((c) => ({
+        materialType: c.materialType,
+        costPerM2: Number(c.costPerM2),
+        carbonIntensity: Number(c.carbonIntensity),
+        sustainabilityGrade
+      })),
+      totalFitoutBudget,
+      costPerSqm,
+      sustainabilityGrade,
+      salePremiumPct,
+      estimatedSalesPremiumAed,
+      benchmark: bmFmt,
+      designTrends: trends,
+      locale: input.locale,
+      modelVersion: modelVersion?.versionTag,
+      benchmarkVersion: activeBenchmarkVersion?.versionTag,
+      logicVersion: logicVersion?.name
     });
-  }),
-  // ─── Pin Visuals to Material Boards (V4) ────────────────────────────────────
-  pinVisualToBoard: designOrgMutationProcedure.input(z10.object({
-    visualId: z10.number(),
-    boardId: z10.number()
-  })).mutation(async ({ ctx, input }) => {
+    return { html, projectName: project.name ?? "Project" };
+  })
+});
+
+// server/routers/design-boards.ts
+import { TRPCError as TRPCError12 } from "@trpc/server";
+import { nanoid as nanoid5 } from "nanoid";
+import { z as z11 } from "zod";
+init_db();
+init_storage();
+var designBoardsRouter = router({
+  pinVisualToBoard: designOrgMutationProcedure.input(
+    z11.object({
+      visualId: z11.number(),
+      boardId: z11.number()
+    })
+  ).mutation(async ({ ctx, input }) => {
     const { resource: visual, project: visualProject } = await requireDesignVisual(input.visualId, ctx.orgId);
     if (!visual || !visual.imageAssetId) {
-      throw new TRPCError11({ code: "NOT_FOUND", message: "Visual not found or has no image" });
+      throw new TRPCError12({
+        code: "NOT_FOUND",
+        message: "Visual not found or has no image"
+      });
     }
-    const { project: boardProject } = await requireDesignBoard(input.boardId, ctx.orgId);
-    const { project: assetProject } = await requireDesignAsset(visual.imageAssetId, ctx.orgId);
+    const { project: boardProject } = await requireDesignBoard(
+      input.boardId,
+      ctx.orgId
+    );
+    const { project: assetProject } = await requireDesignAsset(
+      visual.imageAssetId,
+      ctx.orgId
+    );
     requireSameDesignProject(visualProject.id, boardProject.id);
     requireSameDesignProject(visualProject.id, assetProject.id);
-    const link = requireScopedDesignInsert(await createAssetLinkForOrg({
-      assetId: visual.imageAssetId,
-      linkType: "material_board",
-      linkId: input.boardId
-    }, ctx.orgId));
+    const link = requireScopedDesignInsert(
+      await createAssetLinkForOrg(
+        {
+          assetId: visual.imageAssetId,
+          linkType: "material_board",
+          linkId: input.boardId
+        },
+        ctx.orgId
+      )
+    );
     await createAuditLog({
       orgId: ctx.orgId,
       userId: ctx.user.id,
@@ -24937,30 +25205,55 @@ var designRouter = router({
     });
     return { success: true, linkId: link.id };
   }),
-  listPinnedVisuals: orgProcedure.input(z10.object({ boardId: z10.number() })).query(async ({ ctx, input }) => {
-    const { project: boardProject } = await requireDesignBoard(input.boardId, ctx.orgId);
-    const links = await getAssetLinksByEntity("material_board", input.boardId);
-    const pinned = await Promise.all(links.map(async (link) => {
-      const { resource: asset, project: assetProject } = await requireDesignAsset(link.assetId, ctx.orgId);
-      requireSameDesignProject(boardProject.id, assetProject.id);
-      return {
-        linkId: link.id,
-        assetId: link.assetId,
-        imageUrl: asset?.storageUrl ?? null,
-        fileName: asset?.filename ?? null,
-        pinnedAt: link.createdAt
-      };
-    }));
+  listPinnedVisuals: orgProcedure.input(z11.object({ boardId: z11.number() })).query(async ({ ctx, input }) => {
+    const { project: boardProject } = await requireDesignBoard(
+      input.boardId,
+      ctx.orgId
+    );
+    const links = await getAssetLinksByEntity(
+      "material_board",
+      input.boardId
+    );
+    const pinned = await Promise.all(
+      links.map(
+        async (link) => {
+          const { resource: asset, project: assetProject } = await requireDesignAsset(link.assetId, ctx.orgId);
+          requireSameDesignProject(boardProject.id, assetProject.id);
+          return {
+            linkId: link.id,
+            assetId: link.assetId,
+            imageUrl: asset?.storageUrl ?? null,
+            fileName: asset?.filename ?? null,
+            pinnedAt: link.createdAt
+          };
+        }
+      )
+    );
     return pinned;
   }),
-  unpinVisual: designOrgMutationProcedure.input(z10.object({ linkId: z10.number() })).mutation(async ({ ctx, input }) => {
-    const authorizedLink = await requireDesignAssetLink(input.linkId, ctx.orgId);
+  unpinVisual: designOrgMutationProcedure.input(z11.object({ linkId: z11.number() })).mutation(async ({ ctx, input }) => {
+    const authorizedLink = await requireDesignAssetLink(
+      input.linkId,
+      ctx.orgId
+    );
     if (authorizedLink.resource.linkType !== "material_board") {
-      throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError12({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
     }
-    const target = await requireDesignLinkTarget(authorizedLink.resource.linkType, authorizedLink.resource.linkId, ctx.orgId);
-    requireSameDesignProject(authorizedLink.project.id, target.value.project.id);
-    requireScopedDesignMutation(await deleteAssetLinkForOrg(input.linkId, ctx.orgId));
+    const target = await requireDesignLinkTarget(
+      authorizedLink.resource.linkType,
+      authorizedLink.resource.linkId,
+      ctx.orgId
+    );
+    requireSameDesignProject(
+      authorizedLink.project.id,
+      target.value.project.id
+    );
+    requireScopedDesignMutation(
+      await deleteAssetLinkForOrg(input.linkId, ctx.orgId)
+    );
     await createAuditLog({
       orgId: ctx.orgId,
       userId: ctx.user.id,
@@ -24970,81 +25263,129 @@ var designRouter = router({
     });
     return { success: true };
   }),
-  // ─── Material Board Composer ────────────────────────────────────────────────
-  createBoard: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    boardName: z10.string(),
-    scenarioId: z10.number().optional(),
-    materialIds: z10.array(z10.number()).optional()
-  })).mutation(async ({ ctx, input }) => {
+  createBoard: designOrgMutationProcedure.input(
+    z11.object({
+      projectId: z11.number(),
+      boardName: z11.string(),
+      scenarioId: z11.number().optional(),
+      materialIds: z11.array(z11.number()).optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (input.scenarioId !== void 0) {
-      const scenario = await requireDesignScenario(input.scenarioId, ctx.orgId);
+      const scenario = await requireDesignScenario(
+        input.scenarioId,
+        ctx.orgId
+      );
       requireSameDesignProject(project.id, scenario.project.id);
     }
     const materialIds = input.materialIds ?? [];
     if (new Set(materialIds).size !== materialIds.length) {
-      throw new TRPCError11({ code: "BAD_REQUEST", message: "Duplicate material IDs are not allowed" });
+      throw new TRPCError12({
+        code: "BAD_REQUEST",
+        message: "Duplicate material IDs are not allowed"
+      });
     }
-    const boardResult = requireScopedDesignInsert(await createMaterialBoardWithMaterialsForOrg({
-      projectId: input.projectId,
-      scenarioId: input.scenarioId,
-      boardName: input.boardName,
-      createdBy: ctx.user.id
-    }, materialIds, ctx.orgId));
+    const boardResult = requireScopedDesignInsert(
+      await createMaterialBoardWithMaterialsForOrg(
+        {
+          projectId: input.projectId,
+          scenarioId: input.scenarioId,
+          boardName: input.boardName,
+          createdBy: ctx.user.id
+        },
+        materialIds,
+        ctx.orgId
+      )
+    );
     await bestEffortAudit({
       orgId: ctx.orgId,
       userId: ctx.user.id,
       action: "board.create",
       entityType: "material_board",
       entityId: boardResult.id,
-      details: { projectId: input.projectId, materialCount: materialIds.length }
+      details: {
+        projectId: input.projectId,
+        materialCount: materialIds.length
+      }
     });
     return { id: boardResult.id };
   }),
-  listBoards: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
+  listBoards: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const boards = await getMaterialBoardsByProject(input.projectId);
     for (const board of boards) {
-      await requireMatchingDesignScenario(board.scenarioId, board.projectId, ctx.orgId);
+      await requireMatchingDesignScenario(
+        board.scenarioId,
+        board.projectId,
+        ctx.orgId
+      );
     }
     return boards;
   }),
-  getBoard: orgProcedure.input(z10.object({ boardId: z10.number() })).query(async ({ ctx, input }) => {
-    const { resource: board } = await requireDesignBoard(input.boardId, ctx.orgId);
-    await requireMatchingDesignScenario(board.scenarioId, board.projectId, ctx.orgId);
+  getBoard: orgProcedure.input(z11.object({ boardId: z11.number() })).query(async ({ ctx, input }) => {
+    const { resource: board } = await requireDesignBoard(
+      input.boardId,
+      ctx.orgId
+    );
+    await requireMatchingDesignScenario(
+      board.scenarioId,
+      board.projectId,
+      ctx.orgId
+    );
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const materialDetails = [];
     for (const bm of boardMaterials) {
       const mat = await getMaterialById(bm.materialId);
-      if (mat) materialDetails.push({ ...mat, boardJoinId: bm.id, quantity: bm.quantity, unitOfMeasure: bm.unitOfMeasure, boardNotes: bm.notes, sortOrder: bm.sortOrder, specNotes: bm.specNotes, costBandOverride: bm.costBandOverride });
+      if (mat)
+        materialDetails.push({
+          ...mat,
+          boardJoinId: bm.id,
+          quantity: bm.quantity,
+          unitOfMeasure: bm.unitOfMeasure,
+          boardNotes: bm.notes,
+          sortOrder: bm.sortOrder,
+          specNotes: bm.specNotes,
+          costBandOverride: bm.costBandOverride
+        });
     }
     return { board, materials: materialDetails };
   }),
-  addMaterialToBoard: designOrgMutationProcedure.input(z10.object({
-    boardId: z10.number(),
-    materialId: z10.number(),
-    quantity: z10.number().optional(),
-    unitOfMeasure: z10.string().optional(),
-    notes: z10.string().optional()
-  })).mutation(async ({ ctx, input }) => {
+  addMaterialToBoard: designOrgMutationProcedure.input(
+    z11.object({
+      boardId: z11.number(),
+      materialId: z11.number(),
+      quantity: z11.number().optional(),
+      unitOfMeasure: z11.string().optional(),
+      notes: z11.string().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
     await requireDesignBoard(input.boardId, ctx.orgId);
-    return requireScopedDesignInsert(await addMaterialToBoardForOrg({
-      boardId: input.boardId,
-      materialId: input.materialId,
-      quantity: input.quantity ? String(input.quantity) : void 0,
-      unitOfMeasure: input.unitOfMeasure,
-      notes: input.notes
-    }, ctx.orgId));
+    return requireScopedDesignInsert(
+      await addMaterialToBoardForOrg(
+        {
+          boardId: input.boardId,
+          materialId: input.materialId,
+          quantity: input.quantity ? String(input.quantity) : void 0,
+          unitOfMeasure: input.unitOfMeasure,
+          notes: input.notes
+        },
+        ctx.orgId
+      )
+    );
   }),
-  removeMaterialFromBoard: designOrgMutationProcedure.input(z10.object({ joinId: z10.number() })).mutation(async ({ ctx, input }) => {
+  removeMaterialFromBoard: designOrgMutationProcedure.input(z11.object({ joinId: z11.number() })).mutation(async ({ ctx, input }) => {
     await requireDesignBoardJoin(input.joinId, ctx.orgId);
-    requireScopedDesignMutation(await removeMaterialFromBoardForOrg(input.joinId, ctx.orgId));
+    requireScopedDesignMutation(
+      await removeMaterialFromBoardForOrg(input.joinId, ctx.orgId)
+    );
     return { success: true };
   }),
-  deleteBoard: designOrgMutationProcedure.input(z10.object({ boardId: z10.number() })).mutation(async ({ ctx, input }) => {
+  deleteBoard: designOrgMutationProcedure.input(z11.object({ boardId: z11.number() })).mutation(async ({ ctx, input }) => {
     await requireDesignBoard(input.boardId, ctx.orgId);
-    requireScopedDesignMutation(await deleteMaterialBoardForOrg(input.boardId, ctx.orgId));
+    requireScopedDesignMutation(
+      await deleteMaterialBoardForOrg(input.boardId, ctx.orgId)
+    );
     await createAuditLog({
       orgId: ctx.orgId,
       userId: ctx.user.id,
@@ -25054,43 +25395,70 @@ var designRouter = router({
     });
     return { success: true };
   }),
-  updateBoardTile: designOrgMutationProcedure.input(z10.object({
-    joinId: z10.number(),
-    specNotes: z10.string().nullish(),
-    costBandOverride: z10.string().nullish(),
-    quantity: z10.number().nullish(),
-    unitOfMeasure: z10.string().nullish(),
-    notes: z10.string().nullish()
-  })).mutation(async ({ ctx, input }) => {
+  updateBoardTile: designOrgMutationProcedure.input(
+    z11.object({
+      joinId: z11.number(),
+      specNotes: z11.string().nullish(),
+      costBandOverride: z11.string().nullish(),
+      quantity: z11.number().nullish(),
+      unitOfMeasure: z11.string().nullish(),
+      notes: z11.string().nullish()
+    })
+  ).mutation(async ({ ctx, input }) => {
     await requireDesignBoardJoin(input.joinId, ctx.orgId);
     const { joinId, ...rest } = input;
-    requireScopedDesignMutation(await updateBoardTileForOrg(joinId, ctx.orgId, {
-      specNotes: rest.specNotes ?? void 0,
-      costBandOverride: rest.costBandOverride ?? void 0,
-      quantity: rest.quantity !== void 0 && rest.quantity !== null ? String(rest.quantity) : void 0,
-      unitOfMeasure: rest.unitOfMeasure ?? void 0,
-      notes: rest.notes ?? void 0
-    }));
+    requireScopedDesignMutation(
+      await updateBoardTileForOrg(joinId, ctx.orgId, {
+        specNotes: rest.specNotes ?? void 0,
+        costBandOverride: rest.costBandOverride ?? void 0,
+        quantity: rest.quantity !== void 0 && rest.quantity !== null ? String(rest.quantity) : void 0,
+        unitOfMeasure: rest.unitOfMeasure ?? void 0,
+        notes: rest.notes ?? void 0
+      })
+    );
     return { success: true };
   }),
-  reorderBoardTiles: designOrgMutationProcedure.input(z10.object({
-    boardId: z10.number(),
-    orderedJoinIds: z10.array(z10.number())
-  })).mutation(async ({ ctx, input }) => {
+  reorderBoardTiles: designOrgMutationProcedure.input(
+    z11.object({
+      boardId: z11.number(),
+      orderedJoinIds: z11.array(z11.number())
+    })
+  ).mutation(async ({ ctx, input }) => {
     const board = await requireDesignBoard(input.boardId, ctx.orgId);
     if (new Set(input.orderedJoinIds).size !== input.orderedJoinIds.length) {
-      throw new TRPCError11({ code: "BAD_REQUEST", message: "Board tile identifiers must be unique" });
+      throw new TRPCError12({
+        code: "BAD_REQUEST",
+        message: "Board tile identifiers must be unique"
+      });
     }
     for (const joinId of input.orderedJoinIds) {
       const join = await requireDesignBoardJoin(joinId, ctx.orgId);
       requireSameDesignProject(board.project.id, join.project.id);
-      if (join.parent.id !== input.boardId) throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
+      if (join.parent.id !== input.boardId)
+        throw new TRPCError12({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
     }
-    requireScopedDesignMutation(await reorderBoardTilesForOrg(input.boardId, input.orderedJoinIds, ctx.orgId));
+    requireScopedDesignMutation(
+      await reorderBoardTilesForOrg(
+        input.boardId,
+        input.orderedJoinIds,
+        ctx.orgId
+      )
+    );
     return { success: true };
   }),
-  exportBoardPdf: designOrgMutationProcedure.input(z10.object({ boardId: z10.number(), locale: z10.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
-    const { resource: board, project } = await requireDesignBoard(input.boardId, ctx.orgId);
+  exportBoardPdf: designOrgMutationProcedure.input(
+    z11.object({
+      boardId: z11.number(),
+      locale: z11.enum(["en", "ar"]).default("en")
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const { resource: board, project } = await requireDesignBoard(
+      input.boardId,
+      ctx.orgId
+    );
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const items = [];
     for (const bm of boardMaterials) {
@@ -25136,7 +25504,7 @@ var designRouter = router({
     });
     let fileUrl = null;
     try {
-      const fileKey = `boards/${board.projectId}/${board.id}-${nanoid4(8)}.html`;
+      const fileKey = `boards/${board.projectId}/${board.id}-${nanoid5(8)}.html`;
       const result = await storagePut(fileKey, html, "text/html");
       fileUrl = result.url;
     } catch (e) {
@@ -25152,7 +25520,7 @@ var designRouter = router({
     });
     return { fileUrl, html };
   }),
-  boardSummary: orgProcedure.input(z10.object({ boardId: z10.number() })).query(async ({ ctx, input }) => {
+  boardSummary: orgProcedure.input(z11.object({ boardId: z11.number() })).query(async ({ ctx, input }) => {
     await requireDesignBoard(input.boardId, ctx.orgId);
     const boardMaterials = await getMaterialsByBoard(input.boardId);
     const items = [];
@@ -25177,8 +25545,425 @@ var designRouter = router({
       summary: computeBoardSummary(items),
       rfqLines: generateRfqLines(items)
     };
+  })
+});
+
+// server/routers/design-collaboration.ts
+import { TRPCError as TRPCError13 } from "@trpc/server";
+import { z as z12 } from "zod";
+init_db();
+var designCollaborationRouter = router({
+  addComment: designOrgMutationProcedure.input(
+    z12.object({
+      projectId: z12.number(),
+      entityType: z12.enum([
+        "design_brief",
+        "material_board",
+        "visual",
+        "general"
+      ]),
+      entityId: z12.number().optional(),
+      content: z12.string().min(1)
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    if (input.entityType === "general") {
+      if (input.entityId !== void 0)
+        throw new TRPCError13({
+          code: "BAD_REQUEST",
+          message: "General comments cannot have an entity target"
+        });
+    } else {
+      if (input.entityId === void 0)
+        throw new TRPCError13({
+          code: "BAD_REQUEST",
+          message: "Entity comments require a target"
+        });
+      const target = await requireDesignCommentTarget(
+        input.entityType,
+        input.entityId,
+        ctx.orgId
+      );
+      requireSameDesignProject(input.projectId, target.value.project.id);
+    }
+    return requireScopedDesignInsert(
+      await createCommentForOrg(
+        {
+          projectId: input.projectId,
+          entityType: input.entityType,
+          entityId: input.entityId,
+          userId: ctx.user.id,
+          content: input.content
+        },
+        ctx.orgId
+      )
+    );
   }),
-  recommendMaterials: orgProcedure.input(z10.object({ projectId: z10.number(), maxItems: z10.number().default(10) })).query(async ({ ctx, input }) => {
+  listComments: orgProcedure.input(
+    z12.object({
+      projectId: z12.number(),
+      entityType: z12.string().optional(),
+      entityId: z12.number().optional()
+    })
+  ).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    if (input.entityType === "general" && input.entityId !== void 0) {
+      throw new TRPCError13({
+        code: "BAD_REQUEST",
+        message: "General comments cannot have an entity target"
+      });
+    }
+    if (input.entityType && input.entityType !== "general" && input.entityId !== void 0) {
+      const target = await requireDesignCommentTarget(
+        input.entityType,
+        input.entityId,
+        ctx.orgId
+      );
+      requireSameDesignProject(input.projectId, target.value.project.id);
+    }
+    if (input.entityType) {
+      return getCommentsByEntity(
+        input.projectId,
+        input.entityType,
+        input.entityId
+      );
+    }
+    return getCommentsByProject(input.projectId);
+  }),
+  updateApprovalState: designOrgAdminProcedure.input(
+    z12.object({
+      projectId: z12.number(),
+      approvalState: z12.enum([
+        "draft",
+        "review",
+        "approved_rfq",
+        "approved_marketing"
+      ]),
+      rationale: z12.string().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    requireScopedDesignMutation(
+      await updateProjectApprovalStateForOrg(
+        input.projectId,
+        ctx.orgId,
+        input.approvalState
+      )
+    );
+    await createAuditLog({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "approval.update",
+      entityType: "project",
+      entityId: input.projectId,
+      details: {
+        approvalState: input.approvalState,
+        rationale: input.rationale
+      }
+    });
+    return { success: true };
+  })
+});
+
+// server/routers/design-market-context.ts
+import { TRPCError as TRPCError14 } from "@trpc/server";
+import { z as z13 } from "zod";
+init_db();
+init_space_benchmarking();
+
+// server/engines/ingestion/freshness-health.ts
+function deriveOverallFreshnessHealth(counts) {
+  if (counts.totalSources === 0 || counts.unknownCount === counts.totalSources) return "unknown";
+  if (counts.staleCount > counts.totalSources * 0.3) return "degraded";
+  if (counts.agingCount > counts.totalSources * 0.5) return "aging";
+  return "healthy";
+}
+
+// server/routers/design-market-context.ts
+var designMarketContextRouter = router({
+  getDesignTrends: orgProcedure.input(
+    z13.object({
+      projectId: z13.number(),
+      limit: z13.number().min(1).max(50).default(20)
+    })
+  ).query(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    const style = project.des01Style ?? void 0;
+    const trends = await getPublicDesignTrends({
+      styleClassification: style,
+      region: "UAE",
+      limit: input.limit
+    });
+    if (trends.length === 0) {
+      return getPublicDesignTrends({ region: "UAE", limit: input.limit });
+    }
+    return trends;
+  }),
+  getBenchmarkForProject: orgProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    const typology = project.ctx01Typology ?? "Residential";
+    const location = project.ctx04Location ?? "Secondary";
+    const tier = project.mkt01Tier ?? "Upper-mid";
+    const bm = await getBenchmarkForProject(typology, location, tier);
+    if (!bm) return null;
+    const SQM_PER_SQFT = 10.7639;
+    return {
+      id: bm.id,
+      typology: bm.typology,
+      location: bm.location,
+      marketTier: bm.marketTier,
+      // Costs in AED/sqm (benchmark stored as AED/sqft)
+      costPerSqmLow: bm.costPerSqftLow != null ? Math.round(Number(bm.costPerSqftLow) * SQM_PER_SQFT) : null,
+      costPerSqmMid: bm.costPerSqftMid != null ? Math.round(Number(bm.costPerSqftMid) * SQM_PER_SQFT) : null,
+      costPerSqmHigh: bm.costPerSqftHigh != null ? Math.round(Number(bm.costPerSqftHigh) * SQM_PER_SQFT) : null,
+      avgSellingPrice: bm.avgSellingPrice != null ? Number(bm.avgSellingPrice) : null,
+      absorptionRate: bm.absorptionRate != null ? Number(bm.absorptionRate) : null,
+      differentiationIndex: bm.differentiationIndex != null ? Number(bm.differentiationIndex) : null,
+      competitiveDensity: bm.competitiveDensity,
+      sourceType: bm.sourceType,
+      dataYear: bm.dataYear
+    };
+  }),
+  getDldAreas: orgProcedure.query(async () => {
+    return getDldAreas();
+  }),
+  getDldAreaComparison: orgProcedure.input(z13.object({ areaId: z13.number() })).query(async ({ input }) => {
+    const [projects2, comparison] = await Promise.all([
+      getDldProjectsByArea(input.areaId),
+      getDldAreaComparison(input.areaId)
+    ]);
+    return {
+      projects: projects2,
+      comparison,
+      totalProjects: projects2.length,
+      activeProjects: projects2.filter(
+        (p) => p.projectStatus === "ACTIVE"
+      ).length,
+      finishedProjects: projects2.filter(
+        (p) => p.projectStatus === "FINISHED"
+      ).length,
+      totalUnits: projects2.reduce(
+        (s, p) => s + (p.noOfUnits ?? 0) + (p.noOfVillas ?? 0),
+        0
+      )
+    };
+  }),
+  getAreaBenchmarks: orgProcedure.query(async () => {
+    return getAllAreaBenchmarks();
+  }),
+  getAreaBenchmark: orgProcedure.input(z13.object({ areaId: z13.number() })).query(async ({ input }) => {
+    return getDldAreaBenchmark(input.areaId);
+  }),
+  getDldDataStats: orgProcedure.query(async () => {
+    const [transactionCount, rentCount] = await Promise.all([
+      getDldTransactionCount(),
+      getDldRentCount()
+    ]);
+    return { transactionCount, rentCount };
+  }),
+  getProjectDldBenchmark: orgProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    if (!project.dldAreaId) return null;
+    const benchmark = await getDldAreaBenchmark(project.dldAreaId);
+    return benchmark ? {
+      areaName: project.dldAreaName || benchmark.areaNameEn,
+      projectPurpose: project.projectPurpose || "sell_ready",
+      saleP50: benchmark.saleP50 ? Number(benchmark.saleP50) : null,
+      saleP25: benchmark.saleP25 ? Number(benchmark.saleP25) : null,
+      saleP75: benchmark.saleP75 ? Number(benchmark.saleP75) : null,
+      saleMean: benchmark.saleMean ? Number(benchmark.saleMean) : null,
+      grossYield: benchmark.grossYield ? Number(benchmark.grossYield) : null,
+      fitoutLow: benchmark.recommendedFitoutLow ? Number(benchmark.recommendedFitoutLow) : null,
+      fitoutMid: benchmark.recommendedFitoutMid ? Number(benchmark.recommendedFitoutMid) : null,
+      fitoutHigh: benchmark.recommendedFitoutHigh ? Number(benchmark.recommendedFitoutHigh) : null,
+      transactionCount: benchmark.saleTransactionCount ? Number(benchmark.saleTransactionCount) : 0,
+      rentContractCount: benchmark.rentTransactionCount ? Number(benchmark.rentTransactionCount) : 0
+    } : null;
+  }),
+  getDataFreshness: orgProcedure.query(async () => {
+    const [sources, healthRecords, runs] = await Promise.all([
+      getActiveSourceRegistry(50),
+      getConnectorHealthSummary(),
+      getIngestionRunHistory(5)
+    ]);
+    const latestRun = runs.length > 0 ? runs[0] : null;
+    const sourceFreshness = (sources ?? []).map((s) => {
+      const healthRec = (healthRecords ?? []).find(
+        (h) => String(h.sourceId) === String(s.id) || h.sourceName === s.name
+      );
+      const lastFetch = s.lastSuccessfulFetch ?? healthRec?.createdAt ?? null;
+      const daysSince = lastFetch ? Math.floor(
+        (Date.now() - new Date(lastFetch).getTime()) / (1e3 * 60 * 60 * 24)
+      ) : null;
+      return {
+        id: s.id,
+        name: s.name,
+        sourceType: s.sourceType,
+        reliabilityGrade: s.reliabilityDefault,
+        lastFetch,
+        daysSince,
+        freshness: daysSince === null ? "unknown" : daysSince <= 7 ? "fresh" : daysSince <= 30 ? "aging" : "stale",
+        latestStatus: healthRec?.status ?? null,
+        recordsExtracted: healthRec?.recordsExtracted ?? 0
+      };
+    });
+    const freshCount = sourceFreshness.filter(
+      (s) => s.freshness === "fresh"
+    ).length;
+    const agingCount = sourceFreshness.filter(
+      (s) => s.freshness === "aging"
+    ).length;
+    const staleCount = sourceFreshness.filter(
+      (s) => s.freshness === "stale"
+    ).length;
+    const unknownCount = sourceFreshness.filter(
+      (s) => s.freshness === "unknown"
+    ).length;
+    const totalSources = sourceFreshness.length;
+    const overallHealth = deriveOverallFreshnessHealth({
+      totalSources,
+      agingCount,
+      staleCount,
+      unknownCount
+    });
+    return {
+      overallHealth,
+      totalSources,
+      freshCount,
+      agingCount,
+      staleCount,
+      unknownCount,
+      latestRun: latestRun ? {
+        runId: latestRun.runId,
+        status: latestRun.status,
+        startedAt: latestRun.startedAt,
+        totalSources: latestRun.totalSources,
+        sourcesSucceeded: latestRun.sourcesSucceeded,
+        sourcesFailed: latestRun.sourcesFailed,
+        recordsExtracted: latestRun.recordsExtracted
+      } : null,
+      sources: sourceFreshness
+    };
+  }),
+  getEvidenceChain: orgProcedure.input(
+    z13.object({
+      category: z13.string().optional(),
+      projectId: z13.number().optional(),
+      limit: z13.number().min(1).max(50).default(20)
+    })
+  ).query(async ({ ctx, input }) => {
+    if (input.projectId !== void 0)
+      await requireDesignProject(input.projectId, ctx.orgId);
+    const results = await getEvidenceWithSources({
+      orgId: ctx.orgId,
+      category: input.category,
+      projectId: input.projectId,
+      limit: input.limit
+    });
+    return { evidence: results };
+  }),
+  getCompetitorContext: orgProcedure.input(z13.object({ limit: z13.number().min(1).max(20).default(6) })).query(async ({ input }) => {
+    return getActiveSourceRegistry(input.limit);
+  }),
+  getSpaceBenchmark: orgProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    if (!project.floorPlanAnalysis) {
+      throw new TRPCError14({
+        code: "BAD_REQUEST",
+        message: "Floor plan has not been analyzed yet. Upload a floor plan and run analysis first."
+      });
+    }
+    const analysis = project.floorPlanAnalysis;
+    let areaName = project.dldAreaName || project.ctx04Location || "Dubai";
+    let transactionCount = 0;
+    let saleP50 = null;
+    if (project.dldAreaId) {
+      const benchmark = await getDldAreaBenchmark(project.dldAreaId);
+      if (benchmark) {
+        areaName = benchmark.areaNameEn || areaName;
+        transactionCount = Number(benchmark.saleTransactionCount) || 0;
+        saleP50 = benchmark.saleP50 ? Number(benchmark.saleP50) : null;
+      }
+    }
+    const result = benchmarkSpaceRatios(
+      analysis,
+      areaName,
+      transactionCount,
+      saleP50
+    );
+    return result;
+  })
+});
+
+// server/routers/design-materials.ts
+import { z as z14 } from "zod";
+init_db();
+
+// server/engines/procurement/vendor-matching.ts
+init_db();
+init_schema();
+import { and as and2, eq as eq5 } from "drizzle-orm";
+function allowedVendorStatuses(constraints) {
+  if (constraints === "Strict Vendor List") return ["preferred_brand"];
+  if (constraints === "Moderate Guidelines") return ["approved_vendor", "preferred_brand"];
+  return ["open_market", "approved_vendor", "preferred_brand"];
+}
+async function matchVendorsForProject(options) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const projectRows = await db.select().from(projects).where(and2(
+    eq5(projects.id, options.projectId),
+    eq5(projects.orgId, options.orgId)
+  )).limit(1);
+  if (projectRows.length === 0) throw new Error(`Project ${options.projectId} not found`);
+  const project = projectRows[0];
+  const allowedStatuses = allowedVendorStatuses(project.brandStandardConstraints);
+  const allMaterials = await db.select().from(materialsCatalog).where(eq5(materialsCatalog.isActive, true));
+  let matchedMaterials = allMaterials.filter(
+    (m) => allowedStatuses.includes(m.brandStandardApproval || "open_market")
+  );
+  if (options.category) {
+    matchedMaterials = matchedMaterials.filter((m) => m.category === options.category);
+  }
+  const targetTier = options.tier || project.mkt01Tier || "upper_mid";
+  const tierMap = {
+    "Economy": ["economy"],
+    "Mid": ["economy", "mid"],
+    "Upper-mid": ["mid", "premium"],
+    "Luxury": ["premium", "luxury"],
+    "Ultra-luxury": ["luxury", "ultra_luxury"],
+    // Handle camel/snake case variants
+    "economy": ["economy"],
+    "mid": ["economy", "mid"],
+    "upper_mid": ["mid", "premium"],
+    "luxury": ["premium", "luxury"],
+    "ultra_luxury": ["luxury", "ultra_luxury"]
+  };
+  const allowedTiers = tierMap[targetTier] || ["mid", "premium"];
+  matchedMaterials = matchedMaterials.filter((m) => allowedTiers.includes(m.tier));
+  matchedMaterials.sort((a, b) => {
+    const scoreMap = {
+      "preferred_brand": 3,
+      "approved_vendor": 2,
+      "open_market": 1
+    };
+    const aScore = scoreMap[a.brandStandardApproval || "open_market"] || 1;
+    const bScore = scoreMap[b.brandStandardApproval || "open_market"] || 1;
+    if (aScore !== bScore) {
+      return bScore - aScore;
+    }
+    const aCarbon = parseFloat(String(a.embodiedCarbon || "999"));
+    const bCarbon = parseFloat(String(b.embodiedCarbon || "999"));
+    return aCarbon - bCarbon;
+  });
+  return matchedMaterials.slice(0, options.maxItems || 20);
+}
+
+// server/routers/design-materials.ts
+var designMaterialsRouter = router({
+  recommendMaterials: orgProcedure.input(
+    z14.object({ projectId: z14.number(), maxItems: z14.number().default(10) })
+  ).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const matched = await matchVendorsForProject({
       projectId: input.projectId,
@@ -25198,31 +25983,48 @@ var designRouter = router({
       supplierName: m.supplierName || "TBD"
     }));
   }),
-  // ─── Materials Catalog ──────────────────────────────────────────────────────
-  listMaterials: protectedProcedure.input(z10.object({ category: z10.string().optional(), tier: z10.string().optional() })).query(async ({ input }) => {
+  listMaterials: protectedProcedure.input(
+    z14.object({ category: z14.string().optional(), tier: z14.string().optional() })
+  ).query(async ({ input }) => {
     return getAllMaterials(input.category, input.tier);
   }),
-  getMaterial: protectedProcedure.input(z10.object({ id: z10.number() })).query(async ({ input }) => {
+  getMaterial: protectedProcedure.input(z14.object({ id: z14.number() })).query(async ({ input }) => {
     return getMaterialById(input.id);
   }),
-  createMaterial: adminProcedure.input(z10.object({
-    name: z10.string(),
-    category: z10.enum(["tile", "stone", "wood", "metal", "fabric", "glass", "paint", "wallpaper", "lighting", "furniture", "fixture", "accessory", "other"]),
-    tier: z10.enum(["economy", "mid", "premium", "luxury", "ultra_luxury"]),
-    typicalCostLow: z10.number().optional(),
-    typicalCostHigh: z10.number().optional(),
-    costUnit: z10.string().default("AED/sqm"),
-    leadTimeDays: z10.number().optional(),
-    leadTimeBand: z10.enum(["short", "medium", "long", "critical"]).default("medium"),
-    regionAvailability: z10.array(z10.string()).optional(),
-    embodiedCarbon: z10.number().optional(),
-    maintenanceFactor: z10.number().optional(),
-    brandStandardApproval: z10.enum(["open_market", "approved_vendor", "preferred_brand"]).default("open_market"),
-    supplierName: z10.string().optional(),
-    supplierContact: z10.string().optional(),
-    supplierUrl: z10.string().optional(),
-    notes: z10.string().optional()
-  })).mutation(async ({ ctx, input }) => {
+  createMaterial: adminProcedure.input(
+    z14.object({
+      name: z14.string(),
+      category: z14.enum([
+        "tile",
+        "stone",
+        "wood",
+        "metal",
+        "fabric",
+        "glass",
+        "paint",
+        "wallpaper",
+        "lighting",
+        "furniture",
+        "fixture",
+        "accessory",
+        "other"
+      ]),
+      tier: z14.enum(["economy", "mid", "premium", "luxury", "ultra_luxury"]),
+      typicalCostLow: z14.number().optional(),
+      typicalCostHigh: z14.number().optional(),
+      costUnit: z14.string().default("AED/sqm"),
+      leadTimeDays: z14.number().optional(),
+      leadTimeBand: z14.enum(["short", "medium", "long", "critical"]).default("medium"),
+      regionAvailability: z14.array(z14.string()).optional(),
+      embodiedCarbon: z14.number().optional(),
+      maintenanceFactor: z14.number().optional(),
+      brandStandardApproval: z14.enum(["open_market", "approved_vendor", "preferred_brand"]).default("open_market"),
+      supplierName: z14.string().optional(),
+      supplierContact: z14.string().optional(),
+      supplierUrl: z14.string().optional(),
+      notes: z14.string().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
     const result = await createMaterial({
       ...input,
       typicalCostLow: input.typicalCostLow ? String(input.typicalCostLow) : void 0,
@@ -25233,138 +26035,51 @@ var designRouter = router({
     });
     return result;
   }),
-  updateMaterial: adminProcedure.input(z10.object({
-    id: z10.number(),
-    name: z10.string().optional(),
-    typicalCostLow: z10.number().optional(),
-    typicalCostHigh: z10.number().optional(),
-    embodiedCarbon: z10.number().optional(),
-    maintenanceFactor: z10.number().optional(),
-    brandStandardApproval: z10.enum(["open_market", "approved_vendor", "preferred_brand"]).optional(),
-    leadTimeDays: z10.number().optional(),
-    supplierName: z10.string().optional(),
-    notes: z10.string().optional()
-  })).mutation(async ({ input }) => {
+  updateMaterial: adminProcedure.input(
+    z14.object({
+      id: z14.number(),
+      name: z14.string().optional(),
+      typicalCostLow: z14.number().optional(),
+      typicalCostHigh: z14.number().optional(),
+      embodiedCarbon: z14.number().optional(),
+      maintenanceFactor: z14.number().optional(),
+      brandStandardApproval: z14.enum(["open_market", "approved_vendor", "preferred_brand"]).optional(),
+      leadTimeDays: z14.number().optional(),
+      supplierName: z14.string().optional(),
+      notes: z14.string().optional()
+    })
+  ).mutation(async ({ input }) => {
     const { id, ...updates } = input;
     const mapped = { ...updates };
-    if (updates.typicalCostLow !== void 0) mapped.typicalCostLow = String(updates.typicalCostLow);
-    if (updates.typicalCostHigh !== void 0) mapped.typicalCostHigh = String(updates.typicalCostHigh);
-    if (updates.embodiedCarbon !== void 0) mapped.embodiedCarbon = String(updates.embodiedCarbon);
-    if (updates.maintenanceFactor !== void 0) mapped.maintenanceFactor = String(updates.maintenanceFactor);
+    if (updates.typicalCostLow !== void 0)
+      mapped.typicalCostLow = String(updates.typicalCostLow);
+    if (updates.typicalCostHigh !== void 0)
+      mapped.typicalCostHigh = String(updates.typicalCostHigh);
+    if (updates.embodiedCarbon !== void 0)
+      mapped.embodiedCarbon = String(updates.embodiedCarbon);
+    if (updates.maintenanceFactor !== void 0)
+      mapped.maintenanceFactor = String(updates.maintenanceFactor);
     await updateMaterial(id, mapped);
     return { success: true };
   }),
-  deleteMaterial: adminProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ input }) => {
+  deleteMaterial: adminProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
     await deleteMaterial(input.id);
     return { success: true };
   }),
-  // ─── Prompt Templates ───────────────────────────────────────────────────────
-  listPromptTemplates: orgProcedure.input(z10.object({ type: z10.string().optional() })).query(async ({ ctx, input }) => {
-    return getAllPromptTemplates(input.type, ctx.orgId);
-  }),
-  createPromptTemplate: adminProcedure.input(z10.object({
-    name: z10.string(),
-    type: z10.enum(["mood", "material_board", "hero"]),
-    templateText: z10.string(),
-    variables: z10.array(z10.string())
-  })).mutation(async ({ ctx, input }) => {
-    return createPromptTemplate({ ...input, createdBy: ctx.user.id, orgId: ctx.user.orgId ?? void 0 });
-  }),
-  updatePromptTemplate: adminProcedure.input(z10.object({
-    id: z10.number(),
-    name: z10.string().optional(),
-    templateText: z10.string().optional(),
-    variables: z10.array(z10.string()).optional(),
-    isActive: z10.boolean().optional()
-  })).mutation(async ({ input }) => {
-    const { id, ...updates } = input;
-    await updatePromptTemplate(id, updates);
-    return { success: true };
-  }),
-  // ─── Collaboration & Comments ───────────────────────────────────────────────
-  addComment: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    entityType: z10.enum(["design_brief", "material_board", "visual", "general"]),
-    entityId: z10.number().optional(),
-    content: z10.string().min(1)
-  })).mutation(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    if (input.entityType === "general") {
-      if (input.entityId !== void 0) throw new TRPCError11({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
-    } else {
-      if (input.entityId === void 0) throw new TRPCError11({ code: "BAD_REQUEST", message: "Entity comments require a target" });
-      const target = await requireDesignCommentTarget(input.entityType, input.entityId, ctx.orgId);
-      requireSameDesignProject(input.projectId, target.value.project.id);
-    }
-    return requireScopedDesignInsert(await createCommentForOrg({
-      projectId: input.projectId,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      userId: ctx.user.id,
-      content: input.content
-    }, ctx.orgId));
-  }),
-  listComments: orgProcedure.input(z10.object({
-    projectId: z10.number(),
-    entityType: z10.string().optional(),
-    entityId: z10.number().optional()
-  })).query(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    if (input.entityType === "general" && input.entityId !== void 0) {
-      throw new TRPCError11({ code: "BAD_REQUEST", message: "General comments cannot have an entity target" });
-    }
-    if (input.entityType && input.entityType !== "general" && input.entityId !== void 0) {
-      const target = await requireDesignCommentTarget(input.entityType, input.entityId, ctx.orgId);
-      requireSameDesignProject(input.projectId, target.value.project.id);
-    }
-    if (input.entityType) {
-      return getCommentsByEntity(input.projectId, input.entityType, input.entityId);
-    }
-    return getCommentsByProject(input.projectId);
-  }),
-  // ─── Approval Gates ─────────────────────────────────────────────────────────
-  updateApprovalState: designOrgAdminProcedure.input(z10.object({
-    projectId: z10.number(),
-    approvalState: z10.enum(["draft", "review", "approved_rfq", "approved_marketing"]),
-    rationale: z10.string().optional()
-  })).mutation(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    requireScopedDesignMutation(await updateProjectApprovalStateForOrg(input.projectId, ctx.orgId, input.approvalState));
-    await createAuditLog({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "approval.update",
-      entityType: "project",
-      entityId: input.projectId,
-      details: { approvalState: input.approvalState, rationale: input.rationale }
-    });
-    return { success: true };
-  }),
-  // ─── Structural Analytics (Phase 1 Fix — material_constants bridge) ─────────
-  /**
-   * Returns all seeded material constants so the frontend can display
-   * real AED/m² pricing without an additional roundtrip.
-   */
   getMaterialConstants: protectedProcedure.query(async () => {
     return getMaterialConstants();
   }),
-  /**
-   * calculateSpec — given a list of {materialType, areaM2} pairs, computes:
-   *   - total cost in AED
-   *   - total carbon footprint in kg CO²
-   *   - weighted average maintenance factor (1–5 scale)
-   *   - sustainability grade (A–E)
-   *
-   * Crosses the caller's material mix with the material_constants table.
-   * Unknown material types are skipped (graceful fallback).
-   */
-  calculateSpec: protectedProcedure.input(z10.object({
-    items: z10.array(z10.object({
-      materialType: z10.string(),
-      // e.g. "concrete", "stone", "glass"
-      areaM2: z10.number().positive()
-    }))
-  })).mutation(async ({ input }) => {
+  calculateSpec: protectedProcedure.input(
+    z14.object({
+      items: z14.array(
+        z14.object({
+          materialType: z14.string(),
+          // e.g. "concrete", "stone", "glass"
+          areaM2: z14.number().positive()
+        })
+      )
+    })
+  ).mutation(async ({ input }) => {
     const constants = await getMaterialConstants();
     const lookup = new Map(constants.map((c) => [c.materialType, c]));
     let totalCostAed = 0;
@@ -25422,286 +26137,98 @@ var designRouter = router({
       costPerM2Avg: totalArea > 0 ? Math.round(totalCostAed / totalArea) : 0,
       breakdown
     };
-  }),
-  // ─── Phase 4: Market Grounding ──────────────────────────────────────────────
-  /**
-   * 4.1 Design Trends: Return UAE market trends filtered by project style.
-   * Used to inject market signals into AI recommendations and display trend
-   * context in the InvestorSummary / DesignBrief pages.
-   */
-  getDesignTrends: orgProcedure.input(z10.object({
-    projectId: z10.number(),
-    limit: z10.number().min(1).max(50).default(20)
-  })).query(async ({ ctx, input }) => {
-    const project = await requireDesignProject(input.projectId, ctx.orgId);
-    const style = project.des01Style ?? void 0;
-    const trends = await getPublicDesignTrends({
-      styleClassification: style,
-      region: "UAE",
-      limit: input.limit
-    });
-    if (trends.length === 0) {
-      return getPublicDesignTrends({ region: "UAE", limit: input.limit });
+  })
+});
+
+// server/routers/design-sharing.ts
+import { TRPCError as TRPCError16 } from "@trpc/server";
+import { nanoid as nanoid6 } from "nanoid";
+import { z as z15 } from "zod";
+
+// server/_core/public-share-access.ts
+init_db();
+import { TRPCError as TRPCError15 } from "@trpc/server";
+var PUBLIC_SHARE_NOT_FOUND_MESSAGE = "Share link not found or expired";
+function shareNotFound() {
+  throw new TRPCError15({
+    code: "NOT_FOUND",
+    message: PUBLIC_SHARE_NOT_FOUND_MESSAGE
+  });
+}
+async function requireActivePublicShare(token, options = {}) {
+  const lookupBrief = options.lookupBrief ?? getAiDesignBriefByShareToken;
+  const lookupProject = options.lookupProject ?? getProjectById;
+  const now = options.now ?? (() => /* @__PURE__ */ new Date());
+  const brief = await lookupBrief(token);
+  if (!brief) {
+    return shareNotFound();
+  }
+  const project = await lookupProject(brief.projectId);
+  const expiresAt = brief.shareExpiresAt ? new Date(brief.shareExpiresAt).getTime() : Number.NaN;
+  const nowTime = now().getTime();
+  if (!project || brief.orgId === null || project.orgId === null || brief.orgId !== project.orgId || !Number.isFinite(expiresAt) || expiresAt <= nowTime) {
+    return shareNotFound();
+  }
+  return { brief, project };
+}
+
+// server/routers/design-sharing.ts
+init_db();
+init_area_utils();
+init_space_benchmarking();
+init_report_catalog();
+function isDuplicateKeyError(error) {
+  let current = error;
+  const seen = /* @__PURE__ */ new Set();
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const candidate = current;
+    if (candidate.code === "ER_DUP_ENTRY" || candidate.errno === 1062) {
+      return true;
     }
-    return trends;
-  }),
-  /**
-   * 4.2 Benchmark Overlay: Return AED/sqm benchmark for the project's
-   * typology + location + tier, with progressive fallback.
-   */
-  getBenchmarkForProject: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
-    const project = await requireDesignProject(input.projectId, ctx.orgId);
-    const typology = project.ctx01Typology ?? "Residential";
-    const location = project.ctx04Location ?? "Secondary";
-    const tier = project.mkt01Tier ?? "Upper-mid";
-    const bm = await getBenchmarkForProject(typology, location, tier);
-    if (!bm) return null;
-    const SQM_PER_SQFT = 10.7639;
-    return {
-      id: bm.id,
-      typology: bm.typology,
-      location: bm.location,
-      marketTier: bm.marketTier,
-      // Costs in AED/sqm (benchmark stored as AED/sqft)
-      costPerSqmLow: bm.costPerSqftLow != null ? Math.round(Number(bm.costPerSqftLow) * SQM_PER_SQFT) : null,
-      costPerSqmMid: bm.costPerSqftMid != null ? Math.round(Number(bm.costPerSqftMid) * SQM_PER_SQFT) : null,
-      costPerSqmHigh: bm.costPerSqftHigh != null ? Math.round(Number(bm.costPerSqftHigh) * SQM_PER_SQFT) : null,
-      avgSellingPrice: bm.avgSellingPrice != null ? Number(bm.avgSellingPrice) : null,
-      absorptionRate: bm.absorptionRate != null ? Number(bm.absorptionRate) : null,
-      differentiationIndex: bm.differentiationIndex != null ? Number(bm.differentiationIndex) : null,
-      competitiveDensity: bm.competitiveDensity,
-      sourceType: bm.sourceType,
-      dataYear: bm.dataYear
-    };
-  }),
-  /**
-   * 4.3 Competitor Context: Top active intel sources from source_registry,
-   * used to surface the "where this data comes from" panel in briefs.
-   */
-  // ─── Phase B.3: DLD Area Intelligence ──────────────────────────────────────
-  getDldAreas: orgProcedure.query(async () => {
-    return getDldAreas();
-  }),
-  getDldAreaComparison: orgProcedure.input(z10.object({ areaId: z10.number() })).query(async ({ input }) => {
-    const [projects2, comparison] = await Promise.all([
-      getDldProjectsByArea(input.areaId),
-      getDldAreaComparison(input.areaId)
-    ]);
-    return {
-      projects: projects2,
-      comparison,
-      totalProjects: projects2.length,
-      activeProjects: projects2.filter((p) => p.projectStatus === "ACTIVE").length,
-      finishedProjects: projects2.filter((p) => p.projectStatus === "FINISHED").length,
-      totalUnits: projects2.reduce((s, p) => s + (p.noOfUnits ?? 0) + (p.noOfVillas ?? 0), 0)
-    };
-  }),
-  getAreaBenchmarks: orgProcedure.query(async () => {
-    return getAllAreaBenchmarks();
-  }),
-  getAreaBenchmark: orgProcedure.input(z10.object({ areaId: z10.number() })).query(async ({ input }) => {
-    return getDldAreaBenchmark(input.areaId);
-  }),
-  getDldDataStats: orgProcedure.query(async () => {
-    const [transactionCount, rentCount] = await Promise.all([
-      getDldTransactionCount(),
-      getDldRentCount()
-    ]);
-    return { transactionCount, rentCount };
-  }),
-  /** Returns DLD benchmark data for a project's saved area — used by Investor Summary */
-  getProjectDldBenchmark: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
-    const project = await requireDesignProject(input.projectId, ctx.orgId);
-    if (!project.dldAreaId) return null;
-    const benchmark = await getDldAreaBenchmark(project.dldAreaId);
-    return benchmark ? {
-      areaName: project.dldAreaName || benchmark.areaNameEn,
-      projectPurpose: project.projectPurpose || "sell_ready",
-      saleP50: benchmark.saleP50 ? Number(benchmark.saleP50) : null,
-      saleP25: benchmark.saleP25 ? Number(benchmark.saleP25) : null,
-      saleP75: benchmark.saleP75 ? Number(benchmark.saleP75) : null,
-      saleMean: benchmark.saleMean ? Number(benchmark.saleMean) : null,
-      grossYield: benchmark.grossYield ? Number(benchmark.grossYield) : null,
-      fitoutLow: benchmark.recommendedFitoutLow ? Number(benchmark.recommendedFitoutLow) : null,
-      fitoutMid: benchmark.recommendedFitoutMid ? Number(benchmark.recommendedFitoutMid) : null,
-      fitoutHigh: benchmark.recommendedFitoutHigh ? Number(benchmark.recommendedFitoutHigh) : null,
-      transactionCount: benchmark.saleTransactionCount ? Number(benchmark.saleTransactionCount) : 0,
-      rentContractCount: benchmark.rentTransactionCount ? Number(benchmark.rentTransactionCount) : 0
-    } : null;
-  }),
-  // ─── Phase A.4: Data Freshness ─────────────────────────────────────────────
-  getDataFreshness: orgProcedure.query(async () => {
-    const [sources, healthRecords, runs] = await Promise.all([
-      getActiveSourceRegistry(50),
-      getConnectorHealthSummary(),
-      getIngestionRunHistory(5)
-    ]);
-    const latestRun = runs.length > 0 ? runs[0] : null;
-    const sourceFreshness = (sources ?? []).map((s) => {
-      const healthRec = (healthRecords ?? []).find(
-        (h) => String(h.sourceId) === String(s.id) || h.sourceName === s.name
-      );
-      const lastFetch = s.lastSuccessfulFetch ?? healthRec?.createdAt ?? null;
-      const daysSince = lastFetch ? Math.floor((Date.now() - new Date(lastFetch).getTime()) / (1e3 * 60 * 60 * 24)) : null;
-      return {
-        id: s.id,
-        name: s.name,
-        sourceType: s.sourceType,
-        reliabilityGrade: s.reliabilityDefault,
-        lastFetch,
-        daysSince,
-        freshness: daysSince === null ? "unknown" : daysSince <= 7 ? "fresh" : daysSince <= 30 ? "aging" : "stale",
-        latestStatus: healthRec?.status ?? null,
-        recordsExtracted: healthRec?.recordsExtracted ?? 0
-      };
-    });
-    const freshCount = sourceFreshness.filter((s) => s.freshness === "fresh").length;
-    const agingCount = sourceFreshness.filter((s) => s.freshness === "aging").length;
-    const staleCount = sourceFreshness.filter((s) => s.freshness === "stale").length;
-    const unknownCount = sourceFreshness.filter((s) => s.freshness === "unknown").length;
-    const totalSources = sourceFreshness.length;
-    const overallHealth = deriveOverallFreshnessHealth({ totalSources, agingCount, staleCount, unknownCount });
-    return {
-      overallHealth,
-      totalSources,
-      freshCount,
-      agingCount,
-      staleCount,
-      unknownCount,
-      latestRun: latestRun ? {
-        runId: latestRun.runId,
-        status: latestRun.status,
-        startedAt: latestRun.startedAt,
-        totalSources: latestRun.totalSources,
-        sourcesSucceeded: latestRun.sourcesSucceeded,
-        sourcesFailed: latestRun.sourcesFailed,
-        recordsExtracted: latestRun.recordsExtracted
-      } : null,
-      sources: sourceFreshness
-    };
-  }),
-  // ─── Phase A.3: Evidence Chain ─────────────────────────────────────────────
-  getEvidenceChain: orgProcedure.input(z10.object({
-    category: z10.string().optional(),
-    projectId: z10.number().optional(),
-    limit: z10.number().min(1).max(50).default(20)
-  })).query(async ({ ctx, input }) => {
-    if (input.projectId !== void 0) await requireDesignProject(input.projectId, ctx.orgId);
-    const results = await getEvidenceWithSources({
-      orgId: ctx.orgId,
-      category: input.category,
-      projectId: input.projectId,
-      limit: input.limit
-    });
-    return { evidence: results };
-  }),
-  getCompetitorContext: orgProcedure.input(z10.object({ limit: z10.number().min(1).max(20).default(6) })).query(async ({ input }) => {
-    return getActiveSourceRegistry(input.limit);
-  }),
-  // ─── Phase 5: Export & Handover ─────────────────────────────────────────────
-  exportInvestorPdf: designOrgMutationProcedure.input(z10.object({ projectId: z10.number(), locale: z10.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
-    const { generateInvestorPdfHtml: generateInvestorPdfHtml2 } = await Promise.resolve().then(() => (init_investor_pdf(), investor_pdf_exports));
-    const project = await requireDesignProject(input.projectId, ctx.orgId);
-    const [brief, recs, materialConsts, benchmark, trends, modelVersion, activeBenchmarkVersion, logicVersion] = await Promise.all([
-      getLatestAiDesignBrief(input.projectId, ctx.orgId),
-      getSpaceRecommendations(input.projectId, ctx.orgId),
-      getMaterialConstants(),
-      getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
-      getPublicDesignTrends({ styleClassification: project.des01Style ?? void 0, region: "UAE", limit: 8 }),
-      getActiveModelVersion(),
-      getActiveBenchmarkVersion(),
-      getPublishedLogicVersion()
-    ]);
-    const totalFitoutBudget = (recs ?? []).reduce((s, r) => s + Number(r.budgetAllocation || 0), 0);
-    const gfa = getPricingArea(project);
-    const costPerSqm = gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0;
-    const TIER_PREMIUM_PCT2 = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
-    const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
-    const estimatedSalesPremiumAed = gfa > 0 ? Math.round(gfa * 25e3 * salePremiumPct / 100) : 0;
-    const TIER_GRADE = { "Entry": "B", "Mid": "B", "Upper-mid": "C", "Luxury": "D", "Ultra-luxury": "D" };
-    const sustainabilityGrade = TIER_GRADE[project.mkt01Tier ?? "Upper-mid"] ?? "C";
-    const briefData = brief?.briefData ?? {};
-    const allMaterials = (recs ?? []).flatMap(
-      (r) => (r.materialPackage || []).map((m) => ({ name: m.productName, brand: m.brand, price: m.priceRangeAed, room: r.roomName }))
-    );
-    const spaces = (recs ?? []).map((r) => ({
-      name: r.roomName,
-      budgetAed: Number(r.budgetAllocation || 0),
-      sqm: Number(r.sqm || 0),
-      pct: totalFitoutBudget > 0 ? Number(r.budgetAllocation || 0) / totalFitoutBudget * 100 : 0,
-      styleDirection: r.styleDirection
-    }));
-    const SQF = 10.7639;
-    const bmFmt = benchmark ? {
-      costPerSqmLow: benchmark.costPerSqftLow != null ? Math.round(Number(benchmark.costPerSqftLow) * SQF) : null,
-      costPerSqmMid: benchmark.costPerSqftMid != null ? Math.round(Number(benchmark.costPerSqftMid) * SQF) : null,
-      costPerSqmHigh: benchmark.costPerSqftHigh != null ? Math.round(Number(benchmark.costPerSqftHigh) * SQF) : null,
-      typology: benchmark.typology,
-      location: benchmark.location,
-      marketTier: benchmark.marketTier,
-      dataYear: benchmark.dataYear
-    } : null;
-    const html = generateInvestorPdfHtml2({
-      projectName: project.name ?? "Untitled Project",
-      typology: project.ctx01Typology ?? "Residential",
-      location: project.ctx04Location ?? "UAE",
-      tier: project.mkt01Tier ?? "Upper-mid",
-      style: project.des01Style ?? "Modern",
-      gfaSqm: gfa,
-      execSummary: briefData.executiveSummary ?? "",
-      designDirection: briefData.designDirection ?? {},
-      spaces,
-      materials: allMaterials,
-      materialConstants: (materialConsts ?? []).map((c) => ({
-        materialType: c.materialType,
-        costPerM2: Number(c.costPerM2),
-        carbonIntensity: Number(c.carbonIntensity),
-        sustainabilityGrade
-      })),
-      totalFitoutBudget,
-      costPerSqm,
-      sustainabilityGrade,
-      salePremiumPct,
-      estimatedSalesPremiumAed,
-      benchmark: bmFmt,
-      designTrends: trends,
-      locale: input.locale,
-      modelVersion: modelVersion?.versionTag,
-      benchmarkVersion: activeBenchmarkVersion?.versionTag,
-      logicVersion: logicVersion?.name
-    });
-    return { html, projectName: project.name ?? "Project" };
-  }),
-  createShareLink: designOrgAdminProcedure.input(z10.object({ projectId: z10.number(), expiryDays: z10.number().min(1).max(90).default(7) })).mutation(async ({ ctx, input }) => {
+    current = candidate.cause;
+  }
+  return false;
+}
+var designSharingRouter = router({
+  createShareLink: designOrgAdminProcedure.input(
+    z15.object({
+      projectId: z15.number(),
+      expiryDays: z15.number().min(1).max(90).default(7)
+    })
+  ).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const brief = await getLatestAiDesignBrief(input.projectId, ctx.orgId);
-    if (!brief) throw new Error("Generate a design brief first before sharing");
+    if (!brief)
+      throw new Error("Generate a design brief first before sharing");
     const expiresAt = /* @__PURE__ */ new Date();
     expiresAt.setDate(expiresAt.getDate() + input.expiryDays);
     let token = "";
     for (let attempt = 1; attempt <= 5; attempt += 1) {
-      token = nanoid4(32);
+      token = nanoid6(32);
       try {
-        requireScopedDesignMutation(await updateAiDesignBriefShareTokenForOrg(
-          brief.id,
-          input.projectId,
-          ctx.orgId,
-          token,
-          expiresAt
-        ));
+        requireScopedDesignMutation(
+          await updateAiDesignBriefShareTokenForOrg(
+            brief.id,
+            input.projectId,
+            ctx.orgId,
+            token,
+            expiresAt
+          )
+        );
         break;
       } catch (error) {
         if (isDuplicateKeyError(error)) {
           if (attempt === 5) {
-            throw new TRPCError11({
+            throw new TRPCError16({
               code: "INTERNAL_SERVER_ERROR",
               message: "Unable to create a unique share link"
             });
           }
           continue;
         }
-        if (error instanceof TRPCError11) throw error;
-        throw new TRPCError11({
+        if (error instanceof TRPCError16) throw error;
+        throw new TRPCError16({
           code: "INTERNAL_SERVER_ERROR",
           message: "Unable to create share link"
         });
@@ -25715,17 +26242,63 @@ var designRouter = router({
       entityId: brief.id,
       details: { projectId: input.projectId, expiryDays: input.expiryDays }
     });
-    return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
+    return {
+      token,
+      shareUrl: `/share/${token}`,
+      expiresAt: expiresAt.toISOString(),
+      expiryDays: input.expiryDays
+    };
   }),
-  resolveShareLink: publicProcedure.input(z10.object({
-    token: z10.string().min(8).max(64),
-    locale: z10.enum(["en", "ar"]).default("en")
-  })).query(async ({ input }) => {
+  revokeShareLinks: designOrgAdminProcedure.input(z15.object({ projectId: z15.number() })).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const result = await revokeAiDesignBriefSharesForProjectForOrg(
+      input.projectId,
+      ctx.orgId
+    );
+    if (!result) {
+      throw new TRPCError16({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
+    }
+    await bestEffortAudit({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "brief.share.revoke_all",
+      entityType: "project",
+      entityId: input.projectId,
+      details: {
+        projectId: input.projectId,
+        revokedCount: result.revokedCount
+      }
+    });
+    return { revokedCount: result.revokedCount, active: false };
+  }),
+  resolveShareLink: publicRateLimitedProcedure.input(
+    z15.object({
+      token: z15.string(),
+      locale: z15.enum(["en", "ar"]).default("en")
+    })
+  ).query(async ({ input }) => {
+    if (input.token.length < 8 || input.token.length > 64) {
+      throw new TRPCError16({
+        code: "NOT_FOUND",
+        message: "Share link not found or expired"
+      });
+    }
     const { brief, project } = await requireActivePublicShare(input.token);
     const [recs, benchmark, trends] = await Promise.all([
       getSpaceRecommendations(brief.projectId, brief.orgId),
-      getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
-      getPublicDesignTrends({ styleClassification: project.des01Style ?? void 0, region: "UAE", limit: 8 })
+      getBenchmarkForProject(
+        project.ctx01Typology ?? "Residential",
+        project.ctx04Location ?? "Secondary",
+        project.mkt01Tier ?? "Upper-mid"
+      ),
+      getPublicDesignTrends({
+        styleClassification: project.des01Style ?? void 0,
+        region: "UAE",
+        limit: 8
+      })
     ]);
     let spaceEfficiency = void 0;
     if (project.floorPlanAnalysis) {
@@ -25747,7 +26320,10 @@ var designRouter = router({
               criticalCount: spaceResult.totalCritical,
               advisoryCount: spaceResult.totalAdvisory,
               circulationPct: spaceResult.circulationWastePercent ?? 0,
-              recommendations: (spaceResult.recommendations ?? []).slice(0, 6),
+              recommendations: (spaceResult.recommendations ?? []).slice(
+                0,
+                6
+              ),
               guidanceBasis: {
                 kind: "miyar_ratio_guideline"
               },
@@ -25764,9 +26340,18 @@ var designRouter = router({
       } catch {
       }
     }
-    const totalFitoutBudget = (recs ?? []).reduce((s, r) => s + Number(r.budgetAllocation || 0), 0);
+    const totalFitoutBudget = (recs ?? []).reduce(
+      (s, r) => s + Number(r.budgetAllocation || 0),
+      0
+    );
     const gfa = getPricingArea(project);
-    const TIER_PREMIUM_PCT2 = { "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30 };
+    const TIER_PREMIUM_PCT2 = {
+      Entry: 0,
+      Mid: 3,
+      "Upper-mid": 8,
+      Luxury: 18,
+      "Ultra-luxury": 30
+    };
     const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
     const SQF = 10.7639;
     return {
@@ -25774,11 +26359,15 @@ var designRouter = router({
       readOnly: true,
       briefVersion: brief.version,
       disclaimer: reportCopy(input.locale, "disclaimer"),
-      assumptions: [reportCopy(input.locale, "investorFallbackAssumptionHelp")],
-      evidence: benchmark ? [{
-        label: reportCopy(input.locale, "benchmarkVersion"),
-        value: `${benchmark.typology} / ${benchmark.location} / ${benchmark.marketTier}${benchmark.dataYear ? ` / ${benchmark.dataYear}` : ""}`
-      }] : [],
+      assumptions: [
+        reportCopy(input.locale, "investorFallbackAssumptionHelp")
+      ],
+      evidence: benchmark ? [
+        {
+          label: reportCopy(input.locale, "benchmarkVersion"),
+          value: `${benchmark.typology} / ${benchmark.location} / ${benchmark.marketTier}${benchmark.dataYear ? ` / ${benchmark.dataYear}` : ""}`
+        }
+      ] : [],
       projectName: project.name ?? "Untitled Project",
       typology: project.ctx01Typology ?? "Residential",
       location: project.ctx04Location ?? "UAE",
@@ -25823,15 +26412,525 @@ var designRouter = router({
       expiresAt: brief.shareExpiresAt?.toISOString(),
       spaceEfficiency
     };
+  })
+});
+
+// server/routers/design-visuals.ts
+init_ai_operation();
+import { TRPCError as TRPCError17 } from "@trpc/server";
+import { z as z17 } from "zod";
+
+// server/_core/imageGeneration.ts
+init_storage();
+init_ai_operation();
+import { Buffer as Buffer3 } from "node:buffer";
+import { z as z16 } from "zod";
+var IMAGE_RESPONSE_SCHEMA = z16.object({
+  candidates: z16.array(z16.object({
+    content: z16.object({
+      parts: z16.array(z16.object({
+        inlineData: z16.object({ data: z16.string().min(1), mimeType: z16.string().optional() }).optional()
+      }))
+    }).optional()
+  })).default([])
+});
+var MAX_RETRIES2 = 2;
+function retryDelay2(attempt) {
+  return new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 1e3));
+}
+function imageErrorForStatus(status) {
+  if (status === 400) return new AiOperationError("PROVIDER_REJECTED_INPUT", { operation: "gemini.image-generation" });
+  if (status === 401 || status === 403) return new AiOperationError("PROVIDER_UNAUTHORIZED", { operation: "gemini.image-generation", providerStatus: status });
+  if (status === 429) return new AiOperationError("PROVIDER_RATE_LIMITED", { operation: "gemini.image-generation", providerStatus: status, retryable: true });
+  return new AiOperationError("PROVIDER_UNAVAILABLE", { operation: "gemini.image-generation", providerStatus: status, retryable: status >= 500 });
+}
+async function generateImage(options) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new AiOperationError("PROVIDER_UNAUTHORIZED", { operation: "gemini.image-generation" }).report();
+  }
+  const model = "gemini-2.5-flash-image";
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`;
+  let response;
+  for (let attempt = 0; attempt <= MAX_RETRIES2; attempt += 1) {
+    try {
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6e4),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: options.prompt }] }],
+          generationConfig: { responseModalities: ["IMAGE", "TEXT"], responseMimeType: "text/plain" }
+        })
+      });
+    } catch (error) {
+      const failure2 = toAiOperationError(error, "gemini.image-generation");
+      if (!failure2.retryable || attempt === MAX_RETRIES2) throw failure2.report();
+      await retryDelay2(attempt + 1);
+      continue;
+    }
+    if (response.ok) break;
+    const failure = imageErrorForStatus(response.status);
+    if (!failure.retryable || attempt === MAX_RETRIES2) throw failure.report();
+    await retryDelay2(attempt + 1);
+  }
+  if (!response?.ok) throw new AiOperationError("PROVIDER_UNAVAILABLE", { operation: "gemini.image-generation", retryable: true }).report();
+  let parsed;
+  try {
+    parsed = IMAGE_RESPONSE_SCHEMA.parse(await response.json());
+  } catch (error) {
+    throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "gemini.image-generation", cause: error }).report();
+  }
+  const inlineData = parsed.candidates.flatMap((candidate) => candidate.content?.parts || []).find((part) => part.inlineData)?.inlineData;
+  if (!inlineData) throw new AiOperationError(parsed.candidates.length === 0 ? "CONTENT_BLOCKED" : "PROVIDER_INVALID_RESPONSE", { operation: "gemini.image-generation" }).report();
+  const raw = Buffer3.from(inlineData.data, "base64");
+  const media = await validateMediaBuffer(raw, inlineData.mimeType || "image/png", "gemini.image-generation-output");
+  const extension = media.mimeType === "image/jpeg" ? "jpg" : media.mimeType === "image/webp" ? "webp" : "png";
+  const stored = await storagePut(`generated/${Date.now()}-${media.checksum.slice(0, 12)}.${extension}`, media.buffer, media.mimeType);
+  return {
+    url: stored.url,
+    mimeType: media.mimeType,
+    sizeBytes: media.sizeBytes,
+    checksum: media.checksum,
+    storageKey: stored.key
+  };
+}
+
+// server/routers/design-visuals.ts
+init_db();
+
+// server/engines/visual-gen.ts
+var CATEGORY_DISPLAY = {
+  tile: "Flooring/Tiling",
+  stone: "Stone (Wall/Floor)",
+  wood: "Wood/Timber",
+  metal: "Metal Hardware",
+  fabric: "Soft Furnishings",
+  glass: "Glass/Mirrors",
+  paint: "Paint/Coating",
+  wallpaper: "Wall Covering",
+  lighting: "Lighting",
+  furniture: "Furniture",
+  fixture: "Sanitaryware/Fixtures",
+  accessory: "Accessories/Hardware",
+  other: "Other Finishes"
+};
+function buildPromptContext(inputs) {
+  const materialLevelMap = {
+    1: "basic/economy",
+    2: "standard/mid-range",
+    3: "premium/upper-mid",
+    4: "luxury/high-end",
+    5: "ultra-luxury/bespoke"
+  };
+  const locationMap = {
+    Prime: "Dubai prime waterfront",
+    Secondary: "Dubai urban",
+    Emerging: "Dubai emerging district"
+  };
+  return {
+    typology: inputs.ctx01Typology,
+    location: locationMap[inputs.ctx04Location] || inputs.ctx04Location,
+    style: inputs.des01Style,
+    tier: inputs.mkt01Tier,
+    materialLevel: materialLevelMap[inputs.des02MaterialLevel] || "premium",
+    materialCount: "8",
+    accentColor: inputs.des01Style === "Minimal" ? "warm brass" : "deep emerald"
+  };
+}
+function buildBoardAwarePromptContext(inputs, boardMaterials, brandStandardConstraints) {
+  const base = buildPromptContext(inputs);
+  if (!boardMaterials || boardMaterials.length === 0) {
+    return base;
+  }
+  const grouped = /* @__PURE__ */ new Map();
+  for (const mat of boardMaterials) {
+    const category = mat.category || "other";
+    if (!grouped.has(category)) grouped.set(category, []);
+    grouped.get(category).push(mat);
+  }
+  const specParts = [];
+  for (const [category, mats] of Array.from(grouped.entries())) {
+    const categoryLabel = CATEGORY_DISPLAY[category] || category;
+    const matNames = mats.map((m) => {
+      const supplier = m.supplierName && m.supplierName !== "TBD" && m.supplierName !== "Market Data" ? ` by ${m.supplierName}` : "";
+      return `${m.name}${supplier}`;
+    }).join(", ");
+    specParts.push(`${categoryLabel}: ${matNames}`);
+  }
+  const materialSpec = specParts.join(". ");
+  const carbons = boardMaterials.map((m) => m.embodiedCarbon).filter((c) => c != null && c > 0);
+  let carbonGrade = "C";
+  if (carbons.length > 0) {
+    const avg = carbons.reduce((a, b) => a + b, 0) / carbons.length;
+    if (avg < 5) carbonGrade = "A";
+    else if (avg < 15) carbonGrade = "B";
+    else if (avg < 30) carbonGrade = "C";
+    else if (avg < 50) carbonGrade = "D";
+    else carbonGrade = "E";
+  }
+  return {
+    ...base,
+    materialSpec,
+    carbonGrade,
+    brandStandard: brandStandardConstraints || void 0,
+    materialCount: String(boardMaterials.length)
+  };
+}
+function buildRoomPromptContext(inputs, roomName, roomType, roomSqm, boardMaterials, brandStandardConstraints) {
+  const roomCategories = getRoomRelevantCategories(roomType);
+  const filteredMaterials = boardMaterials.filter(
+    (m) => roomCategories.includes(m.category)
+  );
+  const materialsToUse = filteredMaterials.length > 0 ? filteredMaterials : boardMaterials;
+  const context = buildBoardAwarePromptContext(inputs, materialsToUse, brandStandardConstraints);
+  context.typology = `${roomSqm} sqm ${roomName} in a ${inputs.ctx01Typology} unit`;
+  return context;
+}
+function getRoomRelevantCategories(roomType) {
+  switch (roomType) {
+    case "bathroom":
+      return ["tile", "stone", "fixture", "glass", "accessory", "lighting"];
+    case "kitchen":
+      return ["stone", "tile", "metal", "fixture", "accessory", "lighting"];
+    case "bedroom":
+    case "living":
+    case "dining":
+      return ["wood", "stone", "tile", "fabric", "lighting", "furniture", "paint", "wallpaper"];
+    case "corridor":
+    case "lobby":
+      return ["tile", "stone", "lighting", "paint", "wallpaper"];
+    case "balcony":
+      return ["tile", "stone", "furniture"];
+    default:
+      return ["tile", "stone", "wood", "paint", "lighting"];
+  }
+}
+function interpolateTemplate(template, context) {
+  let result = template;
+  for (const [key, value] of Object.entries(context)) {
+    if (typeof value === "string") {
+      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
+    }
+  }
+  return result;
+}
+function generateDefaultPrompt(type, context) {
+  const materialClause = context.materialSpec ? `
+
+MATERIAL SPECIFICATION (use these EXACT materials in the render):
+${context.materialSpec}` : "";
+  const carbonClause = context.carbonGrade ? ` Sustainability grade: ${context.carbonGrade}.` : "";
+  const brandClause = context.brandStandard ? ` Brand standard: ${context.brandStandard}.` : "";
+  switch (type) {
+    case "mood":
+      return `Create a sophisticated interior design mood board for a ${context.tier} ${context.typology} project in ${context.location}. Design style: ${context.style}. Material level: ${context.materialLevel}.${carbonClause}${brandClause} The mood board should convey the project's design direction through carefully curated images of materials, textures, colors, lighting, and spatial arrangements. Professional presentation with clean layout.${materialClause}`;
+    case "material_board":
+      return `Generate a detailed material and finish board for a ${context.tier} ${context.typology} interior. Style: ${context.style}.${carbonClause}${brandClause} Show ${context.materialCount || "8"} key material swatches arranged in a professional grid. Each swatch labeled with exact material name and supplier. Clean white background, architectural presentation style.${materialClause}`;
+    case "hero":
+      return `Create a photorealistic marketing hero image for a ${context.tier} ${context.typology} development in ${context.location}. Show a stunning interior living space with ${context.style} design aesthetic.${carbonClause}${brandClause} Natural light streaming through floor-to-ceiling windows. Aspirational lifestyle photography, warm color temperature, professional real estate marketing quality.${materialClause}`;
+  }
+}
+function generateRoomRenderPrompt(context, roomName, roomSqm, finishGrade) {
+  const gradeLabel = finishGrade === "A" ? "premium showcase-quality" : finishGrade === "B" ? "high-quality standard" : "functional utility-grade";
+  const materialClause = context.materialSpec ? `
+
+MATERIAL SPECIFICATION (use these EXACT materials in the render):
+${context.materialSpec}` : "";
+  return `Create a photorealistic interior render of a ${roomSqm} sqm ${roomName} in a ${context.tier} ${context.typology} in ${context.location}. Design style: ${context.style}. Finish grade: ${gradeLabel}. This is a ${context.tier} project \u2014 every detail must reflect the quality tier. Natural lighting, professional architectural photography quality, 8K resolution feel. Show furniture placement, material textures, and lighting design.${materialClause}`;
+}
+function validatePrompt(prompt) {
+  if (prompt.length < 20) return { valid: false, reason: "Prompt too short \u2014 minimum 20 characters" };
+  if (prompt.length > 4e3) return { valid: false, reason: "Prompt too long \u2014 maximum 4000 characters" };
+  const blockedTerms = ["nsfw", "explicit", "violent", "weapon", "gore"];
+  const lower = prompt.toLowerCase();
+  for (const term of blockedTerms) {
+    if (lower.includes(term)) return { valid: false, reason: `Blocked content term detected: ${term}` };
+  }
+  return { valid: true };
+}
+function buildMaterialAllocationPromptClause(allocations) {
+  if (!allocations || allocations.length === 0) return null;
+  const roomMap = /* @__PURE__ */ new Map();
+  for (const a of allocations) {
+    const roomKey = a.roomName || a.roomId;
+    if (!roomMap.has(roomKey)) roomMap.set(roomKey, /* @__PURE__ */ new Map());
+    const elementMap = roomMap.get(roomKey);
+    if (!elementMap.has(a.element)) elementMap.set(a.element, []);
+    elementMap.get(a.element).push({ name: a.materialName, pct: a.percentage });
+  }
+  const lines = [];
+  for (const [room, elements] of Array.from(roomMap.entries())) {
+    const parts = [];
+    for (const [element, mats] of Array.from(elements.entries())) {
+      const matList = mats.map((m) => `${m.name} (${m.pct}%)`).join(", ");
+      parts.push(`${element.charAt(0).toUpperCase() + element.slice(1)}: ${matList}`);
+    }
+    lines.push(`${room} \u2014 ${parts.join("; ")}`);
+  }
+  return `
+MATERIAL ALLOCATION (use EXACT materials per surface):
+${lines.join("\n")}`;
+}
+
+// server/routers/design-visuals.ts
+var designVisualsRouter = router({
+  generateVisual: designOrgMutationProcedure.input(
+    z17.object({
+      projectId: z17.number(),
+      type: z17.enum(["mood", "material_board", "hero"]),
+      scenarioId: z17.number().optional(),
+      customPrompt: z17.string().optional(),
+      templateId: z17.number().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    let selectedTemplate;
+    if (input.scenarioId !== void 0) {
+      const scenario = await requireDesignScenario(
+        input.scenarioId,
+        ctx.orgId
+      );
+      requireSameDesignProject(project.id, scenario.project.id);
+    }
+    if (input.templateId !== void 0) {
+      selectedTemplate = await requireDesignPromptTemplate(
+        input.templateId,
+        ctx.orgId
+      );
+    }
+    let inputs = projectToInputs4(project);
+    if (input.scenarioId) {
+      const scenarioInput = await getScenarioInput(input.scenarioId);
+      if (scenarioInput?.jsonInput) {
+        const overrides = typeof scenarioInput.jsonInput === "string" ? JSON.parse(scenarioInput.jsonInput) : scenarioInput.jsonInput;
+        inputs = { ...inputs, ...overrides };
+      }
+    }
+    let context;
+    const boards = await getMaterialBoardsByProject(input.projectId);
+    if (boards && boards.length > 0) {
+      const activeBoard = boards[0];
+      const boardMaterials = await getMaterialsByBoard(activeBoard.id);
+      const enrichedMaterials = [];
+      for (const bm of boardMaterials) {
+        const mat = await getMaterialById(bm.materialId);
+        if (mat) {
+          enrichedMaterials.push({
+            name: mat.name,
+            category: mat.category,
+            tier: mat.tier,
+            supplierName: mat.supplierName,
+            costUnit: mat.costUnit,
+            costLow: Number(mat.typicalCostLow) || 0,
+            costHigh: Number(mat.typicalCostHigh) || 0,
+            embodiedCarbon: mat.embodiedCarbon ? parseFloat(String(mat.embodiedCarbon)) : null,
+            maintenanceFactor: mat.maintenanceFactor ? parseFloat(String(mat.maintenanceFactor)) : null,
+            brandStandardApproval: mat.brandStandardApproval || null
+          });
+        }
+      }
+      context = buildBoardAwarePromptContext(
+        inputs,
+        enrichedMaterials,
+        project.brandStandardConstraints
+      );
+      console.log(
+        `[Visual] Using board-aware context with ${enrichedMaterials.length} materials for project ${input.projectId}`
+      );
+    } else {
+      context = buildPromptContext(inputs);
+    }
+    try {
+      const allocations = await getMaterialAllocations(
+        input.projectId,
+        ctx.orgId
+      );
+      if (allocations && allocations.length > 0) {
+        const mqiAllocs = allocations.map((a) => ({
+          roomId: a.roomId,
+          roomName: a.roomName,
+          element: a.element,
+          materialName: a.materialName,
+          percentage: Number(a.percentage) || 100
+        }));
+        const clause = buildMaterialAllocationPromptClause(mqiAllocs);
+        if (clause) {
+          context.materialSpec = (context.materialSpec || "") + clause;
+          console.log(
+            `[Visual] Injected MQI allocation clause with ${mqiAllocs.length} allocations`
+          );
+        }
+      }
+    } catch (e) {
+      console.warn(
+        "[Visual] MQI allocation fetch failed, continuing without:",
+        e
+      );
+    }
+    let prompt;
+    if (input.customPrompt) {
+      prompt = input.customPrompt;
+    } else if (selectedTemplate) {
+      prompt = interpolateTemplate(selectedTemplate.templateText, context);
+    } else {
+      const tmpl = await getActivePromptTemplate(input.type, ctx.orgId);
+      prompt = tmpl ? interpolateTemplate(tmpl.templateText, context) : generateDefaultPrompt(input.type, context);
+    }
+    const validation = validatePrompt(prompt);
+    if (!validation.valid) {
+      throw new TRPCError17({
+        code: "BAD_REQUEST",
+        message: validation.reason
+      });
+    }
+    const visualResult = requireScopedDesignInsert(
+      await createGeneratedVisualForOrg(
+        {
+          projectId: input.projectId,
+          scenarioId: input.scenarioId,
+          type: input.type,
+          promptJson: { prompt, context, templateId: input.templateId },
+          status: "generating",
+          createdBy: ctx.user.id
+        },
+        ctx.orgId
+      )
+    );
+    try {
+      const generated = await generateImage({ prompt });
+      const url = generated.url;
+      const assetResult = requireScopedDesignInsert(
+        await createProjectAssetForOrg(
+          {
+            projectId: input.projectId,
+            filename: `${input.type}-${Date.now()}.png`,
+            mimeType: generated.mimeType,
+            sizeBytes: generated.sizeBytes,
+            checksum: generated.checksum,
+            storagePath: generated.storageKey,
+            storageUrl: url,
+            uploadedBy: ctx.user.id,
+            category: input.type === "mood" ? "mood_image" : input.type === "material_board" ? "material_board" : "marketing_hero"
+          },
+          ctx.orgId
+        )
+      );
+      requireScopedDesignMutation(
+        await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
+          status: "completed",
+          imageAssetId: assetResult.id
+        })
+      );
+      await createAuditLog({
+        orgId: ctx.orgId,
+        userId: ctx.user.id,
+        action: "visual.generate",
+        entityType: "generated_visual",
+        entityId: visualResult.id,
+        details: { type: input.type, projectId: input.projectId }
+      });
+      return {
+        id: visualResult.id,
+        assetId: assetResult.id,
+        url,
+        status: "completed"
+      };
+    } catch (error) {
+      const failure = toAiOperationFailure(error, "design.visual-generation");
+      requireScopedDesignMutation(
+        await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
+          status: "failed",
+          errorMessage: failure.message
+        })
+      );
+      return {
+        id: visualResult.id,
+        assetId: null,
+        url: null,
+        status: "failed",
+        error: failure.message,
+        referenceId: failure.referenceId
+      };
+    }
   }),
-  // ─── Phase 9: Room-Specific Render ─────────────────────────────────────────
-  generateRoomRender: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    roomName: z10.string(),
-    roomType: z10.string(),
-    roomSqm: z10.number(),
-    finishGrade: z10.enum(["A", "B", "C"]).default("A")
-  })).mutation(async ({ ctx, input }) => {
+  listVisuals: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const visuals = await getGeneratedVisualsByProject(input.projectId);
+    const enriched = await Promise.all(
+      visuals.map(async (v) => {
+        await requireMatchingDesignScenario(
+          v.scenarioId,
+          v.projectId,
+          ctx.orgId
+        );
+        let imageUrl = null;
+        if (v.imageAssetId) {
+          const { resource: asset, project: assetProject } = await requireDesignAsset(v.imageAssetId, ctx.orgId);
+          requireSameDesignProject(input.projectId, assetProject.id);
+          imageUrl = asset?.storageUrl ?? null;
+        }
+        return { ...v, imageUrl };
+      })
+    );
+    return enriched;
+  }),
+  attachVisualToPack: designOrgMutationProcedure.input(
+    z17.object({
+      visualId: z17.number(),
+      targetType: z17.enum([
+        "report",
+        "design_brief",
+        "material_board",
+        "pack_section"
+      ]),
+      targetId: z17.number(),
+      sectionLabel: z17.string().optional()
+    })
+  ).mutation(async () => {
+    throw new TRPCError17({
+      code: "PRECONDITION_FAILED",
+      message: "Visual attachments are unavailable until a typed attachment model is configured"
+    });
+  }),
+  listPromptTemplates: orgProcedure.input(z17.object({ type: z17.string().optional() })).query(async ({ ctx, input }) => {
+    return getAllPromptTemplates(input.type, ctx.orgId);
+  }),
+  createPromptTemplate: adminProcedure.input(
+    z17.object({
+      name: z17.string(),
+      type: z17.enum(["mood", "material_board", "hero"]),
+      templateText: z17.string(),
+      variables: z17.array(z17.string())
+    })
+  ).mutation(async ({ ctx, input }) => {
+    return createPromptTemplate({
+      ...input,
+      createdBy: ctx.user.id,
+      orgId: ctx.user.orgId ?? void 0
+    });
+  }),
+  updatePromptTemplate: adminProcedure.input(
+    z17.object({
+      id: z17.number(),
+      name: z17.string().optional(),
+      templateText: z17.string().optional(),
+      variables: z17.array(z17.string()).optional(),
+      isActive: z17.boolean().optional()
+    })
+  ).mutation(async ({ input }) => {
+    const { id, ...updates } = input;
+    await updatePromptTemplate(id, updates);
+    return { success: true };
+  }),
+  generateRoomRender: designOrgMutationProcedure.input(
+    z17.object({
+      projectId: z17.number(),
+      roomName: z17.string(),
+      roomType: z17.string(),
+      roomSqm: z17.number(),
+      finishGrade: z17.enum(["A", "B", "C"]).default("A")
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     const inputs = projectToInputs4(project);
     const boards = await getMaterialBoardsByProject(input.projectId);
@@ -25864,148 +26963,101 @@ var designRouter = router({
       enrichedMaterials,
       project.brandStandardConstraints
     );
-    const prompt = generateRoomRenderPrompt(context, input.roomName, input.roomSqm, input.finishGrade);
+    const prompt = generateRoomRenderPrompt(
+      context,
+      input.roomName,
+      input.roomSqm,
+      input.finishGrade
+    );
     const validation = validatePrompt(prompt);
-    if (!validation.valid) throw new TRPCError11({ code: "BAD_REQUEST", message: validation.reason });
-    const visualResult = requireScopedDesignInsert(await createGeneratedVisualForOrg({
-      projectId: input.projectId,
-      type: "room_render",
-      promptJson: { prompt, context, roomName: input.roomName, roomType: input.roomType },
-      status: "generating",
-      createdBy: ctx.user.id
-    }, ctx.orgId));
+    if (!validation.valid)
+      throw new TRPCError17({
+        code: "BAD_REQUEST",
+        message: validation.reason
+      });
+    const visualResult = requireScopedDesignInsert(
+      await createGeneratedVisualForOrg(
+        {
+          projectId: input.projectId,
+          type: "room_render",
+          promptJson: {
+            prompt,
+            context,
+            roomName: input.roomName,
+            roomType: input.roomType
+          },
+          status: "generating",
+          createdBy: ctx.user.id
+        },
+        ctx.orgId
+      )
+    );
     try {
       const generated = await generateImage({ prompt });
       const url = generated.url;
-      const assetResult = requireScopedDesignInsert(await createProjectAssetForOrg({
-        projectId: input.projectId,
-        filename: `room-render-${input.roomName.replace(/\s+/g, "-")}-${Date.now()}.png`,
-        mimeType: generated.mimeType,
-        sizeBytes: generated.sizeBytes,
-        checksum: generated.checksum,
-        storagePath: generated.storageKey,
-        storageUrl: url,
-        uploadedBy: ctx.user.id,
-        category: "mood_image"
-      }, ctx.orgId));
-      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "completed", imageAssetId: assetResult.id }));
-      return { id: visualResult.id, assetId: assetResult.id, url, status: "completed" };
+      const assetResult = requireScopedDesignInsert(
+        await createProjectAssetForOrg(
+          {
+            projectId: input.projectId,
+            filename: `room-render-${input.roomName.replace(/\s+/g, "-")}-${Date.now()}.png`,
+            mimeType: generated.mimeType,
+            sizeBytes: generated.sizeBytes,
+            checksum: generated.checksum,
+            storagePath: generated.storageKey,
+            storageUrl: url,
+            uploadedBy: ctx.user.id,
+            category: "mood_image"
+          },
+          ctx.orgId
+        )
+      );
+      requireScopedDesignMutation(
+        await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
+          status: "completed",
+          imageAssetId: assetResult.id
+        })
+      );
+      return {
+        id: visualResult.id,
+        assetId: assetResult.id,
+        url,
+        status: "completed"
+      };
     } catch (error) {
       const failure = toAiOperationFailure(error, "design.room-render");
-      requireScopedDesignMutation(await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, { status: "failed", errorMessage: failure.message }));
-      return { id: visualResult.id, assetId: null, url: null, status: "failed", error: failure.message, referenceId: failure.referenceId };
+      requireScopedDesignMutation(
+        await updateGeneratedVisualForOrg(visualResult.id, ctx.orgId, {
+          status: "failed",
+          errorMessage: failure.message
+        })
+      );
+      return {
+        id: visualResult.id,
+        assetId: null,
+        url: null,
+        status: "failed",
+        error: failure.message,
+        referenceId: failure.referenceId
+      };
     }
-  }),
-  // ─── Phase 9: Floor Plan Upload ────────────────────────────────────────────
-  uploadFloorPlan: designOrgMutationProcedure.input(z10.object({
-    projectId: z10.number(),
-    filename: z10.string(),
-    mimeType: z10.string(),
-    base64Data: z10.string().max(MAX_LEGACY_BASE64_CHARS)
-  })).mutation(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    const buffer = Buffer.from(input.base64Data, "base64");
-    const media = await validateMediaBuffer(buffer, input.mimeType, "design.floor-plan.legacy-upload");
-    const suffix = Math.random().toString(36).slice(2, 10);
-    const storagePath = `projects/${input.projectId}/floor-plans/${suffix}-${input.filename}`;
-    const uploaded = await storagePut(storagePath, media.buffer, media.mimeType);
-    let created;
-    try {
-      created = await createFloorPlanAssetAndLinkForOrg({
-        projectId: input.projectId,
-        filename: input.filename,
-        mimeType: media.mimeType,
-        sizeBytes: media.sizeBytes,
-        checksum: media.checksum,
-        storagePath: uploaded.key,
-        storageUrl: uploaded.url,
-        uploadedBy: ctx.user.id,
-        category: "other"
-      }, ctx.orgId);
-    } catch (error) {
-      reportIndeterminateUploadPersistence(uploaded.key, error);
-      throw new TRPCError11({ code: "INTERNAL_SERVER_ERROR", message: "Upload persistence could not be confirmed" });
-    }
-    if (!created) {
-      try {
-        await cleanupRejectedUpload(uploaded.key);
-      } catch {
-        throw new TRPCError11({ code: "INTERNAL_SERVER_ERROR", message: "Upload cleanup failed" });
-      }
-      throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
-    }
-    const result = requireScopedDesignInsert(created);
-    await bestEffortAudit({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "floor_plan.upload",
-      entityType: "project",
-      entityId: input.projectId,
-      details: { assetId: result.id, filename: input.filename }
-    });
-    return { assetId: result.id, url: uploaded.url };
-  }),
-  // ─── Phase 9: Floor Plan Analysis ──────────────────────────────────────────
-  analyzeFloorPlan: designOrgMutationProcedure.input(z10.object({ projectId: z10.number() })).mutation(async ({ ctx, input }) => {
-    const project = await requireDesignProject(input.projectId, ctx.orgId);
-    if (!project.floorPlanAssetId) {
-      throw new TRPCError11({ code: "BAD_REQUEST", message: "No floor plan uploaded for this project" });
-    }
-    const { resource: asset, project: assetProject } = await requireDesignAsset(project.floorPlanAssetId, ctx.orgId);
-    requireSameDesignProject(project.id, assetProject.id);
-    if (!asset || !asset.storagePath) {
-      throw new TRPCError11({ code: "NOT_FOUND", message: "Floor plan asset not found or has no URL" });
-    }
-    const media = await readValidatedProjectMedia(asset, "design.floor-plan.analyze");
-    const analysis = await analyzeFloorPlan(media);
-    requireScopedDesignMutation(await updateProjectForOrg(input.projectId, ctx.orgId, {
-      floorPlanAnalysis: analysis,
-      // Also update totalFitoutArea if not already set
-      ...!project.totalFitoutArea || Number(project.totalFitoutArea) === 0 ? {
-        totalFitoutArea: String(analysis.totalEstimatedSqm)
-      } : {}
-    }));
-    await createAuditLog({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "floor_plan.analyze",
-      entityType: "project",
-      entityId: input.projectId,
-      details: {
-        roomCount: analysis.rooms.length,
-        totalSqm: analysis.totalEstimatedSqm,
-        unitType: analysis.unitType,
-        confidence: analysis.analysisConfidence
-      }
-    });
-    return analysis;
-  }),
-  // ─── Phase 9: Space Benchmarking ───────────────────────────────────────────
-  getSpaceBenchmark: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
-    const project = await requireDesignProject(input.projectId, ctx.orgId);
-    if (!project.floorPlanAnalysis) {
-      throw new TRPCError11({ code: "BAD_REQUEST", message: "Floor plan has not been analyzed yet. Upload a floor plan and run analysis first." });
-    }
-    const analysis = project.floorPlanAnalysis;
-    let areaName = project.dldAreaName || project.ctx04Location || "Dubai";
-    let transactionCount = 0;
-    let saleP50 = null;
-    if (project.dldAreaId) {
-      const benchmark = await getDldAreaBenchmark(project.dldAreaId);
-      if (benchmark) {
-        areaName = benchmark.areaNameEn || areaName;
-        transactionCount = Number(benchmark.saleTransactionCount) || 0;
-        saleP50 = benchmark.saleP50 ? Number(benchmark.saleP50) : null;
-      }
-    }
-    const result = benchmarkSpaceRatios(analysis, areaName, transactionCount, saleP50);
-    return result;
   })
 });
 
+// server/routers/design.ts
+var designRouter = mergeRouters(
+  designAssetsRouter,
+  designBriefsRouter,
+  designBoardsRouter,
+  designCollaborationRouter,
+  designMarketContextRouter,
+  designMaterialsRouter,
+  designSharingRouter,
+  designVisualsRouter
+);
+
 // server/routers/intelligence.ts
-import { z as z11 } from "zod";
-import { TRPCError as TRPCError12 } from "@trpc/server";
+import { z as z18 } from "zod";
+import { TRPCError as TRPCError18 } from "@trpc/server";
 init_db();
 
 // server/engines/explainability.ts
@@ -26481,14 +27533,14 @@ function generateLearningReport(outcomes, predictions) {
 
 // server/routers/intelligence.ts
 init_storage();
-import { nanoid as nanoid5 } from "nanoid";
+import { nanoid as nanoid7 } from "nanoid";
 var intelligenceRouter = router({
   // ─── V2.10: Logic Registry ──────────────────────────────────────────────────
   logicVersions: router({
     list: adminProcedure.query(async () => {
       return listLogicVersions();
     }),
-    get: adminProcedure.input(z11.object({ id: z11.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z18.object({ id: z18.number() })).query(async ({ input }) => {
       const version = await getLogicVersionById(input.id);
       if (!version) return null;
       const weights = await getLogicWeights(input.id);
@@ -26503,11 +27555,11 @@ var intelligenceRouter = router({
       const thresholds = await getLogicThresholds(version.id);
       return { ...version, weights, thresholds };
     }),
-    create: adminProcedure.input(z11.object({ name: z11.string(), notes: z11.string().optional() })).mutation(async ({ input, ctx }) => {
+    create: adminProcedure.input(z18.object({ name: z18.string(), notes: z18.string().optional() })).mutation(async ({ input, ctx }) => {
       const id = await createLogicVersion({ ...input, createdBy: ctx.user.id });
       return { id };
     }),
-    publish: adminProcedure.input(z11.object({ id: z11.number() })).mutation(async ({ input, ctx }) => {
+    publish: adminProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input, ctx }) => {
       await publishLogicVersion(input.id);
       await addLogicChangeLogEntry({
         logicVersionId: input.id,
@@ -26517,7 +27569,7 @@ var intelligenceRouter = router({
       });
       return { success: true };
     }),
-    archive: adminProcedure.input(z11.object({ id: z11.number() })).mutation(async ({ input, ctx }) => {
+    archive: adminProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input, ctx }) => {
       await archiveLogicVersion(input.id);
       await addLogicChangeLogEntry({
         logicVersionId: input.id,
@@ -26528,10 +27580,10 @@ var intelligenceRouter = router({
       return { success: true };
     }),
     setWeights: adminProcedure.input(
-      z11.object({
-        logicVersionId: z11.number(),
-        weights: z11.array(z11.object({ dimension: z11.string(), weight: z11.string() })),
-        rationale: z11.string()
+      z18.object({
+        logicVersionId: z18.number(),
+        weights: z18.array(z18.object({ dimension: z18.string(), weight: z18.string() })),
+        rationale: z18.string()
       })
     ).mutation(async ({ input, ctx }) => {
       await setLogicWeights(input.logicVersionId, input.weights);
@@ -26544,17 +27596,17 @@ var intelligenceRouter = router({
       return { success: true };
     }),
     setThresholds: adminProcedure.input(
-      z11.object({
-        logicVersionId: z11.number(),
-        thresholds: z11.array(
-          z11.object({
-            ruleKey: z11.string(),
-            thresholdValue: z11.string(),
-            comparator: z11.enum(["gt", "gte", "lt", "lte", "eq", "neq"]),
-            notes: z11.string().optional()
+      z18.object({
+        logicVersionId: z18.number(),
+        thresholds: z18.array(
+          z18.object({
+            ruleKey: z18.string(),
+            thresholdValue: z18.string(),
+            comparator: z18.enum(["gt", "gte", "lt", "lte", "eq", "neq"]),
+            notes: z18.string().optional()
           })
         ),
-        rationale: z11.string()
+        rationale: z18.string()
       })
     ).mutation(async ({ input, ctx }) => {
       await setLogicThresholds(input.logicVersionId, input.thresholds);
@@ -26566,12 +27618,12 @@ var intelligenceRouter = router({
       });
       return { success: true };
     }),
-    changeLog: adminProcedure.input(z11.object({ logicVersionId: z11.number() })).query(async ({ input }) => {
+    changeLog: adminProcedure.input(z18.object({ logicVersionId: z18.number() })).query(async ({ input }) => {
       return getLogicChangeLog(input.logicVersionId);
     })
   }),
   // ─── V2.10: Calibration ────────────────────────────────────────────────────
-  calibrate: orgAdminProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ input, ctx }) => {
+  calibrate: orgAdminProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const logicVersion = await getPublishedLogicVersion();
     if (!logicVersion) return { error: "No published logic version" };
@@ -26602,7 +27654,7 @@ var intelligenceRouter = router({
   }),
   // ─── V2.11: Scenario Simulation ────────────────────────────────────────────
   scenarios: router({
-    saveInput: orgMutationProcedure.input(z11.object({ scenarioId: z11.number(), jsonInput: z11.unknown() })).mutation(async ({ ctx, input }) => {
+    saveInput: orgMutationProcedure.input(z18.object({ scenarioId: z18.number(), jsonInput: z18.unknown() })).mutation(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
         lookupResource: getScenarioById,
         getProjectId: (scenario) => scenario.projectId
@@ -26612,11 +27664,11 @@ var intelligenceRouter = router({
         ctx.orgId
       );
       if (id === null) {
-        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { id };
     }),
-    getInput: orgProcedure.input(z11.object({ scenarioId: z11.number() })).query(async ({ ctx, input }) => {
+    getInput: orgProcedure.input(z18.object({ scenarioId: z18.number() })).query(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
         lookupResource: getScenarioById,
         getProjectId: (scenario) => scenario.projectId
@@ -26624,14 +27676,14 @@ var intelligenceRouter = router({
       return getScenarioInput(input.scenarioId);
     }),
     saveOutput: orgMutationProcedure.input(
-      z11.object({
-        scenarioId: z11.number(),
-        scoreJson: z11.unknown(),
-        roiJson: z11.unknown().optional(),
-        riskJson: z11.unknown().optional(),
-        boardCostJson: z11.unknown().optional(),
-        benchmarkVersionId: z11.number().optional(),
-        logicVersionId: z11.number().optional()
+      z18.object({
+        scenarioId: z18.number(),
+        scoreJson: z18.unknown(),
+        roiJson: z18.unknown().optional(),
+        riskJson: z18.unknown().optional(),
+        boardCostJson: z18.unknown().optional(),
+        benchmarkVersionId: z18.number().optional(),
+        logicVersionId: z18.number().optional()
       })
     ).mutation(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
@@ -26640,18 +27692,18 @@ var intelligenceRouter = router({
       });
       const id = await createScenarioOutputForOrg(input, ctx.orgId);
       if (id === null) {
-        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { id };
     }),
-    getOutput: orgProcedure.input(z11.object({ scenarioId: z11.number() })).query(async ({ ctx, input }) => {
+    getOutput: orgProcedure.input(z18.object({ scenarioId: z18.number() })).query(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
         lookupResource: getScenarioById,
         getProjectId: (scenario) => scenario.projectId
       });
       return getScenarioOutput(input.scenarioId);
     }),
-    listOutputs: orgProcedure.input(z11.object({ scenarioIds: z11.array(z11.number()) })).query(async ({ ctx, input }) => {
+    listOutputs: orgProcedure.input(z18.object({ scenarioIds: z18.array(z18.number()) })).query(async ({ ctx, input }) => {
       await requireProjectResourceBatchForOrg(
         input.scenarioIds,
         ctx.orgId,
@@ -26663,11 +27715,11 @@ var intelligenceRouter = router({
       return listScenarioOutputs(input.scenarioIds);
     }),
     compare: orgMutationProcedure.input(
-      z11.object({
-        projectId: z11.number(),
-        baselineScenarioId: z11.number(),
-        comparedScenarioIds: z11.array(z11.number()),
-        decisionNote: z11.string().optional()
+      z18.object({
+        projectId: z18.number(),
+        baselineScenarioId: z18.number(),
+        comparedScenarioIds: z18.array(z18.number()),
+        decisionNote: z18.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -26681,7 +27733,7 @@ var intelligenceRouter = router({
         })
       );
       if (authorized.some((item) => item.project.id !== input.projectId)) {
-        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
       }
       const outputs = await listScenarioOutputs(allIds);
       const baselineOutput = outputs.find((o) => o.scenarioId === input.baselineScenarioId);
@@ -26706,22 +27758,22 @@ var intelligenceRouter = router({
         createdBy: ctx.user.id
       }, ctx.orgId);
       if (id === null) {
-        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { id, comparisonResult };
     }),
-    listComparisons: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
+    listComparisons: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       return listScenarioComparisons(input.projectId);
     }),
-    getComparison: orgProcedure.input(z11.object({ id: z11.number() })).query(async ({ ctx, input }) => {
+    getComparison: orgProcedure.input(z18.object({ id: z18.number() })).query(async ({ ctx, input }) => {
       const authorized = await requireProjectResourceForOrg(input.id, ctx.orgId, {
         lookupResource: getScenarioComparisonById,
         getProjectId: (comparison) => comparison.projectId
       });
       return authorized.resource;
     }),
-    exportComparisonPDF: orgHeavyMutationProcedure.input(z11.object({ comparisonId: z11.number(), locale: z11.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
+    exportComparisonPDF: orgHeavyMutationProcedure.input(z18.object({ comparisonId: z18.number(), locale: z18.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
       const { resource: comparison, project } = await requireProjectResourceForOrg(input.comparisonId, ctx.orgId, {
         lookupResource: getScenarioComparisonById,
         getProjectId: (record) => record.projectId
@@ -26762,14 +27814,14 @@ var intelligenceRouter = router({
         locale: input.locale
       };
       const html = generateScenarioComparisonHTML(pdfInput);
-      const fileKey = `reports/${comparison.projectId}/scenario-comparison-${nanoid5(8)}.html`;
+      const fileKey = `reports/${comparison.projectId}/scenario-comparison-${nanoid7(8)}.html`;
       const { url } = await storagePut(fileKey, html, "text/html");
       return { url, html };
     })
   }),
   // ─── V2.12: Explainability ─────────────────────────────────────────────────
   explainability: router({
-    generate: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
+    generate: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const scores = await getScoreMatricesByProject(input.projectId);
       const latestScore = scores[0];
@@ -26814,7 +27866,7 @@ var intelligenceRouter = router({
         logicVersion?.name ?? "Default"
       );
     }),
-    auditPack: orgHeavyMutationProcedure.input(z11.object({ projectId: z11.number() })).mutation(async ({ ctx, input }) => {
+    auditPack: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const scores = await getScoreMatricesByProject(input.projectId);
       const latestScore = scores[0];
@@ -26877,17 +27929,17 @@ var intelligenceRouter = router({
   // ─── V2.13: Outcomes ───────────────────────────────────────────────────────
   outcomes: router({
     capture: orgMutationProcedure.input(
-      z11.object({
-        projectId: z11.number(),
-        procurementActualCosts: z11.record(z11.string(), z11.number()).optional(),
-        leadTimesActual: z11.record(z11.string(), z11.number()).optional(),
-        rfqResults: z11.record(z11.string(), z11.number()).optional(),
-        adoptionMetrics: z11.record(z11.string(), z11.unknown()).optional(),
+      z18.object({
+        projectId: z18.number(),
+        procurementActualCosts: z18.record(z18.string(), z18.number()).optional(),
+        leadTimesActual: z18.record(z18.string(), z18.number()).optional(),
+        rfqResults: z18.record(z18.string(), z18.number()).optional(),
+        adoptionMetrics: z18.record(z18.string(), z18.unknown()).optional(),
         // V5 Fields
-        actualFitoutCostPerSqm: z11.number().optional(),
-        reworkOccurred: z11.boolean().optional(),
-        clientSatisfactionScore: z11.number().min(1).max(5).optional(),
-        projectDeliveredOnTime: z11.boolean().optional()
+        actualFitoutCostPerSqm: z18.number().optional(),
+        reworkOccurred: z18.boolean().optional(),
+        clientSatisfactionScore: z18.number().min(1).max(5).optional(),
+        projectDeliveredOnTime: z18.boolean().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -26897,11 +27949,11 @@ var intelligenceRouter = router({
         capturedBy: ctx.user.id
       }, ctx.orgId);
       if (id === null) {
-        throw new TRPCError12({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { id };
     }),
-    list: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
+    list: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       return getProjectOutcomesForOrg(input.projectId, ctx.orgId);
     }),
@@ -26951,10 +28003,10 @@ var intelligenceRouter = router({
       return listBenchmarkSuggestions();
     }),
     reviewSuggestion: adminProcedure.input(
-      z11.object({
-        id: z11.number(),
-        status: z11.enum(["accepted", "rejected"]),
-        reviewerNotes: z11.string().optional()
+      z18.object({
+        id: z18.number(),
+        status: z18.enum(["accepted", "rejected"]),
+        reviewerNotes: z18.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await reviewBenchmarkSuggestion(input.id, {
@@ -26981,12 +28033,12 @@ function computeDeltas(baseline, compared) {
 }
 
 // server/routers/market-intelligence.ts
-import { z as z13 } from "zod";
-import { TRPCError as TRPCError14 } from "@trpc/server";
+import { z as z20 } from "zod";
+import { TRPCError as TRPCError20 } from "@trpc/server";
 init_db();
 init_dynamic();
 init_orchestrator();
-import { nanoid as nanoid6 } from "nanoid";
+import { nanoid as nanoid8 } from "nanoid";
 
 // server/engines/ingestion/csv-pipeline.ts
 init_db();
@@ -27556,9 +28608,9 @@ init_confidence_policy();
 
 // server/_core/market-resource-access.ts
 init_db();
-import { TRPCError as TRPCError13 } from "@trpc/server";
+import { TRPCError as TRPCError19 } from "@trpc/server";
 function notFound3() {
-  throw new TRPCError13({ code: "NOT_FOUND", message: "Resource not found" });
+  throw new TRPCError19({ code: "NOT_FOUND", message: "Resource not found" });
 }
 async function requireEvidenceRecordForOrg(evidenceId, orgId) {
   const evidence = await getEvidenceRecordById(evidenceId);
@@ -27568,7 +28620,7 @@ async function requireEvidenceRecordForOrg(evidenceId, orgId) {
     try {
       project = await requireProjectForOrg(evidence.projectId, orgId);
     } catch (error) {
-      if (error instanceof TRPCError13 && error.code === "NOT_FOUND") {
+      if (error instanceof TRPCError19 && error.code === "NOT_FOUND") {
         return notFound3();
       }
       throw error;
@@ -27610,7 +28662,7 @@ async function requireTaggedEntitiesForOrg(tagId, orgId) {
       );
       authorized.push(link);
     } catch (error) {
-      if (!(error instanceof TRPCError13) || error.code !== "NOT_FOUND") {
+      if (!(error instanceof TRPCError19) || error.code !== "NOT_FOUND") {
         throw error;
       }
     }
@@ -27619,10 +28671,10 @@ async function requireTaggedEntitiesForOrg(tagId, orgId) {
 }
 
 // server/routers/market-intelligence.ts
-var evidenceRecordSchema = z13.object({
-  projectId: z13.number().optional(),
-  sourceRegistryId: z13.number().optional(),
-  category: z13.enum([
+var evidenceRecordSchema = z20.object({
+  projectId: z20.number().optional(),
+  sourceRegistryId: z20.number().optional(),
+  category: z20.enum([
     "floors",
     "walls",
     "ceilings",
@@ -27634,39 +28686,39 @@ var evidenceRecordSchema = z13.object({
     "ffe",
     "other"
   ]),
-  itemName: z13.string().min(1),
-  specClass: z13.string().optional(),
-  priceMin: z13.number().optional(),
-  priceTypical: z13.number().optional(),
-  priceMax: z13.number().optional(),
-  unit: z13.string().min(1),
-  currencyOriginal: z13.string().default("AED"),
-  currencyAed: z13.number().optional(),
-  fxRate: z13.number().optional(),
-  fxSource: z13.string().optional(),
-  sourceUrl: z13.string().url(),
-  publisher: z13.string().optional(),
-  captureDate: z13.string(),
+  itemName: z20.string().min(1),
+  specClass: z20.string().optional(),
+  priceMin: z20.number().optional(),
+  priceTypical: z20.number().optional(),
+  priceMax: z20.number().optional(),
+  unit: z20.string().min(1),
+  currencyOriginal: z20.string().default("AED"),
+  currencyAed: z20.number().optional(),
+  fxRate: z20.number().optional(),
+  fxSource: z20.string().optional(),
+  sourceUrl: z20.string().url(),
+  publisher: z20.string().optional(),
+  captureDate: z20.string(),
   // ISO date
-  reliabilityGrade: z13.enum(["A", "B", "C"]),
-  confidenceScore: z13.number().min(0).max(100),
-  extractedSnippet: z13.string().optional(),
-  notes: z13.string().optional(),
+  reliabilityGrade: z20.enum(["A", "B", "C"]),
+  confidenceScore: z20.number().min(0).max(100),
+  extractedSnippet: z20.string().optional(),
+  notes: z20.string().optional(),
   // V2.2 metadata fields
-  title: z13.string().optional(),
-  evidencePhase: z13.enum(["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]).optional(),
-  author: z13.string().optional(),
-  confidentiality: z13.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
-  tags: z13.array(z13.string()).optional(),
-  fileUrl: z13.string().optional(),
-  fileKey: z13.string().optional(),
-  fileMimeType: z13.string().optional(),
+  title: z20.string().optional(),
+  evidencePhase: z20.enum(["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]).optional(),
+  author: z20.string().optional(),
+  confidentiality: z20.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
+  tags: z20.array(z20.string()).optional(),
+  fileUrl: z20.string().optional(),
+  fileKey: z20.string().optional(),
+  fileMimeType: z20.string().optional(),
   // Source-type Intelligence fields
-  finishLevel: z13.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).nullable().optional(),
-  designStyle: z13.string().nullable().optional(),
-  brandsMentioned: z13.array(z13.string()).nullable().optional(),
-  materialSpec: z13.string().nullable().optional(),
-  intelligenceType: z13.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional()
+  finishLevel: z20.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).nullable().optional(),
+  designStyle: z20.string().nullable().optional(),
+  brandsMentioned: z20.array(z20.string()).nullable().optional(),
+  materialSpec: z20.string().nullable().optional(),
+  intelligenceType: z20.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional()
 });
 var MANUAL_ASSERTED_CONFIDENCE_POLICY = "manual-asserted-confidence-v1";
 async function assertedConfidenceAssessment(origin, rawPublicationText, evaluationClock, grade2, score, runId, actorId) {
@@ -27691,7 +28743,7 @@ async function assertedConfidenceAssessment(origin, rawPublicationText, evaluati
       mergeDecision: "rejected",
       rejectionCode
     });
-    throw new TRPCError14({
+    throw new TRPCError20({
       code: "BAD_REQUEST",
       message: publication.status === "future" ? "Publication date cannot be in the future" : "Publication date is invalid"
     });
@@ -27715,10 +28767,10 @@ async function assertedConfidenceAssessment(origin, rawPublicationText, evaluati
     mergeDecision: "manual_assertion"
   };
 }
-var sourceRegistrySchema = z13.object({
-  name: z13.string().min(1),
-  url: z13.string().url(),
-  sourceType: z13.enum([
+var sourceRegistrySchema = z20.object({
+  name: z20.string().min(1),
+  url: z20.string().url(),
+  sourceType: z20.enum([
     "supplier_catalog",
     "manufacturer_catalog",
     "developer_brochure",
@@ -27730,29 +28782,29 @@ var sourceRegistrySchema = z13.object({
     "aggregator",
     "other"
   ]),
-  reliabilityDefault: z13.enum(["A", "B", "C"]).default("B"),
-  isWhitelisted: z13.boolean().default(true),
-  region: z13.string().default("UAE"),
-  notes: z13.string().optional(),
+  reliabilityDefault: z20.enum(["A", "B", "C"]).default("B"),
+  isWhitelisted: z20.boolean().default(true),
+  region: z20.string().default("UAE"),
+  notes: z20.string().optional(),
   // DFE Fields
-  scrapeConfig: z13.any().optional(),
-  scrapeSchedule: z13.string().optional(),
-  scrapeMethod: z13.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
-  scrapeHeaders: z13.any().optional(),
-  extractionHints: z13.string().optional(),
-  priceFieldMapping: z13.any().optional(),
-  lastScrapedAt: z13.string().optional(),
-  lastScrapedStatus: z13.enum(["success", "partial", "failed", "never"]).default("never"),
-  lastRecordCount: z13.number().default(0),
-  consecutiveFailures: z13.number().default(0),
-  requestDelayMs: z13.number().default(2e3)
+  scrapeConfig: z20.any().optional(),
+  scrapeSchedule: z20.string().optional(),
+  scrapeMethod: z20.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+  scrapeHeaders: z20.any().optional(),
+  extractionHints: z20.string().optional(),
+  priceFieldMapping: z20.any().optional(),
+  lastScrapedAt: z20.string().optional(),
+  lastScrapedStatus: z20.enum(["success", "partial", "failed", "never"]).default("never"),
+  lastRecordCount: z20.number().default(0),
+  consecutiveFailures: z20.number().default(0),
+  requestDelayMs: z20.number().default(2e3)
 });
 function generateRecordId3() {
-  const seq = nanoid6(8).toUpperCase();
+  const seq = nanoid8(8).toUpperCase();
   return `MYR-PE-${seq}`;
 }
 function generateRunId(prefix) {
-  return `${prefix}-${Date.now()}-${nanoid6(6)}`;
+  return `${prefix}-${Date.now()}-${nanoid8(6)}`;
 }
 var marketIntelligenceRouter = router({
   // ─── Source Registry ────────────────────────────────────────────────────────
@@ -27760,7 +28812,7 @@ var marketIntelligenceRouter = router({
     list: protectedProcedure.query(async () => {
       return listSourceRegistry();
     }),
-    get: protectedProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
+    get: protectedProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
       return getSourceRegistryById(input.id);
     }),
     create: adminProcedure.input(sourceRegistrySchema).mutation(async ({ input, ctx }) => {
@@ -27778,11 +28830,11 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z13.object({
-      id: z13.number(),
-      name: z13.string().optional(),
-      url: z13.string().url().optional(),
-      sourceType: z13.enum([
+    update: adminProcedure.input(z20.object({
+      id: z20.number(),
+      name: z20.string().optional(),
+      url: z20.string().url().optional(),
+      sourceType: z20.enum([
         "supplier_catalog",
         "manufacturer_catalog",
         "developer_brochure",
@@ -27794,23 +28846,23 @@ var marketIntelligenceRouter = router({
         "aggregator",
         "other"
       ]).optional(),
-      reliabilityDefault: z13.enum(["A", "B", "C"]).optional(),
-      isWhitelisted: z13.boolean().optional(),
-      region: z13.string().optional(),
-      notes: z13.string().optional(),
-      isActive: z13.boolean().optional(),
+      reliabilityDefault: z20.enum(["A", "B", "C"]).optional(),
+      isWhitelisted: z20.boolean().optional(),
+      region: z20.string().optional(),
+      notes: z20.string().optional(),
+      isActive: z20.boolean().optional(),
       // DFE Fields
-      scrapeConfig: z13.any().optional(),
-      scrapeSchedule: z13.string().optional(),
-      scrapeMethod: z13.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).optional(),
-      scrapeHeaders: z13.any().optional(),
-      extractionHints: z13.string().optional(),
-      priceFieldMapping: z13.any().optional(),
-      lastScrapedAt: z13.string().optional(),
-      lastScrapedStatus: z13.enum(["success", "partial", "failed", "never"]).optional(),
-      lastRecordCount: z13.number().optional(),
-      consecutiveFailures: z13.number().optional(),
-      requestDelayMs: z13.number().optional()
+      scrapeConfig: z20.any().optional(),
+      scrapeSchedule: z20.string().optional(),
+      scrapeMethod: z20.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).optional(),
+      scrapeHeaders: z20.any().optional(),
+      extractionHints: z20.string().optional(),
+      priceFieldMapping: z20.any().optional(),
+      lastScrapedAt: z20.string().optional(),
+      lastScrapedStatus: z20.enum(["success", "partial", "failed", "never"]).optional(),
+      lastRecordCount: z20.number().optional(),
+      consecutiveFailures: z20.number().optional(),
+      requestDelayMs: z20.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const { id, lastScrapedAt, ...data } = input;
       await updateSourceRegistryEntry(id, {
@@ -27826,7 +28878,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    toggleActive: adminProcedure.input(z13.object({ id: z13.number(), isActive: z13.boolean() })).mutation(async ({ input, ctx }) => {
+    toggleActive: adminProcedure.input(z20.object({ id: z20.number(), isActive: z20.boolean() })).mutation(async ({ input, ctx }) => {
       await updateSourceRegistryEntry(input.id, { isActive: input.isActive });
       await createAuditLog({
         userId: ctx.user.id,
@@ -27836,7 +28888,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    delete: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
+    delete: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
       await deleteSourceRegistryEntry(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -27856,13 +28908,13 @@ var marketIntelligenceRouter = router({
       });
       return { created: result.created, skipped: result.skipped };
     }),
-    testScrape: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input }) => {
+    testScrape: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input }) => {
       const source = await getSourceRegistryById(input.id);
       if (!source) throw new Error("Source not found");
       const connector = new DynamicConnector(source);
       return await testScrape(connector);
     }),
-    scrapeNow: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
+    scrapeNow: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
       const source = await getSourceRegistryById(input.id);
       if (!source) throw new Error("Source not found");
       await updateSourceRegistryEntry(source.id, { consecutiveFailures: 0 });
@@ -27881,9 +28933,9 @@ var marketIntelligenceRouter = router({
       const buffer = generateCsvTemplate();
       return { base64: buffer.toString("base64") };
     }),
-    uploadCsv: adminProcedure.input(z13.object({
-      sourceId: z13.number(),
-      base64File: z13.string()
+    uploadCsv: adminProcedure.input(z20.object({
+      sourceId: z20.number(),
+      base64File: z20.string()
     })).mutation(async ({ input, ctx }) => {
       const buffer = Buffer.from(input.base64File, "base64");
       const report = await processCsvUpload(buffer, input.sourceId, ctx.user.id);
@@ -27899,13 +28951,13 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Evidence Records ──────────────────────────────────────────────────────
   evidence: router({
-    list: orgProcedure.input(z13.object({
-      projectId: z13.number().optional(),
-      category: z13.string().optional(),
-      reliabilityGrade: z13.string().optional(),
-      evidencePhase: z13.string().optional(),
-      confidentiality: z13.string().optional(),
-      limit: z13.number().default(100)
+    list: orgProcedure.input(z20.object({
+      projectId: z20.number().optional(),
+      category: z20.string().optional(),
+      reliabilityGrade: z20.string().optional(),
+      evidencePhase: z20.string().optional(),
+      confidentiality: z20.string().optional(),
+      limit: z20.number().default(100)
     }).optional()).query(async ({ ctx, input }) => {
       if (!input?.projectId) {
         return listPublicCorpusEvidence({
@@ -27925,17 +28977,17 @@ var marketIntelligenceRouter = router({
         limit: input?.limit ?? 100
       });
     }),
-    get: orgProcedure.input(z13.object({ id: z13.number() })).query(async ({ ctx, input }) => {
+    get: orgProcedure.input(z20.object({ id: z20.number() })).query(async ({ ctx, input }) => {
       const authorized = await requireEvidenceRecordForOrg(input.id, ctx.orgId);
       return authorized.evidence;
     }),
-    confidenceHistory: orgProcedure.input(z13.object({ id: z13.number(), limit: z13.number().min(1).max(100).default(50) })).query(async ({ ctx, input }) => {
+    confidenceHistory: orgProcedure.input(z20.object({ id: z20.number(), limit: z20.number().min(1).max(100).default(50) })).query(async ({ ctx, input }) => {
       await requireEvidenceRecordForOrg(input.id, ctx.orgId);
       return listConfidenceAssessmentHistory(input.id, input.limit);
     }),
     create: adminProcedure.input(evidenceRecordSchema).mutation(async ({ input, ctx }) => {
       if (input.projectId !== void 0) {
-        throw new TRPCError14({
+        throw new TRPCError20({
           code: "BAD_REQUEST",
           message: "Project-linked evidence must be created within an organization workflow"
         });
@@ -27982,11 +29034,11 @@ var marketIntelligenceRouter = router({
       });
       return { id: result.id, recordId };
     }),
-    bulkImport: adminProcedure.input(z13.object({
-      records: z13.array(evidenceRecordSchema)
+    bulkImport: adminProcedure.input(z20.object({
+      records: z20.array(evidenceRecordSchema)
     })).mutation(async ({ input, ctx }) => {
       if (input.records.some((record) => record.projectId !== void 0)) {
-        throw new TRPCError14({
+        throw new TRPCError20({
           code: "BAD_REQUEST",
           message: "Project-linked evidence must be created within an organization workflow"
         });
@@ -28045,9 +29097,9 @@ var marketIntelligenceRouter = router({
       });
       return { imported, errors: errors.length, runId };
     }),
-    delete: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
+    delete: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
       if (!await deleteGlobalEvidenceRecord(input.id)) {
-        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -28061,10 +29113,10 @@ var marketIntelligenceRouter = router({
       return getPublicEvidenceStats();
     }),
     // V2.2 — Evidence References
-    listReferences: orgProcedure.input(z13.object({
-      evidenceRecordId: z13.number().optional(),
-      targetType: z13.string().optional(),
-      targetId: z13.number().optional()
+    listReferences: orgProcedure.input(z20.object({
+      evidenceRecordId: z20.number().optional(),
+      targetType: z20.string().optional(),
+      targetId: z20.number().optional()
     }).refine(
       (value) => value.evidenceRecordId !== void 0 || value.targetType !== void 0 && value.targetId !== void 0,
       "Evidence record or complete target is required"
@@ -28081,9 +29133,9 @@ var marketIntelligenceRouter = router({
       }
       return listEvidenceReferences(input);
     }),
-    addReference: orgMutationProcedure.input(z13.object({
-      evidenceRecordId: z13.number(),
-      targetType: z13.enum([
+    addReference: orgMutationProcedure.input(z20.object({
+      evidenceRecordId: z20.number(),
+      targetType: z20.enum([
         "scenario",
         "decision_note",
         "explainability_driver",
@@ -28092,9 +29144,9 @@ var marketIntelligenceRouter = router({
         "material_board",
         "pack_section"
       ]),
-      targetId: z13.number(),
-      sectionLabel: z13.string().optional(),
-      citationText: z13.string().optional()
+      targetId: z20.number(),
+      sectionLabel: z20.string().optional(),
+      citationText: z20.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
       await requireEvidenceReferenceTargetForOrg(
@@ -28111,10 +29163,10 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    removeReference: orgMutationProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
+    removeReference: orgMutationProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
       const reference = await getEvidenceReferenceById(input.id);
       if (!reference) {
-        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await requireEvidenceRecordForOrg(reference.evidenceRecordId, ctx.orgId);
       await requireEvidenceReferenceTargetForOrg(
@@ -28123,7 +29175,7 @@ var marketIntelligenceRouter = router({
         ctx.orgId
       );
       if (!await deleteEvidenceReferenceIfMatches(input.id, reference)) {
-        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -28134,9 +29186,9 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // Get evidence records linked to a specific target (e.g., scenario, design_brief)
-    getForTarget: orgProcedure.input(z13.object({
-      targetType: z13.string(),
-      targetId: z13.number()
+    getForTarget: orgProcedure.input(z20.object({
+      targetType: z20.string(),
+      targetId: z20.number()
     })).query(async ({ ctx, input }) => {
       await requireEvidenceReferenceTargetForOrg(
         input.targetType,
@@ -28148,17 +29200,17 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Benchmark Proposals ──────────────────────────────────────────────────
   proposals: router({
-    list: adminProcedure.input(z13.object({
-      status: z13.enum(["pending", "approved", "rejected"]).optional()
+    list: adminProcedure.input(z20.object({
+      status: z20.enum(["pending", "approved", "rejected"]).optional()
     }).optional()).query(async ({ input }) => {
       return listBenchmarkProposals(input?.status);
     }),
-    get: adminProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
       return getBenchmarkProposalById(input.id);
     }),
-    generate: adminProcedure.input(z13.object({
-      category: z13.string().optional(),
-      minEvidenceCount: z13.number().default(3)
+    generate: adminProcedure.input(z20.object({
+      category: z20.string().optional(),
+      minEvidenceCount: z20.number().default(3)
     })).mutation(async ({ input, ctx }) => {
       const runId = generateRunId("PROP");
       const startedAt = /* @__PURE__ */ new Date();
@@ -28265,10 +29317,10 @@ var marketIntelligenceRouter = router({
       });
       return { proposals, runId };
     }),
-    review: adminProcedure.input(z13.object({
-      id: z13.number(),
-      status: z13.enum(["approved", "rejected"]),
-      reviewerNotes: z13.string().optional()
+    review: adminProcedure.input(z20.object({
+      id: z20.number(),
+      status: z20.enum(["approved", "rejected"]),
+      reviewerNotes: z20.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await reviewBenchmarkProposal(input.id, {
         status: input.status,
@@ -28316,10 +29368,10 @@ var marketIntelligenceRouter = router({
     list: adminProcedure.query(async () => {
       return listBenchmarkSnapshots();
     }),
-    get: adminProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
       return getBenchmarkSnapshotById(input.id);
     }),
-    create: adminProcedure.input(z13.object({ description: z13.string().optional() })).mutation(async ({ ctx, input }) => {
+    create: adminProcedure.input(z20.object({ description: z20.string().optional() })).mutation(async ({ ctx, input }) => {
       const activeBV = await getActiveBenchmarkVersion();
       const currentBenchmarks = await getAllBenchmarkData();
       const result = await createBenchmarkSnapshot({
@@ -28337,16 +29389,16 @@ var marketIntelligenceRouter = router({
     listEntities: protectedProcedure.query(async () => {
       return listCompetitorEntities();
     }),
-    getEntity: protectedProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
+    getEntity: protectedProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
       return getCompetitorEntityById(input.id);
     }),
-    createEntity: adminProcedure.input(z13.object({
-      name: z13.string().min(1),
-      headquarters: z13.string().optional(),
-      segmentFocus: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).default("mixed"),
-      website: z13.string().optional(),
-      logoUrl: z13.string().optional(),
-      notes: z13.string().optional()
+    createEntity: adminProcedure.input(z20.object({
+      name: z20.string().min(1),
+      headquarters: z20.string().optional(),
+      segmentFocus: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).default("mixed"),
+      website: z20.string().optional(),
+      logoUrl: z20.string().optional(),
+      notes: z20.string().optional()
     })).mutation(async ({ input, ctx }) => {
       const result = await createCompetitorEntity({ ...input, createdBy: ctx.user.id });
       await createAuditLog({
@@ -28357,14 +29409,14 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    updateEntity: adminProcedure.input(z13.object({
-      id: z13.number(),
-      name: z13.string().optional(),
-      headquarters: z13.string().optional(),
-      segmentFocus: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).optional(),
-      website: z13.string().optional(),
-      logoUrl: z13.string().optional(),
-      notes: z13.string().optional()
+    updateEntity: adminProcedure.input(z20.object({
+      id: z20.number(),
+      name: z20.string().optional(),
+      headquarters: z20.string().optional(),
+      segmentFocus: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).optional(),
+      website: z20.string().optional(),
+      logoUrl: z20.string().optional(),
+      notes: z20.string().optional()
     })).mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       await updateCompetitorEntity(id, data);
@@ -28376,7 +29428,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    deleteEntity: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
+    deleteEntity: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
       await deleteCompetitorEntity(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -28387,38 +29439,38 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // ─── Projects ─────────────────────────────────────────────────────────
-    listProjects: protectedProcedure.input(z13.object({
-      competitorId: z13.number().optional(),
-      segment: z13.string().optional()
+    listProjects: protectedProcedure.input(z20.object({
+      competitorId: z20.number().optional(),
+      segment: z20.string().optional()
     }).optional()).query(async ({ input }) => {
       return listCompetitorProjects(input?.competitorId, input?.segment);
     }),
-    getProject: protectedProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
+    getProject: protectedProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
       return getCompetitorProjectById(input.id);
     }),
-    createProject: adminProcedure.input(z13.object({
-      competitorId: z13.number(),
-      projectName: z13.string().min(1),
-      location: z13.string().optional(),
-      segment: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-      assetType: z13.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-      positioningKeywords: z13.array(z13.string()).optional(),
-      interiorStyleSignals: z13.array(z13.string()).optional(),
-      materialCues: z13.array(z13.string()).optional(),
-      amenityList: z13.array(z13.string()).optional(),
-      unitMix: z13.string().optional(),
-      priceIndicators: z13.any().optional(),
-      salesMessaging: z13.array(z13.string()).optional(),
-      differentiationClaims: z13.array(z13.string()).optional(),
-      completionStatus: z13.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-      launchDate: z13.string().optional(),
-      totalUnits: z13.number().optional(),
-      architect: z13.string().optional(),
-      interiorDesigner: z13.string().optional(),
-      sourceUrl: z13.string().optional(),
-      captureDate: z13.string().optional(),
-      evidenceCitations: z13.any().optional(),
-      completenessScore: z13.number().optional()
+    createProject: adminProcedure.input(z20.object({
+      competitorId: z20.number(),
+      projectName: z20.string().min(1),
+      location: z20.string().optional(),
+      segment: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+      assetType: z20.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
+      positioningKeywords: z20.array(z20.string()).optional(),
+      interiorStyleSignals: z20.array(z20.string()).optional(),
+      materialCues: z20.array(z20.string()).optional(),
+      amenityList: z20.array(z20.string()).optional(),
+      unitMix: z20.string().optional(),
+      priceIndicators: z20.any().optional(),
+      salesMessaging: z20.array(z20.string()).optional(),
+      differentiationClaims: z20.array(z20.string()).optional(),
+      completionStatus: z20.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
+      launchDate: z20.string().optional(),
+      totalUnits: z20.number().optional(),
+      architect: z20.string().optional(),
+      interiorDesigner: z20.string().optional(),
+      sourceUrl: z20.string().optional(),
+      captureDate: z20.string().optional(),
+      evidenceCitations: z20.any().optional(),
+      completenessScore: z20.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const result = await createCompetitorProject({
         ...input,
@@ -28433,25 +29485,25 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    updateProject: adminProcedure.input(z13.object({
-      id: z13.number(),
-      projectName: z13.string().optional(),
-      location: z13.string().optional(),
-      segment: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-      positioningKeywords: z13.array(z13.string()).optional(),
-      interiorStyleSignals: z13.array(z13.string()).optional(),
-      materialCues: z13.array(z13.string()).optional(),
-      amenityList: z13.array(z13.string()).optional(),
-      priceIndicators: z13.any().optional(),
-      salesMessaging: z13.array(z13.string()).optional(),
-      differentiationClaims: z13.array(z13.string()).optional(),
-      completionStatus: z13.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-      totalUnits: z13.number().optional(),
-      architect: z13.string().optional(),
-      interiorDesigner: z13.string().optional(),
-      sourceUrl: z13.string().optional(),
-      evidenceCitations: z13.any().optional(),
-      completenessScore: z13.number().optional()
+    updateProject: adminProcedure.input(z20.object({
+      id: z20.number(),
+      projectName: z20.string().optional(),
+      location: z20.string().optional(),
+      segment: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+      positioningKeywords: z20.array(z20.string()).optional(),
+      interiorStyleSignals: z20.array(z20.string()).optional(),
+      materialCues: z20.array(z20.string()).optional(),
+      amenityList: z20.array(z20.string()).optional(),
+      priceIndicators: z20.any().optional(),
+      salesMessaging: z20.array(z20.string()).optional(),
+      differentiationClaims: z20.array(z20.string()).optional(),
+      completionStatus: z20.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
+      totalUnits: z20.number().optional(),
+      architect: z20.string().optional(),
+      interiorDesigner: z20.string().optional(),
+      sourceUrl: z20.string().optional(),
+      evidenceCitations: z20.any().optional(),
+      completenessScore: z20.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       await updateCompetitorProject(id, data);
@@ -28463,7 +29515,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    deleteProject: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
+    deleteProject: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
       await deleteCompetitorProject(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -28474,7 +29526,7 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // ─── Comparison View ──────────────────────────────────────────────────
-    compare: protectedProcedure.input(z13.object({ projectIds: z13.array(z13.number()).min(2).max(6) })).query(async ({ input }) => {
+    compare: protectedProcedure.input(z20.object({ projectIds: z20.array(z20.number()).min(2).max(6) })).query(async ({ input }) => {
       const projects2 = [];
       for (const id of input.projectIds) {
         const p = await getCompetitorProjectById(id);
@@ -28502,20 +29554,20 @@ var marketIntelligenceRouter = router({
       }));
       return { projects: validProjects, matrix };
     }),
-    bulkImport: adminProcedure.input(z13.object({
-      competitorId: z13.number(),
-      projects: z13.array(z13.object({
-        projectName: z13.string(),
-        location: z13.string().optional(),
-        segment: z13.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-        assetType: z13.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-        positioningKeywords: z13.array(z13.string()).optional(),
-        interiorStyleSignals: z13.array(z13.string()).optional(),
-        materialCues: z13.array(z13.string()).optional(),
-        amenityList: z13.array(z13.string()).optional(),
-        sourceUrl: z13.string().optional(),
-        evidenceCitations: z13.any().optional(),
-        completenessScore: z13.number().optional()
+    bulkImport: adminProcedure.input(z20.object({
+      competitorId: z20.number(),
+      projects: z20.array(z20.object({
+        projectName: z20.string(),
+        location: z20.string().optional(),
+        segment: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+        assetType: z20.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
+        positioningKeywords: z20.array(z20.string()).optional(),
+        interiorStyleSignals: z20.array(z20.string()).optional(),
+        materialCues: z20.array(z20.string()).optional(),
+        amenityList: z20.array(z20.string()).optional(),
+        sourceUrl: z20.string().optional(),
+        evidenceCitations: z20.any().optional(),
+        completenessScore: z20.number().optional()
       }))
     })).mutation(async ({ input, ctx }) => {
       const runId = generateRunId("COMP");
@@ -28547,12 +29599,12 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Trend Tags ───────────────────────────────────────────────────────────
   tags: router({
-    list: protectedProcedure.input(z13.object({ category: z13.string().optional() }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(z20.object({ category: z20.string().optional() }).optional()).query(async ({ input }) => {
       return listTrendTags(input?.category);
     }),
-    create: adminProcedure.input(z13.object({
-      name: z13.string().min(1),
-      category: z13.enum([
+    create: adminProcedure.input(z20.object({
+      name: z20.string().min(1),
+      category: z20.enum([
         "material_trend",
         "design_trend",
         "market_trend",
@@ -28562,20 +29614,20 @@ var marketIntelligenceRouter = router({
         "pricing",
         "other"
       ]),
-      description: z13.string().optional()
+      description: z20.string().optional()
     })).mutation(async ({ input, ctx }) => {
       const result = await createTrendTag({ ...input, createdBy: ctx.user.id });
       return result;
     }),
-    delete: adminProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input }) => {
+    delete: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input }) => {
       await deleteTrendTag(input.id);
       return { success: true };
     }),
     // ─── Entity Tagging ───────────────────────────────────────────────────
-    attach: orgMutationProcedure.input(z13.object({
-      tagId: z13.number(),
-      entityType: z13.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-      entityId: z13.number()
+    attach: orgMutationProcedure.input(z20.object({
+      tagId: z20.number(),
+      entityType: z20.enum(["competitor_project", "scenario", "evidence_record", "project"]),
+      entityId: z20.number()
     })).mutation(async ({ input, ctx }) => {
       await requireMarketTagTargetForOrg(
         input.entityType,
@@ -28585,10 +29637,10 @@ var marketIntelligenceRouter = router({
       const result = await createEntityTag({ ...input, addedBy: ctx.user.id });
       return result;
     }),
-    detach: orgMutationProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input, ctx }) => {
+    detach: orgMutationProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
       const entityTag = await getEntityTagById(input.id);
       if (!entityTag) {
-        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await requireMarketTagTargetForOrg(
         entityTag.entityType,
@@ -28596,13 +29648,13 @@ var marketIntelligenceRouter = router({
         ctx.orgId
       );
       if (!await deleteEntityTagIfMatches(input.id, entityTag)) {
-        throw new TRPCError14({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { success: true };
     }),
-    getEntityTags: orgProcedure.input(z13.object({
-      entityType: z13.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-      entityId: z13.number()
+    getEntityTags: orgProcedure.input(z20.object({
+      entityType: z20.enum(["competitor_project", "scenario", "evidence_record", "project"]),
+      entityId: z20.number()
     })).query(async ({ ctx, input }) => {
       await requireMarketTagTargetForOrg(
         input.entityType,
@@ -28611,19 +29663,19 @@ var marketIntelligenceRouter = router({
       );
       return getEntityTags(input.entityType, input.entityId);
     }),
-    getTaggedEntities: orgProcedure.input(z13.object({ tagId: z13.number() })).query(async ({ ctx, input }) => {
+    getTaggedEntities: orgProcedure.input(z20.object({ tagId: z20.number() })).query(async ({ ctx, input }) => {
       return requireTaggedEntitiesForOrg(input.tagId, ctx.orgId);
     })
   }),
   // ─── Intelligence Audit Log ───────────────────────────────────────────────
   auditLog: router({
-    list: adminProcedure.input(z13.object({
-      runType: z13.string().optional(),
-      limit: z13.number().default(50)
+    list: adminProcedure.input(z20.object({
+      runType: z20.string().optional(),
+      limit: z20.number().default(50)
     }).optional()).query(async ({ input }) => {
       return listIntelligenceAuditLog(input?.runType, input?.limit ?? 50);
     }),
-    get: adminProcedure.input(z13.object({ id: z13.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
       return getIntelligenceAuditEntryById(input.id);
     })
   }),
@@ -28633,7 +29685,7 @@ var marketIntelligenceRouter = router({
 });
 
 // server/routers/ingestion.ts
-import { z as z14 } from "zod";
+import { z as z21 } from "zod";
 init_orchestrator();
 init_connectors();
 init_db();
@@ -28695,8 +29747,8 @@ var ingestionRouter = router({
    * Run a single connector by sourceId.
    * Admin-only. Returns IngestionRunReport for that one source.
    */
-  runSource: adminProcedure.input(z14.object({
-    sourceId: z14.string().min(1)
+  runSource: adminProcedure.input(z21.object({
+    sourceId: z21.string().min(1)
   })).mutation(async ({ input, ctx }) => {
     const connector = getConnectorById(input.sourceId);
     if (!connector) {
@@ -28708,9 +29760,9 @@ var ingestionRouter = router({
   /**
    * List past ingestion runs (paginated, newest first).
    */
-  getHistory: protectedProcedure.input(z14.object({
-    limit: z14.number().min(1).max(100).default(20),
-    offset: z14.number().min(0).default(0)
+  getHistory: protectedProcedure.input(z21.object({
+    limit: z21.number().min(1).max(100).default(20),
+    offset: z21.number().min(0).default(0)
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return { runs: [], total: 0 };
@@ -28769,7 +29821,7 @@ var ingestionRouter = router({
   /**
    * Get detailed breakdown for a specific ingestion run.
    */
-  getRunDetail: protectedProcedure.input(z14.object({ runId: z14.string() })).query(async ({ input }) => {
+  getRunDetail: protectedProcedure.input(z21.object({ runId: z21.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
     const runs = await db.select().from(ingestionRuns).where(eq11(ingestionRuns.runId, input.runId)).limit(1);
@@ -28790,15 +29842,15 @@ var ingestionRouter = router({
   /**
    * Get connector health records for a specific ingestion run.
    */
-  getRunHealth: protectedProcedure.input(z14.object({ runId: z14.string() })).query(async ({ input }) => {
+  getRunHealth: protectedProcedure.input(z21.object({ runId: z21.string() })).query(async ({ input }) => {
     return getConnectorHealthByRun(input.runId);
   }),
   /**
    * Get health history for a specific connector (last 30 records).
    */
-  getSourceHealth: protectedProcedure.input(z14.object({
-    sourceId: z14.string(),
-    limit: z14.number().min(1).max(100).default(30)
+  getSourceHealth: protectedProcedure.input(z21.object({
+    sourceId: z21.string(),
+    limit: z21.number().min(1).max(100).default(30)
   })).query(async ({ input }) => {
     return getConnectorHealthHistory(input.sourceId, input.limit);
   }),
@@ -28849,8 +29901,8 @@ var ingestionRouter = router({
   /**
    * List all sources from source_registry with health info.
    */
-  listSources: protectedProcedure.input(z14.object({
-    activeOnly: z14.boolean().default(true)
+  listSources: protectedProcedure.input(z21.object({
+    activeOnly: z21.boolean().default(true)
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
@@ -28861,17 +29913,17 @@ var ingestionRouter = router({
   /**
    * Create a new source in the registry.
    */
-  createSource: adminProcedure.input(z14.object({
-    name: z14.string().min(1).max(255),
-    url: z14.string().url(),
-    sourceType: z14.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
-    reliabilityDefault: z14.enum(["A", "B", "C"]).default("B"),
-    region: z14.string().default("UAE"),
-    scrapeMethod: z14.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
-    scrapeSchedule: z14.string().optional(),
-    extractionHints: z14.string().optional(),
-    notes: z14.string().optional(),
-    requestDelayMs: z14.number().default(2e3)
+  createSource: adminProcedure.input(z21.object({
+    name: z21.string().min(1).max(255),
+    url: z21.string().url(),
+    sourceType: z21.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
+    reliabilityDefault: z21.enum(["A", "B", "C"]).default("B"),
+    region: z21.string().default("UAE"),
+    scrapeMethod: z21.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+    scrapeSchedule: z21.string().optional(),
+    extractionHints: z21.string().optional(),
+    notes: z21.string().optional(),
+    requestDelayMs: z21.number().default(2e3)
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
@@ -28898,7 +29950,7 @@ var ingestionRouter = router({
   /**
    * Toggle source active/inactive.
    */
-  toggleSource: adminProcedure.input(z14.object({ id: z14.number(), isActive: z14.boolean() })).mutation(async ({ input }) => {
+  toggleSource: adminProcedure.input(z21.object({ id: z21.number(), isActive: z21.boolean() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
     await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq11(sourceRegistry.id, input.id));
@@ -28907,7 +29959,7 @@ var ingestionRouter = router({
   /**
    * Run a single DB-registered source via DynamicConnector.
    */
-  runRegisteredSource: adminProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ ctx, input }) => {
+  runRegisteredSource: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ ctx, input }) => {
     assertDatabaseAccess("ingest");
     const db = await getDb();
     if (!db) throw new Error("DB not available");
@@ -28933,9 +29985,9 @@ var ingestionRouter = router({
   /**
    * List detected design trends, ordered by mention count.
    */
-  getTrends: protectedProcedure.input(z14.object({
-    limit: z14.number().min(1).max(100).default(50),
-    category: z14.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional()
+  getTrends: protectedProcedure.input(z21.object({
+    limit: z21.number().min(1).max(100).default(50),
+    category: z21.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional()
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
@@ -28952,8 +30004,8 @@ var ingestionRouter = router({
    * AI-powered source discovery — find new UAE market data sources.
    * Returns candidate sources for admin review before adding to registry.
    */
-  discoverSources: adminProcedure.input(z14.object({
-    coverageGaps: z14.array(z14.string()).optional()
+  discoverSources: adminProcedure.input(z21.object({
+    coverageGaps: z21.array(z21.string()).optional()
   }).optional()).mutation(async () => {
     const { discoverNewSources: discoverNewSources2, KNOWN_MISSING_SOURCES: KNOWN_MISSING_SOURCES2 } = await Promise.resolve().then(() => (init_source_discovery(), source_discovery_exports));
     const { listSourceRegistry: listSourceRegistry2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -28977,9 +30029,9 @@ var ingestionRouter = router({
    * Verify current database values against market reality.
    * Samples evidence records and uses Gemini to cross-check pricing.
    */
-  verifyData: adminProcedure.input(z14.object({
-    category: z14.string().optional(),
-    limit: z14.number().min(10).max(100).default(50)
+  verifyData: adminProcedure.input(z21.object({
+    category: z21.string().optional(),
+    limit: z21.number().min(10).max(100).default(50)
   }).optional()).mutation(async ({ input }) => {
     const { verifyDatabaseValues: verifyDatabaseValues2 } = await Promise.resolve().then(() => (init_data_verifier(), data_verifier_exports));
     const { listPublicEvidenceRecords: listPublicEvidenceRecords2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -29022,10 +30074,10 @@ var ingestionRouter = router({
   /**
    * Extract design trends from a URL — design trend detection pipeline.
    */
-  extractTrends: adminProcedure.input(z14.object({
-    url: z14.string().url(),
-    sourceName: z14.string().min(1),
-    content: z14.string().min(50)
+  extractTrends: adminProcedure.input(z21.object({
+    url: z21.string().url(),
+    sourceName: z21.string().min(1),
+    content: z21.string().min(50)
   })).mutation(async ({ input }) => {
     const { extractDesignTrends: extractDesignTrends2 } = await Promise.resolve().then(() => (init_trend_extractor(), trend_extractor_exports));
     return extractDesignTrends2({
@@ -29072,7 +30124,7 @@ var ingestionRouter = router({
 });
 
 // server/routers/analytics.ts
-import { z as z15 } from "zod";
+import { z as z22 } from "zod";
 init_db();
 init_trend_detection();
 
@@ -29330,11 +30382,11 @@ var ORGANIZATION_CORPUS_POLICY_VERSION = "org-public-v1";
 var PUBLIC_CORPUS_POLICY_VERSION = "public-v1";
 
 // server/routers/analytics.ts
-var trendDetectionInput = z15.object({
-  category: z15.string().min(1),
-  geography: z15.string().min(1),
-  windowDays: z15.number().int().min(7).max(365).default(30),
-  generateNarrative: z15.boolean().default(true)
+var trendDetectionInput = z22.object({
+  category: z22.string().min(1),
+  geography: z22.string().min(1),
+  windowDays: z22.number().int().min(7).max(365).default(30),
+  generateNarrative: z22.boolean().default(true)
 });
 async function runTrendAnalysis(records, input, persist) {
   const metricGroups = /* @__PURE__ */ new Map();
@@ -29442,12 +30494,12 @@ async function loadCompetitorLandscape() {
 }
 var analyticsRouter = router({
   getTrends: orgProcedure.input(
-    z15.object({
-      category: z15.string().optional(),
-      geography: z15.string().optional(),
-      direction: z15.enum(["rising", "falling", "stable", "insufficient_data"]).optional(),
-      confidence: z15.enum(["high", "medium", "low", "insufficient"]).optional(),
-      limit: z15.number().int().min(1).max(100).default(50)
+    z22.object({
+      category: z22.string().optional(),
+      geography: z22.string().optional(),
+      direction: z22.enum(["rising", "falling", "stable", "insufficient_data"]).optional(),
+      confidence: z22.enum(["high", "medium", "low", "insufficient"]).optional(),
+      limit: z22.number().int().min(1).max(100).default(50)
     }).optional()
   ).query(async ({ ctx, input }) => {
     const snapshots = await getTrendSnapshotsForOrg(ctx.orgId, {
@@ -29460,10 +30512,10 @@ var analyticsRouter = router({
     return { trends: snapshots };
   }),
   getTrendHistory: orgProcedure.input(
-    z15.object({
-      metric: z15.string().min(1),
-      geography: z15.string().min(1),
-      limit: z15.number().int().min(1).max(100).default(20)
+    z22.object({
+      metric: z22.string().min(1),
+      geography: z22.string().min(1),
+      limit: z22.number().int().min(1).max(100).default(20)
     })
   ).query(async ({ ctx, input }) => {
     const history = await getTrendHistoryForOrg(
@@ -29475,18 +30527,18 @@ var analyticsRouter = router({
     return { history };
   }),
   getAnomalies: orgProcedure.input(
-    z15.object({
-      limit: z15.number().int().min(1).max(100).default(50)
+    z22.object({
+      limit: z22.number().int().min(1).max(100).default(50)
     }).optional()
   ).query(async ({ ctx, input }) => {
     const anomalies = await getAnomaliesForOrg(ctx.orgId, input?.limit);
     return { anomalies };
   }),
   getMarketPosition: orgProcedure.input(
-    z15.object({
-      targetValue: z15.number().positive(),
-      category: z15.string().default("floors"),
-      geography: z15.string().default("UAE")
+    z22.object({
+      targetValue: z22.number().positive(),
+      category: z22.string().default("floors"),
+      geography: z22.string().default("UAE")
     })
   ).query(async ({ ctx, input }) => {
     const [organizationRecords, publicRecords] = await Promise.all([
@@ -29523,9 +30575,9 @@ var analyticsRouter = router({
     };
   }),
   getCompetitorLandscape: orgProcedure.input(
-    z15.object({
-      geography: z15.string().default("UAE"),
-      generateNarrative: z15.boolean().default(true)
+    z22.object({
+      geography: z22.string().default("UAE"),
+      generateNarrative: z22.boolean().default(true)
     }).optional()
   ).query(async ({ input }) => {
     const db = await getDb();
@@ -29617,12 +30669,12 @@ var analyticsRouter = router({
     };
   }),
   getProjectInsights: orgProcedure.input(
-    z15.object({
-      projectId: z15.number().optional(),
-      insightType: z15.string().optional(),
-      severity: z15.string().optional(),
-      status: z15.string().optional(),
-      limit: z15.number().min(1).max(100).default(50)
+    z22.object({
+      projectId: z22.number().optional(),
+      insightType: z22.string().optional(),
+      severity: z22.string().optional(),
+      status: z22.string().optional(),
+      limit: z22.number().min(1).max(100).default(50)
     }).optional()
   ).query(async ({ ctx, input }) => {
     if (input?.projectId === void 0) {
@@ -29645,9 +30697,9 @@ var analyticsRouter = router({
     return { insights };
   }),
   generateProjectInsights: orgHeavyMutationProcedure.input(
-    z15.object({
-      projectId: z15.number(),
-      enrichWithLLM: z15.boolean().default(true)
+    z22.object({
+      projectId: z22.number(),
+      enrichWithLLM: z22.boolean().default(true)
     })
   ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -29690,8 +30742,8 @@ var analyticsRouter = router({
     };
   }),
   generateGlobalProjectInsights: adminProcedure.input(
-    z15.object({
-      enrichWithLLM: z15.boolean().default(true)
+    z22.object({
+      enrichWithLLM: z22.boolean().default(true)
     })
   ).mutation(async ({ input }) => {
     const [trendSnaps, competitorLandscape] = await Promise.all([
@@ -29726,9 +30778,9 @@ var analyticsRouter = router({
     };
   }),
   updateInsightStatus: orgMutationProcedure.input(
-    z15.object({
-      insightId: z15.number(),
-      status: z15.enum(["active", "acknowledged", "dismissed", "resolved"])
+    z22.object({
+      insightId: z22.number(),
+      status: z22.enum(["active", "acknowledged", "dismissed", "resolved"])
     })
   ).mutation(async ({ ctx, input }) => {
     await requireProjectResourceForOrg(input.insightId, ctx.orgId, {
@@ -29751,7 +30803,7 @@ var analyticsRouter = router({
 });
 
 // server/routers/predictive.ts
-import { z as z16 } from "zod";
+import { z as z23 } from "zod";
 init_db();
 init_area_utils();
 
@@ -30151,10 +31203,10 @@ var predictiveRouter = router({
    * V4-08: Get cost range prediction for a project category
    */
   getCostRange: orgProcedure.input(
-    z16.object({
-      projectId: z16.number(),
-      category: z16.string().optional(),
-      geography: z16.string().optional()
+    z23.object({
+      projectId: z23.number(),
+      category: z23.string().optional(),
+      geography: z23.string().optional()
     })
   ).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -30215,7 +31267,7 @@ var predictiveRouter = router({
   /**
    * V4-09: Get outcome prediction for a project
    */
-  getOutcomePrediction: orgProcedure.input(z16.object({ projectId: z16.number() })).query(async ({ ctx, input }) => {
+  getOutcomePrediction: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
@@ -30280,7 +31332,7 @@ var predictiveRouter = router({
   /**
    * V5-08: Get matched learning patterns for a project
    */
-  getProjectPatterns: orgProcedure.input(z16.object({ projectId: z16.number() })).query(async ({ ctx, input }) => {
+  getProjectPatterns: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
@@ -30299,10 +31351,10 @@ var predictiveRouter = router({
    * V4-10: Get scenario cost projection
    */
   getScenarioProjection: orgProcedure.input(
-    z16.object({
-      projectId: z16.number(),
-      horizonMonths: z16.number().default(18),
-      marketCondition: z16.enum(["tight", "balanced", "soft"]).default("balanced")
+    z23.object({
+      projectId: z23.number(),
+      horizonMonths: z23.number().default(18),
+      marketCondition: z23.enum(["tight", "balanced", "soft"]).default("balanced")
     })
   ).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -30448,8 +31500,8 @@ var predictiveRouter = router({
 });
 
 // server/routers/learning.ts
-import { z as z17 } from "zod";
-import { TRPCError as TRPCError15 } from "@trpc/server";
+import { z as z24 } from "zod";
+import { TRPCError as TRPCError21 } from "@trpc/server";
 init_db();
 
 // server/engines/learning/outcome-comparator.ts
@@ -30644,7 +31696,7 @@ function toTrendDataPoint(trend) {
 async function buildScopedComparisonInputs(project, projectId, orgId) {
   const outcome = await getLatestProjectOutcomeForOrg(projectId, orgId);
   if (!outcome) {
-    throw new TRPCError15({
+    throw new TRPCError21({
       code: "NOT_FOUND",
       message: "No outcome found for project"
     });
@@ -30652,7 +31704,7 @@ async function buildScopedComparisonInputs(project, projectId, orgId) {
   const matrices = await getScoreMatricesByProject(projectId);
   const scoreMatrix = matrices[0];
   if (!scoreMatrix) {
-    throw new TRPCError15({
+    throw new TRPCError21({
       code: "NOT_FOUND",
       message: "No score matrix found for project"
     });
@@ -30724,7 +31776,7 @@ var learningRouter = router({
     return rows[0] || null;
   }),
   getAccuracyHistory: adminProcedure.input(
-    z17.object({ limit: z17.number().int().min(1).max(100).default(20) }).optional()
+    z24.object({ limit: z24.number().int().min(1).max(100).default(20) }).optional()
   ).query(({ input }) => getGovernedAccuracySnapshots(input?.limit || 20)),
   getPendingLogicProposals: adminProcedure.query(
     () => getGovernedLogicChangeLog("proposed")
@@ -30732,7 +31784,7 @@ var learningRouter = router({
   getPendingBenchmarkSuggestions: adminProcedure.query(
     () => getGovernedBenchmarkSuggestions("pending")
   ),
-  getComparison: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
+  getComparison: orgProcedure.input(z24.object({ projectId: z24.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return await getLatestOutcomeComparisonForOrg(
       input.projectId,
@@ -30740,19 +31792,19 @@ var learningRouter = router({
     ) || null;
   }),
   submitPostMortem: orgMutationProcedure.input(
-    z17.object({
-      projectId: z17.number(),
-      actualTotalCost: z17.string().optional(),
-      actualFitoutCostPerSqm: z17.string().optional(),
-      procurementActualCosts: z17.record(z17.string(), z17.number()).optional(),
-      projectDeliveredOnTime: z17.boolean().optional(),
-      leadTimesActual: z17.record(z17.string(), z17.number()).optional(),
-      reworkOccurred: z17.boolean().optional(),
-      reworkCostAed: z17.string().optional(),
-      clientSatisfactionScore: z17.number().min(1).max(5).optional(),
-      tenderIterations: z17.number().optional(),
-      rfqResults: z17.record(z17.string(), z17.number()).optional(),
-      keyLessonsLearned: z17.string().optional()
+    z24.object({
+      projectId: z24.number(),
+      actualTotalCost: z24.string().optional(),
+      actualFitoutCostPerSqm: z24.string().optional(),
+      procurementActualCosts: z24.record(z24.string(), z24.number()).optional(),
+      projectDeliveredOnTime: z24.boolean().optional(),
+      leadTimesActual: z24.record(z24.string(), z24.number()).optional(),
+      reworkOccurred: z24.boolean().optional(),
+      reworkCostAed: z24.string().optional(),
+      clientSatisfactionScore: z24.number().min(1).max(5).optional(),
+      tenderIterations: z24.number().optional(),
+      rfqResults: z24.record(z24.string(), z24.number()).optional(),
+      keyLessonsLearned: z24.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -30776,7 +31828,7 @@ var learningRouter = router({
     );
     if (outcomeId === null) {
       await requireProjectForOrg(input.projectId, ctx.orgId);
-      throw new TRPCError15({ code: "NOT_FOUND" });
+      throw new TRPCError21({ code: "NOT_FOUND" });
     }
     let comparison = null;
     let learningSummary = null;
@@ -30812,7 +31864,7 @@ var learningRouter = router({
       }
       learningSummary = summarizeLearningSignals(comparison.learningSignals);
     } catch (error) {
-      if (error instanceof TRPCError15) throw error;
+      if (error instanceof TRPCError21) throw error;
       console.warn("[PostMortem] Auto-comparison failed (non-fatal):", error);
     }
     await createAuditLog({
@@ -30837,7 +31889,7 @@ var learningRouter = router({
       corpus
     };
   }),
-  getPostMortemStatus: orgProcedure.input(z17.object({ projectId: z17.number() })).query(async ({ ctx, input }) => {
+  getPostMortemStatus: orgProcedure.input(z24.object({ projectId: z24.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const [outcome, comparison] = await Promise.all([
       getLatestProjectOutcomeForOrg(input.projectId, ctx.orgId),
@@ -30852,7 +31904,7 @@ var learningRouter = router({
       learningSummary: comparison?.learningSignals ? summarizeLearningSignals(comparison.learningSignals) : null
     };
   }),
-  runComparison: orgHeavyMutationProcedure.input(z17.object({ projectId: z17.number() })).mutation(async ({ ctx, input }) => {
+  runComparison: orgHeavyMutationProcedure.input(z24.object({ projectId: z24.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = await buildScopedComparisonInputs(
       project,
@@ -30873,7 +31925,7 @@ var learningRouter = router({
     );
     if (comparisonId === null) {
       await requireProjectForOrg(input.projectId, ctx.orgId);
-      throw new TRPCError15({ code: "NOT_FOUND" });
+      throw new TRPCError21({ code: "NOT_FOUND" });
     }
     return {
       success: true,
@@ -30885,11 +31937,11 @@ var learningRouter = router({
 });
 
 // server/routers/autonomous.ts
-import { z as z18 } from "zod";
+import { z as z25 } from "zod";
 init_db();
 init_schema();
 import { eq as eq14, and as and5, desc as desc7, sql as sql6 } from "drizzle-orm";
-import { TRPCError as TRPCError16 } from "@trpc/server";
+import { TRPCError as TRPCError22 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
 init_llm();
@@ -31110,10 +32162,10 @@ async function generatePortfolioInsightsForOrg(orgId) {
 
 // server/routers/autonomous.ts
 var autonomousRouter = router({
-  getAlerts: adminProcedure.input(z18.object({
-    severity: z18.string().optional(),
-    type: z18.string().optional(),
-    status: z18.enum(["active", "acknowledged", "resolved", "expired"]).optional()
+  getAlerts: adminProcedure.input(z25.object({
+    severity: z25.string().optional(),
+    type: z25.string().optional(),
+    status: z25.enum(["active", "acknowledged", "resolved", "expired"]).optional()
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
@@ -31128,7 +32180,7 @@ var autonomousRouter = router({
     }
     return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
   }),
-  acknowledgeAlert: adminProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ ctx, input }) => {
+  acknowledgeAlert: adminProcedure.input(z25.object({ id: z25.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
@@ -31138,7 +32190,7 @@ var autonomousRouter = router({
     }).where(eq14(platformAlerts.id, input.id));
     return { success: true };
   }),
-  resolveAlert: adminProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input }) => {
+  resolveAlert: adminProcedure.input(z25.object({ id: z25.number() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
@@ -31146,9 +32198,9 @@ var autonomousRouter = router({
     }).where(eq14(platformAlerts.id, input.id));
     return { success: true };
   }),
-  nlQuery: protectedProcedure.input(z18.object({ query: z18.string() })).mutation(async ({ ctx, input }) => {
+  nlQuery: protectedProcedure.input(z25.object({ query: z25.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError16({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
+    if (!db) throw new TRPCError22({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
     const recentQueries = await db.select({ count: sql6`count(*)` }).from(nlQueryLog).where(
       and5(
@@ -31158,7 +32210,7 @@ var autonomousRouter = router({
     );
     const count2 = Number(recentQueries[0]?.count || 0);
     if (count2 >= 20) {
-      throw new TRPCError16({
+      throw new TRPCError22({
         code: "TOO_MANY_REQUESTS",
         message: "Natural language query limit: 20 queries/hour"
       });
@@ -31166,7 +32218,7 @@ var autonomousRouter = router({
     const result = await processNlQuery(ctx.user.id, input.query);
     return result;
   }),
-  generateBrief: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number(), locale: z18.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
+  generateBrief: orgHeavyMutationProcedure.input(z25.object({ projectId: z25.number(), locale: z25.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const briefMarkdown = await generateAutonomousDesignBrief(input.projectId, input.locale);
     return { markdown: briefMarkdown, locale: input.locale };
@@ -31179,22 +32231,22 @@ var autonomousRouter = router({
 
 // server/routers/organization.ts
 init_db();
-import { z as z19 } from "zod";
+import { z as z26 } from "zod";
 init_schema();
-import { TRPCError as TRPCError17 } from "@trpc/server";
+import { TRPCError as TRPCError23 } from "@trpc/server";
 import { eq as eq15, and as and6 } from "drizzle-orm";
-import { nanoid as nanoid7 } from "nanoid";
+import { nanoid as nanoid9 } from "nanoid";
 var organizationRouter = router({
-  createOrg: protectedProcedure.input(z19.object({
-    name: z19.string().min(2),
-    slug: z19.string().min(2).regex(/^[a-z0-9-]+$/),
-    domain: z19.string().optional()
+  createOrg: protectedProcedure.input(z26.object({
+    name: z26.string().min(2),
+    slug: z26.string().min(2).regex(/^[a-z0-9-]+$/),
+    domain: z26.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError17({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
+    if (!db) throw new TRPCError23({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
     const existing = await db.select().from(organizations).where(eq15(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
-      throw new TRPCError17({ code: "CONFLICT", message: "Slug is already taken" });
+      throw new TRPCError23({ code: "CONFLICT", message: "Slug is already taken" });
     }
     const [orgResult] = await db.insert(organizations).values({
       name: input.name,
@@ -31220,17 +32272,17 @@ var organizationRouter = router({
     }).from(organizationMembers).innerJoin(organizations, eq15(organizations.id, organizationMembers.orgId)).where(eq15(organizationMembers.userId, ctx.user.id));
     return result;
   }),
-  inviteMember: orgAdminProcedure.input(z19.object({
-    email: z19.string().email(),
-    role: z19.enum(["admin", "member", "viewer"])
+  inviteMember: orgAdminProcedure.input(z26.object({
+    email: z26.string().email(),
+    role: z26.enum(["admin", "member", "viewer"])
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError17({ code: "INTERNAL_SERVER_ERROR" });
+    if (!db) throw new TRPCError23({ code: "INTERNAL_SERVER_ERROR" });
     const myMembership = await db.select().from(organizationMembers).where(and6(eq15(organizationMembers.orgId, ctx.orgId), eq15(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
-      throw new TRPCError17({ code: "FORBIDDEN", message: "Only admins can invite members" });
+      throw new TRPCError23({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
-    const token = nanoid7(32);
+    const token = nanoid9(32);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
     await db.insert(organizationInvites).values({
       orgId: ctx.orgId,
@@ -31242,20 +32294,20 @@ var organizationRouter = router({
     console.log(`[Email Mock] Sending invite to ${input.email}: http://localhost:5173/accept-invite?token=${token}`);
     return { success: true, token };
   }),
-  acceptInvite: protectedProcedure.input(z19.object({ token: z19.string() })).mutation(async ({ ctx, input }) => {
+  acceptInvite: protectedProcedure.input(z26.object({ token: z26.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError17({ code: "INTERNAL_SERVER_ERROR" });
+    if (!db) throw new TRPCError23({ code: "INTERNAL_SERVER_ERROR" });
     return db.transaction(async (tx) => {
       const inviteResult = await tx.select().from(organizationInvites).where(eq15(organizationInvites.token, input.token)).limit(1).for("update");
       const invite = inviteResult[0];
-      if (!invite) throw new TRPCError17({ code: "NOT_FOUND", message: "Invalid invite token" });
-      if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError17({ code: "BAD_REQUEST", message: "Invite expired" });
+      if (!invite) throw new TRPCError23({ code: "NOT_FOUND", message: "Invalid invite token" });
+      if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError23({ code: "BAD_REQUEST", message: "Invite expired" });
       const memberships = await tx.select().from(organizationMembers).where(and6(
         eq15(organizationMembers.orgId, invite.orgId),
         eq15(organizationMembers.userId, ctx.user.id)
       )).limit(2).for("update");
       if (memberships.length > 1) {
-        throw new TRPCError17({
+        throw new TRPCError23({
           code: "FORBIDDEN",
           message: "Organization membership is inconsistent"
         });
@@ -31275,16 +32327,16 @@ var organizationRouter = router({
 });
 
 // server/routers/economics.ts
-import { z as z20 } from "zod";
+import { z as z27 } from "zod";
 var economicsRouter = router({
-  calculateRoi: publicProcedure.input(z20.object({
-    tier: z20.string(),
-    scale: z20.string(),
-    totalBudgetAed: z20.number(),
-    totalDevelopmentValue: z20.number(),
-    complexityScore: z20.number(),
-    decisionSpeedAdjustment: z20.number().optional().default(1),
-    serviceFeeAed: z20.number()
+  calculateRoi: publicProcedure.input(z27.object({
+    tier: z27.string(),
+    scale: z27.string(),
+    totalBudgetAed: z27.number(),
+    totalDevelopmentValue: z27.number(),
+    complexityScore: z27.number(),
+    decisionSpeedAdjustment: z27.number().optional().default(1),
+    serviceFeeAed: z27.number()
   })).query(({ input }) => {
     return calculateProjectRoi({
       tier: input.tier,
@@ -31296,8 +32348,8 @@ var economicsRouter = router({
       serviceFeeAed: input.serviceFeeAed
     });
   }),
-  evaluateRisk: publicProcedure.input(z20.object({
-    domain: z20.enum([
+  evaluateRisk: publicProcedure.input(z27.object({
+    domain: z27.enum([
       "Model",
       "Operational",
       "Commercial",
@@ -31307,10 +32359,10 @@ var economicsRouter = router({
       "Strategic",
       "Regulatory"
     ]),
-    tier: z20.string(),
-    horizon: z20.string(),
-    location: z20.string(),
-    complexityScore: z20.number()
+    tier: z27.string(),
+    horizon: z27.string(),
+    location: z27.string(),
+    complexityScore: z27.number()
   })).query(({ input }) => {
     return evaluateRiskSurface({
       domain: input.domain,
@@ -31320,10 +32372,10 @@ var economicsRouter = router({
       complexityScore: input.complexityScore
     });
   }),
-  runStressTest: publicProcedure.input(z20.object({
-    condition: z20.enum(["demand_collapse", "cost_surge", "data_disruption", "market_shift"]),
-    baselineBudgetAed: z20.number(),
-    tier: z20.string()
+  runStressTest: publicProcedure.input(z27.object({
+    condition: z27.enum(["demand_collapse", "cost_surge", "data_disruption", "market_shift"]),
+    baselineBudgetAed: z27.number(),
+    tier: z27.string()
   })).query(({ input }) => {
     return simulateStressTest(
       input.condition,
@@ -31331,13 +32383,13 @@ var economicsRouter = router({
       input.tier
     );
   }),
-  rankScenarios: publicProcedure.input(z20.object({
-    scenarios: z20.array(z20.object({
-      scenarioId: z20.number(),
-      name: z20.string(),
-      netRoiPercent: z20.number(),
-      avgResilienceScore: z20.number(),
-      compositeRiskScore: z20.number()
+  rankScenarios: publicProcedure.input(z27.object({
+    scenarios: z27.array(z27.object({
+      scenarioId: z27.number(),
+      name: z27.string(),
+      netRoiPercent: z27.number(),
+      avgResilienceScore: z27.number(),
+      compositeRiskScore: z27.number()
     }))
   })).query(({ input }) => {
     return rankScenarios(input.scenarios);
@@ -31345,21 +32397,21 @@ var economicsRouter = router({
 });
 
 // server/routers/bias.ts
-import { z as z21 } from "zod";
+import { z as z28 } from "zod";
 init_db();
 var biasRouter = router({
   // Get all bias alerts for a project (active + dismissed)
-  getAlerts: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
+  getAlerts: orgProcedure.input(z28.object({ projectId: z28.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getBiasAlertsByProject(input.projectId);
   }),
   // Get only active (non-dismissed) alerts
-  getActiveAlerts: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
+  getActiveAlerts: orgProcedure.input(z28.object({ projectId: z28.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getActiveBiasAlerts(input.projectId);
   }),
   // Dismiss a bias alert
-  dismiss: orgMutationProcedure.input(z21.object({ alertId: z21.number() })).mutation(async ({ ctx, input }) => {
+  dismiss: orgMutationProcedure.input(z28.object({ alertId: z28.number() })).mutation(async ({ ctx, input }) => {
     await requireProjectOrgResourceForOrg(input.alertId, ctx.orgId, {
       lookupResource: getBiasAlertById,
       getProjectId: (alert) => alert.projectId,
@@ -31390,7 +32442,7 @@ var biasRouter = router({
     return getUserBiasProfile(ctx.user.id);
   }),
   // Get intervention report for a project (structured summary for reports)
-  getInterventionReport: orgProcedure.input(z21.object({ projectId: z21.number() })).query(async ({ ctx, input }) => {
+  getInterventionReport: orgProcedure.input(z28.object({ projectId: z28.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const alerts = await getActiveBiasAlerts(input.projectId);
     if (alerts.length === 0) {
@@ -31413,7 +32465,7 @@ var biasRouter = router({
     };
   }),
   // On-demand bias scan (without re-evaluating project)
-  scan: orgMutationProcedure.input(z21.object({ projectId: z21.number() })).mutation(async ({ ctx, input }) => {
+  scan: orgMutationProcedure.input(z28.object({ projectId: z28.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     if (!matrices || matrices.length === 0) {
@@ -31502,7 +32554,7 @@ var biasRouter = router({
 });
 
 // server/routers/design-advisor.ts
-import { z as z23 } from "zod";
+import { z as z30 } from "zod";
 init_db();
 
 // server/engines/design/ai-design-advisor.ts
@@ -31510,57 +32562,57 @@ init_llm();
 init_ai_operation();
 init_space_program();
 init_area_utils();
-import { z as z22 } from "zod";
+import { z as z29 } from "zod";
 var KITCHEN_ROOMS = ["KIT"];
 var BATHROOM_ROOMS = ["MEN", "BTH", "ENS"];
 var WET_ROOM_IDS2 = [...KITCHEN_ROOMS, ...BATHROOM_ROOMS, "UTL"];
-var materialSchema = z22.object({
-  element: z22.string(),
-  productName: z22.string(),
-  brand: z22.string(),
-  priceRange: z22.string(),
-  rationale: z22.string()
+var materialSchema = z29.object({
+  element: z29.string(),
+  productName: z29.string(),
+  brand: z29.string(),
+  priceRange: z29.string(),
+  rationale: z29.string()
 });
-var kitchenSchema = z22.object({
-  layoutType: z22.enum(["L-shape", "U-shape", "Island", "Galley", "Peninsula", "One-wall"]),
-  layoutRationale: z22.string(),
-  cabinetStyle: z22.string(),
-  cabinetFinish: z22.string(),
-  countertopMaterial: z22.string(),
-  countertopPriceRange: z22.string(),
-  backsplash: z22.string(),
-  sinkType: z22.string(),
-  applianceLevel: z22.enum(["standard", "premium", "professional"]),
-  applianceBrands: z22.array(z22.string()),
-  storageFeatures: z22.array(z22.string())
+var kitchenSchema = z29.object({
+  layoutType: z29.enum(["L-shape", "U-shape", "Island", "Galley", "Peninsula", "One-wall"]),
+  layoutRationale: z29.string(),
+  cabinetStyle: z29.string(),
+  cabinetFinish: z29.string(),
+  countertopMaterial: z29.string(),
+  countertopPriceRange: z29.string(),
+  backsplash: z29.string(),
+  sinkType: z29.string(),
+  applianceLevel: z29.enum(["standard", "premium", "professional"]),
+  applianceBrands: z29.array(z29.string()),
+  storageFeatures: z29.array(z29.string())
 });
-var bathroomSchema = z22.object({
-  showerType: z22.enum(["walk-in", "enclosed", "wet-room", "bath-shower-combo"]),
-  vanityStyle: z22.string(),
-  vanityWidth: z22.string(),
-  tilePattern: z22.string(),
-  wallTile: z22.string(),
-  floorTile: z22.string(),
-  fixtureFinish: z22.string(),
-  fixtureBrand: z22.string(),
-  mirrorType: z22.string(),
-  luxuryFeatures: z22.array(z22.string())
+var bathroomSchema = z29.object({
+  showerType: z29.enum(["walk-in", "enclosed", "wet-room", "bath-shower-combo"]),
+  vanityStyle: z29.string(),
+  vanityWidth: z29.string(),
+  tilePattern: z29.string(),
+  wallTile: z29.string(),
+  floorTile: z29.string(),
+  fixtureFinish: z29.string(),
+  fixtureBrand: z29.string(),
+  mirrorType: z29.string(),
+  luxuryFeatures: z29.array(z29.string())
 });
-var geminiDesignResponseSchema = z22.object({
-  spaces: z22.array(z22.object({
-    roomId: z22.string(),
-    roomName: z22.string(),
-    styleDirection: z22.string(),
-    colorScheme: z22.string(),
-    rationale: z22.string(),
-    specialNotes: z22.array(z22.string()),
-    materials: z22.array(materialSchema),
-    budgetBreakdown: z22.array(z22.object({ element: z22.string(), percentage: z22.number().finite() })),
+var geminiDesignResponseSchema = z29.object({
+  spaces: z29.array(z29.object({
+    roomId: z29.string(),
+    roomName: z29.string(),
+    styleDirection: z29.string(),
+    colorScheme: z29.string(),
+    rationale: z29.string(),
+    specialNotes: z29.array(z29.string()),
+    materials: z29.array(materialSchema),
+    budgetBreakdown: z29.array(z29.object({ element: z29.string(), percentage: z29.number().finite() })),
     kitchenSpec: kitchenSchema.optional(),
     bathroomSpec: bathroomSchema.optional()
   })),
-  overallDesignNarrative: z22.string(),
-  designPhilosophy: z22.string()
+  overallDesignNarrative: z29.string(),
+  designPhilosophy: z29.string()
 });
 var TIER_PRICE_MULTIPLIERS = {
   "Entry": 0.5,
@@ -32258,7 +33310,7 @@ var designAdvisorRouter = router({
   // ═════════════════════════════════════════════════════════════════════════
   // Phase 1: AI Design Recommendations
   // ═════════════════════════════════════════════════════════════════════════
-  generateRecommendations: orgHeavyMutationProcedure.input(z23.object({ projectId: z23.number() })).mutation(async ({ ctx, input }) => {
+  generateRecommendations: orgHeavyMutationProcedure.input(z30.object({ projectId: z30.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = projectToInputs5(project);
     const materials = await getMaterialLibrary();
@@ -32334,16 +33386,16 @@ var designAdvisorRouter = router({
       publicSampleCount: publicEvidence.length
     };
   }),
-  getRecommendations: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
+  getRecommendations: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getSpaceRecommendations(input.projectId, ctx.orgId);
   }),
-  getSpaceRecommendation: orgProcedure.input(z23.object({ projectId: z23.number(), roomId: z23.string() })).query(async ({ ctx, input }) => {
+  getSpaceRecommendation: orgProcedure.input(z30.object({ projectId: z30.number(), roomId: z30.string() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
     return recs.find((r) => r.roomId === input.roomId) || null;
   }),
-  getSpaceProgram: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
+  getSpaceProgram: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const storedRooms = await getSpaceProgramRooms(input.projectId, ctx.orgId);
     if (storedRooms.length > 0) {
@@ -32352,7 +33404,7 @@ var designAdvisorRouter = router({
     }
     return buildSpaceProgram(project);
   }),
-  generateDesignBrief: orgHeavyMutationProcedure.input(z23.object({ projectId: z23.number() })).mutation(async ({ ctx, input }) => {
+  generateDesignBrief: orgHeavyMutationProcedure.input(z30.object({ projectId: z30.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = projectToInputs5(project);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -32370,20 +33422,31 @@ var designAdvisorRouter = router({
     }
     return brief;
   }),
-  getDesignBrief: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
+  getDesignBrief: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
-    return getLatestAiDesignBrief(input.projectId, ctx.orgId);
+    const brief = await getLatestAiDesignBrief(input.projectId, ctx.orgId);
+    if (!brief) return null;
+    const { shareToken, shareExpiresAt, ...safeBrief } = brief;
+    const expiryMs = shareExpiresAt ? new Date(shareExpiresAt).getTime() : Number.NaN;
+    const expiresAt = Number.isFinite(expiryMs) ? new Date(expiryMs).toISOString() : null;
+    return {
+      ...safeBrief,
+      shareStatus: {
+        active: Boolean(shareToken) && expiryMs > Date.now(),
+        expiresAt
+      }
+    };
   }),
-  getStandardPackages: orgProcedure.input(z23.object({
-    typology: z23.string().optional(),
-    tier: z23.string().optional()
+  getStandardPackages: orgProcedure.input(z30.object({
+    typology: z30.string().optional(),
+    tier: z30.string().optional()
   })).query(async ({ input }) => {
     return getDesignPackages(input.typology, input.tier);
   }),
-  saveAsPackage: orgMutationProcedure.input(z23.object({
-    projectId: z23.number(),
-    name: z23.string(),
-    description: z23.string().optional()
+  saveAsPackage: orgMutationProcedure.input(z30.object({
+    projectId: z30.number(),
+    name: z30.string(),
+    description: z30.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -32402,10 +33465,10 @@ var designAdvisorRouter = router({
   // ═════════════════════════════════════════════════════════════════════════
   // Phase 2: Visual Generation (Nano Banana)
   // ═════════════════════════════════════════════════════════════════════════
-  generateVisual: orgHeavyMutationProcedure.input(z23.object({
-    projectId: z23.number(),
-    roomId: z23.string(),
-    type: z23.enum(["mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette"])
+  generateVisual: orgHeavyMutationProcedure.input(z30.object({
+    projectId: z30.number(),
+    roomId: z30.string(),
+    type: z30.enum(["mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette"])
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -32451,7 +33514,7 @@ var designAdvisorRouter = router({
     }
     return result;
   }),
-  generateHero: orgHeavyMutationProcedure.input(z23.object({ projectId: z23.number() })).mutation(async ({ ctx, input }) => {
+  generateHero: orgHeavyMutationProcedure.input(z30.object({ projectId: z30.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const projectCtx = buildProjectContext(project);
     const result = await generateHeroVisual(projectCtx);
@@ -32467,15 +33530,15 @@ var designAdvisorRouter = router({
     }
     return result;
   }),
-  getVisuals: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
+  getVisuals: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getGeneratedVisualsByProject(input.projectId);
   })
 });
 
 // server/routers/portfolio.ts
-import { z as z24 } from "zod";
-import { TRPCError as TRPCError18 } from "@trpc/server";
+import { z as z31 } from "zod";
+import { TRPCError as TRPCError24 } from "@trpc/server";
 import { createHash as createHash4 } from "node:crypto";
 init_db();
 init_schema();
@@ -32522,7 +33585,7 @@ var portfolioRouter = router({
     return result;
   }),
   // ─── Get portfolio by ID with full details ────────────────────────
-  getById: orgProcedure.input(z24.object({ id: z24.number() })).query(async ({ ctx, input }) => {
+  getById: orgProcedure.input(z31.object({ id: z31.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return null;
     const [portfolio] = await db.select().from(portfolios).where(
@@ -32546,7 +33609,7 @@ var portfolioRouter = router({
       eq16(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(projectIds).size) {
-      throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
     const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
@@ -32645,9 +33708,9 @@ var portfolioRouter = router({
   }),
   // ─── Create portfolio ─────────────────────────────────────────────
   create: orgMutationProcedure.input(
-    z24.object({
-      name: z24.string().min(1).max(255),
-      description: z24.string().optional()
+    z31.object({
+      name: z31.string().min(1).max(255),
+      description: z31.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -32662,10 +33725,10 @@ var portfolioRouter = router({
   }),
   // ─── Update portfolio ─────────────────────────────────────────────
   update: orgMutationProcedure.input(
-    z24.object({
-      id: z24.number(),
-      name: z24.string().min(1).max(255).optional(),
-      description: z24.string().optional()
+    z31.object({
+      id: z31.number(),
+      name: z31.string().min(1).max(255).optional(),
+      description: z31.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -32679,12 +33742,12 @@ var portfolioRouter = router({
       eq16(portfolios.organizationId, ctx.orgId)
     ));
     if (Number(result.affectedRows) !== 1) {
-      throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return { success: true };
   }),
   // ─── Delete portfolio ─────────────────────────────────────────────
-  delete: orgMutationProcedure.input(z24.object({ id: z24.number() })).mutation(async ({ ctx, input }) => {
+  delete: orgMutationProcedure.input(z31.object({ id: z31.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const deleted = await db.transaction(async (tx) => {
@@ -32701,16 +33764,16 @@ var portfolioRouter = router({
       return Number(result.affectedRows) === 1;
     });
     if (!deleted) {
-      throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return { success: true };
   }),
   // ─── Add project to portfolio ─────────────────────────────────────
   addProject: orgMutationProcedure.input(
-    z24.object({
-      portfolioId: z24.number(),
-      projectId: z24.number(),
-      note: z24.string().optional()
+    z31.object({
+      portfolioId: z31.number(),
+      projectId: z31.number(),
+      note: z31.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -32738,15 +33801,15 @@ var portfolioRouter = router({
       return "inserted";
     });
     if (result === "not_found") {
-      throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return result === "existing" ? { success: true, message: "Project already in portfolio" } : { success: true };
   }),
   // ─── Remove project from portfolio ────────────────────────────────
   removeProject: orgMutationProcedure.input(
-    z24.object({
-      portfolioId: z24.number(),
-      projectId: z24.number()
+    z31.object({
+      portfolioId: z31.number(),
+      projectId: z31.number()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -32768,12 +33831,12 @@ var portfolioRouter = router({
       return true;
     });
     if (!removed) {
-      throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return { success: true };
   }),
   // ─── Available projects (not in this portfolio) ───────────────────
-  availableProjects: orgProcedure.input(z24.object({ portfolioId: z24.number() })).query(async ({ ctx, input }) => {
+  availableProjects: orgProcedure.input(z31.object({ portfolioId: z31.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return [];
     const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and7(
@@ -32781,7 +33844,7 @@ var portfolioRouter = router({
       eq16(portfolios.organizationId, ctx.orgId)
     ));
     if (!portfolio) {
-      throw new TRPCError18({
+      throw new TRPCError24({
         code: "NOT_FOUND",
         message: "Portfolio not found"
       });
@@ -32798,7 +33861,7 @@ var portfolioRouter = router({
     }));
   }),
   // ─── Generate PDF Report ────────────────────────────────────
-  generateReport: orgHeavyMutationProcedure.input(z24.object({ id: z24.number(), locale: z24.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
+  generateReport: orgHeavyMutationProcedure.input(z31.object({ id: z31.number(), locale: z31.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
@@ -32818,7 +33881,7 @@ var portfolioRouter = router({
       eq16(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(pIds).size) {
-      throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
     const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
@@ -32916,7 +33979,7 @@ var portfolioRouter = router({
     return { html, portfolioName: portfolio.name };
   }),
   // ─── Check Portfolio Alerts ──────────────────────────────────
-  checkAlerts: orgMutationProcedure.input(z24.object({ id: z24.number() })).mutation(async ({ ctx, input }) => {
+  checkAlerts: orgMutationProcedure.input(z31.object({ id: z31.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
@@ -32934,7 +33997,7 @@ var portfolioRouter = router({
       eq16(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(pIds).size) {
-      throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
     const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
@@ -33056,7 +34119,7 @@ var portfolioRouter = router({
       alerts: candidates
     });
     if (!inserted) {
-      throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return {
       alerts: inserted.map((a) => ({
@@ -33072,7 +34135,7 @@ var portfolioRouter = router({
 });
 
 // server/routers/customer-success.ts
-import { z as z25 } from "zod";
+import { z as z32 } from "zod";
 init_db();
 init_db();
 init_schema();
@@ -33291,7 +34354,7 @@ var customerSuccessRouter = router({
     return rows[0] || null;
   }),
   // Recent activity feed
-  getActivityFeed: protectedProcedure.input(z25.object({ limit: z25.number().min(1).max(50).default(20) }).optional()).query(async ({ ctx, input }) => {
+  getActivityFeed: protectedProcedure.input(z32.object({ limit: z32.number().min(1).max(50).default(20) }).optional()).query(async ({ ctx, input }) => {
     const d = await getDb();
     if (!d) return [];
     const limit = input?.limit || 20;
@@ -33300,7 +34363,7 @@ var customerSuccessRouter = router({
 });
 
 // server/routers/sustainability.ts
-import { z as z26 } from "zod";
+import { z as z33 } from "zod";
 init_db();
 init_db();
 init_schema();
@@ -33966,7 +35029,7 @@ function evaluateCompliance(twin) {
 
 // server/routers/sustainability.ts
 init_area_utils();
-var materialEnum = z26.enum([
+var materialEnum = z33.enum([
   "concrete",
   "steel",
   "glass",
@@ -33978,18 +35041,18 @@ var materialEnum = z26.enum([
   "ceramic"
 ]);
 var sustainabilityRouter = router({
-  computeTwin: orgHeavyMutationProcedure.input(z26.object({
-    projectId: z26.number(),
-    floors: z26.number().min(1).max(200).default(5),
-    specLevel: z26.enum(["economy", "standard", "premium", "luxury"]).default("standard"),
-    glazingRatio: z26.number().min(0).max(1).default(0.35),
-    materials: z26.array(z26.object({
+  computeTwin: orgHeavyMutationProcedure.input(z33.object({
+    projectId: z33.number(),
+    floors: z33.number().min(1).max(200).default(5),
+    specLevel: z33.enum(["economy", "standard", "premium", "luxury"]).default("standard"),
+    glazingRatio: z33.number().min(0).max(1).default(0.35),
+    materials: z33.array(z33.object({
       material: materialEnum,
-      percentage: z26.number().min(0).max(100)
+      percentage: z33.number().min(0).max(100)
     })).optional(),
-    location: z26.enum(["dubai", "abu_dhabi", "sharjah", "other_gcc", "temperate"]).default("dubai"),
-    includeRenewables: z26.boolean().default(false),
-    waterRecycling: z26.boolean().default(false)
+    location: z33.enum(["dubai", "abu_dhabi", "sharjah", "other_gcc", "temperate"]).default("dubai"),
+    includeRenewables: z33.boolean().default(false),
+    waterRecycling: z33.boolean().default(false)
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const gfa = getPricingArea(project) || 500;
@@ -34045,21 +35108,21 @@ var sustainabilityRouter = router({
     }
     return result;
   }),
-  getTwinModels: orgProcedure.input(z26.object({ projectId: z26.number() })).query(async ({ ctx, input }) => {
+  getTwinModels: orgProcedure.input(z33.object({ projectId: z33.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
     return d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(10);
   }),
-  getLatestTwin: orgProcedure.input(z26.object({ projectId: z26.number() })).query(async ({ ctx, input }) => {
+  getLatestTwin: orgProcedure.input(z33.object({ projectId: z33.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return null;
     const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(1);
     return rows[0] || null;
   }),
-  evaluateCompliance: orgProcedure.input(z26.object({
-    projectId: z26.number()
+  evaluateCompliance: orgProcedure.input(z33.object({
+    projectId: z33.number()
   })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
@@ -34096,7 +35159,7 @@ var sustainabilityRouter = router({
 });
 
 // server/routers/salesPremium.ts
-import { z as z27 } from "zod";
+import { z as z34 } from "zod";
 
 // server/engines/value-add-engine.ts
 var RENTAL_PREMIUM_BY_CONDITION = {
@@ -34130,12 +35193,12 @@ function deriveConfidence(transactionCount) {
 }
 function buildRange(mid) {
   return {
-    conservative: round2(mid * SCENARIO_MULT.conservative),
-    mid: round2(mid),
-    aggressive: round2(mid * SCENARIO_MULT.aggressive)
+    conservative: round22(mid * SCENARIO_MULT.conservative),
+    mid: round22(mid),
+    aggressive: round22(mid * SCENARIO_MULT.aggressive)
   };
 }
-function round2(n) {
+function round22(n) {
   return Math.round(n * 100) / 100;
 }
 function round1(n) {
@@ -34161,7 +35224,7 @@ function computeValueAddBridge(inputs) {
   const confidence = deriveConfidence(transactionCount);
   const fitoutDelta = Math.max(0, proposedFitoutPerSqm - currentFitoutPerSqm);
   const incrementalFitoutCost = Math.round(fitoutDelta * gfa);
-  const fitoutRatio = round2(proposedFitoutPerSqm / saleMedianPerSqm);
+  const fitoutRatio = round22(proposedFitoutPerSqm / saleMedianPerSqm);
   let riskFlag = null;
   let riskMessage = null;
   if (fitoutRatio > OVER_SPEC_RATIO) {
@@ -34295,10 +35358,10 @@ var salesPremiumRouter = router({
    * Given a project's current and proposed fitout spend,
    * returns yield delta, sale premium, and payback period.
    */
-  getValueAddBridge: orgProcedure.input(z27.object({
-    projectId: z27.number(),
-    currentFitoutPerSqm: z27.number().min(0),
-    proposedFitoutPerSqm: z27.number().min(0)
+  getValueAddBridge: orgProcedure.input(z34.object({
+    projectId: z34.number(),
+    currentFitoutPerSqm: z34.number().min(0),
+    proposedFitoutPerSqm: z34.number().min(0)
   })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const saleMedianPerSqm = await getAreaSaleMedianSqm(project.dldAreaId ?? null);
@@ -34324,9 +35387,9 @@ var salesPremiumRouter = router({
    * For trophy/flagship projects, estimates the portfolio
    * halo effect of a high-performing sale.
    */
-  getBrandEquityForecast: orgProcedure.input(z27.object({
-    projectId: z27.number(),
-    salePerformancePct: z27.number().min(0).max(100)
+  getBrandEquityForecast: orgProcedure.input(z34.object({
+    projectId: z34.number(),
+    salePerformancePct: z34.number().min(0).max(100)
   })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     return computeBrandEquityForecast({
@@ -34339,7 +35402,7 @@ var salesPremiumRouter = router({
 });
 
 // server/routers/intake.ts
-import { z as z29 } from "zod";
+import { z as z36 } from "zod";
 init_storage();
 init_db();
 init_ai_intake_engine();
@@ -34351,11 +35414,11 @@ var intakeRouter = router({
    * Generate a presigned S3 upload URL for direct client upload.
    * Client uploads directly to S3, then calls `recordAsset` to register it.
    */
-  getUploadUrl: orgMutationProcedure.input(z29.object({
-    projectId: z29.number(),
-    fileName: z29.string(),
-    contentType: z29.string(),
-    sizeBytes: z29.number().max(50 * 1024 * 1024)
+  getUploadUrl: orgMutationProcedure.input(z36.object({
+    projectId: z36.number(),
+    fileName: z36.string(),
+    contentType: z36.string(),
+    sizeBytes: z36.number().max(50 * 1024 * 1024)
     // 50MB limit
   })).mutation(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -34375,14 +35438,14 @@ var intakeRouter = router({
    * Register an uploaded asset in the project_assets table.
    * Called after client uploads to S3.
    */
-  recordAsset: orgMutationProcedure.input(z29.object({
-    projectId: z29.number(),
-    fileName: z29.string(),
-    mimeType: z29.string(),
-    sizeBytes: z29.number(),
-    storagePath: z29.string(),
-    storageUrl: z29.string().optional(),
-    category: z29.enum([
+  recordAsset: orgMutationProcedure.input(z36.object({
+    projectId: z36.number(),
+    fileName: z36.string(),
+    mimeType: z36.string(),
+    sizeBytes: z36.number(),
+    storagePath: z36.string(),
+    storageUrl: z36.string().optional(),
+    category: z36.enum([
       "brief",
       "brand",
       "budget",
@@ -34399,7 +35462,7 @@ var intakeRouter = router({
       "generated",
       "other"
     ]).default("other"),
-    assetType: z29.enum(["image", "pdf", "audio", "video", "url", "text_note"]).optional()
+    assetType: z36.enum(["image", "pdf", "audio", "video", "url", "text_note"]).optional()
   })).mutation(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     if (!input.storagePath.startsWith(`intake/${ctx.orgId}/${input.projectId}/uploads/`)) {
@@ -34431,7 +35494,7 @@ var intakeRouter = router({
   /**
    * List assets for a project.
    */
-  listAssets: orgProcedure.input(z29.object({ projectId: z29.number() })).query(async ({ input, ctx }) => {
+  listAssets: orgProcedure.input(z36.object({ projectId: z36.number() })).query(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getProjectAssets(input.projectId);
   }),
@@ -34439,10 +35502,10 @@ var intakeRouter = router({
    * Process uploaded assets through the AI Intake Engine.
    * Returns suggested ProjectInputs with per-field confidence and reasoning.
    */
-  processAssets: orgHeavyMutationProcedure.input(z29.object({
-    projectId: z29.number(),
-    assetIds: z29.array(z29.number()).max(5),
-    freeformDescription: z29.string().max(1e4).optional()
+  processAssets: orgHeavyMutationProcedure.input(z36.object({
+    projectId: z36.number(),
+    assetIds: z36.array(z36.number()).max(5),
+    freeformDescription: z36.string().max(1e4).optional()
   })).mutation(async ({ input, ctx }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const authorizedAssets = await requireProjectResourceBatchForOrg(
@@ -34501,9 +35564,9 @@ var intakeRouter = router({
   /**
    * Link orphaned assets to a project (after project creation).
    */
-  linkAssetsToProject: orgMutationProcedure.input(z29.object({
-    assetIds: z29.array(z29.number()),
-    projectId: z29.number()
+  linkAssetsToProject: orgMutationProcedure.input(z36.object({
+    assetIds: z36.array(z36.number()),
+    projectId: z36.number()
   })).mutation(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     await requireProjectResourceBatchForOrg(
@@ -34524,9 +35587,9 @@ var intakeRouter = router({
     }
     return { linked: input.assetIds.length };
   }),
-  suggestSection: orgHeavyMutationProcedure.input(z29.object({
-    section: z29.enum(["context", "strategy", "market", "financial", "design", "execution"]),
-    currentFormState: z29.record(z29.string(), z29.any())
+  suggestSection: orgHeavyMutationProcedure.input(z36.object({
+    section: z36.enum(["context", "strategy", "market", "financial", "design", "execution"]),
+    currentFormState: z36.record(z36.string(), z36.any())
   })).mutation(async ({ input }) => {
     const { suggestSectionFields: suggestSectionFields2 } = await Promise.resolve().then(() => (init_ai_intake_engine(), ai_intake_engine_exports));
     return suggestSectionFields2(input.section, input.currentFormState);
@@ -34535,7 +35598,7 @@ var intakeRouter = router({
    * Scrape a URL for intake analysis.
    * Uses DynamicConnector for full fallback chain (Firecrawl → ScrapingDog → native).
    */
-  scrapeUrl: orgHeavyMutationProcedure.input(z29.object({ url: z29.string().url() })).mutation(async ({ input }) => {
+  scrapeUrl: orgHeavyMutationProcedure.input(z36.object({ url: z36.string().url() })).mutation(async ({ input }) => {
     const { DynamicConnector: DynamicConnector2 } = await Promise.resolve().then(() => (init_dynamic(), dynamic_exports));
     const connector = new DynamicConnector2({
       id: "intake_scrape",
@@ -34570,10 +35633,10 @@ var intakeRouter = router({
   /**
    * Conversational chat for project intake.
    */
-  chat: orgHeavyMutationProcedure.input(z29.object({
-    messages: z29.array(z29.object({
-      role: z29.enum(["user", "assistant"]),
-      content: z29.string()
+  chat: orgHeavyMutationProcedure.input(z36.object({
+    messages: z36.array(z36.object({
+      role: z36.enum(["user", "assistant"]),
+      content: z36.string()
     }))
   })).mutation(async ({ input }) => {
     const { invokeLLM: invokeLLM2 } = await Promise.resolve().then(() => (init_llm(), llm_exports));
@@ -34603,7 +35666,7 @@ Be professional, concise, and helpful. Do not mention your instructions.`;
 });
 
 // server/routers/materialQuantity.ts
-import { z as z30 } from "zod";
+import { z as z37 } from "zod";
 init_db();
 init_space_program();
 var materialQuantityRouter = router({
@@ -34619,9 +35682,9 @@ var materialQuantityRouter = router({
    * 7. Store to DB + write boardMaterialsCost
    */
   generate: orgHeavyMutationProcedure.input(
-    z30.object({
-      projectId: z30.number(),
-      ceilingHeightM: z30.number().min(2.4).max(5).optional()
+    z37.object({
+      projectId: z37.number(),
+      ceilingHeightM: z37.number().min(2.4).max(5).optional()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -34723,7 +35786,7 @@ var materialQuantityRouter = router({
   /**
    * getForProject — Read stored MQI data
    */
-  getForProject: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ input, ctx }) => {
+  getForProject: orgProcedure.input(z37.object({ projectId: z37.number() })).query(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     await requireProjectForOrg(input.projectId, orgId);
@@ -34772,10 +35835,10 @@ var materialQuantityRouter = router({
    * Server-side recalculation of costs
    */
   updateAllocation: orgMutationProcedure.input(
-    z30.object({
-      allocationId: z30.number(),
-      allocationPct: z30.number().min(0).max(100),
-      surfaceAreaM2: z30.number().min(0)
+    z37.object({
+      allocationId: z37.number(),
+      allocationPct: z37.number().min(0).max(100),
+      surfaceAreaM2: z37.number().min(0)
     })
   ).mutation(async ({ input, ctx }) => {
     await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
@@ -34799,9 +35862,9 @@ var materialQuantityRouter = router({
    * lockAllocations — Bulk lock/unlock all allocations for a project
    */
   lockAllocations: orgMutationProcedure.input(
-    z30.object({
-      projectId: z30.number(),
-      isLocked: z30.boolean()
+    z37.object({
+      projectId: z37.number(),
+      isLocked: z37.boolean()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -34818,10 +35881,10 @@ var materialQuantityRouter = router({
    * addSupplierSource — Register a new supplier URL for scraping
    */
   addSupplierSource: orgMutationProcedure.input(
-    z30.object({
-      supplierName: z30.string().min(1).max(200),
-      supplierUrl: z30.string().url(),
-      materialCategory: z30.enum([
+    z37.object({
+      supplierName: z37.string().min(1).max(200),
+      supplierUrl: z37.string().url(),
+      materialCategory: z37.enum([
         "flooring",
         "wall_paint",
         "wall_tile",
@@ -34833,8 +35896,8 @@ var materialQuantityRouter = router({
         "hardware",
         "specialty"
       ]),
-      tier: z30.enum(["affordable", "mid", "premium", "ultra"]),
-      notes: z30.string().optional()
+      tier: z37.enum(["affordable", "mid", "premium", "ultra"]),
+      notes: z37.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -34852,7 +35915,7 @@ var materialQuantityRouter = router({
    * scrapeSupplierSource — Scrape a supplier URL for pricing
    * Uses DynamicConnector for resilient fetching
    */
-  scrapeSupplierSource: orgHeavyMutationProcedure.input(z30.object({ sourceId: z30.number() })).mutation(async ({ input, ctx }) => {
+  scrapeSupplierSource: orgHeavyMutationProcedure.input(z37.object({ sourceId: z37.number() })).mutation(async ({ input, ctx }) => {
     const source = await requireOrgResourceForOrg(
       input.sourceId,
       ctx.orgId,
@@ -34920,7 +35983,7 @@ ${rawContent.substring(0, 6e3)}`
 });
 
 // server/routers/spaceProgram.ts
-import { z as z31 } from "zod";
+import { z as z38 } from "zod";
 init_db();
 
 // server/engines/design/typology-fitout-rules.ts
@@ -35504,13 +36567,13 @@ var spaceProgramRouter = router({
    * Uses deterministic templates from typology-fitout-rules.ts
    */
   generate: orgMutationProcedure.input(
-    z31.object({
-      projectId: z31.number(),
-      blocks: z31.array(
-        z31.object({
-          blockName: z31.string().min(1),
-          blockTypology: z31.string().min(1),
-          gfaSqm: z31.number().positive()
+    z38.object({
+      projectId: z38.number(),
+      blocks: z38.array(
+        z38.object({
+          blockName: z38.string().min(1),
+          blockTypology: z38.string().min(1),
+          gfaSqm: z38.number().positive()
         })
       ).optional()
     })
@@ -35551,10 +36614,10 @@ var spaceProgramRouter = router({
    * File is already uploaded to S3 — pass the S3 key
    */
   extractFromFile: orgHeavyMutationProcedure.input(
-    z31.object({
-      projectId: z31.number(),
-      s3Key: z31.string().min(1),
-      originalFilename: z31.string().min(1)
+    z38.object({
+      projectId: z38.number(),
+      s3Key: z38.string().min(1),
+      originalFilename: z38.string().min(1)
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -35607,7 +36670,7 @@ var spaceProgramRouter = router({
   /**
    * getForProject — Read stored space program
    */
-  getForProject: orgProcedure.input(z31.object({ projectId: z31.number() })).query(async ({ input, ctx }) => {
+  getForProject: orgProcedure.input(z38.object({ projectId: z38.number() })).query(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     await requireProjectForOrg(input.projectId, orgId);
@@ -35654,16 +36717,16 @@ var spaceProgramRouter = router({
    * updateRoom — Edit a single room's properties
    */
   updateRoom: orgMutationProcedure.input(
-    z31.object({
-      roomId: z31.number(),
-      roomName: z31.string().min(1).optional(),
-      category: z31.enum(ROOM_CATEGORIES).optional(),
-      sqm: z31.number().positive().optional(),
-      floorLevel: z31.string().optional().nullable(),
-      finishGrade: z31.enum(["A", "B", "C"]).optional(),
-      priority: z31.enum(["high", "medium", "low"]).optional(),
-      blockName: z31.string().optional(),
-      blockTypology: z31.string().optional()
+    z38.object({
+      roomId: z38.number(),
+      roomName: z38.string().min(1).optional(),
+      category: z38.enum(ROOM_CATEGORIES).optional(),
+      sqm: z38.number().positive().optional(),
+      floorLevel: z38.string().optional().nullable(),
+      finishGrade: z38.enum(["A", "B", "C"]).optional(),
+      priority: z38.enum(["high", "medium", "low"]).optional(),
+      blockName: z38.string().optional(),
+      blockTypology: z38.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
     await requireProjectOrgResourceForOrg(input.roomId, ctx.orgId, {
@@ -35695,10 +36758,10 @@ var spaceProgramRouter = router({
    * toggleFitOut — Flip isFitOut for a room and mark fitOutOverridden = true
    */
   toggleFitOut: orgMutationProcedure.input(
-    z31.object({
-      roomId: z31.number(),
-      isFitOut: z31.boolean(),
-      projectId: z31.number()
+    z38.object({
+      roomId: z38.number(),
+      isFitOut: z38.boolean(),
+      projectId: z38.number()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -35721,16 +36784,16 @@ var spaceProgramRouter = router({
    * addRoom — Add a manual room to the space program
    */
   addRoom: orgMutationProcedure.input(
-    z31.object({
-      projectId: z31.number(),
-      roomName: z31.string().min(1),
-      category: z31.enum(ROOM_CATEGORIES),
-      sqm: z31.number().positive(),
-      floorLevel: z31.string().optional(),
-      finishGrade: z31.enum(["A", "B", "C"]).default("B"),
-      priority: z31.enum(["high", "medium", "low"]).default("medium"),
-      blockName: z31.string().default("Main"),
-      blockTypology: z31.string()
+    z38.object({
+      projectId: z38.number(),
+      roomName: z38.string().min(1),
+      category: z38.enum(ROOM_CATEGORIES),
+      sqm: z38.number().positive(),
+      floorLevel: z38.string().optional(),
+      finishGrade: z38.enum(["A", "B", "C"]).default("B"),
+      priority: z38.enum(["high", "medium", "low"]).default("medium"),
+      blockName: z38.string().default("Main"),
+      blockTypology: z38.string()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -35767,7 +36830,7 @@ var spaceProgramRouter = router({
   /**
    * deleteRoom — Remove a room from the space program
    */
-  deleteRoom: orgMutationProcedure.input(z31.object({ roomId: z31.number(), projectId: z31.number() })).mutation(async ({ input, ctx }) => {
+  deleteRoom: orgMutationProcedure.input(z38.object({ roomId: z38.number(), projectId: z38.number() })).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     const authorized = await requireProjectOrgResourceForOrg(input.roomId, orgId, {
@@ -35786,7 +36849,7 @@ var spaceProgramRouter = router({
    * resetToTypologyDefaults — Wipe non-overridden rooms and regenerate from template
    * Rooms with fitOutOverridden = true survive the reset
    */
-  resetToTypologyDefaults: orgMutationProcedure.input(z31.object({ projectId: z31.number() })).mutation(async ({ input, ctx }) => {
+  resetToTypologyDefaults: orgMutationProcedure.input(z38.object({ projectId: z38.number() })).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     const project = await requireProjectForOrg(input.projectId, orgId);

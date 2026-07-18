@@ -9,7 +9,9 @@ describe("TR-10 export locale contract", () => {
   it("validates English/Arabic locale on every server export boundary", () => {
     const contracts: Array<[string, string[]]> = [
       ["../routers/project.ts", ["generateReport:"]],
-      ["../routers/design.ts", ["generateBrief:", "exportBriefDocx:", "exportBoardPdf:", "exportInvestorPdf:", "resolveShareLink:"]],
+      ["../routers/design-briefs.ts", ["generateBrief:", "exportBriefDocx:", "exportInvestorPdf:"]],
+      ["../routers/design-boards.ts", ["exportBoardPdf:"]],
+      ["../routers/design-sharing.ts", ["resolveShareLink:"]],
       ["../routers/intelligence.ts", ["exportComparisonPDF:"]],
       ["../routers/portfolio.ts", ["generateReport:"]],
       ["../routers/autonomous.ts", ["generateBrief:"]],

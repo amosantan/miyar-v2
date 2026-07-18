@@ -127,10 +127,23 @@ export function createPublicRateLimitMiddleware(t: { middleware: Function }) {
     if (globalEntry.timestamps.length >= PUBLIC_GLOBAL_MAX || addressEntry.timestamps.length >= PUBLIC_PER_ADDRESS_MAX) {
       throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Rate limit exceeded. Try again shortly." });
     }
-    // Commit both quotas only after both non-consuming checks pass.
+    // Reserve both quotas only after both non-consuming checks pass. Rejected
+    // lookups still consume the probing address's quota, but release the global
+    // reservation so distributed invalid traffic cannot block unrelated users.
     globalEntry.timestamps.push(now);
     addressEntry.timestamps.push(now);
-    return next();
+    const releaseRejectedGlobalReservation = () => {
+      const reservation = globalEntry.timestamps.lastIndexOf(now);
+      if (reservation >= 0) globalEntry.timestamps.splice(reservation, 1);
+    };
+    try {
+      const result = await next();
+      if (result?.ok === false) releaseRejectedGlobalReservation();
+      return result;
+    } catch (error) {
+      releaseRejectedGlobalReservation();
+      throw error;
+    }
   });
 }
 

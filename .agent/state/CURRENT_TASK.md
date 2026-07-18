@@ -1,80 +1,79 @@
 # Current Task
 
-- ID: TR-12
-- Roadmap step: `TR-12`
-- Title: Safe local and test database profiles
+- ID: SC-01
+- Roadmap step: `SC-01`
+- Title: Split the design router by bounded domain
 - Status: PASS
 - Owner: Codex
-- Started: 2026-07-18
-- Branch: `codex/tr-12-safe-db-profiles`
-- Base: `ee6c834` (`origin/main` TR-11 release-state commit; runtime application release remains `d0c84da`)
-- Risk: High operational and tenant-safety risk: an ordinary local command must not connect to or write a protected/shared database.
-- Selected loops: Operations/security, defect, configuration, and documentation
-- Retry budget: Maximum 3 evidence-based attempts per unchanged failure class
-- Resource budget: One isolated worktree; configuration guard, profile contract, focused tests/dry startup evidence, and documentation only. No schema, migration, dependency, shared-database write, deployment, or production configuration mutation.
-- Human gates: Any shared deployment configuration change, remote/shared database connection or write, migration, seed/reset, production worker change, deployment, merge, or publication requires separate named human authorization. Command-scoped remote-database approval must never be persisted in `.env` or committed.
+- Started: 2026-07-19
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-sc01`
+- Branch: `codex/sc-01-split-design-router`
+- Base: exact commit `1169fed5e9036bd754cfcb79a7619933515d7f00` plus the copied, reviewed, uncommitted TR-13 candidate state
+- Classification: API / architecture refactor
+- Risk: High — the current design router is a large authorization boundary with public-share and tenant-sensitive procedures
+- Selected loop: Feature/refactor loop with API, authorization, workflow, and independent-review gates
+- Retry budget: Maximum 3 evidence-based attempts per unchanged failure class; every retry must use a new hypothesis
+- Resource budget: One isolated worktree, bounded static inventory, focused router contracts, ordinary DB-free suite, and guarded TR-13 workflow only when a disposable loopback database is available
+- Human gates: Breaking public contract, schema/migration, dependency, scoring/financial/compliance change, Git publication, shared database/configuration, preview, or deployment remain separately gated
 
 ## Goal
 
-Make local, test, preview, and production database behavior explicit and fail closed so ordinary developer and test commands cannot silently contact or mutate a protected/shared environment.
+Split `server/routers/design.ts` into small domain-owned router modules while preserving the existing composed `design.*` public API, authorization behavior, validation, response shapes, and deterministic product behavior.
+
+## Plain-English Problem
+
+The design router currently mixes many unrelated jobs—assets, briefs, boards and visuals, materials, collaboration, market context, and public sharing—in one very large file. That makes ownership unclear and increases the chance that a safe change in one area accidentally weakens authorization or breaks another area. SC-01 changes the internal file boundaries, not the product contract.
 
 ## Acceptance Criteria
 
-- [x] The runtime recognizes `local`, `test`, `preview`, and `production`, rejects invalid or contradictory profile signals, and treats a missing selector as untrusted `local` rather than inferring trust from a configured URL.
-- [x] Local and test profiles accept only loopback/disposable database targets by default; protected/shared remote targets fail before a connection is opened.
-- [x] A remote database is permitted only for a single explicitly authorized command, with approval absent from `.env`, examples, source control, startup defaults, and child-process inheritance where applicable.
-- [x] Ordinary `pnpm test` is database-free and cannot inherit a dotenv-restored shared `DATABASE_URL`; guarded database integration uses a separately named disposable test target.
-- [x] Preview and production profiles remain explicit operational profiles; their database access and worker behavior are not enabled by a local default.
-- [x] Background ingestion, learning, and alert workers stay disabled outside production unless explicitly enabled for an approved isolated workflow; workers never start as a side effect of test commands.
-- [x] `.env.example`, the local-development runbook, security requirements, and architecture state the profile, database-free-test, guarded-integration, command-scoped approval, worker, seed/reset, and human-gate contract without credentials or approval values.
-- [x] Focused configuration tests, DB-free full-suite evidence, guarded disposable-database smoke, dry startup logs, runbook consistency review, and diff review provide objective evidence; `KF-008` is closed because its exit criterion is verified.
-
-## Assumptions and Approved Decisions
-
-- `MIYAR_RUNTIME_PROFILE` is a process/deployment profile selector that is intentionally ignored in dotenv files. `local` is the safe default; `test`, `preview`, and `production` must be intentionally selected by their invoking command or deployment configuration.
-- `MIYAR_DATABASE_APPROVAL` is a command-scoped binding only after named human authorization. Its canonical value is `sorted-operation-list@host:port/database`, for example `serve+ingest@dev.example:3306/miyar_dev`; it is intentionally absent from `.env.example` and must not be stored in `.env`.
-- `MIYAR_DEPLOYMENT_DATABASE_TARGET` is an optional managed-preview target binding. It requires infrastructure approval and is intentionally absent from `.env.example`.
-- `TEST_DATABASE_URL` names a disposable integration target and is never a fallback for ordinary unit tests.
-- A loopback host is necessary but not sufficient proof of safety: seed/reset, migration, and other writes remain separately gated by target verification and human approval when required.
+- [x] Every existing `design.*` procedure name remains present exactly once with the same query/mutation kind, input contract, authorization class, output contract, and public/private boundary.
+- [x] Asset, brief, board/visual, material/procurement, collaboration, market-context, and sharing procedures live in bounded modules with clear ownership.
+- [x] `server/routers/design.ts` becomes a small compatibility composition boundary rather than a second implementation copy.
+- [x] Shared schemas/helpers are extracted only when they are genuinely shared; no circular import or cross-domain ownership ambiguity is introduced.
+- [x] Public shares remain read-only, token-gated, expiry-aware, rate-limited, concealed, privacy-header protected, and free of token-bearing authenticated reads/logs/evidence.
+- [x] Admin/member/viewer/foreign-organization authorization behavior remains unchanged, including project/resource ownership concealment.
+- [x] No schema, migration, dependency, feature, numerical formula, scoring weight, financial assumption, compliance policy, route rename, or response-shape change occurs.
+- [x] A generated contract inventory/snapshot proves exact pre/post procedure parity and rejects duplicates, omissions, kind drift, or authorization-class drift.
+- [x] Focused router/authorization/share tests, TypeScript, ordinary DB-free full suite, authorization audit, database-safety audit, build and tracked serverless freshness, diff review, and independent security/architecture reviews pass.
+- [x] TR-13 critical sharing/runtime workflow passes against disposable loopback MySQL with strict cleanup.
+- [x] Roadmap, current task, worklog, lessons, architecture/project state, and known failures change only where verified reality changes.
 
 ## Non-Goals
 
-- No schema, migration, seed/reset, backfill, shared/production database write, deployment, production configuration mutation, dependency change, formula/policy change, commit, push, merge, or publication.
-- No attempt to close `KF-008` from documentation alone.
-- No stored approval token, credential, remote URL, production secret, or claim that a remote target is safe merely because an environment label says so.
+- No public API cleanup or procedure renaming.
+- No new capability, UI redesign, engine rewrite, database helper rewrite, schema work, migration, or data operation.
+- No unification of structured briefs, AI-advisor briefs, and stored reports.
+- No runtime capability/observability design owned by `SC-05`.
+- No commit, stage, push, pull request, merge, preview, or deployment without separate authorization.
 
-## Recovery
+## Architecture Assumptions
 
-All profile and documentation changes must be reversible. Stop immediately if a command could connect to a shared/protected database without named authorization, a worker could write outside an approved isolated workflow, or a credential/approval value could be persisted or exposed.
+- Compatibility composition may use router record merging only if tRPC procedure identity and middleware chains remain intact.
+- Authorization procedures remain attached to each procedure at definition time; composition must not wrap or weaken them.
+- Domain modules may depend on stable shared authorization/database/engine helpers, but must not depend on the compatibility composition module.
+- TR-13 is the stacked behavioral baseline even though Git publication remains gated.
 
 ## Execution Plan
 
-- [x] Establish the current safety baseline, review `KF-008`, existing worker behavior, and the prior dotenv inheritance evidence.
-- [x] Implement the profile and connection guard with focused configuration tests.
-- [x] Make ordinary tests DB-free and preserve guarded disposable-database integration coverage.
-- [x] Document profile, worker, seed/reset, remote-approval, and human-gate operations.
-- [x] Run the proportionate verification ladder and close `KF-008` only from its proven exit criterion.
+- [x] Create and verify a fresh SC-01 worktree before task edits.
+- [x] Stack the exact reviewed TR-13 working-tree candidate without modifying or committing its source worktree.
+- [x] Inventory procedures, helpers, imports, dependency clusters, and current public contract.
+- [x] Design bounded module ownership and add a failing/exact contract-parity guard.
+- [x] Extract domains incrementally with focused verification after each coherent group.
+- [x] Run complete static, unit, authorization, audit, build, workflow, diff, and independent-review gates.
+- [x] Close SC-01 with exact evidence and no unexplained artifacts.
 
-## Initial Evidence
+## Completion Evidence
 
-- `KF-008` is open: historical ordinary `pnpm test` inherited a remote `DATABASE_URL`, while `DATABASE_URL='' pnpm test` was database-free because dotenv treats an explicit empty value differently from an unset value.
-- `scripts/run-guarded-mysql-tests.ts` already rejects caller-provided `DATABASE_URL` and requires `TEST_DATABASE_URL` for its disposable MySQL integration path.
-- The Node runtime starts workers by default in production and otherwise requires `ENABLE_BACKGROUND_JOBS=true`; the profile contract must preserve that fail-safe posture.
-- TR-11 closed at `PASS`; `.agent/state/ROADMAP.md` identifies TR-12 as the sole dependency-valid next step.
-
-## Verified Evidence
-
-- The worktree was created first at `/Users/amrosaleh/Maiyar/miyar-v2-tr12` on `codex/tr-12-safe-db-profiles` from exact `origin/main` commit `ee6c834`; the stale dirty root checkout was not modified.
-- The focused database policy, runtime, and AST-audit suites pass 74/74. They cover malformed and loopback targets, exact approvals, hostile dotenv controls, partial deployment signals, current-target rechecks, both MySQL constructor families, unit/integration separation, ingestion operation separation, worker decisions, and unreachable audit preflights.
-- A hostile parent `DATABASE_URL`, profile, approval, preview binding, Vercel signals, and worker opt-in cannot escape the ordinary Vitest configuration: `pnpm test` passes 1,206 tests with 22 skipped and emits no database connection attempt.
-- The guarded disposable MySQL 8 workflow passes 19/19 against `miyar_auth_test_tr12_final`; its cleanup passes and the bounded Docker container is removed. An initial setup-only attempt omitted database creation, failed with `ER_BAD_DB_ERROR`, and was corrected without changing product code.
-- `pnpm check`, `pnpm audit:authorization` (337 procedures, zero remediation), `pnpm audit:database-safety` (106 inventoried entrypoints, two exact generated-bundle exceptions, zero findings), `pnpm build`, and `git diff --check` pass.
-- Bounded startup checks prove local DB-free startup, remote denial before listen, complete production/preview signal handling, and worker authorization failure exiting status 1 with sanitized logs that exclude credentials and approval values.
-- The tracked serverless bundle was regenerated from the guarded source; CI rebuilds it and fails if `api/index.js` is stale.
-- Independent GPT-5.6 security review returned `APPROVED`; final Claude Opus implementation review returned `APPROVED`.
-- At implementation closure, no schema, migration, dependency, shared/production database write, deployment, shared configuration mutation, commit, push, PR, or merge had been performed.
-- The owner subsequently authorized publication and deployment. Candidate `1169fed` merged through PR #17 as canonical-main commit `43e5019`; canonical-main CI run `29654957839` passed, Vercel target `4ixzzXRp886bet8XDRhc439czfWd` completed, and three root/health observations plus tenant/share negative checks and rendered landing-page browser verification pass. No database, schema, migration, dependency, or shared-configuration operation was required.
+- Fresh worktree created first at `/Users/amrosaleh/Maiyar/miyar-v2-sc01` on `codex/sc-01-split-design-router` from exact commit `1169fed5e9036bd754cfcb79a7619933515d7f00`.
+- The reviewed TR-13 working-tree state was copied into SC-01 while the original `/Users/amrosaleh/Maiyar/miyar-v2-tr13` remained unchanged and uncommitted.
+- The live monolith contained 63 procedures: 29 queries and 34 mutations. Eight bounded routers now own each procedure exactly once; the compatibility facade is 21 lines and retains flat `design.*` paths.
+- The immutable pre-split baseline fingerprints every initializer, access primitive, authorization classification, runtime operation, and middleware chain; its default checker and the runtime owner-identity test pass.
+- Focused authorization/share/privacy/source contracts pass 98 tests; the ordinary DB-free suite passes 1,257 with 22 skipped; `pnpm check`, authorization inventory 338/0, database-safety 112/2/0, build, byte-stable serverless regeneration, and `git diff --check` pass.
+- Guarded disposable-MySQL verification passes 21 configured tests, including all 19 design-authorization cases. `pnpm certify:workflow` passes real MySQL, Node/serverless parity, report rendering, serial browser, secret-scan, revocation/concealment, and strict cleanup gates; both disposable containers were removed.
+- Independent GPT-5.6 Sol security and GPT-5.6 Terra architecture reviews returned `APPROVED_NO_OBJECTION`. Claude Opus review is recorded with the final closure evidence.
+- No known failure was opened; the first optional authorization-harness attempt failed only because its documented pre-created database prerequisite was absent, then passed after creating the bounded disposable database.
 
 ## Next Action
 
-TR-12 is complete at `PASS`. Begin `TR-13`, the sole next executable step, in a new worktree when authorized.
+SC-01 is locally closed at `PASS`. Begin only the roadmap's next executable step in a fresh worktree; Git publication and every shared/production action remain separately gated.

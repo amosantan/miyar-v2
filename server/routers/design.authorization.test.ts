@@ -46,6 +46,7 @@ const mocks = vi.hoisted(() => ({
     createMaterialBoardWithMaterialsForOrg: vi.fn(),
     insertRfqLineItemsForOrg: vi.fn(),
     updateAiDesignBriefShareTokenForOrg: vi.fn(),
+    revokeAiDesignBriefSharesForProjectForOrg: vi.fn(),
     createFloorPlanAssetAndLinkForOrg: vi.fn(),
     getLatestAiDesignBrief: vi.fn(),
     getMaterialConstants: vi.fn(),
@@ -73,6 +74,7 @@ vi.mock("../engines/design/floor-plan-analyzer", () => ({
 vi.mock("nanoid", () => ({ nanoid: mocks.nanoid }));
 
 import { designRouter } from "./design";
+import { resetPublicRateLimitForTests } from "../_core/rate-limit";
 
 const { contexts, projects } = authorizationFixtures;
 
@@ -129,6 +131,7 @@ function byId<T extends { id: number }>(...records: T[]) {
 describe("design router authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetPublicRateLimitForTests();
     mocks.db.getOrganizationMemberships.mockImplementation(
       async (userId: number, orgId: number) => [{
         id: userId,
@@ -175,6 +178,7 @@ describe("design router authorization", () => {
     mocks.db.createMaterialBoardWithMaterialsForOrg.mockResolvedValue({ id: 901 });
     mocks.db.insertRfqLineItemsForOrg.mockResolvedValue(true);
     mocks.db.updateAiDesignBriefShareTokenForOrg.mockResolvedValue(true);
+    mocks.db.revokeAiDesignBriefSharesForProjectForOrg.mockResolvedValue({ revokedCount: 0 });
     mocks.db.createFloorPlanAssetAndLinkForOrg.mockResolvedValue({ id: 902 });
     mocks.db.updateProjectForOrg.mockResolvedValue(true);
     mocks.db.getMaterialConstants.mockResolvedValue([]);
@@ -404,6 +408,76 @@ describe("design router authorization", () => {
       code: "INTERNAL_SERVER_ERROR",
       message: "Unable to create share link",
     });
+  });
+
+  it.each(["member", "viewer"] as const)(
+    "requires an organization admin, not an organization %s, for project-wide share revocation",
+    async role => {
+      mocks.db.getOrganizationMemberships.mockResolvedValue([{
+        id: 1,
+        userId: contexts.orgA.user!.id,
+        orgId: projects.orgA.orgId,
+        role,
+        createdAt: AUTH_NOW,
+      }]);
+
+      await expect(designRouter.createCaller(contexts.orgA).revokeShareLinks({
+        projectId: projects.orgA.id,
+      })).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(mocks.db.getProjectById).not.toHaveBeenCalled();
+      expect(mocks.db.revokeAiDesignBriefSharesForProjectForOrg).not.toHaveBeenCalled();
+      expect(mocks.db.createAuditLog).not.toHaveBeenCalled();
+    },
+  );
+
+  it("conceals a cross-organization project before project-wide share revocation", async () => {
+    await expect(designRouter.createCaller(contexts.orgA).revokeShareLinks({
+      projectId: projects.orgB.id,
+    })).rejects.toMatchObject({ code: "NOT_FOUND", message: "Project not found" });
+    expect(mocks.db.revokeAiDesignBriefSharesForProjectForOrg).not.toHaveBeenCalled();
+    expect(mocks.db.createAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("revokes every project share, returns the count, and audits idempotent calls", async () => {
+    mocks.db.revokeAiDesignBriefSharesForProjectForOrg
+      .mockResolvedValueOnce({ revokedCount: 3 })
+      .mockResolvedValueOnce({ revokedCount: 0 });
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    await expect(caller.revokeShareLinks({ projectId: projects.orgA.id }))
+      .resolves.toEqual({ revokedCount: 3, active: false });
+    await expect(caller.revokeShareLinks({ projectId: projects.orgA.id }))
+      .resolves.toEqual({ revokedCount: 0, active: false });
+
+    expect(mocks.db.revokeAiDesignBriefSharesForProjectForOrg).toHaveBeenNthCalledWith(
+      1,
+      projects.orgA.id,
+      projects.orgA.orgId,
+    );
+    expect(mocks.db.revokeAiDesignBriefSharesForProjectForOrg).toHaveBeenNthCalledWith(
+      2,
+      projects.orgA.id,
+      projects.orgA.orgId,
+    );
+    expect(mocks.db.createAuditLog).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      orgId: projects.orgA.orgId,
+      userId: contexts.orgA.user!.id,
+      action: "brief.share.revoke_all",
+      entityType: "project",
+      entityId: projects.orgA.id,
+      details: { projectId: projects.orgA.id, revokedCount: 3 },
+    }));
+    expect(mocks.db.createAuditLog).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      details: { projectId: projects.orgA.id, revokedCount: 0 },
+    }));
+  });
+
+  it("fails closed if project ownership changes before the atomic revocation", async () => {
+    mocks.db.revokeAiDesignBriefSharesForProjectForOrg.mockResolvedValue(null);
+    await expect(designRouter.createCaller(contexts.orgA).revokeShareLinks({
+      projectId: projects.orgA.id,
+    })).rejects.toMatchObject({ code: "NOT_FOUND", message: "Resource not found" });
+    expect(mocks.db.createAuditLog).not.toHaveBeenCalled();
   });
 
   it("compensates an explicitly rejected asset persistence", async () => {
@@ -723,7 +797,9 @@ describe("design router authorization", () => {
     );
   });
 
-  it("conceals invalid public-share tokens identically in both locales", async () => {
+  it.each(["invalid", "never-issued", "revoked"])(
+    "conceals %s public-share tokens identically in both locales",
+    async () => {
     mocks.db.getAiDesignBriefByShareToken.mockResolvedValue(undefined);
     const caller = designRouter.createCaller(contexts.unauthenticated);
     for (const locale of ["en", "ar"] as const) {
@@ -732,7 +808,83 @@ describe("design router authorization", () => {
     }
     expect(mocks.db.getProjectById).not.toHaveBeenCalled();
     expect(mocks.db.getSpaceRecommendations).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rate-limits repeated public share probing with the existing bounded limiter", async () => {
+    mocks.db.getAiDesignBriefByShareToken.mockResolvedValue(undefined);
+    const caller = designRouter.createCaller({
+      ...contexts.unauthenticated,
+      req: {
+        headers: {},
+        socket: { remoteAddress: "198.51.100.25" },
+      } as typeof contexts.unauthenticated.req,
+    });
+
+    for (let index = 0; index < 60; index += 1) {
+      await expect(caller.resolveShareLink({
+        token: `missing-${String(index).padStart(3, "0")}`,
+        locale: "en",
+      })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+    await expect(caller.resolveShareLink({ token: "missing-final", locale: "en" }))
+      .rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+    expect(mocks.db.getAiDesignBriefByShareToken).toHaveBeenCalledTimes(60);
   });
+
+  it("does not let one rejected address consume an unrelated address's first access", async () => {
+    mocks.db.getAiDesignBriefByShareToken.mockResolvedValue(undefined);
+    for (let address = 0; address < 10; address += 1) {
+      const probingCaller = designRouter.createCaller({
+        ...contexts.unauthenticated,
+        req: {
+          headers: {},
+          socket: { remoteAddress: `198.51.100.${address + 1}` },
+        } as typeof contexts.unauthenticated.req,
+      });
+      for (let index = 0; index < 60; index += 1) {
+        await expect(probingCaller.resolveShareLink({
+          token: `rejected-${address}-${String(index).padStart(3, "0")}`,
+          locale: "en",
+        })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      }
+    }
+
+    mocks.db.getAiDesignBriefByShareToken.mockResolvedValue({
+      id: 71,
+      projectId: projects.orgA.id,
+      orgId: projects.orgA.orgId,
+      briefData: { executiveSummary: "Public minimum" },
+      shareExpiresAt: new Date("2099-01-01T00:00:00.000Z"),
+    });
+    const unrelatedCaller = designRouter.createCaller({
+      ...contexts.unauthenticated,
+      req: {
+        headers: {},
+        socket: { remoteAddress: "203.0.113.44" },
+      } as typeof contexts.unauthenticated.req,
+    });
+    await expect(unrelatedCaller.resolveShareLink({
+      token: "legitimate-first-access",
+      locale: "en",
+    })).resolves.toMatchObject({
+      readOnly: true,
+      execSummary: "Public minimum",
+    });
+  });
+
+  it.each(["short", "x".repeat(65)])(
+    "conceals a syntactically invalid public-share token",
+    async token => {
+      const caller = designRouter.createCaller(contexts.unauthenticated);
+      await expect(caller.resolveShareLink({ token, locale: "en" }))
+        .rejects.toMatchObject({
+          code: "NOT_FOUND",
+          message: "Share link not found or expired",
+        });
+      expect(mocks.db.getAiDesignBriefByShareToken).not.toHaveBeenCalled();
+    }
+  );
 
   it("rejects a malformed public-share locale before token lookup", async () => {
     const caller = designRouter.createCaller(contexts.unauthenticated);

@@ -33,7 +33,14 @@ describe("AI/media architecture guardrails", () => {
       "server/engines/design/ai-design-advisor.ts",
       "server/engines/intake/ai-intake-engine.ts",
       "server/routers/intake.ts",
-      "server/routers/design.ts",
+      "server/routers/design-assets.ts",
+      "server/routers/design-boards.ts",
+      "server/routers/design-briefs.ts",
+      "server/routers/design-collaboration.ts",
+      "server/routers/design-market-context.ts",
+      "server/routers/design-materials.ts",
+      "server/routers/design-sharing.ts",
+      "server/routers/design-visuals.ts",
     ];
     const endpointOwners: string[] = [];
     for (const file of files) {

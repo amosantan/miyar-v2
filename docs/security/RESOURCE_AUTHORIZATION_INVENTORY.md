@@ -2,8 +2,8 @@
 
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **337**
-- Generated: 2026-07-18T17:50:01.267Z
+- Procedures inventoried: **338**
+- Generated: 2026-07-18T21:07:38.618Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
@@ -30,20 +30,20 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `admin_governed`       |    82 |
 | `global_governed`      |    54 |
 | `not_project_scoped`   |    23 |
-| `org_guarded`          |   177 |
+| `org_guarded`          |   178 |
 | `public_token_guarded` |     1 |
 
 ## Severity Summary
 
 | Severity | Count |
 | -------- | ----: |
-| `none`   |   337 |
+| `none`   |   338 |
 
 ## Remediation Summary
 
 | Target | Count |
 | ------ | ----: |
-| `none` |   337 |
+| `none` |   338 |
 
 ### Remediation ownership
 
@@ -101,9 +101,9 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 
 ## Public-Token Procedures
 
-| Key                       | Operation | Evidence                                                                                                                                              | Notes                                                                                                                                                                  | Source                          |
-| ------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1803` |
+| Key                       | Operation | Evidence                                                                                                                                              | Notes                                                                                                                                                                  | Source                                 |
+| ------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design-sharing.ts:133` |
 
 ## Complete Procedure Checklist
 
@@ -239,6 +239,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `design.removeMaterialFromBoard`                     | `org_guarded`          | input.joinId -> materials_to_boards.id -> materials_to_boards.boardId -> material_boards.projectId -> projects.orgId                                                                                                                                            | No remediation assigned; retain classification evidence. |
 | `design.reorderBoardTiles`                           | `org_guarded`          | input.boardId -> material_boards.id -> material_boards.projectId -> projects.orgId<br>input.orderedJoinIds[] -> materials_to_boards.id -> boardId -> material_boards.projectId -> projects.orgId                                                                | No remediation assigned; retain classification evidence. |
 | `design.resolveShareLink`                            | `public_token_guarded` | input.token -> ai_design_briefs.shareToken -> ai_design_briefs.projectId -> projects.id                                                                                                                                                                         | No remediation assigned; retain classification evidence. |
+| `design.revokeShareLinks`                            | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `design.unpinVisual`                                 | `org_guarded`          | input.linkId -> asset_links.id -> asset_links.assetId -> project_assets.projectId -> projects.orgId                                                                                                                                                             | No remediation assigned; retain classification evidence. |
 | `design.updateApprovalState`                         | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `design.updateAsset`                                 | `org_guarded`          | input.assetId -> project_assets.id -> project_assets.projectId -> projects.orgId                                                                                                                                                                                | No remediation assigned; retain classification evidence. |

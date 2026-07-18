@@ -139,6 +139,16 @@ const PLATFORM_PUBLIC_DERIVED_WRITE_PATTERN =
   /\b(?:insertPublicTrendSnapshot|insertPublicProjectInsight)\s*\(/;
 
 const GLOBAL_ROUTER_PATTERN = /^(admin|ingestion|market-intelligence)$/;
+const ROUTER_NAMESPACE_ALIASES: Readonly<Record<string, string>> = {
+  designAssetsRouter: "design",
+  designBriefsRouter: "design",
+  designBoardsRouter: "design",
+  designCollaborationRouter: "design",
+  designMarketContextRouter: "design",
+  designMaterialsRouter: "design",
+  designSharingRouter: "design",
+  designVisualsRouter: "design",
+};
 const SCOPED_WRITE_EVIDENCE: Record<
   string,
   { finalScopedWrite: string; integrationTestName: string }
@@ -616,7 +626,9 @@ async function extractProcedures(): Promise<ExtractedProcedure[]> {
           continue;
         }
 
-        const routerName = kebabCase(declaration.name.text);
+        const routerName =
+          ROUTER_NAMESPACE_ALIASES[declaration.name.text] ??
+          kebabCase(declaration.name.text);
         procedures.push(
           ...extractProceduresFromRouter(
             sourceFile,

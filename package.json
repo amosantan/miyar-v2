@@ -8,6 +8,7 @@
     "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && esbuild server/serverless/index.ts --platform=node --packages=external --bundle --format=esm --outfile=api/index.js",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
+    "check:design-router-contract": "tsx scripts/check-design-router-contract.ts",
     "audit:authorization": "tsx scripts/audit-resource-authorization.ts --check",
     "audit:database-safety": "tsx scripts/audit-database-entrypoints.ts",
     "audit:authorization:render": "tsx scripts/audit-resource-authorization.ts --render && prettier --write docs/security/resource-authorization-inventory.json docs/security/RESOURCE_AUTHORIZATION_INVENTORY.md",
@@ -15,6 +16,7 @@
     "test": "vitest run",
     "test:authorization:mysql": "tsx scripts/run-guarded-mysql-tests.ts",
     "certify:reports": "tsx scripts/certify-report-rendering.ts",
+    "certify:workflow": "tsx scripts/certify-critical-workflow.ts",
     "env:check": "tsx scripts/check-database-environment.ts",
     "db:preflight:tr03h": "tsx scripts/check-tr03h-migration-preflight.ts",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"

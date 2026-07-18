@@ -1,0 +1,844 @@
+[
+  {
+    "path": "design.addComment",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "5bb7b58db4260655bba6f9b909d14fbc3f199d2ea574f9ca1d763cde8f181bc2",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.addMaterialToBoard",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "90ff6aa738aea368c24db14b8e73bd57b7f988c7575b7773239460991c545dbc",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.analyzeFloorPlan",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "589b1c9fe538937fb2ca929b33a17718fdd4c29e7d77dc0861a3114734a4847c",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.attachVisualToPack",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "43f5c9c2d06efc7b9558c040fe80468e57adedb6c2f3b41c4d74fdb26f7ac5d4",
+    "classification": "global_governed",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.boardSummary",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "382b2834f1897b9429ee37277fad6fe7bcbf82df6a459c93738ef683b63add5a",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.calculateSpec",
+    "operation": "mutation",
+    "accessPrimitive": "protectedProcedure",
+    "initializerSha256": "8a80877a2063257082de07f059d40cc85c8dd82c40d2a071c80085300fb57c9f",
+    "classification": "global_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "bcea139a4d370d930eee7721223fb656c01f88281375d4235b1db3fd95a8b641",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.createAssetUpload",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "987e420c623a66df9511bfb804b9951009ffa52ba0962e73cf911442d6cdd05a",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.createBoard",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "331e65640174dc7f54a86b6476e05ed845c919da3f0221bfddac3a8e9a63504f",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.createMaterial",
+    "operation": "mutation",
+    "accessPrimitive": "adminProcedure",
+    "initializerSha256": "91ea70957d6bda708369d781329eeadfc01280beff8fc7268693a9a93efbaa49",
+    "classification": "admin_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "193062903cc90e53397a09295e350884168cb56d37b58f6aff8e469f0da61d8e",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.createPromptTemplate",
+    "operation": "mutation",
+    "accessPrimitive": "adminProcedure",
+    "initializerSha256": "759fc3ef3c15f52a45cf522b637efa74ffa72a68d4bb6bf85d102bc193a3ef88",
+    "classification": "admin_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "193062903cc90e53397a09295e350884168cb56d37b58f6aff8e469f0da61d8e",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.createShareLink",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgAdminProcedure",
+    "initializerSha256": "cd3f9ebaaf6d1d682cfe0ba29adba51aba1048dfb68a4208cd8ecae2fc49a90a",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "e1ce60d61cc8aa009c13ada1f7f97024567d11ae596eafac99fbb564f1e05ad1",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.deleteAsset",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "527c0196b45a7a6f8fe92bca7456f01b4e0c7410c2d9fea82896f7c7805c4998",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.deleteBoard",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "cfaeda87f4fb5e910d6e068adb5c2aa70ee87af83db647ce50e2b4b92413efdb",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.deleteMaterial",
+    "operation": "mutation",
+    "accessPrimitive": "adminProcedure",
+    "initializerSha256": "7ff649d1a032157bba7daa10e29b8ceadcf759ed1cf61e7bec27c75f9def3fa2",
+    "classification": "admin_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "193062903cc90e53397a09295e350884168cb56d37b58f6aff8e469f0da61d8e",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.exportBoardPdf",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "45948d7f24cdb788799b8d0e6fb7df59ec28d8c6612f6449ae5c75695a0ea6c9",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.exportBriefDocx",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "f66b59f64d169ed504f094aecdb810fec1358859bdea43f34c1dea879aca73f9",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.exportInvestorPdf",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "89446028052a1bf1d9c11609c57d04815b819636f24792d592527e743bd61742",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.finalizeAssetUpload",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "613cd9555b35063188e55bfa43dc45c1c82cbc20ff8516b42287575c76ce764e",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.generateBrief",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "b739e1ead8d4438677c2b377851cbb94b91e05e79f371ee6039928c51d14a0ea",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.generateRfqFromBrief",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "17603a1ba9666292e4e0b13524a7f67f9e25ae5e6a3ad4d8747e0b33613533cc",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.generateRoomRender",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "96d86a65b08727da7bbd00848f8b3e393af552dde7dd69c9c815fae5060b7d45",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.generateVisual",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "eb3841213883d8852ff1bc44eb7472e65656a2736bc97cdf53bcbccf58fd45bb",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getAreaBenchmark",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "490e0882e8ebc541522874a678de239a0165c831eeeb08cd7a80bc6e7a1b8039",
+    "classification": "global_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getAreaBenchmarks",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "f95b231f61ec8805c1ec1baf38de06ed56147e9a2b6c93aa4fc306d3866f2438",
+    "classification": "global_governed",
+    "middlewareCount": 2,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getAssetLinks",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "299d20853caeb1645a5e7cebe39c30d32748c3ebd5fb577ebbfdfeef5ac6fa72",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getBenchmarkForProject",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "913395694a74c16d37c6c3749a41b7846c262c905c640f4562fce44d9363cba2",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getBoard",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "4400dd7c798c2d19344900a898fe65fee41f1267b6ed6e3854b47d026c2408e1",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getBrief",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "831bc8531aeaec75f24a54ae9fcfdb426c680a4c3607ecc417808940f66fbec8",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getCompetitorContext",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "93032c937e936fc8a0feedd856d606ba6309e4df50a3df608f2f68e2a4a11926",
+    "classification": "global_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getDataFreshness",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "5029cbcb39c4a71a77f7ebcd28e05733518d6eb3e3322df6f79fd21ab89a1cef",
+    "classification": "global_governed",
+    "middlewareCount": 2,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getDesignTrends",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "6258956281d358284aa6c247ed47f407fda3c4880fbe9f480e68f220612c450c",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getDldAreaComparison",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "49e9afdc1aaae294b40346c3bfa7dfc571dde7edd959aa9d3cc335de911c8858",
+    "classification": "global_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getDldAreas",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "aa2fe3f6fa1cbb401da23c6a3aa8dc957f53a2c4f8c5004cbc43aa462ad49a94",
+    "classification": "global_governed",
+    "middlewareCount": 2,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getDldDataStats",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "20168e96cc2b228026564e966b61fac79ae1a19ee6ec347677bc328ab216130a",
+    "classification": "global_governed",
+    "middlewareCount": 2,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getEvidenceChain",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "37775be05954ef2e08c8098137664bd743d809f417292ee7957504e2068ab8d4",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getLatestBrief",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "fa1fc2420641cb802aed3d31f81684fcacad8079e6f190571811be3586c318f5",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getMaterial",
+    "operation": "query",
+    "accessPrimitive": "protectedProcedure",
+    "initializerSha256": "50ec6c1b8c5fe046cac3a880b5a87be5d1d1ebeeada66d1b80540bb0b80c3d53",
+    "classification": "global_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "bcea139a4d370d930eee7721223fb656c01f88281375d4235b1db3fd95a8b641",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getMaterialConstants",
+    "operation": "query",
+    "accessPrimitive": "protectedProcedure",
+    "initializerSha256": "9e413fa4511e9032d0f2ccf481fe721401a90422a7be166a68aa5ff4b066fd91",
+    "classification": "global_governed",
+    "middlewareCount": 2,
+    "middlewareSha256": [
+      "bcea139a4d370d930eee7721223fb656c01f88281375d4235b1db3fd95a8b641",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getProjectDldBenchmark",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "07347af2bb1660520b2cc03d1e6729a3e28d31d27a8022deb9969c49e8b90ca5",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.getSpaceBenchmark",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "12a9441e3d62d0e467303b9210698b95ca329a6a27f79d496b46e1ab9803d17e",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.linkAsset",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "907c6a415a106f32799cdecdceb7f7c620d67a3843dcb18474f84ad3665dd958",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.listAssets",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "96b803d0d0e04349328e5fb36fcfb06040c780eb290dba0eaa8d128d0226e6cd",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.listBoards",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "965069a52403241401df69e2485eeb83ebada55bd79d3003b88cbb9fbf01eca2",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.listBriefs",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "8dd47e825fc52668a0b6a9e6926bca0de3b5f72e8a2caa7c87f3b6605c5c3327",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.listComments",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "f47380c31eb695c95b058ae62612aa7b00be5fb0bcfdc9eb20e299b50d3100d5",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.listMaterials",
+    "operation": "query",
+    "accessPrimitive": "protectedProcedure",
+    "initializerSha256": "492aa6f47f0395eb19cb08b052bb647c3c19292ef823991c0d7c006be9a84967",
+    "classification": "global_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "bcea139a4d370d930eee7721223fb656c01f88281375d4235b1db3fd95a8b641",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.listPinnedVisuals",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "44c39fa589aa6bd13cbf38bb422908c2808c6184506904f543312da90dc8e1ea",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.listPromptTemplates",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "10d0e2c23ab55610e8346832f99e5b3b96aefff29c9771858f20a0898c44f4da",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.listVisuals",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "1789801b771e58b03e174b731f61cf4353ad594ae66bc571c5bf38095da91876",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.pinVisualToBoard",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "268b552791cbdbce5dec9b3470ceab2a64043675d8ecd4e9c1c234e4880b2659",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.recommendMaterials",
+    "operation": "query",
+    "accessPrimitive": "orgProcedure",
+    "initializerSha256": "64483c494cf36a241fcbb39a889c11a844d2b13e02ff8af1a2e0f11eb2e139da",
+    "classification": "org_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.removeMaterialFromBoard",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "6e7e5f5b6a164bd9c20f49b12e79cc515a6f427092686765a0229d01874cc22d",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.reorderBoardTiles",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "b556e1760fd1c70520c026afcd2c12b875721c52ccac38e9785d70558b459894",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.resolveShareLink",
+    "operation": "query",
+    "accessPrimitive": "publicRateLimitedProcedure",
+    "initializerSha256": "ff28e35a41e0ab7400a7e9e27c36d21a4431538bce69f1bcc0a245a437d59d14",
+    "classification": "public_token_guarded",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "afea5b47a572259300645575adc8d5e2c7f8bd142dac4461d5711ce04e7a01de",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.revokeShareLinks",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgAdminProcedure",
+    "initializerSha256": "0808c181b276da3eba24e2a5f14533b60e88bcd6482f3bbb6c52cadc2dcd2392",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "e1ce60d61cc8aa009c13ada1f7f97024567d11ae596eafac99fbb564f1e05ad1",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.unpinVisual",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "ce00404618d978ecc57cabd2d0a41617a7093a13f27c747d17e494447ca2831e",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.updateApprovalState",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgAdminProcedure",
+    "initializerSha256": "ecae3c3594b210501fb2572b36c4a1ccb137b4073ee0d187e35f5d3246106be4",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "e1ce60d61cc8aa009c13ada1f7f97024567d11ae596eafac99fbb564f1e05ad1",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.updateAsset",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "8bd1070d5f6775dbe201bbc8d2c7c8ae4346de8c349ca087225082d1e3f7601f",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.updateBoardTile",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "0ca61ce6a0488fba69dd1edee61b5d3434ae348a1979951713352e04367f04d3",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.updateMaterial",
+    "operation": "mutation",
+    "accessPrimitive": "adminProcedure",
+    "initializerSha256": "513521f568ab9bacbdf2e5f4d6d26d49d3524f9f218273f55df4a35c2d049ccc",
+    "classification": "admin_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "193062903cc90e53397a09295e350884168cb56d37b58f6aff8e469f0da61d8e",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.updatePromptTemplate",
+    "operation": "mutation",
+    "accessPrimitive": "adminProcedure",
+    "initializerSha256": "1848ea7cdd2826abd794901c75ae1b74ada9a0aaa6d67fa1a84f859b767a1527",
+    "classification": "admin_governed",
+    "middlewareCount": 3,
+    "middlewareSha256": [
+      "193062903cc90e53397a09295e350884168cb56d37b58f6aff8e469f0da61d8e",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.uploadAsset",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "ec8014855e5be61efb4cd1bb0c07593f8daa52f9f632b33b1c35407ba8f23f51",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  },
+  {
+    "path": "design.uploadFloorPlan",
+    "operation": "mutation",
+    "accessPrimitive": "designOrgMutationProcedure",
+    "initializerSha256": "02265beed0f62855b3f6f4866950bd61d09498fc5f6589613e0586018a6203e6",
+    "classification": "org_guarded",
+    "middlewareCount": 4,
+    "middlewareSha256": [
+      "cdba97d390a2c0b96ded5fcabd1bbd6dbafd6b5dbdf11a88036b37cce385cab6",
+      "b8873cc252a06efe137b366b657faab1364e51f215b7e5c0faf8e0a5532ae07a",
+      "cfa10dd58c9b41db38cace5316d2aaf6e7509988c2c035bddc3d9b45ec0a562e",
+      "bf1eca2c8e087fcac2a026fa49cf580a3169d91da4a098ed5824970bf60308c9"
+    ]
+  }
+]

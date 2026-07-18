@@ -10,6 +10,7 @@ import type { ScoreResult, ProjectInputs, SensitivityEntry, ROIResult, ReportTyp
 import { randomUUID } from "node:crypto";
 import type { ReportLocale } from "../../shared/report-locale";
 import type { BoardAnnexBoard, BoardAnnexData } from "./board-annex";
+import type { WorkflowSpaceMqiReconciliation } from "./report-reconciliation";
 import {
   formatReportDate,
   formatReportDateTime,
@@ -91,6 +92,8 @@ function htmlHeader(title: string, subtitle: string, projectName: string, contex
   h4 { font-size: 12px; color: #0f3460; margin: 14px 0 6px; }
   p { margin-bottom: 8px; }
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
+  .keep-together { break-inside: avoid-page; page-break-inside: avoid; }
+  table.keep-together { break-inside: avoid-page; page-break-inside: avoid; }
   th { background: #0f3460; color: #fff; padding: 10px 16px; text-align: left; font-weight: 600; }
   td { padding: 10px 16px; border-bottom: 1px solid #e0e0e0; }
   tr:nth-child(even) td { background: #f8f9fa; }
@@ -435,7 +438,7 @@ function renderInputSummary(inputs: ProjectInputs): string {
 
   const tables = groups.map((g) => {
     const rows = g.items.map(([k, v]) => `<tr><td style="width:50%;">${escapeReportText(k)}</td><td>${dynamicText(v)}</td></tr>`).join("");
-    return `<h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table>`;
+    return `<div class="keep-together"><h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table></div>`;
   }).join("");
 
   return `<div class="section"><h2>Project Input Summary</h2>${tables}</div>`;
@@ -718,6 +721,171 @@ function renderBoardAnnex(boardAnnex: BoardAnnexData, locale: ReportLocale): str
 `;
 }
 
+function renderWorkflowReconciliation(
+  reconciliation: WorkflowSpaceMqiReconciliation,
+  locale: ReportLocale
+): string {
+  const isArabic = locale === "ar";
+  const copy = isArabic
+    ? {
+        heading: "مطابقة سير العمل والمساحات وكميات المواد",
+        description:
+          "مطابقة حتمية للبيانات المخزنة في المشروع وبرنامج المساحات وتخصيصات المواد وأسعار مكتبة المواد.",
+        projectFitOut: "مساحة التجهيز في المشروع",
+        roomFitOut: "إجمالي غرف التجهيز",
+        variance: "فرق المساحة",
+        unavailable: "غير متاح",
+        pass: "مطابق",
+        fail: "غير مطابق",
+        rooms: "الغرف المخزنة / غرف التجهيز / الغرف اليدوية",
+        allocationCount: "صفوف / مجموعات التخصيص",
+        locked: "صفوف / مجموعات التخصيص المقفلة",
+        surfaces: "إجماليات المساحات الحتمية",
+        surface: "السطح",
+        area: "المساحة (م²)",
+        floor: "الأرضيات",
+        walls: "الجدران",
+        ceiling: "الأسقف",
+        total: "الإجمالي",
+        formula: "صيغة الحساب",
+        height: "ارتفاع السقف",
+        allocationChecks: "فحوص مجموعات التخصيص بنسبة 100%",
+        room: "الغرفة",
+        element: "العنصر",
+        allocationTotal: "إجمالي التخصيص",
+        storedSurface: "المساحة المخزنة / المتوقعة",
+        allocationCheck: "فحص النسبة",
+        surfaceCheck: "فحص المساحة",
+        check: "الفحص",
+        noGroups: "لا توجد مجموعات تخصيص مخزنة.",
+        allGroups: "جميع المجموعات بنسبة 100%",
+        allSurfaces: "جميع المساحات مطابقة للصيغة",
+        costs: "تكلفة المواد من مكتبة المواد",
+        minimum: "الحد الأدنى",
+        midpoint: "المتوسط",
+        maximum: "الحد الأعلى",
+        priceCoverage: "تغطية الأسعار",
+        unpriced: "غير مسعّر",
+        source: "المصدر",
+        sourceTables: "جداول المصدر",
+      }
+    : {
+        heading: "Workflow, Space & MQI Reconciliation",
+        description:
+          "Deterministic reconciliation of stored project, space-programme, material-allocation, and material-library values.",
+        projectFitOut: "Project fit-out area",
+        roomFitOut: "Fit-out room total",
+        variance: "Area variance",
+        unavailable: "Unavailable",
+        pass: "PASS",
+        fail: "FAIL",
+        rooms: "Stored / fit-out / manual rooms",
+        allocationCount: "Allocation rows / groups",
+        locked: "Locked allocation rows / groups",
+        surfaces: "Deterministic surface totals",
+        surface: "Surface",
+        area: "Area (m²)",
+        floor: "Floor",
+        walls: "Walls",
+        ceiling: "Ceiling",
+        total: "Total",
+        formula: "Formula",
+        height: "Ceiling height",
+        allocationChecks: "Allocation-group 100% checks",
+        room: "Room",
+        element: "Element",
+        allocationTotal: "Allocation total",
+        storedSurface: "Stored / expected surface",
+        allocationCheck: "Allocation check",
+        surfaceCheck: "Surface check",
+        check: "Check",
+        noGroups: "No stored allocation groups.",
+        allGroups: "All groups at 100%",
+        allSurfaces: "All surfaces match formula",
+        costs: "Material-library cost reconciliation",
+        minimum: "Minimum",
+        midpoint: "Midpoint",
+        maximum: "Maximum",
+        priceCoverage: "Price coverage",
+        unpriced: "unpriced",
+        source: "Source",
+        sourceTables: "Source tables",
+      };
+  const number = (value: number) =>
+    value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  const areaStatus =
+    reconciliation.spaceProgram.reconciles === null
+      ? copy.unavailable
+      : reconciliation.spaceProgram.reconciles
+        ? copy.pass
+        : copy.fail;
+  const allocationRows = reconciliation.allocations.groups
+    .map(
+      group => `
+    <tr>
+      <td>${dynamicText(group.roomName)} <span style="color:#777;">(${dynamicText(group.roomId)})</span></td>
+      <td>${dynamicText(group.element)}</td>
+      <td style="text-align:right;">${number(group.allocationPctTotal)}%</td>
+      <td style="text-align:right; color:${group.surfaceReconciles ? "#2e7d32" : "#c62828"};">${number(group.surfaceAreaM2Total)} / ${group.expectedSurfaceAreaM2 === null ? copy.unavailable : number(group.expectedSurfaceAreaM2)} m²</td>
+      <td style="font-weight:700; color:${group.passes100Pct ? "#2e7d32" : "#c62828"};">${group.passes100Pct ? copy.pass : copy.fail}</td>
+      <td style="font-weight:700; color:${group.surfaceReconciles ? "#2e7d32" : "#c62828"};">${group.surfaceReconciles ? copy.pass : copy.fail}</td>
+    </tr>`
+    )
+    .join("");
+  const projectArea = reconciliation.spaceProgram.projectFitOutAreaM2;
+  const variance = reconciliation.spaceProgram.varianceM2;
+
+  return `
+<div class="section" id="sec-workflow-reconciliation" style="page-break-inside:auto;">
+  <h2>${copy.heading}</h2>
+  <p style="font-size:9px; color:#666;">${copy.description}</p>
+  <div class="metric-grid">
+    <div class="metric-card"><div class="label">${copy.projectFitOut}</div><div class="value" style="font-size:18px;">${projectArea === null ? copy.unavailable : `${number(projectArea)} m²`}</div></div>
+    <div class="metric-card"><div class="label">${copy.roomFitOut}</div><div class="value" style="font-size:18px;">${number(reconciliation.spaceProgram.fitOutRoomAreaM2)} m²</div></div>
+    <div class="metric-card"><div class="label">${copy.variance}</div><div class="value" style="font-size:18px; color:${reconciliation.spaceProgram.reconciles === false ? "#c62828" : "#2e7d32"};">${variance === null ? copy.unavailable : `${number(variance)} m² · ${areaStatus}`}</div></div>
+  </div>
+  <table class="keep-together">
+    <tr><th>${copy.rooms}</th><th>${copy.allocationCount}</th><th>${copy.locked}</th><th>${copy.allGroups}</th><th>${copy.allSurfaces}</th></tr>
+    <tr>
+      <td>${reconciliation.spaceProgram.storedRoomCount} / ${reconciliation.spaceProgram.fitOutRoomCount} / ${reconciliation.spaceProgram.manualRoomCount}</td>
+      <td>${reconciliation.allocations.rowCount} / ${reconciliation.allocations.groupCount}</td>
+      <td>${reconciliation.allocations.lockedRowCount} / ${reconciliation.allocations.lockedGroupCount}</td>
+      <td style="font-weight:700; color:${reconciliation.allocations.allGroupsPass100Pct ? "#2e7d32" : "#c62828"};">${reconciliation.allocations.allGroupsPass100Pct ? copy.pass : copy.fail}</td>
+      <td style="font-weight:700; color:${reconciliation.allocations.allGroupsSurfaceReconcile ? "#2e7d32" : "#c62828"};">${reconciliation.allocations.allGroupsSurfaceReconcile ? copy.pass : copy.fail}</td>
+    </tr>
+  </table>
+
+  <h3>${copy.surfaces}</h3>
+  <p style="font-size:9px; color:#666;">${copy.formula}: ${dynamicText(reconciliation.surfaces.formulaVersion)} · ${copy.height}: ${number(reconciliation.surfaces.ceilingHeightM)} m</p>
+  <table>
+    <tr><th>${copy.surface}</th><th style="text-align:right;">${copy.area}</th></tr>
+    <tr><td>${copy.floor}</td><td style="text-align:right;">${number(reconciliation.surfaces.floorM2)}</td></tr>
+    <tr><td>${copy.walls}</td><td style="text-align:right;">${number(reconciliation.surfaces.wallsM2)}</td></tr>
+    <tr><td>${copy.ceiling}</td><td style="text-align:right;">${number(reconciliation.surfaces.ceilingM2)}</td></tr>
+    <tr style="font-weight:700; background:#f0f4f8;"><td>${copy.total}</td><td style="text-align:right;">${number(reconciliation.surfaces.totalM2)}</td></tr>
+  </table>
+
+  <h3>${copy.allocationChecks}</h3>
+  ${allocationRows ? `<table><tr><th>${copy.room}</th><th>${copy.element}</th><th style="text-align:right;">${copy.allocationTotal}</th><th style="text-align:right;">${copy.storedSurface}</th><th>${copy.allocationCheck}</th><th>${copy.surfaceCheck}</th></tr>${allocationRows}</table>` : `<p>${copy.noGroups}</p>`}
+
+  <h3>${copy.costs}</h3>
+  <table>
+    <tr><th>${copy.minimum}</th><th>${copy.midpoint}</th><th>${copy.maximum}</th><th>${copy.priceCoverage}</th></tr>
+    <tr>
+      <td>${reconciliation.materialCosts.currency} ${number(reconciliation.materialCosts.min)}</td>
+      <td>${reconciliation.materialCosts.currency} ${number(reconciliation.materialCosts.mid)}</td>
+      <td>${reconciliation.materialCosts.currency} ${number(reconciliation.materialCosts.max)}</td>
+      <td>${reconciliation.materialCosts.pricedAllocationCount}/${reconciliation.allocations.rowCount} · ${reconciliation.materialCosts.unpricedAllocationCount} ${copy.unpriced} · ${reconciliation.materialCosts.allAllocationsPriced ? copy.pass : copy.fail}</td>
+    </tr>
+  </table>
+  <p style="font-size:8px; color:#777;">${copy.source}: ${dynamicText(reconciliation.materialCosts.source)} · ${copy.sourceTables}: ${dynamicText(reconciliation.sourceTables.join(", "))} · ${dynamicText(reconciliation.version)}</p>
+</div>
+`;
+}
+
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 export interface PDFReportInput {
@@ -738,6 +906,7 @@ export interface PDFReportInput {
   renderContext?: ReportRenderContext;
   evidenceRefs?: ReportEvidenceReference[];
   boardAnnex?: BoardAnnexData;
+  workflowReconciliation?: WorkflowSpaceMqiReconciliation;
   autonomousContent?: string;
 }
 
@@ -835,6 +1004,7 @@ function pdfFingerprintRenderedValues(
       roiNarrative: report.roiNarrative,
       roi: report.roiNarrative ? undefined : report.roi,
       boardAnnex: report.boardAnnex,
+      workflowReconciliation: report.workflowReconciliation,
       evidenceReferences: renderedEvidenceReferences(report.evidenceRefs),
     };
   }
@@ -1088,6 +1258,10 @@ export function generateFullReportHTML(data: IssuedPDFReportInput): string {
     sections.push(renderROINarrative(data.roiNarrative, context.locale));
   } else if (data.roi) {
     sections.push(renderROI(data.roi, context.locale));
+  }
+
+  if (data.workflowReconciliation) {
+    sections.push(renderWorkflowReconciliation(data.workflowReconciliation, context.locale));
   }
 
   // V4: Board Annex

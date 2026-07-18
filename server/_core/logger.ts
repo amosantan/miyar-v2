@@ -97,6 +97,10 @@ export async function withTiming<T>(
 
 import type { Request, Response, NextFunction } from "express";
 
+export function sanitizeRequestPath(path: string): string {
+    return /^\/share\/[^/]+\/?$/.test(path) ? "/share/:token" : path;
+}
+
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
     const start = performance.now();
     const requestId = Math.random().toString(36).substring(2, 10);
@@ -109,7 +113,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
         const meta: Record<string, unknown> = {
             requestId,
             method: req.method,
-            path: req.path,
+            path: sanitizeRequestPath(req.path),
             status: res.statusCode,
             durationMs,
             userAgent: req.get("user-agent")?.substring(0, 80),

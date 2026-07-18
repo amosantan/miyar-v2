@@ -24,6 +24,7 @@ const t = initTRPC.context<TrpcContext>().create({
 });
 
 export const router = t.router;
+export const mergeRouters = t.mergeRouters;
 export const publicProcedure = t.procedure;
 export const publicRateLimitedProcedure = t.procedure.use(createPublicRateLimitMiddleware(t));
 
