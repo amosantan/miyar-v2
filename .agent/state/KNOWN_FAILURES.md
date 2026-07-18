@@ -91,7 +91,7 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 
 ## KF-014 — GitHub Actions cannot start because the owner account is billing-locked
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 on draft PR `#1`, run `29511289388`.
 - Evidence: both `lint-and-test` and `mysql-authorization` completed with zero steps; GitHub check annotations say the jobs were not started because the account is locked due to a billing issue.
 - Impact: required hosted CI gates cannot become green even though equivalent local TypeScript, unit, build, authorization, and disposable MySQL 8 checks pass.
@@ -99,8 +99,9 @@ Known does not mean accepted. A failure remains open until its exit criterion is
 - Approved release exception: for the TR-03H release only, the user selected Vercel’s hosted build check on each pushed commit as the external gate, combined with the recorded local MySQL, PlanetScale, full-suite, audit, build, and Claude evidence.
 - TR-07 release disposition: The user explicitly authorized final smoke, commit, push, canonical-main merge, and production deployment. Run `29604504677` again created both jobs with zero steps and the billing-lock annotation. The release proceeded with a clean frozen install, passing TypeScript, safe 1,021/22 suite, 335/0 authorization audit, production build, successful Vercel preview/production builds, and passing production smoke. This bounded disposition does not close or normalize the CI failure.
 - TR-09 release preparation: The latest draft-PR run again created both required jobs with zero steps and no failed-job log, while Vercel Preview Comments passed. A production release needs an explicit owner-approved replacement-evidence disposition; this recurrence does not close or normalize the CI failure.
-- TR-09 disposition: On 2026-07-18, the user approved the documented local, disposable-MySQL, Vercel-preview, and independent-review evidence as the bounded release replacement for this unavailable hosted-CI gate. `KF-014` remains OPEN; the approval applies only to the TR-09 release candidate.
-- Exit criterion: restore Actions eligibility and obtain successful hosted Actions checks for future releases; the bounded TR-03H exception does not close the underlying billing failure.
+- TR-09 disposition: On 2026-07-18, the user approved the documented local, disposable-MySQL, Vercel-preview, and independent-review evidence as the bounded release replacement while hosted CI was unavailable.
+- Closed evidence: After the user restored GitHub billing, rerun `29633531305` executed actual job steps and exposed a duplicate pnpm-version setup error. Commit `57f2471` removed the redundant workflow versions; PR #10 merged as `18da870`. Hosted run `29634694233` passed both jobs on the PR, and post-merge run `29634762518` passed both `lint-and-test` and `mysql-authorization` jobs on canonical `main`.
+- Exit criterion: Met. GitHub Actions eligibility is restored and successful hosted Actions checks are recorded; future releases return to the ordinary hosted CI gate.
 
 ## KF-015 — Production contains legacy null-organization resources
 

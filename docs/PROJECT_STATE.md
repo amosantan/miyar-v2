@@ -81,12 +81,12 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
 - Documentation historically names both PlanetScale and TiDB. Treat the actual `DATABASE_URL` target and deployment configuration as authoritative for a given environment without exposing credentials.
 - The ordinary full Vitest command is not database-hermetic. Continue using the explicit safe `DATABASE_URL=''` profile until `KF-008` closes.
-- GitHub Actions cannot start while the repository owner account is billing-locked (`KF-014`). TR-07 run `29604504677` and the latest TR-09 draft-PR run both created failing jobs with zero steps and no failed-job log. The user-authorized TR-07 release used clean frozen local gates plus successful Vercel preview/production builds and production smoke; the underlying CI failure remains open.
+- GitHub Actions billing was restored on 2026-07-18. Rerun `29633531305` executed real job steps, revealing and confirming a separate duplicate pnpm-version setup error. After CI workflow commit `18da870`, hosted run `29634762518` passed both the unit/type/build and MySQL authorization jobs on canonical `main`; `KF-014` is closed.
 
 ## CI Configuration in the Current Worktree
 
 - CI configuration uses pnpm and the committed lockfile, with fail-closed TypeScript, test, build, and isolated MySQL jobs.
-- GitHub did not execute those jobs because of `KF-014`; the TR-07 release disposition and replacement evidence are recorded in `.agent/state/KNOWN_FAILURES.md` and `.agent/state/CURRENT_TASK.md`.
+- GitHub now executes both required jobs normally. The workflow resolves pnpm from the repository `packageManager` field, avoiding a competing workflow-level version.
 - The observed local TypeScript, safe full-suite, authorization, build, isolated MySQL, and PlanetScale compatibility gates are green.
 
 ## Authorization Foundation
