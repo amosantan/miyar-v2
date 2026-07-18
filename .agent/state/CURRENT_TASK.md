@@ -1,99 +1,75 @@
 # Current Task
 
-- ID: TR-10
-- Roadmap step: `TR-10`
-- Title: Certify report integrity and visual rendering
+- ID: TR-11
+- Roadmap step: `TR-11`
+- Title: Replace unsupported public claims with evidence-backed qualification
 - Status: PASS
 - Owner: Codex
 - Started: 2026-07-18
-- Branch: `codex/tr-10-report-certification`
-- Base: `18da870d37f9181b75bfa7f0f8aa1f9480b456f9` (`origin/main`)
-- Risk: High report, localization, output-security, tenant-access, and additive-schema change
-- Selected loops: Report and visual QA, feature, schema migration, security, and browser verification
-- Retry budget: Maximum 5 complete render-QA iterations by default, one owner-authorized sixth post-fix iteration, and 3 evidence-based attempts per unchanged failure class
-- Resource budget: One isolated worktree, one additive migration, one bilingual catalog, one all-export fixture matrix, and one independent final-review cycle
-- Human gates: Bilingual issued copy, release actions, and the explicit waiver of the browser-policy-blocked generated download/print clicks were approved by the task owner on 2026-07-18
+- Branch: `codex/tr-11-public-claims`
+- Base: `ee4b134` (`origin/main`)
+- Risk: High public trust, evidence, localization, API exposure, and public-share interpretation
+- Selected loops: Feature, ingestion/evidence, security, browser verification
+- Retry budget: Maximum 5 loop iterations and 3 evidence-based attempts per unchanged failure class
+- Resource budget: One isolated worktree, no schema/dependency change, one bounded public snapshot endpoint, one claim registry, focused UI repairs, and one independent final-review cycle
+- Human gates: Legal pages remain unpublished until exact bilingual copy and named product/legal approval; release, production scheduler changes, shared database writes, and benchmark/financial/scoring policy changes require separate authorization
 
 ## Goal
 
-Prove that every supported MIYAR report and export is data-correct, tenant-safe, output-safe, bilingual, reproducible within one render, and visually usable in its final HTML, browser-print PDF, DOCX, inline-preview, or public-share form.
-
-## Approved Product Decisions
-
-- Certify every current user-facing exporter, not only design-brief and full-report HTML.
-- Add explicit English/Arabic export selection, defaulted from the current UI locale; legacy callers default to English.
-- Preserve current English branding, calculations, thresholds, financial policy, and disclaimer meaning.
-- Permit faithful Arabic translations and narrow truthful identity, evidence, assumption, and disclaimer repairs.
-- Repair expiring stored report links with a stable storage key and freshly signed organization-authorized reads.
-- Material Board Annex remains mandatory only for design-brief HTML and full-report HTML under ADR-0003.
+Make MIYAR's public and customer-facing evidence claims truthful: identify the official DLD source, show only the indexed subset and its observed-through date, qualify estimates and targets, and prevent unavailable evidence from being presented as live/current/healthy.
 
 ## Acceptance Criteria
 
-- [x] TR-09 is closed on canonical main and a fresh TR-10 worktree/branch exists from exact base `18da870` without touching dirty sibling worktrees.
-- [x] Every export API accepts validated `en`/`ar` locale input with backward-compatible English default, and every export control exposes an explicit selector initialized from the current UI locale.
-- [x] Every HTML/DOCX output uses one internally consistent per-render document ID, UTC generation time, locale, renderer identity, and available model/benchmark/logic labels without claiming BR-07 immutable cross-format identity.
-- [x] The approved render-input fingerprint is deterministic, truthfully labelled, embedded only in the artifact, and neither persisted as a structured report field nor exposed through an API.
-- [x] Dynamic report data is escaped through shared text/attribute/URL boundaries; autonomous markdown is escape-first allowlisted; hostile HTML, URL, bidi, and formula-like fixture content remains inert and literal.
-- [x] English and fully localized Arabic fixed copy, RTL/bidi layout, Arabic-capable fonts, and DOCX RTL properties pass deterministic content and visual checks.
-- [x] Existing investor/ROI fallback inputs are clearly labelled assumptions without changing any value or formula; exact Arabic legal and financial wording is approved before PASS.
-- [x] Material Board Annex remains present only in design-brief/full-report HTML and retains no-board, empty, complete, partial, and unresolvable states.
-- [x] Additive migration 0050 (or the next verified unused ordinal) adds nullable `report_instances.storageKey`; authorized reads mint fresh URLs, storage keys never leak, legacy file URLs remain read-only fallback, and no backfill is performed.
-- [x] Synthetic complete, partial, empty, large-number, Arabic/mixed-direction, long-content, board-heavy, failed-asset, and hostile-input fixtures cover all exporters through a documented pairwise matrix.
-- [x] The real HTML-to-PDF and DOCX-to-PDF paths render successfully; every generated page is inspected with zero clipping, overlap, overflow, blank pages, broken required assets, or unreadable Arabic.
-- [x] Same-organization report access succeeds; cross-organization/missing resources fail before generation, storage, or signing; public shares remain token-gated, read-only, expiry-aware, concealed, no-store, and noindex in both locales.
-- [x] **HUMAN UI-CLICK GATE:** All automated, artifact, browser, and independent-review gates pass; the task owner explicitly waived the remaining generated download/print UI clicks on 2026-07-18.
-- [x] Durable state and the report-QA runbook record only verified evidence; no customer artifacts, signed URLs, bulk renders, or unexplained files remain.
+- [x] A bilingual machine-readable registry owns fixed public/share/customer claim wording and its evidence/qualification requirements.
+- [x] `system.marketEvidenceSnapshot` is read-only, cached, rate-limited, and returns only official source identity/link, transaction/rent/project counts, coverage dates, explicit `indexed_subset` scope, and a fail-closed availability state.
+- [x] The endpoint exposes no tenant, project, benchmark value, connector-health, run, or internal operational data; empty, unavailable, or malformed evidence returns `available: false`.
+- [x] Home renders the official-source indexed subset and “observed through” wording in English and Arabic without claiming complete DLD coverage, daily refresh, or live data.
+- [x] Methodology retains the five deterministic scoring dimensions but removes unapproved fixed weights and separates official DLD observations from MIYAR fit-out assumptions and professional certification/conformity claims.
+- [x] Public shares remove the default Silver badge, present sustainability/certification only as explicit targets or proxies, qualify costs/premiums/yields/assumptions beside values, and show DLD-backed wording only for positive transaction evidence with explicit provenance.
+- [x] Customer-facing Design Studio and DLD insight copy uses observed/approved/indexed wording rather than live/current/market-verified absolutes.
+- [x] Zero-source and all-unknown freshness resolve to `unknown`, never `healthy`.
+- [x] Legal pages remain unpublished and TR-11 does not change schema, migrations, dependencies, formulas, scoring, financial policy, benchmark promotion, report catalog, or ingestion cadence.
+- [x] EV-08 is recorded as the future governed weekly refresh and report-evidence binding step with the approved operational, promotion, report-state, tenant, and four-week gates.
+- [x] Targeted tests, safe full suite, `pnpm check`, authorization audit, build, English/Arabic browser review, diff/security/tenant/numerical review, and independent review provide objective evidence.
 
-## Output Families
+## Assumptions and Approved Decisions
 
-- Project validation summary, design brief, full report, and autonomous design brief HTML plus browser-print PDF.
-- Design-brief DOCX.
-- Investor, material-board, scenario-comparison, and portfolio HTML plus browser-print PDF.
-- Stored-report inline preview and print fallback.
-- Public read-only ShareView.
+- The checked-in/queried DLD corpus is an indexed subset, not a completeness claim.
+- “Observed through” describes record coverage; it is not an ingestion-success timestamp.
+- Fixed scoring weights appear publicly only when sourced from an approved versioned contract; TR-11 does not create that contract.
+- DLD transaction facts do not validate fit-out assumptions or establish causal design premiums.
+- EV-08 is roadmap documentation only during TR-11; no cadence or production ingestion mutation is authorized.
 
 ## Non-Goals
 
-- No `report_snapshots` table, immutable-at-issue guarantee, cross-format hash equality, or shared snapshot DTO.
-- No Material Board Annex in DOCX, validation, autonomous, investor, board, scenario, or portfolio outputs.
-- No scoring, pricing, threshold, premium, financial-formula, compliance-policy, or evidence-authority change.
-- No production dependency addition for markdown or sanitization.
-- No legacy report-key backfill, shared database operation, release, or external publication without separate authorization.
+- No legal boilerplate, clickwrap, DSR, retention promise, or compliance assurance.
+- No schema, migration, package, formula, scoring threshold/weight, financial assumption, authoritative benchmark, report-catalog, or scheduler change.
+- No production deployment, shared database write, commit, push, merge, or publication without separate authorization.
 
 ## Recovery
 
-- The application remains compatible with report rows whose `storageKey` is null by retaining the existing `fileUrl` fallback.
-- The additive storage-key column remains in place on application rollback; no existing report row is rewritten.
-- Any tenant-boundary, output-execution, numerical, financial-interpretation, or irreversible data risk stops work immediately.
+All runtime changes are additive or copy-level and can be reverted without data migration. Any tenant leakage, numerical-authority change, invented provenance, or legal/compliance overclaim stops work immediately.
 
 ## Execution Plan
 
-- [x] Establish the frozen-install and targeted report/share baseline.
-- [x] Implement per-render identity, safe output utilities, bilingual catalogs, and all exporter adoption.
-- [x] Implement additive storage-key persistence and authorization-scoped fresh signing.
-- [x] Implement synthetic fixtures, output audit, and real render-certification harness.
-- [x] Run targeted, full, migration, browser, every-page artifact, and independent-review gates; record the owner waiver for the browser-policy-blocked generated download/print clicks.
-- [x] Close durable state from verified evidence.
+- [x] Establish the targeted baseline and inventory governed claims.
+- [x] Implement the registry, fail-closed evidence snapshot, and public/customer UI corrections.
+- [x] Add contract, endpoint, share, freshness, and localization tests.
+- [x] Run the full verification ladder and independent/Claude review.
+- [x] Close durable state only from verified evidence.
 
 ## Verified Evidence
 
-- Targeted report, router, storage, migration, DOCX, localization, and share suites pass 156/156.
-- The release-candidate `DATABASE_URL='' pnpm test` passes 1,114 tests with 22 skipped; `pnpm check`, `pnpm tsx scripts/audit-report-output.ts`, `pnpm audit:authorization` (336/336, zero remediation), and `pnpm build` pass.
-- Disposable MySQL 8 proves migration 0050 forward application, nullable legacy compatibility, stable-key update, application rollback compatibility, and column rollback without altering legacy report data. Production migration 0050 was subsequently applied after backup `q0zq6eqznlcq`; all 29 report rows remained and the new nullable `TEXT` column has zero backfilled values.
-- The owner-authorized sixth post-fix render iteration generated and checked 23/23 HTML/browser-PDF/DOCX artifacts through production-compatible paths. All 83/83 pages were inspected at readable resolution with no remaining artifact defect.
-- A fail-closed, loopback-only synthetic MySQL/application environment exercised login plus authenticated English/Arabic selectors and previews across project reports, stored reports, design brief, material boards, investor summary, scenario comparison, portfolio, and public shares. It exposed and drove fixes for successful authentication returning to the public homepage, missing project-specific routes, a fail-hard optional ROI label, a duplicate/misdirected room-render card, and the unsafe legacy project-less comparison URL. Rechecks show login reaches `/dashboard` and no new browser errors.
-- Valid and invalid public shares have identical authorization outcomes in English and Arabic, correct root locale/direction and privacy metadata, and the valid English document geometry is 1280/1280 with all card bounds inside the viewport. The browser safety layer rejected generated download/new-page actions and explicitly forbade bypassing that policy; the task owner explicitly waived those remaining UI clicks.
-- The independent high-reasoning security/integration reviewer and Claude Opus returned `APPROVED` for the implementation boundaries and final reviewed diff.
-- PR #12 merged as canonical-main commit `55917a145a87c218c34457e054850326fc1e1a1a`; hosted main CI run `29641839449` passed, Vercel target `8A9iDiHwfT3wnXsYXFwqQWLtpPB2` completed, and three production root/login/health/tenant/share observations passed.
-
-## Human Gate
-
-- Resolved 2026-07-18: The product/report owner approved the exact bilingual legal and financial wording in `docs/artifacts/TR-10_BILINGUAL_COPY_MATRIX.md`.
-- Resolved 2026-07-18: The task owner authorized one sixth post-fix render-certification cycle after the original five-iteration budget was exhausted.
-- Resolved 2026-07-18: The task owner authorized a safe synthetic authenticated local environment for the complete English/Arabic browser workflow matrix.
-- Resolved 2026-07-18: The task owner explicitly authorized commit, push, merge, shared database migration, and deployment.
-- Resolved 2026-07-18: The task owner explicitly waived the remaining TR-10 generated download/print UI-click gate.
+- Fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-tr11` was created first on `codex/tr-11-public-claims`, then fetched and fast-forward checked against `origin/main`; base is `ee4b134` and the worktree was clean before edits.
+- Mechanical claim inventory found fixed Methodology weights/absolutes, the public-share default Silver badge and unqualified figures, customer “live/verified” labels, and the zero/all-unknown freshness defect.
+- The ingestion skill constrains EV-08 to governed, bounded, provenance-preserving evidence with no silent benchmark promotion; runtime scheduling remains out of TR-11 scope.
+- Focused endpoint, rate-limit, cache, share, scoring, freshness, claim, and bilingual DOCX tests pass 103/103.
+- `DATABASE_URL='' pnpm test` passes 1,138 tests with 22 skipped; `pnpm check` passes with zero diagnostics.
+- The regenerated authorization inventory validates all 337 procedures with zero remediation rows; `pnpm build` and `git diff --check` pass.
+- English/Arabic Home and Methodology browser QA passed in LTR/RTL at 1280px without horizontal overflow or console errors; unavailable evidence rendered fail-closed.
+- Independent security/design review returned `APPROVED` after the final generated-output correction; Claude Opus returned `APPROVED` on the final implementation boundaries.
+- No schema, migration, package, formula, scoring weight/threshold, financial-policy, benchmark-promotion, report-catalog, scheduler, legal-page, database, or production change was made.
 
 ## Next Action
 
-TR-10 and its production release are complete. Begin `TR-12`, the sole dependency-valid next executable roadmap step, in a fresh worktree when authorized.
+TR-11 is locally verified at `PASS`. Begin `TR-12` in a new worktree when authorized; do not publish “monitored weekly refresh” until `EV-08` closes and runtime health satisfies its approved SLA.

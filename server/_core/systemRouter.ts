@@ -1,8 +1,14 @@
 import { z } from "zod";
+import * as db from "../db";
+import { getCachedMarketEvidenceSnapshot } from "./market-evidence";
 import { notifyOwner } from "./notification";
-import { adminProcedure, publicProcedure, router } from "./trpc";
+import { adminProcedure, publicProcedure, publicRateLimitedProcedure, router } from "./trpc";
 
 export const systemRouter = router({
+  marketEvidenceSnapshot: publicRateLimitedProcedure
+    .input(z.undefined())
+    .query(() => getCachedMarketEvidenceSnapshot(db.getPublicMarketEvidenceCounts)),
+
   health: publicProcedure
     .input(
       z.object({

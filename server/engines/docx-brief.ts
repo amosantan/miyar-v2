@@ -101,7 +101,7 @@ const DOCX_AR_COPY: Record<string, string> = {
   "Prohibited Materials (Value Engineering Flags):": "المواد المحظورة (تنبيهات هندسة القيمة):",
   "Indicative Budget Allocations per Category:": "توزيعات الميزانية الاسترشادية حسب الفئة:", "Value Engineering Directives:": "توجيهات هندسة القيمة:",
   "Document ID": "معرّف المستند", "Page": "الصفحة", Version: "الإصدار", "MIYAR Interior Design Instruction": "تعليمات التصميم الداخلي من MIYAR",
-  "Room Breakdown:": "تفصيل الغرف:", "DLD-Backed Recommendations:": "توصيات مدعومة ببيانات دائرة الأراضي:",
+  "Room Breakdown:": "تفصيل الغرف:", "MIYAR Ratio Guidance:": "إرشادات النسب من MIYAR:",
   Room: "الغرفة", "Area (sqft)": "المساحة (قدم²)", "% of Total": "% من الإجمالي", Grade: "الدرجة",
   "Critical Path Procurement Items:": "عناصر الشراء على المسار الحرج:", "Import Logistics Dependencies:": "اعتماديات لوجستيات الاستيراد:",
   "Local Authority Approvals (Dubai):": "اعتمادات الجهات المحلية (دبي):", "Contractor Coordination Requirements:": "متطلبات التنسيق مع المقاول:",
@@ -491,7 +491,7 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
     }
 
     if (space.recommendations && space.recommendations.length > 0) {
-      sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: docxFixed("DLD-Backed Recommendations:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
+      sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: docxFixed("MIYAR Ratio Guidance:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
       for (const rec of space.recommendations) {
         sections.push(bulletItem(`[${rec.severity?.toUpperCase()}] ${rec.advice}`, rtl));
       }

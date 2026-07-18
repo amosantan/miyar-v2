@@ -116,7 +116,7 @@ export function generateRfqLines(items: BoardItem[], briefConstraints?: BriefCon
 
     // Check against brief constraints if provided
     if (briefConstraints) {
-      if (briefConstraints.pricingVerified) notes.push("(market-verified)");
+      if (briefConstraints.pricingVerified) notes.push("(indicative estimate from configured benchmark observations)");
       const prohibited = briefConstraints.prohibitedMaterials.map(p => p.toLowerCase());
       const itemLower = item.name.toLowerCase();
       if (prohibited.some(p => itemLower.includes(p.split("(")[0].trim().toLowerCase()))) {

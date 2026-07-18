@@ -344,14 +344,14 @@ export default function SpacePlanner() {
                             {isNeutralFallback
                                 ? "Space Optimization — Neutral Result"
                                 : isDldMeasured
-                                    ? "Space Optimization — DLD-Backed Recommendations"
+                                    ? "Space Optimization — MIYAR Ratio Guidance"
                                     : "Space Optimization — MIYAR UAE Recommendations"}
                         </CardTitle>
                         <p className="text-xs text-muted-foreground">
                             {isNeutralFallback
                                 ? "Neutral fallback — no rooms measured"
                                 : isDldMeasured
-                                    ? `${benchmark.areaName} • DLD area benchmark • ${spaceEvidence.transactionCount} transactions`
+                                    ? `${benchmark.areaName} • MIYAR ratio guidance • separate DLD context: ${spaceEvidence.transactionCount} transactions`
                                     : `${benchmark.areaName} • MIYAR UAE benchmark`}
                         </p>
                     </CardHeader>
@@ -414,7 +414,7 @@ export default function SpacePlanner() {
                                                 <p className="text-xs text-muted-foreground">{rec.action}</p>
                                                 {rec.financialImpact && (
                                                     <p className="text-xs font-medium mt-1.5 text-foreground/80">
-                                                        💰 {rec.financialImpact}
+                                                        MIYAR scenario proxy: {rec.financialImpact}
                                                     </p>
                                                 )}
                                             </div>

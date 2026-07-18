@@ -30,13 +30,14 @@ interface Props {
     className?: string;
 }
 
-type HealthLevel = "healthy" | "aging" | "degraded";
+type HealthLevel = "healthy" | "aging" | "degraded" | "unknown";
 type FreshnessLevel = "fresh" | "aging" | "stale" | "unknown";
 
 const HEALTH_CONFIG: Record<HealthLevel, { label: string; color: string; icon: typeof CheckCircle2 }> = {
     healthy: { label: "Data Fresh", color: "text-emerald-400", icon: CheckCircle2 },
     aging: { label: "Data Aging", color: "text-amber-400", icon: AlertTriangle },
     degraded: { label: "Data Stale", color: "text-red-400", icon: XCircle },
+    unknown: { label: "Freshness Unknown", color: "text-muted-foreground", icon: Clock },
 };
 
 const FRESHNESS_DOT: Record<FreshnessLevel, string> = {
@@ -84,7 +85,7 @@ export default function DataFreshnessBanner({ expanded: defaultExpanded = false,
 
     if (!data) return null;
 
-    const health = (data.overallHealth as HealthLevel) ?? "degraded";
+    const health = (data.overallHealth as HealthLevel) ?? "unknown";
     const conf = HEALTH_CONFIG[health];
     const HealthIcon = conf.icon;
 

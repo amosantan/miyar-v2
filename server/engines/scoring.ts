@@ -223,7 +223,7 @@ export function computePenalties(
     const comparisonLabel = spaceEvidence.status === "measured" &&
       spaceEvidence.benchmarkBasis === "dld_area" &&
       spaceEvidence.transactionCount > 0
-      ? "transaction-backed DLD area benchmark"
+      ? "MIYAR ratio guideline with separate DLD area context"
       : spaceEvidence.status === "measured"
         ? "MIYAR UAE benchmark"
         : "space benchmark with legacy provenance";
@@ -315,7 +315,7 @@ export function generateConditionalActions(
     const evidenceWording = spaceEvidence.status === "measured" &&
       spaceEvidence.benchmarkBasis === "dld_area" &&
       spaceEvidence.transactionCount > 0
-      ? "The comparison uses transaction-backed DLD area data."
+      ? "The comparison uses a MIYAR ratio guideline; DLD transaction count is separate area context and does not calibrate the guideline."
       : spaceEvidence.status === "measured"
         ? "The comparison uses the MIYAR UAE space benchmark."
         : "The historical measurement provenance is unavailable, so no DLD or correlation claim is made.";

@@ -2,7 +2,7 @@
  * BriefEditor.tsx — Phase 3: Brief → Numbers
  *
  * Interactive design spec editor that recalculates fitout cost,
- * carbon footprint, and sustainability grade in real time using
+ * carbon footprint, and an indicative sustainability proxy from
  * the `design.calculateSpec` tRPC endpoint + material_constants.
  */
 import { useState, useCallback, useMemo, useEffect } from "react";
@@ -253,7 +253,7 @@ function BriefEditorContent() {
                             </CardTitle>
                             <p className="text-xs text-muted-foreground">
                                 Toggle material types and adjust area allocation (% of {gfa.toLocaleString()} m² GFA).
-                                Cost updates in real time from UAE market constants.
+                                Estimates recalculate from the configured UAE market constants.
                             </p>
                         </CardHeader>
                         <CardContent className="space-y-3">
@@ -278,7 +278,7 @@ function BriefEditorContent() {
                     </Card>
                 </div>
 
-                {/* ── Right: Live Cost Panel ───────────────────────────────────────── */}
+                {/* ── Right: Project Cost Panel ────────────────────────────────────── */}
                 <div className="space-y-4 sticky top-4">
                     {/* Primary Metrics */}
                     <Card className="relative overflow-hidden">
@@ -290,7 +290,7 @@ function BriefEditorContent() {
                         <CardHeader className="pb-3">
                             <CardTitle className="text-base flex items-center gap-2">
                                 <Calculator className="h-4 w-4 text-primary" />
-                                Live Cost Estimate
+                                Project Cost Estimate
                                 {isCalcFetching && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground ml-1" />}
                             </CardTitle>
                         </CardHeader>
@@ -309,7 +309,7 @@ function BriefEditorContent() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
-                                {/* Sustainability Grade */}
+                                {/* Indicative sustainability proxy */}
                                 <div className={`text-center p-3 rounded-lg border ${gradeBg} border-border/30`}>
                                     <Leaf className={`h-4 w-4 mx-auto mb-1 ${gradeColor}`} />
                                     <p className="text-[10px] text-muted-foreground">Sustainability</p>

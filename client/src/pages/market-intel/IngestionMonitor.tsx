@@ -234,7 +234,7 @@ export default function IngestionMonitor() {
               Ingestion Monitor
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Live Market Ingestion Engine — automated evidence collection from {status?.availableSources ?? 12} UAE sources
+              Market ingestion operations — configured evidence collection from {status?.availableSources ?? 12} UAE sources
             </p>
           </div>
           <Button

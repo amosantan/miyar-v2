@@ -114,8 +114,9 @@ const CATEGORY_MATERIAL_MAP: Record<string, { categories: string[]; defaultUnit:
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function parseCostLabel(label: string): { min: number; max: number; isMarketVerified: boolean } | null {
-    // Expected format: "AED 450,000 (market-verified)" or "AED 300,000 — 450,000"
-    const isVerified = label.includes("market-verified");
+    // Retain the internal compatibility flag while public copy describes the
+    // value as an indicative estimate rather than a verified market fact.
+    const isVerified = label.includes("market-verified") || label.includes("indicative benchmark estimate");
     const cleaned = label.replace(/[^0-9.,\-—]/g, " ").trim();
     const numbers = cleaned.split(/[\-—\s]+/).map(s => Number(s.replace(/,/g, ""))).filter(n => !isNaN(n) && n > 0);
 

@@ -277,17 +277,18 @@ export function generateDesignBrief(
   const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
   const totalBudgetCap = budget && gfa ? budget * gfa : null;
 
-  // Determine cost band — use live pricing if available, else static bands
+  // Determine cost band from configured benchmark observations when available,
+  // otherwise fall back to the existing static bands.
   let costBand = "Standard (Fit-out)";
   let dynamicCostPerSqm: number | null = null;
   if (livePricing && Object.keys(livePricing).length > 0) {
     // Bottom-up: sum weighted means across all available categories
     const totalPerSqm = Object.values(livePricing).reduce((sum, cp) => sum + cp.weightedMean, 0);
     dynamicCostPerSqm = totalPerSqm;
-    if (totalPerSqm > 8000) costBand = "Ultra-Premium Luxury (Market-Verified)";
-    else if (totalPerSqm > 4500) costBand = "Premium High-End (Market-Verified)";
-    else if (totalPerSqm > 2500) costBand = "Upper-Standard Modern (Market-Verified)";
-    else costBand = "Standard Fit-out (Market-Verified)";
+    if (totalPerSqm > 8000) costBand = "Ultra-Premium Luxury (Indicative benchmark estimate)";
+    else if (totalPerSqm > 4500) costBand = "Premium High-End (Indicative benchmark estimate)";
+    else if (totalPerSqm > 2500) costBand = "Upper-Standard Modern (Indicative benchmark estimate)";
+    else costBand = "Standard Fit-out (Indicative benchmark estimate)";
   } else if (budget) {
     if (budget > 8000) costBand = "Ultra-Premium Luxury";
     else if (budget > 4500) costBand = "Premium High-End";
@@ -409,7 +410,7 @@ export function generateDesignBrief(
       }
       if (matched > 0) {
         const catTotal = catSqmCost * gfa;
-        estCostStr = `AED ${Math.round(catTotal).toLocaleString()} (market-verified)`;
+        estCostStr = `AED ${Math.round(catTotal).toLocaleString()} (indicative benchmark estimate)`;
         usedLive = true;
       }
     }
@@ -424,7 +425,9 @@ export function generateDesignBrief(
       category: d.category,
       percentage: d.percentage,
       estimatedCostLabel: estCostStr,
-      notes: usedLive ? `${d.notes} [Pricing source: Live market benchmarks]` : d.notes,
+      notes: usedLive
+        ? `${d.notes} [Pricing basis: configured benchmark observations; verify source and observation date before use]`
+        : d.notes,
     };
   });
 
@@ -546,7 +549,7 @@ export function generateDesignBrief(
     },
     detailedBudget: {
       costPerSqmTarget: dynamicCostPerSqm
-        ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (market-verified)`
+        ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (indicative benchmark estimate)`
         : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
       totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
       costBand,

@@ -1,13 +1,9 @@
 /**
  * Space Ratio Benchmarking Engine (Phase 9 — Pillar B)
  *
- * Compares AI-extracted floor plan room ratios against DLD transaction data
- * to generate data-driven space planning recommendations.
- *
- * This is what separates MIYAR from generic tools:
- * Instead of "your kitchen is small", it says:
- * "In Business Bay, 3-bed apartments with kitchen areas >10% of NFA
- *  sell for 12% more (based on 412 DLD transactions, 2023-2025)."
+ * Compares AI-extracted floor-plan room ratios with versioned MIYAR ratio
+ * guidelines. DLD transaction counts may be retained as separate area context;
+ * they do not calibrate the ratios, scores, or scenario coefficients here.
  */
 
 import type { FloorPlanAnalysis, AnalyzedRoom } from "./floor-plan-analyzer";
@@ -19,11 +15,11 @@ export interface SpaceRecommendation {
     roomName: string;
     roomType: string;
     currentPercent: number;
-    benchmarkPercent: number;   // area-specific average
+    benchmarkPercent: number;   // MIYAR ratio guideline
     delta: number;              // positive = oversized, negative = undersized
-    financialImpact: string;    // data-backed impact statement
+    financialImpact: string;    // labelled MIYAR scenario-proxy statement
     severity: "critical" | "advisory" | "optimal";
-    dataSource: string;         // "DLD Business Bay, 2023-2025, n=847"
+    dataSource: string;         // guideline identity plus separate market context
     action: string;             // specific recommended action
 }
 
@@ -43,14 +39,13 @@ export interface SpaceBenchmarkResult {
 // ─── Benchmark Data ──────────────────────────────────────────────────────────
 
 /**
- * UAE residential space benchmarks by room type.
- * These represent optimal percentages based on market analysis.
- * Deviations from these ratios correlate with sale price differentials.
+ * MIYAR residential ratio guidelines by room type. They are deterministic
+ * scenario inputs, not official DLD ratios or proven causal price effects.
  */
 interface RoomBenchmark {
     optimalPercent: number;
     tolerancePct: number;      // acceptable deviation before flagging
-    priceImpactPerPct: number; // % impact on sale price per 1% deviation from optimal
+    priceImpactPerPct: number; // indicative scenario-sensitivity coefficient
     priority: "high" | "medium" | "low";
 }
 
@@ -118,7 +113,7 @@ export function benchmarkSpaceRatios(
     analysis: FloorPlanAnalysis,
     areaName: string,
     transactionCount: number = 0,
-    saleP50: number | null = null,
+    _saleP50: number | null = null,
 ): SpaceBenchmarkResult {
     if (analysis.rooms.length === 0) {
         return {
@@ -153,8 +148,8 @@ export function benchmarkSpaceRatios(
     const benchmarks = RESIDENTIAL_BENCHMARKS[benchmarkKey] || RESIDENTIAL_BENCHMARKS["3BR"];
 
     const dataSource = transactionCount > 0
-        ? `DLD ${areaName}, 2023-2025, n=${transactionCount}`
-        : `MIYAR UAE benchmark (${areaName})`;
+        ? `MIYAR ratio guideline; separate DLD area context: ${areaName}, n=${transactionCount}`
+        : `MIYAR UAE ratio guideline (${areaName})`;
 
     const recommendations: SpaceRecommendation[] = [];
 
@@ -189,24 +184,22 @@ export function benchmarkSpaceRatios(
         let action = "";
 
         if (severity === "optimal") {
-            financialImpact = `${roomType} ratio is within optimal range for ${areaName}`;
-            action = "No changes needed — this space allocation matches market expectations";
+            financialImpact = `${roomType} ratio is within the MIYAR guideline range for ${areaName}`;
+            action = "No change suggested — this allocation is within the MIYAR ratio guideline";
         } else if (delta < 0) {
             // Undersized
             const increaseBy = Math.round(absDelta);
-            financialImpact = saleP50
-                ? `Increasing ${roomType} area by ${increaseBy}% of NFA → projected +${impactAbs.toFixed(1)}% sale price uplift (${dataSource})`
-                : `${roomType} is ${increaseBy}% below optimal for ${benchmarkKey} units in ${areaName} — historically correlated with ${impactAbs.toFixed(1)}% lower sale prices`;
+            financialImpact = `MIYAR scenario coefficient: ${impactAbs.toFixed(1)}% indicative sensitivity for a ${increaseBy}% NFA adjustment; not a predicted or DLD-calibrated sale uplift (${dataSource})`;
             action = `Consider increasing ${roomType} allocation from ${currentPercent.toFixed(1)}% to ${benchmark.optimalPercent}% of NFA`;
         } else {
             // Oversized
             const decreaseBy = Math.round(absDelta);
             if (benchmark.priceImpactPerPct < 0) {
                 // Corridors/circulation — oversized is bad
-                financialImpact = `Excess ${roomType} space (${decreaseBy}% over optimal) is unproductive area that dilutes usable NFA without price benefit (${dataSource})`;
+                financialImpact = `MIYAR ratio proxy: ${roomType} is ${decreaseBy}% above the guideline range; no sale-price outcome is claimed (${dataSource})`;
                 action = `Reduce ${roomType} from ${currentPercent.toFixed(1)}% to ${benchmark.optimalPercent}% — reallocate to living/bedroom space`;
             } else {
-                financialImpact = `${roomType} is ${decreaseBy}% above market average — diminishing returns beyond ${(benchmark.optimalPercent + benchmark.tolerancePct)}% (${dataSource})`;
+                financialImpact = `MIYAR ratio proxy: ${roomType} is ${decreaseBy}% above the guideline range of ${(benchmark.optimalPercent + benchmark.tolerancePct)}%; no market-return claim is made (${dataSource})`;
                 action = `${roomType} at ${currentPercent.toFixed(1)}% exceeds typical allocation. Consider redistributing excess to other high-impact rooms`;
             }
         }

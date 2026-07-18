@@ -23,6 +23,7 @@ import { buildRFQFromBrief } from "../engines/design/rfq-generator";
 import { buildPromptContext, buildBoardAwarePromptContext, buildRoomPromptContext, interpolateTemplate, generateDefaultPrompt, generateRoomRenderPrompt, validatePrompt, buildMaterialAllocationPromptClause, type MqiAllocation } from "../engines/visual-gen";
 import { analyzeFloorPlan as runFloorPlanAnalysis } from "../engines/design/floor-plan-analyzer";
 import { benchmarkSpaceRatios } from "../engines/design/space-benchmarking";
+import { deriveOverallFreshnessHealth } from "../engines/ingestion/freshness-health";
 import { computeBoardSummary, generateRfqLines } from "../engines/board-composer";
 import { matchVendorsForProject } from "../engines/procurement/vendor-matching";
 import { generateImage } from "../_core/imageGeneration";
@@ -1644,9 +1645,7 @@ export const designRouter = router({
       const totalSources = sourceFreshness.length;
 
       // Overall health status
-      const overallHealth = staleCount > totalSources * 0.3 ? "degraded"
-        : agingCount > totalSources * 0.5 ? "aging"
-          : "healthy";
+      const overallHealth = deriveOverallFreshnessHealth({ totalSources, agingCount, staleCount, unknownCount });
 
       return {
         overallHealth,
@@ -1823,12 +1822,14 @@ export const designRouter = router({
             : project.floorPlanAnalysis;
           if (fpData?.rooms?.length > 0 && project.dldAreaId) {
             const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
-            if (dldBench) {
+            const transactionCount = Number(dldBench?.saleTransactionCount);
+            const medianSalePrice = Number(dldBench?.saleP50);
+            if (dldBench && Number.isSafeInteger(transactionCount) && transactionCount > 0 && Number.isFinite(medianSalePrice) && medianSalePrice > 0) {
               const spaceResult = benchmarkSpaceRatios(
                 fpData,
                 dldBench.areaNameEn || "Dubai",
-                Number(dldBench.saleTransactionCount) || 100,
-                Number(dldBench.saleP50) || 25000,
+                transactionCount,
+                medianSalePrice,
               );
               spaceEfficiency = {
                 efficiencyScore: spaceResult.overallEfficiencyScore,
@@ -1836,6 +1837,16 @@ export const designRouter = router({
                 advisoryCount: spaceResult.totalAdvisory,
                 circulationPct: spaceResult.circulationWastePercent ?? 0,
                 recommendations: (spaceResult.recommendations ?? []).slice(0, 6),
+                guidanceBasis: {
+                  kind: "miyar_ratio_guideline" as const,
+                },
+                marketContext: {
+                  kind: "official_dld_observation" as const,
+                  sourceName: "Dubai Land Department",
+                  areaName: dldBench.areaNameEn || "Dubai",
+                  period: dldBench.period,
+                  transactionCount,
+                },
               };
             }
           }
@@ -1869,13 +1880,27 @@ export const designRouter = router({
         totalFitoutBudget,
         costPerSqm: gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0,
         salePremiumPct, estimatedSalesPremiumAed: gfa > 0 ? Math.round(gfa * 25000 * salePremiumPct / 100) : 0,
+        financialBasis: {
+          fitout: "project_estimate" as const,
+          salesPremium: "tier_assumption" as const,
+          policyVersion: "share-tier-premium-v1",
+          assumedSalePriceAedPerSqm: 25000,
+        },
         benchmark: benchmark ? {
           costPerSqmLow: benchmark.costPerSqftLow != null ? Math.round(Number(benchmark.costPerSqftLow) * SQF) : null,
           costPerSqmMid: benchmark.costPerSqftMid != null ? Math.round(Number(benchmark.costPerSqftMid) * SQF) : null,
           costPerSqmHigh: benchmark.costPerSqftHigh != null ? Math.round(Number(benchmark.costPerSqftHigh) * SQF) : null,
           typology: benchmark.typology, location: benchmark.location, marketTier: benchmark.marketTier, dataYear: benchmark.dataYear,
+          sourceType: benchmark.sourceType,
         } : null,
-        designTrends: trends, expiresAt: brief.shareExpiresAt?.toISOString(),
+        designTrends: trends.map((trend) => ({
+          id: trend.id,
+          trendName: trend.trendName,
+          description: trend.description,
+          trendCategory: trend.trendCategory,
+          confidenceLevel: trend.confidenceLevel,
+        })),
+        expiresAt: brief.shareExpiresAt?.toISOString(),
         spaceEfficiency,
       };
     }),

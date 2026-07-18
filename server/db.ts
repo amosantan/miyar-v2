@@ -123,6 +123,31 @@ export async function getDb() {
   return _db;
 }
 
+export async function getPublicMarketEvidenceCounts() {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [transactions, rents, projectRows] = await Promise.all([
+    db.select({
+      count: sql<number>`COUNT(*)`,
+      observedThrough: sql<string | null>`MAX(${dldTransactions.instanceDate})`,
+    }).from(dldTransactions),
+    db.select({
+      count: sql<number>`COUNT(*)`,
+      observedThrough: sql<string | null>`MAX(${dldRents.contractStartDate})`,
+    }).from(dldRents),
+    db.select({ count: sql<number>`COUNT(*)` }).from(dldProjects),
+  ]);
+
+  return {
+    transactionCount: transactions[0]?.count,
+    transactionObservedThrough: transactions[0]?.observedThrough,
+    rentContractCount: rents[0]?.count,
+    rentObservedThrough: rents[0]?.observedThrough,
+    projectCount: projectRows[0]?.count,
+  };
+}
+
 // ─── Users ───────────────────────────────────────────────────────────────────
 
 export async function upsertUser(user: InsertUser & { password?: string }): Promise<void> {

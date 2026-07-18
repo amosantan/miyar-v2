@@ -2456,6 +2456,7 @@ __export(db_exports, {
   getPublicDecisionPatterns: () => getPublicDecisionPatterns,
   getPublicDesignTrends: () => getPublicDesignTrends,
   getPublicEvidenceStats: () => getPublicEvidenceStats,
+  getPublicMarketEvidenceCounts: () => getPublicMarketEvidenceCounts,
   getPublicTrendSnapshots: () => getPublicTrendSnapshots,
   getPublishedLogicVersion: () => getPublishedLogicVersion,
   getReportBoardSnapshotForOrg: () => getReportBoardSnapshotForOrg,
@@ -2603,6 +2604,28 @@ async function getDb() {
     console.warn("[Database] getDb() returning null. DATABASE_URL set:", !!process.env.DATABASE_URL);
   }
   return _db;
+}
+async function getPublicMarketEvidenceCounts() {
+  const db = await getDb();
+  if (!db) return null;
+  const [transactions, rents, projectRows] = await Promise.all([
+    db.select({
+      count: sql`COUNT(*)`,
+      observedThrough: sql`MAX(${dldTransactions.instanceDate})`
+    }).from(dldTransactions),
+    db.select({
+      count: sql`COUNT(*)`,
+      observedThrough: sql`MAX(${dldRents.contractStartDate})`
+    }).from(dldRents),
+    db.select({ count: sql`COUNT(*)` }).from(dldProjects)
+  ]);
+  return {
+    transactionCount: transactions[0]?.count,
+    transactionObservedThrough: transactions[0]?.observedThrough,
+    rentContractCount: rents[0]?.count,
+    rentObservedThrough: rents[0]?.observedThrough,
+    projectCount: projectRows[0]?.count
+  };
 }
 async function upsertUser(user) {
   if (!user.openId) throw new Error("User openId is required for upsert");
@@ -7132,7 +7155,7 @@ var space_benchmarking_exports = {};
 __export(space_benchmarking_exports, {
   benchmarkSpaceRatios: () => benchmarkSpaceRatios
 });
-function benchmarkSpaceRatios(analysis, areaName, transactionCount = 0, saleP50 = null) {
+function benchmarkSpaceRatios(analysis, areaName, transactionCount = 0, _saleP50 = null) {
   if (analysis.rooms.length === 0) {
     return {
       recommendations: [],
@@ -7161,7 +7184,7 @@ function benchmarkSpaceRatios(analysis, areaName, transactionCount = 0, saleP50 
   else if (bedroomCount === 3) benchmarkKey = "3BR";
   else benchmarkKey = "4BR+";
   const benchmarks = RESIDENTIAL_BENCHMARKS[benchmarkKey] || RESIDENTIAL_BENCHMARKS["3BR"];
-  const dataSource = transactionCount > 0 ? `DLD ${areaName}, 2023-2025, n=${transactionCount}` : `MIYAR UAE benchmark (${areaName})`;
+  const dataSource = transactionCount > 0 ? `MIYAR ratio guideline; separate DLD area context: ${areaName}, n=${transactionCount}` : `MIYAR UAE ratio guideline (${areaName})`;
   const recommendations = [];
   const roomsByType = /* @__PURE__ */ new Map();
   for (const room of analysis.rooms) {
@@ -7185,19 +7208,19 @@ function benchmarkSpaceRatios(analysis, areaName, transactionCount = 0, saleP50 
     let financialImpact = "";
     let action = "";
     if (severity2 === "optimal") {
-      financialImpact = `${roomType} ratio is within optimal range for ${areaName}`;
-      action = "No changes needed \u2014 this space allocation matches market expectations";
+      financialImpact = `${roomType} ratio is within the MIYAR guideline range for ${areaName}`;
+      action = "No change suggested \u2014 this allocation is within the MIYAR ratio guideline";
     } else if (delta < 0) {
       const increaseBy = Math.round(absDelta);
-      financialImpact = saleP50 ? `Increasing ${roomType} area by ${increaseBy}% of NFA \u2192 projected +${impactAbs.toFixed(1)}% sale price uplift (${dataSource})` : `${roomType} is ${increaseBy}% below optimal for ${benchmarkKey} units in ${areaName} \u2014 historically correlated with ${impactAbs.toFixed(1)}% lower sale prices`;
+      financialImpact = `MIYAR scenario coefficient: ${impactAbs.toFixed(1)}% indicative sensitivity for a ${increaseBy}% NFA adjustment; not a predicted or DLD-calibrated sale uplift (${dataSource})`;
       action = `Consider increasing ${roomType} allocation from ${currentPercent.toFixed(1)}% to ${benchmark.optimalPercent}% of NFA`;
     } else {
       const decreaseBy = Math.round(absDelta);
       if (benchmark.priceImpactPerPct < 0) {
-        financialImpact = `Excess ${roomType} space (${decreaseBy}% over optimal) is unproductive area that dilutes usable NFA without price benefit (${dataSource})`;
+        financialImpact = `MIYAR ratio proxy: ${roomType} is ${decreaseBy}% above the guideline range; no sale-price outcome is claimed (${dataSource})`;
         action = `Reduce ${roomType} from ${currentPercent.toFixed(1)}% to ${benchmark.optimalPercent}% \u2014 reallocate to living/bedroom space`;
       } else {
-        financialImpact = `${roomType} is ${decreaseBy}% above market average \u2014 diminishing returns beyond ${benchmark.optimalPercent + benchmark.tolerancePct}% (${dataSource})`;
+        financialImpact = `MIYAR ratio proxy: ${roomType} is ${decreaseBy}% above the guideline range of ${benchmark.optimalPercent + benchmark.tolerancePct}%; no market-return claim is made (${dataSource})`;
         action = `${roomType} at ${currentPercent.toFixed(1)}% exceeds typical allocation. Consider redistributing excess to other high-impact rooms`;
       }
     }
@@ -8270,7 +8293,7 @@ __export(rfq_generator_exports, {
   buildRFQPack: () => buildRFQPack
 });
 function parseCostLabel(label) {
-  const isVerified = label.includes("market-verified");
+  const isVerified = label.includes("market-verified") || label.includes("indicative benchmark estimate");
   const cleaned = label.replace(/[^0-9.,\-—]/g, " ").trim();
   const numbers = cleaned.split(/[\-—\s]+/).map((s) => Number(s.replace(/,/g, ""))).filter((n) => !isNaN(n) && n > 0);
   if (numbers.length === 0) return null;
@@ -14571,7 +14594,156 @@ function registerOAuthRoutes(app) {
 }
 
 // server/_core/systemRouter.ts
+init_db();
 import { z } from "zod";
+
+// shared/public-claims.ts
+var DLD_PUBLIC_SOURCE = Object.freeze({
+  nameEn: "Dubai Land Department",
+  nameAr: "\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0623\u0631\u0627\u0636\u064A \u0648\u0627\u0644\u0623\u0645\u0644\u0627\u0643 \u0641\u064A \u062F\u0628\u064A",
+  url: "https://dubailand.gov.ae/en/open-data/real-estate-data/"
+});
+var PUBLIC_CLAIMS = Object.freeze({
+  homeEvidenceTitle: {
+    id: "home.dld.indexed_subset",
+    surface: "home",
+    copy: {
+      en: "Official-source market evidence",
+      ar: "\u0623\u062F\u0644\u0629 \u0633\u0648\u0642 \u0645\u0646 \u0645\u0635\u062F\u0631 \u0631\u0633\u0645\u064A"
+    },
+    evidence: "runtime_dld_snapshot",
+    qualification: "Always identify this as MIYAR's indexed subset, never complete DLD coverage."
+  },
+  observedThrough: {
+    id: "market.observed_through",
+    surface: "home",
+    copy: { en: "Observed through", ar: "\u062A\u063A\u0637\u064A \u0627\u0644\u0633\u062C\u0644\u0627\u062A \u062D\u062A\u0649" },
+    evidence: "runtime_dld_snapshot",
+    qualification: "Record coverage date only; not a refresh or ingestion-success timestamp."
+  },
+  indexedSubset: {
+    id: "market.indexed_subset",
+    surface: "home",
+    copy: { en: "MIYAR indexed subset", ar: "\u0645\u062C\u0645\u0648\u0639\u0629 \u0641\u0631\u0639\u064A\u0629 \u0645\u0641\u0647\u0631\u0633\u0629 \u0644\u062F\u0649 \u0645\u0650\u0639\u064A\u0627\u0631" },
+    evidence: "runtime_dld_snapshot",
+    qualification: "No completeness, live, daily, current, or weekly claim."
+  },
+  evidenceUnavailable: {
+    id: "market.unavailable",
+    surface: "home",
+    copy: {
+      en: "The indexed market-evidence snapshot is currently unavailable.",
+      ar: "\u0644\u0642\u0637\u0629 \u0623\u062F\u0644\u0629 \u0627\u0644\u0633\u0648\u0642 \u0627\u0644\u0645\u0641\u0647\u0631\u0633\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u0629 \u062D\u0627\u0644\u064A\u0627\u064B."
+    },
+    evidence: "runtime_dld_snapshot",
+    qualification: "Fail closed; do not reuse a stale success after an evidence failure."
+  },
+  scoreDimensions: {
+    id: "methodology.score_dimensions",
+    surface: "methodology",
+    copy: {
+      en: "MIYAR evaluates five deterministic scoring dimensions.",
+      ar: "\u064A\u0642\u064A\u0651\u0645 \u0645\u0650\u0639\u064A\u0627\u0631 \u062E\u0645\u0633\u0629 \u0623\u0628\u0639\u0627\u062F \u062A\u0633\u062C\u064A\u0644 \u062D\u062A\u0645\u064A\u0629."
+    },
+    evidence: "versioned_deterministic_contract",
+    qualification: "Weights may be shown only from an approved versioned scoring contract."
+  },
+  certificationTarget: {
+    id: "share.certification_target",
+    surface: "public_share",
+    copy: { en: "Project target \u2014 not certification", ar: "\u0647\u062F\u0641 \u0644\u0644\u0645\u0634\u0631\u0648\u0639 \u2014 \u0648\u0644\u064A\u0633 \u0634\u0647\u0627\u062F\u0629" },
+    evidence: "explicit_project_input",
+    qualification: "Never infer an achieved certification from a default or proxy."
+  },
+  marketTierProxy: {
+    id: "share.market_tier_proxy",
+    surface: "public_share",
+    copy: { en: "Market-tier proxy", ar: "\u0645\u0624\u0634\u0631 \u062A\u0642\u0631\u064A\u0628\u064A \u0644\u0641\u0626\u0629 \u0627\u0644\u0633\u0648\u0642" },
+    evidence: "labelled_assumption",
+    qualification: "A proxy is not a sustainability grade, compliance finding, or certification."
+  },
+  estimateAssumption: {
+    id: "share.estimate_assumption",
+    surface: "public_share",
+    copy: { en: "Indicative estimate based on stated assumptions", ar: "\u062A\u0642\u062F\u064A\u0631 \u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A \u0645\u0628\u0646\u064A \u0639\u0644\u0649 \u0627\u0641\u062A\u0631\u0627\u0636\u0627\u062A \u0645\u0639\u0644\u0646\u0629" },
+    evidence: "labelled_assumption",
+    qualification: "Place adjacent to cost, premium, yield, and uplift values."
+  },
+  approvedBenchmarkObservation: {
+    id: "customer.approved_benchmark_observation",
+    surface: "customer",
+    copy: { en: "Approved benchmark observation", ar: "\u0645\u0634\u0627\u0647\u062F\u0629 \u0645\u0639\u064A\u0627\u0631\u064A\u0629 \u0645\u0639\u062A\u0645\u062F\u0629" },
+    evidence: "versioned_deterministic_contract",
+    qualification: "Approved does not mean live, complete, or professionally verified; show available provenance."
+  },
+  freshnessUnknown: {
+    id: "customer.freshness_unknown",
+    surface: "customer",
+    copy: { en: "Freshness unknown", ar: "\u062D\u062F\u0627\u062B\u0629 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u063A\u064A\u0631 \u0645\u0639\u0631\u0648\u0641\u0629" },
+    evidence: "runtime_dld_snapshot",
+    qualification: "Required when no governed source has a known observation date."
+  }
+});
+var PUBLIC_CLAIM_REGISTRY = Object.freeze(Object.values(PUBLIC_CLAIMS));
+
+// server/_core/market-evidence.ts
+var SUCCESS_TTL_MS = 5 * 6e4;
+var FAILURE_TTL_MS = 2e4;
+function positiveSafeInteger(value) {
+  const parsed = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
+  return typeof parsed === "number" && Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+function realIsoDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? value : null;
+}
+function validateMarketEvidenceSnapshot(raw) {
+  const transactionCount = positiveSafeInteger(raw.transactionCount);
+  const rentContractCount = positiveSafeInteger(raw.rentContractCount);
+  const projectCount = positiveSafeInteger(raw.projectCount);
+  const transactionObservedThrough = realIsoDate(raw.transactionObservedThrough);
+  const rentObservedThrough = realIsoDate(raw.rentObservedThrough);
+  if (!transactionCount || !rentContractCount || !projectCount || !transactionObservedThrough || !rentObservedThrough) {
+    return { available: false };
+  }
+  return {
+    available: true,
+    scope: "indexed_subset",
+    source: DLD_PUBLIC_SOURCE,
+    datasets: {
+      transactions: { count: transactionCount, recordsDatedThrough: transactionObservedThrough },
+      rentContracts: { count: rentContractCount, recordsDatedThrough: rentObservedThrough },
+      projects: { count: projectCount }
+    }
+  };
+}
+var cache = null;
+var inFlight = null;
+async function getCachedMarketEvidenceSnapshot(load, now = Date.now()) {
+  if (cache && cache.expiresAt > now) return cache.value;
+  if (inFlight) return inFlight;
+  inFlight = (async () => {
+    let value = { available: false };
+    try {
+      const raw = await load();
+      if (raw) value = validateMarketEvidenceSnapshot(raw);
+    } catch {
+      value = { available: false };
+    }
+    cache = {
+      value,
+      expiresAt: now + (value.available ? SUCCESS_TTL_MS : FAILURE_TTL_MS)
+    };
+    return value;
+  })();
+  try {
+    return await inFlight;
+  } finally {
+    inFlight = null;
+  }
+}
 
 // server/_core/notification.ts
 import { TRPCError } from "@trpc/server";
@@ -14664,7 +14836,7 @@ import superjson from "superjson";
 // server/_core/rate-limit.ts
 import { TRPCError as TRPCError2 } from "@trpc/server";
 var store = /* @__PURE__ */ new Map();
-setInterval(() => {
+var cleanupTimer = setInterval(() => {
   const now = Date.now();
   const keys = Array.from(store.keys());
   for (const key of keys) {
@@ -14674,6 +14846,7 @@ setInterval(() => {
     if (entry.timestamps.length === 0) store.delete(key);
   }
 }, 3e5);
+cleanupTimer.unref?.();
 function buildRateLimitKey(keyPrefix, userId, path) {
   return `${keyPrefix}:${userId}:${path}`;
 }
@@ -14700,6 +14873,44 @@ function createRateLimitMiddleware(t2, opts = {}) {
     return next();
   });
 }
+var publicStore = /* @__PURE__ */ new Map();
+var PUBLIC_MAX_KEYS = 1024;
+var PUBLIC_WINDOW_MS = 6e4;
+var PUBLIC_PER_ADDRESS_MAX = 60;
+var PUBLIC_GLOBAL_MAX = 600;
+function trimWindow(entry, now) {
+  entry.timestamps = entry.timestamps.filter((timestamp2) => now - timestamp2 < PUBLIC_WINDOW_MS);
+}
+function publicSlot(key, now) {
+  let entry = publicStore.get(key);
+  if (!entry) {
+    if (publicStore.size >= PUBLIC_MAX_KEYS) {
+      const oldestKey = publicStore.keys().next().value;
+      if (oldestKey) publicStore.delete(oldestKey);
+    }
+    entry = { timestamps: [] };
+    publicStore.set(key, entry);
+  }
+  trimWindow(entry, now);
+  publicStore.delete(key);
+  publicStore.set(key, entry);
+  return entry;
+}
+function createPublicRateLimitMiddleware(t2) {
+  return t2.middleware(async ({ ctx, next, path }) => {
+    const forwarded = process.env.TRUST_PROXY === "1" ? String(ctx?.req?.headers?.["x-forwarded-for"] ?? "").split(",")[0]?.trim() : "";
+    const remoteAddress = forwarded || ctx?.req?.socket?.remoteAddress || "unknown";
+    const now = Date.now();
+    const globalEntry = publicSlot(`public:global:${path}`, now);
+    const addressEntry = publicSlot(`public:${remoteAddress}:${path}`, now);
+    if (globalEntry.timestamps.length >= PUBLIC_GLOBAL_MAX || addressEntry.timestamps.length >= PUBLIC_PER_ADDRESS_MAX) {
+      throw new TRPCError2({ code: "TOO_MANY_REQUESTS", message: "Rate limit exceeded. Try again shortly." });
+    }
+    globalEntry.timestamps.push(now);
+    addressEntry.timestamps.push(now);
+    return next();
+  });
+}
 
 // server/_core/trpc.ts
 init_ai_operation();
@@ -14721,6 +14932,7 @@ var t = initTRPC.context().create({
 });
 var router = t.router;
 var publicProcedure = t.procedure;
+var publicRateLimitedProcedure = t.procedure.use(createPublicRateLimitMiddleware(t));
 var requireUser = t.middleware(async (opts) => {
   const { ctx, next } = opts;
   if (!ctx.user) {
@@ -14811,6 +15023,7 @@ var orgHeavyMutationProcedure = orgMutationProcedure.use(heavyRateLimit);
 
 // server/_core/systemRouter.ts
 var systemRouter = router({
+  marketEvidenceSnapshot: publicRateLimitedProcedure.input(z.undefined()).query(() => getCachedMarketEvidenceSnapshot(getPublicMarketEvidenceCounts)),
   health: publicProcedure.input(
     z.object({
       timestamp: z.number().min(0, "timestamp cannot be negative")
@@ -15422,7 +15635,7 @@ function spaceBenchmarkLabel(evidence) {
   if (evidence.status === "legacy_unknown") {
     return "Legacy score \u2014 measurement provenance unavailable";
   }
-  return evidence.benchmarkBasis === "dld_area" && evidence.transactionCount > 0 ? `DLD area benchmark \xB7 ${evidence.transactionCount} transactions` : "MIYAR UAE benchmark";
+  return evidence.benchmarkBasis === "dld_area" && evidence.transactionCount > 0 ? `MIYAR ratio guideline \xB7 separate DLD area context: ${evidence.transactionCount} transactions` : "MIYAR UAE benchmark";
 }
 
 // server/engines/scoring.ts
@@ -15549,7 +15762,7 @@ function computePenalties(inputs, n, penaltyConfig) {
     const spaceEvidence = resolveSpaceEfficiencyEvidence(
       inputs
     );
-    const comparisonLabel = spaceEvidence.status === "measured" && spaceEvidence.benchmarkBasis === "dld_area" && spaceEvidence.transactionCount > 0 ? "transaction-backed DLD area benchmark" : spaceEvidence.status === "measured" ? "MIYAR UAE benchmark" : "space benchmark with legacy provenance";
+    const comparisonLabel = spaceEvidence.status === "measured" && spaceEvidence.benchmarkBasis === "dld_area" && spaceEvidence.transactionCount > 0 ? "MIYAR ratio guideline with separate DLD area context" : spaceEvidence.status === "measured" ? "MIYAR UAE benchmark" : "space benchmark with legacy provenance";
     penalties.push({
       id: "P8",
       trigger: "space_critical_deviations",
@@ -15616,7 +15829,7 @@ function generateConditionalActions(dimensions, riskFlags, inputs) {
     const spaceEvidence = resolveSpaceEfficiencyEvidence(
       inputs
     );
-    const evidenceWording = spaceEvidence.status === "measured" && spaceEvidence.benchmarkBasis === "dld_area" && spaceEvidence.transactionCount > 0 ? "The comparison uses transaction-backed DLD area data." : spaceEvidence.status === "measured" ? "The comparison uses the MIYAR UAE space benchmark." : "The historical measurement provenance is unavailable, so no DLD or correlation claim is made.";
+    const evidenceWording = spaceEvidence.status === "measured" && spaceEvidence.benchmarkBasis === "dld_area" && spaceEvidence.transactionCount > 0 ? "The comparison uses a MIYAR ratio guideline; DLD transaction count is separate area context and does not calibrate the guideline." : spaceEvidence.status === "measured" ? "The comparison uses the MIYAR UAE space benchmark." : "The historical measurement provenance is unavailable, so no DLD or correlation claim is made.";
     actions.push({
       trigger: "SPACE_CRITICAL",
       recommendation: `Floor plan has critical space allocation deviations. Review room ratios in Space Planner. ${evidenceWording}`,
@@ -17151,7 +17364,7 @@ function generateRfqLines(items, briefConstraints) {
     const notes = [];
     if (item.notes) notes.push(item.notes);
     if (briefConstraints) {
-      if (briefConstraints.pricingVerified) notes.push("(market-verified)");
+      if (briefConstraints.pricingVerified) notes.push("(indicative estimate from configured benchmark observations)");
       const prohibited = briefConstraints.prohibitedMaterials.map((p) => p.toLowerCase());
       const itemLower = item.name.toLowerCase();
       if (prohibited.some((p) => itemLower.includes(p.split("(")[0].trim().toLowerCase()))) {
@@ -17380,10 +17593,10 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
   if (livePricing && Object.keys(livePricing).length > 0) {
     const totalPerSqm = Object.values(livePricing).reduce((sum, cp) => sum + cp.weightedMean, 0);
     dynamicCostPerSqm = totalPerSqm;
-    if (totalPerSqm > 8e3) costBand = "Ultra-Premium Luxury (Market-Verified)";
-    else if (totalPerSqm > 4500) costBand = "Premium High-End (Market-Verified)";
-    else if (totalPerSqm > 2500) costBand = "Upper-Standard Modern (Market-Verified)";
-    else costBand = "Standard Fit-out (Market-Verified)";
+    if (totalPerSqm > 8e3) costBand = "Ultra-Premium Luxury (Indicative benchmark estimate)";
+    else if (totalPerSqm > 4500) costBand = "Premium High-End (Indicative benchmark estimate)";
+    else if (totalPerSqm > 2500) costBand = "Upper-Standard Modern (Indicative benchmark estimate)";
+    else costBand = "Standard Fit-out (Indicative benchmark estimate)";
   } else if (budget) {
     if (budget > 8e3) costBand = "Ultra-Premium Luxury";
     else if (budget > 4500) costBand = "Premium High-End";
@@ -17480,7 +17693,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
       }
       if (matched > 0) {
         const catTotal = catSqmCost * gfa;
-        estCostStr = `AED ${Math.round(catTotal).toLocaleString()} (market-verified)`;
+        estCostStr = `AED ${Math.round(catTotal).toLocaleString()} (indicative benchmark estimate)`;
         usedLive = true;
       }
     }
@@ -17492,7 +17705,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
       category: d.category,
       percentage: d.percentage,
       estimatedCostLabel: estCostStr,
-      notes: usedLive ? `${d.notes} [Pricing source: Live market benchmarks]` : d.notes
+      notes: usedLive ? `${d.notes} [Pricing basis: configured benchmark observations; verify source and observation date before use]` : d.notes
     };
   });
   let pricingAnalytics;
@@ -17597,7 +17810,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
       coreAllocations
     },
     detailedBudget: {
-      costPerSqmTarget: dynamicCostPerSqm ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (market-verified)` : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
+      costPerSqmTarget: dynamicCostPerSqm ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (indicative benchmark estimate)` : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
       totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
       costBand,
       flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
@@ -19393,15 +19606,15 @@ var projectRouter = router({
         console.log(`[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`);
         if (spaceResult.totalCritical >= 2) {
           try {
-            const isTransactionBackedDld = spaceResult.evidence.status === "measured" && spaceResult.evidence.benchmarkBasis === "dld_area" && spaceResult.evidence.transactionCount > 0;
+            const hasDldAreaContext = spaceResult.evidence.status === "measured" && spaceResult.evidence.benchmarkBasis === "dld_area" && spaceResult.evidence.transactionCount > 0;
             const criticalRooms = spaceResult.recommendations.filter((r) => r.severity === "critical").map((r) => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`).join(", ");
             await insertProjectInsightForOrg({
               projectId: input.id,
               insightType: "positioning_gap",
               severity: "warning",
               title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
-              body: isTransactionBackedDld ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside transaction-backed DLD area benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.` : `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR UAE space benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
-              actionableRecommendation: isTransactionBackedDld ? "Review floor plan allocations in Space Planner against the transaction-backed DLD area benchmark." : "Review floor plan allocations in Space Planner against the MIYAR UAE space benchmark.",
+              body: hasDldAreaContext ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR ratio guidelines: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100. DLD transaction count is shown separately as area context and does not calibrate the guideline.` : `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR UAE space benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
+              actionableRecommendation: hasDldAreaContext ? "Review floor plan allocations in Space Planner against the MIYAR ratio guideline; treat DLD records as separate area context." : "Review floor plan allocations in Space Planner against the MIYAR UAE space benchmark.",
               dataPoints: { spaceResult }
             }, ctx.orgId);
           } catch (alertErr) {
@@ -22434,6 +22647,14 @@ ${lines.join("\n")}`;
 init_floor_plan_analyzer();
 init_space_benchmarking();
 
+// server/engines/ingestion/freshness-health.ts
+function deriveOverallFreshnessHealth(counts) {
+  if (counts.totalSources === 0 || counts.unknownCount === counts.totalSources) return "unknown";
+  if (counts.staleCount > counts.totalSources * 0.3) return "degraded";
+  if (counts.agingCount > counts.totalSources * 0.5) return "aging";
+  return "healthy";
+}
+
 // server/engines/procurement/vendor-matching.ts
 init_db();
 init_schema();
@@ -22644,7 +22865,7 @@ var DOCX_AR_COPY = {
   Version: "\u0627\u0644\u0625\u0635\u062F\u0627\u0631",
   "MIYAR Interior Design Instruction": "\u062A\u0639\u0644\u064A\u0645\u0627\u062A \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062F\u0627\u062E\u0644\u064A \u0645\u0646 MIYAR",
   "Room Breakdown:": "\u062A\u0641\u0635\u064A\u0644 \u0627\u0644\u063A\u0631\u0641:",
-  "DLD-Backed Recommendations:": "\u062A\u0648\u0635\u064A\u0627\u062A \u0645\u062F\u0639\u0648\u0645\u0629 \u0628\u0628\u064A\u0627\u0646\u0627\u062A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0623\u0631\u0627\u0636\u064A:",
+  "MIYAR Ratio Guidance:": "\u0625\u0631\u0634\u0627\u062F\u0627\u062A \u0627\u0644\u0646\u0633\u0628 \u0645\u0646 MIYAR:",
   Room: "\u0627\u0644\u063A\u0631\u0641\u0629",
   "Area (sqft)": "\u0627\u0644\u0645\u0633\u0627\u062D\u0629 (\u0642\u062F\u0645\xB2)",
   "% of Total": "% \u0645\u0646 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A",
@@ -23001,7 +23222,7 @@ async function generateDesignBriefDocx(data) {
       sections.push(roomTable);
     }
     if (space.recommendations && space.recommendations.length > 0) {
-      sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: docxFixed("DLD-Backed Recommendations:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
+      sections.push(new Paragraph({ bidirectional: rtl, spacing: { before: 200, after: 80 }, children: [new TextRun({ text: docxFixed("MIYAR Ratio Guidance:", rtl), bold: true, size: 22, rightToLeft: rtl })] }));
       for (const rec of space.recommendations) {
         sections.push(bulletItem(`[${rec.severity?.toUpperCase()}] ${rec.advice}`, rtl));
       }
@@ -25042,7 +25263,7 @@ var designRouter = router({
     const staleCount = sourceFreshness.filter((s) => s.freshness === "stale").length;
     const unknownCount = sourceFreshness.filter((s) => s.freshness === "unknown").length;
     const totalSources = sourceFreshness.length;
-    const overallHealth = staleCount > totalSources * 0.3 ? "degraded" : agingCount > totalSources * 0.5 ? "aging" : "healthy";
+    const overallHealth = deriveOverallFreshnessHealth({ totalSources, agingCount, staleCount, unknownCount });
     return {
       overallHealth,
       totalSources,
@@ -25215,19 +25436,31 @@ var designRouter = router({
         const fpData = typeof project.floorPlanAnalysis === "string" ? JSON.parse(project.floorPlanAnalysis) : project.floorPlanAnalysis;
         if (fpData?.rooms?.length > 0 && project.dldAreaId) {
           const dldBench = await getDldAreaBenchmark(project.dldAreaId);
-          if (dldBench) {
+          const transactionCount = Number(dldBench?.saleTransactionCount);
+          const medianSalePrice = Number(dldBench?.saleP50);
+          if (dldBench && Number.isSafeInteger(transactionCount) && transactionCount > 0 && Number.isFinite(medianSalePrice) && medianSalePrice > 0) {
             const spaceResult = benchmarkSpaceRatios(
               fpData,
               dldBench.areaNameEn || "Dubai",
-              Number(dldBench.saleTransactionCount) || 100,
-              Number(dldBench.saleP50) || 25e3
+              transactionCount,
+              medianSalePrice
             );
             spaceEfficiency = {
               efficiencyScore: spaceResult.overallEfficiencyScore,
               criticalCount: spaceResult.totalCritical,
               advisoryCount: spaceResult.totalAdvisory,
               circulationPct: spaceResult.circulationWastePercent ?? 0,
-              recommendations: (spaceResult.recommendations ?? []).slice(0, 6)
+              recommendations: (spaceResult.recommendations ?? []).slice(0, 6),
+              guidanceBasis: {
+                kind: "miyar_ratio_guideline"
+              },
+              marketContext: {
+                kind: "official_dld_observation",
+                sourceName: "Dubai Land Department",
+                areaName: dldBench.areaNameEn || "Dubai",
+                period: dldBench.period,
+                transactionCount
+              }
             };
           }
         }
@@ -25267,6 +25500,12 @@ var designRouter = router({
       costPerSqm: gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0,
       salePremiumPct,
       estimatedSalesPremiumAed: gfa > 0 ? Math.round(gfa * 25e3 * salePremiumPct / 100) : 0,
+      financialBasis: {
+        fitout: "project_estimate",
+        salesPremium: "tier_assumption",
+        policyVersion: "share-tier-premium-v1",
+        assumedSalePriceAedPerSqm: 25e3
+      },
       benchmark: benchmark ? {
         costPerSqmLow: benchmark.costPerSqftLow != null ? Math.round(Number(benchmark.costPerSqftLow) * SQF) : null,
         costPerSqmMid: benchmark.costPerSqftMid != null ? Math.round(Number(benchmark.costPerSqftMid) * SQF) : null,
@@ -25274,9 +25513,16 @@ var designRouter = router({
         typology: benchmark.typology,
         location: benchmark.location,
         marketTier: benchmark.marketTier,
-        dataYear: benchmark.dataYear
+        dataYear: benchmark.dataYear,
+        sourceType: benchmark.sourceType
       } : null,
-      designTrends: trends,
+      designTrends: trends.map((trend) => ({
+        id: trend.id,
+        trendName: trend.trendName,
+        description: trend.description,
+        trendCategory: trend.trendCategory,
+        confidenceLevel: trend.confidenceLevel
+      })),
       expiresAt: brief.shareExpiresAt?.toISOString(),
       spaceEfficiency
     };

@@ -1,10 +1,12 @@
-import { ArrowRight, CheckCircle2, FileCheck2, Layers3, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, Database, FileCheck2, Layers3, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useTranslation } from "@/lib/i18n";
 import { Link } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { PUBLIC_CLAIMS } from "@shared/public-claims";
 
 const stages = [
   { number: "01", title: "Define", copy: "Capture the project intent, constraints and evidence that matter before evaluation." },
@@ -16,6 +18,11 @@ export default function Home() {
   const { locale } = useTranslation();
   const text = (english: string, arabic: string) => locale === "ar" ? arabic : english;
   const start = () => { window.location.href = getLoginUrl(); };
+  const evidence = trpc.system.marketEvidenceSnapshot.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+  const claim = (entry: { en: string; ar: string }) => locale === "ar" ? entry.ar : entry.en;
 
   return (
     <main className="min-h-screen overflow-hidden bg-background text-foreground">
@@ -42,7 +49,7 @@ export default function Home() {
           <Button size="lg" onClick={start} className="mt-9 h-12 gap-2 px-6">
             {text("Start a project", "ابدأ مشروعاً")} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
           </Button>
-          <p className="mt-4 text-xs text-muted-foreground">Decision support, not professional certification. Assumptions and evidence remain visible.</p>
+          <p className="mt-4 text-xs text-muted-foreground">{text("Decision support, not professional certification. Assumptions and evidence remain visible.", "دعم للقرار وليس اعتماداً مهنياً. تبقى الافتراضات والأدلة ظاهرة.")}</p>
         </div>
 
         <div className="relative">
@@ -67,6 +74,37 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="border-y border-border bg-card/60">
+        <div className="mx-auto max-w-7xl px-5 py-10 md:px-8">
+          <div className="rounded-2xl border border-border bg-card p-6 md:p-8">
+            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+              <div className="max-w-2xl">
+                <div className="flex items-center gap-2 text-primary"><Database className="h-5 w-5" /><h2 className="font-semibold">{claim(PUBLIC_CLAIMS.homeEvidenceTitle.copy)}</h2></div>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  {text("MIYAR indexes a defined subset of official Dubai Land Department open real-estate records. These figures describe the records currently indexed by MIYAR, not complete DLD coverage.", "يفهرس مِعيار مجموعة فرعية محددة من سجلات البيانات العقارية المفتوحة الرسمية لدى دائرة الأراضي والأملاك في دبي. تصف هذه الأرقام السجلات المفهرسة حالياً لدى مِعيار ولا تمثل تغطية كاملة لبيانات الدائرة.")}
+                </p>
+              </div>
+              {evidence.data?.available ? (
+                <a className="text-sm font-medium text-primary hover:underline" href={evidence.data.source.url} target="_blank" rel="noreferrer">
+                  {locale === "ar" ? evidence.data.source.nameAr : evidence.data.source.nameEn}
+                </a>
+              ) : null}
+            </div>
+            {evidence.data?.available ? (
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                <EvidenceMetric label={text("Transactions", "المعاملات")} count={evidence.data.datasets.transactions.count} dateLabel={claim(PUBLIC_CLAIMS.observedThrough.copy)} date={evidence.data.datasets.transactions.recordsDatedThrough} locale={locale} />
+                <EvidenceMetric label={text("Rent contracts", "عقود الإيجار")} count={evidence.data.datasets.rentContracts.count} dateLabel={claim(PUBLIC_CLAIMS.observedThrough.copy)} date={evidence.data.datasets.rentContracts.recordsDatedThrough} locale={locale} />
+                <EvidenceMetric label={text("Projects", "المشروعات")} count={evidence.data.datasets.projects.count} note={claim(PUBLIC_CLAIMS.indexedSubset.copy)} locale={locale} />
+              </div>
+            ) : (
+              <p className="mt-6 rounded-xl bg-secondary/60 p-4 text-sm text-muted-foreground" role="status">
+                {evidence.isLoading ? text("Checking the indexed evidence snapshot…", "جارٍ التحقق من لقطة الأدلة المفهرسة…") : claim(PUBLIC_CLAIMS.evidenceUnavailable.copy)}
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
       <section className="border-y border-border bg-card">
         <div className="mx-auto grid max-w-7xl gap-px bg-border md:grid-cols-3">
           {stages.map(stage => <article key={stage.number} className="bg-card p-8 md:p-10"><span className="font-mono text-xs text-primary">{stage.number}</span><h2 className="mt-6 font-serif text-3xl">{stage.title}</h2><p className="mt-3 max-w-sm text-sm leading-6 text-muted-foreground">{stage.copy}</p></article>)}
@@ -82,6 +120,11 @@ export default function Home() {
       <footer className="border-t border-border px-5 py-8 text-center text-xs text-muted-foreground">MIYAR · UAE design-decision intelligence</footer>
     </main>
   );
+}
+
+function EvidenceMetric({ label, count, dateLabel, date, note, locale }: { label: string; count: number; dateLabel?: string; date?: string; note?: string; locale: "en" | "ar" }) {
+  const dateText = date ? new Intl.DateTimeFormat(locale === "ar" ? "ar-AE" : "en-GB", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`)) : null;
+  return <div className="rounded-xl border border-border p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold">{new Intl.NumberFormat(locale === "ar" ? "ar-AE" : "en-GB").format(count)}</p><p className="mt-1 text-xs text-muted-foreground">{dateText ? `${dateLabel}: ${dateText}` : note}</p></div>;
 }
 
 function PreviewMetric({ label, value, note }: { label: string; value: string; note: string }) {
