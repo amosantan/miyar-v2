@@ -6,7 +6,7 @@ This is the canonical location for current observed repository facts. It is not 
 
 - Observed: 2026-07-18
 - Production source commit: `bd09c3fdafca885d40b564eafe94ecc67197c7ad` on canonical `main`, merging TR-09 PR #7.
-- Branch identity: canonical `origin/main` and runtime application release are `bd09c3fdafca885d40b564eafe94ecc67197c7ad`.
+- Branch identity: canonical `origin/main` contains runtime application release `bd09c3fdafca885d40b564eafe94ecc67197c7ad`; later commits may record state only and do not change the runtime release identity.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: Vercel deployment `GQyoYH8hnMXwPRMYmzdsCgTg6wNV` is `READY` for exact source commit `bd09c3f`; root and three timestamped health observations return 200, unauthenticated project access returns 401, and invalid shares return concealed 404 with privacy headers.
