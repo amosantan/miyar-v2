@@ -11,7 +11,7 @@ This is the canonical location for current observed repository facts. It is not 
 - Package manager declared by repository: `pnpm`
 - Production: Vercel deployment `GQyoYH8hnMXwPRMYmzdsCgTg6wNV` is `READY` for exact source commit `bd09c3f`; root and three timestamped health observations return 200, unauthenticated project access returns 401, and invalid shares return concealed 404 with privacy headers.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `TR-09` is closed; `TR-10` is the sole `READY` next step.
+- Roadmap state: `TR-10` is closed at `PASS` after the owner waived the final browser-policy-blocked generated download/print clicks; `TR-12` is the sole next executable step.
 
 ## Technology Observed
 
@@ -58,6 +58,18 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - Current/future priorities live in `docs/ROADMAP.md`.
 - Historical reports are non-authoritative unless reverified.
 
+## TR-10 Candidate Observation
+
+These facts describe only the isolated, uncommitted worktree `codex/tr-10-report-certification` based on `18da870d37f9181b75bfa7f0f8aa1f9480b456f9`; they do not describe canonical production behavior.
+
+- The targeted report/share/storage/localization/migration suites pass 156/156; the release-candidate safe suite passes 1,114 tests with 22 skipped.
+- TypeScript, report-output auditing, the authorization inventory (336/336 with zero remediation), and all build targets pass.
+- Disposable MySQL 8 verifies additive migration 0050 forward application, legacy-null compatibility, stable-key updates, application rollback compatibility, and column rollback. Migration 0050 has not been applied to shared or production data.
+- The explicitly authorized sixth post-fix certification iteration passed 23/23 artifacts through browser-print PDF and production DOCX/LibreOffice paths; all 83/83 pages were inspected with no remaining defect.
+- A fail-closed, loopback-only synthetic MySQL/application environment verified login, authenticated English/Arabic selectors and previews across every report surface, and valid/invalid public shares. Browser QA found and drove fixes for successful authentication returning to the public homepage, project route wiring, optional display-label crashes, the legacy project-less comparison URL, and the duplicate/misdirected room-render action. Live recheck proves sign-in reaches `/dashboard`.
+- The browser safety policy blocks generated download/print/new-page clicks and forbids alternate automation. Those UI clicks remain a human gate; no shared data was touched.
+- Independent high-reasoning security/integration review and Claude Opus review returned `APPROVED`. On 2026-07-18 the product/report owner approved the exact bilingual issued legal/disclaimer/financial copy and authorized one sixth post-fix render plus a safe synthetic authenticated browser environment.
+
 ## Production Database Observation
 
 - Migration 0044 was verified complete before TR-03H release.
@@ -98,7 +110,7 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - `TR-04` closes all 93 remaining project-router authorization/global-governance paths, including the later ultra-review remediation for atomic report persistence and tenant-owned portfolio alerts. The live inventory has zero `TR-04` and exactly eight pooled-data rows under `TR-05`; targeted, disposable MySQL, safe full-suite, TypeScript, audit, build, diff, and independent-review gates pass.
 - `TR-05` and `KF-007` are closed on `codex/tr-05-data-isolation`. Corpus isolation, migration 0047, fail-closed organization/public reads, scheduler disablement, insufficiency contracts, UI states, and enhanced audit enforcement are implemented. Verified gates: disposable MySQL 18/18, safe suite 962 passed with 22 skipped, authorization inventory 331/331 with zero remediation rows, TypeScript/build/diff PASS, in-app browser PASS across analytics, cost forecasting, project prediction, design advisor, and learning administration, and independent Claude Code `APPROVED_NO_OBJECTION`.
 - `UX-01` is merged into canonical main through commit `029f5c1`. Its implementation and prior authenticated verification remain recorded, but an authenticated browser session was unavailable during the independent TR-07 release smoke; the roadmap retains that explicit UX-01 human gate.
-- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. `TR-10` is the sole `READY` next executable step.
+- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. TR-10 is closed after complete artifact, browser, security, and owner-approval evidence; `TR-12` is the sole next executable step.
 
 ## Refresh Procedure
 

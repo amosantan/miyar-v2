@@ -11,14 +11,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/PageHeader";
 import { GitCompare, ArrowUpDown, TrendingUp, TrendingDown, Minus, FileText, Download } from "lucide-react";
 import type { Scenario, ScenarioComparison as ScenarioComparisonRecord } from "@shared/entity-types";
+import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
+import { useTranslation } from "@/lib/i18n";
 
 export default function ScenarioComparison() {
   const [, params] = useRoute("/projects/:id/scenario-compare");
   const projectId = Number(params?.id);
+  const { locale: appLocale } = useTranslation();
 
   const [baselineId, setBaselineId] = useState<number | null>(null);
   const [comparedIds, setComparedIds] = useState<number[]>([]);
   const [decisionNote, setDecisionNote] = useState("");
+  const [reportLocale, setReportLocale] = useState(appLocale);
 
   const scenarios = trpc.scenario.list.useQuery({ projectId }, { enabled: !!projectId });
   const comparisons = trpc.intelligence.scenarios.listComparisons.useQuery({ projectId }, { enabled: !!projectId });
@@ -186,10 +190,11 @@ export default function ScenarioComparison() {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
+                        <ReportLocaleSelect value={reportLocale} onValueChange={setReportLocale} />
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => exportPDFMut.mutate({ comparisonId: comp.id })}
+                          onClick={() => exportPDFMut.mutate({ comparisonId: comp.id, locale: reportLocale })}
                           disabled={exportPDFMut.isPending}
                         >
                           <Download className="h-3 w-3 mr-1" />

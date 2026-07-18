@@ -28,6 +28,7 @@ import { matchVendorsForProject } from "../engines/procurement/vendor-matching";
 import { generateImage } from "../_core/imageGeneration";
 import type { ProjectInputs } from "../../shared/miyar-types";
 import { generateDesignBriefDocx } from "../engines/docx-brief";
+import { reportCopy } from "../engines/report-catalog";
 import { calculateSurfaceAreas, buildQuantityCostSummary, type AllocationSlice, type AllocationResult as MqiAllocationResult } from "../engines/design/material-quantity-engine";
 import { buildSpaceProgram } from "../engines/design/space-program";
 import { nanoid } from "nanoid";
@@ -344,7 +345,11 @@ export const designRouter = router({
   // ─── Design Brief Generator ─────────────────────────────────────────────────
 
   generateBrief: designOrgMutationProcedure
-    .input(z.object({ projectId: z.number(), scenarioId: z.number().optional() }))
+    .input(z.object({
+      projectId: z.number(),
+      scenarioId: z.number().optional(),
+      locale: z.enum(["en", "ar"]).default("en"),
+    }))
     .mutation(async ({ ctx, input }) => {
       const project = await requireDesignProject(input.projectId, ctx.orgId);
       if (input.scenarioId !== undefined) {
@@ -612,9 +617,12 @@ export const designRouter = router({
     }),
 
   exportBriefDocx: designOrgMutationProcedure
-    .input(z.object({ briefId: z.number() }))
+    .input(z.object({ briefId: z.number(), locale: z.enum(["en", "ar"]).default("en") }))
     .mutation(async ({ ctx, input }) => {
       const { resource: brief, project } = await requireDesignBrief(input.briefId, ctx.orgId);
+      const [modelVersion, benchmarkVersion, logicVersion] = await Promise.all([
+        db.getActiveModelVersion(), db.getActiveBenchmarkVersion(), db.getPublishedLogicVersion(),
+      ]);
 
       const docxBuffer = await generateDesignBriefDocx({
         projectIdentity: (brief.projectIdentity ?? {}) as Record<string, unknown>,
@@ -626,6 +634,10 @@ export const designRouter = router({
         spaceAllocation: (brief as any).briefData?.spaceAllocation ?? (brief as any).spaceAllocation ?? undefined,
         version: brief.version,
         projectName: project?.name,
+        locale: input.locale,
+        modelVersion: modelVersion?.versionTag,
+        benchmarkVersion: benchmarkVersion?.versionTag,
+        logicVersion: logicVersion?.name,
       });
 
       const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid(8)}.docx`;
@@ -1047,7 +1059,7 @@ export const designRouter = router({
     }),
 
   exportBoardPdf: designOrgMutationProcedure
-    .input(z.object({ boardId: z.number() }))
+    .input(z.object({ boardId: z.number(), locale: z.enum(["en", "ar"]).default("en") }))
     .mutation(async ({ ctx, input }) => {
       const { resource: board, project } = await requireDesignBoard(input.boardId, ctx.orgId);
 
@@ -1079,12 +1091,19 @@ export const designRouter = router({
       const { generateBoardPdfHtml } = await import("../engines/board-pdf");
       const summary = computeBoardSummary(items as any);
       const rfqLines = generateRfqLines(items as any);
+      const [modelVersion, benchmarkVersion, logicVersion] = await Promise.all([
+        db.getActiveModelVersion(), db.getActiveBenchmarkVersion(), db.getPublishedLogicVersion(),
+      ]);
       const html = generateBoardPdfHtml({
         boardName: board.boardName,
         projectName: project.name,
         items,
         summary,
         rfqLines,
+        locale: input.locale,
+        modelVersion: modelVersion?.versionTag,
+        benchmarkVersion: benchmarkVersion?.versionTag,
+        logicVersion: logicVersion?.name,
       });
 
       let fileUrl: string | null = null;
@@ -1676,16 +1695,19 @@ export const designRouter = router({
   // ─── Phase 5: Export & Handover ─────────────────────────────────────────────
 
   exportInvestorPdf: designOrgMutationProcedure
-    .input(z.object({ projectId: z.number() }))
+    .input(z.object({ projectId: z.number(), locale: z.enum(["en", "ar"]).default("en") }))
     .mutation(async ({ ctx, input }) => {
       const { generateInvestorPdfHtml } = await import("../engines/investor-pdf");
       const project = await requireDesignProject(input.projectId, ctx.orgId);
-      const [brief, recs, materialConsts, benchmark, trends] = await Promise.all([
+      const [brief, recs, materialConsts, benchmark, trends, modelVersion, activeBenchmarkVersion, logicVersion] = await Promise.all([
         db.getLatestAiDesignBrief(input.projectId, ctx.orgId),
         db.getSpaceRecommendations(input.projectId, ctx.orgId),
         db.getMaterialConstants(),
         db.getBenchmarkForProject(project.ctx01Typology ?? "Residential", project.ctx04Location ?? "Secondary", project.mkt01Tier ?? "Upper-mid"),
         db.getPublicDesignTrends({ styleClassification: project.des01Style ?? undefined, region: "UAE", limit: 8 }),
+        db.getActiveModelVersion(),
+        db.getActiveBenchmarkVersion(),
+        db.getPublishedLogicVersion(),
       ]);
       const totalFitoutBudget = (recs ?? []).reduce((s: number, r: any) => s + Number(r.budgetAllocation || 0), 0);
       const gfa = getPricingArea(project);
@@ -1723,7 +1745,10 @@ export const designRouter = router({
         })),
         totalFitoutBudget, costPerSqm, sustainabilityGrade, salePremiumPct,
         estimatedSalesPremiumAed, benchmark: bmFmt, designTrends: trends,
-        shareToken: brief?.shareToken ?? undefined,
+        locale: input.locale,
+        modelVersion: modelVersion?.versionTag,
+        benchmarkVersion: activeBenchmarkVersion?.versionTag,
+        logicVersion: logicVersion?.name,
       });
       return { html, projectName: project.name ?? "Project" };
     }),
@@ -1777,7 +1802,10 @@ export const designRouter = router({
     }),
 
   resolveShareLink: publicProcedure
-    .input(z.object({ token: z.string().min(8).max(64) }))
+    .input(z.object({
+      token: z.string().min(8).max(64),
+      locale: z.enum(["en", "ar"]).default("en"),
+    }))
     .query(async ({ input }) => {
       const { brief, project } = await requireActivePublicShare(input.token);
       const [recs, benchmark, trends] = await Promise.all([
@@ -1820,6 +1848,15 @@ export const designRouter = router({
       const salePremiumPct = TIER_PREMIUM_PCT[project.mkt01Tier ?? "Upper-mid"] ?? 8;
       const SQF = 10.7639;
       return {
+        locale: input.locale,
+        readOnly: true as const,
+        briefVersion: brief.version,
+        disclaimer: reportCopy(input.locale, "disclaimer"),
+        assumptions: [reportCopy(input.locale, "investorFallbackAssumptionHelp")],
+        evidence: benchmark ? [{
+          label: reportCopy(input.locale, "benchmarkVersion"),
+          value: `${benchmark.typology} / ${benchmark.location} / ${benchmark.marketTier}${benchmark.dataYear ? ` / ${benchmark.dataYear}` : ""}`,
+        }] : [],
         projectName: project.name ?? "Untitled Project", typology: project.ctx01Typology ?? "Residential",
         location: project.ctx04Location ?? "UAE", tier: project.mkt01Tier ?? "Upper-mid",
         style: project.des01Style ?? "Modern", gfaSqm: gfa,

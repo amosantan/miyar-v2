@@ -289,3 +289,25 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: Migration 0049 applied all eight statements after backup `jqb2igl1ebgl`; production retained 1,755 evidence rows and 368 runs with zero assessments, null legacy provenance, and zero orphan/pointer/duplicate-key violations.
 - Reuse rule: For provenance migrations, record both structural success and the absence of fabricated historical state; after any partial DDL failure, inspect the exact live schema and apply only verified missing statements.
 - Supersedes / related: Extends `LES-017` and `LES-020`; applies to all append-only evidence and audit-schema migrations.
+
+### LES-025 — Text contracts do not certify rendered artifacts
+
+- Date / roadmap step: 2026-07-18 / `TR-10`
+- Context: MIYAR's report tests mainly asserted HTML strings or that DOCX output was a readable ZIP, while client artifacts pass through browser-print PDF and office rendering.
+- Observed: Structural and text tests missed object-coercion output, footer-only pages, English fragments in Arabic reports, and document-root locale drift.
+- Cause: Tests did not exercise each production-compatible renderer, remove repeated page furniture when detecting blank pages, or require per-exporter Arabic smoke coverage.
+- Fix or decision: Add typed stress fixtures, canonical production render-input builders, Playwright browser printing, LibreOffice DOCX conversion, Poppler inspection, furniture-stripped blank-page checks, and Arabic smoke artifacts for every exporter.
+- Proof: The fifth budgeted matrix generated and checked 23/23 artifacts, and visual inspection found and drove fixes for issues that unit tests had not exposed. The separately authorized sixth post-fix cycle then passed 23/23 artifacts and 83/83 inspected pages; see `LES-026` for the distinct authenticated UI gate.
+- Reuse rule: Always certify the real output path and inspect every page. Any post-render copy or layout change invalidates visual PASS and requires another render; when the iteration budget is exhausted, stop at an explicit human gate instead of silently extending it.
+- Supersedes / related: Extends `LES-021` from application themes to HTML, browser-PDF, and DOCX report artifacts.
+
+### LES-026 — Artifact harnesses and authenticated UI certification catch different failures
+
+- Date / roadmap step: 2026-07-18 / `TR-10`
+- Context: The production-compatible render harness had certified every generated HTML/PDF/DOCX page, while report controls still needed verification inside the authenticated application shell.
+- Observed: The artifact matrix was clean, but the synthetic signed-in browser path exposed successful authentication returning to the public homepage, missing project-specific routes, a project page crash on an optional ROI label, a legacy comparison URL without project context, and a Room Render card wired to the hero-image action.
+- Cause: Engine-level artifact generation does not exercise application routing, optional presentation data, or the exact UI mutation selected by each control.
+- Fix or decision: Keep artifact and authenticated UI certification as separate gates; use a fail-closed loopback-only synthetic environment, repair route/action wiring and fail-soft display boundaries, then recheck for new browser errors. Never bypass a browser safety policy that reserves generated download/new-page actions for a human.
+- Proof: The sixth artifact cycle passes 23/23 artifacts and 83/83 pages; authenticated selectors/previews/routes and public shares pass after the fixes; the final review's focused contracts pass 55/55, the safe suite passes 1,113/22, TypeScript and build pass, and the reloaded Design Studio emits no new browser errors.
+- Reuse rule: A clean rendered artifact does not prove that users can reach or invoke it correctly. Certify the application shell separately, with synthetic authenticated data and explicit human gates for interactions the approved automation surface will not perform.
+- Supersedes / related: Extends `LES-025` and the tenant-safe environment guidance that remains owned by `TR-12`.

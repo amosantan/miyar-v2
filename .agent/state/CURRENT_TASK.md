@@ -1,82 +1,98 @@
 # Current Task
 
-- ID: TR-09
-- Roadmap step: `TR-09`
-- Title: Truthful baseline provenance and issued-report states
+- ID: TR-10
+- Roadmap step: `TR-10`
+- Title: Certify report integrity and visual rendering
 - Status: PASS
 - Owner: Codex
 - Started: 2026-07-18
-- Branch: `codex/tr-09-baseline-provenance`
-- Base: `e49029d566fa032862c91fa7c0ce00c14aa8ef45`
-- Risk: Critical cross-layer scoring, ingestion, schema, tenant-isolation, financial-claim, and issued-report change
-- Selected loops: Defect, scoring/pricing, ingestion, schema-migration, feature, and report-visual-QA loops
-- Retry budget: 3 evidence-based attempts per unchanged failure class
-- Resource budget: One isolated worktree, one additive migration, three bounded implementation streams, one disposable-MySQL verification cycle, and one independent-review cycle
-- Human gates: The user authorized the shared migration, protected merge, production deployment, and production smoke on 2026-07-18; all completed with recorded verification.
+- Branch: `codex/tr-10-report-certification`
+- Base: `18da870d37f9181b75bfa7f0f8aa1f9480b456f9` (`origin/main`)
+- Risk: High report, localization, output-security, tenant-access, and additive-schema change
+- Selected loops: Report and visual QA, feature, schema migration, security, and browser verification
+- Retry budget: Maximum 5 complete render-QA iterations by default, one owner-authorized sixth post-fix iteration, and 3 evidence-based attempts per unchanged failure class
+- Resource budget: One isolated worktree, one additive migration, one bilingual catalog, one all-export fixture matrix, and one independent final-review cycle
+- Human gates: Bilingual issued copy, release actions, and the explicit waiver of the browser-policy-blocked generated download/print clicks were approved by the task owner on 2026-07-18
 
 ## Goal
 
-Make empty-space results, evidence confidence, and Material Board Annex states truthful and reproducible without changing the approved neutral score or confidence boundaries, weakening tenant isolation, or issuing reports whose mandatory board data could not be verified.
+Prove that every supported MIYAR report and export is data-correct, tenant-safe, output-safe, bilingual, reproducible within one render, and visually usable in its final HTML, browser-print PDF, DOCX, inline-preview, or public-share form.
 
-## Approved Behavioral Defaults
+## Approved Product Decisions
 
-- Empty room analysis remains numeric 50 and normalized 0.5, is labelled `neutral_fallback`, and cannot create space-derived ROI savings.
-- Confidence uses explicit clocks, visible invalid/future-date rejection, latest-accepted-observation merge, common connector/CSV calculation, registry grades for dynamic sources, and labelled manual assertions.
-- Design briefs and full reports fail before side effects when board retrieval cannot be verified; partial and unresolvable boards remain issuable only with explicit resolved-item disclosures.
+- Certify every current user-facing exporter, not only design-brief and full-report HTML.
+- Add explicit English/Arabic export selection, defaulted from the current UI locale; legacy callers default to English.
+- Preserve current English branding, calculations, thresholds, financial policy, and disclaimer meaning.
+- Permit faithful Arabic translations and narrow truthful identity, evidence, assumption, and disclaimer repairs.
+- Repair expiring stored report links with a stable storage key and freshly signed organization-authorized reads.
+- Material Board Annex remains mandatory only for design-brief HTML and full-report HTML under ADR-0003.
 
 ## Acceptance Criteria
 
-- [x] A fresh worktree and review branch were created from exact TR-08 commit `e49029d`; the dirty primary checkout remains untouched.
-- [x] `pnpm install --frozen-lockfile` and the pre-change 80-test characterization baseline pass with `DATABASE_URL=''`.
-- [x] Empty and measured space results carry typed provenance through evaluation snapshots, scoring/explainability, sensitivity, ROI/five-lens, API, and affected UI without changing approved numerical results.
-- [x] Only measured space evidence can create space-derived ROI savings; fallback, absent, and legacy-unknown states are explicit and non-financial.
-- [x] Every new computed or asserted confidence has deterministic policy/clock provenance; invalid/future/malformed items are visibly rejected; current records use latest accepted confidence.
-- [x] Connector upsert matches and locks only null-owned `platform_public` evidence; same-key organization evidence is never read or modified.
-- [x] Additive migration 0049 retains append-only confidence assessments, current pointers, and rejection counts with legacy-compatible reads and no fabricated backfill.
-- [x] Material Board Annex distinguishes no-board, empty, complete, partial, unresolvable, and retrieval-failure states in both issued paths; retrieval failure occurs before report side effects.
-- [x] Targeted, safe full-suite, TypeScript, authorization, build, disposable MySQL, provider compatibility, browser, rendered-artifact, migration-integrity, diff, and independent-review gates pass.
-- [x] Shared migration 0049, protected merge, production deployment, and production smoke completed with verified recovery and integrity evidence.
+- [x] TR-09 is closed on canonical main and a fresh TR-10 worktree/branch exists from exact base `18da870` without touching dirty sibling worktrees.
+- [x] Every export API accepts validated `en`/`ar` locale input with backward-compatible English default, and every export control exposes an explicit selector initialized from the current UI locale.
+- [x] Every HTML/DOCX output uses one internally consistent per-render document ID, UTC generation time, locale, renderer identity, and available model/benchmark/logic labels without claiming BR-07 immutable cross-format identity.
+- [x] The approved render-input fingerprint is deterministic, truthfully labelled, embedded only in the artifact, and neither persisted as a structured report field nor exposed through an API.
+- [x] Dynamic report data is escaped through shared text/attribute/URL boundaries; autonomous markdown is escape-first allowlisted; hostile HTML, URL, bidi, and formula-like fixture content remains inert and literal.
+- [x] English and fully localized Arabic fixed copy, RTL/bidi layout, Arabic-capable fonts, and DOCX RTL properties pass deterministic content and visual checks.
+- [x] Existing investor/ROI fallback inputs are clearly labelled assumptions without changing any value or formula; exact Arabic legal and financial wording is approved before PASS.
+- [x] Material Board Annex remains present only in design-brief/full-report HTML and retains no-board, empty, complete, partial, and unresolvable states.
+- [x] Additive migration 0050 (or the next verified unused ordinal) adds nullable `report_instances.storageKey`; authorized reads mint fresh URLs, storage keys never leak, legacy file URLs remain read-only fallback, and no backfill is performed.
+- [x] Synthetic complete, partial, empty, large-number, Arabic/mixed-direction, long-content, board-heavy, failed-asset, and hostile-input fixtures cover all exporters through a documented pairwise matrix.
+- [x] The real HTML-to-PDF and DOCX-to-PDF paths render successfully; every generated page is inspected with zero clipping, overlap, overflow, blank pages, broken required assets, or unreadable Arabic.
+- [x] Same-organization report access succeeds; cross-organization/missing resources fail before generation, storage, or signing; public shares remain token-gated, read-only, expiry-aware, concealed, no-store, and noindex in both locales.
+- [x] **HUMAN UI-CLICK GATE:** All automated, artifact, browser, and independent-review gates pass; the task owner explicitly waived the remaining generated download/print UI clicks on 2026-07-18.
+- [x] Durable state and the report-QA runbook record only verified evidence; no customer artifacts, signed URLs, bulk renders, or unexplained files remain.
+
+## Output Families
+
+- Project validation summary, design brief, full report, and autonomous design brief HTML plus browser-print PDF.
+- Design-brief DOCX.
+- Investor, material-board, scenario-comparison, and portfolio HTML plus browser-print PDF.
+- Stored-report inline preview and print fallback.
+- Public read-only ShareView.
 
 ## Non-Goals
 
-- Changing scoring weights, thresholds, the neutral 50/0.5 values, Grade A/B/C bases, or the 90/91 and 365/366 confidence boundaries.
-- Backfilling historical confidence chains or space provenance from current mutable data.
-- Changing evidence corpus governance, promoting CSV/manual rows, or enabling pooled learning.
-- Expanding the board annex to validation, autonomous, DOCX, or other report types.
-- Performing further shared-environment writes without a scoped authorization.
-
-## Baseline Evidence
-
-- `pnpm install --frozen-lockfile`: PASS from the committed lockfile.
-- `DATABASE_URL='' pnpm vitest run server/engines/v9-space.test.ts server/engines/v2-connectors.test.ts server/engines/board-pdf.test.ts`: PASS, 80/80; expected unauthorized-provider diagnostics exercised existing fallbacks and no database connection occurred.
-- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-tr09` on `codex/tr-09-baseline-provenance` at `e49029d`.
-
-## Execution Plan
-
-- [x] Implement and regress space evidence, snapshot, financial, explainability, and presentation contracts.
-- [x] Implement deterministic confidence policy, assessment persistence, atomic public-only upsert, rejection visibility, and migration 0049.
-- [x] Implement organization-scoped Board Annex state loading, rendering, and fail-closed report behavior.
-- [x] Run the full verification ladder, rendered inspection, and independent reviews.
-- [x] Complete the user-authorized shared migration and release workflow with recovery, deployment, and smoke evidence.
-
-## Verification Evidence
-
-- Safe full suite: 1,074 passed, 22 database-gated tests intentionally skipped with `DATABASE_URL=''`.
-- `pnpm check`, `pnpm audit:authorization` (336 procedures, zero remediation rows), `pnpm build`, and `git diff --check`: PASS.
-- Disposable MySQL: migration 0049 applied over the exact base schema; concurrent same-key writes produced one public row and two assessments; the tenant collision stayed unchanged; an assessment failure rolled back the evidence insert.
-- Browser: truthful changed states passed at 1440×900 and 390×844 without page overflow.
-- Reports: three-page mixed-board design brief and five-page no-board full report rendered through the production HTML-to-PDF path; all eight A4 pages were inspected without clipping, overflow, blank pages, or false state copy.
-- Independent reviews: space/scoring, confidence/security, and board/report specialists returned `APPROVED`; the final Claude Sonnet completion review returned `APPROVED`.
-- Release: User-authorized migration 0049 ran sequentially against PlanetScale production after restorable backup `jqb2igl1ebgl` succeeded. All eight reviewed statements applied; the assessment table has 31 columns, the three nullable evidence fields, zero-defaulted `recordsRejected`, required indexes, and legacy-null integrity. Counts remained 1,755 evidence records, 368 ingestion runs, and zero assessments.
-- Deployment: PR #7 merged as canonical-main commit `bd09c3fdafca885d40b564eafe94ecc67197c7ad`; Vercel deployment `GQyoYH8hnMXwPRMYmzdsCgTg6wNV` is READY. Root returned 200, timestamped health returned 200 in three observations, unauthenticated project access returned 401, and invalid shares returned concealed 404 with privacy headers. Post-deployment database counts and orphan/pointer/duplicate-key integrity checks remained zero.
-- Hosted-CI replacement: On 2026-07-18, the user approved the documented replacement evidence: frozen install, 1,074/22 safe suite, type-check, 336/0 authorization audit, production build, diff check, disposable-MySQL migration/concurrency/rollback, Vercel preview, and independent reviews.
+- No `report_snapshots` table, immutable-at-issue guarantee, cross-format hash equality, or shared snapshot DTO.
+- No Material Board Annex in DOCX, validation, autonomous, investor, board, scenario, or portfolio outputs.
+- No scoring, pricing, threshold, premium, financial-formula, compliance-policy, or evidence-authority change.
+- No production dependency addition for markdown or sanitization.
+- No legacy report-key backfill, shared database operation, release, or external publication without separate authorization.
 
 ## Recovery
 
-- Application rollback retains additive migration 0049 and reads existing `confidenceScore` fields.
-- No historical row is recomputed or deleted.
-- Any possible tenant-boundary, data-integrity, scoring-policy, or report-publication regression stops execution immediately.
+- The application remains compatible with report rows whose `storageKey` is null by retaining the existing `fileUrl` fallback.
+- The additive storage-key column remains in place on application rollback; no existing report row is rewritten.
+- Any tenant-boundary, output-execution, numerical, financial-interpretation, or irreversible data risk stops work immediately.
+
+## Execution Plan
+
+- [x] Establish the frozen-install and targeted report/share baseline.
+- [x] Implement per-render identity, safe output utilities, bilingual catalogs, and all exporter adoption.
+- [x] Implement additive storage-key persistence and authorization-scoped fresh signing.
+- [x] Implement synthetic fixtures, output audit, and real render-certification harness.
+- [x] Run targeted, full, migration, browser, every-page artifact, and independent-review gates; record the owner waiver for the browser-policy-blocked generated download/print clicks.
+- [x] Close durable state from verified evidence.
+
+## Verified Evidence
+
+- Targeted report, router, storage, migration, DOCX, localization, and share suites pass 156/156.
+- The release-candidate `DATABASE_URL='' pnpm test` passes 1,114 tests with 22 skipped; `pnpm check`, `pnpm tsx scripts/audit-report-output.ts`, `pnpm audit:authorization` (336/336, zero remediation), and `pnpm build` pass.
+- Disposable MySQL 8 proves migration 0050 forward application, nullable legacy compatibility, stable-key update, application rollback compatibility, and column rollback without altering legacy report data. No shared database was touched.
+- The owner-authorized sixth post-fix render iteration generated and checked 23/23 HTML/browser-PDF/DOCX artifacts through production-compatible paths. All 83/83 pages were inspected at readable resolution with no remaining artifact defect.
+- A fail-closed, loopback-only synthetic MySQL/application environment exercised login plus authenticated English/Arabic selectors and previews across project reports, stored reports, design brief, material boards, investor summary, scenario comparison, portfolio, and public shares. It exposed and drove fixes for successful authentication returning to the public homepage, missing project-specific routes, a fail-hard optional ROI label, a duplicate/misdirected room-render card, and the unsafe legacy project-less comparison URL. Rechecks show login reaches `/dashboard` and no new browser errors.
+- Valid and invalid public shares have identical authorization outcomes in English and Arabic, correct root locale/direction and privacy metadata, and the valid English document geometry is 1280/1280 with all card bounds inside the viewport. The browser safety layer rejected generated download/new-page actions and explicitly forbids bypassing that policy, so the final UI download/print clicks require a human.
+- The independent high-reasoning security/integration reviewer and Claude Opus returned `APPROVED` for the implementation boundaries and final reviewed diff.
+
+## Human Gate
+
+- Resolved 2026-07-18: The product/report owner approved the exact bilingual legal and financial wording in `docs/artifacts/TR-10_BILINGUAL_COPY_MATRIX.md`.
+- Resolved 2026-07-18: The task owner authorized one sixth post-fix render-certification cycle after the original five-iteration budget was exhausted.
+- Resolved 2026-07-18: The task owner authorized a safe synthetic authenticated local environment for the complete English/Arabic browser workflow matrix.
+- Resolved 2026-07-18: The task owner explicitly authorized commit, push, merge, shared database migration, and deployment.
+- Resolved 2026-07-18: The task owner explicitly waived the remaining TR-10 generated download/print UI-click gate.
 
 ## Next Action
 
-`TR-09` is closed. Begin `TR-10`, now the sole `READY` roadmap step, under its report-integrity and visual-rendering scope.
+Complete the separately authorized release: apply migration 0050 after a verified production backup, merge the green protected-branch candidate, deploy the exact merged SHA, and run production smoke and observation checks.

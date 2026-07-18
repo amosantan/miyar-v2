@@ -7,7 +7,27 @@
  * - Three report types: Executive Decision Pack, Design Brief + RFQ, Full Report
  */
 import type { ScoreResult, ProjectInputs, SensitivityEntry, ROIResult, ReportType } from "../../shared/miyar-types";
+import { randomUUID } from "node:crypto";
+import type { ReportLocale } from "../../shared/report-locale";
 import type { BoardAnnexBoard, BoardAnnexData } from "./board-annex";
+import {
+  formatReportDate,
+  formatReportDateTime,
+  localizeGovernedReportCopy,
+  reportCopy,
+  reportDocumentMetadata,
+  reportLocaleCss,
+} from "./report-catalog";
+import {
+  createRenderFingerprintPayload,
+  createReportRenderContext,
+  type ReportRenderContext,
+} from "./report-render-context";
+import {
+  escapeReportEvidenceUrl,
+  escapeReportText,
+  renderReportMarkdown,
+} from "./report-safe-output";
 
 const DIMENSION_LABELS: Record<string, string> = {
   sa: "Strategic Alignment",
@@ -37,32 +57,27 @@ function scoreGrade(score: number): string {
   return "Critical";
 }
 
-function formatDate(): string {
-  return new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
+const REPORT_ARTIFACT_VERSION = "tr10-report-artifact-v1";
+const REPORT_RENDERER_VERSION = "pdf-report-html-v3";
 
-function generateWatermark(projectId: number, reportType: string): string {
-  const ts = Date.now().toString(36);
-  const hash = `MYR-${reportType.toUpperCase().slice(0, 3)}-${projectId}-${ts}`;
-  return hash;
+function dynamicText(value: unknown): string {
+  return `<bdi dir="auto" data-report-dynamic>${escapeReportText(value)}</bdi>`;
 }
 
 // ─── HTML Template Helpers ──────────────────────────────────────────────────
 
-function htmlHeader(title: string, subtitle: string, projectName: string, watermark: string): string {
+function htmlHeader(title: string, subtitle: string, projectName: string, context: ReportRenderContext): string {
+  const metadata = reportDocumentMetadata(context.locale);
   return `
 <!DOCTYPE html>
-<html>
+<html lang="${metadata.lang}" dir="${metadata.dir}">
 <head>
 <meta charset="utf-8">
 <style>
+  ${reportLocaleCss(context.locale)}
   @page { size: A4; margin: 20mm 15mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.6; font-size: 11px; }
+  body { color: #1a1a2e; line-height: 1.6; font-size: 11px; overflow-wrap: anywhere; }
   .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 80vh; text-align: center; }
   .cover h1 { font-size: 28px; color: #0f3460; margin-bottom: 8px; letter-spacing: 1px; }
   .cover h2 { font-size: 16px; color: #4ecdc4; font-weight: 400; margin-bottom: 24px; }
@@ -80,13 +95,13 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
   td { padding: 10px 16px; border-bottom: 1px solid #e0e0e0; }
   tr:nth-child(even) td { background: #f8f9fa; }
   .content-wrapper { max-width: 900px; margin: 0 auto; padding: 0 48px; }
-  .brief-list { list-style: disc; padding-left: 24px; margin: 8px 0; }
+  .brief-list { list-style: disc; padding-inline-start: 24px; margin: 8px 0; }
   .brief-list li { margin-bottom: 4px; font-size: 10px; line-height: 1.5; }
   .color-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
   .color-chip { background: #f4f4f0; border: 1px solid #ddd; border-radius: 20px; padding: 4px 14px; font-size: 11px; color: #333; }
   .boq-bar { height: 8px; border-radius: 4px; background: #4ecdc4; min-width: 4px; }
   .boq-bar-wrap { display: flex; align-items: center; gap: 8px; }
-  .phase-header { font-size: 12px; font-weight: 700; color: #0f3460; margin: 14px 0 6px; border-left: 3px solid #4ecdc4; padding-left: 10px; }
+  .phase-header { font-size: 12px; font-weight: 700; color: #0f3460; margin: 14px 0 6px; border-inline-start: 3px solid #4ecdc4; padding-inline-start: 10px; }
   .toc { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px 24px; margin: 24px 0 32px; }
   .toc-title { font-size: 13px; font-weight: 700; color: #0f3460; margin-bottom: 10px; }
   .toc a { color: #0f3460; text-decoration: none; font-size: 11px; display: block; padding: 3px 0; }
@@ -98,9 +113,9 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
   .metric-card .label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
   .metric-card .value { font-size: 22px; font-weight: 700; color: #0f3460; margin: 4px 0; }
   .metric-card .grade { font-size: 10px; }
-  .risk-flag { background: #fff3cd; border-left: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
-  .action-item { background: #e8f5e9; border-left: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
-  .penalty-item { background: #fce4ec; border-left: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .risk-flag { background: #fff3cd; border-inline-start: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .action-item { background: #e8f5e9; border-inline-start: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .penalty-item { background: #fce4ec; border-inline-start: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
   .lens-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; margin: 8px 0; }
   .lens-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .lens-title { font-size: 12px; font-weight: 700; color: #0f3460; }
@@ -110,7 +125,8 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
   .roi-value { font-size: 28px; font-weight: 800; color: #2e7d32; }
   .roi-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
   .evidence-trace { background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px 12px; margin: 8px 0; font-size: 9px; font-family: monospace; color: #666; }
-  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
+  .report-closing { break-inside: avoid-page; page-break-inside: avoid; }
+  .footer { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; break-before: avoid-page; page-break-before: avoid; }
   .section { page-break-inside: avoid; margin-bottom: 28px; }
   .repro-meta { background: #f0f4f8; border: 1px solid #d0d7de; border-radius: 6px; padding: 10px 14px; margin: 16px auto; max-width: 400px; font-size: 9px; color: #444; text-align: left; }
   .repro-meta .label { font-weight: 600; color: #0f3460; display: inline-block; min-width: 120px; }
@@ -120,18 +136,20 @@ function htmlHeader(title: string, subtitle: string, projectName: string, waterm
 <body>
 <div class="cover">
   <div class="logo">MIYAR</div>
-  <h1>${title}</h1>
-  <h2>${subtitle}</h2>
-  <div class="project">${projectName}</div>
-  <div class="date">${formatDate()}</div>
-  <div class="confidential">Confidential — For Internal Use Only</div>
-  <div class="watermark">Document ID: ${watermark}</div>
+  <h1>${escapeReportText(title)}</h1>
+  <h2>${escapeReportText(subtitle)}</h2>
+  <div class="project">${dynamicText(projectName)}</div>
+  <div class="date">${formatReportDate(context.generatedAt, context.locale)}</div>
+  <div class="confidential">${reportCopy(context.locale, "confidentialInternalOnly")}</div>
+  <div class="watermark">${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}</div>
   <div class="repro-meta">
-    <div><span class="label">Scoring Engine:</span> MIYAR Decision Intelligence V2</div>
-    <div><span class="label">Model Version:</span> v2.0.0</div>
-    <div><span class="label">Generated:</span> ${new Date().toISOString()}</div>
-    <div><span class="label">Document ID:</span> ${watermark}</div>
-    <div><span class="label">Reproducibility:</span> All inputs, weights, thresholds, and benchmark data are frozen at generation time. Re-evaluation with identical inputs and the same benchmark/logic version will produce identical scores.</div>
+    <div><span class="label">${reportCopy(context.locale, "modelVersion")}:</span> ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context.locale, "benchmarkVersion")}:</span> ${escapeReportText(context.benchmarkVersion ?? reportCopy(context.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context.locale, "logicVersion")}:</span> ${escapeReportText(context.logicVersion ?? reportCopy(context.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context.locale, "generatedAt")}:</span> ${escapeReportText(context.generatedAt)}</div>
+    <div><span class="label">${reportCopy(context.locale, "documentId")}:</span> ${escapeReportText(context.documentId)}</div>
+    <div><span class="label">${reportCopy(context.locale, "renderInputFingerprint")}:</span> ${escapeReportText(context.renderInputFingerprint)}</div>
+    <div>${reportCopy(context.locale, "renderInputFingerprintHelp")}</div>
   </div>
 </div>
 `;
@@ -147,60 +165,56 @@ export interface ReportEvidenceReference {
   confidencePolicyVersion?: string;
 }
 
-function renderEvidenceReferences(refs?: ReportEvidenceReference[]): string {
+function renderEvidenceReferences(refs: ReportEvidenceReference[] | undefined, locale: ReportLocale): string {
   if (!refs || refs.length === 0) return "";
   const rows = refs.map((r, i) => {
     const gradeColor = r.reliabilityGrade === 'A' ? '#2e7d32' : r.reliabilityGrade === 'B' ? '#f57c00' : '#c62828';
+    const sourceUrl = escapeReportEvidenceUrl(r.sourceUrl);
     return `<tr>
     <td><span class="citation-ref">[${i + 1}]</span></td>
-    <td>${r.title}</td>
-    <td>${r.category || "\u2014"}</td>
-    <td style="color:${gradeColor}; font-weight:600;">${r.reliabilityGrade || "\u2014"}</td>
-    <td>${r.captureDate ? new Date(r.captureDate).toLocaleDateString() : "\u2014"}</td>
+    <td>${dynamicText(r.title)}</td>
+    <td>${r.category ? dynamicText(r.category) : "\u2014"}</td>
+    <td style="color:${gradeColor}; font-weight:600;">${r.reliabilityGrade ? dynamicText(r.reliabilityGrade) : "\u2014"}</td>
+    <td>${r.captureDate ? formatReportDate(r.captureDate, locale) : "\u2014"}</td>
     <td>${!r.confidenceStatus || r.confidenceStatus === "legacy_unknown"
-      ? "Legacy — calculation provenance unavailable"
+      ? reportCopy(locale, "legacyCalculationProvenanceUnavailable")
       : r.confidenceStatus === "asserted"
-        ? `Operator asserted (${r.confidencePolicyVersion || "manual-asserted-confidence-v1"})`
-        : `Computed (${r.confidencePolicyVersion || "policy unavailable"})`}</td>
-    <td>${r.sourceUrl ? `<a href="${r.sourceUrl}" style="color:#0f3460;">[link]</a>` : "\u2014"}</td>
+        ? reportCopy(locale, "operatorAssertedConfidence").replace("{policy}", dynamicText(r.confidencePolicyVersion || "manual-asserted-confidence-v1"))
+        : reportCopy(locale, "computedConfidence").replace("{policy}", dynamicText(r.confidencePolicyVersion || "policy unavailable"))}</td>
+    <td>${sourceUrl ? `<a href="${sourceUrl}" rel="noopener noreferrer" style="color:#0f3460;">${reportCopy(locale, "evidenceLink")}</a>` : "\u2014"}</td>
   </tr>`;
   }).join("");
   return `
 <div class="section">
-  <h2>Evidence References</h2>
-  <p style="font-size:9px; color:#666; margin-bottom:8px;">The following evidence records were linked to this project at the time of report generation. Inline citations <span class="citation-ref">[n]</span> in the report body reference entries in this table.</p>
+  <h2>${reportCopy(locale, "evidenceReferences")}</h2>
+  <p style="font-size:9px; color:#666; margin-bottom:8px;">${reportCopy(locale, "evidenceReferenceDescription")} ${reportCopy(locale, "evidenceInlineCitationHelp").replace("[n]", '<span class="citation-ref">[n]</span>')}</p>
   <table>
-    <tr><th>Ref</th><th>Title</th><th>Category</th><th>Grade</th><th>Captured</th><th>Confidence provenance</th><th>Source</th></tr>
+    <tr><th>${reportCopy(locale, "reference")}</th><th>${reportCopy(locale, "title")}</th><th>${reportCopy(locale, "category")}</th><th>${reportCopy(locale, "grade")}</th><th>${reportCopy(locale, "captured")}</th><th>${reportCopy(locale, "confidenceProvenance")}</th><th>${reportCopy(locale, "source")}</th></tr>
     ${rows}
   </table>
-  <p style="font-size:8px; color:#999; margin-top:4px;">Grade A = Primary institutional source | Grade B = Verified commercial source | Grade C = Self-reported or unverified</p>
+  <p style="font-size:8px; color:#999; margin-top:4px;">${reportCopy(locale, "evidenceGradeLegend")}</p>
 </div>
 `;
 }
 
-function renderDisclaimer(): string {
+function renderDisclaimer(locale: ReportLocale): string {
   return `
 <div class="section" style="margin-top:24px; padding:12px; background:#fff8e1; border:1px solid #ffe082; border-radius:6px;">
-  <h3 style="color:#e65100; font-size:11px; margin-bottom:6px;">Important Disclaimer</h3>
-  <p style="font-size:9px; color:#5d4037; line-height:1.5;">
-    This document is a <strong>concept-level assessment</strong> generated by the MIYAR Decision Intelligence Platform.
-    All scores, recommendations, and specifications are <strong>advisory only</strong> and are subject to detailed design,
-    engineering review, and professional validation. Material specifications, cost estimates, and procurement guidance
-    are indicative and must be confirmed through formal tender processes. MIYAR does not warrant the accuracy of
-    third-party benchmark data or market intelligence used in this assessment. This document does not constitute
-    professional design, financial, or legal advice.
-  </p>
+  <h3 style="color:#e65100; font-size:11px; margin-bottom:6px;">${reportCopy(locale, "importantDisclaimer")}</h3>
+  <p style="font-size:9px; color:#5d4037; line-height:1.5;">${reportCopy(locale, "disclaimer")}</p>
 </div>
 `;
 }
 
-function htmlFooter(projectId: number, reportType: string, watermark: string, benchmarkVersion?: string, logicVersion?: string): string {
+function htmlFooter(context: ReportRenderContext): string {
   return `
-${renderDisclaimer()}
+<div class="report-closing">
+${renderDisclaimer(context.locale)}
 <div class="footer">
-  MIYAR Decision Intelligence Platform V2 | Document ID: ${watermark} | Generated: ${formatDate()}<br>
-  Model Version: v2.0.0 | Benchmark Version: ${benchmarkVersion || "v1.0-baseline"} | Logic Version: ${logicVersion || "v1.0-default"}<br>
-  <span style="font-size:8px;">This report is auto-generated and watermarked. Scores are advisory and do not constitute professional design or financial advice.</span>
+  MIYAR Decision Intelligence Platform | ${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)} | ${reportCopy(context.locale, "generated")}: ${formatReportDate(context.generatedAt, context.locale)}<br>
+  ${reportCopy(context.locale, "modelVersion")}: ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))} | ${reportCopy(context.locale, "benchmarkVersion")}: ${escapeReportText(context.benchmarkVersion ?? reportCopy(context.locale, "notAvailable"))} | ${reportCopy(context.locale, "logicVersion")}: ${escapeReportText(context.logicVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
+  <span style="font-size:8px;">${reportCopy(context.locale, "scoresAdvisory")}</span>
+</div>
 </div>
 </body>
 </html>
@@ -278,11 +292,11 @@ function renderDimensionTable(scoreResult: ScoreResult): string {
 
 function renderRiskAssessment(scoreResult: ScoreResult): string {
   const penalties = scoreResult.penalties.map((p) =>
-    `<div class="penalty-item"><strong>${p.id}:</strong> ${p.description} (Effect: ${p.effect > 0 ? "+" : ""}${p.effect.toFixed(1)})</div>`
+    `<div class="penalty-item"><strong>${dynamicText(p.id)}:</strong> ${dynamicText(p.description)} (Effect: ${p.effect > 0 ? "+" : ""}${p.effect.toFixed(1)})</div>`
   ).join("");
 
   const flags = scoreResult.riskFlags.map((f) =>
-    `<div class="risk-flag">${f}</div>`
+    `<div class="risk-flag">${dynamicText(f)}</div>`
   ).join("");
 
   return `
@@ -306,11 +320,11 @@ function renderRiskAssessment(scoreResult: ScoreResult): string {
 
 // ─── Sensitivity Analysis ───────────────────────────────────────────────────
 
-function renderSensitivity(sensitivity: SensitivityEntry[]): string {
+function renderSensitivity(sensitivity: SensitivityEntry[], locale: ReportLocale): string {
   const top = sensitivity.slice(0, 8);
   const rows = top.map((s) => {
     return `<tr>
-      <td>${s.variable}</td>
+      <td>${dynamicText(s.variable)}</td>
       <td style="text-align:center;">${Math.abs(s.sensitivity).toFixed(2)}</td>
       <td style="text-align:center;">${s.scoreUp.toFixed(1)}</td>
       <td style="text-align:center;">${s.scoreDown.toFixed(1)}</td>
@@ -320,8 +334,8 @@ function renderSensitivity(sensitivity: SensitivityEntry[]): string {
 
   return `
 <div class="section">
-  <h2>Sensitivity Analysis</h2>
-  <p>Top ${top.length} variables ranked by impact on composite score when adjusted ±1 unit:</p>
+  <h2>${reportCopy(locale, "sensitivityAnalysis")}</h2>
+  <p>${reportCopy(locale, "sensitivityIntroduction").replace("{count}", String(top.length))}</p>
   <table>
     <tr><th>Variable</th><th>Sensitivity</th><th>Score (+1)</th><th>Score (-1)</th><th>Range</th></tr>
     ${rows}
@@ -332,23 +346,23 @@ function renderSensitivity(sensitivity: SensitivityEntry[]): string {
 
 // ─── Conditional Actions ────────────────────────────────────────────────────
 
-function renderConditionalActions(scoreResult: ScoreResult): string {
+function renderConditionalActions(scoreResult: ScoreResult, locale: ReportLocale): string {
   if (scoreResult.conditionalActions.length === 0) {
-    return `<div class="section"><h2>Recommended Actions</h2><p>No conditional actions required. All parameters are within acceptable ranges.</p></div>`;
+    return `<div class="section"><h2>${reportCopy(locale, "recommendedActions")}</h2><p>${reportCopy(locale, "noConditionalActions")}</p></div>`;
   }
 
   const actions = scoreResult.conditionalActions.map((a) =>
     `<div class="action-item">
-      <strong>Trigger:</strong> ${a.trigger}<br>
-      <strong>Recommendation:</strong> ${a.recommendation}<br>
-      <strong>Variables:</strong> ${a.variables.join(", ")}
+      <strong>${reportCopy(locale, "actionTrigger")}</strong> ${dynamicText(a.trigger)}<br>
+      <strong>${reportCopy(locale, "actionRecommendation")}</strong> ${dynamicText(a.recommendation)}<br>
+      <strong>${reportCopy(locale, "actionVariables")}</strong> ${dynamicText(a.variables.join(", "))}
     </div>`
   ).join("");
 
   return `
 <div class="section">
-  <h2>Recommended Actions</h2>
-  <p>${scoreResult.conditionalActions.length} conditional action(s) identified:</p>
+  <h2>${reportCopy(locale, "recommendedActions")}</h2>
+  <p>${reportCopy(locale, "conditionalActionsIdentified").replace("{count}", String(scoreResult.conditionalActions.length))}</p>
   ${actions}
 </div>
 `;
@@ -420,8 +434,8 @@ function renderInputSummary(inputs: ProjectInputs): string {
   ];
 
   const tables = groups.map((g) => {
-    const rows = g.items.map(([k, v]) => `<tr><td style="width:50%;">${k}</td><td>${v}</td></tr>`).join("");
-    return `<h3>${g.title}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table>`;
+    const rows = g.items.map(([k, v]) => `<tr><td style="width:50%;">${escapeReportText(k)}</td><td>${dynamicText(v)}</td></tr>`).join("");
+    return `<h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table>`;
   }).join("");
 
   return `<div class="section"><h2>Project Input Summary</h2>${tables}</div>`;
@@ -435,7 +449,7 @@ function renderVariableContributions(contributions: Record<string, Record<string
     const vars = contributions[dim];
     const sorted = Object.entries(vars).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
     const rows = sorted.map(([v, c]) =>
-      `<tr><td>${v}</td><td style="text-align:center; color: ${c >= 0 ? "#4ecdc4" : "#e07a5f"}; font-weight:600;">${c >= 0 ? "+" : ""}${c.toFixed(2)}</td></tr>`
+      `<tr><td>${dynamicText(v)}</td><td style="text-align:center; color: ${c >= 0 ? "#4ecdc4" : "#e07a5f"}; font-weight:600;">${c >= 0 ? "+" : ""}${c.toFixed(2)}</td></tr>`
     ).join("");
     return `<h3>${DIMENSION_LABELS[dim] || dim}</h3><table><tr><th>Variable</th><th>Contribution</th></tr>${rows}</table>`;
   }).join("");
@@ -445,7 +459,7 @@ function renderVariableContributions(contributions: Record<string, Record<string
 
 // ─── V2: ROI Narrative Engine Section ───────────────────────────────────────
 
-function renderROINarrative(roi: any): string {
+function renderROINarrative(roi: any, locale: ReportLocale): string {
   if (!roi) return "";
 
   const totalValue = roi.totalCostAvoided?.mid || roi.totalCostAvoided?.base || roi.totalValue || roi.totalValueCreated || 0;
@@ -464,13 +478,14 @@ function renderROINarrative(roi: any): string {
     <div class="roi-value">AED ${Number(totalValue).toLocaleString()}</div>
     <div style="font-size:10px; color:#666; margin-top:4px;">ROI Multiple: ${Number(roiMultiple).toFixed(1)}x</div>
   </div>
+  <p class="fallback" style="font-size:9px;">${reportCopy(locale, "roiNarrativeFallbackDenominator")}</p>
 
   <h3>Value Breakdown</h3>
   <table>
     <tr><th>Value Component</th><th>Conservative</th><th>Base</th><th>Aggressive</th></tr>
     ${drivers.length > 0 ? drivers.map((c: any) => `
     <tr>
-      <td><strong>${c.name}</strong><br><span style="font-size:9px; color:#666;">${c.description || c.narrative || ""}</span></td>
+      <td><strong>${dynamicText(c.name)}</strong><br><span style="font-size:9px; color:#666;">${dynamicText(c.description || c.narrative || "")}</span></td>
       <td style="text-align:right;">AED ${Number(c.costAvoided?.conservative || c.conservative || (c.value ? c.value * 0.8 : 0)).toLocaleString()}</td>
       <td style="text-align:right; font-weight:600;">AED ${Number(c.costAvoided?.mid || c.base || c.value || 0).toLocaleString()}</td>
       <td style="text-align:right;">AED ${Number(c.costAvoided?.aggressive || c.aggressive || (c.value ? c.value * 1.2 : 0)).toLocaleString()}</td>
@@ -485,13 +500,13 @@ function renderROINarrative(roi: any): string {
 
   ${roi.narrative ? `
   <h3>Executive Narrative</h3>
-  <p style="font-size:10px; line-height:1.6;">${roi.narrative}</p>
+  <p style="font-size:10px; line-height:1.6;">${dynamicText(roi.narrative)}</p>
   ` : ""}
 
   ${roi.assumptions ? `
   <h3>Key Assumptions</h3>
   <ul style="font-size:9px; color:#666; padding-left:16px;">
-    ${roi.assumptions.map((a: string) => `<li>${a}</li>`).join("")}
+    ${roi.assumptions.map((a: string) => `<li>${dynamicText(a)}</li>`).join("")}
   </ul>
   ` : `
   <p style="margin-top:12px; font-size:10px; color:#666;">
@@ -522,18 +537,18 @@ function renderFiveLens(fiveLens: any): string {
     return `
     <div class="lens-card">
       <div class="lens-header">
-        <div class="lens-title">${icon} ${lens.lensName}</div>
+        <div class="lens-title">${escapeReportText(icon)} ${dynamicText(lens.lensName)}</div>
         <div class="lens-score" style="color:${color};">${(lens.score || 0).toFixed(0)}/100</div>
       </div>
-      <p style="font-size:10px; margin-bottom:6px;">${lens.rationale || ""}</p>
+      <p style="font-size:10px; margin-bottom:6px;">${dynamicText(lens.rationale || "")}</p>
       ${lens.evidence && lens.evidence.length > 0 ? `
       <div class="lens-evidence">
-        <strong>Evidence:</strong> ${lens.evidence.slice(0, 3).map((e: any) => typeof e === 'string' ? e : (e.label && e.value ? `${e.label}: ${e.value}` : JSON.stringify(e))).join(" • ")}
+        <strong>Evidence:</strong> ${dynamicText(lens.evidence.slice(0, 3).map((e: any) => typeof e === 'string' ? e : (e.label && e.value ? `${e.label}: ${e.value}` : JSON.stringify(e))).join(" • "))}
       </div>
       ` : ""}
       ${lens.gaps && lens.gaps.length > 0 ? `
       <div style="font-size:9px; color:#e07a5f; margin-top:4px;">
-        <strong>Gaps:</strong> ${lens.gaps.slice(0, 2).join(" • ")}
+        <strong>Gaps:</strong> ${dynamicText(lens.gaps.slice(0, 2).join(" • "))}
       </div>
       ` : ""}
     </div>`;
@@ -548,11 +563,11 @@ function renderFiveLens(fiveLens: any): string {
       <div class="value" style="color: ${fiveLens.overallScore >= 70 ? "#4ecdc4" : fiveLens.overallScore >= 50 ? "#f0c674" : "#e07a5f"};">
         ${fiveLens.overallScore.toFixed(0)}
       </div>
-      <div class="grade">${fiveLens.overallVerdict || scoreGrade(fiveLens.overallScore)}</div>
+      <div class="grade">${dynamicText(fiveLens.overallVerdict || scoreGrade(fiveLens.overallScore))}</div>
     </div>
     <div class="metric-card">
       <div class="label">Weakest Lens</div>
-      <div class="value" style="font-size:14px; color:#e07a5f;">${fiveLens.weakestLens || "—"}</div>
+      <div class="value" style="font-size:14px; color:#e07a5f;">${dynamicText(fiveLens.weakestLens || "—")}</div>
       <div class="grade">Priority improvement area</div>
     </div>
   </div>
@@ -563,42 +578,39 @@ function renderFiveLens(fiveLens: any): string {
 
 // ─── V2: Evidence Trace ─────────────────────────────────────────────────────
 
-function renderEvidenceTrace(projectId: number, watermark: string, benchmarkVersion?: string, logicVersion?: string): string {
+function renderEvidenceTrace(projectId: number, context: ReportRenderContext): string {
   return `
 <div class="section">
-  <h2>Evidence Trace & Provenance</h2>
+  <h2>${reportCopy(context.locale, "evidenceTrace")}</h2>
   <div class="evidence-trace">
-    Document ID: ${watermark}<br>
+    ${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}<br>
     Project ID: ${projectId}<br>
-    Benchmark Version: ${benchmarkVersion || "v1.0-baseline"}<br>
-    Logic Version: ${logicVersion || "v1.0-default"}<br>
-    Model Version: v2.0.0<br>
-    Generated: ${new Date().toISOString()}<br>
-    Scoring Engine: MIYAR Decision Intelligence V2<br>
-    Hash: ${Buffer.from(watermark + projectId).toString("base64").slice(0, 16)}
+    ${reportCopy(context.locale, "benchmarkVersion")}: ${escapeReportText(context.benchmarkVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
+    ${reportCopy(context.locale, "logicVersion")}: ${escapeReportText(context.logicVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
+    ${reportCopy(context.locale, "modelVersion")}: ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
+    ${reportCopy(context.locale, "generatedAt")}: ${escapeReportText(context.generatedAt)}<br>
+    ${reportCopy(context.locale, "artifactVersion")}: ${escapeReportText(context.artifactVersion)}<br>
+    ${reportCopy(context.locale, "rendererVersion")}: ${escapeReportText(context.rendererVersion)}<br>
+    ${reportCopy(context.locale, "renderInputFingerprint")}: ${escapeReportText(context.renderInputFingerprint)}
   </div>
-  <p style="font-size:9px; color:#666; margin-top:8px;">
-    This document contains a cryptographic evidence trace linking the scoring inputs, benchmark data version,
-    logic version (weights + thresholds), and model configuration used at the time of generation. Any modification
-    to the underlying data would produce a different document hash, ensuring auditability and defensibility of the decision record.
-  </p>
+  <p style="font-size:9px; color:#666; margin-top:8px;">${reportCopy(context.locale, "renderInputFingerprintHelp")}</p>
 </div>
 `;
 }
 
 // ─── Legacy ROI Section (backward compat) ───────────────────────────────────
 
-function renderROI(roi: ROIResult): string {
+function renderROI(roi: ROIResult, locale: ReportLocale): string {
   return `
 <div class="section">
-  <h2>ROI & Economic Impact Analysis</h2>
+  <h2>${locale === "ar" ? "تحليل العائد على الاستثمار والأثر الاقتصادي" : "ROI & Economic Impact Analysis"}</h2>
   <div class="roi-highlight">
     <div class="roi-label">Total Value Created</div>
     <div class="roi-value">AED ${roi.totalValue.toLocaleString()}</div>
     <div style="font-size:10px; color:#666; margin-top:4px;">ROI Multiple: ${roi.roiMultiple.toFixed(1)}x</div>
   </div>
   <table>
-    <tr><th>Value Component</th><th>Amount (AED)</th></tr>
+    <tr><th>${locale === "ar" ? "مكوّن القيمة" : "Value Component"}</th><th>${reportCopy(locale, "amountAed")}</th></tr>
     <tr><td>Rework Avoided</td><td style="text-align:right;">${roi.reworkAvoided.toLocaleString()}</td></tr>
     <tr><td>Procurement Savings</td><td style="text-align:right;">${roi.procurementSavings.toLocaleString()}</td></tr>
     <tr><td>Time-Value Gain</td><td style="text-align:right;">${roi.timeValueGain.toLocaleString()}</td></tr>
@@ -616,30 +628,30 @@ function renderROI(roi: ROIResult): string {
 // ─── Board Annex ────────────────────────────────────────────────────────────
 
 function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  return escapeReportText(value);
 }
 
-function renderBoardResolutionMessage(board: BoardAnnexBoard): string {
+function renderBoardResolutionMessage(board: BoardAnnexBoard, locale: ReportLocale): string {
+  const copy = (key: "boardEmptyResolution" | "boardUnresolvableResolution" | "boardPartialResolution" | "boardCompleteSingleResolution" | "boardCompleteMultipleResolution") => reportCopy(locale, key);
   if (board.state === "empty") {
-    return "Empty board — no materials are attached. Cost and lead-time summary is unavailable.";
+    return copy("boardEmptyResolution");
   }
   if (board.state === "unresolvable") {
-    return `Unresolvable board — none of the ${board.linkedItemCount} linked items could be resolved. Cost and lead-time summary is unavailable; repair the board links before relying on it.`;
+    return copy("boardUnresolvableResolution").replace("{linked}", String(board.linkedItemCount));
   }
   if (board.state === "partial") {
-    return `Partial board — ${board.resolvedItemCount} of ${board.linkedItemCount} linked items resolved. ${board.unresolvedItemCount} unresolved ${board.unresolvedItemCount === 1 ? "item is" : "items are"} excluded from the figures below.`;
+    return copy("boardPartialResolution")
+      .replace("{resolved}", String(board.resolvedItemCount))
+      .replace("{linked}", String(board.linkedItemCount))
+      .replace("{unresolved}", String(board.unresolvedItemCount))
+      .replace("{itemStatus}", reportCopy(locale, board.unresolvedItemCount === 1 ? "boardItemIs" : "boardItemsAre"));
   }
   return board.linkedItemCount === 1
-    ? "Complete board — the linked item is resolved."
-    : `Complete board — all ${board.linkedItemCount} linked items are resolved.`;
+    ? copy("boardCompleteSingleResolution")
+    : copy("boardCompleteMultipleResolution").replace("{linked}", String(board.linkedItemCount));
 }
 
-function renderBoardCard(board: BoardAnnexBoard): string {
+function renderBoardCard(board: BoardAnnexBoard, locale: ReportLocale): string {
   const stateColor = board.state === "complete"
     ? "#166534"
     : board.state === "partial"
@@ -650,57 +662,57 @@ function renderBoardCard(board: BoardAnnexBoard): string {
   const summaryHtml = summary
     ? (() => {
         const tierRows = Object.entries(summary.tierDistribution).map(([tier, count]) =>
-          `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${escapeHtml(tier.replaceAll("_", " "))}:</strong> ${count}</span>`
+          `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${dynamicText(tier.replaceAll("_", " "))}:</strong> ${count}</span>`
         ).join("");
-        const criticalItems = summary.criticalPathItems.map(escapeHtml).join(", ");
+        const criticalItems = summary.criticalPathItems;
 
         return `
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
         <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved-item Cost Range</div>
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedItemCostRange")}</div>
           <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.estimatedCostLow.toLocaleString()} – ${summary.estimatedCostHigh.toLocaleString()} ${escapeHtml(summary.currency)}</div>
         </div>
         <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved-item Longest Lead</div>
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedItemLongestLead")}</div>
           <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.longestLeadTimeDays}d</div>
         </div>
         <div style="text-align:center;">
-          <div style="font-size:8px; color:#666; text-transform:uppercase;">Resolved Critical Items</div>
+          <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedCriticalItems")}</div>
           <div style="font-size:12px; font-weight:700; color:${summary.criticalPathItems.length > 0 ? "#dc2626" : "#16a34a"};">${summary.criticalPathItems.length}</div>
         </div>
       </div>
       <div style="font-size:9px; color:#444;">${tierRows}</div>
-      ${criticalItems ? `<div style="margin-top:6px;"><span style="font-size:9px; color:#dc2626; font-weight:600;">Critical:</span> <span style="font-size:9px; color:#666;">${criticalItems}</span></div>` : ""}`;
+      ${criticalItems.length > 0 ? `<div style="margin-top:6px;"><span style="font-size:9px; color:#dc2626; font-weight:600;">${locale === "ar" ? "حرج:" : "Critical:"}</span> <span style="font-size:9px; color:#666;">${criticalItems.map(dynamicText).join(", ")}</span></div>` : ""}`;
       })()
     : "";
 
   return `
     <div style="border:1px solid #e0e0e0; border-radius:6px; padding:12px; margin:8px 0; page-break-inside:avoid;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span style="font-size:12px; font-weight:700; color:#0f3460;">${escapeHtml(board.boardName)}</span>
-        <span style="font-size:10px; color:#666;">${board.resolvedItemCount} of ${board.linkedItemCount} items resolved</span>
+        <span style="font-size:12px; font-weight:700; color:#0f3460;">${dynamicText(board.boardName)}</span>
+        <span style="font-size:10px; color:#666;">${reportCopy(locale, "boardResolvedCount").replace("{resolved}", String(board.resolvedItemCount)).replace("{linked}", String(board.linkedItemCount))}</span>
       </div>
-      <div style="font-size:9px; color:${stateColor}; margin-bottom:${summary ? "8px" : "0"};">${renderBoardResolutionMessage(board)}</div>
+      <div style="font-size:9px; color:${stateColor}; margin-bottom:${summary ? "8px" : "0"};">${renderBoardResolutionMessage(board, locale)}</div>
       ${summaryHtml}
     </div>`;
 }
 
-function renderBoardAnnex(boardAnnex: BoardAnnexData): string {
+function renderBoardAnnex(boardAnnex: BoardAnnexData, locale: ReportLocale): string {
   if (boardAnnex.state === "no_boards") {
     return `
 <div class="section">
-  <h2>Material Board Annex</h2>
-  <p style="font-size:10px; color:#666;">No material boards have been created for this project. Use the Board Composer to build material boards with cost estimates and RFQ-ready procurement schedules.</p>
+  <h2>${reportCopy(locale, "materialBoardAnnex")}</h2>
+  <p style="font-size:10px; color:#666;">${reportCopy(locale, "noMaterialBoards")}</p>
 </div>
 `;
   }
 
-  const boardCards = boardAnnex.boards.map(renderBoardCard).join("");
+  const boardCards = boardAnnex.boards.map(board => renderBoardCard(board, locale)).join("");
 
   return `
 <div class="section">
-  <h2>Material Board Annex</h2>
-  <p style="font-size:10px; color:#666; margin-bottom:8px;">Board availability and resolution are shown explicitly. Any figures shown are calculated only from resolved catalog items. Full RFQ-ready procurement schedules are available via the Board Composer export.</p>
+  <h2>${reportCopy(locale, "materialBoardAnnex")}</h2>
+  <p style="font-size:10px; color:#666; margin-bottom:8px;">${reportCopy(locale, "materialBoardAnnexDescription")}</p>
   ${boardCards}
 </div>
 `;
@@ -721,6 +733,9 @@ export interface PDFReportInput {
   designBrief?: any;
   benchmarkVersion?: string;
   logicVersion?: string;
+  modelVersion?: string;
+  locale?: ReportLocale;
+  renderContext?: ReportRenderContext;
   evidenceRefs?: ReportEvidenceReference[];
   boardAnnex?: BoardAnnexData;
   autonomousContent?: string;
@@ -728,65 +743,176 @@ export interface PDFReportInput {
 
 export type IssuedPDFReportInput = PDFReportInput & { boardAnnex: BoardAnnexData };
 
-function parseMarkdownToHTML(markdown: string): string {
-  let html = markdown || "";
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+export interface ReportRenderContextOverrides {
+  documentId?: string;
+  generatedAt?: Date | string;
+  locale?: ReportLocale;
+  artifactVersion?: string;
+  rendererVersion?: string;
+  modelVersion?: string | null;
+  benchmarkVersion?: string | null;
+  logicVersion?: string | null;
+}
 
-  const lines = html.split('\\n');
-  const parsedLines: string[] = [];
-  let inList = false;
+function scoreFingerprint(score: ScoreResult, includeContributions: boolean) {
+  return {
+    dimensions: score.dimensions,
+    dimensionWeights: score.dimensionWeights,
+    compositeScore: score.compositeScore,
+    riskScore: score.riskScore,
+    rasScore: score.rasScore,
+    confidenceScore: score.confidenceScore,
+    decisionStatus: score.decisionStatus,
+    penalties: score.penalties,
+    riskFlags: score.riskFlags,
+    conditionalActions: score.conditionalActions,
+    ...(includeContributions ? { variableContributions: score.variableContributions } : {}),
+  };
+}
 
-  for (let line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('### ')) {
-      if (inList) { parsedLines.push('</ul>'); inList = false; }
-      parsedLines.push(`<h3>${trimmed.slice(4)}</h3>`);
-    } else if (trimmed.startsWith('## ')) {
-      if (inList) { parsedLines.push('</ul>'); inList = false; }
-      parsedLines.push(`<h2>${trimmed.slice(3)}</h2>`);
-    } else if (trimmed.startsWith('# ')) {
-      if (inList) { parsedLines.push('</ul>'); inList = false; }
-      parsedLines.push(`<h2>${trimmed.slice(2)}</h2>`);
-    } else if (trimmed.match(/^[\\-\\*]\\s+/)) {
-      if (!inList) { parsedLines.push('<ul style="margin-left: 20px; margin-bottom: 8px;">'); inList = true; }
-      parsedLines.push(`<li style="margin-bottom: 4px;">${trimmed.replace(/^[\\-\\*]\\s+/, '')}</li>`);
-    } else if (trimmed !== '') {
-      if (inList) { parsedLines.push('</ul>'); inList = false; }
-      parsedLines.push(`<p>${trimmed}</p>`);
-    }
+function renderedEvidenceReferences(refs: ReportEvidenceReference[] | undefined) {
+  return refs?.map(ref => ({
+    title: ref.title,
+    sourceUrl: ref.sourceUrl,
+    category: ref.category,
+    reliabilityGrade: ref.reliabilityGrade,
+    captureDate: ref.captureDate,
+    confidenceStatus: ref.confidenceStatus,
+    confidencePolicyVersion: ref.confidencePolicyVersion,
+  }));
+}
+
+function pdfFingerprintRenderedValues(
+  reportType: string,
+  data: PDFReportInput | ScenarioComparisonPDFInput | PortfolioPDFInput,
+) {
+  if (reportType === "scenario_comparison") {
+    const scenario = data as ScenarioComparisonPDFInput;
+    return {
+      project: { id: scenario.projectId, name: scenario.projectName },
+      baselineScenario: scenario.baselineScenario,
+      comparedScenarios: scenario.comparedScenarios,
+      decisionNote: scenario.decisionNote,
+    };
   }
-  if (inList) parsedLines.push('</ul>');
+  if (reportType === "portfolio") {
+    const portfolio = data as PortfolioPDFInput;
+    return {
+      portfolio: {
+        id: portfolio.portfolioId,
+        name: portfolio.portfolioName,
+        description: portfolio.description,
+        totalProjects: portfolio.totalProjects,
+        scoredCount: portfolio.scoredCount,
+        avgComposite: portfolio.avgComposite,
+        avgRisk: portfolio.avgRisk,
+        projects: portfolio.projects,
+        distributions: portfolio.distributions,
+        failurePatterns: portfolio.failurePatterns,
+        improvementLevers: portfolio.improvementLevers,
+        complianceHeatmap: portfolio.complianceHeatmap,
+      },
+    };
+  }
 
-  return `<div class="section markdown-body">${parsedLines.join("")}</div>`;
+  const report = data as PDFReportInput;
+  const common = {
+    project: { id: report.projectId, name: report.projectName },
+  };
+  if (reportType === "autonomous_design_brief") {
+    return { ...common, autonomousContent: report.autonomousContent, evidenceReferences: renderedEvidenceReferences(report.evidenceRefs) };
+  }
+  if (reportType === "design_brief") {
+    return { ...common, designBrief: report.designBrief, boardAnnex: report.boardAnnex, evidenceReferences: renderedEvidenceReferences(report.evidenceRefs) };
+  }
+  if (reportType === "full_report") {
+    return {
+      ...common,
+      inputs: report.inputs,
+      score: scoreFingerprint(report.scoreResult, true),
+      sensitivity: report.sensitivity,
+      fiveLens: report.fiveLens,
+      roiNarrative: report.roiNarrative,
+      roi: report.roiNarrative ? undefined : report.roi,
+      boardAnnex: report.boardAnnex,
+      evidenceReferences: renderedEvidenceReferences(report.evidenceRefs),
+    };
+  }
+  return {
+    ...common,
+    inputs: report.inputs,
+    score: scoreFingerprint(report.scoreResult, false),
+    sensitivity: report.sensitivity,
+    fiveLens: report.fiveLens,
+    evidenceReferences: renderedEvidenceReferences(report.evidenceRefs),
+  };
+}
+
+/** Builds the generic HTML report context from the values that the selected surface renders. */
+export function createPdfReportRenderContext(
+  reportType: string,
+  data: PDFReportInput | ScenarioComparisonPDFInput | PortfolioPDFInput,
+  overrides: ReportRenderContextOverrides = {},
+): ReportRenderContext {
+  const locale = overrides.locale ?? data.locale ?? "en";
+  const labels = {
+    artifactVersion: overrides.artifactVersion ?? REPORT_ARTIFACT_VERSION,
+    rendererVersion: overrides.rendererVersion ?? REPORT_RENDERER_VERSION,
+    modelVersion: overrides.modelVersion ?? data.modelVersion ?? null,
+    benchmarkVersion: overrides.benchmarkVersion ?? data.benchmarkVersion ?? null,
+    logicVersion: overrides.logicVersion ?? data.logicVersion ?? null,
+  };
+  const prefix = reportType === "scenario_comparison" ? "SCE"
+    : reportType === "portfolio" ? "PFL"
+      : reportType.toUpperCase().slice(0, 3);
+  const subjectId = "projectId" in data ? data.projectId : data.portfolioId;
+  return createReportRenderContext({
+    documentId: overrides.documentId ?? `MYR-${prefix}-${subjectId}-${randomUUID()}`,
+    generatedAt: overrides.generatedAt,
+    locale,
+    ...labels,
+    fingerprintInput: createRenderFingerprintPayload(reportType, locale, labels, pdfFingerprintRenderedValues(reportType, data)),
+  });
+}
+
+function resolveReportContext(
+  reportType: string,
+  data: PDFReportInput | ScenarioComparisonPDFInput | PortfolioPDFInput,
+): ReportRenderContext {
+  if (data.renderContext) return data.renderContext;
+  return createPdfReportRenderContext(reportType, data);
+}
+
+function finalizeReportHtml(html: string, context: ReportRenderContext): string {
+  return localizeGovernedReportCopy(html, context.locale);
 }
 
 export function generateAutonomousBriefHTML(data: PDFReportInput): string {
-  const watermark = generateWatermark(data.projectId, "autonomous_design_brief");
-  const contentHtml = parseMarkdownToHTML(data.autonomousContent || "No content generated.");
-  return [
-    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, watermark),
+  const context = resolveReportContext("autonomous_design_brief", data);
+  const contentHtml = `<div class="section markdown-body">${renderReportMarkdown(data.autonomousContent || reportCopy(context.locale, "noContentGenerated"))}</div>`;
+  return finalizeReportHtml([
+    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, context),
     contentHtml,
-    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
-    htmlFooter(data.projectId, "autonomous_design_brief", watermark, data.benchmarkVersion, data.logicVersion),
-  ].join("");
+    renderEvidenceTrace(data.projectId, context),
+    htmlFooter(context),
+  ].join(""), context);
 }
 
 export function generateValidationSummaryHTML(data: PDFReportInput): string {
-  const watermark = generateWatermark(data.projectId, "validation_summary");
-  return [
-    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, watermark),
+  const context = resolveReportContext("validation_summary", data);
+  return finalizeReportHtml([
+    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, context),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderRiskAssessment(data.scoreResult),
-    renderSensitivity(data.sensitivity),
-    renderConditionalActions(data.scoreResult),
+    renderSensitivity(data.sensitivity, context.locale),
+    renderConditionalActions(data.scoreResult, context.locale),
     data.fiveLens ? renderFiveLens(data.fiveLens) : "",
-    renderEvidenceReferences(data.evidenceRefs),
-    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
+    renderEvidenceReferences(data.evidenceRefs, context.locale),
+    renderEvidenceTrace(data.projectId, context),
     renderInputSummary(data.inputs),
-    htmlFooter(data.projectId, "validation_summary", watermark, data.benchmarkVersion, data.logicVersion),
-  ].join("\n");
+    htmlFooter(context),
+  ].join("\n"), context);
 }
 
 function renderDesignBrief(brief: any): string {
@@ -800,23 +926,24 @@ function renderDesignBrief(brief: any): string {
 
   // Color palette chips
   const colorChips = (narrative.colorPalette || []).map((c: string) =>
-    `<span class="color-chip">${c}</span>`
+    `<span class="color-chip">${dynamicText(c)}</span>`
   ).join("");
 
   // BOQ rows with visual percentage bars
   const boqRows = (boq.coreAllocations || []).map((b: any) => {
-    const pct = b.percentage || 0;
+    const rawPct = Number(b.percentage);
+    const pct = Number.isFinite(rawPct) ? Math.max(0, Math.min(100, rawPct)) : 0;
     return `
     <tr>
-      <td>${b.category || "—"}</td>
+      <td>${dynamicText(b.category || "—")}</td>
       <td>
         <div class="boq-bar-wrap">
           <div class="boq-bar" style="width:${pct}%;"></div>
           <span>${pct}%</span>
         </div>
       </td>
-      <td style="text-align:right;">${b.estimatedCostLabel || "—"}</td>
-      <td><span style="font-size: 10px; color: #666;">${b.notes || "—"}</span></td>
+      <td style="text-align:right;">${dynamicText(b.estimatedCostLabel || "—")}</td>
+      <td><span style="font-size: 10px; color: #666;">${dynamicText(b.notes || "—")}</span></td>
     </tr>
   `;
   }).join("");
@@ -838,14 +965,14 @@ ${toc}
 
 <div class="section">
   <h2 id="sec-narrative">Design Narrative &amp; Positioning</h2>
-  <p>${narrative.positioningStatement || "—"}</p>
+  <p>${dynamicText(narrative.positioningStatement || "—")}</p>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
-    <tr><td style="font-weight:bold;">Primary Style</td><td>${narrative.primaryStyle || "—"}</td></tr>
-    <tr><td style="font-weight:bold;">Mood Keywords</td><td>${(narrative.moodKeywords || []).join(", ") || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Primary Style</td><td>${dynamicText(narrative.primaryStyle || "—")}</td></tr>
+    <tr><td style="font-weight:bold;">Mood Keywords</td><td>${dynamicText((narrative.moodKeywords || []).join(", ") || "—")}</td></tr>
     <tr><td style="font-weight:bold;">Color Palette</td><td><div class="color-chips">${colorChips || "—"}</div></td></tr>
-    <tr><td style="font-weight:bold;">Texture Direction</td><td>${narrative.textureDirection || "—"}</td></tr>
-    <tr><td style="font-weight:bold;">Lighting Approach</td><td>${narrative.lightingApproach || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Texture Direction</td><td>${dynamicText(narrative.textureDirection || "—")}</td></tr>
+    <tr><td style="font-weight:bold;">Lighting Approach</td><td>${dynamicText(narrative.lightingApproach || "—")}</td></tr>
   </table>
 </div>
 
@@ -853,19 +980,19 @@ ${toc}
   <h2 id="sec-materials">Material Specifications</h2>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
-    <tr><td style="font-weight:bold;">Tier Requirement</td><td>${materials.tierRequirement || "—"}</td></tr>
-    <tr><td style="font-weight:bold;">Quality Benchmark</td><td>${materials.qualityBenchmark || "—"}</td></tr>
-    <tr><td style="font-weight:bold;">Sustainability</td><td>${materials.sustainabilityMandate || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Tier Requirement</td><td>${dynamicText(materials.tierRequirement || "—")}</td></tr>
+    <tr><td style="font-weight:bold;">Quality Benchmark</td><td>${dynamicText(materials.qualityBenchmark || "—")}</td></tr>
+    <tr><td style="font-weight:bold;">Sustainability</td><td>${dynamicText(materials.sustainabilityMandate || "—")}</td></tr>
   </table>
   
   <h3>Approved Materials (Primary)</h3>
-  <ul class="brief-list">${(materials.approvedMaterials || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.approvedMaterials || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
   
   <h3>Approved Finishes &amp; Textures</h3>
-  <ul class="brief-list">${(materials.finishesAndTextures || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.finishesAndTextures || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
   
   <h3 style="color: #c62828;">Prohibited Materials (Value Engineering Flags)</h3>
-  <ul class="brief-list">${(materials.prohibitedMaterials || []).map((m: string) => `<li><span style="color: #c62828;">${m}</span></li>`).join("")}</ul>
+  <ul class="brief-list">${(materials.prohibitedMaterials || []).map((m: string) => `<li><span style="color: #c62828;">${dynamicText(m)}</span></li>`).join("")}</ul>
 </div>
 
 <div class="section">
@@ -886,69 +1013,69 @@ ${toc}
   <h2 id="sec-budget">Detailed Budget Guardrails</h2>
   <table>
     <tr><th width="30%">Parameter</th><th>Value</th></tr>
-    <tr><td style="font-weight:bold;">Cost Per Sqm Target</td><td>${budget.costPerSqmTarget || "—"}</td></tr>
-    <tr><td style="font-weight:bold;">Total Budget Cap</td><td>${budget.totalBudgetCap || "—"}</td></tr>
-    <tr><td style="font-weight:bold;">Cost Band</td><td>${budget.costBand || "—"}</td></tr>
-    <tr><td style="font-weight:bold;">Contingency</td><td>${budget.contingencyRecommendation || "—"}</td></tr>
-    <tr><td style="font-weight:bold;">Flexibility Level</td><td>${budget.flexibilityLevel || "—"}</td></tr>
+    <tr><td style="font-weight:bold;">Cost Per Sqm Target</td><td>${dynamicText(budget.costPerSqmTarget || "—")}</td></tr>
+    <tr><td style="font-weight:bold;">Total Budget Cap</td><td>${dynamicText(budget.totalBudgetCap || "—")}</td></tr>
+    <tr><td style="font-weight:bold;">Cost Band</td><td>${dynamicText(budget.costBand || "—")}</td></tr>
+    <tr><td style="font-weight:bold;">Contingency</td><td>${dynamicText(budget.contingencyRecommendation || "—")}</td></tr>
+    <tr><td style="font-weight:bold;">Flexibility Level</td><td>${dynamicText(budget.flexibilityLevel || "—")}</td></tr>
   </table>
   
   <h3>Value Engineering Directives</h3>
-  <ul class="brief-list">${(budget.valueEngineeringMandates || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(budget.valueEngineeringMandates || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
 
 <div class="section">
   <h2 id="sec-workflow">Workflow &amp; Execution Instructions</h2>
-  <p><strong>Lead Time Window:</strong> ${(instructions.procurementAndLogistics || {}).leadTimeWindow || "—"}</p>
+  <p><strong>Lead Time Window:</strong> ${dynamicText((instructions.procurementAndLogistics || {}).leadTimeWindow || "—")}</p>
   
   <h3>Critical Path Procurement Items</h3>
-  <ul class="brief-list">${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
   
   <h3>Local Authority Approvals (Dubai)</h3>
-  <ul class="brief-list">${(instructions.authorityApprovals || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.authorityApprovals || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
   
   <h3>Contractor Coordination Requirements</h3>
-  <ul class="brief-list">${(instructions.coordinationRequirements || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.coordinationRequirements || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
 
 <div class="section">
   <h2 id="sec-deliverables">Phased Deliverables</h2>
   <h4 class="phase-header">Phase 1 — Concept &amp; Schematic</h4>
-  <ul class="brief-list">${(instructions.phasedDeliverables.conceptDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.phasedDeliverables.conceptDesign || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 
   <h4 class="phase-header">Phase 2 — Detailed Design</h4>
-  <ul class="brief-list">${(instructions.phasedDeliverables.schematicDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.phasedDeliverables.schematicDesign || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 
   <h4 class="phase-header">Phase 3 — IFC &amp; Tender</h4>
-  <ul class="brief-list">${(instructions.phasedDeliverables.detailedDesign || []).map((m: string) => `<li>${m}</li>`).join("")}</ul>
+  <ul class="brief-list">${(instructions.phasedDeliverables.detailedDesign || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
 `;
 }
 
 export function generateDesignBriefHTML(data: IssuedPDFReportInput): string {
-  const watermark = generateWatermark(data.projectId, "design_brief");
-  return [
-    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, watermark),
+  const context = resolveReportContext("design_brief", data);
+  return finalizeReportHtml([
+    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, context),
     `<div class="content-wrapper">`,
     renderDesignBrief(data.designBrief),
-    renderBoardAnnex(data.boardAnnex),
-    renderEvidenceReferences(data.evidenceRefs),
-    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
+    renderBoardAnnex(data.boardAnnex, context.locale),
+    renderEvidenceReferences(data.evidenceRefs, context.locale),
+    renderEvidenceTrace(data.projectId, context),
     `</div>`,
-    htmlFooter(data.projectId, "design_brief", watermark, data.benchmarkVersion, data.logicVersion),
-  ].join("");
+    htmlFooter(context),
+  ].join(""), context);
 }
 
 export function generateFullReportHTML(data: IssuedPDFReportInput): string {
-  const watermark = generateWatermark(data.projectId, "full_report");
+  const context = resolveReportContext("full_report", data);
   const sections = [
-    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, watermark),
+    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, context),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderVariableContributions(data.scoreResult.variableContributions),
-    renderSensitivity(data.sensitivity),
+    renderSensitivity(data.sensitivity, context.locale),
     renderRiskAssessment(data.scoreResult),
-    renderConditionalActions(data.scoreResult),
+    renderConditionalActions(data.scoreResult, context.locale),
   ];
 
   // V2: Add 5-Lens Defensibility
@@ -958,24 +1085,24 @@ export function generateFullReportHTML(data: IssuedPDFReportInput): string {
 
   // V2: Add ROI Narrative Engine
   if (data.roiNarrative) {
-    sections.push(renderROINarrative(data.roiNarrative));
+    sections.push(renderROINarrative(data.roiNarrative, context.locale));
   } else if (data.roi) {
-    sections.push(renderROI(data.roi));
+    sections.push(renderROI(data.roi, context.locale));
   }
 
   // V4: Board Annex
-  sections.push(renderBoardAnnex(data.boardAnnex));
+  sections.push(renderBoardAnnex(data.boardAnnex, context.locale));
 
   // V2: Evidence References
-  sections.push(renderEvidenceReferences(data.evidenceRefs));
+  sections.push(renderEvidenceReferences(data.evidenceRefs, context.locale));
 
   // V2: Evidence Trace
-  sections.push(renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion));
+  sections.push(renderEvidenceTrace(data.projectId, context));
 
   sections.push(renderInputSummary(data.inputs));
-  sections.push(htmlFooter(data.projectId, "full_report", watermark, data.benchmarkVersion, data.logicVersion));
+  sections.push(htmlFooter(context));
 
-  return sections.join("\n");
+  return finalizeReportHtml(sections.join("\n"), context);
 }
 
 // ─── Scenario Comparison Pack PDF ───────────────────────────────────────────
@@ -994,6 +1121,9 @@ export interface ScenarioComparisonPDFInput {
   decisionNote?: string;
   benchmarkVersion?: string;
   logicVersion?: string;
+  modelVersion?: string;
+  locale?: ReportLocale;
+  renderContext?: ReportRenderContext;
 }
 
 function renderScenarioComparisonTable(data: ScenarioComparisonPDFInput): string {
@@ -1003,9 +1133,9 @@ function renderScenarioComparisonTable(data: ScenarioComparisonPDFInput): string
   // Header row: Dimension | Baseline | Scenario A | Scenario B | ...
   const headerCols = [
     `<th>Dimension</th>`,
-    `<th style="text-align:center;">Baseline<br><span style="font-size:8px;font-weight:400;">${data.baselineScenario.name}</span></th>`,
+    `<th style="text-align:center;">Baseline<br><span style="font-size:8px;font-weight:400;">${dynamicText(data.baselineScenario.name)}</span></th>`,
     ...data.comparedScenarios.map((s, i) =>
-      `<th style="text-align:center;">Scenario ${String.fromCharCode(65 + i)}<br><span style="font-size:8px;font-weight:400;">${s.name}</span></th>`
+      `<th style="text-align:center;">Scenario ${String.fromCharCode(65 + i)}<br><span style="font-size:8px;font-weight:400;">${dynamicText(s.name)}</span></th>`
     ),
   ].join("");
 
@@ -1090,21 +1220,21 @@ function renderROIComparison(data: ScenarioComparisonPDFInput): string {
 `;
 }
 
-function renderTradeoffAnalysis(data: ScenarioComparisonPDFInput): string {
+function renderTradeoffAnalysis(data: ScenarioComparisonPDFInput, locale: ReportLocale): string {
   const analyses = data.comparedScenarios.map((s, i) => {
     const deltas = (s.deltas ?? {}) as Record<string, number>;
     const positives = Object.entries(deltas).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
     const negatives = Object.entries(deltas).filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1]);
 
     const posItems = positives.slice(0, 3).map(([k, v]) =>
-      `<div class="action-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: +${v.toFixed(1)} points</div>`
+      `<div class="action-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: +${v.toFixed(1)} ${reportCopy(locale, "scenarioPoints")}</div>`
     ).join("");
     const negItems = negatives.slice(0, 3).map(([k, v]) =>
-      `<div class="penalty-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: ${v.toFixed(1)} points</div>`
+      `<div class="penalty-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: ${v.toFixed(1)} ${reportCopy(locale, "scenarioPoints")}</div>`
     ).join("");
 
     return `
-    <h3>Scenario ${String.fromCharCode(65 + i)}: ${s.name}</h3>
+    <h3>Scenario ${String.fromCharCode(65 + i)}: ${dynamicText(s.name)}</h3>
     ${positives.length > 0 ? `<p><strong>Improvements vs Baseline:</strong></p>${posItems}` : "<p>No improvements over baseline.</p>"}
     ${negatives.length > 0 ? `<p><strong>Trade-offs vs Baseline:</strong></p>${negItems}` : "<p>No trade-offs identified.</p>"}
     `;
@@ -1114,21 +1244,21 @@ function renderTradeoffAnalysis(data: ScenarioComparisonPDFInput): string {
 <div class="section">
   <h2>Trade-off Analysis</h2>
   ${analyses}
-  ${data.decisionNote ? `<h3>Decision Note</h3><p>${data.decisionNote}</p>` : ""}
+  ${data.decisionNote ? `<h3>Decision Note</h3><p>${dynamicText(data.decisionNote)}</p>` : ""}
 </div>
 `;
 }
 
 export function generateScenarioComparisonHTML(data: ScenarioComparisonPDFInput): string {
-  const watermark = generateWatermark(data.projectId, "scenario_comparison");
-  return [
-    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, watermark),
+  const context = resolveReportContext("scenario_comparison", data);
+  return finalizeReportHtml([
+    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, context),
     renderScenarioComparisonTable(data),
     renderROIComparison(data),
-    renderTradeoffAnalysis(data),
-    renderEvidenceTrace(data.projectId, watermark, data.benchmarkVersion, data.logicVersion),
-    htmlFooter(data.projectId, "scenario_comparison", watermark, data.benchmarkVersion, data.logicVersion),
-  ].join("\n");
+    renderTradeoffAnalysis(data, context.locale),
+    renderEvidenceTrace(data.projectId, context),
+    htmlFooter(context),
+  ].join("\n"), context);
 }
 
 function requireBoardAnnex(data: PDFReportInput): IssuedPDFReportInput {
@@ -1191,21 +1321,28 @@ export interface PortfolioPDFInput {
     tier: string;
     dimensions: Record<string, { avg: number; count: number }>;
   }>;
+  benchmarkVersion?: string;
+  logicVersion?: string;
+  modelVersion?: string;
+  locale?: ReportLocale;
+  renderContext?: ReportRenderContext;
 }
 
 export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
-  const watermark = `MYR-PFL-${data.portfolioId}-${Date.now().toString(36)}`;
+  const context = resolveReportContext("portfolio", data);
+  const metadata = reportDocumentMetadata(context.locale);
 
   // ─── Cover ─────────────────────────────────────────────────────────────
   const cover = `
 <!DOCTYPE html>
-<html>
+<html lang="${metadata.lang}" dir="${metadata.dir}">
 <head>
 <meta charset="utf-8">
 <style>
+  ${reportLocaleCss(context.locale)}
   @page { size: A4; margin: 20mm 15mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a2e; line-height: 1.6; font-size: 11px; }
+  body { color: #1a1a2e; line-height: 1.6; font-size: 11px; overflow-wrap: anywhere; }
   .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 80vh; text-align: center; }
   .cover .logo { font-size: 36px; font-weight: 800; color: #0f3460; letter-spacing: 3px; margin-bottom: 32px; }
   .cover h1 { font-size: 28px; color: #0f3460; margin-bottom: 8px; }
@@ -1225,9 +1362,9 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
   .metric-card .label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
   .metric-card .value { font-size: 22px; font-weight: 700; color: #0f3460; margin: 4px 0; }
   .section { page-break-inside: avoid; margin-bottom: 20px; }
-  .risk-flag { background: #fff3cd; border-left: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
-  .action-item { background: #e8f5e9; border-left: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
-  .penalty-item { background: #fce4ec; border-left: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .risk-flag { background: #fff3cd; border-inline-start: 3px solid #f0c674; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .action-item { background: #e8f5e9; border-inline-start: 3px solid #4ecdc4; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
+  .penalty-item { background: #fce4ec; border-inline-start: 3px solid #e07a5f; padding: 6px 10px; margin: 4px 0; font-size: 10px; }
   .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #999; text-align: center; }
   .status-go { color: #2e7d32; font-weight: 700; }
   .status-conditional { color: #f57f17; font-weight: 700; }
@@ -1239,9 +1376,10 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
   <div class="logo">MIYAR</div>
   <h1>Portfolio Analysis Report</h1>
   <h2>Multi-Project Decision Intelligence Summary</h2>
-  <div class="project">${data.portfolioName}</div>
-  <div class="date">${formatDate()}</div>
-  <div class="confidential">Confidential — For Internal Use Only</div>
+  <div class="project">${dynamicText(data.portfolioName)}</div>
+  <div class="date">${formatReportDate(context.generatedAt, context.locale)}</div>
+  <div class="confidential">${reportCopy(context.locale, "confidentialInternalOnly")}</div>
+  <div class="watermark">${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}</div>
 </div>
 `;
 
@@ -1249,22 +1387,22 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
   const summary = `
 <div class="section">
   <h2>Portfolio Executive Summary</h2>
-  ${data.description ? `<p>${data.description}</p>` : ""}
+  ${data.description ? `<p>${dynamicText(data.description)}</p>` : ""}
   <div class="metric-grid">
     <div class="metric-card">
-      <div class="label">Total Projects</div>
+      <div class="label">${reportCopy(context.locale, "portfolioTotalProjects")}</div>
       <div class="value">${data.totalProjects}</div>
     </div>
     <div class="metric-card">
-      <div class="label">Scored</div>
+      <div class="label">${reportCopy(context.locale, "portfolioScored")}</div>
       <div class="value">${data.scoredCount}</div>
     </div>
     <div class="metric-card">
-      <div class="label">Avg Composite</div>
+      <div class="label">${reportCopy(context.locale, "portfolioAverageComposite")}</div>
       <div class="value" style="color: ${data.avgComposite >= 75 ? "#4ecdc4" : data.avgComposite >= 55 ? "#f0c674" : "#e07a5f"};">${data.avgComposite}</div>
     </div>
     <div class="metric-card">
-      <div class="label">Avg Risk</div>
+      <div class="label">${reportCopy(context.locale, "portfolioAverageRisk")}</div>
       <div class="value" style="color: ${data.avgRisk <= 45 ? "#4ecdc4" : data.avgRisk <= 60 ? "#f0c674" : "#e07a5f"};">${data.avgRisk}</div>
     </div>
   </div>
@@ -1277,12 +1415,12 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
       : p.decisionStatus === "CONDITIONAL_GO" ? "status-conditional"
         : p.decisionStatus === "NO_GO" ? "status-nogo" : "";
     return `<tr>
-      <td>${p.name}</td>
-      <td>${p.tier || "—"}</td>
-      <td>${p.style || "—"}</td>
+      <td>${dynamicText(p.name)}</td>
+      <td>${p.tier ? dynamicText(p.tier) : "—"}</td>
+      <td>${p.style ? dynamicText(p.style) : "—"}</td>
       <td style="text-align:center; font-weight:700; color: ${(p.compositeScore || 0) >= 75 ? "#4ecdc4" : (p.compositeScore || 0) >= 55 ? "#f0c674" : "#e07a5f"};">${p.compositeScore ?? "N/A"}</td>
       <td style="text-align:center;">${p.riskScore ?? "N/A"}</td>
-      <td style="text-align:center;" class="${statusClass}">${(p.decisionStatus || "—").replace(/_/g, " ")}</td>
+      <td style="text-align:center;" class="${statusClass}">${p.decisionStatus?.toLowerCase() === "conditional" ? reportCopy(context.locale, "portfolioConditional") : dynamicText((p.decisionStatus || "—").replace(/_/g, " "))}</td>
     </tr>`;
   }).join("");
 
@@ -1302,9 +1440,9 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
     const distTables = data.distributions.map((dist) => {
       const rows = dist.buckets
         .filter((b) => b.count > 0)
-        .map((b) => `<tr><td>${b.label}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`)
+        .map((b) => `<tr><td>${dynamicText(b.label)}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`)
         .join("");
-      return `<h3>${dist.dimension}</h3><table><tr><th>Group</th><th>Count</th><th>Avg Score</th></tr>${rows}</table>`;
+      return `<h3>${dynamicText(dist.dimension)}</h3><table><tr><th>Group</th><th>Count</th><th>Avg Score</th></tr>${rows}</table>`;
     }).join("");
     distSection = `<div class="section"><h2>Score Distributions by Dimension</h2>${distTables}</div>`;
   }
@@ -1314,7 +1452,7 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
   if (data.failurePatterns.length > 0) {
     const fpItems = data.failurePatterns.map((fp) => {
       const css = fp.severity === "high" ? "penalty-item" : fp.severity === "medium" ? "risk-flag" : "action-item";
-      return `<div class="${css}"><strong>${fp.pattern}</strong> (${fp.severity}, ${fp.frequency} project(s))<br>${fp.description}</div>`;
+      return `<div class="${css}"><strong>${dynamicText(fp.pattern)}</strong> (${dynamicText(fp.severity)}, ${fp.frequency} project(s))<br>${dynamicText(fp.description)}</div>`;
     }).join("");
     fpSection = `<div class="section"><h2>Failure Patterns</h2>${fpItems}</div>`;
   }
@@ -1323,7 +1461,7 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
   let leverSection = "";
   if (data.improvementLevers.length > 0) {
     const leverRows = data.improvementLevers.map((l) =>
-      `<tr><td style="text-align:center; font-weight:700;">${l.rank}</td><td>${l.lever}</td><td>${l.description}</td><td style="text-align:center; color: ${l.estimatedImpact === "High" ? "#4ecdc4" : l.estimatedImpact === "Medium" ? "#f0c674" : "#666"}; font-weight:700;">${l.estimatedImpact}</td></tr>`
+      `<tr><td style="text-align:center; font-weight:700;">${l.rank}</td><td>${dynamicText(l.lever)}</td><td>${dynamicText(l.description)}</td><td style="text-align:center; color: ${l.estimatedImpact === "High" ? "#4ecdc4" : l.estimatedImpact === "Medium" ? "#f0c674" : "#666"}; font-weight:700;">${dynamicText(l.estimatedImpact)}</td></tr>`
     ).join("");
     leverSection = `<div class="section"><h2>Improvement Levers</h2><table><tr><th>#</th><th>Lever</th><th>Description</th><th>Impact</th></tr>${leverRows}</table></div>`;
   }
@@ -1342,7 +1480,7 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
         const textColor = cell.avg >= 75 ? "#2e7d32" : cell.avg >= 55 ? "#f57f17" : "#c62828";
         return `<td style="text-align:center; background:${color}; color:${textColor}; font-weight:700;">${cell.avg} <span style="font-size:8px; font-weight:400;">(${cell.count})</span></td>`;
       }).join("");
-      return `<tr><td style="font-weight:700;">${row.tier}</td>${cells}</tr>`;
+      return `<tr><td style="font-weight:700;">${dynamicText(row.tier)}</td>${cells}</tr>`;
     }).join("");
     heatmapSection = `<div class="section"><h2>Compliance Heatmap (Tier × Dimension)</h2><table><tr><th>Tier</th>${headerCols}</tr>${heatRows}</table></div>`;
   }
@@ -1350,12 +1488,23 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
   // ─── Footer ────────────────────────────────────────────────────────────
   const footer = `
 <div class="footer">
-  <p>Generated by MIYAR Decision Intelligence • ${formatDate()} • Document ID: ${watermark}</p>
-  <p>Portfolio ID: ${data.portfolioId} • Model Version: v2.0.0 • ${data.totalProjects} projects analyzed</p>
+  <p>${reportCopy(context.locale, "portfolioGeneratedBy")} • ${formatReportDate(context.generatedAt, context.locale)} • ${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}</p>
+  <p>${reportCopy(context.locale, "portfolioId")}: ${data.portfolioId} • ${reportCopy(context.locale, "modelVersion")}: ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))} • ${data.totalProjects} ${reportCopy(context.locale, "portfolioProjectsAnalyzed")}</p>
+  <p>${reportCopy(context.locale, "renderInputFingerprint")}: ${escapeReportText(context.renderInputFingerprint)}</p>
 </div>
 </body>
 </html>
 `;
 
-  return [cover, summary, projectTable, distSection, heatmapSection, fpSection, leverSection, footer].join("\n");
+  return finalizeReportHtml([
+    cover,
+    summary,
+    projectTable,
+    distSection,
+    heatmapSection,
+    fpSection,
+    leverSection,
+    renderDisclaimer(context.locale),
+    footer,
+  ].join("\n"), context);
 }

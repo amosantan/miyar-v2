@@ -2,6 +2,8 @@
 
 Known does not mean accepted. A failure remains open until its exit criterion is verified. Never use this file to describe a failing full suite as green.
 
+Policy-enforced human interaction gates are not repository failures and remain in `.agent/state/CURRENT_TASK.md#Human Gate`; record their resolution in the append-only worklog rather than inventing a `KF` entry.
+
 ## KF-006 — Project and child-resource authorization gaps
 
 - Status: CLOSED

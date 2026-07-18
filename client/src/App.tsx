@@ -26,6 +26,7 @@ const ScenarioTemplates = lazy(() => import("./pages/ScenarioTemplates"));
 const Reports = lazy(() => import("./pages/Reports"));
 const DesignBrief = lazy(() => import("./pages/DesignBrief"));
 const DesignStudio = lazy(() => import("./pages/DesignStudio"));
+const BoardComposer = lazy(() => import("./pages/BoardComposer"));
 const Collaboration = lazy(() => import("./pages/Collaboration"));
 const Benchmarks = lazy(() => import("./pages/admin/Benchmarks"));
 const BenchmarkVersions = lazy(() => import("./pages/admin/BenchmarkVersions"));
@@ -157,6 +158,12 @@ function Router() {
       <Route path="/projects/:id/design-studio">
         {() => <ProjectPage Component={DesignStudio} />}
       </Route>
+      <Route path="/projects/:id/boards">
+        {() => <ProjectPage Component={BoardComposer} />}
+      </Route>
+      <Route path="/projects/:id/scenario-compare">
+        {() => <ProjectPage Component={ScenarioComparison} />}
+      </Route>
       <Route path="/projects/:id/collaboration">
         {() => <ProjectPage Component={Collaboration} />}
       </Route>
@@ -189,7 +196,7 @@ function Router() {
         {() => <Protected Component={ScenarioTemplates} />}
       </Route>
       <Route path="/scenarios/compare">
-        {() => <Protected Component={ScenarioComparison} />}
+        {() => <Redirect to="/scenarios" />}
       </Route>
       <Route path="/reports">{() => <Protected Component={Reports} />}</Route>
       <Route path="/alerts">{() => <Protected Component={Alerts} />}</Route>

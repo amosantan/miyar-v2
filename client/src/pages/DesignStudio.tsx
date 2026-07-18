@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
+import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
+import { useTranslation } from "@/lib/i18n";
 
 const COST_BANDS = ["Economy", "Mid-Range", "Premium", "Luxury", "Ultra-Luxury", "Custom"];
 const safeAiError = (error: unknown, fallback: string) => withReference(formatAiOperationError(error, fallback));
@@ -94,9 +96,33 @@ function StudioOverviewTab({ projectId, onNavigate }: { projectId: number; onNav
         onError: (err) => toast.error("Generation failed", { description: safeAiError(err, "We could not generate this visual. Please try again.") }),
     });
 
-    const quickGenerate = (type: "mood" | "material_board" | "hero") => {
+    const roomRenderMutation = trpc.design.generateRoomRender.useMutation({
+        onSuccess: (result: any) => {
+            if (result.status === "completed") {
+                toast.success("Room render generated", { description: "Room visualization created" });
+            } else {
+                toast.error("Render failed", { description: safeResultFailure(result.referenceId, "We could not generate this room render. Please try again.") });
+            }
+            visuals.refetch();
+        },
+        onError: (err: unknown) => toast.error("Render failed", { description: safeAiError(err, "We could not generate this room render. Please try again.") }),
+    });
+
+    const quickGenerate = (type: "mood" | "material_board" | "hero" | "room_render") => {
+        if (type === "room_render") {
+            roomRenderMutation.mutate({
+                projectId,
+                roomName: "Representative Room",
+                roomType: "living_room",
+                roomSqm: 30,
+                finishGrade: "A",
+            });
+            return;
+        }
         generateMutation.mutate({ projectId, type });
     };
+
+    const isGenerating = generateMutation.isPending || roomRenderMutation.isPending;
 
     const completedVisuals = visuals.data?.filter((v: any) => v.status === "completed") || [];
     const latestMood = completedVisuals.find((v: any) => v.type === "mood");
@@ -105,22 +131,22 @@ function StudioOverviewTab({ projectId, onNavigate }: { projectId: number; onNav
     return (
         <div className="space-y-6">
             {/* Quick Generate */}
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
                 {[
                     { type: "mood" as const, icon: <Palette className="h-5 w-5" />, label: "Mood Board", desc: "Interior aesthetic direction" },
                     { type: "material_board" as const, icon: <Sparkles className="h-5 w-5" />, label: "Material Board", desc: "Curated finish palette" },
                     { type: "hero" as const, icon: <Camera className="h-5 w-5" />, label: "Hero Image", desc: "Marketing render" },
-                    { type: "hero" as const, icon: <Home className="h-5 w-5" />, label: "Room Render", desc: "Board-aware room visual" },
+                    { type: "room_render" as const, icon: <Home className="h-5 w-5" />, label: "Room Render", desc: "Board-aware room visual" },
                 ].map(({ type, icon, label, desc }) => (
                     <Card key={type} className="design-studio-glass cursor-pointer group hover:border-primary/40 transition-all duration-300"
-                        onClick={() => !generateMutation.isPending && quickGenerate(type)}>
+                        onClick={() => !isGenerating && quickGenerate(type)}>
                         <CardContent className="py-6 text-center">
                             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-3 group-hover:bg-primary/20 transition-colors">
                                 {icon}
                             </div>
                             <h3 className="font-semibold">{label}</h3>
                             <p className="text-xs text-muted-foreground mt-1">{desc}</p>
-                            {generateMutation.isPending ? (
+                            {isGenerating ? (
                                 <Loader2 className="h-4 w-4 animate-spin mx-auto mt-3 text-primary" />
                             ) : (
                                 <div className="text-xs text-primary mt-3 opacity-0 group-hover:opacity-100 transition-opacity">Click to generate →</div>
@@ -561,12 +587,14 @@ function VisualsTab({ projectId }: { projectId: number }) {
 // ─── MATERIALS TAB ───────────────────────────────────────────────────────────
 
 function MaterialsTab({ projectId }: { projectId: number }) {
+    const { locale: appLocale } = useTranslation();
     const [newBoardName, setNewBoardName] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [selectedBoardId, setSelectedBoardId] = useState<number | null>(null);
     const [addMaterialOpen, setAddMaterialOpen] = useState(false);
     const [materialFilter, setMaterialFilter] = useState("");
     const [editingTileId, setEditingTileId] = useState<number | null>(null);
+    const [reportLocale, setReportLocale] = useState(appLocale);
     const [editForm, setEditForm] = useState<{ specNotes: string; costBandOverride: string; quantity: string; unitOfMeasure: string; notes: string }>({
         specNotes: "", costBandOverride: "", quantity: "", unitOfMeasure: "", notes: "",
     });
@@ -665,11 +693,14 @@ function MaterialsTab({ projectId }: { projectId: number }) {
                     <h3 className="text-lg font-semibold">Material Boards</h3>
                     <p className="text-sm text-muted-foreground">Create boards with cost estimates, spec notes, and RFQ-ready lists</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-end gap-2">
                     {selectedBoardId && (
-                        <Button variant="outline" onClick={() => exportPdfMutation.mutate({ boardId: selectedBoardId })} disabled={exportPdfMutation.isPending}>
-                            <Download className="mr-2 h-4 w-4" />{exportPdfMutation.isPending ? "Exporting..." : "Export PDF"}
-                        </Button>
+                        <>
+                            <ReportLocaleSelect value={reportLocale} onValueChange={setReportLocale} />
+                            <Button variant="outline" onClick={() => exportPdfMutation.mutate({ boardId: selectedBoardId, locale: reportLocale })} disabled={exportPdfMutation.isPending}>
+                                <Download className="mr-2 h-4 w-4" />{exportPdfMutation.isPending ? "Exporting..." : "Export PDF"}
+                            </Button>
+                        </>
                     )}
                     <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                         <DialogTrigger asChild>

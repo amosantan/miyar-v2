@@ -3,7 +3,7 @@
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
 - Procedures inventoried: **336**
-- Generated: 2026-07-17T21:17:58.007Z
+- Generated: 2026-07-18T08:31:21.188Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
@@ -103,7 +103,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 
 | Key                       | Operation | Evidence                                                                                                                                              | Notes                                                                                                                                                                  | Source                          |
 | ------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1779` |
+| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1804` |
 
 ## Complete Procedure Checklist
 

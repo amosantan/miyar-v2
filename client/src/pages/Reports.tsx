@@ -28,6 +28,8 @@ import {
 import { useState, useMemo, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import ReportRenderer from "@/components/ReportRenderer";
+import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
+import { useTranslation } from "@/lib/i18n";
 
 const REPORT_TYPES = [
   {
@@ -67,6 +69,7 @@ const REPORT_TYPES = [
 type GenerateReportType = (typeof REPORT_TYPES)[number]["value"];
 
 function ReportsContent() {
+  const { locale: appLocale } = useTranslation();
   const { data: projects } = trpc.project.list.useQuery();
   const evaluatedProjects = useMemo(
     () => projects?.filter((p) => p.status === "evaluated") ?? [],
@@ -83,6 +86,7 @@ function ReportsContent() {
   const utils = trpc.useUtils();
 
   const [reportType, setReportType] = useState<GenerateReportType>("validation_summary");
+  const [reportLocale, setReportLocale] = useState(appLocale);
   const [previewId, setPreviewId] = useState<number | null>(null);
 
   async function handleGenerate() {
@@ -91,6 +95,7 @@ function ReportsContent() {
       const result = await generateReport.mutateAsync({
         projectId,
         reportType,
+        locale: reportLocale,
       });
       utils.project.listReports.invalidate({ projectId });
       if (result.fileUrl) {
@@ -120,6 +125,15 @@ function ReportsContent() {
     if (!el) return;
     const printWindow = window.open("", "_blank");
     if (!printWindow) { toast.error("Please allow popups for PDF download"); return; }
+    const storedFrame = el.querySelector<HTMLIFrameElement>("iframe");
+    const storedDocument = storedFrame?.contentDocument?.documentElement.outerHTML;
+    if (storedDocument) {
+      printWindow.document.open();
+      printWindow.document.write(storedDocument);
+      printWindow.document.close();
+      setTimeout(() => { printWindow.print(); }, 500);
+      return;
+    }
     printWindow.document.write(`
       <!DOCTYPE html>
       <html><head>
@@ -250,20 +264,23 @@ function ReportsContent() {
                   </button>
                 ))}
               </div>
-              <Button
-                onClick={handleGenerate}
-                disabled={generateReport.isPending}
-                className="gap-2"
-              >
-                {generateReport.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <PlusCircle className="h-4 w-4" />
-                )}
-                {generateReport.isPending
-                  ? "Generating & Uploading..."
-                  : "Generate Report"}
-              </Button>
+              <div className="flex flex-wrap items-end gap-3">
+                <ReportLocaleSelect value={reportLocale} onValueChange={setReportLocale} />
+                <Button
+                  onClick={handleGenerate}
+                  disabled={generateReport.isPending}
+                  className="gap-2"
+                >
+                  {generateReport.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <PlusCircle className="h-4 w-4" />
+                  )}
+                  {generateReport.isPending
+                    ? "Generating & Uploading..."
+                    : "Generate Report"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
