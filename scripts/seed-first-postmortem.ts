@@ -7,13 +7,14 @@
  * Run: npx tsx scripts/seed-first-postmortem.ts
  */
 
-import "dotenv/config";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import { eq, desc } from "drizzle-orm";
 import { projects, scoreMatrices, projectOutcomes } from "../drizzle/schema";
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
 
 async function main() {
+    initializeDatabaseSafety("seed", { loadDotenv: true });
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
         console.error("DATABASE_URL not set");

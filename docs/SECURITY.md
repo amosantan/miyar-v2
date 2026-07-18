@@ -68,6 +68,12 @@ The inventory is coverage and remediation evidence, not a security certification
 - Use `.env` only for local development; production secrets belong in the deployment platform's secret manager.
 - Never commit `.env`, credentials, presigned URLs, database exports, provider tokens, or authentication files.
 - `.env.example` contains placeholders only.
+- Select `MIYAR_RUNTIME_PROFILE` as a process/deployment value when the safe `local` default is not intended. Profile and approval controls are captured before dotenv and values placed in `.env` are ignored; profile selection is a security boundary, not a hostname heuristic.
+- Local and test profiles must reject a protected/shared remote database before opening a connection. Ordinary tests are database-free; guarded integration may use only a separately named disposable `TEST_DATABASE_URL`.
+- `MIYAR_DATABASE_APPROVAL` is a one-command binding after named human authorization for the exact remote target and operation. Its canonical value is `sorted-operation-list@host:port/database`; never persist it in `.env`, `.env.example`, shell startup files, CI defaults, or source control. Only a governed child database command for the same approved operation and target may inherit it.
+- `MIYAR_DEPLOYMENT_DATABASE_TARGET=host:port/database` is an optional managed-preview binding that requires infrastructure approval. Never persist it in local example files or use it to bypass a profile guard.
+- Remote acknowledgement does not authorize a migration, seed/reset, backfill, worker run, deployment, or shared/production write; those actions retain their own human gates.
+- Trusted production automatically permits only application serving and scheduled ingestion. Manual production migrations, resets, seeds, backfills, and preview ingestion still require an exact target/operation binding plus the applicable human gate.
 - Rotate a secret if exposure is suspected; do not merely delete it from the latest commit.
 - Restrict credentials by environment, service, and least privilege.
 - Do not expose server-only environment variables through Vite/client configuration.
@@ -147,8 +153,9 @@ The inventory is coverage and remediation evidence, not a security certification
 
 - Required checks must fail closed; do not use `|| true` for mandatory security or correctness gates.
 - The Node runtime starts background ingestion, learning, and alert jobs in production. Development disables them by default; `ENABLE_BACKGROUND_JOBS=true` is an explicit opt-in and must not be used against a shared database without authorization.
+- Local, test, and preview workers are disabled by default. Any non-production worker opt-in is limited to an approved isolated workflow and must not inherit a remote-database acknowledgement.
 - `/api/cron/ingestion` fails closed unless `CRON_SECRET` is configured and supplied as an exact bearer token.
-- A local server still uses the configured `DATABASE_URL` for ordinary API requests; verify the target before authenticated or data-mutating workflow tests.
+- A local server still uses the configured `DATABASE_URL` for ordinary API requests; verify the explicit profile and target before authenticated or data-mutating workflow tests.
 - Separate untrusted build/test execution from jobs holding deployment or API credentials.
 - Use least-privilege repository and cloud permissions.
 - Protect production branches and environments with review/approval.

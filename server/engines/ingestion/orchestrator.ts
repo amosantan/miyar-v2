@@ -33,6 +33,7 @@ import { detectPriceChange } from "./change-detector";
 import { detectTrends, type DataPoint } from "../analytics/trend-detection";
 import { evidenceRecords, ingestionRuns, sourceRegistry } from "../../../drizzle/schema";
 import { eq, sql } from "drizzle-orm";
+import { assertDatabaseAccess } from "../../_core/database-safety";
 import {
   evaluateConnectorConfidence,
   ConfidencePolicyError,
@@ -247,6 +248,7 @@ export async function runIngestion(
   triggeredBy: "manual" | "scheduled" | "api" = "manual",
   actorId?: number
 ): Promise<IngestionRunReport> {
+  assertDatabaseAccess("ingest");
   const runId = `ING-${randomUUID().substring(0, 8)}`;
   const startedAt = new Date();
 

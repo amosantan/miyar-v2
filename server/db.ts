@@ -90,11 +90,13 @@ import {
   portfolioAlerts,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { assertDatabaseAccess, DatabaseSafetyError } from "./_core/database-safety";
 
 let _db: MySql2Database | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
+    assertDatabaseAccess();
     try {
       const url = new URL(process.env.DATABASE_URL);
       console.log("[Database] Connecting to:", url.hostname, "database:", url.pathname.slice(1));
@@ -113,6 +115,7 @@ export async function getDb() {
       _db = drizzle(pool);
       console.log("[Database] Connected successfully");
     } catch (error) {
+      if (error instanceof DatabaseSafetyError) throw error;
       console.error("[Database] Failed to connect:", error);
       _db = null;
     }

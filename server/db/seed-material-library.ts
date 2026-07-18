@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
-import "dotenv/config";
+import { initializeDatabaseSafety } from "../_core/database-safety";
 import { materialLibrary } from "../../drizzle/schema.js"; // Need .js for ESM if running straight, or can use tsx. Let's assume we run via tsx, so we'll rename to .ts just in case, but user said .mjs. Let's stick to .ts and run with npx tsx. Actually, I will name it seed-material-library.ts so it matches the other TS files. Actually user explicitly requested "seed-material-library.mjs". Let's provide a ts version and mjs version to be safe, or just .ts since the project uses `tsx`. I will use .ts to avoid module issues.
 
 const materials = [
@@ -49,6 +49,7 @@ const materials = [
 ];
 
 async function seed() {
+    initializeDatabaseSafety("seed", { loadDotenv: true });
     if (!process.env.DATABASE_URL) {
         throw new Error("DATABASE_URL is missing");
     }

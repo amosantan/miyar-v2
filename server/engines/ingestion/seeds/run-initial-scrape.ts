@@ -2,14 +2,15 @@
  * Quick scrape runner — triggers scrapes on seeded sources to populate evidence data.
  * Usage: npx tsx server/engines/ingestion/seeds/run-initial-scrape.ts
  */
-import "dotenv/config";
 import { getDb } from "../../../db";
 import { sourceRegistry } from "../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { DynamicConnector } from "../connectors/dynamic";
 import { runSingleConnector } from "../orchestrator";
+import { initializeDatabaseSafety } from "../../../_core/database-safety";
 
 async function runInitialScrape() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     const db = await getDb();
     if (!db) throw new Error("DB not available");
 

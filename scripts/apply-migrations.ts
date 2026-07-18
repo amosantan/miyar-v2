@@ -5,14 +5,16 @@
  * Usage:  npx tsx scripts/apply-migrations.ts [file1.sql file2.sql ...]
  *         If no files specified, applies all .sql files in drizzle/ directory.
  *
- * Requires DATABASE_URL env var (auto-loaded from .env via dotenv).
+ * Requires DATABASE_URL env var (loaded through the central database safety policy).
  */
 
-import "dotenv/config";
 import { readFileSync, readdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import mysql from "mysql2/promise";
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
+
+initializeDatabaseSafety("migrate", { loadDotenv: true });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +30,7 @@ const cleanUrl = DATABASE_URL.replace(/[?&]ssl=[^&]*/g, "");
 const MIGRATIONS_DIR = resolve(__dirname, "../drizzle");
 
 async function main() {
+    initializeDatabaseSafety("migrate", { loadDotenv: true });
     const specificFiles = process.argv.slice(2);
 
     let files: string[];

@@ -10,7 +10,9 @@ import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import { trendSnapshots } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
-import "dotenv/config";
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
+
+initializeDatabaseSafety("ingest", { loadDotenv: true });
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -19,6 +21,7 @@ if (!DATABASE_URL) {
 }
 
 async function main() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     const url = new URL(DATABASE_URL!);
     const pool = mysql.createPool({
         host: url.hostname,

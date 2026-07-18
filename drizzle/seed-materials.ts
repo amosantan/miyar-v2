@@ -7,9 +7,11 @@
 
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
 import { materialSupplierSources } from "./schema";
 
 async function seedMaterialSupplierSources() {
+    initializeDatabaseSafety("seed", { loadDotenv: true });
     const url = new URL(process.env.DATABASE_URL!);
     const pool = mysql.createPool({
         host: url.hostname,

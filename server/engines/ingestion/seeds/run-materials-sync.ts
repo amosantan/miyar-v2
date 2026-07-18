@@ -2,10 +2,11 @@
  * Run an initial materials sync from all existing evidence records.
  * Usage: npx tsx server/engines/ingestion/seeds/run-materials-sync.ts
  */
-import "dotenv/config";
 import { syncEvidenceToMaterials } from "../evidence-to-materials";
+import { initializeDatabaseSafety } from "../../../_core/database-safety";
 
 async function main() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     console.log("🔄 Syncing Evidence Vault → Materials Library...\n");
 
     const result = await syncEvidenceToMaterials(undefined, 2000); // All evidence

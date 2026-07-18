@@ -31,7 +31,7 @@ Policy-enforced human interaction gates are not repository failures and remain i
 
 ## KF-008 — Full test suite is not database-hermetic
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 at `a15424b` plus the TR-01 inventory worktree.
 - Command: `pnpm test`
 - Evidence: `server/auth.logout.test.ts` inherited the configured remote `DATABASE_URL`, connected to the remote service, and attempted an audit-log insert. The write failed because the remote branch was missing or sleeping; the test itself passed after logging the failure. On 2026-07-16, `env -u DATABASE_URL pnpm test` remained unsafe because `dotenv/config` restored the local value; `DATABASE_URL='' pnpm test` prevented the connection and reproduced the same nine application failures.
@@ -39,6 +39,8 @@ Policy-enforced human interaction gates are not repository failures and remain i
 - Owner: Roadmap `TR-07` and `TR-12`.
 - Exit criterion: test configuration forces a dedicated isolated database or mocked data layer, fails before contacting protected/shared targets, and the full suite produces no external database connection or write attempt.
 - TR-07 progress: On 2026-07-17, the auth and logout harnesses were re-certified with type-checked database mocks, explicit null `getDb`, isolated audit mocks, and success/rejection assertions. `DATABASE_URL='' pnpm test` passed 1,021 tests with 22 skipped and emitted no auth/logout database attempt. The failure remains open because ordinary invocation still lacks the systemic protected-target guard and explicit environment profiles owned by `TR-12`.
+- Closed: 2026-07-18 by `TR-12`.
+- Closure evidence: Standard Vitest now forces the `test`/`unit-test` contract and an explicit empty `DATABASE_URL` before modules load, so dotenv cannot restore a hostile parent or file value. The central guard rechecks the current target before pool creation and denies unit-test database access. A hostile-parent ordinary `pnpm test` passes 1,206 tests with 22 skipped and no database connection attempt; constructor-denial tests cover both pool and direct connection paths; disposable MySQL remains isolated behind `TEST_DATABASE_URL` and passes 19/19 with cleanup.
 
 ## KF-009 — Organization context does not prove current membership or design role
 

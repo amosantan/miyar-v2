@@ -1,5 +1,8 @@
 import mysql from "mysql2/promise";
 import process from "node:process";
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
+
+initializeDatabaseSafety("reset", { loadDotenv: true });
 
 const value = process.env.DATABASE_URL;
 if (!value) throw new Error("DATABASE_URL is required");

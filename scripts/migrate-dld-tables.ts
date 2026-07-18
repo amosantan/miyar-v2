@@ -3,10 +3,11 @@
  *
  * Run: npx tsx scripts/migrate-dld-tables.ts
  */
-import "dotenv/config";
 import mysql from "mysql2/promise";
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
 
 async function main() {
+    initializeDatabaseSafety("migrate", { loadDotenv: true });
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL not set");
 

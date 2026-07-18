@@ -1,5 +1,8 @@
 import mysql from "mysql2/promise";
 import process from "node:process";
+import { initializeDatabaseSafety } from "../server/_core/database-safety";
+
+initializeDatabaseSafety("migrate", { loadDotenv: true });
 
 const apply = process.argv.includes("--apply");
 const connectionString = process.env.DATABASE_URL;

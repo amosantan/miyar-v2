@@ -48,6 +48,14 @@ The repository supports two backend entry patterns:
 
 The client builds from `client/` through Vite. Generated output goes to `dist/`, with paths adjusted for the deployment environment.
 
+### Execution profiles and local safety
+
+`MIYAR_RUNTIME_PROFILE` selects `local`, `test`, `preview`, or `production` at process/deployment launch; the safe default is `local`, and dotenv files cannot set or upgrade this control. `NODE_ENV` remains a runtime mode and does not itself authorize a database target. Local/test profiles accept loopback or disposable targets by default and fail before connecting to a protected/shared remote target. Ordinary tests are database-free. Guarded database integration receives a separately named disposable `TEST_DATABASE_URL` and must not inherit the application `DATABASE_URL`.
+
+A remote/shared target requires named human authorization and the one-command `MIYAR_DATABASE_APPROVAL=sorted-operation-list@host:port/database` binding. That binding is never stored in `.env`, examples, source control, or startup defaults; only a governed child database command for the same approved operation and target may inherit it. The binding does not authorize mutations by itself. `MIYAR_DEPLOYMENT_DATABASE_TARGET=host:port/database` is reserved for an infrastructure-approved managed preview target. Trusted production automatically permits only application serving and scheduled ingestion; seeds, resets, migrations, backfills, preview ingestion, and other shared/production writes still require exact technical binding and their separate human gates.
+
+Background ingestion, learning, and alert workers run according to the selected operational profile: production retains its explicit operational configuration; local, test, and preview are disabled by default and may opt in only for an approved isolated workflow. Worker startup is never part of ordinary test execution.
+
 ## Frontend
 
 ### Technology

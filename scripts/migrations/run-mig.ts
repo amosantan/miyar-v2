@@ -1,8 +1,10 @@
-import { getDb } from "./server/db";
+import { getDb } from "../../server/db";
 import fs from "fs";
 import path from "path";
+import { initializeDatabaseSafety } from "../../server/_core/database-safety";
 
 async function run() {
+    initializeDatabaseSafety("migrate", { loadDotenv: true });
     const db = await getDb();
     if (!db) { console.error("No DB"); return; }
 

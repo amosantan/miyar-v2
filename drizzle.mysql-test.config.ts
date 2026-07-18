@@ -1,5 +1,7 @@
 import { defineConfig } from "drizzle-kit";
+import { initializeDatabaseSafety } from "./server/_core/database-safety";
 
+initializeDatabaseSafety("integration-test", { loadDotenv: true });
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error("DATABASE_URL is required for the guarded MySQL test process");

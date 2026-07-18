@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import { initializeDatabaseSafety } from '../../server/_core/database-safety.ts';
 
 const NEW_SOURCES = [
     { name: "Danube Home", url: "https://danubehome.com/ae/en", type: "supplier_catalog", region: "UAE" },
@@ -42,6 +43,7 @@ const NEW_SOURCES = [
 ];
 
 async function run() {
+    initializeDatabaseSafety('seed', { loadDotenv: true });
     const url = process.env.DATABASE_URL || '';
     const connection = await mysql.createConnection(url);
 

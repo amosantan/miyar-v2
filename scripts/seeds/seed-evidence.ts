@@ -1,8 +1,10 @@
-import { getDb } from "./server/db";
-import { evidenceRecords } from "./drizzle/schema";
+import { getDb } from "../../server/db";
+import { evidenceRecords } from "../../drizzle/schema";
 import { nanoid } from "nanoid";
+import { initializeDatabaseSafety } from "../../server/_core/database-safety";
 
 async function run() {
+  initializeDatabaseSafety("seed", { loadDotenv: true });
   const db = await getDb();
   if (!db) return;
   const project1Id = 1;

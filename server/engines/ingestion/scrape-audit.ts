@@ -7,10 +7,10 @@
  * Run: npx tsx server/engines/ingestion/scrape-audit.ts
  */
 
-import "dotenv/config";
 import { getDb, listSourceRegistry, listEvidenceRecords } from "../../db";
 import { DynamicConnector } from "./connectors/dynamic";
 import { runSingleConnector } from "./orchestrator";
+import { initializeDatabaseSafety } from "../../_core/database-safety";
 
 interface AuditResult {
     sourceId: string | number;
@@ -28,6 +28,7 @@ interface AuditResult {
 }
 
 async function runAudit() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     console.log("═══════════════════════════════════════════════════════");
     console.log("  MIYAR LIVE SCRAPING AUDIT");
     console.log("  " + new Date().toISOString());

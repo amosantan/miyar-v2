@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-12` (`READY` — TR-11 is verified locally and TR-12's dependencies are closed)
+- Next executable step: `TR-13` (`READY` — TR-12 is verified locally and all TR-13 dependencies are closed)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -349,7 +349,7 @@ Rules:
 
 ### TR-12 — Safe local and test database profiles
 
-- Status: `READY`
+- Status: `CLOSED`
 - Class / priority: Operations/security / P0
 - Dependencies: `RM-00`
 - Human gate: Infrastructure approval only if shared deployment configuration changes.
@@ -363,10 +363,16 @@ Rules:
 - Verification: Configuration tests, dry startup logs, test-database smoke, runbook review.
 - Expected artifacts: Environment contract and updated local-development runbook.
 - Scheduling note: Restored as the sole next executable step after verified local closure of `TR-11`.
+- Activated: 2026-07-18 on `codex/tr-12-safe-db-profiles` in the new worktree `/Users/amrosaleh/Maiyar/miyar-v2-tr12` from exact `origin/main` commit `ee6c834`.
+- Closed: 2026-07-18
+- Terminal task state: `PASS`
+- Completion evidence: Central pre-dotenv profile/target/operation policy; final-use connection assertion; guarded Node, serverless, Drizzle, migration, seed, reset, import, backfill, and ingestion paths; DB-free Vitest; disposable integration; sanitized `env:check`; and a fail-closed AST inventory are implemented. Focused tests pass 74/74; hostile-parent full suite passes 1,206/22; disposable MySQL passes 19/19 with cleanup; TypeScript, authorization 337/0, database-entrypoint audit 106/2/0, build, stale-bundle CI check, startup matrix, and diff checks pass. Independent GPT-5.6 security and Claude Opus reviews approve.
+- Residual risk: Command-scoped approval is a technical acknowledgement, not organizational authority; shared mutations, preview binding changes, migrations, deployment, commit, push, PR, and merge remain separately gated. The generated serverless bundle has two exact owner-qualified audit exceptions and is protected by a post-build stale-output check.
+- Lessons: `LES-029`
 
 ### TR-13 — Critical workflow certification
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: End-to-end / P0
 - Dependencies: `TR-04`, `TR-06`, `TR-09`, `TR-10`, `TR-12`
 - Human gate: None for local/preview verification; deployment remains separately gated.

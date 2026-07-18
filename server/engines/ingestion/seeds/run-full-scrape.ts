@@ -4,12 +4,13 @@
  * 
  * Usage: npx tsx server/engines/ingestion/seeds/run-full-scrape.ts
  */
-import "dotenv/config";
 import { getDb } from "../../../db";
 import { sourceRegistry } from "../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { initializeDatabaseSafety } from "../../../_core/database-safety";
 
 async function main() {
+    initializeDatabaseSafety("ingest", { loadDotenv: true });
     const db = await getDb();
     if (!db) throw new Error("DB not available");
     console.log("🕷️  MIYAR Full Local Scrape");

@@ -1,4 +1,4 @@
-import "dotenv/config";
+import { serveDatabaseDecision } from "./runtime-bootstrap";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -17,6 +17,11 @@ import { requestLogger, logger, startPerfMonitor } from "./logger";
 import { shouldStartBackgroundJobs } from "./runtime-safety";
 import { registerIngestionCronRoute } from "./ingestion-cron";
 import { publicShareHeaders } from "./public-share-headers";
+import {
+  DatabaseSafetyError,
+  assertDatabaseAccess,
+  formatDatabaseDecision,
+} from "./database-safety";
 
 type AppOptions = {
   trpcRouter?: any;
@@ -89,13 +94,24 @@ async function startServer() {
     logger.warn(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
+  const wantsBackgroundJobs =
+    (serveDatabaseDecision.profile === "production" &&
+      serveDatabaseDecision.trustedDeployment) ||
+    process.env.ENABLE_BACKGROUND_JOBS === "true";
+  const ingestionDecision = wantsBackgroundJobs
+    ? assertDatabaseAccess("ingest")
+    : undefined;
+
   server.listen(port, () => {
     logger.info(`Server running on http://localhost:${port}/`);
 
     // P3-7: Start performance monitor (log memory/uptime every 5 min)
     startPerfMonitor(5);
 
-    if (shouldStartBackgroundJobs(process.env.NODE_ENV, process.env.ENABLE_BACKGROUND_JOBS)) {
+    if (
+      ingestionDecision &&
+      shouldStartBackgroundJobs(ingestionDecision, process.env.ENABLE_BACKGROUND_JOBS)
+    ) {
       // Start ingestion scheduler (V2-07)
       try {
         startIngestionScheduler().catch(e => {
@@ -119,11 +135,20 @@ async function startServer() {
         logger.error("[Alert Scheduler] Failed to start", { error: String(e) });
       }
     } else {
-      logger.info("Background jobs disabled in development; set ENABLE_BACKGROUND_JOBS=true to opt in");
+      logger.info(
+        "Background jobs disabled for this runtime profile; set ENABLE_BACKGROUND_JOBS=true only with an authorized database target"
+      );
     }
   });
 }
 
 if (process.env.NODE_ENV !== "test") {
-  startServer().catch(console.error);
+  startServer().catch(error => {
+    if (error instanceof DatabaseSafetyError) {
+      logger.error("Database safety denied server startup", formatDatabaseDecision(error.decision));
+    } else {
+      logger.error("Server startup failed", { error: String(error) });
+    }
+    process.exitCode = 1;
+  });
 }
