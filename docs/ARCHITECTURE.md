@@ -90,6 +90,8 @@ Background ingestion, learning, and alert workers run according to the selected 
 
 `server/routers.ts` composes the tRPC application router. Domain routers cover system/auth, projects, scenarios, administration, design, market intelligence, ingestion, analytics, prediction, learning, autonomy, organizations, economics, bias, portfolio, sustainability, intake, material quantities, and space programmes.
 
+The design API keeps one flat compatibility boundary at `server/routers/design.ts`. It merges bounded asset, brief, board, collaboration, market-context, material, sharing, and visual routers with the configured tRPC `mergeRouters`; callers continue to use the unchanged `design.*` paths. Each procedure retains its own validation and authorization middleware at its domain definition. Domain routers may use shared core, database, and engine helpers, but they must not import the compatibility router or one another.
+
 ### Router Responsibilities
 
 - Authenticate and authorize.

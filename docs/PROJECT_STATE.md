@@ -4,14 +4,14 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-18
+- Observed: 2026-07-19
 - Production source commit: `43e5019c02c0f25848c31df0d1dfa2158b076723` on canonical `main`, merging TR-12 PR #17.
 - Branch identity: canonical `origin/main` contains runtime application release `43e5019c02c0f25848c31df0d1dfa2158b076723`; later commits may record state only and do not change the runtime release identity.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: Vercel target `4ixzzXRp886bet8XDRhc439czfWd` completed for exact source commit `43e5019`; three root/health observations return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and the rendered landing page has no browser console errors.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `TR-13` is locally certified and closed at `PASS`; `SC-01` is the sole next executable step. Git publication and all shared/production actions remain separately gated.
+- Roadmap state: `SC-01` is locally certified and closed at `PASS`; `SC-04` is the sole next executable step. Git publication and all shared/production actions remain separately gated.
 
 ## Technology Observed
 
@@ -27,6 +27,7 @@ This is the canonical location for current observed repository facts. It is not 
 - Canonical schema: `drizzle/schema.ts`
 - Client: `client/src/`
 - API composition: `server/routers.ts`
+- Design API composition: `server/routers/design.ts` flat-merges eight bounded routers while preserving the 63 existing `design.*` procedures.
 - Domain engines: `server/engines/`
 - Database helpers: `server/db.ts`
 - Shared contracts: `shared/`
@@ -40,13 +41,14 @@ At the observation above:
 
 | Command                         | Result | Evidence summary                                                                                                                        |
 | ------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Hostile-parent `pnpm test`      | PASS   | 1,253 passed and 22 skipped; no database connection attempt to the supplied remote target occurred                                      |
+| Hostile-parent `pnpm test`      | PASS   | 1,257 passed and 22 skipped; no database connection attempt occurred                                                                      |
 | `pnpm certify:workflow`         | PASS   | Disposable MySQL ordered workflow, Node/serverless parity, report rendering, serial Node browser journey, secret scans, and strict cleanup |
 | PlanetScale compatibility       | PASS   | Production applied additive migration 0050 after backup; `report_instances.storageKey` is nullable `TEXT`, all 29 rows remain, and no row was backfilled |
 | `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                                             |
 | `pnpm audit:authorization`      | PASS   | All 338 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence                  |
 | `pnpm audit:database-safety`    | PASS   | 112 entrypoints, two exact generated-bundle exceptions, and zero findings                                                               |
 | `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                                               |
+| Design contract checker         | PASS   | All 63 names, operations, access primitives, classifications, initializers, middleware chains, and unique owner identities match the pre-split baseline |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
@@ -95,6 +97,16 @@ These facts describe the uncommitted local TR-13 implementation in `/Users/amros
 - The harness rejects unsafe database/server/worker/session inputs, uses no ambient server, keeps one serial worker, emits only non-secret ignored local evidence, treats cleanup failure as failure, and proves the disposable database is absent afterward.
 - No schema, migration, dependency, scoring/financial/compliance policy, shared database/configuration, commit, push, merge, preview, or deployment occurred.
 
+## SC-01 Local Architecture Observation
+
+These facts describe the uncommitted local SC-01 implementation in `/Users/amrosaleh/Maiyar/miyar-v2-sc01`, stacked on the reviewed TR-13 candidate and exact Git commit `1169fed5e9036bd754cfcb79a7619933515d7f00`.
+
+- The former 2,156-line design router exposed 63 procedures. Eight bounded asset, brief, board, collaboration, market-context, material, sharing, and visual routers now own every procedure exactly once; `server/routers/design.ts` is a 21-line flat compatibility facade.
+- No procedure initializer changed semantically. A checked-in pre-split baseline and ordinary Vitest contract verify every name, query/mutation kind, access primitive, authorization classification, complete initializer, runtime middleware chain, and owner reference. `design.resolveShareLink` remains the only public design procedure and retains the bounded public rate limiter and active-share resolver.
+- Verification passes: focused security/contracts 98, ordinary DB-free suite 1,257/22, guarded MySQL 21/21, complete TR-13 workflow certification, TypeScript, authorization inventory 338/0, database safety 112/2/0, three production build targets, byte-stable tracked serverless output, and diff/import/scope checks. All disposable MySQL containers and their databases were removed.
+- Independent high-reasoning security and architecture reviews returned `APPROVED_NO_OBJECTION`; final Claude Opus review is recorded in the task/worklog evidence.
+- No schema, migration, dependency, client behavior, engine, formula, numerical assumption, API path, response shape, database write, Git publication, preview, or deployment was introduced by SC-01.
+
 ## Production Database Observation
 
 - Migration 0044 was verified complete before TR-03H release.
@@ -136,6 +148,7 @@ These facts describe the uncommitted local TR-13 implementation in `/Users/amros
 - `TR-01` inventory extraction now covers all 329 application procedures.
 - `TR-02` provides typed organization-resource and public-share authorization primitives with 49 passing targeted tests.
 - `TR-03` closes all 39 design-router remediation paths with organization-locked resource operations and fail-closed public shares.
+- `SC-01` preserves those authorization guarantees while moving all 63 design procedures into eight bounded owner routers behind a flat compatibility facade; the immutable semantic contract and current authorization audit both pass.
 - `TR-03H` closes live membership, design roles, scoped final writes, composite atomicity, rejected-upload compensation, public-share privacy, real-SQL evidence, and canonical release identity.
 - `TR-04` closes all 93 remaining project-router authorization/global-governance paths, including the later ultra-review remediation for atomic report persistence and tenant-owned portfolio alerts. The live inventory has zero `TR-04` and exactly eight pooled-data rows under `TR-05`; targeted, disposable MySQL, safe full-suite, TypeScript, audit, build, diff, and independent-review gates pass.
 - `TR-05` and `KF-007` are closed on `codex/tr-05-data-isolation`. Corpus isolation, migration 0047, fail-closed organization/public reads, scheduler disablement, insufficiency contracts, UI states, and enhanced audit enforcement are implemented. Verified gates: disposable MySQL 18/18, safe suite 962 passed with 22 skipped, authorization inventory 331/331 with zero remediation rows, TypeScript/build/diff PASS, in-app browser PASS across analytics, cost forecasting, project prediction, design advisor, and learning administration, and independent Claude Code `APPROVED_NO_OBJECTION`.

@@ -62,8 +62,10 @@ describe("TR-11 truthful public claims", () => {
 
   it("qualifies share values and requires explicit DLD provenance", () => {
     const share = read("client/src/pages/ShareView.tsx");
-    const router = read("server/routers/design.ts");
-    const publicShareRouter = router.slice(router.indexOf("resolveShareLink: publicProcedure"), router.indexOf("generateRoomRender:", router.indexOf("resolveShareLink: publicProcedure")));
+    const router = read("server/routers/design-sharing.ts");
+    const publicShareStart = router.indexOf("resolveShareLink: publicRateLimitedProcedure");
+    expect(publicShareStart).toBeGreaterThanOrEqual(0);
+    const publicShareRouter = router.slice(publicShareStart);
     expect(share).toContain("estimateQualifier");
     expect(share).not.toContain("DLD-Backed Recommendations");
     expect(share).not.toContain("sustainCertTarget");
