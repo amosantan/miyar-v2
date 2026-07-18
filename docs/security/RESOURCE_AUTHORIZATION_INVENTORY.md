@@ -2,8 +2,8 @@
 
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **337**
-- Generated: 2026-07-18T17:50:01.267Z
+- Procedures inventoried: **338**
+- Generated: 2026-07-18T20:03:30.330Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
@@ -30,20 +30,20 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `admin_governed`       |    82 |
 | `global_governed`      |    54 |
 | `not_project_scoped`   |    23 |
-| `org_guarded`          |   177 |
+| `org_guarded`          |   178 |
 | `public_token_guarded` |     1 |
 
 ## Severity Summary
 
 | Severity | Count |
 | -------- | ----: |
-| `none`   |   337 |
+| `none`   |   338 |
 
 ## Remediation Summary
 
 | Target | Count |
 | ------ | ----: |
-| `none` |   337 |
+| `none` |   338 |
 
 ### Remediation ownership
 
@@ -67,32 +67,32 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 
 ## Final Scoped-Write Evidence
 
-| Procedure                        | Final scoped write                                                                            | Integration test                                 | Test case                                                                     | Status     |
-| -------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------- | ---------- |
-| `design.addComment`              | db.createCommentForOrg                                                                        | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `executed` |
-| `design.addMaterialToBoard`      | db.addMaterialToBoardForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
-| `design.analyzeFloorPlan`        | db.updateProjectForOrg                                                                        | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `executed` |
-| `design.createBoard`             | db.createMaterialBoardWithMaterialsForOrg                                                     | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
-| `design.createShareLink`         | db.updateAiDesignBriefShareTokenForOrg                                                        | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `executed` |
-| `design.deleteAsset`             | db.deleteProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
-| `design.deleteBoard`             | db.deleteMaterialBoardForOrg                                                                  | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `executed` |
-| `design.generateBrief`           | db.createDesignBriefForOrg                                                                    | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `executed` |
-| `design.generateRfqFromBrief`    | db.insertRfqLineItemsForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `executed` |
-| `design.generateRoomRender`      | db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
-| `design.generateVisual`          | db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
-| `design.linkAsset`               | db.createAssetLinkForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `executed` |
-| `design.pinVisualToBoard`        | db.createAssetLinkForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `executed` |
-| `design.removeMaterialFromBoard` | db.removeMaterialFromBoardForOrg                                                              | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
-| `design.reorderBoardTiles`       | db.reorderBoardTilesForOrg                                                                    | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
-| `design.unpinVisual`             | db.deleteAssetLinkForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `executed` |
-| `design.updateApprovalState`     | db.updateProjectApprovalStateForOrg                                                           | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `executed` |
-| `design.updateAsset`             | db.updateProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
-| `design.updateBoardTile`         | db.updateBoardTileForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `executed` |
-| `design.uploadAsset`             | db.createProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `executed` |
-| `design.uploadFloorPlan`         | db.createFloorPlanAssetAndLinkForOrg                                                          | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `executed` |
-| `portfolio.checkAlerts`          | db.insertPortfolioAlertsForOrg                                                                | `tests/mysql/design-authorization.mysql.test.ts` | keeps tenant portfolio alerts organization scoped and deduplicated            | `executed` |
-| `project.confirmInputs`          | db.updateProjectForOrg                                                                        | `tests/mysql/design-authorization.mysql.test.ts` | scopes project readiness and confirmed-input writes to the organization       | `executed` |
-| `project.generateReport`         | db.createReportArtifactsForOrg                                                                | `tests/mysql/design-authorization.mysql.test.ts` | persists report artifacts atomically and rechecks project ownership           | `executed` |
+| Procedure                        | Final scoped write                                                                            | Integration test                                 | Test case                                                                     | Status                 |
+| -------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------- | ---------------------- |
+| `design.addComment`              | db.createCommentForOrg                                                                        | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `defined_not_executed` |
+| `design.addMaterialToBoard`      | db.addMaterialToBoardForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `defined_not_executed` |
+| `design.analyzeFloorPlan`        | db.updateProjectForOrg                                                                        | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `defined_not_executed` |
+| `design.createBoard`             | db.createMaterialBoardWithMaterialsForOrg                                                     | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `defined_not_executed` |
+| `design.createShareLink`         | db.updateAiDesignBriefShareTokenForOrg                                                        | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `defined_not_executed` |
+| `design.deleteAsset`             | db.deleteProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `defined_not_executed` |
+| `design.deleteBoard`             | db.deleteMaterialBoardForOrg                                                                  | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `defined_not_executed` |
+| `design.generateBrief`           | db.createDesignBriefForOrg                                                                    | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `defined_not_executed` |
+| `design.generateRfqFromBrief`    | db.insertRfqLineItemsForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `defined_not_executed` |
+| `design.generateRoomRender`      | db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `defined_not_executed` |
+| `design.generateVisual`          | db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `defined_not_executed` |
+| `design.linkAsset`               | db.createAssetLinkForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `defined_not_executed` |
+| `design.pinVisualToBoard`        | db.createAssetLinkForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `defined_not_executed` |
+| `design.removeMaterialFromBoard` | db.removeMaterialFromBoardForOrg                                                              | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `defined_not_executed` |
+| `design.reorderBoardTiles`       | db.reorderBoardTilesForOrg                                                                    | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `defined_not_executed` |
+| `design.unpinVisual`             | db.deleteAssetLinkForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | validates all polymorphic link targets, typed comments and evidence isolation | `defined_not_executed` |
+| `design.updateApprovalState`     | db.updateProjectApprovalStateForOrg                                                           | `tests/mysql/design-authorization.mysql.test.ts` | keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic     | `defined_not_executed` |
+| `design.updateAsset`             | db.updateProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `defined_not_executed` |
+| `design.updateBoardTile`         | db.updateBoardTileForOrg                                                                      | `tests/mysql/design-authorization.mysql.test.ts` | creates and rolls back scenario-bound boards atomically                       | `defined_not_executed` |
+| `design.uploadAsset`             | db.createProjectAssetForOrg                                                                   | `tests/mysql/design-authorization.mysql.test.ts` | scopes project assets and generated visuals through project ownership         | `defined_not_executed` |
+| `design.uploadFloorPlan`         | db.createFloorPlanAssetAndLinkForOrg                                                          | `tests/mysql/design-authorization.mysql.test.ts` | rolls back board, RFQ and floor-plan transactions after late SQL failures     | `defined_not_executed` |
+| `portfolio.checkAlerts`          | db.insertPortfolioAlertsForOrg                                                                | `tests/mysql/design-authorization.mysql.test.ts` | keeps tenant portfolio alerts organization scoped and deduplicated            | `defined_not_executed` |
+| `project.confirmInputs`          | db.updateProjectForOrg                                                                        | `tests/mysql/design-authorization.mysql.test.ts` | scopes project readiness and confirmed-input writes to the organization       | `defined_not_executed` |
+| `project.generateReport`         | db.createReportArtifactsForOrg                                                                | `tests/mysql/design-authorization.mysql.test.ts` | persists report artifacts atomically and rechecks project ownership           | `defined_not_executed` |
 
 ## Remediation Inventory
 
@@ -103,7 +103,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 
 | Key                       | Operation | Evidence                                                                                                                                              | Notes                                                                                                                                                                  | Source                          |
 | ------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1803` |
+| `design.resolveShareLink` | query     | Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads. | Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed. | `server/routers/design.ts:1828` |
 
 ## Complete Procedure Checklist
 
@@ -239,6 +239,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `design.removeMaterialFromBoard`                     | `org_guarded`          | input.joinId -> materials_to_boards.id -> materials_to_boards.boardId -> material_boards.projectId -> projects.orgId                                                                                                                                            | No remediation assigned; retain classification evidence. |
 | `design.reorderBoardTiles`                           | `org_guarded`          | input.boardId -> material_boards.id -> material_boards.projectId -> projects.orgId<br>input.orderedJoinIds[] -> materials_to_boards.id -> boardId -> material_boards.projectId -> projects.orgId                                                                | No remediation assigned; retain classification evidence. |
 | `design.resolveShareLink`                            | `public_token_guarded` | input.token -> ai_design_briefs.shareToken -> ai_design_briefs.projectId -> projects.id                                                                                                                                                                         | No remediation assigned; retain classification evidence. |
+| `design.revokeShareLinks`                            | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `design.unpinVisual`                                 | `org_guarded`          | input.linkId -> asset_links.id -> asset_links.assetId -> project_assets.projectId -> projects.orgId                                                                                                                                                             | No remediation assigned; retain classification evidence. |
 | `design.updateApprovalState`                         | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `design.updateAsset`                                 | `org_guarded`          | input.assetId -> project_assets.id -> project_assets.projectId -> projects.orgId                                                                                                                                                                                | No remediation assigned; retain classification evidence. |

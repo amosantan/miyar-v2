@@ -400,6 +400,7 @@ function DimensionRadar({ dimensions }: { dimensions: Record<string, number> }) 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 function ProjectDetailContent() {
+  const { user } = useAuth();
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { t, locale: appLocale } = useTranslation();
@@ -431,7 +432,10 @@ function ProjectDetailContent() {
   const savedSpaceIsNeutralFallback = savedSpaceEvidence?.status === "neutral_fallback";
   const { data: assets, isLoading: assetsLoading } = trpc.intake.listAssets.useQuery({ projectId });
   const { data: benchmarks } = trpc.admin.benchmarks.list.useQuery();
-  const { data: activeAlerts = [] } = trpc.autonomous.getAlerts.useQuery({ status: "active" });
+  const { data: activeAlerts = [] } = trpc.autonomous.getAlerts.useQuery(
+    { status: "active" },
+    { enabled: user?.role === "admin" },
+  );
 
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
 

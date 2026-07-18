@@ -9,7 +9,7 @@ import {
   designOrgMutationProcedure,
   orgProcedure,
   protectedProcedure,
-  publicProcedure,
+  publicRateLimitedProcedure,
   router,
 } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
@@ -1800,12 +1800,43 @@ export const designRouter = router({
       return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
     }),
 
-  resolveShareLink: publicProcedure
+  revokeShareLinks: designOrgAdminProcedure
+    .input(z.object({ projectId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireDesignProject(input.projectId, ctx.orgId);
+      const result = await db.revokeAiDesignBriefSharesForProjectForOrg(
+        input.projectId,
+        ctx.orgId,
+      );
+      if (!result) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+      await bestEffortAudit({
+        orgId: ctx.orgId,
+        userId: ctx.user.id,
+        action: "brief.share.revoke_all",
+        entityType: "project",
+        entityId: input.projectId,
+        details: {
+          projectId: input.projectId,
+          revokedCount: result.revokedCount,
+        },
+      });
+      return { revokedCount: result.revokedCount, active: false as const };
+    }),
+
+  resolveShareLink: publicRateLimitedProcedure
     .input(z.object({
-      token: z.string().min(8).max(64),
+      token: z.string(),
       locale: z.enum(["en", "ar"]).default("en"),
     }))
     .query(async ({ input }) => {
+      if (input.token.length < 8 || input.token.length > 64) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Share link not found or expired",
+        });
+      }
       const { brief, project } = await requireActivePublicShare(input.token);
       const [recs, benchmark, trends] = await Promise.all([
         db.getSpaceRecommendations(brief.projectId, brief.orgId),

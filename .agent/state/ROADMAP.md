@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `TR-13` (`READY` — TR-12 is verified locally and all TR-13 dependencies are closed)
+- Next executable step: `SC-01` (`READY` — split the design router by bounded domain while preserving public contracts and authorization)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -373,7 +373,7 @@ Rules:
 
 ### TR-13 — Critical workflow certification
 
-- Status: `READY`
+- Status: `CLOSED`
 - Class / priority: End-to-end / P0
 - Dependencies: `TR-04`, `TR-06`, `TR-09`, `TR-10`, `TR-12`
 - Human gate: None for local/preview verification; deployment remains separately gated.
@@ -385,6 +385,12 @@ Rules:
 - Done when: The complete critical journey passes from a clean safe environment with reproducible evidence.
 - Verification: Full check/test/build, browser/API workflow, report artifacts, security negatives.
 - Expected artifacts: Certification report and refreshed `PROJECT_STATE.md`.
+- Activated: 2026-07-18 in `/Users/amrosaleh/Maiyar/miyar-v2-tr13` on `codex/tr-13-critical-workflow` from exact closed-TR-12 commit `1169fed5e9036bd754cfcb79a7619933515d7f00`; the stale dirty root checkout is excluded.
+- Closed: 2026-07-18
+- Terminal task state: `PASS`
+- Completion evidence: Project-wide admin revocation, non-secret brief status, concealed/rate-limited public shares, deterministic report reconciliation, one canonical versioned synthetic fixture, an ordered disposable-MySQL critical journey, real Node/serverless application-factory parity, and one same-project serial Node browser journey are implemented. `pnpm certify:workflow`, hostile-parent full suite (1,253/22), TypeScript, authorization inventory (338/338, zero remediation), database-safety inventory (112 entrypoints, two generated-bundle exceptions, zero findings), build/bundle freshness, report matrix (23/23), nine-page visual inspection, diff/security/scope review, independent high-reasoning authorization re-review, and Claude Opus source review pass; strict cleanup proves the disposable database is absent.
+- Residual risk: The public artifact remains the AI-advisor brief, not the structured brief or stored report. `BR-01`/`BR-02` own future issued-artifact unification; `SC-05` owns runtime capability/observability design. Git publication and every shared/production action remain separately gated.
+- Lessons: `LES-030`
 
 ### TR-14 — Reconcile migration 0044 and database recovery
 
@@ -684,7 +690,7 @@ Rules:
 
 ### SC-01 — Split the design router by bounded domain
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: Architecture / P1
 - Dependencies: `TR-03`
 - Human gate: None if public contracts remain compatible.

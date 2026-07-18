@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, inArray, gte, isNull, or } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray, gte, isNull, isNotNull, or } from "drizzle-orm";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import { createHash } from "node:crypto";
@@ -4033,6 +4033,62 @@ export async function updateAiDesignBriefShareTokenForOrg(
         )`,
       ));
     return Number(result[0].affectedRows) === 1;
+  });
+}
+
+/**
+ * Revoke every issued AI-design-brief share for an organization-owned project.
+ * The project ownership lock and token updates share one transaction so a
+ * concurrent organization transfer or share issuance cannot bypass revocation.
+ */
+export async function revokeAiDesignBriefSharesForProjectForOrg(
+  projectId: number,
+  orgId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return revokeAiDesignBriefSharesForProjectForOrgInDatabase(db, projectId, orgId);
+}
+
+/** @internal Exported for database-free transaction contract tests. */
+export async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(
+  database: MySql2Database,
+  projectId: number,
+  orgId: number
+) {
+  return database.transaction(async tx => {
+    const owned = await tx.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)))
+      .limit(1)
+      .for("update");
+    if (owned.length !== 1) return null;
+
+    // Repair any legacy/inconsistent expiry-only row without inflating the
+    // cleared-token count returned to callers and audit evidence.
+    await tx.update(aiDesignBriefs)
+      .set({ shareExpiresAt: null })
+      .where(and(
+        eq(aiDesignBriefs.projectId, projectId),
+        eq(aiDesignBriefs.orgId, orgId),
+        isNull(aiDesignBriefs.shareToken),
+        isNotNull(aiDesignBriefs.shareExpiresAt),
+      ));
+
+    const result = await tx.update(aiDesignBriefs)
+      .set({ shareToken: null, shareExpiresAt: null })
+      .where(and(
+        eq(aiDesignBriefs.projectId, projectId),
+        eq(aiDesignBriefs.orgId, orgId),
+        isNotNull(aiDesignBriefs.shareToken),
+        sql`exists (
+          select 1 from ${projects}
+          where ${projects.id} = ${projectId}
+            and ${projects.orgId} = ${orgId}
+        )`,
+      ));
+
+    return { revokedCount: Number(result[0].affectedRows) };
   });
 }
 

@@ -344,3 +344,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: Hostile dotenv and parent-environment tests, current-target mutation tests, pool/direct-connection denial tests, a 106-entrypoint audit with zero findings, hostile full suite 1,206/22, bounded startup exit evidence, and disposable MySQL 19/19 all pass; independent security and Claude Opus reviews approve.
 - Reuse rule: Never treat a profile name, `NODE_ENV`, an earlier URL check, or a technical acknowledgement as connection authority. Enforce intent at launch, operation boundaries, and the final socket construction site.
 - Supersedes / related: Closes `KF-008` and extends `LES-002` and `LES-011`.
+
+### LES-030 — Critical-workflow certification must join real boundaries, not concatenate isolated claims
+
+- Date / roadmap step: 2026-07-18 / `TR-13`
+- Context: MIYAR had broad unit, router, artifact, and runtime coverage, but no single clean lifecycle proved that one project could cross every critical boundary with the same reconciled values and tenant rules.
+- Observed: Early draft evidence could look complete while using independent fixtures, a mocked parity claim, or a report value that had not been traced back through stored room/allocation/material rows.
+- Cause: Passing component tests were being aggregated as if they represented one ordered journey, while cleanup, runtime state reset, source provenance, process-output secret scans, and exact cross-surface numerical identity were separate unproven assumptions.
+- Fix or decision: Use one versioned synthetic contract and disposable database; execute project, Grade A/B parser coverage, Grade C deterministic MQI, both briefs, stored report, share, public read, and revoke in order; reset state before each real application factory; reconcile formulas and costs at source; scan all durable/process evidence; and fail the run if cleanup or post-cleanup absence proof fails.
+- Proof: `pnpm certify:workflow` passes with matching Node/serverless fingerprints and reconciliations, a clean serial Node browser journey, nine inspected report pages, no secret-bearing durable output, and confirmed disposable-database absence. The hostile ordinary suite and all repository gates remain green.
+- Reuse rule: An end-to-end certification may cite isolated tests as supporting evidence, but its PASS gate must itself traverse the real boundaries in dependency order, carry one versioned identity across them, and prove both cleanup and absence of sensitive residue.
+- Supersedes / related: Extends `LES-025`, `LES-026`, `LES-028`, and `LES-029`; `SC-05` retains future runtime capability and observability architecture.

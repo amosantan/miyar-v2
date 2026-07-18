@@ -144,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <ThemeToggle compact />
             <LanguageToggle compact />
             <AiAssistantPanel />
-            <NotificationBell />
+            {user.role === "admin" && <NotificationBell />}
           </div>
         </header>
         <main className="mx-auto w-full max-w-[1600px] px-4 py-5 pb-24 md:px-6 md:py-7 lg:pb-8">{children}</main>

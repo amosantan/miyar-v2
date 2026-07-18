@@ -1,5 +1,6 @@
 
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import EvidenceChainDrawer from "@/components/EvidenceChainDrawer";
 import DataFreshnessBanner from "@/components/DataFreshnessBanner";
 import { useParams, useLocation } from "wouter";
@@ -64,6 +65,8 @@ function InvestorSummaryContent() {
     const projectId = Number(params.id);
     const [, navigate] = useLocation();
     const { locale: appLocale } = useTranslation();
+    const { user } = useAuth();
+    const utils = trpc.useUtils();
     const [shareCopied, setShareCopied] = useState(false);
     const [reportLocale, setReportLocale] = useState(appLocale);
     const exportInvestorPdfMut = trpc.design.exportInvestorPdf.useMutation({
@@ -76,17 +79,26 @@ function InvestorSummaryContent() {
         onError: (e) => toast.error(`PDF export failed: ${e.message}`),
     });
     const createShareLinkMut = trpc.design.createShareLink.useMutation({
-        onSuccess: ({ shareUrl }) => {
+        onSuccess: async ({ shareUrl }) => {
             const full = window.location.origin + shareUrl;
             navigator.clipboard.writeText(full).catch(() => { });
             setShareCopied(true);
-            toast.success(`Share link copied! Valid for 7 days · ${full}`);
+            toast.success("Share link copied. It will expire as shown below.");
+            await utils.designAdvisor.getDesignBrief.invalidate({ projectId });
             setTimeout(() => setShareCopied(false), 3000);
         },
         onError: (e) => toast.error(`Could not create share link: ${e.message}`),
     });
+    const revokeShareLinksMut = trpc.design.revokeShareLinks.useMutation({
+        onSuccess: async ({ revokedCount }) => {
+            toast.success(revokedCount > 0 ? "Project-wide share links revoked." : "No active project-wide share links to revoke.");
+            await utils.designAdvisor.getDesignBrief.invalidate({ projectId });
+        },
+        onError: (e) => toast.error(`Could not revoke project-wide share links: ${e.message}`),
+    });
 
     const { data: project } = trpc.project.get.useQuery({ id: projectId });
+    const { data: organizations } = trpc.organization.myOrgs.useQuery(undefined, { enabled: Boolean(user) });
     const { data: scoreMatrices } = trpc.project.getScores.useQuery({ projectId });
     const { data: brief } = trpc.designAdvisor.getDesignBrief.useQuery({ projectId }, { enabled: !!projectId });
     const { data: recs, isLoading: recsLoading } = trpc.designAdvisor.getRecommendations.useQuery({ projectId }, { enabled: !!projectId });
@@ -166,6 +178,20 @@ function InvestorSummaryContent() {
     );
 
     const hasData = !!brief?.briefData || (recs && recs.length > 0);
+    const projectOrgId = project?.orgId;
+    const activeOrgMembership = organizations?.find(({ org }) => org.id === projectOrgId);
+    const isProjectOrgAdmin = projectOrgId != null && activeOrgMembership?.role === "admin";
+    const shareStatus = brief?.shareStatus;
+
+    const createShareLink = () => {
+        if (!isProjectOrgAdmin) return;
+        createShareLinkMut.mutate({ projectId });
+    };
+
+    const revokeProjectWideShareLinks = () => {
+        if (!isProjectOrgAdmin) return;
+        revokeShareLinksMut.mutate({ projectId });
+    };
 
     // Extract design identity from brief
     const briefData = brief?.briefData as any;
@@ -249,12 +275,30 @@ function InvestorSummaryContent() {
                         onClick={() => exportInvestorPdfMut.mutate({ projectId: Number(projectId), locale: reportLocale })}>
                         <FileText className="h-3.5 w-3.5" /> {exportInvestorPdfMut.isPending ? "Generating…" : "Export PDF"}
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5 text-xs"
-                        disabled={createShareLinkMut.isPending}
-                        onClick={() => createShareLinkMut.mutate({ projectId: Number(projectId) })}>
-                        {shareCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
-                        {shareCopied ? "Copied!" : createShareLinkMut.isPending ? "Creating…" : "Share Link"}
-                    </Button>
+                    {isProjectOrgAdmin && (
+                        <div className="flex flex-wrap items-center justify-end gap-2" data-share-controls>
+                            {shareStatus && (
+                                <span className="text-xs text-muted-foreground" data-share-status>
+                                    {shareStatus.active
+                                        ? `Sharing active${shareStatus.expiresAt ? ` until ${new Date(shareStatus.expiresAt).toLocaleString()}` : ""}`
+                                        : "Sharing inactive"}
+                                </span>
+                            )}
+                            <Button variant="outline" size="sm" className="gap-1.5 text-xs"
+                                disabled={createShareLinkMut.isPending || revokeShareLinksMut.isPending}
+                                onClick={createShareLink}>
+                                {shareCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
+                                {shareCopied ? "Copied!" : createShareLinkMut.isPending ? "Creating…" : "Create share link"}
+                            </Button>
+                            {shareStatus?.active && (
+                                <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive"
+                                    disabled={createShareLinkMut.isPending || revokeShareLinksMut.isPending}
+                                    onClick={revokeProjectWideShareLinks}>
+                                    {revokeShareLinksMut.isPending ? "Revoking…" : "Revoke all project share links"}
+                                </Button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

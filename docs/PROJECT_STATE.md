@@ -11,7 +11,7 @@ This is the canonical location for current observed repository facts. It is not 
 - Package manager declared by repository: `pnpm`
 - Production: Vercel target `4ixzzXRp886bet8XDRhc439czfWd` completed for exact source commit `43e5019`; three root/health observations return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and the rendered landing page has no browser console errors.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `TR-12` is released and closed at `PASS`; `TR-13` is the sole next executable step.
+- Roadmap state: `TR-13` is locally certified and closed at `PASS`; `SC-01` is the sole next executable step. Git publication and all shared/production actions remain separately gated.
 
 ## Technology Observed
 
@@ -40,11 +40,12 @@ At the observation above:
 
 | Command                         | Result | Evidence summary                                                                                                                        |
 | ------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL='' pnpm test`     | PASS   | 1,138 passed and 22 skipped; no database connection attempt occurred                                                                    |
-| Guarded MySQL authorization run | PASS   | Disposable MySQL 8 verification passed migration, concurrency, rollback, tenant-collision, and authorization contracts                 |
+| Hostile-parent `pnpm test`      | PASS   | 1,253 passed and 22 skipped; no database connection attempt to the supplied remote target occurred                                      |
+| `pnpm certify:workflow`         | PASS   | Disposable MySQL ordered workflow, Node/serverless parity, report rendering, serial Node browser journey, secret scans, and strict cleanup |
 | PlanetScale compatibility       | PASS   | Production applied additive migration 0050 after backup; `report_instances.storageKey` is nullable `TEXT`, all 29 rows remain, and no row was backfilled |
 | `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                                             |
-| `pnpm audit:authorization`      | PASS   | All 337 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence                  |
+| `pnpm audit:authorization`      | PASS   | All 338 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence                  |
+| `pnpm audit:database-safety`    | PASS   | 112 entrypoints, two exact generated-bundle exceptions, and zero findings                                                               |
 | `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                                               |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
@@ -82,6 +83,17 @@ These facts describe the reviewed TR-11 implementation merged through PR #14 and
 - Three production observations passed with root, health, and market-evidence HTTP 200; unauthenticated project reads returned 401 and invalid share resolution returned concealed 404 with `private, no-store` and `noindex, nofollow, noarchive`. The evidence snapshot currently fails closed as `{available:false}` and exposes no operational fields.
 - Production English/Arabic Home and Methodology render at 1280px with correct LTR/RTL direction, no horizontal overflow, no fixed-weight or former live/verified claim, and no browser errors.
 - No schema, migration, dependency, formula, scoring, financial-policy, benchmark-promotion, report-catalog, ingestion-cadence, database write, or backfill occurred. `EV-08` records the future weekly governed refresh and report-evidence binding gate.
+
+## TR-13 Local Certification Observation
+
+These facts describe the uncommitted local TR-13 implementation in `/Users/amrosaleh/Maiyar/miyar-v2-tr13`, stacked on exact closed-TR-12 commit `1169fed5e9036bd754cfcb79a7619933515d7f00`.
+
+- Organization admins can create expiring AI-advisor brief links and idempotently revoke every link for their project. Authenticated brief reads expose only non-secret share status; public resolution is concealed, read-only, privacy-header protected, and rate-limited without letting rejected probes consume unrelated users' global quota.
+- The certification distinguishes `design.generateBrief`, `designAdvisor.generateDesignBrief`, and `project.generateReport`. The public link exposes the AI-advisor brief only; no issued/approved/unified artifact state was introduced.
+- One versioned synthetic journey reconciles score `75`, `20.00 m²` project/room fit-out area, 100% allocation groups, deterministic surfaces, preserved locked/manual records, and material-library project totals of AED `2,494.70` / `3,143.38` / `3,792.05` across MySQL, routers, Node/serverless applications, the application UI, stored report, and nine-page rendered artifact.
+- Final repository gates pass: hostile-parent full suite 1,253/22, focused contracts 78/78, TypeScript, authorization 338/0, database-safety 112/2/0, build and byte-stable tracked serverless bundle, report rendering 23/23, nine-page visual inspection, and diff/security/scope checks. The initial independent findings were repaired; high-reasoning authorization/token re-review and Claude Opus source review returned `APPROVED`.
+- The harness rejects unsafe database/server/worker/session inputs, uses no ambient server, keeps one serial worker, emits only non-secret ignored local evidence, treats cleanup failure as failure, and proves the disposable database is absent afterward.
+- No schema, migration, dependency, scoring/financial/compliance policy, shared database/configuration, commit, push, merge, preview, or deployment occurred.
 
 ## Production Database Observation
 

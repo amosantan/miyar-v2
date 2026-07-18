@@ -2816,6 +2816,8 @@ __export(db_exports, {
   resetSpaceProgramRooms: () => resetSpaceProgramRooms,
   reviewBenchmarkProposal: () => reviewBenchmarkProposal,
   reviewBenchmarkSuggestion: () => reviewBenchmarkSuggestion,
+  revokeAiDesignBriefSharesForProjectForOrg: () => revokeAiDesignBriefSharesForProjectForOrg,
+  revokeAiDesignBriefSharesForProjectForOrgInDatabase: () => revokeAiDesignBriefSharesForProjectForOrgInDatabase,
   setLogicThresholds: () => setLogicThresholds,
   setLogicWeights: () => setLogicWeights,
   updateAiDesignBriefShareToken: () => updateAiDesignBriefShareToken,
@@ -2857,7 +2859,7 @@ __export(db_exports, {
   upsertUser: () => upsertUser,
   verifyPdfExtractionForOrg: () => verifyPdfExtractionForOrg
 });
-import { eq, and, desc, asc, sql, inArray, gte, isNull, or } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray, gte, isNull, isNotNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import { createHash } from "node:crypto";
@@ -5591,6 +5593,34 @@ async function updateAiDesignBriefShareTokenForOrg(briefId, projectId, orgId, to
     return Number(result[0].affectedRows) === 1;
   });
 }
+async function revokeAiDesignBriefSharesForProjectForOrg(projectId, orgId) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return revokeAiDesignBriefSharesForProjectForOrgInDatabase(db, projectId, orgId);
+}
+async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database, projectId, orgId) {
+  return database.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (owned.length !== 1) return null;
+    await tx.update(aiDesignBriefs).set({ shareExpiresAt: null }).where(and(
+      eq(aiDesignBriefs.projectId, projectId),
+      eq(aiDesignBriefs.orgId, orgId),
+      isNull(aiDesignBriefs.shareToken),
+      isNotNull(aiDesignBriefs.shareExpiresAt)
+    ));
+    const result = await tx.update(aiDesignBriefs).set({ shareToken: null, shareExpiresAt: null }).where(and(
+      eq(aiDesignBriefs.projectId, projectId),
+      eq(aiDesignBriefs.orgId, orgId),
+      isNotNull(aiDesignBriefs.shareToken),
+      sql`exists (
+          select 1 from ${projects}
+          where ${projects.id} = ${projectId}
+            and ${projects.orgId} = ${orgId}
+        )`
+    ));
+    return { revokedCount: Number(result[0].affectedRows) };
+  });
+}
 async function createFloorPlanAssetAndLinkForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -7036,133 +7066,6 @@ var init_report_safe_output = __esm({
   }
 });
 
-// server/storage.ts
-var storage_exports = {};
-__export(storage_exports, {
-  storageCreatePresignedPut: () => storageCreatePresignedPut,
-  storageDelete: () => storageDelete,
-  storageGet: () => storageGet,
-  storagePut: () => storagePut,
-  storageRead: () => storageRead
-});
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-  HeadObjectCommand
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { Buffer as Buffer2 } from "node:buffer";
-import process2 from "node:process";
-function getS3Client() {
-  const region = process2.env.AWS_REGION || "us-east-1";
-  const accessKeyId = process2.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process2.env.AWS_SECRET_ACCESS_KEY;
-  const bucketName = process2.env.AWS_S3_BUCKET;
-  if (!accessKeyId || !secretAccessKey || !bucketName) {
-    if (process2.env.NODE_ENV === "production") {
-      console.warn("Missing AWS S3 credentials");
-    }
-  }
-  const client = new S3Client({
-    region,
-    credentials: accessKeyId && secretAccessKey ? {
-      accessKeyId,
-      secretAccessKey
-    } : void 0
-  });
-  return { client, bucketName };
-}
-function normalizeKey(relKey) {
-  return relKey.replace(/^\/+/, "");
-}
-async function storagePut(relKey, data, contentType = "application/octet-stream") {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
-    const dataUrl = `data:${contentType};base64,${b64}`;
-    return { key, url: dataUrl, persistent: false };
-  }
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-    Body: typeof data === "string" ? Buffer2.from(data, "utf-8") : data,
-    ContentType: contentType
-  });
-  await client.send(command);
-  const getCommand = new GetObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  });
-  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
-  return { key, url, persistent: true };
-}
-async function storageCreatePresignedPut(relKey, contentType, expiresIn = 15 * 60) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    throw new Error("Object storage is not configured for direct uploads");
-  }
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-    ContentType: contentType
-  });
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
-  return { key, uploadUrl };
-}
-async function storageRead(relKey, maxBytes) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    throw new Error("Object storage is not configured for server-side validation");
-  }
-  const head = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
-  const sizeBytes = head.ContentLength ?? 0;
-  if (sizeBytes <= 0 || sizeBytes > maxBytes) {
-    return { key, contentType: head.ContentType, sizeBytes, buffer: Buffer2.alloc(0) };
-  }
-  const object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
-  if (!object.Body) throw new Error("Object storage returned no body");
-  const data = await object.Body.transformToByteArray();
-  const buffer = Buffer2.from(data);
-  if (buffer.length !== sizeBytes || buffer.length > maxBytes) {
-    throw new Error("Object storage size changed during validation");
-  }
-  return { key, contentType: head.ContentType, sizeBytes, buffer };
-}
-async function storageGet(relKey) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    return { key, url: `/uploads/${key}` };
-  }
-  const getCommand = new GetObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  });
-  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
-  return { key, url };
-}
-async function storageDelete(relKey) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    return;
-  }
-  await client.send(new DeleteObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  }));
-}
-var init_storage = __esm({
-  "server/storage.ts"() {
-    "use strict";
-  }
-});
-
 // server/_core/llm.ts
 var llm_exports = {};
 __export(llm_exports, {
@@ -7433,6 +7336,133 @@ var init_llm = __esm({
       return part;
     };
     mapRoleToGemini = (role) => role === "assistant" ? "model" : "user";
+  }
+});
+
+// server/storage.ts
+var storage_exports = {};
+__export(storage_exports, {
+  storageCreatePresignedPut: () => storageCreatePresignedPut,
+  storageDelete: () => storageDelete,
+  storageGet: () => storageGet,
+  storagePut: () => storagePut,
+  storageRead: () => storageRead
+});
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Buffer as Buffer2 } from "node:buffer";
+import process2 from "node:process";
+function getS3Client() {
+  const region = process2.env.AWS_REGION || "us-east-1";
+  const accessKeyId = process2.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process2.env.AWS_SECRET_ACCESS_KEY;
+  const bucketName = process2.env.AWS_S3_BUCKET;
+  if (!accessKeyId || !secretAccessKey || !bucketName) {
+    if (process2.env.NODE_ENV === "production") {
+      console.warn("Missing AWS S3 credentials");
+    }
+  }
+  const client = new S3Client({
+    region,
+    credentials: accessKeyId && secretAccessKey ? {
+      accessKeyId,
+      secretAccessKey
+    } : void 0
+  });
+  return { client, bucketName };
+}
+function normalizeKey(relKey) {
+  return relKey.replace(/^\/+/, "");
+}
+async function storagePut(relKey, data, contentType = "application/octet-stream") {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
+    const dataUrl = `data:${contentType};base64,${b64}`;
+    return { key, url: dataUrl, persistent: false };
+  }
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    Body: typeof data === "string" ? Buffer2.from(data, "utf-8") : data,
+    ContentType: contentType
+  });
+  await client.send(command);
+  const getCommand = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  });
+  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  return { key, url, persistent: true };
+}
+async function storageCreatePresignedPut(relKey, contentType, expiresIn = 15 * 60) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for direct uploads");
+  }
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType
+  });
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  return { key, uploadUrl };
+}
+async function storageRead(relKey, maxBytes) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for server-side validation");
+  }
+  const head = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
+  const sizeBytes = head.ContentLength ?? 0;
+  if (sizeBytes <= 0 || sizeBytes > maxBytes) {
+    return { key, contentType: head.ContentType, sizeBytes, buffer: Buffer2.alloc(0) };
+  }
+  const object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
+  if (!object.Body) throw new Error("Object storage returned no body");
+  const data = await object.Body.transformToByteArray();
+  const buffer = Buffer2.from(data);
+  if (buffer.length !== sizeBytes || buffer.length > maxBytes) {
+    throw new Error("Object storage size changed during validation");
+  }
+  return { key, contentType: head.ContentType, sizeBytes, buffer };
+}
+async function storageGet(relKey) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    return { key, url: `/uploads/${key}` };
+  }
+  const getCommand = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  });
+  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  return { key, url };
+}
+async function storageDelete(relKey) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    return;
+  }
+  await client.send(new DeleteObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  }));
+}
+var init_storage = __esm({
+  "server/storage.ts"() {
+    "use strict";
   }
 });
 
@@ -15205,7 +15235,18 @@ function createPublicRateLimitMiddleware(t2) {
     }
     globalEntry.timestamps.push(now);
     addressEntry.timestamps.push(now);
-    return next();
+    const releaseRejectedGlobalReservation = () => {
+      const reservation = globalEntry.timestamps.lastIndexOf(now);
+      if (reservation >= 0) globalEntry.timestamps.splice(reservation, 1);
+    };
+    try {
+      const result = await next();
+      if (result?.ok === false) releaseRejectedGlobalReservation();
+      return result;
+    } catch (error) {
+      releaseRejectedGlobalReservation();
+      throw error;
+    }
   });
 }
 
@@ -16479,6 +16520,8 @@ function htmlHeader(title, subtitle, projectName, context) {
   h4 { font-size: 12px; color: #0f3460; margin: 14px 0 6px; }
   p { margin-bottom: 8px; }
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
+  .keep-together { break-inside: avoid-page; page-break-inside: avoid; }
+  table.keep-together { break-inside: avoid-page; page-break-inside: avoid; }
   th { background: #0f3460; color: #fff; padding: 10px 16px; text-align: left; font-weight: 600; }
   td { padding: 10px 16px; border-bottom: 1px solid #e0e0e0; }
   tr:nth-child(even) td { background: #f8f9fa; }
@@ -16779,7 +16822,7 @@ function renderInputSummary(inputs) {
   ];
   const tables = groups.map((g) => {
     const rows = g.items.map(([k, v]) => `<tr><td style="width:50%;">${escapeReportText(k)}</td><td>${dynamicText(v)}</td></tr>`).join("");
-    return `<h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table>`;
+    return `<div class="keep-together"><h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table></div>`;
   }).join("");
   return `<div class="section"><h2>Project Input Summary</h2>${tables}</div>`;
 }
@@ -17013,6 +17056,154 @@ function renderBoardAnnex(boardAnnex, locale) {
 </div>
 `;
 }
+function renderWorkflowReconciliation(reconciliation, locale) {
+  const isArabic = locale === "ar";
+  const copy = isArabic ? {
+    heading: "\u0645\u0637\u0627\u0628\u0642\u0629 \u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A \u0648\u0643\u0645\u064A\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
+    description: "\u0645\u0637\u0627\u0628\u0642\u0629 \u062D\u062A\u0645\u064A\u0629 \u0644\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0645\u062E\u0632\u0646\u0629 \u0641\u064A \u0627\u0644\u0645\u0634\u0631\u0648\u0639 \u0648\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A \u0648\u062A\u062E\u0635\u064A\u0635\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F \u0648\u0623\u0633\u0639\u0627\u0631 \u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0645\u0648\u0627\u062F.",
+    projectFitOut: "\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u062A\u062C\u0647\u064A\u0632 \u0641\u064A \u0627\u0644\u0645\u0634\u0631\u0648\u0639",
+    roomFitOut: "\u0625\u062C\u0645\u0627\u0644\u064A \u063A\u0631\u0641 \u0627\u0644\u062A\u062C\u0647\u064A\u0632",
+    variance: "\u0641\u0631\u0642 \u0627\u0644\u0645\u0633\u0627\u062D\u0629",
+    unavailable: "\u063A\u064A\u0631 \u0645\u062A\u0627\u062D",
+    pass: "\u0645\u0637\u0627\u0628\u0642",
+    fail: "\u063A\u064A\u0631 \u0645\u0637\u0627\u0628\u0642",
+    rooms: "\u0627\u0644\u063A\u0631\u0641 \u0627\u0644\u0645\u062E\u0632\u0646\u0629 / \u063A\u0631\u0641 \u0627\u0644\u062A\u062C\u0647\u064A\u0632 / \u0627\u0644\u063A\u0631\u0641 \u0627\u0644\u064A\u062F\u0648\u064A\u0629",
+    allocationCount: "\u0635\u0641\u0648\u0641 / \u0645\u062C\u0645\u0648\u0639\u0627\u062A \u0627\u0644\u062A\u062E\u0635\u064A\u0635",
+    locked: "\u0635\u0641\u0648\u0641 / \u0645\u062C\u0645\u0648\u0639\u0627\u062A \u0627\u0644\u062A\u062E\u0635\u064A\u0635 \u0627\u0644\u0645\u0642\u0641\u0644\u0629",
+    surfaces: "\u0625\u062C\u0645\u0627\u0644\u064A\u0627\u062A \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A \u0627\u0644\u062D\u062A\u0645\u064A\u0629",
+    surface: "\u0627\u0644\u0633\u0637\u062D",
+    area: "\u0627\u0644\u0645\u0633\u0627\u062D\u0629 (\u0645\xB2)",
+    floor: "\u0627\u0644\u0623\u0631\u0636\u064A\u0627\u062A",
+    walls: "\u0627\u0644\u062C\u062F\u0631\u0627\u0646",
+    ceiling: "\u0627\u0644\u0623\u0633\u0642\u0641",
+    total: "\u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A",
+    formula: "\u0635\u064A\u063A\u0629 \u0627\u0644\u062D\u0633\u0627\u0628",
+    height: "\u0627\u0631\u062A\u0641\u0627\u0639 \u0627\u0644\u0633\u0642\u0641",
+    allocationChecks: "\u0641\u062D\u0648\u0635 \u0645\u062C\u0645\u0648\u0639\u0627\u062A \u0627\u0644\u062A\u062E\u0635\u064A\u0635 \u0628\u0646\u0633\u0628\u0629 100%",
+    room: "\u0627\u0644\u063A\u0631\u0641\u0629",
+    element: "\u0627\u0644\u0639\u0646\u0635\u0631",
+    allocationTotal: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u062A\u062E\u0635\u064A\u0635",
+    storedSurface: "\u0627\u0644\u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0645\u062E\u0632\u0646\u0629 / \u0627\u0644\u0645\u062A\u0648\u0642\u0639\u0629",
+    allocationCheck: "\u0641\u062D\u0635 \u0627\u0644\u0646\u0633\u0628\u0629",
+    surfaceCheck: "\u0641\u062D\u0635 \u0627\u0644\u0645\u0633\u0627\u062D\u0629",
+    check: "\u0627\u0644\u0641\u062D\u0635",
+    noGroups: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u062C\u0645\u0648\u0639\u0627\u062A \u062A\u062E\u0635\u064A\u0635 \u0645\u062E\u0632\u0646\u0629.",
+    allGroups: "\u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u062C\u0645\u0648\u0639\u0627\u062A \u0628\u0646\u0633\u0628\u0629 100%",
+    allSurfaces: "\u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A \u0645\u0637\u0627\u0628\u0642\u0629 \u0644\u0644\u0635\u064A\u063A\u0629",
+    costs: "\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0645\u0648\u0627\u062F \u0645\u0646 \u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0645\u0648\u0627\u062F",
+    minimum: "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u062F\u0646\u0649",
+    midpoint: "\u0627\u0644\u0645\u062A\u0648\u0633\u0637",
+    maximum: "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0639\u0644\u0649",
+    priceCoverage: "\u062A\u063A\u0637\u064A\u0629 \u0627\u0644\u0623\u0633\u0639\u0627\u0631",
+    unpriced: "\u063A\u064A\u0631 \u0645\u0633\u0639\u0651\u0631",
+    source: "\u0627\u0644\u0645\u0635\u062F\u0631",
+    sourceTables: "\u062C\u062F\u0627\u0648\u0644 \u0627\u0644\u0645\u0635\u062F\u0631"
+  } : {
+    heading: "Workflow, Space & MQI Reconciliation",
+    description: "Deterministic reconciliation of stored project, space-programme, material-allocation, and material-library values.",
+    projectFitOut: "Project fit-out area",
+    roomFitOut: "Fit-out room total",
+    variance: "Area variance",
+    unavailable: "Unavailable",
+    pass: "PASS",
+    fail: "FAIL",
+    rooms: "Stored / fit-out / manual rooms",
+    allocationCount: "Allocation rows / groups",
+    locked: "Locked allocation rows / groups",
+    surfaces: "Deterministic surface totals",
+    surface: "Surface",
+    area: "Area (m\xB2)",
+    floor: "Floor",
+    walls: "Walls",
+    ceiling: "Ceiling",
+    total: "Total",
+    formula: "Formula",
+    height: "Ceiling height",
+    allocationChecks: "Allocation-group 100% checks",
+    room: "Room",
+    element: "Element",
+    allocationTotal: "Allocation total",
+    storedSurface: "Stored / expected surface",
+    allocationCheck: "Allocation check",
+    surfaceCheck: "Surface check",
+    check: "Check",
+    noGroups: "No stored allocation groups.",
+    allGroups: "All groups at 100%",
+    allSurfaces: "All surfaces match formula",
+    costs: "Material-library cost reconciliation",
+    minimum: "Minimum",
+    midpoint: "Midpoint",
+    maximum: "Maximum",
+    priceCoverage: "Price coverage",
+    unpriced: "unpriced",
+    source: "Source",
+    sourceTables: "Source tables"
+  };
+  const number3 = (value) => value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  const areaStatus = reconciliation.spaceProgram.reconciles === null ? copy.unavailable : reconciliation.spaceProgram.reconciles ? copy.pass : copy.fail;
+  const allocationRows = reconciliation.allocations.groups.map(
+    (group) => `
+    <tr>
+      <td>${dynamicText(group.roomName)} <span style="color:#777;">(${dynamicText(group.roomId)})</span></td>
+      <td>${dynamicText(group.element)}</td>
+      <td style="text-align:right;">${number3(group.allocationPctTotal)}%</td>
+      <td style="text-align:right; color:${group.surfaceReconciles ? "#2e7d32" : "#c62828"};">${number3(group.surfaceAreaM2Total)} / ${group.expectedSurfaceAreaM2 === null ? copy.unavailable : number3(group.expectedSurfaceAreaM2)} m\xB2</td>
+      <td style="font-weight:700; color:${group.passes100Pct ? "#2e7d32" : "#c62828"};">${group.passes100Pct ? copy.pass : copy.fail}</td>
+      <td style="font-weight:700; color:${group.surfaceReconciles ? "#2e7d32" : "#c62828"};">${group.surfaceReconciles ? copy.pass : copy.fail}</td>
+    </tr>`
+  ).join("");
+  const projectArea = reconciliation.spaceProgram.projectFitOutAreaM2;
+  const variance = reconciliation.spaceProgram.varianceM2;
+  return `
+<div class="section" id="sec-workflow-reconciliation" style="page-break-inside:auto;">
+  <h2>${copy.heading}</h2>
+  <p style="font-size:9px; color:#666;">${copy.description}</p>
+  <div class="metric-grid">
+    <div class="metric-card"><div class="label">${copy.projectFitOut}</div><div class="value" style="font-size:18px;">${projectArea === null ? copy.unavailable : `${number3(projectArea)} m\xB2`}</div></div>
+    <div class="metric-card"><div class="label">${copy.roomFitOut}</div><div class="value" style="font-size:18px;">${number3(reconciliation.spaceProgram.fitOutRoomAreaM2)} m\xB2</div></div>
+    <div class="metric-card"><div class="label">${copy.variance}</div><div class="value" style="font-size:18px; color:${reconciliation.spaceProgram.reconciles === false ? "#c62828" : "#2e7d32"};">${variance === null ? copy.unavailable : `${number3(variance)} m\xB2 \xB7 ${areaStatus}`}</div></div>
+  </div>
+  <table class="keep-together">
+    <tr><th>${copy.rooms}</th><th>${copy.allocationCount}</th><th>${copy.locked}</th><th>${copy.allGroups}</th><th>${copy.allSurfaces}</th></tr>
+    <tr>
+      <td>${reconciliation.spaceProgram.storedRoomCount} / ${reconciliation.spaceProgram.fitOutRoomCount} / ${reconciliation.spaceProgram.manualRoomCount}</td>
+      <td>${reconciliation.allocations.rowCount} / ${reconciliation.allocations.groupCount}</td>
+      <td>${reconciliation.allocations.lockedRowCount} / ${reconciliation.allocations.lockedGroupCount}</td>
+      <td style="font-weight:700; color:${reconciliation.allocations.allGroupsPass100Pct ? "#2e7d32" : "#c62828"};">${reconciliation.allocations.allGroupsPass100Pct ? copy.pass : copy.fail}</td>
+      <td style="font-weight:700; color:${reconciliation.allocations.allGroupsSurfaceReconcile ? "#2e7d32" : "#c62828"};">${reconciliation.allocations.allGroupsSurfaceReconcile ? copy.pass : copy.fail}</td>
+    </tr>
+  </table>
+
+  <h3>${copy.surfaces}</h3>
+  <p style="font-size:9px; color:#666;">${copy.formula}: ${dynamicText(reconciliation.surfaces.formulaVersion)} \xB7 ${copy.height}: ${number3(reconciliation.surfaces.ceilingHeightM)} m</p>
+  <table>
+    <tr><th>${copy.surface}</th><th style="text-align:right;">${copy.area}</th></tr>
+    <tr><td>${copy.floor}</td><td style="text-align:right;">${number3(reconciliation.surfaces.floorM2)}</td></tr>
+    <tr><td>${copy.walls}</td><td style="text-align:right;">${number3(reconciliation.surfaces.wallsM2)}</td></tr>
+    <tr><td>${copy.ceiling}</td><td style="text-align:right;">${number3(reconciliation.surfaces.ceilingM2)}</td></tr>
+    <tr style="font-weight:700; background:#f0f4f8;"><td>${copy.total}</td><td style="text-align:right;">${number3(reconciliation.surfaces.totalM2)}</td></tr>
+  </table>
+
+  <h3>${copy.allocationChecks}</h3>
+  ${allocationRows ? `<table><tr><th>${copy.room}</th><th>${copy.element}</th><th style="text-align:right;">${copy.allocationTotal}</th><th style="text-align:right;">${copy.storedSurface}</th><th>${copy.allocationCheck}</th><th>${copy.surfaceCheck}</th></tr>${allocationRows}</table>` : `<p>${copy.noGroups}</p>`}
+
+  <h3>${copy.costs}</h3>
+  <table>
+    <tr><th>${copy.minimum}</th><th>${copy.midpoint}</th><th>${copy.maximum}</th><th>${copy.priceCoverage}</th></tr>
+    <tr>
+      <td>${reconciliation.materialCosts.currency} ${number3(reconciliation.materialCosts.min)}</td>
+      <td>${reconciliation.materialCosts.currency} ${number3(reconciliation.materialCosts.mid)}</td>
+      <td>${reconciliation.materialCosts.currency} ${number3(reconciliation.materialCosts.max)}</td>
+      <td>${reconciliation.materialCosts.pricedAllocationCount}/${reconciliation.allocations.rowCount} \xB7 ${reconciliation.materialCosts.unpricedAllocationCount} ${copy.unpriced} \xB7 ${reconciliation.materialCosts.allAllocationsPriced ? copy.pass : copy.fail}</td>
+    </tr>
+  </table>
+  <p style="font-size:8px; color:#777;">${copy.source}: ${dynamicText(reconciliation.materialCosts.source)} \xB7 ${copy.sourceTables}: ${dynamicText(reconciliation.sourceTables.join(", "))} \xB7 ${dynamicText(reconciliation.version)}</p>
+</div>
+`;
+}
 function scoreFingerprint(score, includeContributions) {
   return {
     dimensions: score.dimensions,
@@ -17088,6 +17279,7 @@ function pdfFingerprintRenderedValues(reportType, data) {
       roiNarrative: report.roiNarrative,
       roi: report.roiNarrative ? void 0 : report.roi,
       boardAnnex: report.boardAnnex,
+      workflowReconciliation: report.workflowReconciliation,
       evidenceReferences: renderedEvidenceReferences(report.evidenceRefs)
     };
   }
@@ -17311,6 +17503,9 @@ function generateFullReportHTML(data) {
     sections.push(renderROINarrative(data.roiNarrative, context.locale));
   } else if (data.roi) {
     sections.push(renderROI(data.roi, context.locale));
+  }
+  if (data.workflowReconciliation) {
+    sections.push(renderWorkflowReconciliation(data.workflowReconciliation, context.locale));
   }
   sections.push(renderBoardAnnex(data.boardAnnex, context.locale));
   sections.push(renderEvidenceReferences(data.evidenceRefs, context.locale));
@@ -17754,6 +17949,611 @@ function buildBoardAnnexData(inputs) {
   return {
     state: "available",
     boards
+  };
+}
+
+// server/engines/design/material-quantity-engine.ts
+init_llm();
+var ASPECT_RATIOS = {
+  // Living / Dining / Lobby
+  LVG: 1.6,
+  DIN: 1.6,
+  LBY: 1.6,
+  // Master bedroom
+  MBR: 1.4,
+  // Secondary bedrooms
+  BD2: 1.3,
+  BD3: 1.3,
+  BD4: 1.3,
+  // Kitchen
+  KIT: 1.4,
+  // Bathrooms / Ensuite (near-square)
+  BTH: 1,
+  MEN: 1,
+  ENS: 1,
+  // Corridors / Hallways (long and narrow)
+  COR: 2.5,
+  ENT: 2.5,
+  HAL: 2.5,
+  // Office / Meeting
+  OFC: 1.5,
+  MET: 1.5,
+  OPN: 1.5,
+  // Back-of-house / Utility
+  BOH: 1.8,
+  UTL: 1.8,
+  // Hospitality
+  GRM: 1.4,
+  GRS: 1.5,
+  FBB: 1.6,
+  RCP: 1.5,
+  BRK: 1.4
+};
+var DEFAULT_ASPECT_RATIO = 1.4;
+var DEFAULT_CEILING_HEIGHT = 2.8;
+function calculateSurfaceAreas(rooms, ceilingHeightM) {
+  const height = ceilingHeightM ?? DEFAULT_CEILING_HEIGHT;
+  const clampedHeight = Math.max(2.4, Math.min(5, height));
+  if (clampedHeight !== height) {
+    console.warn(
+      `[MQI] Ceiling height ${height}m outside valid range [2.4, 5.0]. Clamped to ${clampedHeight}m.`
+    );
+  }
+  return rooms.map((room) => {
+    if (room.sqm <= 0) {
+      return {
+        roomId: room.id,
+        roomName: room.name,
+        floorM2: 0,
+        wallM2: 0,
+        ceilingM2: 0
+      };
+    }
+    const ratio = ASPECT_RATIOS[room.id] ?? DEFAULT_ASPECT_RATIO;
+    const sqm = room.sqm;
+    const floorM2 = sqm;
+    const sideA = Math.sqrt(sqm * ratio);
+    const sideB = Math.sqrt(sqm / ratio);
+    const perimeter = 2 * (sideA + sideB);
+    const rawWallM2 = perimeter * clampedHeight;
+    const wallM2 = rawWallM2 * 0.85;
+    const ceilingM2 = sqm * 0.95;
+    const wallFloorRatio = wallM2 / floorM2;
+    if (wallFloorRatio < 1.5 || wallFloorRatio > 3.5) {
+      console.warn(
+        `[MQI] Room ${room.id} wall/floor ratio ${wallFloorRatio.toFixed(2)} outside expected range [1.5, 3.5]`
+      );
+    }
+    return {
+      roomId: room.id,
+      roomName: room.name,
+      floorM2: Number(floorM2.toFixed(2)),
+      wallM2: Number(wallM2.toFixed(2)),
+      ceilingM2: Number(ceilingM2.toFixed(2))
+    };
+  });
+}
+var WET_ROOM_IDS = /* @__PURE__ */ new Set(["BTH", "MEN", "ENS", "KIT"]);
+async function generateMaterialAllocations(project, surfaces, materialLibrary2, rooms, existingLockedAllocations) {
+  const roomGradeMap = new Map(rooms.map((r) => [r.id, r.finishGrade]));
+  const lockedMap = /* @__PURE__ */ new Map();
+  if (existingLockedAllocations?.length) {
+    for (const locked of existingLockedAllocations) {
+      lockedMap.set(`${locked.roomId}:${locked.element}`, locked.allocations);
+    }
+  }
+  const gradeCRooms = surfaces.filter(
+    (s) => roomGradeMap.get(s.roomId) === "C"
+  );
+  const nonGradeCRooms = surfaces.filter(
+    (s) => roomGradeMap.get(s.roomId) !== "C"
+  );
+  const roomsForGemini = nonGradeCRooms.filter((s) => {
+    const elements = ["floor", "walls", "ceiling", "joinery"];
+    return elements.some((el) => !lockedMap.has(`${s.roomId}:${el}`));
+  });
+  const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
+  const projectStyle = (project.des01Style || "modern").toLowerCase();
+  const filteredLibrary = materialLibrary2.filter(
+    (m) => (m.tier === projectTier || m.tier === adjacentTier(projectTier)) && (m.style === projectStyle || m.style === "all")
+  );
+  const roomDescriptions = roomsForGemini.map((s) => {
+    const grade2 = roomGradeMap.get(s.roomId) || "B";
+    const isWet = WET_ROOM_IDS.has(s.roomId);
+    const elements = ["floor", "walls", "ceiling", "joinery"].filter((el) => !lockedMap.has(`${s.roomId}:${el}`));
+    return `- ${s.roomId} "${s.roomName}": floor=${s.floorM2}m\xB2, walls=${s.wallM2}m\xB2, ceiling=${s.ceilingM2}m\xB2, grade=${grade2}, wet=${isWet}, elements_needed=[${elements.join(",")}]`;
+  }).join("\n");
+  const libraryDescriptions = filteredLibrary.slice(0, 60).map(
+    (m) => `id=${m.id} category=${m.category} tier=${m.tier} style=${m.style} brand="${m.brand}" product="${m.productName}" AED_min=${m.priceAedMin} AED_max=${m.priceAedMax} unit=${m.unitLabel}`
+  ).join("\n");
+  const systemPrompt = `You are a UAE interior design cost consultant. Your job is to suggest how the surfaces of a project should be split across materials, based on the project's design style, market tier, and available material library.
+
+PROJECT:
+- Typology: ${project.ctx01Typology || "Residential"}
+- Style: ${project.des01Style || "Modern"}
+- Market Tier: ${projectTier}
+- Material Level: ${project.des02MaterialLevel || 3}/5
+- Purpose: ${project.projectPurpose || "Residential development"}
+
+ROOMS AND SURFACES (only rooms that need new allocations):
+${roomDescriptions}
+
+AVAILABLE MATERIAL LIBRARY (filtered to matching tier and style):
+${libraryDescriptions}
+
+RULES:
+1. For each room \xD7 element, provide 1 OR 2 materials with percentages summing to exactly 100.
+2. MAXIMUM 2 materials per surface \u2014 never return 3 or more.
+3. Use materials from the library when possible (reference by materialLibraryId). If no exact match, use a generic name and set materialLibraryId to null.
+4. Grade A rooms get premium finishes. Grade B rooms get mid-range.
+5. Wet room walls (BTH, MEN, ENS, KIT where wet=true) MUST use wall_tile, NEVER wall_paint or stone.
+6. Ceiling is almost always single material (gypsum or plaster). Only split ceiling if Grade A + ultra tier.
+7. For each allocation, write one sentence of reasoning (max 15 words).
+8. Never suggest materials that conflict with UAE climate (e.g. solid wood flooring in wet areas).
+9. Only provide allocations for the elements listed in elements_needed for each room.`;
+  const outputSchema = {
+    name: "material_allocations",
+    schema: {
+      type: "object",
+      properties: {
+        rooms: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              roomId: { type: "string" },
+              floor: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              walls: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              ceiling: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              joinery: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              }
+            },
+            required: ["roomId"]
+          }
+        },
+        designRationale: { type: "string" },
+        estimatedQualityLabel: { type: "string" }
+      },
+      required: ["rooms", "designRationale", "estimatedQualityLabel"]
+    }
+  };
+  let geminiResult;
+  if (roomsForGemini.length === 0) {
+    geminiResult = {
+      rooms: [],
+      designRationale: "All rooms are utility-grade or locked \u2014 deterministic allocation applied.",
+      estimatedQualityLabel: "Standard Utility"
+    };
+  } else {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: "Generate material allocations for all listed rooms. Return structured JSON."
+        }
+      ],
+      outputSchema
+    });
+    const rawContent = response.choices[0]?.message?.content;
+    const text4 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    geminiResult = JSON.parse(text4);
+  }
+  for (const room of geminiResult.rooms) {
+    for (const element of ["floor", "walls", "ceiling", "joinery"]) {
+      const slices = room[element];
+      if (!slices || slices.length === 0) continue;
+      if (slices.length > 2) {
+        slices.sort((a, b) => b.percentage - a.percentage);
+        slices.length = 2;
+      }
+      const sum = slices.reduce((s, sl) => s + sl.percentage, 0);
+      if (Math.abs(sum - 100) > 0.01) {
+        const scale = 100 / sum;
+        for (const sl of slices) {
+          sl.percentage = Number((sl.percentage * scale).toFixed(2));
+        }
+        const newSum = slices.reduce((s, sl) => s + sl.percentage, 0);
+        if (Math.abs(newSum - 100) > 0.01) {
+          slices[0].percentage += 100 - newSum;
+        }
+      }
+    }
+  }
+  for (const surface of gradeCRooms) {
+    const cheapFloor = materialLibrary2.find(
+      (m) => m.category === "flooring" && m.tier === "affordable"
+    );
+    const isWet = WET_ROOM_IDS.has(surface.roomId);
+    const cheapWall = materialLibrary2.find(
+      (m) => m.category === (isWet ? "wall_tile" : "wall_paint") && (m.tier === "affordable" || m.tier === "mid")
+    );
+    const cheapCeiling = materialLibrary2.find(
+      (m) => m.category === "ceiling" && (m.tier === "affordable" || m.tier === "mid")
+    );
+    geminiResult.rooms.push({
+      roomId: surface.roomId,
+      floor: [
+        {
+          materialLibraryId: cheapFloor?.id ?? null,
+          materialName: cheapFloor?.productName || "Basic Ceramic Tile",
+          percentage: 100,
+          reasoning: "Grade C utility room \u2014 affordable single material."
+        }
+      ],
+      walls: [
+        {
+          materialLibraryId: cheapWall?.id ?? null,
+          materialName: cheapWall?.productName || (isWet ? "Standard Ceramic Wall Tile" : "Standard Emulsion Paint"),
+          percentage: 100,
+          reasoning: isWet ? "Wet utility room \u2014 affordable wall tile." : "Grade C \u2014 standard paint."
+        }
+      ],
+      ceiling: [
+        {
+          materialLibraryId: cheapCeiling?.id ?? null,
+          materialName: cheapCeiling?.productName || "Basic Gypsum Board",
+          percentage: 100,
+          reasoning: "Grade C \u2014 basic gypsum ceiling."
+        }
+      ],
+      joinery: []
+    });
+  }
+  for (const [key, lockedSlices] of Array.from(lockedMap.entries())) {
+    const [roomId, element] = key.split(":");
+    let room = geminiResult.rooms.find((r) => r.roomId === roomId);
+    if (!room) {
+      room = { roomId, floor: [], walls: [], ceiling: [], joinery: [] };
+      geminiResult.rooms.push(room);
+    }
+    room[element] = lockedSlices;
+  }
+  return geminiResult;
+}
+function adjacentTier(tier) {
+  if (tier === "ultra") return "premium";
+  if (tier === "premium") return "mid";
+  if (tier === "mid") return "affordable";
+  return "mid";
+}
+function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, project) {
+  const materialLibraryMap = new Map(materialLibrary2.map((m) => [m.id, m]));
+  const roomBreakdowns = [];
+  const materialTotals = /* @__PURE__ */ new Map();
+  let totalFloorM2 = 0;
+  let totalWallM2 = 0;
+  let totalCeilingM2 = 0;
+  for (const surface of surfaces) {
+    const roomAllocation = allocations.rooms.find(
+      (r) => r.roomId === surface.roomId
+    );
+    totalFloorM2 += surface.floorM2;
+    totalWallM2 += surface.wallM2;
+    totalCeilingM2 += surface.ceilingM2;
+    const elements = [];
+    const elementDefs = [
+      { name: "floor", areaM2: surface.floorM2 },
+      { name: "walls", areaM2: surface.wallM2 },
+      { name: "ceiling", areaM2: surface.ceilingM2 },
+      { name: "joinery", areaM2: 0 }
+      // Joinery doesn't have a simple surface area
+    ];
+    let roomCostMin = 0;
+    let roomCostMax = 0;
+    for (const elDef of elementDefs) {
+      const slices = roomAllocation?.[elDef.name];
+      if (!slices || slices.length === 0) continue;
+      let elementCostMin = 0;
+      let elementCostMax = 0;
+      const allocationDetails = [];
+      for (const slice of slices) {
+        const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
+        let unitCostMin = 0;
+        let unitCostMax = 0;
+        if (slice.materialLibraryId) {
+          const libEntry = materialLibraryMap.get(slice.materialLibraryId);
+          if (libEntry) {
+            unitCostMin = Number(libEntry.priceAedMin) || 0;
+            unitCostMax = Number(libEntry.priceAedMax) || 0;
+          }
+        } else {
+          const categoryMap = {
+            floor: ["flooring"],
+            walls: ["wall_paint", "wall_tile"],
+            ceiling: ["ceiling"],
+            joinery: ["joinery"]
+          };
+          const elKey = elDef.name.toLowerCase();
+          const cats = categoryMap[elKey] || [];
+          const fallback = materialLibrary2.find(
+            (m) => cats.includes((m.category || "").toLowerCase())
+          );
+          if (fallback) {
+            unitCostMin = Number(fallback.priceAedMin) || 0;
+            unitCostMax = Number(fallback.priceAedMax) || 0;
+          }
+        }
+        const sliceCostMin = actualAreaM2 * unitCostMin;
+        const sliceCostMax = actualAreaM2 * unitCostMax;
+        elementCostMin += sliceCostMin;
+        elementCostMax += sliceCostMax;
+        allocationDetails.push({
+          materialLibraryId: slice.materialLibraryId,
+          materialName: slice.materialName,
+          percentage: slice.percentage,
+          actualAreaM2: Number(actualAreaM2.toFixed(2)),
+          unitCostMin,
+          unitCostMax,
+          totalCostMin: Number(sliceCostMin.toFixed(2)),
+          totalCostMax: Number(sliceCostMax.toFixed(2)),
+          reasoning: slice.reasoning
+        });
+        const existing = materialTotals.get(slice.materialName) || {
+          totalAreaM2: 0,
+          totalCostMin: 0,
+          totalCostMax: 0
+        };
+        existing.totalAreaM2 += actualAreaM2;
+        existing.totalCostMin += sliceCostMin;
+        existing.totalCostMax += sliceCostMax;
+        materialTotals.set(slice.materialName, existing);
+      }
+      elements.push({
+        element: elDef.name,
+        surfaceAreaM2: elDef.areaM2,
+        allocations: allocationDetails,
+        elementCostMin: Number(elementCostMin.toFixed(2)),
+        elementCostMax: Number(elementCostMax.toFixed(2))
+      });
+      roomCostMin += elementCostMin;
+      roomCostMax += elementCostMax;
+    }
+    roomBreakdowns.push({
+      roomId: surface.roomId,
+      roomName: surface.roomName,
+      floorM2: surface.floorM2,
+      wallM2: surface.wallM2,
+      ceilingM2: surface.ceilingM2,
+      elements,
+      roomCostMin: Number(roomCostMin.toFixed(2)),
+      roomCostMax: Number(roomCostMax.toFixed(2))
+    });
+  }
+  const totalSurfaceM2 = totalFloorM2 + totalWallM2 + totalCeilingM2;
+  const totalFinishCostMin = roomBreakdowns.reduce(
+    (s, r) => s + r.roomCostMin,
+    0
+  );
+  const totalFinishCostMax = roomBreakdowns.reduce(
+    (s, r) => s + r.roomCostMax,
+    0
+  );
+  const totalFinishCostMid = (totalFinishCostMin + totalFinishCostMax) / 2;
+  const SQFT_TO_SQM = 10.764;
+  const FINISH_BUDGET_RATIO = 0.35;
+  const budgetCapPerSqft = Number(project.fin01BudgetCap) || 0;
+  const gfa = Number(project.ctx03Gfa) || 0;
+  const budgetCapAed = budgetCapPerSqft > 0 && gfa > 0 ? budgetCapPerSqft * gfa * SQFT_TO_SQM * FINISH_BUDGET_RATIO : null;
+  const budgetUtilizationPct = budgetCapAed && budgetCapAed > 0 ? Number((totalFinishCostMid / budgetCapAed * 100).toFixed(1)) : null;
+  const isOverBudget = budgetCapAed ? totalFinishCostMid > budgetCapAed : false;
+  const overBudgetByAed = isOverBudget ? Number((totalFinishCostMid - (budgetCapAed || 0)).toFixed(2)) : 0;
+  const materialBreakdown = Array.from(materialTotals.entries()).map(([name, totals]) => ({
+    materialName: name,
+    totalAreaM2: Number(totals.totalAreaM2.toFixed(2)),
+    totalCostMin: Number(totals.totalCostMin.toFixed(2)),
+    totalCostMax: Number(totals.totalCostMax.toFixed(2)),
+    pctOfTotalSurface: totalSurfaceM2 > 0 ? Number((totals.totalAreaM2 / totalSurfaceM2 * 100).toFixed(1)) : 0
+  })).sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
+  return {
+    rooms: roomBreakdowns,
+    summary: {
+      totalFloorM2: Number(totalFloorM2.toFixed(2)),
+      totalWallM2: Number(totalWallM2.toFixed(2)),
+      totalCeilingM2: Number(totalCeilingM2.toFixed(2)),
+      totalSurfaceM2: Number(totalSurfaceM2.toFixed(2)),
+      materialBreakdown,
+      totalFinishCostMin: Number(totalFinishCostMin.toFixed(2)),
+      totalFinishCostMax: Number(totalFinishCostMax.toFixed(2)),
+      totalFinishCostMid: Number(totalFinishCostMid.toFixed(2)),
+      budgetCapAed,
+      budgetUtilizationPct,
+      isOverBudget,
+      overBudgetByAed,
+      qualityLabel: allocations.estimatedQualityLabel || "Standard"
+    },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+
+// server/engines/report-reconciliation.ts
+var RECONCILIATION_VERSION = "workflow-space-mqi-reconciliation-v1";
+var SURFACE_FORMULA_VERSION = "mqi-surface-area-v1";
+var DEFAULT_CEILING_HEIGHT_M = 2.8;
+var RECONCILIATION_TOLERANCE = 0.01;
+function finiteNumber(value) {
+  if (value === null || value === void 0 || value === "") return null;
+  const number3 = Number(value);
+  return Number.isFinite(number3) ? number3 : null;
+}
+function numberOrZero(value) {
+  return finiteNumber(value) ?? 0;
+}
+function round2(value) {
+  return Number(value.toFixed(2));
+}
+function buildWorkflowSpaceMqiReconciliation(input) {
+  const fitOutRooms = input.rooms.filter((room) => room.isFitOut);
+  const roomAreaM2 = round2(fitOutRooms.reduce(
+    (total, room) => total + numberOrZero(room.sqm),
+    0
+  ));
+  const projectArea = finiteNumber(input.projectFitOutAreaM2);
+  const varianceM2 = projectArea === null ? null : round2(projectArea - roomAreaM2);
+  const surfaces = calculateSurfaceAreas(
+    fitOutRooms.map((room) => ({
+      id: room.roomCode,
+      name: room.roomName,
+      sqm: numberOrZero(room.sqm),
+      budgetPct: numberOrZero(room.budgetPct),
+      priority: room.priority,
+      finishGrade: room.finishGrade
+    })),
+    DEFAULT_CEILING_HEIGHT_M
+  );
+  const floorM2 = round2(surfaces.reduce((total, room) => total + room.floorM2, 0));
+  const wallsM2 = round2(surfaces.reduce((total, room) => total + room.wallM2, 0));
+  const ceilingM2 = round2(surfaces.reduce((total, room) => total + room.ceilingM2, 0));
+  const allocationGroups = /* @__PURE__ */ new Map();
+  const surfacesByRoomId = new Map(surfaces.map((surface) => [surface.roomId, surface]));
+  for (const allocation of input.allocations) {
+    const key = `${allocation.roomId}\0${allocation.element}`;
+    const group = allocationGroups.get(key) ?? {
+      roomId: allocation.roomId,
+      roomName: allocation.roomName,
+      element: allocation.element,
+      allocationPctTotal: 0,
+      surfaceAreaM2Total: 0,
+      locked: false
+    };
+    group.allocationPctTotal += numberOrZero(allocation.allocationPct);
+    group.surfaceAreaM2Total += numberOrZero(allocation.surfaceAreaM2);
+    group.locked ||= allocation.isLocked;
+    allocationGroups.set(key, group);
+  }
+  const groups = Array.from(allocationGroups.values()).map((group) => {
+    const allocationPctTotal = round2(group.allocationPctTotal);
+    const surfaceAreaM2Total = round2(group.surfaceAreaM2Total);
+    const roomSurfaces = surfacesByRoomId.get(group.roomId);
+    const expectedSurfaceAreaM2 = roomSurfaces === void 0 ? null : group.element === "floor" ? round2(roomSurfaces.floorM2) : group.element === "walls" ? round2(roomSurfaces.wallM2) : group.element === "ceiling" ? round2(roomSurfaces.ceilingM2) : group.element === "joinery" ? 0 : null;
+    const surfaceVarianceM2 = expectedSurfaceAreaM2 === null ? null : round2(surfaceAreaM2Total - expectedSurfaceAreaM2);
+    return {
+      roomId: group.roomId,
+      roomName: group.roomName,
+      element: group.element,
+      allocationPctTotal,
+      passes100Pct: Math.abs(allocationPctTotal - 100) <= RECONCILIATION_TOLERANCE,
+      surfaceAreaM2Total,
+      expectedSurfaceAreaM2,
+      surfaceVarianceM2,
+      surfaceReconciles: surfaceVarianceM2 !== null && Math.abs(surfaceVarianceM2) <= RECONCILIATION_TOLERANCE
+    };
+  }).sort(
+    (left, right) => left.roomId.localeCompare(right.roomId) || left.element.localeCompare(right.element) || left.roomName.localeCompare(right.roomName)
+  );
+  const libraryById = new Map(input.materialLibrary.map((material) => [material.id, material]));
+  let pricedAllocationCount = 0;
+  let unpricedAllocationCount = 0;
+  let min = 0;
+  let max = 0;
+  for (const allocation of input.allocations) {
+    const material = allocation.materialLibraryId === null ? void 0 : libraryById.get(allocation.materialLibraryId);
+    const priceMin = finiteNumber(material?.priceAedMin);
+    const priceMax = finiteNumber(material?.priceAedMax);
+    if (priceMin === null || priceMax === null) {
+      unpricedAllocationCount += 1;
+      continue;
+    }
+    const areaM2 = numberOrZero(allocation.surfaceAreaM2);
+    pricedAllocationCount += 1;
+    min += areaM2 * priceMin;
+    max += areaM2 * priceMax;
+  }
+  min = round2(min);
+  max = round2(max);
+  return {
+    version: RECONCILIATION_VERSION,
+    sourceTables: [
+      "projects",
+      "space_program_rooms",
+      "material_allocations",
+      "material_library"
+    ],
+    spaceProgram: {
+      storedRoomCount: input.rooms.length,
+      fitOutRoomCount: fitOutRooms.length,
+      manualRoomCount: input.rooms.filter((room) => room.source === "user_manual").length,
+      projectFitOutAreaM2: projectArea === null ? null : round2(projectArea),
+      fitOutRoomAreaM2: roomAreaM2,
+      varianceM2,
+      reconciles: varianceM2 === null ? null : Math.abs(varianceM2) <= RECONCILIATION_TOLERANCE
+    },
+    surfaces: {
+      formulaVersion: SURFACE_FORMULA_VERSION,
+      ceilingHeightM: DEFAULT_CEILING_HEIGHT_M,
+      floorM2,
+      wallsM2,
+      ceilingM2,
+      totalM2: round2(floorM2 + wallsM2 + ceilingM2)
+    },
+    allocations: {
+      rowCount: input.allocations.length,
+      groupCount: groups.length,
+      lockedRowCount: input.allocations.filter((allocation) => allocation.isLocked).length,
+      lockedGroupCount: Array.from(allocationGroups.values()).filter((group) => group.locked).length,
+      allGroupsPass100Pct: groups.length > 0 && groups.every(
+        (group) => Math.abs(round2(group.allocationPctTotal) - 100) <= RECONCILIATION_TOLERANCE
+      ),
+      allGroupsSurfaceReconcile: groups.length > 0 && groups.every((group) => group.surfaceReconciles),
+      groups
+    },
+    materialCosts: {
+      currency: "AED",
+      source: "material_library.priceAedMin/priceAedMax",
+      pricedAllocationCount,
+      unpricedAllocationCount,
+      allAllocationsPriced: input.allocations.length > 0 && unpricedAllocationCount === 0,
+      min,
+      mid: round2((min + max) / 2),
+      max
+    }
   };
 }
 
@@ -20488,6 +21288,20 @@ var projectRouter = router({
       }
     } catch {
     }
+    let workflowReconciliation;
+    if (input.reportType === "full_report") {
+      const [storedRooms, storedAllocations, materialLibrary2] = await Promise.all([
+        getSpaceProgramRooms(input.projectId, ctx.orgId),
+        getMaterialAllocations(input.projectId, ctx.orgId),
+        getMaterialLibrary()
+      ]);
+      workflowReconciliation = buildWorkflowSpaceMqiReconciliation({
+        projectFitOutAreaM2: project.totalFitoutArea,
+        rooms: storedRooms,
+        allocations: storedAllocations,
+        materialLibrary: materialLibrary2
+      });
+    }
     const pdfInput = {
       projectName: project.name,
       projectId: project.id,
@@ -20503,6 +21317,7 @@ var projectRouter = router({
       locale: input.locale,
       evidenceRefs,
       boardAnnex,
+      workflowReconciliation,
       autonomousContent: input.reportType === "autonomous_design_brief" ? reportData.content : void 0,
       designBrief: input.reportType === "design_brief" || input.reportType === "full_report" ? generateDesignBrief2({ name: project.name, description: project.description }, inputs, scoreResult) : void 0
     };
@@ -23640,469 +24455,6 @@ async function generateDesignBriefDocx(data) {
 
 // server/routers/design.ts
 init_report_catalog();
-
-// server/engines/design/material-quantity-engine.ts
-init_llm();
-var ASPECT_RATIOS = {
-  // Living / Dining / Lobby
-  LVG: 1.6,
-  DIN: 1.6,
-  LBY: 1.6,
-  // Master bedroom
-  MBR: 1.4,
-  // Secondary bedrooms
-  BD2: 1.3,
-  BD3: 1.3,
-  BD4: 1.3,
-  // Kitchen
-  KIT: 1.4,
-  // Bathrooms / Ensuite (near-square)
-  BTH: 1,
-  MEN: 1,
-  ENS: 1,
-  // Corridors / Hallways (long and narrow)
-  COR: 2.5,
-  ENT: 2.5,
-  HAL: 2.5,
-  // Office / Meeting
-  OFC: 1.5,
-  MET: 1.5,
-  OPN: 1.5,
-  // Back-of-house / Utility
-  BOH: 1.8,
-  UTL: 1.8,
-  // Hospitality
-  GRM: 1.4,
-  GRS: 1.5,
-  FBB: 1.6,
-  RCP: 1.5,
-  BRK: 1.4
-};
-var DEFAULT_ASPECT_RATIO = 1.4;
-var DEFAULT_CEILING_HEIGHT = 2.8;
-function calculateSurfaceAreas(rooms, ceilingHeightM) {
-  const height = ceilingHeightM ?? DEFAULT_CEILING_HEIGHT;
-  const clampedHeight = Math.max(2.4, Math.min(5, height));
-  if (clampedHeight !== height) {
-    console.warn(
-      `[MQI] Ceiling height ${height}m outside valid range [2.4, 5.0]. Clamped to ${clampedHeight}m.`
-    );
-  }
-  return rooms.map((room) => {
-    if (room.sqm <= 0) {
-      return {
-        roomId: room.id,
-        roomName: room.name,
-        floorM2: 0,
-        wallM2: 0,
-        ceilingM2: 0
-      };
-    }
-    const ratio = ASPECT_RATIOS[room.id] ?? DEFAULT_ASPECT_RATIO;
-    const sqm = room.sqm;
-    const floorM2 = sqm;
-    const sideA = Math.sqrt(sqm * ratio);
-    const sideB = Math.sqrt(sqm / ratio);
-    const perimeter = 2 * (sideA + sideB);
-    const rawWallM2 = perimeter * clampedHeight;
-    const wallM2 = rawWallM2 * 0.85;
-    const ceilingM2 = sqm * 0.95;
-    const wallFloorRatio = wallM2 / floorM2;
-    if (wallFloorRatio < 1.5 || wallFloorRatio > 3.5) {
-      console.warn(
-        `[MQI] Room ${room.id} wall/floor ratio ${wallFloorRatio.toFixed(2)} outside expected range [1.5, 3.5]`
-      );
-    }
-    return {
-      roomId: room.id,
-      roomName: room.name,
-      floorM2: Number(floorM2.toFixed(2)),
-      wallM2: Number(wallM2.toFixed(2)),
-      ceilingM2: Number(ceilingM2.toFixed(2))
-    };
-  });
-}
-var WET_ROOM_IDS = /* @__PURE__ */ new Set(["BTH", "MEN", "ENS", "KIT"]);
-async function generateMaterialAllocations(project, surfaces, materialLibrary2, rooms, existingLockedAllocations) {
-  const roomGradeMap = new Map(rooms.map((r) => [r.id, r.finishGrade]));
-  const lockedMap = /* @__PURE__ */ new Map();
-  if (existingLockedAllocations?.length) {
-    for (const locked of existingLockedAllocations) {
-      lockedMap.set(`${locked.roomId}:${locked.element}`, locked.allocations);
-    }
-  }
-  const gradeCRooms = surfaces.filter(
-    (s) => roomGradeMap.get(s.roomId) === "C"
-  );
-  const nonGradeCRooms = surfaces.filter(
-    (s) => roomGradeMap.get(s.roomId) !== "C"
-  );
-  const roomsForGemini = nonGradeCRooms.filter((s) => {
-    const elements = ["floor", "walls", "ceiling", "joinery"];
-    return elements.some((el) => !lockedMap.has(`${s.roomId}:${el}`));
-  });
-  const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
-  const projectStyle = (project.des01Style || "modern").toLowerCase();
-  const filteredLibrary = materialLibrary2.filter(
-    (m) => (m.tier === projectTier || m.tier === adjacentTier(projectTier)) && (m.style === projectStyle || m.style === "all")
-  );
-  const roomDescriptions = roomsForGemini.map((s) => {
-    const grade2 = roomGradeMap.get(s.roomId) || "B";
-    const isWet = WET_ROOM_IDS.has(s.roomId);
-    const elements = ["floor", "walls", "ceiling", "joinery"].filter((el) => !lockedMap.has(`${s.roomId}:${el}`));
-    return `- ${s.roomId} "${s.roomName}": floor=${s.floorM2}m\xB2, walls=${s.wallM2}m\xB2, ceiling=${s.ceilingM2}m\xB2, grade=${grade2}, wet=${isWet}, elements_needed=[${elements.join(",")}]`;
-  }).join("\n");
-  const libraryDescriptions = filteredLibrary.slice(0, 60).map(
-    (m) => `id=${m.id} category=${m.category} tier=${m.tier} style=${m.style} brand="${m.brand}" product="${m.productName}" AED_min=${m.priceAedMin} AED_max=${m.priceAedMax} unit=${m.unitLabel}`
-  ).join("\n");
-  const systemPrompt = `You are a UAE interior design cost consultant. Your job is to suggest how the surfaces of a project should be split across materials, based on the project's design style, market tier, and available material library.
-
-PROJECT:
-- Typology: ${project.ctx01Typology || "Residential"}
-- Style: ${project.des01Style || "Modern"}
-- Market Tier: ${projectTier}
-- Material Level: ${project.des02MaterialLevel || 3}/5
-- Purpose: ${project.projectPurpose || "Residential development"}
-
-ROOMS AND SURFACES (only rooms that need new allocations):
-${roomDescriptions}
-
-AVAILABLE MATERIAL LIBRARY (filtered to matching tier and style):
-${libraryDescriptions}
-
-RULES:
-1. For each room \xD7 element, provide 1 OR 2 materials with percentages summing to exactly 100.
-2. MAXIMUM 2 materials per surface \u2014 never return 3 or more.
-3. Use materials from the library when possible (reference by materialLibraryId). If no exact match, use a generic name and set materialLibraryId to null.
-4. Grade A rooms get premium finishes. Grade B rooms get mid-range.
-5. Wet room walls (BTH, MEN, ENS, KIT where wet=true) MUST use wall_tile, NEVER wall_paint or stone.
-6. Ceiling is almost always single material (gypsum or plaster). Only split ceiling if Grade A + ultra tier.
-7. For each allocation, write one sentence of reasoning (max 15 words).
-8. Never suggest materials that conflict with UAE climate (e.g. solid wood flooring in wet areas).
-9. Only provide allocations for the elements listed in elements_needed for each room.`;
-  const outputSchema = {
-    name: "material_allocations",
-    schema: {
-      type: "object",
-      properties: {
-        rooms: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              roomId: { type: "string" },
-              floor: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              },
-              walls: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              },
-              ceiling: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              },
-              joinery: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              }
-            },
-            required: ["roomId"]
-          }
-        },
-        designRationale: { type: "string" },
-        estimatedQualityLabel: { type: "string" }
-      },
-      required: ["rooms", "designRationale", "estimatedQualityLabel"]
-    }
-  };
-  let geminiResult;
-  if (roomsForGemini.length === 0) {
-    geminiResult = {
-      rooms: [],
-      designRationale: "All rooms are utility-grade or locked \u2014 deterministic allocation applied.",
-      estimatedQualityLabel: "Standard Utility"
-    };
-  } else {
-    const response = await invokeLLM({
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: "Generate material allocations for all listed rooms. Return structured JSON."
-        }
-      ],
-      outputSchema
-    });
-    const rawContent = response.choices[0]?.message?.content;
-    const text4 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
-    geminiResult = JSON.parse(text4);
-  }
-  for (const room of geminiResult.rooms) {
-    for (const element of ["floor", "walls", "ceiling", "joinery"]) {
-      const slices = room[element];
-      if (!slices || slices.length === 0) continue;
-      if (slices.length > 2) {
-        slices.sort((a, b) => b.percentage - a.percentage);
-        slices.length = 2;
-      }
-      const sum = slices.reduce((s, sl) => s + sl.percentage, 0);
-      if (Math.abs(sum - 100) > 0.01) {
-        const scale = 100 / sum;
-        for (const sl of slices) {
-          sl.percentage = Number((sl.percentage * scale).toFixed(2));
-        }
-        const newSum = slices.reduce((s, sl) => s + sl.percentage, 0);
-        if (Math.abs(newSum - 100) > 0.01) {
-          slices[0].percentage += 100 - newSum;
-        }
-      }
-    }
-  }
-  for (const surface of gradeCRooms) {
-    const cheapFloor = materialLibrary2.find(
-      (m) => m.category === "flooring" && m.tier === "affordable"
-    );
-    const isWet = WET_ROOM_IDS.has(surface.roomId);
-    const cheapWall = materialLibrary2.find(
-      (m) => m.category === (isWet ? "wall_tile" : "wall_paint") && (m.tier === "affordable" || m.tier === "mid")
-    );
-    const cheapCeiling = materialLibrary2.find(
-      (m) => m.category === "ceiling" && (m.tier === "affordable" || m.tier === "mid")
-    );
-    geminiResult.rooms.push({
-      roomId: surface.roomId,
-      floor: [
-        {
-          materialLibraryId: cheapFloor?.id ?? null,
-          materialName: cheapFloor?.productName || "Basic Ceramic Tile",
-          percentage: 100,
-          reasoning: "Grade C utility room \u2014 affordable single material."
-        }
-      ],
-      walls: [
-        {
-          materialLibraryId: cheapWall?.id ?? null,
-          materialName: cheapWall?.productName || (isWet ? "Standard Ceramic Wall Tile" : "Standard Emulsion Paint"),
-          percentage: 100,
-          reasoning: isWet ? "Wet utility room \u2014 affordable wall tile." : "Grade C \u2014 standard paint."
-        }
-      ],
-      ceiling: [
-        {
-          materialLibraryId: cheapCeiling?.id ?? null,
-          materialName: cheapCeiling?.productName || "Basic Gypsum Board",
-          percentage: 100,
-          reasoning: "Grade C \u2014 basic gypsum ceiling."
-        }
-      ],
-      joinery: []
-    });
-  }
-  for (const [key, lockedSlices] of Array.from(lockedMap.entries())) {
-    const [roomId, element] = key.split(":");
-    let room = geminiResult.rooms.find((r) => r.roomId === roomId);
-    if (!room) {
-      room = { roomId, floor: [], walls: [], ceiling: [], joinery: [] };
-      geminiResult.rooms.push(room);
-    }
-    room[element] = lockedSlices;
-  }
-  return geminiResult;
-}
-function adjacentTier(tier) {
-  if (tier === "ultra") return "premium";
-  if (tier === "premium") return "mid";
-  if (tier === "mid") return "affordable";
-  return "mid";
-}
-function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, project) {
-  const materialLibraryMap = new Map(materialLibrary2.map((m) => [m.id, m]));
-  const roomBreakdowns = [];
-  const materialTotals = /* @__PURE__ */ new Map();
-  let totalFloorM2 = 0;
-  let totalWallM2 = 0;
-  let totalCeilingM2 = 0;
-  for (const surface of surfaces) {
-    const roomAllocation = allocations.rooms.find(
-      (r) => r.roomId === surface.roomId
-    );
-    totalFloorM2 += surface.floorM2;
-    totalWallM2 += surface.wallM2;
-    totalCeilingM2 += surface.ceilingM2;
-    const elements = [];
-    const elementDefs = [
-      { name: "floor", areaM2: surface.floorM2 },
-      { name: "walls", areaM2: surface.wallM2 },
-      { name: "ceiling", areaM2: surface.ceilingM2 },
-      { name: "joinery", areaM2: 0 }
-      // Joinery doesn't have a simple surface area
-    ];
-    let roomCostMin = 0;
-    let roomCostMax = 0;
-    for (const elDef of elementDefs) {
-      const slices = roomAllocation?.[elDef.name];
-      if (!slices || slices.length === 0) continue;
-      let elementCostMin = 0;
-      let elementCostMax = 0;
-      const allocationDetails = [];
-      for (const slice of slices) {
-        const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
-        let unitCostMin = 0;
-        let unitCostMax = 0;
-        if (slice.materialLibraryId) {
-          const libEntry = materialLibraryMap.get(slice.materialLibraryId);
-          if (libEntry) {
-            unitCostMin = Number(libEntry.priceAedMin) || 0;
-            unitCostMax = Number(libEntry.priceAedMax) || 0;
-          }
-        } else {
-          const categoryMap = {
-            floor: ["flooring"],
-            walls: ["wall_paint", "wall_tile"],
-            ceiling: ["ceiling"],
-            joinery: ["joinery"]
-          };
-          const elKey = elDef.name.toLowerCase();
-          const cats = categoryMap[elKey] || [];
-          const fallback = materialLibrary2.find(
-            (m) => cats.includes((m.category || "").toLowerCase())
-          );
-          if (fallback) {
-            unitCostMin = Number(fallback.priceAedMin) || 0;
-            unitCostMax = Number(fallback.priceAedMax) || 0;
-          }
-        }
-        const sliceCostMin = actualAreaM2 * unitCostMin;
-        const sliceCostMax = actualAreaM2 * unitCostMax;
-        elementCostMin += sliceCostMin;
-        elementCostMax += sliceCostMax;
-        allocationDetails.push({
-          materialLibraryId: slice.materialLibraryId,
-          materialName: slice.materialName,
-          percentage: slice.percentage,
-          actualAreaM2: Number(actualAreaM2.toFixed(2)),
-          unitCostMin,
-          unitCostMax,
-          totalCostMin: Number(sliceCostMin.toFixed(2)),
-          totalCostMax: Number(sliceCostMax.toFixed(2)),
-          reasoning: slice.reasoning
-        });
-        const existing = materialTotals.get(slice.materialName) || {
-          totalAreaM2: 0,
-          totalCostMin: 0,
-          totalCostMax: 0
-        };
-        existing.totalAreaM2 += actualAreaM2;
-        existing.totalCostMin += sliceCostMin;
-        existing.totalCostMax += sliceCostMax;
-        materialTotals.set(slice.materialName, existing);
-      }
-      elements.push({
-        element: elDef.name,
-        surfaceAreaM2: elDef.areaM2,
-        allocations: allocationDetails,
-        elementCostMin: Number(elementCostMin.toFixed(2)),
-        elementCostMax: Number(elementCostMax.toFixed(2))
-      });
-      roomCostMin += elementCostMin;
-      roomCostMax += elementCostMax;
-    }
-    roomBreakdowns.push({
-      roomId: surface.roomId,
-      roomName: surface.roomName,
-      floorM2: surface.floorM2,
-      wallM2: surface.wallM2,
-      ceilingM2: surface.ceilingM2,
-      elements,
-      roomCostMin: Number(roomCostMin.toFixed(2)),
-      roomCostMax: Number(roomCostMax.toFixed(2))
-    });
-  }
-  const totalSurfaceM2 = totalFloorM2 + totalWallM2 + totalCeilingM2;
-  const totalFinishCostMin = roomBreakdowns.reduce(
-    (s, r) => s + r.roomCostMin,
-    0
-  );
-  const totalFinishCostMax = roomBreakdowns.reduce(
-    (s, r) => s + r.roomCostMax,
-    0
-  );
-  const totalFinishCostMid = (totalFinishCostMin + totalFinishCostMax) / 2;
-  const SQFT_TO_SQM = 10.764;
-  const FINISH_BUDGET_RATIO = 0.35;
-  const budgetCapPerSqft = Number(project.fin01BudgetCap) || 0;
-  const gfa = Number(project.ctx03Gfa) || 0;
-  const budgetCapAed = budgetCapPerSqft > 0 && gfa > 0 ? budgetCapPerSqft * gfa * SQFT_TO_SQM * FINISH_BUDGET_RATIO : null;
-  const budgetUtilizationPct = budgetCapAed && budgetCapAed > 0 ? Number((totalFinishCostMid / budgetCapAed * 100).toFixed(1)) : null;
-  const isOverBudget = budgetCapAed ? totalFinishCostMid > budgetCapAed : false;
-  const overBudgetByAed = isOverBudget ? Number((totalFinishCostMid - (budgetCapAed || 0)).toFixed(2)) : 0;
-  const materialBreakdown = Array.from(materialTotals.entries()).map(([name, totals]) => ({
-    materialName: name,
-    totalAreaM2: Number(totals.totalAreaM2.toFixed(2)),
-    totalCostMin: Number(totals.totalCostMin.toFixed(2)),
-    totalCostMax: Number(totals.totalCostMax.toFixed(2)),
-    pctOfTotalSurface: totalSurfaceM2 > 0 ? Number((totals.totalAreaM2 / totalSurfaceM2 * 100).toFixed(1)) : 0
-  })).sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
-  return {
-    rooms: roomBreakdowns,
-    summary: {
-      totalFloorM2: Number(totalFloorM2.toFixed(2)),
-      totalWallM2: Number(totalWallM2.toFixed(2)),
-      totalCeilingM2: Number(totalCeilingM2.toFixed(2)),
-      totalSurfaceM2: Number(totalSurfaceM2.toFixed(2)),
-      materialBreakdown,
-      totalFinishCostMin: Number(totalFinishCostMin.toFixed(2)),
-      totalFinishCostMax: Number(totalFinishCostMax.toFixed(2)),
-      totalFinishCostMid: Number(totalFinishCostMid.toFixed(2)),
-      budgetCapAed,
-      budgetUtilizationPct,
-      isOverBudget,
-      overBudgetByAed,
-      qualityLabel: allocations.estimatedQualityLabel || "Standard"
-    },
-    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-}
-
-// server/routers/design.ts
 init_space_program();
 import { nanoid as nanoid4 } from "nanoid";
 import crypto3 from "node:crypto";
@@ -25717,10 +26069,38 @@ var designRouter = router({
     });
     return { token, shareUrl: `/share/${token}`, expiresAt: expiresAt.toISOString(), expiryDays: input.expiryDays };
   }),
-  resolveShareLink: publicProcedure.input(z10.object({
-    token: z10.string().min(8).max(64),
+  revokeShareLinks: designOrgAdminProcedure.input(z10.object({ projectId: z10.number() })).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const result = await revokeAiDesignBriefSharesForProjectForOrg(
+      input.projectId,
+      ctx.orgId
+    );
+    if (!result) {
+      throw new TRPCError11({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    await bestEffortAudit({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "brief.share.revoke_all",
+      entityType: "project",
+      entityId: input.projectId,
+      details: {
+        projectId: input.projectId,
+        revokedCount: result.revokedCount
+      }
+    });
+    return { revokedCount: result.revokedCount, active: false };
+  }),
+  resolveShareLink: publicRateLimitedProcedure.input(z10.object({
+    token: z10.string(),
     locale: z10.enum(["en", "ar"]).default("en")
   })).query(async ({ input }) => {
+    if (input.token.length < 8 || input.token.length > 64) {
+      throw new TRPCError11({
+        code: "NOT_FOUND",
+        message: "Share link not found or expired"
+      });
+    }
     const { brief, project } = await requireActivePublicShare(input.token);
     const [recs, benchmark, trends] = await Promise.all([
       getSpaceRecommendations(brief.projectId, brief.orgId),
@@ -32372,7 +32752,18 @@ var designAdvisorRouter = router({
   }),
   getDesignBrief: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
-    return getLatestAiDesignBrief(input.projectId, ctx.orgId);
+    const brief = await getLatestAiDesignBrief(input.projectId, ctx.orgId);
+    if (!brief) return null;
+    const { shareToken, shareExpiresAt, ...safeBrief } = brief;
+    const expiryMs = shareExpiresAt ? new Date(shareExpiresAt).getTime() : Number.NaN;
+    const expiresAt = Number.isFinite(expiryMs) ? new Date(expiryMs).toISOString() : null;
+    return {
+      ...safeBrief,
+      shareStatus: {
+        active: Boolean(shareToken) && expiryMs > Date.now(),
+        expiresAt
+      }
+    };
   }),
   getStandardPackages: orgProcedure.input(z23.object({
     typology: z23.string().optional(),
@@ -34130,12 +34521,12 @@ function deriveConfidence(transactionCount) {
 }
 function buildRange(mid) {
   return {
-    conservative: round2(mid * SCENARIO_MULT.conservative),
-    mid: round2(mid),
-    aggressive: round2(mid * SCENARIO_MULT.aggressive)
+    conservative: round22(mid * SCENARIO_MULT.conservative),
+    mid: round22(mid),
+    aggressive: round22(mid * SCENARIO_MULT.aggressive)
   };
 }
-function round2(n) {
+function round22(n) {
   return Math.round(n * 100) / 100;
 }
 function round1(n) {
@@ -34161,7 +34552,7 @@ function computeValueAddBridge(inputs) {
   const confidence = deriveConfidence(transactionCount);
   const fitoutDelta = Math.max(0, proposedFitoutPerSqm - currentFitoutPerSqm);
   const incrementalFitoutCost = Math.round(fitoutDelta * gfa);
-  const fitoutRatio = round2(proposedFitoutPerSqm / saleMedianPerSqm);
+  const fitoutRatio = round22(proposedFitoutPerSqm / saleMedianPerSqm);
   let riskFlag = null;
   let riskMessage = null;
   if (fitoutRatio > OVER_SPEC_RATIO) {

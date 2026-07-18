@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:authorization:mysql": "tsx scripts/run-guarded-mysql-tests.ts",
     "certify:reports": "tsx scripts/certify-report-rendering.ts",
+    "certify:workflow": "tsx scripts/certify-critical-workflow.ts",
     "env:check": "tsx scripts/check-database-environment.ts",
     "db:preflight:tr03h": "tsx scripts/check-tr03h-migration-preflight.ts",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"

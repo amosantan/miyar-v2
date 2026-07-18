@@ -15,6 +15,7 @@ import { runSensitivityAnalysis } from "../engines/sensitivity";
 import { generateValidationSummary, generateDesignBrief, generateFullReport } from "../engines/report";
 import { generateReportHTML, type PDFReportInput } from "../engines/pdf-report";
 import { buildBoardAnnexData, type BoardAnnexData } from "../engines/board-annex";
+import { buildWorkflowSpaceMqiReconciliation } from "../engines/report-reconciliation";
 import { generateDesignBrief as generateNewDesignBrief } from "../engines/design-brief";
 import { storageGet, storagePut } from "../storage";
 import { nanoid } from "nanoid";
@@ -1202,6 +1203,21 @@ export const projectRouter = router({
         }
       } catch { /* evidence refs are optional */ }
 
+      let workflowReconciliation: PDFReportInput["workflowReconciliation"];
+      if (input.reportType === "full_report") {
+        const [storedRooms, storedAllocations, materialLibrary] = await Promise.all([
+          db.getSpaceProgramRooms(input.projectId, ctx.orgId),
+          db.getMaterialAllocations(input.projectId, ctx.orgId),
+          db.getMaterialLibrary(),
+        ]);
+        workflowReconciliation = buildWorkflowSpaceMqiReconciliation({
+          projectFitOutAreaM2: project.totalFitoutArea,
+          rooms: storedRooms,
+          allocations: storedAllocations,
+          materialLibrary,
+        });
+      }
+
       const pdfInput: PDFReportInput = {
         projectName: project.name,
         projectId: project.id,
@@ -1217,6 +1233,7 @@ export const projectRouter = router({
         locale: input.locale,
         evidenceRefs,
         boardAnnex,
+        workflowReconciliation,
         autonomousContent: input.reportType === "autonomous_design_brief" ? (reportData as any).content : undefined,
         designBrief: input.reportType === "design_brief" || input.reportType === "full_report"
           ? generateNewDesignBrief({ name: project.name, description: project.description }, inputs, scoreResult)

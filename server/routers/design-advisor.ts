@@ -270,7 +270,24 @@ export const designAdvisorRouter = router({
         .input(z.object({ projectId: z.number() }))
         .query(async ({ ctx, input }) => {
             await requireProjectForOrg(input.projectId, ctx.orgId);
-            return db.getLatestAiDesignBrief(input.projectId, ctx.orgId);
+            const brief = await db.getLatestAiDesignBrief(input.projectId, ctx.orgId);
+            if (!brief) return null;
+
+            const { shareToken, shareExpiresAt, ...safeBrief } = brief;
+            const expiryMs = shareExpiresAt
+                ? new Date(shareExpiresAt).getTime()
+                : Number.NaN;
+            const expiresAt = Number.isFinite(expiryMs)
+                ? new Date(expiryMs).toISOString()
+                : null;
+
+            return {
+                ...safeBrief,
+                shareStatus: {
+                    active: Boolean(shareToken) && expiryMs > Date.now(),
+                    expiresAt,
+                },
+            };
         }),
 
     getStandardPackages: orgProcedure
