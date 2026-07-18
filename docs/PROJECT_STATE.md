@@ -11,7 +11,7 @@ This is the canonical location for current observed repository facts. It is not 
 - Package manager declared by repository: `pnpm`
 - Production: Vercel deployment `GQyoYH8hnMXwPRMYmzdsCgTg6wNV` is `READY` for exact source commit `bd09c3f`; root and three timestamped health observations return 200, unauthenticated project access returns 401, and invalid shares return concealed 404 with privacy headers.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `TR-09` is closed; the isolated, uncommitted TR-10 candidate is `NEEDS_HUMAN` only for browser-policy-blocked generated download/print clicks and remains the sole next step.
+- Roadmap state: `TR-10` is closed at `PASS` after the owner waived the final browser-policy-blocked generated download/print clicks; `TR-12` is the sole next executable step.
 
 ## Technology Observed
 
@@ -110,7 +110,7 @@ These facts describe only the isolated, uncommitted worktree `codex/tr-10-report
 - `TR-04` closes all 93 remaining project-router authorization/global-governance paths, including the later ultra-review remediation for atomic report persistence and tenant-owned portfolio alerts. The live inventory has zero `TR-04` and exactly eight pooled-data rows under `TR-05`; targeted, disposable MySQL, safe full-suite, TypeScript, audit, build, diff, and independent-review gates pass.
 - `TR-05` and `KF-007` are closed on `codex/tr-05-data-isolation`. Corpus isolation, migration 0047, fail-closed organization/public reads, scheduler disablement, insufficiency contracts, UI states, and enhanced audit enforcement are implemented. Verified gates: disposable MySQL 18/18, safe suite 962 passed with 22 skipped, authorization inventory 331/331 with zero remediation rows, TypeScript/build/diff PASS, in-app browser PASS across analytics, cost forecasting, project prediction, design advisor, and learning administration, and independent Claude Code `APPROVED_NO_OBJECTION`.
 - `UX-01` is merged into canonical main through commit `029f5c1`. Its implementation and prior authenticated verification remain recorded, but an authenticated browser session was unavailable during the independent TR-07 release smoke; the roadmap retains that explicit UX-01 human gate.
-- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. The isolated TR-10 candidate is `NEEDS_HUMAN` only for browser-policy-blocked generated download/print clicks; it remains the sole next executable step.
+- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. TR-10 is closed after complete artifact, browser, security, and owner-approval evidence; `TR-12` is the sole next executable step.
 
 ## Refresh Procedure
 

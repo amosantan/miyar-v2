@@ -3,7 +3,7 @@
 - ID: TR-10
 - Roadmap step: `TR-10`
 - Title: Certify report integrity and visual rendering
-- Status: NEEDS_HUMAN
+- Status: PASS
 - Owner: Codex
 - Started: 2026-07-18
 - Branch: `codex/tr-10-report-certification`
@@ -12,7 +12,7 @@
 - Selected loops: Report and visual QA, feature, schema migration, security, and browser verification
 - Retry budget: Maximum 5 complete render-QA iterations by default, one owner-authorized sixth post-fix iteration, and 3 evidence-based attempts per unchanged failure class
 - Resource budget: One isolated worktree, one additive migration, one bilingual catalog, one all-export fixture matrix, and one independent final-review cycle
-- Human gates: Bilingual issued copy is approved; the task owner explicitly authorized commit, push, merge, shared migration, and deployment on 2026-07-18; the browser safety layer still requires a human to perform or explicitly waive the remaining generated download/print clicks
+- Human gates: Bilingual issued copy, release actions, and the explicit waiver of the browser-policy-blocked generated download/print clicks were approved by the task owner on 2026-07-18
 
 ## Goal
 
@@ -41,7 +41,7 @@ Prove that every supported MIYAR report and export is data-correct, tenant-safe,
 - [x] Synthetic complete, partial, empty, large-number, Arabic/mixed-direction, long-content, board-heavy, failed-asset, and hostile-input fixtures cover all exporters through a documented pairwise matrix.
 - [x] The real HTML-to-PDF and DOCX-to-PDF paths render successfully; every generated page is inspected with zero clipping, overlap, overflow, blank pages, broken required assets, or unreadable Arabic.
 - [x] Same-organization report access succeeds; cross-organization/missing resources fail before generation, storage, or signing; public shares remain token-gated, read-only, expiry-aware, concealed, no-store, and noindex in both locales.
-- [ ] **HUMAN UI-CLICK GATE:** Targeted suites, disposable-MySQL migration verification, safe full suite, TypeScript, authorization audit, build, report-output audit, render harness, browser workflows, diff review, and independent Claude review pass. All non-browser-click gates pass; generated download/print clicks remain human-only under the browser safety policy.
+- [x] **HUMAN UI-CLICK GATE:** All automated, artifact, browser, and independent-review gates pass; the task owner explicitly waived the remaining generated download/print UI clicks on 2026-07-18.
 - [x] Durable state and the report-QA runbook record only verified evidence; no customer artifacts, signed URLs, bulk renders, or unexplained files remain.
 
 ## Output Families
@@ -72,8 +72,8 @@ Prove that every supported MIYAR report and export is data-correct, tenant-safe,
 - [x] Implement per-render identity, safe output utilities, bilingual catalogs, and all exporter adoption.
 - [x] Implement additive storage-key persistence and authorization-scoped fresh signing.
 - [x] Implement synthetic fixtures, output audit, and real render-certification harness.
-- [ ] Run targeted, full, migration, browser, every-page artifact, and independent-review gates. Only the browser-policy-blocked generated download/print clicks remain.
-- [ ] Close durable state from verified evidence or stop at the applicable human gate.
+- [x] Run targeted, full, migration, browser, every-page artifact, and independent-review gates; record the owner waiver for the browser-policy-blocked generated download/print clicks.
+- [x] Close durable state from verified evidence.
 
 ## Verified Evidence
 
@@ -91,9 +91,8 @@ Prove that every supported MIYAR report and export is data-correct, tenant-safe,
 - Resolved 2026-07-18: The task owner authorized one sixth post-fix render-certification cycle after the original five-iteration budget was exhausted.
 - Resolved 2026-07-18: The task owner authorized a safe synthetic authenticated local environment for the complete English/Arabic browser workflow matrix.
 - Resolved 2026-07-18: The task owner explicitly authorized commit, push, merge, shared database migration, and deployment.
-- Open: The in-app browser safety policy blocks automated generated download/print/new-page actions and forbids an alternate automation workaround. A human must exercise the listed download/print controls or explicitly waive that UI-click gate.
-- Release authority is recorded, but it does not by itself state that the open UI-click acceptance gate is waived.
+- Resolved 2026-07-18: The task owner explicitly waived the remaining TR-10 generated download/print UI-click gate.
 
 ## Next Action
 
-Commit and publish the verified candidate as authorized. Before protected merge, shared migration, or production deployment, have a human exercise the English/Arabic generated download/print controls in the safe synthetic environment or explicitly waive that UI-click gate, then record the result and close TR-10 only if clean.
+Complete the separately authorized release: apply migration 0050 after a verified production backup, merge the green protected-branch candidate, deploy the exact merged SHA, and run production smoke and observation checks.
