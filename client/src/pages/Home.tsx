@@ -7,6 +7,8 @@ import { useTranslation } from "@/lib/i18n";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { PUBLIC_CLAIMS } from "@shared/public-claims";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { getPublicEntryPath } from "@/lib/auth-navigation";
 
 const stages = [
   { number: "01", title: "Define", copy: "Capture the project intent, constraints and evidence that matter before evaluation." },
@@ -16,8 +18,10 @@ const stages = [
 
 export default function Home() {
   const { locale } = useTranslation();
+  const { isAuthenticated, loading } = useAuth();
   const text = (english: string, arabic: string) => locale === "ar" ? arabic : english;
-  const start = () => { window.location.href = getLoginUrl(); };
+  const entryPath = getPublicEntryPath(isAuthenticated);
+  const start = () => { window.location.href = entryPath; };
   const evidence = trpc.system.marketEvidenceSnapshot.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -33,7 +37,9 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <ThemeToggle compact />
           <LanguageToggle compact />
-          <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">{text("Sign in", "تسجيل الدخول")}</Link>
+          <Link href={loading ? getLoginUrl() : entryPath} className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+            {isAuthenticated ? text("Dashboard", "لوحة التحكم") : text("Sign in", "تسجيل الدخول")}
+          </Link>
         </div>
       </header>
 
@@ -47,7 +53,7 @@ export default function Home() {
             {text("MIYAR brings project intent, market evidence, cost guardrails and design risk into one reviewable decision workspace for UAE development teams.", "يجمع مِعيار هدف المشروع وأدلة السوق وضوابط التكلفة ومخاطر التصميم في مساحة قرار واحدة قابلة للمراجعة لفرق التطوير في الإمارات.")}
           </p>
           <Button size="lg" onClick={start} className="mt-9 h-12 gap-2 px-6">
-            {text("Start a project", "ابدأ مشروعاً")} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+            {isAuthenticated ? text("Open dashboard", "افتح لوحة التحكم") : text("Start a project", "ابدأ مشروعاً")} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
           </Button>
           <p className="mt-4 text-xs text-muted-foreground">{text("Decision support, not professional certification. Assumptions and evidence remain visible.", "دعم للقرار وليس اعتماداً مهنياً. تبقى الافتراضات والأدلة ظاهرة.")}</p>
         </div>
