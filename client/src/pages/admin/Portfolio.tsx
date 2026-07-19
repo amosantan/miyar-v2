@@ -7,9 +7,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
-import { Streamdown } from "streamdown";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
+
+const MarkdownRenderer = lazy(() => import("@/components/MarkdownRenderer"));
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
@@ -49,7 +50,13 @@ function PortfolioInsightsAI() {
         )}
         {data?.markdown && (
           <div className="prose prose-sm prose-invert max-w-none text-muted-foreground prose-headings:text-foreground prose-strong:text-foreground">
-            <Streamdown>{data.markdown}</Streamdown>
+            <Suspense
+              fallback={(
+                <p className="whitespace-pre-wrap text-sm">{data.markdown}</p>
+              )}
+            >
+              <MarkdownRenderer>{data.markdown}</MarkdownRenderer>
+            </Suspense>
           </div>
         )}
         {!enabled && !data && !isLoading && !error && (

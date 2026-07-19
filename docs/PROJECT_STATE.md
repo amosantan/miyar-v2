@@ -11,7 +11,7 @@ This is the canonical location for current observed repository facts. It is not 
 - Package manager declared by repository: `pnpm`
 - Production: Vercel target `4ixzzXRp886bet8XDRhc439czfWd` completed for exact source commit `43e5019`; three root/health observations return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and the rendered landing page has no browser console errors.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `SC-01` is locally certified and closed at `PASS`; `SC-04` is the sole next executable step. Git publication and all shared/production actions remain separately gated.
+- Roadmap state: `SC-04` is locally certified and closed at `PASS`; `SC-05` is next but `NEEDS_HUMAN` for runtime topology, SLO/alert ownership, and monitoring cost. Git publication and all shared/production actions remain separately gated.
 
 ## Technology Observed
 
@@ -107,6 +107,17 @@ These facts describe the uncommitted local SC-01 implementation in `/Users/amros
 - Independent high-reasoning security and architecture reviews returned `APPROVED_NO_OBJECTION`; final Claude Opus review is recorded in the task/worklog evidence.
 - No schema, migration, dependency, client behavior, engine, formula, numerical assumption, API path, response shape, database write, Git publication, preview, or deployment was introduced by SC-01.
 
+## SC-04 Local Performance Observation
+
+These facts describe the uncommitted local SC-04 implementation in `/Users/amrosaleh/Maiyar/miyar-v2-sc04`, branched from exact canonical-main commit `a319d47b77771665c9add390a2befd5a883a7dbb`.
+
+- Production Vite output now has a source-owned manifest contract. Versioned budgets cover entry JavaScript/CSS, all JavaScript chunks, public Home/Login/Share, authenticated Dashboard/Project/Reports, pre-briefing Portfolio, assistant-with-Markdown, forbidden static dependencies, and four required dynamic boundaries.
+- Entry JavaScript is 138,121 gzip bytes. The authenticated dashboard static closure fell from 450,808 to 220,257 gzip bytes. All eight closures pass bounded thresholds; the remaining approximately 883 KB raw / 267 KB gzip Markdown renderer is optional and governed by one exception expiring 2026-10-31.
+- `pnpm build` enforces the budgets before Node/serverless packaging in both local `dist/public/` and Vercel `dist/` profiles. CI therefore fails on missing artifacts, entry/route/chunk regressions, lost lazy boundaries, or expired/unreasoned exceptions.
+- The guarded workflow passes desktop public and critical admin views plus mobile-width public share, authenticated dashboard/assistant/project/reports, and inline report preview. It proves assistant/Markdown and report-renderer loading occur only after interaction, records zero unexpected browser failures, scans secrets, and removes the disposable MySQL database.
+- Final gates pass: six checker tests, ordinary suite 1,264/22, TypeScript, authorization 338/0, database safety 112/2/0, build and tracked-serverless freshness, local/Vercel budgets, workflow certification, diff checks, and independent GPT-5.6 Sol high-reasoning review.
+- No schema, migration, dependency, API, authorization, numerical formula, scoring/financial/compliance assumption, production configuration, Git publication, preview, deployment, or shared/production database operation occurred.
+
 ## Production Database Observation
 
 - Migration 0044 was verified complete before TR-03H release.
@@ -153,7 +164,7 @@ These facts describe the uncommitted local SC-01 implementation in `/Users/amros
 - `TR-04` closes all 93 remaining project-router authorization/global-governance paths, including the later ultra-review remediation for atomic report persistence and tenant-owned portfolio alerts. The live inventory has zero `TR-04` and exactly eight pooled-data rows under `TR-05`; targeted, disposable MySQL, safe full-suite, TypeScript, audit, build, diff, and independent-review gates pass.
 - `TR-05` and `KF-007` are closed on `codex/tr-05-data-isolation`. Corpus isolation, migration 0047, fail-closed organization/public reads, scheduler disablement, insufficiency contracts, UI states, and enhanced audit enforcement are implemented. Verified gates: disposable MySQL 18/18, safe suite 962 passed with 22 skipped, authorization inventory 331/331 with zero remediation rows, TypeScript/build/diff PASS, in-app browser PASS across analytics, cost forecasting, project prediction, design advisor, and learning administration, and independent Claude Code `APPROVED_NO_OBJECTION`.
 - `UX-01` is merged into canonical main through commit `029f5c1`. Its implementation and prior authenticated verification remain recorded, but an authenticated browser session was unavailable during the independent TR-07 release smoke; the roadmap retains that explicit UX-01 human gate.
-- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. TR-10, TR-11, and TR-12 are released; `TR-13` is the sole next executable step.
+- `TR-08` is reclosed with accepted ADR-0003 and policy bundle `TR-08-v1`. `TR-09` implemented and released the resulting truthful space, confidence-provenance, tenant-safe public-upsert, and board-annex contracts; `KF-016` and `KF-017` are closed. TR-10, TR-11, TR-12, TR-13, SC-01, and SC-04 are closed; `SC-05` is the next dependency-valid step but remains human-gated.
 
 ## Refresh Procedure
 

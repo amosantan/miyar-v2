@@ -1,79 +1,88 @@
 # Current Task
 
-- ID: SC-01
-- Roadmap step: `SC-01`
-- Title: Split the design router by bounded domain
+- ID: SC-04
+- Roadmap step: `SC-04`
+- Title: Enforce client performance budgets
 - Status: PASS
 - Owner: Codex
 - Started: 2026-07-19
-- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-sc01`
-- Branch: `codex/sc-01-split-design-router`
-- Base: exact commit `1169fed5e9036bd754cfcb79a7619933515d7f00` plus the copied, reviewed, uncommitted TR-13 candidate state
-- Classification: API / architecture refactor
-- Risk: High — the current design router is a large authorization boundary with public-share and tenant-sensitive procedures
-- Selected loop: Feature/refactor loop with API, authorization, workflow, and independent-review gates
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-sc04`
+- Branch: `codex/sc-04-client-performance-budgets`
+- Base: exact canonical-main commit `a319d47b77771665c9add390a2befd5a883a7dbb`
+- Classification: Client performance / build tooling
+- Risk: Medium — import-boundary changes can break lazy routes or move too much code into the application entry
+- Selected loop: Feature loop with build-contract, desktop/mobile browser, and independent-review gates
 - Retry budget: Maximum 3 evidence-based attempts per unchanged failure class; every retry must use a new hypothesis
-- Resource budget: One isolated worktree, bounded static inventory, focused router contracts, ordinary DB-free suite, and guarded TR-13 workflow only when a disposable loopback database is available
-- Human gates: Breaking public contract, schema/migration, dependency, scoring/financial/compliance change, Git publication, shared database/configuration, preview, or deployment remain separately gated
+- Resource budget: One isolated worktree; no production or shared services; one baseline bundle analysis, targeted iterations, one full verification pass, and bounded browser smoke
+- Human gates: New production dependency, public-contract break, schema/migration, scoring/financial/compliance change, Git publication, shared configuration, preview, or deployment remain separately gated
 
 ## Goal
 
-Split `server/routers/design.ts` into small domain-owned router modules while preserving the existing composed `design.*` public API, authorization behavior, validation, response shapes, and deterministic product behavior.
+Make MIYAR's client bundle size measurable and CI-enforced, then isolate heavy optional tooling so first-load and ordinary-route users do not download it before they need it.
 
 ## Plain-English Problem
 
-The design router currently mixes many unrelated jobs—assets, briefs, boards and visuals, materials, collaboration, market context, and public sharing—in one very large file. That makes ownership unclear and increases the chance that a safe change in one area accidentally weakens authorization or breaks another area. SC-01 changes the internal file boundaries, not the product contract.
+MIYAR already lazy-loads pages, but multiple deferred pages still converge on a very large shared JavaScript chunk. A user can therefore avoid the code on the landing page yet still download a broad toolset when opening an unrelated authenticated route. There is also no automated size gate, so future changes can silently reverse the earlier performance improvement.
 
 ## Acceptance Criteria
 
-- [x] Every existing `design.*` procedure name remains present exactly once with the same query/mutation kind, input contract, authorization class, output contract, and public/private boundary.
-- [x] Asset, brief, board/visual, material/procurement, collaboration, market-context, and sharing procedures live in bounded modules with clear ownership.
-- [x] `server/routers/design.ts` becomes a small compatibility composition boundary rather than a second implementation copy.
-- [x] Shared schemas/helpers are extracted only when they are genuinely shared; no circular import or cross-domain ownership ambiguity is introduced.
-- [x] Public shares remain read-only, token-gated, expiry-aware, rate-limited, concealed, privacy-header protected, and free of token-bearing authenticated reads/logs/evidence.
-- [x] Admin/member/viewer/foreign-organization authorization behavior remains unchanged, including project/resource ownership concealment.
-- [x] No schema, migration, dependency, feature, numerical formula, scoring weight, financial assumption, compliance policy, route rename, or response-shape change occurs.
-- [x] A generated contract inventory/snapshot proves exact pre/post procedure parity and rejects duplicates, omissions, kind drift, or authorization-class drift.
-- [x] Focused router/authorization/share tests, TypeScript, ordinary DB-free full suite, authorization audit, database-safety audit, build and tracked serverless freshness, diff review, and independent security/architecture reviews pass.
-- [x] TR-13 critical sharing/runtime workflow passes against disposable loopback MySQL with strict cleanup.
+- [x] A clean production build emits a deterministic machine-readable bundle manifest with raw and gzip sizes and stable entry/route ownership.
+- [x] The initial entry remains below the audit-approved absolute ceiling of 300 KB gzip and is protected against material regression from the verified SC-04 baseline.
+- [x] Heavy Markdown, diagram, spreadsheet/document, and report tooling is isolated behind component or route boundaries where live import evidence shows it is optional.
+- [x] No single deferred shared chunk retains the historical approximately 911 KB raw bottleneck without an explicit evidence-backed exception.
+- [x] CI runs the bundle-budget check after the production build and fails on missing artifacts, entry regression, route-budget regression, or an unapproved oversized chunk.
+- [x] Budget thresholds and ownership are versioned in the repository; the checker has deterministic passing and failing tests.
+- [x] The exact browser matrix passes: desktop public Home/Login and critical admin journey; desktop assistant/Markdown deferral; mobile-width public share plus authenticated dashboard/assistant/project/reports and deferred inline-report preview; no unexpected route, console, request, layout, or accessibility regression.
+- [x] `pnpm check`, targeted tests, hostile-parent ordinary `pnpm test`, `pnpm build`, tracked `api/index.js` freshness, and `git diff --check` pass.
+- [x] No schema, migration, dependency, API, authorization, numerical formula, scoring weight, financial assumption, compliance policy, or production configuration changes.
 - [x] Roadmap, current task, worklog, lessons, architecture/project state, and known failures change only where verified reality changes.
 
 ## Non-Goals
 
-- No public API cleanup or procedure renaming.
-- No new capability, UI redesign, engine rewrite, database helper rewrite, schema work, migration, or data operation.
-- No unification of structured briefs, AI-advisor briefs, and stored reports.
-- No runtime capability/observability design owned by `SC-05`.
-- No commit, stage, push, pull request, merge, preview, or deployment without separate authorization.
+- No feature rewrite, visual redesign, server/API optimization, caching policy, service worker, CDN change, or runtime observability work owned by `SC-05`.
+- No removal of supported Markdown, diagrams, reports, document export, or spreadsheet functionality.
+- No weakening of minification, source behavior, tests, or browser coverage to obtain smaller output.
+- No commit, push, pull request, merge, preview, or deployment without separate authorization.
 
 ## Architecture Assumptions
 
-- Compatibility composition may use router record merging only if tRPC procedure identity and middleware chains remain intact.
-- Authorization procedures remain attached to each procedure at definition time; composition must not wrap or weaken them.
-- Domain modules may depend on stable shared authorization/database/engine helpers, but must not depend on the compatibility composition module.
-- TR-13 is the stacked behavioral baseline even though Git publication remains gated.
+- Route-level `React.lazy` remains the primary page boundary; component-level dynamic imports are added only for optional heavy subfeatures.
+- Bundle budgets measure production output from Vite, not development-server behavior.
+- The audit's `<300 KB gzip` entry target is the absolute ceiling; the live baseline will define a tighter regression ratchet before implementation.
+- Chunk names are content-derived and unstable, so enforcement must use manifest ownership/import relationships rather than hard-coded hashed filenames.
 
 ## Execution Plan
 
-- [x] Create and verify a fresh SC-01 worktree before task edits.
-- [x] Stack the exact reviewed TR-13 working-tree candidate without modifying or committing its source worktree.
-- [x] Inventory procedures, helpers, imports, dependency clusters, and current public contract.
-- [x] Design bounded module ownership and add a failing/exact contract-parity guard.
-- [x] Extract domains incrementally with focused verification after each coherent group.
-- [x] Run complete static, unit, authorization, audit, build, workflow, diff, and independent-review gates.
-- [x] Close SC-01 with exact evidence and no unexplained artifacts.
+- [x] Create and verify a fresh SC-04 worktree from exact current `main`.
+- [x] Install the frozen dependency graph and capture the clean baseline bundle graph and sizes.
+- [x] Trace heavy modules to import sites and define the smallest split/budget contract.
+- [x] Add deterministic bundle-manifest and budget-check tooling with fixture tests.
+- [x] Isolate optional heavy client features and verify targeted routes after each split.
+- [x] Run complete static, unit, build, browser, diff, and independent-review gates.
+- [x] Close SC-04 with exact evidence and select one dependency-valid successor.
 
-## Completion Evidence
+## Current Evidence
 
-- Fresh worktree created first at `/Users/amrosaleh/Maiyar/miyar-v2-sc01` on `codex/sc-01-split-design-router` from exact commit `1169fed5e9036bd754cfcb79a7619933515d7f00`.
-- The reviewed TR-13 working-tree state was copied into SC-01 while the original `/Users/amrosaleh/Maiyar/miyar-v2-tr13` remained unchanged and uncommitted.
-- The live monolith contained 63 procedures: 29 queries and 34 mutations. Eight bounded routers now own each procedure exactly once; the compatibility facade is 21 lines and retains flat `design.*` paths.
-- The immutable pre-split baseline fingerprints every initializer, access primitive, authorization classification, runtime operation, and middleware chain; its default checker and the runtime owner-identity test pass.
-- Focused authorization/share/privacy/source contracts pass 98 tests; the ordinary DB-free suite passes 1,257 with 22 skipped; `pnpm check`, authorization inventory 338/0, database-safety 112/2/0, build, byte-stable serverless regeneration, and `git diff --check` pass.
-- Guarded disposable-MySQL verification passes 21 configured tests, including all 19 design-authorization cases. `pnpm certify:workflow` passes real MySQL, Node/serverless parity, report rendering, serial browser, secret-scan, revocation/concealment, and strict cleanup gates; both disposable containers were removed.
-- Independent GPT-5.6 Sol security and GPT-5.6 Terra architecture reviews returned `APPROVED_NO_OBJECTION`. Claude Opus review is recorded with the final closure evidence.
-- No known failure was opened; the first optional authorization-harness attempt failed only because its documented pre-created database prerequisite was absent, then passed after creating the bounded disposable database.
+- At activation, the canonical roadmap marked `SC-04` as the sole next executable step with no human gate.
+- Audit evidence records an earlier entry reduction from 936.86 KB gzip to 199.24 KB gzip, with a remaining deferred shared chunk of approximately 911 KB raw.
+- At activation, `vite.config.ts` had no manifest, explicit chunk policy, or bundle-budget enforcement.
+- At activation, CI ran `pnpm build` without inspecting client artifact sizes.
+- At activation, `App.tsx` already lazy-loaded pages and the authenticated shell, so the implementation was driven by the live build graph rather than historical assumptions.
+- Baseline build: entry JavaScript 450,708 raw / 137,910 gzip bytes; authenticated dashboard static closure 1,468,678 raw / 450,808 gzip bytes; shared Streamdown core 883,043 raw / 265,941 gzip bytes.
+- Attempt 1: the checker implementation passed TypeScript and the live bundle budget, but its test was placed outside Vitest's configured `server/**/*.test.ts` discovery boundary. The next hypothesis is to keep the production script under `scripts/` and move only its pure test into `server/_core/`.
+- Attempt 2: Vitest discovered the moved test, but a mechanical edit left a literal `\\n` token in the fixture configuration. The checker and TypeScript still passed; the next hypothesis is the single malformed test line, not the evaluator or production configuration.
+- Frozen dependency installation passed without a lockfile change. The current client graph contains neither `docx` nor `xlsx`; no unsupported dependency removal or artificial chunk naming is needed.
+- Post-split production evidence passes: entry JavaScript is approximately 138 KB gzip; public home/login/share closures are 175/181/178 KB gzip; authenticated dashboard/project/reports closures are 220/400/226 KB gzip; the pre-briefing portfolio closure is 325 KB gzip; and the assistant-with-Markdown closure is 491 KB gzip.
+- The authenticated dashboard static closure fell from 450,808 to 220,257 gzip bytes (approximately 51%). `Streamdown` remains supported behind the assistant/portfolio interaction boundary. Its approximately 883 KB raw / 267 KB gzip renderer artifact has one reasoned, bounded exception expiring 2026-10-31.
+- The evaluator's five passing tests prove cyclic closure handling, successful budgets, entry/chunk/route/static-edge failures, missing artifacts, and mandatory non-expired exception reasons. TypeScript passes after the browser contract extension.
+- The artifact-root selector adds a sixth passing checker test and proves local `dist/public/` and Vercel `dist/` parity. Both client build profiles pass the same budgets; full `pnpm build` passes and regenerates byte-stable `api/index.js`.
+- Browser attempt 1 failed because the assertion recognized only production `/assets/` URLs while the governed journey uses Vite source-module URLs. The corrected evidence matches stable module ownership in both profiles.
+- Browser attempt 2 reached the report preview but local storage correctly supplied a `data:` URL and exercised the iframe path. A disposable-test-only, organization-verified helper converts the browser-created synthetic report to the already supported inline shape; no production fixture switch was added.
+- Browser attempt 3 passed the entire guarded certification. The final post-review rerun additionally passed desktop public Home/Login and a mobile-width assistant interaction. The manifest records deferred assistant, Markdown, and report-renderer loading; authenticated dashboard/project/reports mobile-width views with no overflow; zero unexpected console/page/request/HTTP errors; Node/serverless security parity; secret scans; stable dirty-tree provenance; and successful cleanup with the disposable database absent.
+- Final broad verification: ordinary database-free suite 1,264 passed / 22 skipped; authorization inventory 338/338 with zero remediation; database-safety inventory 112 entrypoints, two exact generated-bundle exceptions, zero findings; `pnpm check`, local/Vercel budgets, `pnpm build`, serverless freshness, and diff checks pass.
+- Independent GPT-5.6 Sol high-reasoning review found no code, security, budget, Vite-parity, lazy-boundary, accessibility, CI, or privacy objection after the browser-matrix and state wording corrections.
+- The review's evidence-quality recommendation is also incorporated: the generated report now hashes its budget configuration and explains every applied exception with stable selector, resolved artifact, measured raw/gzip bytes, ceilings, reason, and expiry.
 
 ## Next Action
 
-SC-01 is locally closed at `PASS`. Begin only the roadmap's next executable step in a fresh worktree; Git publication and every shared/production action remain separately gated.
+Await separate authorization to commit or publish SC-04. `SC-05` is next but remains `NEEDS_HUMAN` pending runtime-topology, SLO/alert ownership, and monitoring-cost decisions.

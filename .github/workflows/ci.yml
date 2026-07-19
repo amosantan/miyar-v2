@@ -39,7 +39,7 @@ jobs:
       - name: Run unit tests
         run: pnpm exec vitest run --reporter=verbose
 
-      - name: Build production bundle
+      - name: Build production bundle and enforce client budgets
         run: pnpm build
 
       - name: Verify tracked serverless bundle is current

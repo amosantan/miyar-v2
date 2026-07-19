@@ -366,3 +366,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: All 63 initializers, operations, primitives, classifications, and middleware chains match; the composed router owns each procedure exactly once; authorization remains 338/0; focused, full, real-MySQL, workflow, build, and independent-review gates pass.
 - Reuse rule: Before moving a security-sensitive router, capture a semantic pre-change baseline and keep it executable in the ordinary test suite. Update both the contract file list and audit namespace registry whenever a bounded module is added or renamed.
 - Supersedes / related: Extends `LES-014` and `LES-030`; applies to future router, controller, resolver, and API-boundary decompositions.
+
+### LES-032 — Client performance must be governed by reachable production closures
+
+- Date / roadmap step: 2026-07-19 / `SC-04`
+- Context: MIYAR already lazy-loaded pages, yet the authenticated shell statically imported an optional assistant whose Markdown renderer pulled a large Streamdown core into every protected route.
+- Observed: The entry alone was a misleading measure: it was 137,910 gzip bytes while the authenticated dashboard's static closure was 450,808 gzip bytes. Hashed filenames and Vite's generic warning could not identify route ownership or prevent chunk-sharding games.
+- Cause: Page-level lazy loading did not isolate optional components mounted inside the shared shell, and CI had no source-owned production-manifest contract.
+- Fix or decision: Measure actual raw/gzip artifacts through stable Vite manifest source/name selectors; traverse static imports and CSS once; enforce entry, route, per-chunk, forbidden-static, and required-dynamic budgets; load the assistant only when opened, rich Markdown only when rendered, and report content only when previewed. Keep any supported heavy-renderer exception reasoned, bounded, and expiring.
+- Proof: The dashboard closure is 220,257 gzip bytes (approximately 51% lower); all eight versioned closures and both local/Vercel roots pass; six evaluator tests fail the intended regressions; the guarded browser proves before/after module loading and desktop/mobile-width layout; full tests, build, audits, cleanup, and independent review pass.
+- Reuse rule: Do not judge client performance from the entry chunk, hashed filenames, or chunk count alone. Govern the static production closure a user actually reaches, verify optional interaction edges, and pair per-chunk limits with route totals so renaming or sharding cannot manufacture a pass.
+- Supersedes / related: Extends `LES-030`; `SC-05` owns runtime observability rather than client delivery budgets.
