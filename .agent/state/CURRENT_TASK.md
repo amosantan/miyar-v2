@@ -13,8 +13,8 @@
 - Risk: Medium — import-boundary changes can break lazy routes or move too much code into the application entry
 - Selected loop: Feature loop with build-contract, desktop/mobile browser, and independent-review gates
 - Retry budget: Maximum 3 evidence-based attempts per unchanged failure class; every retry must use a new hypothesis
-- Resource budget: One isolated worktree; no production or shared services; one baseline bundle analysis, targeted iterations, one full verification pass, and bounded browser smoke
-- Human gates: New production dependency, public-contract break, schema/migration, scoring/financial/compliance change, Git publication, shared configuration, preview, or deployment remain separately gated
+- Resource budget: One isolated worktree; one baseline bundle analysis, targeted iterations, one full verification pass, bounded hosted CI/preview, exact-SHA deployment, and production smoke after explicit release authorization
+- Human gates: The user cleared commit, push, protected merge, exact-SHA production deployment, and bounded production smoke on 2026-07-19. New dependency, public-contract break, schema/migration, scoring/financial/compliance change, or shared configuration remained gated and did not occur.
 
 ## Goal
 
@@ -82,7 +82,11 @@ MIYAR already lazy-loads pages, but multiple deferred pages still converge on a 
 - Final broad verification: ordinary database-free suite 1,264 passed / 22 skipped; authorization inventory 338/338 with zero remediation; database-safety inventory 112 entrypoints, two exact generated-bundle exceptions, zero findings; `pnpm check`, local/Vercel budgets, `pnpm build`, serverless freshness, and diff checks pass.
 - Independent GPT-5.6 Sol high-reasoning review found no code, security, budget, Vite-parity, lazy-boundary, accessibility, CI, or privacy objection after the browser-matrix and state wording corrections.
 - The review's evidence-quality recommendation is also incorporated: the generated report now hashes its budget configuration and explains every applied exception with stable selector, resolved artifact, measured raw/gzip bytes, ceilings, reason, and expiry.
+- Release candidate commits `9458212` and `8fe98ea` merged through PR `#20` as exact canonical-main SHA `1bad9d666d71a0b010a27433ca196c842b4e546f`. The second commit forces Vite's production profile because hosted CI's global `NODE_ENV=test` correctly reproduced and rejected a development-mode client bundle; no budget was relaxed.
+- PR and canonical-main hosted CI passed `lint-and-test` and `mysql-authorization`; Vercel preview and production builds passed. Production deployment `dpl_EfNS4qwEXLRXHPNKPi6isHG41BuE` is `READY` and identifies exact merge SHA `1bad9d6`.
+- Production smoke passed authenticated dashboard/session access, stored-report lazy preview, temporary admin share creation, public share/API 200 with privacy headers, project-wide revocation, and byte-identical revoked/never-issued concealed 404 bodies and headers. The temporary URL was cleared from browser memory, clipboard, and local temporary files.
+- Production inspection also reproduced malformed labels in a February 2026 legacy stored report (`undefined` and `[object Object]`). It predates and is not caused by the lazy-loading release; `KF-018` records the separate compatibility defect and objective exit criterion.
 
 ## Next Action
 
-Await separate authorization to commit or publish SC-04. `SC-05` is next but remains `NEEDS_HUMAN` pending runtime-topology, SLO/alert ownership, and monitoring-cost decisions.
+SC-04 is released and closed. `SC-05` is next but remains `NEEDS_HUMAN` pending runtime-topology, SLO/alert ownership, and monitoring-cost decisions; `KF-018` needs a separately scoped legacy-report compatibility fix.

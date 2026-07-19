@@ -5,13 +5,13 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-19
-- Production source commit: `43e5019c02c0f25848c31df0d1dfa2158b076723` on canonical `main`, merging TR-12 PR #17.
-- Branch identity: canonical `origin/main` contains runtime application release `43e5019c02c0f25848c31df0d1dfa2158b076723`; later commits may record state only and do not change the runtime release identity.
+- Production source commit: `1bad9d666d71a0b010a27433ca196c842b4e546f` on canonical `main`, merging SC-04 PR #20.
+- Branch identity: canonical `origin/main` contains runtime application release `1bad9d666d71a0b010a27433ca196c842b4e546f`; later commits may record state only and do not change the runtime release identity.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel target `4ixzzXRp886bet8XDRhc439czfWd` completed for exact source commit `43e5019`; three root/health observations return 200, unauthenticated project access returns 401, invalid shares return concealed 404 with privacy headers, and the rendered landing page has no browser console errors.
+- Production: Vercel target `dpl_EfNS4qwEXLRXHPNKPi6isHG41BuE` is `READY` for exact source commit `1bad9d6`; canonical-main CI run `29675827338`, three root/health observations, login route, authenticated session/report preview, temporary share/revoke, unauthenticated tenant rejection, and concealed-share privacy checks pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `SC-04` is locally certified and closed at `PASS`; `SC-05` is next but `NEEDS_HUMAN` for runtime topology, SLO/alert ownership, and monitoring cost. Git publication and all shared/production actions remain separately gated.
+- Roadmap state: `SC-04` is released and closed at `PASS`; `SC-05` is next but `NEEDS_HUMAN` for runtime topology, SLO/alert ownership, and monitoring cost. `KF-018` records a separate pre-existing legacy-report compatibility defect reproduced during production smoke.
 
 ## Technology Observed
 
@@ -39,16 +39,16 @@ This is the canonical location for current observed repository facts. It is not 
 
 At the observation above:
 
-| Command                         | Result | Evidence summary                                                                                                                        |
-| ------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Hostile-parent `pnpm test`      | PASS   | 1,257 passed and 22 skipped; no database connection attempt occurred                                                                      |
-| `pnpm certify:workflow`         | PASS   | Disposable MySQL ordered workflow, Node/serverless parity, report rendering, serial Node browser journey, secret scans, and strict cleanup |
-| PlanetScale compatibility       | PASS   | Production applied additive migration 0050 after backup; `report_instances.storageKey` is nullable `TEXT`, all 29 rows remain, and no row was backfilled |
-| `pnpm check`                    | PASS   | Zero TypeScript diagnostics                                                                                                             |
-| `pnpm audit:authorization`      | PASS   | All 338 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence                  |
-| `pnpm audit:database-safety`    | PASS   | 112 entrypoints, two exact generated-bundle exceptions, and zero findings                                                               |
-| `pnpm build`                    | PASS   | Client, Node server, and generated serverless bundle pass                                                                               |
-| Design contract checker         | PASS   | All 63 names, operations, access primitives, classifications, initializers, middleware chains, and unique owner identities match the pre-split baseline |
+| Command                      | Result | Evidence summary                                                                                                                                         |
+| ---------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hostile-parent `pnpm test`   | PASS   | 1,264 passed and 22 skipped; no database connection attempt occurred                                                                                     |
+| `pnpm certify:workflow`      | PASS   | Disposable MySQL ordered workflow, Node/serverless parity, report rendering, serial Node browser journey, secret scans, and strict cleanup               |
+| PlanetScale compatibility    | PASS   | Production applied additive migration 0050 after backup; `report_instances.storageKey` is nullable `TEXT`, all 29 rows remain, and no row was backfilled |
+| `pnpm check`                 | PASS   | Zero TypeScript diagnostics                                                                                                                              |
+| `pnpm audit:authorization`   | PASS   | All 338 application procedures are inventoried with zero remediation rows and current hash-bound scoped-write evidence                                   |
+| `pnpm audit:database-safety` | PASS   | 112 entrypoints, two exact generated-bundle exceptions, and zero findings                                                                                |
+| `pnpm build`                 | PASS   | Client, Node server, and generated serverless bundle pass                                                                                                |
+| Design contract checker      | PASS   | All 63 names, operations, access primitives, classifications, initializers, middleware chains, and unique owner identities match the pre-split baseline  |
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
@@ -107,16 +107,18 @@ These facts describe the uncommitted local SC-01 implementation in `/Users/amros
 - Independent high-reasoning security and architecture reviews returned `APPROVED_NO_OBJECTION`; final Claude Opus review is recorded in the task/worklog evidence.
 - No schema, migration, dependency, client behavior, engine, formula, numerical assumption, API path, response shape, database write, Git publication, preview, or deployment was introduced by SC-01.
 
-## SC-04 Local Performance Observation
+## SC-04 Release Observation
 
-These facts describe the uncommitted local SC-04 implementation in `/Users/amrosaleh/Maiyar/miyar-v2-sc04`, branched from exact canonical-main commit `a319d47b77771665c9add390a2befd5a883a7dbb`.
+These facts describe SC-04 merged through PR #20 as exact canonical-main application release `1bad9d666d71a0b010a27433ca196c842b4e546f` and deployed as Vercel `dpl_EfNS4qwEXLRXHPNKPi6isHG41BuE`.
 
 - Production Vite output now has a source-owned manifest contract. Versioned budgets cover entry JavaScript/CSS, all JavaScript chunks, public Home/Login/Share, authenticated Dashboard/Project/Reports, pre-briefing Portfolio, assistant-with-Markdown, forbidden static dependencies, and four required dynamic boundaries.
 - Entry JavaScript is 138,121 gzip bytes. The authenticated dashboard static closure fell from 450,808 to 220,257 gzip bytes. All eight closures pass bounded thresholds; the remaining approximately 883 KB raw / 267 KB gzip Markdown renderer is optional and governed by one exception expiring 2026-10-31.
 - `pnpm build` enforces the budgets before Node/serverless packaging in both local `dist/public/` and Vercel `dist/` profiles. CI therefore fails on missing artifacts, entry/route/chunk regressions, lost lazy boundaries, or expired/unreasoned exceptions.
 - The guarded workflow passes desktop public and critical admin views plus mobile-width public share, authenticated dashboard/assistant/project/reports, and inline report preview. It proves assistant/Markdown and report-renderer loading occur only after interaction, records zero unexpected browser failures, scans secrets, and removes the disposable MySQL database.
-- Final gates pass: six checker tests, ordinary suite 1,264/22, TypeScript, authorization 338/0, database safety 112/2/0, build and tracked-serverless freshness, local/Vercel budgets, workflow certification, diff checks, and independent GPT-5.6 Sol high-reasoning review.
-- No schema, migration, dependency, API, authorization, numerical formula, scoring/financial/compliance assumption, production configuration, Git publication, preview, deployment, or shared/production database operation occurred.
+- Final gates pass: six checker tests, ordinary suite 1,264/22, TypeScript, authorization 338/0, database safety 112/2/0, build and tracked-serverless freshness, local/Vercel budgets, workflow certification, diff checks, and independent GPT-5.6 Sol high-reasoning review. The hostile hosted `NODE_ENV=test` build initially proved the production mode was ambient; commit `8fe98ea` made the Vite subprocess explicit without relaxing budgets, and PR/main hosted CI passed.
+- Production smoke passed root/health/login availability, authenticated dashboard/session and existing stored-report preview, temporary admin share creation, public page/API 200 with `private, no-store`, project-wide revocation, and byte-identical revoked/never-issued concealed 404 responses with identical privacy headers. The temporary URL was removed from browser memory, clipboard, and local temporary files.
+- The stored legacy report opened successfully but reproduced malformed 5-Lens labels from its February 2026 payload. `KF-018` records this pre-existing compatibility defect; it is not caused by SC-04's lazy import boundary and is not repaired by rollback.
+- No schema, migration, dependency, API, authorization, numerical formula, scoring/financial/compliance assumption, production configuration, or shared database migration occurred. The only production data mutation was one temporary project-9 share link immediately revoked during the authorized smoke.
 
 ## Production Database Observation
 
@@ -139,7 +141,8 @@ These facts describe the uncommitted local SC-04 implementation in `/Users/amros
 - TR-10 release commit `55917a145a87c218c34457e054850326fc1e1a1a` deployed successfully as Vercel target `8A9iDiHwfT3wnXsYXFwqQWLtpPB2`. Canonical-main CI run `29641839449`, three root/login/health observations, unauthenticated tenant rejection, English/Arabic invalid-share privacy, and post-deployment migration 0050 integrity pass.
 - TR-11 release commit `d0c84da5292193aa90b68a315a8c1eeaa8db4394` deployed successfully as Vercel target `ExfGpuVC4UQ83Jy46i6xQnSKdJDP`. Canonical-main CI run `29645745114`, three production observations, tenant/share negative checks, endpoint minimization, and bilingual rendered-claim checks pass; no database operation was required or performed.
 - TR-12 release commit `43e5019c02c0f25848c31df0d1dfa2158b076723` deployed successfully as Vercel target `4ixzzXRp886bet8XDRhc439czfWd`. PR #17, canonical-main CI run `29654957839`, three production root/health observations, tenant/share negative checks, and rendered landing-page browser verification pass; no schema, migration, dependency, shared configuration, or database operation was required or performed.
-- Canonical `main` contains the reviewed TR-12 production release.
+- SC-04 release commit `1bad9d666d71a0b010a27433ca196c842b4e546f` deployed successfully as Vercel target `dpl_EfNS4qwEXLRXHPNKPi6isHG41BuE`. PR #20, canonical-main CI run `29675827338`, authenticated report/share/revoke smoke, unauthenticated tenant rejection, and concealed-share privacy checks pass; no schema, migration, dependency, shared configuration, or database migration was required.
+- Canonical `main` contains the reviewed SC-04 production release.
 
 ## Environment Uncertainties
 
