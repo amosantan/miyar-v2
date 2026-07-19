@@ -1,8 +1,7 @@
 export const MYSQL_INTEGRATION_TEST =
   "tests/mysql/design-authorization.mysql.test.ts";
 
-export const MYSQL_EVIDENCE_FILE =
-  ".agent/state/TR03H_MYSQL_EVIDENCE.json";
+export const MYSQL_EVIDENCE_FILE = ".agent/state/TR03H_MYSQL_EVIDENCE.json";
 
 export const REQUIRED_MYSQL_EVIDENCE_FILES = [
   MYSQL_INTEGRATION_TEST,
@@ -41,6 +40,22 @@ export const REQUIRED_MYSQL_EVIDENCE_FILES = [
   "drizzle/0046_far_blob.sql",
   "drizzle/0047_sharp_grandmaster.sql",
   "drizzle/0048_youthful_morlocks.sql",
+  "drizzle/0051_brief_radioactive_man.sql",
+  "drizzle/meta/0051_snapshot.json",
+  "tests/mysql/di01-geometry.mysql.test.ts",
+  "shared/geometry/index.ts",
+  "shared/geometry/types.ts",
+  "server/engines/geometry/authority-policy.ts",
+  "server/engines/geometry/canonical-geometry.ts",
+  "server/engines/geometry/canonical-geometry.test.ts",
+  "server/engines/geometry/dxf-geometry-boundary.ts",
+  "server/engines/geometry/dxf-geometry-boundary.test.ts",
+  "server/routers/design-geometry-assets.ts",
+  "server/routers/design-geometry-assets.authorization.test.ts",
+  "server/routers/spaceProgram-geometry.ts",
+  "server/routers/spaceProgram-geometry.authorization.test.ts",
+  "client/src/components/RoomGeometryPanel.tsx",
+  "scripts/recreate-mysql-auth-test.ts",
   "scripts/run-guarded-mysql-tests.ts",
   "scripts/cleanup-mysql-auth-test.ts",
   "scripts/tr03h-mysql-evidence-contract.ts",

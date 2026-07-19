@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import RoomGeometryPanel from "@/components/RoomGeometryPanel";
+import { useTranslation } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,8 @@ const GRADE_COLORS: Record<string, string> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProps) {
+    const { locale } = useTranslation();
+    const text = (english: string, arabic: string) => locale === "ar" ? arabic : english;
     const utils = trpc.useUtils();
     const [expandedAmenity, setExpandedAmenity] = useState<number | null>(null);
     const [showAddDialog, setShowAddDialog] = useState(false);
@@ -74,6 +78,9 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
         { projectId },
     );
     const { data: project } = trpc.project.get.useQuery({ id: projectId });
+    const { data: geometryReviewState, isLoading: geometryAuthorityLoading } =
+        trpc.spaceProgram.getGeometryReviewState.useQuery({ projectId });
+    const isCanonicalAuthority = geometryReviewState?.authorityMode === "canonical";
 
     // ─── Mutations ────────────────────────────────────────────────────────
     const generateMut = trpc.spaceProgram.generate.useMutation({
@@ -158,7 +165,7 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
     };
 
     // ─── Empty State ──────────────────────────────────────────────────────
-    if (isLoading) {
+    if (isLoading || geometryAuthorityLoading) {
         return (
             <div className="flex items-center justify-center h-40">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -168,21 +175,37 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
 
     if (!data) {
         return (
+            <div className="space-y-4">
+                <RoomGeometryPanel projectId={projectId} />
             <Card>
                 <CardContent className="py-12 text-center">
                     <Grid3X3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
                     <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No Space Program Yet
+                        {isCanonicalAuthority
+                            ? geometryReviewState?.selectedGeometryVersionId
+                                ? text("Canonical room geometry is reviewed", "تمت مراجعة هندسة الغرف المعيارية")
+                                : text("No reviewed room geometry yet", "لا توجد هندسة غرف تمت مراجعتها بعد")
+                            : "No Space Program Yet"}
                     </h3>
                     <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                        {isMixedUse
+                        {isCanonicalAuthority
+                            ? geometryReviewState?.selectedGeometryVersionId
+                                ? text(
+                                    "The reviewed room-floor geometry above is canonical. No legacy typology programme was generated, and professional GFA and fit-out assumptions remain separate.",
+                                    "هندسة أرضيات الغرف التي تمت مراجعتها أعلاه هي الهندسة المعيارية. لم يتم إنشاء برنامج مساحات قديم من النمط، وتبقى افتراضات GFA والتشطيبات المهنية منفصلة.",
+                                )
+                                : text(
+                                    "Create manual room boundaries or import a validated DXF above, save them as a draft, then have an organization admin approve the draft as canonical. Typology-generated room areas are not canonical geometry.",
+                                    "أنشئ حدود الغرف يدوياً أو استورد ملف DXF تم التحقق منه، واحفظها كمسودة، ثم اطلب من مسؤول المؤسسة اعتماد المسودة كهندسة معيارية. مساحات الغرف الناتجة عن الأنماط ليست هندسة معيارية.",
+                                )
+                            : isMixedUse
                             ? "Define your building blocks below, then generate a space program with per-block typology rules."
                             : "Generate a space program from your project typology to see room breakdowns, fit-out vs shell & core classifications, and budget distributions."
                         }
                     </p>
 
                     {/* Block Builder (mixed-use only) */}
-                    {isMixedUse && (
+                    {!isCanonicalAuthority && isMixedUse && (
                         <div className="max-w-lg mx-auto mb-6 text-left">
                             <div className="flex items-center justify-between mb-3">
                                 <h4 className="text-sm font-medium text-foreground flex items-center gap-1.5">
@@ -245,20 +268,23 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                         </div>
                     )}
 
-                    <Button
-                        onClick={handleGenerate}
-                        disabled={generateMut.isPending}
-                        className="gap-2"
-                    >
-                        {generateMut.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <Zap className="h-4 w-4" />
-                        )}
-                        Generate Space Program
-                    </Button>
+                    {!isCanonicalAuthority && (
+                        <Button
+                            onClick={handleGenerate}
+                            disabled={generateMut.isPending}
+                            className="gap-2"
+                        >
+                            {generateMut.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Zap className="h-4 w-4" />
+                            )}
+                            Generate Space Program
+                        </Button>
+                    )}
                 </CardContent>
             </Card>
+            </div>
         );
     }
 
@@ -270,6 +296,14 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
 
     return (
         <div className="space-y-4">
+            <RoomGeometryPanel projectId={projectId} />
+            {isCanonicalAuthority && (
+                <Card className="border-amber-500/25 bg-amber-500/5">
+                    <CardContent className="py-3 text-sm text-muted-foreground">
+                        The table below is a legacy programme reference. Its room areas and fit-out assumptions are separate from reviewed canonical room-floor geometry. Structural legacy actions are disabled.
+                    </CardContent>
+                </Card>
+            )}
             {/* ─── Summary Bar ──────────────────────────────────────── */}
             <Card>
                 <CardContent className="py-4">
@@ -301,7 +335,7 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        {!isCanonicalAuthority && <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -339,7 +373,7 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                                 )}
                                 Regenerate
                             </Button>
-                        </div>
+                        </div>}
                     </div>
                 </CardContent>
             </Card>
@@ -465,7 +499,15 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
 
                                     {/* Fit-Out Toggle */}
                                     <div className="flex justify-center">
-                                        <button
+                                        {isCanonicalAuthority ? (
+                                            <span title="Legacy fit-out scope is read-only under canonical geometry authority">
+                                                {room.isFitOut ? (
+                                                    <ToggleRight className="h-5 w-5 text-muted-foreground" />
+                                                ) : (
+                                                    <ToggleLeft className="h-5 w-5 text-muted-foreground" />
+                                                )}
+                                            </span>
+                                        ) : <button
                                             onClick={() => handleToggleFitOut(room.id, room.isFitOut)}
                                             disabled={toggleFitOutMut.isPending}
                                             className="transition hover:scale-110"
@@ -476,11 +518,11 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                                             ) : (
                                                 <ToggleLeft className="h-5 w-5 text-muted-foreground" />
                                             )}
-                                        </button>
+                                        </button>}
                                     </div>
 
                                     {/* Delete */}
-                                    <div className="flex justify-center opacity-0 group-hover:opacity-100 transition">
+                                    {!isCanonicalAuthority && <div className="flex justify-center opacity-0 group-hover:opacity-100 transition">
                                         <button
                                             onClick={() => deleteRoomMut.mutate({ roomId: room.id, projectId })}
                                             disabled={deleteRoomMut.isPending}
@@ -489,7 +531,7 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
                                         </button>
-                                    </div>
+                                    </div>}
                                 </div>
 
                                 {/* Amenity Sub-Spaces Accordion */}

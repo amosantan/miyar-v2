@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `SC-05` (`NEEDS_HUMAN` — approve runtime topology, SLO/alert ownership, and monitoring cost before implementation)
+- Next executable step: none automatically executable (`DI-01` is `NEEDS_HUMAN` for merge, shared migration, and release gates)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -39,15 +39,16 @@ Rules:
 
 ## Phase Summary
 
-| Phase                              | Outcome                                                            | Steps | Exit condition                                                                              |
-| ---------------------------------- | ------------------------------------------------------------------ | ----: | ------------------------------------------------------------------------------------------- |
-| `RM` Roadmap system                | Shared persistent execution memory                                 |     1 | Both agents use one roadmap, task, worklog, and lessons protocol                            |
-| `TR` Trust recovery                | Tenant-safe and verifiably releasable baseline                     |    14 | Authorization inventory closed; checks/tests green; critical workflow certified             |
-| `UX` Product experience            | A simpler, credible, workflow-first application experience         |     1 | Core journey, compatibility, readiness, accessibility, and browser verification pass        |
-| `BR` Brief operating system        | One governed issued-design-brief workflow                          |     8 | Readiness, typology, version, report, and AI-evaluation contracts operate end to end        |
-| `EV` Evidence and procurement moat | Time-versioned UAE cost, source, supplier, and market intelligence |     8 | Displayed claims resolve to governed evidence and procurement comparisons                   |
-| `SC` Scale and governance          | Maintainable architecture, enterprise controls, and integrations   |     8 | Operational profiles, privacy, collaboration, commercial controls, and handoff are verified |
-| `EX` Experiments                   | Controlled research after trustworthy foundations                  |     2 | Experiments have evaluation thresholds and cannot become numerical authority                |
+| Phase                               | Outcome                                                            | Steps | Exit condition                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------ | ----: | ------------------------------------------------------------------------------------------------ |
+| `RM` Roadmap system                 | Shared persistent execution memory                                 |     1 | Both agents use one roadmap, task, worklog, and lessons protocol                                 |
+| `TR` Trust recovery                 | Tenant-safe and verifiably releasable baseline                     |    14 | Authorization inventory closed; checks/tests green; critical workflow certified                  |
+| `UX` Product experience             | A simpler, credible, workflow-first application experience         |     1 | Core journey, compatibility, readiness, accessibility, and browser verification pass             |
+| `BR` Brief operating system         | One governed issued-design-brief workflow                          |     8 | Readiness, typology, version, report, and AI-evaluation contracts operate end to end             |
+| `DI` Design intelligence foundation | One canonical room, geometry, and measurement authority            |     1 | Stable room identity, truthful measurement lineage, and legacy-safe reconciliation are certified |
+| `EV` Evidence and procurement moat  | Time-versioned UAE cost, source, supplier, and market intelligence |     8 | Displayed claims resolve to governed evidence and procurement comparisons                        |
+| `SC` Scale and governance           | Maintainable architecture, enterprise controls, and integrations   |     8 | Operational profiles, privacy, collaboration, commercial controls, and handoff are verified      |
+| `EX` Experiments                    | Controlled research after trustworthy foundations                  |     2 | Experiments have evaluation thresholds and cannot become numerical authority                     |
 
 ## Phase RM — Shared Roadmap System
 
@@ -411,7 +412,7 @@ Rules:
 
 ### UX-01 — Simplify the developer journey and establish the warm architectural interface
 
-- Status: `NEEDS_HUMAN`
+- Status: `ACTIVE`
 - Class / priority: UI/workflow/schema / P0
 - Dependencies: `TR-05`; approved interaction direction supersedes the UI slice of `BR-04` and conservative copy satisfies the interim path of `TR-11`.
 - Human gate: Shared/production schema application, deployment, and removal of compatibility routes remain separately gated.
@@ -435,7 +436,7 @@ Rules:
 
 ### BR-01 — Approve the issued-design-brief product contract
 
-- Status: `NEEDS_HUMAN`
+- Status: `ACTIVE`
 - Class / priority: Product foundation / P1
 - Dependencies: `TR-13`
 - Human gate: Product owner, design-domain owner, report owner.
@@ -510,7 +511,7 @@ Rules:
 
 ### BR-06 — Validate priority UAE typology packs
 
-- Status: `NEEDS_HUMAN`
+- Status: `ACTIVE`
 - Class / priority: Design intelligence / P1
 - Dependencies: `BR-05`
 - Human gate: UAE architects/interior designers, cost consultant, and relevant compliance reviewer.
@@ -551,6 +552,35 @@ Rules:
 - Done when: Every production AI workflow has a versioned evaluation report and promotion rule.
 - Verification: Repeatable evaluation command, baseline report, deliberate-regression test.
 - Expected artifacts: Eval harness, registry, promotion runbook.
+
+## Phase DI — Deterministic Design Intelligence Foundation
+
+### DI-01 — Build the canonical room, geometry, and measurement foundation
+
+- Status: `ACTIVE`
+- Class / priority: Schema/geometry/engine / P1
+- Dependencies: `TR-13` is closed. The active planning increment absorbs only the geometry-specific calculation-authority work needed to specify this foundation. `BR-02` and `BR-05` remain integration gates rather than blockers to the bounded ADR/compatibility package.
+- Prioritization decision: On 2026-07-19 the user selected `DI-01` as the single next executable step. This changes execution order, not the human approval requirements below.
+- Human gate: On 2026-07-19 the owner authorized the bounded canonical-first local implementation, the exact local Docker reset for `miyar_auth_test_tr10_browser`, and then commit/push/draft-PR publication with CI and complete-diff review. The reset is complete. Merge, shared database application, deployment, professional GFA/fit-out rules, image/PDF/DWG/IFC authority, scoring/financial/compliance changes, and new material dependencies remain gated.
+- Plain-English outcome: Every room, boundary, opening, level, zone, and area will eventually have one stable identity and one explicit measurement basis instead of being recreated differently by each feature.
+- Evidence: Live code currently stores AI floor-plan output in unversioned project JSON, regenerates room codes from type and array order, reduces DXF polygons to area using a unit heuristic, stores separate short room IDs in downstream tables, and estimates walls/openings/ceilings from room area assumptions.
+- Active change set:
+  - Inventory every room/area producer, persistence path, and consumer, then freeze truthful legacy fixtures.
+  - Define the canonical identity, version, geometry, measurement, source/provenance, confidence, conflict, insufficiency, and stale-state contracts.
+  - Define distinct measured, imported, user-entered, and estimated paths; no class may be silently promoted.
+  - Specify area-basis reconciliation, coordinate/unit handling, tolerance/rounding, additive schema, tenant-safe access, compatibility adapters, migration/restore, and mixed-version operation.
+  - Replace the verified shadow scaffolding with a canonical-first draft/review/accept workflow for pre-launch projects.
+- Done when for the approved implementation slice: Runtime authority contains no shadow choice; fresh projects start canonical; manual/DXF drafts become selected canonical geometry only by explicit admin review; migration 0051 is corrected before sharing; only valid room-floor consumers use accepted polygon measurements; professional GFA/fit-out assumptions remain explicit; and the full local verification/review matrix passes.
+- Done when for eventual implementation: One golden plan round-trips without identity or unexplained area drift; incomplete or conflicting geometry yields explicit insufficiency; legacy projects remain truthfully readable; manual locks survive; and organization isolation, migration/restore, downstream reconciliation, visual overlay, and full applicable gates pass.
+- Verification: Existing geometry/space/MQI/report baseline; contract/property/unit/tolerance/import/replay/idempotency tests; legacy-null and mixed-version fixtures; two-organization isolation; safe MySQL migration/restore; downstream and rendered-report reconciliation; visual overlay; TypeScript, safe full suite, authorization/database audits, build, browser, diff, and independent review.
+- Expected artifacts: `docs/specs/DI-01_CANONICAL_GEOMETRY_PLAN.md`, geometry ADR/schema proposal, producer/consumer inventory, frozen fixture pack, compatibility adapters, canonical room graph, and measurement reconciliation report.
+- Local shadow implementation evidence: The corrected inventory records 31 producers/transforms and 35 consumers. The frozen baseline passes 63/63; deterministic geometry/CAD and final compatibility/workload regressions pass; checked-in migration `0051` plus tenant/CAS/domain/restore verification passes 24/24 on disposable MySQL with current hash binding and cleanup; the safe suite passes 1,349 with 22 skipped; TypeScript, authorization 345/0, database-safety 114/2/0, build/bundle budgets, diff checks, and responsive bilingual browser QA pass. Independent architecture/test reviewers approved. Claude Opus returned `APPROVED_WITH_NONBLOCKING_NOTES`; its behavior note was resolved and reverified. Legacy GFA, fit-out, scoring, reports, and shares remain authoritative and unchanged in `shadow` mode.
+- Lifecycle amendment: The verified shadow slice is retained as local evidence/scaffolding, not approved launch behavior. There will be no shadow pilot or shadow-mode rollout because the product has not launched and has no real customers.
+- Canonical-first implementation evidence: Runtime authority is now only `legacy | canonical`, fresh projects atomically start canonical with no selected geometry, and manual/DXF inputs remain immutable drafts until explicit organization-admin review. Migration 0051 and its snapshot contain the corrected canonical defaults and composite tenant foreign keys. Accepted polygon measurements resolve only through exact graph/source/identity/version/formula/cardinality evidence; canonical MQI fails closed until finish-scope mapping exists, while professional GFA and fit-out remain separate. The final legacy aggregate write is transactionally authority-checked and a real concurrent-review regression proves it cannot land after canonical acceptance. The provider-free suite passes 1,358 with 22 skipped; a fresh disposable MySQL chain passes 25/25 with cleanup and current hash binding; TypeScript, authorization 345/0, database safety 114/2/0, build/budgets, diff checks, and desktop bilingual/role browser journeys pass. Three specialist reviewers and Claude Opus returned `APPROVED`.
+- Activated: 2026-07-19 in fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-di01-canonical` on branch `codex/di-01-canonical-first` from verified local foundation commit `738dfc6`.
+- Internal-data operation evidence: The exact loopback-only target `miyar_auth_test_tr10_browser` was snapshotted before reset (89 tables, 42 synthetic/internal rows; restore verified; owner-only snapshot SHA-256 `bd88414571b3115bfa832623bd7febfef2701f83e853c3f7d69fee682369d6f5`), dropped/recreated, and migrated through corrected 0051. The retained target has 100 tables, 52 migration entries, all ten empty DI-01 tables, zero checked application rows, and an idempotent second migration pass. Migration journal entry 52 exactly matches the checked-in 0051 SHA-256 `f3871aee5deefecae6b905850e306afac3e13760da78bd6f9ba0ef954d4f8e92`.
+- Publication evidence: Commit `deba8b3` was pushed to `codex/di-01-canonical-first` and draft PR [#22](https://github.com/amosantan/miyar-v2/pull/22) targets `main`. CI run `29691153359` passed lint/test and MySQL authorization; Vercel preview and Preview Comments passed. The complete two-commit branch diff against `main` was reviewed with no unresolved blocker.
+- Current scope: The bounded canonical-first implementation, local verification, exact authorized internal reset, Git publication, draft-PR CI, and complete-diff review are complete. Shared migration, merge, and release remain unauthorized and require separate human approval.
 
 ## Phase EV — Evidence and Procurement Moat
 

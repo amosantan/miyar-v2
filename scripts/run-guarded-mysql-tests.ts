@@ -50,7 +50,17 @@ function fileHash(file: string) {
 let exitCode = 0;
 try {
   for (const [command, args] of [
-    ["pnpm", ["exec", "drizzle-kit", "push", "--force", "--config", "drizzle.mysql-test.config.ts"]],
+    ["pnpm", ["exec", "tsx", "scripts/recreate-mysql-auth-test.ts"]],
+    [
+      "pnpm",
+      [
+        "exec",
+        "drizzle-kit",
+        "migrate",
+        "--config",
+        "drizzle.mysql-test.config.ts",
+      ],
+    ],
     ["pnpm", ["exec", "vitest", "run", "--config", "vitest.mysql.config.ts"]],
   ] as const) {
     const result = spawnSync(command, args, {
@@ -73,7 +83,7 @@ try {
   const cleanup = spawnSync(
     "pnpm",
     ["exec", "tsx", "scripts/cleanup-mysql-auth-test.ts"],
-    { cwd: process.cwd(), env, stdio: "inherit", timeout: 60_000 },
+    { cwd: process.cwd(), env, stdio: "inherit", timeout: 60_000 }
   );
   if (cleanup.error || cleanup.status !== 0) {
     console.error("[mysql-authorization] Disposable database cleanup failed");
@@ -84,19 +94,25 @@ try {
 if (exitCode === 0) {
   writeFileSync(
     MYSQL_EVIDENCE_FILE,
-    `${JSON.stringify({
-      status: "PASS",
-      observedAt: new Date().toISOString(),
-      databaseEngine: "MySQL 8.0",
-      targetClass: "disposable localhost database",
-      command: "pnpm test:authorization:mysql",
-      testFile: MYSQL_INTEGRATION_TEST,
-      testCount: 19,
-      cleanupVerified: true,
-      fileHashes: Object.fromEntries(
-        REQUIRED_MYSQL_EVIDENCE_FILES.map(file => [file, fileHash(file)])
-      ),
-    }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        status: "PASS",
+        observedAt: new Date().toISOString(),
+        databaseEngine: "MySQL 8.0",
+        targetClass: "disposable localhost database",
+        command: "pnpm test:authorization:mysql",
+        migrationMode:
+          "checked-in migration chain on a freshly created database",
+        testFile: MYSQL_INTEGRATION_TEST,
+        testCount: 25,
+        cleanupVerified: true,
+        fileHashes: Object.fromEntries(
+          REQUIRED_MYSQL_EVIDENCE_FILES.map(file => [file, fileHash(file)])
+        ),
+      },
+      null,
+      2
+    )}\n`
   );
 }
 

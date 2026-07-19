@@ -95,8 +95,11 @@ How is the decision adopted, and how can it be superseded or reversed?
 
 ## Index
 
-| ADR                                                               | Status   | Decision                                                                        |
-| ----------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------- |
-| [ADR-0001](ADR-0001-canonical-agent-documentation.md)             | Accepted | One canonical cross-agent contract with separated live state and history        |
-| [ADR-0002](ADR-0002-deterministic-decision-authority.md)          | Accepted | Deterministic code owns authoritative numerical decisions; AI assists           |
-| [ADR-0003](ADR-0003-baseline-space-confidence-annex-contracts.md) | Accepted | Versioned empty-space, ingestion-confidence, and Material Board Annex contracts |
+| ADR                                                                  | Status   | Decision                                                                        |
+| -------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------- |
+| [ADR-0001](ADR-0001-canonical-agent-documentation.md)                | Accepted | One canonical cross-agent contract with separated live state and history        |
+| [ADR-0002](ADR-0002-deterministic-decision-authority.md)             | Accepted | Deterministic code owns authoritative numerical decisions; AI assists           |
+| [ADR-0003](ADR-0003-baseline-space-confidence-annex-contracts.md)    | Accepted | Versioned empty-space, ingestion-confidence, and Material Board Annex contracts |
+| [ADR-0004](ADR-0004-render-input-fingerprint.md)                     | Accepted | Issued render inputs use a canonical fingerprint                                |
+| [ADR-0005](ADR-0005-di01-staged-prioritization.md)                   | Accepted | DI-01 starts as a gated planning increment                                      |
+| [ADR-0006](ADR-0006-canonical-room-geometry-measurement-contract.md) | Accepted | Canonical room identity, geometry, measurement, and compatibility contract      |

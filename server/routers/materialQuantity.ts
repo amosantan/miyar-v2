@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import {
     orgHeavyMutationProcedure,
     orgMutationProcedure,
@@ -52,6 +53,21 @@ export const materialQuantityRouter = router({
 
             // 1. Get project
             const project = await requireProjectForOrg(input.projectId, orgId);
+
+            const geometryAuthority =
+                await db.getProjectGeometryAuthorityForOrg(input.projectId, orgId);
+            if (geometryAuthority?.mode === "canonical") {
+                const accepted =
+                    await db.getAcceptedRoomFloorMeasurementsForOrg(input.projectId, orgId);
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message:
+                        accepted.status === "ready"
+                            ? "Canonical room-floor geometry is available, but material quantities remain insufficient until every stable space has an explicit reviewed finish-scope mapping. GFA, fit-out, wall, ceiling, and opening assumptions were not inferred."
+                            : accepted.reason ??
+                              "Canonical room-floor geometry is not complete and reviewed. Material quantities were not generated.",
+                });
+            }
 
             // 2. Build space program — Phase B fit-out aware
             // Try persisted space program first (Phase B), fall back to legacy (Phase A)

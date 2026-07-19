@@ -338,11 +338,28 @@ export const projectRouter = router({
         throw new Error("Cannot update a locked project");
       }
       const updateData: any = { ...data };
-      if (data.ctx03Gfa !== undefined) updateData.ctx03Gfa = data.ctx03Gfa ? String(data.ctx03Gfa) : null;
-      if (data.fin01BudgetCap !== undefined) updateData.fin01BudgetCap = data.fin01BudgetCap ? String(data.fin01BudgetCap) : null;
-      if (data.officeCustomRatio !== undefined) updateData.officeCustomRatio = data.officeCustomRatio != null ? String(data.officeCustomRatio) : null;
-      if (data.totalFitoutArea !== undefined) updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
-      if (data.totalNonFinishArea !== undefined) updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
+      if (data.ctx03Gfa !== undefined)
+        updateData.ctx03Gfa = data.ctx03Gfa ? String(data.ctx03Gfa) : null;
+      if (data.fin01BudgetCap !== undefined)
+        updateData.fin01BudgetCap = data.fin01BudgetCap
+          ? String(data.fin01BudgetCap)
+          : null;
+      if (data.officeCustomRatio !== undefined)
+        updateData.officeCustomRatio =
+          data.officeCustomRatio != null
+            ? String(data.officeCustomRatio)
+            : null;
+      if (data.totalFitoutArea !== undefined)
+        updateData.totalFitoutArea = data.totalFitoutArea
+          ? String(data.totalFitoutArea)
+          : null;
+      if (data.totalNonFinishArea !== undefined)
+        updateData.totalNonFinishArea = data.totalNonFinishArea
+          ? String(data.totalNonFinishArea)
+          : null;
+      // GFA, fit-out, and non-finish area are explicit professional/project
+      // inputs. MIYAR_GEOM_V1 owns room-floor polygons only and must not block,
+      // infer, or overwrite these separate measurement bases.
       if (!(await db.updateProjectForOrg(id, ctx.orgId, updateData))) {
         await requireProjectForOrg(id, ctx.orgId);
       }

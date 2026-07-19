@@ -10,6 +10,7 @@ import { designMarketContextRouter } from "./design-market-context";
 import { designMaterialsRouter } from "./design-materials";
 import { designSharingRouter } from "./design-sharing";
 import { designVisualsRouter } from "./design-visuals";
+import { designGeometryAssetsRouter } from "./design-geometry-assets";
 import { designRouter } from "./design";
 
 const EXPECTED_DESIGN_PROCEDURES = {
@@ -76,6 +77,8 @@ const EXPECTED_DESIGN_PROCEDURES = {
   uploadFloorPlan: "mutation",
   analyzeFloorPlan: "mutation",
   getSpaceBenchmark: "query",
+  createGeometrySourceUpload: "mutation",
+  finalizeGeometrySourceUpload: "mutation",
 } as const;
 
 describe("design router contract", () => {
@@ -88,6 +91,7 @@ describe("design router contract", () => {
     designMaterialsRouter,
     designSharingRouter,
     designVisualsRouter,
+    designGeometryAssetsRouter,
   ];
 
   it("retains every flat procedure name and operation kind", () => {
@@ -119,7 +123,7 @@ describe("design router contract", () => {
       listAssets: publicProcedure.query(() => null),
     });
     expect(() => mergeRouters(designAssetsRouter, collision)).toThrow(
-      /Duplicate key/i,
+      /Duplicate key/i
     );
   });
 
@@ -127,10 +131,10 @@ describe("design router contract", () => {
     const result = spawnSync(
       "pnpm",
       ["exec", "tsx", "scripts/check-design-router-contract.ts"],
-      { cwd: process.cwd(), encoding: "utf8" },
+      { cwd: process.cwd(), encoding: "utf8" }
     );
     expect(`${result.stdout}\n${result.stderr}`).toContain(
-      "SC-01 design contract PASS: 63 procedures",
+      "SC-01 design contract PASS: 63 baseline procedures and 2 approved additive procedures"
     );
     expect(result.status).toBe(0);
   });

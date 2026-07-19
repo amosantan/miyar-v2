@@ -20,6 +20,7 @@ import {
   validateMediaBuffer,
 } from "../_core/media-validation";
 import { readValidatedProjectMedia } from "../_core/project-media";
+import { requireLegacyGeometryWriterForProject } from "../_core/geometry-authority";
 import {
   designOrgMutationProcedure,
   orgProcedure,
@@ -457,6 +458,7 @@ export const designAssetsRouter = router({
     .input(z.object({ projectId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const project = await requireDesignProject(input.projectId, ctx.orgId);
+      await requireLegacyGeometryWriterForProject(input.projectId, ctx.orgId);
 
       // Get the floor plan asset
       if (!project.floorPlanAssetId) {
@@ -483,8 +485,11 @@ export const designAssetsRouter = router({
       const analysis = await runFloorPlanAnalysis(media);
 
       // Store in the project record
-      requireScopedDesignMutation(
-        await db.updateProjectForOrg(input.projectId, ctx.orgId, {
+      const writeResult =
+        await db.updateProjectWithLegacyGeometryAuthorityForOrg(
+          input.projectId,
+          ctx.orgId,
+          {
           floorPlanAnalysis: analysis as any,
           // Also update totalFitoutArea if not already set
           ...(!project.totalFitoutArea || Number(project.totalFitoutArea) === 0
@@ -492,8 +497,13 @@ export const designAssetsRouter = router({
                 totalFitoutArea: String(analysis.totalEstimatedSqm) as any,
               }
             : {}),
-        })
-      );
+          }
+        );
+      if (writeResult === "canonical") {
+        await requireLegacyGeometryWriterForProject(input.projectId, ctx.orgId);
+        throw new Error("Project geometry authority changed during floor-plan analysis");
+      }
+      requireScopedDesignMutation(writeResult === "updated");
 
       await db.createAuditLog({
         orgId: ctx.orgId,

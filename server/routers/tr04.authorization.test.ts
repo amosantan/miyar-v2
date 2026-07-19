@@ -127,6 +127,24 @@ describe("TR-04 project and scenario authorization contracts", () => {
     );
   });
 
+  it("keeps explicit fit-out area editable because room polygons are not professional fit-out area", async () => {
+    mocks.getOrganizationMemberships.mockResolvedValue([
+      membership(101, "member"),
+    ]);
+    await expect(
+      projectRouter.createCaller(context(101, "member")).update({
+        id: 11,
+        totalFitoutArea: 25,
+      })
+    ).resolves.toEqual({ success: true });
+    expect(mocks.updateProjectForOrg).toHaveBeenCalledWith(
+      11,
+      101,
+      expect.objectContaining({ totalFitoutArea: "25" })
+    );
+    expect(mocks.createAuditLog).toHaveBeenCalled();
+  });
+
   it("requires organization admin for project deletion", async () => {
     mocks.getOrganizationMemberships.mockResolvedValue([
       membership(101, "member"),

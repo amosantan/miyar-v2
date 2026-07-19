@@ -29,6 +29,16 @@ const pool = mysql.createPool(connectionString);
 const providerCompatibility = process.env.PLANETSCALE_COMPAT === "1";
 
 const tables = [
+  "artifact_input_snapshots",
+  "geometry_reconciliation_events",
+  "measurement_input_edges",
+  "measurement_records",
+  "legacy_space_links",
+  "space_versions",
+  "space_identities",
+  "spatial_graph_versions",
+  "geometry_sources",
+  "project_geometry_authorities",
   "asset_links",
   "comments",
   "materials_to_boards",

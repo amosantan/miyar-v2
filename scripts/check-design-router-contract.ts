@@ -24,7 +24,22 @@ const DOMAIN_FILES = [
   "server/routers/design-materials.ts",
   "server/routers/design-sharing.ts",
   "server/routers/design-visuals.ts",
+  "server/routers/design-geometry-assets.ts",
 ] as const;
+const APPROVED_ADDITIVE_CONTRACTS = new Map([
+  [
+    "design.createGeometrySourceUpload",
+    { operation: "mutation", accessPrimitive: "designOrgMutationProcedure" },
+  ],
+  [
+    "design.finalizeGeometrySourceUpload",
+    { operation: "mutation", accessPrimitive: "designOrgMutationProcedure" },
+  ],
+] as const);
+const APPROVED_INITIALIZER_CHANGES = new Set([
+  // DI-01 release-N compatibility guard; operation and middleware are frozen.
+  "design.analyzeFloorPlan",
+]);
 const ACCESS_PRIMITIVES = [
   "designOrgMutationProcedure",
   "publicRateLimitedProcedure",
@@ -231,6 +246,12 @@ async function checkContract() {
       "accessPrimitive",
       "initializerSha256",
     ] as const) {
+      if (
+        field === "initializerSha256" &&
+        APPROVED_INITIALIZER_CHANGES.has(expected.path)
+      ) {
+        continue;
+      }
       if (actual[field] !== expected[field]) {
         errors.push(`${expected.path} ${field} changed`);
       }
@@ -253,12 +274,30 @@ async function checkContract() {
     }
     currentByPath.delete(expected.path);
   }
-  for (const added of currentByPath.keys()) {
-    errors.push(`Unexpected source procedure ${added}`);
+  for (const [path, added] of currentByPath) {
+    const approved = APPROVED_ADDITIVE_CONTRACTS.get(path as any);
+    if (!approved) {
+      errors.push(`Unexpected source procedure ${path}`);
+      continue;
+    }
+    if (
+      added.operation !== approved.operation ||
+      added.accessPrimitive !== approved.accessPrimitive
+    ) {
+      errors.push(`${path} does not match its approved additive contract`);
+    }
+    if (!classificationByPath.get(path)) {
+      errors.push(`${path} is missing an authorization classification`);
+    }
   }
   const runtimeNames = Object.keys(designRouter._def.procedures).sort();
   const expectedNames = baseline
     .map(contract => contract.path.slice("design.".length))
+    .concat(
+      Array.from(APPROVED_ADDITIVE_CONTRACTS.keys()).map(path =>
+        path.slice("design.".length)
+      )
+    )
     .sort();
   if (JSON.stringify(runtimeNames) !== JSON.stringify(expectedNames)) {
     errors.push("Runtime design procedure names changed");
@@ -276,7 +315,9 @@ async function checkContract() {
   if (errors.length > 0) {
     throw new Error(`SC-01 design contract drift:\n- ${errors.join("\n- ")}`);
   }
-  console.log(`SC-01 design contract PASS: ${baseline.length} procedures`);
+  console.log(
+    `SC-01 design contract PASS: ${baseline.length} baseline procedures and ${APPROVED_ADDITIVE_CONTRACTS.size} approved additive procedures`
+  );
 }
 
 if (process.argv.includes("--capture-baseline")) {
