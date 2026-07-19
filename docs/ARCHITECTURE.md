@@ -86,6 +86,14 @@ Background ingestion, learning, and alert workers run according to the selected 
 - User-facing numerical displays must retain units, currency, assumptions, and insufficient-data states.
 - New top-level routes must remain lazily imported unless a measured startup requirement justifies eager loading.
 
+### Client loading and bundle budgets
+
+The production Vite build emits `.vite/manifest.json` under its active client artifact root (`dist/public/` locally and `dist/` on Vercel). `client/bundle-budgets.json` owns both roots plus the entry, route-closure, per-chunk, and required dynamic-import budgets; `pnpm check:bundle-budgets` measures the actual built JavaScript and CSS in raw and gzip bytes. `pnpm build` runs this check before packaging either server runtime, so a missing artifact, broken lazy boundary, expired exception, or size regression fails local and hosted builds.
+
+The authenticated shell loads the AI assistant only when its sheet opens. Rich Markdown/diagram/syntax rendering then loads only when assistant or portfolio Markdown is rendered. Stored-report rendering loads only when an inline report preview opens. These component boundaries are part of the build contract, not merely implementation details: the manifest checker verifies the dynamic edges and forbids the heavy modules from the ordinary dashboard, project, reports, and pre-briefing portfolio static closures.
+
+Budget exceptions must name a stable manifest owner, state why the supported behavior needs the larger artifact, set raw and gzip ceilings, and expire. Hash-derived asset filenames are evidence output, never configuration. See `docs/runbooks/client-performance-budgets.md` for measurement and change procedures.
+
 ## API and Router Layer
 
 `server/routers.ts` composes the tRPC application router. Domain routers cover system/auth, projects, scenarios, administration, design, market intelligence, ingestion, analytics, prediction, learning, autonomy, organizations, economics, bias, portfolio, sustainability, intake, material quantities, and space programmes.

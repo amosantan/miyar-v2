@@ -25,11 +25,12 @@ import {
   ChevronUp,
   Printer,
 } from "lucide-react";
-import { useState, useMemo, useRef, useCallback } from "react";
+import { lazy, Suspense, useState, useMemo, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import ReportRenderer from "@/components/ReportRenderer";
 import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
 import { useTranslation } from "@/lib/i18n";
+
+const ReportRenderer = lazy(() => import("@/components/ReportRenderer"));
 
 const REPORT_TYPES = [
   {
@@ -392,6 +393,11 @@ function ReportsContent() {
                               variant="ghost"
                               size="sm"
                               className="gap-1 text-xs"
+                              aria-label={
+                                isExpanded
+                                  ? "Close report preview"
+                                  : "Open report preview"
+                              }
                               onClick={() =>
                                 setPreviewId(isExpanded ? null : r.id)
                               }
@@ -417,7 +423,15 @@ function ReportsContent() {
                               />
                             ) : r.content ? (
                               <div id={`report-content-${r.id}`} className="max-h-[600px] overflow-y-auto">
-                                <ReportRenderer content={r.content} reportType={r.reportType} />
+                                <Suspense
+                                  fallback={(
+                                    <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground" role="status">
+                                      Loading report preview…
+                                    </div>
+                                  )}
+                                >
+                                  <ReportRenderer content={r.content} reportType={r.reportType} />
+                                </Suspense>
                               </div>
                             ) : (
                               <div className="p-4 text-center text-sm text-muted-foreground">

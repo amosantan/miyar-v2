@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "artifactRoots": {
+    "default": "dist/public",
+    "vercel": "dist"
+  },
+  "reportPath": "tmp/client-bundle-budget/report.json",
+  "entry": {
+    "selector": "index.html",
+    "maxJavaScriptGzipBytes": 163840,
+    "maxCssGzipBytes": 40960
+  },
+  "globalChunk": {
+    "maxRawBytes": 786432,
+    "maxGzipBytes": 262144
+  },
+  "chunkExceptions": [
+    {
+      "selector": "name:MarkdownRenderer",
+      "maxRawBytes": 921600,
+      "maxGzipBytes": 286720,
+      "reason": "Streamdown preserves governed Markdown, math, diagram, and syntax rendering; it is allowed only behind the verified assistant/portfolio dynamic boundary.",
+      "expiresOn": "2026-10-31"
+    }
+  ],
+  "routes": [
+    {
+      "id": "public-home",
+      "selectors": ["index.html", "src/pages/Home.tsx"],
+      "maxGzipBytes": 184320
+    },
+    {
+      "id": "public-login",
+      "selectors": ["index.html", "src/pages/Login.tsx"],
+      "maxGzipBytes": 184320
+    },
+    {
+      "id": "public-share",
+      "selectors": ["index.html", "src/pages/ShareView.tsx"],
+      "maxGzipBytes": 184320
+    },
+    {
+      "id": "authenticated-dashboard",
+      "selectors": ["index.html", "name:DashboardLayout", "src/pages/Dashboard.tsx"],
+      "maxGzipBytes": 230400,
+      "forbiddenStaticSelectors": ["src/components/AIChatBox.tsx", "name:MarkdownRenderer"]
+    },
+    {
+      "id": "authenticated-project",
+      "selectors": ["index.html", "name:DashboardLayout", "src/pages/ProjectDetail.tsx"],
+      "maxGzipBytes": 419840,
+      "forbiddenStaticSelectors": ["src/components/AIChatBox.tsx", "name:MarkdownRenderer"]
+    },
+    {
+      "id": "authenticated-reports",
+      "selectors": ["index.html", "name:DashboardLayout", "src/pages/Reports.tsx"],
+      "maxGzipBytes": 245760,
+      "forbiddenStaticSelectors": ["src/components/AIChatBox.tsx", "name:MarkdownRenderer", "name:ReportRenderer"]
+    },
+    {
+      "id": "admin-portfolio-before-briefing",
+      "selectors": ["index.html", "name:DashboardLayout", "src/pages/admin/Portfolio.tsx"],
+      "maxGzipBytes": 348160,
+      "forbiddenStaticSelectors": ["name:MarkdownRenderer"]
+    },
+    {
+      "id": "assistant-with-markdown",
+      "selectors": ["index.html", "name:DashboardLayout", "src/components/AIChatBox.tsx", "name:MarkdownRenderer"],
+      "maxGzipBytes": 532480
+    }
+  ],
+  "requiredDynamicBoundaries": [
+    {
+      "from": "name:DashboardLayout",
+      "to": "src/components/AIChatBox.tsx"
+    },
+    {
+      "from": "src/components/AIChatBox.tsx",
+      "to": "name:MarkdownRenderer"
+    },
+    {
+      "from": "src/pages/admin/Portfolio.tsx",
+      "to": "name:MarkdownRenderer"
+    },
+    {
+      "from": "src/pages/Reports.tsx",
+      "to": "name:ReportRenderer"
+    }
+  ]
+}

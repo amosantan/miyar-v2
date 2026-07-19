@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `SC-04` (`READY` — its `TR-06` dependency is closed and it has no human gate)
+- Next executable step: `SC-05` (`NEEDS_HUMAN` — approve runtime topology, SLO/alert ownership, and monitoring cost before implementation)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -737,7 +737,7 @@ Rules:
 
 ### SC-04 — Enforce client performance budgets
 
-- Status: `READY`
+- Status: `CLOSED`
 - Class / priority: Performance / P2
 - Dependencies: Current lazy-route improvement; may execute after `TR-06`.
 - Human gate: None.
@@ -749,13 +749,19 @@ Rules:
 - Done when: Initial entry is below the approved budget, heavy routes are deferred, and no critical-flow regression occurs.
 - Verification: Repeatable bundle report, build budget, desktop/mobile browser smoke.
 - Expected artifacts: Bundle budget and optimization evidence.
+- Activated: 2026-07-19 in `/Users/amrosaleh/Maiyar/miyar-v2-sc04` on `codex/sc-04-client-performance-budgets` from exact canonical-main commit `a319d47b77771665c9add390a2befd5a883a7dbb`.
+- Closed: 2026-07-19 with terminal state `PASS`.
+- Completion evidence: Versioned Vite-manifest budgets enforce entry, CSS, per-chunk, route-closure, forbidden-static, required-dynamic, exception-reason, and expiry contracts in local and Vercel output profiles. Entry is 138,121 gzip bytes; authenticated dashboard fell from 450,808 to 220,257 gzip bytes; all eight route/feature closures pass. Assistant, rich Markdown/diagram/syntax, portfolio briefing, and inline report rendering are interaction-deferred without removing supported behavior. Six checker tests, ordinary suite 1,264/22, TypeScript, authorization 338/0, database-safety 112/2/0, build/freshness, exact desktop/mobile-width guarded workflow, strict cleanup, diff review, and independent high-reasoning review pass.
+- Residual risk: The governed Markdown renderer remains approximately 883 KB raw / 267 KB gzip when intentionally opened; its sole bounded exception expires 2026-10-31. Generic Vite large-chunk warnings remain visible. Git publication, hosted CI, preview, and deployment were not authorized or performed.
+- Lessons: `LES-032`.
 
 ### SC-05 — Reconcile runtimes and add observability
 
-- Status: `PLANNED`
+- Status: `NEEDS_HUMAN`
 - Class / priority: Operations/architecture / P2
 - Dependencies: `TR-12`, `TR-13`
 - Human gate: Production topology and monitoring cost approval.
+- Decision required: The product/operations owner must select the canonical Node/serverless capability topology, name SLO and alert owners, and approve any monitoring provider/cost. The safe default is no implementation or production telemetry change.
 - Evidence: Node and serverless entries expose different capabilities; traceability from request to evidence/report is incomplete.
 - Change set:
   - Define explicit runtime capability profiles and health output.
@@ -855,7 +861,7 @@ Rules:
 | Mutable/unprovenanced material prices                 | `EV-01`–`EV-04`                                               |
 | Typology coverage is labels, not rule packs           | `BR-05`, `BR-06`                                              |
 | Report reproducibility incomplete                     | `TR-10`, `BR-07`                                              |
-| Initial client payload                                | Closed audit implementation; remaining budget in `SC-04`      |
+| Initial client payload                                | Closed by `SC-04`; CI-enforced entry and route budgets         |
 | Design router authorization/change hotspot            | `TR-03`, `SC-01`                                              |
 | Source freshness/quality is not a product SLA         | `EV-04`, `EV-05`                                              |
 | AI quality has no acceptance baseline                 | `BR-08`                                                       |
@@ -865,7 +871,7 @@ Rules:
 | Boards/renders are not controlled design records      | `SC-02`                                                       |
 | RFQ lacks quote comparison/substitution               | `EV-06`                                                       |
 | Comments are not a full design-review workflow        | `SC-03`                                                       |
-| Deferred performance chunk remains heavy              | `SC-04`                                                       |
+| Deferred performance chunk remains heavy              | Governed by expiring `SC-04` exception                         |
 | Node/serverless capability drift                      | `SC-05`                                                       |
 | No verified retention/DSR workflow                    | `SC-06`                                                       |
 | Premium/yield under-evidenced                         | `EX-01`                                                       |

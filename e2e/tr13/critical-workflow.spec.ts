@@ -7,7 +7,10 @@ import {
   TR13_WORKFLOW_FIXTURE,
   TR13_WORKFLOW_FIXTURE_VERSION,
 } from "../../tests/fixtures/workflows/tr13-workflow-fixtures";
-import { seedSyntheticAdvisorSharePrerequisite } from "./support";
+import {
+  prepareSyntheticInlineReportPreview,
+  seedSyntheticAdvisorSharePrerequisite,
+} from "./support";
 
 const users = {
   admin: { email: "tr13-admin@example.invalid", password: "tr13-local-admin" },
@@ -130,6 +133,22 @@ function requireWorkflowProjectId(): number {
   return workflowProjectId!;
 }
 
+async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth + 1
+    )
+  ).toBe(true);
+}
+
+function hasLoadedClientModule(urls: string[], moduleName: string): boolean {
+  return urls.some(url =>
+    new RegExp(`/${moduleName}(?:\\.tsx?|-)[^/]*$`).test(new URL(url).pathname)
+  );
+}
+
 async function trpcRequest<T>(
   page: Page,
   procedure: string,
@@ -248,6 +267,23 @@ test.describe("TR-13 critical workflow harness", () => {
     );
   });
 
+  test("renders the public home and login entry routes", async ({ page }) => {
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", {
+        name: "Make defensible design decisions before committing capital.",
+      })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.goto("/login");
+    await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    writeBrowserEvidence({
+      publicHomeInspected: true,
+      publicLoginInspected: true,
+    });
+  });
+
   test("keeps the unauthenticated application shell behind sign-in", async ({
     page,
   }) => {
@@ -260,10 +296,36 @@ test.describe("TR-13 critical workflow harness", () => {
     page,
   }) => {
     test.setTimeout(120_000);
+    const scriptRequests: string[] = [];
+    page.on("request", request => {
+      if (request.resourceType() === "script") scriptRequests.push(request.url());
+    });
     await page
       .context()
       .grantPermissions(["clipboard-read", "clipboard-write"]);
     await login(page, users.admin);
+    expect(hasLoadedClientModule(scriptRequests, "AIChatBox")).toBe(false);
+    expect(hasLoadedClientModule(scriptRequests, "MarkdownRenderer")).toBe(false);
+    await page.getByRole("button", { name: "Open MIYAR Intelligence" }).click();
+    await expect(
+      page.getByRole("heading", { name: "MIYAR Intelligence" })
+    ).toBeVisible();
+    await expect(
+      page.getByText("Hello! I am the MIYAR AI Assistant.")
+    ).toBeVisible();
+    await expect
+      .poll(
+        () => hasLoadedClientModule(scriptRequests, "AIChatBox"),
+        { message: "AI chat must load only after the assistant opens" }
+      )
+      .toBe(true);
+    await expect
+      .poll(
+        () => hasLoadedClientModule(scriptRequests, "MarkdownRenderer"),
+        { message: "rich Markdown must load only when assistant content renders" }
+      )
+      .toBe(true);
+    await page.getByRole("button", { name: "Close" }).click();
     await page.goto("/projects/new");
     await page
       .getByPlaceholder("e.g. Creek residential concept")
@@ -408,6 +470,11 @@ test.describe("TR-13 critical workflow harness", () => {
     expect(reports).toContainEqual(
       expect.objectContaining({ reportType: "full_report" })
     );
+    const storedFullReport = reports.find(
+      report => report.reportType === "full_report"
+    );
+    expect(storedFullReport?.id).toBeDefined();
+    await prepareSyntheticInlineReportPreview(projectId, storedFullReport!.id);
 
     await seedSyntheticAdvisorSharePrerequisite(projectId, workflowProjectName);
     const advisorBrief = await trpcRequest<{
@@ -444,13 +511,7 @@ test.describe("TR-13 critical workflow harness", () => {
     ).toBeVisible();
     await expect(page.getByText(/Read-only shared view/i)).toBeVisible();
     expect(await page.locator("button,input,select,textarea").count()).toBe(0);
-    expect(
-      await page.evaluate(
-        () =>
-          document.documentElement.scrollWidth <=
-          document.documentElement.clientWidth + 1
-      )
-    ).toBe(true);
+    await expectNoHorizontalOverflow(page);
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto(`/projects/${projectId}/investor-summary`);
     await page
@@ -467,6 +528,35 @@ test.describe("TR-13 critical workflow harness", () => {
         page.getByText(/Link unavailable|invalid or expired/i)
       ).toBeVisible();
     });
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/dashboard");
+    await expect(
+      page.getByRole("heading", { name: "Good decisions start here." })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.getByRole("button", { name: "Open MIYAR Intelligence" }).click();
+    await expect(
+      page.getByRole("heading", { name: "MIYAR Intelligence" })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.getByRole("button", { name: "Close" }).click();
+    await page.goto(`/projects/${projectId}`);
+    await expect(
+      page.getByRole("heading", { name: workflowProjectName })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.goto("/reports");
+    await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    expect(hasLoadedClientModule(scriptRequests, "ReportRenderer")).toBe(false);
+    await page.getByRole("button", { name: "Open report preview" }).first().click();
+    await expect
+      .poll(
+        () => hasLoadedClientModule(scriptRequests, "ReportRenderer"),
+        { message: "report renderer must load only after preview opens" }
+      )
+      .toBe(true);
+    await expectNoHorizontalOverflow(page);
     writeBrowserEvidence({
       createdProjectId: projectId,
       criticalWorkflowProjectId: projectId,
@@ -485,6 +575,14 @@ test.describe("TR-13 critical workflow harness", () => {
       mqiScreenInspected: true,
       allocationGroupsTotal100Pct: true,
       lockedAllocationPreserved: true,
+      assistantDeferredUntilOpen: true,
+      assistantMarkdownLoadedOnDemand: true,
+      reportRendererLoadedOnDemand: true,
+      mobileAuthenticatedDashboard: true,
+      mobileAssistantPanel: true,
+      mobileAuthenticatedProject: true,
+      mobileAuthenticatedReports: true,
+      mobileAuthenticatedHorizontalOverflow: false,
       mobilePublicShareReadOnly: true,
       mobileHorizontalOverflow: false,
       projectShareRevoked: true,

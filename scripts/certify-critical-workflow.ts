@@ -253,6 +253,8 @@ function collectFinalEvidence() {
   )
     fail("Stored report render evidence is incomplete or mismatched");
   for (const key of [
+    "publicHomeInspected",
+    "publicLoginInspected",
     "unauthenticatedProtectedAccessDenied",
     "quickCreate",
     "assumptionsConfirmed",
@@ -263,6 +265,13 @@ function collectFinalEvidence() {
     "mqiScreenInspected",
     "allocationGroupsTotal100Pct",
     "lockedAllocationPreserved",
+    "assistantDeferredUntilOpen",
+    "assistantMarkdownLoadedOnDemand",
+    "reportRendererLoadedOnDemand",
+    "mobileAuthenticatedDashboard",
+    "mobileAssistantPanel",
+    "mobileAuthenticatedProject",
+    "mobileAuthenticatedReports",
     "adminShareCreated",
     "mobilePublicShareReadOnly",
     "projectShareRevoked",
@@ -288,6 +297,7 @@ function collectFinalEvidence() {
   }
   if (
     browser.syntheticOnly !== true ||
+    browser.mobileAuthenticatedHorizontalOverflow !== false ||
     browser.mobileHorizontalOverflow !== false ||
     browser.unexpectedRequestFailures !== 0 ||
     browser.unexpectedConsoleErrors !== 0 ||
@@ -416,7 +426,11 @@ function writeManifest(input: {
       ? {
           storedReportPages: render.renderedViews,
           browser: [
+            "desktop public home and login",
             "desktop admin project creation, confirmation, and evaluation",
+            "deferred assistant and rich Markdown loading",
+            "mobile authenticated dashboard, assistant, project, and reports",
+            "deferred stored-report preview rendering",
             "desktop admin share creation and project-wide revocation",
             "mobile public read-only share",
             "member and viewer control concealment",

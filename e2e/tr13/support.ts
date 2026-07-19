@@ -108,3 +108,43 @@ export async function seedSyntheticAdvisorSharePrerequisite(
     await connection.end();
   }
 }
+
+/**
+ * Local storage returns a data URL, which exercises the report iframe path.
+ * Convert the browser-created synthetic report to the already supported inline
+ * shape so SC-04 also proves ReportRenderer's interaction-level lazy boundary.
+ */
+export async function prepareSyntheticInlineReportPreview(
+  projectId: number,
+  reportId: number
+): Promise<void> {
+  const connection = await mysql.createConnection(
+    requireDisposableDatabaseUrl()
+  );
+  try {
+    const [reports] = await connection.query<mysql.RowDataPacket[]>(
+      `select r.id, r.content, p.orgId
+       from report_instances r
+       inner join projects p on p.id = r.projectId
+       where r.id = ? and r.projectId = ? and p.orgId = ? limit 1`,
+      [reportId, projectId, TR13_PRIMARY_ORG_ID]
+    );
+    if (reports.length !== 1 || reports[0]?.content == null) {
+      throw new Error(
+        "TR-13 browser report is missing from the primary synthetic organization"
+      );
+    }
+    const [result] = await connection.query<mysql.ResultSetHeader>(
+      `update report_instances r
+       inner join projects p on p.id = r.projectId
+       set r.fileUrl = null, r.storageKey = null
+       where r.id = ? and r.projectId = ? and p.orgId = ?`,
+      [reportId, projectId, TR13_PRIMARY_ORG_ID]
+    );
+    if (result.affectedRows !== 1) {
+      throw new Error("TR-13 synthetic inline report preparation failed");
+    }
+  } finally {
+    await connection.end();
+  }
+}

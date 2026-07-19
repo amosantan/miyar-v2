@@ -23,6 +23,7 @@ export default defineConfig({
   root: path.resolve(__dirname, "client"),
   publicDir: path.resolve(__dirname, "client", "public"),
   build: {
+    manifest: true,
     outDir: process.env.VERCEL
       ? path.resolve(__dirname, "dist")
       : path.resolve(__dirname, "dist", "public"),
