@@ -38,7 +38,9 @@ export const organizations = mysqlTable("organizations", {
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 255 }).notNull().unique(),
   domain: varchar("domain", { length: 255 }),
-  plan: mysqlEnum("plan", ["free", "pro", "enterprise"]).default("free").notNull(),
+  plan: mysqlEnum("plan", ["free", "pro", "enterprise"])
+    .default("free")
+    .notNull(),
   stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -53,7 +55,9 @@ export const organizationMembers = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     orgId: int("orgId").notNull(),
     userId: int("userId").notNull(),
-    role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
+    role: mysqlEnum("role", ["admin", "member", "viewer"])
+      .default("member")
+      .notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   table => [
@@ -71,7 +75,9 @@ export const organizationInvites = mysqlTable("organization_invites", {
   id: int("id").autoincrement().primaryKey(),
   orgId: int("orgId").notNull(),
   email: varchar("email", { length: 320 }).notNull(),
-  role: mysqlEnum("role", ["admin", "member", "viewer"]).default("member").notNull(),
+  role: mysqlEnum("role", ["admin", "member", "viewer"])
+    .default("member")
+    .notNull(),
   token: varchar("token", { length: 255 }).notNull().unique(),
   expiresAt: timestamp("expiresAt").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -79,7 +85,6 @@ export const organizationInvites = mysqlTable("organization_invites", {
 
 export type OrganizationInvite = typeof organizationInvites.$inferSelect;
 export type InsertOrganizationInvite = typeof organizationInvites.$inferInsert;
-
 
 // ─── Model Versions ─────────────────────────────────────────────────────────
 export const modelVersions = mysqlTable("model_versions", {
@@ -102,7 +107,9 @@ export const benchmarkVersions = mysqlTable("benchmark_versions", {
   id: int("id").autoincrement().primaryKey(),
   versionTag: varchar("versionTag", { length: 64 }).notNull().unique(),
   description: text("description"),
-  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  status: mysqlEnum("status", ["draft", "published", "archived"])
+    .default("draft")
+    .notNull(),
   publishedAt: timestamp("publishedAt"),
   publishedBy: int("publishedBy"),
   recordCount: int("recordCount").default(0),
@@ -132,11 +139,25 @@ export const benchmarkCategories = mysqlTable("benchmark_categories", {
   description: text("description"),
   market: varchar("market", { length: 64 }).default("UAE").notNull(),
   submarket: varchar("submarket", { length: 64 }).default("Dubai"),
-  projectClass: mysqlEnum("projectClass", ["mid", "upper", "luxury", "ultra_luxury"]).notNull(),
+  projectClass: mysqlEnum("projectClass", [
+    "mid",
+    "upper",
+    "luxury",
+    "ultra_luxury",
+  ]).notNull(),
   validFrom: timestamp("validFrom"),
   validTo: timestamp("validTo"),
-  confidenceLevel: mysqlEnum("confidenceLevel", ["high", "medium", "low"]).default("medium"),
-  sourceType: mysqlEnum("sourceType", ["manual", "admin", "imported", "curated"]).default("admin"),
+  confidenceLevel: mysqlEnum("confidenceLevel", [
+    "high",
+    "medium",
+    "low",
+  ]).default("medium"),
+  sourceType: mysqlEnum("sourceType", [
+    "manual",
+    "admin",
+    "imported",
+    "curated",
+  ]).default("admin"),
   benchmarkVersionId: int("benchmarkVersionId"),
   data: json("data").notNull(),
   versionTag: varchar("versionTag", { length: 64 }),
@@ -191,7 +212,10 @@ export const projects = mysqlTable("projects", {
 
   // V4 — Fit-out Oracle: area-based pricing
   totalFitoutArea: decimal("totalFitoutArea", { precision: 12, scale: 2 }),
-  totalNonFinishArea: decimal("totalNonFinishArea", { precision: 12, scale: 2 }),
+  totalNonFinishArea: decimal("totalNonFinishArea", {
+    precision: 12,
+    scale: 2,
+  }),
   fitoutAreaVerified: boolean("fitoutAreaVerified").default(false),
   projectArchetype: mysqlEnum("projectArchetype", [
     "residential_multi",
@@ -220,14 +244,16 @@ export const projects = mysqlTable("projects", {
 
   // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
   city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
-  sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default("silver"),
+  sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default(
+    "silver"
+  ),
 
   // Project purpose — drives fitout quality and benchmark selection
   projectPurpose: mysqlEnum("project_purpose", [
-    "sell_offplan",   // New off-plan development — showroom-quality finishes, premium specs
-    "sell_ready",     // Ready property sale — durable premium finishes, market-competitive
-    "rent",           // Rental yield focus — durability over luxury, cost-efficient materials
-    "mixed",          // Mixed use — balanced approach
+    "sell_offplan", // New off-plan development — showroom-quality finishes, premium specs
+    "sell_ready", // Ready property sale — durable premium finishes, market-competitive
+    "rent", // Rental yield focus — durability over luxury, cost-efficient materials
+    "mixed", // Mixed use — balanced approach
   ]).default("sell_ready"),
 
   // Strategy variables (1-5)
@@ -304,12 +330,7 @@ export const projects = mysqlTable("projects", {
     "Price/Value",
     "Design/Architecture",
   ]),
-  targetYield: mysqlEnum("targetYield", [
-    "< 5%",
-    "5-7%",
-    "7-9%",
-    "> 9%",
-  ]),
+  targetYield: mysqlEnum("targetYield", ["< 5%", "5-7%", "7-9%", "> 9%"]),
   procurementStrategy: mysqlEnum("procurementStrategy", [
     "Turnkey",
     "Traditional",
@@ -496,9 +517,18 @@ export const benchmarkData = mysqlTable("benchmark_data", {
   avgSellingPrice: decimal("avgSellingPrice", { precision: 10, scale: 2 }),
   absorptionRate: decimal("absorptionRate", { precision: 6, scale: 4 }),
   competitiveDensity: int("competitiveDensity"),
-  differentiationIndex: decimal("differentiationIndex", { precision: 6, scale: 4 }),
-  complexityMultiplier: decimal("complexityMultiplier", { precision: 6, scale: 4 }),
-  timelineRiskMultiplier: decimal("timelineRiskMultiplier", { precision: 6, scale: 4 }),
+  differentiationIndex: decimal("differentiationIndex", {
+    precision: 6,
+    scale: 4,
+  }),
+  complexityMultiplier: decimal("complexityMultiplier", {
+    precision: 6,
+    scale: 4,
+  }),
+  timelineRiskMultiplier: decimal("timelineRiskMultiplier", {
+    precision: 6,
+    scale: 4,
+  }),
   buyerPreferenceWeights: json("buyerPreferenceWeights"),
   sourceType: mysqlEnum("sourceType", [
     "synthetic",
@@ -523,11 +553,17 @@ export const projectIntelligence = mysqlTable("project_intelligence", {
   scoreMatrixId: int("scoreMatrixId").notNull(),
   benchmarkVersionId: int("benchmarkVersionId"),
   modelVersionId: int("modelVersionId"),
-  costDeltaVsBenchmark: decimal("costDeltaVsBenchmark", { precision: 10, scale: 2 }),
+  costDeltaVsBenchmark: decimal("costDeltaVsBenchmark", {
+    precision: 10,
+    scale: 2,
+  }),
   uniquenessIndex: decimal("uniquenessIndex", { precision: 6, scale: 4 }),
   feasibilityFlags: json("feasibilityFlags"),
   reworkRiskIndex: decimal("reworkRiskIndex", { precision: 6, scale: 4 }),
-  procurementComplexity: decimal("procurementComplexity", { precision: 6, scale: 4 }),
+  procurementComplexity: decimal("procurementComplexity", {
+    precision: 6,
+    scale: 4,
+  }),
   tierPercentile: decimal("tierPercentile", { precision: 6, scale: 4 }),
   styleFamily: varchar("styleFamily", { length: 64 }),
   costBand: varchar("costBand", { length: 32 }),
@@ -576,14 +612,40 @@ export const roiConfigs = mysqlTable("roi_configs", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 128 }).notNull(),
   isActive: boolean("isActive").default(false).notNull(),
-  hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("350").notNull(),
-  reworkCostPct: decimal("reworkCostPct", { precision: 6, scale: 4 }).default("0.12").notNull(),
-  tenderIterationCost: decimal("tenderIterationCost", { precision: 10, scale: 2 }).default("25000").notNull(),
-  designCycleCost: decimal("designCycleCost", { precision: 10, scale: 2 }).default("45000").notNull(),
-  budgetVarianceMultiplier: decimal("budgetVarianceMultiplier", { precision: 6, scale: 4 }).default("0.08").notNull(),
+  hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 })
+    .default("350")
+    .notNull(),
+  reworkCostPct: decimal("reworkCostPct", { precision: 6, scale: 4 })
+    .default("0.12")
+    .notNull(),
+  tenderIterationCost: decimal("tenderIterationCost", {
+    precision: 10,
+    scale: 2,
+  })
+    .default("25000")
+    .notNull(),
+  designCycleCost: decimal("designCycleCost", { precision: 10, scale: 2 })
+    .default("45000")
+    .notNull(),
+  budgetVarianceMultiplier: decimal("budgetVarianceMultiplier", {
+    precision: 6,
+    scale: 4,
+  })
+    .default("0.08")
+    .notNull(),
   timeAccelerationWeeks: int("timeAccelerationWeeks").default(6),
-  conservativeMultiplier: decimal("conservativeMultiplier", { precision: 6, scale: 4 }).default("0.60").notNull(),
-  aggressiveMultiplier: decimal("aggressiveMultiplier", { precision: 6, scale: 4 }).default("1.40").notNull(),
+  conservativeMultiplier: decimal("conservativeMultiplier", {
+    precision: 6,
+    scale: 4,
+  })
+    .default("0.60")
+    .notNull(),
+  aggressiveMultiplier: decimal("aggressiveMultiplier", {
+    precision: 6,
+    scale: 4,
+  })
+    .default("1.40")
+    .notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   createdBy: int("createdBy"),
 });
@@ -636,13 +698,21 @@ export const projectAssets = mysqlTable("project_assets", {
     "voice_note",
     "generated",
     "other",
-  ]).default("other").notNull(),
+  ])
+    .default("other")
+    .notNull(),
   // MIYAR 2.0: AI Intake columns
   assetType: mysqlEnum("assetType", [
-    "image", "pdf", "audio", "video", "url", "text_note",
+    "image",
+    "pdf",
+    "audio",
+    "video",
+    "url",
+    "text_note",
+    "cad",
   ]).default("image"),
-  aiExtractionResult: json("aiExtractionResult"),  // what Gemini extracted from this asset
-  aiContributions: json("aiContributions"),          // which ProjectInputs fields this populated
+  aiExtractionResult: json("aiExtractionResult"), // what Gemini extracted from this asset
+  aiContributions: json("aiContributions"), // which ProjectInputs fields this populated
   tags: json("tags"), // string[]
   notes: text("notes"),
   isClientVisible: boolean("isClientVisible").default(true).notNull(),
@@ -698,11 +768,24 @@ export const generatedVisuals = mysqlTable("generated_visuals", {
   id: int("id").autoincrement().primaryKey(),
   projectId: int("projectId").notNull(),
   scenarioId: int("scenarioId"),
-  type: mysqlEnum("type", ["mood", "mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette", "hero"]).notNull(),
+  type: mysqlEnum("type", [
+    "mood",
+    "mood_board",
+    "material_board",
+    "room_render",
+    "kitchen_render",
+    "bathroom_render",
+    "color_palette",
+    "hero",
+  ]).notNull(),
   promptJson: json("promptJson").notNull(),
-  modelVersion: varchar("modelVersion", { length: 64 }).default("nano-banana-v1"),
+  modelVersion: varchar("modelVersion", { length: 64 }).default(
+    "nano-banana-v1"
+  ),
   imageAssetId: int("imageAssetId"), // FK to project_assets
-  status: mysqlEnum("status", ["pending", "generating", "completed", "failed"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "generating", "completed", "failed"])
+    .default("pending")
+    .notNull(),
   errorMessage: text("errorMessage"),
   createdBy: int("createdBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -712,29 +795,57 @@ export type GeneratedVisual = typeof generatedVisuals.$inferSelect;
 export type InsertGeneratedVisual = typeof generatedVisuals.$inferInsert;
 
 // ─── Design Trends (V3 — Phase 3 Trend Detection) ───────────────────────────
-export const designTrends = mysqlTable("design_trends", {
-  id: int("id").autoincrement().primaryKey(),
-  trendName: varchar("trendName", { length: 255 }).notNull(),
-  trendCategory: mysqlEnum("trendCategory", [
-    "style", "material", "color", "layout", "technology", "sustainability", "other",
-  ]).notNull(),
-  confidenceLevel: mysqlEnum("confidenceLevel", ["emerging", "established", "declining"]).default("emerging").notNull(),
-  sourceUrl: text("sourceUrl"),
-  sourceRegistryId: int("sourceRegistryId"),
-  description: text("description"),
-  relatedMaterials: json("relatedMaterials"), // string[] of material names
-  styleClassification: varchar("styleClassification", { length: 128 }), // modern, classical, biophilic, japandi, etc.
-  region: varchar("region", { length: 64 }).default("UAE"),
-  firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
-  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
-  mentionCount: int("mentionCount").default(1).notNull(),
-  runId: varchar("runId", { length: 64 }),
-  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, table => [
-  index("design_trends_corpus_region_style_idx").on(table.corpusScope, table.region, table.styleClassification),
-]);
+export const designTrends = mysqlTable(
+  "design_trends",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    trendName: varchar("trendName", { length: 255 }).notNull(),
+    trendCategory: mysqlEnum("trendCategory", [
+      "style",
+      "material",
+      "color",
+      "layout",
+      "technology",
+      "sustainability",
+      "other",
+    ]).notNull(),
+    confidenceLevel: mysqlEnum("confidenceLevel", [
+      "emerging",
+      "established",
+      "declining",
+    ])
+      .default("emerging")
+      .notNull(),
+    sourceUrl: text("sourceUrl"),
+    sourceRegistryId: int("sourceRegistryId"),
+    description: text("description"),
+    relatedMaterials: json("relatedMaterials"), // string[] of material names
+    styleClassification: varchar("styleClassification", { length: 128 }), // modern, classical, biophilic, japandi, etc.
+    region: varchar("region", { length: 64 }).default("UAE"),
+    firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
+    lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+    mentionCount: int("mentionCount").default(1).notNull(),
+    runId: varchar("runId", { length: 64 }),
+    corpusScope: mysqlEnum("corpusScope", [
+      "organization",
+      "platform_public",
+      "legacy_unscoped",
+    ])
+      .default("legacy_unscoped")
+      .notNull(),
+    corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 })
+      .default("legacy-v0")
+      .notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("design_trends_corpus_region_style_idx").on(
+      table.corpusScope,
+      table.region,
+      table.styleClassification
+    ),
+  ]
+);
 
 export type DesignTrend = typeof designTrends.$inferSelect;
 export type InsertDesignTrend = typeof designTrends.$inferInsert;
@@ -775,16 +886,33 @@ export const materialsCatalog = mysqlTable("materials_catalog", {
     "accessory",
     "other",
   ]).notNull(),
-  tier: mysqlEnum("tier", ["economy", "mid", "premium", "luxury", "ultra_luxury"]).notNull(),
+  tier: mysqlEnum("tier", [
+    "economy",
+    "mid",
+    "premium",
+    "luxury",
+    "ultra_luxury",
+  ]).notNull(),
   typicalCostLow: decimal("typicalCostLow", { precision: 10, scale: 2 }),
   typicalCostHigh: decimal("typicalCostHigh", { precision: 10, scale: 2 }),
   costUnit: varchar("costUnit", { length: 32 }).default("AED/sqm"),
   leadTimeDays: int("leadTimeDays"),
-  leadTimeBand: mysqlEnum("leadTimeBand", ["short", "medium", "long", "critical"]).default("medium"),
+  leadTimeBand: mysqlEnum("leadTimeBand", [
+    "short",
+    "medium",
+    "long",
+    "critical",
+  ]).default("medium"),
   regionAvailability: json("regionAvailability"), // string[]
   embodiedCarbon: decimal("embodiedCarbon", { precision: 10, scale: 4 }),
   maintenanceFactor: decimal("maintenanceFactor", { precision: 6, scale: 4 }),
-  brandStandardApproval: mysqlEnum("brandStandardApproval", ["open_market", "approved_vendor", "preferred_brand"]).default("open_market").notNull(),
+  brandStandardApproval: mysqlEnum("brandStandardApproval", [
+    "open_market",
+    "approved_vendor",
+    "preferred_brand",
+  ])
+    .default("open_market")
+    .notNull(),
   supplierName: varchar("supplierName", { length: 255 }),
   supplierContact: varchar("supplierContact", { length: 255 }),
   supplierUrl: text("supplierUrl"),
@@ -895,7 +1023,9 @@ export type InsertOverrideRecord = typeof overrideRecords.$inferInsert;
 export const logicVersions = mysqlTable("logic_versions", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 128 }).notNull(),
-  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  status: mysqlEnum("status", ["draft", "published", "archived"])
+    .default("draft")
+    .notNull(),
   createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   publishedAt: timestamp("publishedAt"),
@@ -921,8 +1051,18 @@ export const logicThresholds = mysqlTable("logic_thresholds", {
   id: int("id").autoincrement().primaryKey(),
   logicVersionId: int("logicVersionId").notNull(),
   ruleKey: varchar("ruleKey", { length: 128 }).notNull(),
-  thresholdValue: decimal("thresholdValue", { precision: 10, scale: 4 }).notNull(),
-  comparator: mysqlEnum("comparator", ["gt", "gte", "lt", "lte", "eq", "neq"]).notNull(),
+  thresholdValue: decimal("thresholdValue", {
+    precision: 10,
+    scale: 4,
+  }).notNull(),
+  comparator: mysqlEnum("comparator", [
+    "gt",
+    "gte",
+    "lt",
+    "lte",
+    "eq",
+    "neq",
+  ]).notNull(),
   notes: text("notes"),
 });
 
@@ -930,38 +1070,71 @@ export type LogicThreshold = typeof logicThresholds.$inferSelect;
 export type InsertLogicThreshold = typeof logicThresholds.$inferInsert;
 
 // ─── Logic Change Log (V2.10) ────────────────────────────────────────────────
-export const logicChangeLog = mysqlTable("logic_change_log", {
-  id: int("id").autoincrement().primaryKey(),
-  logicVersionId: int("logicVersionId").notNull(),
-  actor: int("actor").notNull(),
-  changeSummary: text("changeSummary").notNull(),
-  rationale: text("rationale").notNull(),
-  status: mysqlEnum("status", ["applied", "proposed", "rejected"]).default("applied").notNull(),
-  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, table => [
-  index("logic_change_log_corpus_status_idx").on(table.corpusScope, table.status),
-]);
+export const logicChangeLog = mysqlTable(
+  "logic_change_log",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    logicVersionId: int("logicVersionId").notNull(),
+    actor: int("actor").notNull(),
+    changeSummary: text("changeSummary").notNull(),
+    rationale: text("rationale").notNull(),
+    status: mysqlEnum("status", ["applied", "proposed", "rejected"])
+      .default("applied")
+      .notNull(),
+    corpusScope: mysqlEnum("corpusScope", [
+      "organization",
+      "platform_public",
+      "legacy_unscoped",
+    ])
+      .default("legacy_unscoped")
+      .notNull(),
+    corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 })
+      .default("legacy-v0")
+      .notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("logic_change_log_corpus_status_idx").on(
+      table.corpusScope,
+      table.status
+    ),
+  ]
+);
 
 export type LogicChangeLogEntry = typeof logicChangeLog.$inferSelect;
 export type InsertLogicChangeLogEntry = typeof logicChangeLog.$inferInsert;
 
 // ─── Pattern Library (V5-07) ──────────────────────────────────────────────────
-export const decisionPatterns = mysqlTable("decision_patterns", {
-  id: int("id").autoincrement().primaryKey(),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  category: mysqlEnum("category", ["risk_indicator", "success_driver", "cost_anomaly"]).notNull(),
-  conditions: json("conditions").notNull(), // array of logic defining the pattern
-  matchCount: int("matchCount").default(0).notNull(), // times it appeared
-  reliabilityScore: decimal("reliabilityScore", { precision: 5, scale: 2 }).default("0.00").notNull(),
-  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, table => [
-  index("decision_patterns_corpus_idx").on(table.corpusScope),
-]);
+export const decisionPatterns = mysqlTable(
+  "decision_patterns",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    category: mysqlEnum("category", [
+      "risk_indicator",
+      "success_driver",
+      "cost_anomaly",
+    ]).notNull(),
+    conditions: json("conditions").notNull(), // array of logic defining the pattern
+    matchCount: int("matchCount").default(0).notNull(), // times it appeared
+    reliabilityScore: decimal("reliabilityScore", { precision: 5, scale: 2 })
+      .default("0.00")
+      .notNull(),
+    corpusScope: mysqlEnum("corpusScope", [
+      "organization",
+      "platform_public",
+      "legacy_unscoped",
+    ])
+      .default("legacy_unscoped")
+      .notNull(),
+    corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 })
+      .default("legacy-v0")
+      .notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [index("decision_patterns_corpus_idx").on(table.corpusScope)]
+);
 
 export type DecisionPattern = typeof decisionPatterns.$inferSelect;
 export type InsertDecisionPattern = typeof decisionPatterns.$inferInsert;
@@ -971,13 +1144,15 @@ export const projectPatternMatches = mysqlTable("project_pattern_matches", {
   projectId: int("projectId").notNull(),
   patternId: int("patternId").notNull(),
   matchedAt: timestamp("matchedAt").defaultNow().notNull(),
-  confidence: decimal("confidence", { precision: 5, scale: 2 }).default("1.00").notNull(),
+  confidence: decimal("confidence", { precision: 5, scale: 2 })
+    .default("1.00")
+    .notNull(),
   contextSnapshot: json("contextSnapshot"), // snapshot of scores during match
 });
 
 export type ProjectPatternMatch = typeof projectPatternMatches.$inferSelect;
-export type InsertProjectPatternMatch = typeof projectPatternMatches.$inferInsert;
-
+export type InsertProjectPatternMatch =
+  typeof projectPatternMatches.$inferInsert;
 
 // ─── Scenario Inputs (V2.11) ─────────────────────────────────────────────────
 export const scenarioInputs = mysqlTable("scenario_inputs", {
@@ -1031,7 +1206,10 @@ export const projectOutcomes = mysqlTable("project_outcomes", {
   adoptionMetrics: json("adoptionMetrics"),
 
   // V5 Fields
-  actualFitoutCostPerSqm: decimal("actualFitoutCostPerSqm", { precision: 10, scale: 2 }),
+  actualFitoutCostPerSqm: decimal("actualFitoutCostPerSqm", {
+    precision: 10,
+    scale: 2,
+  }),
   actualTotalCost: decimal("actualTotalCost", { precision: 15, scale: 2 }),
   projectDeliveredOnTime: boolean("projectDeliveredOnTime"),
   reworkOccurred: boolean("reworkOccurred"),
@@ -1056,10 +1234,18 @@ export const outcomeComparisons = mysqlTable("outcome_comparisons", {
   predictedCostMid: decimal("predictedCostMid", { precision: 15, scale: 2 }),
   actualCost: decimal("actualCost", { precision: 15, scale: 2 }),
   costDeltaPct: decimal("costDeltaPct", { precision: 10, scale: 4 }),
-  costAccuracyBand: mysqlEnum("costAccuracyBand", ["within_10pct", "within_20pct", "outside_20pct", "no_prediction"]).notNull(),
+  costAccuracyBand: mysqlEnum("costAccuracyBand", [
+    "within_10pct",
+    "within_20pct",
+    "outside_20pct",
+    "no_prediction",
+  ]).notNull(),
 
   // Score accuracy
-  predictedComposite: decimal("predictedComposite", { precision: 5, scale: 4 }).notNull(),
+  predictedComposite: decimal("predictedComposite", {
+    precision: 5,
+    scale: 4,
+  }).notNull(),
   predictedDecision: varchar("predictedDecision", { length: 64 }).notNull(),
   actualOutcomeSuccess: boolean("actualOutcomeSuccess").notNull(),
   scorePredictionCorrect: boolean("scorePredictionCorrect").notNull(),
@@ -1070,7 +1256,12 @@ export const outcomeComparisons = mysqlTable("outcome_comparisons", {
   riskPredictionCorrect: boolean("riskPredictionCorrect").notNull(),
 
   // Delta summary
-  overallAccuracyGrade: mysqlEnum("overallAccuracyGrade", ["A", "B", "C", "insufficient_data"]).notNull(),
+  overallAccuracyGrade: mysqlEnum("overallAccuracyGrade", [
+    "A",
+    "B",
+    "C",
+    "insufficient_data",
+  ]).notNull(),
   learningSignals: json("learningSignals"),
   rawComparison: json("rawComparison"),
 });
@@ -1091,26 +1282,58 @@ export const accuracySnapshots = mysqlTable("accuracy_snapshots", {
   costWithin20Pct: int("costWithin20Pct").notNull(),
   costOutside20Pct: int("costOutside20Pct").notNull(),
   costMaePct: decimal("costMaePct", { precision: 8, scale: 4 }),
-  costTrend: mysqlEnum("costTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+  costTrend: mysqlEnum("costTrend", [
+    "improving",
+    "stable",
+    "degrading",
+    "insufficient_data",
+  ]).notNull(),
 
   // Score accuracy
   scoreCorrectPredictions: int("scoreCorrectPredictions").notNull(),
   scoreIncorrectPredictions: int("scoreIncorrectPredictions").notNull(),
-  scoreAccuracyRate: decimal("scoreAccuracyRate", { precision: 8, scale: 4 }).notNull(),
-  scoreTrend: mysqlEnum("scoreTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+  scoreAccuracyRate: decimal("scoreAccuracyRate", {
+    precision: 8,
+    scale: 4,
+  }).notNull(),
+  scoreTrend: mysqlEnum("scoreTrend", [
+    "improving",
+    "stable",
+    "degrading",
+    "insufficient_data",
+  ]).notNull(),
 
   // Risk accuracy
   riskCorrectPredictions: int("riskCorrectPredictions").notNull(),
   riskIncorrectPredictions: int("riskIncorrectPredictions").notNull(),
-  riskAccuracyRate: decimal("riskAccuracyRate", { precision: 8, scale: 4 }).notNull(),
-  riskTrend: mysqlEnum("riskTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+  riskAccuracyRate: decimal("riskAccuracyRate", {
+    precision: 8,
+    scale: 4,
+  }).notNull(),
+  riskTrend: mysqlEnum("riskTrend", [
+    "improving",
+    "stable",
+    "degrading",
+    "insufficient_data",
+  ]).notNull(),
 
-  overallPlatformAccuracy: decimal("overallPlatformAccuracy", { precision: 8, scale: 4 }).notNull(),
+  overallPlatformAccuracy: decimal("overallPlatformAccuracy", {
+    precision: 8,
+    scale: 4,
+  }).notNull(),
   gradeA: int("gradeA").notNull(),
   gradeB: int("gradeB").notNull(),
   gradeC: int("gradeC").notNull(),
-  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+  corpusScope: mysqlEnum("corpusScope", [
+    "organization",
+    "platform_public",
+    "legacy_unscoped",
+  ])
+    .default("legacy_unscoped")
+    .notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 })
+    .default("legacy-v0")
+    .notNull(),
 });
 
 export type AccuracySnapshot = typeof accuracySnapshots.$inferSelect;
@@ -1122,17 +1345,28 @@ export const benchmarkSuggestions = mysqlTable("benchmark_suggestions", {
   basedOnOutcomesQuery: text("basedOnOutcomesQuery"),
   suggestedChanges: json("suggestedChanges").notNull(),
   confidence: decimal("confidence", { precision: 6, scale: 4 }),
-  status: mysqlEnum("status", ["pending", "accepted", "rejected"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "accepted", "rejected"])
+    .default("pending")
+    .notNull(),
   reviewerNotes: text("reviewerNotes"),
   reviewedBy: int("reviewedBy"),
   reviewedAt: timestamp("reviewedAt"),
-  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+  corpusScope: mysqlEnum("corpusScope", [
+    "organization",
+    "platform_public",
+    "legacy_unscoped",
+  ])
+    .default("legacy_unscoped")
+    .notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 })
+    .default("legacy-v0")
+    .notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type BenchmarkSuggestion = typeof benchmarkSuggestions.$inferSelect;
-export type InsertBenchmarkSuggestion = typeof benchmarkSuggestions.$inferInsert;
+export type InsertBenchmarkSuggestion =
+  typeof benchmarkSuggestions.$inferInsert;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Stage 1 — Market Intelligence Layer V1
@@ -1155,7 +1389,9 @@ export const sourceRegistry = mysqlTable("source_registry", {
     "aggregator",
     "other",
   ]).notNull(),
-  reliabilityDefault: mysqlEnum("reliabilityDefault", ["A", "B", "C"]).default("B").notNull(),
+  reliabilityDefault: mysqlEnum("reliabilityDefault", ["A", "B", "C"])
+    .default("B")
+    .notNull(),
   isWhitelisted: boolean("isWhitelisted").default(true).notNull(),
   region: varchar("region", { length: 64 }).default("UAE"),
   notes: text("notes"),
@@ -1173,12 +1409,21 @@ export const sourceRegistry = mysqlTable("source_registry", {
     "rss_feed",
     "csv_upload",
     "email_forward",
-  ]).default("html_llm").notNull(),
+  ])
+    .default("html_llm")
+    .notNull(),
   scrapeHeaders: json("scrapeHeaders"),
   extractionHints: text("extractionHints"),
   priceFieldMapping: json("priceFieldMapping"),
   lastScrapedAt: timestamp("lastScrapedAt"),
-  lastScrapedStatus: mysqlEnum("lastScrapedStatus", ["success", "partial", "failed", "never"]).default("never").notNull(),
+  lastScrapedStatus: mysqlEnum("lastScrapedStatus", [
+    "success",
+    "partial",
+    "failed",
+    "never",
+  ])
+    .default("never")
+    .notNull(),
   lastRecordCount: int("lastRecordCount").default(0).notNull(),
   consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
   requestDelayMs: int("requestDelayMs").default(2000).notNull(),
@@ -1191,71 +1436,113 @@ export type SourceRegistryEntry = typeof sourceRegistry.$inferSelect;
 export type InsertSourceRegistryEntry = typeof sourceRegistry.$inferInsert;
 
 // ─── Evidence Records (Stage 1) ─────────────────────────────────────────────
-export const evidenceRecords = mysqlTable("evidence_records", {
-  id: int("id").autoincrement().primaryKey(),
-  recordId: varchar("recordId", { length: 64 }).notNull().unique(), // MYR-PE-XXXX
-  projectId: int("projectId"), // optional: can be global evidence
-  orgId: int("orgId"),
-  sourceRegistryId: int("sourceRegistryId"), // FK to source_registry
-  category: mysqlEnum("category", [
-    "floors",
-    "walls",
-    "ceilings",
-    "joinery",
-    "lighting",
-    "sanitary",
-    "kitchen",
-    "hardware",
-    "ffe",
-    "other",
-  ]).notNull(),
-  itemName: varchar("itemName", { length: 255 }).notNull(),
-  specClass: varchar("specClass", { length: 128 }),
-  priceMin: decimal("priceMin", { precision: 12, scale: 2 }),
-  priceTypical: decimal("priceTypical", { precision: 12, scale: 2 }),
-  priceMax: decimal("priceMax", { precision: 12, scale: 2 }),
-  unit: varchar("unit", { length: 32 }).notNull(), // sqm, lm, set, piece, etc.
-  currencyOriginal: varchar("currencyOriginal", { length: 8 }).default("AED"),
-  currencyAed: decimal("currencyAed", { precision: 12, scale: 2 }), // normalized to AED
-  fxRate: decimal("fxRate", { precision: 10, scale: 6 }),
-  fxSource: text("fxSource"),
-  sourceUrl: text("sourceUrl").notNull(),
-  publisher: varchar("publisher", { length: 255 }),
-  captureDate: timestamp("captureDate").notNull(),
-  reliabilityGrade: mysqlEnum("reliabilityGrade", ["A", "B", "C"]).notNull(),
-  confidenceScore: int("confidenceScore").notNull(), // 0-100
-  currentConfidenceAssessmentId: int("currentConfidenceAssessmentId"),
-  confidencePolicyVersion: varchar("confidencePolicyVersion", { length: 64 }),
-  extractedSnippet: text("extractedSnippet"),
-  notes: text("notes"),
-  // V2.2 metadata fields
-  title: varchar("title", { length: 512 }),
-  evidencePhase: mysqlEnum("evidencePhase", ["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]),
-  author: varchar("author", { length: 255 }),
-  confidentiality: mysqlEnum("confidentiality", ["public", "internal", "confidential", "restricted"]).default("internal"),
-  tags: json("tags"), // string[]
-  fileUrl: text("fileUrl"), // S3 signed URL for attached evidence file
-  fileKey: varchar("fileKey", { length: 512 }), // S3 key for the file
-  fileMimeType: varchar("fileMimeType", { length: 128 }),
-  runId: varchar("runId", { length: 64 }), // links to intelligence_audit_log
-  // V7: Design Intelligence Fields
-  finishLevel: mysqlEnum("finishLevel", ["basic", "standard", "premium", "luxury", "ultra_luxury"]),
-  designStyle: varchar("designStyle", { length: 255 }),
-  brandsMentioned: json("brandsMentioned"), // string[]
-  materialSpec: text("materialSpec"),
-  intelligenceType: mysqlEnum("intelligenceType", [
-    "material_price", "finish_specification", "design_trend",
-    "market_statistic", "competitor_positioning", "regulation",
-  ]).default("material_price"),
-  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-  publicObservationKey: varchar("publicObservationKey", { length: 64 }),
-  createdBy: int("createdBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, table => [
-  index("evidence_records_corpus_org_project_category_idx").on(table.corpusScope, table.orgId, table.projectId, table.category),
-  uniqueIndex("evidence_records_public_observation_key_unique").on(table.publicObservationKey),
-]);
+export const evidenceRecords = mysqlTable(
+  "evidence_records",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    recordId: varchar("recordId", { length: 64 }).notNull().unique(), // MYR-PE-XXXX
+    projectId: int("projectId"), // optional: can be global evidence
+    orgId: int("orgId"),
+    sourceRegistryId: int("sourceRegistryId"), // FK to source_registry
+    category: mysqlEnum("category", [
+      "floors",
+      "walls",
+      "ceilings",
+      "joinery",
+      "lighting",
+      "sanitary",
+      "kitchen",
+      "hardware",
+      "ffe",
+      "other",
+    ]).notNull(),
+    itemName: varchar("itemName", { length: 255 }).notNull(),
+    specClass: varchar("specClass", { length: 128 }),
+    priceMin: decimal("priceMin", { precision: 12, scale: 2 }),
+    priceTypical: decimal("priceTypical", { precision: 12, scale: 2 }),
+    priceMax: decimal("priceMax", { precision: 12, scale: 2 }),
+    unit: varchar("unit", { length: 32 }).notNull(), // sqm, lm, set, piece, etc.
+    currencyOriginal: varchar("currencyOriginal", { length: 8 }).default("AED"),
+    currencyAed: decimal("currencyAed", { precision: 12, scale: 2 }), // normalized to AED
+    fxRate: decimal("fxRate", { precision: 10, scale: 6 }),
+    fxSource: text("fxSource"),
+    sourceUrl: text("sourceUrl").notNull(),
+    publisher: varchar("publisher", { length: 255 }),
+    captureDate: timestamp("captureDate").notNull(),
+    reliabilityGrade: mysqlEnum("reliabilityGrade", ["A", "B", "C"]).notNull(),
+    confidenceScore: int("confidenceScore").notNull(), // 0-100
+    currentConfidenceAssessmentId: int("currentConfidenceAssessmentId"),
+    confidencePolicyVersion: varchar("confidencePolicyVersion", { length: 64 }),
+    extractedSnippet: text("extractedSnippet"),
+    notes: text("notes"),
+    // V2.2 metadata fields
+    title: varchar("title", { length: 512 }),
+    evidencePhase: mysqlEnum("evidencePhase", [
+      "concept",
+      "schematic",
+      "detailed_design",
+      "tender",
+      "procurement",
+      "construction",
+      "handover",
+    ]),
+    author: varchar("author", { length: 255 }),
+    confidentiality: mysqlEnum("confidentiality", [
+      "public",
+      "internal",
+      "confidential",
+      "restricted",
+    ]).default("internal"),
+    tags: json("tags"), // string[]
+    fileUrl: text("fileUrl"), // S3 signed URL for attached evidence file
+    fileKey: varchar("fileKey", { length: 512 }), // S3 key for the file
+    fileMimeType: varchar("fileMimeType", { length: 128 }),
+    runId: varchar("runId", { length: 64 }), // links to intelligence_audit_log
+    // V7: Design Intelligence Fields
+    finishLevel: mysqlEnum("finishLevel", [
+      "basic",
+      "standard",
+      "premium",
+      "luxury",
+      "ultra_luxury",
+    ]),
+    designStyle: varchar("designStyle", { length: 255 }),
+    brandsMentioned: json("brandsMentioned"), // string[]
+    materialSpec: text("materialSpec"),
+    intelligenceType: mysqlEnum("intelligenceType", [
+      "material_price",
+      "finish_specification",
+      "design_trend",
+      "market_statistic",
+      "competitor_positioning",
+      "regulation",
+    ]).default("material_price"),
+    corpusScope: mysqlEnum("corpusScope", [
+      "organization",
+      "platform_public",
+      "legacy_unscoped",
+    ])
+      .default("legacy_unscoped")
+      .notNull(),
+    corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 })
+      .default("legacy-v0")
+      .notNull(),
+    publicObservationKey: varchar("publicObservationKey", { length: 64 }),
+    createdBy: int("createdBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("evidence_records_corpus_org_project_category_idx").on(
+      table.corpusScope,
+      table.orgId,
+      table.projectId,
+      table.category
+    ),
+    uniqueIndex("evidence_records_public_observation_key_unique").on(
+      table.publicObservationKey
+    ),
+  ]
+);
 
 export type EvidenceRecord = typeof evidenceRecords.$inferSelect;
 export type InsertEvidenceRecord = typeof evidenceRecords.$inferInsert;
@@ -1263,45 +1550,84 @@ export type InsertEvidenceRecord = typeof evidenceRecords.$inferInsert;
 // Append-only calculation and assertion provenance for evidence confidence.
 // Existing evidence rows intentionally keep a null pointer/policy and are
 // interpreted as legacy_unknown rather than receiving fabricated history.
-export const evidenceConfidenceAssessments = mysqlTable("evidence_confidence_assessments", {
-  id: int("id").autoincrement().primaryKey(),
-  evidenceRecordId: int("evidenceRecordId"),
-  runId: varchar("runId", { length: 64 }),
-  sourceId: varchar("sourceId", { length: 64 }),
-  actorId: int("actorId"),
-  corpusScope: mysqlEnum("assessmentCorpusScope", ["organization", "platform_public", "legacy_unscoped"]),
-  origin: mysqlEnum("origin", ["connector", "csv_upload", "manual_entry", "bulk_entry"]).notNull(),
-  outcome: mysqlEnum("outcome", ["accepted", "rejected"]).notNull(),
-  evaluationClock: timestamp("evaluationClock").notNull(),
-  rawPublicationText: text("rawPublicationText"),
-  datePrecision: mysqlEnum("datePrecision", ["missing", "date", "timestamp", "unknown"]).notNull(),
-  parsingStatus: mysqlEnum("parsingStatus", ["valid", "missing", "invalid", "future"]).notNull(),
-  parsedPublicationDate: timestamp("parsedPublicationDate"),
-  staticGradePolicyId: varchar("staticGradePolicyId", { length: 64 }),
-  registryGradePolicyId: varchar("registryGradePolicyId", { length: 64 }),
-  confidencePolicyId: varchar("confidencePolicyId", { length: 64 }).notNull(),
-  qualityPolicyId: varchar("qualityPolicyId", { length: 64 }),
-  mergePolicyId: varchar("mergePolicyId", { length: 64 }),
-  grade: mysqlEnum("assessmentGrade", ["A", "B", "C"]),
-  baseConfidence: decimal("baseConfidence", { precision: 6, scale: 4 }),
-  recencyAdjustment: decimal("recencyAdjustment", { precision: 6, scale: 4 }),
-  confidenceAfterRecency: decimal("confidenceAfterRecency", { precision: 6, scale: 4 }),
-  qualityMultiplier: decimal("qualityMultiplier", { precision: 6, scale: 4 }),
-  qualityFloor: decimal("qualityFloor", { precision: 6, scale: 4 }),
-  qualityFlags: json("qualityFlags"),
-  previousScore: int("previousScore"),
-  candidateScore: int("candidateScore"),
-  finalScore: int("finalScore"),
-  mergeDecision: mysqlEnum("mergeDecision", ["inserted", "latest_accepted", "manual_assertion", "rejected"]),
-  rejectionCode: varchar("rejectionCode", { length: 64 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, table => [
-  index("evidence_confidence_assessments_evidence_time_idx").on(table.evidenceRecordId, table.createdAt),
-  index("evidence_confidence_assessments_run_outcome_idx").on(table.runId, table.outcome),
-]);
+export const evidenceConfidenceAssessments = mysqlTable(
+  "evidence_confidence_assessments",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    evidenceRecordId: int("evidenceRecordId"),
+    runId: varchar("runId", { length: 64 }),
+    sourceId: varchar("sourceId", { length: 64 }),
+    actorId: int("actorId"),
+    corpusScope: mysqlEnum("assessmentCorpusScope", [
+      "organization",
+      "platform_public",
+      "legacy_unscoped",
+    ]),
+    origin: mysqlEnum("origin", [
+      "connector",
+      "csv_upload",
+      "manual_entry",
+      "bulk_entry",
+    ]).notNull(),
+    outcome: mysqlEnum("outcome", ["accepted", "rejected"]).notNull(),
+    evaluationClock: timestamp("evaluationClock").notNull(),
+    rawPublicationText: text("rawPublicationText"),
+    datePrecision: mysqlEnum("datePrecision", [
+      "missing",
+      "date",
+      "timestamp",
+      "unknown",
+    ]).notNull(),
+    parsingStatus: mysqlEnum("parsingStatus", [
+      "valid",
+      "missing",
+      "invalid",
+      "future",
+    ]).notNull(),
+    parsedPublicationDate: timestamp("parsedPublicationDate"),
+    staticGradePolicyId: varchar("staticGradePolicyId", { length: 64 }),
+    registryGradePolicyId: varchar("registryGradePolicyId", { length: 64 }),
+    confidencePolicyId: varchar("confidencePolicyId", { length: 64 }).notNull(),
+    qualityPolicyId: varchar("qualityPolicyId", { length: 64 }),
+    mergePolicyId: varchar("mergePolicyId", { length: 64 }),
+    grade: mysqlEnum("assessmentGrade", ["A", "B", "C"]),
+    baseConfidence: decimal("baseConfidence", { precision: 6, scale: 4 }),
+    recencyAdjustment: decimal("recencyAdjustment", { precision: 6, scale: 4 }),
+    confidenceAfterRecency: decimal("confidenceAfterRecency", {
+      precision: 6,
+      scale: 4,
+    }),
+    qualityMultiplier: decimal("qualityMultiplier", { precision: 6, scale: 4 }),
+    qualityFloor: decimal("qualityFloor", { precision: 6, scale: 4 }),
+    qualityFlags: json("qualityFlags"),
+    previousScore: int("previousScore"),
+    candidateScore: int("candidateScore"),
+    finalScore: int("finalScore"),
+    mergeDecision: mysqlEnum("mergeDecision", [
+      "inserted",
+      "latest_accepted",
+      "manual_assertion",
+      "rejected",
+    ]),
+    rejectionCode: varchar("rejectionCode", { length: 64 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("evidence_confidence_assessments_evidence_time_idx").on(
+      table.evidenceRecordId,
+      table.createdAt
+    ),
+    index("evidence_confidence_assessments_run_outcome_idx").on(
+      table.runId,
+      table.outcome
+    ),
+  ]
+);
 
-export type EvidenceConfidenceAssessment = typeof evidenceConfidenceAssessments.$inferSelect;
-export type InsertEvidenceConfidenceAssessment = typeof evidenceConfidenceAssessments.$inferInsert;
+export type EvidenceConfidenceAssessment =
+  typeof evidenceConfidenceAssessments.$inferSelect;
+export type InsertEvidenceConfidenceAssessment =
+  typeof evidenceConfidenceAssessments.$inferInsert;
 
 // ─── Benchmark Proposals (Stage 1) ──────────────────────────────────────────
 export const benchmarkProposals = mysqlTable("benchmark_proposals", {
@@ -1324,7 +1650,9 @@ export const benchmarkProposals = mysqlTable("benchmark_proposals", {
   recommendation: mysqlEnum("recommendation", ["publish", "reject"]).notNull(),
   rejectionReason: text("rejectionReason"),
   // Review workflow
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"])
+    .default("pending")
+    .notNull(),
   reviewerNotes: text("reviewerNotes"),
   reviewedBy: int("reviewedBy"),
   reviewedAt: timestamp("reviewedAt"),
@@ -1485,8 +1813,10 @@ export const intelligenceAuditLog = mysqlTable("intelligence_audit_log", {
   completedAt: timestamp("completedAt"),
 });
 
-export type IntelligenceAuditLogEntry = typeof intelligenceAuditLog.$inferSelect;
-export type InsertIntelligenceAuditLogEntry = typeof intelligenceAuditLog.$inferInsert;
+export type IntelligenceAuditLogEntry =
+  typeof intelligenceAuditLog.$inferSelect;
+export type InsertIntelligenceAuditLogEntry =
+  typeof intelligenceAuditLog.$inferInsert;
 
 // ─── Evidence References (V2.2 — Evidence Traceability) ─────────────────────
 export const evidenceReferences = mysqlTable("evidence_references", {
@@ -1517,7 +1847,9 @@ export const ingestionRuns = mysqlTable("ingestion_runs", {
   runId: varchar("runId", { length: 64 }).notNull().unique(),
   trigger: mysqlEnum("trigger", ["manual", "scheduled", "api"]).notNull(),
   triggeredBy: int("triggeredBy"), // userId or null for scheduled
-  status: mysqlEnum("status", ["running", "completed", "failed"]).default("running").notNull(),
+  status: mysqlEnum("status", ["running", "completed", "failed"])
+    .default("running")
+    .notNull(),
   // Counts
   totalSources: int("totalSources").default(0).notNull(),
   sourcesSucceeded: int("sourcesSucceeded").default(0).notNull(),
@@ -1562,35 +1894,62 @@ export type ConnectorHealth = typeof connectorHealth.$inferSelect;
 export type InsertConnectorHealth = typeof connectorHealth.$inferInsert;
 
 // ─── Trend Snapshots (V3 — Analytical Intelligence) ──────────────────────────
-export const trendSnapshots = mysqlTable("trend_snapshots", {
-  id: int("id").autoincrement().primaryKey(),
-  orgId: int("orgId"),
-  metric: varchar("metric", { length: 255 }).notNull(),
-  category: varchar("category", { length: 128 }).notNull(),
-  geography: varchar("geography", { length: 128 }).notNull(),
-  dataPointCount: int("dataPointCount").default(0).notNull(),
-  gradeACount: int("gradeACount").default(0).notNull(),
-  gradeBCount: int("gradeBCount").default(0).notNull(),
-  gradeCCount: int("gradeCCount").default(0).notNull(),
-  uniqueSources: int("uniqueSources").default(0).notNull(),
-  dateRangeStart: timestamp("dateRangeStart"),
-  dateRangeEnd: timestamp("dateRangeEnd"),
-  currentMA: decimal("currentMA", { precision: 14, scale: 4 }),
-  previousMA: decimal("previousMA", { precision: 14, scale: 4 }),
-  percentChange: decimal("percentChange", { precision: 10, scale: 6 }),
-  direction: mysqlEnum("direction", ["rising", "falling", "stable", "insufficient_data"]).notNull(),
-  anomalyCount: int("anomalyCount").default(0).notNull(),
-  anomalyDetails: json("anomalyDetails"), // AnomalyFlag[]
-  confidence: mysqlEnum("trendConfidence", ["high", "medium", "low", "insufficient"]).notNull(),
-  narrative: text("narrative"),
-  movingAverages: json("movingAverages"), // MovingAveragePoint[]
-  ingestionRunId: varchar("ingestionRunId", { length: 64 }), // FK to ingestion_runs.runId
-  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, table => [
-  index("trend_snapshots_corpus_org_category_geography_idx").on(table.corpusScope, table.orgId, table.category, table.geography),
-]);
+export const trendSnapshots = mysqlTable(
+  "trend_snapshots",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId"),
+    metric: varchar("metric", { length: 255 }).notNull(),
+    category: varchar("category", { length: 128 }).notNull(),
+    geography: varchar("geography", { length: 128 }).notNull(),
+    dataPointCount: int("dataPointCount").default(0).notNull(),
+    gradeACount: int("gradeACount").default(0).notNull(),
+    gradeBCount: int("gradeBCount").default(0).notNull(),
+    gradeCCount: int("gradeCCount").default(0).notNull(),
+    uniqueSources: int("uniqueSources").default(0).notNull(),
+    dateRangeStart: timestamp("dateRangeStart"),
+    dateRangeEnd: timestamp("dateRangeEnd"),
+    currentMA: decimal("currentMA", { precision: 14, scale: 4 }),
+    previousMA: decimal("previousMA", { precision: 14, scale: 4 }),
+    percentChange: decimal("percentChange", { precision: 10, scale: 6 }),
+    direction: mysqlEnum("direction", [
+      "rising",
+      "falling",
+      "stable",
+      "insufficient_data",
+    ]).notNull(),
+    anomalyCount: int("anomalyCount").default(0).notNull(),
+    anomalyDetails: json("anomalyDetails"), // AnomalyFlag[]
+    confidence: mysqlEnum("trendConfidence", [
+      "high",
+      "medium",
+      "low",
+      "insufficient",
+    ]).notNull(),
+    narrative: text("narrative"),
+    movingAverages: json("movingAverages"), // MovingAveragePoint[]
+    ingestionRunId: varchar("ingestionRunId", { length: 64 }), // FK to ingestion_runs.runId
+    corpusScope: mysqlEnum("corpusScope", [
+      "organization",
+      "platform_public",
+      "legacy_unscoped",
+    ])
+      .default("legacy_unscoped")
+      .notNull(),
+    corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 })
+      .default("legacy-v0")
+      .notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("trend_snapshots_corpus_org_category_geography_idx").on(
+      table.corpusScope,
+      table.orgId,
+      table.category,
+      table.geography
+    ),
+  ]
+);
 
 export type TrendSnapshot = typeof trendSnapshots.$inferSelect;
 export type InsertTrendSnapshot = typeof trendSnapshots.$inferInsert;
@@ -1610,18 +1969,37 @@ export const projectInsights = mysqlTable("project_insights", {
     "brand_dominance",
     "spec_inflation",
   ]).notNull(),
-  severity: mysqlEnum("insightSeverity", ["critical", "warning", "info"]).notNull(),
+  severity: mysqlEnum("insightSeverity", [
+    "critical",
+    "warning",
+    "info",
+  ]).notNull(),
   title: varchar("title", { length: 512 }).notNull(),
   body: text("body"),
   actionableRecommendation: text("actionableRecommendation"),
   confidenceScore: decimal("confidenceScore", { precision: 5, scale: 4 }),
   triggerCondition: text("triggerCondition"),
   dataPoints: json("dataPoints"),
-  status: mysqlEnum("insightStatus", ["active", "acknowledged", "dismissed", "resolved"]).default("active").notNull(),
+  status: mysqlEnum("insightStatus", [
+    "active",
+    "acknowledged",
+    "dismissed",
+    "resolved",
+  ])
+    .default("active")
+    .notNull(),
   acknowledgedBy: int("acknowledgedBy"),
   acknowledgedAt: timestamp("acknowledgedAt"),
-  corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+  corpusScope: mysqlEnum("corpusScope", [
+    "organization",
+    "platform_public",
+    "legacy_unscoped",
+  ])
+    .default("legacy_unscoped")
+    .notNull(),
+  corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 })
+    .default("legacy-v0")
+    .notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -1633,11 +2011,22 @@ export const priceChangeEvents = mysqlTable("price_change_events", {
   itemName: varchar("itemName", { length: 255 }).notNull(),
   category: varchar("category", { length: 255 }).notNull(),
   sourceId: int("sourceId").notNull(),
-  previousPrice: decimal("previousPrice", { precision: 12, scale: 2 }).notNull(),
+  previousPrice: decimal("previousPrice", {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
   newPrice: decimal("newPrice", { precision: 12, scale: 2 }).notNull(),
   changePct: decimal("changePct", { precision: 10, scale: 6 }).notNull(),
-  changeDirection: mysqlEnum("changeDirection", ["increased", "decreased"]).notNull(),
-  severity: mysqlEnum("severity", ["significant", "notable", "minor", "none"]).notNull(),
+  changeDirection: mysqlEnum("changeDirection", [
+    "increased",
+    "decreased",
+  ]).notNull(),
+  severity: mysqlEnum("severity", [
+    "significant",
+    "notable",
+    "minor",
+    "none",
+  ]).notNull(),
   detectedAt: timestamp("detectedAt").defaultNow().notNull(),
 });
 
@@ -1655,16 +2044,23 @@ export const platformAlerts = mysqlTable("platform_alerts", {
     "benchmark_drift",
     "market_opportunity",
     "portfolio_risk",
-    "portfolio_failure_pattern"
+    "portfolio_failure_pattern",
   ]).notNull(),
-  severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
+  severity: mysqlEnum("severity", [
+    "critical",
+    "high",
+    "medium",
+    "info",
+  ]).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body").notNull(),
   affectedProjectIds: json("affectedProjectIds"),
   affectedCategories: json("affectedCategories"),
   triggerData: json("triggerData"),
   suggestedAction: text("suggestedAction").notNull(),
-  status: mysqlEnum("status", ["active", "acknowledged", "resolved", "expired"]).default("active").notNull(),
+  status: mysqlEnum("status", ["active", "acknowledged", "resolved", "expired"])
+    .default("active")
+    .notNull(),
   acknowledgedBy: int("acknowledgedBy"),
   acknowledgedAt: timestamp("acknowledgedAt"),
   expiresAt: timestamp("expiresAt").notNull(),
@@ -1682,7 +2078,9 @@ export const nlQueryLog = mysqlTable("nl_query_log", {
   sqlGenerated: text("sql_generated"),
   rowsReturned: int("rows_returned").default(0),
   executionMs: int("execution_ms"),
-  status: mysqlEnum("status", ["success", "error", "blocked"]).default("success"),
+  status: mysqlEnum("status", ["success", "error", "blocked"]).default(
+    "success"
+  ),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -1693,17 +2091,28 @@ export type InsertNlQueryLog = typeof nlQueryLog.$inferInsert;
 export const materialLibrary = mysqlTable("material_library", {
   id: int("id").primaryKey().autoincrement(),
   category: mysqlEnum("category", [
-    "flooring", "wall_paint", "wall_tile", "ceiling",
-    "joinery", "sanitaryware", "fittings", "lighting",
-    "hardware", "specialty"
+    "flooring",
+    "wall_paint",
+    "wall_tile",
+    "ceiling",
+    "joinery",
+    "sanitaryware",
+    "fittings",
+    "lighting",
+    "hardware",
+    "specialty",
   ]).notNull(),
-  tier: mysqlEnum("tier", [
-    "affordable", "mid", "premium", "ultra"
-  ]).notNull(),
+  tier: mysqlEnum("tier", ["affordable", "mid", "premium", "ultra"]).notNull(),
   style: mysqlEnum("style", [
-    "modern", "contemporary", "classic",
-    "minimalist", "arabesque", "all"
-  ]).default("all").notNull(),
+    "modern",
+    "contemporary",
+    "classic",
+    "minimalist",
+    "arabesque",
+    "all",
+  ])
+    .default("all")
+    .notNull(),
   productCode: varchar("product_code", { length: 100 }),
   productName: varchar("product_name", { length: 300 }).notNull(),
   brand: varchar("brand", { length: 150 }).notNull(),
@@ -1720,16 +2129,20 @@ export const materialLibrary = mysqlTable("material_library", {
 export type MaterialLibrary = typeof materialLibrary.$inferSelect;
 export type InsertMaterialLibrary = typeof materialLibrary.$inferInsert;
 
-export const finishScheduleItems = mysqlTable(
-  "finish_schedule_items", {
+export const finishScheduleItems = mysqlTable("finish_schedule_items", {
   id: int("id").primaryKey().autoincrement(),
   projectId: int("project_id").notNull(),
   organizationId: int("organization_id").notNull(),
   roomId: varchar("room_id", { length: 10 }).notNull(),
   roomName: varchar("room_name", { length: 100 }).notNull(),
   element: mysqlEnum("element", [
-    "floor", "wall_primary", "wall_feature",
-    "wall_wet", "ceiling", "joinery", "hardware"
+    "floor",
+    "wall_primary",
+    "wall_feature",
+    "wall_wet",
+    "ceiling",
+    "joinery",
+    "hardware",
   ]).notNull(),
   materialLibraryId: int("material_library_id"),
   overrideSpec: varchar("override_spec", { length: 500 }),
@@ -1740,8 +2153,7 @@ export const finishScheduleItems = mysqlTable(
 export type FinishScheduleItem = typeof finishScheduleItems.$inferSelect;
 export type InsertFinishScheduleItem = typeof finishScheduleItems.$inferInsert;
 
-export const projectColorPalettes = mysqlTable(
-  "project_color_palettes", {
+export const projectColorPalettes = mysqlTable("project_color_palettes", {
   id: int("id").primaryKey().autoincrement(),
   projectId: int("project_id").notNull(),
   organizationId: int("organization_id").notNull(),
@@ -1752,7 +2164,8 @@ export const projectColorPalettes = mysqlTable(
 });
 
 export type ProjectColorPalette = typeof projectColorPalettes.$inferSelect;
-export type InsertProjectColorPalette = typeof projectColorPalettes.$inferInsert;
+export type InsertProjectColorPalette =
+  typeof projectColorPalettes.$inferInsert;
 
 export const rfqLineItems = mysqlTable("rfq_line_items", {
   id: int("id").primaryKey().autoincrement(),
@@ -1764,14 +2177,10 @@ export const rfqLineItems = mysqlTable("rfq_line_items", {
   description: varchar("description", { length: 500 }).notNull(),
   unit: varchar("unit", { length: 20 }).notNull(),
   quantity: decimal("quantity", { precision: 10, scale: 2 }),
-  unitRateAedMin: decimal("unit_rate_aed_min",
-    { precision: 10, scale: 2 }),
-  unitRateAedMax: decimal("unit_rate_aed_max",
-    { precision: 10, scale: 2 }),
-  totalAedMin: decimal("total_aed_min",
-    { precision: 12, scale: 2 }),
-  totalAedMax: decimal("total_aed_max",
-    { precision: 12, scale: 2 }),
+  unitRateAedMin: decimal("unit_rate_aed_min", { precision: 10, scale: 2 }),
+  unitRateAedMax: decimal("unit_rate_aed_max", { precision: 10, scale: 2 }),
+  totalAedMin: decimal("total_aed_min", { precision: 12, scale: 2 }),
+  totalAedMax: decimal("total_aed_max", { precision: 12, scale: 2 }),
   supplierName: varchar("supplier_name", { length: 200 }),
   pricingSource: varchar("pricing_source", { length: 32 }), // "market-verified" | "estimated" | "manual"
   notes: text("notes"),
@@ -1781,8 +2190,7 @@ export const rfqLineItems = mysqlTable("rfq_line_items", {
 export type RfqLineItem = typeof rfqLineItems.$inferSelect;
 export type InsertRfqLineItem = typeof rfqLineItems.$inferInsert;
 
-export const dmComplianceChecklists = mysqlTable(
-  "dm_compliance_checklists", {
+export const dmComplianceChecklists = mysqlTable("dm_compliance_checklists", {
   id: int("id").primaryKey().autoincrement(),
   projectId: int("project_id").notNull(),
   organizationId: int("organization_id").notNull(),
@@ -1791,7 +2199,8 @@ export const dmComplianceChecklists = mysqlTable(
 });
 
 export type DmComplianceChecklist = typeof dmComplianceChecklists.$inferSelect;
-export type InsertDmComplianceChecklist = typeof dmComplianceChecklists.$inferInsert;
+export type InsertDmComplianceChecklist =
+  typeof dmComplianceChecklists.$inferInsert;
 
 // ─── V9 - Strategic Risk & Economic Modeling ────────────────────────────────
 
@@ -1799,11 +2208,26 @@ export const projectRoiModels = mysqlTable("project_roi_models", {
   id: int("id").primaryKey().autoincrement(),
   projectId: int("project_id").notNull(),
   scenarioId: int("scenario_id"),
-  reworkCostAvoided: decimal("rework_cost_avoided", { precision: 14, scale: 2 }).notNull(),
-  programmeAccelerationValue: decimal("programme_acceleration_value", { precision: 14, scale: 2 }).notNull(),
-  totalValueCreated: decimal("total_value_created", { precision: 14, scale: 2 }).notNull(),
-  netRoiPercent: decimal("net_roi_percent", { precision: 8, scale: 2 }).notNull(),
-  confidenceMultiplier: decimal("confidence_multiplier", { precision: 5, scale: 4 }).notNull(),
+  reworkCostAvoided: decimal("rework_cost_avoided", {
+    precision: 14,
+    scale: 2,
+  }).notNull(),
+  programmeAccelerationValue: decimal("programme_acceleration_value", {
+    precision: 14,
+    scale: 2,
+  }).notNull(),
+  totalValueCreated: decimal("total_value_created", {
+    precision: 14,
+    scale: 2,
+  }).notNull(),
+  netRoiPercent: decimal("net_roi_percent", {
+    precision: 8,
+    scale: 2,
+  }).notNull(),
+  confidenceMultiplier: decimal("confidence_multiplier", {
+    precision: 5,
+    scale: 4,
+  }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -1814,7 +2238,10 @@ export const scenarioStressTests = mysqlTable("scenario_stress_tests", {
   id: int("id").primaryKey().autoincrement(),
   scenarioId: int("scenario_id").notNull(),
   stressCondition: varchar("stress_condition", { length: 100 }).notNull(),
-  impactMagnitudePercent: decimal("impact_magnitude_percent", { precision: 6, scale: 2 }).notNull(),
+  impactMagnitudePercent: decimal("impact_magnitude_percent", {
+    precision: 6,
+    scale: 2,
+  }).notNull(),
   resilienceScore: int("resilience_score").notNull(), // 1-100
   failurePoints: json("failure_points").notNull(), // JSON array of components that fail
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1832,7 +2259,13 @@ export const riskSurfaceMaps = mysqlTable("risk_surface_maps", {
   vulnerability: int("vulnerability").notNull(), // 0-100
   controlStrength: int("control_strength").notNull(), // 1-100
   compositeRiskScore: int("composite_risk_score").notNull(), // Calculated via R = (P * I * V) / C
-  riskBand: mysqlEnum("risk_band", ["Minimal", "Controlled", "Elevated", "Critical", "Systemic"]).notNull(),
+  riskBand: mysqlEnum("risk_band", [
+    "Minimal",
+    "Controlled",
+    "Elevated",
+    "Critical",
+    "Systemic",
+  ]).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -1856,7 +2289,12 @@ export const biasAlerts = mysqlTable("bias_alerts", {
     "sunk_cost",
     "clustering_illusion",
   ]).notNull(),
-  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
+  severity: mysqlEnum("severity", [
+    "low",
+    "medium",
+    "high",
+    "critical",
+  ]).notNull(),
   confidence: decimal("confidence", { precision: 5, scale: 2 }).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
@@ -1880,7 +2318,9 @@ export const biasProfiles = mysqlTable("bias_profiles", {
   occurrenceCount: int("occurrenceCount").default(0),
   lastDetectedAt: timestamp("lastDetectedAt"),
   avgSeverity: decimal("avgSeverity", { precision: 3, scale: 2 }),
-  trend: mysqlEnum("trend", ["increasing", "stable", "decreasing"]).default("stable"),
+  trend: mysqlEnum("trend", ["increasing", "stable", "decreasing"]).default(
+    "stable"
+  ),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
@@ -1898,19 +2338,20 @@ export const spaceRecommendations = mysqlTable("space_recommendations", {
   sqm: decimal("sqm", { precision: 8, scale: 2 }),
   styleDirection: varchar("style_direction", { length: 500 }),
   colorScheme: varchar("color_scheme", { length: 500 }),
-  materialPackage: json("material_package"),       // MaterialRec[]
+  materialPackage: json("material_package"), // MaterialRec[]
   budgetAllocation: decimal("budget_allocation", { precision: 12, scale: 2 }),
-  budgetBreakdown: json("budget_breakdown"),        // BudgetBreakdownItem[]
+  budgetBreakdown: json("budget_breakdown"), // BudgetBreakdownItem[]
   aiRationale: text("ai_rationale"),
-  specialNotes: json("special_notes"),              // string[]
-  kitchenSpec: json("kitchen_spec"),                // KitchenSpec | null
-  bathroomSpec: json("bathroom_spec"),              // BathroomSpec | null
-  alternatives: json("alternatives"),               // AlternativePackage[]
+  specialNotes: json("special_notes"), // string[]
+  kitchenSpec: json("kitchen_spec"), // KitchenSpec | null
+  bathroomSpec: json("bathroom_spec"), // BathroomSpec | null
+  alternatives: json("alternatives"), // AlternativePackage[]
   generatedAt: timestamp("generated_at").defaultNow().notNull(),
 });
 
 export type SpaceRecommendationRow = typeof spaceRecommendations.$inferSelect;
-export type InsertSpaceRecommendation = typeof spaceRecommendations.$inferInsert;
+export type InsertSpaceRecommendation =
+  typeof spaceRecommendations.$inferInsert;
 
 export const designPackages = mysqlTable("design_packages", {
   id: int("id").primaryKey().autoincrement(),
@@ -1920,8 +2361,11 @@ export const designPackages = mysqlTable("design_packages", {
   tier: varchar("tier", { length: 50 }).notNull(),
   style: varchar("style", { length: 100 }).notNull(),
   description: text("description"),
-  targetBudgetPerSqm: decimal("target_budget_per_sqm", { precision: 10, scale: 2 }),
-  rooms: json("rooms"),                            // SpaceRecommendation[]
+  targetBudgetPerSqm: decimal("target_budget_per_sqm", {
+    precision: 10,
+    scale: 2,
+  }),
+  rooms: json("rooms"), // SpaceRecommendation[]
   isTemplate: boolean("is_template").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1937,7 +2381,7 @@ export const aiDesignBriefs = mysqlTable(
     id: int("id").primaryKey().autoincrement(),
     projectId: int("project_id").notNull(),
     orgId: int("org_id").notNull(),
-    briefData: json("brief_data").notNull(),          // AIDesignBrief
+    briefData: json("brief_data").notNull(), // AIDesignBrief
     version: varchar("version", { length: 20 }).default("1.0"),
     // Phase 5: Shareable link
     shareToken: varchar("share_token", { length: 64 }),
@@ -1948,7 +2392,6 @@ export const aiDesignBriefs = mysqlTable(
     uniqueIndex("ai_design_briefs_share_token_unique").on(table.shareToken),
   ]
 );
-
 
 export type AiDesignBriefRow = typeof aiDesignBriefs.$inferSelect;
 export type InsertAiDesignBrief = typeof aiDesignBriefs.$inferInsert;
@@ -1988,7 +2431,12 @@ export const portfolioAlerts = mysqlTable(
       "portfolio_risk",
       "portfolio_failure_pattern",
     ]).notNull(),
-    severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
+    severity: mysqlEnum("severity", [
+      "critical",
+      "high",
+      "medium",
+      "info",
+    ]).notNull(),
     title: varchar("title", { length: 255 }).notNull(),
     body: text("body").notNull(),
     affectedProjectIds: json("affected_project_ids"),
@@ -1999,7 +2447,9 @@ export const portfolioAlerts = mysqlTable(
       "acknowledged",
       "resolved",
       "expired",
-    ]).default("active").notNull(),
+    ])
+      .default("active")
+      .notNull(),
     activeDedupKey: varchar("active_dedup_key", { length: 64 }),
     acknowledgedBy: int("acknowledged_by"),
     acknowledgedAt: timestamp("acknowledged_at"),
@@ -2035,7 +2485,10 @@ export const monteCarloSimulations = mysqlTable("monte_carlo_simulations", {
   mean: decimal("mean", { precision: 18, scale: 2 }),
   stdDev: decimal("std_dev", { precision: 18, scale: 2 }),
   var95: decimal("var95", { precision: 18, scale: 2 }),
-  budgetExceedProbability: decimal("budget_exceed_pct", { precision: 6, scale: 2 }),
+  budgetExceedProbability: decimal("budget_exceed_pct", {
+    precision: 6,
+    scale: 2,
+  }),
   histogram: json("histogram"),
   timeSeriesData: json("time_series_data"),
   config: json("config"),
@@ -2043,7 +2496,8 @@ export const monteCarloSimulations = mysqlTable("monte_carlo_simulations", {
 });
 
 export type MonteCarloSimulationRow = typeof monteCarloSimulations.$inferSelect;
-export type InsertMonteCarloSimulation = typeof monteCarloSimulations.$inferInsert;
+export type InsertMonteCarloSimulation =
+  typeof monteCarloSimulations.$inferInsert;
 
 // ─── Phase G: Customer Success ──────────────────────────────────────────────
 
@@ -2063,7 +2517,8 @@ export const customerHealthScores = mysqlTable("customer_health_scores", {
 });
 
 export type CustomerHealthScoreRow = typeof customerHealthScores.$inferSelect;
-export type InsertCustomerHealthScore = typeof customerHealthScores.$inferInsert;
+export type InsertCustomerHealthScore =
+  typeof customerHealthScores.$inferInsert;
 
 // ─── Phase H: Digital Twin & Sustainability ─────────────────────────────────
 
@@ -2078,7 +2533,10 @@ export const digitalTwinModels = mysqlTable("digital_twin_models", {
   carbonPerSqm: decimal("carbon_per_sqm", { precision: 12, scale: 2 }),
   operationalEnergy: decimal("operational_energy", { precision: 18, scale: 2 }),
   energyPerSqm: decimal("energy_per_sqm", { precision: 12, scale: 2 }),
-  lifecycleCost30yr: decimal("lifecycle_cost_30yr", { precision: 18, scale: 2 }),
+  lifecycleCost30yr: decimal("lifecycle_cost_30yr", {
+    precision: 18,
+    scale: 2,
+  }),
   carbonBreakdown: json("carbon_breakdown"),
   lifecycle: json("lifecycle"),
   config: json("config"),
@@ -2096,9 +2554,18 @@ export const sustainabilitySnapshots = mysqlTable("sustainability_snapshots", {
   userId: int("userId").notNull(),
   compositeScore: int("compositeScore").notNull(),
   grade: varchar("grade", { length: 2 }).notNull(),
-  embodiedCarbon: decimal("embodiedCarbon", { precision: 18, scale: 2 }).notNull(),
-  operationalEnergy: decimal("operationalEnergy", { precision: 18, scale: 2 }).notNull(),
-  lifecycleCost: decimal("lifecycleCost", { precision: 18, scale: 2 }).notNull(),
+  embodiedCarbon: decimal("embodiedCarbon", {
+    precision: 18,
+    scale: 2,
+  }).notNull(),
+  operationalEnergy: decimal("operationalEnergy", {
+    precision: 18,
+    scale: 2,
+  }).notNull(),
+  lifecycleCost: decimal("lifecycleCost", {
+    precision: 18,
+    scale: 2,
+  }).notNull(),
   carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }).notNull(),
   energyRating: varchar("energyRating", { length: 2 }),
   renewablesEnabled: boolean("renewablesEnabled").default(false),
@@ -2107,19 +2574,30 @@ export const sustainabilitySnapshots = mysqlTable("sustainability_snapshots", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-export type SustainabilitySnapshot = typeof sustainabilitySnapshots.$inferSelect;
-export type InsertSustainabilitySnapshot = typeof sustainabilitySnapshots.$inferInsert;
+export type SustainabilitySnapshot =
+  typeof sustainabilitySnapshots.$inferSelect;
+export type InsertSustainabilitySnapshot =
+  typeof sustainabilitySnapshots.$inferInsert;
 
 // ─── Phase P3-2: Material Constants (DB-backed material library) ─────────────
 
 export const materialConstants = mysqlTable("material_constants", {
   id: int("id").primaryKey().autoincrement(),
   materialType: varchar("materialType", { length: 32 }).notNull().unique(),
-  carbonIntensity: decimal("carbonIntensity", { precision: 10, scale: 4 }).notNull(),
+  carbonIntensity: decimal("carbonIntensity", {
+    precision: 10,
+    scale: 4,
+  }).notNull(),
   density: int("density").notNull(),
-  typicalThickness: decimal("typicalThickness", { precision: 6, scale: 3 }).notNull(),
+  typicalThickness: decimal("typicalThickness", {
+    precision: 6,
+    scale: 3,
+  }).notNull(),
   recyclability: decimal("recyclability", { precision: 4, scale: 3 }).notNull(),
-  maintenanceFactor: decimal("maintenanceFactor", { precision: 6, scale: 4 }).notNull(),
+  maintenanceFactor: decimal("maintenanceFactor", {
+    precision: 6,
+    scale: 4,
+  }).notNull(),
   costPerM2: decimal("costPerM2", { precision: 10, scale: 2 }).notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
@@ -2129,15 +2607,14 @@ export const materialConstants = mysqlTable("material_constants", {
 export type MaterialConstant = typeof materialConstants.$inferSelect;
 export type InsertMaterialConstant = typeof materialConstants.$inferInsert;
 
-
 // ─── DLD Projects (Phase B.3 — Dubai Land Department Open Data) ─────────────
 export const dldProjects = mysqlTable("dld_projects", {
   id: int("id").autoincrement().primaryKey(),
-  projectId: bigint("project_id", { mode: "number" }).notNull(),        // DLD project_id
+  projectId: bigint("project_id", { mode: "number" }).notNull(), // DLD project_id
   projectNumber: int("project_number"),
   projectName: varchar("project_name", { length: 500 }),
   projectDescriptionEn: text("project_description_en"),
-  projectStatus: varchar("project_status", { length: 50 }),             // ACTIVE, FINISHED, NOT_STARTED, etc.
+  projectStatus: varchar("project_status", { length: 50 }), // ACTIVE, FINISHED, NOT_STARTED, etc.
   projectClassification: varchar("project_classification", { length: 50 }), // مباني, فلل, مجمع فلل
   projectType: varchar("project_type", { length: 50 }),
   areaId: int("area_id"),
@@ -2168,23 +2645,23 @@ export type InsertDldProject = typeof dldProjects.$inferInsert;
 // ─── DLD Transactions (Phase B.3 — Dubai Land Department Sales Data) ────────
 export const dldTransactions = mysqlTable("dld_transactions", {
   id: int("id").autoincrement().primaryKey(),
-  transactionId: varchar("transaction_id", { length: 50 }),        // e.g. "1-41-2011-1593"
-  transGroupEn: varchar("trans_group_en", { length: 50 }),         // Sales, Gifts, Mortgages
-  procedureNameEn: varchar("procedure_name_en", { length: 100 }),  // Delayed Sell, Sell - Pre registration
-  regTypeEn: varchar("reg_type_en", { length: 50 }),               // Existing Properties, Off-Plan Properties
-  propertyTypeEn: varchar("property_type_en", { length: 50 }),     // Unit, Villa, Land, Building
+  transactionId: varchar("transaction_id", { length: 50 }), // e.g. "1-41-2011-1593"
+  transGroupEn: varchar("trans_group_en", { length: 50 }), // Sales, Gifts, Mortgages
+  procedureNameEn: varchar("procedure_name_en", { length: 100 }), // Delayed Sell, Sell - Pre registration
+  regTypeEn: varchar("reg_type_en", { length: 50 }), // Existing Properties, Off-Plan Properties
+  propertyTypeEn: varchar("property_type_en", { length: 50 }), // Unit, Villa, Land, Building
   propertySubTypeEn: varchar("property_sub_type_en", { length: 100 }), // Flat, Villa, Shop, Office
-  propertyUsageEn: varchar("property_usage_en", { length: 50 }),   // Residential, Commercial, Hospitality, etc.
+  propertyUsageEn: varchar("property_usage_en", { length: 50 }), // Residential, Commercial, Hospitality, etc.
   areaId: int("area_id"),
   areaNameEn: varchar("area_name_en", { length: 200 }),
   projectNameEn: varchar("project_name_en", { length: 300 }),
   buildingNameEn: varchar("building_name_en", { length: 300 }),
   masterProjectEn: varchar("master_project_en", { length: 300 }),
-  actualWorth: decimal("actual_worth", { precision: 14, scale: 2 }),    // Total transaction AED
+  actualWorth: decimal("actual_worth", { precision: 14, scale: 2 }), // Total transaction AED
   procedureArea: decimal("procedure_area", { precision: 10, scale: 2 }), // Area in sqm
   meterSalePrice: decimal("meter_sale_price", { precision: 10, scale: 2 }), // AED per sqm (DLD-calculated)
-  roomsEn: varchar("rooms_en", { length: 30 }),                    // Studio, 1 B/R, 2 B/R...
-  instanceDate: varchar("instance_date", { length: 20 }),          // Transaction date (YYYY-MM-DD)
+  roomsEn: varchar("rooms_en", { length: 30 }), // Studio, 1 B/R, 2 B/R...
+  instanceDate: varchar("instance_date", { length: 20 }), // Transaction date (YYYY-MM-DD)
   hasParking: int("has_parking"),
   nearestMetroEn: varchar("nearest_metro_en", { length: 200 }),
   nearestMallEn: varchar("nearest_mall_en", { length: 200 }),
@@ -2198,19 +2675,21 @@ export type InsertDldTransaction = typeof dldTransactions.$inferInsert;
 // ─── DLD Rents (Phase B.3 — Ejari Rental Data) ─────────────────────────────
 export const dldRents = mysqlTable("dld_rents", {
   id: int("id").autoincrement().primaryKey(),
-  contractId: varchar("contract_id", { length: 50 }),              // e.g. "CNT2129627812"
+  contractId: varchar("contract_id", { length: 50 }), // e.g. "CNT2129627812"
   contractRegTypeEn: varchar("contract_reg_type_en", { length: 50 }), // New, Renew
   ejariPropertyTypeEn: varchar("ejari_property_type_en", { length: 100 }), // Flat, Villa
-  ejariPropertySubTypeEn: varchar("ejari_property_sub_type_en", { length: 100 }), // Studio, 1bed+Hall, etc.
-  propertyUsageEn: varchar("property_usage_en", { length: 100 }),  // Residential, Commercial
+  ejariPropertySubTypeEn: varchar("ejari_property_sub_type_en", {
+    length: 100,
+  }), // Studio, 1bed+Hall, etc.
+  propertyUsageEn: varchar("property_usage_en", { length: 100 }), // Residential, Commercial
   areaId: int("area_id"),
   areaNameEn: varchar("area_name_en", { length: 200 }),
   projectNameEn: varchar("project_name_en", { length: 300 }),
   masterProjectEn: varchar("master_project_en", { length: 300 }),
-  annualAmount: decimal("annual_amount", { precision: 12, scale: 2 }),  // Annual rent AED
+  annualAmount: decimal("annual_amount", { precision: 12, scale: 2 }), // Annual rent AED
   contractAmount: decimal("contract_amount", { precision: 12, scale: 2 }),
-  actualArea: decimal("actual_area", { precision: 14, scale: 2 }),      // Area in sqm
-  rentPerSqm: decimal("rent_per_sqm", { precision: 14, scale: 2 }),    // Calculated: annual / area
+  actualArea: decimal("actual_area", { precision: 14, scale: 2 }), // Area in sqm
+  rentPerSqm: decimal("rent_per_sqm", { precision: 14, scale: 2 }), // Calculated: annual / area
   contractStartDate: varchar("contract_start_date", { length: 20 }),
   contractEndDate: varchar("contract_end_date", { length: 20 }),
   tenantTypeEn: varchar("tenant_type_en", { length: 50 }),
@@ -2229,12 +2708,12 @@ export const dldAreaBenchmarks = mysqlTable("dld_area_benchmarks", {
   id: int("id").autoincrement().primaryKey(),
   areaId: int("area_id").notNull(),
   areaNameEn: varchar("area_name_en", { length: 200 }).notNull(),
-  propertyType: varchar("property_type", { length: 100 }),    // Apartment, Villa, or ALL
-  period: varchar("period", { length: 10 }).notNull(),         // "2025-Q1", "2025" etc.
+  propertyType: varchar("property_type", { length: 100 }), // Apartment, Villa, or ALL
+  period: varchar("period", { length: 10 }).notNull(), // "2025-Q1", "2025" etc.
 
   // Sale price analytics (AED/sqm — from DLD meter_sale_price)
   saleP25: decimal("sale_p25", { precision: 10, scale: 2 }),
-  saleP50: decimal("sale_p50", { precision: 10, scale: 2 }),   // Median
+  saleP50: decimal("sale_p50", { precision: 10, scale: 2 }), // Median
   saleP75: decimal("sale_p75", { precision: 10, scale: 2 }),
   saleMean: decimal("sale_mean", { precision: 10, scale: 2 }),
   saleTransactionCount: int("sale_transaction_count").default(0),
@@ -2246,13 +2725,22 @@ export const dldAreaBenchmarks = mysqlTable("dld_area_benchmarks", {
   rentTransactionCount: int("rent_transaction_count").default(0),
 
   // Derived metrics
-  grossYield: decimal("gross_yield", { precision: 6, scale: 2 }),  // rent / sale price %
+  grossYield: decimal("gross_yield", { precision: 6, scale: 2 }), // rent / sale price %
   absorptionRate: decimal("absorption_rate", { precision: 6, scale: 4 }),
 
   // Fitout calibration (AED/sqm)
-  recommendedFitoutLow: decimal("recommended_fitout_low", { precision: 10, scale: 2 }),
-  recommendedFitoutMid: decimal("recommended_fitout_mid", { precision: 10, scale: 2 }),
-  recommendedFitoutHigh: decimal("recommended_fitout_high", { precision: 10, scale: 2 }),
+  recommendedFitoutLow: decimal("recommended_fitout_low", {
+    precision: 10,
+    scale: 2,
+  }),
+  recommendedFitoutMid: decimal("recommended_fitout_mid", {
+    precision: 10,
+    scale: 2,
+  }),
+  recommendedFitoutHigh: decimal("recommended_fitout_high", {
+    precision: 10,
+    scale: 2,
+  }),
 
   computedAt: timestamp("computed_at").defaultNow().notNull(),
 });
@@ -2270,15 +2758,22 @@ export const pdfExtractions = mysqlTable("pdf_extractions", {
     "text_layer",
     "vision_ai",
     "manual",
-  ]).default("manual").notNull(),
+  ])
+    .default("manual")
+    .notNull(),
   extractedRooms: json("extractedRooms"), // [{name, areaSqm, confidence, polygon}]
-  totalExtractedArea: decimal("totalExtractedArea", { precision: 12, scale: 2 }),
+  totalExtractedArea: decimal("totalExtractedArea", {
+    precision: 12,
+    scale: 2,
+  }),
   status: mysqlEnum("extractionStatus", [
     "pending",
     "extracted",
     "verified",
     "rejected",
-  ]).default("pending").notNull(),
+  ])
+    .default("pending")
+    .notNull(),
   verifiedBy: int("verifiedBy"),
   verifiedAt: timestamp("verifiedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -2296,12 +2791,19 @@ export const materialAllocations = mysqlTable("material_allocations", {
   roomId: varchar("roomId", { length: 20 }).notNull(),
   roomName: varchar("roomName", { length: 100 }).notNull(),
   element: mysqlEnum("element", [
-    "floor", "walls", "ceiling", "joinery", "hardware"
+    "floor",
+    "walls",
+    "ceiling",
+    "joinery",
+    "hardware",
   ]).notNull(),
   materialLibraryId: int("materialLibraryId"),
   materialName: varchar("materialName", { length: 300 }).notNull(),
   allocationPct: decimal("allocationPct", { precision: 5, scale: 2 }).notNull(),
-  surfaceAreaM2: decimal("surfaceAreaM2", { precision: 10, scale: 2 }).notNull(),
+  surfaceAreaM2: decimal("surfaceAreaM2", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
   unitCostMin: decimal("unitCostMin", { precision: 10, scale: 2 }),
   unitCostMax: decimal("unitCostMax", { precision: 10, scale: 2 }),
   totalCostMin: decimal("totalCostMin", { precision: 12, scale: 2 }),
@@ -2321,8 +2823,16 @@ export const materialSupplierSources = mysqlTable("material_supplier_sources", {
   supplierName: varchar("supplierName", { length: 200 }).notNull(),
   supplierUrl: text("supplierUrl").notNull(),
   materialCategory: mysqlEnum("materialCategory", [
-    "flooring", "wall_paint", "wall_tile", "ceiling",
-    "joinery", "sanitaryware", "fittings", "lighting", "hardware", "specialty"
+    "flooring",
+    "wall_paint",
+    "wall_tile",
+    "ceiling",
+    "joinery",
+    "sanitaryware",
+    "fittings",
+    "lighting",
+    "hardware",
+    "specialty",
   ]).notNull(),
   tier: mysqlEnum("tier", ["affordable", "mid", "premium", "ultra"]).notNull(),
   notes: text("notes"),
@@ -2334,8 +2844,10 @@ export const materialSupplierSources = mysqlTable("material_supplier_sources", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-export type MaterialSupplierSource = typeof materialSupplierSources.$inferSelect;
-export type InsertMaterialSupplierSource = typeof materialSupplierSources.$inferInsert;
+export type MaterialSupplierSource =
+  typeof materialSupplierSources.$inferSelect;
+export type InsertMaterialSupplierSource =
+  typeof materialSupplierSources.$inferInsert;
 
 // ─── MIYAR 3.0 Phase B — Typology-Aware Space Program Intelligence ──────────
 
@@ -2346,20 +2858,39 @@ export const spaceProgramRooms = mysqlTable("space_program_rooms", {
   roomCode: varchar("roomCode", { length: 20 }).notNull(),
   roomName: varchar("roomName", { length: 100 }).notNull(),
   category: mysqlEnum("category", [
-    "lobby", "corridor", "office_floor", "guest_room", "suite",
-    "fb_restaurant", "bathroom", "kitchen", "bedroom", "living",
-    "utility", "amenity", "parking", "retail", "back_of_house", "other",
+    "lobby",
+    "corridor",
+    "office_floor",
+    "guest_room",
+    "suite",
+    "fb_restaurant",
+    "bathroom",
+    "kitchen",
+    "bedroom",
+    "living",
+    "utility",
+    "amenity",
+    "parking",
+    "retail",
+    "back_of_house",
+    "other",
   ]).notNull(),
   sqm: decimal("sqm", { precision: 10, scale: 2 }).notNull(),
   floorLevel: varchar("floorLevel", { length: 20 }),
   source: mysqlEnum("source", [
-    "typology_default", "user_manual", "file_extraction",
-  ]).notNull().default("typology_default"),
+    "typology_default",
+    "user_manual",
+    "file_extraction",
+  ])
+    .notNull()
+    .default("typology_default"),
   isFitOut: boolean("isFitOut").default(true).notNull(),
   fitOutOverridden: boolean("fitOutOverridden").default(false).notNull(),
   fitOutReason: text("fitOutReason"),
   finishGrade: mysqlEnum("finishGrade", ["A", "B", "C"]).notNull().default("B"),
-  priority: mysqlEnum("priority", ["high", "medium", "low"]).notNull().default("medium"),
+  priority: mysqlEnum("priority", ["high", "medium", "low"])
+    .notNull()
+    .default("medium"),
   budgetPct: decimal("budgetPct", { precision: 5, scale: 4 }),
   sortOrder: int("sortOrder").default(0).notNull(),
   blockName: varchar("blockName", { length: 100 }).default("Main").notNull(),
@@ -2376,8 +2907,15 @@ export const amenitySubSpaces = mysqlTable("amenity_sub_spaces", {
   spaceProgramRoomId: int("spaceProgramRoomId").notNull(),
   subSpaceName: varchar("subSpaceName", { length: 100 }).notNull(),
   subSpaceType: mysqlEnum("subSpaceType", [
-    "pool", "gym", "spa", "lounge", "kids_club",
-    "business_center", "concierge", "prayer_room", "theater",
+    "pool",
+    "gym",
+    "spa",
+    "lounge",
+    "kids_club",
+    "business_center",
+    "concierge",
+    "prayer_room",
+    "theater",
   ]).notNull(),
   sqm: decimal("sqm", { precision: 10, scale: 2 }).notNull(),
   pctOfParent: decimal("pctOfParent", { precision: 5, scale: 2 }).notNull(),
@@ -2388,3 +2926,635 @@ export const amenitySubSpaces = mysqlTable("amenity_sub_spaces", {
 
 export type AmenitySubSpace = typeof amenitySubSpaces.$inferSelect;
 export type InsertAmenitySubSpace = typeof amenitySubSpaces.$inferInsert;
+
+// ─── DI-01 — Canonical Room Geometry and Measurement Foundation ─────────
+//
+// These relations are additive and shadow-safe. Cross-table mutations must
+// validate organizationId and projectId together in their final transaction;
+// the repeated ownership columns and composite unique indexes make those
+// checks deterministic and prevent an unscoped relation from being selected.
+
+export const projectGeometryAuthorities = mysqlTable(
+  "project_geometry_authorities",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    mode: mysqlEnum("mode", ["legacy", "shadow", "canonical"])
+      .default("legacy")
+      .notNull(),
+    currentGraphVersionId: int("currentGraphVersionId"),
+    selectedGeometryVersionId: int("selectedGeometryVersionId"),
+    revision: int("revision").default(0).notNull(),
+    updatedBy: int("updatedBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("project_geometry_authorities_org_project_unique").on(
+      table.organizationId,
+      table.projectId
+    ),
+    uniqueIndex("project_geometry_authorities_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    index("project_geometry_authorities_current_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.currentGraphVersionId
+    ),
+    index("project_geometry_authorities_shadow_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.selectedGeometryVersionId
+    ),
+  ]
+);
+
+export type ProjectGeometryAuthority =
+  typeof projectGeometryAuthorities.$inferSelect;
+export type InsertProjectGeometryAuthority =
+  typeof projectGeometryAuthorities.$inferInsert;
+
+export const spatialGraphVersions = mysqlTable(
+  "spatial_graph_versions",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    graphId: varchar("graphId", { length: 64 }).notNull(),
+    version: int("version").notNull(),
+    parentGraphVersionId: int("parentGraphVersionId"),
+    geometrySourceId: int("geometrySourceId"),
+    status: mysqlEnum("status", [
+      "candidate",
+      "accepted",
+      "rejected",
+      "superseded",
+    ])
+      .default("candidate")
+      .notNull(),
+    canonicalGeometry: json("canonicalGeometry").notNull(),
+    canonicalJsonSizeBytes: int("canonicalJsonSizeBytes").notNull(),
+    totalAreaSquareMetres: decimal("totalAreaSquareMetres", {
+      precision: 40,
+      scale: 12,
+    }).notNull(),
+    totalAreaSquareMicrometresTwice: varchar(
+      "totalAreaSquareMicrometresTwice",
+      {
+        length: 128,
+      }
+    ).notNull(),
+    schemaVersion: varchar("schemaVersion", { length: 64 }).notNull(),
+    canonicalizerVersion: varchar("canonicalizerVersion", {
+      length: 64,
+    }).notNull(),
+    tolerancePolicyVersion: varchar("tolerancePolicyVersion", {
+      length: 64,
+    }).notNull(),
+    referenceFrame: json("referenceFrame").notNull(),
+    fingerprintAlgorithm: varchar("fingerprintAlgorithm", {
+      length: 32,
+    }).notNull(),
+    fingerprintDomain: varchar("fingerprintDomain", { length: 128 }).notNull(),
+    fingerprint: varchar("fingerprint", { length: 64 }).notNull(),
+    createdBy: int("createdBy").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("spatial_graph_versions_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    uniqueIndex("spatial_graph_versions_graph_version_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.graphId,
+      table.version
+    ),
+    index("spatial_graph_versions_fingerprint_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.fingerprint
+    ),
+    index("spatial_graph_versions_source_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.geometrySourceId
+    ),
+    index("spatial_graph_versions_parent_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.parentGraphVersionId
+    ),
+  ]
+);
+
+export type SpatialGraphVersion = typeof spatialGraphVersions.$inferSelect;
+export type InsertSpatialGraphVersion =
+  typeof spatialGraphVersions.$inferInsert;
+
+export const spaceIdentities = mysqlTable(
+  "space_identities",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    publicId: varchar("publicId", { length: 64 }).notNull(),
+    initialGraphId: varchar("initialGraphId", { length: 64 }).notNull(),
+    lifecycleState: mysqlEnum("lifecycleState", [
+      "active",
+      "retired",
+      "tombstoned",
+    ])
+      .default("active")
+      .notNull(),
+    tombstonedAt: timestamp("tombstonedAt"),
+    createdBy: int("createdBy").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("space_identities_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    uniqueIndex("space_identities_public_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.publicId
+    ),
+    index("space_identities_graph_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.initialGraphId
+    ),
+  ]
+);
+
+export type SpaceIdentity = typeof spaceIdentities.$inferSelect;
+export type InsertSpaceIdentity = typeof spaceIdentities.$inferInsert;
+
+export const spaceVersions = mysqlTable(
+  "space_versions",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    spaceIdentityId: int("spaceIdentityId").notNull(),
+    geometryVersionId: int("geometryVersionId").notNull(),
+    version: int("version").notNull(),
+    roomCode: varchar("roomCode", { length: 64 }),
+    roomName: varchar("roomName", { length: 255 }).notNull(),
+    category: varchar("category", { length: 64 }).notNull(),
+    levelId: varchar("levelId", { length: 128 }).notNull(),
+    zoneId: varchar("zoneId", { length: 128 }),
+    containment: json("containment"),
+    contentFingerprint: varchar("contentFingerprint", { length: 64 }).notNull(),
+    supersedesSpaceVersionId: int("supersedesSpaceVersionId"),
+    supersessionKind: mysqlEnum("supersessionKind", [
+      "revision",
+      "split",
+      "merge",
+      "delete",
+      "duplicate",
+    ]),
+    createdBy: int("createdBy").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("space_versions_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    uniqueIndex("space_versions_identity_version_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.spaceIdentityId,
+      table.version
+    ),
+    uniqueIndex("space_versions_graph_identity_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.geometryVersionId,
+      table.spaceIdentityId
+    ),
+    index("space_versions_content_fingerprint_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.contentFingerprint
+    ),
+    index("space_versions_supersedes_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.supersedesSpaceVersionId
+    ),
+  ]
+);
+
+export type SpaceVersion = typeof spaceVersions.$inferSelect;
+export type InsertSpaceVersion = typeof spaceVersions.$inferInsert;
+
+export const geometrySources = mysqlTable(
+  "geometry_sources",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    assetId: int("assetId"),
+    sourceType: mysqlEnum("sourceType", ["manual", "project_asset"]).notNull(),
+    acquisitionMethod: mysqlEnum("acquisitionMethod", [
+      "manual_entry",
+      "dxf",
+      "pdf_text",
+      "image_ai",
+      "dwg_ai",
+      "typology_template",
+      "derived",
+      "migration",
+    ]).notNull(),
+    evidenceClass: mysqlEnum("evidenceClass", [
+      "survey_measured",
+      "geometry_derived",
+      "source_stated",
+      "estimated",
+      "legacy_unknown",
+    ]).notNull(),
+    adapterName: varchar("adapterName", { length: 128 }).notNull(),
+    adapterVersion: varchar("adapterVersion", { length: 64 }).notNull(),
+    modelName: varchar("modelName", { length: 128 }),
+    modelVersion: varchar("modelVersion", { length: 64 }),
+    sourceUnits: mysqlEnum("sourceUnits", ["m", "mm", "unknown"]).notNull(),
+    sourceReferenceFrame: json("sourceReferenceFrame").notNull(),
+    sourceTransform: json("sourceTransform").notNull(),
+    sourceObservation: json("sourceObservation").notNull(),
+    schemaVersion: varchar("schemaVersion", { length: 64 }).notNull(),
+    canonicalizerVersion: varchar("canonicalizerVersion", {
+      length: 64,
+    }).notNull(),
+    tolerancePolicyVersion: varchar("tolerancePolicyVersion", {
+      length: 64,
+    }).notNull(),
+    sourceChecksum: varchar("sourceChecksum", { length: 128 }).notNull(),
+    assetChecksum: varchar("assetChecksum", { length: 128 }),
+    idempotencyKey: varchar("idempotencyKey", { length: 64 }).notNull(),
+    confidence: decimal("confidence", { precision: 5, scale: 4 }),
+    capturedAt: timestamp("capturedAt"),
+    createdBy: int("createdBy").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("geometry_sources_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    uniqueIndex("geometry_sources_idempotency_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.idempotencyKey
+    ),
+    index("geometry_sources_asset_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.assetId
+    ),
+    index("geometry_sources_checksum_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.sourceChecksum
+    ),
+  ]
+);
+
+export type GeometrySource = typeof geometrySources.$inferSelect;
+export type InsertGeometrySource = typeof geometrySources.$inferInsert;
+
+export const measurementRecords = mysqlTable(
+  "measurement_records",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    spaceIdentityId: int("spaceIdentityId"),
+    spaceVersionId: int("spaceVersionId"),
+    graphVersionId: int("graphVersionId"),
+    geometrySourceId: int("geometrySourceId"),
+    recordKind: mysqlEnum("recordKind", [
+      "observation",
+      "derivation",
+    ]).notNull(),
+    measurementBasis: varchar("measurementBasis", { length: 128 }).notNull(),
+    authorityVersion: varchar("authorityVersion", { length: 64 }).notNull(),
+    originalValue: decimal("originalValue", { precision: 40, scale: 12 }),
+    originalValueExact: varchar("originalValueExact", { length: 128 }),
+    originalUnit: varchar("originalUnit", { length: 32 }),
+    normalizedValue: decimal("normalizedValue", { precision: 40, scale: 12 }),
+    normalizedValueExact: varchar("normalizedValueExact", { length: 128 }),
+    normalizedUnit: varchar("normalizedUnit", { length: 32 }),
+    acquisitionMethod: mysqlEnum("acquisitionMethod", [
+      "manual_entry",
+      "dxf",
+      "pdf_text",
+      "image_ai",
+      "dwg_ai",
+      "typology_template",
+      "derived",
+      "migration",
+    ]).notNull(),
+    evidenceClass: mysqlEnum("evidenceClass", [
+      "survey_measured",
+      "geometry_derived",
+      "source_stated",
+      "estimated",
+      "legacy_unknown",
+    ]).notNull(),
+    reviewState: mysqlEnum("reviewState", [
+      "unreviewed",
+      "accepted",
+      "rejected",
+      "needs_clarification",
+    ])
+      .default("unreviewed")
+      .notNull(),
+    resultState: mysqlEnum("resultState", [
+      "valid",
+      "not_checked",
+      "conflict",
+      "insufficient",
+    ]).notNull(),
+    formulaVersion: varchar("formulaVersion", { length: 64 }),
+    sourceIdentity: json("sourceIdentity").notNull(),
+    confidence: decimal("confidence", { precision: 5, scale: 4 }),
+    supersedesMeasurementRecordId: int("supersedesMeasurementRecordId"),
+    contentFingerprint: varchar("contentFingerprint", { length: 64 }).notNull(),
+    createdBy: int("createdBy").notNull(),
+    reviewedBy: int("reviewedBy"),
+    reviewedAt: timestamp("reviewedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("measurement_records_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    index("measurement_records_space_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.spaceIdentityId,
+      table.spaceVersionId
+    ),
+    index("measurement_records_graph_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.graphVersionId
+    ),
+    index("measurement_records_source_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.geometrySourceId
+    ),
+    index("measurement_records_fingerprint_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.contentFingerprint
+    ),
+    index("measurement_records_supersedes_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.supersedesMeasurementRecordId
+    ),
+  ]
+);
+
+export type MeasurementRecord = typeof measurementRecords.$inferSelect;
+export type InsertMeasurementRecord = typeof measurementRecords.$inferInsert;
+
+export const measurementInputEdges = mysqlTable(
+  "measurement_input_edges",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    derivedMeasurementRecordId: int("derivedMeasurementRecordId").notNull(),
+    inputMeasurementRecordId: int("inputMeasurementRecordId").notNull(),
+    inputOrdinal: int("inputOrdinal").notNull(),
+    inputRole: varchar("inputRole", { length: 64 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("measurement_input_edges_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    uniqueIndex("measurement_input_edges_pair_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.derivedMeasurementRecordId,
+      table.inputMeasurementRecordId
+    ),
+    uniqueIndex("measurement_input_edges_ordinal_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.derivedMeasurementRecordId,
+      table.inputOrdinal
+    ),
+    index("measurement_input_edges_input_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.inputMeasurementRecordId
+    ),
+  ]
+);
+
+export type MeasurementInputEdge = typeof measurementInputEdges.$inferSelect;
+export type InsertMeasurementInputEdge =
+  typeof measurementInputEdges.$inferInsert;
+
+export const geometryReconciliationEvents = mysqlTable(
+  "geometry_reconciliation_events",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    authorityId: int("authorityId").notNull(),
+    expectedCurrentGraphVersionId: int("expectedCurrentGraphVersionId"),
+    baseGraphVersionId: int("baseGraphVersionId"),
+    candidateGraphVersionId: int("candidateGraphVersionId").notNull(),
+    resultGraphVersionId: int("resultGraphVersionId"),
+    baseMeasurementRecordId: int("baseMeasurementRecordId"),
+    candidateMeasurementRecordId: int("candidateMeasurementRecordId"),
+    baseFingerprint: varchar("baseFingerprint", { length: 64 }),
+    candidateFingerprint: varchar("candidateFingerprint", {
+      length: 64,
+    }).notNull(),
+    differenceSquareMetres: decimal("differenceSquareMetres", {
+      precision: 40,
+      scale: 12,
+    }),
+    toleranceSquareMetres: decimal("toleranceSquareMetres", {
+      precision: 40,
+      scale: 12,
+    }),
+    tolerancePolicyVersion: varchar("tolerancePolicyVersion", {
+      length: 64,
+    }).notNull(),
+    reviewDecision: mysqlEnum("reviewDecision", [
+      "candidate_created",
+      "accepted",
+      "rejected",
+      "needs_clarification",
+      "reconciled",
+    ]).notNull(),
+    resultState: mysqlEnum("resultState", [
+      "valid",
+      "not_checked",
+      "conflict",
+      "insufficient",
+    ]).notNull(),
+    note: text("note").notNull(),
+    reviewerId: int("reviewerId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("geometry_reconciliation_events_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    index("geometry_reconciliation_events_candidate_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.candidateGraphVersionId,
+      table.createdAt
+    ),
+    index("geometry_reconciliation_events_authority_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.authorityId,
+      table.createdAt
+    ),
+    index("geometry_reconciliation_events_result_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.resultGraphVersionId
+    ),
+    index("geometry_reconciliation_events_measurements_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.baseMeasurementRecordId,
+      table.candidateMeasurementRecordId
+    ),
+  ]
+);
+
+export type GeometryReconciliationEvent =
+  typeof geometryReconciliationEvents.$inferSelect;
+export type InsertGeometryReconciliationEvent =
+  typeof geometryReconciliationEvents.$inferInsert;
+
+export const legacySpaceLinks = mysqlTable(
+  "legacy_space_links",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    legacySourceKey: varchar("legacySourceKey", { length: 512 }).notNull(),
+    legacyTable: varchar("legacyTable", { length: 128 }).notNull(),
+    legacyRowId: varchar("legacyRowId", { length: 128 }),
+    legacyStringKey: varchar("legacyStringKey", { length: 255 }),
+    spaceIdentityId: int("spaceIdentityId"),
+    disposition: mysqlEnum("disposition", [
+      "mapped",
+      "unresolved_legacy_link",
+      "original_observation_lost",
+      "retired",
+    ]).notNull(),
+    evidence: json("evidence").notNull(),
+    createdBy: int("createdBy").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("legacy_space_links_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    uniqueIndex("legacy_space_links_source_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.legacySourceKey
+    ),
+    index("legacy_space_links_space_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.spaceIdentityId
+    ),
+  ]
+);
+
+export type LegacySpaceLink = typeof legacySpaceLinks.$inferSelect;
+export type InsertLegacySpaceLink = typeof legacySpaceLinks.$inferInsert;
+
+export const artifactInputSnapshots = mysqlTable(
+  "artifact_input_snapshots",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    artifactType: varchar("artifactType", { length: 64 }).notNull(),
+    artifactId: varchar("artifactId", { length: 128 }).notNull(),
+    artifactVersion: varchar("artifactVersion", { length: 64 }).notNull(),
+    graphVersionId: int("graphVersionId").notNull(),
+    spaceVersionIds: json("spaceVersionIds").notNull(),
+    measurementRecordIds: json("measurementRecordIds").notNull(),
+    formulaVersions: json("formulaVersions").notNull(),
+    rendererVersion: varchar("rendererVersion", { length: 64 }).notNull(),
+    copyVersion: varchar("copyVersion", { length: 64 }).notNull(),
+    locale: varchar("locale", { length: 16 }).notNull(),
+    storageKey: text("storageKey").notNull(),
+    inputSnapshot: json("inputSnapshot").notNull(),
+    snapshotDigestAlgorithm: varchar("snapshotDigestAlgorithm", {
+      length: 32,
+    }).notNull(),
+    snapshotDigest: varchar("snapshotDigest", { length: 64 }).notNull(),
+    issuedBy: int("issuedBy").notNull(),
+    issuedAt: timestamp("issuedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("artifact_input_snapshots_scope_id_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.id
+    ),
+    uniqueIndex("artifact_input_snapshots_artifact_unique").on(
+      table.organizationId,
+      table.projectId,
+      table.artifactType,
+      table.artifactId,
+      table.artifactVersion
+    ),
+    index("artifact_input_snapshots_graph_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.graphVersionId
+    ),
+    index("artifact_input_snapshots_digest_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.snapshotDigest
+    ),
+  ]
+);
+
+export type ArtifactInputSnapshot = typeof artifactInputSnapshots.$inferSelect;
+export type InsertArtifactInputSnapshot =
+  typeof artifactInputSnapshots.$inferInsert;

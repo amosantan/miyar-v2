@@ -9,10 +9,10 @@ if (!value) throw new Error("DATABASE_URL is required");
 const url = new URL(value);
 const database = url.pathname.slice(1);
 if (!["localhost", "127.0.0.1"].includes(url.hostname)) {
-  throw new Error("Cleanup accepts only localhost or 127.0.0.1");
+  throw new Error("Recreation accepts only localhost or 127.0.0.1");
 }
-if (!database.startsWith("miyar_auth_test")) {
-  throw new Error("Cleanup database must begin with miyar_auth_test");
+if (!/^miyar_auth_test[A-Za-z0-9_]*$/.test(database)) {
+  throw new Error("Recreation database must use the miyar_auth_test prefix");
 }
 
 const connection = await mysql.createConnection({
@@ -24,6 +24,9 @@ const connection = await mysql.createConnection({
 
 try {
   await connection.query(`drop database if exists \`${database}\``);
+  await connection.query(
+    `create database \`${database}\` character set utf8mb4 collate utf8mb4_unicode_ci`
+  );
 } finally {
   await connection.end();
 }

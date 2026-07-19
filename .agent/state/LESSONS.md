@@ -388,3 +388,36 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: `NODE_ENV=test pnpm build` first reproduced the hosted failure, then passed with the fix at the original 138,121-byte entry and all eight unchanged route ceilings. PR and canonical-main hosted CI, Vercel preview, and exact-SHA production deployment passed.
 - Reuse rule: A command that claims to build a production artifact must select production mode itself. Test safety belongs at the test/database boundary; ambient test variables must not silently redefine release artifacts.
 - Supersedes / related: Extends `LES-029` and `LES-032`.
+
+### LES-034 — Exact source coordinates must survive the parser boundary
+
+- Date / roadmap step: 2026-07-19 / `DI-01`
+- Context: DXF coordinates become numerical authority only after deterministic normalization into checked integer micrometres.
+- Observed: Parsing a decimal coordinate into a JavaScript `number` before validation could hide a value just above the 1e9 source limit and could move a value across the half-micrometre rounding boundary.
+- Cause: The parser reconstructed decimal text from an already rounded binary floating-point value, so validation and half-away-from-zero conversion no longer operated on source evidence.
+- Fix or decision: Preserve and validate exact DXF coordinate lexemes, expand supported exponent notation deterministically, then convert once to `BigInt` micrometres. Reject non-planar coordinates rather than flattening Z.
+- Proof: Boundary regressions cover limit bypass, opposite rounding outcomes, exponent forms, nonzero/mixed Z, and deterministic metre/millimetre scaling; the focused geometry/CAD suite passes 55/55.
+- Reuse rule: When exact decimal text determines a safety limit, fingerprint, price, quantity, or tolerance result, never pass through binary floating point before validation and canonical conversion.
+- Supersedes / related: Extends the deterministic numerical-authority invariant in `AGENTS.md`.
+
+### LES-035 — A schema push does not verify a checked-in migration
+
+- Date / roadmap step: 2026-07-19 / `DI-01`
+- Context: DI-01 adds ten tenant-owned tables and expands the accepted geometry domain to areas requiring 19 integer digits.
+- Observed: A guarded MySQL suite could pass after `drizzle-kit push` even if migration `0051` itself was missing, stale, or unable to recreate the tested schema.
+- Cause: Schema synchronization validated the current TypeScript shape but bypassed the release artifact and its migration journal.
+- Fix or decision: Recreate an explicitly named disposable loopback database, run the checked-in migration chain, execute tenant/CAS/domain/compatibility tests, rehearse logical restore, bind the relevant migration/engine/router/UI hashes into evidence, and drop the database afterward.
+- Proof: `pnpm test:authorization:mysql` applies migrations to a fresh database, passes 24/24 tests including 64-character identity, 19-digit area, stale replay, review deselection, and restore, then verifies cleanup.
+- Reuse rule: Migration acceptance must execute the exact checked-in migration artifact on a fresh safe target; schema push/introspection may supplement but cannot replace that gate.
+- Supersedes / related: Extends `LES-029` and `LES-030`.
+
+### LES-036 — Reconciliation reads must stay pure; aggregate refresh belongs to explicit mutations
+
+- Date / roadmap step: 2026-07-19 / `DI-01`
+- Context: The legacy space-program read route recalculated room totals and silently wrote `projects.totalFitoutArea`, masking mutation paths that did not refresh the aggregate themselves.
+- Observed: Removing the write-on-read correctly restored query purity but revealed that editing a room's `sqm` could leave the legacy aggregate stale until another room mutation occurred.
+- Cause: Aggregate consistency depended on a later read side effect rather than the mutation that changed its inputs.
+- Fix or decision: Keep `getForProject` read-only. After a successful `sqm` edit, explicitly recompute and write the fit-out aggregate through the existing organization- and authority-aware transactional mutation path; non-area edits do not trigger it.
+- Proof: A regression starts with divergent stored and room totals, proves the read performs no write, then proves an area edit persists first and writes the recomputed 15 m² aggregate. Focused tests, the 1,349/22 safe suite, disposable MySQL, audits, build, and independent re-review pass.
+- Reuse rule: A reconciliation query may report drift but must never repair it. Every authoritative aggregate refresh must be owned by the explicit mutation that changed its inputs and must recheck authorization/authority at the final write.
+- Supersedes / related: Extends the DI-01 compatibility bridge and `LES-030`.

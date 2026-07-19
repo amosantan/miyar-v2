@@ -81,8 +81,7 @@ type AccessPrimitive = (typeof ACCESS_PRIMITIVES)[number];
 type Classification = (typeof CLASSIFICATIONS)[number];
 type Severity = (typeof SEVERITIES)[number];
 type TargetStep = (typeof TARGET_STEPS)[number];
-type IntegrationEvidenceStatus =
-  (typeof INTEGRATION_EVIDENCE_STATUSES)[number];
+type IntegrationEvidenceStatus = (typeof INTEGRATION_EVIDENCE_STATUSES)[number];
 type Operation = "query" | "mutation" | "subscription";
 
 interface ExtractedProcedure {
@@ -148,6 +147,8 @@ const ROUTER_NAMESPACE_ALIASES: Readonly<Record<string, string>> = {
   designMaterialsRouter: "design",
   designSharingRouter: "design",
   designVisualsRouter: "design",
+  designGeometryAssetsRouter: "design",
+  spaceProgramGeometryRouter: "space-program",
 };
 const SCOPED_WRITE_EVIDENCE: Record<
   string,
@@ -155,99 +156,125 @@ const SCOPED_WRITE_EVIDENCE: Record<
 > = {
   "project.confirmInputs": {
     finalScopedWrite: "db.updateProjectForOrg",
-    integrationTestName: "scopes project readiness and confirmed-input writes to the organization",
+    integrationTestName:
+      "scopes project readiness and confirmed-input writes to the organization",
   },
   "design.addComment": {
     finalScopedWrite: "db.createCommentForOrg",
-    integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",
+    integrationTestName:
+      "validates all polymorphic link targets, typed comments and evidence isolation",
   },
   "design.addMaterialToBoard": {
     finalScopedWrite: "db.addMaterialToBoardForOrg",
-    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+    integrationTestName:
+      "creates and rolls back scenario-bound boards atomically",
   },
   "design.analyzeFloorPlan": {
     finalScopedWrite: "db.updateProjectForOrg",
-    integrationTestName: "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+    integrationTestName:
+      "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
   },
   "design.createBoard": {
     finalScopedWrite: "db.createMaterialBoardWithMaterialsForOrg",
-    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+    integrationTestName:
+      "creates and rolls back scenario-bound boards atomically",
   },
   "design.createShareLink": {
     finalScopedWrite: "db.updateAiDesignBriefShareTokenForOrg",
-    integrationTestName: "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+    integrationTestName:
+      "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
   },
   "design.deleteAsset": {
     finalScopedWrite: "db.deleteProjectAssetForOrg",
-    integrationTestName: "scopes project assets and generated visuals through project ownership",
+    integrationTestName:
+      "scopes project assets and generated visuals through project ownership",
   },
   "design.deleteBoard": {
     finalScopedWrite: "db.deleteMaterialBoardForOrg",
-    integrationTestName: "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+    integrationTestName:
+      "rolls back board, RFQ and floor-plan transactions after late SQL failures",
   },
   "design.generateBrief": {
     finalScopedWrite: "db.createDesignBriefForOrg",
-    integrationTestName: "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+    integrationTestName:
+      "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
   },
   "design.generateRfqFromBrief": {
     finalScopedWrite: "db.insertRfqLineItemsForOrg",
-    integrationTestName: "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+    integrationTestName:
+      "rolls back board, RFQ and floor-plan transactions after late SQL failures",
   },
   "design.generateRoomRender": {
-    finalScopedWrite: "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
-    integrationTestName: "scopes project assets and generated visuals through project ownership",
+    finalScopedWrite:
+      "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
+    integrationTestName:
+      "scopes project assets and generated visuals through project ownership",
   },
   "design.generateVisual": {
-    finalScopedWrite: "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
-    integrationTestName: "scopes project assets and generated visuals through project ownership",
+    finalScopedWrite:
+      "db.createGeneratedVisualForOrg + db.createProjectAssetForOrg + db.updateGeneratedVisualForOrg",
+    integrationTestName:
+      "scopes project assets and generated visuals through project ownership",
   },
   "design.linkAsset": {
     finalScopedWrite: "db.createAssetLinkForOrg",
-    integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",
+    integrationTestName:
+      "validates all polymorphic link targets, typed comments and evidence isolation",
   },
   "design.pinVisualToBoard": {
     finalScopedWrite: "db.createAssetLinkForOrg",
-    integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",
+    integrationTestName:
+      "validates all polymorphic link targets, typed comments and evidence isolation",
   },
   "design.removeMaterialFromBoard": {
     finalScopedWrite: "db.removeMaterialFromBoardForOrg",
-    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+    integrationTestName:
+      "creates and rolls back scenario-bound boards atomically",
   },
   "design.reorderBoardTiles": {
     finalScopedWrite: "db.reorderBoardTilesForOrg",
-    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+    integrationTestName:
+      "creates and rolls back scenario-bound boards atomically",
   },
   "design.unpinVisual": {
     finalScopedWrite: "db.deleteAssetLinkForOrg",
-    integrationTestName: "validates all polymorphic link targets, typed comments and evidence isolation",
+    integrationTestName:
+      "validates all polymorphic link targets, typed comments and evidence isolation",
   },
   "design.updateApprovalState": {
     finalScopedWrite: "db.updateProjectApprovalStateForOrg",
-    integrationTestName: "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
+    integrationTestName:
+      "keeps brief, RFQ, floor-plan, approval and share writes scoped and atomic",
   },
   "design.updateAsset": {
     finalScopedWrite: "db.updateProjectAssetForOrg",
-    integrationTestName: "scopes project assets and generated visuals through project ownership",
+    integrationTestName:
+      "scopes project assets and generated visuals through project ownership",
   },
   "design.updateBoardTile": {
     finalScopedWrite: "db.updateBoardTileForOrg",
-    integrationTestName: "creates and rolls back scenario-bound boards atomically",
+    integrationTestName:
+      "creates and rolls back scenario-bound boards atomically",
   },
   "design.uploadAsset": {
     finalScopedWrite: "db.createProjectAssetForOrg",
-    integrationTestName: "scopes project assets and generated visuals through project ownership",
+    integrationTestName:
+      "scopes project assets and generated visuals through project ownership",
   },
   "design.uploadFloorPlan": {
     finalScopedWrite: "db.createFloorPlanAssetAndLinkForOrg",
-    integrationTestName: "rolls back board, RFQ and floor-plan transactions after late SQL failures",
+    integrationTestName:
+      "rolls back board, RFQ and floor-plan transactions after late SQL failures",
   },
   "portfolio.checkAlerts": {
     finalScopedWrite: "db.insertPortfolioAlertsForOrg",
-    integrationTestName: "keeps tenant portfolio alerts organization scoped and deduplicated",
+    integrationTestName:
+      "keeps tenant portfolio alerts organization scoped and deduplicated",
   },
   "project.generateReport": {
     finalScopedWrite: "db.createReportArtifactsForOrg",
-    integrationTestName: "persists report artifacts atomically and rechecks project ownership",
+    integrationTestName:
+      "persists report artifacts atomically and rechecks project ownership",
   },
 };
 
@@ -296,6 +323,10 @@ const OWNERSHIP_PATHS: Record<string, string> = {
     "input.roomId -> space_program_rooms.id -> space_program_rooms.projectId/organizationId",
   roomIds:
     "input.roomIds[] -> space_program_rooms.id -> space_program_rooms.projectId/organizationId",
+  geometryVersionId:
+    "input.geometryVersionId -> spatial_graph_versions.id -> spatial_graph_versions.projectId/organizationId",
+  expectedCurrentVersionId:
+    "input.expectedCurrentVersionId -> project_geometry_authorities.currentGraphVersionId -> spatial_graph_versions.projectId/organizationId",
   alertId:
     "input.alertId -> bias_alerts/platform_alerts.id -> projectId/orgId when project-owned",
   alertIds:
@@ -870,7 +901,9 @@ function defaultAnnotation(
   const hasOrgScopedPredicate =
     /eq\([^,]*(orgId|organizationId),\s*ctx\.(orgId|user\.orgId)\)/s.test(text);
   const hasOrgScopedHelper =
-    /\b(?:[A-Za-z][A-Za-z0-9]*(?:ByOrg|ForOrg)|(?:listOrganization|insertOrganization)[A-Za-z0-9]*)\s*\([^)]*ctx\.orgId/s.test(text);
+    /\b(?:[A-Za-z][A-Za-z0-9]*(?:ByOrg|ForOrg)|(?:listOrganization|insertOrganization)[A-Za-z0-9]*)\s*\([^)]*ctx\.orgId/s.test(
+      text
+    );
   const hasOrgScopedInsert =
     /\b(orgId|organizationId)\s*:\s*ctx\.(orgId|user\.orgId)\b/.test(text);
 
@@ -916,9 +949,7 @@ function defaultAnnotation(
     "seed.seedEvidence",
   ]);
 
-  const intentionallyDisabledKeys = new Set([
-    "design.attachVisualToPack",
-  ]);
+  const intentionallyDisabledKeys = new Set(["design.attachVisualToPack"]);
 
   let classification: Classification;
   if (
@@ -930,7 +961,10 @@ function defaultAnnotation(
     classification = "global_governed";
   } else if (procedure.accessPrimitive === "adminProcedure") {
     classification = relevant ? "unsafe" : "admin_governed";
-  } else if (procedure.accessPrimitive === "publicProcedure" || procedure.accessPrimitive === "publicRateLimitedProcedure") {
+  } else if (
+    procedure.accessPrimitive === "publicProcedure" ||
+    procedure.accessPrimitive === "publicRateLimitedProcedure"
+  ) {
     classification = /\b(token|shareToken|expiresAt|shareExpiresAt)\b/.test(
       text
     )
@@ -1124,17 +1158,16 @@ async function requireReclassificationAcknowledgement(
     inventory.procedures.map(procedure => [procedure.key, procedure])
   );
   const removed = committed.procedures
-    .filter(previous =>
-      previous.targetStep !== "none" &&
-      currentByKey.get(previous.key)?.targetStep === "none"
+    .filter(
+      previous =>
+        previous.targetStep !== "none" &&
+        currentByKey.get(previous.key)?.targetStep === "none"
     )
     .map(procedure => procedure.key)
     .sort();
   if (removed.length === 0) return;
 
-  const ack = JSON.parse(
-    await readFile(RECLASSIFICATION_ACK_PATH, "utf8")
-  ) as {
+  const ack = JSON.parse(await readFile(RECLASSIFICATION_ACK_PATH, "utf8")) as {
     taskId?: string;
     removedTargetStep?: string;
     keyCount?: number;
@@ -1160,13 +1193,16 @@ async function validateMysqlEvidence(): Promise<{
 }> {
   const errors: string[] = [];
   try {
-    const evidence = JSON.parse(await readFile(MYSQL_EVIDENCE_PATH, "utf8")) as {
+    const evidence = JSON.parse(
+      await readFile(MYSQL_EVIDENCE_PATH, "utf8")
+    ) as {
       status?: string;
       testFile?: string;
       cleanupVerified?: boolean;
       fileHashes?: Record<string, string>;
     };
-    if (evidence.status !== "PASS") errors.push("MySQL evidence status is not PASS");
+    if (evidence.status !== "PASS")
+      errors.push("MySQL evidence status is not PASS");
     if (evidence.testFile !== MYSQL_INTEGRATION_TEST) {
       errors.push("MySQL evidence test-file identity is invalid");
     }
@@ -1249,11 +1285,9 @@ function validateInventory(
     }
     if (
       procedure.integrationEvidenceStatus !== "not_applicable" &&
-      (
-        !procedure.finalScopedWrite ||
+      (!procedure.finalScopedWrite ||
         !procedure.integrationTest ||
-        !procedure.integrationTestName
-      )
+        !procedure.integrationTestName)
     ) {
       errors.push(`Incomplete scoped-write evidence: ${procedure.key}`);
     }
@@ -1425,10 +1459,15 @@ async function validateIntegrationEvidence(
     let source = sourceCache.get(procedure.integrationTest);
     if (source === undefined) {
       try {
-        source = await readFile(path.join(ROOT, procedure.integrationTest), "utf8");
+        source = await readFile(
+          path.join(ROOT, procedure.integrationTest),
+          "utf8"
+        );
         sourceCache.set(procedure.integrationTest, source);
       } catch {
-        errors.push(`Missing integration test file: ${procedure.integrationTest}`);
+        errors.push(
+          `Missing integration test file: ${procedure.integrationTest}`
+        );
         continue;
       }
     }
@@ -1612,7 +1651,7 @@ async function main() {
   );
   const errors = [
     ...validateInventory(extracted, inventory),
-    ...await validateIntegrationEvidence(inventory),
+    ...(await validateIntegrationEvidence(inventory)),
     ...(hasExecutedRows && !mysqlEvidence.valid ? mysqlEvidence.errors : []),
   ];
   for (const row of inventory.procedures.filter(row => row.integrationTest)) {

@@ -425,7 +425,12 @@ function ProjectDetailContent() {
   const { data: intelligenceData } = trpc.project.intelligence.useQuery({ projectId });
   const { data: spaceBenchmark } = trpc.design.getSpaceBenchmark.useQuery(
     { projectId },
-    { enabled: workspaceSection === "design" && activeTab === "spaceProgram" },
+    {
+      enabled:
+        workspaceSection === "design" &&
+        activeTab === "spaceProgram" &&
+        Boolean(project?.floorPlanAnalysis),
+    },
   );
   const latestSpaceSnapshot = (scores?.[0] as any)?.inputSnapshot as any;
   const savedSpaceEvidence = latestSpaceSnapshot?.spaceEfficiencyEvidence;

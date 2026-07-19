@@ -79,6 +79,13 @@ import {
   materialSupplierSources,
   spaceProgramRooms,
   amenitySubSpaces,
+  projectGeometryAuthorities,
+  spatialGraphVersions,
+  spaceIdentities,
+  spaceVersions,
+  geometrySources,
+  measurementRecords,
+  geometryReconciliationEvents,
   monteCarloSimulations,
   scenarioStressTests,
   riskSurfaceMaps,
@@ -91,6 +98,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { assertDatabaseAccess, DatabaseSafetyError } from "./_core/database-safety";
+import type { CanonicalGeometryResult } from "../shared/geometry";
 
 let _db: MySql2Database | null = null;
 
@@ -268,6 +276,78 @@ export async function updateProjectForOrg(id: number, orgId: number, data: Parti
   if (!db) throw new Error("DB not available");
   const result = await db.update(projects).set(data).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
   return Number(result[0].affectedRows) === 1;
+}
+
+export type LegacyGeometryProjectWriteResult =
+  | "updated"
+  | "not_found"
+  | "canonical";
+
+async function lockLegacyGeometryProjectForOrg(
+  tx: any,
+  projectId: number,
+  organizationId: number
+): Promise<Exclude<LegacyGeometryProjectWriteResult, "updated"> | "legacy"> {
+  const ownedProject = await tx
+    .select({ id: projects.id })
+    .from(projects)
+    .where(
+      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+    )
+    .limit(1)
+    .for("update");
+  if (ownedProject.length !== 1) return "not_found";
+
+  const authority = await tx
+    .select({ mode: projectGeometryAuthorities.mode })
+    .from(projectGeometryAuthorities)
+    .where(
+      and(
+        eq(projectGeometryAuthorities.organizationId, organizationId),
+        eq(projectGeometryAuthorities.projectId, projectId)
+      )
+    )
+    .limit(1)
+    .for("update");
+  return authority[0]?.mode === "canonical" ? "canonical" : "legacy";
+}
+
+/**
+ * Final write boundary for legacy project geometry/area fields. The project and
+ * its authority row are locked in the same transaction as the update so a
+ * canonical transition cannot race a route-level compatibility check.
+ */
+export async function updateProjectWithLegacyGeometryAuthorityForOrg(
+  projectId: number,
+  organizationId: number,
+  data: Partial<typeof projects.$inferInsert>
+): Promise<LegacyGeometryProjectWriteResult> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const authority = await lockLegacyGeometryProjectForOrg(
+      tx,
+      projectId,
+      organizationId
+    );
+    if (authority !== "legacy") return authority;
+    const result = await tx
+      .update(projects)
+      .set(data)
+      .where(
+        and(
+          eq(projects.id, projectId),
+          eq(projects.orgId, organizationId),
+          sql`not exists (
+            select 1 from ${projectGeometryAuthorities}
+            where ${projectGeometryAuthorities.organizationId} = ${organizationId}
+              and ${projectGeometryAuthorities.projectId} = ${projectId}
+              and ${projectGeometryAuthorities.mode} = 'canonical'
+          )`
+        )
+      );
+    return Number(result[0].affectedRows) === 1 ? "updated" : "canonical";
+  });
 }
 
 export async function deleteProject(id: number) {
@@ -4429,6 +4509,15 @@ export async function verifyPdfExtractionForOrg(
       .limit(1)
       .for("update");
     if (extraction.length !== 1) return false;
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode })
+      .from(projectGeometryAuthorities)
+      .where(and(
+        eq(projectGeometryAuthorities.organizationId, orgId),
+        eq(projectGeometryAuthorities.projectId, projectId)
+      ))
+      .limit(1)
+      .for("update");
+    if (authority[0]?.mode === "canonical") return false;
     await tx.update(pdfExtractions).set({
       status: "verified",
       verifiedBy: userId,
@@ -4459,15 +4548,16 @@ export async function updateProjectVerificationForOrg(
   orgId: number,
   data: { fitoutAreaVerified?: boolean; totalFitoutArea?: number }
 ) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
   const updates: any = {};
   if (data.fitoutAreaVerified !== undefined) updates.fitoutAreaVerified = data.fitoutAreaVerified;
   if (data.totalFitoutArea !== undefined) updates.totalFitoutArea = String(data.totalFitoutArea);
-  const result = await db.update(projects)
-    .set(updates)
-    .where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
-  return Number(result[0].affectedRows) === 1;
+  return (
+    (await updateProjectWithLegacyGeometryAuthorityForOrg(
+      projectId,
+      orgId,
+      updates
+    )) === "updated"
+  );
 }
 
 // ─── MIYAR 3.0 Phase A — Material Quantity Intelligence ────────────────────
@@ -4702,6 +4792,15 @@ export async function insertSpaceProgramRoomForOrg(
       project.length !== 1 ||
       data.organizationId !== organizationId
     ) return false;
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode })
+      .from(projectGeometryAuthorities)
+      .where(and(
+        eq(projectGeometryAuthorities.organizationId, organizationId),
+        eq(projectGeometryAuthorities.projectId, data.projectId)
+      ))
+      .limit(1)
+      .for("update");
+    if (authority[0]?.mode === "canonical") return false;
     await tx.insert(spaceProgramRooms).values(data);
     return true;
   });
@@ -4750,7 +4849,13 @@ export async function updateSpaceProgramRoomForOrg(
     .set(data as any)
     .where(and(
       eq(spaceProgramRooms.id, id),
-      eq(spaceProgramRooms.organizationId, organizationId)
+      eq(spaceProgramRooms.organizationId, organizationId),
+      sql`not exists (
+        select 1 from ${projectGeometryAuthorities}
+        where ${projectGeometryAuthorities.organizationId} = ${organizationId}
+          and ${projectGeometryAuthorities.projectId} = ${spaceProgramRooms.projectId}
+          and ${projectGeometryAuthorities.mode} = 'canonical'
+      )`
     ));
   return Number(result[0].affectedRows) === 1;
 }
@@ -4779,6 +4884,17 @@ export async function deleteSpaceProgramRoomForOrg(
       .limit(1)
       .for("update");
     if (rows.length !== 1) return false;
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode })
+      .from(projectGeometryAuthorities)
+      .innerJoin(spaceProgramRooms, and(
+        eq(spaceProgramRooms.id, id),
+        eq(spaceProgramRooms.projectId, projectGeometryAuthorities.projectId),
+        eq(spaceProgramRooms.organizationId, projectGeometryAuthorities.organizationId)
+      ))
+      .where(eq(projectGeometryAuthorities.organizationId, organizationId))
+      .limit(1)
+      .for("update");
+    if (authority[0]?.mode === "canonical") return false;
     await tx.delete(amenitySubSpaces)
       .where(eq(amenitySubSpaces.spaceProgramRoomId, id));
     const result = await tx.delete(spaceProgramRooms)
@@ -4826,6 +4942,16 @@ export async function replaceSpaceProgramRoomsForOrg(
       .limit(1)
       .for("update");
     if (project.length !== 1) return null;
+
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode })
+      .from(projectGeometryAuthorities)
+      .where(and(
+        eq(projectGeometryAuthorities.organizationId, organizationId),
+        eq(projectGeometryAuthorities.projectId, projectId)
+      ))
+      .limit(1)
+      .for("update");
+    if (authority[0]?.mode === "canonical") return null;
 
     const deleteConditions = [
       eq(spaceProgramRooms.projectId, projectId),
@@ -4956,40 +5082,716 @@ export async function resetSpaceProgramRooms(
 ) {
   const db = await getDb();
   if (!db) return;
+  return db.transaction(async (tx: any) => {
+    const authority = await lockLegacyGeometryProjectForOrg(
+      tx,
+      projectId,
+      organizationId
+    );
+    if (authority === "not_found") return false;
+    if (authority === "canonical") {
+      throw new Error(
+        "Legacy room and area values are read-only while canonical geometry is authoritative."
+      );
+    }
 
-  if (preserveOverridden) {
-    // Only delete rooms where fitOutOverridden = false (developer hasn't manually toggled)
-    // First, clean up amenity sub-spaces for non-overridden rooms
-    const nonOverridden = await db.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms)
-      .where(and(
-        eq(spaceProgramRooms.projectId, projectId),
-        eq(spaceProgramRooms.organizationId, organizationId),
-        eq(spaceProgramRooms.fitOutOverridden, false)
-      ));
-    const idsToDelete = nonOverridden.map((r: { id: number }) => r.id);
-    if (idsToDelete.length > 0) {
-      for (const roomId of idsToDelete) {
-        await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, roomId));
-      }
-      await db.delete(spaceProgramRooms).where(and(
-        eq(spaceProgramRooms.projectId, projectId),
-        eq(spaceProgramRooms.organizationId, organizationId),
-        eq(spaceProgramRooms.fitOutOverridden, false)
-      ));
-    }
-  } else {
-    // Full wipe — delete all rooms and sub-spaces for this project
-    const allRooms = await db.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms)
-      .where(and(
-        eq(spaceProgramRooms.projectId, projectId),
-        eq(spaceProgramRooms.organizationId, organizationId)
-      ));
-    for (const room of allRooms) {
-      await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, room.id));
-    }
-    await db.delete(spaceProgramRooms).where(and(
+    const conditions = [
       eq(spaceProgramRooms.projectId, projectId),
-      eq(spaceProgramRooms.organizationId, organizationId)
-    ));
+      eq(spaceProgramRooms.organizationId, organizationId),
+    ];
+    if (preserveOverridden) {
+      conditions.push(eq(spaceProgramRooms.fitOutOverridden, false));
+    }
+    const deleting = await tx
+      .select({ id: spaceProgramRooms.id })
+      .from(spaceProgramRooms)
+      .where(and(...conditions))
+      .for("update");
+    const idsToDelete = deleting.map((room: { id: number }) => room.id);
+    if (idsToDelete.length > 0) {
+      await tx
+        .delete(amenitySubSpaces)
+        .where(inArray(amenitySubSpaces.spaceProgramRoomId, idsToDelete));
+      await tx.delete(spaceProgramRooms).where(and(...conditions));
+    }
+    return true;
+  });
+}
+
+// ─── DI-01 — Canonical geometry shadow persistence ─────────────────────────
+
+export type GeometryAuthorityMode = "legacy" | "shadow" | "canonical";
+
+export interface ShadowGeometryRoomMetadata {
+  spaceId: string;
+  roomName?: string;
+  roomCode?: string | null;
+  category?: string;
+  levelId?: string;
+  zoneId?: string | null;
+}
+
+export interface CommitShadowGeometryInput {
+  organizationId: number;
+  projectId: number;
+  userId: number;
+  expectedCurrentVersionId: number | null;
+  canonical: CanonicalGeometryResult;
+  rooms: ShadowGeometryRoomMetadata[];
+  source: {
+    sourceType: "manual" | "project_asset";
+    acquisitionMethod: "manual_entry" | "dxf";
+    assetId?: number | null;
+    sourceUnits: "m" | "mm";
+    sourceChecksum: string;
+    assetChecksum?: string | null;
+    adapterName: string;
+    adapterVersion: string;
+    sourceObservation: unknown;
+    sourceTransform: unknown;
+    idempotencyKey: string;
+  };
+}
+
+function scopedNullableIdCondition(column: any, value: number | null) {
+  return value === null ? isNull(column) : eq(column, value);
+}
+
+function geometryContentFingerprint(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function area2ToDecimal12(value: bigint): string {
+  const trillion = BigInt(1_000_000_000_000);
+  // An area2 quantum is 0.5 square micrometres. Round that final half unit
+  // away from zero for the non-authoritative DECIMAL query projection.
+  const trillionths = (value + BigInt(1)) / BigInt(2);
+  const whole = trillionths / trillion;
+  const fraction = (trillionths % trillion).toString().padStart(12, "0");
+  return `${whole.toString()}.${fraction}`;
+}
+
+class ShadowGeometryCasRollback extends Error {
+  constructor(readonly currentGraphVersionId: number | null) {
+    super("Shadow geometry compare-and-swap failed");
   }
+}
+
+export async function getProjectGeometryAuthorityForOrg(
+  projectId: number,
+  organizationId: number
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(projectGeometryAuthorities)
+    .where(
+      and(
+        eq(projectGeometryAuthorities.projectId, projectId),
+        eq(projectGeometryAuthorities.organizationId, organizationId)
+      )
+    )
+    .limit(1);
+  return rows[0];
+}
+
+export async function getProjectGeometryAuthorityModeForOrg(
+  projectId: number,
+  organizationId: number
+): Promise<GeometryAuthorityMode> {
+  const authority = await getProjectGeometryAuthorityForOrg(
+    projectId,
+    organizationId
+  );
+  return authority?.mode ?? "legacy";
+}
+
+export async function commitShadowGeometryForOrg(
+  input: CommitShadowGeometryInput
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  try {
+    return await db.transaction(async (tx: any) => {
+      const ownedProjects = await tx
+        .select({ id: projects.id })
+        .from(projects)
+        .where(
+          and(
+            eq(projects.id, input.projectId),
+            eq(projects.orgId, input.organizationId)
+          )
+        )
+        .limit(1)
+        .for("update");
+      if (ownedProjects.length !== 1) return { kind: "not_found" as const };
+
+      if (input.source.assetId != null) {
+        const assets = await tx
+          .select({ id: projectAssets.id, checksum: projectAssets.checksum })
+          .from(projectAssets)
+          .where(
+            and(
+              eq(projectAssets.id, input.source.assetId),
+              eq(projectAssets.projectId, input.projectId)
+            )
+          )
+          .limit(1)
+          .for("update");
+        if (
+          assets.length !== 1 ||
+          !input.source.assetChecksum ||
+          assets[0].checksum !== input.source.assetChecksum
+        ) {
+          return { kind: "not_found" as const };
+        }
+      }
+
+      const replaySources = await tx
+        .select({ id: geometrySources.id })
+        .from(geometrySources)
+        .where(
+          and(
+            eq(geometrySources.organizationId, input.organizationId),
+            eq(geometrySources.projectId, input.projectId),
+            eq(geometrySources.idempotencyKey, input.source.idempotencyKey)
+          )
+        )
+        .limit(1)
+        .for("update");
+      let replayGraph: typeof spatialGraphVersions.$inferSelect | undefined;
+      if (replaySources[0]) {
+        const replayGraphs = await tx
+          .select()
+          .from(spatialGraphVersions)
+          .where(
+            and(
+              eq(spatialGraphVersions.organizationId, input.organizationId),
+              eq(spatialGraphVersions.projectId, input.projectId),
+              eq(spatialGraphVersions.geometrySourceId, replaySources[0].id)
+            )
+          )
+          .limit(1);
+        replayGraph = replayGraphs[0];
+      }
+
+      let authorityRows = await tx
+        .select()
+        .from(projectGeometryAuthorities)
+        .where(
+          and(
+            eq(projectGeometryAuthorities.organizationId, input.organizationId),
+            eq(projectGeometryAuthorities.projectId, input.projectId)
+          )
+        )
+        .limit(1)
+        .for("update");
+      if (!authorityRows[0]) {
+        if (input.expectedCurrentVersionId !== null) {
+          return { kind: "conflict" as const, currentGraphVersionId: null };
+        }
+        const inserted = await tx.insert(projectGeometryAuthorities).values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          mode: "shadow",
+          currentGraphVersionId: null,
+          selectedGeometryVersionId: null,
+          revision: 0,
+          updatedBy: input.userId,
+        });
+        authorityRows = await tx
+          .select()
+          .from(projectGeometryAuthorities)
+          .where(
+            and(
+              eq(projectGeometryAuthorities.id, Number(inserted[0].insertId)),
+              eq(
+                projectGeometryAuthorities.organizationId,
+                input.organizationId
+              ),
+              eq(projectGeometryAuthorities.projectId, input.projectId)
+            )
+          )
+          .limit(1)
+          .for("update");
+      }
+      const authority = authorityRows[0];
+      if (!authority) return { kind: "not_found" as const };
+      if (authority.mode === "canonical") {
+        return { kind: "canonical" as const };
+      }
+      if (authority.currentGraphVersionId !== input.expectedCurrentVersionId) {
+        return {
+          kind: "conflict" as const,
+          currentGraphVersionId: authority.currentGraphVersionId,
+        };
+      }
+      if (replaySources[0] && replayGraph) {
+        return {
+          kind: "ok" as const,
+          replayed: true,
+          graphVersionId: replayGraph.id,
+          geometrySourceId: replaySources[0].id,
+          fingerprint: replayGraph.fingerprint,
+        };
+      }
+
+      const sourceInsert = await tx.insert(geometrySources).values({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        assetId: input.source.assetId ?? null,
+        sourceType: input.source.sourceType,
+        acquisitionMethod: input.source.acquisitionMethod,
+        evidenceClass: "source_stated",
+        adapterName: input.source.adapterName,
+        adapterVersion: input.source.adapterVersion,
+        sourceUnits: input.source.sourceUnits,
+        sourceReferenceFrame: input.canonical.geometry.referenceFrame,
+        sourceTransform: input.source.sourceTransform,
+        sourceObservation: input.source.sourceObservation,
+        schemaVersion: input.canonical.geometry.schemaVersion,
+        canonicalizerVersion: input.canonical.geometry.canonicalizerVersion,
+        tolerancePolicyVersion: input.canonical.geometry.tolerancePolicyVersion,
+        sourceChecksum: input.source.sourceChecksum,
+        assetChecksum: input.source.assetChecksum ?? null,
+        idempotencyKey: input.source.idempotencyKey,
+        createdBy: input.userId,
+      });
+      const geometrySourceId = Number(sourceInsert[0].insertId);
+
+      const previousGraph = authority.currentGraphVersionId
+        ? (
+            await tx
+              .select()
+              .from(spatialGraphVersions)
+              .where(
+                and(
+                  eq(spatialGraphVersions.id, authority.currentGraphVersionId),
+                  eq(spatialGraphVersions.organizationId, input.organizationId),
+                  eq(spatialGraphVersions.projectId, input.projectId)
+                )
+              )
+              .limit(1)
+          )[0]
+        : undefined;
+      if (authority.currentGraphVersionId && !previousGraph) {
+        throw new ShadowGeometryCasRollback(authority.currentGraphVersionId);
+      }
+
+      const totalArea2 = input.canonical.geometry.rooms.reduce(
+        (total, room) => total + BigInt(room.areaSquareMicrometresTwice),
+        BigInt(0)
+      );
+      const graphId =
+        previousGraph?.graphId ??
+        createHash("sha256")
+          .update(`MIYAR_GRAPH_V1\0${input.organizationId}\0${input.projectId}`)
+          .digest("hex");
+      const graphInsert = await tx.insert(spatialGraphVersions).values({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        graphId,
+        version: (previousGraph?.version ?? 0) + 1,
+        parentGraphVersionId: previousGraph?.id ?? null,
+        geometrySourceId,
+        status: "candidate",
+        canonicalGeometry: input.canonical.geometry,
+        canonicalJsonSizeBytes: Buffer.byteLength(
+          input.canonical.canonicalJson
+        ),
+        totalAreaSquareMetres: area2ToDecimal12(totalArea2),
+        totalAreaSquareMicrometresTwice: totalArea2.toString(),
+        schemaVersion: input.canonical.geometry.schemaVersion,
+        canonicalizerVersion: input.canonical.geometry.canonicalizerVersion,
+        tolerancePolicyVersion: input.canonical.geometry.tolerancePolicyVersion,
+        referenceFrame: input.canonical.geometry.referenceFrame,
+        fingerprintAlgorithm: input.canonical.fingerprint.algorithm,
+        fingerprintDomain: input.canonical.fingerprint.domain,
+        fingerprint: input.canonical.fingerprint.value,
+        createdBy: input.userId,
+      });
+      const graphVersionId = Number(graphInsert[0].insertId);
+
+      const metadataBySpace = new Map(
+        input.rooms.map(room => [room.spaceId, room] as const)
+      );
+      const createdMeasurementIds: number[] = [];
+      for (const room of input.canonical.geometry.rooms) {
+        let identities = await tx
+          .select()
+          .from(spaceIdentities)
+          .where(
+            and(
+              eq(spaceIdentities.organizationId, input.organizationId),
+              eq(spaceIdentities.projectId, input.projectId),
+              eq(spaceIdentities.publicId, room.spaceId)
+            )
+          )
+          .limit(1)
+          .for("update");
+        if (!identities[0]) {
+          const identityInsert = await tx.insert(spaceIdentities).values({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            publicId: room.spaceId,
+            initialGraphId: graphId,
+            lifecycleState: "active",
+            createdBy: input.userId,
+          });
+          identities = await tx
+            .select()
+            .from(spaceIdentities)
+            .where(
+              and(
+                eq(spaceIdentities.id, Number(identityInsert[0].insertId)),
+                eq(spaceIdentities.organizationId, input.organizationId),
+                eq(spaceIdentities.projectId, input.projectId)
+              )
+            )
+            .limit(1);
+        }
+        const identity = identities[0];
+        if (!identity) throw new Error("Scoped space identity insert was lost");
+
+        const priorVersions = await tx
+          .select({ id: spaceVersions.id, version: spaceVersions.version })
+          .from(spaceVersions)
+          .where(
+            and(
+              eq(spaceVersions.organizationId, input.organizationId),
+              eq(spaceVersions.projectId, input.projectId),
+              eq(spaceVersions.spaceIdentityId, identity.id)
+            )
+          )
+          .orderBy(desc(spaceVersions.version))
+          .limit(1);
+        const metadata = metadataBySpace.get(room.spaceId);
+        const versionContent = {
+          room,
+          roomName: metadata?.roomName ?? room.spaceId,
+          roomCode: metadata?.roomCode ?? null,
+          category: metadata?.category ?? "other",
+          levelId:
+            metadata?.levelId ?? `elevation:${room.levelElevationMicrometres}`,
+          zoneId: metadata?.zoneId ?? null,
+        };
+        const spaceVersionInsert = await tx.insert(spaceVersions).values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          spaceIdentityId: identity.id,
+          geometryVersionId: graphVersionId,
+          version: (priorVersions[0]?.version ?? 0) + 1,
+          roomCode: versionContent.roomCode,
+          roomName: versionContent.roomName,
+          category: versionContent.category,
+          levelId: versionContent.levelId,
+          zoneId: versionContent.zoneId,
+          containment: { geometry: room },
+          contentFingerprint: geometryContentFingerprint(versionContent),
+          supersedesSpaceVersionId: priorVersions[0]?.id ?? null,
+          supersessionKind: priorVersions[0] ? "revision" : null,
+          createdBy: input.userId,
+        });
+        const spaceVersionId = Number(spaceVersionInsert[0].insertId);
+
+        const measurementContent = {
+          basis: input.canonical.geometry.measurementBasis,
+          exactArea2: room.areaSquareMicrometresTwice,
+          graphVersionId,
+          spaceVersionId,
+          geometrySourceId,
+        };
+        const measurementInsert = await tx.insert(measurementRecords).values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          spaceIdentityId: identity.id,
+          spaceVersionId,
+          graphVersionId,
+          geometrySourceId,
+          recordKind: "derivation",
+          measurementBasis: input.canonical.geometry.measurementBasis,
+          authorityVersion: input.canonical.geometry.schemaVersion,
+          normalizedValue: area2ToDecimal12(
+            BigInt(room.areaSquareMicrometresTwice)
+          ),
+          normalizedValueExact: room.areaSquareMicrometresTwice,
+          normalizedUnit: "m2",
+          acquisitionMethod: input.source.acquisitionMethod,
+          evidenceClass: "geometry_derived",
+          reviewState: "unreviewed",
+          resultState: "valid",
+          formulaVersion: input.canonical.geometry.canonicalizerVersion,
+          sourceIdentity: {
+            geometrySourceId,
+            graphVersionId,
+            geometryFingerprint: input.canonical.fingerprint.value,
+          },
+          contentFingerprint: geometryContentFingerprint(measurementContent),
+          createdBy: input.userId,
+        });
+        createdMeasurementIds.push(Number(measurementInsert[0].insertId));
+      }
+
+      const casResult = await tx
+        .update(projectGeometryAuthorities)
+        .set({
+          mode: "shadow",
+          currentGraphVersionId: graphVersionId,
+          revision: sql`${projectGeometryAuthorities.revision} + 1`,
+          updatedBy: input.userId,
+        })
+        .where(
+          and(
+            eq(projectGeometryAuthorities.id, authority.id),
+            eq(projectGeometryAuthorities.organizationId, input.organizationId),
+            eq(projectGeometryAuthorities.projectId, input.projectId),
+            scopedNullableIdCondition(
+              projectGeometryAuthorities.currentGraphVersionId,
+              input.expectedCurrentVersionId
+            )
+          )
+        );
+      if (Number(casResult[0].affectedRows) !== 1) {
+        throw new ShadowGeometryCasRollback(authority.currentGraphVersionId);
+      }
+
+      await tx.insert(geometryReconciliationEvents).values({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        authorityId: authority.id,
+        expectedCurrentGraphVersionId: input.expectedCurrentVersionId,
+        baseGraphVersionId: authority.currentGraphVersionId,
+        candidateGraphVersionId: graphVersionId,
+        resultGraphVersionId: null,
+        candidateMeasurementRecordId: createdMeasurementIds[0] ?? null,
+        baseFingerprint: previousGraph?.fingerprint ?? null,
+        candidateFingerprint: input.canonical.fingerprint.value,
+        tolerancePolicyVersion: input.canonical.geometry.tolerancePolicyVersion,
+        reviewDecision: "candidate_created",
+        resultState: "not_checked",
+        note: "Shadow geometry candidate created; legacy numerical authority retained.",
+        reviewerId: input.userId,
+      });
+
+      return {
+        kind: "ok" as const,
+        replayed: false,
+        graphVersionId,
+        geometrySourceId,
+        fingerprint: input.canonical.fingerprint.value,
+      };
+    });
+  } catch (error) {
+    if (error instanceof ShadowGeometryCasRollback) {
+      return {
+        kind: "conflict" as const,
+        currentGraphVersionId: error.currentGraphVersionId,
+      };
+    }
+    throw error;
+  }
+}
+
+export async function reviewShadowGeometryForOrg(input: {
+  organizationId: number;
+  projectId: number;
+  userId: number;
+  geometryVersionId: number;
+  expectedCurrentVersionId: number | null;
+  decision: "accepted" | "rejected" | "clarification_requested";
+  note?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx: any) => {
+    const projectsFound = await tx
+      .select({ id: projects.id })
+      .from(projects)
+      .where(
+        and(
+          eq(projects.id, input.projectId),
+          eq(projects.orgId, input.organizationId)
+        )
+      )
+      .limit(1)
+      .for("update");
+    if (projectsFound.length !== 1) return { kind: "not_found" as const };
+
+    const authorities = await tx
+      .select()
+      .from(projectGeometryAuthorities)
+      .where(
+        and(
+          eq(projectGeometryAuthorities.organizationId, input.organizationId),
+          eq(projectGeometryAuthorities.projectId, input.projectId)
+        )
+      )
+      .limit(1)
+      .for("update");
+    const authority = authorities[0];
+    if (!authority) return { kind: "not_found" as const };
+    if (
+      authority.currentGraphVersionId !== input.expectedCurrentVersionId ||
+      authority.currentGraphVersionId !== input.geometryVersionId
+    ) {
+      return {
+        kind: "conflict" as const,
+        currentGraphVersionId: authority.currentGraphVersionId,
+      };
+    }
+
+    const candidates = await tx
+      .select()
+      .from(spatialGraphVersions)
+      .where(
+        and(
+          eq(spatialGraphVersions.id, input.geometryVersionId),
+          eq(spatialGraphVersions.organizationId, input.organizationId),
+          eq(spatialGraphVersions.projectId, input.projectId)
+        )
+      )
+      .limit(1);
+    const candidate = candidates[0];
+    if (!candidate) return { kind: "not_found" as const };
+
+    const reviewDecision =
+      input.decision === "clarification_requested"
+        ? "needs_clarification"
+        : input.decision;
+    const selectedGeometryVersionId =
+      input.decision === "accepted"
+        ? input.geometryVersionId
+        : authority.selectedGeometryVersionId === input.geometryVersionId
+          ? null
+          : authority.selectedGeometryVersionId;
+    const result = await tx
+      .update(projectGeometryAuthorities)
+      .set({
+        selectedGeometryVersionId,
+        revision: sql`${projectGeometryAuthorities.revision} + 1`,
+        updatedBy: input.userId,
+      })
+      .where(
+        and(
+          eq(projectGeometryAuthorities.id, authority.id),
+          eq(projectGeometryAuthorities.organizationId, input.organizationId),
+          eq(projectGeometryAuthorities.projectId, input.projectId),
+          scopedNullableIdCondition(
+            projectGeometryAuthorities.currentGraphVersionId,
+            input.expectedCurrentVersionId
+          )
+        )
+      );
+    if (Number(result[0].affectedRows) !== 1) {
+      return { kind: "conflict" as const, currentGraphVersionId: null };
+    }
+
+    await tx.insert(geometryReconciliationEvents).values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      authorityId: authority.id,
+      expectedCurrentGraphVersionId: input.expectedCurrentVersionId,
+      baseGraphVersionId: authority.selectedGeometryVersionId,
+      candidateGraphVersionId: input.geometryVersionId,
+      resultGraphVersionId:
+        input.decision === "accepted" ? input.geometryVersionId : null,
+      candidateFingerprint: candidate.fingerprint,
+      tolerancePolicyVersion: candidate.tolerancePolicyVersion,
+      reviewDecision,
+      resultState:
+        input.decision === "accepted"
+          ? "valid"
+          : input.decision === "rejected"
+            ? "conflict"
+            : "insufficient",
+      note: input.note?.trim() || `Shadow candidate ${reviewDecision}.`,
+      reviewerId: input.userId,
+    });
+    return {
+      kind: "ok" as const,
+      currentGraphVersionId: authority.currentGraphVersionId,
+      selectedGeometryVersionId,
+      decision: input.decision,
+    };
+  });
+}
+
+export async function getGeometryComparisonForOrg(
+  projectId: number,
+  organizationId: number
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const authority = await getProjectGeometryAuthorityForOrg(
+    projectId,
+    organizationId
+  );
+  const legacyRooms = await getSpaceProgramRooms(projectId, organizationId);
+  if (!authority?.currentGraphVersionId) {
+    return {
+      authority,
+      candidate: undefined,
+      source: undefined,
+      review: undefined,
+      legacyRooms,
+    };
+  }
+  const candidates = await db
+    .select()
+    .from(spatialGraphVersions)
+    .where(
+      and(
+        eq(spatialGraphVersions.id, authority.currentGraphVersionId),
+        eq(spatialGraphVersions.organizationId, organizationId),
+        eq(spatialGraphVersions.projectId, projectId)
+      )
+    )
+    .limit(1);
+  const candidate = candidates[0];
+  if (!candidate) {
+    return {
+      authority,
+      candidate: undefined,
+      source: undefined,
+      review: undefined,
+      legacyRooms,
+    };
+  }
+  const sources = candidate.geometrySourceId
+    ? await db
+        .select()
+        .from(geometrySources)
+        .where(
+          and(
+            eq(geometrySources.id, candidate.geometrySourceId),
+            eq(geometrySources.organizationId, organizationId),
+            eq(geometrySources.projectId, projectId)
+          )
+        )
+        .limit(1)
+    : [];
+  const reviews = await db
+    .select()
+    .from(geometryReconciliationEvents)
+    .where(
+      and(
+        eq(geometryReconciliationEvents.organizationId, organizationId),
+        eq(geometryReconciliationEvents.projectId, projectId),
+        eq(geometryReconciliationEvents.candidateGraphVersionId, candidate.id)
+      )
+    )
+    .orderBy(
+      desc(geometryReconciliationEvents.createdAt),
+      desc(geometryReconciliationEvents.id)
+    )
+    .limit(1);
+  return {
+    authority,
+    candidate,
+    source: sources[0],
+    review: reviews[0],
+    legacyRooms,
+  };
 }

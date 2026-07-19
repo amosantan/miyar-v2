@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import GeometryShadowPanel from "@/components/GeometryShadowPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -168,6 +169,8 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
 
     if (!data) {
         return (
+            <div className="space-y-4">
+                <GeometryShadowPanel projectId={projectId} />
             <Card>
                 <CardContent className="py-12 text-center">
                     <Grid3X3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
@@ -259,6 +262,7 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
                     </Button>
                 </CardContent>
             </Card>
+            </div>
         );
     }
 
@@ -270,6 +274,7 @@ export default function SpaceProgramEditor({ projectId }: SpaceProgramEditorProp
 
     return (
         <div className="space-y-4">
+            <GeometryShadowPanel projectId={projectId} />
             {/* ─── Summary Bar ──────────────────────────────────────── */}
             <Card>
                 <CardContent className="py-4">

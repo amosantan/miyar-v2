@@ -7,6 +7,7 @@ import { designMarketContextRouter } from "./design-market-context";
 import { designMaterialsRouter } from "./design-materials";
 import { designSharingRouter } from "./design-sharing";
 import { designVisualsRouter } from "./design-visuals";
+import { designGeometryAssetsRouter } from "./design-geometry-assets";
 
 /** Flat compatibility router: public procedure names remain design.*. */
 export const designRouter = mergeRouters(
@@ -17,5 +18,6 @@ export const designRouter = mergeRouters(
   designMarketContextRouter,
   designMaterialsRouter,
   designSharingRouter,
-  designVisualsRouter
+  designVisualsRouter,
+  designGeometryAssetsRouter
 );

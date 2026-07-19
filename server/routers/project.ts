@@ -8,6 +8,7 @@ import {
   router,
 } from "../_core/trpc";
 import { requireProjectForOrg } from "../_core/project-access";
+import { requireLegacyGeometryWriterForProject } from "../_core/geometry-authority";
 import { requireProjectResourceForOrg } from "../_core/resource-access";
 import * as db from "../db";
 import { evaluate, computeROI, type EvaluationConfig } from "../engines/scoring";
@@ -337,13 +338,35 @@ export const projectRouter = router({
       if (project.status === "locked") {
         throw new Error("Cannot update a locked project");
       }
+      if (
+        data.ctx03Gfa !== undefined ||
+        data.totalFitoutArea !== undefined ||
+        data.totalNonFinishArea !== undefined
+      ) {
+        await requireLegacyGeometryWriterForProject(id, ctx.orgId);
+      }
       const updateData: any = { ...data };
       if (data.ctx03Gfa !== undefined) updateData.ctx03Gfa = data.ctx03Gfa ? String(data.ctx03Gfa) : null;
       if (data.fin01BudgetCap !== undefined) updateData.fin01BudgetCap = data.fin01BudgetCap ? String(data.fin01BudgetCap) : null;
       if (data.officeCustomRatio !== undefined) updateData.officeCustomRatio = data.officeCustomRatio != null ? String(data.officeCustomRatio) : null;
       if (data.totalFitoutArea !== undefined) updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
       if (data.totalNonFinishArea !== undefined) updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
-      if (!(await db.updateProjectForOrg(id, ctx.orgId, updateData))) {
+      const writesLegacyGeometry =
+        data.ctx03Gfa !== undefined ||
+        data.totalFitoutArea !== undefined ||
+        data.totalNonFinishArea !== undefined;
+      if (writesLegacyGeometry) {
+        const result = await db.updateProjectWithLegacyGeometryAuthorityForOrg(
+          id,
+          ctx.orgId,
+          updateData
+        );
+        if (result === "canonical") {
+          await requireLegacyGeometryWriterForProject(id, ctx.orgId);
+          throw new Error("Project geometry authority changed during update");
+        }
+        if (result === "not_found") await requireProjectForOrg(id, ctx.orgId);
+      } else if (!(await db.updateProjectForOrg(id, ctx.orgId, updateData))) {
         await requireProjectForOrg(id, ctx.orgId);
       }
       await db.createAuditLog({
@@ -1439,6 +1462,7 @@ export const projectRouter = router({
       }
 
       if (input.action === "verify") {
+        await requireLegacyGeometryWriterForProject(input.projectId, ctx.orgId);
         const verifiedArea = input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
         if (!(await db.verifyPdfExtractionForOrg(
           input.extractionId,

@@ -287,6 +287,7 @@ __export(schema_exports, {
   accuracySnapshots: () => accuracySnapshots,
   aiDesignBriefs: () => aiDesignBriefs,
   amenitySubSpaces: () => amenitySubSpaces,
+  artifactInputSnapshots: () => artifactInputSnapshots,
   assetLinks: () => assetLinks,
   auditLogs: () => auditLogs,
   benchmarkCategories: () => benchmarkCategories,
@@ -319,8 +320,11 @@ __export(schema_exports, {
   evidenceReferences: () => evidenceReferences,
   finishScheduleItems: () => finishScheduleItems,
   generatedVisuals: () => generatedVisuals,
+  geometryReconciliationEvents: () => geometryReconciliationEvents,
+  geometrySources: () => geometrySources,
   ingestionRuns: () => ingestionRuns,
   intelligenceAuditLog: () => intelligenceAuditLog,
+  legacySpaceLinks: () => legacySpaceLinks,
   logicChangeLog: () => logicChangeLog,
   logicThresholds: () => logicThresholds,
   logicVersions: () => logicVersions,
@@ -332,6 +336,8 @@ __export(schema_exports, {
   materialSupplierSources: () => materialSupplierSources,
   materialsCatalog: () => materialsCatalog,
   materialsToBoards: () => materialsToBoards,
+  measurementInputEdges: () => measurementInputEdges,
+  measurementRecords: () => measurementRecords,
   modelVersions: () => modelVersions,
   monteCarloSimulations: () => monteCarloSimulations,
   nlQueryLog: () => nlQueryLog,
@@ -348,6 +354,7 @@ __export(schema_exports, {
   priceChangeEvents: () => priceChangeEvents,
   projectAssets: () => projectAssets,
   projectColorPalettes: () => projectColorPalettes,
+  projectGeometryAuthorities: () => projectGeometryAuthorities,
   projectInsights: () => projectInsights,
   projectIntelligence: () => projectIntelligence,
   projectOutcomes: () => projectOutcomes,
@@ -366,8 +373,11 @@ __export(schema_exports, {
   scenarios: () => scenarios,
   scoreMatrices: () => scoreMatrices,
   sourceRegistry: () => sourceRegistry,
+  spaceIdentities: () => spaceIdentities,
   spaceProgramRooms: () => spaceProgramRooms,
   spaceRecommendations: () => spaceRecommendations,
+  spaceVersions: () => spaceVersions,
+  spatialGraphVersions: () => spatialGraphVersions,
   sustainabilitySnapshots: () => sustainabilitySnapshots,
   trendSnapshots: () => trendSnapshots,
   trendTags: () => trendTags,
@@ -388,7 +398,7 @@ import {
   index,
   uniqueIndex
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -481,11 +491,25 @@ var init_schema = __esm({
       description: text("description"),
       market: varchar("market", { length: 64 }).default("UAE").notNull(),
       submarket: varchar("submarket", { length: 64 }).default("Dubai"),
-      projectClass: mysqlEnum("projectClass", ["mid", "upper", "luxury", "ultra_luxury"]).notNull(),
+      projectClass: mysqlEnum("projectClass", [
+        "mid",
+        "upper",
+        "luxury",
+        "ultra_luxury"
+      ]).notNull(),
       validFrom: timestamp("validFrom"),
       validTo: timestamp("validTo"),
-      confidenceLevel: mysqlEnum("confidenceLevel", ["high", "medium", "low"]).default("medium"),
-      sourceType: mysqlEnum("sourceType", ["manual", "admin", "imported", "curated"]).default("admin"),
+      confidenceLevel: mysqlEnum("confidenceLevel", [
+        "high",
+        "medium",
+        "low"
+      ]).default("medium"),
+      sourceType: mysqlEnum("sourceType", [
+        "manual",
+        "admin",
+        "imported",
+        "curated"
+      ]).default("admin"),
       benchmarkVersionId: int("benchmarkVersionId"),
       data: json("data").notNull(),
       versionTag: varchar("versionTag", { length: 64 }),
@@ -530,7 +554,10 @@ var init_schema = __esm({
       ctx03Gfa: decimal("ctx03Gfa", { precision: 12, scale: 2 }),
       // V4 — Fit-out Oracle: area-based pricing
       totalFitoutArea: decimal("totalFitoutArea", { precision: 12, scale: 2 }),
-      totalNonFinishArea: decimal("totalNonFinishArea", { precision: 12, scale: 2 }),
+      totalNonFinishArea: decimal("totalNonFinishArea", {
+        precision: 12,
+        scale: 2
+      }),
       fitoutAreaVerified: boolean("fitoutAreaVerified").default(false),
       projectArchetype: mysqlEnum("projectArchetype", [
         "residential_multi",
@@ -557,7 +584,9 @@ var init_schema = __esm({
       dldAreaName: varchar("dld_area_name", { length: 200 }),
       // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
       city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
-      sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default("silver"),
+      sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default(
+        "silver"
+      ),
       // Project purpose — drives fitout quality and benchmark selection
       projectPurpose: mysqlEnum("project_purpose", [
         "sell_offplan",
@@ -637,12 +666,7 @@ var init_schema = __esm({
         "Price/Value",
         "Design/Architecture"
       ]),
-      targetYield: mysqlEnum("targetYield", [
-        "< 5%",
-        "5-7%",
-        "7-9%",
-        "> 9%"
-      ]),
+      targetYield: mysqlEnum("targetYield", ["< 5%", "5-7%", "7-9%", "> 9%"]),
       procurementStrategy: mysqlEnum("procurementStrategy", [
         "Turnkey",
         "Traditional",
@@ -807,9 +831,18 @@ var init_schema = __esm({
       avgSellingPrice: decimal("avgSellingPrice", { precision: 10, scale: 2 }),
       absorptionRate: decimal("absorptionRate", { precision: 6, scale: 4 }),
       competitiveDensity: int("competitiveDensity"),
-      differentiationIndex: decimal("differentiationIndex", { precision: 6, scale: 4 }),
-      complexityMultiplier: decimal("complexityMultiplier", { precision: 6, scale: 4 }),
-      timelineRiskMultiplier: decimal("timelineRiskMultiplier", { precision: 6, scale: 4 }),
+      differentiationIndex: decimal("differentiationIndex", {
+        precision: 6,
+        scale: 4
+      }),
+      complexityMultiplier: decimal("complexityMultiplier", {
+        precision: 6,
+        scale: 4
+      }),
+      timelineRiskMultiplier: decimal("timelineRiskMultiplier", {
+        precision: 6,
+        scale: 4
+      }),
       buyerPreferenceWeights: json("buyerPreferenceWeights"),
       sourceType: mysqlEnum("sourceType", [
         "synthetic",
@@ -829,11 +862,17 @@ var init_schema = __esm({
       scoreMatrixId: int("scoreMatrixId").notNull(),
       benchmarkVersionId: int("benchmarkVersionId"),
       modelVersionId: int("modelVersionId"),
-      costDeltaVsBenchmark: decimal("costDeltaVsBenchmark", { precision: 10, scale: 2 }),
+      costDeltaVsBenchmark: decimal("costDeltaVsBenchmark", {
+        precision: 10,
+        scale: 2
+      }),
       uniquenessIndex: decimal("uniquenessIndex", { precision: 6, scale: 4 }),
       feasibilityFlags: json("feasibilityFlags"),
       reworkRiskIndex: decimal("reworkRiskIndex", { precision: 6, scale: 4 }),
-      procurementComplexity: decimal("procurementComplexity", { precision: 6, scale: 4 }),
+      procurementComplexity: decimal("procurementComplexity", {
+        precision: 6,
+        scale: 4
+      }),
       tierPercentile: decimal("tierPercentile", { precision: 6, scale: 4 }),
       styleFamily: varchar("styleFamily", { length: 64 }),
       costBand: varchar("costBand", { length: 32 }),
@@ -874,12 +913,24 @@ var init_schema = __esm({
       isActive: boolean("isActive").default(false).notNull(),
       hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }).default("350").notNull(),
       reworkCostPct: decimal("reworkCostPct", { precision: 6, scale: 4 }).default("0.12").notNull(),
-      tenderIterationCost: decimal("tenderIterationCost", { precision: 10, scale: 2 }).default("25000").notNull(),
+      tenderIterationCost: decimal("tenderIterationCost", {
+        precision: 10,
+        scale: 2
+      }).default("25000").notNull(),
       designCycleCost: decimal("designCycleCost", { precision: 10, scale: 2 }).default("45000").notNull(),
-      budgetVarianceMultiplier: decimal("budgetVarianceMultiplier", { precision: 6, scale: 4 }).default("0.08").notNull(),
+      budgetVarianceMultiplier: decimal("budgetVarianceMultiplier", {
+        precision: 6,
+        scale: 4
+      }).default("0.08").notNull(),
       timeAccelerationWeeks: int("timeAccelerationWeeks").default(6),
-      conservativeMultiplier: decimal("conservativeMultiplier", { precision: 6, scale: 4 }).default("0.60").notNull(),
-      aggressiveMultiplier: decimal("aggressiveMultiplier", { precision: 6, scale: 4 }).default("1.40").notNull(),
+      conservativeMultiplier: decimal("conservativeMultiplier", {
+        precision: 6,
+        scale: 4
+      }).default("0.60").notNull(),
+      aggressiveMultiplier: decimal("aggressiveMultiplier", {
+        precision: 6,
+        scale: 4
+      }).default("1.40").notNull(),
       createdAt: timestamp("createdAt").defaultNow().notNull(),
       createdBy: int("createdBy")
     });
@@ -930,7 +981,8 @@ var init_schema = __esm({
         "audio",
         "video",
         "url",
-        "text_note"
+        "text_note",
+        "cad"
       ]).default("image"),
       aiExtractionResult: json("aiExtractionResult"),
       // what Gemini extracted from this asset
@@ -979,9 +1031,20 @@ var init_schema = __esm({
       id: int("id").autoincrement().primaryKey(),
       projectId: int("projectId").notNull(),
       scenarioId: int("scenarioId"),
-      type: mysqlEnum("type", ["mood", "mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette", "hero"]).notNull(),
+      type: mysqlEnum("type", [
+        "mood",
+        "mood_board",
+        "material_board",
+        "room_render",
+        "kitchen_render",
+        "bathroom_render",
+        "color_palette",
+        "hero"
+      ]).notNull(),
       promptJson: json("promptJson").notNull(),
-      modelVersion: varchar("modelVersion", { length: 64 }).default("nano-banana-v1"),
+      modelVersion: varchar("modelVersion", { length: 64 }).default(
+        "nano-banana-v1"
+      ),
       imageAssetId: int("imageAssetId"),
       // FK to project_assets
       status: mysqlEnum("status", ["pending", "generating", "completed", "failed"]).default("pending").notNull(),
@@ -989,37 +1052,53 @@ var init_schema = __esm({
       createdBy: int("createdBy").notNull(),
       createdAt: timestamp("createdAt").defaultNow().notNull()
     });
-    designTrends = mysqlTable("design_trends", {
-      id: int("id").autoincrement().primaryKey(),
-      trendName: varchar("trendName", { length: 255 }).notNull(),
-      trendCategory: mysqlEnum("trendCategory", [
-        "style",
-        "material",
-        "color",
-        "layout",
-        "technology",
-        "sustainability",
-        "other"
-      ]).notNull(),
-      confidenceLevel: mysqlEnum("confidenceLevel", ["emerging", "established", "declining"]).default("emerging").notNull(),
-      sourceUrl: text("sourceUrl"),
-      sourceRegistryId: int("sourceRegistryId"),
-      description: text("description"),
-      relatedMaterials: json("relatedMaterials"),
-      // string[] of material names
-      styleClassification: varchar("styleClassification", { length: 128 }),
-      // modern, classical, biophilic, japandi, etc.
-      region: varchar("region", { length: 64 }).default("UAE"),
-      firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
-      lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
-      mentionCount: int("mentionCount").default(1).notNull(),
-      runId: varchar("runId", { length: 64 }),
-      corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-      corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-      createdAt: timestamp("createdAt").defaultNow().notNull()
-    }, (table) => [
-      index("design_trends_corpus_region_style_idx").on(table.corpusScope, table.region, table.styleClassification)
-    ]);
+    designTrends = mysqlTable(
+      "design_trends",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        trendName: varchar("trendName", { length: 255 }).notNull(),
+        trendCategory: mysqlEnum("trendCategory", [
+          "style",
+          "material",
+          "color",
+          "layout",
+          "technology",
+          "sustainability",
+          "other"
+        ]).notNull(),
+        confidenceLevel: mysqlEnum("confidenceLevel", [
+          "emerging",
+          "established",
+          "declining"
+        ]).default("emerging").notNull(),
+        sourceUrl: text("sourceUrl"),
+        sourceRegistryId: int("sourceRegistryId"),
+        description: text("description"),
+        relatedMaterials: json("relatedMaterials"),
+        // string[] of material names
+        styleClassification: varchar("styleClassification", { length: 128 }),
+        // modern, classical, biophilic, japandi, etc.
+        region: varchar("region", { length: 64 }).default("UAE"),
+        firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
+        lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+        mentionCount: int("mentionCount").default(1).notNull(),
+        runId: varchar("runId", { length: 64 }),
+        corpusScope: mysqlEnum("corpusScope", [
+          "organization",
+          "platform_public",
+          "legacy_unscoped"
+        ]).default("legacy_unscoped").notNull(),
+        corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        index("design_trends_corpus_region_style_idx").on(
+          table.corpusScope,
+          table.region,
+          table.styleClassification
+        )
+      ]
+    );
     materialBoards = mysqlTable("material_boards", {
       id: int("id").autoincrement().primaryKey(),
       projectId: int("projectId").notNull(),
@@ -1052,17 +1131,32 @@ var init_schema = __esm({
         "accessory",
         "other"
       ]).notNull(),
-      tier: mysqlEnum("tier", ["economy", "mid", "premium", "luxury", "ultra_luxury"]).notNull(),
+      tier: mysqlEnum("tier", [
+        "economy",
+        "mid",
+        "premium",
+        "luxury",
+        "ultra_luxury"
+      ]).notNull(),
       typicalCostLow: decimal("typicalCostLow", { precision: 10, scale: 2 }),
       typicalCostHigh: decimal("typicalCostHigh", { precision: 10, scale: 2 }),
       costUnit: varchar("costUnit", { length: 32 }).default("AED/sqm"),
       leadTimeDays: int("leadTimeDays"),
-      leadTimeBand: mysqlEnum("leadTimeBand", ["short", "medium", "long", "critical"]).default("medium"),
+      leadTimeBand: mysqlEnum("leadTimeBand", [
+        "short",
+        "medium",
+        "long",
+        "critical"
+      ]).default("medium"),
       regionAvailability: json("regionAvailability"),
       // string[]
       embodiedCarbon: decimal("embodiedCarbon", { precision: 10, scale: 4 }),
       maintenanceFactor: decimal("maintenanceFactor", { precision: 6, scale: 4 }),
-      brandStandardApproval: mysqlEnum("brandStandardApproval", ["open_market", "approved_vendor", "preferred_brand"]).default("open_market").notNull(),
+      brandStandardApproval: mysqlEnum("brandStandardApproval", [
+        "open_market",
+        "approved_vendor",
+        "preferred_brand"
+      ]).default("open_market").notNull(),
       supplierName: varchar("supplierName", { length: 255 }),
       supplierContact: varchar("supplierContact", { length: 255 }),
       supplierUrl: text("supplierUrl"),
@@ -1161,39 +1255,70 @@ var init_schema = __esm({
       id: int("id").autoincrement().primaryKey(),
       logicVersionId: int("logicVersionId").notNull(),
       ruleKey: varchar("ruleKey", { length: 128 }).notNull(),
-      thresholdValue: decimal("thresholdValue", { precision: 10, scale: 4 }).notNull(),
-      comparator: mysqlEnum("comparator", ["gt", "gte", "lt", "lte", "eq", "neq"]).notNull(),
+      thresholdValue: decimal("thresholdValue", {
+        precision: 10,
+        scale: 4
+      }).notNull(),
+      comparator: mysqlEnum("comparator", [
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "eq",
+        "neq"
+      ]).notNull(),
       notes: text("notes")
     });
-    logicChangeLog = mysqlTable("logic_change_log", {
-      id: int("id").autoincrement().primaryKey(),
-      logicVersionId: int("logicVersionId").notNull(),
-      actor: int("actor").notNull(),
-      changeSummary: text("changeSummary").notNull(),
-      rationale: text("rationale").notNull(),
-      status: mysqlEnum("status", ["applied", "proposed", "rejected"]).default("applied").notNull(),
-      corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-      corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-      createdAt: timestamp("createdAt").defaultNow().notNull()
-    }, (table) => [
-      index("logic_change_log_corpus_status_idx").on(table.corpusScope, table.status)
-    ]);
-    decisionPatterns = mysqlTable("decision_patterns", {
-      id: int("id").autoincrement().primaryKey(),
-      name: text("name").notNull(),
-      description: text("description").notNull(),
-      category: mysqlEnum("category", ["risk_indicator", "success_driver", "cost_anomaly"]).notNull(),
-      conditions: json("conditions").notNull(),
-      // array of logic defining the pattern
-      matchCount: int("matchCount").default(0).notNull(),
-      // times it appeared
-      reliabilityScore: decimal("reliabilityScore", { precision: 5, scale: 2 }).default("0.00").notNull(),
-      corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-      corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-      createdAt: timestamp("createdAt").defaultNow().notNull()
-    }, (table) => [
-      index("decision_patterns_corpus_idx").on(table.corpusScope)
-    ]);
+    logicChangeLog = mysqlTable(
+      "logic_change_log",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        logicVersionId: int("logicVersionId").notNull(),
+        actor: int("actor").notNull(),
+        changeSummary: text("changeSummary").notNull(),
+        rationale: text("rationale").notNull(),
+        status: mysqlEnum("status", ["applied", "proposed", "rejected"]).default("applied").notNull(),
+        corpusScope: mysqlEnum("corpusScope", [
+          "organization",
+          "platform_public",
+          "legacy_unscoped"
+        ]).default("legacy_unscoped").notNull(),
+        corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        index("logic_change_log_corpus_status_idx").on(
+          table.corpusScope,
+          table.status
+        )
+      ]
+    );
+    decisionPatterns = mysqlTable(
+      "decision_patterns",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        name: text("name").notNull(),
+        description: text("description").notNull(),
+        category: mysqlEnum("category", [
+          "risk_indicator",
+          "success_driver",
+          "cost_anomaly"
+        ]).notNull(),
+        conditions: json("conditions").notNull(),
+        // array of logic defining the pattern
+        matchCount: int("matchCount").default(0).notNull(),
+        // times it appeared
+        reliabilityScore: decimal("reliabilityScore", { precision: 5, scale: 2 }).default("0.00").notNull(),
+        corpusScope: mysqlEnum("corpusScope", [
+          "organization",
+          "platform_public",
+          "legacy_unscoped"
+        ]).default("legacy_unscoped").notNull(),
+        corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [index("decision_patterns_corpus_idx").on(table.corpusScope)]
+    );
     projectPatternMatches = mysqlTable("project_pattern_matches", {
       id: int("id").autoincrement().primaryKey(),
       projectId: int("projectId").notNull(),
@@ -1240,7 +1365,10 @@ var init_schema = __esm({
       rfqResults: json("rfqResults"),
       adoptionMetrics: json("adoptionMetrics"),
       // V5 Fields
-      actualFitoutCostPerSqm: decimal("actualFitoutCostPerSqm", { precision: 10, scale: 2 }),
+      actualFitoutCostPerSqm: decimal("actualFitoutCostPerSqm", {
+        precision: 10,
+        scale: 2
+      }),
       actualTotalCost: decimal("actualTotalCost", { precision: 15, scale: 2 }),
       projectDeliveredOnTime: boolean("projectDeliveredOnTime"),
       reworkOccurred: boolean("reworkOccurred"),
@@ -1259,9 +1387,17 @@ var init_schema = __esm({
       predictedCostMid: decimal("predictedCostMid", { precision: 15, scale: 2 }),
       actualCost: decimal("actualCost", { precision: 15, scale: 2 }),
       costDeltaPct: decimal("costDeltaPct", { precision: 10, scale: 4 }),
-      costAccuracyBand: mysqlEnum("costAccuracyBand", ["within_10pct", "within_20pct", "outside_20pct", "no_prediction"]).notNull(),
+      costAccuracyBand: mysqlEnum("costAccuracyBand", [
+        "within_10pct",
+        "within_20pct",
+        "outside_20pct",
+        "no_prediction"
+      ]).notNull(),
       // Score accuracy
-      predictedComposite: decimal("predictedComposite", { precision: 5, scale: 4 }).notNull(),
+      predictedComposite: decimal("predictedComposite", {
+        precision: 5,
+        scale: 4
+      }).notNull(),
       predictedDecision: varchar("predictedDecision", { length: 64 }).notNull(),
       actualOutcomeSuccess: boolean("actualOutcomeSuccess").notNull(),
       scorePredictionCorrect: boolean("scorePredictionCorrect").notNull(),
@@ -1270,7 +1406,12 @@ var init_schema = __esm({
       actualReworkOccurred: boolean("actualReworkOccurred").notNull(),
       riskPredictionCorrect: boolean("riskPredictionCorrect").notNull(),
       // Delta summary
-      overallAccuracyGrade: mysqlEnum("overallAccuracyGrade", ["A", "B", "C", "insufficient_data"]).notNull(),
+      overallAccuracyGrade: mysqlEnum("overallAccuracyGrade", [
+        "A",
+        "B",
+        "C",
+        "insufficient_data"
+      ]).notNull(),
       learningSignals: json("learningSignals"),
       rawComparison: json("rawComparison")
     });
@@ -1285,22 +1426,50 @@ var init_schema = __esm({
       costWithin20Pct: int("costWithin20Pct").notNull(),
       costOutside20Pct: int("costOutside20Pct").notNull(),
       costMaePct: decimal("costMaePct", { precision: 8, scale: 4 }),
-      costTrend: mysqlEnum("costTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+      costTrend: mysqlEnum("costTrend", [
+        "improving",
+        "stable",
+        "degrading",
+        "insufficient_data"
+      ]).notNull(),
       // Score accuracy
       scoreCorrectPredictions: int("scoreCorrectPredictions").notNull(),
       scoreIncorrectPredictions: int("scoreIncorrectPredictions").notNull(),
-      scoreAccuracyRate: decimal("scoreAccuracyRate", { precision: 8, scale: 4 }).notNull(),
-      scoreTrend: mysqlEnum("scoreTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
+      scoreAccuracyRate: decimal("scoreAccuracyRate", {
+        precision: 8,
+        scale: 4
+      }).notNull(),
+      scoreTrend: mysqlEnum("scoreTrend", [
+        "improving",
+        "stable",
+        "degrading",
+        "insufficient_data"
+      ]).notNull(),
       // Risk accuracy
       riskCorrectPredictions: int("riskCorrectPredictions").notNull(),
       riskIncorrectPredictions: int("riskIncorrectPredictions").notNull(),
-      riskAccuracyRate: decimal("riskAccuracyRate", { precision: 8, scale: 4 }).notNull(),
-      riskTrend: mysqlEnum("riskTrend", ["improving", "stable", "degrading", "insufficient_data"]).notNull(),
-      overallPlatformAccuracy: decimal("overallPlatformAccuracy", { precision: 8, scale: 4 }).notNull(),
+      riskAccuracyRate: decimal("riskAccuracyRate", {
+        precision: 8,
+        scale: 4
+      }).notNull(),
+      riskTrend: mysqlEnum("riskTrend", [
+        "improving",
+        "stable",
+        "degrading",
+        "insufficient_data"
+      ]).notNull(),
+      overallPlatformAccuracy: decimal("overallPlatformAccuracy", {
+        precision: 8,
+        scale: 4
+      }).notNull(),
       gradeA: int("gradeA").notNull(),
       gradeB: int("gradeB").notNull(),
       gradeC: int("gradeC").notNull(),
-      corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+      corpusScope: mysqlEnum("corpusScope", [
+        "organization",
+        "platform_public",
+        "legacy_unscoped"
+      ]).default("legacy_unscoped").notNull(),
       corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull()
     });
     benchmarkSuggestions = mysqlTable("benchmark_suggestions", {
@@ -1312,7 +1481,11 @@ var init_schema = __esm({
       reviewerNotes: text("reviewerNotes"),
       reviewedBy: int("reviewedBy"),
       reviewedAt: timestamp("reviewedAt"),
-      corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+      corpusScope: mysqlEnum("corpusScope", [
+        "organization",
+        "platform_public",
+        "legacy_unscoped"
+      ]).default("legacy_unscoped").notNull(),
       corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
       createdAt: timestamp("createdAt").defaultNow().notNull()
     });
@@ -1354,129 +1527,205 @@ var init_schema = __esm({
       extractionHints: text("extractionHints"),
       priceFieldMapping: json("priceFieldMapping"),
       lastScrapedAt: timestamp("lastScrapedAt"),
-      lastScrapedStatus: mysqlEnum("lastScrapedStatus", ["success", "partial", "failed", "never"]).default("never").notNull(),
+      lastScrapedStatus: mysqlEnum("lastScrapedStatus", [
+        "success",
+        "partial",
+        "failed",
+        "never"
+      ]).default("never").notNull(),
       lastRecordCount: int("lastRecordCount").default(0).notNull(),
       consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
       requestDelayMs: int("requestDelayMs").default(2e3).notNull(),
       addedAt: timestamp("addedAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
-    evidenceRecords = mysqlTable("evidence_records", {
-      id: int("id").autoincrement().primaryKey(),
-      recordId: varchar("recordId", { length: 64 }).notNull().unique(),
-      // MYR-PE-XXXX
-      projectId: int("projectId"),
-      // optional: can be global evidence
-      orgId: int("orgId"),
-      sourceRegistryId: int("sourceRegistryId"),
-      // FK to source_registry
-      category: mysqlEnum("category", [
-        "floors",
-        "walls",
-        "ceilings",
-        "joinery",
-        "lighting",
-        "sanitary",
-        "kitchen",
-        "hardware",
-        "ffe",
-        "other"
-      ]).notNull(),
-      itemName: varchar("itemName", { length: 255 }).notNull(),
-      specClass: varchar("specClass", { length: 128 }),
-      priceMin: decimal("priceMin", { precision: 12, scale: 2 }),
-      priceTypical: decimal("priceTypical", { precision: 12, scale: 2 }),
-      priceMax: decimal("priceMax", { precision: 12, scale: 2 }),
-      unit: varchar("unit", { length: 32 }).notNull(),
-      // sqm, lm, set, piece, etc.
-      currencyOriginal: varchar("currencyOriginal", { length: 8 }).default("AED"),
-      currencyAed: decimal("currencyAed", { precision: 12, scale: 2 }),
-      // normalized to AED
-      fxRate: decimal("fxRate", { precision: 10, scale: 6 }),
-      fxSource: text("fxSource"),
-      sourceUrl: text("sourceUrl").notNull(),
-      publisher: varchar("publisher", { length: 255 }),
-      captureDate: timestamp("captureDate").notNull(),
-      reliabilityGrade: mysqlEnum("reliabilityGrade", ["A", "B", "C"]).notNull(),
-      confidenceScore: int("confidenceScore").notNull(),
-      // 0-100
-      currentConfidenceAssessmentId: int("currentConfidenceAssessmentId"),
-      confidencePolicyVersion: varchar("confidencePolicyVersion", { length: 64 }),
-      extractedSnippet: text("extractedSnippet"),
-      notes: text("notes"),
-      // V2.2 metadata fields
-      title: varchar("title", { length: 512 }),
-      evidencePhase: mysqlEnum("evidencePhase", ["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]),
-      author: varchar("author", { length: 255 }),
-      confidentiality: mysqlEnum("confidentiality", ["public", "internal", "confidential", "restricted"]).default("internal"),
-      tags: json("tags"),
-      // string[]
-      fileUrl: text("fileUrl"),
-      // S3 signed URL for attached evidence file
-      fileKey: varchar("fileKey", { length: 512 }),
-      // S3 key for the file
-      fileMimeType: varchar("fileMimeType", { length: 128 }),
-      runId: varchar("runId", { length: 64 }),
-      // links to intelligence_audit_log
-      // V7: Design Intelligence Fields
-      finishLevel: mysqlEnum("finishLevel", ["basic", "standard", "premium", "luxury", "ultra_luxury"]),
-      designStyle: varchar("designStyle", { length: 255 }),
-      brandsMentioned: json("brandsMentioned"),
-      // string[]
-      materialSpec: text("materialSpec"),
-      intelligenceType: mysqlEnum("intelligenceType", [
-        "material_price",
-        "finish_specification",
-        "design_trend",
-        "market_statistic",
-        "competitor_positioning",
-        "regulation"
-      ]).default("material_price"),
-      corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-      corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-      publicObservationKey: varchar("publicObservationKey", { length: 64 }),
-      createdBy: int("createdBy"),
-      createdAt: timestamp("createdAt").defaultNow().notNull()
-    }, (table) => [
-      index("evidence_records_corpus_org_project_category_idx").on(table.corpusScope, table.orgId, table.projectId, table.category),
-      uniqueIndex("evidence_records_public_observation_key_unique").on(table.publicObservationKey)
-    ]);
-    evidenceConfidenceAssessments = mysqlTable("evidence_confidence_assessments", {
-      id: int("id").autoincrement().primaryKey(),
-      evidenceRecordId: int("evidenceRecordId"),
-      runId: varchar("runId", { length: 64 }),
-      sourceId: varchar("sourceId", { length: 64 }),
-      actorId: int("actorId"),
-      corpusScope: mysqlEnum("assessmentCorpusScope", ["organization", "platform_public", "legacy_unscoped"]),
-      origin: mysqlEnum("origin", ["connector", "csv_upload", "manual_entry", "bulk_entry"]).notNull(),
-      outcome: mysqlEnum("outcome", ["accepted", "rejected"]).notNull(),
-      evaluationClock: timestamp("evaluationClock").notNull(),
-      rawPublicationText: text("rawPublicationText"),
-      datePrecision: mysqlEnum("datePrecision", ["missing", "date", "timestamp", "unknown"]).notNull(),
-      parsingStatus: mysqlEnum("parsingStatus", ["valid", "missing", "invalid", "future"]).notNull(),
-      parsedPublicationDate: timestamp("parsedPublicationDate"),
-      staticGradePolicyId: varchar("staticGradePolicyId", { length: 64 }),
-      registryGradePolicyId: varchar("registryGradePolicyId", { length: 64 }),
-      confidencePolicyId: varchar("confidencePolicyId", { length: 64 }).notNull(),
-      qualityPolicyId: varchar("qualityPolicyId", { length: 64 }),
-      mergePolicyId: varchar("mergePolicyId", { length: 64 }),
-      grade: mysqlEnum("assessmentGrade", ["A", "B", "C"]),
-      baseConfidence: decimal("baseConfidence", { precision: 6, scale: 4 }),
-      recencyAdjustment: decimal("recencyAdjustment", { precision: 6, scale: 4 }),
-      confidenceAfterRecency: decimal("confidenceAfterRecency", { precision: 6, scale: 4 }),
-      qualityMultiplier: decimal("qualityMultiplier", { precision: 6, scale: 4 }),
-      qualityFloor: decimal("qualityFloor", { precision: 6, scale: 4 }),
-      qualityFlags: json("qualityFlags"),
-      previousScore: int("previousScore"),
-      candidateScore: int("candidateScore"),
-      finalScore: int("finalScore"),
-      mergeDecision: mysqlEnum("mergeDecision", ["inserted", "latest_accepted", "manual_assertion", "rejected"]),
-      rejectionCode: varchar("rejectionCode", { length: 64 }),
-      createdAt: timestamp("createdAt").defaultNow().notNull()
-    }, (table) => [
-      index("evidence_confidence_assessments_evidence_time_idx").on(table.evidenceRecordId, table.createdAt),
-      index("evidence_confidence_assessments_run_outcome_idx").on(table.runId, table.outcome)
-    ]);
+    evidenceRecords = mysqlTable(
+      "evidence_records",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        recordId: varchar("recordId", { length: 64 }).notNull().unique(),
+        // MYR-PE-XXXX
+        projectId: int("projectId"),
+        // optional: can be global evidence
+        orgId: int("orgId"),
+        sourceRegistryId: int("sourceRegistryId"),
+        // FK to source_registry
+        category: mysqlEnum("category", [
+          "floors",
+          "walls",
+          "ceilings",
+          "joinery",
+          "lighting",
+          "sanitary",
+          "kitchen",
+          "hardware",
+          "ffe",
+          "other"
+        ]).notNull(),
+        itemName: varchar("itemName", { length: 255 }).notNull(),
+        specClass: varchar("specClass", { length: 128 }),
+        priceMin: decimal("priceMin", { precision: 12, scale: 2 }),
+        priceTypical: decimal("priceTypical", { precision: 12, scale: 2 }),
+        priceMax: decimal("priceMax", { precision: 12, scale: 2 }),
+        unit: varchar("unit", { length: 32 }).notNull(),
+        // sqm, lm, set, piece, etc.
+        currencyOriginal: varchar("currencyOriginal", { length: 8 }).default("AED"),
+        currencyAed: decimal("currencyAed", { precision: 12, scale: 2 }),
+        // normalized to AED
+        fxRate: decimal("fxRate", { precision: 10, scale: 6 }),
+        fxSource: text("fxSource"),
+        sourceUrl: text("sourceUrl").notNull(),
+        publisher: varchar("publisher", { length: 255 }),
+        captureDate: timestamp("captureDate").notNull(),
+        reliabilityGrade: mysqlEnum("reliabilityGrade", ["A", "B", "C"]).notNull(),
+        confidenceScore: int("confidenceScore").notNull(),
+        // 0-100
+        currentConfidenceAssessmentId: int("currentConfidenceAssessmentId"),
+        confidencePolicyVersion: varchar("confidencePolicyVersion", { length: 64 }),
+        extractedSnippet: text("extractedSnippet"),
+        notes: text("notes"),
+        // V2.2 metadata fields
+        title: varchar("title", { length: 512 }),
+        evidencePhase: mysqlEnum("evidencePhase", [
+          "concept",
+          "schematic",
+          "detailed_design",
+          "tender",
+          "procurement",
+          "construction",
+          "handover"
+        ]),
+        author: varchar("author", { length: 255 }),
+        confidentiality: mysqlEnum("confidentiality", [
+          "public",
+          "internal",
+          "confidential",
+          "restricted"
+        ]).default("internal"),
+        tags: json("tags"),
+        // string[]
+        fileUrl: text("fileUrl"),
+        // S3 signed URL for attached evidence file
+        fileKey: varchar("fileKey", { length: 512 }),
+        // S3 key for the file
+        fileMimeType: varchar("fileMimeType", { length: 128 }),
+        runId: varchar("runId", { length: 64 }),
+        // links to intelligence_audit_log
+        // V7: Design Intelligence Fields
+        finishLevel: mysqlEnum("finishLevel", [
+          "basic",
+          "standard",
+          "premium",
+          "luxury",
+          "ultra_luxury"
+        ]),
+        designStyle: varchar("designStyle", { length: 255 }),
+        brandsMentioned: json("brandsMentioned"),
+        // string[]
+        materialSpec: text("materialSpec"),
+        intelligenceType: mysqlEnum("intelligenceType", [
+          "material_price",
+          "finish_specification",
+          "design_trend",
+          "market_statistic",
+          "competitor_positioning",
+          "regulation"
+        ]).default("material_price"),
+        corpusScope: mysqlEnum("corpusScope", [
+          "organization",
+          "platform_public",
+          "legacy_unscoped"
+        ]).default("legacy_unscoped").notNull(),
+        corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+        publicObservationKey: varchar("publicObservationKey", { length: 64 }),
+        createdBy: int("createdBy"),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        index("evidence_records_corpus_org_project_category_idx").on(
+          table.corpusScope,
+          table.orgId,
+          table.projectId,
+          table.category
+        ),
+        uniqueIndex("evidence_records_public_observation_key_unique").on(
+          table.publicObservationKey
+        )
+      ]
+    );
+    evidenceConfidenceAssessments = mysqlTable(
+      "evidence_confidence_assessments",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        evidenceRecordId: int("evidenceRecordId"),
+        runId: varchar("runId", { length: 64 }),
+        sourceId: varchar("sourceId", { length: 64 }),
+        actorId: int("actorId"),
+        corpusScope: mysqlEnum("assessmentCorpusScope", [
+          "organization",
+          "platform_public",
+          "legacy_unscoped"
+        ]),
+        origin: mysqlEnum("origin", [
+          "connector",
+          "csv_upload",
+          "manual_entry",
+          "bulk_entry"
+        ]).notNull(),
+        outcome: mysqlEnum("outcome", ["accepted", "rejected"]).notNull(),
+        evaluationClock: timestamp("evaluationClock").notNull(),
+        rawPublicationText: text("rawPublicationText"),
+        datePrecision: mysqlEnum("datePrecision", [
+          "missing",
+          "date",
+          "timestamp",
+          "unknown"
+        ]).notNull(),
+        parsingStatus: mysqlEnum("parsingStatus", [
+          "valid",
+          "missing",
+          "invalid",
+          "future"
+        ]).notNull(),
+        parsedPublicationDate: timestamp("parsedPublicationDate"),
+        staticGradePolicyId: varchar("staticGradePolicyId", { length: 64 }),
+        registryGradePolicyId: varchar("registryGradePolicyId", { length: 64 }),
+        confidencePolicyId: varchar("confidencePolicyId", { length: 64 }).notNull(),
+        qualityPolicyId: varchar("qualityPolicyId", { length: 64 }),
+        mergePolicyId: varchar("mergePolicyId", { length: 64 }),
+        grade: mysqlEnum("assessmentGrade", ["A", "B", "C"]),
+        baseConfidence: decimal("baseConfidence", { precision: 6, scale: 4 }),
+        recencyAdjustment: decimal("recencyAdjustment", { precision: 6, scale: 4 }),
+        confidenceAfterRecency: decimal("confidenceAfterRecency", {
+          precision: 6,
+          scale: 4
+        }),
+        qualityMultiplier: decimal("qualityMultiplier", { precision: 6, scale: 4 }),
+        qualityFloor: decimal("qualityFloor", { precision: 6, scale: 4 }),
+        qualityFlags: json("qualityFlags"),
+        previousScore: int("previousScore"),
+        candidateScore: int("candidateScore"),
+        finalScore: int("finalScore"),
+        mergeDecision: mysqlEnum("mergeDecision", [
+          "inserted",
+          "latest_accepted",
+          "manual_assertion",
+          "rejected"
+        ]),
+        rejectionCode: varchar("rejectionCode", { length: 64 }),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        index("evidence_confidence_assessments_evidence_time_idx").on(
+          table.evidenceRecordId,
+          table.createdAt
+        ),
+        index("evidence_confidence_assessments_run_outcome_idx").on(
+          table.runId,
+          table.outcome
+        )
+      ]
+    );
     benchmarkProposals = mysqlTable("benchmark_proposals", {
       id: int("id").autoincrement().primaryKey(),
       benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(),
@@ -1714,38 +1963,61 @@ var init_schema = __esm({
       // "dns_failure", "timeout", "http_error", "parse_error", "llm_error"
       createdAt: timestamp("createdAt").defaultNow().notNull()
     });
-    trendSnapshots = mysqlTable("trend_snapshots", {
-      id: int("id").autoincrement().primaryKey(),
-      orgId: int("orgId"),
-      metric: varchar("metric", { length: 255 }).notNull(),
-      category: varchar("category", { length: 128 }).notNull(),
-      geography: varchar("geography", { length: 128 }).notNull(),
-      dataPointCount: int("dataPointCount").default(0).notNull(),
-      gradeACount: int("gradeACount").default(0).notNull(),
-      gradeBCount: int("gradeBCount").default(0).notNull(),
-      gradeCCount: int("gradeCCount").default(0).notNull(),
-      uniqueSources: int("uniqueSources").default(0).notNull(),
-      dateRangeStart: timestamp("dateRangeStart"),
-      dateRangeEnd: timestamp("dateRangeEnd"),
-      currentMA: decimal("currentMA", { precision: 14, scale: 4 }),
-      previousMA: decimal("previousMA", { precision: 14, scale: 4 }),
-      percentChange: decimal("percentChange", { precision: 10, scale: 6 }),
-      direction: mysqlEnum("direction", ["rising", "falling", "stable", "insufficient_data"]).notNull(),
-      anomalyCount: int("anomalyCount").default(0).notNull(),
-      anomalyDetails: json("anomalyDetails"),
-      // AnomalyFlag[]
-      confidence: mysqlEnum("trendConfidence", ["high", "medium", "low", "insufficient"]).notNull(),
-      narrative: text("narrative"),
-      movingAverages: json("movingAverages"),
-      // MovingAveragePoint[]
-      ingestionRunId: varchar("ingestionRunId", { length: 64 }),
-      // FK to ingestion_runs.runId
-      corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
-      corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-      createdAt: timestamp("createdAt").defaultNow().notNull()
-    }, (table) => [
-      index("trend_snapshots_corpus_org_category_geography_idx").on(table.corpusScope, table.orgId, table.category, table.geography)
-    ]);
+    trendSnapshots = mysqlTable(
+      "trend_snapshots",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        orgId: int("orgId"),
+        metric: varchar("metric", { length: 255 }).notNull(),
+        category: varchar("category", { length: 128 }).notNull(),
+        geography: varchar("geography", { length: 128 }).notNull(),
+        dataPointCount: int("dataPointCount").default(0).notNull(),
+        gradeACount: int("gradeACount").default(0).notNull(),
+        gradeBCount: int("gradeBCount").default(0).notNull(),
+        gradeCCount: int("gradeCCount").default(0).notNull(),
+        uniqueSources: int("uniqueSources").default(0).notNull(),
+        dateRangeStart: timestamp("dateRangeStart"),
+        dateRangeEnd: timestamp("dateRangeEnd"),
+        currentMA: decimal("currentMA", { precision: 14, scale: 4 }),
+        previousMA: decimal("previousMA", { precision: 14, scale: 4 }),
+        percentChange: decimal("percentChange", { precision: 10, scale: 6 }),
+        direction: mysqlEnum("direction", [
+          "rising",
+          "falling",
+          "stable",
+          "insufficient_data"
+        ]).notNull(),
+        anomalyCount: int("anomalyCount").default(0).notNull(),
+        anomalyDetails: json("anomalyDetails"),
+        // AnomalyFlag[]
+        confidence: mysqlEnum("trendConfidence", [
+          "high",
+          "medium",
+          "low",
+          "insufficient"
+        ]).notNull(),
+        narrative: text("narrative"),
+        movingAverages: json("movingAverages"),
+        // MovingAveragePoint[]
+        ingestionRunId: varchar("ingestionRunId", { length: 64 }),
+        // FK to ingestion_runs.runId
+        corpusScope: mysqlEnum("corpusScope", [
+          "organization",
+          "platform_public",
+          "legacy_unscoped"
+        ]).default("legacy_unscoped").notNull(),
+        corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        index("trend_snapshots_corpus_org_category_geography_idx").on(
+          table.corpusScope,
+          table.orgId,
+          table.category,
+          table.geography
+        )
+      ]
+    );
     projectInsights = mysqlTable("project_insights", {
       id: int("id").autoincrement().primaryKey(),
       projectId: int("projectId"),
@@ -1761,17 +2033,30 @@ var init_schema = __esm({
         "brand_dominance",
         "spec_inflation"
       ]).notNull(),
-      severity: mysqlEnum("insightSeverity", ["critical", "warning", "info"]).notNull(),
+      severity: mysqlEnum("insightSeverity", [
+        "critical",
+        "warning",
+        "info"
+      ]).notNull(),
       title: varchar("title", { length: 512 }).notNull(),
       body: text("body"),
       actionableRecommendation: text("actionableRecommendation"),
       confidenceScore: decimal("confidenceScore", { precision: 5, scale: 4 }),
       triggerCondition: text("triggerCondition"),
       dataPoints: json("dataPoints"),
-      status: mysqlEnum("insightStatus", ["active", "acknowledged", "dismissed", "resolved"]).default("active").notNull(),
+      status: mysqlEnum("insightStatus", [
+        "active",
+        "acknowledged",
+        "dismissed",
+        "resolved"
+      ]).default("active").notNull(),
       acknowledgedBy: int("acknowledgedBy"),
       acknowledgedAt: timestamp("acknowledgedAt"),
-      corpusScope: mysqlEnum("corpusScope", ["organization", "platform_public", "legacy_unscoped"]).default("legacy_unscoped").notNull(),
+      corpusScope: mysqlEnum("corpusScope", [
+        "organization",
+        "platform_public",
+        "legacy_unscoped"
+      ]).default("legacy_unscoped").notNull(),
       corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
       createdAt: timestamp("createdAt").defaultNow().notNull()
     });
@@ -1780,11 +2065,22 @@ var init_schema = __esm({
       itemName: varchar("itemName", { length: 255 }).notNull(),
       category: varchar("category", { length: 255 }).notNull(),
       sourceId: int("sourceId").notNull(),
-      previousPrice: decimal("previousPrice", { precision: 12, scale: 2 }).notNull(),
+      previousPrice: decimal("previousPrice", {
+        precision: 12,
+        scale: 2
+      }).notNull(),
       newPrice: decimal("newPrice", { precision: 12, scale: 2 }).notNull(),
       changePct: decimal("changePct", { precision: 10, scale: 6 }).notNull(),
-      changeDirection: mysqlEnum("changeDirection", ["increased", "decreased"]).notNull(),
-      severity: mysqlEnum("severity", ["significant", "notable", "minor", "none"]).notNull(),
+      changeDirection: mysqlEnum("changeDirection", [
+        "increased",
+        "decreased"
+      ]).notNull(),
+      severity: mysqlEnum("severity", [
+        "significant",
+        "notable",
+        "minor",
+        "none"
+      ]).notNull(),
       detectedAt: timestamp("detectedAt").defaultNow().notNull()
     });
     platformAlerts = mysqlTable("platform_alerts", {
@@ -1799,7 +2095,12 @@ var init_schema = __esm({
         "portfolio_risk",
         "portfolio_failure_pattern"
       ]).notNull(),
-      severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
+      severity: mysqlEnum("severity", [
+        "critical",
+        "high",
+        "medium",
+        "info"
+      ]).notNull(),
       title: varchar("title", { length: 255 }).notNull(),
       body: text("body").notNull(),
       affectedProjectIds: json("affectedProjectIds"),
@@ -1819,7 +2120,9 @@ var init_schema = __esm({
       sqlGenerated: text("sql_generated"),
       rowsReturned: int("rows_returned").default(0),
       executionMs: int("execution_ms"),
-      status: mysqlEnum("status", ["success", "error", "blocked"]).default("success"),
+      status: mysqlEnum("status", ["success", "error", "blocked"]).default(
+        "success"
+      ),
       createdAt: timestamp("created_at").defaultNow().notNull()
     });
     materialLibrary = mysqlTable("material_library", {
@@ -1836,12 +2139,7 @@ var init_schema = __esm({
         "hardware",
         "specialty"
       ]).notNull(),
-      tier: mysqlEnum("tier", [
-        "affordable",
-        "mid",
-        "premium",
-        "ultra"
-      ]).notNull(),
+      tier: mysqlEnum("tier", ["affordable", "mid", "premium", "ultra"]).notNull(),
       style: mysqlEnum("style", [
         "modern",
         "contemporary",
@@ -1862,41 +2160,35 @@ var init_schema = __esm({
       notes: text("notes"),
       isActive: boolean("is_active").default(true).notNull()
     });
-    finishScheduleItems = mysqlTable(
-      "finish_schedule_items",
-      {
-        id: int("id").primaryKey().autoincrement(),
-        projectId: int("project_id").notNull(),
-        organizationId: int("organization_id").notNull(),
-        roomId: varchar("room_id", { length: 10 }).notNull(),
-        roomName: varchar("room_name", { length: 100 }).notNull(),
-        element: mysqlEnum("element", [
-          "floor",
-          "wall_primary",
-          "wall_feature",
-          "wall_wet",
-          "ceiling",
-          "joinery",
-          "hardware"
-        ]).notNull(),
-        materialLibraryId: int("material_library_id"),
-        overrideSpec: varchar("override_spec", { length: 500 }),
-        notes: text("notes"),
-        createdAt: timestamp("created_at").defaultNow().notNull()
-      }
-    );
-    projectColorPalettes = mysqlTable(
-      "project_color_palettes",
-      {
-        id: int("id").primaryKey().autoincrement(),
-        projectId: int("project_id").notNull(),
-        organizationId: int("organization_id").notNull(),
-        paletteKey: varchar("palette_key", { length: 100 }).notNull(),
-        colors: json("colors").notNull(),
-        geminiRationale: text("gemini_rationale"),
-        createdAt: timestamp("created_at").defaultNow().notNull()
-      }
-    );
+    finishScheduleItems = mysqlTable("finish_schedule_items", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      organizationId: int("organization_id").notNull(),
+      roomId: varchar("room_id", { length: 10 }).notNull(),
+      roomName: varchar("room_name", { length: 100 }).notNull(),
+      element: mysqlEnum("element", [
+        "floor",
+        "wall_primary",
+        "wall_feature",
+        "wall_wet",
+        "ceiling",
+        "joinery",
+        "hardware"
+      ]).notNull(),
+      materialLibraryId: int("material_library_id"),
+      overrideSpec: varchar("override_spec", { length: 500 }),
+      notes: text("notes"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    projectColorPalettes = mysqlTable("project_color_palettes", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      organizationId: int("organization_id").notNull(),
+      paletteKey: varchar("palette_key", { length: 100 }).notNull(),
+      colors: json("colors").notNull(),
+      geminiRationale: text("gemini_rationale"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
     rfqLineItems = mysqlTable("rfq_line_items", {
       id: int("id").primaryKey().autoincrement(),
       projectId: int("project_id").notNull(),
@@ -1908,54 +2200,57 @@ var init_schema = __esm({
       description: varchar("description", { length: 500 }).notNull(),
       unit: varchar("unit", { length: 20 }).notNull(),
       quantity: decimal("quantity", { precision: 10, scale: 2 }),
-      unitRateAedMin: decimal(
-        "unit_rate_aed_min",
-        { precision: 10, scale: 2 }
-      ),
-      unitRateAedMax: decimal(
-        "unit_rate_aed_max",
-        { precision: 10, scale: 2 }
-      ),
-      totalAedMin: decimal(
-        "total_aed_min",
-        { precision: 12, scale: 2 }
-      ),
-      totalAedMax: decimal(
-        "total_aed_max",
-        { precision: 12, scale: 2 }
-      ),
+      unitRateAedMin: decimal("unit_rate_aed_min", { precision: 10, scale: 2 }),
+      unitRateAedMax: decimal("unit_rate_aed_max", { precision: 10, scale: 2 }),
+      totalAedMin: decimal("total_aed_min", { precision: 12, scale: 2 }),
+      totalAedMax: decimal("total_aed_max", { precision: 12, scale: 2 }),
       supplierName: varchar("supplier_name", { length: 200 }),
       pricingSource: varchar("pricing_source", { length: 32 }),
       // "market-verified" | "estimated" | "manual"
       notes: text("notes"),
       createdAt: timestamp("created_at").defaultNow().notNull()
     });
-    dmComplianceChecklists = mysqlTable(
-      "dm_compliance_checklists",
-      {
-        id: int("id").primaryKey().autoincrement(),
-        projectId: int("project_id").notNull(),
-        organizationId: int("organization_id").notNull(),
-        items: json("items").notNull(),
-        createdAt: timestamp("created_at").defaultNow().notNull()
-      }
-    );
+    dmComplianceChecklists = mysqlTable("dm_compliance_checklists", {
+      id: int("id").primaryKey().autoincrement(),
+      projectId: int("project_id").notNull(),
+      organizationId: int("organization_id").notNull(),
+      items: json("items").notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
     projectRoiModels = mysqlTable("project_roi_models", {
       id: int("id").primaryKey().autoincrement(),
       projectId: int("project_id").notNull(),
       scenarioId: int("scenario_id"),
-      reworkCostAvoided: decimal("rework_cost_avoided", { precision: 14, scale: 2 }).notNull(),
-      programmeAccelerationValue: decimal("programme_acceleration_value", { precision: 14, scale: 2 }).notNull(),
-      totalValueCreated: decimal("total_value_created", { precision: 14, scale: 2 }).notNull(),
-      netRoiPercent: decimal("net_roi_percent", { precision: 8, scale: 2 }).notNull(),
-      confidenceMultiplier: decimal("confidence_multiplier", { precision: 5, scale: 4 }).notNull(),
+      reworkCostAvoided: decimal("rework_cost_avoided", {
+        precision: 14,
+        scale: 2
+      }).notNull(),
+      programmeAccelerationValue: decimal("programme_acceleration_value", {
+        precision: 14,
+        scale: 2
+      }).notNull(),
+      totalValueCreated: decimal("total_value_created", {
+        precision: 14,
+        scale: 2
+      }).notNull(),
+      netRoiPercent: decimal("net_roi_percent", {
+        precision: 8,
+        scale: 2
+      }).notNull(),
+      confidenceMultiplier: decimal("confidence_multiplier", {
+        precision: 5,
+        scale: 4
+      }).notNull(),
       createdAt: timestamp("created_at").defaultNow().notNull()
     });
     scenarioStressTests = mysqlTable("scenario_stress_tests", {
       id: int("id").primaryKey().autoincrement(),
       scenarioId: int("scenario_id").notNull(),
       stressCondition: varchar("stress_condition", { length: 100 }).notNull(),
-      impactMagnitudePercent: decimal("impact_magnitude_percent", { precision: 6, scale: 2 }).notNull(),
+      impactMagnitudePercent: decimal("impact_magnitude_percent", {
+        precision: 6,
+        scale: 2
+      }).notNull(),
       resilienceScore: int("resilience_score").notNull(),
       // 1-100
       failurePoints: json("failure_points").notNull(),
@@ -1976,7 +2271,13 @@ var init_schema = __esm({
       // 1-100
       compositeRiskScore: int("composite_risk_score").notNull(),
       // Calculated via R = (P * I * V) / C
-      riskBand: mysqlEnum("risk_band", ["Minimal", "Controlled", "Elevated", "Critical", "Systemic"]).notNull(),
+      riskBand: mysqlEnum("risk_band", [
+        "Minimal",
+        "Controlled",
+        "Elevated",
+        "Critical",
+        "Systemic"
+      ]).notNull(),
       createdAt: timestamp("created_at").defaultNow().notNull()
     });
     biasAlerts = mysqlTable("bias_alerts", {
@@ -1994,7 +2295,12 @@ var init_schema = __esm({
         "sunk_cost",
         "clustering_illusion"
       ]).notNull(),
-      severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
+      severity: mysqlEnum("severity", [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]).notNull(),
       confidence: decimal("confidence", { precision: 5, scale: 2 }).notNull(),
       title: varchar("title", { length: 255 }).notNull(),
       description: text("description"),
@@ -2014,7 +2320,9 @@ var init_schema = __esm({
       occurrenceCount: int("occurrenceCount").default(0),
       lastDetectedAt: timestamp("lastDetectedAt"),
       avgSeverity: decimal("avgSeverity", { precision: 3, scale: 2 }),
-      trend: mysqlEnum("trend", ["increasing", "stable", "decreasing"]).default("stable"),
+      trend: mysqlEnum("trend", ["increasing", "stable", "decreasing"]).default(
+        "stable"
+      ),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
     spaceRecommendations = mysqlTable("space_recommendations", {
@@ -2050,7 +2358,10 @@ var init_schema = __esm({
       tier: varchar("tier", { length: 50 }).notNull(),
       style: varchar("style", { length: 100 }).notNull(),
       description: text("description"),
-      targetBudgetPerSqm: decimal("target_budget_per_sqm", { precision: 10, scale: 2 }),
+      targetBudgetPerSqm: decimal("target_budget_per_sqm", {
+        precision: 10,
+        scale: 2
+      }),
       rooms: json("rooms"),
       // SpaceRecommendation[]
       isTemplate: boolean("is_template").default(false).notNull(),
@@ -2102,7 +2413,12 @@ var init_schema = __esm({
           "portfolio_risk",
           "portfolio_failure_pattern"
         ]).notNull(),
-        severity: mysqlEnum("severity", ["critical", "high", "medium", "info"]).notNull(),
+        severity: mysqlEnum("severity", [
+          "critical",
+          "high",
+          "medium",
+          "info"
+        ]).notNull(),
         title: varchar("title", { length: 255 }).notNull(),
         body: text("body").notNull(),
         affectedProjectIds: json("affected_project_ids"),
@@ -2143,7 +2459,10 @@ var init_schema = __esm({
       mean: decimal("mean", { precision: 18, scale: 2 }),
       stdDev: decimal("std_dev", { precision: 18, scale: 2 }),
       var95: decimal("var95", { precision: 18, scale: 2 }),
-      budgetExceedProbability: decimal("budget_exceed_pct", { precision: 6, scale: 2 }),
+      budgetExceedProbability: decimal("budget_exceed_pct", {
+        precision: 6,
+        scale: 2
+      }),
       histogram: json("histogram"),
       timeSeriesData: json("time_series_data"),
       config: json("config"),
@@ -2174,7 +2493,10 @@ var init_schema = __esm({
       carbonPerSqm: decimal("carbon_per_sqm", { precision: 12, scale: 2 }),
       operationalEnergy: decimal("operational_energy", { precision: 18, scale: 2 }),
       energyPerSqm: decimal("energy_per_sqm", { precision: 12, scale: 2 }),
-      lifecycleCost30yr: decimal("lifecycle_cost_30yr", { precision: 18, scale: 2 }),
+      lifecycleCost30yr: decimal("lifecycle_cost_30yr", {
+        precision: 18,
+        scale: 2
+      }),
       carbonBreakdown: json("carbon_breakdown"),
       lifecycle: json("lifecycle"),
       config: json("config"),
@@ -2186,9 +2508,18 @@ var init_schema = __esm({
       userId: int("userId").notNull(),
       compositeScore: int("compositeScore").notNull(),
       grade: varchar("grade", { length: 2 }).notNull(),
-      embodiedCarbon: decimal("embodiedCarbon", { precision: 18, scale: 2 }).notNull(),
-      operationalEnergy: decimal("operationalEnergy", { precision: 18, scale: 2 }).notNull(),
-      lifecycleCost: decimal("lifecycleCost", { precision: 18, scale: 2 }).notNull(),
+      embodiedCarbon: decimal("embodiedCarbon", {
+        precision: 18,
+        scale: 2
+      }).notNull(),
+      operationalEnergy: decimal("operationalEnergy", {
+        precision: 18,
+        scale: 2
+      }).notNull(),
+      lifecycleCost: decimal("lifecycleCost", {
+        precision: 18,
+        scale: 2
+      }).notNull(),
       carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }).notNull(),
       energyRating: varchar("energyRating", { length: 2 }),
       renewablesEnabled: boolean("renewablesEnabled").default(false),
@@ -2199,11 +2530,20 @@ var init_schema = __esm({
     materialConstants = mysqlTable("material_constants", {
       id: int("id").primaryKey().autoincrement(),
       materialType: varchar("materialType", { length: 32 }).notNull().unique(),
-      carbonIntensity: decimal("carbonIntensity", { precision: 10, scale: 4 }).notNull(),
+      carbonIntensity: decimal("carbonIntensity", {
+        precision: 10,
+        scale: 4
+      }).notNull(),
       density: int("density").notNull(),
-      typicalThickness: decimal("typicalThickness", { precision: 6, scale: 3 }).notNull(),
+      typicalThickness: decimal("typicalThickness", {
+        precision: 6,
+        scale: 3
+      }).notNull(),
       recyclability: decimal("recyclability", { precision: 4, scale: 3 }).notNull(),
-      maintenanceFactor: decimal("maintenanceFactor", { precision: 6, scale: 4 }).notNull(),
+      maintenanceFactor: decimal("maintenanceFactor", {
+        precision: 6,
+        scale: 4
+      }).notNull(),
       costPerM2: decimal("costPerM2", { precision: 10, scale: 2 }).notNull(),
       isActive: boolean("isActive").default(true).notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().notNull(),
@@ -2287,7 +2627,9 @@ var init_schema = __esm({
       // New, Renew
       ejariPropertyTypeEn: varchar("ejari_property_type_en", { length: 100 }),
       // Flat, Villa
-      ejariPropertySubTypeEn: varchar("ejari_property_sub_type_en", { length: 100 }),
+      ejariPropertySubTypeEn: varchar("ejari_property_sub_type_en", {
+        length: 100
+      }),
       // Studio, 1bed+Hall, etc.
       propertyUsageEn: varchar("property_usage_en", { length: 100 }),
       // Residential, Commercial
@@ -2336,9 +2678,18 @@ var init_schema = __esm({
       // rent / sale price %
       absorptionRate: decimal("absorption_rate", { precision: 6, scale: 4 }),
       // Fitout calibration (AED/sqm)
-      recommendedFitoutLow: decimal("recommended_fitout_low", { precision: 10, scale: 2 }),
-      recommendedFitoutMid: decimal("recommended_fitout_mid", { precision: 10, scale: 2 }),
-      recommendedFitoutHigh: decimal("recommended_fitout_high", { precision: 10, scale: 2 }),
+      recommendedFitoutLow: decimal("recommended_fitout_low", {
+        precision: 10,
+        scale: 2
+      }),
+      recommendedFitoutMid: decimal("recommended_fitout_mid", {
+        precision: 10,
+        scale: 2
+      }),
+      recommendedFitoutHigh: decimal("recommended_fitout_high", {
+        precision: 10,
+        scale: 2
+      }),
       computedAt: timestamp("computed_at").defaultNow().notNull()
     });
     pdfExtractions = mysqlTable("pdf_extractions", {
@@ -2354,7 +2705,10 @@ var init_schema = __esm({
       ]).default("manual").notNull(),
       extractedRooms: json("extractedRooms"),
       // [{name, areaSqm, confidence, polygon}]
-      totalExtractedArea: decimal("totalExtractedArea", { precision: 12, scale: 2 }),
+      totalExtractedArea: decimal("totalExtractedArea", {
+        precision: 12,
+        scale: 2
+      }),
       status: mysqlEnum("extractionStatus", [
         "pending",
         "extracted",
@@ -2381,7 +2735,10 @@ var init_schema = __esm({
       materialLibraryId: int("materialLibraryId"),
       materialName: varchar("materialName", { length: 300 }).notNull(),
       allocationPct: decimal("allocationPct", { precision: 5, scale: 2 }).notNull(),
-      surfaceAreaM2: decimal("surfaceAreaM2", { precision: 10, scale: 2 }).notNull(),
+      surfaceAreaM2: decimal("surfaceAreaM2", {
+        precision: 10,
+        scale: 2
+      }).notNull(),
       unitCostMin: decimal("unitCostMin", { precision: 10, scale: 2 }),
       unitCostMax: decimal("unitCostMax", { precision: 10, scale: 2 }),
       totalCostMin: decimal("totalCostMin", { precision: 12, scale: 2 }),
@@ -2481,6 +2838,576 @@ var init_schema = __esm({
       createdAt: timestamp("createdAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
+    projectGeometryAuthorities = mysqlTable(
+      "project_geometry_authorities",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        mode: mysqlEnum("mode", ["legacy", "shadow", "canonical"]).default("legacy").notNull(),
+        currentGraphVersionId: int("currentGraphVersionId"),
+        selectedGeometryVersionId: int("selectedGeometryVersionId"),
+        revision: int("revision").default(0).notNull(),
+        updatedBy: int("updatedBy"),
+        createdAt: timestamp("createdAt").defaultNow().notNull(),
+        updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("project_geometry_authorities_org_project_unique").on(
+          table.organizationId,
+          table.projectId
+        ),
+        uniqueIndex("project_geometry_authorities_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        index("project_geometry_authorities_current_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.currentGraphVersionId
+        ),
+        index("project_geometry_authorities_shadow_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.selectedGeometryVersionId
+        )
+      ]
+    );
+    spatialGraphVersions = mysqlTable(
+      "spatial_graph_versions",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        graphId: varchar("graphId", { length: 64 }).notNull(),
+        version: int("version").notNull(),
+        parentGraphVersionId: int("parentGraphVersionId"),
+        geometrySourceId: int("geometrySourceId"),
+        status: mysqlEnum("status", [
+          "candidate",
+          "accepted",
+          "rejected",
+          "superseded"
+        ]).default("candidate").notNull(),
+        canonicalGeometry: json("canonicalGeometry").notNull(),
+        canonicalJsonSizeBytes: int("canonicalJsonSizeBytes").notNull(),
+        totalAreaSquareMetres: decimal("totalAreaSquareMetres", {
+          precision: 40,
+          scale: 12
+        }).notNull(),
+        totalAreaSquareMicrometresTwice: varchar(
+          "totalAreaSquareMicrometresTwice",
+          {
+            length: 128
+          }
+        ).notNull(),
+        schemaVersion: varchar("schemaVersion", { length: 64 }).notNull(),
+        canonicalizerVersion: varchar("canonicalizerVersion", {
+          length: 64
+        }).notNull(),
+        tolerancePolicyVersion: varchar("tolerancePolicyVersion", {
+          length: 64
+        }).notNull(),
+        referenceFrame: json("referenceFrame").notNull(),
+        fingerprintAlgorithm: varchar("fingerprintAlgorithm", {
+          length: 32
+        }).notNull(),
+        fingerprintDomain: varchar("fingerprintDomain", { length: 128 }).notNull(),
+        fingerprint: varchar("fingerprint", { length: 64 }).notNull(),
+        createdBy: int("createdBy").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("spatial_graph_versions_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        uniqueIndex("spatial_graph_versions_graph_version_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.graphId,
+          table.version
+        ),
+        index("spatial_graph_versions_fingerprint_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.fingerprint
+        ),
+        index("spatial_graph_versions_source_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.geometrySourceId
+        ),
+        index("spatial_graph_versions_parent_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.parentGraphVersionId
+        )
+      ]
+    );
+    spaceIdentities = mysqlTable(
+      "space_identities",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        publicId: varchar("publicId", { length: 64 }).notNull(),
+        initialGraphId: varchar("initialGraphId", { length: 64 }).notNull(),
+        lifecycleState: mysqlEnum("lifecycleState", [
+          "active",
+          "retired",
+          "tombstoned"
+        ]).default("active").notNull(),
+        tombstonedAt: timestamp("tombstonedAt"),
+        createdBy: int("createdBy").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("space_identities_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        uniqueIndex("space_identities_public_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.publicId
+        ),
+        index("space_identities_graph_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.initialGraphId
+        )
+      ]
+    );
+    spaceVersions = mysqlTable(
+      "space_versions",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        spaceIdentityId: int("spaceIdentityId").notNull(),
+        geometryVersionId: int("geometryVersionId").notNull(),
+        version: int("version").notNull(),
+        roomCode: varchar("roomCode", { length: 64 }),
+        roomName: varchar("roomName", { length: 255 }).notNull(),
+        category: varchar("category", { length: 64 }).notNull(),
+        levelId: varchar("levelId", { length: 128 }).notNull(),
+        zoneId: varchar("zoneId", { length: 128 }),
+        containment: json("containment"),
+        contentFingerprint: varchar("contentFingerprint", { length: 64 }).notNull(),
+        supersedesSpaceVersionId: int("supersedesSpaceVersionId"),
+        supersessionKind: mysqlEnum("supersessionKind", [
+          "revision",
+          "split",
+          "merge",
+          "delete",
+          "duplicate"
+        ]),
+        createdBy: int("createdBy").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("space_versions_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        uniqueIndex("space_versions_identity_version_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.spaceIdentityId,
+          table.version
+        ),
+        uniqueIndex("space_versions_graph_identity_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.geometryVersionId,
+          table.spaceIdentityId
+        ),
+        index("space_versions_content_fingerprint_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.contentFingerprint
+        ),
+        index("space_versions_supersedes_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.supersedesSpaceVersionId
+        )
+      ]
+    );
+    geometrySources = mysqlTable(
+      "geometry_sources",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        assetId: int("assetId"),
+        sourceType: mysqlEnum("sourceType", ["manual", "project_asset"]).notNull(),
+        acquisitionMethod: mysqlEnum("acquisitionMethod", [
+          "manual_entry",
+          "dxf",
+          "pdf_text",
+          "image_ai",
+          "dwg_ai",
+          "typology_template",
+          "derived",
+          "migration"
+        ]).notNull(),
+        evidenceClass: mysqlEnum("evidenceClass", [
+          "survey_measured",
+          "geometry_derived",
+          "source_stated",
+          "estimated",
+          "legacy_unknown"
+        ]).notNull(),
+        adapterName: varchar("adapterName", { length: 128 }).notNull(),
+        adapterVersion: varchar("adapterVersion", { length: 64 }).notNull(),
+        modelName: varchar("modelName", { length: 128 }),
+        modelVersion: varchar("modelVersion", { length: 64 }),
+        sourceUnits: mysqlEnum("sourceUnits", ["m", "mm", "unknown"]).notNull(),
+        sourceReferenceFrame: json("sourceReferenceFrame").notNull(),
+        sourceTransform: json("sourceTransform").notNull(),
+        sourceObservation: json("sourceObservation").notNull(),
+        schemaVersion: varchar("schemaVersion", { length: 64 }).notNull(),
+        canonicalizerVersion: varchar("canonicalizerVersion", {
+          length: 64
+        }).notNull(),
+        tolerancePolicyVersion: varchar("tolerancePolicyVersion", {
+          length: 64
+        }).notNull(),
+        sourceChecksum: varchar("sourceChecksum", { length: 128 }).notNull(),
+        assetChecksum: varchar("assetChecksum", { length: 128 }),
+        idempotencyKey: varchar("idempotencyKey", { length: 64 }).notNull(),
+        confidence: decimal("confidence", { precision: 5, scale: 4 }),
+        capturedAt: timestamp("capturedAt"),
+        createdBy: int("createdBy").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("geometry_sources_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        uniqueIndex("geometry_sources_idempotency_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.idempotencyKey
+        ),
+        index("geometry_sources_asset_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.assetId
+        ),
+        index("geometry_sources_checksum_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.sourceChecksum
+        )
+      ]
+    );
+    measurementRecords = mysqlTable(
+      "measurement_records",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        spaceIdentityId: int("spaceIdentityId"),
+        spaceVersionId: int("spaceVersionId"),
+        graphVersionId: int("graphVersionId"),
+        geometrySourceId: int("geometrySourceId"),
+        recordKind: mysqlEnum("recordKind", [
+          "observation",
+          "derivation"
+        ]).notNull(),
+        measurementBasis: varchar("measurementBasis", { length: 128 }).notNull(),
+        authorityVersion: varchar("authorityVersion", { length: 64 }).notNull(),
+        originalValue: decimal("originalValue", { precision: 40, scale: 12 }),
+        originalValueExact: varchar("originalValueExact", { length: 128 }),
+        originalUnit: varchar("originalUnit", { length: 32 }),
+        normalizedValue: decimal("normalizedValue", { precision: 40, scale: 12 }),
+        normalizedValueExact: varchar("normalizedValueExact", { length: 128 }),
+        normalizedUnit: varchar("normalizedUnit", { length: 32 }),
+        acquisitionMethod: mysqlEnum("acquisitionMethod", [
+          "manual_entry",
+          "dxf",
+          "pdf_text",
+          "image_ai",
+          "dwg_ai",
+          "typology_template",
+          "derived",
+          "migration"
+        ]).notNull(),
+        evidenceClass: mysqlEnum("evidenceClass", [
+          "survey_measured",
+          "geometry_derived",
+          "source_stated",
+          "estimated",
+          "legacy_unknown"
+        ]).notNull(),
+        reviewState: mysqlEnum("reviewState", [
+          "unreviewed",
+          "accepted",
+          "rejected",
+          "needs_clarification"
+        ]).default("unreviewed").notNull(),
+        resultState: mysqlEnum("resultState", [
+          "valid",
+          "not_checked",
+          "conflict",
+          "insufficient"
+        ]).notNull(),
+        formulaVersion: varchar("formulaVersion", { length: 64 }),
+        sourceIdentity: json("sourceIdentity").notNull(),
+        confidence: decimal("confidence", { precision: 5, scale: 4 }),
+        supersedesMeasurementRecordId: int("supersedesMeasurementRecordId"),
+        contentFingerprint: varchar("contentFingerprint", { length: 64 }).notNull(),
+        createdBy: int("createdBy").notNull(),
+        reviewedBy: int("reviewedBy"),
+        reviewedAt: timestamp("reviewedAt"),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("measurement_records_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        index("measurement_records_space_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.spaceIdentityId,
+          table.spaceVersionId
+        ),
+        index("measurement_records_graph_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.graphVersionId
+        ),
+        index("measurement_records_source_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.geometrySourceId
+        ),
+        index("measurement_records_fingerprint_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.contentFingerprint
+        ),
+        index("measurement_records_supersedes_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.supersedesMeasurementRecordId
+        )
+      ]
+    );
+    measurementInputEdges = mysqlTable(
+      "measurement_input_edges",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        derivedMeasurementRecordId: int("derivedMeasurementRecordId").notNull(),
+        inputMeasurementRecordId: int("inputMeasurementRecordId").notNull(),
+        inputOrdinal: int("inputOrdinal").notNull(),
+        inputRole: varchar("inputRole", { length: 64 }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("measurement_input_edges_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        uniqueIndex("measurement_input_edges_pair_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.derivedMeasurementRecordId,
+          table.inputMeasurementRecordId
+        ),
+        uniqueIndex("measurement_input_edges_ordinal_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.derivedMeasurementRecordId,
+          table.inputOrdinal
+        ),
+        index("measurement_input_edges_input_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.inputMeasurementRecordId
+        )
+      ]
+    );
+    geometryReconciliationEvents = mysqlTable(
+      "geometry_reconciliation_events",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        authorityId: int("authorityId").notNull(),
+        expectedCurrentGraphVersionId: int("expectedCurrentGraphVersionId"),
+        baseGraphVersionId: int("baseGraphVersionId"),
+        candidateGraphVersionId: int("candidateGraphVersionId").notNull(),
+        resultGraphVersionId: int("resultGraphVersionId"),
+        baseMeasurementRecordId: int("baseMeasurementRecordId"),
+        candidateMeasurementRecordId: int("candidateMeasurementRecordId"),
+        baseFingerprint: varchar("baseFingerprint", { length: 64 }),
+        candidateFingerprint: varchar("candidateFingerprint", {
+          length: 64
+        }).notNull(),
+        differenceSquareMetres: decimal("differenceSquareMetres", {
+          precision: 40,
+          scale: 12
+        }),
+        toleranceSquareMetres: decimal("toleranceSquareMetres", {
+          precision: 40,
+          scale: 12
+        }),
+        tolerancePolicyVersion: varchar("tolerancePolicyVersion", {
+          length: 64
+        }).notNull(),
+        reviewDecision: mysqlEnum("reviewDecision", [
+          "candidate_created",
+          "accepted",
+          "rejected",
+          "needs_clarification",
+          "reconciled"
+        ]).notNull(),
+        resultState: mysqlEnum("resultState", [
+          "valid",
+          "not_checked",
+          "conflict",
+          "insufficient"
+        ]).notNull(),
+        note: text("note").notNull(),
+        reviewerId: int("reviewerId").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("geometry_reconciliation_events_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        index("geometry_reconciliation_events_candidate_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.candidateGraphVersionId,
+          table.createdAt
+        ),
+        index("geometry_reconciliation_events_authority_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.authorityId,
+          table.createdAt
+        ),
+        index("geometry_reconciliation_events_result_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.resultGraphVersionId
+        ),
+        index("geometry_reconciliation_events_measurements_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.baseMeasurementRecordId,
+          table.candidateMeasurementRecordId
+        )
+      ]
+    );
+    legacySpaceLinks = mysqlTable(
+      "legacy_space_links",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        legacySourceKey: varchar("legacySourceKey", { length: 512 }).notNull(),
+        legacyTable: varchar("legacyTable", { length: 128 }).notNull(),
+        legacyRowId: varchar("legacyRowId", { length: 128 }),
+        legacyStringKey: varchar("legacyStringKey", { length: 255 }),
+        spaceIdentityId: int("spaceIdentityId"),
+        disposition: mysqlEnum("disposition", [
+          "mapped",
+          "unresolved_legacy_link",
+          "original_observation_lost",
+          "retired"
+        ]).notNull(),
+        evidence: json("evidence").notNull(),
+        createdBy: int("createdBy").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("legacy_space_links_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        uniqueIndex("legacy_space_links_source_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.legacySourceKey
+        ),
+        index("legacy_space_links_space_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.spaceIdentityId
+        )
+      ]
+    );
+    artifactInputSnapshots = mysqlTable(
+      "artifact_input_snapshots",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        artifactType: varchar("artifactType", { length: 64 }).notNull(),
+        artifactId: varchar("artifactId", { length: 128 }).notNull(),
+        artifactVersion: varchar("artifactVersion", { length: 64 }).notNull(),
+        graphVersionId: int("graphVersionId").notNull(),
+        spaceVersionIds: json("spaceVersionIds").notNull(),
+        measurementRecordIds: json("measurementRecordIds").notNull(),
+        formulaVersions: json("formulaVersions").notNull(),
+        rendererVersion: varchar("rendererVersion", { length: 64 }).notNull(),
+        copyVersion: varchar("copyVersion", { length: 64 }).notNull(),
+        locale: varchar("locale", { length: 16 }).notNull(),
+        storageKey: text("storageKey").notNull(),
+        inputSnapshot: json("inputSnapshot").notNull(),
+        snapshotDigestAlgorithm: varchar("snapshotDigestAlgorithm", {
+          length: 32
+        }).notNull(),
+        snapshotDigest: varchar("snapshotDigest", { length: 64 }).notNull(),
+        issuedBy: int("issuedBy").notNull(),
+        issuedAt: timestamp("issuedAt").defaultNow().notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("artifact_input_snapshots_scope_id_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.id
+        ),
+        uniqueIndex("artifact_input_snapshots_artifact_unique").on(
+          table.organizationId,
+          table.projectId,
+          table.artifactType,
+          table.artifactId,
+          table.artifactVersion
+        ),
+        index("artifact_input_snapshots_graph_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.graphVersionId
+        ),
+        index("artifact_input_snapshots_digest_idx").on(
+          table.organizationId,
+          table.projectId,
+          table.snapshotDigest
+        )
+      ]
+    );
   }
 });
 
@@ -2520,6 +3447,7 @@ __export(db_exports, {
   addMaterialToBoardForOrg: () => addMaterialToBoardForOrg,
   archiveLogicVersion: () => archiveLogicVersion,
   clearSpaceRecommendations: () => clearSpaceRecommendations,
+  commitShadowGeometryForOrg: () => commitShadowGeometryForOrg,
   createAiDesignBrief: () => createAiDesignBrief,
   createAiDesignBriefForOrg: () => createAiDesignBriefForOrg,
   createAssetLinkForOrg: () => createAssetLinkForOrg,
@@ -2690,6 +3618,7 @@ __export(db_exports, {
   getExpectedCost: () => getExpectedCost,
   getGeneratedVisualById: () => getGeneratedVisualById,
   getGeneratedVisualsByProject: () => getGeneratedVisualsByProject,
+  getGeometryComparisonForOrg: () => getGeometryComparisonForOrg,
   getGlobalProjectInsights: () => getGlobalProjectInsights,
   getGovernedAccuracySnapshots: () => getGovernedAccuracySnapshots,
   getGovernedBenchmarkSuggestions: () => getGovernedBenchmarkSuggestions,
@@ -2727,6 +3656,8 @@ __export(db_exports, {
   getProjectAssets: () => getProjectAssets,
   getProjectById: () => getProjectById,
   getProjectEvaluationHistory: () => getProjectEvaluationHistory,
+  getProjectGeometryAuthorityForOrg: () => getProjectGeometryAuthorityForOrg,
+  getProjectGeometryAuthorityModeForOrg: () => getProjectGeometryAuthorityModeForOrg,
   getProjectInsightById: () => getProjectInsightById,
   getProjectInsights: () => getProjectInsights,
   getProjectInsightsForOrg: () => getProjectInsightsForOrg,
@@ -2816,6 +3747,7 @@ __export(db_exports, {
   resetSpaceProgramRooms: () => resetSpaceProgramRooms,
   reviewBenchmarkProposal: () => reviewBenchmarkProposal,
   reviewBenchmarkSuggestion: () => reviewBenchmarkSuggestion,
+  reviewShadowGeometryForOrg: () => reviewShadowGeometryForOrg,
   revokeAiDesignBriefSharesForProjectForOrg: () => revokeAiDesignBriefSharesForProjectForOrg,
   revokeAiDesignBriefSharesForProjectForOrgInDatabase: () => revokeAiDesignBriefSharesForProjectForOrgInDatabase,
   setLogicThresholds: () => setLogicThresholds,
@@ -2847,6 +3779,7 @@ __export(db_exports, {
   updateProjectForOrg: () => updateProjectForOrg,
   updateProjectVerification: () => updateProjectVerification,
   updateProjectVerificationForOrg: () => updateProjectVerificationForOrg,
+  updateProjectWithLegacyGeometryAuthorityForOrg: () => updateProjectWithLegacyGeometryAuthorityForOrg,
   updatePromptTemplate: () => updatePromptTemplate,
   updateRoiConfig: () => updateRoiConfig,
   updateSourceRegistryEntry: () => updateSourceRegistryEntry,
@@ -3013,6 +3946,44 @@ async function updateProjectForOrg(id, orgId, data) {
   if (!db) throw new Error("DB not available");
   const result = await db.update(projects).set(data).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
   return Number(result[0].affectedRows) === 1;
+}
+async function lockLegacyGeometryProjectForOrg(tx, projectId, organizationId) {
+  const ownedProject = await tx.select({ id: projects.id }).from(projects).where(
+    and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+  ).limit(1).for("update");
+  if (ownedProject.length !== 1) return "not_found";
+  const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(
+    and(
+      eq(projectGeometryAuthorities.organizationId, organizationId),
+      eq(projectGeometryAuthorities.projectId, projectId)
+    )
+  ).limit(1).for("update");
+  return authority[0]?.mode === "canonical" ? "canonical" : "legacy";
+}
+async function updateProjectWithLegacyGeometryAuthorityForOrg(projectId, organizationId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const authority = await lockLegacyGeometryProjectForOrg(
+      tx,
+      projectId,
+      organizationId
+    );
+    if (authority !== "legacy") return authority;
+    const result = await tx.update(projects).set(data).where(
+      and(
+        eq(projects.id, projectId),
+        eq(projects.orgId, organizationId),
+        sql`not exists (
+            select 1 from ${projectGeometryAuthorities}
+            where ${projectGeometryAuthorities.organizationId} = ${organizationId}
+              and ${projectGeometryAuthorities.projectId} = ${projectId}
+              and ${projectGeometryAuthorities.mode} = 'canonical'
+          )`
+      )
+    );
+    return Number(result[0].affectedRows) === 1 ? "updated" : "canonical";
+  });
 }
 async function deleteProject(id) {
   const db = await getDb();
@@ -5815,6 +6786,11 @@ async function verifyPdfExtractionForOrg(id, projectId, orgId, userId, verifiedA
       eq(projects.orgId, orgId)
     )).limit(1).for("update");
     if (extraction.length !== 1) return false;
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(and(
+      eq(projectGeometryAuthorities.organizationId, orgId),
+      eq(projectGeometryAuthorities.projectId, projectId)
+    )).limit(1).for("update");
+    if (authority[0]?.mode === "canonical") return false;
     await tx.update(pdfExtractions).set({
       status: "verified",
       verifiedBy: userId,
@@ -5836,13 +6812,14 @@ async function updateProjectVerification(projectId, data) {
   return db.update(projects).set(updates).where(eq(projects.id, projectId));
 }
 async function updateProjectVerificationForOrg(projectId, orgId, data) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
   const updates = {};
   if (data.fitoutAreaVerified !== void 0) updates.fitoutAreaVerified = data.fitoutAreaVerified;
   if (data.totalFitoutArea !== void 0) updates.totalFitoutArea = String(data.totalFitoutArea);
-  const result = await db.update(projects).set(updates).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
-  return Number(result[0].affectedRows) === 1;
+  return await updateProjectWithLegacyGeometryAuthorityForOrg(
+    projectId,
+    orgId,
+    updates
+  ) === "updated";
 }
 async function getMaterialAllocations(projectId, organizationId) {
   const db = await getDb();
@@ -5981,6 +6958,11 @@ async function insertSpaceProgramRoomForOrg(data, organizationId) {
       eq(projects.orgId, organizationId)
     )).limit(1).for("update");
     if (project.length !== 1 || data.organizationId !== organizationId) return false;
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(and(
+      eq(projectGeometryAuthorities.organizationId, organizationId),
+      eq(projectGeometryAuthorities.projectId, data.projectId)
+    )).limit(1).for("update");
+    if (authority[0]?.mode === "canonical") return false;
     await tx.insert(spaceProgramRooms).values(data);
     return true;
   });
@@ -6001,7 +6983,13 @@ async function updateSpaceProgramRoomForOrg(id, organizationId, data) {
   if (!db) throw new Error("DB not available");
   const result = await db.update(spaceProgramRooms).set(data).where(and(
     eq(spaceProgramRooms.id, id),
-    eq(spaceProgramRooms.organizationId, organizationId)
+    eq(spaceProgramRooms.organizationId, organizationId),
+    sql`not exists (
+        select 1 from ${projectGeometryAuthorities}
+        where ${projectGeometryAuthorities.organizationId} = ${organizationId}
+          and ${projectGeometryAuthorities.projectId} = ${spaceProgramRooms.projectId}
+          and ${projectGeometryAuthorities.mode} = 'canonical'
+      )`
   ));
   return Number(result[0].affectedRows) === 1;
 }
@@ -6020,6 +7008,12 @@ async function deleteSpaceProgramRoomForOrg(id, organizationId) {
       eq(spaceProgramRooms.organizationId, organizationId)
     )).limit(1).for("update");
     if (rows.length !== 1) return false;
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).innerJoin(spaceProgramRooms, and(
+      eq(spaceProgramRooms.id, id),
+      eq(spaceProgramRooms.projectId, projectGeometryAuthorities.projectId),
+      eq(spaceProgramRooms.organizationId, projectGeometryAuthorities.organizationId)
+    )).where(eq(projectGeometryAuthorities.organizationId, organizationId)).limit(1).for("update");
+    if (authority[0]?.mode === "canonical") return false;
     await tx.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, id));
     const result = await tx.delete(spaceProgramRooms).where(and(
       eq(spaceProgramRooms.id, id),
@@ -6048,6 +7042,11 @@ async function replaceSpaceProgramRoomsForOrg(projectId, organizationId, rooms, 
       eq(projects.orgId, organizationId)
     )).limit(1).for("update");
     if (project.length !== 1) return null;
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(and(
+      eq(projectGeometryAuthorities.organizationId, organizationId),
+      eq(projectGeometryAuthorities.projectId, projectId)
+    )).limit(1).for("update");
+    if (authority[0]?.mode === "canonical") return null;
     const deleteConditions = [
       eq(spaceProgramRooms.projectId, projectId),
       eq(spaceProgramRooms.organizationId, organizationId)
@@ -6134,38 +7133,510 @@ async function insertPortfolioAlertsForOrg(input) {
 async function resetSpaceProgramRooms(projectId, organizationId, preserveOverridden = true) {
   const db = await getDb();
   if (!db) return;
-  if (preserveOverridden) {
-    const nonOverridden = await db.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(
+  return db.transaction(async (tx) => {
+    const authority = await lockLegacyGeometryProjectForOrg(
+      tx,
+      projectId,
+      organizationId
+    );
+    if (authority === "not_found") return false;
+    if (authority === "canonical") {
+      throw new Error(
+        "Legacy room and area values are read-only while canonical geometry is authoritative."
+      );
+    }
+    const conditions = [
       eq(spaceProgramRooms.projectId, projectId),
-      eq(spaceProgramRooms.organizationId, organizationId),
-      eq(spaceProgramRooms.fitOutOverridden, false)
-    ));
-    const idsToDelete = nonOverridden.map((r) => r.id);
+      eq(spaceProgramRooms.organizationId, organizationId)
+    ];
+    if (preserveOverridden) {
+      conditions.push(eq(spaceProgramRooms.fitOutOverridden, false));
+    }
+    const deleting = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(...conditions)).for("update");
+    const idsToDelete = deleting.map((room) => room.id);
     if (idsToDelete.length > 0) {
-      for (const roomId of idsToDelete) {
-        await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, roomId));
+      await tx.delete(amenitySubSpaces).where(inArray(amenitySubSpaces.spaceProgramRoomId, idsToDelete));
+      await tx.delete(spaceProgramRooms).where(and(...conditions));
+    }
+    return true;
+  });
+}
+function scopedNullableIdCondition(column, value) {
+  return value === null ? isNull(column) : eq(column, value);
+}
+function geometryContentFingerprint(value) {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+function area2ToDecimal12(value) {
+  const trillion = BigInt(1e12);
+  const trillionths = (value + BigInt(1)) / BigInt(2);
+  const whole = trillionths / trillion;
+  const fraction = (trillionths % trillion).toString().padStart(12, "0");
+  return `${whole.toString()}.${fraction}`;
+}
+async function getProjectGeometryAuthorityForOrg(projectId, organizationId) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const rows = await db.select().from(projectGeometryAuthorities).where(
+    and(
+      eq(projectGeometryAuthorities.projectId, projectId),
+      eq(projectGeometryAuthorities.organizationId, organizationId)
+    )
+  ).limit(1);
+  return rows[0];
+}
+async function getProjectGeometryAuthorityModeForOrg(projectId, organizationId) {
+  const authority = await getProjectGeometryAuthorityForOrg(
+    projectId,
+    organizationId
+  );
+  return authority?.mode ?? "legacy";
+}
+async function commitShadowGeometryForOrg(input) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  try {
+    return await db.transaction(async (tx) => {
+      const ownedProjects = await tx.select({ id: projects.id }).from(projects).where(
+        and(
+          eq(projects.id, input.projectId),
+          eq(projects.orgId, input.organizationId)
+        )
+      ).limit(1).for("update");
+      if (ownedProjects.length !== 1) return { kind: "not_found" };
+      if (input.source.assetId != null) {
+        const assets = await tx.select({ id: projectAssets.id, checksum: projectAssets.checksum }).from(projectAssets).where(
+          and(
+            eq(projectAssets.id, input.source.assetId),
+            eq(projectAssets.projectId, input.projectId)
+          )
+        ).limit(1).for("update");
+        if (assets.length !== 1 || !input.source.assetChecksum || assets[0].checksum !== input.source.assetChecksum) {
+          return { kind: "not_found" };
+        }
       }
-      await db.delete(spaceProgramRooms).where(and(
-        eq(spaceProgramRooms.projectId, projectId),
-        eq(spaceProgramRooms.organizationId, organizationId),
-        eq(spaceProgramRooms.fitOutOverridden, false)
-      ));
+      const replaySources = await tx.select({ id: geometrySources.id }).from(geometrySources).where(
+        and(
+          eq(geometrySources.organizationId, input.organizationId),
+          eq(geometrySources.projectId, input.projectId),
+          eq(geometrySources.idempotencyKey, input.source.idempotencyKey)
+        )
+      ).limit(1).for("update");
+      let replayGraph;
+      if (replaySources[0]) {
+        const replayGraphs = await tx.select().from(spatialGraphVersions).where(
+          and(
+            eq(spatialGraphVersions.organizationId, input.organizationId),
+            eq(spatialGraphVersions.projectId, input.projectId),
+            eq(spatialGraphVersions.geometrySourceId, replaySources[0].id)
+          )
+        ).limit(1);
+        replayGraph = replayGraphs[0];
+      }
+      let authorityRows = await tx.select().from(projectGeometryAuthorities).where(
+        and(
+          eq(projectGeometryAuthorities.organizationId, input.organizationId),
+          eq(projectGeometryAuthorities.projectId, input.projectId)
+        )
+      ).limit(1).for("update");
+      if (!authorityRows[0]) {
+        if (input.expectedCurrentVersionId !== null) {
+          return { kind: "conflict", currentGraphVersionId: null };
+        }
+        const inserted = await tx.insert(projectGeometryAuthorities).values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          mode: "shadow",
+          currentGraphVersionId: null,
+          selectedGeometryVersionId: null,
+          revision: 0,
+          updatedBy: input.userId
+        });
+        authorityRows = await tx.select().from(projectGeometryAuthorities).where(
+          and(
+            eq(projectGeometryAuthorities.id, Number(inserted[0].insertId)),
+            eq(
+              projectGeometryAuthorities.organizationId,
+              input.organizationId
+            ),
+            eq(projectGeometryAuthorities.projectId, input.projectId)
+          )
+        ).limit(1).for("update");
+      }
+      const authority = authorityRows[0];
+      if (!authority) return { kind: "not_found" };
+      if (authority.mode === "canonical") {
+        return { kind: "canonical" };
+      }
+      if (authority.currentGraphVersionId !== input.expectedCurrentVersionId) {
+        return {
+          kind: "conflict",
+          currentGraphVersionId: authority.currentGraphVersionId
+        };
+      }
+      if (replaySources[0] && replayGraph) {
+        return {
+          kind: "ok",
+          replayed: true,
+          graphVersionId: replayGraph.id,
+          geometrySourceId: replaySources[0].id,
+          fingerprint: replayGraph.fingerprint
+        };
+      }
+      const sourceInsert = await tx.insert(geometrySources).values({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        assetId: input.source.assetId ?? null,
+        sourceType: input.source.sourceType,
+        acquisitionMethod: input.source.acquisitionMethod,
+        evidenceClass: "source_stated",
+        adapterName: input.source.adapterName,
+        adapterVersion: input.source.adapterVersion,
+        sourceUnits: input.source.sourceUnits,
+        sourceReferenceFrame: input.canonical.geometry.referenceFrame,
+        sourceTransform: input.source.sourceTransform,
+        sourceObservation: input.source.sourceObservation,
+        schemaVersion: input.canonical.geometry.schemaVersion,
+        canonicalizerVersion: input.canonical.geometry.canonicalizerVersion,
+        tolerancePolicyVersion: input.canonical.geometry.tolerancePolicyVersion,
+        sourceChecksum: input.source.sourceChecksum,
+        assetChecksum: input.source.assetChecksum ?? null,
+        idempotencyKey: input.source.idempotencyKey,
+        createdBy: input.userId
+      });
+      const geometrySourceId = Number(sourceInsert[0].insertId);
+      const previousGraph = authority.currentGraphVersionId ? (await tx.select().from(spatialGraphVersions).where(
+        and(
+          eq(spatialGraphVersions.id, authority.currentGraphVersionId),
+          eq(spatialGraphVersions.organizationId, input.organizationId),
+          eq(spatialGraphVersions.projectId, input.projectId)
+        )
+      ).limit(1))[0] : void 0;
+      if (authority.currentGraphVersionId && !previousGraph) {
+        throw new ShadowGeometryCasRollback(authority.currentGraphVersionId);
+      }
+      const totalArea22 = input.canonical.geometry.rooms.reduce(
+        (total, room) => total + BigInt(room.areaSquareMicrometresTwice),
+        BigInt(0)
+      );
+      const graphId = previousGraph?.graphId ?? createHash("sha256").update(`MIYAR_GRAPH_V1\0${input.organizationId}\0${input.projectId}`).digest("hex");
+      const graphInsert = await tx.insert(spatialGraphVersions).values({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        graphId,
+        version: (previousGraph?.version ?? 0) + 1,
+        parentGraphVersionId: previousGraph?.id ?? null,
+        geometrySourceId,
+        status: "candidate",
+        canonicalGeometry: input.canonical.geometry,
+        canonicalJsonSizeBytes: Buffer.byteLength(
+          input.canonical.canonicalJson
+        ),
+        totalAreaSquareMetres: area2ToDecimal12(totalArea22),
+        totalAreaSquareMicrometresTwice: totalArea22.toString(),
+        schemaVersion: input.canonical.geometry.schemaVersion,
+        canonicalizerVersion: input.canonical.geometry.canonicalizerVersion,
+        tolerancePolicyVersion: input.canonical.geometry.tolerancePolicyVersion,
+        referenceFrame: input.canonical.geometry.referenceFrame,
+        fingerprintAlgorithm: input.canonical.fingerprint.algorithm,
+        fingerprintDomain: input.canonical.fingerprint.domain,
+        fingerprint: input.canonical.fingerprint.value,
+        createdBy: input.userId
+      });
+      const graphVersionId = Number(graphInsert[0].insertId);
+      const metadataBySpace = new Map(
+        input.rooms.map((room) => [room.spaceId, room])
+      );
+      const createdMeasurementIds = [];
+      for (const room of input.canonical.geometry.rooms) {
+        let identities = await tx.select().from(spaceIdentities).where(
+          and(
+            eq(spaceIdentities.organizationId, input.organizationId),
+            eq(spaceIdentities.projectId, input.projectId),
+            eq(spaceIdentities.publicId, room.spaceId)
+          )
+        ).limit(1).for("update");
+        if (!identities[0]) {
+          const identityInsert = await tx.insert(spaceIdentities).values({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            publicId: room.spaceId,
+            initialGraphId: graphId,
+            lifecycleState: "active",
+            createdBy: input.userId
+          });
+          identities = await tx.select().from(spaceIdentities).where(
+            and(
+              eq(spaceIdentities.id, Number(identityInsert[0].insertId)),
+              eq(spaceIdentities.organizationId, input.organizationId),
+              eq(spaceIdentities.projectId, input.projectId)
+            )
+          ).limit(1);
+        }
+        const identity = identities[0];
+        if (!identity) throw new Error("Scoped space identity insert was lost");
+        const priorVersions = await tx.select({ id: spaceVersions.id, version: spaceVersions.version }).from(spaceVersions).where(
+          and(
+            eq(spaceVersions.organizationId, input.organizationId),
+            eq(spaceVersions.projectId, input.projectId),
+            eq(spaceVersions.spaceIdentityId, identity.id)
+          )
+        ).orderBy(desc(spaceVersions.version)).limit(1);
+        const metadata = metadataBySpace.get(room.spaceId);
+        const versionContent = {
+          room,
+          roomName: metadata?.roomName ?? room.spaceId,
+          roomCode: metadata?.roomCode ?? null,
+          category: metadata?.category ?? "other",
+          levelId: metadata?.levelId ?? `elevation:${room.levelElevationMicrometres}`,
+          zoneId: metadata?.zoneId ?? null
+        };
+        const spaceVersionInsert = await tx.insert(spaceVersions).values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          spaceIdentityId: identity.id,
+          geometryVersionId: graphVersionId,
+          version: (priorVersions[0]?.version ?? 0) + 1,
+          roomCode: versionContent.roomCode,
+          roomName: versionContent.roomName,
+          category: versionContent.category,
+          levelId: versionContent.levelId,
+          zoneId: versionContent.zoneId,
+          containment: { geometry: room },
+          contentFingerprint: geometryContentFingerprint(versionContent),
+          supersedesSpaceVersionId: priorVersions[0]?.id ?? null,
+          supersessionKind: priorVersions[0] ? "revision" : null,
+          createdBy: input.userId
+        });
+        const spaceVersionId = Number(spaceVersionInsert[0].insertId);
+        const measurementContent = {
+          basis: input.canonical.geometry.measurementBasis,
+          exactArea2: room.areaSquareMicrometresTwice,
+          graphVersionId,
+          spaceVersionId,
+          geometrySourceId
+        };
+        const measurementInsert = await tx.insert(measurementRecords).values({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          spaceIdentityId: identity.id,
+          spaceVersionId,
+          graphVersionId,
+          geometrySourceId,
+          recordKind: "derivation",
+          measurementBasis: input.canonical.geometry.measurementBasis,
+          authorityVersion: input.canonical.geometry.schemaVersion,
+          normalizedValue: area2ToDecimal12(
+            BigInt(room.areaSquareMicrometresTwice)
+          ),
+          normalizedValueExact: room.areaSquareMicrometresTwice,
+          normalizedUnit: "m2",
+          acquisitionMethod: input.source.acquisitionMethod,
+          evidenceClass: "geometry_derived",
+          reviewState: "unreviewed",
+          resultState: "valid",
+          formulaVersion: input.canonical.geometry.canonicalizerVersion,
+          sourceIdentity: {
+            geometrySourceId,
+            graphVersionId,
+            geometryFingerprint: input.canonical.fingerprint.value
+          },
+          contentFingerprint: geometryContentFingerprint(measurementContent),
+          createdBy: input.userId
+        });
+        createdMeasurementIds.push(Number(measurementInsert[0].insertId));
+      }
+      const casResult = await tx.update(projectGeometryAuthorities).set({
+        mode: "shadow",
+        currentGraphVersionId: graphVersionId,
+        revision: sql`${projectGeometryAuthorities.revision} + 1`,
+        updatedBy: input.userId
+      }).where(
+        and(
+          eq(projectGeometryAuthorities.id, authority.id),
+          eq(projectGeometryAuthorities.organizationId, input.organizationId),
+          eq(projectGeometryAuthorities.projectId, input.projectId),
+          scopedNullableIdCondition(
+            projectGeometryAuthorities.currentGraphVersionId,
+            input.expectedCurrentVersionId
+          )
+        )
+      );
+      if (Number(casResult[0].affectedRows) !== 1) {
+        throw new ShadowGeometryCasRollback(authority.currentGraphVersionId);
+      }
+      await tx.insert(geometryReconciliationEvents).values({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        authorityId: authority.id,
+        expectedCurrentGraphVersionId: input.expectedCurrentVersionId,
+        baseGraphVersionId: authority.currentGraphVersionId,
+        candidateGraphVersionId: graphVersionId,
+        resultGraphVersionId: null,
+        candidateMeasurementRecordId: createdMeasurementIds[0] ?? null,
+        baseFingerprint: previousGraph?.fingerprint ?? null,
+        candidateFingerprint: input.canonical.fingerprint.value,
+        tolerancePolicyVersion: input.canonical.geometry.tolerancePolicyVersion,
+        reviewDecision: "candidate_created",
+        resultState: "not_checked",
+        note: "Shadow geometry candidate created; legacy numerical authority retained.",
+        reviewerId: input.userId
+      });
+      return {
+        kind: "ok",
+        replayed: false,
+        graphVersionId,
+        geometrySourceId,
+        fingerprint: input.canonical.fingerprint.value
+      };
+    });
+  } catch (error) {
+    if (error instanceof ShadowGeometryCasRollback) {
+      return {
+        kind: "conflict",
+        currentGraphVersionId: error.currentGraphVersionId
+      };
     }
-  } else {
-    const allRooms = await db.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(
-      eq(spaceProgramRooms.projectId, projectId),
-      eq(spaceProgramRooms.organizationId, organizationId)
-    ));
-    for (const room of allRooms) {
-      await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, room.id));
-    }
-    await db.delete(spaceProgramRooms).where(and(
-      eq(spaceProgramRooms.projectId, projectId),
-      eq(spaceProgramRooms.organizationId, organizationId)
-    ));
+    throw error;
   }
 }
-var _db, assetLinkTargetResolvers, listPublicEvidenceRecords;
+async function reviewShadowGeometryForOrg(input) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const projectsFound = await tx.select({ id: projects.id }).from(projects).where(
+      and(
+        eq(projects.id, input.projectId),
+        eq(projects.orgId, input.organizationId)
+      )
+    ).limit(1).for("update");
+    if (projectsFound.length !== 1) return { kind: "not_found" };
+    const authorities = await tx.select().from(projectGeometryAuthorities).where(
+      and(
+        eq(projectGeometryAuthorities.organizationId, input.organizationId),
+        eq(projectGeometryAuthorities.projectId, input.projectId)
+      )
+    ).limit(1).for("update");
+    const authority = authorities[0];
+    if (!authority) return { kind: "not_found" };
+    if (authority.currentGraphVersionId !== input.expectedCurrentVersionId || authority.currentGraphVersionId !== input.geometryVersionId) {
+      return {
+        kind: "conflict",
+        currentGraphVersionId: authority.currentGraphVersionId
+      };
+    }
+    const candidates = await tx.select().from(spatialGraphVersions).where(
+      and(
+        eq(spatialGraphVersions.id, input.geometryVersionId),
+        eq(spatialGraphVersions.organizationId, input.organizationId),
+        eq(spatialGraphVersions.projectId, input.projectId)
+      )
+    ).limit(1);
+    const candidate = candidates[0];
+    if (!candidate) return { kind: "not_found" };
+    const reviewDecision = input.decision === "clarification_requested" ? "needs_clarification" : input.decision;
+    const selectedGeometryVersionId = input.decision === "accepted" ? input.geometryVersionId : authority.selectedGeometryVersionId === input.geometryVersionId ? null : authority.selectedGeometryVersionId;
+    const result = await tx.update(projectGeometryAuthorities).set({
+      selectedGeometryVersionId,
+      revision: sql`${projectGeometryAuthorities.revision} + 1`,
+      updatedBy: input.userId
+    }).where(
+      and(
+        eq(projectGeometryAuthorities.id, authority.id),
+        eq(projectGeometryAuthorities.organizationId, input.organizationId),
+        eq(projectGeometryAuthorities.projectId, input.projectId),
+        scopedNullableIdCondition(
+          projectGeometryAuthorities.currentGraphVersionId,
+          input.expectedCurrentVersionId
+        )
+      )
+    );
+    if (Number(result[0].affectedRows) !== 1) {
+      return { kind: "conflict", currentGraphVersionId: null };
+    }
+    await tx.insert(geometryReconciliationEvents).values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      authorityId: authority.id,
+      expectedCurrentGraphVersionId: input.expectedCurrentVersionId,
+      baseGraphVersionId: authority.selectedGeometryVersionId,
+      candidateGraphVersionId: input.geometryVersionId,
+      resultGraphVersionId: input.decision === "accepted" ? input.geometryVersionId : null,
+      candidateFingerprint: candidate.fingerprint,
+      tolerancePolicyVersion: candidate.tolerancePolicyVersion,
+      reviewDecision,
+      resultState: input.decision === "accepted" ? "valid" : input.decision === "rejected" ? "conflict" : "insufficient",
+      note: input.note?.trim() || `Shadow candidate ${reviewDecision}.`,
+      reviewerId: input.userId
+    });
+    return {
+      kind: "ok",
+      currentGraphVersionId: authority.currentGraphVersionId,
+      selectedGeometryVersionId,
+      decision: input.decision
+    };
+  });
+}
+async function getGeometryComparisonForOrg(projectId, organizationId) {
+  const db = await getDb();
+  if (!db) return void 0;
+  const authority = await getProjectGeometryAuthorityForOrg(
+    projectId,
+    organizationId
+  );
+  const legacyRooms = await getSpaceProgramRooms(projectId, organizationId);
+  if (!authority?.currentGraphVersionId) {
+    return {
+      authority,
+      candidate: void 0,
+      source: void 0,
+      review: void 0,
+      legacyRooms
+    };
+  }
+  const candidates = await db.select().from(spatialGraphVersions).where(
+    and(
+      eq(spatialGraphVersions.id, authority.currentGraphVersionId),
+      eq(spatialGraphVersions.organizationId, organizationId),
+      eq(spatialGraphVersions.projectId, projectId)
+    )
+  ).limit(1);
+  const candidate = candidates[0];
+  if (!candidate) {
+    return {
+      authority,
+      candidate: void 0,
+      source: void 0,
+      review: void 0,
+      legacyRooms
+    };
+  }
+  const sources = candidate.geometrySourceId ? await db.select().from(geometrySources).where(
+    and(
+      eq(geometrySources.id, candidate.geometrySourceId),
+      eq(geometrySources.organizationId, organizationId),
+      eq(geometrySources.projectId, projectId)
+    )
+  ).limit(1) : [];
+  const reviews = await db.select().from(geometryReconciliationEvents).where(
+    and(
+      eq(geometryReconciliationEvents.organizationId, organizationId),
+      eq(geometryReconciliationEvents.projectId, projectId),
+      eq(geometryReconciliationEvents.candidateGraphVersionId, candidate.id)
+    )
+  ).orderBy(
+    desc(geometryReconciliationEvents.createdAt),
+    desc(geometryReconciliationEvents.id)
+  ).limit(1);
+  return {
+    authority,
+    candidate,
+    source: sources[0],
+    review: reviews[0],
+    legacyRooms
+  };
+}
+var _db, assetLinkTargetResolvers, listPublicEvidenceRecords, ShadowGeometryCasRollback;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
@@ -6186,6 +7657,12 @@ var init_db = __esm({
       visual: (tx, id, orgId) => tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq(projects.id, generatedVisuals.projectId)).where(and(eq(generatedVisuals.id, id), eq(projects.orgId, orgId))).limit(1).for("update")
     };
     listPublicEvidenceRecords = listPublicCorpusEvidence;
+    ShadowGeometryCasRollback = class extends Error {
+      constructor(currentGraphVersionId) {
+        super("Shadow geometry compare-and-swap failed");
+        this.currentGraphVersionId = currentGraphVersionId;
+      }
+    };
   }
 });
 
@@ -7336,133 +8813,6 @@ var init_llm = __esm({
       return part;
     };
     mapRoleToGemini = (role) => role === "assistant" ? "model" : "user";
-  }
-});
-
-// server/storage.ts
-var storage_exports = {};
-__export(storage_exports, {
-  storageCreatePresignedPut: () => storageCreatePresignedPut,
-  storageDelete: () => storageDelete,
-  storageGet: () => storageGet,
-  storagePut: () => storagePut,
-  storageRead: () => storageRead
-});
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-  HeadObjectCommand
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { Buffer as Buffer2 } from "node:buffer";
-import process2 from "node:process";
-function getS3Client() {
-  const region = process2.env.AWS_REGION || "us-east-1";
-  const accessKeyId = process2.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process2.env.AWS_SECRET_ACCESS_KEY;
-  const bucketName = process2.env.AWS_S3_BUCKET;
-  if (!accessKeyId || !secretAccessKey || !bucketName) {
-    if (process2.env.NODE_ENV === "production") {
-      console.warn("Missing AWS S3 credentials");
-    }
-  }
-  const client = new S3Client({
-    region,
-    credentials: accessKeyId && secretAccessKey ? {
-      accessKeyId,
-      secretAccessKey
-    } : void 0
-  });
-  return { client, bucketName };
-}
-function normalizeKey(relKey) {
-  return relKey.replace(/^\/+/, "");
-}
-async function storagePut(relKey, data, contentType = "application/octet-stream") {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
-    const dataUrl = `data:${contentType};base64,${b64}`;
-    return { key, url: dataUrl, persistent: false };
-  }
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-    Body: typeof data === "string" ? Buffer2.from(data, "utf-8") : data,
-    ContentType: contentType
-  });
-  await client.send(command);
-  const getCommand = new GetObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  });
-  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
-  return { key, url, persistent: true };
-}
-async function storageCreatePresignedPut(relKey, contentType, expiresIn = 15 * 60) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    throw new Error("Object storage is not configured for direct uploads");
-  }
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-    ContentType: contentType
-  });
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
-  return { key, uploadUrl };
-}
-async function storageRead(relKey, maxBytes) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    throw new Error("Object storage is not configured for server-side validation");
-  }
-  const head = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
-  const sizeBytes = head.ContentLength ?? 0;
-  if (sizeBytes <= 0 || sizeBytes > maxBytes) {
-    return { key, contentType: head.ContentType, sizeBytes, buffer: Buffer2.alloc(0) };
-  }
-  const object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
-  if (!object.Body) throw new Error("Object storage returned no body");
-  const data = await object.Body.transformToByteArray();
-  const buffer = Buffer2.from(data);
-  if (buffer.length !== sizeBytes || buffer.length > maxBytes) {
-    throw new Error("Object storage size changed during validation");
-  }
-  return { key, contentType: head.ContentType, sizeBytes, buffer };
-}
-async function storageGet(relKey) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    return { key, url: `/uploads/${key}` };
-  }
-  const getCommand = new GetObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  });
-  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
-  return { key, url };
-}
-async function storageDelete(relKey) {
-  const { client, bucketName } = getS3Client();
-  const key = normalizeKey(relKey);
-  if (!bucketName) {
-    return;
-  }
-  await client.send(new DeleteObjectCommand({
-    Bucket: bucketName,
-    Key: key
-  }));
-}
-var init_storage = __esm({
-  "server/storage.ts"() {
-    "use strict";
   }
 });
 
@@ -10103,7 +11453,7 @@ var init_confidence_policy = __esm({
 });
 
 // server/engines/ingestion/connector.ts
-import { z as z19 } from "zod";
+import { z as z20 } from "zod";
 import robotsParser from "robots-parser";
 function getRandomUserAgent() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
@@ -10234,40 +11584,40 @@ var init_connector = __esm({
     robotsCache = /* @__PURE__ */ new Map();
     _firecrawlClient = null;
     _firecrawlInitPromise = null;
-    rawSourcePayloadSchema = z19.object({
-      url: z19.string().url(),
-      fetchedAt: z19.date(),
-      rawHtml: z19.string().optional(),
-      rawJson: z19.record(z19.string(), z19.unknown()).optional(),
-      markdown: z19.string().optional(),
-      statusCode: z19.number().int(),
-      error: z19.string().optional()
+    rawSourcePayloadSchema = z20.object({
+      url: z20.string().url(),
+      fetchedAt: z20.date(),
+      rawHtml: z20.string().optional(),
+      rawJson: z20.record(z20.string(), z20.unknown()).optional(),
+      markdown: z20.string().optional(),
+      statusCode: z20.number().int(),
+      error: z20.string().optional()
     });
-    extractedEvidenceSchema = z19.object({
-      title: z19.string().min(1),
-      rawText: z19.string().min(1),
-      publishedDate: z19.date().optional(),
-      publishedDateRaw: z19.string().optional(),
-      publicationDate: z19.object({
-        raw: z19.string().nullable(),
-        parsedAt: z19.date().nullable(),
-        precision: z19.enum(["date", "datetime", "unknown"]),
-        status: z19.enum(["missing", "valid", "invalid", "future"])
+    extractedEvidenceSchema = z20.object({
+      title: z20.string().min(1),
+      rawText: z20.string().min(1),
+      publishedDate: z20.date().optional(),
+      publishedDateRaw: z20.string().optional(),
+      publicationDate: z20.object({
+        raw: z20.string().nullable(),
+        parsedAt: z20.date().nullable(),
+        precision: z20.enum(["date", "datetime", "unknown"]),
+        status: z20.enum(["missing", "valid", "invalid", "future"])
       }).optional(),
-      observedAt: z19.date().optional(),
-      category: z19.string().min(1),
+      observedAt: z20.date().optional(),
+      category: z20.string().min(1),
       // Accept any category — validated at orchestrator level
-      geography: z19.string().min(1),
-      sourceUrl: z19.string().url()
+      geography: z20.string().min(1),
+      sourceUrl: z20.string().url()
     });
-    normalizedEvidenceInputSchema = z19.object({
-      metric: z19.string().min(1),
-      value: z19.number().nullable(),
-      unit: z19.string().nullable(),
-      confidence: z19.number().min(0).max(1),
-      grade: z19.enum(["A", "B", "C"]),
-      summary: z19.string().min(1),
-      tags: z19.array(z19.string())
+    normalizedEvidenceInputSchema = z20.object({
+      metric: z20.string().min(1),
+      value: z20.number().nullable(),
+      unit: z20.string().nullable(),
+      confidence: z20.number().min(0).max(1),
+      grade: z20.enum(["A", "B", "C"]),
+      summary: z20.string().min(1),
+      tags: z20.array(z20.string())
     });
     GRADE_A_SOURCE_IDS = /* @__PURE__ */ new Set([
       "emaar-properties",
@@ -12428,10 +13778,10 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
       let updated = 0;
       let skipped = 0;
       let outliers = 0;
-      let rejected = extracted.length - validExtracted.length;
+      let rejected2 = extracted.length - validExtracted.length;
       const rejectionReasons = {};
-      if (rejected > 0) rejectionReasons.invalid_extracted_evidence = rejected;
-      for (let i = 0; i < rejected; i++) {
+      if (rejected2 > 0) rejectionReasons.invalid_extracted_evidence = rejected2;
+      for (let i = 0; i < rejected2; i++) {
         await persistConnectorRejection({
           runId,
           sourceId: String(connector.sourceId),
@@ -12449,7 +13799,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           } catch (err) {
             const confidenceRejection = err instanceof ConfidencePolicyError ? err.rejection : null;
             const reason = confidenceRejection?.rejectionCode ?? "normalization_failed";
-            rejected++;
+            rejected2++;
             rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
             await persistConnectorRejection({
               runId,
@@ -12471,7 +13821,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           const validationResult = normalizedEvidenceInputSchema.safeParse(normalized);
           if (!validationResult.success) {
             const reason = "invalid_normalization";
-            rejected++;
+            rejected2++;
             rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
             await persistConnectorRejection({
               runId,
@@ -12492,7 +13842,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           });
           if (!confidenceEvaluation.accepted) {
             const reason = confidenceEvaluation.rejectionCode;
-            rejected++;
+            rejected2++;
             rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
             await persistConnectorRejection({
               runId,
@@ -12582,7 +13932,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         evidenceCreated: created,
         evidenceUpdated: updated,
         evidenceSkipped: skipped,
-        evidenceRejected: rejected,
+        evidenceRejected: rejected2,
         outliersFlagged: outliers,
         rejectionReasons
       };
@@ -14292,7 +15642,7 @@ __export(ai_intake_engine_exports, {
   processIntakeAssets: () => processIntakeAssets,
   suggestSectionFields: () => suggestSectionFields
 });
-import { z as z35 } from "zod";
+import { z as z36 } from "zod";
 function isFloorPlanAsset(asset) {
   const name = (asset.fileName || "").toLowerCase();
   const hasFloorPlanKeyword = /floor.?plan|layout|blueprint|plan.?view/i.test(name);
@@ -14802,22 +16152,22 @@ Array of any issues or missing information noticed.
         required: ["suggestedInputs", "confidence", "reasoning", "extractedInsights", "warnings"]
       }
     };
-    INTAKE_RESPONSE_SCHEMA = z35.object({
-      suggestedInputs: z35.record(z35.string(), z35.unknown()).default({}),
-      confidence: z35.record(z35.string(), z35.enum(["high", "medium", "low"])).default({}),
-      reasoning: z35.record(z35.string(), z35.string()).default({}),
-      extractedInsights: z35.object({
-        detectedStyle: z35.string().optional(),
-        detectedMaterials: z35.array(z35.string()).optional(),
-        detectedBrands: z35.array(z35.string()).optional(),
-        detectedTier: z35.string().optional(),
-        detectedTypology: z35.string().optional(),
-        detectedLocation: z35.string().optional(),
-        detectedScale: z35.string().optional(),
-        projectDescription: z35.string().optional(),
-        supplierInfo: z35.array(z35.object({ name: z35.string(), url: z35.string(), materials: z35.array(z35.string()) })).optional()
+    INTAKE_RESPONSE_SCHEMA = z36.object({
+      suggestedInputs: z36.record(z36.string(), z36.unknown()).default({}),
+      confidence: z36.record(z36.string(), z36.enum(["high", "medium", "low"])).default({}),
+      reasoning: z36.record(z36.string(), z36.string()).default({}),
+      extractedInsights: z36.object({
+        detectedStyle: z36.string().optional(),
+        detectedMaterials: z36.array(z36.string()).optional(),
+        detectedBrands: z36.array(z36.string()).optional(),
+        detectedTier: z36.string().optional(),
+        detectedTypology: z36.string().optional(),
+        detectedLocation: z36.string().optional(),
+        detectedScale: z36.string().optional(),
+        projectDescription: z36.string().optional(),
+        supplierInfo: z36.array(z36.object({ name: z36.string(), url: z36.string(), materials: z36.array(z36.string()) })).optional()
       }).default({}),
-      warnings: z35.array(z35.string()).default([])
+      warnings: z36.array(z36.string()).default([])
     });
     VALID_TYPOLOGIES = [
       "residential_multi",
@@ -14891,14 +16241,14 @@ Array of any issues or missing information noticed.
         "exe04QaMaturity"
       ]
     };
-    SECTION_SUGGESTION_RESPONSE_SCHEMA = z35.object({
-      suggestions: z35.array(z35.object({
-        field: z35.string(),
-        value: z35.unknown(),
-        confidence: z35.enum(["high", "medium", "low"]),
-        reasoning: z35.string()
+    SECTION_SUGGESTION_RESPONSE_SCHEMA = z36.object({
+      suggestions: z36.array(z36.object({
+        field: z36.string(),
+        value: z36.unknown(),
+        confidence: z36.enum(["high", "medium", "low"]),
+        reasoning: z36.string()
       })).default([]),
-      sectionSummary: z35.string().default("")
+      sectionSummary: z36.string().default("")
     });
   }
 });
@@ -15179,26 +16529,28 @@ function buildRateLimitKey(keyPrefix, userId, path) {
 }
 function createRateLimitMiddleware(t2, opts = {}) {
   const { windowMs = 6e4, max = 5, keyPrefix = "rl" } = opts;
-  return t2.middleware(async ({ ctx, next, path }) => {
-    const userId = ctx?.user?.id ?? "anon";
-    const key = buildRateLimitKey(keyPrefix, userId, path);
-    const now = Date.now();
-    let entry = store.get(key);
-    if (!entry) {
-      entry = { timestamps: [] };
-      store.set(key, entry);
+  return t2.middleware(
+    async ({ ctx, next, path }) => {
+      const userId = ctx?.user?.id ?? "anon";
+      const key = buildRateLimitKey(keyPrefix, userId, path);
+      const now = Date.now();
+      let entry = store.get(key);
+      if (!entry) {
+        entry = { timestamps: [] };
+        store.set(key, entry);
+      }
+      entry.timestamps = entry.timestamps.filter((ts) => now - ts < windowMs);
+      if (entry.timestamps.length >= max) {
+        const retryAfterMs = entry.timestamps[0] + windowMs - now;
+        throw new TRPCError2({
+          code: "TOO_MANY_REQUESTS",
+          message: `Rate limit exceeded. Try again in ${Math.ceil(retryAfterMs / 1e3)}s.`
+        });
+      }
+      entry.timestamps.push(now);
+      return next();
     }
-    entry.timestamps = entry.timestamps.filter((ts) => now - ts < windowMs);
-    if (entry.timestamps.length >= max) {
-      const retryAfterMs = entry.timestamps[0] + windowMs - now;
-      throw new TRPCError2({
-        code: "TOO_MANY_REQUESTS",
-        message: `Rate limit exceeded. Try again in ${Math.ceil(retryAfterMs / 1e3)}s.`
-      });
-    }
-    entry.timestamps.push(now);
-    return next();
-  });
+  );
 }
 var publicStore = /* @__PURE__ */ new Map();
 var PUBLIC_MAX_KEYS = 1024;
@@ -15206,7 +16558,9 @@ var PUBLIC_WINDOW_MS = 6e4;
 var PUBLIC_PER_ADDRESS_MAX = 60;
 var PUBLIC_GLOBAL_MAX = 600;
 function trimWindow(entry, now) {
-  entry.timestamps = entry.timestamps.filter((timestamp2) => now - timestamp2 < PUBLIC_WINDOW_MS);
+  entry.timestamps = entry.timestamps.filter(
+    (timestamp2) => now - timestamp2 < PUBLIC_WINDOW_MS
+  );
 }
 function publicSlot(key, now) {
   let entry = publicStore.get(key);
@@ -15224,30 +16578,35 @@ function publicSlot(key, now) {
   return entry;
 }
 function createPublicRateLimitMiddleware(t2) {
-  return t2.middleware(async ({ ctx, next, path }) => {
-    const forwarded = process.env.TRUST_PROXY === "1" ? String(ctx?.req?.headers?.["x-forwarded-for"] ?? "").split(",")[0]?.trim() : "";
-    const remoteAddress = forwarded || ctx?.req?.socket?.remoteAddress || "unknown";
-    const now = Date.now();
-    const globalEntry = publicSlot(`public:global:${path}`, now);
-    const addressEntry = publicSlot(`public:${remoteAddress}:${path}`, now);
-    if (globalEntry.timestamps.length >= PUBLIC_GLOBAL_MAX || addressEntry.timestamps.length >= PUBLIC_PER_ADDRESS_MAX) {
-      throw new TRPCError2({ code: "TOO_MANY_REQUESTS", message: "Rate limit exceeded. Try again shortly." });
+  return t2.middleware(
+    async ({ ctx, next, path }) => {
+      const forwarded = process.env.TRUST_PROXY === "1" ? String(ctx?.req?.headers?.["x-forwarded-for"] ?? "").split(",")[0]?.trim() : "";
+      const remoteAddress = forwarded || ctx?.req?.socket?.remoteAddress || "unknown";
+      const now = Date.now();
+      const globalEntry = publicSlot(`public:global:${path}`, now);
+      const addressEntry = publicSlot(`public:${remoteAddress}:${path}`, now);
+      if (globalEntry.timestamps.length >= PUBLIC_GLOBAL_MAX || addressEntry.timestamps.length >= PUBLIC_PER_ADDRESS_MAX) {
+        throw new TRPCError2({
+          code: "TOO_MANY_REQUESTS",
+          message: "Rate limit exceeded. Try again shortly."
+        });
+      }
+      globalEntry.timestamps.push(now);
+      addressEntry.timestamps.push(now);
+      const releaseRejectedGlobalReservation = () => {
+        const reservation = globalEntry.timestamps.lastIndexOf(now);
+        if (reservation >= 0) globalEntry.timestamps.splice(reservation, 1);
+      };
+      try {
+        const result = await next();
+        if (result?.ok === false) releaseRejectedGlobalReservation();
+        return result;
+      } catch (error) {
+        releaseRejectedGlobalReservation();
+        throw error;
+      }
     }
-    globalEntry.timestamps.push(now);
-    addressEntry.timestamps.push(now);
-    const releaseRejectedGlobalReservation = () => {
-      const reservation = globalEntry.timestamps.lastIndexOf(now);
-      if (reservation >= 0) globalEntry.timestamps.splice(reservation, 1);
-    };
-    try {
-      const result = await next();
-      if (result?.ok === false) releaseRejectedGlobalReservation();
-      return result;
-    } catch (error) {
-      releaseRejectedGlobalReservation();
-      throw error;
-    }
-  });
+  );
 }
 
 // server/_core/trpc.ts
@@ -15616,7 +16975,7 @@ var authRouter = router({
         message: "Email already exists"
       });
     }
-    const hash = await bcryptjs.hash(input.password, 12);
+    const hash2 = await bcryptjs.hash(input.password, 12);
     const openId = crypto.randomUUID();
     await upsertUser({
       openId,
@@ -15624,7 +16983,7 @@ var authRouter = router({
       email: input.email,
       loginMethod: "local",
       lastSignedIn: /* @__PURE__ */ new Date(),
-      password: hash
+      password: hash2
     });
     const sessionToken = await sdk.createSessionToken(openId, {
       name: input.email.split("@")[0],
@@ -15665,7 +17024,7 @@ var authRouter = router({
 
 // server/routers/project.ts
 import { z as z5 } from "zod";
-import { TRPCError as TRPCError7 } from "@trpc/server";
+import { TRPCError as TRPCError8 } from "@trpc/server";
 
 // server/_core/project-access.ts
 init_db();
@@ -15678,12 +17037,38 @@ async function requireProjectForOrg(projectId, orgId, lookup = getProjectById) {
   return project;
 }
 
+// server/_core/geometry-authority.ts
+init_db();
+
+// server/engines/geometry/authority-policy.ts
+import { TRPCError as TRPCError6 } from "@trpc/server";
+function allowsLegacyGeometryWrites(mode) {
+  return mode !== "canonical";
+}
+function requireLegacyGeometryWriteAuthority(mode) {
+  if (!allowsLegacyGeometryWrites(mode)) {
+    throw new TRPCError6({
+      code: "CONFLICT",
+      message: "Legacy room and area values are read-only while canonical geometry is authoritative."
+    });
+  }
+}
+
+// server/_core/geometry-authority.ts
+async function requireLegacyGeometryWriterForProject(projectId, organizationId) {
+  const mode = await getProjectGeometryAuthorityModeForOrg(
+    projectId,
+    organizationId
+  );
+  requireLegacyGeometryWriteAuthority(mode);
+}
+
 // server/_core/resource-access.ts
 init_db();
-import { TRPCError as TRPCError6 } from "@trpc/server";
+import { TRPCError as TRPCError7 } from "@trpc/server";
 var DEFAULT_NOT_FOUND_MESSAGE = "Resource not found";
 function notFound(message = DEFAULT_NOT_FOUND_MESSAGE) {
-  throw new TRPCError6({ code: "NOT_FOUND", message });
+  throw new TRPCError7({ code: "NOT_FOUND", message });
 }
 async function requireAuthorizedProject(projectId, orgId, lookupProject, notFoundMessage) {
   const project = await lookupProject(projectId);
@@ -18997,8 +20382,121 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
   };
 }
 
+// server/storage.ts
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Buffer as Buffer2 } from "node:buffer";
+import process2 from "node:process";
+function getS3Client() {
+  const region = process2.env.AWS_REGION || "us-east-1";
+  const accessKeyId = process2.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process2.env.AWS_SECRET_ACCESS_KEY;
+  const bucketName = process2.env.AWS_S3_BUCKET;
+  if (!accessKeyId || !secretAccessKey || !bucketName) {
+    if (process2.env.NODE_ENV === "production") {
+      console.warn("Missing AWS S3 credentials");
+    }
+  }
+  const client = new S3Client({
+    region,
+    credentials: accessKeyId && secretAccessKey ? {
+      accessKeyId,
+      secretAccessKey
+    } : void 0
+  });
+  return { client, bucketName };
+}
+function normalizeKey(relKey) {
+  return relKey.replace(/^\/+/, "");
+}
+async function storagePut(relKey, data, contentType = "application/octet-stream") {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    const b64 = Buffer2.isBuffer(data) ? data.toString("base64") : typeof data === "string" ? Buffer2.from(data, "utf-8").toString("base64") : Buffer2.from(data).toString("base64");
+    const dataUrl = `data:${contentType};base64,${b64}`;
+    return { key, url: dataUrl, persistent: false };
+  }
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    Body: typeof data === "string" ? Buffer2.from(data, "utf-8") : data,
+    ContentType: contentType
+  });
+  await client.send(command);
+  const getCommand = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  });
+  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  return { key, url, persistent: true };
+}
+async function storageCreatePresignedPut(relKey, contentType, expiresIn = 15 * 60) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for direct uploads");
+  }
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType
+  });
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  return { key, uploadUrl };
+}
+async function storageRead(relKey, maxBytes) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    throw new Error("Object storage is not configured for server-side validation");
+  }
+  const head = await client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
+  const sizeBytes = head.ContentLength ?? 0;
+  if (sizeBytes <= 0 || sizeBytes > maxBytes) {
+    return { key, contentType: head.ContentType, sizeBytes, buffer: Buffer2.alloc(0) };
+  }
+  const object = await client.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
+  if (!object.Body) throw new Error("Object storage returned no body");
+  const data = await object.Body.transformToByteArray();
+  const buffer = Buffer2.from(data);
+  if (buffer.length !== sizeBytes || buffer.length > maxBytes) {
+    throw new Error("Object storage size changed during validation");
+  }
+  return { key, contentType: head.ContentType, sizeBytes, buffer };
+}
+async function storageGet(relKey) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    return { key, url: `/uploads/${key}` };
+  }
+  const getCommand = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  });
+  const url = await getSignedUrl(client, getCommand, { expiresIn: 3600 * 24 * 7 });
+  return { key, url };
+}
+async function storageDelete(relKey) {
+  const { client, bucketName } = getS3Client();
+  const key = normalizeKey(relKey);
+  if (!bucketName) {
+    return;
+  }
+  await client.send(new DeleteObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  }));
+}
+
 // server/routers/project.ts
-init_storage();
 import { nanoid as nanoid3 } from "nanoid";
 
 // shared/project-readiness.ts
@@ -20190,9 +21688,8 @@ Latest Evaluation Scores:
 }
 
 // server/_core/upload-compensation.ts
-init_storage();
-init_sentry();
 import { nanoid as nanoid2 } from "nanoid";
+init_sentry();
 var CLEANUP_ATTEMPTS = 3;
 async function cleanupRejectedUpload(objectKey, correlationId = nanoid2(12)) {
   let lastError;
@@ -20222,7 +21719,6 @@ function reportIndeterminateUploadPersistence(objectKey, error, correlationId = 
 }
 
 // server/_core/project-media.ts
-init_storage();
 init_ai_operation();
 
 // server/_core/media-validation.ts
@@ -20567,7 +22063,7 @@ var projectRouter = router({
     for (const field of input.fields) {
       const value = project[field];
       if (value === null || value === void 0 || typeof value === "string" && !value.trim()) {
-        throw new TRPCError7({
+        throw new TRPCError8({
           code: "BAD_REQUEST",
           message: `${field} must have a value before it can be confirmed`
         });
@@ -20592,13 +22088,28 @@ var projectRouter = router({
     if (project.status === "locked") {
       throw new Error("Cannot update a locked project");
     }
+    if (data.ctx03Gfa !== void 0 || data.totalFitoutArea !== void 0 || data.totalNonFinishArea !== void 0) {
+      await requireLegacyGeometryWriterForProject(id, ctx.orgId);
+    }
     const updateData = { ...data };
     if (data.ctx03Gfa !== void 0) updateData.ctx03Gfa = data.ctx03Gfa ? String(data.ctx03Gfa) : null;
     if (data.fin01BudgetCap !== void 0) updateData.fin01BudgetCap = data.fin01BudgetCap ? String(data.fin01BudgetCap) : null;
     if (data.officeCustomRatio !== void 0) updateData.officeCustomRatio = data.officeCustomRatio != null ? String(data.officeCustomRatio) : null;
     if (data.totalFitoutArea !== void 0) updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
     if (data.totalNonFinishArea !== void 0) updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
-    if (!await updateProjectForOrg(id, ctx.orgId, updateData)) {
+    const writesLegacyGeometry = data.ctx03Gfa !== void 0 || data.totalFitoutArea !== void 0 || data.totalNonFinishArea !== void 0;
+    if (writesLegacyGeometry) {
+      const result = await updateProjectWithLegacyGeometryAuthorityForOrg(
+        id,
+        ctx.orgId,
+        updateData
+      );
+      if (result === "canonical") {
+        await requireLegacyGeometryWriterForProject(id, ctx.orgId);
+        throw new Error("Project geometry authority changed during update");
+      }
+      if (result === "not_found") await requireProjectForOrg(id, ctx.orgId);
+    } else if (!await updateProjectForOrg(id, ctx.orgId, updateData)) {
       await requireProjectForOrg(id, ctx.orgId);
     }
     await createAuditLog({
@@ -20614,7 +22125,7 @@ var projectRouter = router({
     await requireProjectForOrg(input.id, ctx.orgId);
     if (!await deleteProjectForOrg(input.id, ctx.orgId)) {
       await requireProjectForOrg(input.id, ctx.orgId);
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
     }
     await createAuditLog({
       userId: ctx.user.id,
@@ -20628,7 +22139,7 @@ var projectRouter = router({
     const project = await requireProjectForOrg(input.id, ctx.orgId);
     const readiness = getProjectReadiness(project);
     if (!readiness.canEvaluate) {
-      throw new TRPCError7({
+      throw new TRPCError8({
         code: "PRECONDITION_FAILED",
         message: `Project inputs are incomplete: ${readiness.missingInputs.length} missing and ${readiness.unconfirmedAssumptions.length} unconfirmed`,
         cause: readiness
@@ -21092,7 +22603,7 @@ var projectRouter = router({
           reportType: input.reportType,
           error: error instanceof Error ? error.message : String(error)
         });
-        throw new TRPCError7({
+        throw new TRPCError8({
           code: "INTERNAL_SERVER_ERROR",
           message: "REPORT_BOARD_RETRIEVAL_FAILED"
         });
@@ -21362,7 +22873,7 @@ var projectRouter = router({
     if (!persistence) {
       if (storageKey) await cleanupRejectedUpload(storageKey);
       await requireProjectForOrg(input.projectId, ctx.orgId);
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
     }
     await createAuditLog({
       userId: ctx.user.id,
@@ -21421,9 +22932,9 @@ var projectRouter = router({
       }
     );
     if (asset.projectId !== project.id) {
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
     }
-    if (!asset.storagePath) throw new TRPCError7({ code: "BAD_REQUEST", message: "Asset has no stored media" });
+    if (!asset.storagePath) throw new TRPCError8({ code: "BAD_REQUEST", message: "Asset has no stored media" });
     const extraction = await createPdfExtractionForOrg({
       projectId: input.projectId,
       assetId: input.assetId,
@@ -21431,7 +22942,7 @@ var projectRouter = router({
       status: "pending"
     }, ctx.orgId);
     if (!extraction) {
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
     }
     try {
       const { extractRoomsFromMedia: extractRoomsFromMedia2 } = await Promise.resolve().then(() => (init_pdf_extraction(), pdf_extraction_exports));
@@ -21449,7 +22960,7 @@ var projectRouter = router({
         extractedRooms: result.rooms,
         totalExtractedArea: String(result.totalArea)
       })) {
-        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -21493,9 +23004,10 @@ var projectRouter = router({
       }
     );
     if (extraction.projectId !== project.id) {
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
     }
     if (input.action === "verify") {
+      await requireLegacyGeometryWriterForProject(input.projectId, ctx.orgId);
       const verifiedArea = input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
       if (!await verifyPdfExtractionForOrg(
         input.extractionId,
@@ -21504,7 +23016,7 @@ var projectRouter = router({
         ctx.user.id,
         verifiedArea
       )) {
-        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -21524,7 +23036,7 @@ var projectRouter = router({
         verifiedBy: ctx.user.id,
         verifiedAt: /* @__PURE__ */ new Date()
       })) {
-        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -21544,7 +23056,7 @@ var projectRouter = router({
 
 // server/routers/scenario.ts
 import { z as z6 } from "zod";
-import { TRPCError as TRPCError8 } from "@trpc/server";
+import { TRPCError as TRPCError9 } from "@trpc/server";
 init_db();
 init_db();
 
@@ -21936,7 +23448,7 @@ var scenarioRouter = router({
         }
       );
       if (authorized.project.id !== input.projectId) {
-        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
       }
     }
     const roi = calculateProjectRoi({
@@ -23574,15 +25086,15 @@ var seedRouter = router({
 });
 
 // server/routers/design-assets.ts
-import { TRPCError as TRPCError10 } from "@trpc/server";
+import { TRPCError as TRPCError11 } from "@trpc/server";
 import crypto3 from "node:crypto";
 import { z as z9 } from "zod";
 
 // server/_core/design-resource-access.ts
 init_db();
-import { TRPCError as TRPCError9 } from "@trpc/server";
+import { TRPCError as TRPCError10 } from "@trpc/server";
 var notFound2 = () => {
-  throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+  throw new TRPCError10({ code: "NOT_FOUND", message: "Resource not found" });
 };
 function requireDesignProject(projectId, orgId) {
   return requireProjectForOrg(projectId, orgId);
@@ -23690,7 +25202,6 @@ async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
 // server/routers/design-assets.ts
 init_db();
 init_floor_plan_analyzer();
-init_storage();
 
 // server/routers/design-router-shared.ts
 init_db();
@@ -23769,7 +25280,7 @@ var designAssetsRouter = router({
     await requireDesignProject(input.projectId, ctx.orgId);
     const mimeType = input.mimeType.toLowerCase();
     if (!isSupportedMediaMimeType(mimeType)) {
-      throw new TRPCError10({
+      throw new TRPCError11({
         code: "BAD_REQUEST",
         message: "This file type is not supported. Please choose a supported image, PDF, audio, or video file."
       });
@@ -23797,7 +25308,7 @@ var designAssetsRouter = router({
   ).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     if (!isOwnedUploadKey(ctx.orgId, input.projectId, input.storageKey)) {
-      throw new TRPCError10({ code: "NOT_FOUND", message: "Upload not found" });
+      throw new TRPCError11({ code: "NOT_FOUND", message: "Upload not found" });
     }
     let media;
     try {
@@ -23837,7 +25348,7 @@ var designAssetsRouter = router({
         await cleanupRejectedUpload(input.storageKey);
       } catch {
       }
-      throw new TRPCError10({
+      throw new TRPCError11({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
@@ -23922,7 +25433,7 @@ var designAssetsRouter = router({
       );
     } catch (error) {
       reportIndeterminateUploadPersistence(uploaded.key, error);
-      throw new TRPCError10({
+      throw new TRPCError11({
         code: "INTERNAL_SERVER_ERROR",
         message: "Upload persistence could not be confirmed"
       });
@@ -23931,12 +25442,12 @@ var designAssetsRouter = router({
       try {
         await cleanupRejectedUpload(uploaded.key);
       } catch {
-        throw new TRPCError10({
+        throw new TRPCError11({
           code: "INTERNAL_SERVER_ERROR",
           message: "Upload cleanup failed"
         });
       }
-      throw new TRPCError10({
+      throw new TRPCError11({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
@@ -24068,7 +25579,7 @@ var designAssetsRouter = router({
       );
     } catch (error) {
       reportIndeterminateUploadPersistence(uploaded.key, error);
-      throw new TRPCError10({
+      throw new TRPCError11({
         code: "INTERNAL_SERVER_ERROR",
         message: "Upload persistence could not be confirmed"
       });
@@ -24077,12 +25588,12 @@ var designAssetsRouter = router({
       try {
         await cleanupRejectedUpload(uploaded.key);
       } catch {
-        throw new TRPCError10({
+        throw new TRPCError11({
           code: "INTERNAL_SERVER_ERROR",
           message: "Upload cleanup failed"
         });
       }
-      throw new TRPCError10({
+      throw new TRPCError11({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
@@ -24100,8 +25611,9 @@ var designAssetsRouter = router({
   }),
   analyzeFloorPlan: designOrgMutationProcedure.input(z9.object({ projectId: z9.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
+    await requireLegacyGeometryWriterForProject(input.projectId, ctx.orgId);
     if (!project.floorPlanAssetId) {
-      throw new TRPCError10({
+      throw new TRPCError11({
         code: "BAD_REQUEST",
         message: "No floor plan uploaded for this project"
       });
@@ -24109,7 +25621,7 @@ var designAssetsRouter = router({
     const { resource: asset, project: assetProject } = await requireDesignAsset(project.floorPlanAssetId, ctx.orgId);
     requireSameDesignProject(project.id, assetProject.id);
     if (!asset || !asset.storagePath) {
-      throw new TRPCError10({
+      throw new TRPCError11({
         code: "NOT_FOUND",
         message: "Floor plan asset not found or has no URL"
       });
@@ -24119,15 +25631,22 @@ var designAssetsRouter = router({
       "design.floor-plan.analyze"
     );
     const analysis = await analyzeFloorPlan(media);
-    requireScopedDesignMutation(
-      await updateProjectForOrg(input.projectId, ctx.orgId, {
+    const writeResult = await updateProjectWithLegacyGeometryAuthorityForOrg(
+      input.projectId,
+      ctx.orgId,
+      {
         floorPlanAnalysis: analysis,
         // Also update totalFitoutArea if not already set
         ...!project.totalFitoutArea || Number(project.totalFitoutArea) === 0 ? {
           totalFitoutArea: String(analysis.totalEstimatedSqm)
         } : {}
-      })
+      }
     );
+    if (writeResult === "canonical") {
+      await requireLegacyGeometryWriterForProject(input.projectId, ctx.orgId);
+      throw new Error("Project geometry authority changed during floor-plan analysis");
+    }
+    requireScopedDesignMutation(writeResult === "updated");
     await createAuditLog({
       orgId: ctx.orgId,
       userId: ctx.user.id,
@@ -24146,7 +25665,7 @@ var designAssetsRouter = router({
 });
 
 // server/routers/design-briefs.ts
-import { TRPCError as TRPCError11 } from "@trpc/server";
+import { TRPCError as TRPCError12 } from "@trpc/server";
 import { nanoid as nanoid4 } from "nanoid";
 import { z as z10 } from "zod";
 init_db();
@@ -24708,7 +26227,6 @@ async function generateDesignBriefDocx(data) {
 }
 
 // server/routers/design-briefs.ts
-init_storage();
 var designBriefsRouter = router({
   generateBrief: designOrgMutationProcedure.input(
     z10.object({
@@ -24728,7 +26246,7 @@ var designBriefsRouter = router({
     const scores = await getScoreMatricesByProject(input.projectId);
     const latest = scores[0];
     if (!latest)
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "PRECONDITION_FAILED",
         message: "Project must be evaluated first"
       });
@@ -24972,7 +26490,7 @@ var designBriefsRouter = router({
       materialList
     );
     if (result.items.length > 1e3) {
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "PRECONDITION_FAILED",
         message: "RFQ exceeds the 1,000 line limit"
       });
@@ -25156,11 +26674,10 @@ var designBriefsRouter = router({
 });
 
 // server/routers/design-boards.ts
-import { TRPCError as TRPCError12 } from "@trpc/server";
+import { TRPCError as TRPCError13 } from "@trpc/server";
 import { nanoid as nanoid5 } from "nanoid";
 import { z as z11 } from "zod";
 init_db();
-init_storage();
 var designBoardsRouter = router({
   pinVisualToBoard: designOrgMutationProcedure.input(
     z11.object({
@@ -25170,7 +26687,7 @@ var designBoardsRouter = router({
   ).mutation(async ({ ctx, input }) => {
     const { resource: visual, project: visualProject } = await requireDesignVisual(input.visualId, ctx.orgId);
     if (!visual || !visual.imageAssetId) {
-      throw new TRPCError12({
+      throw new TRPCError13({
         code: "NOT_FOUND",
         message: "Visual not found or has no image"
       });
@@ -25237,7 +26754,7 @@ var designBoardsRouter = router({
       ctx.orgId
     );
     if (authorizedLink.resource.linkType !== "material_board") {
-      throw new TRPCError12({
+      throw new TRPCError13({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
@@ -25281,7 +26798,7 @@ var designBoardsRouter = router({
     }
     const materialIds = input.materialIds ?? [];
     if (new Set(materialIds).size !== materialIds.length) {
-      throw new TRPCError12({
+      throw new TRPCError13({
         code: "BAD_REQUEST",
         message: "Duplicate material IDs are not allowed"
       });
@@ -25426,7 +26943,7 @@ var designBoardsRouter = router({
   ).mutation(async ({ ctx, input }) => {
     const board = await requireDesignBoard(input.boardId, ctx.orgId);
     if (new Set(input.orderedJoinIds).size !== input.orderedJoinIds.length) {
-      throw new TRPCError12({
+      throw new TRPCError13({
         code: "BAD_REQUEST",
         message: "Board tile identifiers must be unique"
       });
@@ -25435,7 +26952,7 @@ var designBoardsRouter = router({
       const join = await requireDesignBoardJoin(joinId, ctx.orgId);
       requireSameDesignProject(board.project.id, join.project.id);
       if (join.parent.id !== input.boardId)
-        throw new TRPCError12({
+        throw new TRPCError13({
           code: "NOT_FOUND",
           message: "Resource not found"
         });
@@ -25549,7 +27066,7 @@ var designBoardsRouter = router({
 });
 
 // server/routers/design-collaboration.ts
-import { TRPCError as TRPCError13 } from "@trpc/server";
+import { TRPCError as TRPCError14 } from "@trpc/server";
 import { z as z12 } from "zod";
 init_db();
 var designCollaborationRouter = router({
@@ -25569,13 +27086,13 @@ var designCollaborationRouter = router({
     await requireDesignProject(input.projectId, ctx.orgId);
     if (input.entityType === "general") {
       if (input.entityId !== void 0)
-        throw new TRPCError13({
+        throw new TRPCError14({
           code: "BAD_REQUEST",
           message: "General comments cannot have an entity target"
         });
     } else {
       if (input.entityId === void 0)
-        throw new TRPCError13({
+        throw new TRPCError14({
           code: "BAD_REQUEST",
           message: "Entity comments require a target"
         });
@@ -25608,7 +27125,7 @@ var designCollaborationRouter = router({
   ).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     if (input.entityType === "general" && input.entityId !== void 0) {
-      throw new TRPCError13({
+      throw new TRPCError14({
         code: "BAD_REQUEST",
         message: "General comments cannot have an entity target"
       });
@@ -25666,7 +27183,7 @@ var designCollaborationRouter = router({
 });
 
 // server/routers/design-market-context.ts
-import { TRPCError as TRPCError14 } from "@trpc/server";
+import { TRPCError as TRPCError15 } from "@trpc/server";
 import { z as z13 } from "zod";
 init_db();
 init_space_benchmarking();
@@ -25868,7 +27385,7 @@ var designMarketContextRouter = router({
   getSpaceBenchmark: orgProcedure.input(z13.object({ projectId: z13.number() })).query(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     if (!project.floorPlanAnalysis) {
-      throw new TRPCError14({
+      throw new TRPCError15({
         code: "BAD_REQUEST",
         message: "Floor plan has not been analyzed yet. Upload a floor plan and run analysis first."
       });
@@ -26141,16 +27658,16 @@ var designMaterialsRouter = router({
 });
 
 // server/routers/design-sharing.ts
-import { TRPCError as TRPCError16 } from "@trpc/server";
+import { TRPCError as TRPCError17 } from "@trpc/server";
 import { nanoid as nanoid6 } from "nanoid";
 import { z as z15 } from "zod";
 
 // server/_core/public-share-access.ts
 init_db();
-import { TRPCError as TRPCError15 } from "@trpc/server";
+import { TRPCError as TRPCError16 } from "@trpc/server";
 var PUBLIC_SHARE_NOT_FOUND_MESSAGE = "Share link not found or expired";
 function shareNotFound() {
-  throw new TRPCError15({
+  throw new TRPCError16({
     code: "NOT_FOUND",
     message: PUBLIC_SHARE_NOT_FOUND_MESSAGE
   });
@@ -26220,15 +27737,15 @@ var designSharingRouter = router({
       } catch (error) {
         if (isDuplicateKeyError(error)) {
           if (attempt === 5) {
-            throw new TRPCError16({
+            throw new TRPCError17({
               code: "INTERNAL_SERVER_ERROR",
               message: "Unable to create a unique share link"
             });
           }
           continue;
         }
-        if (error instanceof TRPCError16) throw error;
-        throw new TRPCError16({
+        if (error instanceof TRPCError17) throw error;
+        throw new TRPCError17({
           code: "INTERNAL_SERVER_ERROR",
           message: "Unable to create share link"
         });
@@ -26256,7 +27773,7 @@ var designSharingRouter = router({
       ctx.orgId
     );
     if (!result) {
-      throw new TRPCError16({
+      throw new TRPCError17({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
@@ -26281,7 +27798,7 @@ var designSharingRouter = router({
     })
   ).query(async ({ input }) => {
     if (input.token.length < 8 || input.token.length > 64) {
-      throw new TRPCError16({
+      throw new TRPCError17({
         code: "NOT_FOUND",
         message: "Share link not found or expired"
       });
@@ -26417,14 +27934,13 @@ var designSharingRouter = router({
 
 // server/routers/design-visuals.ts
 init_ai_operation();
-import { TRPCError as TRPCError17 } from "@trpc/server";
+import { TRPCError as TRPCError18 } from "@trpc/server";
 import { z as z17 } from "zod";
 
 // server/_core/imageGeneration.ts
-init_storage();
-init_ai_operation();
 import { Buffer as Buffer3 } from "node:buffer";
 import { z as z16 } from "zod";
+init_ai_operation();
 var IMAGE_RESPONSE_SCHEMA = z16.object({
   candidates: z16.array(z16.object({
     content: z16.object({
@@ -26778,7 +28294,7 @@ var designVisualsRouter = router({
     }
     const validation = validatePrompt(prompt);
     if (!validation.valid) {
-      throw new TRPCError17({
+      throw new TRPCError18({
         code: "BAD_REQUEST",
         message: validation.reason
       });
@@ -26887,7 +28403,7 @@ var designVisualsRouter = router({
       sectionLabel: z17.string().optional()
     })
   ).mutation(async () => {
-    throw new TRPCError17({
+    throw new TRPCError18({
       code: "PRECONDITION_FAILED",
       message: "Visual attachments are unavailable until a typed attachment model is configured"
     });
@@ -26971,7 +28487,7 @@ var designVisualsRouter = router({
     );
     const validation = validatePrompt(prompt);
     if (!validation.valid)
-      throw new TRPCError17({
+      throw new TRPCError18({
         code: "BAD_REQUEST",
         message: validation.reason
       });
@@ -27043,6 +28559,1525 @@ var designVisualsRouter = router({
   })
 });
 
+// server/routers/design-geometry-assets.ts
+import { TRPCError as TRPCError19 } from "@trpc/server";
+import crypto4 from "node:crypto";
+import { z as z18 } from "zod";
+init_db();
+
+// server/engines/geometry/dxf-geometry-boundary.ts
+import { createHash as createHash5 } from "node:crypto";
+import { Worker } from "node:worker_threads";
+
+// shared/geometry/types.ts
+var GEOMETRY_SCHEMA_VERSION = "MIYAR_GEOM_V1";
+var GEOMETRY_CANONICALIZER_VERSION = "miyar-geometry-canonicalizer-v1";
+var GEOMETRY_TOLERANCE_POLICY_VERSION = "miyar-geometry-tolerance-v1";
+var ROOM_FLOOR_POLYGON_AREA = "room_floor_polygon_area";
+var DXF_ADAPTER_VERSION = "miyar-ascii-dxf-v1";
+var DXF_BOUNDARY_LIMITS = {
+  sourceBytes: 10 * 1024 * 1024,
+  entities: 1e5,
+  vertices: 1e5,
+  layers: 2e3,
+  nestingDepth: 32,
+  absoluteSourceCoordinate: "1000000000",
+  deadlineMilliseconds: 5e3,
+  canonicalJsonBytes: 8 * 1024 * 1024,
+  overlayLevelBytes: 2 * 1024 * 1024
+};
+
+// server/engines/geometry/canonical-geometry.ts
+import { createHash as createHash4 } from "node:crypto";
+var ZERO = BigInt(0);
+var ONE = BigInt(1);
+var TWO = BigInt(2);
+var FIVE = BigInt(5);
+var ONE_THOUSAND = BigInt(1e3);
+var MICROMETRES_PER_METRE = BigInt(1e6);
+var MICROMETRES_PER_MILLIMETRE = BigInt(1e3);
+var ONE_MILLIMETRE_MICROMETRES = BigInt(1e3);
+var SQUARE_METRE_AREA2 = BigInt(2e12);
+var MIN_RECONCILIATION_AREA2 = BigInt(2e10);
+var MAX_SOURCE_COORDINATE = BigInt(1e9);
+var MAX_DECIMAL_DIGITS = 36;
+var EDGE_FINGERPRINT_DOMAIN = "MIYAR_GEOM_V1:canonical_edge";
+var GEOMETRY_FINGERPRINT_DOMAIN = "MIYAR_GEOM_V1:canonical_geometry";
+var GeometryDeadlineError = class extends Error {
+  constructor() {
+    super("Geometry canonicalization exceeded its deadline");
+  }
+};
+function checkDeadline(deadlineAtMilliseconds) {
+  if (deadlineAtMilliseconds !== void 0 && Date.now() > deadlineAtMilliseconds) {
+    throw new GeometryDeadlineError();
+  }
+}
+function fail(message) {
+  throw new TypeError(`Invalid MIYAR geometry: ${message}`);
+}
+function absolute(value) {
+  return value < ZERO ? -value : value;
+}
+function sign(value) {
+  return value < ZERO ? -1 : value > ZERO ? 1 : 0;
+}
+function formatInteger(value) {
+  return value === ZERO ? "0" : value.toString();
+}
+function decimalCoordinateToMicrometres(source, unit) {
+  if (typeof source !== "string") fail("coordinates must be decimal strings");
+  const value = source.trim();
+  const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(value);
+  if (!match) fail(`coordinate '${source}' is not a plain decimal`);
+  const [, signText, integerText, fractionText = ""] = match;
+  if (integerText.length + fractionText.length > MAX_DECIMAL_DIGITS) {
+    fail(`coordinate '${source}' exceeds the supported decimal precision`);
+  }
+  const sourceInteger = BigInt(integerText);
+  if (sourceInteger > MAX_SOURCE_COORDINATE || sourceInteger === MAX_SOURCE_COORDINATE && /[1-9]/.test(fractionText)) {
+    fail(`coordinate '${source}' exceeds 1e9 source units`);
+  }
+  const scale = unit === "m" ? MICROMETRES_PER_METRE : MICROMETRES_PER_MILLIMETRE;
+  const scaleDigits = unit === "m" ? 6 : 3;
+  const retained = fractionText.slice(0, scaleDigits).padEnd(scaleDigits, "0");
+  let magnitude = sourceInteger * scale + BigInt(retained || "0");
+  const discarded = fractionText.slice(scaleDigits);
+  if (discarded.length > 0 && discarded[0] >= "5") magnitude += ONE;
+  if (magnitude > MAX_SOURCE_COORDINATE * scale) {
+    fail(`coordinate '${source}' exceeds 1e9 source units`);
+  }
+  return signText === "-" && magnitude !== ZERO ? -magnitude : magnitude;
+}
+function roundToIncrementHalfAwayFromZero(value, increment) {
+  const magnitude = absolute(value);
+  const quotient = magnitude / increment;
+  const remainder = magnitude % increment;
+  const rounded = (remainder * TWO >= increment ? quotient + ONE : quotient) * increment;
+  return value < ZERO ? -rounded : rounded;
+}
+function normalizeCoordinate(source, unit, snapTransform) {
+  const micrometres = decimalCoordinateToMicrometres(source, unit);
+  return snapTransform === "1mm" ? roundToIncrementHalfAwayFromZero(micrometres, ONE_MILLIMETRE_MICROMETRES) : micrometres;
+}
+function pointsEqual(left, right) {
+  return left.x === right.x && left.y === right.y;
+}
+function pointKey(point) {
+  return `${formatInteger(point.x)},${formatInteger(point.y)}`;
+}
+function comparePoints(left, right) {
+  return left.x < right.x ? -1 : left.x > right.x ? 1 : left.y < right.y ? -1 : left.y > right.y ? 1 : 0;
+}
+function cross(a, b, c) {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+function between(a, b, c) {
+  return b >= (a < c ? a : c) && b <= (a > c ? a : c);
+}
+function pointOnSegment(point, start, end) {
+  return cross(start, end, point) === ZERO && between(start.x, point.x, end.x) && between(start.y, point.y, end.y);
+}
+function signedArea2(points, deadlineAtMilliseconds) {
+  let total = ZERO;
+  for (let index2 = 0; index2 < points.length - 1; index2 += 1) {
+    if ((index2 & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+    const current = points[index2];
+    const next = points[index2 + 1];
+    total += current.x * next.y - next.x * current.y;
+  }
+  return total;
+}
+function removeRedundantVertices(points, deadlineAtMilliseconds) {
+  const uniqueConsecutive = [];
+  for (let index2 = 0; index2 < points.length - 1; index2 += 1) {
+    if ((index2 & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+    const point = points[index2];
+    if (!uniqueConsecutive.length || !pointsEqual(point, uniqueConsecutive.at(-1))) {
+      uniqueConsecutive.push(point);
+    }
+  }
+  let current = uniqueConsecutive;
+  let changed = true;
+  while (changed && current.length >= 3) {
+    changed = false;
+    const next = [];
+    for (let index2 = 0; index2 < current.length; index2 += 1) {
+      if ((index2 & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+      const previous = current[(index2 - 1 + current.length) % current.length];
+      const point = current[index2];
+      const following = current[(index2 + 1) % current.length];
+      if (cross(previous, point, following) === ZERO && between(previous.x, point.x, following.x) && between(previous.y, point.y, following.y)) {
+        changed = true;
+      } else {
+        next.push(point);
+      }
+    }
+    current = next;
+  }
+  return current;
+}
+function segmentsIntersect(a, b, c, d) {
+  const abC = cross(a, b, c);
+  const abD = cross(a, b, d);
+  const cdA = cross(c, d, a);
+  const cdB = cross(c, d, b);
+  if (abC === ZERO && pointOnSegment(c, a, b)) return true;
+  if (abD === ZERO && pointOnSegment(d, a, b)) return true;
+  if (cdA === ZERO && pointOnSegment(a, c, d)) return true;
+  if (cdB === ZERO && pointOnSegment(b, c, d)) return true;
+  return sign(abC) !== sign(abD) && sign(cdA) !== sign(cdB);
+}
+function assertSimpleRing(points, label, deadlineAtMilliseconds) {
+  const edgeCount = points.length - 1;
+  for (let first = 0; first < edgeCount; first += 1) {
+    if ((first & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+    for (let second = first + 1; second < edgeCount; second += 1) {
+      if ((second & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+      const adjacent = second === first + 1 || first === 0 && second === edgeCount - 1;
+      if (adjacent) continue;
+      if (segmentsIntersect(
+        points[first],
+        points[first + 1],
+        points[second],
+        points[second + 1]
+      )) {
+        fail(`${label} is self-intersecting or self-touching`);
+      }
+    }
+  }
+}
+function rotateToStableStart(openPoints, deadlineAtMilliseconds) {
+  let start = 0;
+  for (let index2 = 1; index2 < openPoints.length; index2 += 1) {
+    if ((index2 & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+    if (comparePoints(openPoints[index2], openPoints[start]) < 0) start = index2;
+  }
+  return [...openPoints.slice(start), ...openPoints.slice(0, start)];
+}
+function canonicalizeRing(input, unit, snapTransform, orientation, label, deadlineAtMilliseconds) {
+  if (!Array.isArray(input) || input.length < 4)
+    fail(`${label} must contain at least four explicitly closed points`);
+  const converted = input.map((point, index2) => {
+    if ((index2 & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+    if (!point || typeof point !== "object")
+      fail(`${label} contains an invalid point`);
+    return {
+      x: normalizeCoordinate(point.x, unit, snapTransform),
+      y: normalizeCoordinate(point.y, unit, snapTransform)
+    };
+  });
+  if (!pointsEqual(converted[0], converted.at(-1)))
+    fail(`${label} must be explicitly closed`);
+  let openPoints = removeRedundantVertices(converted, deadlineAtMilliseconds);
+  if (openPoints.length < 3)
+    fail(`${label} has fewer than three distinct non-collinear vertices`);
+  let closed = [...openPoints, openPoints[0]];
+  assertSimpleRing(closed, label, deadlineAtMilliseconds);
+  let area2 = signedArea2(closed, deadlineAtMilliseconds);
+  if (area2 === ZERO) fail(`${label} has zero area`);
+  const mustBePositive = orientation === "counterclockwise";
+  if (area2 > ZERO !== mustBePositive) openPoints = [...openPoints].reverse();
+  openPoints = rotateToStableStart(openPoints, deadlineAtMilliseconds);
+  closed = [...openPoints, openPoints[0]];
+  area2 = signedArea2(closed, deadlineAtMilliseconds);
+  return { points: closed, area2 };
+}
+function pointInRing(point, ring, deadlineAtMilliseconds) {
+  let winding = 0;
+  for (let index2 = 0; index2 < ring.length - 1; index2 += 1) {
+    if ((index2 & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+    const start = ring[index2];
+    const end = ring[index2 + 1];
+    if (pointOnSegment(point, start, end)) return "boundary";
+    if (start.y <= point.y) {
+      if (end.y > point.y && cross(start, end, point) > ZERO) winding += 1;
+    } else if (end.y <= point.y && cross(start, end, point) < ZERO) {
+      winding -= 1;
+    }
+  }
+  return winding === 0 ? "outside" : "inside";
+}
+function ringsIntersect(first, second, deadlineAtMilliseconds) {
+  for (let left = 0; left < first.length - 1; left += 1) {
+    if ((left & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+    for (let right = 0; right < second.length - 1; right += 1) {
+      if ((right & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+      if (segmentsIntersect(
+        first[left],
+        first[left + 1],
+        second[right],
+        second[right + 1]
+      ))
+        return true;
+    }
+  }
+  return false;
+}
+function assertValidHoles(outer, holes, label, deadlineAtMilliseconds) {
+  for (let index2 = 0; index2 < holes.length; index2 += 1) {
+    checkDeadline(deadlineAtMilliseconds);
+    const hole = holes[index2];
+    if (ringsIntersect(outer.points, hole.points, deadlineAtMilliseconds))
+      fail(`${label} hole ${index2} touches or crosses the outer ring`);
+    for (const point of hole.points.slice(0, -1)) {
+      if (pointInRing(point, outer.points, deadlineAtMilliseconds) !== "inside")
+        fail(`${label} hole ${index2} is not strictly inside the outer ring`);
+    }
+    for (let other = 0; other < index2; other += 1) {
+      const previous = holes[other];
+      if (ringsIntersect(previous.points, hole.points, deadlineAtMilliseconds))
+        fail(`${label} holes overlap or touch`);
+      if (pointInRing(hole.points[0], previous.points, deadlineAtMilliseconds) !== "outside" || pointInRing(previous.points[0], hole.points, deadlineAtMilliseconds) !== "outside") {
+        fail(`${label} holes overlap or contain one another`);
+      }
+    }
+  }
+}
+function hash(domain, payload) {
+  return createHash4("sha256").update(domain, "utf8").update("\0", "utf8").update(payload, "utf8").digest("hex");
+}
+function canonicalPoint(point) {
+  return { x: formatInteger(point.x), y: formatInteger(point.y) };
+}
+function edgeIdentity(start, end, elevation) {
+  const ordered = comparePoints(start, end) <= 0 ? [start, end] : [end, start];
+  return hash(
+    EDGE_FINGERPRINT_DOMAIN,
+    `${formatInteger(elevation)}|${pointKey(ordered[0])}|${pointKey(ordered[1])}`
+  );
+}
+function canonicalRing(ring, elevation) {
+  const points = ring.points.map(canonicalPoint);
+  const edges = [];
+  for (let index2 = 0; index2 < ring.points.length - 1; index2 += 1) {
+    edges.push({
+      edgeId: edgeIdentity(
+        ring.points[index2],
+        ring.points[index2 + 1],
+        elevation
+      ),
+      start: points[index2],
+      end: points[index2 + 1]
+    });
+  }
+  return { points, edges };
+}
+function compareIntegerRings(left, right) {
+  const leftKey = left.points.map(pointKey).join(";");
+  const rightKey = right.points.map(pointKey).join(";");
+  return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+}
+function twiceSquareMicrometresToSquareMetres(area2) {
+  const whole = area2 / SQUARE_METRE_AREA2;
+  const remainder = area2 % SQUARE_METRE_AREA2;
+  if (remainder === ZERO) return whole.toString();
+  const scaledFraction = remainder * FIVE;
+  const fraction = scaledFraction.toString().padStart(13, "0").replace(/0+$/, "");
+  return `${whole}.${fraction}`;
+}
+function canonicalizeRoom(room, unit, snapTransform, deadlineAtMilliseconds) {
+  if (!room || typeof room !== "object") fail("room must be an object");
+  if (typeof room.spaceId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(room.spaceId)) {
+    fail("spaceId must be a stable 1-64 character opaque identifier");
+  }
+  const elevation = normalizeCoordinate(
+    room.levelElevation,
+    unit,
+    snapTransform
+  );
+  const outer = canonicalizeRing(
+    room.outerRing,
+    unit,
+    snapTransform,
+    "counterclockwise",
+    `${room.spaceId} outer ring`,
+    deadlineAtMilliseconds
+  );
+  const holes = (room.holes ?? []).map(
+    (hole, index2) => canonicalizeRing(
+      hole,
+      unit,
+      snapTransform,
+      "clockwise",
+      `${room.spaceId} hole ${index2}`,
+      deadlineAtMilliseconds
+    )
+  );
+  assertValidHoles(outer, holes, room.spaceId, deadlineAtMilliseconds);
+  holes.sort(compareIntegerRings);
+  const area2 = outer.area2 - holes.reduce((sum, hole) => sum + absolute(hole.area2), ZERO);
+  if (area2 <= ZERO)
+    fail(`${room.spaceId} holes consume the complete outer area`);
+  return {
+    spaceId: room.spaceId,
+    levelElevationMicrometres: formatInteger(elevation),
+    outerRing: canonicalRing(outer, elevation),
+    holes: holes.map((hole) => canonicalRing(hole, elevation)),
+    areaSquareMicrometresTwice: area2.toString(),
+    areaSquareMetres: twiceSquareMicrometresToSquareMetres(area2)
+  };
+}
+function canonicalPointToInteger(point) {
+  return { x: BigInt(point.x), y: BigInt(point.y) };
+}
+function canonicalRingToIntegers(ring) {
+  return ring.points.map(canonicalPointToInteger);
+}
+function properSegmentsCross(a, b, c, d) {
+  const abC = cross(a, b, c);
+  const abD = cross(a, b, d);
+  const cdA = cross(c, d, a);
+  const cdB = cross(c, d, b);
+  return sign(abC) !== 0 && sign(abD) !== 0 && sign(cdA) !== 0 && sign(cdB) !== 0 && sign(abC) !== sign(abD) && sign(cdA) !== sign(cdB);
+}
+function roomRings(room) {
+  return [
+    canonicalRingToIntegers(room.outerRing),
+    ...room.holes.map(canonicalRingToIntegers)
+  ];
+}
+function pointInsidePreparedRoomFloor(point, rings, deadlineAtMilliseconds) {
+  if (pointInRing(point, rings[0], deadlineAtMilliseconds) !== "inside") {
+    return false;
+  }
+  return rings.slice(1).every(
+    (hole) => pointInRing(point, hole, deadlineAtMilliseconds) === "outside"
+  );
+}
+function collinearSegmentsOverlapOnSameInteriorSide(a, b, c, d) {
+  if (cross(a, b, c) !== ZERO || cross(a, b, d) !== ZERO) return false;
+  const useX = a.x !== b.x;
+  const [aStart, aEnd] = useX ? [a.x < b.x ? a.x : b.x, a.x > b.x ? a.x : b.x] : [a.y < b.y ? a.y : b.y, a.y > b.y ? a.y : b.y];
+  const [cStart, cEnd] = useX ? [c.x < d.x ? c.x : d.x, c.x > d.x ? c.x : d.x] : [c.y < d.y ? c.y : d.y, c.y > d.y ? c.y : d.y];
+  const overlapStart = aStart > cStart ? aStart : cStart;
+  const overlapEnd = aEnd < cEnd ? aEnd : cEnd;
+  if (overlapStart >= overlapEnd) return false;
+  const dot = (b.x - a.x) * (d.x - c.x) + (b.y - a.y) * (d.y - c.y);
+  return dot > ZERO;
+}
+function assertRoomsDoNotOverlap(rooms, deadlineAtMilliseconds) {
+  for (let leftIndex = 0; leftIndex < rooms.length; leftIndex += 1) {
+    if ((leftIndex & 31) === 0) checkDeadline(deadlineAtMilliseconds);
+    const left = rooms[leftIndex];
+    for (let rightIndex = leftIndex + 1; rightIndex < rooms.length; rightIndex += 1) {
+      if ((rightIndex & 31) === 0) checkDeadline(deadlineAtMilliseconds);
+      const right = rooms[rightIndex];
+      if (left.levelElevationMicrometres !== right.levelElevationMicrometres) {
+        continue;
+      }
+      const leftOuter = canonicalRingToIntegers(left.outerRing);
+      const rightOuter = canonicalRingToIntegers(right.outerRing);
+      const leftRings = roomRings(left);
+      const rightRings = roomRings(right);
+      if (leftOuter.map(pointKey).join(";") === rightOuter.map(pointKey).join(";")) {
+        fail(
+          `${left.spaceId} and ${right.spaceId} duplicate the same room boundary`
+        );
+      }
+      if (leftOuter.slice(0, -1).some((point, index2) => {
+        if ((index2 & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+        return pointInsidePreparedRoomFloor(
+          point,
+          rightRings,
+          deadlineAtMilliseconds
+        );
+      }) || rightOuter.slice(0, -1).some((point, index2) => {
+        if ((index2 & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+        return pointInsidePreparedRoomFloor(
+          point,
+          leftRings,
+          deadlineAtMilliseconds
+        );
+      })) {
+        fail(`${left.spaceId} and ${right.spaceId} overlap`);
+      }
+      for (const leftRing of leftRings) {
+        for (const rightRing of rightRings) {
+          for (let leftEdge = 0; leftEdge < leftRing.length - 1; leftEdge += 1) {
+            if ((leftEdge & 127) === 0) checkDeadline(deadlineAtMilliseconds);
+            for (let rightEdge = 0; rightEdge < rightRing.length - 1; rightEdge += 1) {
+              if ((rightEdge & 127) === 0)
+                checkDeadline(deadlineAtMilliseconds);
+              if (collinearSegmentsOverlapOnSameInteriorSide(
+                leftRing[leftEdge],
+                leftRing[leftEdge + 1],
+                rightRing[rightEdge],
+                rightRing[rightEdge + 1]
+              )) {
+                fail(`${left.spaceId} and ${right.spaceId} overlap`);
+              }
+              if (properSegmentsCross(
+                leftRing[leftEdge],
+                leftRing[leftEdge + 1],
+                rightRing[rightEdge],
+                rightRing[rightEdge + 1]
+              )) {
+                fail(`${left.spaceId} and ${right.spaceId} cross one another`);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+function canonicalizeGeometry(input, runtime = {}) {
+  if (!input || typeof input !== "object") fail("input must be an object");
+  if (input.schemaVersion !== GEOMETRY_SCHEMA_VERSION)
+    fail("unsupported geometry schema version");
+  if (input.measurementBasis !== ROOM_FLOOR_POLYGON_AREA)
+    fail("unsupported measurement basis");
+  if (input.sourceUnit !== "m" && input.sourceUnit !== "mm")
+    fail("source unit must be explicit metres or millimetres");
+  const snapTransform = input.snapTransform ?? "none";
+  if (snapTransform !== "none" && snapTransform !== "1mm")
+    fail("unsupported snap transform");
+  if (!Array.isArray(input.rooms) || input.rooms.length === 0)
+    fail("at least one physical room is required");
+  const rooms = input.rooms.map((room) => {
+    checkDeadline(runtime.deadlineAtMilliseconds);
+    return canonicalizeRoom(
+      room,
+      input.sourceUnit,
+      snapTransform,
+      runtime.deadlineAtMilliseconds
+    );
+  });
+  assertRoomsDoNotOverlap(rooms, runtime.deadlineAtMilliseconds);
+  rooms.sort(
+    (left, right) => left.spaceId < right.spaceId ? -1 : left.spaceId > right.spaceId ? 1 : 0
+  );
+  for (let index2 = 1; index2 < rooms.length; index2 += 1) {
+    if (rooms[index2 - 1].spaceId === rooms[index2].spaceId)
+      fail(`duplicate spaceId '${rooms[index2].spaceId}'`);
+  }
+  const geometry = {
+    schemaVersion: GEOMETRY_SCHEMA_VERSION,
+    canonicalizerVersion: GEOMETRY_CANONICALIZER_VERSION,
+    tolerancePolicyVersion: GEOMETRY_TOLERANCE_POLICY_VERSION,
+    measurementBasis: ROOM_FLOOR_POLYGON_AREA,
+    referenceFrame: {
+      type: "project_local_xy",
+      axisOrder: "xy",
+      handedness: "right_handed"
+    },
+    normalization: {
+      sourceUnit: input.sourceUnit,
+      sourceUnitMicrometres: input.sourceUnit === "m" ? "1000000" : "1000",
+      snapTransform
+    },
+    rooms
+  };
+  const canonicalJson = JSON.stringify(geometry);
+  return {
+    geometry,
+    canonicalJson,
+    fingerprint: {
+      algorithm: "sha256",
+      domain: GEOMETRY_FINGERPRINT_DOMAIN,
+      value: hash(GEOMETRY_FINGERPRINT_DOMAIN, canonicalJson)
+    }
+  };
+}
+function reconcileRoomFloorAreas(leftAreaSquareMicrometresTwice, rightAreaSquareMicrometresTwice) {
+  if (!/^\d+$/.test(leftAreaSquareMicrometresTwice) || !/^\d+$/.test(rightAreaSquareMicrometresTwice)) {
+    fail(
+      "reconciliation areas must be non-negative integer twice-area strings"
+    );
+  }
+  const left = BigInt(leftAreaSquareMicrometresTwice);
+  const right = BigInt(rightAreaSquareMicrometresTwice);
+  const difference = absolute(left - right);
+  const larger = left > right ? left : right;
+  const relativeTolerance = larger / ONE_THOUSAND;
+  const tolerance = relativeTolerance > MIN_RECONCILIATION_AREA2 ? relativeTolerance : MIN_RECONCILIATION_AREA2;
+  return {
+    result: difference <= tolerance ? "equivalent" : "conflict",
+    differenceSquareMicrometresTwice: difference.toString(),
+    toleranceSquareMicrometresTwice: tolerance.toString(),
+    tolerancePolicyVersion: GEOMETRY_TOLERANCE_POLICY_VERSION
+  };
+}
+
+// server/engines/geometry/dxf-geometry-boundary.ts
+var WORKER_SOURCE = String.raw`
+const { parentPort, workerData } = require("node:worker_threads");
+
+function sourceCoordinateLexemes(source) {
+  const lines = source.split(/\r\n|\n|\r/);
+  const pairs = [];
+  for (let index = 0; index + 1 < lines.length; index += 2) {
+    pairs.push({ code: Number(lines[index].trim()), value: lines[index + 1].trim() });
+  }
+
+  let entitiesStart = -1;
+  for (let index = 0; index + 1 < pairs.length; index += 1) {
+    if (
+      pairs[index].code === 0 && pairs[index].value === "SECTION" &&
+      pairs[index + 1].code === 2 && pairs[index + 1].value === "ENTITIES"
+    ) {
+      entitiesStart = index + 2;
+      break;
+    }
+  }
+  if (entitiesStart < 0) return [];
+
+  const boundaries = [];
+  let index = entitiesStart;
+  while (index < pairs.length) {
+    const marker = pairs[index];
+    if (marker.code !== 0) {
+      index += 1;
+      continue;
+    }
+    if (marker.value === "ENDSEC") break;
+
+    if (marker.value === "LWPOLYLINE") {
+      index += 1;
+      let flags = 0;
+      let elevation = "0";
+      const vertices = [];
+      while (index < pairs.length && pairs[index].code !== 0) {
+        const pair = pairs[index];
+        if (pair.code === 70) flags = Number(pair.value);
+        if (pair.code === 38) elevation = pair.value;
+        if (pair.code === 10) vertices.push({ x: pair.value, y: null, z: null });
+        if (pair.code === 20 && vertices.length > 0 && vertices[vertices.length - 1].y === null) {
+          vertices[vertices.length - 1].y = pair.value;
+        }
+        if (pair.code === 30 && vertices.length > 0) vertices[vertices.length - 1].z = pair.value;
+        index += 1;
+      }
+      if ((flags & 1) === 1 && vertices.length >= 3 && vertices.every(vertex => vertex.y !== null)) {
+        boundaries.push({ vertices, elevation });
+      }
+      continue;
+    }
+
+    if (marker.value === "POLYLINE") {
+      index += 1;
+      let flags = 0;
+      let elevation = "0";
+      while (index < pairs.length && pairs[index].code !== 0) {
+        if (pairs[index].code === 70) flags = Number(pairs[index].value);
+        if (pairs[index].code === 30) elevation = pairs[index].value;
+        index += 1;
+      }
+      const vertices = [];
+      while (index < pairs.length && pairs[index].code === 0 && pairs[index].value === "VERTEX") {
+        index += 1;
+        let x = null;
+        let y = null;
+        let z = null;
+        while (index < pairs.length && pairs[index].code !== 0) {
+          if (pairs[index].code === 10) x = pairs[index].value;
+          if (pairs[index].code === 20) y = pairs[index].value;
+          if (pairs[index].code === 30) z = pairs[index].value;
+          index += 1;
+        }
+        if (x !== null && y !== null) vertices.push({ x, y, z });
+      }
+      if (index < pairs.length && pairs[index].code === 0 && pairs[index].value === "SEQEND") {
+        index += 1;
+        while (index < pairs.length && pairs[index].code !== 0) index += 1;
+      }
+      if ((flags & 1) === 1 && vertices.length >= 3) boundaries.push({ vertices, elevation });
+      continue;
+    }
+
+    index += 1;
+    while (index < pairs.length && pairs[index].code !== 0) index += 1;
+  }
+  return boundaries;
+}
+
+function isExactZero(value) {
+  return /^[+-]?(?:0+(?:\.0*)?|\.0+)(?:[eE][+-]?\d+)?$/.test(String(value).trim());
+}
+
+function maxBlockDepth(blocks) {
+  const blockMap = blocks && typeof blocks === "object" ? blocks : {};
+  const memo = new Map();
+  const visiting = new Set();
+  function visit(name, depth) {
+    if (depth > 32) return depth;
+    if (memo.has(name)) return depth + memo.get(name);
+    if (visiting.has(name)) return 33;
+    visiting.add(name);
+    const entities = Array.isArray(blockMap[name]?.entities) ? blockMap[name].entities : [];
+    let relativeMaximum = 0;
+    for (const entity of entities) {
+      if (entity?.type === "INSERT" && typeof entity.name === "string") {
+        relativeMaximum = Math.max(relativeMaximum, visit(entity.name, 1));
+      }
+    }
+    visiting.delete(name);
+    memo.set(name, relativeMaximum);
+    return depth + relativeMaximum;
+  }
+  let maximum = 0;
+  for (const name of Object.keys(blockMap)) maximum = Math.max(maximum, visit(name, 1));
+  return maximum;
+}
+
+function allEntities(dxf) {
+  const result = Array.isArray(dxf.entities) ? [...dxf.entities] : [];
+  for (const block of Object.values(dxf.blocks || {})) {
+    if (Array.isArray(block?.entities)) result.push(...block.entities);
+  }
+  return result;
+}
+
+(async () => {
+  try {
+    const imported = await import("dxf-parser");
+    const DxfParser = imported.default?.default || imported.default;
+    const dxf = new DxfParser().parseSync(workerData.source);
+    if (!dxf || !Array.isArray(dxf.entities)) throw new Error("DXF has no entity section");
+    const entities = allEntities(dxf);
+    const hasUnsupportedBlockReference = entities.some(entity => entity?.type === "INSERT") ||
+      Object.values(dxf.blocks || {}).some(block => Array.isArray(block?.entities) && block.entities.length > 0);
+    const layerNames = new Set();
+    const tableLayers = dxf.tables?.layer?.layers;
+    if (tableLayers && typeof tableLayers === "object") {
+      for (const name of Object.keys(tableLayers)) layerNames.add(name);
+    }
+    let vertexCount = 0;
+    let hasUnsupportedBulge = false;
+    let hasNonFiniteCoordinate = false;
+    let exceedsCoordinateLimit = false;
+    let hasNonPlanarCoordinate = false;
+    let unsupportedCurveType = null;
+    const boundaries = [];
+    const coordinateLexemes = sourceCoordinateLexemes(workerData.source);
+    let coordinateBoundaryIndex = 0;
+    const curveTypes = new Set(["ARC", "CIRCLE", "ELLIPSE", "SPLINE", "HELIX"]);
+    for (let entityIndex = 0; entityIndex < entities.length; entityIndex += 1) {
+      const entity = entities[entityIndex] || {};
+      if (typeof entity.layer === "string") layerNames.add(entity.layer);
+      if (curveTypes.has(entity.type) && unsupportedCurveType === null) unsupportedCurveType = entity.type;
+      const vertices = Array.isArray(entity.vertices) ? entity.vertices : [];
+      if (
+        (typeof entity.elevation === "number" && entity.elevation !== 0) ||
+        entity.is3dPolyline === true ||
+        (typeof entity.depth === "number" && entity.depth !== 0) ||
+        (typeof entity.thickness === "number" && entity.thickness !== 0) ||
+        (entity.extrusionDirectionX !== undefined &&
+          (entity.extrusionDirectionX !== 0 || entity.extrusionDirectionY !== 0 || entity.extrusionDirectionZ !== 1)) ||
+        (entity.extrusionDirection !== undefined &&
+          (entity.extrusionDirection.x !== 0 || entity.extrusionDirection.y !== 0 || entity.extrusionDirection.z !== 1))
+      ) hasNonPlanarCoordinate = true;
+      vertexCount += vertices.length;
+      for (const vertex of vertices) {
+        const coordinateValues = [vertex?.x, vertex?.y, vertex?.z].filter(value => value !== undefined);
+        if (coordinateValues.some(value => typeof value !== "number" || !Number.isFinite(value))) {
+          hasNonFiniteCoordinate = true;
+        }
+        if (coordinateValues.some(value => Math.abs(value) > 1000000000)) {
+          exceedsCoordinateLimit = true;
+        }
+        if (typeof vertex?.z === "number" && vertex.z !== 0) hasNonPlanarCoordinate = true;
+        if (typeof vertex?.bulge === "number" && vertex.bulge !== 0) hasUnsupportedBulge = true;
+      }
+      if (
+        (entity.type === "LWPOLYLINE" || entity.type === "POLYLINE") &&
+        entity.shape === true &&
+        vertices.length >= 3
+      ) {
+        const isTopLevelEntity = entityIndex < dxf.entities.length;
+        const lexicalBoundary = isTopLevelEntity
+          ? coordinateLexemes[coordinateBoundaryIndex++]
+          : {
+              elevation: "0",
+              vertices: vertices.map(vertex => ({ x: String(vertex.x), y: String(vertex.y), z: null })),
+            };
+        const lexicalVertices = lexicalBoundary?.vertices;
+        if (!lexicalVertices || lexicalVertices.length !== vertices.length) {
+          throw new Error("DXF coordinate lexemes do not match parsed boundary vertices");
+        }
+        if (
+          !isExactZero(lexicalBoundary.elevation) ||
+          lexicalVertices.some(vertex => vertex.z !== null && !isExactZero(vertex.z))
+        ) hasNonPlanarCoordinate = true;
+        boundaries.push({
+          entityIndex,
+          handle: entity.handle === undefined ? null : String(entity.handle),
+          layer: typeof entity.layer === "string" ? entity.layer : "0",
+          vertices: vertices.map((vertex, vertexIndex) => ({
+            x: lexicalVertices[vertexIndex].x,
+            y: lexicalVertices[vertexIndex].y,
+            ...(vertex.z === undefined ? {} : { z: vertex.z }),
+            ...(vertex.bulge === undefined ? {} : { bulge: vertex.bulge }),
+          })),
+        });
+      }
+    }
+    if (coordinateBoundaryIndex !== coordinateLexemes.length) {
+      throw new Error("DXF coordinate lexemes do not match parsed closed boundaries");
+    }
+    parentPort.postMessage({ ok: true, value: {
+      headerInsUnits: Number.isInteger(dxf.header?.$INSUNITS) ? dxf.header.$INSUNITS : null,
+      entityCount: entities.length,
+      vertexCount,
+      layerCount: layerNames.size,
+      maximumBlockNestingDepth: maxBlockDepth(dxf.blocks),
+      closedBoundaryCount: boundaries.length,
+      boundaries,
+      unsupportedCurveType,
+      hasUnsupportedBulge,
+      hasNonFiniteCoordinate,
+      exceedsCoordinateLimit,
+      hasNonPlanarCoordinate,
+      hasUnsupportedBlockReference,
+    }});
+  } catch (error) {
+    parentPort.postMessage({ ok: false, error: error instanceof Error ? error.message : String(error) });
+  }
+})();
+`;
+var DXF_WORKER_CONCURRENCY_LIMIT = 2;
+var DXF_WORKER_PENDING_LIMIT = 8;
+var DXF_WORKER_RESOURCE_LIMITS = {
+  maxOldGenerationSizeMb: 128,
+  maxYoungGenerationSizeMb: 32,
+  codeRangeSizeMb: 16,
+  stackSizeMb: 4
+};
+var DxfCapacityError = class extends Error {
+  constructor() {
+    super("DXF inspection capacity is full");
+  }
+};
+var BoundedDxfWorkerScheduler = class {
+  constructor(concurrencyLimit, pendingLimit) {
+    this.concurrencyLimit = concurrencyLimit;
+    this.pendingLimit = pendingLimit;
+  }
+  active = 0;
+  pending = [];
+  schedule(deadlineMilliseconds, run) {
+    if (this.active >= this.concurrencyLimit && this.pending.length >= this.pendingLimit) {
+      return Promise.reject(new DxfCapacityError());
+    }
+    const deadlineAt = Date.now() + deadlineMilliseconds;
+    return new Promise((resolve, reject) => {
+      let started = false;
+      let settled = false;
+      let start = null;
+      const finish = (callback, releaseWorkerSlot) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(queueTimer);
+        if (releaseWorkerSlot) {
+          this.active -= 1;
+          this.drain();
+        }
+        callback();
+      };
+      const queueTimer = setTimeout(() => {
+        if (started) return;
+        if (start) {
+          const index2 = this.pending.indexOf(start);
+          if (index2 >= 0) this.pending.splice(index2, 1);
+          start = null;
+        }
+        finish(() => reject(new DxfDeadlineError()), false);
+        this.drain();
+      }, deadlineMilliseconds);
+      start = () => {
+        if (settled) return;
+        start = null;
+        started = true;
+        this.active += 1;
+        const remaining = deadlineAt - Date.now();
+        if (remaining <= 0) {
+          finish(() => reject(new DxfDeadlineError()), true);
+          return;
+        }
+        run(remaining).then(
+          (value) => finish(() => resolve(value), true),
+          (error) => finish(() => reject(error), true)
+        );
+      };
+      if (this.active < this.concurrencyLimit) start();
+      else this.pending.push(start);
+    });
+  }
+  drain() {
+    while (this.active < this.concurrencyLimit && this.pending.length > 0) {
+      this.pending.shift()?.();
+    }
+  }
+};
+var dxfWorkerScheduler = new BoundedDxfWorkerScheduler(
+  DXF_WORKER_CONCURRENCY_LIMIT,
+  DXF_WORKER_PENDING_LIMIT
+);
+function runInspectionWorker(source, deadlineMilliseconds) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(WORKER_SOURCE, {
+      eval: true,
+      workerData: { source },
+      resourceLimits: DXF_WORKER_RESOURCE_LIMITS
+    });
+    let settled = false;
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      callback();
+    };
+    const timer = setTimeout(() => {
+      finish(() => {
+        void worker.terminate();
+        reject(new DxfDeadlineError());
+      });
+    }, deadlineMilliseconds);
+    worker.once("message", (message) => {
+      finish(() => {
+        void worker.terminate();
+        if (message?.ok) resolve(message.value);
+        else reject(new Error(String(message?.error || "DXF parse failed")));
+      });
+    });
+    worker.once("error", (error) => finish(() => reject(error)));
+    worker.once("exit", (code) => {
+      if (code !== 0)
+        finish(() => reject(new Error(`DXF worker exited with code ${code}`)));
+    });
+  });
+}
+function inspectInWorker(source, deadlineMilliseconds) {
+  return dxfWorkerScheduler.schedule(
+    deadlineMilliseconds,
+    (remaining) => runInspectionWorker(source, remaining)
+  );
+}
+var DxfDeadlineError = class extends Error {
+  constructor() {
+    super("DXF inspection exceeded its deadline");
+  }
+};
+function checksum(bytes) {
+  return createHash5("sha256").update(bytes).digest("hex");
+}
+function issue(code, message) {
+  return { code, message };
+}
+function headerUnit(insUnits) {
+  return insUnits === 4 ? "mm" : insUnits === 6 ? "m" : null;
+}
+function isUnknownUnitCode(insUnits) {
+  return insUnits === null || insUnits === 0;
+}
+function coordinateLexemeToPlainDecimal(source) {
+  const text4 = source.trim();
+  const match = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/.exec(text4);
+  if (!match)
+    throw new TypeError(`coordinate '${source}' is not finite decimal text`);
+  const [
+    ,
+    signText,
+    wholeText,
+    fractionAfterWhole = "",
+    fractionOnly = "",
+    exponentText = "0"
+  ] = match;
+  const whole = wholeText ?? "0";
+  const fraction = wholeText === void 0 ? fractionOnly : fractionAfterWhole;
+  const exponent = Number(exponentText);
+  if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > 1e4) {
+    throw new TypeError(`coordinate '${source}' has an unsupported exponent`);
+  }
+  const negative = signText === "-";
+  const digits = `${whole}${fraction}`;
+  const decimalIndex = whole.length + exponent;
+  const expanded = decimalIndex <= 0 ? `0.${"0".repeat(-decimalIndex)}${digits}` : decimalIndex >= digits.length ? `${digits}${"0".repeat(decimalIndex - digits.length)}` : `${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
+  const normalized = expanded.replace(/^0+(?=\d)/, "").replace(/\.0*$/, "").replace(/(\.\d*?)0+$/, "$1") || "0";
+  return negative && normalized !== "0" ? `-${normalized}` : normalized;
+}
+function coordinateLexemeExceedsLimit(source) {
+  try {
+    const plain = coordinateLexemeToPlainDecimal(source).replace(/^-/, "");
+    const [whole, fraction = ""] = plain.split(".");
+    const integer = BigInt(whole);
+    return integer > BigInt(DXF_BOUNDARY_LIMITS.absoluteSourceCoordinate) || integer === BigInt(DXF_BOUNDARY_LIMITS.absoluteSourceCoordinate) && /[1-9]/.test(fraction);
+  } catch {
+    return true;
+  }
+}
+var DXF_ROOM_ID_DOMAIN = "MIYAR_DXF_ROOM_ID_V1";
+function stableDxfRoomId(outerRing, levelElevation, sourceUnit, snapTransform, deadlineAtMilliseconds) {
+  const isolated = canonicalizeGeometry(
+    {
+      schemaVersion: GEOMETRY_SCHEMA_VERSION,
+      measurementBasis: ROOM_FLOOR_POLYGON_AREA,
+      sourceUnit,
+      snapTransform,
+      rooms: [
+        {
+          spaceId: "dxf-room-identity-placeholder",
+          levelElevation,
+          outerRing
+        }
+      ]
+    },
+    { deadlineAtMilliseconds }
+  );
+  const room = isolated.geometry.rooms[0];
+  const identityPayload = JSON.stringify({
+    referenceFrame: isolated.geometry.referenceFrame,
+    levelElevationMicrometres: room.levelElevationMicrometres,
+    outerRing: room.outerRing.points,
+    holes: room.holes.map((hole) => hole.points)
+  });
+  const digest = createHash5("sha256").update(DXF_ROOM_ID_DOMAIN, "utf8").update("\0", "utf8").update(identityPayload, "utf8").digest("hex");
+  return `cad:${digest.slice(0, 60)}`;
+}
+function asInspection(value) {
+  return {
+    entityCount: value.entityCount,
+    vertexCount: value.vertexCount,
+    layerCount: value.layerCount,
+    maximumBlockNestingDepth: value.maximumBlockNestingDepth,
+    closedBoundaryCount: value.closedBoundaryCount
+  };
+}
+function asciiDxfPreflight(bytes, fileName) {
+  if (/\.dwg$/i.test(fileName))
+    return issue(
+      "dwg_not_supported",
+      "DWG is outside the deterministic DXF boundary."
+    );
+  if (!/\.dxf$/i.test(fileName))
+    return issue(
+      "spoofed_file",
+      "The source filename must use the .dxf extension."
+    );
+  const prefix = Buffer.from(
+    bytes.subarray(0, Math.min(bytes.length, 64))
+  ).toString("ascii");
+  if (/AutoCAD Binary DXF/i.test(prefix)) {
+    return issue(
+      "binary_dxf_not_supported",
+      "Binary DXF is not supported; provide ASCII DXF."
+    );
+  }
+  for (let index2 = 0; index2 < bytes.length; index2 += 1) {
+    const byte = bytes[index2];
+    const allowedControl = byte === 9 || byte === 10 || byte === 13;
+    if (!allowedControl && byte < 32 || byte > 126) {
+      return issue(
+        "not_ascii_dxf",
+        "The source contains non-ASCII or binary bytes."
+      );
+    }
+  }
+  const text4 = Buffer.from(bytes).toString("ascii");
+  if (!/(?:^|\r?\n)\s*SECTION\s*(?:\r?\n|$)/.test(text4) || !/(?:^|\r?\n)\s*EOF\s*(?:\r?\n|$)/.test(text4)) {
+    return issue(
+      "spoofed_file",
+      "The source does not contain the required ASCII DXF structure."
+    );
+  }
+  return null;
+}
+function mediaTypeIssue(mediaType) {
+  if (!mediaType) return null;
+  const normalized = mediaType.split(";", 1)[0].trim().toLowerCase();
+  const accepted = /* @__PURE__ */ new Set([
+    "application/dxf",
+    "application/x-dxf",
+    "application/octet-stream",
+    "image/vnd.dxf",
+    "image/x-dxf",
+    "text/plain"
+  ]);
+  return accepted.has(normalized) ? null : issue(
+    "spoofed_file",
+    `Media type '${normalized}' is not a DXF media type.`
+  );
+}
+function withDeadline(promise, milliseconds) {
+  return new Promise((resolve, rejectPromise) => {
+    const timer = setTimeout(
+      () => rejectPromise(new DxfDeadlineError()),
+      milliseconds
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        rejectPromise(error);
+      }
+    );
+  });
+}
+function resultBase(input, sourceChecksum, sourceFormat, inspection, effectiveUnit) {
+  const insUnits = inspection?.headerInsUnits ?? null;
+  return {
+    observationType: "imported",
+    evidence: {
+      adapterVersion: DXF_ADAPTER_VERSION,
+      fileName: input.fileName,
+      mediaType: input.mediaType ?? null,
+      byteLength: input.bytes.byteLength,
+      checksum: { algorithm: "sha256", value: sourceChecksum },
+      sourceFormat,
+      headerInsUnits: insUnits,
+      headerUnit: headerUnit(insUnits),
+      selectedUnit: input.selectedUnit ?? null,
+      effectiveUnit
+    },
+    inspection: inspection ? asInspection(inspection) : null,
+    warnings: inspection && inspection.entityCount > inspection.closedBoundaryCount ? [
+      "Entities that were not supported closed room polylines were preserved in the source asset but not measured."
+    ] : [],
+    canonical: null,
+    levelOverlays: []
+  };
+}
+function rejected(base, problem, status = "rejected") {
+  return { ...base, status, issue: problem };
+}
+async function inspectDxfGeometry(input, runtime = {}) {
+  const sourceChecksum = checksum(input.bytes);
+  let base = resultBase(input, sourceChecksum, "unknown", null, null);
+  if (input.bytes.byteLength > DXF_BOUNDARY_LIMITS.sourceBytes) {
+    return rejected(
+      base,
+      issue("source_too_large", "DXF source exceeds the 10 MiB byte limit.")
+    );
+  }
+  const mismatchedMediaType = mediaTypeIssue(input.mediaType);
+  if (mismatchedMediaType) return rejected(base, mismatchedMediaType);
+  if (input.selectedUnit !== void 0 && input.selectedUnit !== "m" && input.selectedUnit !== "mm") {
+    return rejected(
+      base,
+      issue(
+        "unsupported_source_units",
+        "Selected units must be explicit metres or millimetres."
+      ),
+      "insufficient_information"
+    );
+  }
+  const preflightIssue = asciiDxfPreflight(input.bytes, input.fileName);
+  if (preflightIssue) return rejected(base, preflightIssue);
+  const source = Buffer.from(input.bytes).toString("ascii");
+  const requestedDeadline = runtime.deadlineMilliseconds ?? DXF_BOUNDARY_LIMITS.deadlineMilliseconds;
+  const deadlineMilliseconds = Math.max(
+    1,
+    Math.min(requestedDeadline, DXF_BOUNDARY_LIMITS.deadlineMilliseconds)
+  );
+  const deadlineAtMilliseconds = Date.now() + deadlineMilliseconds;
+  let inspected;
+  try {
+    const inspector = runtime.inspect ?? ((text4) => inspectInWorker(text4, deadlineMilliseconds));
+    inspected = await withDeadline(inspector(source), deadlineMilliseconds);
+  } catch (error) {
+    const problem = error instanceof DxfDeadlineError ? issue(
+      "deadline_exceeded",
+      "DXF inspection exceeded the five-second deadline."
+    ) : error instanceof DxfCapacityError ? issue(
+      "processing_capacity_exceeded",
+      "DXF inspection capacity is full; retry after current geometry work finishes."
+    ) : issue(
+      "parse_failed",
+      `DXF parser rejected the source: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return rejected(
+      { ...base, evidence: { ...base.evidence, sourceFormat: "ascii_dxf" } },
+      problem
+    );
+  }
+  base = resultBase(input, sourceChecksum, "ascii_dxf", inspected, null);
+  if (inspected.entityCount > DXF_BOUNDARY_LIMITS.entities) {
+    return rejected(
+      base,
+      issue("entity_limit_exceeded", "DXF exceeds the 100,000 entity limit.")
+    );
+  }
+  if (inspected.vertexCount > DXF_BOUNDARY_LIMITS.vertices) {
+    return rejected(
+      base,
+      issue("vertex_limit_exceeded", "DXF exceeds the 100,000 vertex limit.")
+    );
+  }
+  if (inspected.layerCount > DXF_BOUNDARY_LIMITS.layers) {
+    return rejected(
+      base,
+      issue("layer_limit_exceeded", "DXF exceeds the 2,000 layer limit.")
+    );
+  }
+  if (inspected.maximumBlockNestingDepth > DXF_BOUNDARY_LIMITS.nestingDepth) {
+    return rejected(
+      base,
+      issue("nesting_limit_exceeded", "DXF block nesting exceeds depth 32.")
+    );
+  }
+  if (inspected.hasUnsupportedBlockReference) {
+    return rejected(
+      base,
+      issue(
+        "unsupported_block_reference",
+        "DXF block references or block-contained geometry require transforms that v1 does not apply."
+      )
+    );
+  }
+  const exactCoordinateLimitExceeded = inspected.boundaries.some(
+    (boundary) => boundary.vertices.some(
+      (vertex) => coordinateLexemeExceedsLimit(vertex.x) || coordinateLexemeExceedsLimit(vertex.y)
+    )
+  );
+  if (inspected.hasNonFiniteCoordinate || inspected.exceedsCoordinateLimit || exactCoordinateLimitExceeded) {
+    return rejected(
+      base,
+      issue(
+        "coordinate_limit_exceeded",
+        "DXF contains invalid coordinates or coordinates beyond 1e9 source units."
+      )
+    );
+  }
+  if (inspected.hasNonPlanarCoordinate) {
+    return rejected(
+      base,
+      issue(
+        "malformed_topology",
+        "DXF room boundaries must be planar at entity Z=0; nonzero, mixed, or 3D polyline coordinates are unsupported."
+      )
+    );
+  }
+  if (inspected.unsupportedCurveType) {
+    return rejected(
+      base,
+      issue(
+        "unsupported_curve",
+        `DXF contains unsupported ${inspected.unsupportedCurveType} curve geometry.`
+      )
+    );
+  }
+  if (inspected.hasUnsupportedBulge) {
+    return rejected(
+      base,
+      issue(
+        "unsupported_bulge",
+        "DXF contains a curved polyline bulge, which v1 cannot measure."
+      )
+    );
+  }
+  if (inspected.closedBoundaryCount === 0) {
+    return rejected(
+      base,
+      issue(
+        "no_closed_room_boundaries",
+        "DXF contains no supported closed room polylines."
+      ),
+      "insufficient_information"
+    );
+  }
+  const observedUnit = headerUnit(inspected.headerInsUnits);
+  if (!observedUnit && !isUnknownUnitCode(inspected.headerInsUnits)) {
+    return rejected(
+      base,
+      issue(
+        "unsupported_source_units",
+        `DXF $INSUNITS=${inspected.headerInsUnits} is not metres or millimetres.`
+      ),
+      "insufficient_information"
+    );
+  }
+  if (observedUnit && input.selectedUnit && observedUnit !== input.selectedUnit) {
+    return rejected(
+      base,
+      issue(
+        "source_unit_conflict",
+        "Selected units conflict with the explicit DXF $INSUNITS value."
+      ),
+      "conflicting_information"
+    );
+  }
+  const effectiveUnit = observedUnit ?? input.selectedUnit ?? null;
+  base = resultBase(
+    input,
+    sourceChecksum,
+    "ascii_dxf",
+    inspected,
+    effectiveUnit
+  );
+  if (!effectiveUnit) {
+    return rejected(
+      base,
+      issue(
+        "unknown_source_units",
+        "DXF has no explicit metre or millimetre unit; select units before import."
+      ),
+      "insufficient_information"
+    );
+  }
+  let rooms;
+  let canonical;
+  try {
+    rooms = inspected.boundaries.map((boundary) => {
+      const points = boundary.vertices.map((vertex) => ({
+        x: coordinateLexemeToPlainDecimal(vertex.x),
+        y: coordinateLexemeToPlainDecimal(vertex.y)
+      }));
+      points.push({ ...points[0] });
+      const sourceRoomId = stableDxfRoomId(
+        points,
+        input.levelElevation,
+        effectiveUnit,
+        input.snapTransform ?? "none",
+        deadlineAtMilliseconds
+      );
+      return {
+        sourceRoomId,
+        sourceLayer: boundary.layer,
+        input: {
+          spaceId: sourceRoomId,
+          levelElevation: input.levelElevation,
+          outerRing: points
+        }
+      };
+    });
+    canonical = canonicalizeGeometry(
+      {
+        schemaVersion: GEOMETRY_SCHEMA_VERSION,
+        measurementBasis: ROOM_FLOOR_POLYGON_AREA,
+        sourceUnit: effectiveUnit,
+        snapTransform: input.snapTransform ?? "none",
+        rooms: rooms.map((room) => room.input)
+      },
+      { deadlineAtMilliseconds }
+    );
+  } catch (error) {
+    if (error instanceof GeometryDeadlineError) {
+      return rejected(
+        base,
+        issue(
+          "deadline_exceeded",
+          "DXF geometry normalization exceeded the five-second deadline."
+        )
+      );
+    }
+    return rejected(
+      base,
+      issue(
+        "malformed_topology",
+        error instanceof Error ? error.message : String(error)
+      )
+    );
+  }
+  if (Buffer.byteLength(canonical.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
+    return rejected(
+      base,
+      issue(
+        "canonical_json_limit_exceeded",
+        "Canonical geometry exceeds the 8 MiB JSON limit."
+      )
+    );
+  }
+  const overlaysByElevation = /* @__PURE__ */ new Map();
+  const sourceRoomsById = new Map(
+    rooms.map((room) => [room.sourceRoomId, room])
+  );
+  canonical.geometry.rooms.forEach((canonicalRoom) => {
+    const sourceRoom = sourceRoomsById.get(canonicalRoom.spaceId);
+    if (!sourceRoom) {
+      throw new Error("Canonical DXF room lost its stable source identity");
+    }
+    const elevation = canonicalRoom.levelElevationMicrometres;
+    const overlay = overlaysByElevation.get(elevation) ?? {
+      levelElevationMicrometres: elevation,
+      rooms: []
+    };
+    overlay.rooms.push({
+      sourceRoomId: sourceRoom.sourceRoomId,
+      sourceLayer: sourceRoom.sourceLayer,
+      sourcePoints: sourceRoom.input.outerRing,
+      normalizedPoints: canonicalRoom.outerRing.points
+    });
+    overlaysByElevation.set(elevation, overlay);
+  });
+  const levelOverlays = Array.from(overlaysByElevation.values());
+  if (levelOverlays.some(
+    (overlay) => Buffer.byteLength(JSON.stringify(overlay), "utf8") > DXF_BOUNDARY_LIMITS.overlayLevelBytes
+  )) {
+    return rejected(
+      base,
+      issue(
+        "overlay_limit_exceeded",
+        "A per-level overlay exceeds the 2 MiB response limit."
+      )
+    );
+  }
+  return {
+    ...base,
+    status: "imported",
+    issue: null,
+    canonical,
+    levelOverlays
+  };
+}
+
+// server/routers/design-geometry-assets.ts
+var DXF_MIME_TYPES = [
+  "application/dxf",
+  "application/x-dxf",
+  "application/octet-stream",
+  "image/vnd.dxf",
+  "image/x-dxf",
+  "text/plain"
+];
+var dxfMimeSchema = z18.string().transform((value) => value.split(";", 1)[0].trim().toLowerCase()).pipe(z18.enum(DXF_MIME_TYPES));
+function isOwnedGeometryUploadKey(organizationId, projectId, key) {
+  return key.startsWith(
+    `projects/${organizationId}/${projectId}/geometry-uploads/`
+  );
+}
+async function rejectUpload(storageKey, message) {
+  try {
+    await cleanupRejectedUpload(storageKey);
+  } catch {
+  }
+  throw new TRPCError19({ code: "BAD_REQUEST", message });
+}
+var designGeometryAssetsRouter = router({
+  createGeometrySourceUpload: orgHeavyMutationProcedure.input(
+    z18.object({
+      projectId: z18.number().int().positive(),
+      filename: z18.string().min(1).max(512),
+      mimeType: dxfMimeSchema,
+      sizeBytes: z18.number().int().positive().max(DXF_BOUNDARY_LIMITS.sourceBytes)
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    if (!/\.dxf$/i.test(input.filename)) {
+      throw new TRPCError19({
+        code: "BAD_REQUEST",
+        message: "Only an ASCII .dxf source can enter the geometry boundary."
+      });
+    }
+    const key = `projects/${ctx.orgId}/${input.projectId}/geometry-uploads/${crypto4.randomUUID()}.dxf`;
+    const upload = await storageCreatePresignedPut(key, input.mimeType);
+    return {
+      storageKey: upload.key,
+      uploadUrl: upload.uploadUrl,
+      expiresInSeconds: 900
+    };
+  }),
+  finalizeGeometrySourceUpload: orgHeavyMutationProcedure.input(
+    z18.object({
+      projectId: z18.number().int().positive(),
+      storageKey: z18.string().min(1),
+      filename: z18.string().min(1).max(512),
+      mimeType: dxfMimeSchema
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    if (!isOwnedGeometryUploadKey(ctx.orgId, input.projectId, input.storageKey)) {
+      throw new TRPCError19({ code: "NOT_FOUND", message: "Upload not found" });
+    }
+    let stored;
+    try {
+      stored = await storageRead(
+        input.storageKey,
+        DXF_BOUNDARY_LIMITS.sourceBytes
+      );
+    } catch {
+      return rejectUpload(
+        input.storageKey,
+        "The DXF upload could not be read safely."
+      );
+    }
+    if (stored.sizeBytes <= 0 || stored.sizeBytes > DXF_BOUNDARY_LIMITS.sourceBytes || stored.buffer.byteLength !== stored.sizeBytes) {
+      return rejectUpload(
+        input.storageKey,
+        "The DXF upload is empty, changed during validation, or exceeds 10 MiB."
+      );
+    }
+    const inspected = await inspectDxfGeometry({
+      bytes: stored.buffer,
+      fileName: input.filename,
+      mediaType: stored.contentType ?? input.mimeType,
+      levelElevation: "0"
+    });
+    const acceptableUnknownUnits = inspected.status === "insufficient_information" && inspected.issue?.code === "unknown_source_units";
+    if (inspected.status !== "imported" && !acceptableUnknownUnits) {
+      return rejectUpload(
+        input.storageKey,
+        inspected.issue?.message ?? "The DXF upload was rejected."
+      );
+    }
+    const existing = (await getProjectAssets(input.projectId)).find(
+      (asset) => asset.storagePath === input.storageKey
+    );
+    if (existing) {
+      if (existing.checksum !== inspected.evidence.checksum.value) {
+        throw new TRPCError19({
+          code: "CONFLICT",
+          message: "A finalized asset no longer matches its stored checksum."
+        });
+      }
+      return { assetId: existing.id };
+    }
+    let created;
+    try {
+      created = await createProjectAssetForOrg(
+        {
+          projectId: input.projectId,
+          filename: input.filename.replace(/[\\/\u0000]/g, "_").slice(0, 512),
+          mimeType: input.mimeType,
+          sizeBytes: stored.sizeBytes,
+          storagePath: input.storageKey,
+          checksum: inspected.evidence.checksum.value,
+          uploadedBy: ctx.user.id,
+          category: "floor_plan",
+          assetType: "cad",
+          notes: "Finalized deterministic ASCII DXF geometry source.",
+          tags: ["di01", "ascii-dxf"],
+          isClientVisible: false
+        },
+        ctx.orgId
+      );
+    } catch (error) {
+      reportIndeterminateUploadPersistence(input.storageKey, error);
+      throw new TRPCError19({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Geometry upload persistence could not be confirmed."
+      });
+    }
+    if (!created) {
+      try {
+        await cleanupRejectedUpload(input.storageKey);
+      } catch {
+      }
+      throw new TRPCError19({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
+    }
+    await bestEffortAudit({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "geometry_source.finalize",
+      entityType: "project_asset",
+      entityId: created.id,
+      details: {
+        projectId: input.projectId,
+        checksum: inspected.evidence.checksum.value,
+        byteLength: stored.sizeBytes,
+        unitState: inspected.issue?.code ?? "explicit"
+      }
+    });
+    return { assetId: created.id };
+  })
+});
+
 // server/routers/design.ts
 var designRouter = mergeRouters(
   designAssetsRouter,
@@ -27052,12 +30087,13 @@ var designRouter = mergeRouters(
   designMarketContextRouter,
   designMaterialsRouter,
   designSharingRouter,
-  designVisualsRouter
+  designVisualsRouter,
+  designGeometryAssetsRouter
 );
 
 // server/routers/intelligence.ts
-import { z as z18 } from "zod";
-import { TRPCError as TRPCError18 } from "@trpc/server";
+import { z as z19 } from "zod";
+import { TRPCError as TRPCError20 } from "@trpc/server";
 init_db();
 
 // server/engines/explainability.ts
@@ -27532,7 +30568,6 @@ function generateLearningReport(outcomes, predictions) {
 }
 
 // server/routers/intelligence.ts
-init_storage();
 import { nanoid as nanoid7 } from "nanoid";
 var intelligenceRouter = router({
   // ─── V2.10: Logic Registry ──────────────────────────────────────────────────
@@ -27540,7 +30575,7 @@ var intelligenceRouter = router({
     list: adminProcedure.query(async () => {
       return listLogicVersions();
     }),
-    get: adminProcedure.input(z18.object({ id: z18.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z19.object({ id: z19.number() })).query(async ({ input }) => {
       const version = await getLogicVersionById(input.id);
       if (!version) return null;
       const weights = await getLogicWeights(input.id);
@@ -27555,11 +30590,11 @@ var intelligenceRouter = router({
       const thresholds = await getLogicThresholds(version.id);
       return { ...version, weights, thresholds };
     }),
-    create: adminProcedure.input(z18.object({ name: z18.string(), notes: z18.string().optional() })).mutation(async ({ input, ctx }) => {
+    create: adminProcedure.input(z19.object({ name: z19.string(), notes: z19.string().optional() })).mutation(async ({ input, ctx }) => {
       const id = await createLogicVersion({ ...input, createdBy: ctx.user.id });
       return { id };
     }),
-    publish: adminProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input, ctx }) => {
+    publish: adminProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ input, ctx }) => {
       await publishLogicVersion(input.id);
       await addLogicChangeLogEntry({
         logicVersionId: input.id,
@@ -27569,7 +30604,7 @@ var intelligenceRouter = router({
       });
       return { success: true };
     }),
-    archive: adminProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input, ctx }) => {
+    archive: adminProcedure.input(z19.object({ id: z19.number() })).mutation(async ({ input, ctx }) => {
       await archiveLogicVersion(input.id);
       await addLogicChangeLogEntry({
         logicVersionId: input.id,
@@ -27580,10 +30615,10 @@ var intelligenceRouter = router({
       return { success: true };
     }),
     setWeights: adminProcedure.input(
-      z18.object({
-        logicVersionId: z18.number(),
-        weights: z18.array(z18.object({ dimension: z18.string(), weight: z18.string() })),
-        rationale: z18.string()
+      z19.object({
+        logicVersionId: z19.number(),
+        weights: z19.array(z19.object({ dimension: z19.string(), weight: z19.string() })),
+        rationale: z19.string()
       })
     ).mutation(async ({ input, ctx }) => {
       await setLogicWeights(input.logicVersionId, input.weights);
@@ -27596,17 +30631,17 @@ var intelligenceRouter = router({
       return { success: true };
     }),
     setThresholds: adminProcedure.input(
-      z18.object({
-        logicVersionId: z18.number(),
-        thresholds: z18.array(
-          z18.object({
-            ruleKey: z18.string(),
-            thresholdValue: z18.string(),
-            comparator: z18.enum(["gt", "gte", "lt", "lte", "eq", "neq"]),
-            notes: z18.string().optional()
+      z19.object({
+        logicVersionId: z19.number(),
+        thresholds: z19.array(
+          z19.object({
+            ruleKey: z19.string(),
+            thresholdValue: z19.string(),
+            comparator: z19.enum(["gt", "gte", "lt", "lte", "eq", "neq"]),
+            notes: z19.string().optional()
           })
         ),
-        rationale: z18.string()
+        rationale: z19.string()
       })
     ).mutation(async ({ input, ctx }) => {
       await setLogicThresholds(input.logicVersionId, input.thresholds);
@@ -27618,12 +30653,12 @@ var intelligenceRouter = router({
       });
       return { success: true };
     }),
-    changeLog: adminProcedure.input(z18.object({ logicVersionId: z18.number() })).query(async ({ input }) => {
+    changeLog: adminProcedure.input(z19.object({ logicVersionId: z19.number() })).query(async ({ input }) => {
       return getLogicChangeLog(input.logicVersionId);
     })
   }),
   // ─── V2.10: Calibration ────────────────────────────────────────────────────
-  calibrate: orgAdminProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ input, ctx }) => {
+  calibrate: orgAdminProcedure.input(z19.object({ projectId: z19.number() })).query(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const logicVersion = await getPublishedLogicVersion();
     if (!logicVersion) return { error: "No published logic version" };
@@ -27654,7 +30689,7 @@ var intelligenceRouter = router({
   }),
   // ─── V2.11: Scenario Simulation ────────────────────────────────────────────
   scenarios: router({
-    saveInput: orgMutationProcedure.input(z18.object({ scenarioId: z18.number(), jsonInput: z18.unknown() })).mutation(async ({ ctx, input }) => {
+    saveInput: orgMutationProcedure.input(z19.object({ scenarioId: z19.number(), jsonInput: z19.unknown() })).mutation(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
         lookupResource: getScenarioById,
         getProjectId: (scenario) => scenario.projectId
@@ -27664,11 +30699,11 @@ var intelligenceRouter = router({
         ctx.orgId
       );
       if (id === null) {
-        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { id };
     }),
-    getInput: orgProcedure.input(z18.object({ scenarioId: z18.number() })).query(async ({ ctx, input }) => {
+    getInput: orgProcedure.input(z19.object({ scenarioId: z19.number() })).query(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
         lookupResource: getScenarioById,
         getProjectId: (scenario) => scenario.projectId
@@ -27676,14 +30711,14 @@ var intelligenceRouter = router({
       return getScenarioInput(input.scenarioId);
     }),
     saveOutput: orgMutationProcedure.input(
-      z18.object({
-        scenarioId: z18.number(),
-        scoreJson: z18.unknown(),
-        roiJson: z18.unknown().optional(),
-        riskJson: z18.unknown().optional(),
-        boardCostJson: z18.unknown().optional(),
-        benchmarkVersionId: z18.number().optional(),
-        logicVersionId: z18.number().optional()
+      z19.object({
+        scenarioId: z19.number(),
+        scoreJson: z19.unknown(),
+        roiJson: z19.unknown().optional(),
+        riskJson: z19.unknown().optional(),
+        boardCostJson: z19.unknown().optional(),
+        benchmarkVersionId: z19.number().optional(),
+        logicVersionId: z19.number().optional()
       })
     ).mutation(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
@@ -27692,18 +30727,18 @@ var intelligenceRouter = router({
       });
       const id = await createScenarioOutputForOrg(input, ctx.orgId);
       if (id === null) {
-        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { id };
     }),
-    getOutput: orgProcedure.input(z18.object({ scenarioId: z18.number() })).query(async ({ ctx, input }) => {
+    getOutput: orgProcedure.input(z19.object({ scenarioId: z19.number() })).query(async ({ ctx, input }) => {
       await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
         lookupResource: getScenarioById,
         getProjectId: (scenario) => scenario.projectId
       });
       return getScenarioOutput(input.scenarioId);
     }),
-    listOutputs: orgProcedure.input(z18.object({ scenarioIds: z18.array(z18.number()) })).query(async ({ ctx, input }) => {
+    listOutputs: orgProcedure.input(z19.object({ scenarioIds: z19.array(z19.number()) })).query(async ({ ctx, input }) => {
       await requireProjectResourceBatchForOrg(
         input.scenarioIds,
         ctx.orgId,
@@ -27715,11 +30750,11 @@ var intelligenceRouter = router({
       return listScenarioOutputs(input.scenarioIds);
     }),
     compare: orgMutationProcedure.input(
-      z18.object({
-        projectId: z18.number(),
-        baselineScenarioId: z18.number(),
-        comparedScenarioIds: z18.array(z18.number()),
-        decisionNote: z18.string().optional()
+      z19.object({
+        projectId: z19.number(),
+        baselineScenarioId: z19.number(),
+        comparedScenarioIds: z19.array(z19.number()),
+        decisionNote: z19.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -27733,7 +30768,7 @@ var intelligenceRouter = router({
         })
       );
       if (authorized.some((item) => item.project.id !== input.projectId)) {
-        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       const outputs = await listScenarioOutputs(allIds);
       const baselineOutput = outputs.find((o) => o.scenarioId === input.baselineScenarioId);
@@ -27758,22 +30793,22 @@ var intelligenceRouter = router({
         createdBy: ctx.user.id
       }, ctx.orgId);
       if (id === null) {
-        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { id, comparisonResult };
     }),
-    listComparisons: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    listComparisons: orgProcedure.input(z19.object({ projectId: z19.number() })).query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       return listScenarioComparisons(input.projectId);
     }),
-    getComparison: orgProcedure.input(z18.object({ id: z18.number() })).query(async ({ ctx, input }) => {
+    getComparison: orgProcedure.input(z19.object({ id: z19.number() })).query(async ({ ctx, input }) => {
       const authorized = await requireProjectResourceForOrg(input.id, ctx.orgId, {
         lookupResource: getScenarioComparisonById,
         getProjectId: (comparison) => comparison.projectId
       });
       return authorized.resource;
     }),
-    exportComparisonPDF: orgHeavyMutationProcedure.input(z18.object({ comparisonId: z18.number(), locale: z18.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
+    exportComparisonPDF: orgHeavyMutationProcedure.input(z19.object({ comparisonId: z19.number(), locale: z19.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
       const { resource: comparison, project } = await requireProjectResourceForOrg(input.comparisonId, ctx.orgId, {
         lookupResource: getScenarioComparisonById,
         getProjectId: (record) => record.projectId
@@ -27821,7 +30856,7 @@ var intelligenceRouter = router({
   }),
   // ─── V2.12: Explainability ─────────────────────────────────────────────────
   explainability: router({
-    generate: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    generate: orgProcedure.input(z19.object({ projectId: z19.number() })).query(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const scores = await getScoreMatricesByProject(input.projectId);
       const latestScore = scores[0];
@@ -27866,7 +30901,7 @@ var intelligenceRouter = router({
         logicVersion?.name ?? "Default"
       );
     }),
-    auditPack: orgHeavyMutationProcedure.input(z18.object({ projectId: z18.number() })).mutation(async ({ ctx, input }) => {
+    auditPack: orgHeavyMutationProcedure.input(z19.object({ projectId: z19.number() })).mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const scores = await getScoreMatricesByProject(input.projectId);
       const latestScore = scores[0];
@@ -27929,17 +30964,17 @@ var intelligenceRouter = router({
   // ─── V2.13: Outcomes ───────────────────────────────────────────────────────
   outcomes: router({
     capture: orgMutationProcedure.input(
-      z18.object({
-        projectId: z18.number(),
-        procurementActualCosts: z18.record(z18.string(), z18.number()).optional(),
-        leadTimesActual: z18.record(z18.string(), z18.number()).optional(),
-        rfqResults: z18.record(z18.string(), z18.number()).optional(),
-        adoptionMetrics: z18.record(z18.string(), z18.unknown()).optional(),
+      z19.object({
+        projectId: z19.number(),
+        procurementActualCosts: z19.record(z19.string(), z19.number()).optional(),
+        leadTimesActual: z19.record(z19.string(), z19.number()).optional(),
+        rfqResults: z19.record(z19.string(), z19.number()).optional(),
+        adoptionMetrics: z19.record(z19.string(), z19.unknown()).optional(),
         // V5 Fields
-        actualFitoutCostPerSqm: z18.number().optional(),
-        reworkOccurred: z18.boolean().optional(),
-        clientSatisfactionScore: z18.number().min(1).max(5).optional(),
-        projectDeliveredOnTime: z18.boolean().optional()
+        actualFitoutCostPerSqm: z19.number().optional(),
+        reworkOccurred: z19.boolean().optional(),
+        clientSatisfactionScore: z19.number().min(1).max(5).optional(),
+        projectDeliveredOnTime: z19.boolean().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -27949,11 +30984,11 @@ var intelligenceRouter = router({
         capturedBy: ctx.user.id
       }, ctx.orgId);
       if (id === null) {
-        throw new TRPCError18({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { id };
     }),
-    list: orgProcedure.input(z18.object({ projectId: z18.number() })).query(async ({ ctx, input }) => {
+    list: orgProcedure.input(z19.object({ projectId: z19.number() })).query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       return getProjectOutcomesForOrg(input.projectId, ctx.orgId);
     }),
@@ -28003,10 +31038,10 @@ var intelligenceRouter = router({
       return listBenchmarkSuggestions();
     }),
     reviewSuggestion: adminProcedure.input(
-      z18.object({
-        id: z18.number(),
-        status: z18.enum(["accepted", "rejected"]),
-        reviewerNotes: z18.string().optional()
+      z19.object({
+        id: z19.number(),
+        status: z19.enum(["accepted", "rejected"]),
+        reviewerNotes: z19.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await reviewBenchmarkSuggestion(input.id, {
@@ -28033,8 +31068,8 @@ function computeDeltas(baseline, compared) {
 }
 
 // server/routers/market-intelligence.ts
-import { z as z20 } from "zod";
-import { TRPCError as TRPCError20 } from "@trpc/server";
+import { z as z21 } from "zod";
+import { TRPCError as TRPCError22 } from "@trpc/server";
 init_db();
 init_dynamic();
 init_orchestrator();
@@ -28608,9 +31643,9 @@ init_confidence_policy();
 
 // server/_core/market-resource-access.ts
 init_db();
-import { TRPCError as TRPCError19 } from "@trpc/server";
+import { TRPCError as TRPCError21 } from "@trpc/server";
 function notFound3() {
-  throw new TRPCError19({ code: "NOT_FOUND", message: "Resource not found" });
+  throw new TRPCError21({ code: "NOT_FOUND", message: "Resource not found" });
 }
 async function requireEvidenceRecordForOrg(evidenceId, orgId) {
   const evidence = await getEvidenceRecordById(evidenceId);
@@ -28620,7 +31655,7 @@ async function requireEvidenceRecordForOrg(evidenceId, orgId) {
     try {
       project = await requireProjectForOrg(evidence.projectId, orgId);
     } catch (error) {
-      if (error instanceof TRPCError19 && error.code === "NOT_FOUND") {
+      if (error instanceof TRPCError21 && error.code === "NOT_FOUND") {
         return notFound3();
       }
       throw error;
@@ -28662,7 +31697,7 @@ async function requireTaggedEntitiesForOrg(tagId, orgId) {
       );
       authorized.push(link);
     } catch (error) {
-      if (!(error instanceof TRPCError19) || error.code !== "NOT_FOUND") {
+      if (!(error instanceof TRPCError21) || error.code !== "NOT_FOUND") {
         throw error;
       }
     }
@@ -28671,10 +31706,10 @@ async function requireTaggedEntitiesForOrg(tagId, orgId) {
 }
 
 // server/routers/market-intelligence.ts
-var evidenceRecordSchema = z20.object({
-  projectId: z20.number().optional(),
-  sourceRegistryId: z20.number().optional(),
-  category: z20.enum([
+var evidenceRecordSchema = z21.object({
+  projectId: z21.number().optional(),
+  sourceRegistryId: z21.number().optional(),
+  category: z21.enum([
     "floors",
     "walls",
     "ceilings",
@@ -28686,39 +31721,39 @@ var evidenceRecordSchema = z20.object({
     "ffe",
     "other"
   ]),
-  itemName: z20.string().min(1),
-  specClass: z20.string().optional(),
-  priceMin: z20.number().optional(),
-  priceTypical: z20.number().optional(),
-  priceMax: z20.number().optional(),
-  unit: z20.string().min(1),
-  currencyOriginal: z20.string().default("AED"),
-  currencyAed: z20.number().optional(),
-  fxRate: z20.number().optional(),
-  fxSource: z20.string().optional(),
-  sourceUrl: z20.string().url(),
-  publisher: z20.string().optional(),
-  captureDate: z20.string(),
+  itemName: z21.string().min(1),
+  specClass: z21.string().optional(),
+  priceMin: z21.number().optional(),
+  priceTypical: z21.number().optional(),
+  priceMax: z21.number().optional(),
+  unit: z21.string().min(1),
+  currencyOriginal: z21.string().default("AED"),
+  currencyAed: z21.number().optional(),
+  fxRate: z21.number().optional(),
+  fxSource: z21.string().optional(),
+  sourceUrl: z21.string().url(),
+  publisher: z21.string().optional(),
+  captureDate: z21.string(),
   // ISO date
-  reliabilityGrade: z20.enum(["A", "B", "C"]),
-  confidenceScore: z20.number().min(0).max(100),
-  extractedSnippet: z20.string().optional(),
-  notes: z20.string().optional(),
+  reliabilityGrade: z21.enum(["A", "B", "C"]),
+  confidenceScore: z21.number().min(0).max(100),
+  extractedSnippet: z21.string().optional(),
+  notes: z21.string().optional(),
   // V2.2 metadata fields
-  title: z20.string().optional(),
-  evidencePhase: z20.enum(["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]).optional(),
-  author: z20.string().optional(),
-  confidentiality: z20.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
-  tags: z20.array(z20.string()).optional(),
-  fileUrl: z20.string().optional(),
-  fileKey: z20.string().optional(),
-  fileMimeType: z20.string().optional(),
+  title: z21.string().optional(),
+  evidencePhase: z21.enum(["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]).optional(),
+  author: z21.string().optional(),
+  confidentiality: z21.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
+  tags: z21.array(z21.string()).optional(),
+  fileUrl: z21.string().optional(),
+  fileKey: z21.string().optional(),
+  fileMimeType: z21.string().optional(),
   // Source-type Intelligence fields
-  finishLevel: z20.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).nullable().optional(),
-  designStyle: z20.string().nullable().optional(),
-  brandsMentioned: z20.array(z20.string()).nullable().optional(),
-  materialSpec: z20.string().nullable().optional(),
-  intelligenceType: z20.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional()
+  finishLevel: z21.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).nullable().optional(),
+  designStyle: z21.string().nullable().optional(),
+  brandsMentioned: z21.array(z21.string()).nullable().optional(),
+  materialSpec: z21.string().nullable().optional(),
+  intelligenceType: z21.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional()
 });
 var MANUAL_ASSERTED_CONFIDENCE_POLICY = "manual-asserted-confidence-v1";
 async function assertedConfidenceAssessment(origin, rawPublicationText, evaluationClock, grade2, score, runId, actorId) {
@@ -28743,7 +31778,7 @@ async function assertedConfidenceAssessment(origin, rawPublicationText, evaluati
       mergeDecision: "rejected",
       rejectionCode
     });
-    throw new TRPCError20({
+    throw new TRPCError22({
       code: "BAD_REQUEST",
       message: publication.status === "future" ? "Publication date cannot be in the future" : "Publication date is invalid"
     });
@@ -28767,10 +31802,10 @@ async function assertedConfidenceAssessment(origin, rawPublicationText, evaluati
     mergeDecision: "manual_assertion"
   };
 }
-var sourceRegistrySchema = z20.object({
-  name: z20.string().min(1),
-  url: z20.string().url(),
-  sourceType: z20.enum([
+var sourceRegistrySchema = z21.object({
+  name: z21.string().min(1),
+  url: z21.string().url(),
+  sourceType: z21.enum([
     "supplier_catalog",
     "manufacturer_catalog",
     "developer_brochure",
@@ -28782,22 +31817,22 @@ var sourceRegistrySchema = z20.object({
     "aggregator",
     "other"
   ]),
-  reliabilityDefault: z20.enum(["A", "B", "C"]).default("B"),
-  isWhitelisted: z20.boolean().default(true),
-  region: z20.string().default("UAE"),
-  notes: z20.string().optional(),
+  reliabilityDefault: z21.enum(["A", "B", "C"]).default("B"),
+  isWhitelisted: z21.boolean().default(true),
+  region: z21.string().default("UAE"),
+  notes: z21.string().optional(),
   // DFE Fields
-  scrapeConfig: z20.any().optional(),
-  scrapeSchedule: z20.string().optional(),
-  scrapeMethod: z20.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
-  scrapeHeaders: z20.any().optional(),
-  extractionHints: z20.string().optional(),
-  priceFieldMapping: z20.any().optional(),
-  lastScrapedAt: z20.string().optional(),
-  lastScrapedStatus: z20.enum(["success", "partial", "failed", "never"]).default("never"),
-  lastRecordCount: z20.number().default(0),
-  consecutiveFailures: z20.number().default(0),
-  requestDelayMs: z20.number().default(2e3)
+  scrapeConfig: z21.any().optional(),
+  scrapeSchedule: z21.string().optional(),
+  scrapeMethod: z21.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+  scrapeHeaders: z21.any().optional(),
+  extractionHints: z21.string().optional(),
+  priceFieldMapping: z21.any().optional(),
+  lastScrapedAt: z21.string().optional(),
+  lastScrapedStatus: z21.enum(["success", "partial", "failed", "never"]).default("never"),
+  lastRecordCount: z21.number().default(0),
+  consecutiveFailures: z21.number().default(0),
+  requestDelayMs: z21.number().default(2e3)
 });
 function generateRecordId3() {
   const seq = nanoid8(8).toUpperCase();
@@ -28812,7 +31847,7 @@ var marketIntelligenceRouter = router({
     list: protectedProcedure.query(async () => {
       return listSourceRegistry();
     }),
-    get: protectedProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
+    get: protectedProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getSourceRegistryById(input.id);
     }),
     create: adminProcedure.input(sourceRegistrySchema).mutation(async ({ input, ctx }) => {
@@ -28830,11 +31865,11 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z20.object({
-      id: z20.number(),
-      name: z20.string().optional(),
-      url: z20.string().url().optional(),
-      sourceType: z20.enum([
+    update: adminProcedure.input(z21.object({
+      id: z21.number(),
+      name: z21.string().optional(),
+      url: z21.string().url().optional(),
+      sourceType: z21.enum([
         "supplier_catalog",
         "manufacturer_catalog",
         "developer_brochure",
@@ -28846,23 +31881,23 @@ var marketIntelligenceRouter = router({
         "aggregator",
         "other"
       ]).optional(),
-      reliabilityDefault: z20.enum(["A", "B", "C"]).optional(),
-      isWhitelisted: z20.boolean().optional(),
-      region: z20.string().optional(),
-      notes: z20.string().optional(),
-      isActive: z20.boolean().optional(),
+      reliabilityDefault: z21.enum(["A", "B", "C"]).optional(),
+      isWhitelisted: z21.boolean().optional(),
+      region: z21.string().optional(),
+      notes: z21.string().optional(),
+      isActive: z21.boolean().optional(),
       // DFE Fields
-      scrapeConfig: z20.any().optional(),
-      scrapeSchedule: z20.string().optional(),
-      scrapeMethod: z20.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).optional(),
-      scrapeHeaders: z20.any().optional(),
-      extractionHints: z20.string().optional(),
-      priceFieldMapping: z20.any().optional(),
-      lastScrapedAt: z20.string().optional(),
-      lastScrapedStatus: z20.enum(["success", "partial", "failed", "never"]).optional(),
-      lastRecordCount: z20.number().optional(),
-      consecutiveFailures: z20.number().optional(),
-      requestDelayMs: z20.number().optional()
+      scrapeConfig: z21.any().optional(),
+      scrapeSchedule: z21.string().optional(),
+      scrapeMethod: z21.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).optional(),
+      scrapeHeaders: z21.any().optional(),
+      extractionHints: z21.string().optional(),
+      priceFieldMapping: z21.any().optional(),
+      lastScrapedAt: z21.string().optional(),
+      lastScrapedStatus: z21.enum(["success", "partial", "failed", "never"]).optional(),
+      lastRecordCount: z21.number().optional(),
+      consecutiveFailures: z21.number().optional(),
+      requestDelayMs: z21.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const { id, lastScrapedAt, ...data } = input;
       await updateSourceRegistryEntry(id, {
@@ -28878,7 +31913,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    toggleActive: adminProcedure.input(z20.object({ id: z20.number(), isActive: z20.boolean() })).mutation(async ({ input, ctx }) => {
+    toggleActive: adminProcedure.input(z21.object({ id: z21.number(), isActive: z21.boolean() })).mutation(async ({ input, ctx }) => {
       await updateSourceRegistryEntry(input.id, { isActive: input.isActive });
       await createAuditLog({
         userId: ctx.user.id,
@@ -28888,7 +31923,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    delete: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
+    delete: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       await deleteSourceRegistryEntry(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -28908,13 +31943,13 @@ var marketIntelligenceRouter = router({
       });
       return { created: result.created, skipped: result.skipped };
     }),
-    testScrape: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input }) => {
+    testScrape: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input }) => {
       const source = await getSourceRegistryById(input.id);
       if (!source) throw new Error("Source not found");
       const connector = new DynamicConnector(source);
       return await testScrape(connector);
     }),
-    scrapeNow: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
+    scrapeNow: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       const source = await getSourceRegistryById(input.id);
       if (!source) throw new Error("Source not found");
       await updateSourceRegistryEntry(source.id, { consecutiveFailures: 0 });
@@ -28933,9 +31968,9 @@ var marketIntelligenceRouter = router({
       const buffer = generateCsvTemplate();
       return { base64: buffer.toString("base64") };
     }),
-    uploadCsv: adminProcedure.input(z20.object({
-      sourceId: z20.number(),
-      base64File: z20.string()
+    uploadCsv: adminProcedure.input(z21.object({
+      sourceId: z21.number(),
+      base64File: z21.string()
     })).mutation(async ({ input, ctx }) => {
       const buffer = Buffer.from(input.base64File, "base64");
       const report = await processCsvUpload(buffer, input.sourceId, ctx.user.id);
@@ -28951,13 +31986,13 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Evidence Records ──────────────────────────────────────────────────────
   evidence: router({
-    list: orgProcedure.input(z20.object({
-      projectId: z20.number().optional(),
-      category: z20.string().optional(),
-      reliabilityGrade: z20.string().optional(),
-      evidencePhase: z20.string().optional(),
-      confidentiality: z20.string().optional(),
-      limit: z20.number().default(100)
+    list: orgProcedure.input(z21.object({
+      projectId: z21.number().optional(),
+      category: z21.string().optional(),
+      reliabilityGrade: z21.string().optional(),
+      evidencePhase: z21.string().optional(),
+      confidentiality: z21.string().optional(),
+      limit: z21.number().default(100)
     }).optional()).query(async ({ ctx, input }) => {
       if (!input?.projectId) {
         return listPublicCorpusEvidence({
@@ -28977,17 +32012,17 @@ var marketIntelligenceRouter = router({
         limit: input?.limit ?? 100
       });
     }),
-    get: orgProcedure.input(z20.object({ id: z20.number() })).query(async ({ ctx, input }) => {
+    get: orgProcedure.input(z21.object({ id: z21.number() })).query(async ({ ctx, input }) => {
       const authorized = await requireEvidenceRecordForOrg(input.id, ctx.orgId);
       return authorized.evidence;
     }),
-    confidenceHistory: orgProcedure.input(z20.object({ id: z20.number(), limit: z20.number().min(1).max(100).default(50) })).query(async ({ ctx, input }) => {
+    confidenceHistory: orgProcedure.input(z21.object({ id: z21.number(), limit: z21.number().min(1).max(100).default(50) })).query(async ({ ctx, input }) => {
       await requireEvidenceRecordForOrg(input.id, ctx.orgId);
       return listConfidenceAssessmentHistory(input.id, input.limit);
     }),
     create: adminProcedure.input(evidenceRecordSchema).mutation(async ({ input, ctx }) => {
       if (input.projectId !== void 0) {
-        throw new TRPCError20({
+        throw new TRPCError22({
           code: "BAD_REQUEST",
           message: "Project-linked evidence must be created within an organization workflow"
         });
@@ -29034,11 +32069,11 @@ var marketIntelligenceRouter = router({
       });
       return { id: result.id, recordId };
     }),
-    bulkImport: adminProcedure.input(z20.object({
-      records: z20.array(evidenceRecordSchema)
+    bulkImport: adminProcedure.input(z21.object({
+      records: z21.array(evidenceRecordSchema)
     })).mutation(async ({ input, ctx }) => {
       if (input.records.some((record) => record.projectId !== void 0)) {
-        throw new TRPCError20({
+        throw new TRPCError22({
           code: "BAD_REQUEST",
           message: "Project-linked evidence must be created within an organization workflow"
         });
@@ -29097,9 +32132,9 @@ var marketIntelligenceRouter = router({
       });
       return { imported, errors: errors.length, runId };
     }),
-    delete: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
+    delete: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       if (!await deleteGlobalEvidenceRecord(input.id)) {
-        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -29113,10 +32148,10 @@ var marketIntelligenceRouter = router({
       return getPublicEvidenceStats();
     }),
     // V2.2 — Evidence References
-    listReferences: orgProcedure.input(z20.object({
-      evidenceRecordId: z20.number().optional(),
-      targetType: z20.string().optional(),
-      targetId: z20.number().optional()
+    listReferences: orgProcedure.input(z21.object({
+      evidenceRecordId: z21.number().optional(),
+      targetType: z21.string().optional(),
+      targetId: z21.number().optional()
     }).refine(
       (value) => value.evidenceRecordId !== void 0 || value.targetType !== void 0 && value.targetId !== void 0,
       "Evidence record or complete target is required"
@@ -29133,9 +32168,9 @@ var marketIntelligenceRouter = router({
       }
       return listEvidenceReferences(input);
     }),
-    addReference: orgMutationProcedure.input(z20.object({
-      evidenceRecordId: z20.number(),
-      targetType: z20.enum([
+    addReference: orgMutationProcedure.input(z21.object({
+      evidenceRecordId: z21.number(),
+      targetType: z21.enum([
         "scenario",
         "decision_note",
         "explainability_driver",
@@ -29144,9 +32179,9 @@ var marketIntelligenceRouter = router({
         "material_board",
         "pack_section"
       ]),
-      targetId: z20.number(),
-      sectionLabel: z20.string().optional(),
-      citationText: z20.string().optional()
+      targetId: z21.number(),
+      sectionLabel: z21.string().optional(),
+      citationText: z21.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
       await requireEvidenceReferenceTargetForOrg(
@@ -29163,10 +32198,10 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    removeReference: orgMutationProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
+    removeReference: orgMutationProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       const reference = await getEvidenceReferenceById(input.id);
       if (!reference) {
-        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await requireEvidenceRecordForOrg(reference.evidenceRecordId, ctx.orgId);
       await requireEvidenceReferenceTargetForOrg(
@@ -29175,7 +32210,7 @@ var marketIntelligenceRouter = router({
         ctx.orgId
       );
       if (!await deleteEvidenceReferenceIfMatches(input.id, reference)) {
-        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -29186,9 +32221,9 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // Get evidence records linked to a specific target (e.g., scenario, design_brief)
-    getForTarget: orgProcedure.input(z20.object({
-      targetType: z20.string(),
-      targetId: z20.number()
+    getForTarget: orgProcedure.input(z21.object({
+      targetType: z21.string(),
+      targetId: z21.number()
     })).query(async ({ ctx, input }) => {
       await requireEvidenceReferenceTargetForOrg(
         input.targetType,
@@ -29200,17 +32235,17 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Benchmark Proposals ──────────────────────────────────────────────────
   proposals: router({
-    list: adminProcedure.input(z20.object({
-      status: z20.enum(["pending", "approved", "rejected"]).optional()
+    list: adminProcedure.input(z21.object({
+      status: z21.enum(["pending", "approved", "rejected"]).optional()
     }).optional()).query(async ({ input }) => {
       return listBenchmarkProposals(input?.status);
     }),
-    get: adminProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getBenchmarkProposalById(input.id);
     }),
-    generate: adminProcedure.input(z20.object({
-      category: z20.string().optional(),
-      minEvidenceCount: z20.number().default(3)
+    generate: adminProcedure.input(z21.object({
+      category: z21.string().optional(),
+      minEvidenceCount: z21.number().default(3)
     })).mutation(async ({ input, ctx }) => {
       const runId = generateRunId("PROP");
       const startedAt = /* @__PURE__ */ new Date();
@@ -29317,10 +32352,10 @@ var marketIntelligenceRouter = router({
       });
       return { proposals, runId };
     }),
-    review: adminProcedure.input(z20.object({
-      id: z20.number(),
-      status: z20.enum(["approved", "rejected"]),
-      reviewerNotes: z20.string().optional()
+    review: adminProcedure.input(z21.object({
+      id: z21.number(),
+      status: z21.enum(["approved", "rejected"]),
+      reviewerNotes: z21.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await reviewBenchmarkProposal(input.id, {
         status: input.status,
@@ -29368,10 +32403,10 @@ var marketIntelligenceRouter = router({
     list: adminProcedure.query(async () => {
       return listBenchmarkSnapshots();
     }),
-    get: adminProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getBenchmarkSnapshotById(input.id);
     }),
-    create: adminProcedure.input(z20.object({ description: z20.string().optional() })).mutation(async ({ ctx, input }) => {
+    create: adminProcedure.input(z21.object({ description: z21.string().optional() })).mutation(async ({ ctx, input }) => {
       const activeBV = await getActiveBenchmarkVersion();
       const currentBenchmarks = await getAllBenchmarkData();
       const result = await createBenchmarkSnapshot({
@@ -29389,16 +32424,16 @@ var marketIntelligenceRouter = router({
     listEntities: protectedProcedure.query(async () => {
       return listCompetitorEntities();
     }),
-    getEntity: protectedProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
+    getEntity: protectedProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getCompetitorEntityById(input.id);
     }),
-    createEntity: adminProcedure.input(z20.object({
-      name: z20.string().min(1),
-      headquarters: z20.string().optional(),
-      segmentFocus: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).default("mixed"),
-      website: z20.string().optional(),
-      logoUrl: z20.string().optional(),
-      notes: z20.string().optional()
+    createEntity: adminProcedure.input(z21.object({
+      name: z21.string().min(1),
+      headquarters: z21.string().optional(),
+      segmentFocus: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).default("mixed"),
+      website: z21.string().optional(),
+      logoUrl: z21.string().optional(),
+      notes: z21.string().optional()
     })).mutation(async ({ input, ctx }) => {
       const result = await createCompetitorEntity({ ...input, createdBy: ctx.user.id });
       await createAuditLog({
@@ -29409,14 +32444,14 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    updateEntity: adminProcedure.input(z20.object({
-      id: z20.number(),
-      name: z20.string().optional(),
-      headquarters: z20.string().optional(),
-      segmentFocus: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).optional(),
-      website: z20.string().optional(),
-      logoUrl: z20.string().optional(),
-      notes: z20.string().optional()
+    updateEntity: adminProcedure.input(z21.object({
+      id: z21.number(),
+      name: z21.string().optional(),
+      headquarters: z21.string().optional(),
+      segmentFocus: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).optional(),
+      website: z21.string().optional(),
+      logoUrl: z21.string().optional(),
+      notes: z21.string().optional()
     })).mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       await updateCompetitorEntity(id, data);
@@ -29428,7 +32463,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    deleteEntity: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
+    deleteEntity: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       await deleteCompetitorEntity(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -29439,38 +32474,38 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // ─── Projects ─────────────────────────────────────────────────────────
-    listProjects: protectedProcedure.input(z20.object({
-      competitorId: z20.number().optional(),
-      segment: z20.string().optional()
+    listProjects: protectedProcedure.input(z21.object({
+      competitorId: z21.number().optional(),
+      segment: z21.string().optional()
     }).optional()).query(async ({ input }) => {
       return listCompetitorProjects(input?.competitorId, input?.segment);
     }),
-    getProject: protectedProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
+    getProject: protectedProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getCompetitorProjectById(input.id);
     }),
-    createProject: adminProcedure.input(z20.object({
-      competitorId: z20.number(),
-      projectName: z20.string().min(1),
-      location: z20.string().optional(),
-      segment: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-      assetType: z20.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-      positioningKeywords: z20.array(z20.string()).optional(),
-      interiorStyleSignals: z20.array(z20.string()).optional(),
-      materialCues: z20.array(z20.string()).optional(),
-      amenityList: z20.array(z20.string()).optional(),
-      unitMix: z20.string().optional(),
-      priceIndicators: z20.any().optional(),
-      salesMessaging: z20.array(z20.string()).optional(),
-      differentiationClaims: z20.array(z20.string()).optional(),
-      completionStatus: z20.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-      launchDate: z20.string().optional(),
-      totalUnits: z20.number().optional(),
-      architect: z20.string().optional(),
-      interiorDesigner: z20.string().optional(),
-      sourceUrl: z20.string().optional(),
-      captureDate: z20.string().optional(),
-      evidenceCitations: z20.any().optional(),
-      completenessScore: z20.number().optional()
+    createProject: adminProcedure.input(z21.object({
+      competitorId: z21.number(),
+      projectName: z21.string().min(1),
+      location: z21.string().optional(),
+      segment: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+      assetType: z21.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
+      positioningKeywords: z21.array(z21.string()).optional(),
+      interiorStyleSignals: z21.array(z21.string()).optional(),
+      materialCues: z21.array(z21.string()).optional(),
+      amenityList: z21.array(z21.string()).optional(),
+      unitMix: z21.string().optional(),
+      priceIndicators: z21.any().optional(),
+      salesMessaging: z21.array(z21.string()).optional(),
+      differentiationClaims: z21.array(z21.string()).optional(),
+      completionStatus: z21.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
+      launchDate: z21.string().optional(),
+      totalUnits: z21.number().optional(),
+      architect: z21.string().optional(),
+      interiorDesigner: z21.string().optional(),
+      sourceUrl: z21.string().optional(),
+      captureDate: z21.string().optional(),
+      evidenceCitations: z21.any().optional(),
+      completenessScore: z21.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const result = await createCompetitorProject({
         ...input,
@@ -29485,25 +32520,25 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    updateProject: adminProcedure.input(z20.object({
-      id: z20.number(),
-      projectName: z20.string().optional(),
-      location: z20.string().optional(),
-      segment: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-      positioningKeywords: z20.array(z20.string()).optional(),
-      interiorStyleSignals: z20.array(z20.string()).optional(),
-      materialCues: z20.array(z20.string()).optional(),
-      amenityList: z20.array(z20.string()).optional(),
-      priceIndicators: z20.any().optional(),
-      salesMessaging: z20.array(z20.string()).optional(),
-      differentiationClaims: z20.array(z20.string()).optional(),
-      completionStatus: z20.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-      totalUnits: z20.number().optional(),
-      architect: z20.string().optional(),
-      interiorDesigner: z20.string().optional(),
-      sourceUrl: z20.string().optional(),
-      evidenceCitations: z20.any().optional(),
-      completenessScore: z20.number().optional()
+    updateProject: adminProcedure.input(z21.object({
+      id: z21.number(),
+      projectName: z21.string().optional(),
+      location: z21.string().optional(),
+      segment: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+      positioningKeywords: z21.array(z21.string()).optional(),
+      interiorStyleSignals: z21.array(z21.string()).optional(),
+      materialCues: z21.array(z21.string()).optional(),
+      amenityList: z21.array(z21.string()).optional(),
+      priceIndicators: z21.any().optional(),
+      salesMessaging: z21.array(z21.string()).optional(),
+      differentiationClaims: z21.array(z21.string()).optional(),
+      completionStatus: z21.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
+      totalUnits: z21.number().optional(),
+      architect: z21.string().optional(),
+      interiorDesigner: z21.string().optional(),
+      sourceUrl: z21.string().optional(),
+      evidenceCitations: z21.any().optional(),
+      completenessScore: z21.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       await updateCompetitorProject(id, data);
@@ -29515,7 +32550,7 @@ var marketIntelligenceRouter = router({
       });
       return { success: true };
     }),
-    deleteProject: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
+    deleteProject: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       await deleteCompetitorProject(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -29526,7 +32561,7 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // ─── Comparison View ──────────────────────────────────────────────────
-    compare: protectedProcedure.input(z20.object({ projectIds: z20.array(z20.number()).min(2).max(6) })).query(async ({ input }) => {
+    compare: protectedProcedure.input(z21.object({ projectIds: z21.array(z21.number()).min(2).max(6) })).query(async ({ input }) => {
       const projects2 = [];
       for (const id of input.projectIds) {
         const p = await getCompetitorProjectById(id);
@@ -29554,20 +32589,20 @@ var marketIntelligenceRouter = router({
       }));
       return { projects: validProjects, matrix };
     }),
-    bulkImport: adminProcedure.input(z20.object({
-      competitorId: z20.number(),
-      projects: z20.array(z20.object({
-        projectName: z20.string(),
-        location: z20.string().optional(),
-        segment: z20.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-        assetType: z20.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-        positioningKeywords: z20.array(z20.string()).optional(),
-        interiorStyleSignals: z20.array(z20.string()).optional(),
-        materialCues: z20.array(z20.string()).optional(),
-        amenityList: z20.array(z20.string()).optional(),
-        sourceUrl: z20.string().optional(),
-        evidenceCitations: z20.any().optional(),
-        completenessScore: z20.number().optional()
+    bulkImport: adminProcedure.input(z21.object({
+      competitorId: z21.number(),
+      projects: z21.array(z21.object({
+        projectName: z21.string(),
+        location: z21.string().optional(),
+        segment: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+        assetType: z21.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
+        positioningKeywords: z21.array(z21.string()).optional(),
+        interiorStyleSignals: z21.array(z21.string()).optional(),
+        materialCues: z21.array(z21.string()).optional(),
+        amenityList: z21.array(z21.string()).optional(),
+        sourceUrl: z21.string().optional(),
+        evidenceCitations: z21.any().optional(),
+        completenessScore: z21.number().optional()
       }))
     })).mutation(async ({ input, ctx }) => {
       const runId = generateRunId("COMP");
@@ -29599,12 +32634,12 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Trend Tags ───────────────────────────────────────────────────────────
   tags: router({
-    list: protectedProcedure.input(z20.object({ category: z20.string().optional() }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(z21.object({ category: z21.string().optional() }).optional()).query(async ({ input }) => {
       return listTrendTags(input?.category);
     }),
-    create: adminProcedure.input(z20.object({
-      name: z20.string().min(1),
-      category: z20.enum([
+    create: adminProcedure.input(z21.object({
+      name: z21.string().min(1),
+      category: z21.enum([
         "material_trend",
         "design_trend",
         "market_trend",
@@ -29614,20 +32649,20 @@ var marketIntelligenceRouter = router({
         "pricing",
         "other"
       ]),
-      description: z20.string().optional()
+      description: z21.string().optional()
     })).mutation(async ({ input, ctx }) => {
       const result = await createTrendTag({ ...input, createdBy: ctx.user.id });
       return result;
     }),
-    delete: adminProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input }) => {
+    delete: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input }) => {
       await deleteTrendTag(input.id);
       return { success: true };
     }),
     // ─── Entity Tagging ───────────────────────────────────────────────────
-    attach: orgMutationProcedure.input(z20.object({
-      tagId: z20.number(),
-      entityType: z20.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-      entityId: z20.number()
+    attach: orgMutationProcedure.input(z21.object({
+      tagId: z21.number(),
+      entityType: z21.enum(["competitor_project", "scenario", "evidence_record", "project"]),
+      entityId: z21.number()
     })).mutation(async ({ input, ctx }) => {
       await requireMarketTagTargetForOrg(
         input.entityType,
@@ -29637,10 +32672,10 @@ var marketIntelligenceRouter = router({
       const result = await createEntityTag({ ...input, addedBy: ctx.user.id });
       return result;
     }),
-    detach: orgMutationProcedure.input(z20.object({ id: z20.number() })).mutation(async ({ input, ctx }) => {
+    detach: orgMutationProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       const entityTag = await getEntityTagById(input.id);
       if (!entityTag) {
-        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await requireMarketTagTargetForOrg(
         entityTag.entityType,
@@ -29648,13 +32683,13 @@ var marketIntelligenceRouter = router({
         ctx.orgId
       );
       if (!await deleteEntityTagIfMatches(input.id, entityTag)) {
-        throw new TRPCError20({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
       }
       return { success: true };
     }),
-    getEntityTags: orgProcedure.input(z20.object({
-      entityType: z20.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-      entityId: z20.number()
+    getEntityTags: orgProcedure.input(z21.object({
+      entityType: z21.enum(["competitor_project", "scenario", "evidence_record", "project"]),
+      entityId: z21.number()
     })).query(async ({ ctx, input }) => {
       await requireMarketTagTargetForOrg(
         input.entityType,
@@ -29663,19 +32698,19 @@ var marketIntelligenceRouter = router({
       );
       return getEntityTags(input.entityType, input.entityId);
     }),
-    getTaggedEntities: orgProcedure.input(z20.object({ tagId: z20.number() })).query(async ({ ctx, input }) => {
+    getTaggedEntities: orgProcedure.input(z21.object({ tagId: z21.number() })).query(async ({ ctx, input }) => {
       return requireTaggedEntitiesForOrg(input.tagId, ctx.orgId);
     })
   }),
   // ─── Intelligence Audit Log ───────────────────────────────────────────────
   auditLog: router({
-    list: adminProcedure.input(z20.object({
-      runType: z20.string().optional(),
-      limit: z20.number().default(50)
+    list: adminProcedure.input(z21.object({
+      runType: z21.string().optional(),
+      limit: z21.number().default(50)
     }).optional()).query(async ({ input }) => {
       return listIntelligenceAuditLog(input?.runType, input?.limit ?? 50);
     }),
-    get: adminProcedure.input(z20.object({ id: z20.number() })).query(async ({ input }) => {
+    get: adminProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getIntelligenceAuditEntryById(input.id);
     })
   }),
@@ -29685,7 +32720,7 @@ var marketIntelligenceRouter = router({
 });
 
 // server/routers/ingestion.ts
-import { z as z21 } from "zod";
+import { z as z22 } from "zod";
 init_orchestrator();
 init_connectors();
 init_db();
@@ -29747,8 +32782,8 @@ var ingestionRouter = router({
    * Run a single connector by sourceId.
    * Admin-only. Returns IngestionRunReport for that one source.
    */
-  runSource: adminProcedure.input(z21.object({
-    sourceId: z21.string().min(1)
+  runSource: adminProcedure.input(z22.object({
+    sourceId: z22.string().min(1)
   })).mutation(async ({ input, ctx }) => {
     const connector = getConnectorById(input.sourceId);
     if (!connector) {
@@ -29760,9 +32795,9 @@ var ingestionRouter = router({
   /**
    * List past ingestion runs (paginated, newest first).
    */
-  getHistory: protectedProcedure.input(z21.object({
-    limit: z21.number().min(1).max(100).default(20),
-    offset: z21.number().min(0).default(0)
+  getHistory: protectedProcedure.input(z22.object({
+    limit: z22.number().min(1).max(100).default(20),
+    offset: z22.number().min(0).default(0)
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return { runs: [], total: 0 };
@@ -29821,7 +32856,7 @@ var ingestionRouter = router({
   /**
    * Get detailed breakdown for a specific ingestion run.
    */
-  getRunDetail: protectedProcedure.input(z21.object({ runId: z21.string() })).query(async ({ input }) => {
+  getRunDetail: protectedProcedure.input(z22.object({ runId: z22.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
     const runs = await db.select().from(ingestionRuns).where(eq11(ingestionRuns.runId, input.runId)).limit(1);
@@ -29842,15 +32877,15 @@ var ingestionRouter = router({
   /**
    * Get connector health records for a specific ingestion run.
    */
-  getRunHealth: protectedProcedure.input(z21.object({ runId: z21.string() })).query(async ({ input }) => {
+  getRunHealth: protectedProcedure.input(z22.object({ runId: z22.string() })).query(async ({ input }) => {
     return getConnectorHealthByRun(input.runId);
   }),
   /**
    * Get health history for a specific connector (last 30 records).
    */
-  getSourceHealth: protectedProcedure.input(z21.object({
-    sourceId: z21.string(),
-    limit: z21.number().min(1).max(100).default(30)
+  getSourceHealth: protectedProcedure.input(z22.object({
+    sourceId: z22.string(),
+    limit: z22.number().min(1).max(100).default(30)
   })).query(async ({ input }) => {
     return getConnectorHealthHistory(input.sourceId, input.limit);
   }),
@@ -29901,8 +32936,8 @@ var ingestionRouter = router({
   /**
    * List all sources from source_registry with health info.
    */
-  listSources: protectedProcedure.input(z21.object({
-    activeOnly: z21.boolean().default(true)
+  listSources: protectedProcedure.input(z22.object({
+    activeOnly: z22.boolean().default(true)
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
@@ -29913,17 +32948,17 @@ var ingestionRouter = router({
   /**
    * Create a new source in the registry.
    */
-  createSource: adminProcedure.input(z21.object({
-    name: z21.string().min(1).max(255),
-    url: z21.string().url(),
-    sourceType: z21.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
-    reliabilityDefault: z21.enum(["A", "B", "C"]).default("B"),
-    region: z21.string().default("UAE"),
-    scrapeMethod: z21.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
-    scrapeSchedule: z21.string().optional(),
-    extractionHints: z21.string().optional(),
-    notes: z21.string().optional(),
-    requestDelayMs: z21.number().default(2e3)
+  createSource: adminProcedure.input(z22.object({
+    name: z22.string().min(1).max(255),
+    url: z22.string().url(),
+    sourceType: z22.enum(["supplier_catalog", "manufacturer_catalog", "developer_brochure", "industry_report", "government_tender", "procurement_portal", "trade_publication", "retailer_listing", "aggregator", "other"]),
+    reliabilityDefault: z22.enum(["A", "B", "C"]).default("B"),
+    region: z22.string().default("UAE"),
+    scrapeMethod: z22.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+    scrapeSchedule: z22.string().optional(),
+    extractionHints: z22.string().optional(),
+    notes: z22.string().optional(),
+    requestDelayMs: z22.number().default(2e3)
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
@@ -29950,7 +32985,7 @@ var ingestionRouter = router({
   /**
    * Toggle source active/inactive.
    */
-  toggleSource: adminProcedure.input(z21.object({ id: z21.number(), isActive: z21.boolean() })).mutation(async ({ input }) => {
+  toggleSource: adminProcedure.input(z22.object({ id: z22.number(), isActive: z22.boolean() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
     await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq11(sourceRegistry.id, input.id));
@@ -29959,7 +32994,7 @@ var ingestionRouter = router({
   /**
    * Run a single DB-registered source via DynamicConnector.
    */
-  runRegisteredSource: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ ctx, input }) => {
+  runRegisteredSource: adminProcedure.input(z22.object({ id: z22.number() })).mutation(async ({ ctx, input }) => {
     assertDatabaseAccess("ingest");
     const db = await getDb();
     if (!db) throw new Error("DB not available");
@@ -29985,9 +33020,9 @@ var ingestionRouter = router({
   /**
    * List detected design trends, ordered by mention count.
    */
-  getTrends: protectedProcedure.input(z21.object({
-    limit: z21.number().min(1).max(100).default(50),
-    category: z21.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional()
+  getTrends: protectedProcedure.input(z22.object({
+    limit: z22.number().min(1).max(100).default(50),
+    category: z22.enum(["style", "material", "color", "layout", "technology", "sustainability", "other"]).optional()
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
@@ -30004,8 +33039,8 @@ var ingestionRouter = router({
    * AI-powered source discovery — find new UAE market data sources.
    * Returns candidate sources for admin review before adding to registry.
    */
-  discoverSources: adminProcedure.input(z21.object({
-    coverageGaps: z21.array(z21.string()).optional()
+  discoverSources: adminProcedure.input(z22.object({
+    coverageGaps: z22.array(z22.string()).optional()
   }).optional()).mutation(async () => {
     const { discoverNewSources: discoverNewSources2, KNOWN_MISSING_SOURCES: KNOWN_MISSING_SOURCES2 } = await Promise.resolve().then(() => (init_source_discovery(), source_discovery_exports));
     const { listSourceRegistry: listSourceRegistry2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -30029,9 +33064,9 @@ var ingestionRouter = router({
    * Verify current database values against market reality.
    * Samples evidence records and uses Gemini to cross-check pricing.
    */
-  verifyData: adminProcedure.input(z21.object({
-    category: z21.string().optional(),
-    limit: z21.number().min(10).max(100).default(50)
+  verifyData: adminProcedure.input(z22.object({
+    category: z22.string().optional(),
+    limit: z22.number().min(10).max(100).default(50)
   }).optional()).mutation(async ({ input }) => {
     const { verifyDatabaseValues: verifyDatabaseValues2 } = await Promise.resolve().then(() => (init_data_verifier(), data_verifier_exports));
     const { listPublicEvidenceRecords: listPublicEvidenceRecords2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -30074,10 +33109,10 @@ var ingestionRouter = router({
   /**
    * Extract design trends from a URL — design trend detection pipeline.
    */
-  extractTrends: adminProcedure.input(z21.object({
-    url: z21.string().url(),
-    sourceName: z21.string().min(1),
-    content: z21.string().min(50)
+  extractTrends: adminProcedure.input(z22.object({
+    url: z22.string().url(),
+    sourceName: z22.string().min(1),
+    content: z22.string().min(50)
   })).mutation(async ({ input }) => {
     const { extractDesignTrends: extractDesignTrends2 } = await Promise.resolve().then(() => (init_trend_extractor(), trend_extractor_exports));
     return extractDesignTrends2({
@@ -30124,7 +33159,7 @@ var ingestionRouter = router({
 });
 
 // server/routers/analytics.ts
-import { z as z22 } from "zod";
+import { z as z23 } from "zod";
 init_db();
 init_trend_detection();
 
@@ -30382,11 +33417,11 @@ var ORGANIZATION_CORPUS_POLICY_VERSION = "org-public-v1";
 var PUBLIC_CORPUS_POLICY_VERSION = "public-v1";
 
 // server/routers/analytics.ts
-var trendDetectionInput = z22.object({
-  category: z22.string().min(1),
-  geography: z22.string().min(1),
-  windowDays: z22.number().int().min(7).max(365).default(30),
-  generateNarrative: z22.boolean().default(true)
+var trendDetectionInput = z23.object({
+  category: z23.string().min(1),
+  geography: z23.string().min(1),
+  windowDays: z23.number().int().min(7).max(365).default(30),
+  generateNarrative: z23.boolean().default(true)
 });
 async function runTrendAnalysis(records, input, persist) {
   const metricGroups = /* @__PURE__ */ new Map();
@@ -30494,12 +33529,12 @@ async function loadCompetitorLandscape() {
 }
 var analyticsRouter = router({
   getTrends: orgProcedure.input(
-    z22.object({
-      category: z22.string().optional(),
-      geography: z22.string().optional(),
-      direction: z22.enum(["rising", "falling", "stable", "insufficient_data"]).optional(),
-      confidence: z22.enum(["high", "medium", "low", "insufficient"]).optional(),
-      limit: z22.number().int().min(1).max(100).default(50)
+    z23.object({
+      category: z23.string().optional(),
+      geography: z23.string().optional(),
+      direction: z23.enum(["rising", "falling", "stable", "insufficient_data"]).optional(),
+      confidence: z23.enum(["high", "medium", "low", "insufficient"]).optional(),
+      limit: z23.number().int().min(1).max(100).default(50)
     }).optional()
   ).query(async ({ ctx, input }) => {
     const snapshots = await getTrendSnapshotsForOrg(ctx.orgId, {
@@ -30512,10 +33547,10 @@ var analyticsRouter = router({
     return { trends: snapshots };
   }),
   getTrendHistory: orgProcedure.input(
-    z22.object({
-      metric: z22.string().min(1),
-      geography: z22.string().min(1),
-      limit: z22.number().int().min(1).max(100).default(20)
+    z23.object({
+      metric: z23.string().min(1),
+      geography: z23.string().min(1),
+      limit: z23.number().int().min(1).max(100).default(20)
     })
   ).query(async ({ ctx, input }) => {
     const history = await getTrendHistoryForOrg(
@@ -30527,18 +33562,18 @@ var analyticsRouter = router({
     return { history };
   }),
   getAnomalies: orgProcedure.input(
-    z22.object({
-      limit: z22.number().int().min(1).max(100).default(50)
+    z23.object({
+      limit: z23.number().int().min(1).max(100).default(50)
     }).optional()
   ).query(async ({ ctx, input }) => {
     const anomalies = await getAnomaliesForOrg(ctx.orgId, input?.limit);
     return { anomalies };
   }),
   getMarketPosition: orgProcedure.input(
-    z22.object({
-      targetValue: z22.number().positive(),
-      category: z22.string().default("floors"),
-      geography: z22.string().default("UAE")
+    z23.object({
+      targetValue: z23.number().positive(),
+      category: z23.string().default("floors"),
+      geography: z23.string().default("UAE")
     })
   ).query(async ({ ctx, input }) => {
     const [organizationRecords, publicRecords] = await Promise.all([
@@ -30575,9 +33610,9 @@ var analyticsRouter = router({
     };
   }),
   getCompetitorLandscape: orgProcedure.input(
-    z22.object({
-      geography: z22.string().default("UAE"),
-      generateNarrative: z22.boolean().default(true)
+    z23.object({
+      geography: z23.string().default("UAE"),
+      generateNarrative: z23.boolean().default(true)
     }).optional()
   ).query(async ({ input }) => {
     const db = await getDb();
@@ -30669,12 +33704,12 @@ var analyticsRouter = router({
     };
   }),
   getProjectInsights: orgProcedure.input(
-    z22.object({
-      projectId: z22.number().optional(),
-      insightType: z22.string().optional(),
-      severity: z22.string().optional(),
-      status: z22.string().optional(),
-      limit: z22.number().min(1).max(100).default(50)
+    z23.object({
+      projectId: z23.number().optional(),
+      insightType: z23.string().optional(),
+      severity: z23.string().optional(),
+      status: z23.string().optional(),
+      limit: z23.number().min(1).max(100).default(50)
     }).optional()
   ).query(async ({ ctx, input }) => {
     if (input?.projectId === void 0) {
@@ -30697,9 +33732,9 @@ var analyticsRouter = router({
     return { insights };
   }),
   generateProjectInsights: orgHeavyMutationProcedure.input(
-    z22.object({
-      projectId: z22.number(),
-      enrichWithLLM: z22.boolean().default(true)
+    z23.object({
+      projectId: z23.number(),
+      enrichWithLLM: z23.boolean().default(true)
     })
   ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -30742,8 +33777,8 @@ var analyticsRouter = router({
     };
   }),
   generateGlobalProjectInsights: adminProcedure.input(
-    z22.object({
-      enrichWithLLM: z22.boolean().default(true)
+    z23.object({
+      enrichWithLLM: z23.boolean().default(true)
     })
   ).mutation(async ({ input }) => {
     const [trendSnaps, competitorLandscape] = await Promise.all([
@@ -30778,9 +33813,9 @@ var analyticsRouter = router({
     };
   }),
   updateInsightStatus: orgMutationProcedure.input(
-    z22.object({
-      insightId: z22.number(),
-      status: z22.enum(["active", "acknowledged", "dismissed", "resolved"])
+    z23.object({
+      insightId: z23.number(),
+      status: z23.enum(["active", "acknowledged", "dismissed", "resolved"])
     })
   ).mutation(async ({ ctx, input }) => {
     await requireProjectResourceForOrg(input.insightId, ctx.orgId, {
@@ -30803,7 +33838,7 @@ var analyticsRouter = router({
 });
 
 // server/routers/predictive.ts
-import { z as z23 } from "zod";
+import { z as z24 } from "zod";
 init_db();
 init_area_utils();
 
@@ -31203,10 +34238,10 @@ var predictiveRouter = router({
    * V4-08: Get cost range prediction for a project category
    */
   getCostRange: orgProcedure.input(
-    z23.object({
-      projectId: z23.number(),
-      category: z23.string().optional(),
-      geography: z23.string().optional()
+    z24.object({
+      projectId: z24.number(),
+      category: z24.string().optional(),
+      geography: z24.string().optional()
     })
   ).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -31267,7 +34302,7 @@ var predictiveRouter = router({
   /**
    * V4-09: Get outcome prediction for a project
    */
-  getOutcomePrediction: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
+  getOutcomePrediction: orgProcedure.input(z24.object({ projectId: z24.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
@@ -31332,7 +34367,7 @@ var predictiveRouter = router({
   /**
    * V5-08: Get matched learning patterns for a project
    */
-  getProjectPatterns: orgProcedure.input(z23.object({ projectId: z23.number() })).query(async ({ ctx, input }) => {
+  getProjectPatterns: orgProcedure.input(z24.object({ projectId: z24.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     const latest = matrices[0];
@@ -31351,10 +34386,10 @@ var predictiveRouter = router({
    * V4-10: Get scenario cost projection
    */
   getScenarioProjection: orgProcedure.input(
-    z23.object({
-      projectId: z23.number(),
-      horizonMonths: z23.number().default(18),
-      marketCondition: z23.enum(["tight", "balanced", "soft"]).default("balanced")
+    z24.object({
+      projectId: z24.number(),
+      horizonMonths: z24.number().default(18),
+      marketCondition: z24.enum(["tight", "balanced", "soft"]).default("balanced")
     })
   ).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -31500,8 +34535,8 @@ var predictiveRouter = router({
 });
 
 // server/routers/learning.ts
-import { z as z24 } from "zod";
-import { TRPCError as TRPCError21 } from "@trpc/server";
+import { z as z25 } from "zod";
+import { TRPCError as TRPCError23 } from "@trpc/server";
 init_db();
 
 // server/engines/learning/outcome-comparator.ts
@@ -31696,7 +34731,7 @@ function toTrendDataPoint(trend) {
 async function buildScopedComparisonInputs(project, projectId, orgId) {
   const outcome = await getLatestProjectOutcomeForOrg(projectId, orgId);
   if (!outcome) {
-    throw new TRPCError21({
+    throw new TRPCError23({
       code: "NOT_FOUND",
       message: "No outcome found for project"
     });
@@ -31704,7 +34739,7 @@ async function buildScopedComparisonInputs(project, projectId, orgId) {
   const matrices = await getScoreMatricesByProject(projectId);
   const scoreMatrix = matrices[0];
   if (!scoreMatrix) {
-    throw new TRPCError21({
+    throw new TRPCError23({
       code: "NOT_FOUND",
       message: "No score matrix found for project"
     });
@@ -31776,7 +34811,7 @@ var learningRouter = router({
     return rows[0] || null;
   }),
   getAccuracyHistory: adminProcedure.input(
-    z24.object({ limit: z24.number().int().min(1).max(100).default(20) }).optional()
+    z25.object({ limit: z25.number().int().min(1).max(100).default(20) }).optional()
   ).query(({ input }) => getGovernedAccuracySnapshots(input?.limit || 20)),
   getPendingLogicProposals: adminProcedure.query(
     () => getGovernedLogicChangeLog("proposed")
@@ -31784,7 +34819,7 @@ var learningRouter = router({
   getPendingBenchmarkSuggestions: adminProcedure.query(
     () => getGovernedBenchmarkSuggestions("pending")
   ),
-  getComparison: orgProcedure.input(z24.object({ projectId: z24.number() })).query(async ({ ctx, input }) => {
+  getComparison: orgProcedure.input(z25.object({ projectId: z25.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return await getLatestOutcomeComparisonForOrg(
       input.projectId,
@@ -31792,19 +34827,19 @@ var learningRouter = router({
     ) || null;
   }),
   submitPostMortem: orgMutationProcedure.input(
-    z24.object({
-      projectId: z24.number(),
-      actualTotalCost: z24.string().optional(),
-      actualFitoutCostPerSqm: z24.string().optional(),
-      procurementActualCosts: z24.record(z24.string(), z24.number()).optional(),
-      projectDeliveredOnTime: z24.boolean().optional(),
-      leadTimesActual: z24.record(z24.string(), z24.number()).optional(),
-      reworkOccurred: z24.boolean().optional(),
-      reworkCostAed: z24.string().optional(),
-      clientSatisfactionScore: z24.number().min(1).max(5).optional(),
-      tenderIterations: z24.number().optional(),
-      rfqResults: z24.record(z24.string(), z24.number()).optional(),
-      keyLessonsLearned: z24.string().optional()
+    z25.object({
+      projectId: z25.number(),
+      actualTotalCost: z25.string().optional(),
+      actualFitoutCostPerSqm: z25.string().optional(),
+      procurementActualCosts: z25.record(z25.string(), z25.number()).optional(),
+      projectDeliveredOnTime: z25.boolean().optional(),
+      leadTimesActual: z25.record(z25.string(), z25.number()).optional(),
+      reworkOccurred: z25.boolean().optional(),
+      reworkCostAed: z25.string().optional(),
+      clientSatisfactionScore: z25.number().min(1).max(5).optional(),
+      tenderIterations: z25.number().optional(),
+      rfqResults: z25.record(z25.string(), z25.number()).optional(),
+      keyLessonsLearned: z25.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -31828,7 +34863,7 @@ var learningRouter = router({
     );
     if (outcomeId === null) {
       await requireProjectForOrg(input.projectId, ctx.orgId);
-      throw new TRPCError21({ code: "NOT_FOUND" });
+      throw new TRPCError23({ code: "NOT_FOUND" });
     }
     let comparison = null;
     let learningSummary = null;
@@ -31864,7 +34899,7 @@ var learningRouter = router({
       }
       learningSummary = summarizeLearningSignals(comparison.learningSignals);
     } catch (error) {
-      if (error instanceof TRPCError21) throw error;
+      if (error instanceof TRPCError23) throw error;
       console.warn("[PostMortem] Auto-comparison failed (non-fatal):", error);
     }
     await createAuditLog({
@@ -31889,7 +34924,7 @@ var learningRouter = router({
       corpus
     };
   }),
-  getPostMortemStatus: orgProcedure.input(z24.object({ projectId: z24.number() })).query(async ({ ctx, input }) => {
+  getPostMortemStatus: orgProcedure.input(z25.object({ projectId: z25.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const [outcome, comparison] = await Promise.all([
       getLatestProjectOutcomeForOrg(input.projectId, ctx.orgId),
@@ -31904,7 +34939,7 @@ var learningRouter = router({
       learningSummary: comparison?.learningSignals ? summarizeLearningSignals(comparison.learningSignals) : null
     };
   }),
-  runComparison: orgHeavyMutationProcedure.input(z24.object({ projectId: z24.number() })).mutation(async ({ ctx, input }) => {
+  runComparison: orgHeavyMutationProcedure.input(z25.object({ projectId: z25.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = await buildScopedComparisonInputs(
       project,
@@ -31925,7 +34960,7 @@ var learningRouter = router({
     );
     if (comparisonId === null) {
       await requireProjectForOrg(input.projectId, ctx.orgId);
-      throw new TRPCError21({ code: "NOT_FOUND" });
+      throw new TRPCError23({ code: "NOT_FOUND" });
     }
     return {
       success: true,
@@ -31937,11 +34972,11 @@ var learningRouter = router({
 });
 
 // server/routers/autonomous.ts
-import { z as z25 } from "zod";
+import { z as z26 } from "zod";
 init_db();
 init_schema();
 import { eq as eq14, and as and5, desc as desc7, sql as sql6 } from "drizzle-orm";
-import { TRPCError as TRPCError22 } from "@trpc/server";
+import { TRPCError as TRPCError24 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
 init_llm();
@@ -32162,10 +35197,10 @@ async function generatePortfolioInsightsForOrg(orgId) {
 
 // server/routers/autonomous.ts
 var autonomousRouter = router({
-  getAlerts: adminProcedure.input(z25.object({
-    severity: z25.string().optional(),
-    type: z25.string().optional(),
-    status: z25.enum(["active", "acknowledged", "resolved", "expired"]).optional()
+  getAlerts: adminProcedure.input(z26.object({
+    severity: z26.string().optional(),
+    type: z26.string().optional(),
+    status: z26.enum(["active", "acknowledged", "resolved", "expired"]).optional()
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
@@ -32180,7 +35215,7 @@ var autonomousRouter = router({
     }
     return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
   }),
-  acknowledgeAlert: adminProcedure.input(z25.object({ id: z25.number() })).mutation(async ({ ctx, input }) => {
+  acknowledgeAlert: adminProcedure.input(z26.object({ id: z26.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
@@ -32190,7 +35225,7 @@ var autonomousRouter = router({
     }).where(eq14(platformAlerts.id, input.id));
     return { success: true };
   }),
-  resolveAlert: adminProcedure.input(z25.object({ id: z25.number() })).mutation(async ({ input }) => {
+  resolveAlert: adminProcedure.input(z26.object({ id: z26.number() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
@@ -32198,9 +35233,9 @@ var autonomousRouter = router({
     }).where(eq14(platformAlerts.id, input.id));
     return { success: true };
   }),
-  nlQuery: protectedProcedure.input(z25.object({ query: z25.string() })).mutation(async ({ ctx, input }) => {
+  nlQuery: protectedProcedure.input(z26.object({ query: z26.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError22({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
+    if (!db) throw new TRPCError24({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
     const recentQueries = await db.select({ count: sql6`count(*)` }).from(nlQueryLog).where(
       and5(
@@ -32210,7 +35245,7 @@ var autonomousRouter = router({
     );
     const count2 = Number(recentQueries[0]?.count || 0);
     if (count2 >= 20) {
-      throw new TRPCError22({
+      throw new TRPCError24({
         code: "TOO_MANY_REQUESTS",
         message: "Natural language query limit: 20 queries/hour"
       });
@@ -32218,7 +35253,7 @@ var autonomousRouter = router({
     const result = await processNlQuery(ctx.user.id, input.query);
     return result;
   }),
-  generateBrief: orgHeavyMutationProcedure.input(z25.object({ projectId: z25.number(), locale: z25.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
+  generateBrief: orgHeavyMutationProcedure.input(z26.object({ projectId: z26.number(), locale: z26.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const briefMarkdown = await generateAutonomousDesignBrief(input.projectId, input.locale);
     return { markdown: briefMarkdown, locale: input.locale };
@@ -32231,22 +35266,22 @@ var autonomousRouter = router({
 
 // server/routers/organization.ts
 init_db();
-import { z as z26 } from "zod";
+import { z as z27 } from "zod";
 init_schema();
-import { TRPCError as TRPCError23 } from "@trpc/server";
+import { TRPCError as TRPCError25 } from "@trpc/server";
 import { eq as eq15, and as and6 } from "drizzle-orm";
 import { nanoid as nanoid9 } from "nanoid";
 var organizationRouter = router({
-  createOrg: protectedProcedure.input(z26.object({
-    name: z26.string().min(2),
-    slug: z26.string().min(2).regex(/^[a-z0-9-]+$/),
-    domain: z26.string().optional()
+  createOrg: protectedProcedure.input(z27.object({
+    name: z27.string().min(2),
+    slug: z27.string().min(2).regex(/^[a-z0-9-]+$/),
+    domain: z27.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError23({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
+    if (!db) throw new TRPCError25({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
     const existing = await db.select().from(organizations).where(eq15(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
-      throw new TRPCError23({ code: "CONFLICT", message: "Slug is already taken" });
+      throw new TRPCError25({ code: "CONFLICT", message: "Slug is already taken" });
     }
     const [orgResult] = await db.insert(organizations).values({
       name: input.name,
@@ -32272,15 +35307,15 @@ var organizationRouter = router({
     }).from(organizationMembers).innerJoin(organizations, eq15(organizations.id, organizationMembers.orgId)).where(eq15(organizationMembers.userId, ctx.user.id));
     return result;
   }),
-  inviteMember: orgAdminProcedure.input(z26.object({
-    email: z26.string().email(),
-    role: z26.enum(["admin", "member", "viewer"])
+  inviteMember: orgAdminProcedure.input(z27.object({
+    email: z27.string().email(),
+    role: z27.enum(["admin", "member", "viewer"])
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError23({ code: "INTERNAL_SERVER_ERROR" });
+    if (!db) throw new TRPCError25({ code: "INTERNAL_SERVER_ERROR" });
     const myMembership = await db.select().from(organizationMembers).where(and6(eq15(organizationMembers.orgId, ctx.orgId), eq15(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
-      throw new TRPCError23({ code: "FORBIDDEN", message: "Only admins can invite members" });
+      throw new TRPCError25({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
     const token = nanoid9(32);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
@@ -32294,20 +35329,20 @@ var organizationRouter = router({
     console.log(`[Email Mock] Sending invite to ${input.email}: http://localhost:5173/accept-invite?token=${token}`);
     return { success: true, token };
   }),
-  acceptInvite: protectedProcedure.input(z26.object({ token: z26.string() })).mutation(async ({ ctx, input }) => {
+  acceptInvite: protectedProcedure.input(z27.object({ token: z27.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
-    if (!db) throw new TRPCError23({ code: "INTERNAL_SERVER_ERROR" });
+    if (!db) throw new TRPCError25({ code: "INTERNAL_SERVER_ERROR" });
     return db.transaction(async (tx) => {
       const inviteResult = await tx.select().from(organizationInvites).where(eq15(organizationInvites.token, input.token)).limit(1).for("update");
       const invite = inviteResult[0];
-      if (!invite) throw new TRPCError23({ code: "NOT_FOUND", message: "Invalid invite token" });
-      if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError23({ code: "BAD_REQUEST", message: "Invite expired" });
+      if (!invite) throw new TRPCError25({ code: "NOT_FOUND", message: "Invalid invite token" });
+      if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError25({ code: "BAD_REQUEST", message: "Invite expired" });
       const memberships = await tx.select().from(organizationMembers).where(and6(
         eq15(organizationMembers.orgId, invite.orgId),
         eq15(organizationMembers.userId, ctx.user.id)
       )).limit(2).for("update");
       if (memberships.length > 1) {
-        throw new TRPCError23({
+        throw new TRPCError25({
           code: "FORBIDDEN",
           message: "Organization membership is inconsistent"
         });
@@ -32327,16 +35362,16 @@ var organizationRouter = router({
 });
 
 // server/routers/economics.ts
-import { z as z27 } from "zod";
+import { z as z28 } from "zod";
 var economicsRouter = router({
-  calculateRoi: publicProcedure.input(z27.object({
-    tier: z27.string(),
-    scale: z27.string(),
-    totalBudgetAed: z27.number(),
-    totalDevelopmentValue: z27.number(),
-    complexityScore: z27.number(),
-    decisionSpeedAdjustment: z27.number().optional().default(1),
-    serviceFeeAed: z27.number()
+  calculateRoi: publicProcedure.input(z28.object({
+    tier: z28.string(),
+    scale: z28.string(),
+    totalBudgetAed: z28.number(),
+    totalDevelopmentValue: z28.number(),
+    complexityScore: z28.number(),
+    decisionSpeedAdjustment: z28.number().optional().default(1),
+    serviceFeeAed: z28.number()
   })).query(({ input }) => {
     return calculateProjectRoi({
       tier: input.tier,
@@ -32348,8 +35383,8 @@ var economicsRouter = router({
       serviceFeeAed: input.serviceFeeAed
     });
   }),
-  evaluateRisk: publicProcedure.input(z27.object({
-    domain: z27.enum([
+  evaluateRisk: publicProcedure.input(z28.object({
+    domain: z28.enum([
       "Model",
       "Operational",
       "Commercial",
@@ -32359,10 +35394,10 @@ var economicsRouter = router({
       "Strategic",
       "Regulatory"
     ]),
-    tier: z27.string(),
-    horizon: z27.string(),
-    location: z27.string(),
-    complexityScore: z27.number()
+    tier: z28.string(),
+    horizon: z28.string(),
+    location: z28.string(),
+    complexityScore: z28.number()
   })).query(({ input }) => {
     return evaluateRiskSurface({
       domain: input.domain,
@@ -32372,10 +35407,10 @@ var economicsRouter = router({
       complexityScore: input.complexityScore
     });
   }),
-  runStressTest: publicProcedure.input(z27.object({
-    condition: z27.enum(["demand_collapse", "cost_surge", "data_disruption", "market_shift"]),
-    baselineBudgetAed: z27.number(),
-    tier: z27.string()
+  runStressTest: publicProcedure.input(z28.object({
+    condition: z28.enum(["demand_collapse", "cost_surge", "data_disruption", "market_shift"]),
+    baselineBudgetAed: z28.number(),
+    tier: z28.string()
   })).query(({ input }) => {
     return simulateStressTest(
       input.condition,
@@ -32383,13 +35418,13 @@ var economicsRouter = router({
       input.tier
     );
   }),
-  rankScenarios: publicProcedure.input(z27.object({
-    scenarios: z27.array(z27.object({
-      scenarioId: z27.number(),
-      name: z27.string(),
-      netRoiPercent: z27.number(),
-      avgResilienceScore: z27.number(),
-      compositeRiskScore: z27.number()
+  rankScenarios: publicProcedure.input(z28.object({
+    scenarios: z28.array(z28.object({
+      scenarioId: z28.number(),
+      name: z28.string(),
+      netRoiPercent: z28.number(),
+      avgResilienceScore: z28.number(),
+      compositeRiskScore: z28.number()
     }))
   })).query(({ input }) => {
     return rankScenarios(input.scenarios);
@@ -32397,21 +35432,21 @@ var economicsRouter = router({
 });
 
 // server/routers/bias.ts
-import { z as z28 } from "zod";
+import { z as z29 } from "zod";
 init_db();
 var biasRouter = router({
   // Get all bias alerts for a project (active + dismissed)
-  getAlerts: orgProcedure.input(z28.object({ projectId: z28.number() })).query(async ({ ctx, input }) => {
+  getAlerts: orgProcedure.input(z29.object({ projectId: z29.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getBiasAlertsByProject(input.projectId);
   }),
   // Get only active (non-dismissed) alerts
-  getActiveAlerts: orgProcedure.input(z28.object({ projectId: z28.number() })).query(async ({ ctx, input }) => {
+  getActiveAlerts: orgProcedure.input(z29.object({ projectId: z29.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getActiveBiasAlerts(input.projectId);
   }),
   // Dismiss a bias alert
-  dismiss: orgMutationProcedure.input(z28.object({ alertId: z28.number() })).mutation(async ({ ctx, input }) => {
+  dismiss: orgMutationProcedure.input(z29.object({ alertId: z29.number() })).mutation(async ({ ctx, input }) => {
     await requireProjectOrgResourceForOrg(input.alertId, ctx.orgId, {
       lookupResource: getBiasAlertById,
       getProjectId: (alert) => alert.projectId,
@@ -32442,7 +35477,7 @@ var biasRouter = router({
     return getUserBiasProfile(ctx.user.id);
   }),
   // Get intervention report for a project (structured summary for reports)
-  getInterventionReport: orgProcedure.input(z28.object({ projectId: z28.number() })).query(async ({ ctx, input }) => {
+  getInterventionReport: orgProcedure.input(z29.object({ projectId: z29.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const alerts = await getActiveBiasAlerts(input.projectId);
     if (alerts.length === 0) {
@@ -32465,7 +35500,7 @@ var biasRouter = router({
     };
   }),
   // On-demand bias scan (without re-evaluating project)
-  scan: orgMutationProcedure.input(z28.object({ projectId: z28.number() })).mutation(async ({ ctx, input }) => {
+  scan: orgMutationProcedure.input(z29.object({ projectId: z29.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const matrices = await getScoreMatricesByProject(input.projectId);
     if (!matrices || matrices.length === 0) {
@@ -32554,7 +35589,7 @@ var biasRouter = router({
 });
 
 // server/routers/design-advisor.ts
-import { z as z30 } from "zod";
+import { z as z31 } from "zod";
 init_db();
 
 // server/engines/design/ai-design-advisor.ts
@@ -32562,57 +35597,57 @@ init_llm();
 init_ai_operation();
 init_space_program();
 init_area_utils();
-import { z as z29 } from "zod";
+import { z as z30 } from "zod";
 var KITCHEN_ROOMS = ["KIT"];
 var BATHROOM_ROOMS = ["MEN", "BTH", "ENS"];
 var WET_ROOM_IDS2 = [...KITCHEN_ROOMS, ...BATHROOM_ROOMS, "UTL"];
-var materialSchema = z29.object({
-  element: z29.string(),
-  productName: z29.string(),
-  brand: z29.string(),
-  priceRange: z29.string(),
-  rationale: z29.string()
+var materialSchema = z30.object({
+  element: z30.string(),
+  productName: z30.string(),
+  brand: z30.string(),
+  priceRange: z30.string(),
+  rationale: z30.string()
 });
-var kitchenSchema = z29.object({
-  layoutType: z29.enum(["L-shape", "U-shape", "Island", "Galley", "Peninsula", "One-wall"]),
-  layoutRationale: z29.string(),
-  cabinetStyle: z29.string(),
-  cabinetFinish: z29.string(),
-  countertopMaterial: z29.string(),
-  countertopPriceRange: z29.string(),
-  backsplash: z29.string(),
-  sinkType: z29.string(),
-  applianceLevel: z29.enum(["standard", "premium", "professional"]),
-  applianceBrands: z29.array(z29.string()),
-  storageFeatures: z29.array(z29.string())
+var kitchenSchema = z30.object({
+  layoutType: z30.enum(["L-shape", "U-shape", "Island", "Galley", "Peninsula", "One-wall"]),
+  layoutRationale: z30.string(),
+  cabinetStyle: z30.string(),
+  cabinetFinish: z30.string(),
+  countertopMaterial: z30.string(),
+  countertopPriceRange: z30.string(),
+  backsplash: z30.string(),
+  sinkType: z30.string(),
+  applianceLevel: z30.enum(["standard", "premium", "professional"]),
+  applianceBrands: z30.array(z30.string()),
+  storageFeatures: z30.array(z30.string())
 });
-var bathroomSchema = z29.object({
-  showerType: z29.enum(["walk-in", "enclosed", "wet-room", "bath-shower-combo"]),
-  vanityStyle: z29.string(),
-  vanityWidth: z29.string(),
-  tilePattern: z29.string(),
-  wallTile: z29.string(),
-  floorTile: z29.string(),
-  fixtureFinish: z29.string(),
-  fixtureBrand: z29.string(),
-  mirrorType: z29.string(),
-  luxuryFeatures: z29.array(z29.string())
+var bathroomSchema = z30.object({
+  showerType: z30.enum(["walk-in", "enclosed", "wet-room", "bath-shower-combo"]),
+  vanityStyle: z30.string(),
+  vanityWidth: z30.string(),
+  tilePattern: z30.string(),
+  wallTile: z30.string(),
+  floorTile: z30.string(),
+  fixtureFinish: z30.string(),
+  fixtureBrand: z30.string(),
+  mirrorType: z30.string(),
+  luxuryFeatures: z30.array(z30.string())
 });
-var geminiDesignResponseSchema = z29.object({
-  spaces: z29.array(z29.object({
-    roomId: z29.string(),
-    roomName: z29.string(),
-    styleDirection: z29.string(),
-    colorScheme: z29.string(),
-    rationale: z29.string(),
-    specialNotes: z29.array(z29.string()),
-    materials: z29.array(materialSchema),
-    budgetBreakdown: z29.array(z29.object({ element: z29.string(), percentage: z29.number().finite() })),
+var geminiDesignResponseSchema = z30.object({
+  spaces: z30.array(z30.object({
+    roomId: z30.string(),
+    roomName: z30.string(),
+    styleDirection: z30.string(),
+    colorScheme: z30.string(),
+    rationale: z30.string(),
+    specialNotes: z30.array(z30.string()),
+    materials: z30.array(materialSchema),
+    budgetBreakdown: z30.array(z30.object({ element: z30.string(), percentage: z30.number().finite() })),
     kitchenSpec: kitchenSchema.optional(),
     bathroomSpec: bathroomSchema.optional()
   })),
-  overallDesignNarrative: z29.string(),
-  designPhilosophy: z29.string()
+  overallDesignNarrative: z30.string(),
+  designPhilosophy: z30.string()
 });
 var TIER_PRICE_MULTIPLIERS = {
   "Entry": 0.5,
@@ -33310,7 +36345,7 @@ var designAdvisorRouter = router({
   // ═════════════════════════════════════════════════════════════════════════
   // Phase 1: AI Design Recommendations
   // ═════════════════════════════════════════════════════════════════════════
-  generateRecommendations: orgHeavyMutationProcedure.input(z30.object({ projectId: z30.number() })).mutation(async ({ ctx, input }) => {
+  generateRecommendations: orgHeavyMutationProcedure.input(z31.object({ projectId: z31.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = projectToInputs5(project);
     const materials = await getMaterialLibrary();
@@ -33386,16 +36421,16 @@ var designAdvisorRouter = router({
       publicSampleCount: publicEvidence.length
     };
   }),
-  getRecommendations: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ ctx, input }) => {
+  getRecommendations: orgProcedure.input(z31.object({ projectId: z31.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getSpaceRecommendations(input.projectId, ctx.orgId);
   }),
-  getSpaceRecommendation: orgProcedure.input(z30.object({ projectId: z30.number(), roomId: z30.string() })).query(async ({ ctx, input }) => {
+  getSpaceRecommendation: orgProcedure.input(z31.object({ projectId: z31.number(), roomId: z31.string() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
     return recs.find((r) => r.roomId === input.roomId) || null;
   }),
-  getSpaceProgram: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ ctx, input }) => {
+  getSpaceProgram: orgProcedure.input(z31.object({ projectId: z31.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const storedRooms = await getSpaceProgramRooms(input.projectId, ctx.orgId);
     if (storedRooms.length > 0) {
@@ -33404,7 +36439,7 @@ var designAdvisorRouter = router({
     }
     return buildSpaceProgram(project);
   }),
-  generateDesignBrief: orgHeavyMutationProcedure.input(z30.object({ projectId: z30.number() })).mutation(async ({ ctx, input }) => {
+  generateDesignBrief: orgHeavyMutationProcedure.input(z31.object({ projectId: z31.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const inputs = projectToInputs5(project);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -33422,7 +36457,7 @@ var designAdvisorRouter = router({
     }
     return brief;
   }),
-  getDesignBrief: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ ctx, input }) => {
+  getDesignBrief: orgProcedure.input(z31.object({ projectId: z31.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const brief = await getLatestAiDesignBrief(input.projectId, ctx.orgId);
     if (!brief) return null;
@@ -33437,16 +36472,16 @@ var designAdvisorRouter = router({
       }
     };
   }),
-  getStandardPackages: orgProcedure.input(z30.object({
-    typology: z30.string().optional(),
-    tier: z30.string().optional()
+  getStandardPackages: orgProcedure.input(z31.object({
+    typology: z31.string().optional(),
+    tier: z31.string().optional()
   })).query(async ({ input }) => {
     return getDesignPackages(input.typology, input.tier);
   }),
-  saveAsPackage: orgMutationProcedure.input(z30.object({
-    projectId: z30.number(),
-    name: z30.string(),
-    description: z30.string().optional()
+  saveAsPackage: orgMutationProcedure.input(z31.object({
+    projectId: z31.number(),
+    name: z31.string(),
+    description: z31.string().optional()
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -33465,10 +36500,10 @@ var designAdvisorRouter = router({
   // ═════════════════════════════════════════════════════════════════════════
   // Phase 2: Visual Generation (Nano Banana)
   // ═════════════════════════════════════════════════════════════════════════
-  generateVisual: orgHeavyMutationProcedure.input(z30.object({
-    projectId: z30.number(),
-    roomId: z30.string(),
-    type: z30.enum(["mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette"])
+  generateVisual: orgHeavyMutationProcedure.input(z31.object({
+    projectId: z31.number(),
+    roomId: z31.string(),
+    type: z31.enum(["mood_board", "material_board", "room_render", "kitchen_render", "bathroom_render", "color_palette"])
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const recs = await getSpaceRecommendations(input.projectId, ctx.orgId);
@@ -33514,7 +36549,7 @@ var designAdvisorRouter = router({
     }
     return result;
   }),
-  generateHero: orgHeavyMutationProcedure.input(z30.object({ projectId: z30.number() })).mutation(async ({ ctx, input }) => {
+  generateHero: orgHeavyMutationProcedure.input(z31.object({ projectId: z31.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const projectCtx = buildProjectContext(project);
     const result = await generateHeroVisual(projectCtx);
@@ -33530,16 +36565,16 @@ var designAdvisorRouter = router({
     }
     return result;
   }),
-  getVisuals: orgProcedure.input(z30.object({ projectId: z30.number() })).query(async ({ ctx, input }) => {
+  getVisuals: orgProcedure.input(z31.object({ projectId: z31.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getGeneratedVisualsByProject(input.projectId);
   })
 });
 
 // server/routers/portfolio.ts
-import { z as z31 } from "zod";
-import { TRPCError as TRPCError24 } from "@trpc/server";
-import { createHash as createHash4 } from "node:crypto";
+import { z as z32 } from "zod";
+import { TRPCError as TRPCError26 } from "@trpc/server";
+import { createHash as createHash6 } from "node:crypto";
 init_db();
 init_schema();
 import { eq as eq16, and as and7, desc as desc8, inArray as inArray3 } from "drizzle-orm";
@@ -33585,7 +36620,7 @@ var portfolioRouter = router({
     return result;
   }),
   // ─── Get portfolio by ID with full details ────────────────────────
-  getById: orgProcedure.input(z31.object({ id: z31.number() })).query(async ({ ctx, input }) => {
+  getById: orgProcedure.input(z32.object({ id: z32.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return null;
     const [portfolio] = await db.select().from(portfolios).where(
@@ -33609,7 +36644,7 @@ var portfolioRouter = router({
       eq16(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(projectIds).size) {
-      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
     const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
@@ -33708,9 +36743,9 @@ var portfolioRouter = router({
   }),
   // ─── Create portfolio ─────────────────────────────────────────────
   create: orgMutationProcedure.input(
-    z31.object({
-      name: z31.string().min(1).max(255),
-      description: z31.string().optional()
+    z32.object({
+      name: z32.string().min(1).max(255),
+      description: z32.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -33725,10 +36760,10 @@ var portfolioRouter = router({
   }),
   // ─── Update portfolio ─────────────────────────────────────────────
   update: orgMutationProcedure.input(
-    z31.object({
-      id: z31.number(),
-      name: z31.string().min(1).max(255).optional(),
-      description: z31.string().optional()
+    z32.object({
+      id: z32.number(),
+      name: z32.string().min(1).max(255).optional(),
+      description: z32.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -33742,12 +36777,12 @@ var portfolioRouter = router({
       eq16(portfolios.organizationId, ctx.orgId)
     ));
     if (Number(result.affectedRows) !== 1) {
-      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return { success: true };
   }),
   // ─── Delete portfolio ─────────────────────────────────────────────
-  delete: orgMutationProcedure.input(z31.object({ id: z31.number() })).mutation(async ({ ctx, input }) => {
+  delete: orgMutationProcedure.input(z32.object({ id: z32.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const deleted = await db.transaction(async (tx) => {
@@ -33764,16 +36799,16 @@ var portfolioRouter = router({
       return Number(result.affectedRows) === 1;
     });
     if (!deleted) {
-      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return { success: true };
   }),
   // ─── Add project to portfolio ─────────────────────────────────────
   addProject: orgMutationProcedure.input(
-    z31.object({
-      portfolioId: z31.number(),
-      projectId: z31.number(),
-      note: z31.string().optional()
+    z32.object({
+      portfolioId: z32.number(),
+      projectId: z32.number(),
+      note: z32.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -33801,15 +36836,15 @@ var portfolioRouter = router({
       return "inserted";
     });
     if (result === "not_found") {
-      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return result === "existing" ? { success: true, message: "Project already in portfolio" } : { success: true };
   }),
   // ─── Remove project from portfolio ────────────────────────────────
   removeProject: orgMutationProcedure.input(
-    z31.object({
-      portfolioId: z31.number(),
-      projectId: z31.number()
+    z32.object({
+      portfolioId: z32.number(),
+      projectId: z32.number()
     })
   ).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -33831,12 +36866,12 @@ var portfolioRouter = router({
       return true;
     });
     if (!removed) {
-      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return { success: true };
   }),
   // ─── Available projects (not in this portfolio) ───────────────────
-  availableProjects: orgProcedure.input(z31.object({ portfolioId: z31.number() })).query(async ({ ctx, input }) => {
+  availableProjects: orgProcedure.input(z32.object({ portfolioId: z32.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return [];
     const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and7(
@@ -33844,7 +36879,7 @@ var portfolioRouter = router({
       eq16(portfolios.organizationId, ctx.orgId)
     ));
     if (!portfolio) {
-      throw new TRPCError24({
+      throw new TRPCError26({
         code: "NOT_FOUND",
         message: "Portfolio not found"
       });
@@ -33861,7 +36896,7 @@ var portfolioRouter = router({
     }));
   }),
   // ─── Generate PDF Report ────────────────────────────────────
-  generateReport: orgHeavyMutationProcedure.input(z31.object({ id: z31.number(), locale: z31.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
+  generateReport: orgHeavyMutationProcedure.input(z32.object({ id: z32.number(), locale: z32.enum(["en", "ar"]).default("en") })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
@@ -33881,7 +36916,7 @@ var portfolioRouter = router({
       eq16(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(pIds).size) {
-      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
     const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
@@ -33979,7 +37014,7 @@ var portfolioRouter = router({
     return { html, portfolioName: portfolio.name };
   }),
   // ─── Check Portfolio Alerts ──────────────────────────────────
-  checkAlerts: orgMutationProcedure.input(z31.object({ id: z31.number() })).mutation(async ({ ctx, input }) => {
+  checkAlerts: orgMutationProcedure.input(z32.object({ id: z32.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
@@ -33997,7 +37032,7 @@ var portfolioRouter = router({
       eq16(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(pIds).size) {
-      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
     const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
@@ -34105,7 +37140,7 @@ var portfolioRouter = router({
       });
     }
     for (const alert of candidates) {
-      alert.activeDedupKey = createHash4("sha256").update(JSON.stringify({
+      alert.activeDedupKey = createHash6("sha256").update(JSON.stringify({
         organizationId: ctx.orgId,
         portfolioId: portfolio.id,
         alertType: alert.alertType,
@@ -34119,7 +37154,7 @@ var portfolioRouter = router({
       alerts: candidates
     });
     if (!inserted) {
-      throw new TRPCError24({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     return {
       alerts: inserted.map((a) => ({
@@ -34135,7 +37170,7 @@ var portfolioRouter = router({
 });
 
 // server/routers/customer-success.ts
-import { z as z32 } from "zod";
+import { z as z33 } from "zod";
 init_db();
 init_db();
 init_schema();
@@ -34354,7 +37389,7 @@ var customerSuccessRouter = router({
     return rows[0] || null;
   }),
   // Recent activity feed
-  getActivityFeed: protectedProcedure.input(z32.object({ limit: z32.number().min(1).max(50).default(20) }).optional()).query(async ({ ctx, input }) => {
+  getActivityFeed: protectedProcedure.input(z33.object({ limit: z33.number().min(1).max(50).default(20) }).optional()).query(async ({ ctx, input }) => {
     const d = await getDb();
     if (!d) return [];
     const limit = input?.limit || 20;
@@ -34363,7 +37398,7 @@ var customerSuccessRouter = router({
 });
 
 // server/routers/sustainability.ts
-import { z as z33 } from "zod";
+import { z as z34 } from "zod";
 init_db();
 init_db();
 init_schema();
@@ -35029,7 +38064,7 @@ function evaluateCompliance(twin) {
 
 // server/routers/sustainability.ts
 init_area_utils();
-var materialEnum = z33.enum([
+var materialEnum = z34.enum([
   "concrete",
   "steel",
   "glass",
@@ -35041,18 +38076,18 @@ var materialEnum = z33.enum([
   "ceramic"
 ]);
 var sustainabilityRouter = router({
-  computeTwin: orgHeavyMutationProcedure.input(z33.object({
-    projectId: z33.number(),
-    floors: z33.number().min(1).max(200).default(5),
-    specLevel: z33.enum(["economy", "standard", "premium", "luxury"]).default("standard"),
-    glazingRatio: z33.number().min(0).max(1).default(0.35),
-    materials: z33.array(z33.object({
+  computeTwin: orgHeavyMutationProcedure.input(z34.object({
+    projectId: z34.number(),
+    floors: z34.number().min(1).max(200).default(5),
+    specLevel: z34.enum(["economy", "standard", "premium", "luxury"]).default("standard"),
+    glazingRatio: z34.number().min(0).max(1).default(0.35),
+    materials: z34.array(z34.object({
       material: materialEnum,
-      percentage: z33.number().min(0).max(100)
+      percentage: z34.number().min(0).max(100)
     })).optional(),
-    location: z33.enum(["dubai", "abu_dhabi", "sharjah", "other_gcc", "temperate"]).default("dubai"),
-    includeRenewables: z33.boolean().default(false),
-    waterRecycling: z33.boolean().default(false)
+    location: z34.enum(["dubai", "abu_dhabi", "sharjah", "other_gcc", "temperate"]).default("dubai"),
+    includeRenewables: z34.boolean().default(false),
+    waterRecycling: z34.boolean().default(false)
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const gfa = getPricingArea(project) || 500;
@@ -35108,21 +38143,21 @@ var sustainabilityRouter = router({
     }
     return result;
   }),
-  getTwinModels: orgProcedure.input(z33.object({ projectId: z33.number() })).query(async ({ ctx, input }) => {
+  getTwinModels: orgProcedure.input(z34.object({ projectId: z34.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
     return d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(10);
   }),
-  getLatestTwin: orgProcedure.input(z33.object({ projectId: z33.number() })).query(async ({ ctx, input }) => {
+  getLatestTwin: orgProcedure.input(z34.object({ projectId: z34.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return null;
     const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(1);
     return rows[0] || null;
   }),
-  evaluateCompliance: orgProcedure.input(z33.object({
-    projectId: z33.number()
+  evaluateCompliance: orgProcedure.input(z34.object({
+    projectId: z34.number()
   })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
@@ -35159,7 +38194,7 @@ var sustainabilityRouter = router({
 });
 
 // server/routers/salesPremium.ts
-import { z as z34 } from "zod";
+import { z as z35 } from "zod";
 
 // server/engines/value-add-engine.ts
 var RENTAL_PREMIUM_BY_CONDITION = {
@@ -35358,10 +38393,10 @@ var salesPremiumRouter = router({
    * Given a project's current and proposed fitout spend,
    * returns yield delta, sale premium, and payback period.
    */
-  getValueAddBridge: orgProcedure.input(z34.object({
-    projectId: z34.number(),
-    currentFitoutPerSqm: z34.number().min(0),
-    proposedFitoutPerSqm: z34.number().min(0)
+  getValueAddBridge: orgProcedure.input(z35.object({
+    projectId: z35.number(),
+    currentFitoutPerSqm: z35.number().min(0),
+    proposedFitoutPerSqm: z35.number().min(0)
   })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const saleMedianPerSqm = await getAreaSaleMedianSqm(project.dldAreaId ?? null);
@@ -35387,9 +38422,9 @@ var salesPremiumRouter = router({
    * For trophy/flagship projects, estimates the portfolio
    * halo effect of a high-performing sale.
    */
-  getBrandEquityForecast: orgProcedure.input(z34.object({
-    projectId: z34.number(),
-    salePerformancePct: z34.number().min(0).max(100)
+  getBrandEquityForecast: orgProcedure.input(z35.object({
+    projectId: z35.number(),
+    salePerformancePct: z35.number().min(0).max(100)
   })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     return computeBrandEquityForecast({
@@ -35402,23 +38437,22 @@ var salesPremiumRouter = router({
 });
 
 // server/routers/intake.ts
-import { z as z36 } from "zod";
-init_storage();
+import { z as z37 } from "zod";
 init_db();
 init_ai_intake_engine();
 init_dynamic();
-import crypto4 from "crypto";
+import crypto5 from "crypto";
 init_ai_operation();
 var intakeRouter = router({
   /**
    * Generate a presigned S3 upload URL for direct client upload.
    * Client uploads directly to S3, then calls `recordAsset` to register it.
    */
-  getUploadUrl: orgMutationProcedure.input(z36.object({
-    projectId: z36.number(),
-    fileName: z36.string(),
-    contentType: z36.string(),
-    sizeBytes: z36.number().max(50 * 1024 * 1024)
+  getUploadUrl: orgMutationProcedure.input(z37.object({
+    projectId: z37.number(),
+    fileName: z37.string(),
+    contentType: z37.string(),
+    sizeBytes: z37.number().max(50 * 1024 * 1024)
     // 50MB limit
   })).mutation(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -35426,7 +38460,7 @@ var intakeRouter = router({
     if (!isSupportedMediaMimeType(contentType)) {
       throw new Error("This file type is not supported. Please choose a supported image, PDF, audio, or video file.");
     }
-    const fileKey = `intake/${ctx.orgId}/${input.projectId}/uploads/${crypto4.randomUUID()}`;
+    const fileKey = `intake/${ctx.orgId}/${input.projectId}/uploads/${crypto5.randomUUID()}`;
     const result = await storageCreatePresignedPut(fileKey, contentType);
     return {
       uploadUrl: result.uploadUrl,
@@ -35438,14 +38472,14 @@ var intakeRouter = router({
    * Register an uploaded asset in the project_assets table.
    * Called after client uploads to S3.
    */
-  recordAsset: orgMutationProcedure.input(z36.object({
-    projectId: z36.number(),
-    fileName: z36.string(),
-    mimeType: z36.string(),
-    sizeBytes: z36.number(),
-    storagePath: z36.string(),
-    storageUrl: z36.string().optional(),
-    category: z36.enum([
+  recordAsset: orgMutationProcedure.input(z37.object({
+    projectId: z37.number(),
+    fileName: z37.string(),
+    mimeType: z37.string(),
+    sizeBytes: z37.number(),
+    storagePath: z37.string(),
+    storageUrl: z37.string().optional(),
+    category: z37.enum([
       "brief",
       "brand",
       "budget",
@@ -35462,7 +38496,7 @@ var intakeRouter = router({
       "generated",
       "other"
     ]).default("other"),
-    assetType: z36.enum(["image", "pdf", "audio", "video", "url", "text_note"]).optional()
+    assetType: z37.enum(["image", "pdf", "audio", "video", "url", "text_note"]).optional()
   })).mutation(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     if (!input.storagePath.startsWith(`intake/${ctx.orgId}/${input.projectId}/uploads/`)) {
@@ -35494,7 +38528,7 @@ var intakeRouter = router({
   /**
    * List assets for a project.
    */
-  listAssets: orgProcedure.input(z36.object({ projectId: z36.number() })).query(async ({ input, ctx }) => {
+  listAssets: orgProcedure.input(z37.object({ projectId: z37.number() })).query(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getProjectAssets(input.projectId);
   }),
@@ -35502,10 +38536,10 @@ var intakeRouter = router({
    * Process uploaded assets through the AI Intake Engine.
    * Returns suggested ProjectInputs with per-field confidence and reasoning.
    */
-  processAssets: orgHeavyMutationProcedure.input(z36.object({
-    projectId: z36.number(),
-    assetIds: z36.array(z36.number()).max(5),
-    freeformDescription: z36.string().max(1e4).optional()
+  processAssets: orgHeavyMutationProcedure.input(z37.object({
+    projectId: z37.number(),
+    assetIds: z37.array(z37.number()).max(5),
+    freeformDescription: z37.string().max(1e4).optional()
   })).mutation(async ({ input, ctx }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const authorizedAssets = await requireProjectResourceBatchForOrg(
@@ -35564,9 +38598,9 @@ var intakeRouter = router({
   /**
    * Link orphaned assets to a project (after project creation).
    */
-  linkAssetsToProject: orgMutationProcedure.input(z36.object({
-    assetIds: z36.array(z36.number()),
-    projectId: z36.number()
+  linkAssetsToProject: orgMutationProcedure.input(z37.object({
+    assetIds: z37.array(z37.number()),
+    projectId: z37.number()
   })).mutation(async ({ input, ctx }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     await requireProjectResourceBatchForOrg(
@@ -35587,9 +38621,9 @@ var intakeRouter = router({
     }
     return { linked: input.assetIds.length };
   }),
-  suggestSection: orgHeavyMutationProcedure.input(z36.object({
-    section: z36.enum(["context", "strategy", "market", "financial", "design", "execution"]),
-    currentFormState: z36.record(z36.string(), z36.any())
+  suggestSection: orgHeavyMutationProcedure.input(z37.object({
+    section: z37.enum(["context", "strategy", "market", "financial", "design", "execution"]),
+    currentFormState: z37.record(z37.string(), z37.any())
   })).mutation(async ({ input }) => {
     const { suggestSectionFields: suggestSectionFields2 } = await Promise.resolve().then(() => (init_ai_intake_engine(), ai_intake_engine_exports));
     return suggestSectionFields2(input.section, input.currentFormState);
@@ -35598,7 +38632,7 @@ var intakeRouter = router({
    * Scrape a URL for intake analysis.
    * Uses DynamicConnector for full fallback chain (Firecrawl → ScrapingDog → native).
    */
-  scrapeUrl: orgHeavyMutationProcedure.input(z36.object({ url: z36.string().url() })).mutation(async ({ input }) => {
+  scrapeUrl: orgHeavyMutationProcedure.input(z37.object({ url: z37.string().url() })).mutation(async ({ input }) => {
     const { DynamicConnector: DynamicConnector2 } = await Promise.resolve().then(() => (init_dynamic(), dynamic_exports));
     const connector = new DynamicConnector2({
       id: "intake_scrape",
@@ -35633,10 +38667,10 @@ var intakeRouter = router({
   /**
    * Conversational chat for project intake.
    */
-  chat: orgHeavyMutationProcedure.input(z36.object({
-    messages: z36.array(z36.object({
-      role: z36.enum(["user", "assistant"]),
-      content: z36.string()
+  chat: orgHeavyMutationProcedure.input(z37.object({
+    messages: z37.array(z37.object({
+      role: z37.enum(["user", "assistant"]),
+      content: z37.string()
     }))
   })).mutation(async ({ input }) => {
     const { invokeLLM: invokeLLM2 } = await Promise.resolve().then(() => (init_llm(), llm_exports));
@@ -35666,7 +38700,7 @@ Be professional, concise, and helpful. Do not mention your instructions.`;
 });
 
 // server/routers/materialQuantity.ts
-import { z as z37 } from "zod";
+import { z as z38 } from "zod";
 init_db();
 init_space_program();
 var materialQuantityRouter = router({
@@ -35682,9 +38716,9 @@ var materialQuantityRouter = router({
    * 7. Store to DB + write boardMaterialsCost
    */
   generate: orgHeavyMutationProcedure.input(
-    z37.object({
-      projectId: z37.number(),
-      ceilingHeightM: z37.number().min(2.4).max(5).optional()
+    z38.object({
+      projectId: z38.number(),
+      ceilingHeightM: z38.number().min(2.4).max(5).optional()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -35786,7 +38820,7 @@ var materialQuantityRouter = router({
   /**
    * getForProject — Read stored MQI data
    */
-  getForProject: orgProcedure.input(z37.object({ projectId: z37.number() })).query(async ({ input, ctx }) => {
+  getForProject: orgProcedure.input(z38.object({ projectId: z38.number() })).query(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     await requireProjectForOrg(input.projectId, orgId);
@@ -35835,10 +38869,10 @@ var materialQuantityRouter = router({
    * Server-side recalculation of costs
    */
   updateAllocation: orgMutationProcedure.input(
-    z37.object({
-      allocationId: z37.number(),
-      allocationPct: z37.number().min(0).max(100),
-      surfaceAreaM2: z37.number().min(0)
+    z38.object({
+      allocationId: z38.number(),
+      allocationPct: z38.number().min(0).max(100),
+      surfaceAreaM2: z38.number().min(0)
     })
   ).mutation(async ({ input, ctx }) => {
     await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
@@ -35862,9 +38896,9 @@ var materialQuantityRouter = router({
    * lockAllocations — Bulk lock/unlock all allocations for a project
    */
   lockAllocations: orgMutationProcedure.input(
-    z37.object({
-      projectId: z37.number(),
-      isLocked: z37.boolean()
+    z38.object({
+      projectId: z38.number(),
+      isLocked: z38.boolean()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -35881,10 +38915,10 @@ var materialQuantityRouter = router({
    * addSupplierSource — Register a new supplier URL for scraping
    */
   addSupplierSource: orgMutationProcedure.input(
-    z37.object({
-      supplierName: z37.string().min(1).max(200),
-      supplierUrl: z37.string().url(),
-      materialCategory: z37.enum([
+    z38.object({
+      supplierName: z38.string().min(1).max(200),
+      supplierUrl: z38.string().url(),
+      materialCategory: z38.enum([
         "flooring",
         "wall_paint",
         "wall_tile",
@@ -35896,8 +38930,8 @@ var materialQuantityRouter = router({
         "hardware",
         "specialty"
       ]),
-      tier: z37.enum(["affordable", "mid", "premium", "ultra"]),
-      notes: z37.string().optional()
+      tier: z38.enum(["affordable", "mid", "premium", "ultra"]),
+      notes: z38.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
@@ -35915,7 +38949,7 @@ var materialQuantityRouter = router({
    * scrapeSupplierSource — Scrape a supplier URL for pricing
    * Uses DynamicConnector for resilient fetching
    */
-  scrapeSupplierSource: orgHeavyMutationProcedure.input(z37.object({ sourceId: z37.number() })).mutation(async ({ input, ctx }) => {
+  scrapeSupplierSource: orgHeavyMutationProcedure.input(z38.object({ sourceId: z38.number() })).mutation(async ({ input, ctx }) => {
     const source = await requireOrgResourceForOrg(
       input.sourceId,
       ctx.orgId,
@@ -35983,7 +39017,8 @@ ${rawContent.substring(0, 6e3)}`
 });
 
 // server/routers/spaceProgram.ts
-import { z as z38 } from "zod";
+import { z as z40 } from "zod";
+import { createHash as createHash8 } from "node:crypto";
 init_db();
 
 // server/engines/design/typology-fitout-rules.ts
@@ -36533,6 +39568,481 @@ function redistributeBudget(rooms) {
   }
 }
 
+// server/routers/spaceProgram-geometry.ts
+import { TRPCError as TRPCError27 } from "@trpc/server";
+import { createHash as createHash7 } from "node:crypto";
+import { z as z39 } from "zod";
+init_db();
+var pointSchema = z39.object({
+  x: z39.string().min(1).max(64),
+  y: z39.string().min(1).max(64)
+});
+var roomSchema = z39.object({
+  spaceId: z39.string().min(1).max(64),
+  roomName: z39.string().min(1).max(255).optional(),
+  roomCode: z39.string().min(1).max(64).optional(),
+  category: z39.string().min(1).max(64).optional(),
+  levelElevation: z39.string().min(1).max(64),
+  outerRing: z39.array(pointSchema).min(4).max(2001),
+  holes: z39.array(z39.array(pointSchema).min(4).max(2001)).max(100).optional()
+});
+var sourceUnitSchema = z39.enum(["m", "mm"]);
+var snapTransformSchema = z39.enum(["none", "1mm"]);
+var MANUAL_GEOMETRY_LIMITS = {
+  rooms: 100,
+  vertices: 1e4,
+  deadlineMilliseconds: 500
+};
+function sourcePointInMicrometres(point, unit) {
+  return {
+    x: decimalCoordinateToMicrometres(point.x, unit).toString(),
+    y: decimalCoordinateToMicrometres(point.y, unit).toString()
+  };
+}
+function totalArea2(canonical) {
+  return canonical.geometry.rooms.reduce(
+    (sum, room) => sum + BigInt(room.areaSquareMicrometresTwice),
+    BigInt(0)
+  );
+}
+function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds = Date.now() + MANUAL_GEOMETRY_LIMITS.deadlineMilliseconds) {
+  const vertexCount = rooms.reduce(
+    (total, room) => total + room.outerRing.length + (room.holes ?? []).reduce((sum, ring) => sum + ring.length, 0),
+    0
+  );
+  if (vertexCount > MANUAL_GEOMETRY_LIMITS.vertices) {
+    throw new TRPCError27({
+      code: "BAD_REQUEST",
+      message: "Manual geometry exceeds the 10,000 vertex limit."
+    });
+  }
+  let canonical;
+  try {
+    canonical = canonicalizeGeometry(
+      {
+        schemaVersion: GEOMETRY_SCHEMA_VERSION,
+        measurementBasis: ROOM_FLOOR_POLYGON_AREA,
+        sourceUnit,
+        snapTransform,
+        rooms
+      },
+      {
+        deadlineAtMilliseconds
+      }
+    );
+  } catch (error) {
+    if (error instanceof GeometryDeadlineError) {
+      throw new TRPCError27({
+        code: "BAD_REQUEST",
+        message: "Manual geometry exceeded the 500 millisecond processing deadline."
+      });
+    }
+    throw error;
+  }
+  if (Buffer.byteLength(canonical.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
+    throw new TRPCError27({
+      code: "BAD_REQUEST",
+      message: "Canonical geometry exceeds the 8 MiB JSON limit."
+    });
+  }
+  const sourceById = new Map(rooms.map((room) => [room.spaceId, room]));
+  return {
+    status: "ready",
+    fingerprint: canonical.fingerprint,
+    totalAreaSqm: twiceSquareMicrometresToSquareMetres(totalArea2(canonical)),
+    rooms: canonical.geometry.rooms.map((room) => ({
+      spaceId: room.spaceId,
+      roomName: sourceById.get(room.spaceId)?.roomName,
+      areaSqm: room.areaSquareMetres,
+      status: "user_entered",
+      sourceOuterRing: sourceById.get(room.spaceId)?.outerRing.map((point) => sourcePointInMicrometres(point, sourceUnit)),
+      normalizedOuterRing: room.outerRing.points
+    })),
+    warnings: [],
+    insufficiencies: [],
+    canonical
+  };
+}
+async function readAuthorizedDxf(input) {
+  const { resource: asset, project } = await requireDesignAsset(
+    input.assetId,
+    input.organizationId
+  );
+  if (project.id !== input.projectId || asset.assetType !== "cad") {
+    throw new TRPCError27({
+      code: "NOT_FOUND",
+      message: "Geometry asset not found"
+    });
+  }
+  if (!asset.storagePath || !asset.checksum) {
+    throw new TRPCError27({
+      code: "BAD_REQUEST",
+      message: "Geometry asset has not completed server-side finalization."
+    });
+  }
+  const stored = await storageRead(
+    asset.storagePath,
+    DXF_BOUNDARY_LIMITS.sourceBytes
+  );
+  if (stored.sizeBytes <= 0 || stored.sizeBytes > DXF_BOUNDARY_LIMITS.sourceBytes || stored.buffer.byteLength !== stored.sizeBytes) {
+    throw new TRPCError27({
+      code: "BAD_REQUEST",
+      message: "Geometry asset is unavailable or oversized."
+    });
+  }
+  const checksum2 = createHash7("sha256").update(stored.buffer).digest("hex");
+  if (checksum2 !== asset.checksum) {
+    throw new TRPCError27({
+      code: "CONFLICT",
+      message: "Geometry asset bytes no longer match the finalized checksum."
+    });
+  }
+  const inspection = await inspectDxfGeometry({
+    bytes: stored.buffer,
+    fileName: asset.filename,
+    mediaType: stored.contentType ?? asset.mimeType,
+    selectedUnit: input.sourceUnit,
+    levelElevation: input.levelElevation,
+    snapTransform: input.snapTransform
+  });
+  return { asset, inspection };
+}
+function dxfPreview(inspection, selectedUnit) {
+  const status = inspection.status === "imported" ? "ready" : inspection.status === "conflicting_information" ? "conflict" : "insufficient";
+  const overlayById = new Map(
+    inspection.levelOverlays.flatMap(
+      (level) => level.rooms.map((room) => [room.sourceRoomId, room])
+    )
+  );
+  return {
+    status,
+    fingerprint: inspection.canonical?.fingerprint,
+    totalAreaSqm: inspection.canonical ? twiceSquareMicrometresToSquareMetres(totalArea2(inspection.canonical)) : void 0,
+    rooms: inspection.canonical?.geometry.rooms.map((room) => {
+      const overlay = overlayById.get(room.spaceId);
+      return {
+        spaceId: room.spaceId,
+        roomName: overlay?.sourceLayer,
+        areaSqm: room.areaSquareMetres,
+        status: "imported",
+        sourceOuterRing: overlay?.sourcePoints.map(
+          (point) => sourcePointInMicrometres(point, selectedUnit)
+        ),
+        normalizedOuterRing: room.outerRing.points
+      };
+    }) ?? [],
+    warnings: inspection.warnings,
+    insufficiencies: inspection.issue ? [inspection.issue.message] : [],
+    evidence: inspection.evidence,
+    inspection: inspection.inspection
+  };
+}
+function importIdempotencyKey(input) {
+  const payload = {
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    assetChecksum: input.assetChecksum,
+    adapterVersion: input.sourceType === "project_asset" ? DXF_ADAPTER_VERSION : "miyar-manual-v1",
+    selectedUnits: input.sourceUnit,
+    transform: input.snapTransform,
+    referenceFrame: `project_local_xy:right_handed:elevation:${input.levelElevation}`,
+    schemaVersion: GEOMETRY_SCHEMA_VERSION,
+    canonicalizerVersion: GEOMETRY_CANONICALIZER_VERSION,
+    tolerancePolicyVersion: GEOMETRY_TOLERANCE_POLICY_VERSION,
+    sourceChecksum: input.sourceChecksum
+  };
+  return createHash7("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+function decimalSquareMetresToArea2(value) {
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(value.trim());
+  if (!match) return null;
+  const fraction = (match[2] ?? "").slice(0, 12).padEnd(12, "0");
+  return ((BigInt(match[1]) * BigInt(1e12) + BigInt(fraction)) * BigInt(2)).toString();
+}
+var spaceProgramGeometryRouter = router({
+  previewManualGeometry: orgHeavyMutationProcedure.input(
+    z39.object({
+      projectId: z39.number().int().positive(),
+      sourceUnit: sourceUnitSchema,
+      snapTransform: snapTransformSchema,
+      rooms: z39.array(roomSchema).min(1).max(MANUAL_GEOMETRY_LIMITS.rooms)
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    const preview = manualPreview(
+      input.rooms,
+      input.sourceUnit,
+      input.snapTransform
+    );
+    const { canonical: _canonical, ...response } = preview;
+    return response;
+  }),
+  previewDxfGeometry: orgHeavyMutationProcedure.input(
+    z39.object({
+      projectId: z39.number().int().positive(),
+      assetId: z39.number().int().positive(),
+      sourceUnit: sourceUnitSchema,
+      snapTransform: snapTransformSchema,
+      levelElevation: z39.string().min(1).max(64)
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    const { inspection } = await readAuthorizedDxf({
+      ...input,
+      organizationId: ctx.orgId
+    });
+    return dxfPreview(inspection, input.sourceUnit);
+  }),
+  commitShadowGeometry: orgHeavyMutationProcedure.input(
+    z39.object({
+      projectId: z39.number().int().positive(),
+      expectedCurrentVersionId: z39.number().int().positive().nullable(),
+      source: z39.discriminatedUnion("kind", [
+        z39.object({
+          kind: z39.literal("manual"),
+          sourceUnit: sourceUnitSchema,
+          snapTransform: snapTransformSchema,
+          rooms: z39.array(roomSchema).min(1).max(MANUAL_GEOMETRY_LIMITS.rooms)
+        }),
+        z39.object({
+          kind: z39.literal("dxf"),
+          assetId: z39.number().int().positive(),
+          sourceUnit: sourceUnitSchema,
+          snapTransform: snapTransformSchema,
+          levelElevation: z39.string().min(1).max(64)
+        })
+      ])
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    let canonical;
+    let rooms;
+    let assetId = null;
+    let assetChecksum;
+    let sourceChecksum;
+    let sourceObservation;
+    let adapterVersion;
+    if (input.source.kind === "manual") {
+      const preview = manualPreview(
+        input.source.rooms,
+        input.source.sourceUnit,
+        input.source.snapTransform
+      );
+      canonical = preview.canonical;
+      rooms = input.source.rooms.map((room) => ({
+        spaceId: room.spaceId,
+        roomName: room.roomName,
+        roomCode: room.roomCode,
+        category: room.category,
+        levelId: `elevation:${canonical.geometry.rooms.find((candidate) => candidate.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`
+      }));
+      sourceObservation = { rooms: input.source.rooms };
+      sourceChecksum = createHash7("sha256").update(JSON.stringify(sourceObservation)).digest("hex");
+      assetChecksum = sourceChecksum;
+      adapterVersion = "miyar-manual-v1";
+    } else {
+      const resolved = await readAuthorizedDxf({
+        projectId: input.projectId,
+        organizationId: ctx.orgId,
+        assetId: input.source.assetId,
+        sourceUnit: input.source.sourceUnit,
+        snapTransform: input.source.snapTransform,
+        levelElevation: input.source.levelElevation
+      });
+      if (resolved.inspection.status !== "imported" || !resolved.inspection.canonical) {
+        throw new TRPCError27({
+          code: "BAD_REQUEST",
+          message: resolved.inspection.issue?.message ?? "DXF geometry is insufficient and cannot be committed."
+        });
+      }
+      canonical = resolved.inspection.canonical;
+      rooms = resolved.inspection.levelOverlays.flatMap(
+        (level) => level.rooms.map((room) => ({
+          spaceId: room.sourceRoomId,
+          roomName: room.sourceLayer,
+          category: "other",
+          levelId: `elevation:${level.levelElevationMicrometres}`
+        }))
+      );
+      assetId = resolved.asset.id;
+      assetChecksum = resolved.asset.checksum;
+      sourceChecksum = resolved.inspection.evidence.checksum.value;
+      sourceObservation = {
+        evidence: resolved.inspection.evidence,
+        inspection: resolved.inspection.inspection,
+        levelOverlays: resolved.inspection.levelOverlays
+      };
+      adapterVersion = DXF_ADAPTER_VERSION;
+    }
+    const idempotencyKey = importIdempotencyKey({
+      organizationId: ctx.orgId,
+      projectId: input.projectId,
+      assetChecksum,
+      sourceUnit: input.source.sourceUnit,
+      snapTransform: input.source.snapTransform,
+      sourceType: input.source.kind === "manual" ? "manual" : "project_asset",
+      sourceChecksum,
+      levelElevation: input.source.kind === "manual" ? input.source.rooms.map((room) => room.levelElevation).join(",") : input.source.levelElevation
+    });
+    const result = await commitShadowGeometryForOrg({
+      organizationId: ctx.orgId,
+      projectId: input.projectId,
+      userId: ctx.user.id,
+      expectedCurrentVersionId: input.expectedCurrentVersionId,
+      canonical,
+      rooms,
+      source: {
+        sourceType: input.source.kind === "manual" ? "manual" : "project_asset",
+        acquisitionMethod: input.source.kind === "manual" ? "manual_entry" : "dxf",
+        assetId,
+        sourceUnits: input.source.sourceUnit,
+        sourceChecksum,
+        assetChecksum,
+        adapterName: input.source.kind === "manual" ? "MIYAR manual geometry" : "MIYAR ASCII DXF",
+        adapterVersion,
+        sourceObservation,
+        sourceTransform: { snapTransform: input.source.snapTransform },
+        idempotencyKey
+      }
+    });
+    if (result.kind === "not_found") {
+      throw new TRPCError27({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
+    }
+    if (result.kind === "conflict") {
+      throw new TRPCError27({
+        code: "CONFLICT",
+        message: `Geometry changed concurrently; current version is ${result.currentGraphVersionId ?? "none"}.`
+      });
+    }
+    if (result.kind === "canonical") {
+      throw new TRPCError27({
+        code: "CONFLICT",
+        message: "Canonical projects cannot accept a shadow candidate."
+      });
+    }
+    return {
+      geometryVersionId: result.graphVersionId,
+      fingerprint: result.fingerprint,
+      replayed: result.replayed,
+      authorityMode: "shadow"
+    };
+  }),
+  reviewGeometryCandidate: orgAdminProcedure.input(
+    z39.object({
+      projectId: z39.number().int().positive(),
+      geometryVersionId: z39.number().int().positive(),
+      expectedCurrentVersionId: z39.number().int().positive().nullable(),
+      decision: z39.enum(["accepted", "rejected", "clarification_requested"]),
+      note: z39.string().max(5e3).optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    const result = await reviewShadowGeometryForOrg({
+      ...input,
+      organizationId: ctx.orgId,
+      userId: ctx.user.id
+    });
+    if (result.kind === "not_found") {
+      throw new TRPCError27({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
+    }
+    if (result.kind === "conflict") {
+      throw new TRPCError27({
+        code: "CONFLICT",
+        message: `Geometry changed concurrently; current version is ${result.currentGraphVersionId ?? "none"}.`
+      });
+    }
+    return result;
+  }),
+  getGeometryComparison: orgProcedure.input(z39.object({ projectId: z39.number().int().positive() })).query(async ({ ctx, input }) => {
+    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
+    const comparison = await getGeometryComparisonForOrg(
+      input.projectId,
+      ctx.orgId
+    );
+    const authorityMode = comparison?.authority?.mode ?? "legacy";
+    const legacyRoomTotal = comparison?.legacyRooms.length ? comparison.legacyRooms.reduce(
+      (sum, room) => sum + Number(room.sqm),
+      0
+    ) : null;
+    const legacyProjectTotal = project.totalFitoutArea ? Number(project.totalFitoutArea) : null;
+    const legacyTotal = legacyRoomTotal ?? legacyProjectTotal;
+    const candidate = comparison?.candidate;
+    const canonical = candidate?.canonicalGeometry;
+    const exactCandidateArea2 = candidate?.totalAreaSquareMicrometresTwice;
+    const exactLegacyArea2 = legacyRoomTotal !== null ? decimalSquareMetresToArea2(legacyRoomTotal.toFixed(2)) : null;
+    const reconciliation = exactCandidateArea2 && exactLegacyArea2 ? reconcileRoomFloorAreas(exactLegacyArea2, exactCandidateArea2) : null;
+    const sourceObservation = comparison?.source?.sourceObservation;
+    const sourceRooms = new Map(
+      (sourceObservation?.rooms ?? []).map(
+        (room) => [room.spaceId, room]
+      )
+    );
+    const sourceDxfRooms = new Map(
+      (sourceObservation?.levelOverlays ?? []).flatMap(
+        (level) => level.rooms.map((room) => [room.sourceRoomId, room])
+      )
+    );
+    const candidateStatus = comparison?.review?.reviewDecision === "accepted" ? "accepted" : comparison?.review?.reviewDecision === "rejected" ? "conflict" : comparison?.review?.reviewDecision === "needs_clarification" ? "insufficient" : "ready";
+    return {
+      authorityMode,
+      currentGraphVersionId: comparison?.authority?.currentGraphVersionId ?? null,
+      selectedGeometryVersionId: comparison?.authority?.selectedGeometryVersionId ?? null,
+      canWrite: ctx.orgRole !== "viewer",
+      canReview: ctx.orgRole === "admin",
+      legacy: legacyTotal !== null && Number.isFinite(legacyTotal) ? {
+        totalAreaSqm: legacyTotal,
+        status: comparison?.legacyRooms.length && comparison.legacyRooms.every(
+          (room) => room.source === "user_manual"
+        ) ? "user_entered" : "legacy_estimate",
+        basis: "legacy_unspecified"
+      } : void 0,
+      candidate: candidate && canonical ? {
+        geometryVersionId: candidate.id,
+        status: candidateStatus,
+        totalAreaSqm: candidate.totalAreaSquareMetres,
+        fingerprint: candidate.fingerprint,
+        sourceType: comparison?.source?.acquisitionMethod,
+        evidenceStatus: comparison?.source?.acquisitionMethod === "dxf" ? "imported" : "user_entered",
+        rooms: canonical.rooms.map((room) => ({
+          spaceId: room.spaceId,
+          areaSqm: room.areaSquareMetres,
+          normalizedOuterRing: room.outerRing.points,
+          sourceOuterRing: sourceRooms.get(room.spaceId)?.outerRing.map(
+            (point) => sourcePointInMicrometres(
+              point,
+              comparison?.source?.sourceUnits ?? "m"
+            )
+          ) ?? sourceDxfRooms.get(room.spaceId)?.sourcePoints.map(
+            (point) => sourcePointInMicrometres(
+              point,
+              comparison?.source?.sourceUnits ?? "m"
+            )
+          )
+        }))
+      } : void 0,
+      reconciliation: candidate ? reconciliation ? {
+        status: reconciliation.result === "conflict" ? "conflict" : "ready",
+        deltaSqm: twiceSquareMicrometresToSquareMetres(
+          BigInt(reconciliation.differenceSquareMicrometresTwice)
+        ),
+        toleranceSqm: twiceSquareMicrometresToSquareMetres(
+          BigInt(reconciliation.toleranceSquareMicrometresTwice)
+        ),
+        message: reconciliation.result === "conflict" ? "Canonical room-floor area differs from the legacy estimate beyond tolerance." : "Canonical room-floor area is within the comparison tolerance."
+      } : {
+        status: "not_checked",
+        message: "A comparable legacy room-area basis is unavailable; no equivalence claim was made."
+      } : { status: "not_checked" }
+    };
+  })
+});
+
 // server/routers/spaceProgram.ts
 var ROOM_CATEGORIES = [
   "lobby",
@@ -36553,27 +40063,29 @@ var ROOM_CATEGORIES = [
   "other"
 ];
 async function writeFitOutArea(projectId, orgId) {
+  await requireLegacyGeometryWriterForProject(projectId, orgId);
   const rooms = await getSpaceProgramRooms(projectId, orgId);
   const fitOutSqm = rooms.filter((r) => r.isFitOut).reduce((sum, r) => sum + Number(r.sqm), 0);
   if (!await updateProjectVerificationForOrg(projectId, orgId, {
     totalFitoutArea: fitOutSqm
   })) {
+    await requireLegacyGeometryWriterForProject(projectId, orgId);
     await requireProjectForOrg(projectId, orgId);
   }
 }
-var spaceProgramRouter = router({
+var legacySpaceProgramRouter = router({
   /**
    * generate — Create space program from typology + GFA
    * Uses deterministic templates from typology-fitout-rules.ts
    */
   generate: orgMutationProcedure.input(
-    z38.object({
-      projectId: z38.number(),
-      blocks: z38.array(
-        z38.object({
-          blockName: z38.string().min(1),
-          blockTypology: z38.string().min(1),
-          gfaSqm: z38.number().positive()
+    z40.object({
+      projectId: z40.number(),
+      blocks: z40.array(
+        z40.object({
+          blockName: z40.string().min(1),
+          blockTypology: z40.string().min(1),
+          gfaSqm: z40.number().positive()
         })
       ).optional()
     })
@@ -36581,6 +40093,7 @@ var spaceProgramRouter = router({
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     const project = await requireProjectForOrg(input.projectId, orgId);
+    await requireLegacyGeometryWriterForProject(input.projectId, orgId);
     const typology = project.ctx01Typology || "residential";
     const gfa = Number(project.ctx03Gfa) || 0;
     if (gfa <= 0) throw new Error("Project GFA must be > 0");
@@ -36611,34 +40124,40 @@ var spaceProgramRouter = router({
   }),
   /**
    * extractFromFile — Parse DXF/DWG and create space program
-   * File is already uploaded to S3 — pass the S3 key
+   * The file must be a finalized CAD asset owned by the same project.
    */
   extractFromFile: orgHeavyMutationProcedure.input(
-    z38.object({
-      projectId: z38.number(),
-      s3Key: z38.string().min(1),
-      originalFilename: z38.string().min(1)
+    z40.object({
+      projectId: z40.number(),
+      assetId: z40.number().int().positive()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     const project = await requireProjectForOrg(input.projectId, orgId);
+    await requireLegacyGeometryWriterForProject(input.projectId, orgId);
+    const { resource: asset, project: assetProject } = await requireDesignAsset(input.assetId, orgId);
+    if (assetProject.id !== input.projectId || asset.assetType !== "cad" || !asset.storagePath || !asset.checksum) {
+      throw new Error("Finalized CAD asset not found");
+    }
     const typology = project.ctx01Typology || "residential";
     const gfa = Number(project.ctx03Gfa) || 0;
-    const ext = input.originalFilename.split(".").pop()?.toLowerCase() || "";
+    const ext = asset.filename.split(".").pop()?.toLowerCase() || "";
     if (!["dxf", "dwg"].includes(ext)) {
       throw new Error("Only .dxf and .dwg files are supported");
     }
-    const { storageGet: storageGet2 } = await Promise.resolve().then(() => (init_storage(), storage_exports));
-    const { url } = await storageGet2(input.s3Key);
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Failed to fetch file from storage");
+    const stored = await storageRead(
+      asset.storagePath,
+      DXF_BOUNDARY_LIMITS.sourceBytes
+    );
+    if (stored.sizeBytes <= 0 || stored.sizeBytes > DXF_BOUNDARY_LIMITS.sourceBytes || createHash8("sha256").update(stored.buffer).digest("hex") !== asset.checksum) {
+      throw new Error("Finalized CAD asset failed integrity validation");
+    }
     let fileContent;
     if (ext === "dxf") {
-      fileContent = await response.text();
+      fileContent = stored.buffer.toString("utf8");
     } else {
-      const arrayBuffer = await response.arrayBuffer();
-      fileContent = Buffer.from(arrayBuffer);
+      fileContent = stored.buffer;
     }
     const result = await extractSpaceProgram({
       projectId: input.projectId,
@@ -36647,7 +40166,7 @@ var spaceProgramRouter = router({
       gfa,
       fileContent,
       fileExtension: ext,
-      originalFilename: input.originalFilename
+      originalFilename: asset.filename
     });
     if (!await replaceSpaceProgramRoomsForOrg(
       input.projectId,
@@ -36670,10 +40189,11 @@ var spaceProgramRouter = router({
   /**
    * getForProject — Read stored space program
    */
-  getForProject: orgProcedure.input(z38.object({ projectId: z38.number() })).query(async ({ input, ctx }) => {
+  getForProject: orgProcedure.input(z40.object({ projectId: z40.number() })).query(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     await requireProjectForOrg(input.projectId, orgId);
+    const geometryAuthorityMode = await getProjectGeometryAuthorityModeForOrg(input.projectId, orgId);
     const rooms = await getSpaceProgramRooms(input.projectId, orgId);
     if (rooms.length === 0) return null;
     const roomsWithSubSpaces = await Promise.all(
@@ -36685,7 +40205,10 @@ var spaceProgramRouter = router({
         return { ...room, subSpaces: [] };
       })
     );
-    const totalSqm = rooms.reduce((sum, r) => sum + Number(r.sqm), 0);
+    const totalSqm = rooms.reduce(
+      (sum, r) => sum + Number(r.sqm),
+      0
+    );
     const fitOutSqm = rooms.filter((r) => r.isFitOut).reduce((sum, r) => sum + Number(r.sqm), 0);
     const shellCoreSqm = totalSqm - fitOutSqm;
     const blockMap = /* @__PURE__ */ new Map();
@@ -36694,9 +40217,6 @@ var spaceProgramRouter = router({
       if (!blockMap.has(key)) blockMap.set(key, []);
       blockMap.get(key).push(room);
     }
-    await updateProjectForOrg(input.projectId, orgId, {
-      totalFitoutArea: String(fitOutSqm)
-    });
     return {
       rooms: roomsWithSubSpaces,
       blocks: Array.from(blockMap.entries()).map(([name, blockRooms]) => ({
@@ -36710,40 +40230,51 @@ var spaceProgramRouter = router({
         fitOutSqm,
         shellCoreSqm,
         fitOutPct: totalSqm > 0 ? Number((fitOutSqm / totalSqm * 100).toFixed(1)) : 0
-      }
+      },
+      geometryAuthorityMode
     };
   }),
   /**
    * updateRoom — Edit a single room's properties
    */
   updateRoom: orgMutationProcedure.input(
-    z38.object({
-      roomId: z38.number(),
-      roomName: z38.string().min(1).optional(),
-      category: z38.enum(ROOM_CATEGORIES).optional(),
-      sqm: z38.number().positive().optional(),
-      floorLevel: z38.string().optional().nullable(),
-      finishGrade: z38.enum(["A", "B", "C"]).optional(),
-      priority: z38.enum(["high", "medium", "low"]).optional(),
-      blockName: z38.string().optional(),
-      blockTypology: z38.string().optional()
+    z40.object({
+      roomId: z40.number(),
+      roomName: z40.string().min(1).optional(),
+      category: z40.enum(ROOM_CATEGORIES).optional(),
+      sqm: z40.number().positive().optional(),
+      floorLevel: z40.string().optional().nullable(),
+      finishGrade: z40.enum(["A", "B", "C"]).optional(),
+      priority: z40.enum(["high", "medium", "low"]).optional(),
+      blockName: z40.string().optional(),
+      blockTypology: z40.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
-    await requireProjectOrgResourceForOrg(input.roomId, ctx.orgId, {
-      lookupResource: getSpaceProgramRoomById,
-      getProjectId: (room) => room.projectId,
-      getOrgId: (room) => room.organizationId
-    });
+    const authorized = await requireProjectOrgResourceForOrg(
+      input.roomId,
+      ctx.orgId,
+      {
+        lookupResource: getSpaceProgramRoomById,
+        getProjectId: (room) => room.projectId,
+        getOrgId: (room) => room.organizationId
+      }
+    );
+    await requireLegacyGeometryWriterForProject(
+      authorized.project.id,
+      ctx.orgId
+    );
     const { roomId, ...updates } = input;
     const dbUpdates = {};
     if (updates.roomName) dbUpdates.roomName = updates.roomName;
     if (updates.category) dbUpdates.category = updates.category;
     if (updates.sqm) dbUpdates.sqm = String(updates.sqm);
-    if (updates.floorLevel !== void 0) dbUpdates.floorLevel = updates.floorLevel;
+    if (updates.floorLevel !== void 0)
+      dbUpdates.floorLevel = updates.floorLevel;
     if (updates.finishGrade) dbUpdates.finishGrade = updates.finishGrade;
     if (updates.priority) dbUpdates.priority = updates.priority;
     if (updates.blockName) dbUpdates.blockName = updates.blockName;
-    if (updates.blockTypology) dbUpdates.blockTypology = updates.blockTypology;
+    if (updates.blockTypology)
+      dbUpdates.blockTypology = updates.blockTypology;
     dbUpdates.source = "user_manual";
     if (!await updateSpaceProgramRoomForOrg(roomId, ctx.orgId, dbUpdates)) {
       await requireProjectOrgResourceForOrg(roomId, ctx.orgId, {
@@ -36752,26 +40283,35 @@ var spaceProgramRouter = router({
         getOrgId: (room) => room.organizationId
       });
     }
+    if (updates.sqm !== void 0) {
+      await writeFitOutArea(authorized.project.id, ctx.orgId);
+    }
     return { success: true };
   }),
   /**
    * toggleFitOut — Flip isFitOut for a room and mark fitOutOverridden = true
    */
   toggleFitOut: orgMutationProcedure.input(
-    z38.object({
-      roomId: z38.number(),
-      isFitOut: z38.boolean(),
-      projectId: z38.number()
+    z40.object({
+      roomId: z40.number(),
+      isFitOut: z40.boolean(),
+      projectId: z40.number()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
-    const authorized = await requireProjectOrgResourceForOrg(input.roomId, orgId, {
-      lookupResource: getSpaceProgramRoomById,
-      getProjectId: (room) => room.projectId,
-      getOrgId: (room) => room.organizationId
-    });
-    if (authorized.project.id !== input.projectId) throw new Error("Resource not found");
+    const authorized = await requireProjectOrgResourceForOrg(
+      input.roomId,
+      orgId,
+      {
+        lookupResource: getSpaceProgramRoomById,
+        getProjectId: (room) => room.projectId,
+        getOrgId: (room) => room.organizationId
+      }
+    );
+    if (authorized.project.id !== input.projectId)
+      throw new Error("Resource not found");
+    await requireLegacyGeometryWriterForProject(input.projectId, orgId);
     await updateSpaceProgramRoomForOrg(input.roomId, orgId, {
       isFitOut: input.isFitOut,
       fitOutOverridden: true,
@@ -36784,44 +40324,51 @@ var spaceProgramRouter = router({
    * addRoom — Add a manual room to the space program
    */
   addRoom: orgMutationProcedure.input(
-    z38.object({
-      projectId: z38.number(),
-      roomName: z38.string().min(1),
-      category: z38.enum(ROOM_CATEGORIES),
-      sqm: z38.number().positive(),
-      floorLevel: z38.string().optional(),
-      finishGrade: z38.enum(["A", "B", "C"]).default("B"),
-      priority: z38.enum(["high", "medium", "low"]).default("medium"),
-      blockName: z38.string().default("Main"),
-      blockTypology: z38.string()
+    z40.object({
+      projectId: z40.number(),
+      roomName: z40.string().min(1),
+      category: z40.enum(ROOM_CATEGORIES),
+      sqm: z40.number().positive(),
+      floorLevel: z40.string().optional(),
+      finishGrade: z40.enum(["A", "B", "C"]).default("B"),
+      priority: z40.enum(["high", "medium", "low"]).default("medium"),
+      blockName: z40.string().default("Main"),
+      blockTypology: z40.string()
     })
   ).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     await requireProjectForOrg(input.projectId, orgId);
+    await requireLegacyGeometryWriterForProject(input.projectId, orgId);
     const existing = await getSpaceProgramRooms(input.projectId, orgId);
     const sortOrder = existing.length;
-    const fitOut = getFitOutTag(input.blockTypology, input.category);
+    const fitOut = getFitOutTag(
+      input.blockTypology,
+      input.category
+    );
     const roomCode = `MNL${sortOrder + 1}`;
-    if (!await insertSpaceProgramRoomForOrg({
-      projectId: input.projectId,
-      organizationId: orgId,
-      roomCode,
-      roomName: input.roomName,
-      category: input.category,
-      sqm: String(input.sqm),
-      floorLevel: input.floorLevel || null,
-      source: "user_manual",
-      isFitOut: fitOut.isFitOut,
-      fitOutOverridden: false,
-      fitOutReason: fitOut.fitOutReason,
-      finishGrade: input.finishGrade,
-      priority: input.priority,
-      budgetPct: null,
-      sortOrder,
-      blockName: input.blockName,
-      blockTypology: input.blockTypology
-    }, orgId)) {
+    if (!await insertSpaceProgramRoomForOrg(
+      {
+        projectId: input.projectId,
+        organizationId: orgId,
+        roomCode,
+        roomName: input.roomName,
+        category: input.category,
+        sqm: String(input.sqm),
+        floorLevel: input.floorLevel || null,
+        source: "user_manual",
+        isFitOut: fitOut.isFitOut,
+        fitOutOverridden: false,
+        fitOutReason: fitOut.fitOutReason,
+        finishGrade: input.finishGrade,
+        priority: input.priority,
+        budgetPct: null,
+        sortOrder,
+        blockName: input.blockName,
+        blockTypology: input.blockTypology
+      },
+      orgId
+    )) {
       await requireProjectForOrg(input.projectId, orgId);
     }
     await writeFitOutArea(input.projectId, orgId);
@@ -36830,15 +40377,21 @@ var spaceProgramRouter = router({
   /**
    * deleteRoom — Remove a room from the space program
    */
-  deleteRoom: orgMutationProcedure.input(z38.object({ roomId: z38.number(), projectId: z38.number() })).mutation(async ({ input, ctx }) => {
+  deleteRoom: orgMutationProcedure.input(z40.object({ roomId: z40.number(), projectId: z40.number() })).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
-    const authorized = await requireProjectOrgResourceForOrg(input.roomId, orgId, {
-      lookupResource: getSpaceProgramRoomById,
-      getProjectId: (room) => room.projectId,
-      getOrgId: (room) => room.organizationId
-    });
-    if (authorized.project.id !== input.projectId) throw new Error("Resource not found");
+    const authorized = await requireProjectOrgResourceForOrg(
+      input.roomId,
+      orgId,
+      {
+        lookupResource: getSpaceProgramRoomById,
+        getProjectId: (room) => room.projectId,
+        getOrgId: (room) => room.organizationId
+      }
+    );
+    if (authorized.project.id !== input.projectId)
+      throw new Error("Resource not found");
+    await requireLegacyGeometryWriterForProject(input.projectId, orgId);
     if (!await deleteSpaceProgramRoomForOrg(input.roomId, orgId)) {
       throw new Error("Resource not found");
     }
@@ -36849,21 +40402,29 @@ var spaceProgramRouter = router({
    * resetToTypologyDefaults — Wipe non-overridden rooms and regenerate from template
    * Rooms with fitOutOverridden = true survive the reset
    */
-  resetToTypologyDefaults: orgMutationProcedure.input(z38.object({ projectId: z38.number() })).mutation(async ({ input, ctx }) => {
+  resetToTypologyDefaults: orgMutationProcedure.input(z40.object({ projectId: z40.number() })).mutation(async ({ input, ctx }) => {
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     const project = await requireProjectForOrg(input.projectId, orgId);
+    await requireLegacyGeometryWriterForProject(input.projectId, orgId);
     const typology = project.ctx01Typology || "residential";
     const gfa = Number(project.ctx03Gfa) || 0;
-    const overriddenRooms = await getSpaceProgramRooms(input.projectId, orgId);
-    const overriddenCodes = new Set(overriddenRooms.map((r) => r.roomCode));
+    const overriddenRooms = await getSpaceProgramRooms(
+      input.projectId,
+      orgId
+    );
+    const overriddenCodes = new Set(
+      overriddenRooms.map((r) => r.roomCode)
+    );
     const result = await extractSpaceProgram({
       projectId: input.projectId,
       organizationId: orgId,
       typology,
       gfa
     });
-    const newRooms = result.rooms.filter((r) => !overriddenCodes.has(r.roomCode));
+    const newRooms = result.rooms.filter(
+      (r) => !overriddenCodes.has(r.roomCode)
+    );
     if (!await replaceSpaceProgramRoomsForOrg(
       input.projectId,
       orgId,
@@ -36880,6 +40441,10 @@ var spaceProgramRouter = router({
     };
   })
 });
+var spaceProgramRouter = mergeRouters(
+  legacySpaceProgramRouter,
+  spaceProgramGeometryRouter
+);
 
 // server/routers.ts
 var appRouter = router({

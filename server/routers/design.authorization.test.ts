@@ -53,7 +53,9 @@ const mocks = vi.hoisted(() => ({
     getActiveModelVersion: vi.fn(),
     getActiveBenchmarkVersion: vi.fn(),
     getPublishedLogicVersion: vi.fn(),
+    getProjectGeometryAuthorityModeForOrg: vi.fn(),
     updateProjectForOrg: vi.fn(),
+    updateProjectWithLegacyGeometryAuthorityForOrg: vi.fn(),
   },
 }));
 
@@ -181,10 +183,14 @@ describe("design router authorization", () => {
     mocks.db.revokeAiDesignBriefSharesForProjectForOrg.mockResolvedValue({ revokedCount: 0 });
     mocks.db.createFloorPlanAssetAndLinkForOrg.mockResolvedValue({ id: 902 });
     mocks.db.updateProjectForOrg.mockResolvedValue(true);
+    mocks.db.updateProjectWithLegacyGeometryAuthorityForOrg.mockResolvedValue(
+      "updated"
+    );
     mocks.db.getMaterialConstants.mockResolvedValue([]);
     mocks.db.getActiveModelVersion.mockResolvedValue(undefined);
     mocks.db.getActiveBenchmarkVersion.mockResolvedValue(undefined);
     mocks.db.getPublishedLogicVersion.mockResolvedValue(undefined);
+    mocks.db.getProjectGeometryAuthorityModeForOrg.mockResolvedValue("legacy");
     mocks.storagePut.mockResolvedValue({
       key: "projects/11/upload.png",
       url: "https://example.invalid/upload.png",
@@ -642,7 +648,59 @@ describe("design router authorization", () => {
       caller.analyzeFloorPlan({ projectId: projects.orgA.id })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(mocks.runFloorPlanAnalysis).not.toHaveBeenCalled();
-    expect(mocks.db.updateProjectForOrg).not.toHaveBeenCalled();
+    expect(
+      mocks.db.updateProjectWithLegacyGeometryAuthorityForOrg
+    ).not.toHaveBeenCalled();
+    expect(mocks.db.createAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("does not persist floor-plan analysis when authority becomes canonical at the final write", async () => {
+    mocks.db.getProjectById.mockImplementation(async (id: number) =>
+      id === projects.orgA.id
+        ? {
+            ...projects.orgA,
+            floorPlanAssetId: assets.orgA.id,
+            totalFitoutArea: null,
+          }
+        : undefined
+    );
+    mocks.db.getProjectAssetById.mockResolvedValue({
+      ...assets.orgA,
+      storagePath: "projects/101/11/floor-plan.png",
+      checksum: "a".repeat(64),
+    });
+    mocks.storageRead.mockResolvedValue({
+      buffer: Buffer.from(VALID_PNG_BASE64, "base64"),
+    });
+    mocks.runFloorPlanAnalysis.mockResolvedValue({
+      rooms: [],
+      totalEstimatedSqm: 12,
+      unitType: "metric",
+      analysisConfidence: 0.8,
+    });
+    mocks.db.getProjectGeometryAuthorityModeForOrg
+      .mockResolvedValueOnce("legacy")
+      .mockResolvedValueOnce("canonical");
+    mocks.db.updateProjectWithLegacyGeometryAuthorityForOrg.mockResolvedValue(
+      "canonical"
+    );
+
+    await expect(
+      designRouter
+        .createCaller(contexts.orgA)
+        .analyzeFloorPlan({ projectId: projects.orgA.id })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(mocks.runFloorPlanAnalysis).toHaveBeenCalledOnce();
+    expect(
+      mocks.db.updateProjectWithLegacyGeometryAuthorityForOrg
+    ).toHaveBeenCalledWith(
+      projects.orgA.id,
+      projects.orgA.orgId,
+      expect.objectContaining({
+        totalFitoutArea: "12",
+        floorPlanAnalysis: expect.any(Object),
+      })
+    );
     expect(mocks.db.createAuditLog).not.toHaveBeenCalled();
   });
 

@@ -11,7 +11,7 @@ This is the canonical location for current observed repository facts. It is not 
 - Package manager declared by repository: `pnpm`
 - Production: Vercel target `dpl_EfNS4qwEXLRXHPNKPi6isHG41BuE` is `READY` for exact source commit `1bad9d6`; canonical-main CI run `29675827338`, three root/health observations, login route, authenticated session/report preview, temporary share/revoke, unauthenticated tenant rejection, and concealed-share privacy checks pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `SC-04` is released and closed at `PASS`; `SC-05` is next but `NEEDS_HUMAN` for runtime topology, SLO/alert ownership, and monitoring cost. `KF-018` records a separate pre-existing legacy-report compatibility defect reproduced during production smoke.
+- Roadmap state: `SC-04` is released and closed at `PASS`; the local manual/DXF `DI-01` verification slice is complete in isolated branch/worktree state. The owner confirmed MIYAR is pre-launch with no real customers and decided there will be no shadow-mode rollout or shadow pilot. DI-01 is `NEEDS_HUMAN` for a separately bounded canonical-first launch implementation plan. Migration `0051`, Git publication, shared application, authority cutover, and deployment have not occurred. `SC-05` remains `NEEDS_HUMAN`, and `KF-018` remains a separate pre-existing legacy-report compatibility defect.
 
 ## Technology Observed
 
