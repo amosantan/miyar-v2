@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `DI-01` Git publication, draft-PR CI, and complete-diff review
+- Next executable step: none automatically executable (`DI-01` is `NEEDS_HUMAN` for merge, shared migration, and release gates)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -395,7 +395,7 @@ Rules:
 
 ### TR-14 — Reconcile migration 0044 and database recovery
 
-- Status: `ACTIVE`
+- Status: `NEEDS_HUMAN`
 - Class / priority: Schema/operations / P0
 - Dependencies: User direction on the existing migration working files; `TR-12`
 - Human gate: Owner of migration `0044`; shared-database application is separately gated.
@@ -579,7 +579,8 @@ Rules:
 - Canonical-first implementation evidence: Runtime authority is now only `legacy | canonical`, fresh projects atomically start canonical with no selected geometry, and manual/DXF inputs remain immutable drafts until explicit organization-admin review. Migration 0051 and its snapshot contain the corrected canonical defaults and composite tenant foreign keys. Accepted polygon measurements resolve only through exact graph/source/identity/version/formula/cardinality evidence; canonical MQI fails closed until finish-scope mapping exists, while professional GFA and fit-out remain separate. The final legacy aggregate write is transactionally authority-checked and a real concurrent-review regression proves it cannot land after canonical acceptance. The provider-free suite passes 1,358 with 22 skipped; a fresh disposable MySQL chain passes 25/25 with cleanup and current hash binding; TypeScript, authorization 345/0, database safety 114/2/0, build/budgets, diff checks, and desktop bilingual/role browser journeys pass. Three specialist reviewers and Claude Opus returned `APPROVED`.
 - Activated: 2026-07-19 in fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-di01-canonical` on branch `codex/di-01-canonical-first` from verified local foundation commit `738dfc6`.
 - Internal-data operation evidence: The exact loopback-only target `miyar_auth_test_tr10_browser` was snapshotted before reset (89 tables, 42 synthetic/internal rows; restore verified; owner-only snapshot SHA-256 `bd88414571b3115bfa832623bd7febfef2701f83e853c3f7d69fee682369d6f5`), dropped/recreated, and migrated through corrected 0051. The retained target has 100 tables, 52 migration entries, all ten empty DI-01 tables, zero checked application rows, and an idempotent second migration pass. Migration journal entry 52 exactly matches the checked-in 0051 SHA-256 `f3871aee5deefecae6b905850e306afac3e13760da78bd6f9ba0ef954d4f8e92`.
-- Current scope: The bounded canonical-first implementation, local verification, and exact authorized internal reset are complete. Git commit/push/draft-PR publication, CI, and complete-diff review are authorized and active. Shared migration, merge, and release remain unauthorized and require separate human approval.
+- Publication evidence: Commit `deba8b3` was pushed to `codex/di-01-canonical-first` and draft PR [#22](https://github.com/amosantan/miyar-v2/pull/22) targets `main`. CI run `29691153359` passed lint/test and MySQL authorization; Vercel preview and Preview Comments passed. The complete two-commit branch diff against `main` was reviewed with no unresolved blocker.
+- Current scope: The bounded canonical-first implementation, local verification, exact authorized internal reset, Git publication, draft-PR CI, and complete-diff review are complete. Shared migration, merge, and release remain unauthorized and require separate human approval.
 
 ## Phase EV — Evidence and Procurement Moat
 

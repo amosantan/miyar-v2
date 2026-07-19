@@ -3,7 +3,7 @@
 - ID: DI-01
 - Roadmap step: `DI-01`
 - Title: Canonical-first room geometry launch foundation
-- Status: ACTIVE
+- Status: NEEDS_HUMAN
 - Owner: Codex
 - Started: 2026-07-19
 - Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-di01-canonical`
@@ -57,4 +57,4 @@ On 2026-07-19 the owner separately authorized this operation for the exact loopb
 
 ## Next Action
 
-Commit the verified DI-01 change set, push `codex/di-01-canonical-first`, open a draft PR, run CI, and review the complete published diff. Then return DI-01 to `NEEDS_HUMAN` for separate merge, shared-migration, and release decisions.
+Git publication is complete at commit `deba8b30b4db94aafd2da104c19eb3eb18b3d5a9` on `codex/di-01-canonical-first` and draft PR [#22](https://github.com/amosantan/miyar-v2/pull/22). CI run `29691153359` passed lint/test and MySQL authorization; Vercel preview and Preview Comments also passed. The complete two-commit diff against `main` was reviewed with no unresolved blocker. Obtain separate explicit human approval before merge; only after merge identify and authorize an exact shared migration target, and authorize release separately after migration and production verification.
