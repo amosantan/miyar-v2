@@ -147,6 +147,15 @@ Policy-enforced human interaction gates are not repository failures and remain i
 - Closed evidence: The released application enforces null organization/project ownership and `platform_public`, uses a unique observation key and atomic transaction, and passed simultaneous-write, tenant-collision, rollback, and authorization verification on disposable MySQL. Production migration 0049 created the unique public-observation key; post-deployment integrity found zero duplicate keys, orphan assessments, or invalid current pointers, with all legacy records still null-provenance.
 - Exit criterion: Connector insert/update and confidence-assessment persistence execute atomically against only null-owned `platform_public` rows; same-key organization and legacy-unscoped rows are invariant; disposable MySQL concurrency/rollback evidence and the authorization audit pass.
 
+## KF-018 — Legacy stored reports can render malformed 5-Lens labels
+
+- Status: OPEN
+- Observed: 2026-07-19 during the SC-04 production report smoke on exact application release `1bad9d666d71a0b010a27433ca196c842b4e546f`.
+- Evidence: Opening an existing February 2026 validation-summary report through `/reports` rendered the stored document identity, scores, evidence trace, disclaimer, and input tables, but its 5-Lens section displayed repeated `undefined` labels/descriptions and `[object Object]` evidence text. The current synthetic report certification passes; the defect is specific to at least one legacy stored payload shape and predates SC-04's lazy-loading boundary.
+- Impact: A user can open a historically stored report successfully but see malformed legacy fields, reducing readability and defensibility. Rolling back SC-04 would not repair the stored payload or renderer compatibility.
+- Owner: Report compatibility follow-up; coordinate with `BR-02` before any broader issued-artifact model change.
+- Exit criterion: Reproduce the affected legacy payload shape in a versioned fixture; render meaningful labels/evidence or an explicit legacy-unavailable state without changing stored evidence; verify current and legacy report previews, exports, document identity, tenant authorization, full report certification, and production-compatible browser rendering.
+
 ## Handling Protocol
 
 1. Reproduce a failure before adding it.

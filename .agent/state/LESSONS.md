@@ -377,3 +377,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The dashboard closure is 220,257 gzip bytes (approximately 51% lower); all eight versioned closures and both local/Vercel roots pass; six evaluator tests fail the intended regressions; the guarded browser proves before/after module loading and desktop/mobile-width layout; full tests, build, audits, cleanup, and independent review pass.
 - Reuse rule: Do not judge client performance from the entry chunk, hashed filenames, or chunk count alone. Govern the static production closure a user actually reaches, verify optional interaction edges, and pair per-chunk limits with route totals so renaming or sharding cannot manufacture a pass.
 - Supersedes / related: Extends `LES-030`; `SC-05` owns runtime observability rather than client delivery budgets.
+
+### LES-033 — Production artifact commands must own their build mode
+
+- Date / roadmap step: 2026-07-19 / `SC-04` release
+- Context: Hosted CI exports `NODE_ENV=test` for unit safety and then invokes the same `pnpm build` command used for production artifacts.
+- Observed: Vite respected the hostile parent value and selected development/test dependency paths, increasing entry gzip from approximately 138 KB to 200 KB and causing every route budget to fail even though the local default build passed.
+- Cause: The production build command relied on ambient environment state instead of explicitly selecting the artifact profile it claimed to produce.
+- Fix or decision: Make the Vite production-build subprocess set `NODE_ENV=production`; retain the hostile parent for the surrounding CI job and keep every measured budget unchanged.
+- Proof: `NODE_ENV=test pnpm build` first reproduced the hosted failure, then passed with the fix at the original 138,121-byte entry and all eight unchanged route ceilings. PR and canonical-main hosted CI, Vercel preview, and exact-SHA production deployment passed.
+- Reuse rule: A command that claims to build a production artifact must select production mode itself. Test safety belongs at the test/database boundary; ambient test variables must not silently redefine release artifacts.
+- Supersedes / related: Extends `LES-029` and `LES-032`.
