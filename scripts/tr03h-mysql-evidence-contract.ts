@@ -54,7 +54,7 @@ export const REQUIRED_MYSQL_EVIDENCE_FILES = [
   "server/routers/design-geometry-assets.authorization.test.ts",
   "server/routers/spaceProgram-geometry.ts",
   "server/routers/spaceProgram-geometry.authorization.test.ts",
-  "client/src/components/GeometryShadowPanel.tsx",
+  "client/src/components/RoomGeometryPanel.tsx",
   "scripts/recreate-mysql-auth-test.ts",
   "scripts/run-guarded-mysql-tests.ts",
   "scripts/cleanup-mysql-auth-test.ts",

@@ -40,7 +40,9 @@ describe("DI-01 additive schema contract", () => {
 
   it("adds CAD assets and preserves tenant-scoped CAS and replay keys", () => {
     expect(migration).toContain("'text_note','cad'");
-    expect(migration).toContain("project_geometry_authorities_org_project_unique");
+    expect(migration).toContain(
+      "project_geometry_authorities_org_project_unique"
+    );
     expect(migration).toContain("`currentGraphVersionId` int");
     expect(migration).toContain("`selectedGeometryVersionId` int");
     expect(migration).toContain("geometry_sources_idempotency_unique");
@@ -49,7 +51,12 @@ describe("DI-01 additive schema contract", () => {
     expect(migration).toContain("measurement_input_edges_pair_unique");
     expect(migration).toContain("legacy_space_links_source_unique");
     expect(migration).toContain("artifact_input_snapshots_artifact_unique");
-    expect(migration).toContain("'candidate_created','accepted'");
+    expect(migration).toContain("'draft_created','accepted'");
+    expect(migration).toContain(
+      "enum('legacy','canonical') NOT NULL DEFAULT 'canonical'"
+    );
+    expect(migration).not.toContain("'shadow'");
+    expect(migration).toContain("'draft','canonical','needs_clarification'");
   });
 
   it("stores immutable geometry, measurement lineage, and append-only review facts", () => {

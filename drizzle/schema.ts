@@ -12,6 +12,7 @@ import {
   json,
   index,
   uniqueIndex,
+  foreignKey,
 } from "drizzle-orm/mysql-core";
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -2929,7 +2930,7 @@ export type InsertAmenitySubSpace = typeof amenitySubSpaces.$inferInsert;
 
 // ─── DI-01 — Canonical Room Geometry and Measurement Foundation ─────────
 //
-// These relations are additive and shadow-safe. Cross-table mutations must
+// These relations are additive and canonical-first. Cross-table mutations must
 // validate organizationId and projectId together in their final transaction;
 // the repeated ownership columns and composite unique indexes make those
 // checks deterministic and prevent an unscoped relation from being selected.
@@ -2940,8 +2941,8 @@ export const projectGeometryAuthorities = mysqlTable(
     id: int("id").primaryKey().autoincrement(),
     organizationId: int("organizationId").notNull(),
     projectId: int("projectId").notNull(),
-    mode: mysqlEnum("mode", ["legacy", "shadow", "canonical"])
-      .default("legacy")
+    mode: mysqlEnum("mode", ["legacy", "canonical"])
+      .default("canonical")
       .notNull(),
     currentGraphVersionId: int("currentGraphVersionId"),
     selectedGeometryVersionId: int("selectedGeometryVersionId"),
@@ -2965,11 +2966,37 @@ export const projectGeometryAuthorities = mysqlTable(
       table.projectId,
       table.currentGraphVersionId
     ),
-    index("project_geometry_authorities_shadow_idx").on(
+    index("project_geometry_authorities_selected_idx").on(
       table.organizationId,
       table.projectId,
       table.selectedGeometryVersionId
     ),
+    foreignKey({
+      name: "pga_current_graph_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.currentGraphVersionId,
+      ],
+      foreignColumns: [
+        spatialGraphVersions.organizationId,
+        spatialGraphVersions.projectId,
+        spatialGraphVersions.id,
+      ],
+    }),
+    foreignKey({
+      name: "pga_selected_graph_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.selectedGeometryVersionId,
+      ],
+      foreignColumns: [
+        spatialGraphVersions.organizationId,
+        spatialGraphVersions.projectId,
+        spatialGraphVersions.id,
+      ],
+    }),
   ]
 );
 
@@ -2989,12 +3016,13 @@ export const spatialGraphVersions = mysqlTable(
     parentGraphVersionId: int("parentGraphVersionId"),
     geometrySourceId: int("geometrySourceId"),
     status: mysqlEnum("status", [
-      "candidate",
-      "accepted",
+      "draft",
+      "canonical",
+      "needs_clarification",
       "rejected",
       "superseded",
     ])
-      .default("candidate")
+      .default("draft")
       .notNull(),
     canonicalGeometry: json("canonicalGeometry").notNull(),
     canonicalJsonSizeBytes: int("canonicalJsonSizeBytes").notNull(),
@@ -3051,6 +3079,32 @@ export const spatialGraphVersions = mysqlTable(
       table.projectId,
       table.parentGraphVersionId
     ),
+    foreignKey({
+      name: "sgv_parent_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.parentGraphVersionId,
+      ],
+      foreignColumns: [
+        table.organizationId,
+        table.projectId,
+        table.id,
+      ],
+    }),
+    foreignKey({
+      name: "sgv_source_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.geometrySourceId,
+      ],
+      foreignColumns: [
+        geometrySources.organizationId,
+        geometrySources.projectId,
+        geometrySources.id,
+      ],
+    }),
   ]
 );
 
@@ -3154,6 +3208,45 @@ export const spaceVersions = mysqlTable(
       table.projectId,
       table.supersedesSpaceVersionId
     ),
+    foreignKey({
+      name: "sv_identity_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.spaceIdentityId,
+      ],
+      foreignColumns: [
+        spaceIdentities.organizationId,
+        spaceIdentities.projectId,
+        spaceIdentities.id,
+      ],
+    }),
+    foreignKey({
+      name: "sv_graph_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.geometryVersionId,
+      ],
+      foreignColumns: [
+        spatialGraphVersions.organizationId,
+        spatialGraphVersions.projectId,
+        spatialGraphVersions.id,
+      ],
+    }),
+    foreignKey({
+      name: "sv_supersedes_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.supersedesSpaceVersionId,
+      ],
+      foreignColumns: [
+        table.organizationId,
+        table.projectId,
+        table.id,
+      ],
+    }),
   ]
 );
 
@@ -3330,6 +3423,71 @@ export const measurementRecords = mysqlTable(
       table.projectId,
       table.supersedesMeasurementRecordId
     ),
+    foreignKey({
+      name: "mr_identity_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.spaceIdentityId,
+      ],
+      foreignColumns: [
+        spaceIdentities.organizationId,
+        spaceIdentities.projectId,
+        spaceIdentities.id,
+      ],
+    }),
+    foreignKey({
+      name: "mr_space_version_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.spaceVersionId,
+      ],
+      foreignColumns: [
+        spaceVersions.organizationId,
+        spaceVersions.projectId,
+        spaceVersions.id,
+      ],
+    }),
+    foreignKey({
+      name: "mr_graph_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.graphVersionId,
+      ],
+      foreignColumns: [
+        spatialGraphVersions.organizationId,
+        spatialGraphVersions.projectId,
+        spatialGraphVersions.id,
+      ],
+    }),
+    foreignKey({
+      name: "mr_source_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.geometrySourceId,
+      ],
+      foreignColumns: [
+        geometrySources.organizationId,
+        geometrySources.projectId,
+        geometrySources.id,
+      ],
+    }),
+    foreignKey({
+      name: "mr_supersedes_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.supersedesMeasurementRecordId,
+      ],
+      foreignColumns: [
+        table.organizationId,
+        table.projectId,
+        table.id,
+      ],
+    }),
   ]
 );
 
@@ -3371,6 +3529,32 @@ export const measurementInputEdges = mysqlTable(
       table.projectId,
       table.inputMeasurementRecordId
     ),
+    foreignKey({
+      name: "mie_derived_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.derivedMeasurementRecordId,
+      ],
+      foreignColumns: [
+        measurementRecords.organizationId,
+        measurementRecords.projectId,
+        measurementRecords.id,
+      ],
+    }),
+    foreignKey({
+      name: "mie_input_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.inputMeasurementRecordId,
+      ],
+      foreignColumns: [
+        measurementRecords.organizationId,
+        measurementRecords.projectId,
+        measurementRecords.id,
+      ],
+    }),
   ]
 );
 
@@ -3387,12 +3571,12 @@ export const geometryReconciliationEvents = mysqlTable(
     authorityId: int("authorityId").notNull(),
     expectedCurrentGraphVersionId: int("expectedCurrentGraphVersionId"),
     baseGraphVersionId: int("baseGraphVersionId"),
-    candidateGraphVersionId: int("candidateGraphVersionId").notNull(),
+    draftGraphVersionId: int("draftGraphVersionId").notNull(),
     resultGraphVersionId: int("resultGraphVersionId"),
     baseMeasurementRecordId: int("baseMeasurementRecordId"),
-    candidateMeasurementRecordId: int("candidateMeasurementRecordId"),
+    draftMeasurementRecordId: int("draftMeasurementRecordId"),
     baseFingerprint: varchar("baseFingerprint", { length: 64 }),
-    candidateFingerprint: varchar("candidateFingerprint", {
+    draftFingerprint: varchar("draftFingerprint", {
       length: 64,
     }).notNull(),
     differenceSquareMetres: decimal("differenceSquareMetres", {
@@ -3407,7 +3591,7 @@ export const geometryReconciliationEvents = mysqlTable(
       length: 64,
     }).notNull(),
     reviewDecision: mysqlEnum("reviewDecision", [
-      "candidate_created",
+      "draft_created",
       "accepted",
       "rejected",
       "needs_clarification",
@@ -3429,10 +3613,10 @@ export const geometryReconciliationEvents = mysqlTable(
       table.projectId,
       table.id
     ),
-    index("geometry_reconciliation_events_candidate_idx").on(
+    index("geometry_reconciliation_events_draft_idx").on(
       table.organizationId,
       table.projectId,
-      table.candidateGraphVersionId,
+      table.draftGraphVersionId,
       table.createdAt
     ),
     index("geometry_reconciliation_events_authority_idx").on(
@@ -3450,8 +3634,59 @@ export const geometryReconciliationEvents = mysqlTable(
       table.organizationId,
       table.projectId,
       table.baseMeasurementRecordId,
-      table.candidateMeasurementRecordId
+      table.draftMeasurementRecordId
     ),
+    foreignKey({
+      name: "gre_authority_scope_fk",
+      columns: [table.organizationId, table.projectId, table.authorityId],
+      foreignColumns: [
+        projectGeometryAuthorities.organizationId,
+        projectGeometryAuthorities.projectId,
+        projectGeometryAuthorities.id,
+      ],
+    }),
+    ...[
+      ["gre_expected_graph_scope_fk", table.expectedCurrentGraphVersionId],
+      ["gre_base_graph_scope_fk", table.baseGraphVersionId],
+      ["gre_draft_graph_scope_fk", table.draftGraphVersionId],
+      ["gre_result_graph_scope_fk", table.resultGraphVersionId],
+    ].map(([name, column]) =>
+      foreignKey({
+        name: name as string,
+        columns: [table.organizationId, table.projectId, column as any],
+        foreignColumns: [
+          spatialGraphVersions.organizationId,
+          spatialGraphVersions.projectId,
+          spatialGraphVersions.id,
+        ],
+      })
+    ),
+    foreignKey({
+      name: "gre_base_measurement_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.baseMeasurementRecordId,
+      ],
+      foreignColumns: [
+        measurementRecords.organizationId,
+        measurementRecords.projectId,
+        measurementRecords.id,
+      ],
+    }),
+    foreignKey({
+      name: "gre_draft_measurement_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.draftMeasurementRecordId,
+      ],
+      foreignColumns: [
+        measurementRecords.organizationId,
+        measurementRecords.projectId,
+        measurementRecords.id,
+      ],
+    }),
   ]
 );
 
@@ -3497,6 +3732,19 @@ export const legacySpaceLinks = mysqlTable(
       table.projectId,
       table.spaceIdentityId
     ),
+    foreignKey({
+      name: "lsl_identity_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.spaceIdentityId,
+      ],
+      foreignColumns: [
+        spaceIdentities.organizationId,
+        spaceIdentities.projectId,
+        spaceIdentities.id,
+      ],
+    }),
   ]
 );
 
@@ -3552,6 +3800,19 @@ export const artifactInputSnapshots = mysqlTable(
       table.projectId,
       table.snapshotDigest
     ),
+    foreignKey({
+      name: "ais_graph_scope_fk",
+      columns: [
+        table.organizationId,
+        table.projectId,
+        table.graphVersionId,
+      ],
+      foreignColumns: [
+        spatialGraphVersions.organizationId,
+        spatialGraphVersions.projectId,
+        spatialGraphVersions.id,
+      ],
+    }),
   ]
 );
 

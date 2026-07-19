@@ -104,7 +104,7 @@ if (exitCode === 0) {
         migrationMode:
           "checked-in migration chain on a freshly created database",
         testFile: MYSQL_INTEGRATION_TEST,
-        testCount: 24,
+        testCount: 25,
         cleanupVerified: true,
         fileHashes: Object.fromEntries(
           REQUIRED_MYSQL_EVIDENCE_FILES.map(file => [file, fileHash(file)])

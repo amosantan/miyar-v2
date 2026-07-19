@@ -327,6 +327,8 @@ const OWNERSHIP_PATHS: Record<string, string> = {
     "input.geometryVersionId -> spatial_graph_versions.id -> spatial_graph_versions.projectId/organizationId",
   expectedCurrentVersionId:
     "input.expectedCurrentVersionId -> project_geometry_authorities.currentGraphVersionId -> spatial_graph_versions.projectId/organizationId",
+  sourceLineageId:
+    "input.sourceLineageId -> caller-declared drawing lineage namespace -> bound to the already-authorized project in the geometry fingerprint; not a standalone resource",
   alertId:
     "input.alertId -> bias_alerts/platform_alerts.id -> projectId/orgId when project-owned",
   alertIds:

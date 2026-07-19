@@ -396,7 +396,8 @@ import {
   boolean,
   json,
   index,
-  uniqueIndex
+  uniqueIndex,
+  foreignKey
 } from "drizzle-orm/mysql-core";
 var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots;
 var init_schema = __esm({
@@ -2844,7 +2845,7 @@ var init_schema = __esm({
         id: int("id").primaryKey().autoincrement(),
         organizationId: int("organizationId").notNull(),
         projectId: int("projectId").notNull(),
-        mode: mysqlEnum("mode", ["legacy", "shadow", "canonical"]).default("legacy").notNull(),
+        mode: mysqlEnum("mode", ["legacy", "canonical"]).default("canonical").notNull(),
         currentGraphVersionId: int("currentGraphVersionId"),
         selectedGeometryVersionId: int("selectedGeometryVersionId"),
         revision: int("revision").default(0).notNull(),
@@ -2867,11 +2868,37 @@ var init_schema = __esm({
           table.projectId,
           table.currentGraphVersionId
         ),
-        index("project_geometry_authorities_shadow_idx").on(
+        index("project_geometry_authorities_selected_idx").on(
           table.organizationId,
           table.projectId,
           table.selectedGeometryVersionId
-        )
+        ),
+        foreignKey({
+          name: "pga_current_graph_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.currentGraphVersionId
+          ],
+          foreignColumns: [
+            spatialGraphVersions.organizationId,
+            spatialGraphVersions.projectId,
+            spatialGraphVersions.id
+          ]
+        }),
+        foreignKey({
+          name: "pga_selected_graph_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.selectedGeometryVersionId
+          ],
+          foreignColumns: [
+            spatialGraphVersions.organizationId,
+            spatialGraphVersions.projectId,
+            spatialGraphVersions.id
+          ]
+        })
       ]
     );
     spatialGraphVersions = mysqlTable(
@@ -2885,11 +2912,12 @@ var init_schema = __esm({
         parentGraphVersionId: int("parentGraphVersionId"),
         geometrySourceId: int("geometrySourceId"),
         status: mysqlEnum("status", [
-          "candidate",
-          "accepted",
+          "draft",
+          "canonical",
+          "needs_clarification",
           "rejected",
           "superseded"
-        ]).default("candidate").notNull(),
+        ]).default("draft").notNull(),
         canonicalGeometry: json("canonicalGeometry").notNull(),
         canonicalJsonSizeBytes: int("canonicalJsonSizeBytes").notNull(),
         totalAreaSquareMetres: decimal("totalAreaSquareMetres", {
@@ -2944,7 +2972,33 @@ var init_schema = __esm({
           table.organizationId,
           table.projectId,
           table.parentGraphVersionId
-        )
+        ),
+        foreignKey({
+          name: "sgv_parent_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.parentGraphVersionId
+          ],
+          foreignColumns: [
+            table.organizationId,
+            table.projectId,
+            table.id
+          ]
+        }),
+        foreignKey({
+          name: "sgv_source_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.geometrySourceId
+          ],
+          foreignColumns: [
+            geometrySources.organizationId,
+            geometrySources.projectId,
+            geometrySources.id
+          ]
+        })
       ]
     );
     spaceIdentities = mysqlTable(
@@ -3036,7 +3090,46 @@ var init_schema = __esm({
           table.organizationId,
           table.projectId,
           table.supersedesSpaceVersionId
-        )
+        ),
+        foreignKey({
+          name: "sv_identity_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.spaceIdentityId
+          ],
+          foreignColumns: [
+            spaceIdentities.organizationId,
+            spaceIdentities.projectId,
+            spaceIdentities.id
+          ]
+        }),
+        foreignKey({
+          name: "sv_graph_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.geometryVersionId
+          ],
+          foreignColumns: [
+            spatialGraphVersions.organizationId,
+            spatialGraphVersions.projectId,
+            spatialGraphVersions.id
+          ]
+        }),
+        foreignKey({
+          name: "sv_supersedes_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.supersedesSpaceVersionId
+          ],
+          foreignColumns: [
+            table.organizationId,
+            table.projectId,
+            table.id
+          ]
+        })
       ]
     );
     geometrySources = mysqlTable(
@@ -3202,7 +3295,72 @@ var init_schema = __esm({
           table.organizationId,
           table.projectId,
           table.supersedesMeasurementRecordId
-        )
+        ),
+        foreignKey({
+          name: "mr_identity_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.spaceIdentityId
+          ],
+          foreignColumns: [
+            spaceIdentities.organizationId,
+            spaceIdentities.projectId,
+            spaceIdentities.id
+          ]
+        }),
+        foreignKey({
+          name: "mr_space_version_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.spaceVersionId
+          ],
+          foreignColumns: [
+            spaceVersions.organizationId,
+            spaceVersions.projectId,
+            spaceVersions.id
+          ]
+        }),
+        foreignKey({
+          name: "mr_graph_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.graphVersionId
+          ],
+          foreignColumns: [
+            spatialGraphVersions.organizationId,
+            spatialGraphVersions.projectId,
+            spatialGraphVersions.id
+          ]
+        }),
+        foreignKey({
+          name: "mr_source_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.geometrySourceId
+          ],
+          foreignColumns: [
+            geometrySources.organizationId,
+            geometrySources.projectId,
+            geometrySources.id
+          ]
+        }),
+        foreignKey({
+          name: "mr_supersedes_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.supersedesMeasurementRecordId
+          ],
+          foreignColumns: [
+            table.organizationId,
+            table.projectId,
+            table.id
+          ]
+        })
       ]
     );
     measurementInputEdges = mysqlTable(
@@ -3239,7 +3397,33 @@ var init_schema = __esm({
           table.organizationId,
           table.projectId,
           table.inputMeasurementRecordId
-        )
+        ),
+        foreignKey({
+          name: "mie_derived_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.derivedMeasurementRecordId
+          ],
+          foreignColumns: [
+            measurementRecords.organizationId,
+            measurementRecords.projectId,
+            measurementRecords.id
+          ]
+        }),
+        foreignKey({
+          name: "mie_input_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.inputMeasurementRecordId
+          ],
+          foreignColumns: [
+            measurementRecords.organizationId,
+            measurementRecords.projectId,
+            measurementRecords.id
+          ]
+        })
       ]
     );
     geometryReconciliationEvents = mysqlTable(
@@ -3251,12 +3435,12 @@ var init_schema = __esm({
         authorityId: int("authorityId").notNull(),
         expectedCurrentGraphVersionId: int("expectedCurrentGraphVersionId"),
         baseGraphVersionId: int("baseGraphVersionId"),
-        candidateGraphVersionId: int("candidateGraphVersionId").notNull(),
+        draftGraphVersionId: int("draftGraphVersionId").notNull(),
         resultGraphVersionId: int("resultGraphVersionId"),
         baseMeasurementRecordId: int("baseMeasurementRecordId"),
-        candidateMeasurementRecordId: int("candidateMeasurementRecordId"),
+        draftMeasurementRecordId: int("draftMeasurementRecordId"),
         baseFingerprint: varchar("baseFingerprint", { length: 64 }),
-        candidateFingerprint: varchar("candidateFingerprint", {
+        draftFingerprint: varchar("draftFingerprint", {
           length: 64
         }).notNull(),
         differenceSquareMetres: decimal("differenceSquareMetres", {
@@ -3271,7 +3455,7 @@ var init_schema = __esm({
           length: 64
         }).notNull(),
         reviewDecision: mysqlEnum("reviewDecision", [
-          "candidate_created",
+          "draft_created",
           "accepted",
           "rejected",
           "needs_clarification",
@@ -3293,10 +3477,10 @@ var init_schema = __esm({
           table.projectId,
           table.id
         ),
-        index("geometry_reconciliation_events_candidate_idx").on(
+        index("geometry_reconciliation_events_draft_idx").on(
           table.organizationId,
           table.projectId,
-          table.candidateGraphVersionId,
+          table.draftGraphVersionId,
           table.createdAt
         ),
         index("geometry_reconciliation_events_authority_idx").on(
@@ -3314,8 +3498,59 @@ var init_schema = __esm({
           table.organizationId,
           table.projectId,
           table.baseMeasurementRecordId,
-          table.candidateMeasurementRecordId
-        )
+          table.draftMeasurementRecordId
+        ),
+        foreignKey({
+          name: "gre_authority_scope_fk",
+          columns: [table.organizationId, table.projectId, table.authorityId],
+          foreignColumns: [
+            projectGeometryAuthorities.organizationId,
+            projectGeometryAuthorities.projectId,
+            projectGeometryAuthorities.id
+          ]
+        }),
+        ...[
+          ["gre_expected_graph_scope_fk", table.expectedCurrentGraphVersionId],
+          ["gre_base_graph_scope_fk", table.baseGraphVersionId],
+          ["gre_draft_graph_scope_fk", table.draftGraphVersionId],
+          ["gre_result_graph_scope_fk", table.resultGraphVersionId]
+        ].map(
+          ([name, column]) => foreignKey({
+            name,
+            columns: [table.organizationId, table.projectId, column],
+            foreignColumns: [
+              spatialGraphVersions.organizationId,
+              spatialGraphVersions.projectId,
+              spatialGraphVersions.id
+            ]
+          })
+        ),
+        foreignKey({
+          name: "gre_base_measurement_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.baseMeasurementRecordId
+          ],
+          foreignColumns: [
+            measurementRecords.organizationId,
+            measurementRecords.projectId,
+            measurementRecords.id
+          ]
+        }),
+        foreignKey({
+          name: "gre_draft_measurement_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.draftMeasurementRecordId
+          ],
+          foreignColumns: [
+            measurementRecords.organizationId,
+            measurementRecords.projectId,
+            measurementRecords.id
+          ]
+        })
       ]
     );
     legacySpaceLinks = mysqlTable(
@@ -3354,7 +3589,20 @@ var init_schema = __esm({
           table.organizationId,
           table.projectId,
           table.spaceIdentityId
-        )
+        ),
+        foreignKey({
+          name: "lsl_identity_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.spaceIdentityId
+          ],
+          foreignColumns: [
+            spaceIdentities.organizationId,
+            spaceIdentities.projectId,
+            spaceIdentities.id
+          ]
+        })
       ]
     );
     artifactInputSnapshots = mysqlTable(
@@ -3405,7 +3653,20 @@ var init_schema = __esm({
           table.organizationId,
           table.projectId,
           table.snapshotDigest
-        )
+        ),
+        foreignKey({
+          name: "ais_graph_scope_fk",
+          columns: [
+            table.organizationId,
+            table.projectId,
+            table.graphVersionId
+          ],
+          foreignColumns: [
+            spatialGraphVersions.organizationId,
+            spatialGraphVersions.projectId,
+            spatialGraphVersions.id
+          ]
+        })
       ]
     );
   }
@@ -3439,6 +3700,38 @@ var init_env = __esm({
   }
 });
 
+// shared/geometry/types.ts
+var GEOMETRY_SCHEMA_VERSION, GEOMETRY_CANONICALIZER_VERSION, GEOMETRY_TOLERANCE_POLICY_VERSION, ROOM_FLOOR_POLYGON_AREA, DXF_ADAPTER_VERSION, DXF_BOUNDARY_LIMITS;
+var init_types = __esm({
+  "shared/geometry/types.ts"() {
+    "use strict";
+    GEOMETRY_SCHEMA_VERSION = "MIYAR_GEOM_V1";
+    GEOMETRY_CANONICALIZER_VERSION = "miyar-geometry-canonicalizer-v1";
+    GEOMETRY_TOLERANCE_POLICY_VERSION = "miyar-geometry-tolerance-v1";
+    ROOM_FLOOR_POLYGON_AREA = "room_floor_polygon_area";
+    DXF_ADAPTER_VERSION = "miyar-ascii-dxf-v2";
+    DXF_BOUNDARY_LIMITS = {
+      sourceBytes: 10 * 1024 * 1024,
+      entities: 1e5,
+      vertices: 1e5,
+      layers: 2e3,
+      nestingDepth: 32,
+      absoluteSourceCoordinate: "1000000000",
+      deadlineMilliseconds: 5e3,
+      canonicalJsonBytes: 8 * 1024 * 1024,
+      overlayLevelBytes: 2 * 1024 * 1024
+    };
+  }
+});
+
+// shared/geometry/index.ts
+var init_geometry = __esm({
+  "shared/geometry/index.ts"() {
+    "use strict";
+    init_types();
+  }
+});
+
 // server/db.ts
 var db_exports = {};
 __export(db_exports, {
@@ -3447,7 +3740,6 @@ __export(db_exports, {
   addMaterialToBoardForOrg: () => addMaterialToBoardForOrg,
   archiveLogicVersion: () => archiveLogicVersion,
   clearSpaceRecommendations: () => clearSpaceRecommendations,
-  commitShadowGeometryForOrg: () => commitShadowGeometryForOrg,
   createAiDesignBrief: () => createAiDesignBrief,
   createAiDesignBriefForOrg: () => createAiDesignBriefForOrg,
   createAssetLinkForOrg: () => createAssetLinkForOrg,
@@ -3548,6 +3840,7 @@ __export(db_exports, {
   dismissBiasAlert: () => dismissBiasAlert,
   dismissBiasAlertForOrg: () => dismissBiasAlertForOrg,
   emailExists: () => emailExists,
+  getAcceptedRoomFloorMeasurementsForOrg: () => getAcceptedRoomFloorMeasurementsForOrg,
   getActiveBenchmarkVersion: () => getActiveBenchmarkVersion,
   getActiveBiasAlerts: () => getActiveBiasAlerts,
   getActiveModelVersion: () => getActiveModelVersion,
@@ -3618,7 +3911,7 @@ __export(db_exports, {
   getExpectedCost: () => getExpectedCost,
   getGeneratedVisualById: () => getGeneratedVisualById,
   getGeneratedVisualsByProject: () => getGeneratedVisualsByProject,
-  getGeometryComparisonForOrg: () => getGeometryComparisonForOrg,
+  getGeometryReviewStateForOrg: () => getGeometryReviewStateForOrg,
   getGlobalProjectInsights: () => getGlobalProjectInsights,
   getGovernedAccuracySnapshots: () => getGovernedAccuracySnapshots,
   getGovernedBenchmarkSuggestions: () => getGovernedBenchmarkSuggestions,
@@ -3747,9 +4040,10 @@ __export(db_exports, {
   resetSpaceProgramRooms: () => resetSpaceProgramRooms,
   reviewBenchmarkProposal: () => reviewBenchmarkProposal,
   reviewBenchmarkSuggestion: () => reviewBenchmarkSuggestion,
-  reviewShadowGeometryForOrg: () => reviewShadowGeometryForOrg,
+  reviewGeometryDraftForOrg: () => reviewGeometryDraftForOrg,
   revokeAiDesignBriefSharesForProjectForOrg: () => revokeAiDesignBriefSharesForProjectForOrg,
   revokeAiDesignBriefSharesForProjectForOrgInDatabase: () => revokeAiDesignBriefSharesForProjectForOrgInDatabase,
+  saveGeometryDraftForOrg: () => saveGeometryDraftForOrg,
   setLogicThresholds: () => setLogicThresholds,
   setLogicWeights: () => setLogicWeights,
   updateAiDesignBriefShareToken: () => updateAiDesignBriefShareToken,
@@ -3904,8 +4198,23 @@ async function emailExists(email) {
 async function createProject(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(projects).values(data);
-  return { id: Number(result[0].insertId) };
+  if (data.orgId == null) {
+    throw new Error("Organization context required for project creation");
+  }
+  return db.transaction(async (tx) => {
+    const result = await tx.insert(projects).values(data);
+    const projectId = Number(result[0].insertId);
+    await tx.insert(projectGeometryAuthorities).values({
+      organizationId: data.orgId,
+      projectId,
+      mode: "canonical",
+      currentGraphVersionId: null,
+      selectedGeometryVersionId: null,
+      revision: 0,
+      updatedBy: data.userId
+    });
+    return { id: projectId };
+  });
 }
 async function getProjectsByUser(userId) {
   const db = await getDb();
@@ -4644,9 +4953,9 @@ async function getDesignBriefById(id) {
 }
 async function getLatestDesignBrief(projectId) {
   const db = await getDb();
-  if (!db) return void 0;
+  if (!db) return null;
   const result = await db.select().from(designBriefs).where(eq(designBriefs.projectId, projectId)).orderBy(desc(designBriefs.version)).limit(1);
-  return result[0];
+  return result[0] ?? null;
 }
 async function createGeneratedVisual(data) {
   const db = await getDb();
@@ -6780,17 +7089,14 @@ async function verifyPdfExtractionForOrg(id, projectId, orgId, userId, verifiedA
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const extraction = await tx.select({ id: pdfExtractions.id }).from(pdfExtractions).innerJoin(projects, eq(pdfExtractions.projectId, projects.id)).where(and(
-      eq(pdfExtractions.id, id),
-      eq(pdfExtractions.projectId, projectId),
-      eq(projects.orgId, orgId)
-    )).limit(1).for("update");
+    const extraction = await tx.select({ id: pdfExtractions.id }).from(pdfExtractions).innerJoin(projects, eq(pdfExtractions.projectId, projects.id)).where(
+      and(
+        eq(pdfExtractions.id, id),
+        eq(pdfExtractions.projectId, projectId),
+        eq(projects.orgId, orgId)
+      )
+    ).limit(1).for("update");
     if (extraction.length !== 1) return false;
-    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(and(
-      eq(projectGeometryAuthorities.organizationId, orgId),
-      eq(projectGeometryAuthorities.projectId, projectId)
-    )).limit(1).for("update");
-    if (authority[0]?.mode === "canonical") return false;
     await tx.update(pdfExtractions).set({
       status: "verified",
       verifiedBy: userId,
@@ -6813,21 +7119,21 @@ async function updateProjectVerification(projectId, data) {
 }
 async function updateProjectVerificationForOrg(projectId, orgId, data) {
   const updates = {};
-  if (data.fitoutAreaVerified !== void 0) updates.fitoutAreaVerified = data.fitoutAreaVerified;
-  if (data.totalFitoutArea !== void 0) updates.totalFitoutArea = String(data.totalFitoutArea);
-  return await updateProjectWithLegacyGeometryAuthorityForOrg(
-    projectId,
-    orgId,
-    updates
-  ) === "updated";
+  if (data.fitoutAreaVerified !== void 0)
+    updates.fitoutAreaVerified = data.fitoutAreaVerified;
+  if (data.totalFitoutArea !== void 0)
+    updates.totalFitoutArea = String(data.totalFitoutArea);
+  return updateProjectForOrg(projectId, orgId, updates);
 }
 async function getMaterialAllocations(projectId, organizationId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(materialAllocations).where(and(
-    eq(materialAllocations.projectId, projectId),
-    eq(materialAllocations.organizationId, organizationId)
-  )).orderBy(materialAllocations.roomId, materialAllocations.element);
+  return db.select().from(materialAllocations).where(
+    and(
+      eq(materialAllocations.projectId, projectId),
+      eq(materialAllocations.organizationId, organizationId)
+    )
+  ).orderBy(materialAllocations.roomId, materialAllocations.element);
 }
 async function insertMaterialAllocations(data) {
   const db = await getDb();
@@ -6839,20 +7145,22 @@ async function replaceMaterialAllocationsForOrg(projectId, organizationId, data)
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(
-      eq(projects.id, projectId),
-      eq(projects.orgId, organizationId)
-    )).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(
+      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+    ).limit(1).for("update");
     if (project.length !== 1) return false;
-    await tx.delete(materialAllocations).where(and(
-      eq(materialAllocations.projectId, projectId),
-      eq(materialAllocations.organizationId, organizationId),
-      eq(materialAllocations.isLocked, false)
-    ));
+    await tx.delete(materialAllocations).where(
+      and(
+        eq(materialAllocations.projectId, projectId),
+        eq(materialAllocations.organizationId, organizationId),
+        eq(materialAllocations.isLocked, false)
+      )
+    );
     if (data.length > 0) {
       if (data.some(
         (row) => row.projectId !== projectId || row.organizationId !== organizationId
-      )) return false;
+      ))
+        return false;
       await tx.insert(materialAllocations).values(data);
     }
     return true;
@@ -6884,28 +7192,34 @@ async function getMaterialAllocationById(id) {
 async function updateMaterialAllocationForOrg(id, organizationId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.update(materialAllocations).set(data).where(and(
-    eq(materialAllocations.id, id),
-    eq(materialAllocations.organizationId, organizationId)
-  ));
+  const result = await db.update(materialAllocations).set(data).where(
+    and(
+      eq(materialAllocations.id, id),
+      eq(materialAllocations.organizationId, organizationId)
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function lockMaterialAllocations(projectId, organizationId, isLocked) {
   const db = await getDb();
   if (!db) return;
-  return db.update(materialAllocations).set({ isLocked }).where(and(
-    eq(materialAllocations.projectId, projectId),
-    eq(materialAllocations.organizationId, organizationId)
-  ));
+  return db.update(materialAllocations).set({ isLocked }).where(
+    and(
+      eq(materialAllocations.projectId, projectId),
+      eq(materialAllocations.organizationId, organizationId)
+    )
+  );
 }
 async function getMaterialSupplierSources(organizationId) {
   const db = await getDb();
   if (!db) return [];
   if (organizationId) {
-    return db.select().from(materialSupplierSources).where(and(
-      eq(materialSupplierSources.isActive, true),
-      eq(materialSupplierSources.organizationId, organizationId)
-    )).orderBy(materialSupplierSources.supplierName);
+    return db.select().from(materialSupplierSources).where(
+      and(
+        eq(materialSupplierSources.isActive, true),
+        eq(materialSupplierSources.organizationId, organizationId)
+      )
+    ).orderBy(materialSupplierSources.supplierName);
   }
   return db.select().from(materialSupplierSources).where(eq(materialSupplierSources.isActive, true)).orderBy(materialSupplierSources.supplierName);
 }
@@ -6929,10 +7243,12 @@ async function getMaterialSupplierSourceById(id) {
 async function updateMaterialSupplierSourceForOrg(id, organizationId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.update(materialSupplierSources).set(data).where(and(
-    eq(materialSupplierSources.id, id),
-    eq(materialSupplierSources.organizationId, organizationId)
-  ));
+  const result = await db.update(materialSupplierSources).set(data).where(
+    and(
+      eq(materialSupplierSources.id, id),
+      eq(materialSupplierSources.organizationId, organizationId)
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function getSpaceProgramRooms(projectId, organizationId) {
@@ -6981,16 +7297,19 @@ async function updateSpaceProgramRoom(id, data) {
 async function updateSpaceProgramRoomForOrg(id, organizationId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.update(spaceProgramRooms).set(data).where(and(
+  const conditions = [
     eq(spaceProgramRooms.id, id),
-    eq(spaceProgramRooms.organizationId, organizationId),
-    sql`not exists (
-        select 1 from ${projectGeometryAuthorities}
-        where ${projectGeometryAuthorities.organizationId} = ${organizationId}
-          and ${projectGeometryAuthorities.projectId} = ${spaceProgramRooms.projectId}
-          and ${projectGeometryAuthorities.mode} = 'canonical'
-      )`
-  ));
+    eq(spaceProgramRooms.organizationId, organizationId)
+  ];
+  if (data.sqm !== void 0) {
+    conditions.push(sql`not exists (
+      select 1 from ${projectGeometryAuthorities}
+      where ${projectGeometryAuthorities.organizationId} = ${organizationId}
+        and ${projectGeometryAuthorities.projectId} = ${spaceProgramRooms.projectId}
+        and ${projectGeometryAuthorities.mode} = 'canonical'
+    )`);
+  }
+  const result = await db.update(spaceProgramRooms).set(data).where(and(...conditions));
   return Number(result[0].affectedRows) === 1;
 }
 async function deleteSpaceProgramRoom(id) {
@@ -7192,7 +7511,7 @@ async function getProjectGeometryAuthorityModeForOrg(projectId, organizationId) 
   );
   return authority?.mode ?? "legacy";
 }
-async function commitShadowGeometryForOrg(input) {
+async function saveGeometryDraftForOrg(input) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   try {
@@ -7246,7 +7565,7 @@ async function commitShadowGeometryForOrg(input) {
         const inserted = await tx.insert(projectGeometryAuthorities).values({
           organizationId: input.organizationId,
           projectId: input.projectId,
-          mode: "shadow",
+          mode: "legacy",
           currentGraphVersionId: null,
           selectedGeometryVersionId: null,
           revision: 0,
@@ -7265,9 +7584,6 @@ async function commitShadowGeometryForOrg(input) {
       }
       const authority = authorityRows[0];
       if (!authority) return { kind: "not_found" };
-      if (authority.mode === "canonical") {
-        return { kind: "canonical" };
-      }
       if (authority.currentGraphVersionId !== input.expectedCurrentVersionId) {
         return {
           kind: "conflict",
@@ -7275,12 +7591,18 @@ async function commitShadowGeometryForOrg(input) {
         };
       }
       if (replaySources[0] && replayGraph) {
+        if (replayGraph.id === authority.currentGraphVersionId && replayGraph.status === "draft") {
+          return {
+            kind: "ok",
+            replayed: true,
+            graphVersionId: replayGraph.id,
+            geometrySourceId: replaySources[0].id,
+            fingerprint: replayGraph.fingerprint
+          };
+        }
         return {
-          kind: "ok",
-          replayed: true,
-          graphVersionId: replayGraph.id,
-          geometrySourceId: replaySources[0].id,
-          fingerprint: replayGraph.fingerprint
+          kind: "conflict",
+          currentGraphVersionId: authority.currentGraphVersionId
         };
       }
       const sourceInsert = await tx.insert(geometrySources).values({
@@ -7313,7 +7635,7 @@ async function commitShadowGeometryForOrg(input) {
         )
       ).limit(1))[0] : void 0;
       if (authority.currentGraphVersionId && !previousGraph) {
-        throw new ShadowGeometryCasRollback(authority.currentGraphVersionId);
+        throw new GeometryDraftCasRollback(authority.currentGraphVersionId);
       }
       const totalArea22 = input.canonical.geometry.rooms.reduce(
         (total, room) => total + BigInt(room.areaSquareMicrometresTwice),
@@ -7327,7 +7649,7 @@ async function commitShadowGeometryForOrg(input) {
         version: (previousGraph?.version ?? 0) + 1,
         parentGraphVersionId: previousGraph?.id ?? null,
         geometrySourceId,
-        status: "candidate",
+        status: "draft",
         canonicalGeometry: input.canonical.geometry,
         canonicalJsonSizeBytes: Buffer.byteLength(
           input.canonical.canonicalJson
@@ -7447,7 +7769,6 @@ async function commitShadowGeometryForOrg(input) {
         createdMeasurementIds.push(Number(measurementInsert[0].insertId));
       }
       const casResult = await tx.update(projectGeometryAuthorities).set({
-        mode: "shadow",
         currentGraphVersionId: graphVersionId,
         revision: sql`${projectGeometryAuthorities.revision} + 1`,
         updatedBy: input.userId
@@ -7463,7 +7784,7 @@ async function commitShadowGeometryForOrg(input) {
         )
       );
       if (Number(casResult[0].affectedRows) !== 1) {
-        throw new ShadowGeometryCasRollback(authority.currentGraphVersionId);
+        throw new GeometryDraftCasRollback(authority.currentGraphVersionId);
       }
       await tx.insert(geometryReconciliationEvents).values({
         organizationId: input.organizationId,
@@ -7471,15 +7792,15 @@ async function commitShadowGeometryForOrg(input) {
         authorityId: authority.id,
         expectedCurrentGraphVersionId: input.expectedCurrentVersionId,
         baseGraphVersionId: authority.currentGraphVersionId,
-        candidateGraphVersionId: graphVersionId,
+        draftGraphVersionId: graphVersionId,
         resultGraphVersionId: null,
-        candidateMeasurementRecordId: createdMeasurementIds[0] ?? null,
+        draftMeasurementRecordId: createdMeasurementIds[0] ?? null,
         baseFingerprint: previousGraph?.fingerprint ?? null,
-        candidateFingerprint: input.canonical.fingerprint.value,
+        draftFingerprint: input.canonical.fingerprint.value,
         tolerancePolicyVersion: input.canonical.geometry.tolerancePolicyVersion,
-        reviewDecision: "candidate_created",
+        reviewDecision: "draft_created",
         resultState: "not_checked",
-        note: "Shadow geometry candidate created; legacy numerical authority retained.",
+        note: "Geometry draft created for explicit review; canonical selection unchanged.",
         reviewerId: input.userId
       });
       return {
@@ -7491,7 +7812,7 @@ async function commitShadowGeometryForOrg(input) {
       };
     });
   } catch (error) {
-    if (error instanceof ShadowGeometryCasRollback) {
+    if (error instanceof GeometryDraftCasRollback) {
       return {
         kind: "conflict",
         currentGraphVersionId: error.currentGraphVersionId
@@ -7500,7 +7821,7 @@ async function commitShadowGeometryForOrg(input) {
     throw error;
   }
 }
-async function reviewShadowGeometryForOrg(input) {
+async function reviewGeometryDraftForOrg(input) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
@@ -7525,18 +7846,63 @@ async function reviewShadowGeometryForOrg(input) {
         currentGraphVersionId: authority.currentGraphVersionId
       };
     }
-    const candidates = await tx.select().from(spatialGraphVersions).where(
+    const drafts = await tx.select().from(spatialGraphVersions).where(
       and(
         eq(spatialGraphVersions.id, input.geometryVersionId),
         eq(spatialGraphVersions.organizationId, input.organizationId),
         eq(spatialGraphVersions.projectId, input.projectId)
       )
-    ).limit(1);
-    const candidate = candidates[0];
-    if (!candidate) return { kind: "not_found" };
-    const reviewDecision = input.decision === "clarification_requested" ? "needs_clarification" : input.decision;
-    const selectedGeometryVersionId = input.decision === "accepted" ? input.geometryVersionId : authority.selectedGeometryVersionId === input.geometryVersionId ? null : authority.selectedGeometryVersionId;
+    ).limit(1).for("update");
+    const draft = drafts[0];
+    if (!draft) return { kind: "not_found" };
+    if (draft.status !== "draft") {
+      return {
+        kind: "conflict",
+        currentGraphVersionId: authority.currentGraphVersionId
+      };
+    }
+    const reviewDecision = input.decision === "approve_as_canonical" ? "accepted" : input.decision === "request_clarification" ? "needs_clarification" : "rejected";
+    const graphStatus = input.decision === "approve_as_canonical" ? "canonical" : input.decision === "request_clarification" ? "needs_clarification" : "rejected";
+    const measurementReviewState = input.decision === "approve_as_canonical" ? "accepted" : input.decision === "request_clarification" ? "needs_clarification" : "rejected";
+    const selectedGeometryVersionId = input.decision === "approve_as_canonical" ? input.geometryVersionId : authority.selectedGeometryVersionId;
+    if (input.decision === "approve_as_canonical" && authority.selectedGeometryVersionId != null && authority.selectedGeometryVersionId !== input.geometryVersionId) {
+      await tx.update(spatialGraphVersions).set({ status: "superseded" }).where(
+        and(
+          eq(spatialGraphVersions.id, authority.selectedGeometryVersionId),
+          eq(spatialGraphVersions.organizationId, input.organizationId),
+          eq(spatialGraphVersions.projectId, input.projectId),
+          eq(spatialGraphVersions.status, "canonical")
+        )
+      );
+    }
+    const graphResult = await tx.update(spatialGraphVersions).set({ status: graphStatus }).where(
+      and(
+        eq(spatialGraphVersions.id, input.geometryVersionId),
+        eq(spatialGraphVersions.organizationId, input.organizationId),
+        eq(spatialGraphVersions.projectId, input.projectId),
+        eq(spatialGraphVersions.status, "draft")
+      )
+    );
+    if (Number(graphResult[0].affectedRows) !== 1) {
+      return {
+        kind: "conflict",
+        currentGraphVersionId: authority.currentGraphVersionId
+      };
+    }
+    await tx.update(measurementRecords).set({
+      reviewState: measurementReviewState,
+      reviewedBy: input.userId,
+      reviewedAt: /* @__PURE__ */ new Date()
+    }).where(
+      and(
+        eq(measurementRecords.organizationId, input.organizationId),
+        eq(measurementRecords.projectId, input.projectId),
+        eq(measurementRecords.graphVersionId, input.geometryVersionId),
+        eq(measurementRecords.reviewState, "unreviewed")
+      )
+    );
     const result = await tx.update(projectGeometryAuthorities).set({
+      mode: input.decision === "approve_as_canonical" ? "canonical" : authority.mode,
       selectedGeometryVersionId,
       revision: sql`${projectGeometryAuthorities.revision} + 1`,
       updatedBy: input.userId
@@ -7560,13 +7926,13 @@ async function reviewShadowGeometryForOrg(input) {
       authorityId: authority.id,
       expectedCurrentGraphVersionId: input.expectedCurrentVersionId,
       baseGraphVersionId: authority.selectedGeometryVersionId,
-      candidateGraphVersionId: input.geometryVersionId,
-      resultGraphVersionId: input.decision === "accepted" ? input.geometryVersionId : null,
-      candidateFingerprint: candidate.fingerprint,
-      tolerancePolicyVersion: candidate.tolerancePolicyVersion,
+      draftGraphVersionId: input.geometryVersionId,
+      resultGraphVersionId: input.decision === "approve_as_canonical" ? input.geometryVersionId : null,
+      draftFingerprint: draft.fingerprint,
+      tolerancePolicyVersion: draft.tolerancePolicyVersion,
       reviewDecision,
-      resultState: input.decision === "accepted" ? "valid" : input.decision === "rejected" ? "conflict" : "insufficient",
-      note: input.note?.trim() || `Shadow candidate ${reviewDecision}.`,
+      resultState: input.decision === "approve_as_canonical" ? "valid" : input.decision === "reject" ? "not_checked" : "insufficient",
+      note: input.note?.trim() || `Geometry draft review recorded: ${reviewDecision}.`,
       reviewerId: input.userId
     });
     return {
@@ -7577,7 +7943,148 @@ async function reviewShadowGeometryForOrg(input) {
     };
   });
 }
-async function getGeometryComparisonForOrg(projectId, organizationId) {
+async function getAcceptedRoomFloorMeasurementsForOrg(projectId, organizationId) {
+  const db = await getDb();
+  if (!db) return { status: "insufficient", measurements: [] };
+  const authority = await getProjectGeometryAuthorityForOrg(
+    projectId,
+    organizationId
+  );
+  if (authority?.mode !== "canonical" || authority.selectedGeometryVersionId == null) {
+    return {
+      status: "insufficient",
+      reason: "Canonical room geometry has not been reviewed and selected.",
+      measurements: []
+    };
+  }
+  const selectedGraphs = await db.select({
+    id: spatialGraphVersions.id,
+    geometrySourceId: spatialGraphVersions.geometrySourceId,
+    canonicalGeometry: spatialGraphVersions.canonicalGeometry
+  }).from(spatialGraphVersions).where(
+    and(
+      eq(spatialGraphVersions.organizationId, organizationId),
+      eq(spatialGraphVersions.projectId, projectId),
+      eq(spatialGraphVersions.id, authority.selectedGeometryVersionId),
+      eq(spatialGraphVersions.status, "canonical")
+    )
+  ).limit(1);
+  const selectedGraph = selectedGraphs[0];
+  if (!selectedGraph || selectedGraph.geometrySourceId == null) {
+    return {
+      status: "insufficient",
+      reason: "Selected canonical geometry is incomplete or has no source.",
+      measurements: []
+    };
+  }
+  const rows = await db.select({
+    spaceIdentityId: measurementRecords.spaceIdentityId,
+    spaceVersionId: measurementRecords.spaceVersionId,
+    graphVersionId: measurementRecords.graphVersionId,
+    measurementRecordId: measurementRecords.id,
+    areaSquareMetres: measurementRecords.normalizedValue,
+    areaSquareMicrometresTwice: measurementRecords.normalizedValueExact,
+    roomName: spaceVersions.roomName,
+    roomCode: spaceVersions.roomCode,
+    category: spaceVersions.category,
+    levelId: spaceVersions.levelId,
+    spaceId: spaceIdentities.publicId,
+    geometrySourceId: measurementRecords.geometrySourceId,
+    recordKind: measurementRecords.recordKind,
+    acquisitionMethod: measurementRecords.acquisitionMethod,
+    evidenceClass: measurementRecords.evidenceClass,
+    measurementBasis: measurementRecords.measurementBasis,
+    normalizedUnit: measurementRecords.normalizedUnit,
+    formulaVersion: measurementRecords.formulaVersion,
+    contentFingerprint: measurementRecords.contentFingerprint,
+    graphFingerprint: spatialGraphVersions.fingerprint,
+    schemaVersion: spatialGraphVersions.schemaVersion,
+    canonicalizerVersion: spatialGraphVersions.canonicalizerVersion,
+    tolerancePolicyVersion: spatialGraphVersions.tolerancePolicyVersion
+  }).from(measurementRecords).innerJoin(
+    spatialGraphVersions,
+    and(
+      eq(spatialGraphVersions.id, measurementRecords.graphVersionId),
+      eq(
+        spatialGraphVersions.organizationId,
+        measurementRecords.organizationId
+      ),
+      eq(spatialGraphVersions.projectId, measurementRecords.projectId)
+    )
+  ).innerJoin(
+    spaceVersions,
+    and(
+      eq(spaceVersions.id, measurementRecords.spaceVersionId),
+      eq(spaceVersions.organizationId, measurementRecords.organizationId),
+      eq(spaceVersions.projectId, measurementRecords.projectId)
+    )
+  ).innerJoin(
+    spaceIdentities,
+    and(
+      eq(spaceIdentities.id, measurementRecords.spaceIdentityId),
+      eq(spaceIdentities.organizationId, measurementRecords.organizationId),
+      eq(spaceIdentities.projectId, measurementRecords.projectId)
+    )
+  ).where(
+    and(
+      eq(measurementRecords.organizationId, organizationId),
+      eq(measurementRecords.projectId, projectId),
+      eq(
+        measurementRecords.graphVersionId,
+        authority.selectedGeometryVersionId
+      ),
+      eq(measurementRecords.measurementBasis, ROOM_FLOOR_POLYGON_AREA),
+      eq(measurementRecords.recordKind, "derivation"),
+      eq(measurementRecords.normalizedUnit, "m2"),
+      eq(measurementRecords.evidenceClass, "geometry_derived"),
+      eq(
+        measurementRecords.formulaVersion,
+        spatialGraphVersions.canonicalizerVersion
+      ),
+      eq(measurementRecords.reviewState, "accepted"),
+      eq(measurementRecords.resultState, "valid"),
+      eq(spatialGraphVersions.status, "canonical"),
+      eq(spaceVersions.spaceIdentityId, measurementRecords.spaceIdentityId),
+      eq(spaceVersions.geometryVersionId, measurementRecords.graphVersionId),
+      eq(
+        spatialGraphVersions.geometrySourceId,
+        measurementRecords.geometrySourceId
+      )
+    )
+  );
+  const canonicalDocument = selectedGraph.canonicalGeometry;
+  const canonicalRooms = canonicalDocument.rooms ?? [];
+  const expectedBySpaceId = new Map(
+    canonicalRooms.map((room) => [room.spaceId, room])
+  );
+  const actualBySpaceId = new Map(rows.map((row) => [row.spaceId, row]));
+  const hasExactCompleteSet = canonicalRooms.length > 0 && expectedBySpaceId.size === canonicalRooms.length && rows.length === canonicalRooms.length && actualBySpaceId.size === rows.length && canonicalRooms.every((room) => {
+    if (!room.spaceId || room.areaSquareMicrometresTwice == null) return false;
+    const row = actualBySpaceId.get(room.spaceId);
+    return Boolean(
+      row && row.spaceIdentityId != null && row.spaceVersionId != null && row.graphVersionId === selectedGraph.id && row.geometrySourceId === selectedGraph.geometrySourceId && row.areaSquareMicrometresTwice === room.areaSquareMicrometresTwice
+    );
+  });
+  if (!hasExactCompleteSet) {
+    return {
+      status: "insufficient",
+      reason: "Selected geometry does not have one exact, accepted room-floor polygon measurement for every canonical room.",
+      measurements: []
+    };
+  }
+  return {
+    status: "ready",
+    graphVersionId: authority.selectedGeometryVersionId,
+    measurementBasis: ROOM_FLOOR_POLYGON_AREA,
+    measurements: rows.map((row) => ({
+      ...row,
+      areaSquareMetres: area2ToDecimal12(
+        BigInt(row.areaSquareMicrometresTwice)
+      )
+    }))
+  };
+}
+async function getGeometryReviewStateForOrg(projectId, organizationId) {
   const db = await getDb();
   if (!db) return void 0;
   const authority = await getProjectGeometryAuthorityForOrg(
@@ -7585,64 +8092,61 @@ async function getGeometryComparisonForOrg(projectId, organizationId) {
     organizationId
   );
   const legacyRooms = await getSpaceProgramRooms(projectId, organizationId);
-  if (!authority?.currentGraphVersionId) {
-    return {
-      authority,
-      candidate: void 0,
-      source: void 0,
-      review: void 0,
-      legacyRooms
-    };
+  async function getScopedGraph(id) {
+    if (id == null) return void 0;
+    return (await db.select().from(spatialGraphVersions).where(
+      and(
+        eq(spatialGraphVersions.id, id),
+        eq(spatialGraphVersions.organizationId, organizationId),
+        eq(spatialGraphVersions.projectId, projectId)
+      )
+    ).limit(1))[0];
   }
-  const candidates = await db.select().from(spatialGraphVersions).where(
-    and(
-      eq(spatialGraphVersions.id, authority.currentGraphVersionId),
-      eq(spatialGraphVersions.organizationId, organizationId),
-      eq(spatialGraphVersions.projectId, projectId)
-    )
-  ).limit(1);
-  const candidate = candidates[0];
-  if (!candidate) {
-    return {
-      authority,
-      candidate: void 0,
-      source: void 0,
-      review: void 0,
-      legacyRooms
-    };
+  async function getScopedSource(graph) {
+    if (!graph?.geometrySourceId) return void 0;
+    return (await db.select().from(geometrySources).where(
+      and(
+        eq(geometrySources.id, graph.geometrySourceId),
+        eq(geometrySources.organizationId, organizationId),
+        eq(geometrySources.projectId, projectId)
+      )
+    ).limit(1))[0];
   }
-  const sources = candidate.geometrySourceId ? await db.select().from(geometrySources).where(
-    and(
-      eq(geometrySources.id, candidate.geometrySourceId),
-      eq(geometrySources.organizationId, organizationId),
-      eq(geometrySources.projectId, projectId)
-    )
-  ).limit(1) : [];
-  const reviews = await db.select().from(geometryReconciliationEvents).where(
+  const latest = await getScopedGraph(authority?.currentGraphVersionId);
+  const canonical = await getScopedGraph(authority?.selectedGeometryVersionId);
+  const latestReviews = latest ? await db.select().from(geometryReconciliationEvents).where(
     and(
       eq(geometryReconciliationEvents.organizationId, organizationId),
       eq(geometryReconciliationEvents.projectId, projectId),
-      eq(geometryReconciliationEvents.candidateGraphVersionId, candidate.id)
+      eq(geometryReconciliationEvents.draftGraphVersionId, latest.id)
     )
   ).orderBy(
     desc(geometryReconciliationEvents.createdAt),
     desc(geometryReconciliationEvents.id)
-  ).limit(1);
+  ).limit(1) : [];
+  const acceptedMeasurements = await getAcceptedRoomFloorMeasurementsForOrg(
+    projectId,
+    organizationId
+  );
   return {
     authority,
-    candidate,
-    source: sources[0],
-    review: reviews[0],
+    latest,
+    latestSource: await getScopedSource(latest),
+    latestReview: latestReviews[0],
+    canonical,
+    canonicalSource: await getScopedSource(canonical),
+    acceptedMeasurements,
     legacyRooms
   };
 }
-var _db, assetLinkTargetResolvers, listPublicEvidenceRecords, ShadowGeometryCasRollback;
+var _db, assetLinkTargetResolvers, listPublicEvidenceRecords, GeometryDraftCasRollback;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
     init_schema();
     init_env();
     init_database_safety();
+    init_geometry();
     _db = null;
     assetLinkTargetResolvers = {
       evaluation: (tx, id, orgId) => tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq(projects.id, scoreMatrices.projectId)).where(and(eq(scoreMatrices.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
@@ -7657,9 +8161,9 @@ var init_db = __esm({
       visual: (tx, id, orgId) => tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq(projects.id, generatedVisuals.projectId)).where(and(eq(generatedVisuals.id, id), eq(projects.orgId, orgId))).limit(1).for("update")
     };
     listPublicEvidenceRecords = listPublicCorpusEvidence;
-    ShadowGeometryCasRollback = class extends Error {
+    GeometryDraftCasRollback = class extends Error {
       constructor(currentGraphVersionId) {
-        super("Shadow geometry compare-and-swap failed");
+        super("Geometry draft compare-and-swap failed");
         this.currentGraphVersionId = currentGraphVersionId;
       }
     };
@@ -17024,7 +17528,7 @@ var authRouter = router({
 
 // server/routers/project.ts
 import { z as z5 } from "zod";
-import { TRPCError as TRPCError8 } from "@trpc/server";
+import { TRPCError as TRPCError7 } from "@trpc/server";
 
 // server/_core/project-access.ts
 init_db();
@@ -17037,38 +17541,12 @@ async function requireProjectForOrg(projectId, orgId, lookup = getProjectById) {
   return project;
 }
 
-// server/_core/geometry-authority.ts
-init_db();
-
-// server/engines/geometry/authority-policy.ts
-import { TRPCError as TRPCError6 } from "@trpc/server";
-function allowsLegacyGeometryWrites(mode) {
-  return mode !== "canonical";
-}
-function requireLegacyGeometryWriteAuthority(mode) {
-  if (!allowsLegacyGeometryWrites(mode)) {
-    throw new TRPCError6({
-      code: "CONFLICT",
-      message: "Legacy room and area values are read-only while canonical geometry is authoritative."
-    });
-  }
-}
-
-// server/_core/geometry-authority.ts
-async function requireLegacyGeometryWriterForProject(projectId, organizationId) {
-  const mode = await getProjectGeometryAuthorityModeForOrg(
-    projectId,
-    organizationId
-  );
-  requireLegacyGeometryWriteAuthority(mode);
-}
-
 // server/_core/resource-access.ts
 init_db();
-import { TRPCError as TRPCError7 } from "@trpc/server";
+import { TRPCError as TRPCError6 } from "@trpc/server";
 var DEFAULT_NOT_FOUND_MESSAGE = "Resource not found";
 function notFound(message = DEFAULT_NOT_FOUND_MESSAGE) {
-  throw new TRPCError7({ code: "NOT_FOUND", message });
+  throw new TRPCError6({ code: "NOT_FOUND", message });
 }
 async function requireAuthorizedProject(projectId, orgId, lookupProject, notFoundMessage) {
   const project = await lookupProject(projectId);
@@ -22063,7 +22541,7 @@ var projectRouter = router({
     for (const field of input.fields) {
       const value = project[field];
       if (value === null || value === void 0 || typeof value === "string" && !value.trim()) {
-        throw new TRPCError8({
+        throw new TRPCError7({
           code: "BAD_REQUEST",
           message: `${field} must have a value before it can be confirmed`
         });
@@ -22088,28 +22566,18 @@ var projectRouter = router({
     if (project.status === "locked") {
       throw new Error("Cannot update a locked project");
     }
-    if (data.ctx03Gfa !== void 0 || data.totalFitoutArea !== void 0 || data.totalNonFinishArea !== void 0) {
-      await requireLegacyGeometryWriterForProject(id, ctx.orgId);
-    }
     const updateData = { ...data };
-    if (data.ctx03Gfa !== void 0) updateData.ctx03Gfa = data.ctx03Gfa ? String(data.ctx03Gfa) : null;
-    if (data.fin01BudgetCap !== void 0) updateData.fin01BudgetCap = data.fin01BudgetCap ? String(data.fin01BudgetCap) : null;
-    if (data.officeCustomRatio !== void 0) updateData.officeCustomRatio = data.officeCustomRatio != null ? String(data.officeCustomRatio) : null;
-    if (data.totalFitoutArea !== void 0) updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
-    if (data.totalNonFinishArea !== void 0) updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
-    const writesLegacyGeometry = data.ctx03Gfa !== void 0 || data.totalFitoutArea !== void 0 || data.totalNonFinishArea !== void 0;
-    if (writesLegacyGeometry) {
-      const result = await updateProjectWithLegacyGeometryAuthorityForOrg(
-        id,
-        ctx.orgId,
-        updateData
-      );
-      if (result === "canonical") {
-        await requireLegacyGeometryWriterForProject(id, ctx.orgId);
-        throw new Error("Project geometry authority changed during update");
-      }
-      if (result === "not_found") await requireProjectForOrg(id, ctx.orgId);
-    } else if (!await updateProjectForOrg(id, ctx.orgId, updateData)) {
+    if (data.ctx03Gfa !== void 0)
+      updateData.ctx03Gfa = data.ctx03Gfa ? String(data.ctx03Gfa) : null;
+    if (data.fin01BudgetCap !== void 0)
+      updateData.fin01BudgetCap = data.fin01BudgetCap ? String(data.fin01BudgetCap) : null;
+    if (data.officeCustomRatio !== void 0)
+      updateData.officeCustomRatio = data.officeCustomRatio != null ? String(data.officeCustomRatio) : null;
+    if (data.totalFitoutArea !== void 0)
+      updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
+    if (data.totalNonFinishArea !== void 0)
+      updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
+    if (!await updateProjectForOrg(id, ctx.orgId, updateData)) {
       await requireProjectForOrg(id, ctx.orgId);
     }
     await createAuditLog({
@@ -22125,7 +22593,7 @@ var projectRouter = router({
     await requireProjectForOrg(input.id, ctx.orgId);
     if (!await deleteProjectForOrg(input.id, ctx.orgId)) {
       await requireProjectForOrg(input.id, ctx.orgId);
-      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
     await createAuditLog({
       userId: ctx.user.id,
@@ -22139,7 +22607,7 @@ var projectRouter = router({
     const project = await requireProjectForOrg(input.id, ctx.orgId);
     const readiness = getProjectReadiness(project);
     if (!readiness.canEvaluate) {
-      throw new TRPCError8({
+      throw new TRPCError7({
         code: "PRECONDITION_FAILED",
         message: `Project inputs are incomplete: ${readiness.missingInputs.length} missing and ${readiness.unconfirmedAssumptions.length} unconfirmed`,
         cause: readiness
@@ -22603,7 +23071,7 @@ var projectRouter = router({
           reportType: input.reportType,
           error: error instanceof Error ? error.message : String(error)
         });
-        throw new TRPCError8({
+        throw new TRPCError7({
           code: "INTERNAL_SERVER_ERROR",
           message: "REPORT_BOARD_RETRIEVAL_FAILED"
         });
@@ -22873,7 +23341,7 @@ var projectRouter = router({
     if (!persistence) {
       if (storageKey) await cleanupRejectedUpload(storageKey);
       await requireProjectForOrg(input.projectId, ctx.orgId);
-      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
     await createAuditLog({
       userId: ctx.user.id,
@@ -22932,9 +23400,9 @@ var projectRouter = router({
       }
     );
     if (asset.projectId !== project.id) {
-      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
-    if (!asset.storagePath) throw new TRPCError8({ code: "BAD_REQUEST", message: "Asset has no stored media" });
+    if (!asset.storagePath) throw new TRPCError7({ code: "BAD_REQUEST", message: "Asset has no stored media" });
     const extraction = await createPdfExtractionForOrg({
       projectId: input.projectId,
       assetId: input.assetId,
@@ -22942,7 +23410,7 @@ var projectRouter = router({
       status: "pending"
     }, ctx.orgId);
     if (!extraction) {
-      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
     try {
       const { extractRoomsFromMedia: extractRoomsFromMedia2 } = await Promise.resolve().then(() => (init_pdf_extraction(), pdf_extraction_exports));
@@ -22960,7 +23428,7 @@ var projectRouter = router({
         extractedRooms: result.rooms,
         totalExtractedArea: String(result.totalArea)
       })) {
-        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -23004,10 +23472,9 @@ var projectRouter = router({
       }
     );
     if (extraction.projectId !== project.id) {
-      throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
     }
     if (input.action === "verify") {
-      await requireLegacyGeometryWriterForProject(input.projectId, ctx.orgId);
       const verifiedArea = input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
       if (!await verifyPdfExtractionForOrg(
         input.extractionId,
@@ -23016,7 +23483,7 @@ var projectRouter = router({
         ctx.user.id,
         verifiedArea
       )) {
-        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -23036,7 +23503,7 @@ var projectRouter = router({
         verifiedBy: ctx.user.id,
         verifiedAt: /* @__PURE__ */ new Date()
       })) {
-        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -23056,7 +23523,7 @@ var projectRouter = router({
 
 // server/routers/scenario.ts
 import { z as z6 } from "zod";
-import { TRPCError as TRPCError9 } from "@trpc/server";
+import { TRPCError as TRPCError8 } from "@trpc/server";
 init_db();
 init_db();
 
@@ -23448,7 +23915,7 @@ var scenarioRouter = router({
         }
       );
       if (authorized.project.id !== input.projectId) {
-        throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
       }
     }
     const roi = calculateProjectRoi({
@@ -25092,9 +25559,9 @@ import { z as z9 } from "zod";
 
 // server/_core/design-resource-access.ts
 init_db();
-import { TRPCError as TRPCError10 } from "@trpc/server";
+import { TRPCError as TRPCError9 } from "@trpc/server";
 var notFound2 = () => {
-  throw new TRPCError10({ code: "NOT_FOUND", message: "Resource not found" });
+  throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
 };
 function requireDesignProject(projectId, orgId) {
   return requireProjectForOrg(projectId, orgId);
@@ -25197,6 +25664,32 @@ async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
   if (scenarioId === null || scenarioId === void 0) return;
   const scenario = await requireDesignScenario(scenarioId, orgId);
   requireSameDesignProject(projectId, scenario.project.id);
+}
+
+// server/_core/geometry-authority.ts
+init_db();
+
+// server/engines/geometry/authority-policy.ts
+import { TRPCError as TRPCError10 } from "@trpc/server";
+function allowsLegacyGeometryWrites(mode) {
+  return mode !== "canonical";
+}
+function requireLegacyGeometryWriteAuthority(mode) {
+  if (!allowsLegacyGeometryWrites(mode)) {
+    throw new TRPCError10({
+      code: "CONFLICT",
+      message: "Legacy room and area values are read-only while canonical geometry is authoritative."
+    });
+  }
+}
+
+// server/_core/geometry-authority.ts
+async function requireLegacyGeometryWriterForProject(projectId, organizationId) {
+  const mode = await getProjectGeometryAuthorityModeForOrg(
+    projectId,
+    organizationId
+  );
+  requireLegacyGeometryWriteAuthority(mode);
 }
 
 // server/routers/design-assets.ts
@@ -28566,28 +29059,12 @@ import { z as z18 } from "zod";
 init_db();
 
 // server/engines/geometry/dxf-geometry-boundary.ts
+init_geometry();
 import { createHash as createHash5 } from "node:crypto";
 import { Worker } from "node:worker_threads";
 
-// shared/geometry/types.ts
-var GEOMETRY_SCHEMA_VERSION = "MIYAR_GEOM_V1";
-var GEOMETRY_CANONICALIZER_VERSION = "miyar-geometry-canonicalizer-v1";
-var GEOMETRY_TOLERANCE_POLICY_VERSION = "miyar-geometry-tolerance-v1";
-var ROOM_FLOOR_POLYGON_AREA = "room_floor_polygon_area";
-var DXF_ADAPTER_VERSION = "miyar-ascii-dxf-v1";
-var DXF_BOUNDARY_LIMITS = {
-  sourceBytes: 10 * 1024 * 1024,
-  entities: 1e5,
-  vertices: 1e5,
-  layers: 2e3,
-  nestingDepth: 32,
-  absoluteSourceCoordinate: "1000000000",
-  deadlineMilliseconds: 5e3,
-  canonicalJsonBytes: 8 * 1024 * 1024,
-  overlayLevelBytes: 2 * 1024 * 1024
-};
-
 // server/engines/geometry/canonical-geometry.ts
+init_geometry();
 import { createHash as createHash4 } from "node:crypto";
 var ZERO = BigInt(0);
 var ONE = BigInt(1);
@@ -29080,25 +29557,6 @@ function canonicalizeGeometry(input, runtime = {}) {
     }
   };
 }
-function reconcileRoomFloorAreas(leftAreaSquareMicrometresTwice, rightAreaSquareMicrometresTwice) {
-  if (!/^\d+$/.test(leftAreaSquareMicrometresTwice) || !/^\d+$/.test(rightAreaSquareMicrometresTwice)) {
-    fail(
-      "reconciliation areas must be non-negative integer twice-area strings"
-    );
-  }
-  const left = BigInt(leftAreaSquareMicrometresTwice);
-  const right = BigInt(rightAreaSquareMicrometresTwice);
-  const difference = absolute(left - right);
-  const larger = left > right ? left : right;
-  const relativeTolerance = larger / ONE_THOUSAND;
-  const tolerance = relativeTolerance > MIN_RECONCILIATION_AREA2 ? relativeTolerance : MIN_RECONCILIATION_AREA2;
-  return {
-    result: difference <= tolerance ? "equivalent" : "conflict",
-    differenceSquareMicrometresTwice: difference.toString(),
-    toleranceSquareMicrometresTwice: tolerance.toString(),
-    tolerancePolicyVersion: GEOMETRY_TOLERANCE_POLICY_VERSION
-  };
-}
 
 // server/engines/geometry/dxf-geometry-boundary.ts
 var WORKER_SOURCE = String.raw`
@@ -29137,9 +29595,11 @@ function sourceCoordinateLexemes(source) {
       index += 1;
       let flags = 0;
       let elevation = "0";
+      let handle = null;
       const vertices = [];
       while (index < pairs.length && pairs[index].code !== 0) {
         const pair = pairs[index];
+        if (pair.code === 5) handle = pair.value;
         if (pair.code === 70) flags = Number(pair.value);
         if (pair.code === 38) elevation = pair.value;
         if (pair.code === 10) vertices.push({ x: pair.value, y: null, z: null });
@@ -29150,7 +29610,7 @@ function sourceCoordinateLexemes(source) {
         index += 1;
       }
       if ((flags & 1) === 1 && vertices.length >= 3 && vertices.every(vertex => vertex.y !== null)) {
-        boundaries.push({ vertices, elevation });
+        boundaries.push({ vertices, elevation, handle });
       }
       continue;
     }
@@ -29159,7 +29619,9 @@ function sourceCoordinateLexemes(source) {
       index += 1;
       let flags = 0;
       let elevation = "0";
+      let handle = null;
       while (index < pairs.length && pairs[index].code !== 0) {
+        if (pairs[index].code === 5) handle = pairs[index].value;
         if (pairs[index].code === 70) flags = Number(pairs[index].value);
         if (pairs[index].code === 30) elevation = pairs[index].value;
         index += 1;
@@ -29182,7 +29644,7 @@ function sourceCoordinateLexemes(source) {
         index += 1;
         while (index < pairs.length && pairs[index].code !== 0) index += 1;
       }
-      if ((flags & 1) === 1 && vertices.length >= 3) boundaries.push({ vertices, elevation });
+      if ((flags & 1) === 1 && vertices.length >= 3) boundaries.push({ vertices, elevation, handle });
       continue;
     }
 
@@ -29302,7 +29764,7 @@ function allEntities(dxf) {
         ) hasNonPlanarCoordinate = true;
         boundaries.push({
           entityIndex,
-          handle: entity.handle === undefined ? null : String(entity.handle),
+          handle: lexicalBoundary?.handle ?? null,
           layer: typeof entity.layer === "string" ? entity.layer : "0",
           vertices: vertices.map((vertex, vertexIndex) => ({
             x: lexicalVertices[vertexIndex].x,
@@ -29507,30 +29969,16 @@ function coordinateLexemeExceedsLimit(source) {
     return true;
   }
 }
-var DXF_ROOM_ID_DOMAIN = "MIYAR_DXF_ROOM_ID_V1";
-function stableDxfRoomId(outerRing, levelElevation, sourceUnit, snapTransform, deadlineAtMilliseconds) {
-  const isolated = canonicalizeGeometry(
-    {
-      schemaVersion: GEOMETRY_SCHEMA_VERSION,
-      measurementBasis: ROOM_FLOOR_POLYGON_AREA,
-      sourceUnit,
-      snapTransform,
-      rooms: [
-        {
-          spaceId: "dxf-room-identity-placeholder",
-          levelElevation,
-          outerRing
-        }
-      ]
-    },
-    { deadlineAtMilliseconds }
-  );
-  const room = isolated.geometry.rooms[0];
+var DXF_ROOM_ID_DOMAIN = "MIYAR_DXF_ROOM_ID_V2";
+function stableDxfRoomId(sourceLineageId, entityHandle, levelElevation, sourceUnit) {
   const identityPayload = JSON.stringify({
-    referenceFrame: isolated.geometry.referenceFrame,
-    levelElevationMicrometres: room.levelElevationMicrometres,
-    outerRing: room.outerRing.points,
-    holes: room.holes.map((hole) => hole.points)
+    referenceFrame: "project_local_xy",
+    sourceLineageId,
+    entityHandle: entityHandle.toUpperCase(),
+    levelElevationMicrometres: decimalCoordinateToMicrometres(
+      levelElevation,
+      sourceUnit
+    ).toString()
   });
   const digest = createHash5("sha256").update(DXF_ROOM_ID_DOMAIN, "utf8").update("\0", "utf8").update(identityPayload, "utf8").digest("hex");
   return `cad:${digest.slice(0, 60)}`;
@@ -29820,6 +30268,31 @@ async function inspectDxfGeometry(input, runtime = {}) {
   }
   let rooms;
   let canonical;
+  const stableHandles = /* @__PURE__ */ new Set();
+  for (const boundary of inspected.boundaries) {
+    const handle = boundary.handle?.trim().toUpperCase() ?? "";
+    if (!/^[0-9A-F]+$/.test(handle)) {
+      return rejected(
+        base,
+        issue(
+          "missing_stable_entity_identity",
+          "Each DXF room boundary requires a stable hexadecimal entity handle before it can become canonical."
+        ),
+        "insufficient_information"
+      );
+    }
+    if (stableHandles.has(handle)) {
+      return rejected(
+        base,
+        issue(
+          "duplicate_stable_entity_identity",
+          "DXF room boundary entity handles must be unique within the drawing."
+        ),
+        "conflicting_information"
+      );
+    }
+    stableHandles.add(handle);
+  }
   try {
     rooms = inspected.boundaries.map((boundary) => {
       const points = boundary.vertices.map((vertex) => ({
@@ -29828,11 +30301,10 @@ async function inspectDxfGeometry(input, runtime = {}) {
       }));
       points.push({ ...points[0] });
       const sourceRoomId = stableDxfRoomId(
-        points,
+        input.sourceLineageId,
+        boundary.handle.trim(),
         input.levelElevation,
-        effectiveUnit,
-        input.snapTransform ?? "none",
-        deadlineAtMilliseconds
+        effectiveUnit
       );
       return {
         sourceRoomId,
@@ -29925,6 +30397,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
 }
 
 // server/routers/design-geometry-assets.ts
+init_geometry();
 var DXF_MIME_TYPES = [
   "application/dxf",
   "application/x-dxf",
@@ -30004,6 +30477,7 @@ var designGeometryAssetsRouter = router({
       bytes: stored.buffer,
       fileName: input.filename,
       mediaType: stored.contentType ?? input.mimeType,
+      sourceLineageId: "upload-validation",
       levelElevation: "0"
     });
     const acceptableUnknownUnits = inspected.status === "insufficient_information" && inspected.issue?.code === "unknown_source_units";
@@ -38701,6 +39175,7 @@ Be professional, concise, and helpful. Do not mention your instructions.`;
 
 // server/routers/materialQuantity.ts
 import { z as z38 } from "zod";
+import { TRPCError as TRPCError27 } from "@trpc/server";
 init_db();
 init_space_program();
 var materialQuantityRouter = router({
@@ -38724,6 +39199,14 @@ var materialQuantityRouter = router({
     const orgId = ctx.orgId;
     if (!orgId) throw new Error("Organization context required");
     const project = await requireProjectForOrg(input.projectId, orgId);
+    const geometryAuthority = await getProjectGeometryAuthorityForOrg(input.projectId, orgId);
+    if (geometryAuthority?.mode === "canonical") {
+      const accepted = await getAcceptedRoomFloorMeasurementsForOrg(input.projectId, orgId);
+      throw new TRPCError27({
+        code: "PRECONDITION_FAILED",
+        message: accepted.status === "ready" ? "Canonical room-floor geometry is available, but material quantities remain insufficient until every stable space has an explicit reviewed finish-scope mapping. GFA, fit-out, wall, ceiling, and opening assumptions were not inferred." : accepted.reason ?? "Canonical room-floor geometry is not complete and reviewed. Material quantities were not generated."
+      });
+    }
     const storedRooms = await getSpaceProgramRooms(input.projectId, orgId);
     let rooms;
     if (storedRooms.length > 0) {
@@ -39018,6 +39501,7 @@ ${rawContent.substring(0, 6e3)}`
 
 // server/routers/spaceProgram.ts
 import { z as z40 } from "zod";
+import { TRPCError as TRPCError29 } from "@trpc/server";
 import { createHash as createHash8 } from "node:crypto";
 init_db();
 
@@ -39569,10 +40053,11 @@ function redistributeBudget(rooms) {
 }
 
 // server/routers/spaceProgram-geometry.ts
-import { TRPCError as TRPCError27 } from "@trpc/server";
+import { TRPCError as TRPCError28 } from "@trpc/server";
 import { createHash as createHash7 } from "node:crypto";
 import { z as z39 } from "zod";
 init_db();
+init_geometry();
 var pointSchema = z39.object({
   x: z39.string().min(1).max(64),
   y: z39.string().min(1).max(64)
@@ -39611,7 +40096,7 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
     0
   );
   if (vertexCount > MANUAL_GEOMETRY_LIMITS.vertices) {
-    throw new TRPCError27({
+    throw new TRPCError28({
       code: "BAD_REQUEST",
       message: "Manual geometry exceeds the 10,000 vertex limit."
     });
@@ -39632,7 +40117,7 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
     );
   } catch (error) {
     if (error instanceof GeometryDeadlineError) {
-      throw new TRPCError27({
+      throw new TRPCError28({
         code: "BAD_REQUEST",
         message: "Manual geometry exceeded the 500 millisecond processing deadline."
       });
@@ -39640,7 +40125,7 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
     throw error;
   }
   if (Buffer.byteLength(canonical.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
-    throw new TRPCError27({
+    throw new TRPCError28({
       code: "BAD_REQUEST",
       message: "Canonical geometry exceeds the 8 MiB JSON limit."
     });
@@ -39669,13 +40154,13 @@ async function readAuthorizedDxf(input) {
     input.organizationId
   );
   if (project.id !== input.projectId || asset.assetType !== "cad") {
-    throw new TRPCError27({
+    throw new TRPCError28({
       code: "NOT_FOUND",
       message: "Geometry asset not found"
     });
   }
   if (!asset.storagePath || !asset.checksum) {
-    throw new TRPCError27({
+    throw new TRPCError28({
       code: "BAD_REQUEST",
       message: "Geometry asset has not completed server-side finalization."
     });
@@ -39685,14 +40170,14 @@ async function readAuthorizedDxf(input) {
     DXF_BOUNDARY_LIMITS.sourceBytes
   );
   if (stored.sizeBytes <= 0 || stored.sizeBytes > DXF_BOUNDARY_LIMITS.sourceBytes || stored.buffer.byteLength !== stored.sizeBytes) {
-    throw new TRPCError27({
+    throw new TRPCError28({
       code: "BAD_REQUEST",
       message: "Geometry asset is unavailable or oversized."
     });
   }
   const checksum2 = createHash7("sha256").update(stored.buffer).digest("hex");
   if (checksum2 !== asset.checksum) {
-    throw new TRPCError27({
+    throw new TRPCError28({
       code: "CONFLICT",
       message: "Geometry asset bytes no longer match the finalized checksum."
     });
@@ -39701,6 +40186,7 @@ async function readAuthorizedDxf(input) {
     bytes: stored.buffer,
     fileName: asset.filename,
     mediaType: stored.contentType ?? asset.mimeType,
+    sourceLineageId: input.sourceLineageId,
     selectedUnit: input.sourceUnit,
     levelElevation: input.levelElevation,
     snapTransform: input.snapTransform
@@ -39749,15 +40235,10 @@ function importIdempotencyKey(input) {
     schemaVersion: GEOMETRY_SCHEMA_VERSION,
     canonicalizerVersion: GEOMETRY_CANONICALIZER_VERSION,
     tolerancePolicyVersion: GEOMETRY_TOLERANCE_POLICY_VERSION,
-    sourceChecksum: input.sourceChecksum
+    sourceChecksum: input.sourceChecksum,
+    sourceLineageId: input.sourceLineageId
   };
   return createHash7("sha256").update(JSON.stringify(payload)).digest("hex");
-}
-function decimalSquareMetresToArea2(value) {
-  const match = /^(\d+)(?:\.(\d+))?$/.exec(value.trim());
-  if (!match) return null;
-  const fraction = (match[2] ?? "").slice(0, 12).padEnd(12, "0");
-  return ((BigInt(match[1]) * BigInt(1e12) + BigInt(fraction)) * BigInt(2)).toString();
 }
 var spaceProgramGeometryRouter = router({
   previewManualGeometry: orgHeavyMutationProcedure.input(
@@ -39781,6 +40262,7 @@ var spaceProgramGeometryRouter = router({
     z39.object({
       projectId: z39.number().int().positive(),
       assetId: z39.number().int().positive(),
+      sourceLineageId: z39.string().min(1).max(64),
       sourceUnit: sourceUnitSchema,
       snapTransform: snapTransformSchema,
       levelElevation: z39.string().min(1).max(64)
@@ -39793,7 +40275,7 @@ var spaceProgramGeometryRouter = router({
     });
     return dxfPreview(inspection, input.sourceUnit);
   }),
-  commitShadowGeometry: orgHeavyMutationProcedure.input(
+  saveGeometryDraft: orgHeavyMutationProcedure.input(
     z39.object({
       projectId: z39.number().int().positive(),
       expectedCurrentVersionId: z39.number().int().positive().nullable(),
@@ -39807,6 +40289,7 @@ var spaceProgramGeometryRouter = router({
         z39.object({
           kind: z39.literal("dxf"),
           assetId: z39.number().int().positive(),
+          sourceLineageId: z39.string().min(1).max(64),
           sourceUnit: sourceUnitSchema,
           snapTransform: snapTransformSchema,
           levelElevation: z39.string().min(1).max(64)
@@ -39834,7 +40317,7 @@ var spaceProgramGeometryRouter = router({
         roomName: room.roomName,
         roomCode: room.roomCode,
         category: room.category,
-        levelId: `elevation:${canonical.geometry.rooms.find((candidate) => candidate.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`
+        levelId: `elevation:${canonical.geometry.rooms.find((draftRoom) => draftRoom.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`
       }));
       sourceObservation = { rooms: input.source.rooms };
       sourceChecksum = createHash7("sha256").update(JSON.stringify(sourceObservation)).digest("hex");
@@ -39845,12 +40328,13 @@ var spaceProgramGeometryRouter = router({
         projectId: input.projectId,
         organizationId: ctx.orgId,
         assetId: input.source.assetId,
+        sourceLineageId: input.source.sourceLineageId,
         sourceUnit: input.source.sourceUnit,
         snapTransform: input.source.snapTransform,
         levelElevation: input.source.levelElevation
       });
       if (resolved.inspection.status !== "imported" || !resolved.inspection.canonical) {
-        throw new TRPCError27({
+        throw new TRPCError28({
           code: "BAD_REQUEST",
           message: resolved.inspection.issue?.message ?? "DXF geometry is insufficient and cannot be committed."
         });
@@ -39870,7 +40354,8 @@ var spaceProgramGeometryRouter = router({
       sourceObservation = {
         evidence: resolved.inspection.evidence,
         inspection: resolved.inspection.inspection,
-        levelOverlays: resolved.inspection.levelOverlays
+        levelOverlays: resolved.inspection.levelOverlays,
+        sourceLineageId: input.source.sourceLineageId
       };
       adapterVersion = DXF_ADAPTER_VERSION;
     }
@@ -39882,9 +40367,10 @@ var spaceProgramGeometryRouter = router({
       snapTransform: input.source.snapTransform,
       sourceType: input.source.kind === "manual" ? "manual" : "project_asset",
       sourceChecksum,
-      levelElevation: input.source.kind === "manual" ? input.source.rooms.map((room) => room.levelElevation).join(",") : input.source.levelElevation
+      levelElevation: input.source.kind === "manual" ? input.source.rooms.map((room) => room.levelElevation).join(",") : input.source.levelElevation,
+      sourceLineageId: input.source.kind === "dxf" ? input.source.sourceLineageId : null
     });
-    const result = await commitShadowGeometryForOrg({
+    const result = await saveGeometryDraftForOrg({
       organizationId: ctx.orgId,
       projectId: input.projectId,
       userId: ctx.user.id,
@@ -39906,144 +40392,148 @@ var spaceProgramGeometryRouter = router({
       }
     });
     if (result.kind === "not_found") {
-      throw new TRPCError27({
+      throw new TRPCError28({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
     }
     if (result.kind === "conflict") {
-      throw new TRPCError27({
+      throw new TRPCError28({
         code: "CONFLICT",
         message: `Geometry changed concurrently; current version is ${result.currentGraphVersionId ?? "none"}.`
-      });
-    }
-    if (result.kind === "canonical") {
-      throw new TRPCError27({
-        code: "CONFLICT",
-        message: "Canonical projects cannot accept a shadow candidate."
       });
     }
     return {
       geometryVersionId: result.graphVersionId,
       fingerprint: result.fingerprint,
       replayed: result.replayed,
-      authorityMode: "shadow"
+      lifecycleState: "draft"
     };
   }),
-  reviewGeometryCandidate: orgAdminProcedure.input(
+  reviewGeometryDraft: orgAdminProcedure.input(
     z39.object({
       projectId: z39.number().int().positive(),
       geometryVersionId: z39.number().int().positive(),
       expectedCurrentVersionId: z39.number().int().positive().nullable(),
-      decision: z39.enum(["accepted", "rejected", "clarification_requested"]),
+      decision: z39.enum([
+        "approve_as_canonical",
+        "reject",
+        "request_clarification"
+      ]),
       note: z39.string().max(5e3).optional()
     })
   ).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
-    const result = await reviewShadowGeometryForOrg({
+    const result = await reviewGeometryDraftForOrg({
       ...input,
       organizationId: ctx.orgId,
       userId: ctx.user.id
     });
     if (result.kind === "not_found") {
-      throw new TRPCError27({
+      throw new TRPCError28({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
     }
     if (result.kind === "conflict") {
-      throw new TRPCError27({
+      throw new TRPCError28({
         code: "CONFLICT",
         message: `Geometry changed concurrently; current version is ${result.currentGraphVersionId ?? "none"}.`
       });
     }
     return result;
   }),
-  getGeometryComparison: orgProcedure.input(z39.object({ projectId: z39.number().int().positive() })).query(async ({ ctx, input }) => {
-    const project = await requireProjectForOrg(input.projectId, ctx.orgId);
-    const comparison = await getGeometryComparisonForOrg(
+  getGeometryReviewState: orgProcedure.input(z39.object({ projectId: z39.number().int().positive() })).query(async ({ ctx, input }) => {
+    await requireProjectForOrg(input.projectId, ctx.orgId);
+    const reviewState = await getGeometryReviewStateForOrg(
       input.projectId,
       ctx.orgId
     );
-    const authorityMode = comparison?.authority?.mode ?? "legacy";
-    const legacyRoomTotal = comparison?.legacyRooms.length ? comparison.legacyRooms.reduce(
+    const authorityMode = reviewState?.authority?.mode ?? "legacy";
+    const legacyRoomTotal = reviewState?.legacyRooms.length ? reviewState.legacyRooms.reduce(
       (sum, room) => sum + Number(room.sqm),
       0
     ) : null;
-    const legacyProjectTotal = project.totalFitoutArea ? Number(project.totalFitoutArea) : null;
-    const legacyTotal = legacyRoomTotal ?? legacyProjectTotal;
-    const candidate = comparison?.candidate;
-    const canonical = candidate?.canonicalGeometry;
-    const exactCandidateArea2 = candidate?.totalAreaSquareMicrometresTwice;
-    const exactLegacyArea2 = legacyRoomTotal !== null ? decimalSquareMetresToArea2(legacyRoomTotal.toFixed(2)) : null;
-    const reconciliation = exactCandidateArea2 && exactLegacyArea2 ? reconcileRoomFloorAreas(exactLegacyArea2, exactCandidateArea2) : null;
-    const sourceObservation = comparison?.source?.sourceObservation;
-    const sourceRooms = new Map(
-      (sourceObservation?.rooms ?? []).map(
-        (room) => [room.spaceId, room]
-      )
-    );
-    const sourceDxfRooms = new Map(
-      (sourceObservation?.levelOverlays ?? []).flatMap(
-        (level) => level.rooms.map((room) => [room.sourceRoomId, room])
-      )
-    );
-    const candidateStatus = comparison?.review?.reviewDecision === "accepted" ? "accepted" : comparison?.review?.reviewDecision === "rejected" ? "conflict" : comparison?.review?.reviewDecision === "needs_clarification" ? "insufficient" : "ready";
-    return {
-      authorityMode,
-      currentGraphVersionId: comparison?.authority?.currentGraphVersionId ?? null,
-      selectedGeometryVersionId: comparison?.authority?.selectedGeometryVersionId ?? null,
-      canWrite: ctx.orgRole !== "viewer",
-      canReview: ctx.orgRole === "admin",
-      legacy: legacyTotal !== null && Number.isFinite(legacyTotal) ? {
-        totalAreaSqm: legacyTotal,
-        status: comparison?.legacyRooms.length && comparison.legacyRooms.every(
-          (room) => room.source === "user_manual"
-        ) ? "user_entered" : "legacy_estimate",
-        basis: "legacy_unspecified"
-      } : void 0,
-      candidate: candidate && canonical ? {
-        geometryVersionId: candidate.id,
-        status: candidateStatus,
-        totalAreaSqm: candidate.totalAreaSquareMetres,
-        fingerprint: candidate.fingerprint,
-        sourceType: comparison?.source?.acquisitionMethod,
-        evidenceStatus: comparison?.source?.acquisitionMethod === "dxf" ? "imported" : "user_entered",
-        rooms: canonical.rooms.map((room) => ({
+    const latest = reviewState?.latest;
+    const selected = reviewState?.canonical;
+    const draft = latest?.status === "draft" ? latest : void 0;
+    const latestReviewed = latest && latest.id !== selected?.id && latest.status !== "draft" ? latest : void 0;
+    const roomPayload = (graph, source) => {
+      if (!graph) return void 0;
+      const canonicalDocument = graph.canonicalGeometry;
+      if (!canonicalDocument) return void 0;
+      const sourceObservation = source?.sourceObservation;
+      const sourceRooms = new Map(
+        (sourceObservation?.rooms ?? []).map(
+          (room) => [room.spaceId, room]
+        )
+      );
+      const sourceDxfRooms = new Map(
+        (sourceObservation?.levelOverlays ?? []).flatMap(
+          (level) => level.rooms.map((room) => [room.sourceRoomId, room])
+        )
+      );
+      return {
+        geometryVersionId: graph.id,
+        status: graph.status,
+        totalAreaSqm: graph.totalAreaSquareMetres,
+        measurementBasis: ROOM_FLOOR_POLYGON_AREA,
+        fingerprint: graph.fingerprint,
+        sourceType: source?.acquisitionMethod,
+        evidenceStatus: source?.acquisitionMethod === "dxf" ? "imported" : "user_entered",
+        rooms: canonicalDocument.rooms.map((room) => ({
           spaceId: room.spaceId,
           areaSqm: room.areaSquareMetres,
+          measurementBasis: ROOM_FLOOR_POLYGON_AREA,
           normalizedOuterRing: room.outerRing.points,
           sourceOuterRing: sourceRooms.get(room.spaceId)?.outerRing.map(
             (point) => sourcePointInMicrometres(
               point,
-              comparison?.source?.sourceUnits ?? "m"
+              source?.sourceUnits ?? "m"
             )
           ) ?? sourceDxfRooms.get(room.spaceId)?.sourcePoints.map(
             (point) => sourcePointInMicrometres(
               point,
-              comparison?.source?.sourceUnits ?? "m"
+              source?.sourceUnits ?? "m"
             )
           )
         }))
+      };
+    };
+    return {
+      authorityMode,
+      currentGraphVersionId: reviewState?.authority?.currentGraphVersionId ?? null,
+      selectedGeometryVersionId: reviewState?.authority?.selectedGeometryVersionId ?? null,
+      canWrite: ctx.orgRole !== "viewer",
+      canReview: ctx.orgRole === "admin",
+      legacy: legacyRoomTotal !== null && Number.isFinite(legacyRoomTotal) ? {
+        totalAreaSqm: legacyRoomTotal,
+        status: "legacy_unknown",
+        basis: "legacy_unspecified"
       } : void 0,
-      reconciliation: candidate ? reconciliation ? {
-        status: reconciliation.result === "conflict" ? "conflict" : "ready",
-        deltaSqm: twiceSquareMicrometresToSquareMetres(
-          BigInt(reconciliation.differenceSquareMicrometresTwice)
-        ),
-        toleranceSqm: twiceSquareMicrometresToSquareMetres(
-          BigInt(reconciliation.toleranceSquareMicrometresTwice)
-        ),
-        message: reconciliation.result === "conflict" ? "Canonical room-floor area differs from the legacy estimate beyond tolerance." : "Canonical room-floor area is within the comparison tolerance."
-      } : {
+      draft: roomPayload(draft, reviewState?.latestSource),
+      canonical: roomPayload(selected, reviewState?.canonicalSource),
+      latestReviewed: roomPayload(
+        latestReviewed,
+        reviewState?.latestSource
+      ),
+      latestReview: reviewState?.latestReview ? {
+        decision: reviewState.latestReview.reviewDecision,
+        resultState: reviewState.latestReview.resultState,
+        note: reviewState.latestReview.note,
+        createdAt: reviewState.latestReview.createdAt
+      } : void 0,
+      acceptedRoomFloorMeasurements: reviewState?.acceptedMeasurements,
+      reconciliation: {
         status: "not_checked",
-        message: "A comparable legacy room-area basis is unavailable; no equivalence claim was made."
-      } : { status: "not_checked" }
+        message: "Legacy room totals have no declared room-floor polygon basis; GFA and fit-out area are never used for this comparison."
+      }
     };
   })
 });
 
 // server/routers/spaceProgram.ts
+init_geometry();
 var ROOM_CATEGORIES = [
   "lobby",
   "corridor",
@@ -40063,13 +40553,20 @@ var ROOM_CATEGORIES = [
   "other"
 ];
 async function writeFitOutArea(projectId, orgId) {
-  await requireLegacyGeometryWriterForProject(projectId, orgId);
   const rooms = await getSpaceProgramRooms(projectId, orgId);
   const fitOutSqm = rooms.filter((r) => r.isFitOut).reduce((sum, r) => sum + Number(r.sqm), 0);
-  if (!await updateProjectVerificationForOrg(projectId, orgId, {
-    totalFitoutArea: fitOutSqm
-  })) {
-    await requireLegacyGeometryWriterForProject(projectId, orgId);
+  const result = await updateProjectWithLegacyGeometryAuthorityForOrg(
+    projectId,
+    orgId,
+    { totalFitoutArea: String(fitOutSqm) }
+  );
+  if (result === "canonical") {
+    throw new TRPCError29({
+      code: "CONFLICT",
+      message: "Legacy room and area values are read-only while canonical geometry is authoritative."
+    });
+  }
+  if (result === "not_found") {
     await requireProjectForOrg(projectId, orgId);
   }
 }
@@ -40259,10 +40756,12 @@ var legacySpaceProgramRouter = router({
         getOrgId: (room) => room.organizationId
       }
     );
-    await requireLegacyGeometryWriterForProject(
-      authorized.project.id,
-      ctx.orgId
-    );
+    if (input.sqm !== void 0) {
+      await requireLegacyGeometryWriterForProject(
+        authorized.project.id,
+        ctx.orgId
+      );
+    }
     const { roomId, ...updates } = input;
     const dbUpdates = {};
     if (updates.roomName) dbUpdates.roomName = updates.roomName;
@@ -40275,7 +40774,7 @@ var legacySpaceProgramRouter = router({
     if (updates.blockName) dbUpdates.blockName = updates.blockName;
     if (updates.blockTypology)
       dbUpdates.blockTypology = updates.blockTypology;
-    dbUpdates.source = "user_manual";
+    if (updates.sqm !== void 0) dbUpdates.source = "user_manual";
     if (!await updateSpaceProgramRoomForOrg(roomId, ctx.orgId, dbUpdates)) {
       await requireProjectOrgResourceForOrg(roomId, ctx.orgId, {
         lookupResource: getSpaceProgramRoomById,

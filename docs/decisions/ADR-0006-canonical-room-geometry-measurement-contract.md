@@ -23,7 +23,7 @@ At project level, the same `totalFitoutArea` field can originate from explicit u
 
 The result is useful early-stage guidance, but MIYAR cannot prove that two consumers reference the same room, geometry, measurement basis, or observation. An estimate can also appear measured after its provenance is collapsed.
 
-This ADR defines the contract and additive architecture approved for the bounded local manual/DXF shadow slice. It does not approve professional measurement rules, shared schema application, customer relabeling, canonical authority, publication, or production behavior.
+This ADR defines the canonical-first contract and additive architecture for the bounded local manual/DXF launch foundation. It does not approve professional measurement rules, shared schema application, publication, deployment, or a destructive data reset.
 
 ## Decision
 
@@ -35,11 +35,12 @@ On 2026-07-19 the product owner confirmed MIYAR has not launched and has no real
 
 - canonical geometry is the intended launch authority for fresh projects;
 - there will be no customer-facing shadow pilot or shadow authority phase;
-- the already implemented shadow path is technical verification scaffolding, not approved final runtime behavior;
-- the next bounded change must remove or disable shadow selection and shadow-only UI/API semantics before launch;
+- the earlier shadow path was technical verification scaffolding and is removed from runtime authority, API, and UI contracts by the canonical-first implementation;
+- manual/DXF geometry is saved as an immutable draft and becomes selected canonical geometry only through an explicit organization-admin review action;
 - legacy compatibility may remain only where required for deterministic fixture migration or internal data recovery, not as the default product authority;
-- downstream scoring, MQI, costs, reports, and shares must be explicitly verified against canonical inputs before launch;
-- this amendment does not authorize shared migration, data reset, Git publication, or deployment.
+- `room_floor_polygon_area` may feed only provenance-checked room-floor consumers; it never silently becomes GFA, fit-out, usable, circulation, wall, ceiling, opening, pricing, scoring, ROI, or report area;
+- because migration 0051 has never been shared and there are no customer records, disposable/internal DI-01 development data should be reset and recreated from the corrected migration rather than heuristically backfilled; no reset is executed without a separate target/snapshot/count approval;
+- this amendment does not authorize shared migration, data reset execution, Git publication, or deployment.
 
 ### 1. Separate identity, version, acquisition, evidence, review, and result
 
@@ -95,7 +96,7 @@ The proposed physical model keeps queryable identity, tenancy, status, and linea
 
 | Proposed relation                | Purpose and minimum fields                                                                                                                                                                              |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `project_geometry_authorities`   | Org/project authority mode (`legacy`, `shadow`, `canonical`), current geometry version ID, and revision/CAS token                                                                                       |
+| `project_geometry_authorities`   | Org/project authority mode (`legacy` or `canonical`), latest draft/review graph pointer, selected canonical geometry pointer, and revision/CAS token                                                     |
 | `spatial_graph_versions`         | Immutable graph snapshot; graph/org/project IDs, version, canonical geometry JSON, schema/canonicalization/tolerance/fingerprint versions, reference frame, fingerprint, creator/time, lifecycle state  |
 | `space_identities`               | Stable room/space identity; org/project/graph IDs, opaque public ID, lifecycle state, tombstone time                                                                                                    |
 | `space_versions`                 | Immutable name/code/category/level/zone/containment and graph-version binding; supersession metadata and content fingerprint                                                                            |
@@ -122,31 +123,31 @@ The canonical JSON schema must be versioned, size-bounded, validated before pers
 ### 7. Expand first and preserve truthful legacy behavior
 
 - Existing project, PDF extraction, space-program, allocation, finish, recommendation, report, and share fields remain in place during expansion.
-- The implemented schema currently represents `legacy`, `shadow`, and `canonical` for compatibility testing. Under the pre-launch amendment, product runtime must not expose or select `shadow`; fresh launch projects are intended to use `canonical`. Legacy room/area writers reject mutations for canonical projects rather than racing the canonical pointer.
+- Runtime authority is limited to `legacy` and `canonical`. Fresh projects atomically receive `canonical` authority with no selected geometry. Legacy room/area writers reject area mutations for canonical projects rather than racing the canonical pointer.
 - No bulk backfill invents geometry, measurement basis, units, or stable links. Only deterministic, uniquely evidenced links may be populated.
 - Duplicate or ambiguous short room codes become `unresolved_legacy_link`; no name/order/typology heuristic may silently choose a target.
 - Rows whose original observation was destroyed or cannot be reconstructed become `original_observation_lost` with result `not_checked`.
-- Existing MQI wall/ceiling/opening calculations remain available only as explicitly versioned estimates until a consumer is approved for exact geometry.
+- Existing MQI wall/ceiling/opening calculations remain available for legacy-authority projects as explicitly versioned estimates. Canonical-authority projects fail MQI generation closed until stable spaces have explicit reviewed finish-scope mappings; polygon floor area alone never authorizes wall, ceiling, opening, floor-finish, GFA, or fit-out assumptions.
 - Manual/locked allocations and explicit developer inputs remain authoritative user decisions and are never overwritten by imported or AI suggestions.
 - Legacy MQI/report relabeling and customer communication require product/report-owner approval before UI or artifact changes.
 - Destructive contraction is a later roadmap step with separate compatibility evidence and approval.
 
 Current public design-brief shares are not frozen geometry snapshots: resolution rereads mutable project, floor-plan, recommendation, benchmark, and trend data. Existing links must be classified `legacy_live_projection`. New geometry-aware issuance must bind an immutable artifact-input snapshot; if that snapshot is missing, public resolution fails closed rather than falling forward to current project data. Implementing the broader canonical issued-report model remains coordinated with BR-07.
 
-### 8. Original bounded verification slice and required canonical-first follow-up
+### 8. Bounded canonical-first implementation slice
 
 After all required approvals, the first implementation slice will cover:
 
 1. shared contract and deterministic geometry validators/canonicalizer;
 2. additive persistence and organization-locked helpers;
 3. a compatibility bridge that makes every legacy writer authority-aware before canonical mode can ever be enabled;
-4. explicit manual geometry and deterministic ASCII-DXF import from an authorized finalized asset, initially implemented in local shadow mode for verification;
+4. explicit manual geometry and deterministic ASCII-DXF import from an authorized finalized asset, saved as an immutable draft and selected only by an organization-admin review action;
 5. source-versus-normalized reconciliation and overlay;
 6. provider-free fixtures, property tests, tenant/concurrency tests, safe migration/restore, and mixed old/new application evidence.
 
 Image/PDF/DWG candidate extraction, broad consumer cutover, IFC, adjacency, BOQ, compliance, carbon, and later DI work remain outside the slice.
 
-The pre-launch amendment supersedes shadow rollout. A separate implementation must convert this verified foundation to canonical-first launch behavior and prove all downstream consumers before release.
+The pre-launch amendment supersedes the earlier shadow rollout design. The local implementation now uses canonical authority plus an independent draft/review lifecycle. Shared migration, internal-data reset execution, Git publication, release, and additional downstream consumers remain separately gated.
 
 ## Consequences
 

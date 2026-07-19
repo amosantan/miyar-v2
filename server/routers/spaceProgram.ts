@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createHash } from "node:crypto";
 import {
   mergeRouters,
@@ -53,17 +54,23 @@ const ROOM_CATEGORIES = [
  * This keeps the scoring engine, ROI bridge, and AI Advisor in sync with Phase B.
  */
 async function writeFitOutArea(projectId: number, orgId: number) {
-  await requireLegacyGeometryWriterForProject(projectId, orgId);
   const rooms = await db.getSpaceProgramRooms(projectId, orgId);
   const fitOutSqm = rooms
     .filter((r: any) => r.isFitOut)
     .reduce((sum: number, r: any) => sum + Number(r.sqm), 0);
-  if (
-    !(await db.updateProjectVerificationForOrg(projectId, orgId, {
-      totalFitoutArea: fitOutSqm,
-    }))
-  ) {
-    await requireLegacyGeometryWriterForProject(projectId, orgId);
+  const result = await db.updateProjectWithLegacyGeometryAuthorityForOrg(
+    projectId,
+    orgId,
+    { totalFitoutArea: String(fitOutSqm) }
+  );
+  if (result === "canonical") {
+    throw new TRPCError({
+      code: "CONFLICT",
+      message:
+        "Legacy room and area values are read-only while canonical geometry is authoritative.",
+    });
+  }
+  if (result === "not_found") {
     await requireProjectForOrg(projectId, orgId);
   }
 }
@@ -315,10 +322,12 @@ const legacySpaceProgramRouter = router({
           getOrgId: room => room.organizationId,
         }
       );
-      await requireLegacyGeometryWriterForProject(
-        authorized.project.id,
-        ctx.orgId
-      );
+      if (input.sqm !== undefined) {
+        await requireLegacyGeometryWriterForProject(
+          authorized.project.id,
+          ctx.orgId
+        );
+      }
       const { roomId, ...updates } = input;
       const dbUpdates: any = {};
       if (updates.roomName) dbUpdates.roomName = updates.roomName;
@@ -331,8 +340,8 @@ const legacySpaceProgramRouter = router({
       if (updates.blockName) dbUpdates.blockName = updates.blockName;
       if (updates.blockTypology)
         dbUpdates.blockTypology = updates.blockTypology;
-      // Mark source as user_manual since developer edited it
-      dbUpdates.source = "user_manual";
+      // Only an area edit changes the provenance of the legacy sqm value.
+      if (updates.sqm !== undefined) dbUpdates.source = "user_manual";
 
       if (
         !(await db.updateSpaceProgramRoomForOrg(roomId, ctx.orgId, dbUpdates))

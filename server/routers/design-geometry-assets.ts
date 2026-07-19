@@ -127,6 +127,7 @@ export const designGeometryAssetsRouter = router({
         bytes: stored.buffer,
         fileName: input.filename,
         mediaType: stored.contentType ?? input.mimeType,
+        sourceLineageId: "upload-validation",
         levelElevation: "0",
       });
       const acceptableUnknownUnits =

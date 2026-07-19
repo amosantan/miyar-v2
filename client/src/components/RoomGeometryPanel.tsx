@@ -45,14 +45,17 @@ type PreviewResult = {
 
 const COPY = {
   en: {
-    title: "Room geometry — shadow mode",
+    title: "Canonical room geometry",
     description:
-      "Preview a room boundary without changing GFA, MQI, scoring, reports, or shares.",
-    shadow: "Shadow only",
+      "Review room-floor boundaries independently from professional GFA and fit-out assumptions.",
+    authority: "Canonical workflow",
     legacyNotice:
-      "Legacy areas remain authoritative. A preview or committed candidate never silently replaces them.",
+      "A saved draft is not authoritative. Only an organization admin can approve it as canonical room-floor geometry; GFA and fit-out remain separate inputs.",
     manual: "Manual boundary",
     dxf: "DXF file",
+    drawingLineage: "Drawing lineage ID",
+    drawingLineageHelp:
+      "Reuse this ID for revisions of the same drawing. Use a new ID for an unrelated drawing.",
     roomName: "Room name",
     level: "Level elevation",
     points: "Boundary points",
@@ -65,31 +68,35 @@ const COPY = {
     uploadPreview: "Upload and preview DXF",
     chooseDxf: "Choose ASCII DXF",
     noFile: "No file selected",
-    commit: "Commit shadow candidate",
+    commit: "Save draft for review",
     commitHelp:
-      "This stores a candidate and comparison evidence. Legacy numbers stay in control.",
-    comparison: "Authority and comparison",
-    noCandidate: "No shadow candidate has been committed.",
-    legacyArea: "Legacy area",
-    candidateArea: "Candidate room-floor area",
-    delta: "Difference",
+      "This stores an immutable draft. It does not select canonical geometry until an admin approves it.",
+    comparison: "Draft and canonical review",
+    latestOutcome: "Latest reviewed draft outcome",
+    noCandidate: "Canonical room geometry has not been established.",
+    legacyArea: "Legacy area — basis unspecified",
+    polygonArea: "Room floor polygon area",
+    delta: "Cross-basis comparison",
     fingerprint: "Fingerprint",
     overlay: "Source vs normalized boundary",
     source: "Source",
     normalized: "Normalized",
-    accepted: "Accept candidate",
-    rejected: "Reject candidate",
+    accepted: "Approve as canonical",
+    rejected: "Reject draft",
     clarification: "Request clarification",
     note: "Review note (optional)",
     reviewHelp: "Only organization admins can record a review decision.",
     readOnly:
-      "You have read-only access. Geometry previews and candidate changes are unavailable.",
+      "You have read-only access. Geometry previews and draft changes are unavailable.",
     conflict: "Conflict",
     not_checked: "Not checked",
     insufficient: "Insufficient information",
-    legacy_estimate: "Legacy estimate",
-    ready: "Ready for shadow commit",
-    measured: "Measured",
+    legacy_estimate: "Separate professional assumptions",
+    ready: "Ready to save as draft",
+    draft: "Draft awaiting review",
+    canonical: "Reviewed canonical geometry",
+    needs_clarification: "Clarification required",
+    measured: "Geometry-derived",
     user_entered: "User-entered",
     imported: "Imported",
     estimated: "Estimated",
@@ -98,26 +105,30 @@ const COPY = {
     invalidUnits: "Choose the units declared by the source.",
     invalidLevel: "Enter a valid level elevation.",
     invalidFile: "Choose an ASCII .dxf file no larger than 10 MiB.",
-    previewReady: "Geometry preview is ready. Review it before committing.",
-    committed:
-      "Shadow geometry candidate committed. Legacy numbers remain unchanged.",
+    invalidLineage: "Enter a drawing lineage ID (1–64 characters).",
+    previewReady:
+      "Geometry preview is ready. Review it before saving the draft.",
+    committed: "Geometry draft saved for explicit admin review.",
     reviewed: "Review decision recorded.",
     comparisonConflict:
-      "Canonical room-floor area differs from the legacy estimate beyond tolerance.",
+      "The values use different measurement bases and cannot be compared.",
     comparisonWithinTolerance:
-      "Canonical room-floor area is within the comparison tolerance.",
+      "The values use the same declared room-floor polygon basis.",
     comparisonUnavailable:
-      "A comparable legacy room-area basis is unavailable; no equivalence claim was made.",
+      "Legacy room totals, GFA, and fit-out area do not declare the room-floor polygon basis, so no equivalence claim is made.",
   },
   ar: {
-    title: "هندسة الغرف — وضع الظل",
+    title: "هندسة الغرف المعيارية",
     description:
-      "عاين حدود الغرفة دون تغيير المساحة الإجمالية أو MQI أو التقييم أو التقارير أو المشاركات.",
-    shadow: "ظل فقط",
+      "راجع حدود أرضيات الغرف بشكل مستقل عن افتراضات المساحة الإجمالية والتشطيبات المهنية.",
+    authority: "مسار معياري",
     legacyNotice:
-      "تبقى المساحات القديمة هي المعتمدة. لا تستبدل المعاينة أو المرشح المحفوظ هذه القيم تلقائياً.",
+      "المسودة المحفوظة ليست معتمدة. يعتمدها مسؤول المؤسسة فقط كهندسة معيارية، بينما تبقى GFA ومساحة التشطيبات مدخلات منفصلة.",
     manual: "حدود يدوية",
     dxf: "ملف DXF",
+    drawingLineage: "معرّف سلسلة الرسم",
+    drawingLineageHelp:
+      "أعد استخدام هذا المعرّف لإصدارات الرسم نفسه، واستخدم معرّفاً جديداً لرسم مستقل.",
     roomName: "اسم الغرفة",
     level: "ارتفاع الطابق",
     points: "نقاط الحدود",
@@ -129,31 +140,35 @@ const COPY = {
     uploadPreview: "رفع ومعاينة DXF",
     chooseDxf: "اختر ملف DXF نصياً",
     noFile: "لم يتم اختيار ملف",
-    commit: "حفظ مرشح الظل",
+    commit: "حفظ مسودة للمراجعة",
     commitHelp:
-      "يحفظ هذا مرشحاً ودليل مقارنة، وتبقى القيم القديمة هي المعتمدة.",
-    comparison: "الاعتماد والمقارنة",
-    noCandidate: "لم يُحفظ أي مرشح ظل بعد.",
-    legacyArea: "المساحة القديمة",
-    candidateArea: "مساحة أرضية الغرفة المرشحة",
-    delta: "الفرق",
+      "يحفظ هذا مسودة ثابتة، ولا تصبح معيارية حتى يعتمدها مسؤول المؤسسة.",
+    comparison: "مراجعة المسودة والهندسة المعيارية",
+    latestOutcome: "نتيجة آخر مسودة تمت مراجعتها",
+    noCandidate: "لم يتم اعتماد هندسة معيارية للغرف بعد.",
+    legacyArea: "مساحة قديمة — الأساس غير محدد",
+    polygonArea: "مساحة مضلع أرضية الغرفة",
+    delta: "مقارنة بين أسس مختلفة",
     fingerprint: "البصمة",
     overlay: "حدود المصدر مقابل الحدود المطبّعة",
     source: "المصدر",
     normalized: "المطبّعة",
-    accepted: "قبول المرشح",
-    rejected: "رفض المرشح",
+    accepted: "اعتمادها كهندسة معيارية",
+    rejected: "رفض المسودة",
     clarification: "طلب توضيح",
     note: "ملاحظة المراجعة (اختيارية)",
     reviewHelp: "يمكن لمسؤولي المؤسسة فقط تسجيل قرار المراجعة.",
     readOnly:
-      "لديك صلاحية القراءة فقط. معاينات الهندسة وتغييرات المرشح غير متاحة.",
+      "لديك صلاحية القراءة فقط. معاينات الهندسة وتغييرات المسودة غير متاحة.",
     conflict: "تعارض",
     not_checked: "لم يتم التحقق",
     insufficient: "معلومات غير كافية",
-    legacy_estimate: "تقدير قديم",
-    ready: "جاهز للحفظ في وضع الظل",
-    measured: "مقاس",
+    legacy_estimate: "افتراضات مهنية منفصلة",
+    ready: "جاهز للحفظ كمسودة",
+    draft: "مسودة بانتظار المراجعة",
+    canonical: "هندسة معيارية معتمدة",
+    needs_clarification: "مطلوب توضيح",
+    measured: "مشتق هندسياً",
     user_entered: "مدخل من المستخدم",
     imported: "مستورد",
     estimated: "تقديري",
@@ -162,8 +177,9 @@ const COPY = {
     invalidUnits: "اختر الوحدة المعلنة في المصدر.",
     invalidLevel: "أدخل ارتفاع طابق صالحاً.",
     invalidFile: "اختر ملف ASCII DXF لا يزيد حجمه عن 10 ميبيبايت.",
+    invalidLineage: "أدخل معرّف سلسلة رسم من 1 إلى 64 حرفاً.",
     previewReady: "المعاينة جاهزة. راجعها قبل الحفظ.",
-    committed: "تم حفظ مرشح هندسة الظل. لم تتغير القيم القديمة.",
+    committed: "تم حفظ مسودة الهندسة للمراجعة الصريحة من المسؤول.",
     reviewed: "تم تسجيل قرار المراجعة.",
     comparisonConflict:
       "تختلف مساحة أرضية الغرفة المعيارية عن التقدير القديم بما يتجاوز حد التفاوت.",
@@ -180,6 +196,10 @@ function makeSpaceId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `manual-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function makeDrawingLineageId(): string {
+  return `drawing-${makeSpaceId()}`.slice(0, 64);
 }
 
 function parsePoints(value: string): Point[] | null {
@@ -223,7 +243,7 @@ function StatusBadge({
   const key = (status || "not_checked") as CopyKey;
   const warning = status === "conflict" || status === "insufficient";
   const positive =
-    status === "ready" || status === "measured" || status === "accepted";
+    status === "ready" || status === "measured" || status === "canonical";
   return (
     <Badge
       variant="outline"
@@ -319,7 +339,7 @@ function BoundaryOverlay({
   );
 }
 
-export default function GeometryShadowPanel({
+export default function RoomGeometryPanel({
   projectId,
 }: {
   projectId: number;
@@ -335,6 +355,9 @@ export default function GeometryShadowPanel({
   const [levelElevation, setLevelElevation] = useState("0");
   const [pointsText, setPointsText] = useState("0,0\n4,0\n4,3\n0,3");
   const [spaceId, setSpaceId] = useState(makeSpaceId);
+  const [sourceLineageId, setSourceLineageId] = useState(
+    makeDrawingLineageId
+  );
   const [dxfFile, setDxfFile] = useState<File | null>(null);
   const [dxfAssetId, setDxfAssetId] = useState<number | null>(null);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
@@ -343,50 +366,23 @@ export default function GeometryShadowPanel({
   );
   const [reviewNote, setReviewNote] = useState("");
 
-  // These additive routes are kept behind one boundary while DI-01 lands so this
-  // component does not leak staged response details into the existing editor.
-  const geometryApi = trpc.spaceProgram as any;
-  const geometryDesignApi = trpc.design as any;
-  const geometryUtils = utils.spaceProgram as any;
-  const comparisonQuery = geometryApi.getGeometryComparison.useQuery({
+  const reviewQuery = trpc.spaceProgram.getGeometryReviewState.useQuery({
     projectId,
-  }) as {
-    data?: {
-      authorityMode?: string;
-      currentGraphVersionId?: number | null;
-      canWrite?: boolean;
-      canReview?: boolean;
-      legacy?: { totalAreaSqm?: number | string; status?: string };
-      candidate?: {
-        geometryVersionId?: number;
-        status?: string;
-        evidenceStatus?: string;
-        totalAreaSqm?: number | string;
-        rooms?: PreviewRoom[];
-      };
-      reconciliation?: {
-        status?: string;
-        deltaSqm?: number | string;
-        deltaPercent?: number | string;
-        message?: string;
-      };
-    };
-    isLoading: boolean;
-  };
-  const comparison = comparisonQuery.data;
+  });
+  const reviewState = reviewQuery.data;
+  const reviewGeometry =
+    reviewState?.draft ?? reviewState?.canonical ?? reviewState?.latestReviewed;
 
   useEffect(() => {
-    const persistedSpaceId = comparison?.candidate?.rooms?.[0]?.spaceId;
+    const persistedSpaceId = reviewGeometry?.rooms?.[0]?.spaceId;
     if (persistedSpaceId && !preview) setSpaceId(persistedSpaceId);
-  }, [comparison?.candidate?.geometryVersionId, preview]);
-  const createUpload =
-    geometryDesignApi.createGeometrySourceUpload.useMutation();
-  const finalizeUpload =
-    geometryDesignApi.finalizeGeometrySourceUpload.useMutation();
-  const previewManual = geometryApi.previewManualGeometry.useMutation();
-  const previewDxf = geometryApi.previewDxfGeometry.useMutation();
-  const commit = geometryApi.commitShadowGeometry.useMutation();
-  const review = geometryApi.reviewGeometryCandidate.useMutation();
+  }, [reviewGeometry?.geometryVersionId, preview]);
+  const createUpload = trpc.design.createGeometrySourceUpload.useMutation();
+  const finalizeUpload = trpc.design.finalizeGeometrySourceUpload.useMutation();
+  const previewManual = trpc.spaceProgram.previewManualGeometry.useMutation();
+  const previewDxf = trpc.spaceProgram.previewDxfGeometry.useMutation();
+  const commit = trpc.spaceProgram.saveGeometryDraft.useMutation();
+  const review = trpc.spaceProgram.reviewGeometryDraft.useMutation();
   const pending =
     createUpload.isPending ||
     finalizeUpload.isPending ||
@@ -433,6 +429,8 @@ export default function GeometryShadowPanel({
       return toast.error(text("invalidUnits"));
     if (!levelElevation.trim() || !Number.isFinite(Number(levelElevation)))
       return toast.error(text("invalidLevel"));
+    if (!sourceLineageId.trim() || sourceLineageId.trim().length > 64)
+      return toast.error(text("invalidLineage"));
     if (
       !dxfFile ||
       !dxfFile.name.toLowerCase().endsWith(".dxf") ||
@@ -462,6 +460,7 @@ export default function GeometryShadowPanel({
       const result = await previewDxf.mutateAsync({
         projectId,
         assetId: finalized.assetId,
+        sourceLineageId: sourceLineageId.trim(),
         sourceUnit,
         snapTransform: snap ? "1mm" : "none",
         levelElevation,
@@ -488,10 +487,15 @@ export default function GeometryShadowPanel({
       return toast.error(text("invalidLevel"));
     if (previewSource === "dxf" && !dxfAssetId)
       return toast.error(text("invalidFile"));
+    if (
+      previewSource === "dxf" &&
+      (!sourceLineageId.trim() || sourceLineageId.trim().length > 64)
+    )
+      return toast.error(text("invalidLineage"));
     try {
       await commit.mutateAsync({
         projectId,
-        expectedCurrentVersionId: comparison?.currentGraphVersionId ?? null,
+        expectedCurrentVersionId: reviewState?.currentGraphVersionId ?? null,
         source:
           previewSource === "manual"
             ? {
@@ -503,6 +507,7 @@ export default function GeometryShadowPanel({
             : {
                 kind: "dxf" as const,
                 assetId: dxfAssetId!,
+                sourceLineageId: sourceLineageId.trim(),
                 sourceUnit,
                 snapTransform: snap ? ("1mm" as const) : ("none" as const),
                 levelElevation,
@@ -510,7 +515,7 @@ export default function GeometryShadowPanel({
       });
       setPreview(null);
       setPreviewSource(null);
-      await geometryUtils.getGeometryComparison.invalidate({ projectId });
+      await utils.spaceProgram.getGeometryReviewState.invalidate({ projectId });
       toast.success(text("committed"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -518,19 +523,23 @@ export default function GeometryShadowPanel({
   };
 
   const handleReview = async (
-    decision: "accepted" | "rejected" | "clarification_requested"
+    decision: "approve_as_canonical" | "reject" | "request_clarification"
   ) => {
-    if (!comparison?.candidate?.geometryVersionId) return;
+    if (
+      reviewState?.draft?.status !== "draft" ||
+      !reviewState.draft.geometryVersionId
+    )
+      return;
     try {
       await review.mutateAsync({
         projectId,
-        geometryVersionId: comparison.candidate.geometryVersionId,
-        expectedCurrentVersionId: comparison.currentGraphVersionId ?? null,
+        geometryVersionId: reviewState.draft.geometryVersionId,
+        expectedCurrentVersionId: reviewState.currentGraphVersionId ?? null,
         decision,
         note: reviewNote.trim() || undefined,
       });
       setReviewNote("");
-      await geometryUtils.getGeometryComparison.invalidate({ projectId });
+      await utils.spaceProgram.getGeometryReviewState.invalidate({ projectId });
       toast.success(text("reviewed"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -548,7 +557,10 @@ export default function GeometryShadowPanel({
           },
         ]
       : [];
-  const previewBlocked = preview?.status === "insufficient";
+  const previewBlocked =
+    preview != null &&
+    preview.status !== "ready" &&
+    preview.status !== "imported";
 
   return (
     <Card dir={dir} className="min-w-0 overflow-hidden border-sky-500/25">
@@ -564,7 +576,7 @@ export default function GeometryShadowPanel({
             </p>
           </div>
           <Badge className="shrink-0 bg-sky-500/15 text-sky-300 hover:bg-sky-500/15">
-            {text("shadow")}
+            {text("authority")}
           </Badge>
         </div>
         <Alert className="border-sky-500/25 bg-sky-500/5">
@@ -574,7 +586,7 @@ export default function GeometryShadowPanel({
         </Alert>
       </CardHeader>
       <CardContent className="min-w-0 space-y-5">
-        {comparison?.canWrite ? (
+        {reviewState?.canWrite ? (
           <Tabs
             defaultValue="manual"
             onValueChange={() => {
@@ -691,6 +703,28 @@ export default function GeometryShadowPanel({
             </TabsContent>
             <TabsContent value="dxf" className="min-w-0 space-y-3">
               <div className="space-y-1.5">
+                <Label htmlFor={`geometry-dxf-lineage-${projectId}`}>
+                  {text("drawingLineage")}
+                </Label>
+                <Input
+                  id={`geometry-dxf-lineage-${projectId}`}
+                  dir="ltr"
+                  maxLength={64}
+                  value={sourceLineageId}
+                  onChange={event => {
+                    setSourceLineageId(event.target.value);
+                    setPreview(null);
+                  }}
+                  aria-describedby={`geometry-dxf-lineage-help-${projectId}`}
+                />
+                <p
+                  id={`geometry-dxf-lineage-help-${projectId}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  {text("drawingLineageHelp")}
+                </p>
+              </div>
+              <div className="space-y-1.5">
                 <Label htmlFor={`geometry-dxf-level-${projectId}`}>
                   {text("level")}
                 </Label>
@@ -746,14 +780,14 @@ export default function GeometryShadowPanel({
               </Button>
             </TabsContent>
           </Tabs>
-        ) : !comparisonQuery.isLoading ? (
+        ) : !reviewQuery.isLoading ? (
           <Alert>
             <ShieldCheck />
             <AlertDescription>{text("readOnly")}</AlertDescription>
           </Alert>
         ) : null}
 
-        {comparison?.canWrite && preview && (
+        {reviewState?.canWrite && preview && (
           <section
             aria-live="polite"
             className="min-w-0 space-y-3 rounded-lg border border-border/70 p-3 sm:p-4"
@@ -830,18 +864,35 @@ export default function GeometryShadowPanel({
         )}
 
         <section className="min-w-0 space-y-3 border-t border-border/60 pt-4">
+          {reviewState?.latestReviewed && !reviewState?.draft && (
+            <Alert className="border-amber-500/30 bg-amber-500/5">
+              <HelpCircle className="text-amber-400" />
+              <AlertTitle>{text("latestOutcome")}</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <StatusBadge
+                  status={reviewState.latestReviewed.status}
+                  label={text}
+                />
+                {reviewState.latestReview?.note && (
+                  <p className="break-words">
+                    {reviewState.latestReview.note}
+                  </p>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-semibold">{text("comparison")}</h3>
             <StatusBadge
               status={
-                comparison?.reconciliation?.status ||
-                comparison?.candidate?.status ||
+                reviewGeometry?.status ||
+                reviewState?.reconciliation?.status ||
                 "not_checked"
               }
               label={text}
             />
           </div>
-          {comparisonQuery.isLoading ? (
+          {reviewQuery.isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           ) : (
             <div className="grid min-w-0 gap-2 sm:grid-cols-3">
@@ -850,28 +901,25 @@ export default function GeometryShadowPanel({
                   {text("legacyArea")}
                 </p>
                 <p className="mt-1 text-sm font-semibold">
-                  {numericArea(comparison?.legacy?.totalAreaSqm)}
+                  {numericArea(reviewState?.legacy?.totalAreaSqm)}
                 </p>
                 <StatusBadge
-                  status={comparison?.legacy?.status || "legacy_estimate"}
+                  status={reviewState?.legacy?.status || "legacy_estimate"}
                   label={text}
                 />
               </div>
               <div className="min-w-0 rounded-md bg-secondary/25 p-3">
                 <p className="text-[11px] text-muted-foreground">
-                  {text("candidateArea")}
+                  {text("polygonArea")}
                 </p>
                 <p className="mt-1 text-sm font-semibold">
-                  {numericArea(comparison?.candidate?.totalAreaSqm)}
+                  {numericArea(reviewGeometry?.totalAreaSqm)}
                 </p>
-                {comparison?.candidate ? (
+                {reviewGeometry ? (
                   <div className="flex flex-wrap gap-1">
+                    <StatusBadge status={reviewGeometry.status} label={text} />
                     <StatusBadge
-                      status={comparison.candidate.status}
-                      label={text}
-                    />
-                    <StatusBadge
-                      status={comparison.candidate.evidenceStatus}
+                      status={reviewGeometry.evidenceStatus}
                       label={text}
                     />
                   </div>
@@ -886,29 +934,20 @@ export default function GeometryShadowPanel({
                   {text("delta")}
                 </p>
                 <p className="mt-1 text-sm font-semibold">
-                  {numericArea(comparison?.reconciliation?.deltaSqm)}
+                  {text("not_checked")}
                 </p>
-                {comparison?.reconciliation?.deltaPercent != null && (
-                  <p className="text-xs text-muted-foreground">
-                    {Number(comparison.reconciliation.deltaPercent).toFixed(2)}%
-                  </p>
-                )}
               </div>
             </div>
           )}
-          {comparison?.reconciliation?.message && (
+          {reviewState?.reconciliation?.message && (
             <p className="break-words text-xs text-muted-foreground">
-              {comparison.reconciliation.status === "conflict"
-                ? text("comparisonConflict")
-                : comparison.reconciliation.status === "ready"
-                  ? text("comparisonWithinTolerance")
-                  : text("comparisonUnavailable")}
+              {text("comparisonUnavailable")}
             </p>
           )}
 
-          {comparison?.candidate?.rooms?.map((room, index) => (
+          {reviewGeometry?.rooms?.map((room, index) => (
             <BoundaryOverlay
-              key={room.spaceId ?? `candidate-room-${index}`}
+              key={room.spaceId ?? `geometry-room-${index}`}
               source={room.sourceOuterRing}
               normalized={room.normalizedOuterRing}
               title={text("overlay")}
@@ -917,7 +956,7 @@ export default function GeometryShadowPanel({
             />
           ))}
 
-          {comparison?.canReview && comparison.candidate && (
+          {reviewState?.canReview && reviewState.draft?.status === "draft" && (
             <div className="min-w-0 space-y-2 rounded-lg border border-border/70 p-3">
               <p className="text-xs text-muted-foreground">
                 {text("reviewHelp")}
@@ -931,7 +970,7 @@ export default function GeometryShadowPanel({
               <div className="grid gap-2 sm:grid-cols-3">
                 <Button
                   size="sm"
-                  onClick={() => handleReview("accepted")}
+                  onClick={() => handleReview("approve_as_canonical")}
                   disabled={review.isPending}
                   className="bg-emerald-600 hover:bg-emerald-700"
                 >
@@ -941,7 +980,7 @@ export default function GeometryShadowPanel({
                 <Button
                   size="sm"
                   variant="destructive"
-                  onClick={() => handleReview("rejected")}
+                  onClick={() => handleReview("reject")}
                   disabled={review.isPending}
                 >
                   <XCircle />
@@ -950,7 +989,7 @@ export default function GeometryShadowPanel({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleReview("clarification_requested")}
+                  onClick={() => handleReview("request_clarification")}
                   disabled={review.isPending}
                 >
                   <HelpCircle />

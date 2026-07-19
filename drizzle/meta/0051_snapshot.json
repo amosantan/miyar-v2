@@ -545,7 +545,25 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "ais_graph_scope_fk": {
+          "name": "ais_graph_scope_fk",
+          "tableFrom": "artifact_input_snapshots",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "graphVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "artifact_input_snapshots_id": {
           "name": "artifact_input_snapshots_id",
@@ -4731,8 +4749,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "candidateGraphVersionId": {
-          "name": "candidateGraphVersionId",
+        "draftGraphVersionId": {
+          "name": "draftGraphVersionId",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -4752,8 +4770,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "candidateMeasurementRecordId": {
-          "name": "candidateMeasurementRecordId",
+        "draftMeasurementRecordId": {
+          "name": "draftMeasurementRecordId",
           "type": "int",
           "primaryKey": false,
           "notNull": false,
@@ -4766,8 +4784,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "candidateFingerprint": {
-          "name": "candidateFingerprint",
+        "draftFingerprint": {
+          "name": "draftFingerprint",
           "type": "varchar(64)",
           "primaryKey": false,
           "notNull": true,
@@ -4796,7 +4814,7 @@
         },
         "reviewDecision": {
           "name": "reviewDecision",
-          "type": "enum('candidate_created','accepted','rejected','needs_clarification','reconciled')",
+          "type": "enum('draft_created','accepted','rejected','needs_clarification','reconciled')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -4841,12 +4859,12 @@
           ],
           "isUnique": true
         },
-        "geometry_reconciliation_events_candidate_idx": {
-          "name": "geometry_reconciliation_events_candidate_idx",
+        "geometry_reconciliation_events_draft_idx": {
+          "name": "geometry_reconciliation_events_draft_idx",
           "columns": [
             "organizationId",
             "projectId",
-            "candidateGraphVersionId",
+            "draftGraphVersionId",
             "createdAt"
           ],
           "isUnique": false
@@ -4876,12 +4894,132 @@
             "organizationId",
             "projectId",
             "baseMeasurementRecordId",
-            "candidateMeasurementRecordId"
+            "draftMeasurementRecordId"
           ],
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "gre_authority_scope_fk": {
+          "name": "gre_authority_scope_fk",
+          "tableFrom": "geometry_reconciliation_events",
+          "tableTo": "project_geometry_authorities",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "authorityId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "gre_expected_graph_scope_fk": {
+          "name": "gre_expected_graph_scope_fk",
+          "tableFrom": "geometry_reconciliation_events",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "expectedCurrentGraphVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "gre_base_graph_scope_fk": {
+          "name": "gre_base_graph_scope_fk",
+          "tableFrom": "geometry_reconciliation_events",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "baseGraphVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "gre_draft_graph_scope_fk": {
+          "name": "gre_draft_graph_scope_fk",
+          "tableFrom": "geometry_reconciliation_events",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "draftGraphVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "gre_result_graph_scope_fk": {
+          "name": "gre_result_graph_scope_fk",
+          "tableFrom": "geometry_reconciliation_events",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "resultGraphVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "gre_base_measurement_scope_fk": {
+          "name": "gre_base_measurement_scope_fk",
+          "tableFrom": "geometry_reconciliation_events",
+          "tableTo": "measurement_records",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "baseMeasurementRecordId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "gre_draft_measurement_scope_fk": {
+          "name": "gre_draft_measurement_scope_fk",
+          "tableFrom": "geometry_reconciliation_events",
+          "tableTo": "measurement_records",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "draftMeasurementRecordId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "geometry_reconciliation_events_id": {
           "name": "geometry_reconciliation_events_id",
@@ -5518,7 +5656,25 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "lsl_identity_scope_fk": {
+          "name": "lsl_identity_scope_fk",
+          "tableFrom": "legacy_space_links",
+          "tableTo": "space_identities",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "spaceIdentityId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "legacy_space_links_id": {
           "name": "legacy_space_links_id",
@@ -6740,7 +6896,42 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "mie_derived_scope_fk": {
+          "name": "mie_derived_scope_fk",
+          "tableFrom": "measurement_input_edges",
+          "tableTo": "measurement_records",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "derivedMeasurementRecordId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "mie_input_scope_fk": {
+          "name": "mie_input_scope_fk",
+          "tableFrom": "measurement_input_edges",
+          "tableTo": "measurement_records",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "inputMeasurementRecordId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "measurement_input_edges_id": {
           "name": "measurement_input_edges_id",
@@ -7018,7 +7209,93 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "mr_identity_scope_fk": {
+          "name": "mr_identity_scope_fk",
+          "tableFrom": "measurement_records",
+          "tableTo": "space_identities",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "spaceIdentityId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "mr_space_version_scope_fk": {
+          "name": "mr_space_version_scope_fk",
+          "tableFrom": "measurement_records",
+          "tableTo": "space_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "spaceVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "mr_graph_scope_fk": {
+          "name": "mr_graph_scope_fk",
+          "tableFrom": "measurement_records",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "graphVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "mr_source_scope_fk": {
+          "name": "mr_source_scope_fk",
+          "tableFrom": "measurement_records",
+          "tableTo": "geometry_sources",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "geometrySourceId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "mr_supersedes_scope_fk": {
+          "name": "mr_supersedes_scope_fk",
+          "tableFrom": "measurement_records",
+          "tableTo": "measurement_records",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "supersedesMeasurementRecordId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "measurement_records_id": {
           "name": "measurement_records_id",
@@ -8590,11 +8867,11 @@
         },
         "mode": {
           "name": "mode",
-          "type": "enum('legacy','shadow','canonical')",
+          "type": "enum('legacy','canonical')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'legacy'"
+          "default": "'canonical'"
         },
         "currentGraphVersionId": {
           "name": "currentGraphVersionId",
@@ -8670,8 +8947,8 @@
           ],
           "isUnique": false
         },
-        "project_geometry_authorities_shadow_idx": {
-          "name": "project_geometry_authorities_shadow_idx",
+        "project_geometry_authorities_selected_idx": {
+          "name": "project_geometry_authorities_selected_idx",
           "columns": [
             "organizationId",
             "projectId",
@@ -8680,7 +8957,42 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "pga_current_graph_scope_fk": {
+          "name": "pga_current_graph_scope_fk",
+          "tableFrom": "project_geometry_authorities",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "currentGraphVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "pga_selected_graph_scope_fk": {
+          "name": "pga_selected_graph_scope_fk",
+          "tableFrom": "project_geometry_authorities",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "selectedGeometryVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "project_geometry_authorities_id": {
           "name": "project_geometry_authorities_id",
@@ -11674,7 +11986,59 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "sv_identity_scope_fk": {
+          "name": "sv_identity_scope_fk",
+          "tableFrom": "space_versions",
+          "tableTo": "space_identities",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "spaceIdentityId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sv_graph_scope_fk": {
+          "name": "sv_graph_scope_fk",
+          "tableFrom": "space_versions",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "geometryVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sv_supersedes_scope_fk": {
+          "name": "sv_supersedes_scope_fk",
+          "tableFrom": "space_versions",
+          "tableTo": "space_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "supersedesSpaceVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "space_versions_id": {
           "name": "space_versions_id",
@@ -11740,11 +12104,11 @@
         },
         "status": {
           "name": "status",
-          "type": "enum('candidate','accepted','rejected','superseded')",
+          "type": "enum('draft','canonical','needs_clarification','rejected','superseded')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'candidate'"
+          "default": "'draft'"
         },
         "canonicalGeometry": {
           "name": "canonicalGeometry",
@@ -11887,7 +12251,42 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "sgv_parent_scope_fk": {
+          "name": "sgv_parent_scope_fk",
+          "tableFrom": "spatial_graph_versions",
+          "tableTo": "spatial_graph_versions",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "parentGraphVersionId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sgv_source_scope_fk": {
+          "name": "sgv_source_scope_fk",
+          "tableFrom": "spatial_graph_versions",
+          "tableTo": "geometry_sources",
+          "columnsFrom": [
+            "organizationId",
+            "projectId",
+            "geometrySourceId"
+          ],
+          "columnsTo": [
+            "organizationId",
+            "projectId",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "spatial_graph_versions_id": {
           "name": "spatial_graph_versions_id",

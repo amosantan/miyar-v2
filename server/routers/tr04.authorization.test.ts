@@ -6,8 +6,6 @@ const mocks = vi.hoisted(() => ({
   getOrganizationMemberships: vi.fn(),
   getProjectById: vi.fn(),
   updateProjectForOrg: vi.fn(),
-  updateProjectWithLegacyGeometryAuthorityForOrg: vi.fn(),
-  getProjectGeometryAuthorityModeForOrg: vi.fn(),
   deleteProjectForOrg: vi.fn(),
   createAuditLog: vi.fn(),
   getScenarioById: vi.fn(),
@@ -83,10 +81,6 @@ describe("TR-04 project and scenario authorization contracts", () => {
       return undefined;
     });
     mocks.updateProjectForOrg.mockResolvedValue(true);
-    mocks.updateProjectWithLegacyGeometryAuthorityForOrg.mockResolvedValue(
-      "updated"
-    );
-    mocks.getProjectGeometryAuthorityModeForOrg.mockResolvedValue("legacy");
     mocks.deleteProjectForOrg.mockResolvedValue(true);
     mocks.deleteScenarioForOrg.mockResolvedValue(true);
     mocks.getReportsByProject.mockResolvedValue([]);
@@ -133,33 +127,22 @@ describe("TR-04 project and scenario authorization contracts", () => {
     );
   });
 
-  it("fails an area update closed when authority becomes canonical at the final write", async () => {
+  it("keeps explicit fit-out area editable because room polygons are not professional fit-out area", async () => {
     mocks.getOrganizationMemberships.mockResolvedValue([
       membership(101, "member"),
     ]);
-    mocks.getProjectGeometryAuthorityModeForOrg
-      .mockResolvedValueOnce("legacy")
-      .mockResolvedValueOnce("canonical");
-    mocks.updateProjectWithLegacyGeometryAuthorityForOrg.mockResolvedValue(
-      "canonical"
-    );
-
     await expect(
       projectRouter.createCaller(context(101, "member")).update({
         id: 11,
         totalFitoutArea: 25,
       })
-    ).rejects.toThrow(
-      "Legacy room and area values are read-only while canonical geometry is authoritative."
-    );
-    expect(
-      mocks.updateProjectWithLegacyGeometryAuthorityForOrg
-    ).toHaveBeenCalledWith(
+    ).resolves.toEqual({ success: true });
+    expect(mocks.updateProjectForOrg).toHaveBeenCalledWith(
       11,
       101,
       expect.objectContaining({ totalFitoutArea: "25" })
     );
-    expect(mocks.createAuditLog).not.toHaveBeenCalled();
+    expect(mocks.createAuditLog).toHaveBeenCalled();
   });
 
   it("requires organization admin for project deletion", async () => {

@@ -34,7 +34,7 @@ function rectangleDxf(
       ? ""
       : `0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n${insUnits}\n0\nENDSEC\n`;
   const firstBulge = bulge === undefined ? "" : `42\n${bulge}\n`;
-  return `${header}0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n8\nRooms\n90\n4\n70\n1\n10\n0\n20\n0\n${firstBulge}10\n${width}\n20\n0\n10\n${width}\n20\n${height}\n10\n0\n20\n${height}\n${extraEntity}0\nENDSEC\n0\nEOF\n`;
+  return `${header}0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n5\nA1\n8\nRooms\n90\n4\n70\n1\n10\n0\n20\n0\n${firstBulge}10\n${width}\n20\n0\n10\n${width}\n20\n${height}\n10\n0\n20\n${height}\n${extraEntity}0\nENDSEC\n0\nEOF\n`;
 }
 
 function boundaryInput(source: string, selectedUnit?: "m" | "mm") {
@@ -42,6 +42,7 @@ function boundaryInput(source: string, selectedUnit?: "m" | "mm") {
     bytes: ascii(source),
     fileName: "rooms.dxf",
     mediaType: "application/dxf",
+    sourceLineageId: "drawing-lineage-001",
     selectedUnit,
     levelElevation: "0",
   } as const;
@@ -49,9 +50,10 @@ function boundaryInput(source: string, selectedUnit?: "m" | "mm") {
 
 function polylineEntity(
   vertices: Array<[string, string]>,
-  layer: string
+  layer: string,
+  handle: string
 ): string {
-  return `0\nLWPOLYLINE\n8\n${layer}\n90\n${vertices.length}\n70\n1\n${vertices
+  return `0\nLWPOLYLINE\n5\n${handle}\n8\n${layer}\n90\n${vertices.length}\n70\n1\n${vertices
     .map(([x, y]) => `10\n${x}\n20\n${y}\n`)
     .join("")}`;
 }
@@ -168,16 +170,16 @@ describe("DI-01 deterministic ASCII DXF boundary", () => {
     const first = await inspectDxfGeometry(
       boundaryInput(
         entitiesDxf([
-          polylineEntity(roomA, "Rooms A"),
-          polylineEntity(roomB, "Rooms B"),
+          polylineEntity(roomA, "Rooms A", "A1"),
+          polylineEntity(roomB, "Rooms B", "B1"),
         ])
       )
     );
     const second = await inspectDxfGeometry(
       boundaryInput(
         entitiesDxf([
-          polylineEntity([roomB[2], roomB[1], roomB[0], roomB[3]], "Renamed B"),
-          polylineEntity([roomA[2], roomA[1], roomA[0], roomA[3]], "Renamed A"),
+          polylineEntity([roomB[2], roomB[1], roomB[0], roomB[3]], "Renamed B", "B1"),
+          polylineEntity([roomA[2], roomA[1], roomA[0], roomA[3]], "Renamed A", "A1"),
         ])
       )
     );
@@ -195,6 +197,57 @@ describe("DI-01 deterministic ASCII DXF boundary", () => {
       .sort();
     expect(secondIds).toEqual(firstIds);
     expect(firstIds.every(id => id.length <= 64)).toBe(true);
+  });
+
+  it("keeps identity across boundary revisions when the DXF entity handle is stable", async () => {
+    const first = await inspectDxfGeometry(
+      boundaryInput(rectangleDxf({ insUnits: 6, width: "4" }))
+    );
+    const revised = await inspectDxfGeometry(
+      boundaryInput(rectangleDxf({ insUnits: 6, width: "5" }))
+    );
+
+    expect(first.status).toBe("imported");
+    expect(revised.status).toBe("imported");
+    expect(revised.levelOverlays[0].rooms[0].sourceRoomId).toBe(
+      first.levelOverlays[0].rooms[0].sourceRoomId
+    );
+    expect(revised.canonical?.fingerprint.value).not.toBe(
+      first.canonical?.fingerprint.value
+    );
+  });
+
+  it("keeps identical handles in unrelated drawing lineages as different rooms", async () => {
+    const first = await inspectDxfGeometry(
+      boundaryInput(rectangleDxf({ insUnits: 6 }))
+    );
+    const unrelated = await inspectDxfGeometry({
+      ...boundaryInput(rectangleDxf({ insUnits: 6 })),
+      sourceLineageId: "drawing-lineage-002",
+    });
+
+    expect(unrelated.levelOverlays[0].rooms[0].sourceRoomId).not.toBe(
+      first.levelOverlays[0].rooms[0].sourceRoomId
+    );
+  });
+
+  it("rejects missing or duplicate DXF entity handles as non-canonical identity", async () => {
+    const missing = await inspectDxfGeometry(
+      boundaryInput(
+        rectangleDxf({ insUnits: 6 }).replace("5\nA1\n", "")
+      )
+    );
+    const duplicate = await inspectDxfGeometry(
+      boundaryInput(
+        entitiesDxf([
+          polylineEntity([["0", "0"], ["1", "0"], ["1", "1"], ["0", "1"]], "A", "AA"),
+          polylineEntity([["2", "0"], ["3", "0"], ["3", "1"], ["2", "1"]], "B", "AA"),
+        ])
+      )
+    );
+
+    expect(missing.issue?.code).toBe("missing_stable_entity_identity");
+    expect(duplicate.issue?.code).toBe("duplicate_stable_entity_identity");
   });
 
   it("honours the declared level elevation", async () => {

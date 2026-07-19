@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `DI-01` (`NEEDS_HUMAN` — owner rejected shadow mode; canonical-first pre-launch implementation scope required)
+- Next executable step: `DI-01` Git publication, draft-PR CI, and complete-diff review
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -511,7 +511,7 @@ Rules:
 
 ### BR-06 — Validate priority UAE typology packs
 
-- Status: `NEEDS_HUMAN`
+- Status: `ACTIVE`
 - Class / priority: Design intelligence / P1
 - Dependencies: `BR-05`
 - Human gate: UAE architects/interior designers, cost consultant, and relevant compliance reviewer.
@@ -557,11 +557,11 @@ Rules:
 
 ### DI-01 — Build the canonical room, geometry, and measurement foundation
 
-- Status: `NEEDS_HUMAN`
+- Status: `ACTIVE`
 - Class / priority: Schema/geometry/engine / P1
 - Dependencies: `TR-13` is closed. The active planning increment absorbs only the geometry-specific calculation-authority work needed to specify this foundation. `BR-02` and `BR-05` remain integration gates rather than blockers to the bounded ADR/compatibility package.
 - Prioritization decision: On 2026-07-19 the user selected `DI-01` as the single next executable step. This changes execution order, not the human approval requirements below.
-- Human gate: The user approved A1/B1/C1 and the first local manual/DXF verification slice on 2026-07-19. The owner then confirmed MIYAR is pre-launch with no real customers and rejected shadow mode as a product rollout strategy. The next implementation must be canonical-first for launch. Professional/aggregate area bases, shared migration, commit/push/merge/deploy, image/PDF/DWG/IFC authority, consumer cutover, scoring/financial/compliance changes, new material dependencies, and destructive contraction remain gated.
+- Human gate: On 2026-07-19 the owner authorized the bounded canonical-first local implementation, the exact local Docker reset for `miyar_auth_test_tr10_browser`, and then commit/push/draft-PR publication with CI and complete-diff review. The reset is complete. Merge, shared database application, deployment, professional GFA/fit-out rules, image/PDF/DWG/IFC authority, scoring/financial/compliance changes, and new material dependencies remain gated.
 - Plain-English outcome: Every room, boundary, opening, level, zone, and area will eventually have one stable identity and one explicit measurement basis instead of being recreated differently by each feature.
 - Evidence: Live code currently stores AI floor-plan output in unversioned project JSON, regenerates room codes from type and array order, reduces DXF polygons to area using a unit heuristic, stores separate short room IDs in downstream tables, and estimates walls/openings/ceilings from room area assumptions.
 - Active change set:
@@ -569,14 +569,17 @@ Rules:
   - Define the canonical identity, version, geometry, measurement, source/provenance, confidence, conflict, insufficiency, and stale-state contracts.
   - Define distinct measured, imported, user-entered, and estimated paths; no class may be silently promoted.
   - Specify area-basis reconciliation, coordinate/unit handling, tolerance/rounding, additive schema, tenant-safe access, compatibility adapters, migration/restore, and mixed-version operation.
-  - Implement the approved local manual/DXF shadow slice without changing legacy numerical authority.
-- Done when for the approved implementation slice: The ADR/specification, inventory, fixtures, deterministic geometry and CAD boundary, additive local persistence, compatibility bridge, and authorized bilingual shadow workflow are verified. The step then moves to `NEEDS_HUMAN` for the separately gated canonical pilot.
+  - Replace the verified shadow scaffolding with a canonical-first draft/review/accept workflow for pre-launch projects.
+- Done when for the approved implementation slice: Runtime authority contains no shadow choice; fresh projects start canonical; manual/DXF drafts become selected canonical geometry only by explicit admin review; migration 0051 is corrected before sharing; only valid room-floor consumers use accepted polygon measurements; professional GFA/fit-out assumptions remain explicit; and the full local verification/review matrix passes.
 - Done when for eventual implementation: One golden plan round-trips without identity or unexplained area drift; incomplete or conflicting geometry yields explicit insufficiency; legacy projects remain truthfully readable; manual locks survive; and organization isolation, migration/restore, downstream reconciliation, visual overlay, and full applicable gates pass.
 - Verification: Existing geometry/space/MQI/report baseline; contract/property/unit/tolerance/import/replay/idempotency tests; legacy-null and mixed-version fixtures; two-organization isolation; safe MySQL migration/restore; downstream and rendered-report reconciliation; visual overlay; TypeScript, safe full suite, authorization/database audits, build, browser, diff, and independent review.
 - Expected artifacts: `docs/specs/DI-01_CANONICAL_GEOMETRY_PLAN.md`, geometry ADR/schema proposal, producer/consumer inventory, frozen fixture pack, compatibility adapters, canonical room graph, and measurement reconciliation report.
 - Local shadow implementation evidence: The corrected inventory records 31 producers/transforms and 35 consumers. The frozen baseline passes 63/63; deterministic geometry/CAD and final compatibility/workload regressions pass; checked-in migration `0051` plus tenant/CAS/domain/restore verification passes 24/24 on disposable MySQL with current hash binding and cleanup; the safe suite passes 1,349 with 22 skipped; TypeScript, authorization 345/0, database-safety 114/2/0, build/bundle budgets, diff checks, and responsive bilingual browser QA pass. Independent architecture/test reviewers approved. Claude Opus returned `APPROVED_WITH_NONBLOCKING_NOTES`; its behavior note was resolved and reverified. Legacy GFA, fit-out, scoring, reports, and shares remain authoritative and unchanged in `shadow` mode.
 - Lifecycle amendment: The verified shadow slice is retained as local evidence/scaffolding, not approved launch behavior. There will be no shadow pilot or shadow-mode rollout because the product has not launched and has no real customers.
-- Decision required: Approve a separately bounded canonical-first implementation plan covering fresh-project defaults, removal/disablement of shadow product behavior, downstream numerical cutover, data/reset strategy, migration, and release. Shared migration, Git publication, and release remain unauthorized.
+- Canonical-first implementation evidence: Runtime authority is now only `legacy | canonical`, fresh projects atomically start canonical with no selected geometry, and manual/DXF inputs remain immutable drafts until explicit organization-admin review. Migration 0051 and its snapshot contain the corrected canonical defaults and composite tenant foreign keys. Accepted polygon measurements resolve only through exact graph/source/identity/version/formula/cardinality evidence; canonical MQI fails closed until finish-scope mapping exists, while professional GFA and fit-out remain separate. The final legacy aggregate write is transactionally authority-checked and a real concurrent-review regression proves it cannot land after canonical acceptance. The provider-free suite passes 1,358 with 22 skipped; a fresh disposable MySQL chain passes 25/25 with cleanup and current hash binding; TypeScript, authorization 345/0, database safety 114/2/0, build/budgets, diff checks, and desktop bilingual/role browser journeys pass. Three specialist reviewers and Claude Opus returned `APPROVED`.
+- Activated: 2026-07-19 in fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-di01-canonical` on branch `codex/di-01-canonical-first` from verified local foundation commit `738dfc6`.
+- Internal-data operation evidence: The exact loopback-only target `miyar_auth_test_tr10_browser` was snapshotted before reset (89 tables, 42 synthetic/internal rows; restore verified; owner-only snapshot SHA-256 `bd88414571b3115bfa832623bd7febfef2701f83e853c3f7d69fee682369d6f5`), dropped/recreated, and migrated through corrected 0051. The retained target has 100 tables, 52 migration entries, all ten empty DI-01 tables, zero checked application rows, and an idempotent second migration pass. Migration journal entry 52 exactly matches the checked-in 0051 SHA-256 `f3871aee5deefecae6b905850e306afac3e13760da78bd6f9ba0ef954d4f8e92`.
+- Current scope: The bounded canonical-first implementation, local verification, and exact authorized internal reset are complete. Git commit/push/draft-PR publication, CI, and complete-diff review are authorized and active. Shared migration, merge, and release remain unauthorized and require separate human approval.
 
 ## Phase EV — Evidence and Procurement Moat
 

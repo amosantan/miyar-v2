@@ -1,9 +1,9 @@
 # DI-01 Minimal Approval Package
 
-- Status: `LOCAL_VERIFICATION_COMPLETE_SHADOW_ROLLOUT_REJECTED_CANONICAL_FIRST_REQUIRED`
+- Status: `CANONICAL_FIRST_LOCAL_IMPLEMENTATION_ACTIVE`
 - Prepared: 2026-07-19
-- Repository baseline: `fff889996f3655cacf34d9044dd574ec5562b642`
-- Scope: The local manual/DXF implementation is complete and verified as technical evidence. The owner confirmed MIYAR is pre-launch with no real customers and rejected shadow mode as a rollout strategy. A canonical-first launch implementation must be separately planned and authorized. Shared migration, Git publication, and deployment remain unauthorized.
+- Implementation base: verified local DI-01 foundation `738dfc6ed0ed8654000727c8f80adc2b7e3aeb2a`
+- Scope: The owner authorized the local canonical-first conversion: no shadow runtime authority, fresh projects canonical by default, immutable manual/DXF drafts, explicit admin approval, corrected unshared migration 0051, measurement-basis-safe downstream resolution, and an internal-data strategy. Shared migration, destructive reset execution, Git publication, and deployment remain unauthorized.
 - Safe default: If any block is not approved, DI-01 remains paused and production behavior does not change
 
 ## Why approval is required
@@ -48,7 +48,7 @@ Approve or amend:
    - result state.
 3. No “latest wins” or unconditional source precedence; conflicts remain visible and manual/locked values are not overwritten.
 4. Existing ambiguous short room links remain `unresolved_legacy_link`; destroyed provenance becomes `original_observation_lost`/`not_checked`.
-5. Existing MQI walls/openings/ceilings remain explicitly labelled deterministic estimates until exact geometry is approved.
+5. Existing MQI walls/openings/ceilings remain explicitly labelled deterministic estimates for legacy-authority projects. Canonical-authority MQI fails closed until reviewed stable-space finish scope exists; approved floor polygons alone are insufficient.
 6. Current public brief shares are classified `legacy_live_projection`, because they reread mutable data. New geometry-aware issues bind immutable artifact-input snapshots and fail closed when missing.
 7. Approve the required customer wording/communication before relabelling existing MQI or report outputs.
 
@@ -70,7 +70,7 @@ Approve or amend:
 2. Non-null `organizationId` and `projectId` on every owned canonical row, with established organization/project authorization revalidated in the final transaction.
 3. Imports accept an authorized finalized project `assetId`, validated bytes/checksum/type/limits, and never a caller-controlled storage key/URL.
 4. Optimistic concurrency uses `expectedCurrentVersionId`, project/root row locks, and final organization/project/current-version compare-and-swap.
-5. Project authority modes `legacy → shadow → canonical`; the bridge ships first, and legacy writers cannot independently mutate canonical projects.
+5. Project authority modes are `legacy` and `canonical`; draft/review is a separate lifecycle. Fresh projects start canonical, and legacy area writers cannot independently mutate canonical projects.
 6. Deterministic-only dry-run backfill with source-row digests/run IDs; ambiguous, org-null, or lost-provenance rows remain unresolved.
 7. Application rollback leaves additive tables and immutable observations intact; after canonical writes, old independent writers are not reactivated. Recovery uses forward repair or a verified recovery point.
 8. Destructive contraction is a future separately approved roadmap step.
@@ -83,7 +83,7 @@ Approve or amend:
 
 **Decision:** C1 approved by the user on 2026-07-19.
 
-**Pre-launch lifecycle amendment:** On 2026-07-19 the owner confirmed there are no real customers and the application has not launched. Shadow mode is therefore rejected as product/runtime rollout behavior. The implemented shadow path is retained only as local verification evidence and scaffolding until a separately authorized canonical-first change removes or disables it.
+**Pre-launch lifecycle amendment:** On 2026-07-19 the owner confirmed there are no real customers and the application has not launched. Shadow mode is therefore rejected as product/runtime rollout behavior. The authorized canonical-first implementation removes it from runtime authority, API, and UI contracts while retaining earlier verification records only as historical evidence.
 
 Any A2, B2, or C2 response requires ADR-0006 and this package to be revised and re-approved before the separate first-local-slice authorization can be effective. Partial approval never authorizes implementation of the unamended remainder.
 

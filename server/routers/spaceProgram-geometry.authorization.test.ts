@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 
 const mocks = vi.hoisted(() => ({
   role: "member" as "admin" | "member" | "viewer",
   getOrganizationMemberships: vi.fn(),
   getProjectById: vi.fn(),
   getProjectAssetById: vi.fn(),
-  getGeometryComparisonForOrg: vi.fn(),
-  commitShadowGeometryForOrg: vi.fn(),
-  reviewShadowGeometryForOrg: vi.fn(),
+  getGeometryReviewStateForOrg: vi.fn(),
+  saveGeometryDraftForOrg: vi.fn(),
+  reviewGeometryDraftForOrg: vi.fn(),
   storageRead: vi.fn(),
 }));
 
@@ -15,9 +16,9 @@ vi.mock("../db", () => ({
   getOrganizationMemberships: mocks.getOrganizationMemberships,
   getProjectById: mocks.getProjectById,
   getProjectAssetById: mocks.getProjectAssetById,
-  getGeometryComparisonForOrg: mocks.getGeometryComparisonForOrg,
-  commitShadowGeometryForOrg: mocks.commitShadowGeometryForOrg,
-  reviewShadowGeometryForOrg: mocks.reviewShadowGeometryForOrg,
+  getGeometryReviewStateForOrg: mocks.getGeometryReviewStateForOrg,
+  saveGeometryDraftForOrg: mocks.saveGeometryDraftForOrg,
+  reviewGeometryDraftForOrg: mocks.reviewGeometryDraftForOrg,
 }));
 
 vi.mock("../storage", () => ({ storageRead: mocks.storageRead }));
@@ -55,7 +56,14 @@ const manualInput = {
   ],
 };
 
-describe("DI-01 geometry API authorization and shadow behavior", () => {
+const validDxf = Buffer.from(
+  "0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n6\n0\nENDSEC\n" +
+    "0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n5\nA1\n8\nRooms\n" +
+    "90\n4\n70\n1\n10\n0\n20\n0\n10\n4\n20\n0\n" +
+    "10\n4\n20\n3\n10\n0\n20\n3\n0\nENDSEC\n0\nEOF\n"
+);
+
+describe("DI-01 canonical geometry draft and review authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetRateLimitForTests();
@@ -81,25 +89,28 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
       storagePath: "other.dxf",
       checksum: "a".repeat(64),
     });
-    mocks.getGeometryComparisonForOrg.mockResolvedValue({
+    mocks.getGeometryReviewStateForOrg.mockResolvedValue({
       authority: undefined,
-      candidate: undefined,
-      source: undefined,
-      review: undefined,
+      latest: undefined,
+      latestSource: undefined,
+      latestReview: undefined,
+      canonical: undefined,
+      canonicalSource: undefined,
+      acceptedMeasurements: { status: "insufficient", measurements: [] },
       legacyRooms: [],
     });
-    mocks.commitShadowGeometryForOrg.mockResolvedValue({
+    mocks.saveGeometryDraftForOrg.mockResolvedValue({
       kind: "ok",
       replayed: false,
       graphVersionId: 71,
       geometrySourceId: 81,
       fingerprint: "b".repeat(64),
     });
-    mocks.reviewShadowGeometryForOrg.mockResolvedValue({
+    mocks.reviewGeometryDraftForOrg.mockResolvedValue({
       kind: "ok",
       currentGraphVersionId: 71,
       selectedGeometryVersionId: 71,
-      decision: "accepted",
+      decision: "approve_as_canonical",
     });
   });
 
@@ -113,7 +124,7 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
       status: "user_entered",
       areaSqm: "12",
     });
-    expect(mocks.commitShadowGeometryForOrg).not.toHaveBeenCalled();
+    expect(mocks.saveGeometryDraftForOrg).not.toHaveBeenCalled();
   });
 
   it("rejects manual input immediately above the room and vertex ceilings", async () => {
@@ -186,6 +197,7 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
       caller().previewDxfGeometry({
         projectId: projects.orgA.id,
         assetId: 222,
+        sourceLineageId: "drawing-lineage-001",
         sourceUnit: "m",
         snapTransform: "none",
         levelElevation: "0",
@@ -208,6 +220,7 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
       caller().previewDxfGeometry({
         projectId: projects.orgA.id,
         assetId: 111,
+        sourceLineageId: "drawing-lineage-001",
         sourceUnit: "m",
         snapTransform: "none",
         levelElevation: "0",
@@ -232,6 +245,7 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
       caller().previewDxfGeometry({
         projectId: projects.orgA.id,
         assetId: 112,
+        sourceLineageId: "drawing-lineage-001",
         sourceUnit: "m",
         snapTransform: "none",
         levelElevation: "0",
@@ -256,6 +270,7 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
       caller().previewDxfGeometry({
         projectId: projects.orgA.id,
         assetId: 113,
+        sourceLineageId: "drawing-lineage-001",
         sourceUnit: "m",
         snapTransform: "none",
         levelElevation: "0",
@@ -263,10 +278,82 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
-  it("lets viewers read comparison state but exposes no write capability", async () => {
+  it("previews a finalized DXF, saves a draft, then lets an admin approve it as canonical", async () => {
+    const checksum = createHash("sha256").update(validDxf).digest("hex");
+    mocks.getProjectAssetById.mockResolvedValue({
+      id: 111,
+      projectId: projects.orgA.id,
+      assetType: "cad",
+      filename: "rooms.dxf",
+      mimeType: "application/dxf",
+      storagePath: "rooms.dxf",
+      checksum,
+    });
+    mocks.storageRead.mockResolvedValue({
+      sizeBytes: validDxf.byteLength,
+      buffer: validDxf,
+      contentType: "application/dxf",
+    });
+
+    await expect(
+      caller().previewDxfGeometry({
+        projectId: projects.orgA.id,
+        assetId: 111,
+        sourceLineageId: "drawing-lineage-001",
+        sourceUnit: "m",
+        snapTransform: "none",
+        levelElevation: "0",
+      })
+    ).resolves.toMatchObject({
+      status: "ready",
+      totalAreaSqm: "12",
+      rooms: [{ status: "imported" }],
+    });
+
+    await expect(
+      caller().saveGeometryDraft({
+        projectId: projects.orgA.id,
+        expectedCurrentVersionId: null,
+        source: {
+          kind: "dxf",
+          assetId: 111,
+          sourceLineageId: "drawing-lineage-001",
+          sourceUnit: "m",
+          snapTransform: "none",
+          levelElevation: "0",
+        },
+      })
+    ).resolves.toMatchObject({
+      geometryVersionId: 71,
+      lifecycleState: "draft",
+    });
+    expect(mocks.saveGeometryDraftForOrg).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: expect.objectContaining({
+          assetId: 111,
+          acquisitionMethod: "dxf",
+        }),
+      })
+    );
+
+    mocks.role = "admin";
+    await expect(
+      caller().reviewGeometryDraft({
+        projectId: projects.orgA.id,
+        geometryVersionId: 71,
+        expectedCurrentVersionId: 71,
+        decision: "approve_as_canonical",
+      })
+    ).resolves.toMatchObject({
+      selectedGeometryVersionId: 71,
+      decision: "approve_as_canonical",
+    });
+  });
+
+  it("lets viewers read review state but exposes no write capability", async () => {
     mocks.role = "viewer";
 
-    const result = await caller().getGeometryComparison({
+    const result = await caller().getGeometryReviewState({
       projectId: projects.orgA.id,
     });
 
@@ -274,13 +361,65 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
       authorityMode: "legacy",
       canWrite: false,
       canReview: false,
-      legacy: { totalAreaSqm: 10, status: "legacy_estimate" },
       reconciliation: { status: "not_checked" },
     });
   });
 
-  it("commits only through the shadow repository and never changes legacy authority", async () => {
-    const result = await caller().commitShadowGeometry({
+  it("keeps a rejected latest version separate from both draft and selected canonical geometry", async () => {
+    const geometryDocument = {
+      measurementBasis: "room_floor_polygon_area",
+      rooms: [],
+    };
+    mocks.getGeometryReviewStateForOrg.mockResolvedValue({
+      authority: {
+        mode: "canonical",
+        currentGraphVersionId: 72,
+        selectedGeometryVersionId: 71,
+      },
+      latest: {
+        id: 72,
+        status: "rejected",
+        canonicalGeometry: geometryDocument,
+      },
+      latestSource: undefined,
+      latestReview: {
+        reviewDecision: "rejected",
+        resultState: "not_checked",
+        note: "Boundary does not match the issued drawing.",
+        createdAt: new Date("2026-07-19T00:00:00Z"),
+      },
+      canonical: {
+        id: 71,
+        status: "canonical",
+        canonicalGeometry: geometryDocument,
+      },
+      canonicalSource: undefined,
+      acceptedMeasurements: { status: "ready", measurements: [] },
+      legacyRooms: [],
+    });
+
+    const result = await caller().getGeometryReviewState({
+      projectId: projects.orgA.id,
+    });
+
+    expect(result.draft).toBeUndefined();
+    expect(result.canonical).toMatchObject({
+      geometryVersionId: 71,
+      status: "canonical",
+    });
+    expect(result.latestReviewed).toMatchObject({
+      geometryVersionId: 72,
+      status: "rejected",
+    });
+    expect(result.latestReview).toMatchObject({
+      decision: "rejected",
+      resultState: "not_checked",
+      note: "Boundary does not match the issued drawing.",
+    });
+  });
+
+  it("saves an immutable draft without selecting canonical authority", async () => {
+    const result = await caller().saveGeometryDraft({
       projectId: projects.orgA.id,
       expectedCurrentVersionId: null,
       source: { kind: "manual", ...manualInput },
@@ -288,11 +427,11 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
 
     expect(result).toMatchObject({
       geometryVersionId: 71,
-      authorityMode: "shadow",
+      lifecycleState: "draft",
       replayed: false,
     });
-    expect(mocks.commitShadowGeometryForOrg).toHaveBeenCalledOnce();
-    expect(mocks.commitShadowGeometryForOrg.mock.calls[0][0]).toMatchObject({
+    expect(mocks.saveGeometryDraftForOrg).toHaveBeenCalledOnce();
+    expect(mocks.saveGeometryDraftForOrg.mock.calls[0][0]).toMatchObject({
       projectId: projects.orgA.id,
       expectedCurrentVersionId: null,
       source: { sourceType: "manual", acquisitionMethod: "manual_entry" },
@@ -301,23 +440,23 @@ describe("DI-01 geometry API authorization and shadow behavior", () => {
 
   it("reserves review decisions for organization admins", async () => {
     await expect(
-      caller().reviewGeometryCandidate({
+      caller().reviewGeometryDraft({
         projectId: projects.orgA.id,
         geometryVersionId: 71,
         expectedCurrentVersionId: 71,
-        decision: "accepted",
+        decision: "approve_as_canonical",
       })
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    expect(mocks.reviewShadowGeometryForOrg).not.toHaveBeenCalled();
+    expect(mocks.reviewGeometryDraftForOrg).not.toHaveBeenCalled();
 
     mocks.role = "admin";
     await expect(
-      caller().reviewGeometryCandidate({
+      caller().reviewGeometryDraft({
         projectId: projects.orgA.id,
         geometryVersionId: 71,
         expectedCurrentVersionId: 71,
-        decision: "accepted",
+        decision: "approve_as_canonical",
       })
-    ).resolves.toMatchObject({ decision: "accepted" });
+    ).resolves.toMatchObject({ decision: "approve_as_canonical" });
   });
 });

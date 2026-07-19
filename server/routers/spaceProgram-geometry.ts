@@ -15,7 +15,6 @@ import {
   canonicalizeGeometry,
   decimalCoordinateToMicrometres,
   GeometryDeadlineError,
-  reconcileRoomFloorAreas,
   twiceSquareMicrometresToSquareMetres,
 } from "../engines/geometry/canonical-geometry";
 import { inspectDxfGeometry } from "../engines/geometry/dxf-geometry-boundary";
@@ -152,6 +151,7 @@ async function readAuthorizedDxf(input: {
   projectId: number;
   organizationId: number;
   assetId: number;
+  sourceLineageId: string;
   sourceUnit: GeometrySourceUnit;
   snapTransform: GeometrySnapTransform;
   levelElevation: string;
@@ -197,6 +197,7 @@ async function readAuthorizedDxf(input: {
     bytes: stored.buffer,
     fileName: asset.filename,
     mediaType: stored.contentType ?? asset.mimeType,
+    sourceLineageId: input.sourceLineageId,
     selectedUnit: input.sourceUnit,
     levelElevation: input.levelElevation,
     snapTransform: input.snapTransform,
@@ -255,6 +256,7 @@ function importIdempotencyKey(input: {
   sourceType: "manual" | "project_asset";
   sourceChecksum: string;
   levelElevation: string;
+  sourceLineageId: string | null;
 }) {
   const payload = {
     organizationId: input.organizationId,
@@ -271,18 +273,9 @@ function importIdempotencyKey(input: {
     canonicalizerVersion: GEOMETRY_CANONICALIZER_VERSION,
     tolerancePolicyVersion: GEOMETRY_TOLERANCE_POLICY_VERSION,
     sourceChecksum: input.sourceChecksum,
+    sourceLineageId: input.sourceLineageId,
   };
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-}
-
-function decimalSquareMetresToArea2(value: string): string | null {
-  const match = /^(\d+)(?:\.(\d+))?$/.exec(value.trim());
-  if (!match) return null;
-  const fraction = (match[2] ?? "").slice(0, 12).padEnd(12, "0");
-  return (
-    (BigInt(match[1]) * BigInt(1_000_000_000_000) + BigInt(fraction)) *
-    BigInt(2)
-  ).toString();
 }
 
 export const spaceProgramGeometryRouter = router({
@@ -311,6 +304,7 @@ export const spaceProgramGeometryRouter = router({
       z.object({
         projectId: z.number().int().positive(),
         assetId: z.number().int().positive(),
+        sourceLineageId: z.string().min(1).max(64),
         sourceUnit: sourceUnitSchema,
         snapTransform: snapTransformSchema,
         levelElevation: z.string().min(1).max(64),
@@ -325,7 +319,7 @@ export const spaceProgramGeometryRouter = router({
       return dxfPreview(inspection, input.sourceUnit);
     }),
 
-  commitShadowGeometry: orgHeavyMutationProcedure
+  saveGeometryDraft: orgHeavyMutationProcedure
     .input(
       z.object({
         projectId: z.number().int().positive(),
@@ -340,6 +334,7 @@ export const spaceProgramGeometryRouter = router({
           z.object({
             kind: z.literal("dxf"),
             assetId: z.number().int().positive(),
+            sourceLineageId: z.string().min(1).max(64),
             sourceUnit: sourceUnitSchema,
             snapTransform: snapTransformSchema,
             levelElevation: z.string().min(1).max(64),
@@ -350,7 +345,7 @@ export const spaceProgramGeometryRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       let canonical: CanonicalGeometryResult;
-      let rooms: db.ShadowGeometryRoomMetadata[];
+      let rooms: db.GeometryDraftRoomMetadata[];
       let assetId: number | null = null;
       let assetChecksum: string;
       let sourceChecksum: string;
@@ -369,7 +364,7 @@ export const spaceProgramGeometryRouter = router({
           roomName: room.roomName,
           roomCode: room.roomCode,
           category: room.category,
-          levelId: `elevation:${canonical.geometry.rooms.find(candidate => candidate.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`,
+          levelId: `elevation:${canonical.geometry.rooms.find(draftRoom => draftRoom.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`,
         }));
         sourceObservation = { rooms: input.source.rooms };
         sourceChecksum = createHash("sha256")
@@ -382,6 +377,7 @@ export const spaceProgramGeometryRouter = router({
           projectId: input.projectId,
           organizationId: ctx.orgId,
           assetId: input.source.assetId,
+          sourceLineageId: input.source.sourceLineageId,
           sourceUnit: input.source.sourceUnit,
           snapTransform: input.source.snapTransform,
           levelElevation: input.source.levelElevation,
@@ -413,6 +409,7 @@ export const spaceProgramGeometryRouter = router({
           evidence: resolved.inspection.evidence,
           inspection: resolved.inspection.inspection,
           levelOverlays: resolved.inspection.levelOverlays,
+          sourceLineageId: input.source.sourceLineageId,
         };
         adapterVersion = DXF_ADAPTER_VERSION;
       }
@@ -429,8 +426,10 @@ export const spaceProgramGeometryRouter = router({
           input.source.kind === "manual"
             ? input.source.rooms.map(room => room.levelElevation).join(",")
             : input.source.levelElevation,
+        sourceLineageId:
+          input.source.kind === "dxf" ? input.source.sourceLineageId : null,
       });
-      const result = await db.commitShadowGeometryForOrg({
+      const result = await db.saveGeometryDraftForOrg({
         organizationId: ctx.orgId,
         projectId: input.projectId,
         userId: ctx.user.id,
@@ -468,33 +467,31 @@ export const spaceProgramGeometryRouter = router({
           message: `Geometry changed concurrently; current version is ${result.currentGraphVersionId ?? "none"}.`,
         });
       }
-      if (result.kind === "canonical") {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Canonical projects cannot accept a shadow candidate.",
-        });
-      }
       return {
         geometryVersionId: result.graphVersionId,
         fingerprint: result.fingerprint,
         replayed: result.replayed,
-        authorityMode: "shadow" as const,
+        lifecycleState: "draft" as const,
       };
     }),
 
-  reviewGeometryCandidate: orgAdminProcedure
+  reviewGeometryDraft: orgAdminProcedure
     .input(
       z.object({
         projectId: z.number().int().positive(),
         geometryVersionId: z.number().int().positive(),
         expectedCurrentVersionId: z.number().int().positive().nullable(),
-        decision: z.enum(["accepted", "rejected", "clarification_requested"]),
+        decision: z.enum([
+          "approve_as_canonical",
+          "reject",
+          "request_clarification",
+        ]),
         note: z.string().max(5_000).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
-      const result = await db.reviewShadowGeometryForOrg({
+      const result = await db.reviewGeometryDraftForOrg({
         ...input,
         organizationId: ctx.orgId,
         userId: ctx.user.id,
@@ -514,150 +511,130 @@ export const spaceProgramGeometryRouter = router({
       return result;
     }),
 
-  getGeometryComparison: orgProcedure
+  getGeometryReviewState: orgProcedure
     .input(z.object({ projectId: z.number().int().positive() }))
     .query(async ({ ctx, input }) => {
-      const project = await requireProjectForOrg(input.projectId, ctx.orgId);
-      const comparison = await db.getGeometryComparisonForOrg(
+      await requireProjectForOrg(input.projectId, ctx.orgId);
+      const reviewState = await db.getGeometryReviewStateForOrg(
         input.projectId,
         ctx.orgId
       );
-      const authorityMode = comparison?.authority?.mode ?? "legacy";
-      const legacyRoomTotal = comparison?.legacyRooms.length
-        ? comparison.legacyRooms.reduce(
+      const authorityMode = reviewState?.authority?.mode ?? "legacy";
+      const legacyRoomTotal = reviewState?.legacyRooms.length
+        ? reviewState.legacyRooms.reduce(
             (sum, room) => sum + Number(room.sqm),
             0
           )
         : null;
-      const legacyProjectTotal = project.totalFitoutArea
-        ? Number(project.totalFitoutArea)
-        : null;
-      const legacyTotal = legacyRoomTotal ?? legacyProjectTotal;
-      const candidate = comparison?.candidate;
-      const canonical = candidate?.canonicalGeometry as
-        | CanonicalGeometryResult["geometry"]
-        | undefined;
-      const exactCandidateArea2 = candidate?.totalAreaSquareMicrometresTwice;
-      const exactLegacyArea2 =
-        legacyRoomTotal !== null
-          ? decimalSquareMetresToArea2(legacyRoomTotal.toFixed(2))
-          : null;
-      const reconciliation =
-        exactCandidateArea2 && exactLegacyArea2
-          ? reconcileRoomFloorAreas(exactLegacyArea2, exactCandidateArea2)
-          : null;
-      const sourceObservation = comparison?.source?.sourceObservation as
-        | {
-            rooms?: RoomInput[];
-            levelOverlays?: Array<{
-              rooms: Array<{
-                sourceRoomId: string;
-                sourceLayer: string;
-                sourcePoints: Array<{ x: string; y: string }>;
+      const latest = reviewState?.latest;
+      const selected = reviewState?.canonical;
+      const draft = latest?.status === "draft" ? latest : undefined;
+      const latestReviewed =
+        latest && latest.id !== selected?.id && latest.status !== "draft"
+          ? latest
+          : undefined;
+      type ReviewState = NonNullable<typeof reviewState>;
+      const roomPayload = (
+        graph: ReviewState["latest"],
+        source: ReviewState["latestSource"]
+      ) => {
+        if (!graph) return undefined;
+        const canonicalDocument = graph.canonicalGeometry as
+          | CanonicalGeometryResult["geometry"]
+          | undefined;
+        if (!canonicalDocument) return undefined;
+        const sourceObservation = source?.sourceObservation as
+          | {
+              rooms?: RoomInput[];
+              levelOverlays?: Array<{
+                rooms: Array<{
+                  sourceRoomId: string;
+                  sourceLayer: string;
+                  sourcePoints: Array<{ x: string; y: string }>;
+                }>;
               }>;
-            }>;
-          }
-        | undefined;
-      const sourceRooms = new Map(
-        (sourceObservation?.rooms ?? []).map(
-          room => [room.spaceId, room] as const
-        )
-      );
-      const sourceDxfRooms = new Map(
-        (sourceObservation?.levelOverlays ?? []).flatMap(level =>
-          level.rooms.map(room => [room.sourceRoomId, room] as const)
-        )
-      );
-      const candidateStatus =
-        comparison?.review?.reviewDecision === "accepted"
-          ? "accepted"
-          : comparison?.review?.reviewDecision === "rejected"
-            ? "conflict"
-            : comparison?.review?.reviewDecision === "needs_clarification"
-              ? "insufficient"
-              : "ready";
+            }
+          | undefined;
+        const sourceRooms = new Map(
+          (sourceObservation?.rooms ?? []).map(
+            room => [room.spaceId, room] as const
+          )
+        );
+        const sourceDxfRooms = new Map(
+          (sourceObservation?.levelOverlays ?? []).flatMap(level =>
+            level.rooms.map(room => [room.sourceRoomId, room] as const)
+          )
+        );
+        return {
+          geometryVersionId: graph.id,
+          status: graph.status,
+          totalAreaSqm: graph.totalAreaSquareMetres,
+          measurementBasis: ROOM_FLOOR_POLYGON_AREA,
+          fingerprint: graph.fingerprint,
+          sourceType: source?.acquisitionMethod,
+          evidenceStatus:
+            source?.acquisitionMethod === "dxf" ? "imported" : "user_entered",
+          rooms: canonicalDocument.rooms.map(room => ({
+            spaceId: room.spaceId,
+            areaSqm: room.areaSquareMetres,
+            measurementBasis: ROOM_FLOOR_POLYGON_AREA,
+            normalizedOuterRing: room.outerRing.points,
+            sourceOuterRing:
+              sourceRooms
+                .get(room.spaceId)
+                ?.outerRing.map(point =>
+                  sourcePointInMicrometres(
+                    point,
+                    (source?.sourceUnits ?? "m") as GeometrySourceUnit
+                  )
+                ) ??
+              sourceDxfRooms
+                .get(room.spaceId)
+                ?.sourcePoints.map(point =>
+                  sourcePointInMicrometres(
+                    point,
+                    (source?.sourceUnits ?? "m") as GeometrySourceUnit
+                  )
+                ),
+          })),
+        };
+      };
       return {
         authorityMode,
         currentGraphVersionId:
-          comparison?.authority?.currentGraphVersionId ?? null,
+          reviewState?.authority?.currentGraphVersionId ?? null,
         selectedGeometryVersionId:
-          comparison?.authority?.selectedGeometryVersionId ?? null,
+          reviewState?.authority?.selectedGeometryVersionId ?? null,
         canWrite: ctx.orgRole !== "viewer",
         canReview: ctx.orgRole === "admin",
         legacy:
-          legacyTotal !== null && Number.isFinite(legacyTotal)
+          legacyRoomTotal !== null && Number.isFinite(legacyRoomTotal)
             ? {
-                totalAreaSqm: legacyTotal,
-                status:
-                  comparison?.legacyRooms.length &&
-                  comparison.legacyRooms.every(
-                    room => room.source === "user_manual"
-                  )
-                    ? "user_entered"
-                    : "legacy_estimate",
+                totalAreaSqm: legacyRoomTotal,
+                status: "legacy_unknown",
                 basis: "legacy_unspecified",
               }
             : undefined,
-        candidate:
-          candidate && canonical
-            ? {
-                geometryVersionId: candidate.id,
-                status: candidateStatus,
-                totalAreaSqm: candidate.totalAreaSquareMetres,
-                fingerprint: candidate.fingerprint,
-                sourceType: comparison?.source?.acquisitionMethod,
-                evidenceStatus:
-                  comparison?.source?.acquisitionMethod === "dxf"
-                    ? "imported"
-                    : "user_entered",
-                rooms: canonical.rooms.map(room => ({
-                  spaceId: room.spaceId,
-                  areaSqm: room.areaSquareMetres,
-                  normalizedOuterRing: room.outerRing.points,
-                  sourceOuterRing:
-                    sourceRooms
-                      .get(room.spaceId)
-                      ?.outerRing.map(point =>
-                        sourcePointInMicrometres(
-                          point,
-                          (comparison?.source?.sourceUnits ??
-                            "m") as GeometrySourceUnit
-                        )
-                      ) ??
-                    sourceDxfRooms
-                      .get(room.spaceId)
-                      ?.sourcePoints.map(point =>
-                        sourcePointInMicrometres(
-                          point,
-                          (comparison?.source?.sourceUnits ??
-                            "m") as GeometrySourceUnit
-                        )
-                      ),
-                })),
-              }
-            : undefined,
-        reconciliation: candidate
-          ? reconciliation
-            ? {
-                status:
-                  reconciliation.result === "conflict" ? "conflict" : "ready",
-                deltaSqm: twiceSquareMicrometresToSquareMetres(
-                  BigInt(reconciliation.differenceSquareMicrometresTwice)
-                ),
-                toleranceSqm: twiceSquareMicrometresToSquareMetres(
-                  BigInt(reconciliation.toleranceSquareMicrometresTwice)
-                ),
-                message:
-                  reconciliation.result === "conflict"
-                    ? "Canonical room-floor area differs from the legacy estimate beyond tolerance."
-                    : "Canonical room-floor area is within the comparison tolerance.",
-              }
-            : {
-                status: "not_checked" as const,
-                message:
-                  "A comparable legacy room-area basis is unavailable; no equivalence claim was made.",
-              }
-          : { status: "not_checked" as const },
+        draft: roomPayload(draft, reviewState?.latestSource),
+        canonical: roomPayload(selected, reviewState?.canonicalSource),
+        latestReviewed: roomPayload(
+          latestReviewed,
+          reviewState?.latestSource
+        ),
+        latestReview: reviewState?.latestReview
+          ? {
+              decision: reviewState.latestReview.reviewDecision,
+              resultState: reviewState.latestReview.resultState,
+              note: reviewState.latestReview.note,
+              createdAt: reviewState.latestReview.createdAt,
+            }
+          : undefined,
+        acceptedRoomFloorMeasurements: reviewState?.acceptedMeasurements,
+        reconciliation: {
+          status: "not_checked" as const,
+          message:
+            "Legacy room totals have no declared room-floor polygon basis; GFA and fit-out area are never used for this comparison.",
+        },
       };
     }),
 });

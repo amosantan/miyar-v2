@@ -33,7 +33,7 @@ const { contexts, projects } = authorizationFixtures;
 const key = `projects/${projects.orgA.orgId}/${projects.orgA.id}/geometry-uploads/source.dxf`;
 const validDxf = Buffer.from(
   "0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n6\n0\nENDSEC\n" +
-    "0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n8\nRooms\n90\n4\n70\n1\n" +
+    "0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n5\nA1\n8\nRooms\n90\n4\n70\n1\n" +
     "10\n0\n20\n0\n10\n4\n20\n0\n10\n4\n20\n3\n10\n0\n20\n3\n" +
     "0\nENDSEC\n0\nEOF\n",
   "ascii"
@@ -150,4 +150,3 @@ describe("DI-01 finalized CAD asset boundary", () => {
     expect(mocks.createProjectAssetForOrg).not.toHaveBeenCalled();
   });
 });
-

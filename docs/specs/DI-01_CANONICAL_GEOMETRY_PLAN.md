@@ -2,14 +2,24 @@
 
 ## Pre-launch amendment — no shadow mode
 
-On 2026-07-19 the product owner confirmed MIYAR has not launched and has no real customers. Shadow mode is not the rollout strategy. References below to the completed shadow slice describe historical local verification and reusable scaffolding only. The required next implementation is canonical-first for fresh launch projects and must remove or disable shadow product behavior before release. Shared migration, data reset, Git publication, and deployment remain separately authorized.
+On 2026-07-19 the product owner confirmed MIYAR has not launched and has no real customers. Shadow mode is not the rollout strategy. References below to the completed shadow slice describe historical local verification and reusable scaffolding only. The local implementation is now canonical-first for fresh launch projects and removes shadow product behavior. Shared migration, data reset, Git publication, and deployment remain separately authorized.
 
-- Status: Approved for the bounded local manual/DXF shadow slice
-- Verified against: `fff889996f3655cacf34d9044dd574ec5562b642` on 2026-07-19
+- Status: Canonical-first local implementation active
+- Implementation base: verified local DI-01 foundation `738dfc6ed0ed8654000727c8f80adc2b7e3aeb2a` on 2026-07-19
 
 ## Outcome
 
-MIYAR needs one room identity and one explicit measurement lineage shared by intake, space planning, materials, reports, visuals, and future BIM exchange. The user approved A1/B1/C1 and the first local manual/DXF shadow slice on 2026-07-19. Shared migration, publication, deployment, canonical authority, professional area bases, and consumer cutover remain excluded.
+MIYAR needs one room identity and one explicit measurement lineage shared by intake, space planning, materials, reports, visuals, and future BIM exchange. The owner authorized the canonical-first local implementation on 2026-07-19: fresh projects start with canonical authority, manual/DXF input is an immutable draft, and only explicit admin approval selects it. Shared migration, destructive reset, publication, deployment, and professional area rules remain excluded.
+
+## Canonical-first implementation decision
+
+- Runtime authority choices are `legacy` and `canonical`; there is no shadow choice.
+- Fresh project creation atomically creates canonical authority with no selected geometry. That empty state is explicit insufficiency, not permission to invent room area.
+- `saveGeometryDraft`, `reviewGeometryDraft`, and `getGeometryReviewState` replace shadow-specific APIs and separate workflow state from authority.
+- Only accepted, valid `room_floor_polygon_area` records on the selected canonical graph are available to downstream resolvers.
+- MQI remains insufficient for canonical rooms until stable finish-scope mappings exist. No name, room-code, layer, or array-order guess is allowed. Walls, ceilings, openings, and even floor-finish coverage remain estimates under their own formulas.
+- GFA, fit-out, usable, circulation, pricing, scoring, ROI, reports, and shares retain their explicit existing bases and are never overwritten by polygon acceptance.
+- Internal/disposable DI-01 data should be safely reset and recreated after migration 0051 is corrected. Retained internal projects remain legacy until geometry is recreated and approved. No reset is performed without separate authorization.
 
 ## Why This Is a Real Product Problem
 
@@ -179,7 +189,7 @@ Exit: reviewers can falsify every contract with fixtures; no policy choice is hi
 - Resolve an authorized project asset and bounded validated bytes at the adapter boundary; never accept a caller-controlled storage key as geometry authority.
 - Keep reads pure. Reconciliation may propose a change, but only an explicit validated mutation may persist it.
 - Define additive migration, deterministic-only backfill, mixed-version reads, application rollback, data restore, and later contraction.
-- Define a project geometry-authority mode: `legacy`, `shadow`, or `canonical`. Deploy the compatibility bridge before canonical writes; once a project is canonical, legacy writer endpoints must reject writes rather than race the canonical version pointer.
+- Define project geometry authority as `legacy` or `canonical`. Fresh projects receive canonical authority atomically; once a project is canonical, legacy area writers reject writes rather than race the canonical version pointer.
 - Treat any eventual destructive contraction as a new roadmap step with separate human approval.
 
 Exit: generated additive SQL passes review, disposable-MySQL forward/restore evidence, and tenant-safe helper tests. Shared application remains forbidden.
@@ -190,20 +200,21 @@ Exit: generated additive SQL passes review, disposable-MySQL forward/restore evi
 - Cover `project.update`, AI floor-plan analysis, PDF verification, all space-program mutations, and the read-side fit-out-area write.
 - Define release N as the future rollback floor: no project may become canonical until every pre-N instance is drained and absence is verified.
 
-Exit: the complete endpoint/mode matrix proves legacy and shadow behavior remain compatible; no canonical flip exists in this slice.
+Exit: the complete endpoint/mode matrix proves legacy compatibility, canonical writer protection, and independent draft/review behavior.
 
-### Stage 4 — Manual/DXF shadow workflow
+### Stage 4 — Manual/DXF draft and canonical review workflow
 
-- Persist stable spaces and versioned manual/DXF geometry in `shadow` mode only.
+- Persist stable spaces and versioned manual/DXF geometry as immutable drafts under project authority.
 - Preserve source identity, units, transform, normalized geometry, formula/version, fingerprint, and append-only review/reconciliation.
-- Expose organization-authorized preview, commit, review, and comparison APIs and the bilingual source-versus-normalized overlay.
-- Do not change GFA, total fit-out area, MQI, scoring, reports, shares, or any existing numerical consumer.
+- Expose organization-authorized preview, draft-save, admin review, and comparison APIs and the bilingual source-versus-normalized overlay.
+- Select a draft as canonical only through an explicit organization-admin acceptance guarded by the current-version compare-and-swap.
+- Do not change GFA, total fit-out area, scoring, reports, shares, or their existing numerical bases. Legacy-authority MQI remains unchanged; canonical-authority MQI fails closed with labelled insufficiency until every stable space has an explicit reviewed finish-scope mapping, because room-floor polygon area alone cannot authorize floor finishes, walls, ceilings, openings, or fit-out scope.
 
-Exit: a golden plan round-trips idempotently with stable identities and no unexplained drift while every legacy output remains byte/value compatible.
+Exit: a golden plan round-trips idempotently with stable identities, an accepted room-floor measurement is selected canonically, and every incompatible legacy/professional output remains unchanged.
 
-### Stage 5 — Pilot/cutover decision (not authorized)
+### Stage 5 — Shared migration and release decision (not authorized)
 
-- Return DI-01 to `NEEDS_HUMAN` for professional area-basis, pilot canonical-mode, consumer cutover, shared migration, and release decisions.
+- Return DI-01 to `NEEDS_HUMAN` for the target/snapshot/count-controlled internal reset, shared migration, professional area-basis rules, additional consumer integration, and release decisions.
 - Image/PDF/DWG/IFC authority and later DI work remain separately scoped.
 
 Exit: no action without the named approvals.
@@ -215,9 +226,9 @@ Exit: no action without the named approvals.
 | 0 — Inventory/freeze      | Yes                                                    | Corrected trace, exact 55-test baseline, provider-free fixtures              |
 | 1 — Contract/CAD          | Yes                                                    | Pure deterministic tests and fail-closed CAD bounds                         |
 | 2 — Local persistence     | Yes, disposable MySQL only                             | Additive migration, tenant helpers, restore evidence                        |
-| 3 — Compatibility bridge | Yes, local only                                        | Complete writer/mode matrix; no canonical flip                              |
-| 4 — Shadow workflow      | Yes, local only                                        | APIs/UI/browser and unchanged legacy outputs                                |
-| 5 — Pilot/cutover         | No                                                     | New human approval; shared migration/release separately gated               |
+| 3 — Compatibility bridge | Yes, local only                                        | Complete legacy/canonical writer matrix and draft lifecycle                  |
+| 4 — Draft/review workflow | Yes, local only                                        | APIs/UI/browser, explicit admin acceptance, unchanged incompatible outputs  |
+| 5 — Shared release        | No                                                     | Targeted reset/shared migration/release approval                             |
 
 ## Likely Files and Ownership
 

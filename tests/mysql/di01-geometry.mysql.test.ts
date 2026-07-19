@@ -33,7 +33,10 @@ async function truncateData() {
   for (const table of [
     ...newTables,
     "amenity_sub_spaces",
+    "material_allocations",
     "space_program_rooms",
+    "report_instances",
+    "score_matrices",
     "project_assets",
     "organization_members",
     "projects",
@@ -63,9 +66,27 @@ async function resetData() {
       (8202, 8202, 8202, 'admin')
   `);
   await pool.query(`
-    insert into projects (id, userId, orgId, name, totalFitoutArea) values
-      (8111, 8101, 8101, 'DI Project A', 12.00),
-      (8222, 8202, 8202, 'DI Project B', 20.00)
+    insert into projects (id, userId, orgId, name, ctx03Gfa, totalFitoutArea) values
+      (8111, 8101, 8101, 'DI Project A', 1000.00, 12.00),
+      (8222, 8202, 8202, 'DI Project B', 2000.00, 20.00)
+  `);
+  await pool.query(`
+    insert into score_matrices
+      (id, projectId, modelVersionId, saScore, ffScore, mpScore, dsScore, erScore, compositeScore, riskScore, rasScore, confidenceScore, decisionStatus, dimensionWeights, variableContributions, inputSnapshot)
+    values
+      (8150, 8111, 1, 70, 71, 72, 73, 74, 72, 20, 80, 95, 'validated', JSON_OBJECT('sa', 1), JSON_OBJECT('source', 'fixture'), JSON_OBJECT('basis', 'explicit'))
+  `);
+  await pool.query(`
+    insert into report_instances
+      (id, projectId, scoreMatrixId, reportType, content)
+    values
+      (8160, 8111, 8150, 'full_report', JSON_OBJECT('fingerprint', 'report-before-geometry'))
+  `);
+  await pool.query(`
+    insert into material_allocations
+      (id, projectId, organizationId, roomId, roomName, element, materialName, allocationPct, surfaceAreaM2, totalCostMin, totalCostMax, isLocked)
+    values
+      (8170, 8111, 8101, 'LEG1', 'Legacy room', 'floor', 'Locked fixture', 100, 12, 1200, 1800, true)
   `);
   await pool.query(`
     insert into space_program_rooms
@@ -137,14 +158,39 @@ afterAll(async () => {
 });
 
 describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () => {
+  it("creates a fresh project and canonical authority atomically", async () => {
+    const created = await db.createProject({
+      userId: 8101,
+      orgId: 8101,
+      name: "Canonical-first project",
+      status: "draft",
+    });
+    const [rows] = await pool.query(
+      `select p.id, pga.mode, pga.currentGraphVersionId, pga.selectedGeometryVersionId
+       from projects p
+       join project_geometry_authorities pga
+         on pga.organizationId = p.orgId and pga.projectId = p.id
+       where p.id = ? and p.orgId = ?`,
+      [created.id, 8101]
+    );
+    expect(rows).toEqual([
+      {
+        id: created.id,
+        mode: "canonical",
+        currentGraphVersionId: null,
+        selectedGeometryVersionId: null,
+      },
+    ]);
+  });
+
   it("round-trips one stable room, rejects cross-scope relations, serializes CAS writers, and blocks legacy writers only in canonical mode", async () => {
-    const first = await db.commitShadowGeometryForOrg(
+    const first = await db.saveGeometryDraftForOrg(
       candidate("4", "first", null)
     );
     expect(first).toMatchObject({ kind: "ok", replayed: false });
-    if (first.kind !== "ok") throw new Error("first shadow commit failed");
+    if (first.kind !== "ok") throw new Error("first draft save failed");
 
-    const staleReplay = await db.commitShadowGeometryForOrg(
+    const staleReplay = await db.saveGeometryDraftForOrg(
       candidate("4", "first", null)
     );
     expect(staleReplay).toMatchObject({
@@ -152,7 +198,7 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
       currentGraphVersionId: first.graphVersionId,
     });
 
-    const replay = await db.commitShadowGeometryForOrg(
+    const replay = await db.saveGeometryDraftForOrg(
       candidate("4", "first", first.graphVersionId)
     );
     expect(replay).toMatchObject({
@@ -180,14 +226,24 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
         roomName: "Stable room",
         normalizedValueExact: "24000000000000",
         totalAreaSquareMicrometresTwice: "24000000000000",
-        mode: "shadow",
+        mode: "legacy",
       }),
     ]);
+    await expect(
+      pool.query(
+        `insert into legacy_space_links
+          (organizationId, projectId, legacySourceKey, legacyTable, spaceIdentityId, disposition, evidence, createdBy)
+         values
+          (8202, 8222, 'cross-scope', 'space_program_rooms',
+           (select id from space_identities where organizationId = 8101 and projectId = 8111 limit 1),
+           'mapped', JSON_OBJECT('test', true), 8202)`
+      )
+    ).rejects.toThrow();
 
     const beforeStale = await pool.query(
       "select (select count(*) from geometry_sources) sourceCount, (select count(*) from spatial_graph_versions) graphCount"
     );
-    const stale = await db.commitShadowGeometryForOrg(
+    const stale = await db.saveGeometryDraftForOrg(
       candidate("5", "stale", null)
     );
     expect(stale).toMatchObject({
@@ -199,12 +255,12 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
     );
     expect(afterStale[0]).toEqual(beforeStale[0]);
 
-    const crossOrganization = await db.commitShadowGeometryForOrg({
+    const crossOrganization = await db.saveGeometryDraftForOrg({
       ...candidate("5", "cross-org", first.graphVersionId),
       organizationId: 8202,
     });
     expect(crossOrganization).toEqual({ kind: "not_found" });
-    const crossProjectAsset = await db.commitShadowGeometryForOrg({
+    const crossProjectAsset = await db.saveGeometryDraftForOrg({
       ...candidate("5", "foreign-asset", first.graphVersionId),
       source: {
         ...candidate("5", "foreign-asset", first.graphVersionId).source,
@@ -217,10 +273,10 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
     expect(crossProjectAsset).toEqual({ kind: "not_found" });
 
     const [left, right] = await Promise.all([
-      db.commitShadowGeometryForOrg(
+      db.saveGeometryDraftForOrg(
         candidate("5", "concurrent-left", first.graphVersionId)
       ),
-      db.commitShadowGeometryForOrg(
+      db.saveGeometryDraftForOrg(
         candidate("6", "concurrent-right", first.graphVersionId)
       ),
     ]);
@@ -228,64 +284,142 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
     const winner =
       left.kind === "ok" ? left : right.kind === "ok" ? right : null;
     if (!winner) throw new Error("CAS did not produce one winner");
+    const obsoleteReplay = await db.saveGeometryDraftForOrg(
+      candidate("4", "first", winner.graphVersionId)
+    );
+    expect(obsoleteReplay).toMatchObject({
+      kind: "conflict",
+      currentGraphVersionId: winner.graphVersionId,
+    });
 
-    const wrongReview = await db.reviewShadowGeometryForOrg({
+    const wrongReview = await db.reviewGeometryDraftForOrg({
       organizationId: 8101,
       projectId: 8111,
       userId: 8101,
       geometryVersionId: winner.graphVersionId,
       expectedCurrentVersionId: first.graphVersionId,
-      decision: "accepted",
+      decision: "approve_as_canonical",
     });
     expect(wrongReview.kind).toBe("conflict");
-    const accepted = await db.reviewShadowGeometryForOrg({
-      organizationId: 8101,
-      projectId: 8111,
-      userId: 8101,
-      geometryVersionId: winner.graphVersionId,
-      expectedCurrentVersionId: winner.graphVersionId,
-      decision: "accepted",
-    });
+    const racingWrites = await (async () => {
+      const blocker = await pool.getConnection();
+      let committed = false;
+      try {
+        await blocker.beginTransaction();
+        await blocker.query(
+          "select id from projects where id = 8111 for update"
+        );
+        const reviewPromise = db.reviewGeometryDraftForOrg({
+          organizationId: 8101,
+          projectId: 8111,
+          userId: 8101,
+          geometryVersionId: winner.graphVersionId,
+          expectedCurrentVersionId: winner.graphVersionId,
+          decision: "approve_as_canonical",
+        });
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const legacyAggregatePromise =
+          db.updateProjectWithLegacyGeometryAuthorityForOrg(8111, 8101, {
+            totalFitoutArea: "13.00",
+          });
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await blocker.commit();
+        committed = true;
+        return [reviewPromise, legacyAggregatePromise] as const;
+      } finally {
+        if (!committed) await blocker.rollback().catch(() => undefined);
+        blocker.release();
+      }
+    })();
+    const [accepted, racingLegacyAggregate] = await Promise.all(racingWrites);
     expect(accepted).toMatchObject({
       kind: "ok",
       selectedGeometryVersionId: winner.graphVersionId,
     });
-    const rejected = await db.reviewShadowGeometryForOrg({
+    expect(racingLegacyAggregate).toBe("canonical");
+    const acceptedMeasurements =
+      await db.getAcceptedRoomFloorMeasurementsForOrg(8111, 8101);
+    expect(acceptedMeasurements).toMatchObject({
+      status: "ready",
+      graphVersionId: winner.graphVersionId,
+    });
+    const [acceptedLinks] = await pool.query<
+      Array<{ id: number; spaceVersionId: number; normalizedValueExact: string }>
+    >(
+      `select id, spaceVersionId, normalizedValueExact
+       from measurement_records where graphVersionId = ?`,
+      [winner.graphVersionId]
+    );
+    expect(acceptedLinks).toHaveLength(1);
+    await pool.query(
+      "update measurement_records set spaceVersionId = null where id = ?",
+      [acceptedLinks[0].id]
+    );
+    await expect(
+      db.getAcceptedRoomFloorMeasurementsForOrg(8111, 8101)
+    ).resolves.toMatchObject({ status: "insufficient" });
+    await pool.query(
+      "update measurement_records set spaceVersionId = ? where id = ?",
+      [acceptedLinks[0].spaceVersionId, acceptedLinks[0].id]
+    );
+    await pool.query(
+      "update measurement_records set normalizedValueExact = ? where id = ?",
+      [(BigInt(acceptedLinks[0].normalizedValueExact) + 1n).toString(), acceptedLinks[0].id]
+    );
+    await expect(
+      db.getAcceptedRoomFloorMeasurementsForOrg(8111, 8101)
+    ).resolves.toMatchObject({ status: "insufficient" });
+    await pool.query(
+      "update measurement_records set normalizedValueExact = ? where id = ?",
+      [acceptedLinks[0].normalizedValueExact, acceptedLinks[0].id]
+    );
+    const revision = await db.saveGeometryDraftForOrg(
+      candidate("7", "revision", winner.graphVersionId)
+    );
+    expect(revision.kind).toBe("ok");
+    if (revision.kind !== "ok") throw new Error("revision draft failed");
+    const rejected = await db.reviewGeometryDraftForOrg({
       organizationId: 8101,
       projectId: 8111,
       userId: 8101,
-      geometryVersionId: winner.graphVersionId,
-      expectedCurrentVersionId: winner.graphVersionId,
-      decision: "rejected",
+      geometryVersionId: revision.graphVersionId,
+      expectedCurrentVersionId: revision.graphVersionId,
+      decision: "reject",
       note: "Reviewer found a source conflict",
     });
     expect(rejected).toMatchObject({
       kind: "ok",
-      selectedGeometryVersionId: null,
-    });
-    const acceptedAgain = await db.reviewShadowGeometryForOrg({
-      organizationId: 8101,
-      projectId: 8111,
-      userId: 8101,
-      geometryVersionId: winner.graphVersionId,
-      expectedCurrentVersionId: winner.graphVersionId,
-      decision: "accepted",
-    });
-    expect(acceptedAgain).toMatchObject({
-      kind: "ok",
       selectedGeometryVersionId: winner.graphVersionId,
     });
-    const clarification = await db.reviewShadowGeometryForOrg({
+    const acceptedAgain = await db.reviewGeometryDraftForOrg({
       organizationId: 8101,
       projectId: 8111,
       userId: 8101,
-      geometryVersionId: winner.graphVersionId,
-      expectedCurrentVersionId: winner.graphVersionId,
-      decision: "clarification_requested",
+      geometryVersionId: revision.graphVersionId,
+      expectedCurrentVersionId: revision.graphVersionId,
+      decision: "approve_as_canonical",
+    });
+    expect(acceptedAgain).toMatchObject({
+      kind: "conflict",
+      currentGraphVersionId: revision.graphVersionId,
+    });
+    const clarificationDraft = await db.saveGeometryDraftForOrg(
+      candidate("8", "clarification", revision.graphVersionId)
+    );
+    expect(clarificationDraft.kind).toBe("ok");
+    if (clarificationDraft.kind !== "ok")
+      throw new Error("clarification draft failed");
+    const clarification = await db.reviewGeometryDraftForOrg({
+      organizationId: 8101,
+      projectId: 8111,
+      userId: 8101,
+      geometryVersionId: clarificationDraft.graphVersionId,
+      expectedCurrentVersionId: clarificationDraft.graphVersionId,
+      decision: "request_clarification",
     });
     expect(clarification).toMatchObject({
       kind: "ok",
-      selectedGeometryVersionId: null,
+      selectedGeometryVersionId: winner.graphVersionId,
     });
     const [reviewRows] = await pool.query(
       `select reviewDecision from geometry_reconciliation_events
@@ -296,20 +430,47 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
     expect(reviewRows).toEqual([
       { reviewDecision: "accepted" },
       { reviewDecision: "rejected" },
-      { reviewDecision: "accepted" },
       { reviewDecision: "needs_clarification" },
+    ]);
+    const [downstreamRows] = await pool.query(
+      `select p.ctx03Gfa, p.totalFitoutArea,
+              sm.id scoreId, sm.compositeScore, sm.inputSnapshot,
+              ri.id reportId, ri.reportType, ri.content reportContent,
+              ma.id allocationId, ma.surfaceAreaM2, ma.totalCostMin, ma.totalCostMax, ma.isLocked
+       from projects p
+       join score_matrices sm on sm.projectId = p.id and sm.id = 8150
+       join report_instances ri on ri.projectId = p.id and ri.id = 8160
+       join material_allocations ma on ma.projectId = p.id and ma.organizationId = p.orgId and ma.id = 8170
+       where p.id = 8111`
+    );
+    expect(downstreamRows).toEqual([
+      {
+        ctx03Gfa: "1000.00",
+        totalFitoutArea: "12.00",
+        scoreId: 8150,
+        compositeScore: "72.00",
+        inputSnapshot: { basis: "explicit" },
+        reportId: 8160,
+        reportType: "full_report",
+        reportContent: { fingerprint: "report-before-geometry" },
+        allocationId: 8170,
+        surfaceAreaM2: "12.00",
+        totalCostMin: "1200.00",
+        totalCostMax: "1800.00",
+        isLocked: 1,
+      },
     ]);
 
     expect(
       await db.updateSpaceProgramRoomForOrg(8131, 8101, {
-        roomName: "Still legacy in shadow",
+        roomName: "Still legacy before canonical selection",
       })
     ).toBe(true);
     expect(
       await db.updateProjectWithLegacyGeometryAuthorityForOrg(8111, 8101, {
         totalFitoutArea: "13.00",
       })
-    ).toBe("updated");
+    ).toBe("canonical");
     expect(
       await db.updateProjectVerificationForOrg(8111, 8101, {
         totalFitoutArea: 14,
@@ -318,10 +479,11 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
     await pool.query(
       "update project_geometry_authorities set mode = 'canonical' where organizationId = 8101 and projectId = 8111"
     );
-    const canonicalReplay = await db.commitShadowGeometryForOrg(
-      candidate("4", "first", winner.graphVersionId)
+    const canonicalDraft = await db.saveGeometryDraftForOrg(
+      candidate("9", "canonical-draft", clarificationDraft.graphVersionId)
     );
-    expect(canonicalReplay).toEqual({ kind: "canonical" });
+    expect(canonicalDraft).toMatchObject({ kind: "ok", replayed: false });
+    if (canonicalDraft.kind !== "ok") throw new Error("canonical draft failed");
     expect(
       await db.updateProjectWithLegacyGeometryAuthorityForOrg(8111, 8101, {
         totalFitoutArea: "99.00",
@@ -331,10 +493,10 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
       await db.updateProjectVerificationForOrg(8111, 8101, {
         totalFitoutArea: 99,
       })
-    ).toBe(false);
+    ).toBe(true);
     expect(
       await db.updateSpaceProgramRoomForOrg(8131, 8101, {
-        roomName: "Blocked canonical write",
+        sqm: "99.00",
       })
     ).toBe(false);
     expect(
@@ -368,23 +530,30 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
     const [legacyRows] = await pool.query(
       "select roomName from space_program_rooms where id = 8131"
     );
-    expect(legacyRows).toEqual([{ roomName: "Still legacy in shadow" }]);
+    expect(legacyRows).toEqual([
+      { roomName: "Still legacy before canonical selection" },
+    ]);
     const [projectRows] = await pool.query(
       "select totalFitoutArea from projects where id = 8111"
     );
-    expect(projectRows).toEqual([{ totalFitoutArea: "14.00" }]);
+    expect(projectRows).toEqual([{ totalFitoutArea: "99.00" }]);
 
-    const comparison = await db.getGeometryComparisonForOrg(8111, 8101);
-    expect(comparison?.authority).toMatchObject({
-      currentGraphVersionId: winner.graphVersionId,
-      selectedGeometryVersionId: null,
+    const reviewState = await db.getGeometryReviewStateForOrg(8111, 8101);
+    expect(reviewState?.authority).toMatchObject({
+      currentGraphVersionId: canonicalDraft.graphVersionId,
+      selectedGeometryVersionId: winner.graphVersionId,
     });
-    expect(comparison?.candidate?.fingerprint).toBe(winner.fingerprint);
+    expect(reviewState?.canonical?.fingerprint).toBe(winner.fingerprint);
+    expect(reviewState?.acceptedMeasurements).toMatchObject({
+      status: "ready",
+      graphVersionId: winner.graphVersionId,
+      measurementBasis: "room_floor_polygon_area",
+    });
   });
 
   it("persists the maximum accepted identity length and a 19-digit area", async () => {
     const spaceId = "s".repeat(64);
-    const result = await db.commitShadowGeometryForOrg(
+    const result = await db.saveGeometryDraftForOrg(
       candidate("1000000000", "large-domain", null, {
         height: "1000000000",
         spaceId,
@@ -409,13 +578,25 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
   });
 
   it("restores an exact logical snapshot of the additive DI-01 tables", async () => {
-    const committed = await db.commitShadowGeometryForOrg(
+    const committed = await db.saveGeometryDraftForOrg(
       candidate("4", "restore", null)
     );
     expect(committed.kind).toBe("ok");
 
     const connection = await pool.getConnection();
     const backupTables = [...newTables].reverse();
+    const restoreOrder = [
+      "geometry_sources",
+      "spatial_graph_versions",
+      "project_geometry_authorities",
+      "space_identities",
+      "space_versions",
+      "measurement_records",
+      "measurement_input_edges",
+      "geometry_reconciliation_events",
+      "legacy_space_links",
+      "artifact_input_snapshots",
+    ] as const;
     try {
       for (const table of backupTables) {
         await connection.query(
@@ -442,7 +623,7 @@ describe("DI-01 disposable MySQL tenant, CAS, and compatibility boundary", () =>
       }
       await connection.query("set foreign_key_checks = 1");
 
-      for (const table of [...backupTables].reverse()) {
+      for (const table of restoreOrder) {
         await connection.query(
           `insert into \`${table}\` select * from \`di01_restore_${table}\``
         );

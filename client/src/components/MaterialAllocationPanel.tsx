@@ -47,6 +47,9 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
     const { data, isLoading, error } = trpc.materialQuantity.getForProject.useQuery(
         { projectId },
     );
+    const { data: geometryReviewState, isLoading: geometryAuthorityLoading } =
+        trpc.spaceProgram.getGeometryReviewState.useQuery({ projectId });
+    const isCanonicalAuthority = geometryReviewState?.authorityMode === "canonical";
 
     const generateMutation = trpc.materialQuantity.generate.useMutation({
         onSuccess: () => {
@@ -73,7 +76,7 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
         });
     };
 
-    if (isLoading) {
+    if (isLoading || geometryAuthorityLoading) {
         return (
             <div className="flex justify-center p-12">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -90,10 +93,11 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
                         Material Quantity Intelligence
                     </h3>
                     <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                        Calculate surface areas, generate AI-powered material allocations,
-                        and get accurate cost estimates for every room.
+                        {isCanonicalAuthority
+                            ? "Material quantities are insufficient until every reviewed stable space has an explicit finish-scope mapping. Room-floor polygons are not treated as GFA, fit-out, wall, ceiling, or opening measurements."
+                            : "Calculate estimated surface areas, generate material allocations, and get cost ranges for every legacy programme room."}
                     </p>
-                    <Button
+                    {!isCanonicalAuthority && <Button
                         onClick={() => generateMutation.mutate({ projectId })}
                         disabled={generateMutation.isPending}
                         className="gap-2"
@@ -104,7 +108,7 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
                             <Layers className="h-4 w-4" />
                         )}
                         Generate Material Allocations
-                    </Button>
+                    </Button>}
                 </CardContent>
             </Card>
         );
@@ -123,6 +127,13 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
 
     return (
         <div className="space-y-4">
+            {isCanonicalAuthority && (
+                <Card className="border-amber-500/25 bg-amber-500/5">
+                    <CardContent className="py-3 text-sm text-muted-foreground">
+                        These are retained legacy allocations. Canonical regeneration is unavailable until reviewed stable-space finish scope exists; polygon floor area does not authorize professional GFA, fit-out, wall, ceiling, or opening assumptions.
+                    </CardContent>
+                </Card>
+            )}
             {/* Summary Header */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Card>
@@ -165,7 +176,7 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-                <Button
+                {!isCanonicalAuthority && <Button
                     variant="outline"
                     size="sm"
                     onClick={() => generateMutation.mutate({ projectId })}
@@ -178,7 +189,7 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
                         <RefreshCcw className="h-3.5 w-3.5" />
                     )}
                     Re-generate
-                </Button>
+                </Button>}
                 <Button
                     variant="outline"
                     size="sm"

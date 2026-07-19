@@ -16,6 +16,7 @@ import {
 } from "../../../shared/geometry";
 import {
   canonicalizeGeometry,
+  decimalCoordinateToMicrometres,
   GeometryDeadlineError,
 } from "./canonical-geometry";
 
@@ -86,9 +87,11 @@ function sourceCoordinateLexemes(source) {
       index += 1;
       let flags = 0;
       let elevation = "0";
+      let handle = null;
       const vertices = [];
       while (index < pairs.length && pairs[index].code !== 0) {
         const pair = pairs[index];
+        if (pair.code === 5) handle = pair.value;
         if (pair.code === 70) flags = Number(pair.value);
         if (pair.code === 38) elevation = pair.value;
         if (pair.code === 10) vertices.push({ x: pair.value, y: null, z: null });
@@ -99,7 +102,7 @@ function sourceCoordinateLexemes(source) {
         index += 1;
       }
       if ((flags & 1) === 1 && vertices.length >= 3 && vertices.every(vertex => vertex.y !== null)) {
-        boundaries.push({ vertices, elevation });
+        boundaries.push({ vertices, elevation, handle });
       }
       continue;
     }
@@ -108,7 +111,9 @@ function sourceCoordinateLexemes(source) {
       index += 1;
       let flags = 0;
       let elevation = "0";
+      let handle = null;
       while (index < pairs.length && pairs[index].code !== 0) {
+        if (pairs[index].code === 5) handle = pairs[index].value;
         if (pairs[index].code === 70) flags = Number(pairs[index].value);
         if (pairs[index].code === 30) elevation = pairs[index].value;
         index += 1;
@@ -131,7 +136,7 @@ function sourceCoordinateLexemes(source) {
         index += 1;
         while (index < pairs.length && pairs[index].code !== 0) index += 1;
       }
-      if ((flags & 1) === 1 && vertices.length >= 3) boundaries.push({ vertices, elevation });
+      if ((flags & 1) === 1 && vertices.length >= 3) boundaries.push({ vertices, elevation, handle });
       continue;
     }
 
@@ -251,7 +256,7 @@ function allEntities(dxf) {
         ) hasNonPlanarCoordinate = true;
         boundaries.push({
           entityIndex,
-          handle: entity.handle === undefined ? null : String(entity.handle),
+          handle: lexicalBoundary?.handle ?? null,
           layer: typeof entity.layer === "string" ? entity.layer : "0",
           vertices: vertices.map((vertex, vertexIndex) => ({
             x: lexicalVertices[vertexIndex].x,
@@ -511,37 +516,22 @@ function coordinateLexemeExceedsLimit(source: string): boolean {
   }
 }
 
-const DXF_ROOM_ID_DOMAIN = "MIYAR_DXF_ROOM_ID_V1";
+const DXF_ROOM_ID_DOMAIN = "MIYAR_DXF_ROOM_ID_V2";
 
 function stableDxfRoomId(
-  outerRing: GeometryInputPoint[],
+  sourceLineageId: string,
+  entityHandle: string,
   levelElevation: string,
-  sourceUnit: GeometrySourceUnit,
-  snapTransform: "none" | "1mm",
-  deadlineAtMilliseconds: number
+  sourceUnit: GeometrySourceUnit
 ): string {
-  const isolated = canonicalizeGeometry(
-    {
-      schemaVersion: GEOMETRY_SCHEMA_VERSION,
-      measurementBasis: ROOM_FLOOR_POLYGON_AREA,
-      sourceUnit,
-      snapTransform,
-      rooms: [
-        {
-          spaceId: "dxf-room-identity-placeholder",
-          levelElevation,
-          outerRing,
-        },
-      ],
-    },
-    { deadlineAtMilliseconds }
-  );
-  const room = isolated.geometry.rooms[0];
   const identityPayload = JSON.stringify({
-    referenceFrame: isolated.geometry.referenceFrame,
-    levelElevationMicrometres: room.levelElevationMicrometres,
-    outerRing: room.outerRing.points,
-    holes: room.holes.map(hole => hole.points),
+    referenceFrame: "project_local_xy",
+    sourceLineageId,
+    entityHandle: entityHandle.toUpperCase(),
+    levelElevationMicrometres: decimalCoordinateToMicrometres(
+      levelElevation,
+      sourceUnit
+    ).toString(),
   });
   const digest = createHash("sha256")
     .update(DXF_ROOM_ID_DOMAIN, "utf8")
@@ -913,6 +903,31 @@ export async function inspectDxfGeometry(
     };
   }>;
   let canonical;
+  const stableHandles = new Set<string>();
+  for (const boundary of inspected.boundaries) {
+    const handle = boundary.handle?.trim().toUpperCase() ?? "";
+    if (!/^[0-9A-F]+$/.test(handle)) {
+      return rejected(
+        base,
+        issue(
+          "missing_stable_entity_identity",
+          "Each DXF room boundary requires a stable hexadecimal entity handle before it can become canonical."
+        ),
+        "insufficient_information"
+      );
+    }
+    if (stableHandles.has(handle)) {
+      return rejected(
+        base,
+        issue(
+          "duplicate_stable_entity_identity",
+          "DXF room boundary entity handles must be unique within the drawing."
+        ),
+        "conflicting_information"
+      );
+    }
+    stableHandles.add(handle);
+  }
   try {
     rooms = inspected.boundaries.map(boundary => {
       const points: GeometryInputPoint[] = boundary.vertices.map(vertex => ({
@@ -921,11 +936,10 @@ export async function inspectDxfGeometry(
       }));
       points.push({ ...points[0] });
       const sourceRoomId = stableDxfRoomId(
-        points,
+        input.sourceLineageId,
+        boundary.handle!.trim(),
         input.levelElevation,
-        effectiveUnit,
-        input.snapTransform ?? "none",
-        deadlineAtMilliseconds
+        effectiveUnit
       );
       return {
         sourceRoomId,

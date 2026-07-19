@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   getSpaceProgramRoomById: vi.fn(),
   updateSpaceProgramRoomForOrg: vi.fn(),
   getAmenitySubSpacesForRoom: vi.fn(),
-  updateProjectVerificationForOrg: vi.fn(),
+  updateProjectWithLegacyGeometryAuthorityForOrg: vi.fn(),
 }));
 
 vi.mock("../db", () => ({
@@ -20,7 +20,8 @@ vi.mock("../db", () => ({
   getSpaceProgramRoomById: mocks.getSpaceProgramRoomById,
   updateSpaceProgramRoomForOrg: mocks.updateSpaceProgramRoomForOrg,
   getAmenitySubSpacesForRoom: mocks.getAmenitySubSpacesForRoom,
-  updateProjectVerificationForOrg: mocks.updateProjectVerificationForOrg,
+  updateProjectWithLegacyGeometryAuthorityForOrg:
+    mocks.updateProjectWithLegacyGeometryAuthorityForOrg,
 }));
 
 import { authorizationFixtures } from "../test-utils/authorization-fixtures";
@@ -44,7 +45,7 @@ describe("DI-01 space-program compatibility", () => {
       ...projects.orgA,
       totalFitoutArea: "999.00",
     });
-    mocks.getProjectGeometryAuthorityModeForOrg.mockResolvedValue("shadow");
+    mocks.getProjectGeometryAuthorityModeForOrg.mockResolvedValue("legacy");
     mocks.getSpaceProgramRoomById.mockResolvedValue({
       id: 1,
       projectId: projects.orgA.id,
@@ -53,7 +54,9 @@ describe("DI-01 space-program compatibility", () => {
       isFitOut: true,
     });
     mocks.updateSpaceProgramRoomForOrg.mockResolvedValue(true);
-    mocks.updateProjectVerificationForOrg.mockResolvedValue(true);
+    mocks.updateProjectWithLegacyGeometryAuthorityForOrg.mockResolvedValue(
+      "updated"
+    );
     mocks.getSpaceProgramRooms.mockResolvedValue([
       {
         id: 1,
@@ -82,20 +85,22 @@ describe("DI-01 space-program compatibility", () => {
     ]);
   });
 
-  it("returns shadow reconciliation values without rewriting a divergent stored fit-out area", async () => {
+  it("returns legacy programme values without rewriting a divergent stored fit-out area", async () => {
     const result = await spaceProgramRouter
       .createCaller(contexts.orgA)
       .getForProject({ projectId: projects.orgA.id });
 
     expect(result).toMatchObject({
-      geometryAuthorityMode: "shadow",
+      geometryAuthorityMode: "legacy",
       summary: {
         totalSqm: 32,
         fitOutSqm: 12,
         shellCoreSqm: 20,
       },
     });
-    expect(mocks.updateProjectVerificationForOrg).not.toHaveBeenCalled();
+    expect(
+      mocks.updateProjectWithLegacyGeometryAuthorityForOrg
+    ).not.toHaveBeenCalled();
   });
 
   it("refreshes the legacy fit-out aggregate explicitly when a room area changes", async () => {
@@ -123,10 +128,47 @@ describe("DI-01 space-program compatibility", () => {
       })
     ).resolves.toEqual({ success: true });
 
-    expect(mocks.updateProjectVerificationForOrg).toHaveBeenCalledWith(
+    expect(
+      mocks.updateProjectWithLegacyGeometryAuthorityForOrg
+    ).toHaveBeenCalledWith(
       projects.orgA.id,
       projects.orgA.orgId,
-      { totalFitoutArea: 15 }
+      { totalFitoutArea: "15" }
     );
+  });
+
+  it("rejects legacy fit-out toggles before they can overwrite canonical-project inputs", async () => {
+    mocks.getProjectGeometryAuthorityModeForOrg.mockResolvedValue("canonical");
+
+    await expect(
+      spaceProgramRouter.createCaller(contexts.orgA).toggleFitOut({
+        roomId: 1,
+        projectId: projects.orgA.id,
+        isFitOut: false,
+      })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+
+    expect(mocks.updateSpaceProgramRoomForOrg).not.toHaveBeenCalled();
+    expect(
+      mocks.updateProjectWithLegacyGeometryAuthorityForOrg
+    ).not.toHaveBeenCalled();
+  });
+
+  it("fails the final aggregate write if canonical review wins after the route guard", async () => {
+    mocks.updateProjectWithLegacyGeometryAuthorityForOrg.mockResolvedValue(
+      "canonical"
+    );
+
+    await expect(
+      spaceProgramRouter.createCaller(contexts.orgA).updateRoom({
+        roomId: 1,
+        sqm: 15,
+      })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+
+    expect(mocks.updateSpaceProgramRoomForOrg).toHaveBeenCalled();
+    expect(
+      mocks.updateProjectWithLegacyGeometryAuthorityForOrg
+    ).toHaveBeenCalled();
   });
 });

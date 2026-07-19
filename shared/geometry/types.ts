@@ -8,12 +8,16 @@ export const ROOM_FLOOR_POLYGON_AREA = "room_floor_polygon_area" as const;
 export type GeometrySourceUnit = "m" | "mm";
 export type GeometrySnapTransform = "none" | "1mm";
 export type SpaceId = string;
-export type GeometryAuthorityMode = "legacy" | "shadow" | "canonical";
+export type GeometryAuthorityMode = "legacy" | "canonical";
+export type GeometryReviewCommandDecision =
+  | "approve_as_canonical"
+  | "reject"
+  | "request_clarification";
 export type GeometryReviewDecision =
-  | "candidate_created"
+  | "draft_created"
   | "accepted"
   | "rejected"
-  | "clarification_requested"
+  | "needs_clarification"
   | "reconciled";
 export type GeometryResultState =
   | "valid"
@@ -88,7 +92,7 @@ export interface MeasurementInputEdge {
 export interface GeometryReviewEvent {
   id: number;
   expectedCurrentGeometryVersionId: number | null;
-  candidateGeometryVersionId: number;
+  draftGeometryVersionId: number;
   resultGeometryVersionId: number | null;
   decision: GeometryReviewDecision;
   resultState: GeometryResultState;
@@ -190,7 +194,7 @@ export interface AreaReconciliation {
   tolerancePolicyVersion: typeof GEOMETRY_TOLERANCE_POLICY_VERSION;
 }
 
-export const DXF_ADAPTER_VERSION = "miyar-ascii-dxf-v1" as const;
+export const DXF_ADAPTER_VERSION = "miyar-ascii-dxf-v2" as const;
 
 export const DXF_BOUNDARY_LIMITS = {
   sourceBytes: 10 * 1024 * 1024,
@@ -231,6 +235,8 @@ export type DxfGeometryBoundaryIssueCode =
   | "coordinate_limit_exceeded"
   | "deadline_exceeded"
   | "processing_capacity_exceeded"
+  | "missing_stable_entity_identity"
+  | "duplicate_stable_entity_identity"
   | "canonical_json_limit_exceeded"
   | "overlay_limit_exceeded"
   | "parse_failed";
@@ -295,6 +301,8 @@ export interface DxfGeometryBoundaryInput {
   bytes: Uint8Array;
   fileName: string;
   mediaType?: string | null;
+  /** Stable project-scoped drawing lineage shared by revisions, but never by unrelated drawings. */
+  sourceLineageId: string;
   /** Explicit user selection is accepted only when $INSUNITS is absent/zero. */
   selectedUnit?: GeometrySourceUnit;
   /** Declared project-local level elevation, expressed in the effective source unit. */

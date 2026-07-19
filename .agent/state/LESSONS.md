@@ -421,3 +421,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: A regression starts with divergent stored and room totals, proves the read performs no write, then proves an area edit persists first and writes the recomputed 15 m² aggregate. Focused tests, the 1,349/22 safe suite, disposable MySQL, audits, build, and independent re-review pass.
 - Reuse rule: A reconciliation query may report drift but must never repair it. Every authoritative aggregate refresh must be owned by the explicit mutation that changed its inputs and must recheck authorization/authority at the final write.
 - Supersedes / related: Extends the DI-01 compatibility bridge and `LES-030`.
+
+### LES-037 — Authority checks must guard the final derived write
+
+- Date / roadmap step: 2026-07-19 / `DI-01`
+- Context: A legacy room mutation recalculates project fit-out area while an administrator can accept canonical geometry concurrently.
+- Observed: A route-level authority check could pass, then canonical review could commit before the final aggregate update, allowing a legacy-derived value to land after the authority transition.
+- Cause: The room mutation and final project aggregate update used different authorization moments; the aggregate called a generic tenant update rather than the transactionally locked geometry-authority boundary.
+- Fix or decision: Route every legacy-derived project area update through `updateProjectWithLegacyGeometryAuthorityForOrg`, which locks the project and authority rows in the same order as canonical review and rejects the final write when canonical wins.
+- Proof: A unit regression simulates canonical review winning after route entry; a disposable-MySQL concurrency test queues review and legacy aggregation behind the same project lock, proves review commits first, and proves the aggregate returns `canonical`. Guarded MySQL passes 25/25 with cleanup and current evidence hashes.
+- Reuse rule: An early permission or authority check is advisory under concurrency. Every authoritative or derived write must repeat the relevant ownership/version/authority condition inside the final transaction.
+- Supersedes / related: Extends `LES-030` and `LES-036`.
