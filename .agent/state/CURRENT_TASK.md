@@ -1,60 +1,78 @@
 # Current Task
 
-- ID: DI-01
-- Roadmap step: `DI-01`
-- Title: Canonical-first room geometry launch foundation
-- Status: NEEDS_HUMAN
+- ID: BR-01
+- Roadmap step: `BR-01`
+- Title: Approve the issued-design-brief product contract
+- Status: PASS
 - Owner: Codex
-- Started: 2026-07-19
-- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-di01-canonical`
-- Branch: `codex/di-01-canonical-first`
-- Base: local verified DI-01 foundation commit `738dfc6ed0ed8654000727c8f80adc2b7e3aeb2a`
-- Classification: Schema/geometry/engine implementation, tenant boundary, UI, migration, and downstream measurement integration
-- Risk: Critical — authority or area-basis mistakes can corrupt quantities, reports, scoring, or tenant ownership
-- Selected loops: Feature, schema-migration, report/visual-QA, and roadmap-execution loops
-- Retry budget: Maximum three evidence-based attempts per unchanged failure class
-- Resource budget: One fresh isolated worktree, no new production dependency, disposable MySQL only, bounded browser verification, three independent specialist reviews, and Claude review
-- Human gates: The exact local internal database reset was separately authorized and completed. On 2026-07-19 the owner authorized committing this verified DI-01 change set, pushing `codex/di-01-canonical-first`, opening a draft PR, running CI, and reviewing the published diff. Merge, shared database write, deployment, production dependency, and professional GFA/fit-out rule adoption still require separate authorization.
+- Started: 2026-07-20
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-br01-contract`
+- Branch: `codex/br-01-issued-brief-contract`
+- Base: exact fetched `origin/main` commit `ce5e44a9b46c5a362e8de9ca26c15a0135e795f4`
+- Classification: Product contract and documentation foundation
+- Risk: High product/report governance; no runtime, schema, numerical, compliance, or production change is authorized
+- Selected loops: Documentation decision and roadmap-execution loops
+- Retry budget: Three evidence-based attempts per unchanged documentation or review failure
+- Resource budget: One fresh isolated worktree, documentation-only diff, deterministic consistency checks, one independent Claude Opus review
+- Human gates: The user accepts the product-owner, design-domain-owner, and report-owner roles for BR-01. The exact specification, ADR, and golden walkthroughs still require explicit approval before BR-01 closes. Commit, push, PR, merge, shared operations, and deployment remain separately unauthorized.
 
 ## Goal
 
-Replace the locally verified shadow scaffolding with a canonical-first pre-launch workflow. Fresh projects use canonical geometry authority; manual or DXF input is saved as an immutable draft and becomes the selected canonical room geometry only after an explicit organization-admin review action.
+Define and approve one canonical product meaning for an Issued Design Brief: ten governed sections, deterministic lifecycle and overlay conditions, separated human roles, three issue purposes, six umbrella typology profiles, immutable issue semantics, and golden acceptance examples.
 
 ## Plain-English Problem
 
-The first DI-01 slice proved geometry could be captured safely, but it deliberately left old room areas in control under a temporary `shadow` mode. MIYAR has not launched and has no customers, so shipping that migration mechanism would add a second source of truth for no benefit. The launch contract needs one authority policy, a clear draft/review lifecycle, and strict limits on what room-floor polygons are allowed to drive.
+MIYAR currently calls several different artifacts a design brief. The structured brief, AI-advisor public brief, autonomous narrative, and generated reports do not share one completeness, evidence, approval, issue, or immutability contract. A user can therefore generate, export, or share something called a brief without one agreed rule proving what it contains, who approved it, what it is safe to use for, or whether later source changes altered it.
 
 ## Authorized Scope
 
-- Remove `shadow` from runtime authority types, schema, migration 0051, repository helpers, APIs, tests, and user-facing language.
-- Make canonical geometry authority the default created with every fresh project.
-- Rename the persistence/API/UI workflow to draft, review, and canonical concepts.
-- Keep drafts non-authoritative; only an explicit organization-admin acceptance may select a canonical geometry version.
-- Update unshared migration 0051 and its snapshot before any shared application.
-- Connect accepted `room_floor_polygon_area` only to downstream room-floor quantities when stable identity and finish scope are explicit; otherwise return labelled insufficiency.
-- Keep GFA, fit-out, usable, circulation, wall, ceiling, opening, pricing, scoring, ROI, and report assumptions explicit and separate.
-- Execute the separately authorized snapshot/reset/reapply operation only against the exact local internal target `miyar_auth_test_tr10_browser`.
+- Reconcile roadmap state so BR-01 is the sole active step.
+- Define the normative issued-design-brief product specification.
+- Record the durable decision in ADR-0007.
+- Create six synthetic UAE/AED golden walkthroughs and negative transition cases.
+- Trace every current brief/report/share path to a future disposition.
+- Preserve deterministic numerical authority, explicit user inputs, tenant isolation, public-share protections, bilingual issued copy, Material Board Annex behavior, and report identity requirements.
 
 ## Acceptance Criteria
 
-- [x] Runtime authority has no `shadow` option; new projects atomically receive `canonical` authority with no selected geometry.
-- [x] Manual/DXF save creates an immutable draft and cannot select authority or change downstream results.
-- [x] Admin acceptance is append-only, CAS-controlled, tenant-scoped, updates draft/review state, and selects the accepted canonical version atomically.
-- [x] Rejection and clarification do not select geometry; replay and concurrent writers remain deterministic and fail closed.
-- [x] Public tRPC and bilingual UI use draft/review/canonical language with viewer/member/admin permissions preserved.
-- [x] Migration 0051 and its snapshot match the canonical-first schema and pass fresh disposable-MySQL application/restore/integrity tests.
-- [x] Accepted room floor polygon measurements feed only compatible floor-area consumers with exact stable-space linkage and explicit provenance; missing scope/linkage is insufficient, never guessed by name/code.
-- [x] Professional GFA/fit-out and estimated wall/ceiling/opening calculations remain distinct, labelled, and regression-protected.
-- [x] Internal development data strategy is recorded with rationale; the exact local target was snapshotted, restore-tested, reset, and migrated only after explicit authorization.
-- [x] Tenant, geometry/property, MySQL, report, scoring, safe full-suite, TypeScript, authorization/database audits, build, browser LTR/RTL, and diff verification pass.
-- [x] Independent architecture, measurement, and verification reviewers plus Claude review have no unresolved blocking objection.
+- [x] One canonical Issued Design Brief boundary and a disposition for every existing brief/report/share path are documented.
+- [x] All ten stable section IDs, minimum contents, authority labels, applicability rules, and cross-section reconciliations are defined.
+- [x] The six achieved states and structured `stale`/`blocked` overlay conditions have complete allowed/denied transition rules.
+- [x] Author, Section Owner, Reviewer, Approver, Issuer, and Viewer responsibilities and separation-of-duty rules are explicit.
+- [x] `internal_coordination`, `client_board_approval`, and `tender_rfq` have exact issue gates and safe-use limitations.
+- [x] Apartment, villa, office, hospitality, retail, and mixed-use umbrella profiles have explicit applicability, including the BR-06 mapping.
+- [x] Six golden walkthroughs collectively exercise all required positive and negative scenarios.
+- [x] BR-02, BR-03, BR-05/06, BR-07, and BR-08 downstream ownership is unambiguous; BR-01 contains no implementation design that usurps those steps.
+- [x] Formatting, link, identifier, coverage, terminology, diff, and scope checks pass.
+- [x] Independent Claude Opus review has no unresolved blocking objection.
+- [x] The user explicitly approves the exact finished artifacts as product, design-domain, and report owner.
 
-## Data Strategy Decision
+## Non-Goals
 
-Decision: safely reset disposable/internal DI-01 development data, after taking a target-specific snapshot and confirming row counts, then reapply the corrected unshared migration 0051. Do not heuristically migrate legacy room codes, names, array positions, GFA, or fit-out values into canonical identities or polygon measurements. This is appropriate because MIYAR is pre-launch, has no real customers, migration 0051 has never been shared, and ambiguous legacy records cannot prove stable identity or measurement basis.
+- Runtime types, APIs, routers, UI, database schema, migrations, backfills, report generation, or public-share behavior.
+- Scoring, pricing, quantities, financial assumptions, typology rules, professional compliance rules, or legal assurance.
+- Full Arabic translation; English is normative and labels are bilingual-ready.
+- Git publication, protected-branch integration, shared database work, or deployment.
 
-On 2026-07-19 the owner separately authorized this operation for the exact loopback-only Docker database `miyar_auth_test_tr10_browser` in container `miyar-tr10-browser-safe-20260718`; no other target was authorized. Before reset it had 89 tables, 42 synthetic/internal rows across 25 non-empty tables, and no DI-01 tables. An owner-only snapshot was written to `/Users/amrosaleh/Maiyar/miyar-v2-di01-canonical/tmp/di01-internal-reset/miyar_auth_test_tr10_browser-before-di01-20260719T142320Z.sql` (265,456 bytes; SHA-256 `bd88414571b3115bfa832623bd7febfef2701f83e853c3f7d69fee682369d6f5`) and restore-tested into temporary database `miyar_auth_test_di01_snapshot_verify`, reproducing all 89 tables and 42 rows before that temporary database was removed. The exact target was then dropped, recreated, and the complete checked-in migration chain reapplied. A second idempotent migration run passed. The retained target now has 100 tables, 52 migration-journal entries, zero rows in the checked application and DI-01 tables, all ten DI-01 tables, and migration entry 52 hash `f3871aee5deefecae6b905850e306afac3e13760da78bd6f9ba0ef954d4f8e92`, exactly matching migration 0051. Only the 42 synthetic/internal rows were removed, and they remain recoverable from the verified snapshot.
+## Verification
+
+- Deterministic identifier and coverage checks across the specification, ADR, and walkthroughs.
+- Markdown formatting and internal-link checks.
+- Consumer trace against the current structured brief, AI brief, autonomous brief, reports, exports, RFQ, sharing, project approval, and evaluation readiness paths.
+- `git diff --check` and documentation-only scope inspection.
+- Independent Claude Opus product/contract review.
+- Exact human approval of the completed artifacts.
 
 ## Next Action
 
-Git publication is complete at commit `deba8b30b4db94aafd2da104c19eb3eb18b3d5a9` on `codex/di-01-canonical-first` and draft PR [#22](https://github.com/amosantan/miyar-v2/pull/22). CI run `29691153359` passed lint/test and MySQL authorization; Vercel preview and Preview Comments also passed. The complete two-commit diff against `main` was reviewed with no unresolved blocker. Obtain separate explicit human approval before merge; only after merge identify and authorize an exact shared migration target, and authorize release separately after migration and production verification.
+BR-01 is closed at `PASS`. Begin BR-02 in a fresh worktree from the exact canonical base after this uncommitted closeout is published or otherwise made available as an authorized base. Commit/push/PR remain separately unauthorized.
+
+## Verification Evidence
+
+- Exact canonical base/worktree: fetched `origin/main` `ce5e44a`; fresh `/Users/amrosaleh/Maiyar/miyar-v2-br01-contract`; dirty root and stale planning worktree untouched.
+- Deterministic checks: all ten IDs occur in the specification, ADR, and every fixture; six states, two flags, three purposes, six walkthroughs, internal links, formatting, status uniqueness, diff, and documentation-only scope pass.
+- State reconciliation: BR-01 is the only current roadmap task; UX-01 remains `NEEDS_HUMAN`; merged DI-01 is `CLOSED`; dependency-invalid BR-06 is `PLANNED`; project state reflects canonical merge and remaining shared migration/release gates.
+- Independent adversarial review: initial eight findings and two follow-up consistency notes resolved; final result has no product-contract blocker.
+- Claude Opus review: `APPROVED`; lifecycle bindings, N/A semantics, classification, roles, purpose gates, fixtures, flags, artifact dispositions, downstream boundaries, and roadmap truth approved.
+- Scope: documentation/state only; no runtime, API, schema, migration, calculation, financial, compliance, report, share, database, or production behavior changed.
+- Human approval: On 2026-07-20 the user explicitly approved the exact `BR-01-v1` specification, ADR-0007, and golden walkthroughs as product owner, design-domain owner, and report owner.
