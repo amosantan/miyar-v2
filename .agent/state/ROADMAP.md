@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: none automatically executable (`DI-01` is `NEEDS_HUMAN` for merge, shared migration, and release gates)
+- Next executable step: `BR-02` (`READY`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -412,7 +412,7 @@ Rules:
 
 ### UX-01 — Simplify the developer journey and establish the warm architectural interface
 
-- Status: `ACTIVE`
+- Status: `NEEDS_HUMAN`
 - Class / priority: UI/workflow/schema / P0
 - Dependencies: `TR-05`; approved interaction direction supersedes the UI slice of `BR-04` and conservative copy satisfies the interim path of `TR-11`.
 - Human gate: Shared/production schema application, deployment, and removal of compatibility routes remain separately gated.
@@ -436,7 +436,7 @@ Rules:
 
 ### BR-01 — Approve the issued-design-brief product contract
 
-- Status: `ACTIVE`
+- Status: `CLOSED`
 - Class / priority: Product foundation / P1
 - Dependencies: `TR-13`
 - Human gate: Product owner, design-domain owner, report owner.
@@ -448,10 +448,16 @@ Rules:
 - Done when: Golden brief examples and transition rules are approved.
 - Verification: Walkthroughs for apartment, villa, office, hospitality, retail, and mixed-use.
 - Expected artifacts: Product specification and decision record.
+- Activated: 2026-07-20 in fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-br01-contract` on branch `codex/br-01-issued-brief-contract` from exact fetched `origin/main` commit `ce5e44a`; the dirty root and stale planning worktree remain untouched.
+- Decision package evidence: Proposed contract `BR-01-v1`, ADR-0007, and six synthetic UAE/AED walkthroughs define the canonical object, ten sections, achieved-state bindings, overlay flags, classification/applicability, action authority, three purposes, six umbrella typologies, artifact dispositions, issue gates, and downstream boundaries. Deterministic documentation/scope checks pass; independent adversarial review has no remaining product blocker; Claude Opus returned `APPROVED`.
+- Closed: 2026-07-20
+- Terminal task state: `PASS`
+- Completion evidence: The user explicitly approved the exact `BR-01-v1` specification, accepted ADR-0007, and six golden walkthroughs as product owner, design-domain owner, and report owner. Ten-section, lifecycle/binding, overlay, applicability/classification, action authority, purpose, typology, artifact-disposition, issue-gate, immutability, and downstream-boundary contracts are decision complete. Deterministic documentation/scope checks pass; adversarial findings are resolved; Claude Opus returned `APPROVED`; no runtime/schema/production behavior changed.
+- Residual risk: Runtime enforcement does not yet exist. BR-02 owns versioning/schema/API/compatibility architecture; BR-03 owns deterministic readiness; BR-05/06 own domain rules; BR-07 owns issued snapshot/report mechanics; BR-08 owns AI evaluation.
 
 ### BR-02 — Design brief versioning and readiness architecture
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: Architecture/schema / P1
 - Dependencies: `BR-01`
 - Human gate: Schema and breaking-contract approval before implementation.
@@ -511,7 +517,7 @@ Rules:
 
 ### BR-06 — Validate priority UAE typology packs
 
-- Status: `ACTIVE`
+- Status: `PLANNED`
 - Class / priority: Design intelligence / P1
 - Dependencies: `BR-05`
 - Human gate: UAE architects/interior designers, cost consultant, and relevant compliance reviewer.
@@ -557,11 +563,11 @@ Rules:
 
 ### DI-01 — Build the canonical room, geometry, and measurement foundation
 
-- Status: `ACTIVE`
+- Status: `CLOSED`
 - Class / priority: Schema/geometry/engine / P1
 - Dependencies: `TR-13` is closed. The active planning increment absorbs only the geometry-specific calculation-authority work needed to specify this foundation. `BR-02` and `BR-05` remain integration gates rather than blockers to the bounded ADR/compatibility package.
 - Prioritization decision: On 2026-07-19 the user selected `DI-01` as the single next executable step. This changes execution order, not the human approval requirements below.
-- Human gate: On 2026-07-19 the owner authorized the bounded canonical-first local implementation, the exact local Docker reset for `miyar_auth_test_tr10_browser`, and then commit/push/draft-PR publication with CI and complete-diff review. The reset is complete. Merge, shared database application, deployment, professional GFA/fit-out rules, image/PDF/DWG/IFC authority, scoring/financial/compliance changes, and new material dependencies remain gated.
+- Human gate: On 2026-07-19 the owner authorized the bounded canonical-first local implementation, the exact local Docker reset for `miyar_auth_test_tr10_browser`, and then commit/push/draft-PR publication with CI and complete-diff review. The reset and PR #22 merge are complete. Shared database application, deployment, professional GFA/fit-out rules, image/PDF/DWG/IFC authority, scoring/financial/compliance changes, and new material dependencies remain gated.
 - Plain-English outcome: Every room, boundary, opening, level, zone, and area will eventually have one stable identity and one explicit measurement basis instead of being recreated differently by each feature.
 - Evidence: Live code currently stores AI floor-plan output in unversioned project JSON, regenerates room codes from type and array order, reduces DXF polygons to area using a unit heuristic, stores separate short room IDs in downstream tables, and estimates walls/openings/ceilings from room area assumptions.
 - Active change set:
@@ -580,7 +586,11 @@ Rules:
 - Activated: 2026-07-19 in fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-di01-canonical` on branch `codex/di-01-canonical-first` from verified local foundation commit `738dfc6`.
 - Internal-data operation evidence: The exact loopback-only target `miyar_auth_test_tr10_browser` was snapshotted before reset (89 tables, 42 synthetic/internal rows; restore verified; owner-only snapshot SHA-256 `bd88414571b3115bfa832623bd7febfef2701f83e853c3f7d69fee682369d6f5`), dropped/recreated, and migrated through corrected 0051. The retained target has 100 tables, 52 migration entries, all ten empty DI-01 tables, zero checked application rows, and an idempotent second migration pass. Migration journal entry 52 exactly matches the checked-in 0051 SHA-256 `f3871aee5deefecae6b905850e306afac3e13760da78bd6f9ba0ef954d4f8e92`.
 - Publication evidence: Commit `deba8b3` was pushed to `codex/di-01-canonical-first` and draft PR [#22](https://github.com/amosantan/miyar-v2/pull/22) targets `main`. CI run `29691153359` passed lint/test and MySQL authorization; Vercel preview and Preview Comments passed. The complete two-commit branch diff against `main` was reviewed with no unresolved blocker.
-- Current scope: The bounded canonical-first implementation, local verification, exact authorized internal reset, Git publication, draft-PR CI, and complete-diff review are complete. Shared migration, merge, and release remain unauthorized and require separate human approval.
+- Current scope: The bounded canonical-first implementation, local verification, exact authorized internal reset, Git publication, PR CI/review, and merge through canonical commit `ce5e44a` are complete. Shared migration and release remain unauthorized and require separate human approval.
+- Closed: 2026-07-20
+- Terminal task state: `PASS`
+- Completion evidence: PR #22 merged the reviewed canonical-first geometry implementation through exact canonical commit `ce5e44a`; its previously recorded CI, preview, deterministic geometry, tenant, migration, MySQL, TypeScript, authorization, database-safety, build, browser, specialist, and Claude review evidence remains authoritative.
+- Residual risk: Shared migration 0051 and production release remain separately gated; professional GFA/fit-out rules and additional import authority remain outside DI-01.
 
 ## Phase EV — Evidence and Procurement Moat
 
