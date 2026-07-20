@@ -432,3 +432,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: A unit regression simulates canonical review winning after route entry; a disposable-MySQL concurrency test queues review and legacy aggregation behind the same project lock, proves review commits first, and proves the aggregate returns `canonical`. Guarded MySQL passes 25/25 with cleanup and current evidence hashes.
 - Reuse rule: An early permission or authority check is advisory under concurrency. Every authoritative or derived write must repeat the relevant ownership/version/authority condition inside the final transaction.
 - Supersedes / related: Extends `LES-030` and `LES-036`.
+
+### LES-038 — Independent authority must be proven by separate immutable actions
+
+- Date / roadmap step: 2026-07-20 / `BR-02`
+- Context: The canonical brief workflow requires independent review, approval, condition resolution, and issue withdrawal authority.
+- Observed: Early API shapes allowed a resolver or issuer to name an outcome or independent approver in their own request, which could make separation of duties self-attested rather than evidenced.
+- Cause: A single convenient command combined proposal/submission and independent acceptance while the schema claimed an append-only authority history.
+- Fix or decision: Model proposal, submission, review, approval, resolution, and withdrawal as separate immutable actor events; later transitions reference the exact prior event and revalidate the independent functional assignment in the final transaction.
+- Proof: `BR-02-v1` defines staged finding/condition/applicability/withdrawal operations, exact issue references, and gate-specific Reviewer/Approver acceptance; independent engineering and Claude Opus reviews return `APPROVED`.
+- Reuse rule: Never accept a caller-supplied user ID, role label, or outcome as proof of independent authority. Require a separate immutable action by the authorized actor and bind the final transition to that exact event.
+- Supersedes / related: Extends `LES-001`, `LES-014`, and `LES-037`; applies to approvals, waivers, compliance findings, releases, and destructive-operation confirmations.

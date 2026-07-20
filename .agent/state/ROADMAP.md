@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `BR-02` (`READY`)
+- Next executable step: `BR-03` (`READY`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -395,7 +395,7 @@ Rules:
 
 ### TR-14 — Reconcile migration 0044 and database recovery
 
-- Status: `NEEDS_HUMAN`
+- Status: `CLOSED`
 - Class / priority: Schema/operations / P0
 - Dependencies: User direction on the existing migration working files; `TR-12`
 - Human gate: Owner of migration `0044`; shared-database application is separately gated.
@@ -457,7 +457,7 @@ Rules:
 
 ### BR-02 — Design brief versioning and readiness architecture
 
-- Status: `READY`
+- Status: `NEEDS_HUMAN`
 - Class / priority: Architecture/schema / P1
 - Dependencies: `BR-01`
 - Human gate: Schema and breaking-contract approval before implementation.
@@ -469,10 +469,18 @@ Rules:
 - Done when: ADR, schema proposal, API contracts, and migration plan are approved.
 - Verification: Contract review against all current consumers and representative legacy records.
 - Expected artifacts: ADR and schema design package.
+- Activated: 2026-07-20 in fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-br02-architecture` on `codex/br-02-brief-versioning` from exact fetched `origin/main` commit `27c0fb4`; the dirty root and all existing worktrees remain untouched.
+- Decision package: Proposed ADR-0008 and `BR-02-v1` specify the tenant-scoped relational model, typed API contracts, immutable issue-reference ledger, exact consumer compatibility, conservative legacy import, additive migration/cutover/recovery, and verification walkthroughs. Deterministic documentation/scope checks pass; independent engineering and Claude Opus reviews return `APPROVED`.
+- Closed: 2026-07-20
+- Terminal task state: `PASS`
+- Completion evidence: The user explicitly approved `BR-02-v1` and accepted ADR-0008 as schema owner and breaking-contract approver. The decision-complete package defines tenant-scoped stream/content/version identity, provider-safe uniqueness, append-only functional workflow, exact immutable issue references, twenty typed commands, nine typed queries, typed lineage, consumer-specific compatibility, conservative legacy import, and additive migration/recovery. Deterministic documentation/scope checks pass; independent engineering and Claude Opus reviews return `APPROVED`; no runtime/schema/database behavior changed.
+- Residual risk: The approved architecture is not implemented. `BR-03` owns deterministic readiness; schema generation/application, consumer cutovers, BR-07 snapshots/sharing, shared database work, and deployment remain separately gated.
+- Lessons: `LES-038`
+- Successor selected: `BR-03`
 
 ### BR-03 — Implement deterministic brief readiness
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: Engine/API / P1
 - Dependencies: `BR-02`
 - Human gate: Approved schema/contract; shared application remains gated.
