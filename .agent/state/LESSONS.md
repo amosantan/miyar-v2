@@ -485,3 +485,25 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Fix or decision: Validate the exact pinned built-in and merged deterministic result before persistence, revalidate exact fingerprints at resolution, and include actor identity in the canonical idempotency request fingerprint.
 - Proof: Guarded disposable MySQL passes 34/34 including invalid-override rejection and cross-actor replay denial; final independent review returned `PASS`.
 - Reuse rule: A governed record is not valid merely because its JSON schema parses. Validate the complete authoritative merge at the final write boundary, and bind an idempotency replay to actor, operation, target, and canonical request.
+
+### LES-043 — An official URL is evidence identity, not regulatory authority
+
+- Date / roadmap step: 2026-07-21 / `BR-06`
+- Context: Existing ingestion already collected official UAE market and material evidence, while typology packs need exact Dubai regulatory meaning.
+- Observed: Reusing an official-source label or a current web page as a rule would lose document edition, clause scope, effective interval, permitted retention, and professional interpretation.
+- Cause: Acquisition provenance, source authenticity, temporal applicability, and rule approval are distinct governance decisions that a general evidence record cannot safely collapse.
+- Fix or decision: Store regulatory documents in a separate version/capture/clause/relation/assertion model; treat every fetch and AI extraction as a candidate; require exact source fingerprints, locators, temporal resolution, five source assertions, and a separate four-discipline platform release envelope.
+- Proof: Regulatory source-integrity, temporal, promotion-negative, privacy, and disposable-MySQL tests pass; production source-authority and pack-release registries remain empty.
+- Reuse rule: Never convert an official host, scraper result, or authenticity review directly into a compliance rule. Bind exact immutable source evidence first, then require separately authorized interpretation and release.
+- Supersedes / related: Extends `LES-030`, `LES-036`, `LES-038`, and `LES-040`.
+
+### LES-044 — Security policy belongs to the registered regulatory source, not the fetch call
+
+- Date / roadmap step: 2026-07-21 / `BR-06`
+- Context: Regulatory retrieval must fail closed across redirects, SSRF, robots, licensing, MIME, size, rate, and timeout boundaries.
+- Observed: A per-call URL or policy override would let a caller bypass a trustworthy catalogue entry even if the underlying HTTP implementation were hardened.
+- Cause: Transport controls alone do not prove that the requested host, document identity, terms decision, and retention permission were the ones approved by governance.
+- Fix or decision: Construct the fetcher from an immutable registered-source map and accept only a source key at retrieval time; use direct pinned HTTPS, exact-host redirects, total deadlines, bounded retries, IPv4/IPv6 private-network rejection, and immutable SHA-256 receipts.
+- Proof: Twelve connector-security tests plus catalogue, authorization, TypeScript, full-suite, and generated-serverless verification pass.
+- Reuse rule: High-trust acquisition APIs must resolve policy from server-owned immutable registration. Never let request payloads supply the URL, host allowlist, terms status, or retention permission that authorizes their own fetch.
+- Supersedes / related: Extends `LES-001`, `LES-014`, and `LES-043`.

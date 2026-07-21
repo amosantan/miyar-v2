@@ -2,8 +2,8 @@
 
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **383**
-- Generated: 2026-07-21T16:22:56.762Z
+- Procedures inventoried: **389**
+- Generated: 2026-07-21T17:56:25.953Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
@@ -27,7 +27,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 
 | Classification         | Count |
 | ---------------------- | ----: |
-| `admin_governed`       |    82 |
+| `admin_governed`       |    88 |
 | `global_governed`      |    54 |
 | `not_project_scoped`   |    23 |
 | `org_guarded`          |   223 |
@@ -37,13 +37,13 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 
 | Severity | Count |
 | -------- | ----: |
-| `none`   |   383 |
+| `none`   |   389 |
 
 ## Remediation Summary
 
 | Target | Count |
 | ------ | ----: |
-| `none` |   383 |
+| `none` |   389 |
 
 ### Remediation ownership
 
@@ -454,6 +454,12 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `project.solveConstraints`                           | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                                                                                                                                                                                                        | No remediation assigned; retain classification evidence. |
 | `project.update`                                     | `org_guarded`          | input.id -> projects.id -> projects.orgId                                                                                                                                                                                                                                                                                                                                                                                                               | No remediation assigned; retain classification evidence. |
 | `project.verifyAreas`                                | `org_guarded`          | input.extractionId -> pdf_extractions.id -> pdf_extractions.projectId -> projects.orgId<br>input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                                                                                                             | No remediation assigned; retain classification evidence. |
+| `regulatory-source.assertVersion`                    | `admin_governed`       | platform administrator -> platform-global regulatory source/version governance; no tenant-owned or public projection                                                                                                                                                                                                                                                                                                                                    | No remediation assigned; retain classification evidence. |
+| `regulatory-source.catalogue`                        | `admin_governed`       | platform administrator -> platform-global regulatory source/version governance; no tenant-owned or public projection                                                                                                                                                                                                                                                                                                                                    | No remediation assigned; retain classification evidence. |
+| `regulatory-source.list`                             | `admin_governed`       | platform administrator -> platform-global regulatory source/version governance; no tenant-owned or public projection                                                                                                                                                                                                                                                                                                                                    | No remediation assigned; retain classification evidence. |
+| `regulatory-source.registerCatalogueSource`          | `admin_governed`       | platform administrator -> platform-global regulatory source/version governance; no tenant-owned or public projection                                                                                                                                                                                                                                                                                                                                    | No remediation assigned; retain classification evidence. |
+| `regulatory-source.relateVersions`                   | `admin_governed`       | platform administrator -> platform-global regulatory source/version governance; no tenant-owned or public projection                                                                                                                                                                                                                                                                                                                                    | No remediation assigned; retain classification evidence. |
+| `regulatory-source.versions`                         | `admin_governed`       | platform administrator -> platform-global regulatory source/version governance; no tenant-owned or public projection                                                                                                                                                                                                                                                                                                                                    | No remediation assigned; retain classification evidence. |
 | `sales-premium.getBrandEquityForecast`               | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                                                                                                                                                                                                        | No remediation assigned; retain classification evidence. |
 | `sales-premium.getValueAddBridge`                    | `org_guarded`          | input.projectId -> projects.id -> projects.orgId                                                                                                                                                                                                                                                                                                                                                                                                        | No remediation assigned; retain classification evidence. |
 | `scenario.calculateRoi`                              | `org_guarded`          | input.projectId -> projects.id -> projects.orgId<br>input.scenarioId -> scenarios.id -> scenarios.projectId -> projects.orgId                                                                                                                                                                                                                                                                                                                           | No remediation assigned; retain classification evidence. |

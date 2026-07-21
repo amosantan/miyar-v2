@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: none; `BR-06` is `NEEDS_HUMAN` for UAE domain review.
+- Next executable step: `BR-06` (`NEEDS_HUMAN` for exact source-policy decisions and named professional pack approvals).
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -412,7 +412,7 @@ Rules:
 
 ### UX-01 — Simplify the developer journey and establish the warm architectural interface
 
-- Status: `NEEDS_HUMAN`
+- Status: `CLOSED`
 - Class / priority: UI/workflow/schema / P0
 - Dependencies: `TR-05`; approved interaction direction supersedes the UI slice of `BR-04` and conservative copy satisfies the interim path of `TR-11`.
 - Human gate: Shared/production schema application, deployment, and removal of compatibility routes remain separately gated.
@@ -596,6 +596,9 @@ Rules:
 - Done when: Golden briefs reconcile areas, responsibilities, and required sections for every pack.
 - Verification: Domain review plus deterministic golden fixtures.
 - Expected artifacts: Approved versioned typology packs.
+- Activated: 2026-07-21 in fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-br06-dubai-packs` on `codex/br-06-dubai-typology-packs` from exact fetched canonical `origin/main` commit `beaa90b87682e7d214cffe38739629b22308290c`. The authorized active slice is regulatory-source infrastructure and unapproved candidate preparation only; professional promotion remains human-gated.
+- Implementation handover: The direct official-host fetcher, additive regulatory provenance schema/migration, Dubai source catalogue/monitors, temporal source resolution, platform-governed APIs, typology-pack v2 contracts, eight-family/nine-variant candidate registry, exact-source release validation, public-safe projection, tenant restrictions, deterministic fixtures, disposable-MySQL workflow, audits, full suite, build, and independent reviews pass. Production source-authority and pack-release registries intentionally remain empty.
+- Human decision required: Approve each source's official terms and artifact-retention policy; acquire and authenticate exact current documents and clause locators; then record four separate named architecture/interiors, cost, compliance, and product approvals for the exact pack fingerprints. Hospitality remains blocked when current DET classification criteria are unavailable, and DDA, Trakhees/PCFC, DIFC, and Dubai South projects fail closed until approved overlays exist.
 
 ### BR-07 — Canonical issued-report snapshot
 

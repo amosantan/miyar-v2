@@ -52,15 +52,15 @@ function inspectDatabaseTarget(databaseUrl) {
     if (!host || isUnspecifiedHost(host)) throw new Error("Host is empty or unspecified");
     const port = parsed.port ? Number(parsed.port) : 3306;
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port is invalid");
-    const database3 = parseDatabaseName(parsed.pathname);
-    if (!database3) throw new Error("Database name is missing or ambiguous");
-    const canonical2 = `${canonicalHost(host)}:${port}/${database3}`;
+    const database4 = parseDatabaseName(parsed.pathname);
+    if (!database4) throw new Error("Database name is missing or ambiguous");
+    const canonical3 = `${canonicalHost(host)}:${port}/${database4}`;
     return {
       class: isLoopbackHost(host) ? "safe-loopback" : "remote-shared",
       host,
       port,
-      database: database3,
-      canonical: canonical2
+      database: database4,
+      canonical: canonical3
     };
   } catch (error) {
     return {
@@ -381,6 +381,12 @@ __export(schema_exports, {
   projectRoiModels: () => projectRoiModels,
   projects: () => projects,
   promptTemplates: () => promptTemplates,
+  regulatoryClauseCandidates: () => regulatoryClauseCandidates,
+  regulatorySourceAssertions: () => regulatorySourceAssertions,
+  regulatorySourceCaptures: () => regulatorySourceCaptures,
+  regulatorySourceRelations: () => regulatorySourceRelations,
+  regulatorySourceVersions: () => regulatorySourceVersions,
+  regulatorySources: () => regulatorySources,
   reportInstances: () => reportInstances,
   rfqLineItems: () => rfqLineItems,
   riskSurfaceMaps: () => riskSurfaceMaps,
@@ -420,7 +426,7 @@ import {
   uniqueIndex,
   foreignKey
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, typologyPackRevisions, typologyPackEvents, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, typologyPackRevisions, typologyPackEvents, regulatorySources, regulatorySourceVersions, regulatorySourceCaptures, regulatoryClauseCandidates, regulatorySourceRelations, regulatorySourceAssertions, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -3689,6 +3695,137 @@ var init_schema = __esm({
         uniqueIndex("typology_pack_events_org_id_unique").on(table.organizationId, table.id),
         uniqueIndex("typology_pack_events_org_idempotency_unique").on(table.organizationId, table.idempotencyKey),
         index("typology_pack_events_org_revision_idx").on(table.organizationId, table.revisionId)
+      ]
+    );
+    regulatorySources = mysqlTable(
+      "regulatory_sources",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        sourceKey: varchar("sourceKey", { length: 128 }).notNull(),
+        issuingAuthority: varchar("issuingAuthority", { length: 160 }).notNull(),
+        documentIdentity: varchar("documentIdentity", { length: 255 }).notNull(),
+        jurisdiction: varchar("jurisdiction", { length: 128 }).notNull(),
+        languages: json("languages").notNull(),
+        canonicalUrl: text("canonicalUrl").notNull(),
+        approvedHosts: json("approvedHosts").notNull(),
+        retentionPolicy: mysqlEnum("retentionPolicy", ["metadata_only", "artifact_permitted", "prohibited", "pending_review"]).notNull(),
+        licensingStatus: mysqlEnum("licensingStatus", ["permitted", "restricted", "prohibited", "pending_review"]).notNull(),
+        coverageStatus: mysqlEnum("coverageStatus", ["supported", "candidate", "unsupported"]).notNull().default("candidate"),
+        createdAt: timestamp("createdAt").defaultNow().notNull(),
+        updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+      },
+      (table) => [uniqueIndex("regulatory_sources_source_key_unique").on(table.sourceKey)]
+    );
+    regulatorySourceVersions = mysqlTable(
+      "regulatory_source_versions",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        sourceId: int("sourceId").notNull(),
+        versionKey: varchar("versionKey", { length: 128 }).notNull(),
+        edition: varchar("edition", { length: 128 }),
+        publicationDate: timestamp("publicationDate"),
+        effectiveFrom: timestamp("effectiveFrom"),
+        effectiveTo: timestamp("effectiveTo"),
+        contentFingerprint: varchar("contentFingerprint", { length: 64 }).notNull(),
+        parserVersion: varchar("parserVersion", { length: 64 }).notNull(),
+        status: mysqlEnum("status", ["candidate", "asserted", "stale", "withdrawn", "archived"]).notNull().default("candidate"),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("regulatory_source_versions_source_version_unique").on(table.sourceId, table.versionKey),
+        uniqueIndex("regulatory_source_versions_source_fingerprint_unique").on(table.sourceId, table.contentFingerprint),
+        uniqueIndex("regulatory_source_versions_source_id_unique").on(table.sourceId, table.id),
+        index("regulatory_source_versions_temporal_idx").on(table.sourceId, table.effectiveFrom, table.effectiveTo),
+        foreignKey({ name: "reg_source_versions_source_fk", columns: [table.sourceId], foreignColumns: [regulatorySources.id] })
+      ]
+    );
+    regulatorySourceCaptures = mysqlTable(
+      "regulatory_source_captures",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        sourceId: int("sourceId").notNull(),
+        sourceVersionId: int("sourceVersionId"),
+        requestedUrl: text("requestedUrl").notNull(),
+        finalUrl: text("finalUrl"),
+        retrievedAt: timestamp("retrievedAt").defaultNow().notNull(),
+        httpStatus: int("httpStatus"),
+        mimeType: varchar("mimeType", { length: 128 }),
+        byteLength: int("byteLength"),
+        artifactFingerprint: varchar("artifactFingerprint", { length: 64 }),
+        etag: varchar("etag", { length: 255 }),
+        lastModified: varchar("lastModified", { length: 255 }),
+        parserVersion: varchar("parserVersion", { length: 64 }).notNull(),
+        storageReference: text("storageReference"),
+        fetchResult: mysqlEnum("fetchResult", ["captured", "unchanged", "changed_candidate", "disappeared_candidate", "denied", "failed"]).notNull(),
+        failureCode: varchar("failureCode", { length: 64 }),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        index("regulatory_source_captures_source_time_idx").on(table.sourceId, table.retrievedAt),
+        index("regulatory_source_captures_version_idx").on(table.sourceVersionId),
+        foreignKey({ name: "reg_source_captures_source_fk", columns: [table.sourceId], foreignColumns: [regulatorySources.id] }),
+        foreignKey({ name: "reg_source_captures_version_fk", columns: [table.sourceId, table.sourceVersionId], foreignColumns: [regulatorySourceVersions.sourceId, regulatorySourceVersions.id] })
+      ]
+    );
+    regulatoryClauseCandidates = mysqlTable(
+      "regulatory_clause_candidates",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        sourceVersionId: int("sourceVersionId").notNull(),
+        clauseKey: varchar("clauseKey", { length: 160 }).notNull(),
+        locator: varchar("locator", { length: 255 }).notNull(),
+        pageLocator: varchar("pageLocator", { length: 64 }),
+        candidateSummary: text("candidateSummary").notNull(),
+        candidateFingerprint: varchar("candidateFingerprint", { length: 64 }).notNull(),
+        extractionMethod: mysqlEnum("extractionMethod", ["deterministic", "ai_extracted_candidate", "human_transcription"]).notNull(),
+        reviewStatus: mysqlEnum("reviewStatus", ["candidate", "accepted_for_review", "rejected"]).notNull().default("candidate"),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("regulatory_clause_candidates_version_key_unique").on(table.sourceVersionId, table.clauseKey, table.candidateFingerprint),
+        index("regulatory_clause_candidates_version_status_idx").on(table.sourceVersionId, table.reviewStatus),
+        foreignKey({ name: "reg_clause_candidates_version_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] })
+      ]
+    );
+    regulatorySourceRelations = mysqlTable(
+      "regulatory_source_relations",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        sourceVersionId: int("sourceVersionId").notNull(),
+        targetSourceVersionId: int("targetSourceVersionId").notNull(),
+        relationType: mysqlEnum("relationType", ["amends", "supersedes", "suspends", "revokes", "clarifies"]).notNull(),
+        relationFingerprint: varchar("relationFingerprint", { length: 64 }).notNull(),
+        clauseScope: json("clauseScope").notNull(),
+        effectiveFrom: timestamp("effectiveFrom"),
+        effectiveTo: timestamp("effectiveTo"),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("regulatory_source_relations_fingerprint_unique").on(table.relationFingerprint),
+        index("regulatory_source_relations_temporal_idx").on(table.targetSourceVersionId, table.effectiveFrom, table.effectiveTo),
+        foreignKey({ name: "reg_source_relations_source_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
+        foreignKey({ name: "reg_source_relations_target_fk", columns: [table.targetSourceVersionId], foreignColumns: [regulatorySourceVersions.id] })
+      ]
+    );
+    regulatorySourceAssertions = mysqlTable(
+      "regulatory_source_assertions",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        sourceVersionId: int("sourceVersionId").notNull(),
+        assertionType: mysqlEnum("assertionType", ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"]).notNull(),
+        decision: mysqlEnum("decision", ["accepted", "rejected", "withdrawn"]).notNull(),
+        assertedByUserId: int("assertedByUserId").notNull(),
+        reason: text("reason").notNull(),
+        assertionFingerprint: varchar("assertionFingerprint", { length: 64 }).notNull(),
+        validFrom: timestamp("validFrom").defaultNow().notNull(),
+        validTo: timestamp("validTo"),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("regulatory_source_assertions_fingerprint_unique").on(table.assertionFingerprint),
+        index("regulatory_source_assertions_version_type_idx").on(table.sourceVersionId, table.assertionType, table.decision),
+        foreignKey({ name: "reg_source_assertions_version_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
+        foreignKey({ name: "reg_source_assertions_user_fk", columns: [table.assertedByUserId], foreignColumns: [users.id] })
       ]
     );
     briefSectionValues = [
@@ -7687,8 +7824,8 @@ async function revokeAiDesignBriefSharesForProjectForOrg(projectId, orgId) {
   if (!db) throw new Error("DB not available");
   return revokeAiDesignBriefSharesForProjectForOrgInDatabase(db, projectId, orgId);
 }
-async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database3, projectId, orgId) {
-  return database3.transaction(async (tx) => {
+async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database4, projectId, orgId) {
+  return database4.transaction(async (tx) => {
     const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (owned.length !== 1) return null;
     await tx.update(aiDesignBriefs).set({ shareExpiresAt: null }).where(and(
@@ -8922,7 +9059,7 @@ async function getGeometryReviewStateForOrg(projectId, organizationId) {
     ).limit(1))[0];
   }
   const latest = await getScopedGraph(authority?.currentGraphVersionId);
-  const canonical2 = await getScopedGraph(authority?.selectedGeometryVersionId);
+  const canonical3 = await getScopedGraph(authority?.selectedGeometryVersionId);
   const latestReviews = latest ? await db.select().from(geometryReconciliationEvents).where(
     and(
       eq(geometryReconciliationEvents.organizationId, organizationId),
@@ -8942,8 +9079,8 @@ async function getGeometryReviewStateForOrg(projectId, organizationId) {
     latest,
     latestSource: await getScopedSource(latest),
     latestReview: latestReviews[0],
-    canonical: canonical2,
-    canonicalSource: await getScopedSource(canonical2),
+    canonical: canonical3,
+    canonicalSource: await getScopedSource(canonical3),
     acceptedMeasurements,
     legacyRooms
   };
@@ -10054,12 +10191,12 @@ async function invokeLLM(params) {
     } catch (error) {
       throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: GEMINI_OPERATION, cause: error }).report();
     }
-    const candidate = data.candidates?.[0];
-    if (!candidate) {
+    const candidate2 = data.candidates?.[0];
+    if (!candidate2) {
       const code = data.promptFeedback ? "CONTENT_BLOCKED" : "PROVIDER_INVALID_RESPONSE";
       throw new AiOperationError(code, { operation: GEMINI_OPERATION }).report();
     }
-    const parts = candidate.content?.parts ?? [];
+    const parts = candidate2.content?.parts ?? [];
     const text5 = parts.flatMap((part) => typeof part.text === "string" ? [part.text] : []).join("");
     const functionCalls = parts.flatMap((part) => part.functionCall ? [part.functionCall] : []);
     if (!text5 && functionCalls.length === 0) {
@@ -10077,7 +10214,7 @@ async function invokeLLM(params) {
       choices: [{
         index: 0,
         message: { role: "assistant", content: text5, tool_calls: toolCalls },
-        finish_reason: candidate.finishReason === "STOP" ? "stop" : functionCalls.length ? "tool_calls" : "length"
+        finish_reason: candidate2.finishReason === "STOP" ? "stop" : functionCalls.length ? "tool_calls" : "length"
       }],
       usage: {
         prompt_tokens: data.usageMetadata?.promptTokenCount || 0,
@@ -11711,10 +11848,10 @@ __export(dm_compliance_exports, {
 function buildDMComplianceChecklist(projectId, orgId, project) {
   const typology = (project.ctx01Typology || "Residential").toLowerCase();
   const items = [];
-  const pushItem = (code, desc13, status) => {
+  const pushItem = (code, desc14, status) => {
     items.push({
       code,
-      description: desc13,
+      description: desc14,
       status,
       verified: false
     });
@@ -12836,8 +12973,8 @@ function resolveGradePolicy(sourceId, registryGrade) {
   };
 }
 function publicationDateFields(raw, evaluatedAt) {
-  const candidate = raw instanceof Date || typeof raw === "string" ? raw : raw == null ? void 0 : String(raw);
-  const publicationDate = classifyPublicationDate(candidate, evaluatedAt);
+  const candidate2 = raw instanceof Date || typeof raw === "string" ? raw : raw == null ? void 0 : String(raw);
+  const publicationDate = classifyPublicationDate(candidate2, evaluatedAt);
   return {
     publishedDate: publicationDate.parsedAt ?? void 0,
     publishedDateRaw: publicationDate.raw ?? void 0,
@@ -15111,9 +15248,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             normalized = await connector.normalize(evidence, { evaluatedAt: raw.fetchedAt });
           } catch (err) {
             const confidenceRejection = err instanceof ConfidencePolicyError ? err.rejection : null;
-            const reason3 = confidenceRejection?.rejectionCode ?? "normalization_failed";
+            const reason4 = confidenceRejection?.rejectionCode ?? "normalization_failed";
             rejected2++;
-            rejectionReasons[reason3] = (rejectionReasons[reason3] || 0) + 1;
+            rejectionReasons[reason4] = (rejectionReasons[reason4] || 0) + 1;
             await persistConnectorRejection({
               runId,
               sourceId: String(connector.sourceId),
@@ -15126,23 +15263,23 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
               ) : void 0,
               parsingStatus: confidenceRejection?.publicationDate.status,
               parsedPublicationDate: confidenceRejection?.publicationDate.parsedAt,
-              rejectionCode: reason3,
+              rejectionCode: reason4,
               gradePolicy: confidenceRejection ? connector.gradePolicy ?? resolveGradePolicy(String(connector.sourceId)) : void 0
             });
             continue;
           }
           const validationResult = normalizedEvidenceInputSchema.safeParse(normalized);
           if (!validationResult.success) {
-            const reason3 = "invalid_normalization";
+            const reason4 = "invalid_normalization";
             rejected2++;
-            rejectionReasons[reason3] = (rejectionReasons[reason3] || 0) + 1;
+            rejectionReasons[reason4] = (rejectionReasons[reason4] || 0) + 1;
             await persistConnectorRejection({
               runId,
               sourceId: String(connector.sourceId),
               actorId,
               evaluationClock: raw.fetchedAt,
               rawPublicationText: evidence.publishedDateRaw ?? evidence.publicationDate?.raw ?? null,
-              rejectionCode: reason3
+              rejectionCode: reason4
             });
             continue;
           }
@@ -15154,9 +15291,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             evaluatedAt: raw.fetchedAt
           });
           if (!confidenceEvaluation.accepted) {
-            const reason3 = confidenceEvaluation.rejectionCode;
+            const reason4 = confidenceEvaluation.rejectionCode;
             rejected2++;
-            rejectionReasons[reason3] = (rejectionReasons[reason3] || 0) + 1;
+            rejectionReasons[reason4] = (rejectionReasons[reason4] || 0) + 1;
             await persistConnectorRejection({
               runId,
               sourceId: String(connector.sourceId),
@@ -15169,7 +15306,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
               ),
               parsingStatus: confidenceEvaluation.publicationDate.status,
               parsedPublicationDate: confidenceEvaluation.publicationDate.parsedAt,
-              rejectionCode: reason3,
+              rejectionCode: reason4,
               gradePolicy
             });
             continue;
@@ -15341,10 +15478,10 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     error: r.error
   }));
   const rejectionErrors = connectorResults.flatMap(
-    (result) => Object.entries(result.rejectionReasons).map(([reason3, count2]) => ({
+    (result) => Object.entries(result.rejectionReasons).map(([reason4, count2]) => ({
       sourceId: result.sourceId,
       sourceName: result.sourceName,
-      error: `record_rejected:${reason3} (${count2})`
+      error: `record_rejected:${reason4} (${count2})`
     }))
   );
   const errors = [...sourceErrors, ...rejectionErrors];
@@ -18831,11 +18968,11 @@ init_area_utils();
 // server/engines/space-evidence.ts
 var NEUTRAL_SPACE_EFFICIENCY_LABEL = "Neutral fallback \u2014 no rooms measured";
 function resolveSpaceEfficiencyEvidence(snapshot) {
-  const candidate = snapshot?.spaceEfficiencyEvidence;
-  if (!candidate || typeof candidate !== "object") {
+  const candidate2 = snapshot?.spaceEfficiencyEvidence;
+  if (!candidate2 || typeof candidate2 !== "object") {
     return { status: "legacy_unknown" };
   }
-  const evidence = candidate;
+  const evidence = candidate2;
   if (evidence.status === "neutral_fallback" && evidence.reason === "no_rooms_detected" && evidence.roomCount === 0 && evidence.benchmarkBasis === "not_applied" && evidence.transactionCount === 0) {
     return evidence;
   }
@@ -29213,11 +29350,11 @@ function isDuplicateKeyError(error) {
   const seen = /* @__PURE__ */ new Set();
   while (current && typeof current === "object" && !seen.has(current)) {
     seen.add(current);
-    const candidate = current;
-    if (candidate.code === "ER_DUP_ENTRY" || candidate.errno === 1062) {
+    const candidate2 = current;
+    if (candidate2.code === "ER_DUP_ENTRY" || candidate2.errno === 1062) {
       return true;
     }
-    current = candidate.cause;
+    current = candidate2.cause;
   }
   return false;
 }
@@ -29510,7 +29647,7 @@ async function generateImage(options) {
   } catch (error) {
     throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: "gemini.image-generation", cause: error }).report();
   }
-  const inlineData = parsed.candidates.flatMap((candidate) => candidate.content?.parts || []).find((part) => part.inlineData)?.inlineData;
+  const inlineData = parsed.candidates.flatMap((candidate2) => candidate2.content?.parts || []).find((part) => part.inlineData)?.inlineData;
   if (!inlineData) throw new AiOperationError(parsed.candidates.length === 0 ? "CONTENT_BLOCKED" : "PROVIDER_INVALID_RESPONSE", { operation: "gemini.image-generation" }).report();
   const raw = Buffer3.from(inlineData.data, "base64");
   const media = await validateMediaBuffer(raw, inlineData.mimeType || "image/png", "gemini.image-generation-output");
@@ -31288,7 +31425,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
     );
   }
   let rooms;
-  let canonical2;
+  let canonical3;
   const stableHandles = /* @__PURE__ */ new Set();
   for (const boundary of inspected.boundaries) {
     const handle = boundary.handle?.trim().toUpperCase() ?? "";
@@ -31337,7 +31474,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
         }
       };
     });
-    canonical2 = canonicalizeGeometry(
+    canonical3 = canonicalizeGeometry(
       {
         schemaVersion: GEOMETRY_SCHEMA_VERSION,
         measurementBasis: ROOM_FLOOR_POLYGON_AREA,
@@ -31365,7 +31502,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
       )
     );
   }
-  if (Buffer.byteLength(canonical2.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
+  if (Buffer.byteLength(canonical3.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
     return rejected(
       base,
       issue(
@@ -31378,7 +31515,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
   const sourceRoomsById = new Map(
     rooms.map((room) => [room.sourceRoomId, room])
   );
-  canonical2.geometry.rooms.forEach((canonicalRoom) => {
+  canonical3.geometry.rooms.forEach((canonicalRoom) => {
     const sourceRoom = sourceRoomsById.get(canonicalRoom.spaceId);
     if (!sourceRoom) {
       throw new Error("Canonical DXF room lost its stable source identity");
@@ -31412,7 +31549,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
     ...base,
     status: "imported",
     issue: null,
-    canonical: canonical2,
+    canonical: canonical3,
     levelOverlays
   };
 }
@@ -34986,9 +35123,9 @@ function mapTrendSnapshots(trendSnaps) {
   }));
 }
 async function loadCompetitorLandscape() {
-  const database3 = await getDb();
-  if (!database3) throw new Error("Database not available");
-  const rows = await database3.select({
+  const database4 = await getDb();
+  if (!database4) throw new Error("Database not available");
+  const rows = await database4.select({
     id: competitorProjects.id,
     competitorId: competitorProjects.competitorId,
     projectName: competitorProjects.projectName,
@@ -41105,8 +41242,8 @@ function sourcePointInMicrometres(point, unit) {
     y: decimalCoordinateToMicrometres(point.y, unit).toString()
   };
 }
-function totalArea2(canonical2) {
-  return canonical2.geometry.rooms.reduce(
+function totalArea2(canonical3) {
+  return canonical3.geometry.rooms.reduce(
     (sum, room) => sum + BigInt(room.areaSquareMicrometresTwice),
     BigInt(0)
   );
@@ -41122,9 +41259,9 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
       message: "Manual geometry exceeds the 10,000 vertex limit."
     });
   }
-  let canonical2;
+  let canonical3;
   try {
-    canonical2 = canonicalizeGeometry(
+    canonical3 = canonicalizeGeometry(
       {
         schemaVersion: GEOMETRY_SCHEMA_VERSION,
         measurementBasis: ROOM_FLOOR_POLYGON_AREA,
@@ -41145,7 +41282,7 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
     }
     throw error;
   }
-  if (Buffer.byteLength(canonical2.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
+  if (Buffer.byteLength(canonical3.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
     throw new TRPCError28({
       code: "BAD_REQUEST",
       message: "Canonical geometry exceeds the 8 MiB JSON limit."
@@ -41154,9 +41291,9 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
   const sourceById = new Map(rooms.map((room) => [room.spaceId, room]));
   return {
     status: "ready",
-    fingerprint: canonical2.fingerprint,
-    totalAreaSqm: twiceSquareMicrometresToSquareMetres(totalArea2(canonical2)),
-    rooms: canonical2.geometry.rooms.map((room) => ({
+    fingerprint: canonical3.fingerprint,
+    totalAreaSqm: twiceSquareMicrometresToSquareMetres(totalArea2(canonical3)),
+    rooms: canonical3.geometry.rooms.map((room) => ({
       spaceId: room.spaceId,
       roomName: sourceById.get(room.spaceId)?.roomName,
       areaSqm: room.areaSquareMetres,
@@ -41166,7 +41303,7 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
     })),
     warnings: [],
     insufficiencies: [],
-    canonical: canonical2
+    canonical: canonical3
   };
 }
 async function readAuthorizedDxf(input) {
@@ -41319,7 +41456,7 @@ var spaceProgramGeometryRouter = router({
     })
   ).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
-    let canonical2;
+    let canonical3;
     let rooms;
     let assetId = null;
     let assetChecksum;
@@ -41332,13 +41469,13 @@ var spaceProgramGeometryRouter = router({
         input.source.sourceUnit,
         input.source.snapTransform
       );
-      canonical2 = preview.canonical;
+      canonical3 = preview.canonical;
       rooms = input.source.rooms.map((room) => ({
         spaceId: room.spaceId,
         roomName: room.roomName,
         roomCode: room.roomCode,
         category: room.category,
-        levelId: `elevation:${canonical2.geometry.rooms.find((draftRoom) => draftRoom.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`
+        levelId: `elevation:${canonical3.geometry.rooms.find((draftRoom) => draftRoom.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`
       }));
       sourceObservation = { rooms: input.source.rooms };
       sourceChecksum = createHash7("sha256").update(JSON.stringify(sourceObservation)).digest("hex");
@@ -41360,7 +41497,7 @@ var spaceProgramGeometryRouter = router({
           message: resolved.inspection.issue?.message ?? "DXF geometry is insufficient and cannot be committed."
         });
       }
-      canonical2 = resolved.inspection.canonical;
+      canonical3 = resolved.inspection.canonical;
       rooms = resolved.inspection.levelOverlays.flatMap(
         (level) => level.rooms.map((room) => ({
           spaceId: room.sourceRoomId,
@@ -41396,7 +41533,7 @@ var spaceProgramGeometryRouter = router({
       projectId: input.projectId,
       userId: ctx.user.id,
       expectedCurrentVersionId: input.expectedCurrentVersionId,
-      canonical: canonical2,
+      canonical: canonical3,
       rooms,
       source: {
         sourceType: input.source.kind === "manual" ? "manual" : "project_asset",
@@ -43708,7 +43845,7 @@ async function executeBriefCommand(operation, input, context3) {
       if (!readiness.canIssue)
         throw new BriefWorkflowError(
           "INVALID",
-          `Brief is not ready to issue: ${readiness.reasons.map((reason3) => reason3.code).join(", ")}`
+          `Brief is not ready to issue: ${readiness.reasons.map((reason4) => reason4.code).join(", ")}`
         );
       const conditions = await tx.select().from(briefConditionEvents).where(
         and9(
@@ -45250,6 +45387,279 @@ var typologyPackRouter = router({
   })
 });
 
+// server/routers/regulatory-sources.ts
+import { TRPCError as TRPCError32 } from "@trpc/server";
+import { z as z48 } from "zod";
+
+// shared/regulatory-sources.ts
+import { z as z47 } from "zod";
+var regulatoryAuthorityScopeSchema = z47.enum([
+  "dubai_municipality",
+  "dubai_civil_defence",
+  "dubai_department_economy_tourism",
+  "dubai_legislation_portal",
+  "dubai_development_authority",
+  "trakhees_pcfc",
+  "difc",
+  "dubai_south"
+]);
+var regulatorySourceClassSchema = z47.enum([
+  "building_code",
+  "amendment_index",
+  "circular_index",
+  "fire_life_safety",
+  "accessibility",
+  "sustainability",
+  "food_layout",
+  "food_operations",
+  "hospitality_legislation",
+  "hospitality_classification",
+  "authority_overlay"
+]);
+var regulatorySourceRegistrationSchema = z47.object({
+  sourceKey: z47.string().regex(/^[a-z0-9][a-z0-9._-]{2,127}$/),
+  title: z47.string().min(3).max(255),
+  issuingAuthority: regulatoryAuthorityScopeSchema,
+  sourceClass: regulatorySourceClassSchema,
+  jurisdiction: z47.string().min(2).max(128),
+  languages: z47.array(z47.enum(["ar", "en"])).min(1),
+  canonicalUrl: z47.string().url().refine((value) => new URL(value).protocol === "https:", "Official sources must use HTTPS"),
+  approvedHosts: z47.array(z47.string().toLowerCase().regex(/^[a-z0-9.-]+$/)).min(1),
+  retentionPolicy: z47.enum(["metadata_only", "artifact_permitted", "prohibited", "pending_review"]),
+  licensingStatus: z47.enum(["permitted", "restricted", "prohibited", "pending_review"]),
+  coverageStatus: z47.enum(["supported", "candidate", "unsupported"]),
+  notes: z47.string().max(1e3)
+}).strict();
+var regulatoryDiscoveredDocumentSchema = z47.object({
+  parentSourceKey: z47.string().regex(/^[a-z0-9][a-z0-9._-]{2,127}$/),
+  sourceKey: z47.string().regex(/^[a-z0-9][a-z0-9._-]{2,127}$/),
+  title: z47.string().min(3).max(255),
+  canonicalUrl: z47.string().url().refine((value) => new URL(value).protocol === "https:", "Discovered documents must use HTTPS")
+}).strict().superRefine((value, ctx) => {
+  if (!value.sourceKey.startsWith(`${value.parentSourceKey}.`)) {
+    ctx.addIssue({ code: "custom", path: ["sourceKey"], message: "Child source key must be namespaced under its parent source" });
+  }
+  const url = new URL(value.canonicalUrl);
+  if (url.pathname === "/" || !url.pathname.split("/").filter(Boolean).length) {
+    ctx.addIssue({ code: "custom", path: ["canonicalUrl"], message: "Discovered document must identify an exact artifact path" });
+  }
+});
+var regulatoryDiscoveredDocumentReviewSchema = z47.object({
+  sourceKey: regulatoryDiscoveredDocumentSchema.shape.sourceKey,
+  canonicalUrl: regulatoryDiscoveredDocumentSchema.shape.canonicalUrl,
+  retentionPolicy: z47.literal("artifact_permitted"),
+  licensingStatus: z47.literal("permitted"),
+  reviewedBy: z47.string().min(1).max(128),
+  reviewedAt: z47.string().datetime()
+}).strict();
+var candidate = (registration) => regulatorySourceRegistrationSchema.parse({
+  languages: ["ar", "en"],
+  retentionPolicy: "pending_review",
+  licensingStatus: "pending_review",
+  coverageStatus: "candidate",
+  ...registration
+});
+var DUBAI_REGULATORY_SOURCE_CATALOGUE = [
+  candidate({ sourceKey: "dm.dubai-building-code", title: "Dubai Building Code and calculation schedules", issuingAuthority: "dubai_municipality", sourceClass: "building_code", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/planning-and-construction/dubai-building-code-2/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "DBC 2021 landing page and official schedules; each downloadable document is versioned separately." }),
+  candidate({ sourceKey: "dm.dbc-calculation-schedules", title: "Dubai Building Code calculation schedules discovery", issuingAuthority: "dubai_municipality", sourceClass: "building_code", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/planning-and-construction/dubai-building-code-2/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Dedicated monitor target; every discovered schedule requires its own exact document version and fingerprint." }),
+  candidate({ sourceKey: "dm.building-regulation-amendments", title: "Buildings Regulation and Permits Agency laws and amendments", issuingAuthority: "dubai_municipality", sourceClass: "amendment_index", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/buildings-regulation-permits-agency/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Monitor for later DBC amendments; an index change is a review candidate, not automatic repeal." }),
+  candidate({ sourceKey: "dm.building-planning-circulars", title: "Building and Planning Circulars", issuingAuthority: "dubai_municipality", sourceClass: "circular_index", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/building-planning-circulars-2/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Includes fit-out, use-change, villa, accessibility and Al Sa'fat circular candidates." }),
+  candidate({ sourceKey: "dcd.fire-life-safety-code", title: "UAE Fire and Life Safety Code of Practice", issuingAuthority: "dubai_civil_defence", sourceClass: "fire_life_safety", jurisdiction: "Dubai (Dubai Civil Defence)", canonicalUrl: "https://www.dcd.gov.ae/portal/en/preventive-safety/rules-regulations/faq-uae-fire-and-life-safety-code-of-practice?limit=20&limitstart=0", approvedHosts: ["www.dcd.gov.ae", "dcd.gov.ae"], notes: "2018 code plus separately fingerprinted active annexures and submission/material/responsibility documents." }),
+  candidate({ sourceKey: "dcd.active-annexures-index", title: "Dubai Civil Defence active annexures discovery", issuingAuthority: "dubai_civil_defence", sourceClass: "amendment_index", jurisdiction: "Dubai (Dubai Civil Defence)", canonicalUrl: "https://www.dcd.gov.ae/portal/en/preventive-safety/rules-regulations/faq-uae-fire-and-life-safety-code-of-practice?limit=20&limitstart=0", approvedHosts: ["www.dcd.gov.ae", "dcd.gov.ae"], notes: "Dedicated index monitor; annexures remain independent versions and never silently replace the code." }),
+  candidate({ sourceKey: "dcd.drawing-submission-requirements", title: "Dubai Civil Defence drawing-submission requirements discovery", issuingAuthority: "dubai_civil_defence", sourceClass: "fire_life_safety", jurisdiction: "Dubai (Dubai Civil Defence)", canonicalUrl: "https://www.dcd.gov.ae/portal/en/preventive-safety/rules-regulations/faq-uae-fire-and-life-safety-code-of-practice?limit=20&limitstart=0", approvedHosts: ["www.dcd.gov.ae", "dcd.gov.ae"], notes: "Discovery target only until the exact active official document is captured." }),
+  candidate({ sourceKey: "dcd.material-requirements", title: "Dubai Civil Defence material requirements discovery", issuingAuthority: "dubai_civil_defence", sourceClass: "fire_life_safety", jurisdiction: "Dubai (Dubai Civil Defence)", canonicalUrl: "https://www.dcd.gov.ae/portal/en/preventive-safety/rules-regulations/faq-uae-fire-and-life-safety-code-of-practice?limit=20&limitstart=0", approvedHosts: ["www.dcd.gov.ae", "dcd.gov.ae"], notes: "Discovery target only until the exact active official document is captured." }),
+  candidate({ sourceKey: "dcd.stakeholder-responsibilities", title: "Dubai Civil Defence stakeholder-responsibility documents discovery", issuingAuthority: "dubai_civil_defence", sourceClass: "fire_life_safety", jurisdiction: "Dubai (Dubai Civil Defence)", canonicalUrl: "https://www.dcd.gov.ae/portal/en/preventive-safety/rules-regulations/faq-uae-fire-and-life-safety-code-of-practice?limit=20&limitstart=0", approvedHosts: ["www.dcd.gov.ae", "dcd.gov.ae"], notes: "Discovery target only until the exact active official document is captured." }),
+  candidate({ sourceKey: "dm.universal-design-code", title: "Dubai Universal Design Code and guidance", issuingAuthority: "dubai_municipality", sourceClass: "accessibility", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/dubai-universal-design-code/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Code, accessibility guide and villa guidance are separate document versions." }),
+  candidate({ sourceKey: "dm.accessibility-guide", title: "Dubai accessibility guide discovery", issuingAuthority: "dubai_municipality", sourceClass: "accessibility", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/dubai-universal-design-code/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Dedicated guide target; exact artifact is separately fingerprinted." }),
+  candidate({ sourceKey: "dm.universal-design-villa-guidance", title: "Dubai universal-design villa guidance discovery", issuingAuthority: "dubai_municipality", sourceClass: "accessibility", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/dubai-universal-design-code/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Dedicated villa guide target; exact artifact is separately fingerprinted." }),
+  candidate({ sourceKey: "dm.al-safat", title: "Al Sa'fat Dubai Green Building System", issuingAuthority: "dubai_municipality", sourceClass: "sustainability", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/green-building-certification/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Monitor current practice material and the official 2020/2023 amendment trail." }),
+  candidate({ sourceKey: "dm.al-safat-practice-amendments", title: "Al Sa'fat practice material and amendments discovery", issuingAuthority: "dubai_municipality", sourceClass: "amendment_index", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/green-building-certification/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Dedicated monitor for independently versioned practice material and amendments." }),
+  candidate({ sourceKey: "dm.food-establishment-layout", title: "Food Code and food-establishment layout requirements", issuingAuthority: "dubai_municipality", sourceClass: "food_layout", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/food-traders-establishments/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Layout/design approval material only becomes a pack rule after clause-level professional review." }),
+  candidate({ sourceKey: "dm.food-code", title: "Dubai Municipality Food Code discovery", issuingAuthority: "dubai_municipality", sourceClass: "food_layout", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/food-traders-establishments/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Dedicated Food Code target; exact edition and clauses require capture and review." }),
+  candidate({ sourceKey: "dm.food-activity-requirements", title: "Food requirements by activity discovery", issuingAuthority: "dubai_municipality", sourceClass: "food_layout", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/food-traders-establishments/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Dedicated activity-requirement index target." }),
+  candidate({ sourceKey: "dm.food-kitchen-guidance", title: "Kitchen and food-preparation health and safety guidance discovery", issuingAuthority: "dubai_municipality", sourceClass: "food_operations", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/food-traders-establishments/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Operational guidance is separately versioned and cannot automatically create a room-area rule." }),
+  candidate({ sourceKey: "dm.food-operations", title: "Food-establishment operational guidance", issuingAuthority: "dubai_municipality", sourceClass: "food_operations", jurisdiction: "Dubai (Dubai Municipality)", canonicalUrl: "https://www.dm.gov.ae/municipality-business/food-traders-establishments/", approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"], notes: "Operational guidance remains distinct and cannot automatically create room-area rules." }),
+  candidate({ sourceKey: "dlp.hotel-establishment-decree-17-2013", title: "Hotel Establishment licensing and classification decree", issuingAuthority: "dubai_legislation_portal", sourceClass: "hospitality_legislation", jurisdiction: "Dubai", canonicalUrl: "https://dlp.dubai.gov.ae/Legislation%20Reference/2013/Decree%2017%20of%202013.html", approvedHosts: ["dlp.dubai.gov.ae"], notes: "Decree No. 17 of 2013; currency is resolved through portal relations and assertions." }),
+  candidate({ sourceKey: "dlp.hotel-classification-resolution-1-2018", title: "Hotel classification administrative resolution", issuingAuthority: "dubai_legislation_portal", sourceClass: "hospitality_legislation", jurisdiction: "Dubai", canonicalUrl: "https://dlp.dubai.gov.ae/Legislation%20Reference/2018/Administative%20Resolution%20No.%20%281%29%20of%202018.html", approvedHosts: ["dlp.dubai.gov.ae"], notes: "Administrative Resolution No. 1 of 2018." }),
+  candidate({ sourceKey: "dlp.holiday-home-decree-41-2013", title: "Holiday Home Decree", issuingAuthority: "dubai_legislation_portal", sourceClass: "hospitality_legislation", jurisdiction: "Dubai", canonicalUrl: "https://dlp.dubai.gov.ae/Legislation%20Reference/2013/Decree%20No.%20%2841%29%20of%202013.html", approvedHosts: ["dlp.dubai.gov.ae"], notes: "Decree No. 41 of 2013." }),
+  candidate({ sourceKey: "dlp.holiday-home-resolution-1-2020", title: "Holiday Home implementing bylaw", issuingAuthority: "dubai_legislation_portal", sourceClass: "hospitality_legislation", jurisdiction: "Dubai", canonicalUrl: "https://dlp.dubai.gov.ae/Legislation%20Reference/2020/Administrative%20Resolution%20No.%20%281%29%20of%202020.html", approvedHosts: ["dlp.dubai.gov.ae"], notes: "Administrative Resolution No. 1 of 2020." }),
+  candidate({ sourceKey: "dlp.legislative-currency-index", title: "Dubai Legislation Portal legislative currency monitor", issuingAuthority: "dubai_legislation_portal", sourceClass: "amendment_index", jurisdiction: "Dubai", canonicalUrl: "https://dlp.dubai.gov.ae/", approvedHosts: ["dlp.dubai.gov.ae"], notes: "Monitor only; portal appearance or disappearance never establishes repeal without a relation assertion." }),
+  candidate({ sourceKey: "det.hotel-classification-current", title: "Current hotel and hotel-apartment classification criteria", issuingAuthority: "dubai_department_economy_tourism", sourceClass: "hospitality_classification", jurisdiction: "Dubai", canonicalUrl: "https://www.dubaitourism.gov.ae/", approvedHosts: ["www.dubaitourism.gov.ae", "dubaitourism.gov.ae"], notes: "Discovery entry only. Hospitality candidates fail closed until an exact, current, authorized DET document is captured and asserted." }),
+  candidate({ sourceKey: "dda.authority-overlay", title: "Dubai Development Authority overlay", issuingAuthority: "dubai_development_authority", sourceClass: "authority_overlay", jurisdiction: "Dubai Development Authority", canonicalUrl: "https://dda.gov.ae/", approvedHosts: ["dda.gov.ae", "www.dda.gov.ae"], coverageStatus: "unsupported", notes: "Recorded scope only; projects fail closed until an approved overlay exists." }),
+  candidate({ sourceKey: "trakhees-pcfc.authority-overlay", title: "Trakhees/PCFC authority overlay", issuingAuthority: "trakhees_pcfc", sourceClass: "authority_overlay", jurisdiction: "Trakhees/PCFC", canonicalUrl: "https://www.trakhees.ae/", approvedHosts: ["www.trakhees.ae", "trakhees.ae"], coverageStatus: "unsupported", notes: "Recorded scope only; projects fail closed until an approved overlay exists." }),
+  candidate({ sourceKey: "difc.authority-overlay", title: "DIFC authority overlay", issuingAuthority: "difc", sourceClass: "authority_overlay", jurisdiction: "DIFC", canonicalUrl: "https://www.difc.com/", approvedHosts: ["www.difc.com", "difc.com"], coverageStatus: "unsupported", notes: "Recorded scope only; projects fail closed until an approved overlay exists." }),
+  candidate({ sourceKey: "dubai-south.authority-overlay", title: "Dubai South authority overlay", issuingAuthority: "dubai_south", sourceClass: "authority_overlay", jurisdiction: "Dubai South", canonicalUrl: "https://www.dubaisouth.ae/", approvedHosts: ["www.dubaisouth.ae", "dubaisouth.ae"], coverageStatus: "unsupported", notes: "Recorded scope only; projects fail closed until an approved overlay exists." })
+];
+var DUBAI_REGULATORY_SOURCE_BY_KEY = new Map(
+  DUBAI_REGULATORY_SOURCE_CATALOGUE.map((source) => [source.sourceKey, source])
+);
+var regulatoryPublicCitationSchema = z47.object({
+  sourceKey: z47.string(),
+  title: z47.string(),
+  issuingAuthority: regulatoryAuthorityScopeSchema,
+  jurisdiction: z47.string(),
+  versionKey: z47.string(),
+  contentFingerprint: z47.string().regex(/^[a-f0-9]{64}$/),
+  locator: z47.string().min(1),
+  canonicalUrl: z47.string().url(),
+  publicationDate: z47.string().date().nullable(),
+  effectiveFrom: z47.string().date().nullable()
+}).strict();
+
+// server/db/regulatory-sources.ts
+init_db();
+init_schema();
+import { and as and11, asc as asc3, desc as desc13, eq as eq21, inArray as inArray5, or as or2 } from "drizzle-orm";
+import { createHash as createHash13 } from "node:crypto";
+var RegulatorySourceStoreError = class extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+};
+async function database3() {
+  const db = await getDb();
+  if (!db) throw new RegulatorySourceStoreError("UNAVAILABLE", "Regulatory source database unavailable");
+  return db;
+}
+var canonical2 = (value) => {
+  if (Array.isArray(value)) return `[${value.map(canonical2).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonical2(item)}`).join(",")}}`;
+  return JSON.stringify(value);
+};
+async function listRegulatorySources() {
+  const db = await database3();
+  return db.select().from(regulatorySources).orderBy(asc3(regulatorySources.sourceKey));
+}
+async function registerRegulatorySource(registration) {
+  const db = await database3();
+  return db.transaction(async (tx) => {
+    const existing = (await tx.select().from(regulatorySources).where(eq21(regulatorySources.sourceKey, registration.sourceKey)).limit(1).for("update"))[0];
+    const values = {
+      sourceKey: registration.sourceKey,
+      issuingAuthority: registration.issuingAuthority,
+      documentIdentity: registration.title,
+      jurisdiction: registration.jurisdiction,
+      languages: [...registration.languages],
+      canonicalUrl: registration.canonicalUrl,
+      approvedHosts: [...registration.approvedHosts],
+      retentionPolicy: registration.retentionPolicy,
+      licensingStatus: registration.licensingStatus,
+      coverageStatus: registration.coverageStatus
+    };
+    if (existing) {
+      const identityMatches = existing.issuingAuthority === values.issuingAuthority && existing.documentIdentity === values.documentIdentity && existing.jurisdiction === values.jurisdiction && existing.canonicalUrl === values.canonicalUrl;
+      if (!identityMatches) throw new RegulatorySourceStoreError("CONFLICT", "Registered regulatory source identity cannot be changed in place");
+      return existing;
+    }
+    const inserted = await tx.insert(regulatorySources).values(values);
+    return (await tx.select().from(regulatorySources).where(eq21(regulatorySources.id, Number(inserted[0].insertId))).limit(1))[0];
+  });
+}
+async function createRegulatorySourceRelation(input) {
+  if (input.sourceVersionId === input.targetSourceVersionId) throw new RegulatorySourceStoreError("CONFLICT", "A source version cannot relate to itself");
+  const db = await database3();
+  const relationFingerprint = createHash13("sha256").update(canonical2({
+    ...input,
+    clauseScope: [...input.clauseScope].sort(),
+    effectiveFrom: input.effectiveFrom?.toISOString(),
+    effectiveTo: input.effectiveTo?.toISOString()
+  }), "utf8").digest("hex");
+  const result = await db.insert(regulatorySourceRelations).values({ ...input, clauseScope: [...input.clauseScope].sort(), relationFingerprint });
+  return { id: Number(result[0].insertId), relationFingerprint };
+}
+async function createRegulatorySourceAssertion(input) {
+  const db = await database3();
+  return db.transaction(async (tx) => {
+    const version = (await tx.select().from(regulatorySourceVersions).where(eq21(regulatorySourceVersions.id, input.sourceVersionId)).limit(1).for("update"))[0];
+    if (!version) throw new RegulatorySourceStoreError("NOT_FOUND", "Regulatory source version not found");
+    const assertionFingerprint = createHash13("sha256").update(canonical2({ ...input, validFrom: input.validFrom.toISOString(), validTo: input.validTo?.toISOString() }), "utf8").digest("hex");
+    const result = await tx.insert(regulatorySourceAssertions).values({ ...input, assertionFingerprint });
+    const assertions = await tx.select().from(regulatorySourceAssertions).where(eq21(regulatorySourceAssertions.sourceVersionId, input.sourceVersionId)).orderBy(asc3(regulatorySourceAssertions.id));
+    const latest = new Map(assertions.map((assertion) => [assertion.assertionType, assertion]));
+    const required = ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"];
+    const now = /* @__PURE__ */ new Date();
+    const complete = required.every((type) => {
+      const assertion = latest.get(type);
+      return assertion?.decision === "accepted" && assertion.validFrom <= now && (!assertion.validTo || assertion.validTo > now);
+    });
+    await tx.update(regulatorySourceVersions).set({
+      status: complete ? "asserted" : version.status === "asserted" ? "stale" : version.status
+    }).where(eq21(regulatorySourceVersions.id, input.sourceVersionId));
+    return { id: Number(result[0].insertId), assertionFingerprint, versionStatus: complete ? "asserted" : version.status === "asserted" ? "stale" : version.status };
+  });
+}
+async function listRegulatorySourceVersions(sourceKey) {
+  const db = await database3();
+  return db.select({ source: regulatorySources, version: regulatorySourceVersions }).from(regulatorySources).innerJoin(regulatorySourceVersions, eq21(regulatorySourceVersions.sourceId, regulatorySources.id)).where(eq21(regulatorySources.sourceKey, sourceKey)).orderBy(desc13(regulatorySourceVersions.createdAt));
+}
+
+// server/routers/regulatory-sources.ts
+function translate3(error) {
+  if (error instanceof RegulatorySourceStoreError) {
+    throw new TRPCError32({
+      code: error.code === "NOT_FOUND" ? "NOT_FOUND" : error.code === "UNAVAILABLE" ? "SERVICE_UNAVAILABLE" : error.code === "DENIED" ? "FORBIDDEN" : "CONFLICT",
+      message: error.message
+    });
+  }
+  throw error;
+}
+var reason3 = z48.string().trim().min(10).max(2e3);
+var regulatorySourceRouter = router({
+  catalogue: adminProcedure.query(() => DUBAI_REGULATORY_SOURCE_CATALOGUE),
+  list: adminProcedure.query(async () => {
+    try {
+      return await listRegulatorySources();
+    } catch (error) {
+      translate3(error);
+    }
+  }),
+  versions: adminProcedure.input(z48.object({ sourceKey: z48.string().min(3).max(128) }).strict()).query(async ({ input }) => {
+    try {
+      return await listRegulatorySourceVersions(input.sourceKey);
+    } catch (error) {
+      translate3(error);
+    }
+  }),
+  registerCatalogueSource: adminProcedure.input(z48.object({ sourceKey: z48.string().min(3).max(128) }).strict()).mutation(async ({ input }) => {
+    const source = DUBAI_REGULATORY_SOURCE_CATALOGUE.find((item) => item.sourceKey === input.sourceKey);
+    if (!source) throw new TRPCError32({ code: "NOT_FOUND", message: "Regulatory source registration not found" });
+    try {
+      return await registerRegulatorySource(source);
+    } catch (error) {
+      translate3(error);
+    }
+  }),
+  assertVersion: adminProcedure.input(z48.object({
+    sourceVersionId: z48.number().int().positive(),
+    assertionType: z48.enum(["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"]),
+    decision: z48.enum(["accepted", "rejected", "withdrawn"]),
+    reason: reason3,
+    validFrom: z48.string().datetime({ offset: true }),
+    validTo: z48.string().datetime({ offset: true }).optional()
+  }).strict()).mutation(async ({ ctx, input }) => {
+    try {
+      return await createRegulatorySourceAssertion({ ...input, assertedByUserId: ctx.user.id, validFrom: new Date(input.validFrom), validTo: input.validTo ? new Date(input.validTo) : void 0 });
+    } catch (error) {
+      translate3(error);
+    }
+  }),
+  relateVersions: adminProcedure.input(z48.object({
+    sourceVersionId: z48.number().int().positive(),
+    targetSourceVersionId: z48.number().int().positive(),
+    relationType: z48.enum(["amends", "supersedes", "suspends", "revokes", "clarifies"]),
+    clauseScope: z48.array(z48.string().trim().min(1).max(255)).min(1),
+    effectiveFrom: z48.string().datetime({ offset: true }).optional(),
+    effectiveTo: z48.string().datetime({ offset: true }).optional()
+  }).strict()).mutation(async ({ input }) => {
+    try {
+      return await createRegulatorySourceRelation({ ...input, effectiveFrom: input.effectiveFrom ? new Date(input.effectiveFrom) : void 0, effectiveTo: input.effectiveTo ? new Date(input.effectiveTo) : void 0 });
+    } catch (error) {
+      translate3(error);
+    }
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -45278,7 +45688,8 @@ var appRouter = router({
   materialQuantity: materialQuantityRouter,
   spaceProgram: spaceProgramRouter,
   brief: briefRouter,
-  typologyPack: typologyPackRouter
+  typologyPack: typologyPackRouter,
+  regulatorySources: regulatorySourceRouter
 });
 
 // server/_core/context.ts
