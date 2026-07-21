@@ -372,6 +372,20 @@
       "when": 1784550363639,
       "tag": "0052_br03_brief_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "5",
+      "when": 1784648647039,
+      "tag": "0053_br05_typology_pack_governance",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "5",
+      "when": 1784648944658,
+      "tag": "0054_br05_typology_pack_integrity",
+      "breakpoints": true
     }
   ]
 }

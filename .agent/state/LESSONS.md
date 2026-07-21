@@ -476,3 +476,12 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The focused auth suite passes 4/4 and the final safe aggregate suite passes 1,424 with 22 skipped.
 - Reuse rule: Split expensive cryptographic workflows by behavior and use deterministic valid fixtures where the test is not specifically proving hash creation.
 - Supersedes / related: Reaffirms the earlier bcrypt timing lesson recorded for BR-03 certification.
+
+### LES-042 — Governed overrides must be validated at the persistence boundary
+
+- Date / roadmap step: 2026-07-21 / `BR-05`
+- Context: Tenant typology overrides are structurally valid JSON but may still reference an unknown room, duplicate a stable rule ID, contradict the base pack, or be replayed by a different actor.
+- Observed: Router-only validation lets internal callers persist an override that can never resolve; organization-wide idempotency without actor identity can replay another actor's attributed operation.
+- Fix or decision: Validate the exact pinned built-in and merged deterministic result before persistence, revalidate exact fingerprints at resolution, and include actor identity in the canonical idempotency request fingerprint.
+- Proof: Guarded disposable MySQL passes 34/34 including invalid-override rejection and cross-actor replay denial; final independent review returned `PASS`.
+- Reuse rule: A governed record is not valid merely because its JSON schema parses. Validate the complete authoritative merge at the final write boundary, and bind an idempotency replay to actor, operation, target, and canonical request.

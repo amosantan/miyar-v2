@@ -2,8 +2,8 @@
 
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **376**
-- Generated: 2026-07-21T12:59:26.819Z
+- Procedures inventoried: **383**
+- Generated: 2026-07-21T16:22:56.762Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
@@ -30,20 +30,20 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `admin_governed`       |    82 |
 | `global_governed`      |    54 |
 | `not_project_scoped`   |    23 |
-| `org_guarded`          |   216 |
+| `org_guarded`          |   223 |
 | `public_token_guarded` |     1 |
 
 ## Severity Summary
 
 | Severity | Count |
 | -------- | ----: |
-| `none`   |   376 |
+| `none`   |   383 |
 
 ## Remediation Summary
 
 | Target | Count |
 | ------ | ----: |
-| `none` |   376 |
+| `none` |   383 |
 
 ### Remediation ownership
 
@@ -485,3 +485,10 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `system.health`                                      | `not_project_scoped`   | session/user credential, deterministic input, or non-project workflow -> no project/org-owned identifier is accepted                                                                                                                                                                                                                                                                                                                                    | No remediation assigned; retain classification evidence. |
 | `system.marketEvidenceSnapshot`                      | `not_project_scoped`   | session/user credential, deterministic input, or non-project workflow -> no project/org-owned identifier is accepted                                                                                                                                                                                                                                                                                                                                    | No remediation assigned; retain classification evidence. |
 | `system.notifyOwner`                                 | `admin_governed`       | authenticated global admin role -> governed administrative resource                                                                                                                                                                                                                                                                                                                                                                                     | No remediation assigned; retain classification evidence. |
+| `typology-pack.approve`                              | `org_guarded`          | authenticated organization -> typology_pack_revisions.organizationId -> exact tenant-owned immutable revision                                                                                                                                                                                                                                                                                                                                           | No remediation assigned; retain classification evidence. |
+| `typology-pack.builtIns`                             | `org_guarded`          | authenticated organization -> typology_pack_revisions.organizationId -> exact tenant-owned immutable revision                                                                                                                                                                                                                                                                                                                                           | No remediation assigned; retain classification evidence. |
+| `typology-pack.create`                               | `org_guarded`          | authenticated organization -> typology_pack_revisions.organizationId -> exact tenant-owned immutable revision                                                                                                                                                                                                                                                                                                                                           | No remediation assigned; retain classification evidence. |
+| `typology-pack.list`                                 | `org_guarded`          | authenticated organization -> typology_pack_revisions.organizationId -> exact tenant-owned immutable revision                                                                                                                                                                                                                                                                                                                                           | No remediation assigned; retain classification evidence. |
+| `typology-pack.resolve`                              | `org_guarded`          | authenticated organization -> typology_pack_revisions.organizationId -> exact tenant-owned immutable revision                                                                                                                                                                                                                                                                                                                                           | No remediation assigned; retain classification evidence. |
+| `typology-pack.review`                               | `org_guarded`          | authenticated organization -> typology_pack_revisions.organizationId -> exact tenant-owned immutable revision                                                                                                                                                                                                                                                                                                                                           | No remediation assigned; retain classification evidence. |
+| `typology-pack.withdraw`                             | `org_guarded`          | authenticated organization -> typology_pack_revisions.organizationId -> exact tenant-owned immutable revision                                                                                                                                                                                                                                                                                                                                           | No remediation assigned; retain classification evidence. |

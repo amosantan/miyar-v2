@@ -27,6 +27,7 @@ import { intakeRouter } from "./routers/intake";
 import { materialQuantityRouter } from "./routers/materialQuantity";
 import { spaceProgramRouter } from "./routers/spaceProgram";
 import { briefRouter } from "./routers/brief";
+import { typologyPackRouter } from "./routers/typology-packs";
 
 export const appRouter = router({
   system: systemRouter,
@@ -55,6 +56,7 @@ export const appRouter = router({
   materialQuantity: materialQuantityRouter,
   spaceProgram: spaceProgramRouter,
   brief: briefRouter,
+  typologyPack: typologyPackRouter,
 });
 
 export type AppRouter = typeof appRouter;

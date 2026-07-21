@@ -52,14 +52,14 @@ function inspectDatabaseTarget(databaseUrl) {
     if (!host || isUnspecifiedHost(host)) throw new Error("Host is empty or unspecified");
     const port = parsed.port ? Number(parsed.port) : 3306;
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port is invalid");
-    const database2 = parseDatabaseName(parsed.pathname);
-    if (!database2) throw new Error("Database name is missing or ambiguous");
-    const canonical2 = `${canonicalHost(host)}:${port}/${database2}`;
+    const database3 = parseDatabaseName(parsed.pathname);
+    if (!database3) throw new Error("Database name is missing or ambiguous");
+    const canonical2 = `${canonicalHost(host)}:${port}/${database3}`;
     return {
       class: isLoopbackHost(host) ? "safe-loopback" : "remote-shared",
       host,
       port,
-      database: database2,
+      database: database3,
       canonical: canonical2
     };
   } catch (error) {
@@ -192,7 +192,7 @@ function restoreSpawnSafetyControls() {
 function buildRuntimeContext(operation, options) {
   if (options.loadDotenv !== false) loadDotenvFile({ override: false, quiet: true });
   restoreSpawnSafetyControls();
-  const context2 = {
+  const context3 = {
     activeOperation: operation,
     databaseUrl: options.databaseUrl ?? process.env.DATABASE_URL,
     runtimeProfile: options.runtimeProfile ?? spawnedSafetyEnvironment.MIYAR_RUNTIME_PROFILE,
@@ -204,7 +204,7 @@ function buildRuntimeContext(operation, options) {
     deploymentDatabaseTarget: options.deploymentDatabaseTarget ?? spawnedSafetyEnvironment.MIYAR_DEPLOYMENT_DATABASE_TARGET
   };
   delete process.env.MIYAR_DATABASE_APPROVAL;
-  return Object.freeze(context2);
+  return Object.freeze(context3);
 }
 function initializeDatabaseSafety(operation, options = {}) {
   if (!runtimeContext) runtimeContext = buildRuntimeContext(operation, options);
@@ -400,6 +400,8 @@ __export(schema_exports, {
   sustainabilitySnapshots: () => sustainabilitySnapshots,
   trendSnapshots: () => trendSnapshots,
   trendTags: () => trendTags,
+  typologyPackEvents: () => typologyPackEvents,
+  typologyPackRevisions: () => typologyPackRevisions,
   users: () => users,
   webhookConfigs: () => webhookConfigs
 });
@@ -418,7 +420,7 @@ import {
   uniqueIndex,
   foreignKey
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, typologyPackRevisions, typologyPackEvents, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -3638,6 +3640,55 @@ var init_schema = __esm({
             spatialGraphVersions.id
           ]
         })
+      ]
+    );
+    typologyPackRevisions = mysqlTable(
+      "typology_pack_revisions",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        packKey: varchar("packKey", { length: 96 }).notNull(),
+        revisionNumber: int("revisionNumber").notNull(),
+        basePackKey: varchar("basePackKey", { length: 96 }).notNull(),
+        basePackVersion: varchar("basePackVersion", { length: 32 }).notNull(),
+        basePackFingerprint: varchar("basePackFingerprint", { length: 64 }).notNull(),
+        payloadSchemaVersion: varchar("payloadSchemaVersion", { length: 32 }).notNull(),
+        payload: json("payload").notNull(),
+        payloadFingerprint: varchar("payloadFingerprint", { length: 64 }).notNull(),
+        status: mysqlEnum("status", ["draft", "reviewed", "approved", "withdrawn"]).notNull().default("draft"),
+        createdBy: int("createdBy").notNull(),
+        reviewedBy: int("reviewedBy"),
+        reviewedAt: timestamp("reviewedAt"),
+        reviewDueAt: timestamp("reviewDueAt").notNull(),
+        approvedBy: int("approvedBy"),
+        approvedAt: timestamp("approvedAt"),
+        withdrawnBy: int("withdrawnBy"),
+        withdrawnAt: timestamp("withdrawnAt"),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("typology_pack_revisions_org_pack_revision_unique").on(table.organizationId, table.packKey, table.revisionNumber),
+        uniqueIndex("typology_pack_revisions_org_id_unique").on(table.organizationId, table.id),
+        index("typology_pack_revisions_org_status_idx").on(table.organizationId, table.packKey, table.status)
+      ]
+    );
+    typologyPackEvents = mysqlTable(
+      "typology_pack_events",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        revisionId: int("revisionId").notNull(),
+        eventType: mysqlEnum("eventType", ["created", "reviewed", "approved", "withdrawn"]).notNull(),
+        actorUserId: int("actorUserId").notNull(),
+        reason: text("reason").notNull(),
+        idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull(),
+        requestFingerprint: varchar("requestFingerprint", { length: 64 }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("typology_pack_events_org_id_unique").on(table.organizationId, table.id),
+        uniqueIndex("typology_pack_events_org_idempotency_unique").on(table.organizationId, table.idempotencyKey),
+        index("typology_pack_events_org_revision_idx").on(table.organizationId, table.revisionId)
       ]
     );
     briefSectionValues = [
@@ -7636,8 +7687,8 @@ async function revokeAiDesignBriefSharesForProjectForOrg(projectId, orgId) {
   if (!db) throw new Error("DB not available");
   return revokeAiDesignBriefSharesForProjectForOrgInDatabase(db, projectId, orgId);
 }
-async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database2, projectId, orgId) {
-  return database2.transaction(async (tx) => {
+async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database3, projectId, orgId) {
+  return database3.transaction(async (tx) => {
     const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (owned.length !== 1) return null;
     await tx.update(aiDesignBriefs).set({ shareExpiresAt: null }).where(and(
@@ -8971,11 +9022,11 @@ var init_logger = __esm({
 });
 
 // server/_core/sentry.ts
-function captureException(err, context2) {
+function captureException(err, context3) {
   if (!Sentry) return;
   Sentry.withScope((scope) => {
-    if (context2) {
-      Object.entries(context2).forEach(([key, val]) => {
+    if (context3) {
+      Object.entries(context3).forEach(([key, val]) => {
         scope.setExtra(key, val);
       });
     }
@@ -9055,7 +9106,7 @@ var init_ai_operation = __esm({
         return this.options.operation;
       }
       report(metadata = {}) {
-        const context2 = {
+        const context3 = {
           source: "ai-operation",
           operation: this.operation,
           aiCode: this.code,
@@ -9064,8 +9115,8 @@ var init_ai_operation = __esm({
           correlationId: this.correlationId,
           ...metadata
         };
-        logger.error("AI operation failed", context2);
-        captureException(this.options.cause ?? this, context2);
+        logger.error("AI operation failed", context3);
+        captureException(this.options.cause ?? this, context3);
         return this;
       }
     };
@@ -10291,8 +10342,8 @@ function severity(confidence) {
   if (confidence >= 50) return "medium";
   return "low";
 }
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
+function clamp(v, min, max2) {
+  return Math.max(min, Math.min(max2, v));
 }
 function detectOptimismBias(inputs, scoreResult) {
   const tier = inputs.mkt01Tier;
@@ -11660,10 +11711,10 @@ __export(dm_compliance_exports, {
 function buildDMComplianceChecklist(projectId, orgId, project) {
   const typology = (project.ctx01Typology || "Residential").toLowerCase();
   const items = [];
-  const pushItem = (code, desc12, status) => {
+  const pushItem = (code, desc13, status) => {
     items.push({
       code,
-      description: desc12,
+      description: desc13,
       status,
       verified: false
     });
@@ -11841,8 +11892,8 @@ function randNormal() {
 function sampleNormal(mean, stdDev) {
   return mean + stdDev * randNormal();
 }
-function sampleUniform(min, max) {
-  return min + Math.random() * (max - min);
+function sampleUniform(min, max2) {
+  return min + Math.random() * (max2 - min);
 }
 function marketFactor(condition) {
   switch (condition) {
@@ -12166,10 +12217,10 @@ function gradeColor(grade2) {
 function confColor(confidence) {
   return { established: "#10b981", emerging: "#8b5cf6", declining: "#ef4444" }[confidence] ?? "#94a3b8";
 }
-function renderMetadata(context2, locale) {
+function renderMetadata(context3, locale) {
   const c = (key) => reportCopy(locale, key);
   const value = (entry) => text2(entry ?? c("notAvailable"));
-  return `<div class="render-meta"><div><b>${c("documentId")}:</b> ${text2(context2.documentId)}</div><div><b>${c("generatedAt")}:</b> ${text2(formatReportDateTime(context2.generatedAt, locale))}</div><div><b>${c("renderInputFingerprint")}:</b> ${text2(context2.renderInputFingerprint)}</div><div><b>${c("artifactVersion")}:</b> ${value(context2.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context2.rendererVersion)}</div><div><b>${c("modelVersion")}:</b> ${value(context2.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context2.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context2.logicVersion)}</div></div>`;
+  return `<div class="render-meta"><div><b>${c("documentId")}:</b> ${text2(context3.documentId)}</div><div><b>${c("generatedAt")}:</b> ${text2(formatReportDateTime(context3.generatedAt, locale))}</div><div><b>${c("renderInputFingerprint")}:</b> ${text2(context3.renderInputFingerprint)}</div><div><b>${c("artifactVersion")}:</b> ${value(context3.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context3.rendererVersion)}</div><div><b>${c("modelVersion")}:</b> ${value(context3.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context3.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context3.logicVersion)}</div></div>`;
 }
 function createInvestorPdfRenderContext(input) {
   const locale = reportLocaleOrDefault(input.locale);
@@ -12223,7 +12274,7 @@ function generateInvestorPdfHtml(input) {
     designTrends: designTrends2,
     spaceEfficiency
   } = input;
-  const context2 = input.renderContext ?? createInvestorPdfRenderContext(input);
+  const context3 = input.renderContext ?? createInvestorPdfRenderContext(input);
   const spaceBars = spaces.slice(0, 12).map((space) => `<div class="bar-row"><span class="bar-label">${text2(space.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(space.pct)}%"></div></div><span class="bar-pct">${number(space.pct, locale)}%</span><span class="bar-amt">${aed(space.budgetAed, locale)}</span></div>`).join("");
   const materialRows = materials.slice(0, 16).map((material, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text2(material.name)}</td><td>${text2(material.brand)}</td><td>${text2(material.room)}</td><td>${text2(material.price ?? c("notAvailable"))}</td></tr>`).join("");
   const constantRows = materialConstants2.slice(0, 9).map((constant, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text2(constant.materialType)}</td><td>${aed(constant.costPerM2, locale)}</td><td>${number(constant.carbonIntensity, locale)} ${labels.kilogramsPerSquareMetre}</td><td><span class="grade-badge" style="background:${gradeColor(constant.sustainabilityGrade)}">${text2(constant.sustainabilityGrade)}</span></td></tr>`).join("");
@@ -12240,12 +12291,12 @@ function generateInvestorPdfHtml(input) {
   return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`MIYAR ${labels.investorBrief} \u2014 ${projectName}`)}</title><style>
     @page { size:A4 portrait; margin:15mm 14mm; } @media print { .no-print { display:none; } } * { box-sizing:border-box; margin:0; padding:0; } ${reportLocaleCss(locale)} body { color:#0f172a; font-size:10px; line-height:1.5; background:#fff; } .cover { break-after:page; padding-block:40mm 20mm; text-align:center; } .brand { font-size:30px; font-weight:800; letter-spacing:4px; color:#0f3460; } .subtitle { font-size:12px; color:#4ecdc4; margin:4px 0 20px; letter-spacing:2px; text-transform:uppercase; } .project-name { font-size:22px; font-weight:700; margin-block-end:8px; } .meta { font-size:10px; color:#64748b; margin-block-end:6px; } .divider { inline-size:60px; block-size:3px; background:#4ecdc4; margin:20px auto; } .cover .kpi-grid { max-inline-size:340px; margin:24px auto 0; } .cover .kpi-card { border:1px solid #e2e8f0; border-radius:8px; padding:10px 8px; background:#f8fafc; } .cv { font-size:16px; font-weight:800; color:#0f3460; } .cl,.kpi-label,.roi-label { font-size:7px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin-block-start:2px; }
     h2 { font-size:12px; font-weight:700; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:18px 0 10px; text-transform:uppercase; letter-spacing:1px; } h3 { font-size:10px; font-weight:700; color:#334155; margin:12px 0 6px; } .section { break-inside:avoid; margin-block-end:14px; } .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0; } .kpi { border:1px solid #e2e8f0; border-radius:6px; padding:8px; text-align:center; background:#f8fafc; } .kpi-value { font-size:14px; font-weight:800; color:#0f3460; margin:2px 0; } .panel { border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin:8px 0; background:#f8fafc; } .panel-title { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b; margin-block-end:8px; } .exec-body { color:#334155; line-height:1.65; padding-block:8px; } .dd-row { display:flex; gap:8px; padding-block:3px; border-block-end:1px dotted #e2e8f0; } .dd-key { inline-size:110px; color:#64748b; font-weight:600; flex-shrink:0; } .dd-val { flex:1; } .bar-row { display:flex; align-items:center; gap:6px; margin-block:4px; font-size:9px; } .bar-label { inline-size:90px; color:#475569; flex-shrink:0; } .bar-track { flex:1; block-size:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; } .bar-fill { block-size:100%; background:linear-gradient(90deg,#4ecdc4,#0f3460); border-radius:4px; } .bar-pct,.bar-amt { text-align:end; flex-shrink:0; } .bar-pct { inline-size:32px; } .bar-amt { inline-size:76px; color:#0f3460; font-weight:600; font-size:8px; } table { width:100%; border-collapse:collapse; margin:8px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:5px 8px; font-weight:600; font-size:8px; letter-spacing:.5px; } td { padding:4px 8px; border-block-end:1px solid #f1f5f9; } tr.even td { background:#f8fafc; } .roi-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .roi-card { border:1px solid #e2e8f0; border-radius:6px; padding:10px; } .roi-big { font-size:20px; font-weight:800; color:#10b981; } .roi-sub { font-size:8px; color:#64748b; margin-block-start:3px; } .grade-chip,.grade-badge,.conf-badge { color:#fff; font-weight:700; } .grade-chip { display:inline-flex; align-items:center; justify-content:center; inline-size:32px; block-size:32px; border-radius:50%; font-size:16px; } .grade-badge,.conf-badge { font-size:8px; padding:1px 5px; border-radius:3px; } .trend-row { display:flex; align-items:center; gap:6px; padding-block:3px; border-block-end:1px dotted #e2e8f0; font-size:9px; } .trend-name { flex:1; font-weight:600; } .trend-cat { font-size:7px; color:#94a3b8; text-transform:uppercase; } .render-meta { margin:12px auto; max-inline-size:520px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .fallback { border-inline-start:3px solid #f59e0b; background:#fffbeb; padding:8px; margin-block:10px; font-size:9px; } .footer { margin-block-start:20px; padding-block-start:8px; border-block-start:1px solid #e2e8f0; font-size:7px; color:#94a3b8; text-align:center; }
-  </style></head><body><div class="cover"><div class="brand">MIYAR</div><div class="subtitle">${labels.investorBrief}</div><div class="project-name">${text2(projectName)}</div><div class="meta">${text2(typology)} \xB7 ${text2(tier)} \xB7 ${text2(location)}</div><div class="meta">${number(gfaSqm, locale)} ${labels.squareMetres} ${labels.gfa} \xB7 ${text2(style)} ${labels.design}</div><div class="divider"></div><div class="kpi-grid"><div class="kpi-card"><div class="cv">${aed(totalFitoutBudget, locale)}</div><div class="cl">${c("totalFitout")}</div></div><div class="kpi-card"><div class="cv">${aed(costPerSqm, locale)}</div><div class="cl">${labels.costPerSquareMetre}</div></div><div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="cl">${labels.sustainabilityGrade}</div></div></div>${renderMetadata(context2, locale)}</div>
+  </style></head><body><div class="cover"><div class="brand">MIYAR</div><div class="subtitle">${labels.investorBrief}</div><div class="project-name">${text2(projectName)}</div><div class="meta">${text2(typology)} \xB7 ${text2(tier)} \xB7 ${text2(location)}</div><div class="meta">${number(gfaSqm, locale)} ${labels.squareMetres} ${labels.gfa} \xB7 ${text2(style)} ${labels.design}</div><div class="divider"></div><div class="kpi-grid"><div class="kpi-card"><div class="cv">${aed(totalFitoutBudget, locale)}</div><div class="cl">${c("totalFitout")}</div></div><div class="kpi-card"><div class="cv">${aed(costPerSqm, locale)}</div><div class="cl">${labels.costPerSquareMetre}</div></div><div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="cl">${labels.sustainabilityGrade}</div></div></div>${renderMetadata(context3, locale)}</div>
     <div class="section"><h2>${labels.designIdentity}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.typology}</div><div class="kpi-value">${text2(typology)}</div></div><div class="kpi"><div class="kpi-label">${labels.style}</div><div class="kpi-value">${text2(style)}</div></div><div class="kpi"><div class="kpi-label">${labels.tier}</div><div class="kpi-value">${text2(tier)}</div></div><div class="kpi"><div class="kpi-label">${labels.location}</div><div class="kpi-value">${text2(location)}</div></div></div>${execSummary ? `<p class="exec-body">${text2(execSummary)}</p>` : ""}${designDirectionRows ? `<div class="panel">${designDirectionRows}</div>` : ""}</div>
     ${materials.length > 0 ? `<div class="section"><h2>${labels.materialSpecification}</h2><table><thead><tr><th>${labels.product}</th><th>${labels.brand}</th><th>${labels.space}</th><th>${labels.priceRange}</th></tr></thead><tbody>${materialRows}</tbody></table>${materialConstants2.length > 0 ? `<h3>${labels.marketConstants}</h3><table><thead><tr><th>${labels.material}</th><th>${labels.costPerSquareMetre}</th><th>${labels.carbon}</th><th>${labels.sustainabilityGrade}</th></tr></thead><tbody>${constantRows}</tbody></table>` : ""}</div>` : ""}
     <div class="section"><h2>${labels.budgetSynthesis}</h2><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="kpi-label">${c("totalFitout")}</div><div class="kpi-value">${aed(totalFitoutBudget, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.costPerSquareMetre}</div><div class="kpi-value">${aed(costPerSqm, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.gfa}</div><div class="kpi-value">${number(gfaSqm, locale)} ${labels.squareMetres}</div></div></div>${spaceBars ? `<h3>${labels.budgetBySpace}</h3><div class="panel">${spaceBars}</div>` : ""}${benchmarkSection}</div>${spaceEfficiencySection}
     <div class="section"><h2>${labels.roiBridge}</h2><div class="roi-grid"><div class="roi-card"><div class="roi-label">${labels.sustainabilityGrade}</div><div style="margin-block-start:6px;display:flex;align-items:center;gap:10px"><div class="grade-chip" style="background:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="roi-sub">${labels.basedOnMaterialSelectionAndTierFor} ${text2(location)}</div></div></div><div class="roi-card"><div class="roi-label">${labels.designPremiumPotential}</div><div class="roi-big">+${number(salePremiumPct, locale)}%</div><div class="roi-sub">\u2248 ${aed(estimatedSalesPremiumAed, locale)} ${labels.upliftVsStandardFitout}</div></div><div class="roi-card" style="grid-column:span 2"><div class="roi-label">${labels.roiSummary}</div><div style="display:flex;gap:30px;margin-block-start:6px;font-size:9px"><div><div>${labels.fitoutInvestment}</div><b>${aed(totalFitoutBudget, locale)}</b></div><div><div>${c("designPremium")}</div><b>+${aed(estimatedSalesPremiumAed, locale)}</b></div><div><div>${labels.netUplift}</div><b>${aed(estimatedSalesPremiumAed - totalFitoutBudget, locale)}</b></div></div></div></div><div class="fallback"><b>${c("investorFallbackAssumption")}:</b> ${c("investorFallbackAssumptionHelp")}</div></div>
-    ${(designTrends2 ?? []).length > 0 ? `<div class="section"><h2>${labels.marketIntelligence}</h2><h3>${labels.uaeDesignTrends} (${text2(style)} \xB7 ${labels.uae})</h3><div class="panel">${trendRows}</div></div>` : ""}<div class="footer">MIYAR \xB7 ${labels.investorBrief} \xB7 ${text2(formatReportDateTime(context2.generatedAt, locale))}<br>${labels.generatedNotice}</div></body></html>`;
+    ${(designTrends2 ?? []).length > 0 ? `<div class="section"><h2>${labels.marketIntelligence}</h2><h3>${labels.uaeDesignTrends} (${text2(style)} \xB7 ${labels.uae})</h3><div class="panel">${trendRows}</div></div>` : ""}<div class="footer">MIYAR \xB7 ${labels.investorBrief} \xB7 ${text2(formatReportDateTime(context3.generatedAt, locale))}<br>${labels.generatedNotice}</div></body></html>`;
 }
 var INVESTOR_COPY;
 var init_investor_pdf = __esm({
@@ -12382,15 +12433,15 @@ function tierColor(tier) {
 function leadBadgeColor(band) {
   return { short: "#16a34a", medium: "#ca8a04", long: "#ea580c", critical: "#dc2626" }[band] ?? "#ca8a04";
 }
-function renderMetadata2(context2, locale) {
+function renderMetadata2(context3, locale) {
   const c = (key) => reportCopy(locale, key);
   const value = (entry) => text3(entry ?? c("notAvailable"));
   return `<div class="render-meta">
-    <div><b>${c("documentId")}:</b> ${text3(context2.documentId)}</div>
-    <div><b>${c("generatedAt")}:</b> ${text3(formatReportDateTime(context2.generatedAt, locale))}</div>
-    <div><b>${c("renderInputFingerprint")}:</b> ${text3(context2.renderInputFingerprint)}</div>
-    <div><b>${c("artifactVersion")}:</b> ${value(context2.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context2.rendererVersion)}</div>
-    <div><b>${c("modelVersion")}:</b> ${value(context2.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context2.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context2.logicVersion)}</div>
+    <div><b>${c("documentId")}:</b> ${text3(context3.documentId)}</div>
+    <div><b>${c("generatedAt")}:</b> ${text3(formatReportDateTime(context3.generatedAt, locale))}</div>
+    <div><b>${c("renderInputFingerprint")}:</b> ${text3(context3.renderInputFingerprint)}</div>
+    <div><b>${c("artifactVersion")}:</b> ${value(context3.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context3.rendererVersion)}</div>
+    <div><b>${c("modelVersion")}:</b> ${value(context3.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context3.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context3.logicVersion)}</div>
   </div>`;
 }
 function createBoardPdfRenderContext(input) {
@@ -12460,7 +12511,7 @@ function generateBoardPdfHtml(input) {
   const c = (key) => reportCopy(locale, key);
   const labels = BOARD_COPY[locale];
   const { boardName, projectName, items, summary, rfqLines } = input;
-  const context2 = input.renderContext ?? createBoardPdfRenderContext(input);
+  const context3 = input.renderContext ?? createBoardPdfRenderContext(input);
   const tileCards = items.map((item, index2) => `<div class="tile-card">
     <div class="tile-header"><span class="tile-num">${number2(index2 + 1, locale)}</span><span class="tile-name">${text3(item.name)}</span><span class="tier-badge" style="background:${tierColor(item.tier)}">${text3(item.tier.replace(/_/g, " "))}</span></div>
     <div class="tile-body">
@@ -12484,9 +12535,9 @@ function generateBoardPdfHtml(input) {
     h2 { font-size:14px; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:20px 0 10px; } h3 { font-size:12px; color:#0f3460; margin:14px 0 6px; } .section { break-inside:avoid; margin-block-end:16px; } .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0; } .summary-card { border:1px solid #e0e0e0; border-radius:6px; padding:10px; text-align:center; } .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:1px; } .value { font-size:20px; font-weight:700; color:#0f3460; margin:2px 0; } .sub { font-size:9px; color:#888; }
     .tile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; } .tile-card { border:1px solid #e0e0e0; border-radius:6px; overflow:hidden; break-inside:avoid; } .tile-header { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#f8f9fa; border-block-end:1px solid #e0e0e0; } .tile-num { font-weight:700; background:#e8f4fd; border-radius:50%; inline-size:20px; block-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; } .tile-name { font-weight:600; flex:1; } .tier-badge,.dist-badge { font-size:8px; color:#fff; padding:1px 6px; border-radius:3px; text-transform:uppercase; } .tile-body { padding:8px 10px; } .tile-row { display:flex; justify-content:space-between; gap:8px; padding-block:2px; border-block-end:1px dotted #f0f0f0; } .tile-label,.dist-label { color:#666; font-weight:500; } .tile-spec { color:#0f3460; background:#e8f4fd; padding:4px 6px; border-radius:3px; margin-block-start:4px; font-style:italic; } .tile-notes { color:#888; margin-block-start:3px; } .cost-band-badge { background:#fef3c7; color:#92400e; padding-inline:4px; border-radius:2px; font-weight:600; }
     table { width:100%; border-collapse:collapse; margin:10px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:6px 8px; font-weight:600; } td { padding:5px 8px; border-block-end:1px solid #e0e0e0; } tr:nth-child(even) td { background:#f8f9fa; } .text-end { text-align:end; } .font-medium { font-weight:600; } .dist-grid { display:flex; gap:16px; margin:8px 0; flex-wrap:wrap; } .dist-item { display:flex; align-items:center; gap:6px; } .dist-count { font-weight:700; color:#0f3460; } .critical-item { background:#fef2f2; border-inline-start:3px solid #dc2626; padding:4px 8px; margin-block:3px; color:#991b1b; } .render-meta { margin:10px auto; max-inline-size:620px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .closing { break-inside:avoid-page; page-break-inside:avoid; } .footer { margin-block-start:12px; padding-block-start:10px; border-block-start:1px solid #e0e0e0; font-size:8px; color:#999; text-align:center; break-before:avoid-page; page-break-before:avoid; }
-  </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text3(boardName)}</h2><div class="project">${text3(projectName)}</div><div class="date">${text3(formatReportDateTime(context2.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata2(context2, locale)}</div>
+  </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text3(boardName)}</h2><div class="project">${text3(projectName)}</div><div class="date">${text3(formatReportDateTime(context3.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata2(context3, locale)}</div>
   <div class="section"><h2>${labels.boardSummary}</h2><div class="summary-grid"><div class="summary-card"><div class="label">${labels.totalItems}</div><div class="value">${number2(summary.totalItems, locale)}</div></div><div class="summary-card"><div class="label">${labels.estimatedCostRange}</div><div class="value" style="font-size:14px">${number2(summary.estimatedCostLow, locale)} \u2013 ${number2(summary.estimatedCostHigh, locale)}</div><div class="sub">${text3(summary.currency)}</div></div><div class="summary-card"><div class="label">${labels.longestLeadTime}</div><div class="value">${number2(summary.longestLeadTimeDays, locale)}d</div></div><div class="summary-card"><div class="label">${labels.criticalPathItems}</div><div class="value">${number2(summary.criticalPathItems.length, locale)}</div></div></div><h3>${labels.tierDistribution}</h3><div class="dist-grid">${tierRows}</div><h3>${labels.categoryDistribution}</h3><div class="dist-grid">${categoryRows}</div>${summary.criticalPathItems.length > 0 ? `<h3>${labels.criticalPathItems}</h3><div>${criticalItems}</div>` : ""}</div>
-  <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR \xB7 ${c("materialBoard")} \xB7 ${text3(formatReportDateTime(context2.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
+  <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR \xB7 ${c("materialBoard")} \xB7 ${text3(formatReportDateTime(context3.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
 }
 var BOARD_COPY;
 var init_board_pdf = __esm({
@@ -12793,8 +12844,8 @@ function publicationDateFields(raw, evaluatedAt) {
     publicationDate
   };
 }
-function evaluateEvidenceConfidence(evidence, grade2, context2) {
-  const evaluatedAt = context2?.evaluatedAt ?? evidence.observedAt ?? new Date(Number.NaN);
+function evaluateEvidenceConfidence(evidence, grade2, context3) {
+  const evaluatedAt = context3?.evaluatedAt ?? evidence.observedAt ?? new Date(Number.NaN);
   const publicationInput = evidence.publicationDate?.raw ?? evidence.publishedDateRaw ?? evidence.publishedDate;
   const result = evaluateConnectorConfidence({
     grade: grade2,
@@ -13802,10 +13853,10 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           raw.fetchedAt
         );
       }
-      async normalize(evidence, context2) {
+      async normalize(evidence, context3) {
         const gradePolicy = this.gradePolicy;
         const grade2 = gradePolicy.grade;
-        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context2);
+        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context3);
         const confidence = confidencePolicy.initial.score;
         const llmEvidence = evidence;
         return {
@@ -15060,9 +15111,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             normalized = await connector.normalize(evidence, { evaluatedAt: raw.fetchedAt });
           } catch (err) {
             const confidenceRejection = err instanceof ConfidencePolicyError ? err.rejection : null;
-            const reason2 = confidenceRejection?.rejectionCode ?? "normalization_failed";
+            const reason3 = confidenceRejection?.rejectionCode ?? "normalization_failed";
             rejected2++;
-            rejectionReasons[reason2] = (rejectionReasons[reason2] || 0) + 1;
+            rejectionReasons[reason3] = (rejectionReasons[reason3] || 0) + 1;
             await persistConnectorRejection({
               runId,
               sourceId: String(connector.sourceId),
@@ -15075,23 +15126,23 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
               ) : void 0,
               parsingStatus: confidenceRejection?.publicationDate.status,
               parsedPublicationDate: confidenceRejection?.publicationDate.parsedAt,
-              rejectionCode: reason2,
+              rejectionCode: reason3,
               gradePolicy: confidenceRejection ? connector.gradePolicy ?? resolveGradePolicy(String(connector.sourceId)) : void 0
             });
             continue;
           }
           const validationResult = normalizedEvidenceInputSchema.safeParse(normalized);
           if (!validationResult.success) {
-            const reason2 = "invalid_normalization";
+            const reason3 = "invalid_normalization";
             rejected2++;
-            rejectionReasons[reason2] = (rejectionReasons[reason2] || 0) + 1;
+            rejectionReasons[reason3] = (rejectionReasons[reason3] || 0) + 1;
             await persistConnectorRejection({
               runId,
               sourceId: String(connector.sourceId),
               actorId,
               evaluationClock: raw.fetchedAt,
               rawPublicationText: evidence.publishedDateRaw ?? evidence.publicationDate?.raw ?? null,
-              rejectionCode: reason2
+              rejectionCode: reason3
             });
             continue;
           }
@@ -15103,9 +15154,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             evaluatedAt: raw.fetchedAt
           });
           if (!confidenceEvaluation.accepted) {
-            const reason2 = confidenceEvaluation.rejectionCode;
+            const reason3 = confidenceEvaluation.rejectionCode;
             rejected2++;
-            rejectionReasons[reason2] = (rejectionReasons[reason2] || 0) + 1;
+            rejectionReasons[reason3] = (rejectionReasons[reason3] || 0) + 1;
             await persistConnectorRejection({
               runId,
               sourceId: String(connector.sourceId),
@@ -15118,7 +15169,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
               ),
               parsingStatus: confidenceEvaluation.publicationDate.status,
               parsedPublicationDate: confidenceEvaluation.publicationDate.parsedAt,
-              rejectionCode: reason2,
+              rejectionCode: reason3,
               gradePolicy
             });
             continue;
@@ -15290,10 +15341,10 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     error: r.error
   }));
   const rejectionErrors = connectorResults.flatMap(
-    (result) => Object.entries(result.rejectionReasons).map(([reason2, count2]) => ({
+    (result) => Object.entries(result.rejectionReasons).map(([reason3, count2]) => ({
       sourceId: result.sourceId,
       sourceName: result.sourceName,
-      error: `record_rejected:${reason2} (${count2})`
+      error: `record_rejected:${reason3} (${count2})`
     }))
   );
   const errors = [...sourceErrors, ...rejectionErrors];
@@ -15690,10 +15741,10 @@ ${parsed.text}
       /**
        * Normalize: convert extracted items into evidence record format.
        */
-      async normalize(evidence, context2) {
+      async normalize(evidence, context3) {
         const gradePolicy = resolveGradePolicy(this.sourceId);
         const grade2 = gradePolicy.grade;
-        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context2);
+        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context3);
         const confidence = confidencePolicy.initial.score;
         const scadItem = evidence._scadItem;
         const metric = scadItem ? `${scadItem.materialName} (${scadItem.category})` : evidence.title;
@@ -15830,13 +15881,13 @@ function extractPricesFromText(text5) {
       const val = parseFloat(match[1].replace(/,/g, ""));
       if (!isNaN(val) && val > 0 && val < 1e8 && !seen.has(val)) {
         seen.add(val);
-        const context2 = text5.substring(
+        const context3 = text5.substring(
           Math.max(0, match.index - 30),
           Math.min(text5.length, match.index + match[0].length + 30)
         );
         let unit = "unit";
-        if (SQM_REGEX.test(context2)) unit = "sqm";
-        else if (SQFT_REGEX.test(context2)) unit = "sqft";
+        if (SQM_REGEX.test(context3)) unit = "sqm";
+        else if (SQFT_REGEX.test(context3)) unit = "sqft";
         prices.push({ value: val, unit });
       }
     }
@@ -15898,12 +15949,12 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
     SQFT_REGEX = /(?:per\s+)?(?:sq\.?\s*ft\.?|sqft|square\s+foot|square\s+feet)/i;
     SQM_REGEX = /(?:per\s+)?(?:sq\.?\s*m\.?|sqm|m²|square\s+met(?:er|re))/i;
     HTMLSourceConnector = class extends BaseSourceConnector {
-      confidenceMetadata(evidence, context2) {
+      confidenceMetadata(evidence, context3) {
         const gradePolicy = resolveGradePolicy(this.sourceId);
         const confidencePolicy = evaluateEvidenceConfidence(
           evidence,
           gradePolicy.grade,
-          context2
+          context3
         );
         return {
           grade: gradePolicy.grade,
@@ -15977,8 +16028,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         }
         return evidence;
       }
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         if (llmEvidence._llmValue !== void 0) {
           return {
@@ -16078,8 +16129,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-survey", "construction", "industry-report", "rics"];
       defaultUnit = "sqm";
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -16102,8 +16153,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "mena", "jll"];
       defaultUnit = "sqm";
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -16126,8 +16177,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Dubai";
       defaultTags = ["government", "statistics", "dubai", "economic-indicators"];
       defaultUnit = "sqm";
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -16168,8 +16219,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Dubai";
       defaultTags = ["government", "material-prices", "construction", "dubai-pulse"];
       defaultUnit = "unit";
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -16192,8 +16243,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Abu Dhabi";
       defaultTags = ["government", "statistics", "abu-dhabi", "material-prices"];
       defaultUnit = "unit";
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -16216,8 +16267,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Dubai";
       defaultTags = ["government", "transactions", "real-estate", "dld"];
       defaultUnit = "sqft";
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -16249,8 +16300,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "commercial", "cbre"];
       defaultUnit = "sqft";
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -16273,8 +16324,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "residential", "knight-frank"];
       defaultUnit = "sqft";
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -16297,8 +16348,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "investment", "savills"];
       defaultUnit = "sqft";
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -16342,8 +16393,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         }
         return this.fetchWithFirecrawl();
       }
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         let metric = llmEvidence._llmMetric || evidence.title;
         let value = llmEvidence._llmValue ?? null;
@@ -16391,8 +16442,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         }
         return this.fetchWithFirecrawl();
       }
-      async normalize(evidence, context2) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
+      async normalize(evidence, context3) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
         let metric = llmEvidence._llmMetric || evidence.title;
         let value = llmEvidence._llmValue ?? null;
@@ -17998,7 +18049,7 @@ function buildRateLimitKey(keyPrefix, userId, path) {
   return `${keyPrefix}:${userId}:${path}`;
 }
 function createRateLimitMiddleware(t2, opts = {}) {
-  const { windowMs = 6e4, max = 5, keyPrefix = "rl" } = opts;
+  const { windowMs = 6e4, max: max2 = 5, keyPrefix = "rl" } = opts;
   return t2.middleware(
     async ({ ctx, next, path }) => {
       const userId = ctx?.user?.id ?? "anon";
@@ -18010,7 +18061,7 @@ function createRateLimitMiddleware(t2, opts = {}) {
         store.set(key, entry);
       }
       entry.timestamps = entry.timestamps.filter((ts) => now - ts < windowMs);
-      if (entry.timestamps.length >= max) {
+      if (entry.timestamps.length >= max2) {
         const retryAfterMs = entry.timestamps[0] + windowMs - now;
         throw new TRPCError2({
           code: "TOO_MANY_REQUESTS",
@@ -18628,8 +18679,8 @@ init_area_utils();
 function normalizeOrdinal(value) {
   return Math.max(0, Math.min(1, (value - 1) / 4));
 }
-function normalizeBounded(value, min, max) {
-  return Math.max(0, Math.min(1, (value - min) / (max - min)));
+function normalizeBounded(value, min, max2) {
+  return Math.max(0, Math.min(1, (value - min) / (max2 - min)));
 }
 function deriveScaleBand(gfa, totalFitoutArea) {
   const area = totalFitoutArea ?? gfa;
@@ -19325,15 +19376,15 @@ var REPORT_RENDERER_VERSION = "pdf-report-html-v3";
 function dynamicText(value) {
   return `<bdi dir="auto" data-report-dynamic>${escapeReportText(value)}</bdi>`;
 }
-function htmlHeader(title, subtitle, projectName, context2) {
-  const metadata = reportDocumentMetadata(context2.locale);
+function htmlHeader(title, subtitle, projectName, context3) {
+  const metadata = reportDocumentMetadata(context3.locale);
   return `
 <!DOCTYPE html>
 <html lang="${metadata.lang}" dir="${metadata.dir}">
 <head>
 <meta charset="utf-8">
 <style>
-  ${reportLocaleCss(context2.locale)}
+  ${reportLocaleCss(context3.locale)}
   @page { size: A4; margin: 20mm 15mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { color: #1a1a2e; line-height: 1.6; font-size: 11px; overflow-wrap: anywhere; }
@@ -19400,17 +19451,17 @@ function htmlHeader(title, subtitle, projectName, context2) {
   <h1>${escapeReportText(title)}</h1>
   <h2>${escapeReportText(subtitle)}</h2>
   <div class="project">${dynamicText(projectName)}</div>
-  <div class="date">${formatReportDate(context2.generatedAt, context2.locale)}</div>
-  <div class="confidential">${reportCopy(context2.locale, "confidentialInternalOnly")}</div>
-  <div class="watermark">${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)}</div>
+  <div class="date">${formatReportDate(context3.generatedAt, context3.locale)}</div>
+  <div class="confidential">${reportCopy(context3.locale, "confidentialInternalOnly")}</div>
+  <div class="watermark">${reportCopy(context3.locale, "documentId")}: ${escapeReportText(context3.documentId)}</div>
   <div class="repro-meta">
-    <div><span class="label">${reportCopy(context2.locale, "modelVersion")}:</span> ${escapeReportText(context2.modelVersion ?? reportCopy(context2.locale, "notAvailable"))}</div>
-    <div><span class="label">${reportCopy(context2.locale, "benchmarkVersion")}:</span> ${escapeReportText(context2.benchmarkVersion ?? reportCopy(context2.locale, "notAvailable"))}</div>
-    <div><span class="label">${reportCopy(context2.locale, "logicVersion")}:</span> ${escapeReportText(context2.logicVersion ?? reportCopy(context2.locale, "notAvailable"))}</div>
-    <div><span class="label">${reportCopy(context2.locale, "generatedAt")}:</span> ${escapeReportText(context2.generatedAt)}</div>
-    <div><span class="label">${reportCopy(context2.locale, "documentId")}:</span> ${escapeReportText(context2.documentId)}</div>
-    <div><span class="label">${reportCopy(context2.locale, "renderInputFingerprint")}:</span> ${escapeReportText(context2.renderInputFingerprint)}</div>
-    <div>${reportCopy(context2.locale, "renderInputFingerprintHelp")}</div>
+    <div><span class="label">${reportCopy(context3.locale, "modelVersion")}:</span> ${escapeReportText(context3.modelVersion ?? reportCopy(context3.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context3.locale, "benchmarkVersion")}:</span> ${escapeReportText(context3.benchmarkVersion ?? reportCopy(context3.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context3.locale, "logicVersion")}:</span> ${escapeReportText(context3.logicVersion ?? reportCopy(context3.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context3.locale, "generatedAt")}:</span> ${escapeReportText(context3.generatedAt)}</div>
+    <div><span class="label">${reportCopy(context3.locale, "documentId")}:</span> ${escapeReportText(context3.documentId)}</div>
+    <div><span class="label">${reportCopy(context3.locale, "renderInputFingerprint")}:</span> ${escapeReportText(context3.renderInputFingerprint)}</div>
+    <div>${reportCopy(context3.locale, "renderInputFingerprintHelp")}</div>
   </div>
 </div>
 `;
@@ -19450,14 +19501,14 @@ function renderDisclaimer(locale) {
 </div>
 `;
 }
-function htmlFooter(context2) {
+function htmlFooter(context3) {
   return `
 <div class="report-closing">
-${renderDisclaimer(context2.locale)}
+${renderDisclaimer(context3.locale)}
 <div class="footer">
-  MIYAR Decision Intelligence Platform | ${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)} | ${reportCopy(context2.locale, "generated")}: ${formatReportDate(context2.generatedAt, context2.locale)}<br>
-  ${reportCopy(context2.locale, "modelVersion")}: ${escapeReportText(context2.modelVersion ?? reportCopy(context2.locale, "notAvailable"))} | ${reportCopy(context2.locale, "benchmarkVersion")}: ${escapeReportText(context2.benchmarkVersion ?? reportCopy(context2.locale, "notAvailable"))} | ${reportCopy(context2.locale, "logicVersion")}: ${escapeReportText(context2.logicVersion ?? reportCopy(context2.locale, "notAvailable"))}<br>
-  <span style="font-size:8px;">${reportCopy(context2.locale, "scoresAdvisory")}</span>
+  MIYAR Decision Intelligence Platform | ${reportCopy(context3.locale, "documentId")}: ${escapeReportText(context3.documentId)} | ${reportCopy(context3.locale, "generated")}: ${formatReportDate(context3.generatedAt, context3.locale)}<br>
+  ${reportCopy(context3.locale, "modelVersion")}: ${escapeReportText(context3.modelVersion ?? reportCopy(context3.locale, "notAvailable"))} | ${reportCopy(context3.locale, "benchmarkVersion")}: ${escapeReportText(context3.benchmarkVersion ?? reportCopy(context3.locale, "notAvailable"))} | ${reportCopy(context3.locale, "logicVersion")}: ${escapeReportText(context3.logicVersion ?? reportCopy(context3.locale, "notAvailable"))}<br>
+  <span style="font-size:8px;">${reportCopy(context3.locale, "scoresAdvisory")}</span>
 </div>
 </div>
 </body>
@@ -19773,22 +19824,22 @@ function renderFiveLens(fiveLens) {
 </div>
 `;
 }
-function renderEvidenceTrace(projectId, context2) {
+function renderEvidenceTrace(projectId, context3) {
   return `
 <div class="section">
-  <h2>${reportCopy(context2.locale, "evidenceTrace")}</h2>
+  <h2>${reportCopy(context3.locale, "evidenceTrace")}</h2>
   <div class="evidence-trace">
-    ${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)}<br>
+    ${reportCopy(context3.locale, "documentId")}: ${escapeReportText(context3.documentId)}<br>
     Project ID: ${projectId}<br>
-    ${reportCopy(context2.locale, "benchmarkVersion")}: ${escapeReportText(context2.benchmarkVersion ?? reportCopy(context2.locale, "notAvailable"))}<br>
-    ${reportCopy(context2.locale, "logicVersion")}: ${escapeReportText(context2.logicVersion ?? reportCopy(context2.locale, "notAvailable"))}<br>
-    ${reportCopy(context2.locale, "modelVersion")}: ${escapeReportText(context2.modelVersion ?? reportCopy(context2.locale, "notAvailable"))}<br>
-    ${reportCopy(context2.locale, "generatedAt")}: ${escapeReportText(context2.generatedAt)}<br>
-    ${reportCopy(context2.locale, "artifactVersion")}: ${escapeReportText(context2.artifactVersion)}<br>
-    ${reportCopy(context2.locale, "rendererVersion")}: ${escapeReportText(context2.rendererVersion)}<br>
-    ${reportCopy(context2.locale, "renderInputFingerprint")}: ${escapeReportText(context2.renderInputFingerprint)}
+    ${reportCopy(context3.locale, "benchmarkVersion")}: ${escapeReportText(context3.benchmarkVersion ?? reportCopy(context3.locale, "notAvailable"))}<br>
+    ${reportCopy(context3.locale, "logicVersion")}: ${escapeReportText(context3.logicVersion ?? reportCopy(context3.locale, "notAvailable"))}<br>
+    ${reportCopy(context3.locale, "modelVersion")}: ${escapeReportText(context3.modelVersion ?? reportCopy(context3.locale, "notAvailable"))}<br>
+    ${reportCopy(context3.locale, "generatedAt")}: ${escapeReportText(context3.generatedAt)}<br>
+    ${reportCopy(context3.locale, "artifactVersion")}: ${escapeReportText(context3.artifactVersion)}<br>
+    ${reportCopy(context3.locale, "rendererVersion")}: ${escapeReportText(context3.rendererVersion)}<br>
+    ${reportCopy(context3.locale, "renderInputFingerprint")}: ${escapeReportText(context3.renderInputFingerprint)}
   </div>
-  <p style="font-size:9px; color:#666; margin-top:8px;">${reportCopy(context2.locale, "renderInputFingerprintHelp")}</p>
+  <p style="font-size:9px; color:#666; margin-top:8px;">${reportCopy(context3.locale, "renderInputFingerprintHelp")}</p>
 </div>
 `;
 }
@@ -20145,34 +20196,34 @@ function resolveReportContext(reportType, data) {
   if (data.renderContext) return data.renderContext;
   return createPdfReportRenderContext(reportType, data);
 }
-function finalizeReportHtml(html, context2) {
-  return localizeGovernedReportCopy(html, context2.locale);
+function finalizeReportHtml(html, context3) {
+  return localizeGovernedReportCopy(html, context3.locale);
 }
 function generateAutonomousBriefHTML(data) {
-  const context2 = resolveReportContext("autonomous_design_brief", data);
-  const contentHtml = `<div class="section markdown-body">${renderReportMarkdown(data.autonomousContent || reportCopy(context2.locale, "noContentGenerated"))}</div>`;
+  const context3 = resolveReportContext("autonomous_design_brief", data);
+  const contentHtml = `<div class="section markdown-body">${renderReportMarkdown(data.autonomousContent || reportCopy(context3.locale, "noContentGenerated"))}</div>`;
   return finalizeReportHtml([
-    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, context2),
+    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, context3),
     contentHtml,
-    renderEvidenceTrace(data.projectId, context2),
-    htmlFooter(context2)
-  ].join(""), context2);
+    renderEvidenceTrace(data.projectId, context3),
+    htmlFooter(context3)
+  ].join(""), context3);
 }
 function generateValidationSummaryHTML(data) {
-  const context2 = resolveReportContext("validation_summary", data);
+  const context3 = resolveReportContext("validation_summary", data);
   return finalizeReportHtml([
-    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, context2),
+    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, context3),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderRiskAssessment(data.scoreResult),
-    renderSensitivity(data.sensitivity, context2.locale),
-    renderConditionalActions(data.scoreResult, context2.locale),
+    renderSensitivity(data.sensitivity, context3.locale),
+    renderConditionalActions(data.scoreResult, context3.locale),
     data.fiveLens ? renderFiveLens(data.fiveLens) : "",
-    renderEvidenceReferences(data.evidenceRefs, context2.locale),
-    renderEvidenceTrace(data.projectId, context2),
+    renderEvidenceReferences(data.evidenceRefs, context3.locale),
+    renderEvidenceTrace(data.projectId, context3),
     renderInputSummary(data.inputs),
-    htmlFooter(context2)
-  ].join("\n"), context2);
+    htmlFooter(context3)
+  ].join("\n"), context3);
 }
 function renderDesignBrief(brief) {
   if (!brief) return "<div class='section'><p>No Design Brief data available.</p></div>";
@@ -20303,46 +20354,46 @@ ${toc}
 `;
 }
 function generateDesignBriefHTML(data) {
-  const context2 = resolveReportContext("design_brief", data);
+  const context3 = resolveReportContext("design_brief", data);
   return finalizeReportHtml([
-    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, context2),
+    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, context3),
     `<div class="content-wrapper">`,
     renderDesignBrief(data.designBrief),
-    renderBoardAnnex(data.boardAnnex, context2.locale),
-    renderEvidenceReferences(data.evidenceRefs, context2.locale),
-    renderEvidenceTrace(data.projectId, context2),
+    renderBoardAnnex(data.boardAnnex, context3.locale),
+    renderEvidenceReferences(data.evidenceRefs, context3.locale),
+    renderEvidenceTrace(data.projectId, context3),
     `</div>`,
-    htmlFooter(context2)
-  ].join(""), context2);
+    htmlFooter(context3)
+  ].join(""), context3);
 }
 function generateFullReportHTML(data) {
-  const context2 = resolveReportContext("full_report", data);
+  const context3 = resolveReportContext("full_report", data);
   const sections = [
-    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, context2),
+    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, context3),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderVariableContributions(data.scoreResult.variableContributions),
-    renderSensitivity(data.sensitivity, context2.locale),
+    renderSensitivity(data.sensitivity, context3.locale),
     renderRiskAssessment(data.scoreResult),
-    renderConditionalActions(data.scoreResult, context2.locale)
+    renderConditionalActions(data.scoreResult, context3.locale)
   ];
   if (data.fiveLens) {
     sections.push(renderFiveLens(data.fiveLens));
   }
   if (data.roiNarrative) {
-    sections.push(renderROINarrative(data.roiNarrative, context2.locale));
+    sections.push(renderROINarrative(data.roiNarrative, context3.locale));
   } else if (data.roi) {
-    sections.push(renderROI(data.roi, context2.locale));
+    sections.push(renderROI(data.roi, context3.locale));
   }
   if (data.workflowReconciliation) {
-    sections.push(renderWorkflowReconciliation(data.workflowReconciliation, context2.locale));
+    sections.push(renderWorkflowReconciliation(data.workflowReconciliation, context3.locale));
   }
-  sections.push(renderBoardAnnex(data.boardAnnex, context2.locale));
-  sections.push(renderEvidenceReferences(data.evidenceRefs, context2.locale));
-  sections.push(renderEvidenceTrace(data.projectId, context2));
+  sections.push(renderBoardAnnex(data.boardAnnex, context3.locale));
+  sections.push(renderEvidenceReferences(data.evidenceRefs, context3.locale));
+  sections.push(renderEvidenceTrace(data.projectId, context3));
   sections.push(renderInputSummary(data.inputs));
-  sections.push(htmlFooter(context2));
-  return finalizeReportHtml(sections.join("\n"), context2);
+  sections.push(htmlFooter(context3));
+  return finalizeReportHtml(sections.join("\n"), context3);
 }
 function renderScenarioComparisonTable(data) {
   const dims = ["sa", "ff", "mp", "ds", "er"];
@@ -20452,15 +20503,15 @@ function renderTradeoffAnalysis(data, locale) {
 `;
 }
 function generateScenarioComparisonHTML(data) {
-  const context2 = resolveReportContext("scenario_comparison", data);
+  const context3 = resolveReportContext("scenario_comparison", data);
   return finalizeReportHtml([
-    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, context2),
+    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, context3),
     renderScenarioComparisonTable(data),
     renderROIComparison(data),
-    renderTradeoffAnalysis(data, context2.locale),
-    renderEvidenceTrace(data.projectId, context2),
-    htmlFooter(context2)
-  ].join("\n"), context2);
+    renderTradeoffAnalysis(data, context3.locale),
+    renderEvidenceTrace(data.projectId, context3),
+    htmlFooter(context3)
+  ].join("\n"), context3);
 }
 function requireBoardAnnex(data) {
   if (!data.boardAnnex) {
@@ -20483,15 +20534,15 @@ function generateReportHTML(reportType, data) {
   }
 }
 function generatePortfolioReportHTML(data) {
-  const context2 = resolveReportContext("portfolio", data);
-  const metadata = reportDocumentMetadata(context2.locale);
+  const context3 = resolveReportContext("portfolio", data);
+  const metadata = reportDocumentMetadata(context3.locale);
   const cover = `
 <!DOCTYPE html>
 <html lang="${metadata.lang}" dir="${metadata.dir}">
 <head>
 <meta charset="utf-8">
 <style>
-  ${reportLocaleCss(context2.locale)}
+  ${reportLocaleCss(context3.locale)}
   @page { size: A4; margin: 20mm 15mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { color: #1a1a2e; line-height: 1.6; font-size: 11px; overflow-wrap: anywhere; }
@@ -20529,9 +20580,9 @@ function generatePortfolioReportHTML(data) {
   <h1>Portfolio Analysis Report</h1>
   <h2>Multi-Project Decision Intelligence Summary</h2>
   <div class="project">${dynamicText(data.portfolioName)}</div>
-  <div class="date">${formatReportDate(context2.generatedAt, context2.locale)}</div>
-  <div class="confidential">${reportCopy(context2.locale, "confidentialInternalOnly")}</div>
-  <div class="watermark">${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)}</div>
+  <div class="date">${formatReportDate(context3.generatedAt, context3.locale)}</div>
+  <div class="confidential">${reportCopy(context3.locale, "confidentialInternalOnly")}</div>
+  <div class="watermark">${reportCopy(context3.locale, "documentId")}: ${escapeReportText(context3.documentId)}</div>
 </div>
 `;
   const summary = `
@@ -20540,19 +20591,19 @@ function generatePortfolioReportHTML(data) {
   ${data.description ? `<p>${dynamicText(data.description)}</p>` : ""}
   <div class="metric-grid">
     <div class="metric-card">
-      <div class="label">${reportCopy(context2.locale, "portfolioTotalProjects")}</div>
+      <div class="label">${reportCopy(context3.locale, "portfolioTotalProjects")}</div>
       <div class="value">${data.totalProjects}</div>
     </div>
     <div class="metric-card">
-      <div class="label">${reportCopy(context2.locale, "portfolioScored")}</div>
+      <div class="label">${reportCopy(context3.locale, "portfolioScored")}</div>
       <div class="value">${data.scoredCount}</div>
     </div>
     <div class="metric-card">
-      <div class="label">${reportCopy(context2.locale, "portfolioAverageComposite")}</div>
+      <div class="label">${reportCopy(context3.locale, "portfolioAverageComposite")}</div>
       <div class="value" style="color: ${data.avgComposite >= 75 ? "#4ecdc4" : data.avgComposite >= 55 ? "#f0c674" : "#e07a5f"};">${data.avgComposite}</div>
     </div>
     <div class="metric-card">
-      <div class="label">${reportCopy(context2.locale, "portfolioAverageRisk")}</div>
+      <div class="label">${reportCopy(context3.locale, "portfolioAverageRisk")}</div>
       <div class="value" style="color: ${data.avgRisk <= 45 ? "#4ecdc4" : data.avgRisk <= 60 ? "#f0c674" : "#e07a5f"};">${data.avgRisk}</div>
     </div>
   </div>
@@ -20566,7 +20617,7 @@ function generatePortfolioReportHTML(data) {
       <td>${p.style ? dynamicText(p.style) : "\u2014"}</td>
       <td style="text-align:center; font-weight:700; color: ${(p.compositeScore || 0) >= 75 ? "#4ecdc4" : (p.compositeScore || 0) >= 55 ? "#f0c674" : "#e07a5f"};">${p.compositeScore ?? "N/A"}</td>
       <td style="text-align:center;">${p.riskScore ?? "N/A"}</td>
-      <td style="text-align:center;" class="${statusClass}">${p.decisionStatus?.toLowerCase() === "conditional" ? reportCopy(context2.locale, "portfolioConditional") : dynamicText((p.decisionStatus || "\u2014").replace(/_/g, " "))}</td>
+      <td style="text-align:center;" class="${statusClass}">${p.decisionStatus?.toLowerCase() === "conditional" ? reportCopy(context3.locale, "portfolioConditional") : dynamicText((p.decisionStatus || "\u2014").replace(/_/g, " "))}</td>
     </tr>`;
   }).join("");
   const projectTable = `
@@ -20620,9 +20671,9 @@ function generatePortfolioReportHTML(data) {
   }
   const footer = `
 <div class="footer">
-  <p>${reportCopy(context2.locale, "portfolioGeneratedBy")} \u2022 ${formatReportDate(context2.generatedAt, context2.locale)} \u2022 ${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)}</p>
-  <p>${reportCopy(context2.locale, "portfolioId")}: ${data.portfolioId} \u2022 ${reportCopy(context2.locale, "modelVersion")}: ${escapeReportText(context2.modelVersion ?? reportCopy(context2.locale, "notAvailable"))} \u2022 ${data.totalProjects} ${reportCopy(context2.locale, "portfolioProjectsAnalyzed")}</p>
-  <p>${reportCopy(context2.locale, "renderInputFingerprint")}: ${escapeReportText(context2.renderInputFingerprint)}</p>
+  <p>${reportCopy(context3.locale, "portfolioGeneratedBy")} \u2022 ${formatReportDate(context3.generatedAt, context3.locale)} \u2022 ${reportCopy(context3.locale, "documentId")}: ${escapeReportText(context3.documentId)}</p>
+  <p>${reportCopy(context3.locale, "portfolioId")}: ${data.portfolioId} \u2022 ${reportCopy(context3.locale, "modelVersion")}: ${escapeReportText(context3.modelVersion ?? reportCopy(context3.locale, "notAvailable"))} \u2022 ${data.totalProjects} ${reportCopy(context3.locale, "portfolioProjectsAnalyzed")}</p>
+  <p>${reportCopy(context3.locale, "renderInputFingerprint")}: ${escapeReportText(context3.renderInputFingerprint)}</p>
 </div>
 </body>
 </html>
@@ -20635,9 +20686,9 @@ function generatePortfolioReportHTML(data) {
     heatmapSection,
     fpSection,
     leverSection,
-    renderDisclaimer(context2.locale),
+    renderDisclaimer(context3.locale),
     footer
-  ].join("\n"), context2);
+  ].join("\n"), context3);
 }
 
 // server/engines/board-composer.ts
@@ -21322,7 +21373,7 @@ function buildWorkflowSpaceMqiReconciliation(input) {
   let pricedAllocationCount = 0;
   let unpricedAllocationCount = 0;
   let min = 0;
-  let max = 0;
+  let max2 = 0;
   for (const allocation of input.allocations) {
     const material = allocation.materialLibraryId === null ? void 0 : libraryById.get(allocation.materialLibraryId);
     const priceMin = finiteNumber(material?.priceAedMin);
@@ -21334,10 +21385,10 @@ function buildWorkflowSpaceMqiReconciliation(input) {
     const areaM2 = numberOrZero(allocation.surfaceAreaM2);
     pricedAllocationCount += 1;
     min += areaM2 * priceMin;
-    max += areaM2 * priceMax;
+    max2 += areaM2 * priceMax;
   }
   min = round2(min);
-  max = round2(max);
+  max2 = round2(max2);
   return {
     version: RECONCILIATION_VERSION,
     sourceTables: [
@@ -21381,8 +21432,8 @@ function buildWorkflowSpaceMqiReconciliation(input) {
       unpricedAllocationCount,
       allAllocationsPriced: input.allocations.length > 0 && unpricedAllocationCount === 0,
       min,
-      mid: round2((min + max) / 2),
-      max
+      mid: round2((min + max2) / 2),
+      max: max2
     }
   };
 }
@@ -22764,7 +22815,7 @@ function checkCostPressure(input) {
   );
   if (risingCosts.length === 0) return null;
   const worst = risingCosts.reduce(
-    (max, t2) => (t2.percentChange ?? 0) > (max.percentChange ?? 0) ? t2 : max
+    (max2, t2) => (t2.percentChange ?? 0) > (max2.percentChange ?? 0) ? t2 : max2
   );
   const confidenceScore = CONFIDENCE_WEIGHTS[worst.confidence] ?? 0.4;
   return {
@@ -22848,7 +22899,7 @@ function checkTrendSignal(input) {
   );
   if (significantTrends.length === 0) return null;
   const most = significantTrends.reduce(
-    (max, t2) => Math.abs(t2.percentChange ?? 0) > Math.abs(max.percentChange ?? 0) ? t2 : max
+    (max2, t2) => Math.abs(t2.percentChange ?? 0) > Math.abs(max2.percentChange ?? 0) ? t2 : max2
   );
   const confidenceScore = CONFIDENCE_WEIGHTS[most.confidence] ?? 0.4;
   return {
@@ -22903,7 +22954,7 @@ function checkStyleShift(input) {
     // Meaningful volume
   );
   if (shiftingStyles.length === 0) return null;
-  const topShift = shiftingStyles.reduce((max, s) => s.percentChange > max.percentChange ? s : max);
+  const topShift = shiftingStyles.reduce((max2, s) => s.percentChange > max2.percentChange ? s : max2);
   return {
     type: "style_shift",
     severity: topShift.percentChange > 50 ? "warning" : "info",
@@ -22926,7 +22977,7 @@ function checkBrandDominance(input) {
     (b) => b.sharePercentage > 50
   );
   if (dominantBrands.length === 0) return null;
-  const topBrand = dominantBrands.reduce((max, b) => b.sharePercentage > max.sharePercentage ? b : max);
+  const topBrand = dominantBrands.reduce((max2, b) => b.sharePercentage > max2.sharePercentage ? b : max2);
   return {
     type: "brand_dominance",
     severity: topBrand.sharePercentage > 70 ? "warning" : "info",
@@ -22948,7 +22999,7 @@ function checkSpecInflation(input) {
     (f) => f.percentChange > 10 && f.percentChange - f.categoryAvgChange > 5
   );
   if (inflatedSpecs.length === 0) return null;
-  const topInflation = inflatedSpecs.reduce((max, f) => f.percentChange > max.percentChange ? f : max);
+  const topInflation = inflatedSpecs.reduce((max2, f) => f.percentChange > max2.percentChange ? f : max2);
   return {
     type: "spec_inflation",
     severity: topInflation.percentChange > 20 ? "warning" : "info",
@@ -27411,8 +27462,8 @@ async function generateDesignBriefDocx(data) {
   const budget = data.detailedBudget ?? {};
   const instructions = data.designerInstructions ?? { phasedDeliverables: {}, authorityApprovals: [], coordinationRequirements: [], procurementAndLogistics: {} };
   const projectName = String(data.projectName ?? identity.projectName ?? "MIYAR Project");
-  const context2 = data.renderContext ?? createDesignBriefDocxRenderContext(data);
-  const watermark = context2.documentId;
+  const context3 = data.renderContext ?? createDesignBriefDocxRenderContext(data);
+  const watermark = context3.documentId;
   const sections = [];
   sections.push(
     new Paragraph({
@@ -27431,7 +27482,7 @@ async function generateDesignBriefDocx(data) {
       alignment: AlignmentType.CENTER,
       bidirectional: rtl,
       spacing: { after: 200 },
-      children: [new TextRun({ text: `${docxFixed("Version", rtl)} ${data.version} \u2014 ${formatReportDate(context2.generatedAt, locale)}`, size: 22, color: "666666", rightToLeft: rtl })]
+      children: [new TextRun({ text: `${docxFixed("Version", rtl)} ${data.version} \u2014 ${formatReportDate(context3.generatedAt, locale)}`, size: 22, color: "666666", rightToLeft: rtl })]
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -27456,14 +27507,14 @@ async function generateDesignBriefDocx(data) {
   );
   sections.push(spacer(rtl));
   sections.push(
-    labelValue(reportCopy(locale, "documentId"), context2.documentId, rtl),
-    labelValue(reportCopy(locale, "generatedAt"), context2.generatedAt, rtl),
-    labelValue(reportCopy(locale, "artifactVersion"), context2.artifactVersion, rtl),
-    labelValue(reportCopy(locale, "rendererVersion"), context2.rendererVersion, rtl),
-    labelValue(reportCopy(locale, "modelVersion"), context2.modelVersion ?? reportCopy(locale, "notAvailable"), rtl),
-    labelValue(reportCopy(locale, "benchmarkVersion"), context2.benchmarkVersion ?? reportCopy(locale, "notAvailable"), rtl),
-    labelValue(reportCopy(locale, "logicVersion"), context2.logicVersion ?? reportCopy(locale, "notAvailable"), rtl),
-    labelValue(reportCopy(locale, "renderInputFingerprint"), context2.renderInputFingerprint, rtl),
+    labelValue(reportCopy(locale, "documentId"), context3.documentId, rtl),
+    labelValue(reportCopy(locale, "generatedAt"), context3.generatedAt, rtl),
+    labelValue(reportCopy(locale, "artifactVersion"), context3.artifactVersion, rtl),
+    labelValue(reportCopy(locale, "rendererVersion"), context3.rendererVersion, rtl),
+    labelValue(reportCopy(locale, "modelVersion"), context3.modelVersion ?? reportCopy(locale, "notAvailable"), rtl),
+    labelValue(reportCopy(locale, "benchmarkVersion"), context3.benchmarkVersion ?? reportCopy(locale, "notAvailable"), rtl),
+    labelValue(reportCopy(locale, "logicVersion"), context3.logicVersion ?? reportCopy(locale, "notAvailable"), rtl),
+    labelValue(reportCopy(locale, "renderInputFingerprint"), context3.renderInputFingerprint, rtl),
     bodyText(reportCopy(locale, "renderInputFingerprintHelp"), rtl),
     spacer(rtl)
   );
@@ -29561,9 +29612,9 @@ function buildRoomPromptContext(inputs, roomName, roomType, roomSqm, boardMateri
     (m) => roomCategories.includes(m.category)
   );
   const materialsToUse = filteredMaterials.length > 0 ? filteredMaterials : boardMaterials;
-  const context2 = buildBoardAwarePromptContext(inputs, materialsToUse, brandStandardConstraints);
-  context2.typology = `${roomSqm} sqm ${roomName} in a ${inputs.ctx01Typology} unit`;
-  return context2;
+  const context3 = buildBoardAwarePromptContext(inputs, materialsToUse, brandStandardConstraints);
+  context3.typology = `${roomSqm} sqm ${roomName} in a ${inputs.ctx01Typology} unit`;
+  return context3;
 }
 function getRoomRelevantCategories(roomType) {
   switch (roomType) {
@@ -29584,38 +29635,38 @@ function getRoomRelevantCategories(roomType) {
       return ["tile", "stone", "wood", "paint", "lighting"];
   }
 }
-function interpolateTemplate(template, context2) {
+function interpolateTemplate(template, context3) {
   let result = template;
-  for (const [key, value] of Object.entries(context2)) {
+  for (const [key, value] of Object.entries(context3)) {
     if (typeof value === "string") {
       result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
     }
   }
   return result;
 }
-function generateDefaultPrompt(type, context2) {
-  const materialClause = context2.materialSpec ? `
+function generateDefaultPrompt(type, context3) {
+  const materialClause = context3.materialSpec ? `
 
 MATERIAL SPECIFICATION (use these EXACT materials in the render):
-${context2.materialSpec}` : "";
-  const carbonClause = context2.carbonGrade ? ` Sustainability grade: ${context2.carbonGrade}.` : "";
-  const brandClause = context2.brandStandard ? ` Brand standard: ${context2.brandStandard}.` : "";
+${context3.materialSpec}` : "";
+  const carbonClause = context3.carbonGrade ? ` Sustainability grade: ${context3.carbonGrade}.` : "";
+  const brandClause = context3.brandStandard ? ` Brand standard: ${context3.brandStandard}.` : "";
   switch (type) {
     case "mood":
-      return `Create a sophisticated interior design mood board for a ${context2.tier} ${context2.typology} project in ${context2.location}. Design style: ${context2.style}. Material level: ${context2.materialLevel}.${carbonClause}${brandClause} The mood board should convey the project's design direction through carefully curated images of materials, textures, colors, lighting, and spatial arrangements. Professional presentation with clean layout.${materialClause}`;
+      return `Create a sophisticated interior design mood board for a ${context3.tier} ${context3.typology} project in ${context3.location}. Design style: ${context3.style}. Material level: ${context3.materialLevel}.${carbonClause}${brandClause} The mood board should convey the project's design direction through carefully curated images of materials, textures, colors, lighting, and spatial arrangements. Professional presentation with clean layout.${materialClause}`;
     case "material_board":
-      return `Generate a detailed material and finish board for a ${context2.tier} ${context2.typology} interior. Style: ${context2.style}.${carbonClause}${brandClause} Show ${context2.materialCount || "8"} key material swatches arranged in a professional grid. Each swatch labeled with exact material name and supplier. Clean white background, architectural presentation style.${materialClause}`;
+      return `Generate a detailed material and finish board for a ${context3.tier} ${context3.typology} interior. Style: ${context3.style}.${carbonClause}${brandClause} Show ${context3.materialCount || "8"} key material swatches arranged in a professional grid. Each swatch labeled with exact material name and supplier. Clean white background, architectural presentation style.${materialClause}`;
     case "hero":
-      return `Create a photorealistic marketing hero image for a ${context2.tier} ${context2.typology} development in ${context2.location}. Show a stunning interior living space with ${context2.style} design aesthetic.${carbonClause}${brandClause} Natural light streaming through floor-to-ceiling windows. Aspirational lifestyle photography, warm color temperature, professional real estate marketing quality.${materialClause}`;
+      return `Create a photorealistic marketing hero image for a ${context3.tier} ${context3.typology} development in ${context3.location}. Show a stunning interior living space with ${context3.style} design aesthetic.${carbonClause}${brandClause} Natural light streaming through floor-to-ceiling windows. Aspirational lifestyle photography, warm color temperature, professional real estate marketing quality.${materialClause}`;
   }
 }
-function generateRoomRenderPrompt(context2, roomName, roomSqm, finishGrade) {
+function generateRoomRenderPrompt(context3, roomName, roomSqm, finishGrade) {
   const gradeLabel = finishGrade === "A" ? "premium showcase-quality" : finishGrade === "B" ? "high-quality standard" : "functional utility-grade";
-  const materialClause = context2.materialSpec ? `
+  const materialClause = context3.materialSpec ? `
 
 MATERIAL SPECIFICATION (use these EXACT materials in the render):
-${context2.materialSpec}` : "";
-  return `Create a photorealistic interior render of a ${roomSqm} sqm ${roomName} in a ${context2.tier} ${context2.typology} in ${context2.location}. Design style: ${context2.style}. Finish grade: ${gradeLabel}. This is a ${context2.tier} project \u2014 every detail must reflect the quality tier. Natural lighting, professional architectural photography quality, 8K resolution feel. Show furniture placement, material textures, and lighting design.${materialClause}`;
+${context3.materialSpec}` : "";
+  return `Create a photorealistic interior render of a ${roomSqm} sqm ${roomName} in a ${context3.tier} ${context3.typology} in ${context3.location}. Design style: ${context3.style}. Finish grade: ${gradeLabel}. This is a ${context3.tier} project \u2014 every detail must reflect the quality tier. Natural lighting, professional architectural photography quality, 8K resolution feel. Show furniture placement, material textures, and lighting design.${materialClause}`;
 }
 function validatePrompt(prompt) {
   if (prompt.length < 20) return { valid: false, reason: "Prompt too short \u2014 minimum 20 characters" };
@@ -29685,7 +29736,7 @@ var designVisualsRouter = router({
         inputs = { ...inputs, ...overrides };
       }
     }
-    let context2;
+    let context3;
     const boards = await getMaterialBoardsByProject(input.projectId);
     if (boards && boards.length > 0) {
       const activeBoard = boards[0];
@@ -29708,7 +29759,7 @@ var designVisualsRouter = router({
           });
         }
       }
-      context2 = buildBoardAwarePromptContext(
+      context3 = buildBoardAwarePromptContext(
         inputs,
         enrichedMaterials,
         project.brandStandardConstraints
@@ -29717,7 +29768,7 @@ var designVisualsRouter = router({
         `[Visual] Using board-aware context with ${enrichedMaterials.length} materials for project ${input.projectId}`
       );
     } else {
-      context2 = buildPromptContext(inputs);
+      context3 = buildPromptContext(inputs);
     }
     try {
       const allocations = await getMaterialAllocations(
@@ -29734,7 +29785,7 @@ var designVisualsRouter = router({
         }));
         const clause = buildMaterialAllocationPromptClause(mqiAllocs);
         if (clause) {
-          context2.materialSpec = (context2.materialSpec || "") + clause;
+          context3.materialSpec = (context3.materialSpec || "") + clause;
           console.log(
             `[Visual] Injected MQI allocation clause with ${mqiAllocs.length} allocations`
           );
@@ -29750,10 +29801,10 @@ var designVisualsRouter = router({
     if (input.customPrompt) {
       prompt = input.customPrompt;
     } else if (selectedTemplate) {
-      prompt = interpolateTemplate(selectedTemplate.templateText, context2);
+      prompt = interpolateTemplate(selectedTemplate.templateText, context3);
     } else {
       const tmpl = await getActivePromptTemplate(input.type, ctx.orgId);
-      prompt = tmpl ? interpolateTemplate(tmpl.templateText, context2) : generateDefaultPrompt(input.type, context2);
+      prompt = tmpl ? interpolateTemplate(tmpl.templateText, context3) : generateDefaultPrompt(input.type, context3);
     }
     const validation = validatePrompt(prompt);
     if (!validation.valid) {
@@ -29768,7 +29819,7 @@ var designVisualsRouter = router({
           projectId: input.projectId,
           scenarioId: input.scenarioId,
           type: input.type,
-          promptJson: { prompt, context: context2, templateId: input.templateId },
+          promptJson: { prompt, context: context3, templateId: input.templateId },
           status: "generating",
           createdBy: ctx.user.id
         },
@@ -29934,7 +29985,7 @@ var designVisualsRouter = router({
         }
       }
     }
-    const context2 = buildRoomPromptContext(
+    const context3 = buildRoomPromptContext(
       inputs,
       input.roomName,
       input.roomType,
@@ -29943,7 +29994,7 @@ var designVisualsRouter = router({
       project.brandStandardConstraints
     );
     const prompt = generateRoomRenderPrompt(
-      context2,
+      context3,
       input.roomName,
       input.roomSqm,
       input.finishGrade
@@ -29961,7 +30012,7 @@ var designVisualsRouter = router({
           type: "room_render",
           promptJson: {
             prompt,
-            context: context2,
+            context: context3,
             roomName: input.roomName,
             roomType: input.roomType
           },
@@ -33643,17 +33694,17 @@ var marketIntelligenceRouter = router({
       return result;
     }),
     removeReference: orgMutationProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
-      const reference = await getEvidenceReferenceById(input.id);
-      if (!reference) {
+      const reference2 = await getEvidenceReferenceById(input.id);
+      if (!reference2) {
         throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
       }
-      await requireEvidenceRecordForOrg(reference.evidenceRecordId, ctx.orgId);
+      await requireEvidenceRecordForOrg(reference2.evidenceRecordId, ctx.orgId);
       await requireEvidenceReferenceTargetForOrg(
-        reference.targetType,
-        reference.targetId,
+        reference2.targetType,
+        reference2.targetId,
         ctx.orgId
       );
-      if (!await deleteEvidenceReferenceIfMatches(input.id, reference)) {
+      if (!await deleteEvidenceReferenceIfMatches(input.id, reference2)) {
         throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
       }
       await createAuditLog({
@@ -34935,9 +34986,9 @@ function mapTrendSnapshots(trendSnaps) {
   }));
 }
 async function loadCompetitorLandscape() {
-  const database2 = await getDb();
-  if (!database2) throw new Error("Database not available");
-  const rows = await database2.select({
+  const database3 = await getDb();
+  if (!database3) throw new Error("Database not available");
+  const rows = await database3.select({
     id: competitorProjects.id,
     competitorId: competitorProjects.competitorId,
     projectName: competitorProjects.projectName,
@@ -38621,8 +38672,8 @@ init_schema();
 import { eq as eq17, desc as desc9, gte as gte2, and as and8, count } from "drizzle-orm";
 
 // server/engines/customer/health-score.ts
-function clamp2(v, min = 0, max = 100) {
-  return Math.max(min, Math.min(max, v));
+function clamp2(v, min = 0, max2 = 100) {
+  return Math.max(min, Math.min(max2, v));
 }
 function tierFromScore(score) {
   if (score >= 85) return "Thriving";
@@ -38873,8 +38924,8 @@ var SPEC_MULTIPLIER = {
   premium: 1.3,
   luxury: 1.65
 };
-function clamp3(v, min = 0, max = 100) {
-  return Math.max(min, Math.min(max, v));
+function clamp3(v, min = 0, max2 = 100) {
+  return Math.max(min, Math.min(max2, v));
 }
 function gradeFromScore(score) {
   if (score >= 90) return "A+";
@@ -39683,8 +39734,8 @@ function round22(n) {
 function round1(n) {
   return Math.round(n * 10) / 10;
 }
-function clamp4(val, min, max) {
-  return Math.max(min, Math.min(max, val));
+function clamp4(val, min, max2) {
+  return Math.max(min, Math.min(max2, val));
 }
 function computeValueAddBridge(inputs) {
   const {
@@ -41329,7 +41380,7 @@ var spaceProgramGeometryRouter = router({
       };
       adapterVersion = DXF_ADAPTER_VERSION;
     }
-    const idempotencyKey2 = importIdempotencyKey({
+    const idempotencyKey3 = importIdempotencyKey({
       organizationId: ctx.orgId,
       projectId: input.projectId,
       assetChecksum,
@@ -41358,7 +41409,7 @@ var spaceProgramGeometryRouter = router({
         adapterVersion,
         sourceObservation,
         sourceTransform: { snapTransform: input.source.snapTransform },
-        idempotencyKey: idempotencyKey2
+        idempotencyKey: idempotencyKey3
       }
     });
     if (result.kind === "not_found") {
@@ -42665,7 +42716,7 @@ async function withBriefTransaction(db, work) {
   }
   throw new BriefWorkflowError("UNAVAILABLE", "Brief transaction retry budget exhausted");
 }
-async function lockTenant(tx, context2, projectId, requireAdmin = false) {
+async function lockTenant(tx, context3, projectId, requireAdmin = false) {
   const rows = await tx.select({
     projectId: projects.id,
     orgId: projects.orgId,
@@ -42674,13 +42725,13 @@ async function lockTenant(tx, context2, projectId, requireAdmin = false) {
   }).from(projects).innerJoin(
     organizationMembers,
     and9(
-      eq19(organizationMembers.orgId, context2.organizationId),
-      eq19(organizationMembers.userId, context2.userId)
+      eq19(organizationMembers.orgId, context3.organizationId),
+      eq19(organizationMembers.userId, context3.userId)
     )
   ).where(
     and9(
       eq19(projects.id, projectId),
-      eq19(projects.orgId, context2.organizationId)
+      eq19(projects.orgId, context3.organizationId)
     )
   ).limit(1).for("update");
   if (!rows[0])
@@ -42701,11 +42752,11 @@ function normalizeBriefProfile(value) {
   if (normalized.includes("retail")) return "retail";
   return "apartment";
 }
-async function lockStream(tx, context2, projectId, streamId) {
-  await lockTenant(tx, context2, projectId);
+async function lockStream(tx, context3, projectId, streamId) {
+  await lockTenant(tx, context3, projectId);
   const rows = await tx.select().from(briefStreams).where(
     and9(
-      eq19(briefStreams.organizationId, context2.organizationId),
+      eq19(briefStreams.organizationId, context3.organizationId),
       eq19(briefStreams.projectId, projectId),
       eq19(briefStreams.id, streamId)
     )
@@ -42714,12 +42765,12 @@ async function lockStream(tx, context2, projectId, streamId) {
     throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
   return rows[0];
 }
-async function activeRole(tx, context2, streamId, role, sectionId) {
+async function activeRole(tx, context3, streamId, role, sectionId) {
   const rows = await tx.select().from(briefRoleEvents).where(
     and9(
-      eq19(briefRoleEvents.organizationId, context2.organizationId),
+      eq19(briefRoleEvents.organizationId, context3.organizationId),
       eq19(briefRoleEvents.streamId, streamId),
-      eq19(briefRoleEvents.subjectUserId, context2.userId),
+      eq19(briefRoleEvents.subjectUserId, context3.userId),
       sql9`${briefRoleEvents.role}=${role}`,
       sectionId ? sql9`(${briefRoleEvents.sectionId} is null or ${briefRoleEvents.sectionId}=${sectionId})` : sql9`1=1`
     )
@@ -42769,14 +42820,14 @@ async function allocateEvents(tx, stream, operationId, actor, versionId, events)
       }))
     );
 }
-async function createBriefStream(input, context2) {
-  if (context2.actorType && context2.actorType !== "human")
+async function createBriefStream(input, context3) {
+  if (context3.actorType && context3.actorType !== "human")
     throw new BriefWorkflowError("FORBIDDEN", "A human organization administrator is required");
   const projectId = positive(input.projectId, "projectId");
   const requestHash = hashBriefRequest(input);
   const db = await database();
   return withBriefTransaction(db, async (tx) => {
-    const tenant = await lockTenant(tx, context2, projectId, true);
+    const tenant = await lockTenant(tx, context3, projectId, true);
     if (input.scope?.type === "scenario") {
       const scenarioId = positive(input.scope.scenarioId, "scenarioId");
       const found = await tx.select({ id: scenarios.id }).from(scenarios).where(
@@ -42787,9 +42838,9 @@ async function createBriefStream(input, context2) {
     }
     const existing = await tx.select().from(briefOperations).where(
       and9(
-        eq19(briefOperations.organizationId, context2.organizationId),
+        eq19(briefOperations.organizationId, context3.organizationId),
         eq19(briefOperations.projectId, projectId),
-        eq19(briefOperations.actorUserId, context2.userId),
+        eq19(briefOperations.actorUserId, context3.userId),
         eq19(briefOperations.operation, "createStream"),
         eq19(briefOperations.idempotencyKey, input.idempotencyKey)
       )
@@ -42804,9 +42855,9 @@ async function createBriefStream(input, context2) {
       throw new BriefWorkflowError("CONFLICT", "Operation already in progress");
     }
     const opInsert = await tx.insert(briefOperations).values({
-      organizationId: context2.organizationId,
+      organizationId: context3.organizationId,
       projectId,
-      actorUserId: context2.userId,
+      actorUserId: context3.userId,
       operation: "createStream",
       idempotencyKey: input.idempotencyKey,
       requestHash
@@ -42814,7 +42865,7 @@ async function createBriefStream(input, context2) {
     const operationId = Number(opInsert[0].insertId);
     const scopeKey = input.scope?.type === "scenario" ? `scenario:${positive(input.scope.scenarioId, "scenarioId")}` : "project";
     const streamInsert = await tx.insert(briefStreams).values({
-      organizationId: context2.organizationId,
+      organizationId: context3.organizationId,
       projectId,
       scopeType: input.scope?.type ?? "project",
       scenarioId: input.scope?.type === "scenario" ? input.scope.scenarioId : null,
@@ -42823,11 +42874,11 @@ async function createBriefStream(input, context2) {
       typologyProfileVersion: `${input.profile ?? normalizeBriefProfile(tenant.typology)}:${input.typologyProfileVersion}`,
       revision: 1,
       nextEventSequence: 1,
-      createdBy: context2.userId
+      createdBy: context3.userId
     });
     const streamId = Number(streamInsert[0].insertId);
     const versionInsert = await tx.insert(briefVersions).values({
-      organizationId: context2.organizationId,
+      organizationId: context3.organizationId,
       projectId,
       streamId,
       versionNumber: 1,
@@ -42835,12 +42886,12 @@ async function createBriefStream(input, context2) {
       requirementProfileVersion: input.typologyProfileVersion,
       componentScope: input.componentIds ?? [],
       revision: 0,
-      createdBy: context2.userId
+      createdBy: context3.userId
     });
     const versionId = Number(versionInsert[0].insertId);
     await tx.insert(briefVersionSections).values(
       BRIEF_SECTION_IDS2.map((sectionId) => ({
-        organizationId: context2.organizationId,
+        organizationId: context3.organizationId,
         projectId,
         streamId,
         versionId,
@@ -42855,12 +42906,12 @@ async function createBriefStream(input, context2) {
     );
     if (input.initialAssignments?.length) {
       const assigneeIds = Array.from(new Set(input.initialAssignments.map((a) => positive(a.userId, "assignment userId"))));
-      const members = await tx.select({ userId: organizationMembers.userId }).from(organizationMembers).where(and9(eq19(organizationMembers.orgId, context2.organizationId), inArray4(organizationMembers.userId, assigneeIds))).for("update");
+      const members = await tx.select({ userId: organizationMembers.userId }).from(organizationMembers).where(and9(eq19(organizationMembers.orgId, context3.organizationId), inArray4(organizationMembers.userId, assigneeIds))).for("update");
       if (members.length !== assigneeIds.length)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       await tx.insert(briefRoleEvents).values(
         input.initialAssignments.map((a, index2) => ({
-          organizationId: context2.organizationId,
+          organizationId: context3.organizationId,
           projectId,
           streamId,
           versionId: null,
@@ -42868,14 +42919,14 @@ async function createBriefStream(input, context2) {
           subjectUserId: positive(a.userId, "assignment userId"),
           role: a.role,
           action: "granted",
-          actorUserId: context2.userId,
+          actorUserId: context3.userId,
           reason: "Initial stream assignment",
           streamSequence: 3 + index2
         }))
       );
     }
     const stream = { id: streamId, projectId, nextEventSequence: 1 };
-    await allocateEvents(tx, stream, operationId, context2, versionId, [
+    await allocateEvents(tx, stream, operationId, context3, versionId, [
       { type: "stream_created", payload: { scopeKey } },
       { type: "version_created", payload: { versionNumber: 1 } },
       ...(input.initialAssignments ?? []).map((a) => ({
@@ -42910,9 +42961,9 @@ async function createBriefStream(input, context2) {
     return value;
   });
 }
-async function executeBriefCommand(operation, input, context2) {
+async function executeBriefCommand(operation, input, context3) {
   if (operation === "createStream" || operation === "brief.createStream")
-    return createBriefStream(input, context2);
+    return createBriefStream(input, context3);
   if (operation.endsWith("reviseSection")) {
     if (input.contentSchemaVersion !== BRIEF_SECTION_CONTENT_SCHEMA_VERSION) {
       throw new BriefWorkflowError("INVALID", "New section revisions require the BR-04-v1 structured content contract");
@@ -42933,12 +42984,12 @@ async function executeBriefCommand(operation, input, context2) {
   }
   const projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId"), db = await database(), requestHash = hashBriefRequest(input);
   return withBriefTransaction(db, async (tx) => {
-    const stream = await lockStream(tx, context2, projectId, streamId);
+    const stream = await lockStream(tx, context3, projectId, streamId);
     const previous = await tx.select().from(briefOperations).where(
       and9(
-        eq19(briefOperations.organizationId, context2.organizationId),
+        eq19(briefOperations.organizationId, context3.organizationId),
         eq19(briefOperations.projectId, projectId),
-        eq19(briefOperations.actorUserId, context2.userId),
+        eq19(briefOperations.actorUserId, context3.userId),
         eq19(briefOperations.operation, operation),
         eq19(briefOperations.idempotencyKey, input.idempotencyKey)
       )
@@ -42954,7 +43005,7 @@ async function executeBriefCommand(operation, input, context2) {
     }
     if (Number(input.expectedRevision) !== stream.revision)
       throw new BriefWorkflowError("CONFLICT", "Stale stream revision");
-    if ((context2.actorType === "ai" || context2.actorType === "system") && !["reviseSection", "markDependencyChanged"].some(
+    if ((context3.actorType === "ai" || context3.actorType === "system") && !["reviseSection", "markDependencyChanged"].some(
       (x) => operation.endsWith(x)
     ))
       throw new BriefWorkflowError(
@@ -42962,10 +43013,10 @@ async function executeBriefCommand(operation, input, context2) {
         "Non-human principals cannot perform governance actions"
       );
     const op = await tx.insert(briefOperations).values({
-      organizationId: context2.organizationId,
+      organizationId: context3.organizationId,
       projectId,
       streamId,
-      actorUserId: context2.userId,
+      actorUserId: context3.userId,
       operation,
       idempotencyKey: input.idempotencyKey,
       requestHash
@@ -42974,7 +43025,7 @@ async function executeBriefCommand(operation, input, context2) {
     const versionId = input.versionId ? positive(input.versionId, "versionId") : Number(
       (await tx.select({ id: briefVersions.id }).from(briefVersions).where(
         and9(
-          eq19(briefVersions.organizationId, context2.organizationId),
+          eq19(briefVersions.organizationId, context3.organizationId),
           eq19(briefVersions.streamId, streamId)
         )
       ).orderBy(desc11(briefVersions.versionNumber)).limit(1).for("update"))[0]?.id
@@ -42983,7 +43034,7 @@ async function executeBriefCommand(operation, input, context2) {
       throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
     const versionRows = await tx.select().from(briefVersions).where(
       and9(
-        eq19(briefVersions.organizationId, context2.organizationId),
+        eq19(briefVersions.organizationId, context3.organizationId),
         eq19(briefVersions.projectId, projectId),
         eq19(briefVersions.streamId, streamId),
         eq19(briefVersions.id, versionId)
@@ -43012,8 +43063,8 @@ async function executeBriefCommand(operation, input, context2) {
     let entityId;
     let eventType = operation.replace(/^brief\./, "").replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
     if (operation.endsWith("reviseSection")) {
-      await activeRole(tx, context2, streamId, "author", sectionId).catch(
-        () => activeRole(tx, context2, streamId, "section_owner", sectionId)
+      await activeRole(tx, context3, streamId, "author", sectionId).catch(
+        () => activeRole(tx, context3, streamId, "section_owner", sectionId)
       );
       const fp = hashBriefRequest({
         content: input.content,
@@ -43021,14 +43072,14 @@ async function executeBriefCommand(operation, input, context2) {
         dependencies: input.dependencies ?? []
       });
       const inserted = await tx.insert(briefSectionRevisions).values({
-        organizationId: context2.organizationId,
+        organizationId: context3.organizationId,
         projectId,
         scopeKey: stream.scopeKey,
         sectionId,
         content: input.content,
         origin: input.origin,
-        authorUserId: context2.actorType === "ai" ? null : context2.userId,
-        actorType: context2.actorType ?? "human",
+        authorUserId: context3.actorType === "ai" ? null : context3.userId,
+        actorType: context3.actorType ?? "human",
         contentSchemaVersion: input.contentSchemaVersion,
         revisionFingerprint: fp,
         lineageFingerprint: hashBriefRequest(input.dependencies ?? [])
@@ -43036,7 +43087,7 @@ async function executeBriefCommand(operation, input, context2) {
       entityId = Number(inserted[0].insertId);
       const currentBinding = (await tx.select().from(briefVersionSections).where(
         and9(
-          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.organizationId, context3.organizationId),
           eq19(briefVersionSections.projectId, projectId),
           eq19(briefVersionSections.versionId, versionId),
           eq19(briefVersionSections.sectionId, sectionId)
@@ -43053,7 +43104,7 @@ async function executeBriefCommand(operation, input, context2) {
         revision: sql9`${briefVersionSections.revision}+1`
       }).where(
         and9(
-          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.organizationId, context3.organizationId),
           eq19(briefVersionSections.projectId, projectId),
           eq19(briefVersionSections.versionId, versionId),
           eq19(briefVersionSections.sectionId, sectionId)
@@ -43069,7 +43120,7 @@ async function executeBriefCommand(operation, input, context2) {
             "Dependencies require an exact version and fingerprint"
           );
         await tx.insert(briefDependencies).values({
-          organizationId: context2.organizationId,
+          organizationId: context3.organizationId,
           projectId,
           streamId,
           versionId,
@@ -43086,10 +43137,10 @@ async function executeBriefCommand(operation, input, context2) {
       }
     } else if (operation.endsWith("submitEvidence") || operation.endsWith("acceptReview") || operation.endsWith("approveSection")) {
       const role = operation.endsWith("submitEvidence") ? "section_owner" : operation.endsWith("acceptReview") ? "reviewer" : "approver";
-      await activeRole(tx, context2, streamId, role, sectionId);
+      await activeRole(tx, context3, streamId, role, sectionId);
       const binding = (await tx.select().from(briefVersionSections).where(
         and9(
-          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.organizationId, context3.organizationId),
           eq19(briefVersionSections.versionId, versionId),
           eq19(briefVersionSections.sectionId, sectionId)
         )
@@ -43099,7 +43150,7 @@ async function executeBriefCommand(operation, input, context2) {
       if (positive(input.revisionId, "revisionId") !== binding.sectionRevisionId)
         throw new BriefWorkflowError("CONFLICT", "Command targets a stale section revision");
       const revision = (await tx.select().from(briefSectionRevisions).where(eq19(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
-      if (revision?.authorUserId === context2.userId && role !== "section_owner")
+      if (revision?.authorUserId === context3.userId && role !== "section_owner")
         throw new BriefWorkflowError(
           "FORBIDDEN",
           "Authors cannot review or approve their revision"
@@ -43109,7 +43160,7 @@ async function executeBriefCommand(operation, input, context2) {
         throw new BriefWorkflowError("INVALID", `Section must be ${expected}`);
       if (role === "reviewer") {
         const blocking = await tx.select({ id: briefFindings.id }).from(briefFindings).where(and9(
-          eq19(briefFindings.organizationId, context2.organizationId),
+          eq19(briefFindings.organizationId, context3.organizationId),
           eq19(briefFindings.projectId, projectId),
           eq19(briefFindings.streamId, streamId),
           eq19(briefFindings.versionId, versionId),
@@ -43118,7 +43169,7 @@ async function executeBriefCommand(operation, input, context2) {
           eq19(briefFindings.severity, "blocking")
         )).for("update");
         const resolutionRows = blocking.length ? await tx.select().from(briefFindingResolutions).where(and9(
-          eq19(briefFindingResolutions.organizationId, context2.organizationId),
+          eq19(briefFindingResolutions.organizationId, context3.organizationId),
           eq19(briefFindingResolutions.projectId, projectId),
           eq19(briefFindingResolutions.streamId, streamId),
           inArray4(briefFindingResolutions.findingId, blocking.map((f) => f.id))
@@ -43128,7 +43179,7 @@ async function executeBriefCommand(operation, input, context2) {
       }
       if (role === "approver") {
         const conditionRows = await tx.select().from(briefConditionEvents).where(and9(
-          eq19(briefConditionEvents.organizationId, context2.organizationId),
+          eq19(briefConditionEvents.organizationId, context3.organizationId),
           eq19(briefConditionEvents.projectId, projectId),
           eq19(briefConditionEvents.streamId, streamId),
           eq19(briefConditionEvents.versionId, versionId),
@@ -43148,7 +43199,7 @@ async function executeBriefCommand(operation, input, context2) {
           );
         const available = await tx.select({ id: briefDependencies.id }).from(briefDependencies).where(
           and9(
-            eq19(briefDependencies.organizationId, context2.organizationId),
+            eq19(briefDependencies.organizationId, context3.organizationId),
             eq19(briefDependencies.projectId, projectId),
             eq19(briefDependencies.bindingId, binding.id),
             eq19(briefDependencies.sectionRevisionId, binding.sectionRevisionId)
@@ -43161,13 +43212,13 @@ async function executeBriefCommand(operation, input, context2) {
       }
       if (role === "approver") {
         const a = await tx.insert(briefApprovals).values({
-          organizationId: context2.organizationId,
+          organizationId: context3.organizationId,
           projectId,
           streamId,
           versionId,
           bindingId: binding.id,
           sectionRevisionId: binding.sectionRevisionId,
-          approverUserId: context2.userId,
+          approverUserId: context3.userId,
           decision: "approved",
           issuePurpose: stream.issuePurpose,
           rationale: input.rationale ?? "",
@@ -43181,8 +43232,8 @@ async function executeBriefCommand(operation, input, context2) {
         revision: sql9`${briefVersionSections.revision}+1`
       }).where(eq19(briefVersionSections.id, binding.id));
     } else if (operation.endsWith("createVersion")) {
-      await activeRole(tx, context2, streamId, "author").catch(
-        () => activeRole(tx, context2, streamId, "section_owner")
+      await activeRole(tx, context3, streamId, "author").catch(
+        () => activeRole(tx, context3, streamId, "section_owner")
       );
       const predecessorId = positive(
         input.predecessorVersionId,
@@ -43190,7 +43241,7 @@ async function executeBriefCommand(operation, input, context2) {
       );
       const predecessor = (await tx.select().from(briefVersions).where(
         and9(
-          eq19(briefVersions.organizationId, context2.organizationId),
+          eq19(briefVersions.organizationId, context3.organizationId),
           eq19(briefVersions.streamId, streamId),
           eq19(briefVersions.id, predecessorId)
         )
@@ -43199,13 +43250,13 @@ async function executeBriefCommand(operation, input, context2) {
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const latest = (await tx.select({ n: sql9`max(${briefVersions.versionNumber})` }).from(briefVersions).where(
         and9(
-          eq19(briefVersions.organizationId, context2.organizationId),
+          eq19(briefVersions.organizationId, context3.organizationId),
           eq19(briefVersions.streamId, streamId)
         )
       ))[0];
       const n = Number(latest?.n ?? 0) + 1;
       const ins = await tx.insert(briefVersions).values({
-        organizationId: context2.organizationId,
+        organizationId: context3.organizationId,
         projectId,
         streamId,
         versionNumber: n,
@@ -43214,19 +43265,19 @@ async function executeBriefCommand(operation, input, context2) {
         requirementProfileVersion: predecessor.requirementProfileVersion,
         componentScope: predecessor.componentScope,
         revision: 0,
-        createdBy: context2.userId
+        createdBy: context3.userId
       });
       entityId = Number(ins[0].insertId);
       const old = await tx.select().from(briefVersionSections).where(
         and9(
-          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.organizationId, context3.organizationId),
           eq19(briefVersionSections.versionId, predecessorId)
         )
       ).orderBy(asc2(briefVersionSections.id));
       const carry = new Set(input.carryForwardSections ?? []);
       await tx.insert(briefVersionSections).values(
         old.map((b) => ({
-          organizationId: context2.organizationId,
+          organizationId: context3.organizationId,
           projectId,
           streamId,
           versionId: entityId,
@@ -43242,12 +43293,12 @@ async function executeBriefCommand(operation, input, context2) {
       );
       eventType = "version_created";
     } else if (operation.endsWith("assignRole") || operation.endsWith("revokeRole")) {
-      await lockTenant(tx, context2, projectId, true);
+      await lockTenant(tx, context3, projectId, true);
       const revoke = operation.endsWith("revokeRole");
       const requestedSubject = input.userId ?? input.subjectUserId;
       const subject = revoke ? null : positive(requestedSubject, "subjectUserId");
       const targetGrant = revoke ? (await tx.select().from(briefRoleEvents).where(and9(
-        eq19(briefRoleEvents.organizationId, context2.organizationId),
+        eq19(briefRoleEvents.organizationId, context3.organizationId),
         eq19(briefRoleEvents.projectId, projectId),
         eq19(briefRoleEvents.streamId, streamId),
         eq19(briefRoleEvents.id, positive(input.grantEventId ?? input.targetGrantEventId, "grantEventId")),
@@ -43256,14 +43307,14 @@ async function executeBriefCommand(operation, input, context2) {
       if (revoke && !targetGrant) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const member = (await tx.select().from(organizationMembers).where(
         and9(
-          eq19(organizationMembers.orgId, context2.organizationId),
+          eq19(organizationMembers.orgId, context3.organizationId),
           eq19(organizationMembers.userId, revoke ? targetGrant.subjectUserId : subject)
         )
       ).limit(1).for("update"))[0];
       if (!member)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const ins = await tx.insert(briefRoleEvents).values({
-        organizationId: context2.organizationId,
+        organizationId: context3.organizationId,
         projectId,
         streamId,
         versionId: input.assignmentVersionId ? positive(input.assignmentVersionId, "assignmentVersionId") : null,
@@ -43275,17 +43326,17 @@ async function executeBriefCommand(operation, input, context2) {
           input.grantEventId ?? input.targetGrantEventId,
           "grantEventId"
         ) : null,
-        actorUserId: context2.userId,
+        actorUserId: context3.userId,
         reason: input.reason ?? input.rationale ?? "",
         streamSequence: Number(stream.nextEventSequence)
       });
       entityId = Number(ins[0].insertId);
       eventType = revoke ? "role_revoked" : "role_assigned";
     } else if (operation.endsWith("recordFinding")) {
-      await activeRole(tx, context2, streamId, "reviewer", sectionId);
+      await activeRole(tx, context3, streamId, "reviewer", sectionId);
       const binding = (await tx.select().from(briefVersionSections).where(
         and9(
-          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.organizationId, context3.organizationId),
           eq19(briefVersionSections.versionId, versionId),
           eq19(briefVersionSections.sectionId, sectionId)
         )
@@ -43298,19 +43349,19 @@ async function executeBriefCommand(operation, input, context2) {
       if (positive(input.revisionId, "revisionId") !== binding.sectionRevisionId)
         throw new BriefWorkflowError("CONFLICT", "Finding targets a stale section revision");
       const rev = (await tx.select().from(briefSectionRevisions).where(eq19(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
-      if (rev?.authorUserId === context2.userId)
+      if (rev?.authorUserId === context3.userId)
         throw new BriefWorkflowError(
           "FORBIDDEN",
           "Authors cannot review their revision"
         );
       const ins = await tx.insert(briefFindings).values({
-        organizationId: context2.organizationId,
+        organizationId: context3.organizationId,
         projectId,
         streamId,
         versionId,
         bindingId: binding.id,
         sectionRevisionId: binding.sectionRevisionId,
-        reviewerUserId: context2.userId,
+        reviewerUserId: context3.userId,
         severity: input.severity,
         ownerUserId: positive(input.ownerUserId, "ownerUserId"),
         statement: input.statement,
@@ -43322,7 +43373,7 @@ async function executeBriefCommand(operation, input, context2) {
       const findingId = positive(input.findingId, "findingId");
       const finding = (await tx.select().from(briefFindings).where(
         and9(
-          eq19(briefFindings.organizationId, context2.organizationId),
+          eq19(briefFindings.organizationId, context3.organizationId),
           eq19(briefFindings.projectId, projectId),
           eq19(briefFindings.streamId, streamId),
           eq19(briefFindings.versionId, versionId),
@@ -43333,8 +43384,8 @@ async function executeBriefCommand(operation, input, context2) {
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const accept = operation.endsWith("acceptFindingResolution");
       if (accept)
-        await activeRole(tx, context2, streamId, "reviewer", sectionId);
-      else if (finding.ownerUserId !== context2.userId)
+        await activeRole(tx, context3, streamId, "reviewer", sectionId);
+      else if (finding.ownerUserId !== context3.userId)
         throw new BriefWorkflowError("FORBIDDEN", "Finding owner required");
       const target = accept ? positive(
         input.resolutionSubmissionEventId ?? input.resolutionId ?? input.targetSubmissionId,
@@ -43344,7 +43395,7 @@ async function executeBriefCommand(operation, input, context2) {
       if (!accept) {
         resolutionRevisionId = positive(input.resolutionRevisionId, "resolutionRevisionId");
         const resolutionRevision = (await tx.select({ id: briefSectionRevisions.id }).from(briefSectionRevisions).where(and9(
-          eq19(briefSectionRevisions.organizationId, context2.organizationId),
+          eq19(briefSectionRevisions.organizationId, context3.organizationId),
           eq19(briefSectionRevisions.projectId, projectId),
           eq19(briefSectionRevisions.id, resolutionRevisionId),
           eq19(briefSectionRevisions.sectionId, sectionId ?? (await tx.select({ sectionId: briefVersionSections.sectionId }).from(briefVersionSections).where(eq19(briefVersionSections.id, finding.bindingId)).limit(1))[0]?.sectionId)
@@ -43356,7 +43407,7 @@ async function executeBriefCommand(operation, input, context2) {
           and9(
             eq19(
               briefFindingResolutions.organizationId,
-              context2.organizationId
+              context3.organizationId
             ),
             eq19(briefFindingResolutions.projectId, projectId),
             eq19(briefFindingResolutions.streamId, streamId),
@@ -43365,7 +43416,7 @@ async function executeBriefCommand(operation, input, context2) {
         ).limit(1).for("update"))[0];
         if (!submission || submission.findingId !== findingId)
           throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
-        if (submission.submitterUserId === context2.userId)
+        if (submission.submitterUserId === context3.userId)
           throw new BriefWorkflowError(
             "FORBIDDEN",
             "Reviewers cannot accept their own resolution"
@@ -43373,7 +43424,7 @@ async function executeBriefCommand(operation, input, context2) {
         resolutionRevisionId = submission.sectionRevisionId;
       }
       const ins = await tx.insert(briefFindingResolutions).values({
-        organizationId: context2.organizationId,
+        organizationId: context3.organizationId,
         projectId,
         streamId,
         findingId,
@@ -43382,8 +43433,8 @@ async function executeBriefCommand(operation, input, context2) {
         submitterUserId: accept ? positive(
           input.submitterUserId ?? finding.ownerUserId,
           "submitterUserId"
-        ) : context2.userId,
-        actorUserId: context2.userId,
+        ) : context3.userId,
+        actorUserId: context3.userId,
         targetSubmissionId: target,
         evidence: input.evidence ?? {},
         streamSequence: Number(stream.nextEventSequence)
@@ -43395,10 +43446,10 @@ async function executeBriefCommand(operation, input, context2) {
       const stage = normalizeApplicabilityStage(rawAction);
       if (!stage) throw new BriefWorkflowError("INVALID", "Invalid applicability action");
       const role = stage === "reviewed" ? "reviewer" : stage === "approved" || stage === "withdrawn" ? "approver" : "section_owner";
-      await activeRole(tx, context2, streamId, role, sectionId);
+      await activeRole(tx, context3, streamId, role, sectionId);
       const binding = (await tx.select().from(briefVersionSections).where(
         and9(
-          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.organizationId, context3.organizationId),
           eq19(briefVersionSections.versionId, versionId),
           eq19(briefVersionSections.sectionId, sectionId)
         )
@@ -43418,7 +43469,7 @@ async function executeBriefCommand(operation, input, context2) {
         and9(
           eq19(
             briefApplicabilityEvents.organizationId,
-            context2.organizationId
+            context3.organizationId
           ),
           eq19(briefApplicabilityEvents.projectId, projectId),
           eq19(briefApplicabilityEvents.streamId, streamId),
@@ -43428,7 +43479,7 @@ async function executeBriefCommand(operation, input, context2) {
           eq19(briefApplicabilityEvents.id, target)
         )
       ).limit(1).for("update"))[0] : null;
-      if (stage !== "proposed" && (!prior || prior.actorUserId === context2.userId))
+      if (stage !== "proposed" && (!prior || prior.actorUserId === context3.userId))
         throw new BriefWorkflowError(
           "FORBIDDEN",
           "Applicability stages require independent actors"
@@ -43442,18 +43493,18 @@ async function executeBriefCommand(operation, input, context2) {
           throw new BriefWorkflowError("INVALID", "Applicability approval must target the review");
         if (!prior.targetEventId) throw new BriefWorkflowError("INVALID", "Applicability review lacks its proposal target");
         const proposal = (await tx.select().from(briefApplicabilityEvents).where(and9(
-          eq19(briefApplicabilityEvents.organizationId, context2.organizationId),
+          eq19(briefApplicabilityEvents.organizationId, context3.organizationId),
           eq19(briefApplicabilityEvents.projectId, projectId),
           eq19(briefApplicabilityEvents.streamId, streamId),
           eq19(briefApplicabilityEvents.versionId, versionId),
           eq19(briefApplicabilityEvents.bindingId, binding.id),
           eq19(briefApplicabilityEvents.id, prior.targetEventId)
         )).limit(1).for("update"))[0];
-        if (!proposal || proposal.stage !== "proposed" || proposal.actorUserId === context2.userId || proposal.actorUserId === prior.actorUserId)
+        if (!proposal || proposal.stage !== "proposed" || proposal.actorUserId === context3.userId || proposal.actorUserId === prior.actorUserId)
           throw new BriefWorkflowError("FORBIDDEN", "Applicability requires three independent actors");
       }
       const ins = await tx.insert(briefApplicabilityEvents).values({
-        organizationId: context2.organizationId,
+        organizationId: context3.organizationId,
         projectId,
         streamId,
         versionId,
@@ -43461,7 +43512,7 @@ async function executeBriefCommand(operation, input, context2) {
         classificationFingerprint: binding.classificationFingerprint,
         stage,
         targetEventId: target,
-        actorUserId: context2.userId,
+        actorUserId: context3.userId,
         rationale: input.rationale,
         inputs: input.evidence ?? input.inputs ?? {},
         streamSequence: Number(stream.nextEventSequence)
@@ -43480,10 +43531,10 @@ async function executeBriefCommand(operation, input, context2) {
       const resolving = !operation.endsWith("raiseCondition") && !operation.endsWith("markDependencyChanged");
       const accepting = operation.endsWith("acceptConditionResolution");
       if (operation.endsWith("markDependencyChanged")) {
-        if (context2.actorType !== "system" || !input.sourceAuthority)
+        if (context3.actorType !== "system" || !input.sourceAuthority)
           throw new BriefWorkflowError("FORBIDDEN", "Typed system source authority required");
       } else if (operation.endsWith("raiseCondition")) {
-        await activeRole(tx, context2, streamId, "section_owner", sectionId).catch(() => activeRole(tx, context2, streamId, "reviewer", sectionId)).catch(() => activeRole(tx, context2, streamId, "approver", sectionId));
+        await activeRole(tx, context3, streamId, "section_owner", sectionId).catch(() => activeRole(tx, context3, streamId, "reviewer", sectionId)).catch(() => activeRole(tx, context3, streamId, "approver", sectionId));
       }
       const conditionId = resolving ? positive(input.conditionId, "conditionId") : null;
       const submissionId = accepting ? positive(input.resolutionSubmissionEventId, "resolutionSubmissionEventId") : null;
@@ -43492,7 +43543,7 @@ async function executeBriefCommand(operation, input, context2) {
       if (conditionId)
         original = (await tx.select().from(briefConditionEvents).where(
           and9(
-            eq19(briefConditionEvents.organizationId, context2.organizationId),
+            eq19(briefConditionEvents.organizationId, context3.organizationId),
             eq19(briefConditionEvents.projectId, projectId),
             eq19(briefConditionEvents.streamId, streamId),
             eq19(briefConditionEvents.versionId, versionId),
@@ -43505,7 +43556,7 @@ async function executeBriefCommand(operation, input, context2) {
         throw new BriefWorkflowError("INVALID", "Condition resolution must target a raised condition");
       if (accepting) {
         const submission = (await tx.select().from(briefConditionEvents).where(and9(
-          eq19(briefConditionEvents.organizationId, context2.organizationId),
+          eq19(briefConditionEvents.organizationId, context3.organizationId),
           eq19(briefConditionEvents.projectId, projectId),
           eq19(briefConditionEvents.streamId, streamId),
           eq19(briefConditionEvents.versionId, versionId),
@@ -43516,24 +43567,24 @@ async function executeBriefCommand(operation, input, context2) {
           throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
         await activeRole(
           tx,
-          context2,
+          context3,
           streamId,
           original.gate === "approval_issue" ? "approver" : "reviewer",
           sectionId
         );
-        if (submission.actorUserId === context2.userId || original.ownerUserId === context2.userId)
+        if (submission.actorUserId === context3.userId || original.ownerUserId === context3.userId)
           throw new BriefWorkflowError(
             "FORBIDDEN",
             "Condition acceptance must be independent"
           );
-      } else if (resolving && original.ownerUserId !== context2.userId)
+      } else if (resolving && original.ownerUserId !== context3.userId)
         throw new BriefWorkflowError("FORBIDDEN", "Condition owner required");
       const bindingId = original?.bindingId ?? Number(
         (await tx.select({ id: briefVersionSections.id }).from(briefVersionSections).where(
           and9(
             eq19(
               briefVersionSections.organizationId,
-              context2.organizationId
+              context3.organizationId
             ),
             eq19(briefVersionSections.versionId, versionId),
             eq19(briefVersionSections.sectionId, sectionId)
@@ -43543,7 +43594,7 @@ async function executeBriefCommand(operation, input, context2) {
       if (!bindingId)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const ins = await tx.insert(briefConditionEvents).values({
-        organizationId: context2.organizationId,
+        organizationId: context3.organizationId,
         projectId,
         streamId,
         versionId,
@@ -43556,21 +43607,21 @@ async function executeBriefCommand(operation, input, context2) {
         targetEventId: target,
         dependencyId: input.dependencyId ?? original?.dependencyId ?? null,
         ownerUserId: original?.ownerUserId ?? positive(input.ownerUserId, "ownerUserId"),
-        actorUserId: context2.userId,
+        actorUserId: context3.userId,
         evidence: input.evidence ?? {},
         streamSequence: Number(stream.nextEventSequence)
       });
       entityId = Number(ins[0].insertId);
       eventType = accepting ? "condition_resolution_accepted" : resolving ? "condition_resolution_submitted" : "condition_raised";
     } else if (operation.endsWith("withdrawApproval")) {
-      await activeRole(tx, context2, streamId, "approver", sectionId);
+      await activeRole(tx, context3, streamId, "approver", sectionId);
       const approvalId = positive(
         input.approvalEventId ?? input.approvalId,
         "approvalEventId"
       );
       const approval = (await tx.select().from(briefApprovals).where(
         and9(
-          eq19(briefApprovals.organizationId, context2.organizationId),
+          eq19(briefApprovals.organizationId, context3.organizationId),
           eq19(briefApprovals.streamId, streamId),
           eq19(briefApprovals.id, approvalId)
         )
@@ -43578,7 +43629,7 @@ async function executeBriefCommand(operation, input, context2) {
       if (!approval)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const priorWithdrawal = (await tx.select({ id: briefApprovals.id }).from(briefApprovals).where(and9(
-        eq19(briefApprovals.organizationId, context2.organizationId),
+        eq19(briefApprovals.organizationId, context3.organizationId),
         eq19(briefApprovals.projectId, projectId),
         eq19(briefApprovals.streamId, streamId),
         eq19(briefApprovals.versionId, versionId),
@@ -43592,7 +43643,7 @@ async function executeBriefCommand(operation, input, context2) {
         id: void 0,
         decision: "withdrawn",
         targetApprovalId: approvalId,
-        approverUserId: context2.userId,
+        approverUserId: context3.userId,
         rationale: input.rationale ?? "",
         limitations: input.limitations ?? [],
         streamSequence: Number(stream.nextEventSequence)
@@ -43601,11 +43652,11 @@ async function executeBriefCommand(operation, input, context2) {
       await tx.update(briefVersionSections).set({ achievedState: "reviewed" }).where(eq19(briefVersionSections.id, approval.bindingId));
       eventType = "approval_withdrawn";
     } else if (operation.endsWith("issue")) {
-      await activeRole(tx, context2, streamId, "issuer");
-      await activeRole(tx, context2, streamId, "approver");
+      await activeRole(tx, context3, streamId, "issuer");
+      await activeRole(tx, context3, streamId, "approver");
       const bindings = await tx.select().from(briefVersionSections).where(
         and9(
-          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.organizationId, context3.organizationId),
           eq19(briefVersionSections.streamId, streamId),
           eq19(briefVersionSections.versionId, versionId)
         )
@@ -43622,12 +43673,12 @@ async function executeBriefCommand(operation, input, context2) {
         );
       for (const binding of bindings) {
         const revision = (await tx.select().from(briefSectionRevisions).where(and9(
-          eq19(briefSectionRevisions.organizationId, context2.organizationId),
+          eq19(briefSectionRevisions.organizationId, context3.organizationId),
           eq19(briefSectionRevisions.projectId, projectId),
           eq19(briefSectionRevisions.id, binding.sectionRevisionId)
         )).limit(1).for("update"))[0];
         const approvalRows = await tx.select().from(briefApprovals).where(and9(
-          eq19(briefApprovals.organizationId, context2.organizationId),
+          eq19(briefApprovals.organizationId, context3.organizationId),
           eq19(briefApprovals.projectId, projectId),
           eq19(briefApprovals.streamId, streamId),
           eq19(briefApprovals.versionId, versionId),
@@ -43635,7 +43686,7 @@ async function executeBriefCommand(operation, input, context2) {
           eq19(briefApprovals.sectionRevisionId, binding.sectionRevisionId)
         )).for("update");
         const activeApprovals = approvalRows.filter((a) => a.decision === "approved" && !approvalRows.some((w) => w.decision === "withdrawn" && w.targetApprovalId === a.id));
-        if (!revision || !activeApprovals.length || revision.authorUserId === context2.userId && !activeApprovals.some((a) => a.approverUserId !== context2.userId))
+        if (!revision || !activeApprovals.length || revision.authorUserId === context3.userId && !activeApprovals.some((a) => a.approverUserId !== context3.userId))
           throw new BriefWorkflowError("INVALID", "Each exact revision requires an independent active approval");
       }
       const issueMetadata = {
@@ -43647,8 +43698,8 @@ async function executeBriefCommand(operation, input, context2) {
       };
       const readiness = evaluateBriefReadiness(
         await getBriefReadinessFacts(
-          { ...input, issuerUserId: context2.userId, issueMetadata },
-          context2,
+          { ...input, issuerUserId: context3.userId, issueMetadata },
+          context3,
           tx,
           stream,
           versionRows[0]
@@ -43657,11 +43708,11 @@ async function executeBriefCommand(operation, input, context2) {
       if (!readiness.canIssue)
         throw new BriefWorkflowError(
           "INVALID",
-          `Brief is not ready to issue: ${readiness.reasons.map((reason2) => reason2.code).join(", ")}`
+          `Brief is not ready to issue: ${readiness.reasons.map((reason3) => reason3.code).join(", ")}`
         );
       const conditions = await tx.select().from(briefConditionEvents).where(
         and9(
-          eq19(briefConditionEvents.organizationId, context2.organizationId),
+          eq19(briefConditionEvents.organizationId, context3.organizationId),
           eq19(briefConditionEvents.streamId, streamId),
           eq19(briefConditionEvents.versionId, versionId)
         )
@@ -43678,19 +43729,19 @@ async function executeBriefCommand(operation, input, context2) {
         );
       const maxIssue = (await tx.select({ n: sql9`max(${briefIssues.issueNumber})` }).from(briefIssues).where(
         and9(
-          eq19(briefIssues.organizationId, context2.organizationId),
+          eq19(briefIssues.organizationId, context3.organizationId),
           eq19(briefIssues.streamId, streamId)
         )
       ))[0];
       const issueNumber = Number(maxIssue?.n ?? 0) + 1;
       const ins = await tx.insert(briefIssues).values({
-        organizationId: context2.organizationId,
+        organizationId: context3.organizationId,
         projectId,
         streamId,
         versionId,
         operationId,
         issueNumber,
-        issuerUserId: context2.userId,
+        issuerUserId: context3.userId,
         issuePurpose: stream.issuePurpose,
         metadata: input.metadata ?? {
           documentIdentity: `brief:${streamId}:version:${versionId}:issue:${issueNumber}`,
@@ -43711,7 +43762,7 @@ async function executeBriefCommand(operation, input, context2) {
       entityId = Number(ins[0].insertId);
       for (const b of bindings) {
         const is = await tx.insert(briefIssueSections).values({
-          organizationId: context2.organizationId,
+          organizationId: context3.organizationId,
           projectId,
           streamId,
           issueId: entityId,
@@ -43727,7 +43778,7 @@ async function executeBriefCommand(operation, input, context2) {
         const issueSectionId = Number(is[0].insertId);
         const approvals = await tx.select().from(briefApprovals).where(
           and9(
-            eq19(briefApprovals.organizationId, context2.organizationId),
+            eq19(briefApprovals.organizationId, context3.organizationId),
             eq19(briefApprovals.projectId, projectId),
             eq19(briefApprovals.streamId, streamId),
             eq19(briefApprovals.versionId, versionId),
@@ -43737,7 +43788,7 @@ async function executeBriefCommand(operation, input, context2) {
         );
         for (const a of approvals.filter((a2) => a2.decision === "approved" && !approvals.some((w) => w.decision === "withdrawn" && w.targetApprovalId === a2.id)))
           await tx.insert(briefIssueApprovals).values({
-            organizationId: context2.organizationId,
+            organizationId: context3.organizationId,
             projectId,
             streamId,
             issueId: entityId,
@@ -43746,13 +43797,13 @@ async function executeBriefCommand(operation, input, context2) {
           });
         const deps = await tx.select().from(briefDependencies).where(
           and9(
-            eq19(briefDependencies.organizationId, context2.organizationId),
+            eq19(briefDependencies.organizationId, context3.organizationId),
             eq19(briefDependencies.bindingId, b.id)
           )
         );
         for (const d of deps)
           await tx.insert(briefIssueDependencies).values({
-            organizationId: context2.organizationId,
+            organizationId: context3.organizationId,
             projectId,
             streamId,
             issueId: entityId,
@@ -43766,7 +43817,7 @@ async function executeBriefCommand(operation, input, context2) {
             and9(
               eq19(
                 briefApplicabilityEvents.organizationId,
-                context2.organizationId
+                context3.organizationId
               ),
               eq19(briefApplicabilityEvents.bindingId, b.id),
               eq19(briefApplicabilityEvents.stage, "approved")
@@ -43778,7 +43829,7 @@ async function executeBriefCommand(operation, input, context2) {
               "N/A section lacks approved applicability"
             );
           await tx.insert(briefIssueApplicability).values({
-            organizationId: context2.organizationId,
+            organizationId: context3.organizationId,
             projectId,
             streamId,
             issueId: entityId,
@@ -43790,7 +43841,7 @@ async function executeBriefCommand(operation, input, context2) {
       await tx.update(briefVersions).set({ status: "locked" }).where(eq19(briefVersions.id, versionId));
       await tx.update(briefVersionSections).set({ achievedState: "issued" }).where(
         and9(
-          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.organizationId, context3.organizationId),
           eq19(briefVersionSections.versionId, versionId)
         )
       );
@@ -43802,7 +43853,7 @@ async function executeBriefCommand(operation, input, context2) {
       );
       const issue2 = (await tx.select().from(briefIssues).where(
         and9(
-          eq19(briefIssues.organizationId, context2.organizationId),
+          eq19(briefIssues.organizationId, context3.organizationId),
           eq19(briefIssues.streamId, streamId),
           eq19(briefIssues.id, issueId)
         )
@@ -43816,7 +43867,7 @@ async function executeBriefCommand(operation, input, context2) {
         );
         const successor = (await tx.select().from(briefIssues).where(
           and9(
-            eq19(briefIssues.organizationId, context2.organizationId),
+            eq19(briefIssues.organizationId, context3.organizationId),
             eq19(briefIssues.projectId, projectId),
             eq19(briefIssues.streamId, streamId),
             eq19(briefIssues.id, successorId)
@@ -43829,9 +43880,9 @@ async function executeBriefCommand(operation, input, context2) {
           );
       }
       if (operation.endsWith("approveIssueWithdrawal")) {
-        await activeRole(tx, context2, streamId, "approver");
+        await activeRole(tx, context3, streamId, "approver");
         const requestEvent = (await tx.select().from(briefEvents).where(and9(
-          eq19(briefEvents.organizationId, context2.organizationId),
+          eq19(briefEvents.organizationId, context3.organizationId),
           eq19(briefEvents.projectId, projectId),
           eq19(briefEvents.streamId, streamId),
           eq19(briefEvents.id, positive(input.withdrawalRequestEventId, "withdrawalRequestEventId")),
@@ -43839,14 +43890,14 @@ async function executeBriefCommand(operation, input, context2) {
           eq19(briefEvents.issueId, issueId)
         )).limit(1).for("update"))[0];
         if (!requestEvent) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
-        if (requestEvent.actorUserId === context2.userId)
+        if (requestEvent.actorUserId === context3.userId)
           throw new BriefWorkflowError(
             "FORBIDDEN",
             "Withdrawal approval must be independent"
           );
         eventType = "issue_withdrawal_approved";
       } else {
-        await activeRole(tx, context2, streamId, "issuer");
+        await activeRole(tx, context3, streamId, "issuer");
         eventType = operation.endsWith("supersedeIssue") ? "issue_superseded" : "issue_withdrawal_requested";
       }
       entityId = issueId;
@@ -43864,7 +43915,7 @@ async function executeBriefCommand(operation, input, context2) {
     );
     if (Number(revisionUpdate[0]?.affectedRows) !== 1)
       throw new BriefWorkflowError("CONFLICT", "Stale stream revision");
-    await allocateEvents(tx, stream, operationId, context2, versionId, [
+    await allocateEvents(tx, stream, operationId, context3, versionId, [
       { type: eventType, sectionId, issueId: eventType.startsWith("issue_") ? entityId : void 0, payload: { entityId, priorIssueId: input.priorIssueId, successorIssueId: input.successorIssueId, withdrawalRequestEventId: input.withdrawalRequestEventId, reason: input.reason, distributionImpact: input.distributionImpact } }
     ]);
     const result = {
@@ -43883,17 +43934,17 @@ async function executeBriefCommand(operation, input, context2) {
     return result;
   });
 }
-async function scopedStream(input, context2) {
+async function scopedStream(input, context3) {
   const db = await database(), projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId");
   const rows = await db.select().from(briefStreams).innerJoin(
     organizationMembers,
     and9(
-      eq19(organizationMembers.orgId, context2.organizationId),
-      eq19(organizationMembers.userId, context2.userId)
+      eq19(organizationMembers.orgId, context3.organizationId),
+      eq19(organizationMembers.userId, context3.userId)
     )
   ).where(
     and9(
-      eq19(briefStreams.organizationId, context2.organizationId),
+      eq19(briefStreams.organizationId, context3.organizationId),
       eq19(briefStreams.projectId, projectId),
       eq19(briefStreams.id, streamId)
     )
@@ -43902,8 +43953,8 @@ async function scopedStream(input, context2) {
     throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
   return { db, stream: rows[0].brief_streams };
 }
-async function getBriefSummary(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function getBriefSummary(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   return briefSummaryDto(db, stream);
 }
 async function briefSummaryDto(db, stream) {
@@ -43932,29 +43983,29 @@ async function briefSummaryDto(db, stream) {
     revision: stream.revision
   };
 }
-async function listBriefStreams(input, context2) {
+async function listBriefStreams(input, context3) {
   const db = await database();
   const streams = await db.select().from(briefStreams).where(
     and9(
-      eq19(briefStreams.organizationId, context2.organizationId),
+      eq19(briefStreams.organizationId, context3.organizationId),
       eq19(briefStreams.projectId, positive(input.projectId, "projectId"))
     )
   ).orderBy(desc11(briefStreams.id));
   const membership = (await db.select({ id: organizationMembers.id }).from(organizationMembers).where(
     and9(
-      eq19(organizationMembers.orgId, context2.organizationId),
-      eq19(organizationMembers.userId, context2.userId)
+      eq19(organizationMembers.orgId, context3.organizationId),
+      eq19(organizationMembers.userId, context3.userId)
     )
   ).limit(1))[0];
   if (!membership)
     throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
   return Promise.all(streams.map((stream) => briefSummaryDto(db, stream)));
 }
-async function getBriefVersion(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function getBriefVersion(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   const version = (await db.select().from(briefVersions).where(
     and9(
-      eq19(briefVersions.organizationId, context2.organizationId),
+      eq19(briefVersions.organizationId, context3.organizationId),
       eq19(briefVersions.streamId, stream.id),
       eq19(briefVersions.id, positive(input.versionId, "versionId"))
     )
@@ -43962,7 +44013,7 @@ async function getBriefVersion(input, context2) {
   if (!version) return null;
   const sections = await db.select().from(briefVersionSections).where(
     and9(
-      eq19(briefVersionSections.organizationId, context2.organizationId),
+      eq19(briefVersionSections.organizationId, context3.organizationId),
       eq19(briefVersionSections.versionId, version.id)
     )
   ).orderBy(asc2(briefVersionSections.id));
@@ -43977,11 +44028,11 @@ async function getBriefVersion(input, context2) {
     }))
   };
 }
-async function getBriefSection(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function getBriefSection(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   const binding = (await db.select().from(briefVersionSections).where(
     and9(
-      eq19(briefVersionSections.organizationId, context2.organizationId),
+      eq19(briefVersionSections.organizationId, context3.organizationId),
       eq19(briefVersionSections.streamId, stream.id),
       eq19(
         briefVersionSections.versionId,
@@ -44001,7 +44052,7 @@ async function getBriefSection(input, context2) {
   if (!binding.sectionRevisionId) return { ...section2, content: null };
   const revision = (await db.select().from(briefSectionRevisions).where(
     and9(
-      eq19(briefSectionRevisions.organizationId, context2.organizationId),
+      eq19(briefSectionRevisions.organizationId, context3.organizationId),
       eq19(briefSectionRevisions.projectId, stream.projectId),
       eq19(briefSectionRevisions.id, binding.sectionRevisionId)
     )
@@ -44022,47 +44073,47 @@ async function getBriefSection(input, context2) {
     createdAt: revision.createdAt
   };
 }
-async function listBriefAssignments(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function listBriefAssignments(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefRoleEvents).where(
     and9(
-      eq19(briefRoleEvents.organizationId, context2.organizationId),
+      eq19(briefRoleEvents.organizationId, context3.organizationId),
       eq19(briefRoleEvents.streamId, stream.id)
     )
   ).orderBy(asc2(briefRoleEvents.id));
 }
-async function listBriefFindings(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function listBriefFindings(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefFindings).where(
     and9(
-      eq19(briefFindings.organizationId, context2.organizationId),
+      eq19(briefFindings.organizationId, context3.organizationId),
       eq19(briefFindings.streamId, stream.id)
     )
   ).orderBy(asc2(briefFindings.id));
 }
-async function listBriefFindingResolutions(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function listBriefFindingResolutions(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefFindingResolutions).where(
     and9(
-      eq19(briefFindingResolutions.organizationId, context2.organizationId),
+      eq19(briefFindingResolutions.organizationId, context3.organizationId),
       eq19(briefFindingResolutions.streamId, stream.id)
     )
   ).orderBy(asc2(briefFindingResolutions.id));
 }
-async function listBriefDependencies(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function listBriefDependencies(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefDependencies).where(
     and9(
-      eq19(briefDependencies.organizationId, context2.organizationId),
+      eq19(briefDependencies.organizationId, context3.organizationId),
       eq19(briefDependencies.streamId, stream.id)
     )
   ).orderBy(asc2(briefDependencies.id));
 }
-async function listBriefConditions(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function listBriefConditions(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefConditionEvents).where(
     and9(
-      eq19(briefConditionEvents.organizationId, context2.organizationId),
+      eq19(briefConditionEvents.organizationId, context3.organizationId),
       eq19(briefConditionEvents.streamId, stream.id),
       eq19(briefConditionEvents.versionId, positive(input.versionId, "versionId"))
     )
@@ -44094,28 +44145,28 @@ function derivePermittedBriefActions(input) {
   }
   return Array.from(new Set(actions));
 }
-async function getBriefStudio(input, context2) {
+async function getBriefStudio(input, context3) {
   const [summary, version, readinessFacts, assignments, findings, findingResolutions, dependencies, conditions, events, issues] = await Promise.all([
-    getBriefSummary(input, context2),
-    getBriefVersion(input, context2),
-    getBriefReadinessFacts({ ...input, issuerUserId: context2.userId }, context2),
-    listBriefAssignments(input, context2),
-    listBriefFindings(input, context2),
-    listBriefFindingResolutions(input, context2),
-    listBriefDependencies(input, context2),
-    listBriefConditions(input, context2),
-    listBriefEvents(input, context2),
-    listBriefIssues(input, context2)
+    getBriefSummary(input, context3),
+    getBriefVersion(input, context3),
+    getBriefReadinessFacts({ ...input, issuerUserId: context3.userId }, context3),
+    listBriefAssignments(input, context3),
+    listBriefFindings(input, context3),
+    listBriefFindingResolutions(input, context3),
+    listBriefDependencies(input, context3),
+    listBriefConditions(input, context3),
+    listBriefEvents(input, context3),
+    listBriefIssues(input, context3)
   ]);
   if (!version) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
   const activeAssignments = assignments.filter(
     (assignment) => assignment.action === "granted" && !assignments.some((later) => later.action === "revoked" && later.targetGrantEventId === assignment.id)
   );
   const db = await database();
-  const memberChoices = await db.select({ id: users.id, name: users.name, organizationRole: organizationMembers.role }).from(organizationMembers).innerJoin(users, eq19(users.id, organizationMembers.userId)).where(eq19(organizationMembers.orgId, context2.organizationId)).orderBy(asc2(users.id));
+  const memberChoices = await db.select({ id: users.id, name: users.name, organizationRole: organizationMembers.role }).from(organizationMembers).innerJoin(users, eq19(users.id, organizationMembers.userId)).where(eq19(organizationMembers.orgId, context3.organizationId)).orderBy(asc2(users.id));
   const readiness = evaluateBriefReadiness(readinessFacts);
   const sections = await Promise.all(BRIEF_SECTION_IDS2.map(
-    (sectionId) => getBriefSection({ ...input, sectionId }, context2)
+    (sectionId) => getBriefSection({ ...input, sectionId }, context3)
   ));
   const studioSections = sections.filter(Boolean).map((section2) => {
     const sectionReadiness = readiness.sections.find((item) => item.sectionId === section2.sectionId);
@@ -44159,7 +44210,7 @@ async function getBriefStudio(input, context2) {
         createdAt: event.createdAt
       })).filter((choice) => Number.isSafeInteger(choice.id)),
       permittedActions: derivePermittedBriefActions({
-        userId: context2.userId,
+        userId: context3.userId,
         sectionId: section2.sectionId,
         achievedState: section2.achievedState,
         authorUserId: section2.authorUserId,
@@ -44170,7 +44221,7 @@ async function getBriefStudio(input, context2) {
       nextAction: sectionReadiness?.nextActions?.[0] ?? null
     };
   });
-  const currentUserRoles = activeAssignments.filter((assignment) => assignment.subjectUserId === context2.userId).map((assignment) => assignment.role);
+  const currentUserRoles = activeAssignments.filter((assignment) => assignment.subjectUserId === context3.userId).map((assignment) => assignment.role);
   return {
     identity: {
       projectId: Number(input.projectId),
@@ -44206,36 +44257,36 @@ async function getBriefStudio(input, context2) {
     }
   };
 }
-async function listBriefEvents(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function listBriefEvents(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefEvents).where(
     and9(
-      eq19(briefEvents.organizationId, context2.organizationId),
+      eq19(briefEvents.organizationId, context3.organizationId),
       eq19(briefEvents.streamId, stream.id)
     )
   ).orderBy(asc2(briefEvents.streamSequence));
 }
-async function listBriefIssues(input, context2) {
-  const { db, stream } = await scopedStream(input, context2);
+async function listBriefIssues(input, context3) {
+  const { db, stream } = await scopedStream(input, context3);
   const issues = await db.select().from(briefIssues).where(
     and9(
-      eq19(briefIssues.organizationId, context2.organizationId),
+      eq19(briefIssues.organizationId, context3.organizationId),
       eq19(briefIssues.streamId, stream.id)
     )
   ).orderBy(desc11(briefIssues.issueNumber));
-  const events = await db.select().from(briefEvents).where(and9(eq19(briefEvents.organizationId, context2.organizationId), eq19(briefEvents.streamId, stream.id))).orderBy(asc2(briefEvents.streamSequence));
+  const events = await db.select().from(briefEvents).where(and9(eq19(briefEvents.organizationId, context3.organizationId), eq19(briefEvents.streamId, stream.id))).orderBy(asc2(briefEvents.streamSequence));
   return issues.map((issue2) => {
     const statusEvent = events.filter((event) => event.issueId === issue2.id && (event.eventType === "issue_superseded" || event.eventType === "issue_withdrawal_approved")).at(-1);
     return { ...issue2, issueId: String(issue2.id), briefId: String(stream.id), versionId: String(issue2.versionId), purpose: issue2.issuePurpose, status: statusEvent?.eventType === "issue_withdrawal_approved" ? "withdrawn" : statusEvent?.eventType === "issue_superseded" ? "superseded" : "active" };
   });
 }
-async function getBriefReadinessFacts(input, context2, transaction, lockedStream, lockedVersion) {
-  const scoped = transaction && lockedStream ? { db: transaction, stream: lockedStream } : await scopedStream(input, context2);
+async function getBriefReadinessFacts(input, context3, transaction, lockedStream, lockedVersion) {
+  const scoped = transaction && lockedStream ? { db: transaction, stream: lockedStream } : await scopedStream(input, context3);
   const { db, stream } = scoped;
   const versionId = positive(input.versionId, "versionId");
   const [queriedVersion] = lockedVersion ? [lockedVersion] : await db.select().from(briefVersions).where(
     and9(
-      eq19(briefVersions.organizationId, context2.organizationId),
+      eq19(briefVersions.organizationId, context3.organizationId),
       eq19(briefVersions.streamId, stream.id),
       eq19(briefVersions.id, versionId)
     )
@@ -44256,61 +44307,61 @@ async function getBriefReadinessFacts(input, context2, transaction, lockedStream
   ] = await Promise.all([
     db.select().from(briefVersionSections).where(
       and9(
-        eq19(briefVersionSections.organizationId, context2.organizationId),
+        eq19(briefVersionSections.organizationId, context3.organizationId),
         eq19(briefVersionSections.streamId, stream.id),
         eq19(briefVersionSections.versionId, versionId)
       )
     ).orderBy(asc2(briefVersionSections.id)),
     db.select().from(briefRoleEvents).where(
       and9(
-        eq19(briefRoleEvents.organizationId, context2.organizationId),
+        eq19(briefRoleEvents.organizationId, context3.organizationId),
         eq19(briefRoleEvents.streamId, stream.id)
       )
     ).orderBy(asc2(briefRoleEvents.id)),
     db.select().from(briefConditionEvents).where(
       and9(
-        eq19(briefConditionEvents.organizationId, context2.organizationId),
+        eq19(briefConditionEvents.organizationId, context3.organizationId),
         eq19(briefConditionEvents.streamId, stream.id),
         eq19(briefConditionEvents.versionId, versionId)
       )
     ).orderBy(asc2(briefConditionEvents.id)),
     db.select().from(briefFindings).where(
       and9(
-        eq19(briefFindings.organizationId, context2.organizationId),
+        eq19(briefFindings.organizationId, context3.organizationId),
         eq19(briefFindings.streamId, stream.id),
         eq19(briefFindings.versionId, versionId)
       )
     ),
     db.select().from(briefFindingResolutions).where(
       and9(
-        eq19(briefFindingResolutions.organizationId, context2.organizationId),
+        eq19(briefFindingResolutions.organizationId, context3.organizationId),
         eq19(briefFindingResolutions.streamId, stream.id)
       )
     ),
     db.select().from(briefApprovals).where(
       and9(
-        eq19(briefApprovals.organizationId, context2.organizationId),
+        eq19(briefApprovals.organizationId, context3.organizationId),
         eq19(briefApprovals.streamId, stream.id),
         eq19(briefApprovals.versionId, versionId)
       )
     ).orderBy(asc2(briefApprovals.streamSequence)),
     db.select().from(briefApplicabilityEvents).where(
       and9(
-        eq19(briefApplicabilityEvents.organizationId, context2.organizationId),
+        eq19(briefApplicabilityEvents.organizationId, context3.organizationId),
         eq19(briefApplicabilityEvents.streamId, stream.id),
         eq19(briefApplicabilityEvents.versionId, versionId)
       )
     ).orderBy(asc2(briefApplicabilityEvents.streamSequence)),
     db.select().from(briefDependencies).where(
       and9(
-        eq19(briefDependencies.organizationId, context2.organizationId),
+        eq19(briefDependencies.organizationId, context3.organizationId),
         eq19(briefDependencies.streamId, stream.id),
         eq19(briefDependencies.versionId, versionId)
       )
     ),
     db.select().from(briefSectionRevisions).where(
       and9(
-        eq19(briefSectionRevisions.organizationId, context2.organizationId),
+        eq19(briefSectionRevisions.organizationId, context3.organizationId),
         eq19(briefSectionRevisions.projectId, stream.projectId)
       )
     )
@@ -44517,8 +44568,8 @@ async function command(name, input, ctx) {
 }
 async function resolveRevisionDependencies(input, organizationId) {
   const dependencies = [];
-  for (const reference of input.evidenceReferences) {
-    const { evidence } = await requireEvidenceRecordForOrg(reference.id, organizationId);
+  for (const reference2 of input.evidenceReferences) {
+    const { evidence } = await requireEvidenceRecordForOrg(reference2.id, organizationId);
     if (evidence.projectId !== null && evidence.projectId !== input.projectId) {
       throw new TRPCError30({ code: "NOT_FOUND", message: "Resource not found" });
     }
@@ -44537,8 +44588,8 @@ async function resolveRevisionDependencies(input, organizationId) {
       fingerprint,
       observedAt: new Date(observedAt).toISOString(),
       authority: "governed_evidence",
-      ruleId: reference.ruleId,
-      relevance: reference.relevance,
+      ruleId: reference2.ruleId,
+      relevance: reference2.relevance,
       serverResolved: true
     });
   }
@@ -44694,6 +44745,511 @@ var briefRouter = router({
   })
 });
 
+// server/routers/typology-packs.ts
+import { TRPCError as TRPCError31 } from "@trpc/server";
+import { createHash as createHash12 } from "node:crypto";
+import { z as z46 } from "zod";
+
+// shared/typology-pack.ts
+import { z as z44 } from "zod";
+var TYPOLOGY_PACK_SCHEMA_VERSION = "typology-pack/v1";
+var TYPOLOGY_PACK_ENGINE_VERSION = "constraint-engine/v1";
+var identifier = z44.string().trim().regex(/^[a-z][a-z0-9_-]{1,63}$/);
+var isoDate = z44.string().datetime({ offset: true });
+var safeNumber = z44.number().finite().safe();
+var areaUnitSchema = z44.enum(["sqm"]);
+var areaBasisSchema = z44.enum(["gfa", "nfa", "gia", "room_net"]);
+var roundingModeSchema = z44.enum(["none", "nearest", "up", "down"]);
+var provenanceSchema = z44.object({
+  source: z44.string().trim().min(3).max(500),
+  sourceUrl: z44.string().url().max(2048).optional(),
+  authority: z44.enum(["synthetic_example", "human_reviewed", "client_requirement"]),
+  notes: z44.string().trim().max(2e3).optional()
+}).strict();
+var areaValueSchema = z44.object({
+  value: safeNumber.nonnegative(),
+  unit: areaUnitSchema,
+  basis: areaBasisSchema,
+  precision: z44.number().int().min(0).max(6),
+  rounding: roundingModeSchema
+}).strict();
+var areaRangeSchema = z44.object({
+  min: areaValueSchema,
+  max: areaValueSchema
+}).strict().superRefine((range, ctx) => {
+  if (range.min.unit !== range.max.unit || range.min.basis !== range.max.basis) {
+    ctx.addIssue({ code: "custom", message: "Area range endpoints must use the same unit and basis" });
+  }
+  if (range.min.value > range.max.value) {
+    ctx.addIssue({ code: "custom", message: "Area range minimum cannot exceed maximum" });
+  }
+});
+var objectiveSchema = z44.object({ id: identifier, statement: z44.string().trim().min(1).max(1e3) }).strict();
+var personaSchema = z44.object({ id: identifier, name: z44.string().trim().min(1).max(160), needs: z44.array(z44.string().trim().min(1).max(500)).max(40) }).strict();
+var roomArchetypeSchema = z44.object({
+  id: identifier,
+  name: z44.string().trim().min(1).max(160),
+  area: areaRangeSchema,
+  required: z44.boolean(),
+  narrativeGuidance: z44.array(z44.string().trim().min(1).max(1e3)).max(30).default([])
+}).strict();
+var deterministicConstraintSchema = z44.discriminatedUnion("kind", [
+  z44.object({ id: identifier, kind: z44.literal("area_range"), roomArchetypeId: identifier, range: areaRangeSchema }).strict(),
+  z44.object({ id: identifier, kind: z44.literal("required_room"), roomArchetypeId: identifier }).strict(),
+  z44.object({ id: identifier, kind: z44.literal("adjacency"), fromRoomArchetypeId: identifier, toRoomArchetypeId: identifier, relationship: z44.enum(["must_adjoin", "must_separate"]) }).strict(),
+  z44.object({ id: identifier, kind: z44.literal("fitout_scope"), roomArchetypeId: identifier, scope: z44.enum(["shell_and_core", "tenant_fitout", "full_fitout"]) }).strict(),
+  z44.object({ id: identifier, kind: z44.literal("ffe_requirement"), roomArchetypeId: identifier, category: z44.enum(["fixed", "loose", "operational"]), required: z44.boolean() }).strict()
+]);
+var typologyPackSchema = z44.object({
+  schemaVersion: z44.literal(TYPOLOGY_PACK_SCHEMA_VERSION),
+  engineVersion: z44.literal(TYPOLOGY_PACK_ENGINE_VERSION),
+  packId: identifier,
+  version: z44.string().regex(/^\d+\.\d+\.\d+$/),
+  title: z44.string().trim().min(1).max(160),
+  productionStatus: z44.enum(["synthetic_non_production", "human_approved"]),
+  provenance: provenanceSchema,
+  governance: z44.object({
+    owner: z44.string().trim().min(1).max(160),
+    reviewer: z44.string().trim().min(1).max(160),
+    reviewedAt: isoDate,
+    reviewDueAt: isoDate
+  }).strict(),
+  applicability: z44.object({
+    typologies: z44.array(identifier).min(1).max(30),
+    regions: z44.array(z44.string().trim().min(2).max(80)).min(1).max(30),
+    assetScales: z44.array(z44.enum(["unit", "building", "district"])).min(1)
+  }).strict(),
+  objectives: z44.array(objectiveSchema).max(40),
+  personas: z44.array(personaSchema).max(40),
+  roomArchetypes: z44.array(roomArchetypeSchema).min(1).max(100),
+  constraints: z44.array(deterministicConstraintSchema).max(300),
+  narrativeGuidance: z44.array(z44.string().trim().min(1).max(2e3)).max(100).default([]),
+  compliancePrompts: z44.array(z44.string().trim().min(1).max(1e3)).max(60).default([]),
+  risks: z44.array(z44.object({ id: identifier, description: z44.string().trim().min(1).max(1e3) }).strict()).max(60).default([]),
+  deliverables: z44.array(z44.object({ id: identifier, name: z44.string().trim().min(1).max(300) }).strict()).max(60).default([])
+}).strict().superRefine((pack, ctx) => {
+  if (new Date(pack.governance.reviewDueAt) < new Date(pack.governance.reviewedAt)) {
+    ctx.addIssue({ code: "custom", path: ["governance", "reviewDueAt"], message: "Review due date must not precede review date" });
+  }
+  const collections = [
+    ["objectives", pack.objectives],
+    ["personas", pack.personas],
+    ["roomArchetypes", pack.roomArchetypes],
+    ["constraints", pack.constraints],
+    ["risks", pack.risks],
+    ["deliverables", pack.deliverables]
+  ];
+  for (const [name, values] of collections) {
+    if (new Set(values.map((value) => value.id)).size !== values.length) ctx.addIssue({ code: "custom", path: [name], message: `${name} IDs must be unique` });
+  }
+  const roomIds = new Set(pack.roomArchetypes.map((room) => room.id));
+  const roomById = new Map(pack.roomArchetypes.map((room) => [room.id, room]));
+  const edges = /* @__PURE__ */ new Map();
+  const adjacencyByPair = /* @__PURE__ */ new Map();
+  const fitoutByRoom = /* @__PURE__ */ new Map();
+  const areaRangesByRoomAndBasis = /* @__PURE__ */ new Map();
+  for (const constraint of pack.constraints) {
+    const references = constraint.kind === "adjacency" ? [constraint.fromRoomArchetypeId, constraint.toRoomArchetypeId] : "roomArchetypeId" in constraint ? [constraint.roomArchetypeId] : [];
+    if (references.some((id) => !roomIds.has(id))) ctx.addIssue({ code: "custom", path: ["constraints"], message: "Constraint references an unknown room archetype" });
+    if (constraint.kind === "adjacency") {
+      if (constraint.fromRoomArchetypeId === constraint.toRoomArchetypeId) ctx.addIssue({ code: "custom", message: "Adjacency may not reference itself" });
+      const pair = [constraint.fromRoomArchetypeId, constraint.toRoomArchetypeId].sort().join("\0");
+      const existingRelationship = adjacencyByPair.get(pair);
+      if (existingRelationship && existingRelationship !== constraint.relationship) {
+        ctx.addIssue({ code: "custom", path: ["constraints"], message: "A room pair cannot both adjoin and separate" });
+      } else {
+        adjacencyByPair.set(pair, constraint.relationship);
+      }
+      if (constraint.relationship === "must_adjoin") {
+        edges.set(constraint.fromRoomArchetypeId, [...edges.get(constraint.fromRoomArchetypeId) ?? [], constraint.toRoomArchetypeId]);
+      }
+    }
+    if (constraint.kind === "fitout_scope") {
+      const existingScope = fitoutByRoom.get(constraint.roomArchetypeId);
+      if (existingScope && existingScope !== constraint.scope) {
+        ctx.addIssue({ code: "custom", path: ["constraints"], message: "A room cannot have conflicting fit-out scopes" });
+      } else {
+        fitoutByRoom.set(constraint.roomArchetypeId, constraint.scope);
+      }
+    }
+    if (constraint.kind === "area_range") {
+      const archetype = roomById.get(constraint.roomArchetypeId);
+      if (archetype && (archetype.area.min.unit !== constraint.range.min.unit || archetype.area.min.basis !== constraint.range.min.basis)) {
+        ctx.addIssue({ code: "custom", path: ["constraints"], message: "An area-range constraint must use its room archetype area unit and basis" });
+      } else if (archetype && (constraint.range.min.value > archetype.area.max.value || constraint.range.max.value < archetype.area.min.value)) {
+        ctx.addIssue({ code: "custom", path: ["constraints"], message: "An area-range constraint must overlap its room archetype area" });
+      }
+      const key = `${constraint.roomArchetypeId}\0${constraint.range.min.unit}\0${constraint.range.min.basis}`;
+      const ranges = areaRangesByRoomAndBasis.get(key) ?? [];
+      const contradictsExisting = ranges.some((range) => constraint.range.min.value > range.max || constraint.range.max.value < range.min);
+      if (contradictsExisting) {
+        ctx.addIssue({ code: "custom", path: ["constraints"], message: "Area-range constraints for the same room and basis must overlap" });
+      }
+      ranges.push({ min: constraint.range.min.value, max: constraint.range.max.value, constraintId: constraint.id });
+      areaRangesByRoomAndBasis.set(key, ranges);
+    }
+    if (constraint.kind === "required_room" && roomById.get(constraint.roomArchetypeId)?.required === false) {
+      ctx.addIssue({ code: "custom", path: ["constraints"], message: "A required-room constraint cannot reference an optional room archetype" });
+    }
+  }
+  const visiting = /* @__PURE__ */ new Set();
+  const visited = /* @__PURE__ */ new Set();
+  const visit = (id) => {
+    if (visiting.has(id)) return true;
+    if (visited.has(id)) return false;
+    visiting.add(id);
+    for (const next of edges.get(id) ?? []) if (visit(next)) return true;
+    visiting.delete(id);
+    visited.add(id);
+    return false;
+  };
+  if (Array.from(edges.keys()).some(visit)) ctx.addIssue({ code: "custom", path: ["constraints"], message: "must_adjoin constraints may not contain a cycle" });
+});
+function validateTypologyPack(input) {
+  return typologyPackSchema.parse(input);
+}
+var NEUTRAL_SYNTHETIC_TYPOLOGY_PACK = validateTypologyPack({
+  schemaVersion: TYPOLOGY_PACK_SCHEMA_VERSION,
+  engineVersion: TYPOLOGY_PACK_ENGINE_VERSION,
+  packId: "neutral-example",
+  version: "0.1.0",
+  title: "Neutral synthetic example (non-production)",
+  productionStatus: "synthetic_non_production",
+  provenance: { source: "BR-05 synthetic neutral example", authority: "synthetic_example", notes: "Not UAE design, compliance, cost, or fit-out guidance." },
+  governance: { owner: "MIYAR product", reviewer: "MIYAR product", reviewedAt: "2026-01-01T00:00:00.000Z", reviewDueAt: "2027-01-01T00:00:00.000Z" },
+  applicability: { typologies: ["neutral_example"], regions: ["non-production"], assetScales: ["unit"] },
+  objectives: [{ id: "demonstrate", statement: "Demonstrate contract structure only." }],
+  personas: [],
+  roomArchetypes: [{ id: "example-room", name: "Example room", area: { min: { value: 1, unit: "sqm", basis: "room_net", precision: 0, rounding: "none" }, max: { value: 2, unit: "sqm", basis: "room_net", precision: 0, rounding: "none" } }, required: true }],
+  constraints: [{ id: "example-room-required", kind: "required_room", roomArchetypeId: "example-room" }],
+  narrativeGuidance: ["Synthetic example; do not use for a project."],
+  compliancePrompts: [],
+  risks: [],
+  deliverables: []
+});
+
+// server/engines/typology-pack.ts
+import { createHash as createHash10 } from "node:crypto";
+import { z as z45 } from "zod";
+var TypologyPackResolutionError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "TypologyPackResolutionError";
+  }
+};
+function canonicalizeTypologyPack(input) {
+  const normalize = (value) => {
+    if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) throw new TypologyPackResolutionError("Canonical serialization rejects non-finite numbers");
+      return Object.is(value, -0) ? 0 : value;
+    }
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) throw new TypologyPackResolutionError("Canonical serialization rejects invalid dates");
+      return value.toISOString();
+    }
+    if (Array.isArray(value)) return value.map(normalize);
+    if (typeof value !== "object") throw new TypologyPackResolutionError("Canonical serialization accepts JSON values only");
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new TypologyPackResolutionError("Canonical serialization accepts plain objects only");
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, normalize(value[key])]));
+  };
+  return JSON.stringify(normalize(input));
+}
+function fingerprintTypologyPack(input) {
+  return createHash10("sha256").update(canonicalizeTypologyPack(input), "utf8").digest("hex");
+}
+var BUILT_IN_TYPOLOGY_PACK_FINGERPRINT_MANIFEST = Object.freeze({
+  "neutral-example@0.1.0": "6ad359c44b59dd982223519c819be2a2e176f4f1a854b707ab191d8bccf4c2e7"
+});
+function builtInManifestKey(pack) {
+  return `${pack.packId}@${pack.version}`;
+}
+function assertBuiltInFingerprint(pack) {
+  const expected = BUILT_IN_TYPOLOGY_PACK_FINGERPRINT_MANIFEST[builtInManifestKey(pack)];
+  if (!expected || fingerprintTypologyPack(pack) !== expected) {
+    throw new TypologyPackResolutionError("Built-in typology pack is absent from or differs from its immutable fingerprint manifest");
+  }
+}
+var typologyPackReferenceSchema = z45.object({
+  packId: z45.string().trim().regex(/^[a-z][a-z0-9_-]{1,63}$/),
+  version: z45.string().regex(/^\d+\.\d+\.\d+$/),
+  fingerprint: z45.string().regex(/^[a-f0-9]{64}$/)
+}).strict();
+var typologyPackOverrideOperationSchema = z45.discriminatedUnion("kind", [
+  z45.object({ kind: z45.literal("add_constraint"), constraint: deterministicConstraintSchema }).strict(),
+  z45.object({ kind: z45.literal("narrow_area_range"), constraintId: z45.string().trim().regex(/^[a-z][a-z0-9_-]{1,63}$/), range: areaRangeSchema }).strict()
+]);
+var typologyPackOverridePayloadSchema = z45.object({
+  pack: typologyPackReferenceSchema,
+  operations: z45.array(typologyPackOverrideOperationSchema).min(1).max(300)
+}).strict();
+var approvedTypologyPackOverrideSchema = typologyPackOverridePayloadSchema.extend({
+  organizationId: z45.string().trim().min(1).max(128),
+  status: z45.literal("approved"),
+  approvedAt: z45.string().datetime({ offset: true }),
+  expiresAt: z45.string().datetime({ offset: true }).optional()
+}).strict();
+var typologyPackResolutionInputSchema = z45.object({
+  reference: typologyPackReferenceSchema,
+  builtIns: z45.array(typologyPackSchema).min(1),
+  organizationId: z45.string().trim().min(1).max(128).optional(),
+  override: approvedTypologyPackOverrideSchema.optional()
+}).strict();
+function mergeOverride(pack, override) {
+  const constraints = [...pack.constraints];
+  for (const operation of override.operations) {
+    if (operation.kind === "add_constraint") {
+      if (constraints.some((rule) => rule.id === operation.constraint.id)) throw new TypologyPackResolutionError("Override duplicates a stable constraint ID");
+      constraints.push(operation.constraint);
+      continue;
+    }
+    const index2 = constraints.findIndex((rule) => rule.id === operation.constraintId && rule.kind === "area_range");
+    if (index2 < 0) throw new TypologyPackResolutionError("Override cannot alter an unknown or incompatible constraint");
+    const existing = constraints[index2];
+    const next = operation.range;
+    if (existing.range.min.unit !== next.min.unit || existing.range.min.basis !== next.min.basis || existing.range.max.unit !== next.max.unit || existing.range.max.basis !== next.max.basis || next.min.value < existing.range.min.value || next.max.value > existing.range.max.value) {
+      throw new TypologyPackResolutionError("Override may narrow, but never relax, an area range");
+    }
+    constraints[index2] = { ...existing, range: next };
+  }
+  return validateTypologyPack({ ...pack, constraints });
+}
+function resolveTypologyPack(args) {
+  const base = args.builtIns.find((pack) => pack.packId === args.reference.packId && pack.version === args.reference.version);
+  if (!base) throw new TypologyPackResolutionError("Exact built-in typology pack version and fingerprint are required");
+  assertBuiltInFingerprint(base);
+  if (fingerprintTypologyPack(base) !== args.reference.fingerprint) throw new TypologyPackResolutionError("Exact built-in typology pack version and fingerprint are required");
+  if (!args.override) return base;
+  const now = args.now ?? /* @__PURE__ */ new Date();
+  const override = approvedTypologyPackOverrideSchema.safeParse(args.override);
+  if (!override.success || !args.organizationId || override.data.organizationId !== args.organizationId || override.data.pack.packId !== args.reference.packId || override.data.pack.version !== args.reference.version || override.data.pack.fingerprint !== args.reference.fingerprint || new Date(override.data.approvedAt) > now || override.data.expiresAt && new Date(override.data.expiresAt) <= now) {
+    throw new TypologyPackResolutionError("Approved, current same-organization exact override is required");
+  }
+  return mergeOverride(base, override.data);
+}
+function validateTypologyPackOverride(args) {
+  resolveTypologyPack({
+    reference: args.reference,
+    builtIns: args.builtIns,
+    organizationId: args.organizationId,
+    override: { organizationId: args.organizationId, ...args.payload, status: "approved", approvedAt: "1970-01-01T00:00:00.000Z" }
+  });
+}
+
+// server/db/typology-packs.ts
+import { and as and10, desc as desc12, eq as eq20, max } from "drizzle-orm";
+import { createHash as createHash11 } from "node:crypto";
+init_db();
+init_schema();
+var TypologyPackStoreError = class extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+};
+var requestFingerprint = (value) => createHash11("sha256").update(canonicalizeTypologyPack(value), "utf8").digest("hex");
+async function database2() {
+  const db = await getDb();
+  if (!db) throw new TypologyPackStoreError("UNAVAILABLE", "Database unavailable");
+  return db;
+}
+async function assertLiveMember(tx, context3) {
+  const memberships = await tx.select().from(organizationMembers).where(and10(
+    eq20(organizationMembers.orgId, context3.organizationId),
+    eq20(organizationMembers.userId, context3.userId)
+  )).limit(2).for("update");
+  if (memberships.length !== 1) throw new TypologyPackStoreError("CONCEALED", "Typology pack not found");
+  if (context3.requireAdmin && memberships[0].role !== "admin") {
+    throw new TypologyPackStoreError("FORBIDDEN", "Organization administrator required");
+  }
+}
+async function createTypologyPackRevision(input, context3) {
+  const db = await database2();
+  return db.transaction(async (tx) => {
+    await assertLiveMember(tx, context3);
+    const replay = await tx.select().from(typologyPackEvents).where(and10(
+      eq20(typologyPackEvents.organizationId, context3.organizationId),
+      eq20(typologyPackEvents.idempotencyKey, input.idempotencyKey)
+    )).limit(1).for("update");
+    const fingerprint = requestFingerprint({ action: "create", actorUserId: context3.userId, ...input });
+    if (replay[0]) {
+      if (replay[0].eventType !== "created" || replay[0].requestFingerprint !== fingerprint) throw new TypologyPackStoreError("CONFLICT", "Idempotency key was used for a different request");
+      const revisions = await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, replay[0].revisionId))).limit(1);
+      if (revisions[0]) return revisions[0];
+      throw new TypologyPackStoreError("CONFLICT", "Idempotency record is inconsistent");
+    }
+    const payload = typologyPackOverridePayloadSchema.safeParse(input.payload);
+    if (!payload.success || payload.data.pack.packId !== input.basePackKey || payload.data.pack.version !== input.basePackVersion || payload.data.pack.fingerprint !== input.basePackFingerprint || input.payloadFingerprint !== requestFingerprint(input.payload)) {
+      throw new TypologyPackStoreError("INVALID", "Typology pack override is invalid");
+    }
+    try {
+      validateTypologyPackOverride({
+        reference: payload.data.pack,
+        builtIns: [NEUTRAL_SYNTHETIC_TYPOLOGY_PACK],
+        organizationId: String(context3.organizationId),
+        payload: payload.data
+      });
+    } catch (error) {
+      if (error instanceof TypologyPackResolutionError || error instanceof Error) {
+        throw new TypologyPackStoreError("INVALID", "Typology pack override is incompatible with its exact base pack");
+      }
+      throw error;
+    }
+    const latest = await tx.select({ revisionNumber: max(typologyPackRevisions.revisionNumber) }).from(typologyPackRevisions).where(and10(
+      eq20(typologyPackRevisions.organizationId, context3.organizationId),
+      eq20(typologyPackRevisions.packKey, input.packKey)
+    )).for("update");
+    const revisionNumber = Number(latest[0]?.revisionNumber ?? 0) + 1;
+    const result = await tx.insert(typologyPackRevisions).values({
+      organizationId: context3.organizationId,
+      packKey: input.packKey,
+      revisionNumber,
+      basePackKey: input.basePackKey,
+      basePackVersion: input.basePackVersion,
+      basePackFingerprint: input.basePackFingerprint,
+      payloadSchemaVersion: input.payloadSchemaVersion,
+      payload: input.payload,
+      payloadFingerprint: input.payloadFingerprint,
+      reviewDueAt: input.reviewDueAt,
+      createdBy: context3.userId
+    });
+    const id = Number(result[0].insertId);
+    await tx.insert(typologyPackEvents).values({ organizationId: context3.organizationId, revisionId: id, eventType: "created", actorUserId: context3.userId, reason: input.reason, idempotencyKey: input.idempotencyKey, requestFingerprint: fingerprint });
+    return (await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, id))).limit(1))[0];
+  });
+}
+async function transitionTypologyPackRevision(input, context3) {
+  const db = await database2();
+  return db.transaction(async (tx) => {
+    await assertLiveMember(tx, { ...context3, requireAdmin: true });
+    const replay = await tx.select().from(typologyPackEvents).where(and10(eq20(typologyPackEvents.organizationId, context3.organizationId), eq20(typologyPackEvents.idempotencyKey, input.idempotencyKey))).limit(1).for("update");
+    const fingerprint = requestFingerprint({ actorUserId: context3.userId, ...input });
+    if (replay[0]) {
+      if (replay[0].revisionId !== input.revisionId || replay[0].requestFingerprint !== fingerprint) throw new TypologyPackStoreError("CONFLICT", "Idempotency key was used for a different request");
+      return (await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, replay[0].revisionId))).limit(1))[0];
+    }
+    const revision = (await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, input.revisionId))).limit(1).for("update"))[0];
+    if (!revision) throw new TypologyPackStoreError("CONCEALED", "Typology pack not found");
+    if (input.action === "review" && (revision.status !== "draft" || revision.createdBy === context3.userId)) throw new TypologyPackStoreError("CONFLICT", "Only another administrator may review a draft revision");
+    if (input.action === "approve" && (revision.status !== "reviewed" || revision.createdBy === context3.userId || revision.reviewedBy === context3.userId || revision.reviewDueAt <= /* @__PURE__ */ new Date())) throw new TypologyPackStoreError("CONFLICT", "Revision cannot be approved");
+    if (input.action === "approve") {
+      const reviewers = await tx.select().from(organizationMembers).where(and10(eq20(organizationMembers.orgId, context3.organizationId), eq20(organizationMembers.userId, revision.reviewedBy))).limit(2).for("update");
+      if (reviewers.length !== 1 || reviewers[0].role !== "admin") throw new TypologyPackStoreError("CONFLICT", "Revision reviewer is no longer an active administrator");
+    }
+    if (input.action === "withdraw" && revision.status === "withdrawn") throw new TypologyPackStoreError("CONFLICT", "Revision is already withdrawn");
+    const now = /* @__PURE__ */ new Date();
+    const fields = input.action === "review" ? { status: "reviewed", reviewedBy: context3.userId, reviewedAt: now } : input.action === "approve" ? { status: "approved", approvedBy: context3.userId, approvedAt: now } : { status: "withdrawn", withdrawnBy: context3.userId, withdrawnAt: now };
+    await tx.update(typologyPackRevisions).set(fields).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, input.revisionId)));
+    await tx.insert(typologyPackEvents).values({ organizationId: context3.organizationId, revisionId: input.revisionId, eventType: input.action === "review" ? "reviewed" : input.action === "approve" ? "approved" : "withdrawn", actorUserId: context3.userId, reason: input.reason, idempotencyKey: input.idempotencyKey, requestFingerprint: fingerprint });
+    return (await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, input.revisionId))).limit(1))[0];
+  });
+}
+async function listTypologyPackRevisions(context3) {
+  const db = await database2();
+  await assertLiveMember(db, context3);
+  return db.select().from(typologyPackRevisions).where(eq20(typologyPackRevisions.organizationId, context3.organizationId)).orderBy(desc12(typologyPackRevisions.createdAt));
+}
+async function getTypologyPackRevision(revisionId, context3) {
+  const db = await database2();
+  await assertLiveMember(db, context3);
+  return (await db.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, revisionId))).limit(1))[0] ?? null;
+}
+
+// server/routers/typology-packs.ts
+var idempotencyKey2 = z46.string().trim().min(8).max(128);
+var reason2 = z46.string().trim().min(3).max(2e3);
+var reference = typologyPackReferenceSchema;
+function context2(ctx) {
+  return { organizationId: ctx.orgId, userId: ctx.user.id };
+}
+function translate2(error) {
+  if (error instanceof TypologyPackStoreError) {
+    throw new TRPCError31({ code: error.code === "CONCEALED" ? "NOT_FOUND" : error.code === "FORBIDDEN" ? "FORBIDDEN" : error.code === "CONFLICT" ? "CONFLICT" : error.code === "UNAVAILABLE" ? "SERVICE_UNAVAILABLE" : "BAD_REQUEST", message: error.message });
+  }
+  if (error instanceof TypologyPackResolutionError || error instanceof z46.ZodError) {
+    throw new TRPCError31({ code: "NOT_FOUND", message: "Typology pack not found" });
+  }
+  throw error;
+}
+var builtIns = [NEUTRAL_SYNTHETIC_TYPOLOGY_PACK];
+var typologyPackRouter = router({
+  builtIns: orgProcedure.query(() => builtIns.map((pack) => ({ packId: pack.packId, version: pack.version, fingerprint: fingerprintTypologyPack(pack), productionStatus: pack.productionStatus, title: pack.title }))),
+  list: orgProcedure.query(async ({ ctx }) => {
+    try {
+      return await listTypologyPackRevisions(context2(ctx));
+    } catch (error) {
+      translate2(error);
+    }
+  }),
+  create: orgMutationProcedure.input(z46.object({
+    packKey: z46.string().trim().regex(/^[a-z][a-z0-9_-]{1,63}$/),
+    base: reference,
+    payload: typologyPackOverridePayloadSchema,
+    reviewDueAt: z46.string().datetime({ offset: true }),
+    reason: reason2,
+    idempotencyKey: idempotencyKey2
+  }).strict()).mutation(async ({ ctx, input }) => {
+    if (input.payload.pack.packId !== input.base.packId || input.payload.pack.version !== input.base.version || input.payload.pack.fingerprint !== input.base.fingerprint) throw new TRPCError31({ code: "BAD_REQUEST", message: "Override payload must pin the requested base pack" });
+    try {
+      validateTypologyPackOverride({ reference: input.base, builtIns, organizationId: String(ctx.orgId), payload: input.payload });
+    } catch (error) {
+      if (error instanceof TypologyPackResolutionError) throw new TRPCError31({ code: "BAD_REQUEST", message: "Override is incompatible with its exact base pack" });
+      throw error;
+    }
+    try {
+      return await createTypologyPackRevision({
+        packKey: input.packKey,
+        basePackKey: input.base.packId,
+        basePackVersion: input.base.version,
+        basePackFingerprint: input.base.fingerprint,
+        payloadSchemaVersion: TYPOLOGY_PACK_SCHEMA_VERSION,
+        payload: input.payload,
+        payloadFingerprint: createHash12("sha256").update(canonicalizeTypologyPack(input.payload), "utf8").digest("hex"),
+        reviewDueAt: new Date(input.reviewDueAt),
+        reason: input.reason,
+        idempotencyKey: input.idempotencyKey
+      }, context2(ctx));
+    } catch (error) {
+      translate2(error);
+    }
+  }),
+  review: orgAdminProcedure.input(z46.object({ revisionId: z46.number().int().positive(), reason: reason2, idempotencyKey: idempotencyKey2 }).strict()).mutation(async ({ ctx, input }) => {
+    try {
+      return await transitionTypologyPackRevision({ ...input, action: "review" }, context2(ctx));
+    } catch (error) {
+      translate2(error);
+    }
+  }),
+  approve: orgAdminProcedure.input(z46.object({ revisionId: z46.number().int().positive(), reason: reason2, idempotencyKey: idempotencyKey2 }).strict()).mutation(async ({ ctx, input }) => {
+    try {
+      return await transitionTypologyPackRevision({ ...input, action: "approve" }, context2(ctx));
+    } catch (error) {
+      translate2(error);
+    }
+  }),
+  withdraw: orgAdminProcedure.input(z46.object({ revisionId: z46.number().int().positive(), reason: reason2, idempotencyKey: idempotencyKey2 }).strict()).mutation(async ({ ctx, input }) => {
+    try {
+      return await transitionTypologyPackRevision({ ...input, action: "withdraw" }, context2(ctx));
+    } catch (error) {
+      translate2(error);
+    }
+  }),
+  resolve: orgProcedure.input(z46.object({ base: reference, revisionId: z46.number().int().positive().optional() }).strict()).query(async ({ ctx, input }) => {
+    try {
+      if (!input.revisionId) return resolveTypologyPack({ reference: input.base, builtIns });
+      const revision = await getTypologyPackRevision(input.revisionId, context2(ctx));
+      if (!revision || revision.status !== "approved" || revision.reviewDueAt <= /* @__PURE__ */ new Date() || revision.basePackKey !== input.base.packId || revision.basePackVersion !== input.base.version || revision.basePackFingerprint !== input.base.fingerprint || !revision.approvedAt) throw new TRPCError31({ code: "NOT_FOUND", message: "Typology pack not found" });
+      if (revision.payloadFingerprint !== createHash12("sha256").update(canonicalizeTypologyPack(revision.payload), "utf8").digest("hex")) throw new TRPCError31({ code: "NOT_FOUND", message: "Typology pack not found" });
+      const payload = typologyPackOverridePayloadSchema.parse(revision.payload);
+      return resolveTypologyPack({ reference: input.base, builtIns, organizationId: String(ctx.orgId), override: { organizationId: String(ctx.orgId), ...payload, status: "approved", approvedAt: revision.approvedAt.toISOString() } });
+    } catch (error) {
+      if (error instanceof TRPCError31) throw error;
+      translate2(error);
+    }
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -44721,7 +45277,8 @@ var appRouter = router({
   intake: intakeRouter,
   materialQuantity: materialQuantityRouter,
   spaceProgram: spaceProgramRouter,
-  brief: briefRouter
+  brief: briefRouter,
+  typologyPack: typologyPackRouter
 });
 
 // server/_core/context.ts
