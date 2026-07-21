@@ -443,3 +443,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: `BR-02-v1` defines staged finding/condition/applicability/withdrawal operations, exact issue references, and gate-specific Reviewer/Approver acceptance; independent engineering and Claude Opus reviews return `APPROVED`.
 - Reuse rule: Never accept a caller-supplied user ID, role label, or outcome as proof of independent authority. Require a separate immutable action by the authorized actor and bind the final transition to that exact event.
 - Supersedes / related: Extends `LES-001`, `LES-014`, and `LES-037`; applies to approvals, waivers, compliance findings, releases, and destructive-operation confirmations.
+
+### LES-039 — Readiness display and workflow mutation must share one section DTO
+
+- Date / roadmap step: 2026-07-21 / `BR-03`
+- Context: The governed workspace rendered readiness from one query and executed post-draft actions using a separately fetched section binding.
+- Observed: A section displayed `Drafted`, yet evidence/review actions reported that no revision existed because `getBriefSection` returned raw `sectionRevisionId` while the client contract consumed `revisionId`.
+- Cause: Two server read paths serialized the same canonical binding differently, and static UI/API tests did not execute the authenticated ordered browser transition.
+- Fix or decision: Normalize canonical IDs and expose the bound `revisionId` consistently from both section/version reads; retain the real author → evidence → independent review → approval browser gate.
+- Proof: The corrected DTO passes targeted 36/36, guarded MySQL 30/30, TypeScript/build/audits, and the authenticated ordered browser journey; Claude Opus independently approved the diff.
+- Reuse rule: When multiple queries feed one state machine UI, they must share one typed DTO or aggregate query, and acceptance must execute at least one real ordered transition using each returned identifier.
+- Supersedes / related: Extends `LES-038`; `BR-04` owns the typed `brief.getStudio` aggregate that removes this class of client-side joining.

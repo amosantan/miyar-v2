@@ -3,11 +3,11 @@
 - ID: BR-03
 - Roadmap step: `BR-03`
 - Title: Deterministic design-brief readiness and governed workflow
-- Status: ACTIVE
+- Status: PASS
 - Owner: Codex
 - Started: 2026-07-20
-- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-br03-readiness`
-- Branch: `codex/br-03-deterministic-readiness`
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-br03-brief-fix`
+- Branch: `codex/br-03-brief-generation-fix`
 - Base: exact fetched `origin/main` commit `afd3961db315194dbdd9820749cb9915bbafb686`
 - Classification: Critical schema + high-risk engine/API/UI workflow
 - Risk: Tenant authorization, immutable issue history, deterministic readiness, concurrency, and additive migration integrity
@@ -33,9 +33,9 @@ MIYAR can generate several objects called a design brief, but none can prove tha
 - [x] Stream creation produces one working version and exactly ten bindings; issue atomically revalidates readiness and freezes exact immutable references.
 - [x] The project workspace supports the governed author/reviewer/approver/issuer journey and renders server-owned readiness only.
 - [x] The working preview is clearly non-issued and creates no report, artifact, snapshot, export, share, token, or public route.
-- [ ] Golden unit, router, disposable-MySQL, concurrency, parity, browser, accessibility, RTL/theme, type-check, safe-suite, audit, and build gates pass.
+- [x] Golden unit, router, disposable-MySQL, concurrency, parity, browser, accessibility, RTL/theme, type-check, safe-suite, audit, and build gates pass.
 - [x] The complete diff passes independent security/integration review and final Claude Opus review with no unresolved blocker.
-- [ ] Durable state records verified reality and leaves shared migration/release/import/report cutover separately gated.
+- [x] Durable state records verified reality and leaves shared migration/release/import/report cutover separately gated.
 
 ## Non-Goals
 
@@ -55,4 +55,14 @@ MIYAR can generate several objects called a design brief, but none can prove tha
 
 ## Next Action
 
-Run the remaining authenticated browser journey/accessibility/theme/RTL/no-side-effect gate in a disposable local environment. Implementation, targeted 35/35, guarded MySQL 30/30 with cleanup, TypeScript, build/bundle budgets, authorization 375/0, database safety 116/2/0, diff check, and final Claude Opus re-review are PASS. The safe full suite passed 1,390 tests and 22 skips; two known load-sensitive authentication cases failed in the aggregate and passed 3/3 immediately in isolation. Shared migration, production enablement, Git publication, and deployment remain unauthorized.
+BR-03 is locally complete. Integrate the reviewed candidate into canonical `main` only with explicit Git authorization; then create BR-04's fresh worktree from that exact refreshed commit. Shared migration, production enablement, Git publication, deployment, legacy import, and report cutover remain unauthorized.
+
+## Completion Evidence
+
+- Targeted brief contract/readiness/database tests: 36/36 PASS.
+- Guarded disposable MySQL 8 migration, tenant, concurrency, rollback, and workflow suite: 30/30 PASS with cleanup.
+- Authenticated browser: author revision, governed evidence submission, independent reviewer acceptance, independent approver approval, issuer preflight, self-contained non-issued preview, no preview report/share/issue side effects, 360/768/1440 layouts without page overflow, light/dark themes, and EN/AR RTL all verified against disposable local data.
+- Browser discovery fixed the `getBriefSection` DTO so bound `revisionId` is serialized consistently with `getBriefVersion`; the ordered workflow then passed.
+- TypeScript, production build, all client bundle budgets, authorization inventory 375/0, database-entrypoint audit 116/2/0, and diff checks PASS.
+- Clean safe aggregate suite after stopping the browser server: 1,398 PASS and 22 skipped. The preceding loaded run's four five-second timeouts also passed 59/59 in isolation.
+- Independent final Claude Opus review: `APPROVED`, with no blocker.

@@ -43734,7 +43734,14 @@ async function getBriefSection(input, context2) {
     )
   ).limit(1))[0] ?? null;
   if (!binding) return null;
-  if (!binding.sectionRevisionId) return { ...binding, content: null };
+  const section = {
+    ...binding,
+    id: String(binding.id),
+    briefId: String(stream.id),
+    versionId: String(binding.versionId),
+    revisionId: binding.sectionRevisionId ? String(binding.sectionRevisionId) : null
+  };
+  if (!binding.sectionRevisionId) return { ...section, content: null };
   const revision = (await db.select({ content: briefSectionRevisions.content }).from(briefSectionRevisions).where(
     and9(
       eq19(briefSectionRevisions.organizationId, context2.organizationId),
@@ -43742,7 +43749,7 @@ async function getBriefSection(input, context2) {
       eq19(briefSectionRevisions.id, binding.sectionRevisionId)
     )
   ).limit(1))[0];
-  return { ...binding, content: revision?.content ?? null };
+  return { ...section, content: revision?.content ?? null };
 }
 async function listBriefAssignments(input, context2) {
   const { db, stream } = await scopedStream(input, context2);
