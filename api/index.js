@@ -23320,18 +23320,22 @@ var villaSpaceSchema = z5.object({
     areaSqm: z5.number().min(0)
   }))
 });
+var nullableNumberInput = (schema) => z5.preprocess(
+  (value) => typeof value === "string" && value.trim() !== "" ? Number(value) : value,
+  schema.nullable()
+).optional();
 var projectInputSchema = z5.object({
   name: z5.string().min(1).max(255),
-  description: z5.string().optional(),
+  description: z5.string().nullable().optional().transform((value) => value ?? void 0),
   ctx01Typology: z5.enum(["Residential", "Mixed-use", "Hospitality", "Office", "Villa", "Gated Community", "Villa Development"]).default("Residential"),
   ctx02Scale: z5.enum(["Small", "Medium", "Large"]).default("Medium"),
-  ctx03Gfa: z5.number().nullable().optional(),
+  ctx03Gfa: nullableNumberInput(z5.number()),
   // V4 — Fit-out area fields
-  totalFitoutArea: z5.number().nullable().optional(),
-  totalNonFinishArea: z5.number().nullable().optional(),
+  totalFitoutArea: nullableNumberInput(z5.number()),
+  totalNonFinishArea: nullableNumberInput(z5.number()),
   projectArchetype: z5.enum(["residential_multi", "office", "single_villa", "hospitality", "community"]).optional(),
   officeFitoutCategory: z5.enum(["catA", "catB"]).optional(),
-  officeCustomRatio: z5.number().min(0).max(100).nullable().optional(),
+  officeCustomRatio: nullableNumberInput(z5.number().min(0).max(100)),
   ctx04Location: z5.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
   ctx05Horizon: z5.enum(["0-12m", "12-24m", "24-36m", "36m+"]).default("12-24m"),
   str01BrandClarity: z5.number().min(1).max(5).default(3),
@@ -23340,7 +23344,7 @@ var projectInputSchema = z5.object({
   mkt01Tier: z5.enum(["Mid", "Upper-mid", "Luxury", "Ultra-luxury"]).default("Upper-mid"),
   mkt02Competitor: z5.number().min(1).max(5).default(3),
   mkt03Trend: z5.number().min(1).max(5).default(3),
-  fin01BudgetCap: z5.number().nullable().optional(),
+  fin01BudgetCap: nullableNumberInput(z5.number()),
   fin02Flexibility: z5.number().min(1).max(5).default(3),
   fin03ShockTolerance: z5.number().min(1).max(5).default(3),
   fin04SalesPremium: z5.number().min(1).max(5).default(3),

@@ -36,6 +36,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import {
+  normalizeProjectFormInitialData,
+  normalizeProjectFormValue,
+} from "@/lib/project-form-normalization";
 import { formatAiOperationError, withReference } from "@/lib/ai-operation-error";
 import { useState, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
@@ -938,11 +942,16 @@ export function ProjectForm({ initialData, fieldConfidence, fieldReasoning, onSu
     developerGuidelines: "",
     city: "Dubai",
     sustainCertTarget: "silver",
-    ...initialData
+    ...normalizeProjectFormInitialData(initialData as Record<string, unknown> | undefined)
   }));
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const normalized = normalizeProjectFormValue(String(key), value);
+      return normalized === undefined
+        ? prev
+        : ({ ...prev, [key]: normalized } as FormData);
+    });
 
   // V4: Derive archetype from typology
   const archetype = useMemo(() => getArchetype(form.ctx01Typology), [form.ctx01Typology]);

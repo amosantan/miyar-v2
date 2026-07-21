@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRoute } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -48,12 +48,15 @@ function recordList(record: JsonRecord | null, key: string): JsonRecord[] {
 
 export default function DesignBrief() {
   const [, params] = useRoute("/projects/:id/brief");
+  const [, setLocation] = useLocation();
   const projectId = Number(params?.id);
   const { locale: appLocale } = useTranslation();
   const [reportLocale, setReportLocale] = useState(appLocale);
 
   const latestBrief = trpc.design.getLatestBrief.useQuery({ projectId }, { enabled: !!projectId });
   const allBriefs = trpc.design.listBriefs.useQuery({ projectId }, { enabled: !!projectId });
+  const scores = trpc.project.getScores.useQuery({ projectId }, { enabled: !!projectId });
+  const hasEvaluation = Boolean(scores.data?.length);
 
   const generateMutation = trpc.design.generateBrief.useMutation({
     onSuccess: () => {
@@ -61,7 +64,15 @@ export default function DesignBrief() {
       latestBrief.refetch();
       allBriefs.refetch();
     },
-    onError: (err) => toast.error("Generation failed", { description: withReference(formatAiOperationError(err, "We could not generate the design brief. Please try again.")) }),
+    onError: (err) => {
+      if (err.data?.code === "PRECONDITION_FAILED") {
+        toast.error("Evaluation required", {
+          description: "Evaluate this project before generating its design brief.",
+        });
+        return;
+      }
+      toast.error("Generation failed", { description: withReference(formatAiOperationError(err, "We could not generate the design brief. Please try again.")) });
+    },
   });
 
   const exportDocxMut = trpc.design.exportBriefDocx.useMutation({
@@ -164,9 +175,9 @@ export default function DesignBrief() {
             </Button>
           )}
           <ReportLocaleSelect value={reportLocale} onValueChange={setReportLocale} />
-          <Button onClick={() => generateMutation.mutate({ projectId, locale: reportLocale })} disabled={generateMutation.isPending}>
+          <Button onClick={() => generateMutation.mutate({ projectId, locale: reportLocale })} disabled={generateMutation.isPending || scores.isLoading || !hasEvaluation}>
             <RefreshCw className={`mr-2 h-4 w-4 ${generateMutation.isPending ? "animate-spin" : ""}`} />
-            {brief ? "Regenerate" : "Generate Brief"}
+            {brief ? "Regenerate" : hasEvaluation ? "Generate Brief" : "Evaluate Project First"}
           </Button>
         </div>
       </div>
@@ -176,10 +187,16 @@ export default function DesignBrief() {
           <CardContent className="py-16 text-center">
             <FileText className="mx-auto h-16 w-16 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Design Brief Yet</h3>
-            <p className="text-muted-foreground mb-4">Generate a 7-section design brief from the project's MIYAR evaluation results.</p>
-            <Button onClick={() => generateMutation.mutate({ projectId, locale: reportLocale })} disabled={generateMutation.isPending}>
-              Generate Design Brief
-            </Button>
+            <p className="text-muted-foreground mb-4">{hasEvaluation ? "Generate a 7-section design brief from the project's MIYAR evaluation results." : "This project must be evaluated before MIYAR can generate a design brief."}</p>
+            {hasEvaluation ? (
+              <Button onClick={() => generateMutation.mutate({ projectId, locale: reportLocale })} disabled={generateMutation.isPending}>
+                Generate Design Brief
+              </Button>
+            ) : (
+              <Button onClick={() => setLocation(`/projects/${projectId}?section=decision`)}>
+                Go to Project Evaluation
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
