@@ -10,6 +10,10 @@ const containerSource = readFileSync(
   new URL("../../client/src/components/brief-workflow/BriefWorkspaceContainer.tsx", import.meta.url),
   "utf8"
 );
+const workflowDbSource = readFileSync(
+  new URL("../db/brief-workflow.ts", import.meta.url),
+  "utf8"
+);
 
 const commands = [
   "createStream", "createVersion", "reviseSection", "submitEvidence",
@@ -49,5 +53,10 @@ describe("BR-03 canonical brief boundary", () => {
   it("keeps evaluation readiness separate from brief readiness", () => {
     expect(routerSource).not.toContain("project-readiness");
     expect(routerSource).toContain("@shared/brief-contract");
+  });
+
+  it("returns the bound section revision using the client contract field", () => {
+    expect(workflowDbSource).toContain("revisionId: binding.sectionRevisionId");
+    expect(containerSource).toContain("binding?.revisionId");
   });
 });

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "observedAt": "2026-07-20T12:33:11.117Z",
+  "observedAt": "2026-07-21T11:22:30.650Z",
   "databaseEngine": "MySQL 8.0",
   "targetClass": "disposable localhost database",
   "command": "pnpm test:authorization:mysql",
@@ -31,7 +31,7 @@
     "server/routers/design-router-shared.ts": "4933bc85a5a275364f58e7c6f2f660ff74c50261b06c73368eafbbc2cc76cc01",
     "server/routers/design-sharing.ts": "ed24fbb846cf89638ce9397555572d68ffaef5a16b5ebaaa19c99290ddf60e47",
     "server/routers/design-visuals.ts": "06563bfb07536de85cbb90797cd186766416acc61ab10fecffa3a26d8ffd89dd",
-    "server/routers/project.ts": "bbdd94ecb3c62d4e8858c42bfdccfd2ea816091f580149ac1c8032651fc15ad9",
+    "server/routers/project.ts": "e700d7f9f5fa032fbbcac5a9acb5f644a8eac7eaf3b58323377aeed1cda61d0b",
     "server/routers/learning.ts": "5a5e8929bd47ea1b7e83ca892044bed78623d2257567b86e743a8a3d02d36ab6",
     "server/routers/predictive.ts": "7e847809b2d295f812431069d166074e2a5675ee4e304c0411ab66deeb88e800",
     "server/routers/design-advisor.ts": "a7a552429cf85d69ebb1c81c2df20356ed6172edbe2968028e3aa05012e94648",

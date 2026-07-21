@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `BR-03` (`ACTIVE`)
+- Next executable step: `BR-04` (`NEEDS_HUMAN` — authorize canonical BR-03 integration first)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -44,7 +44,7 @@ Rules:
 | `RM` Roadmap system                 | Shared persistent execution memory                                 |     1 | Both agents use one roadmap, task, worklog, and lessons protocol                                 |
 | `TR` Trust recovery                 | Tenant-safe and verifiably releasable baseline                     |    14 | Authorization inventory closed; checks/tests green; critical workflow certified                  |
 | `UX` Product experience             | A simpler, credible, workflow-first application experience         |     1 | Core journey, compatibility, readiness, accessibility, and browser verification pass             |
-| `BR` Brief operating system         | One governed issued-design-brief workflow                          |     8 | Readiness, typology, version, report, and AI-evaluation contracts operate end to end             |
+| `BR` Brief operating system         | One governed issued-design-brief workflow                          |    12 | Readiness, typology, version, report, and AI-evaluation contracts operate end to end             |
 | `DI` Design intelligence foundation | One canonical room, geometry, and measurement authority            |     1 | Stable room identity, truthful measurement lineage, and legacy-safe reconciliation are certified |
 | `EV` Evidence and procurement moat  | Time-versioned UAE cost, source, supplier, and market intelligence |     8 | Displayed claims resolve to governed evidence and procurement comparisons                        |
 | `SC` Scale and governance           | Maintainable architecture, enterprise controls, and integrations   |     8 | Operational profiles, privacy, collaboration, commercial controls, and handoff are verified      |
@@ -480,7 +480,7 @@ Rules:
 
 ### BR-03 — Implement deterministic brief readiness
 
-- Status: `ACTIVE`
+- Status: `CLOSED`
 - Class / priority: Engine/API / P1
 - Dependencies: `BR-02`
 - Human gate: Approved schema/contract; shared application remains gated.
@@ -492,21 +492,69 @@ Rules:
 - Done when: UI, API, and report compute identical readiness for golden fixtures.
 - Verification: Unit fixtures per typology/state transition, router tests, explainability checks.
 - Expected artifacts: Readiness engine, contracts, API endpoints.
+- Closed: 2026-07-21
+- Terminal task state: `PASS`
+- Completion evidence: The canonical ten-section workflow, deterministic server readiness, tenant-scoped immutable commands, additive migration, and visibly non-issued project preview pass targeted 36/36, guarded MySQL 30/30, safe aggregate suite 1,398/22, TypeScript, build/budgets, authorization 375/0, database safety 116/2/0, authenticated ordered role/browser, responsive, theme, RTL, no-side-effect, diff, and independent Claude Opus gates. Browser certification exposed and verified a DTO fix that now returns the bound section `revisionId` required by post-draft actions.
+- Residual risk: The reviewed candidate is not in canonical `main`. Push, merge, shared migration, production enablement, deployment, legacy import, report cutover, and public sharing remain separately gated.
+- Successor selected: `BR-04`, held at `NEEDS_HUMAN` until canonical BR-03 integration is explicitly authorized and completed.
 
-### BR-04 — Build the unified brief workspace
+### BR-04 — Guided Studio Foundation
 
-- Status: `PLANNED`
+- Status: `NEEDS_HUMAN`
 - Class / priority: UI/workflow / P1
 - Dependencies: `BR-03`
-- Human gate: Approved interaction/design direction.
-- Evidence: Global and project routes fragment completion and approval context.
+- Human gate: Canonical BR-03 Git integration, followed by a brand-new worktree from the exact refreshed `main`; shared migration, deployment, and numerical-policy changes remain separate gates.
+- Evidence: BR-03's raw JSON workspace and raw record/user IDs cannot yet produce one defensible, budget-aware source of truth connecting project intent, evidence, space, materials, costs, boards, media, and approvals.
 - Change set:
-  - Present the brief sections, readiness, owner, evidence, assumptions, and next required action in one project workspace.
-  - Preserve expert/manual editing and explicit user inputs.
-  - Link specialist tools without losing brief context.
-- Done when: A developer and designer can complete, review, approve, and issue a brief without route dead ends.
-- Verification: Role-based browser journeys, accessibility, responsive and visual review.
-- Expected artifacts: Unified workspace and onboarding guidance.
+  - Replace raw JSON with guided editors for all ten approved sections, showing owner, maturity, evidence, assumptions, findings, stale/blocked conditions, dependencies, and next permitted action.
+  - Replace raw user/event/dependency IDs with authorized pickers and server-issued references; preserve immutable proposal/evidence/review/approval/resolution/issue actions and server authority.
+  - Add a discriminated schema-versioned `BriefSectionContentV1` union, section-aware `brief.reviseSection` validation, and a tenant-safe `brief.getStudio` aggregate query.
+  - Add a role/action inbox, evidence picker, assumption register, conflict recovery, and specialist-tool links retaining project/brief/version/section/return context.
+  - Keep working preview visibly non-issued and side-effect free.
+  - Store the deterministic cost/area contract in `cost_quantities`: original and normalized AED/m²/ft² values, mandatory named area basis and quantity for unit rates, shared `1 m² = 10.7639 ft²`, four-decimal area/rate and two-decimal total rounding, cost base/scope/tax/fees/contingency/escalation metadata, and fail-closed `legacy_basis_unspecified` handling.
+- Done when: Every section is structurally authored and validated; a real ordered multi-user lifecycle, tenant/asset/evidence authorization, explicit-input preservation, state/conflict recovery, deterministic budget conversions, and responsive accessible EN/AR themed browser journeys pass without preview side effects.
+- Verification: Typed unit/router/UI tests; real ordered browser workflow; self-review/self-approval denial; cross-tenant concealment; CAS/idempotency/stale/blocked/conditional-N/A paths; conversion/round-trip/legacy fixtures; guarded MySQL; safe suite; audits; build/budgets; visual and independent review.
+- Expected artifacts: Guided studio, typed section contract, aggregate API, deterministic budget normalization, pickers/inbox/register/recovery UI, and BR-04 verification evidence.
+
+### BR-04B — Governed Composition and Audience Views
+
+- Status: `PLANNED`
+- Class / priority: Engine/workflow / P1
+- Dependencies: `BR-04`, `BR-05`, `BR-06`, `BR-08`
+- Human gate: Approval of typology rules and audience-view content policy.
+- Change set: Compose proposals from explicit inputs, approved typology rules, canonical geometry, deterministic engines, governed evidence, and mapped legacy/advisor output while retaining field-level authority and provenance. AI may draft only narrative, rationale, and visual direction as `ai_suggestion`; human acceptance creates an immutable revision. Generate executive, designer, cost/material, image-generation, and evidence-appendix views from identical facts.
+- Done when: All five views reconcile to one canonical version and AI cannot alter numbers, explicit inputs, maturity, approval, or issue state.
+- Verification: Cross-view reconciliation, authority/provenance fixtures, AI-negative tests, immutable acceptance history, browser and independent review.
+
+### BR-04C — Budget, Market, and Verified Material Intelligence
+
+- Status: `PLANNED`
+- Class / priority: Deterministic economics/materials/evidence / P1
+- Dependencies: `BR-04B`, `DI-01`, `EV-03`, `EV-04`, `EV-05`
+- Human gate: Cost-consultant/product approval for numerical policy; any project-level normalized columns require generated migration, disposable forward verification, and restore planning.
+- Change set: Reconcile spaces, quantities, material schedules, total and unit-rate budgets against one area basis; separate cost categories; expose ranges, geography, base date, confidence, evidence quality, and insufficiency; retain reproducible DLD cohort identity; govern UAE material performance, quantity, installed cost, availability, lead time, MOQ, suppliers, alternatives, and freshness; block stale/unverified affordability claims and silent requirement downgrades.
+- Done when: Every affordability or value-engineering claim is deterministic, reproducible, basis-consistent, evidence-backed, and explicitly approved where policy requires it.
+- Verification: Numerical fixtures, provenance/freshness failures, DLD cohort reproducibility, material reconciliation, tenant tests, guarded MySQL where applicable, and specialist approval.
+
+### BR-04D — Controlled Boards and Image Compiler
+
+- Status: `PLANNED`
+- Class / priority: Media/design intelligence / P1
+- Dependencies: `BR-04C`, `BR-08`, `SC-02`; production multi-variant generation also requires `EX-02`
+- Human gate: Reference licensing/consent and production-generation approval.
+- Change set: Separate conceptual mood boards from evidence-backed material boards; compile per-space image inputs from approved geometry, room/material identities, zoning, light, climate/view, camera, constraints, and licensed references; store prompt/model/date/seed/references/output/safety/adherence/upstream lineage; mark outputs stale on upstream changes; use deterministic adherence checks plus human selection.
+- Done when: Boards and images retain provenance and staleness lineage and are never represented as proof of compliance, buildability, availability, quantity, or affordability.
+- Verification: Lineage/staleness fixtures, licensing and safety gates, deterministic adherence checks, human selection, media failure paths, and visual review.
+
+### BR-04E — Full Studio Cutover and Certification
+
+- Status: `PLANNED`
+- Class / priority: Integration/release / P1
+- Dependencies: `BR-04D`, `BR-07`, and all preceding evidence/media gates
+- Human gate: Legacy contraction, telemetry/rollback, migration, release, and deployment approval.
+- Change set: Unite authoring, research, spaces, budgets, materials, boards, images, review, approval, issue, and five governed views in one project route; preserve legacy URLs with project/query context; issue/export/share only from the BR-07 immutable snapshot; retain legacy behavior until approved contraction gates pass.
+- Done when: The complete studio is certified end to end with compatibility, rollback, immutable issue, export/share, and operational evidence. `KF-018` remains separate unless explicitly remediated with versioned fixtures.
+- Verification: Full role/browser/artifact workflow, compatibility redirects, snapshot reconciliation, production-safe migration/release rehearsal, rollback, telemetry, and independent certification.
 
 ### BR-05 — Build the typology-pack framework
 

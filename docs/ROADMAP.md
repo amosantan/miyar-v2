@@ -63,6 +63,14 @@ Exit criterion: a new environment can be created reproducibly and a representati
 - Reconcile material, room, benchmark, score, risk, sustainability, and ROI numbers across screen, PDF, DOCX, and shared view.
 - Ensure all material claims expose provenance and assumption quality.
 
+### P1.5 Full Design Brief Studio
+
+- Build one versioned ten-section source of truth instead of separate AI-written documents.
+- Deliver the work in bounded slices: guided studio foundation (`BR-04`), governed composition and five audience views (`BR-04B`), budget/market/material intelligence (`BR-04C`), controlled boards and image compilation (`BR-04D`), then full cutover and certification (`BR-04E`).
+- Preserve explicit inputs, deterministic AED/area/cost authority, evidence lineage, independent approvals, and immutable issue boundaries throughout.
+
+Exit criterion: executives, designers, cost/material teams, image generation, and evidence reviewers consume consistent views of the same approved canonical brief; no AI output becomes numerical or approval authority.
+
 ## Priority 2 — Data Authority and Market Coverage
 
 ### P2.1 Source and connector reliability
