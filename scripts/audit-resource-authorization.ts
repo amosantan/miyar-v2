@@ -126,10 +126,10 @@ interface InventoryDocument {
 
 const RESOURCE_ID_PATTERN = /^(id|[A-Za-z][A-Za-z0-9]*(Id|Ids))$/;
 const TENANT_RESOURCE_ID_PATTERN =
-  /^(projectId|projectIds|assetId|assetIds|briefId|briefIds|scenarioId|scenarioIds|reportId|reportIds|boardId|boardIds|visualId|visualIds|commentId|commentIds|roomId|roomIds|alertId|alertIds|comparisonId|comparisonIds|portfolioId|portfolioIds|outcomeId|outcomeIds|evidenceId|evidenceIds|allocationId|allocationIds|linkId|linkIds)$/;
+  /^(projectId|projectIds|assetId|assetIds|briefId|briefIds|scenarioId|scenarioIds|reportId|reportIds|boardId|boardIds|visualId|visualIds|commentId|commentIds|roomId|roomIds|alertId|alertIds|comparisonId|comparisonIds|portfolioId|portfolioIds|outcomeId|outcomeIds|evidenceId|evidenceIds|allocationId|allocationIds|linkId|linkIds|revisionId|revisionIds)$/;
 
 const RESOURCE_HELPER_PATTERN =
-  /(Project|Asset|Brief|Scenario|Report|Board|Visual|Comment|Room|Outcome|Evidence|Portfolio|BiasAlert|Simulation|Allocation|Checklist|Recommendation|Rfq|Share)/i;
+  /(Project|Asset|Brief|Scenario|Report|Board|Visual|Comment|Room|Outcome|Evidence|Portfolio|BiasAlert|Simulation|Allocation|Checklist|Recommendation|Rfq|Share|TypologyPack)/i;
 const GLOBAL_PLATFORM_ALERT_EFFECT_PATTERN =
   /\b(?:triggerAlertEngine\s*\(|platformAlerts\b)/;
 const CROSS_ORG_LEARNING_EFFECT_PATTERN =
@@ -767,6 +767,11 @@ function ownershipPath(
       "authenticated organization + input projectId/briefId/versionId/child IDs -> canonical brief workflow lockTenant resolver -> organization/project/scenario-scoped records",
     ];
   }
+  if (procedure.router === "typology-pack") {
+    return [
+      "authenticated organization -> typology_pack_revisions.organizationId -> exact tenant-owned immutable revision",
+    ];
+  }
   if (procedure.key === "design.linkAsset") {
     return [
       "input.assetId -> project_assets.id -> project_assets.projectId -> projects.orgId",
@@ -980,6 +985,8 @@ function defaultAnnotation(
     )
       ? "public_token_guarded"
       : "not_project_scoped";
+  } else if (procedure.router === "typology-pack" && ORG_ACCESS_PRIMITIVES.has(procedure.accessPrimitive)) {
+    classification = "org_guarded";
   } else if (hasLegacyFallback || (hasLegacyUserGuard && relevant)) {
     classification = "legacy_user_guard";
   } else if (

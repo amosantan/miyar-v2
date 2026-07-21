@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `BR-05` (`READY`)
+- Next executable step: none; `BR-06` is `NEEDS_HUMAN` for UAE domain review.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -565,7 +565,7 @@ Rules:
 
 ### BR-05 — Build the typology-pack framework
 
-- Status: `READY`
+- Status: `CLOSED`
 - Class / priority: Product/engine / P1
 - Dependencies: `BR-01`, `BR-03`
 - Human gate: Domain approval for rule content, not framework mechanics.
@@ -577,10 +577,15 @@ Rules:
 - Done when: A new pack can be added without router/UI branching.
 - Verification: Schema/contract tests and a neutral sample pack.
 - Expected artifacts: Pack engine, validator, authoring template.
+- Closed: 2026-07-21
+- Terminal task state: `PASS`
+- Completion evidence: Immutable source-controlled built-in manifest; strict shared contracts; canonical SHA-256 resolver; tenant-scoped append-only revisions/events and protected APIs; additive migrations `0053`/`0054`; deterministic override validation before persistence; actor-bound idempotency; cross-organization concealment; and a synthetic non-production neutral pack only. Focused engine tests pass 7/7; guarded disposable MySQL passes 6 files/34 tests with cleanup and 70 current source hashes; the database-free suite, TypeScript, authorization inventory 383/0, database-safety 119/2/0, build/budgets, and diff check pass. Independent final architecture/security review returned `PASS`. Claude Code was invoked read-only but returned no usable verdict, so no Claude approval is claimed.
+- Residual risk: Real UAE content and any resulting compliance/design authority remain unapproved and must be owned by BR-06. Shared/production migration application, Git publication, merge, and release were not performed.
+- Successor: `BR-06` is `NEEDS_HUMAN` for its named UAE architects/interior designers, cost consultant, and compliance reviewer.
 
 ### BR-06 — Validate priority UAE typology packs
 
-- Status: `PLANNED`
+- Status: `NEEDS_HUMAN`
 - Class / priority: Design intelligence / P1
 - Dependencies: `BR-05`
 - Human gate: UAE architects/interior designers, cost consultant, and relevant compliance reviewer.

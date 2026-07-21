@@ -11,6 +11,7 @@ export const MYSQL_INTEGRATION_TESTS = [
   "client/src/components/brief-workflow/BriefWorkspaceContainer.tsx",
   "client/src/components/brief-workflow/BriefWorkspace.tsx",
   "client/src/components/brief-workflow/BriefSectionEditor.tsx",
+  "tests/mysql/br05-typology-packs.mysql.test.ts",
 ] as const;
 
 export const MYSQL_EVIDENCE_FILE = ".agent/state/TR03H_MYSQL_EVIDENCE.json";
@@ -57,7 +58,17 @@ export const REQUIRED_MYSQL_EVIDENCE_FILES = [
   "drizzle/meta/0051_snapshot.json",
   "drizzle/0052_br03_brief_workflow.sql",
   "drizzle/meta/0052_snapshot.json",
+  "drizzle/0053_br05_typology_pack_governance.sql",
+  "drizzle/0054_br05_typology_pack_integrity.sql",
+  "drizzle/meta/0053_snapshot.json",
+  "drizzle/meta/0054_snapshot.json",
   "tests/mysql/di01-geometry.mysql.test.ts",
+  "tests/mysql/br05-typology-packs.mysql.test.ts",
+  "shared/typology-pack.ts",
+  "server/engines/typology-pack.ts",
+  "server/engines/typology-pack.test.ts",
+  "server/db/typology-packs.ts",
+  "server/routers/typology-packs.ts",
   "shared/geometry/index.ts",
   "shared/geometry/types.ts",
   "server/engines/geometry/authority-policy.ts",

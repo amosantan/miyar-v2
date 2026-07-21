@@ -1,0 +1,1 @@
+ALTER TABLE `typology_pack_events` ADD `requestFingerprint` varchar(64) NOT NULL;

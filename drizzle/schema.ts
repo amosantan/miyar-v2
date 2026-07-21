@@ -3772,6 +3772,63 @@ export type ArtifactInputSnapshot = typeof artifactInputSnapshots.$inferSelect;
 export type InsertArtifactInputSnapshot =
   typeof artifactInputSnapshots.$inferInsert;
 
+// ─── Governed typology-pack overrides (BR-05) ──────────────────────────────
+// Built-in packs live in the checked-in registry. These rows are tenant-owned,
+// append-only candidate revisions; they are deliberately not a replacement for
+// project geometry, scoring, reports, or public-share content.
+export const typologyPackRevisions = mysqlTable(
+  "typology_pack_revisions",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    packKey: varchar("packKey", { length: 96 }).notNull(),
+    revisionNumber: int("revisionNumber").notNull(),
+    basePackKey: varchar("basePackKey", { length: 96 }).notNull(),
+    basePackVersion: varchar("basePackVersion", { length: 32 }).notNull(),
+    basePackFingerprint: varchar("basePackFingerprint", { length: 64 }).notNull(),
+    payloadSchemaVersion: varchar("payloadSchemaVersion", { length: 32 }).notNull(),
+    payload: json("payload").notNull(),
+    payloadFingerprint: varchar("payloadFingerprint", { length: 64 }).notNull(),
+    status: mysqlEnum("status", ["draft", "reviewed", "approved", "withdrawn"]).notNull().default("draft"),
+    createdBy: int("createdBy").notNull(),
+    reviewedBy: int("reviewedBy"),
+    reviewedAt: timestamp("reviewedAt"),
+    reviewDueAt: timestamp("reviewDueAt").notNull(),
+    approvedBy: int("approvedBy"),
+    approvedAt: timestamp("approvedAt"),
+    withdrawnBy: int("withdrawnBy"),
+    withdrawnAt: timestamp("withdrawnAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("typology_pack_revisions_org_pack_revision_unique").on(table.organizationId, table.packKey, table.revisionNumber),
+    uniqueIndex("typology_pack_revisions_org_id_unique").on(table.organizationId, table.id),
+    index("typology_pack_revisions_org_status_idx").on(table.organizationId, table.packKey, table.status),
+  ]
+);
+export type TypologyPackRevision = typeof typologyPackRevisions.$inferSelect;
+
+export const typologyPackEvents = mysqlTable(
+  "typology_pack_events",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    revisionId: int("revisionId").notNull(),
+    eventType: mysqlEnum("eventType", ["created", "reviewed", "approved", "withdrawn"]).notNull(),
+    actorUserId: int("actorUserId").notNull(),
+    reason: text("reason").notNull(),
+    idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull(),
+    requestFingerprint: varchar("requestFingerprint", { length: 64 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("typology_pack_events_org_id_unique").on(table.organizationId, table.id),
+    uniqueIndex("typology_pack_events_org_idempotency_unique").on(table.organizationId, table.idempotencyKey),
+    index("typology_pack_events_org_revision_idx").on(table.organizationId, table.revisionId),
+  ]
+);
+export type TypologyPackEvent = typeof typologyPackEvents.$inferSelect;
+
 // ─── Canonical issued-design-brief workflow (BR-02/BR-03) ──────────────────
 // These tables are deliberately additive. Historical design_briefs remain
 // compatibility inputs and never acquire canonical governance by inference.

@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import {
   MYSQL_EVIDENCE_FILE,
@@ -49,6 +51,9 @@ function fileHash(file: string) {
 }
 
 let exitCode = 0;
+let testCount: number | undefined;
+const resultDirectory = mkdtempSync(join(tmpdir(), "miyar-mysql-results-"));
+const resultFile = join(resultDirectory, "vitest.json");
 try {
   for (const [command, args] of [
     ["pnpm", ["exec", "tsx", "scripts/recreate-mysql-auth-test.ts"]],
@@ -62,7 +67,7 @@ try {
         "drizzle.mysql-test.config.ts",
       ],
     ],
-    ["pnpm", ["exec", "vitest", "run", "--config", "vitest.mysql.config.ts"]],
+    ["pnpm", ["exec", "vitest", "run", "--config", "vitest.mysql.config.ts", "--reporter=default", "--reporter=json", `--outputFile=${resultFile}`]],
   ] as const) {
     const result = spawnSync(command, args, {
       cwd: process.cwd(),
@@ -79,6 +84,13 @@ try {
       exitCode = result.status ?? 1;
       break;
     }
+    if (args[1] === "vitest") {
+      const report = JSON.parse(readFileSync(resultFile, "utf8")) as { numTotalTests?: unknown };
+      if (!Number.isInteger(report.numTotalTests) || (report.numTotalTests as number) < 1) {
+        fail("Vitest JSON report did not contain a valid total test count");
+      }
+      testCount = report.numTotalTests as number;
+    }
   }
 } finally {
   const cleanup = spawnSync(
@@ -90,6 +102,7 @@ try {
     console.error("[mysql-authorization] Disposable database cleanup failed");
     exitCode = exitCode || cleanup.status || 1;
   }
+  rmSync(resultDirectory, { recursive: true, force: true });
 }
 
 if (exitCode === 0) {
@@ -106,7 +119,7 @@ if (exitCode === 0) {
           "checked-in migration chain on a freshly created database",
         testFile: MYSQL_INTEGRATION_TEST,
         testFiles: MYSQL_INTEGRATION_TESTS,
-        testCount: 31,
+        testCount,
         cleanupVerified: true,
         fileHashes: Object.fromEntries(
           REQUIRED_MYSQL_EVIDENCE_FILES.map(file => [file, fileHash(file)])
