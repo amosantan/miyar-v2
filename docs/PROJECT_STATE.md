@@ -5,28 +5,29 @@ This is the canonical location for current observed repository facts. It is not 
 ## Observation Metadata
 
 - Observed: 2026-07-21
-- Production source commit: `1bad9d666d71a0b010a27433ca196c842b4e546f` on canonical `main`, merging SC-04 PR #20.
-- Branch identity: canonical `origin/main` is `4712e220bccd39fcf5cf8472caf65730d78ff883`, including BR-03; production runtime release identity remains `1bad9d666d71a0b010a27433ca196c842b4e546f`.
+- Production source commit: `b68c341392f69474fdc9ab872bb648e520dd5f30` on canonical `main`, merging BR-04 PR #27.
+- Branch identity: canonical `origin/main` is `b68c341392f69474fdc9ab872bb648e520dd5f30`, including BR-04.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel target `dpl_EfNS4qwEXLRXHPNKPi6isHG41BuE` is `READY` for exact source commit `1bad9d6`; canonical-main CI run `29675827338`, three root/health observations, login route, authenticated session/report preview, temporary share/revoke, unauthenticated tenant rejection, and concealed-share privacy checks pass.
+- Production: Vercel target `dpl_BTcfrGZ6px4iHvJfiETrK8zP8s5F` is `READY` for exact source commit `b68c341`; BR-04 is compiled into the production workspace and narrowly enabled for organization 1 and consumer `project_workspace`. Root/login, three health observations, unauthenticated brief rejection, and concealed-share privacy headers pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `BR-01` through `BR-04` are closed at `PASS`; `BR-04` is complete in its isolated candidate branch and awaits integration/release evidence. `BR-05` is the single next executable step. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+- Roadmap state: `BR-01` through `BR-04` are closed at `PASS`; BR-04 is merged and deployed. `BR-05` is the single next executable step. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
 
-## BR-04 Local Certification Observation
+## BR-04 Release Observation
 
-- The candidate is in `/Users/amrosaleh/Maiyar/miyar-v2-br04-brief-studio` on `codex/br-04-brief-studio`, based exactly on canonical BR-03 merge `4712e22`; Git publication, migration, and deployment identities are recorded only after those operations complete.
+- Implementation commit `d8a3b7a` passed PR #27 review and checks and merged as `b68c341`. Vercel deployment `dpl_BTcfrGZ6px4iHvJfiETrK8zP8s5F` is `READY` for that exact merge source.
 - `BR-04-v1` provides strict typed content for all ten brief sections. Cost quantities retain original AED/m²/ft² inputs, normalize with exact decimal/BigInt arithmetic and `1 m² = 10.7639 ft²`, require a named area basis for unit rates, and leave ambiguous legacy values unusable for affordability claims.
 - The guided studio uses one tenant-scoped aggregate, authorized evidence/member pickers, server-issued references, separate immutable actor actions, conflict recovery, assumptions/inbox/specialist context, and a visibly non-issued side-effect-free preview.
 - Final evidence: focused 36/36; guarded MySQL 31/31; safe full suite 1,424/22; TypeScript; authorization 376/0; database audit 117/2/0; production build/bundle budgets; authenticated author/reviewer/approver/issuer, keyboard, themes, EN/AR RTL, responsive layouts, and unchanged preview artifact counts; Claude Opus final `APPROVED`.
+- BR-03 migration 0052 was already safely deployed through PlanetScale request #6 after backup `kqthto1vk2jl`; production contains all 19 expected brief tables and no workflow rows. The release workflow verified this state and did not duplicate the migration.
 
-## BR-03 Local Certification Observation
+## BR-03 Release Observation
 
-- The reviewed candidate is in `/Users/amrosaleh/Maiyar/miyar-v2-br03-brief-fix` on `codex/br-03-brief-generation-fix`, stacked on BR-03 implementation commit `5ecc1c3`; it has not been integrated into canonical `main`.
+- PR #26 integrated BR-03 into canonical `main` at `4712e22`. Its additive migration 0052 was deployed through PlanetScale request #6 (`vtmwg38gazrv`, deployment `rbiqc0atmv02`) after successful backup `kqthto1vk2jl`.
 - The ten-section deterministic readiness engine, tenant-scoped immutable workflow, additive migration, and non-issued project preview pass targeted 36/36 and guarded disposable-MySQL 30/30 verification.
 - An authenticated disposable-browser journey exercised author revision, governed evidence, independent review, independent approval, issuer preflight, 360/768/1440 layouts, light/dark themes, EN/AR RTL, and preview side-effect checks. It exposed and verified a fix for inconsistent bound-revision serialization between the section and version APIs.
 - TypeScript, production build and client bundle budgets, authorization inventory 375/0, database-entrypoint audit 116/2/0, and final diff checks pass. A clean safe aggregate suite passed 1,398 tests with 22 skipped after the browser server stopped; the preceding loaded run's four five-second timeouts passed 59/59 in isolation.
-- Final independent Claude Opus review returned `APPROVED`. Shared migration, Git publication/integration, production enablement, deployment, legacy import, and report/share cutover remain unauthorized.
+- Final independent Claude Opus review returned `APPROVED`. Git publication, integration, shared migration, and bounded BR-04 production enablement are complete; legacy import and report/share cutover remain separately gated.
 
 ## Technology Observed
 

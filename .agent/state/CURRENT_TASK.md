@@ -14,7 +14,7 @@
 - Selected loops: Roadmap execution and feature delivery
 - Retry budget: Three evidence-based attempts per unchanged failure class; five feature-loop iterations maximum
 - Resource budget: One isolated worktree, no shared database writes, bounded parallel read-only audits, proportional full verification, and independent Claude review
-- Human gates: Shared/production migration, deployment, numerical-policy change beyond the approved BR-04 contract, production dependency, legacy cutover, push, merge, report issue/share cutover, and BR-04B–E remain separately gated
+- Human gates: Push, merge, BR-03 shared migration verification, and the bounded BR-04 production rollout were authorized and completed on 2026-07-21. Numerical-policy change beyond the approved BR-04 contract, production dependency, legacy cutover, report issue/share cutover, and BR-04B–E remain separately gated.
 
 ## Goal
 
@@ -63,7 +63,7 @@ The current workflow proves governance, but authors still edit raw JSON and past
 
 ## Next Action
 
-BR-04 is locally complete at `PASS`. The next executable roadmap step is `BR-05`; start it only in a new worktree from then-current canonical `main`. Publication, shared migration, and deployment evidence must be recorded separately as those authorized operations complete.
+BR-04 is complete, merged, and deployed at `PASS`; its BR-03 migration prerequisite is verified in production. The next executable roadmap step is `BR-05`; start it only in a new worktree from then-current canonical `main`.
 
 ## Completion Evidence
 
@@ -72,4 +72,6 @@ BR-04 is locally complete at `PASS`. The next executable roadmap step is `BR-05`
 - Broad gates: safe suite 1,424 passed/22 skipped; TypeScript; authorization inventory 376/0; database audit 117 entrypoints/two exact generated exceptions/zero findings; production build and all bundle budgets.
 - Authenticated browser: separate author, reviewer, approver, and issuer; keyboard; light/dark; EN/AR RTL; 360/768/1440; preview DB counts unchanged for events, issues, reports, and share tokens.
 - Independent review: Claude Opus returned `APPROVED_WITH_CHANGES`; all three low findings were fixed and its follow-up verdict was `APPROVED`.
-- Local certification performed no shared database write, production migration, or deployment; publication and release evidence is recorded only after those operations complete.
+- Release: implementation commit `d8a3b7a` passed PR #27 checks and merged to canonical `main` as `b68c341`; production deployment `dpl_BTcfrGZ6px4iHvJfiETrK8zP8s5F` is `READY` for that exact source commit at `www.miyar.dev`.
+- BR-03 migration 0052 was already deployed through PlanetScale deploy request #6 (`vtmwg38gazrv`, deployment `rbiqc0atmv02`) after successful backup `kqthto1vk2jl`; production verification found all 19 canonical brief tables, 247 columns, 70 table/index pairs, and zero workflow rows. It was not applied twice.
+- Production rollout is limited to organization 1 and consumer `project_workspace`; the compiled Studio flag is enabled. Root/login, three health checks, unauthenticated brief rejection, and invalid-share privacy headers pass. The authenticated project rendered the Governed Brief tab; a final browser-control timeout prevented one last post-allowlist DOM assertion, so no stronger authenticated claim is recorded.

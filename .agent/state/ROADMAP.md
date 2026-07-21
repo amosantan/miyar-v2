@@ -503,7 +503,7 @@ Rules:
 - Status: `CLOSED`
 - Class / priority: UI/workflow / P1
 - Dependencies: `BR-03`
-- Human gate: Satisfied prerequisite: PR #26 integrated BR-03 into canonical `main` at merge commit `4712e22`, and BR-04 began in a brand-new worktree from that exact commit. Shared migration, deployment, numerical-policy changes, push, and merge remain separate gates.
+- Human gate: PR #26 integrated BR-03 at `4712e22`; BR-04 began in a fresh worktree from that exact commit. The owner subsequently authorized push, merge, BR-03 shared migration handling, and BR-04 deployment; those operations completed on 2026-07-21. Numerical-policy expansion and later roadmap slices remain separately gated.
 - Evidence: BR-03's raw JSON workspace and raw record/user IDs cannot yet produce one defensible, budget-aware source of truth connecting project intent, evidence, space, materials, costs, boards, media, and approvals.
 - Change set:
   - Replace raw JSON with guided editors for all ten approved sections, showing owner, maturity, evidence, assumptions, findings, stale/blocked conditions, dependencies, and next permitted action.
@@ -519,7 +519,8 @@ Rules:
 - Closed: 2026-07-21
 - Terminal task state: `PASS`
 - Completion evidence: Guided editors and typed `BR-04-v1` content cover all ten sections; evidence/user references are server-authorized; `brief.getStudio` supplies tenant-scoped facts and state-valid actions; budget/area normalization is deterministic and legacy ambiguity fails closed. Final gates pass: focused 36/36, guarded MySQL 31/31, safe suite 1,424/22, TypeScript, authorization 376/0, database audit 117/2/0, production build/budgets, separate-role authenticated browser with responsive/theme/RTL/keyboard/no-preview-side-effect checks, and Claude Opus follow-up `APPROVED`.
-- Residual risk: This candidate is not yet integrated or deployed. Shared migration, deployment, numerical-policy expansion, AI composition, audience views, market/material intelligence, boards/images, issued snapshots, and legacy cutover remain separately gated until their authorized operations are evidenced.
+- Release evidence: PR #27 merged implementation commit `d8a3b7a` as canonical `b68c341`; production deployment `dpl_BTcfrGZ6px4iHvJfiETrK8zP8s5F` is `READY` for that exact source. PlanetScale deploy request #6 had already completed migration 0052 after a verified backup, so release verification did not reapply it. Production Studio rollout is restricted to organization 1 and consumer `project_workspace`.
+- Residual risk: Numerical-policy expansion, AI composition, audience views, market/material intelligence, boards/images, issued snapshots, and legacy cutover remain separately gated. The final post-allowlist authenticated DOM assertion was interrupted by browser-control timeout; public health/security boundary checks pass.
 - Successor selected: `BR-05`; `BR-04B` remains planned until `BR-05`, `BR-06`, and `BR-08` also close.
 
 ### BR-04B — Governed Composition and Audience Views
