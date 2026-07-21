@@ -22,16 +22,19 @@ import {
   Download, ChevronRight, Loader2, Sparkles, Building2, Calculator,
   Link, FileText,
 } from "lucide-react";
-import { useState, useMemo, useCallback } from "react";
+import { lazy, Suspense, useState, useMemo, useCallback } from "react";
 import { EVALUATION_FIELD_LABELS, EVALUATION_REQUIRED_FIELDS, type EvaluationRequiredField, type InputProvenance } from "@shared/project-readiness";
 import { useTranslation } from "@/lib/i18n";
 import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
-import { BriefWorkspaceContainer } from "@/components/brief-workflow/BriefWorkspaceContainer";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis,
   PolarRadiusAxis, Radar, Legend,
 } from "recharts";
+
+const BriefWorkspaceContainer = lazy(() =>
+  import("@/components/brief-workflow/BriefWorkspaceContainer").then(module => ({ default: module.BriefWorkspaceContainer }))
+);
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -1309,7 +1312,9 @@ function ProjectDetailContent() {
 
           {BRIEF_WORKFLOW_ENABLED && (
             <TabsContent value="governedBrief" className="space-y-4">
-              <BriefWorkspaceContainer projectId={projectId} currentUserId={user?.id ? Number(user.id) : undefined} isAdmin={user?.role === "admin"} />
+              <Suspense fallback={<Card aria-busy="true"><CardContent className="flex min-h-48 items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Loading design brief studio…</CardContent></Card>}>
+                <BriefWorkspaceContainer projectId={projectId} currentUserId={user?.id ? Number(user.id) : undefined} />
+              </Suspense>
             </TabsContent>
           )}
 

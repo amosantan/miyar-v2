@@ -6,12 +6,19 @@ This is the canonical location for current observed repository facts. It is not 
 
 - Observed: 2026-07-21
 - Production source commit: `1bad9d666d71a0b010a27433ca196c842b4e546f` on canonical `main`, merging SC-04 PR #20.
-- Branch identity: canonical `origin/main` contains runtime application release `1bad9d666d71a0b010a27433ca196c842b4e546f`; later commits may record state only and do not change the runtime release identity.
+- Branch identity: canonical `origin/main` is `4712e220bccd39fcf5cf8472caf65730d78ff883`, including BR-03; production runtime release identity remains `1bad9d666d71a0b010a27433ca196c842b4e546f`.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: Vercel target `dpl_EfNS4qwEXLRXHPNKPi6isHG41BuE` is `READY` for exact source commit `1bad9d6`; canonical-main CI run `29675827338`, three root/health observations, login route, authenticated session/report preview, temporary share/revoke, unauthenticated tenant rejection, and concealed-share privacy checks pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `BR-01`, `BR-02`, and the local `BR-03` implementation are closed at `PASS`. `BR-04` is the named next step but is `NEEDS_HUMAN` until the reviewed BR-03 candidate is explicitly integrated into canonical `main`; its new worktree must start from that exact refreshed commit. The roadmap now bounds the Full Design Brief Studio as `BR-04` Guided Studio Foundation, `BR-04B` governed composition/five views, `BR-04C` budget/market/material intelligence, `BR-04D` controlled boards/image compiler, and `BR-04E` cutover/certification. No push, merge, shared migration, production enablement, or deployment occurred. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+- Roadmap state: `BR-01` through `BR-04` are closed at `PASS`; `BR-04` is complete in its isolated candidate branch and awaits integration/release evidence. `BR-05` is the single next executable step. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+
+## BR-04 Local Certification Observation
+
+- The candidate is in `/Users/amrosaleh/Maiyar/miyar-v2-br04-brief-studio` on `codex/br-04-brief-studio`, based exactly on canonical BR-03 merge `4712e22`; Git publication, migration, and deployment identities are recorded only after those operations complete.
+- `BR-04-v1` provides strict typed content for all ten brief sections. Cost quantities retain original AED/m²/ft² inputs, normalize with exact decimal/BigInt arithmetic and `1 m² = 10.7639 ft²`, require a named area basis for unit rates, and leave ambiguous legacy values unusable for affordability claims.
+- The guided studio uses one tenant-scoped aggregate, authorized evidence/member pickers, server-issued references, separate immutable actor actions, conflict recovery, assumptions/inbox/specialist context, and a visibly non-issued side-effect-free preview.
+- Final evidence: focused 36/36; guarded MySQL 31/31; safe full suite 1,424/22; TypeScript; authorization 376/0; database audit 117/2/0; production build/bundle budgets; authenticated author/reviewer/approver/issuer, keyboard, themes, EN/AR RTL, responsive layouts, and unchanged preview artifact counts; Claude Opus final `APPROVED`.
 
 ## BR-03 Local Certification Observation
 

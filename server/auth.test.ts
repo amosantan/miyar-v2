@@ -86,7 +86,7 @@ describe("Authentication: bcrypt password flow", () => {
     vi.clearAllMocks();
   });
 
-  it("registers a user and logs in successfully", async () => {
+  it("registers a user with a bcrypt password", async () => {
     const caller = authRouter.createCaller(dummyCtx);
     const email = "test@miyar.test";
     const password = "SuperSecretPassword123!";
@@ -110,10 +110,26 @@ describe("Authentication: bcrypt password flow", () => {
       })
     );
 
+    expect(auditLogMock).toHaveBeenCalledOnce();
+    expect(getDbMock).toHaveBeenCalledOnce();
+    expect(sdk.createSessionToken).toHaveBeenCalledOnce();
+  });
+
+  it("logs in successfully with a fixed bcrypt fixture", async () => {
+    const caller = authRouter.createCaller(dummyCtx);
+    const email = "test@miyar.test";
+    const password = "SuperSecretPassword123!";
+    mockDbUsers[email] = makeMockUser({
+      id: 1,
+      openId: "login-test-open-id",
+      email,
+      password: "$2b$12$K7VvzdC/M/CculCVu4nLOu.uH2LSzQe8TNBZY.hCFTDdhhBO3.g/K",
+      orgId: 1,
+    });
+
     const loginResult = await caller.login({ email, password });
     expect(loginResult.success).toBe(true);
-    expect(auditLogMock).toHaveBeenNthCalledWith(
-      2,
+    expect(auditLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 1,
         action: "auth.login",
@@ -122,9 +138,9 @@ describe("Authentication: bcrypt password flow", () => {
       })
     );
 
-    expect(auditLogMock).toHaveBeenCalledTimes(2);
-    expect(getDbMock).toHaveBeenCalledTimes(2);
-    expect(sdk.createSessionToken).toHaveBeenCalledTimes(2);
+    expect(auditLogMock).toHaveBeenCalledOnce();
+    expect(getDbMock).not.toHaveBeenCalled();
+    expect(sdk.createSessionToken).toHaveBeenCalledOnce();
   });
 
   it("blocks a bad password without auditing or creating a session", async () => {

@@ -47,9 +47,9 @@
     },
     {
       "id": "authenticated-project",
-      "selectors": ["index.html", "name:DashboardLayout", "src/pages/ProjectDetail.tsx"],
+      "selectors": ["index.html", "name:DashboardLayout", "name:ProjectDetail"],
       "maxGzipBytes": 419840,
-      "forbiddenStaticSelectors": ["src/components/AIChatBox.tsx", "name:MarkdownRenderer"]
+      "forbiddenStaticSelectors": ["src/components/AIChatBox.tsx", "name:MarkdownRenderer", "src/components/brief-workflow/BriefWorkspaceContainer.tsx"]
     },
     {
       "id": "authenticated-reports",
@@ -85,6 +85,10 @@
     {
       "from": "src/pages/Reports.tsx",
       "to": "name:ReportRenderer"
+    },
+    {
+      "from": "name:ProjectDetail",
+      "to": "src/components/brief-workflow/BriefWorkspaceContainer.tsx"
     }
   ]
 }

@@ -2,6 +2,8 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import mysql from "mysql2/promise";
 
 import { initializeDatabaseSafety } from "../../server/_core/database-safety";
+import { BRIEF_SECTION_CONTENT_SCHEMA_VERSION } from "../../shared/brief-section-content";
+import { BriefWorkflowError, createBriefStream, executeBriefCommand, getBriefStudio } from "../../server/db/brief-workflow";
 
 initializeDatabaseSafety("integration-test", { loadDotenv: false });
 const connectionString = process.env.DATABASE_URL;
@@ -130,5 +132,68 @@ describe("BR-03 disposable MySQL persistence boundary", () => {
     } finally { connection.release(); }
     const [rows] = await pool.query<any[]>("select count(*) n from brief_version_sections where versionId=?", [versionId]);
     expect(Number(rows[0].n)).toBe(0);
+  });
+
+  it("executes the BR-04 typed studio with CAS, idempotency and tenant concealment", async () => {
+    const primaryOrg = 940401, foreignOrg = 940402, author = 940411, foreignUser = 940412, projectId = 940421;
+    try {
+      await pool.query("insert into organizations (id,name,slug) values (?, 'BR04 Primary', 'br04-primary'), (?, 'BR04 Foreign', 'br04-foreign')", [primaryOrg, foreignOrg]);
+      await pool.query("insert into users (id,openId,name,role,orgId) values (?, 'br04-author', 'BR04 Author', 'user', ?), (?, 'br04-foreign-user', 'BR04 Foreign', 'user', ?)", [author, primaryOrg, foreignUser, foreignOrg]);
+      await pool.query("insert into organization_members (orgId,userId,role) values (?,?,'admin'), (?,?,'admin')", [primaryOrg, author, foreignOrg, foreignUser]);
+      await pool.query("insert into projects (id,userId,orgId,name,status,ctx01Typology) values (?,?,?,'BR04 Project','draft','Residential')", [projectId, author, primaryOrg]);
+      const context = { organizationId: primaryOrg, userId: author, actorType: "human" as const };
+      const created = await createBriefStream({
+        projectId,
+        scope: { type: "project" },
+        purpose: "internal_coordination",
+        profile: "apartment",
+        typologyProfileVersion: "BR-01-v1",
+        componentIds: [],
+        initialAssignments: [{ userId: author, role: "author" }, { userId: author, role: "section_owner" }],
+        idempotencyKey: "br04-create-stream",
+      }, context);
+      const ref = { projectId, briefId: created.value.briefId, versionId: created.value.currentVersionId };
+      const content = {
+        schemaVersion: BRIEF_SECTION_CONTENT_SCHEMA_VERSION,
+        sectionId: "intent",
+        summary: "A governed residential design intent.",
+        requirements: [{ ruleId: "intent.summary", requirement: "required", authority: "explicit_user_input", impacts: ["coordination"] }],
+        assumptions: [],
+        objectives: ["Create a durable resident experience"],
+        successCriteria: ["Approved by the client team"],
+        targetUsers: ["Residents"],
+      };
+      const revisionInput = {
+        ...ref,
+        expectedRevision: 1,
+        idempotencyKey: "br04-revise-intent",
+        sectionId: "intent",
+        contentSchemaVersion: BRIEF_SECTION_CONTENT_SCHEMA_VERSION,
+        content,
+        origin: "user",
+        dependencies: [],
+      };
+      const first = await executeBriefCommand("reviseSection", revisionInput, context);
+      const replay = await executeBriefCommand("reviseSection", revisionInput, context);
+      expect(replay).toEqual(first);
+      await expect(executeBriefCommand("reviseSection", { ...revisionInput, content: { ...content, summary: "Changed payload" } }, context)).rejects.toMatchObject({ code: "CONFLICT" });
+      const concurrent = await Promise.allSettled([
+        executeBriefCommand("reviseSection", { ...revisionInput, expectedRevision: first.revision, idempotencyKey: "br04-concurrent-a", content: { ...content, summary: "Concurrent A" } }, context),
+        executeBriefCommand("reviseSection", { ...revisionInput, expectedRevision: first.revision, idempotencyKey: "br04-concurrent-b", content: { ...content, summary: "Concurrent B" } }, context),
+      ]);
+      expect(concurrent.filter(result => result.status === "fulfilled")).toHaveLength(1);
+      expect(concurrent.filter(result => result.status === "rejected")).toHaveLength(1);
+      const studio = await getBriefStudio(ref, context);
+      expect(studio.identity).toMatchObject({ projectId, briefId: String(created.value.briefId), versionId: String(created.value.currentVersionId) });
+      expect(studio.sections).toHaveLength(10);
+      expect(studio.sections.find(section => section.sectionId === "intent")?.contentState).toMatchObject({ kind: "structured", schemaVersion: BRIEF_SECTION_CONTENT_SCHEMA_VERSION });
+      await expect(getBriefStudio(ref, { organizationId: foreignOrg, userId: foreignUser, actorType: "human" })).rejects.toBeInstanceOf(BriefWorkflowError);
+    } finally {
+      await clear();
+      await pool.query("delete from projects where id=?", [projectId]);
+      await pool.query("delete from organization_members where orgId in (?,?)", [primaryOrg, foreignOrg]);
+      await pool.query("delete from users where id in (?,?)", [author, foreignUser]);
+      await pool.query("delete from organizations where id in (?,?)", [primaryOrg, foreignOrg]);
+    }
   });
 });

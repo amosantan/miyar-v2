@@ -1,6 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
+  BRIEF_SECTION_CONTENT_SCHEMA_VERSION,
+  briefSectionContentV1InputSchema,
+} from "@shared/brief-section-content";
+import {
   briefConditionGateSchema,
   briefConditionKindSchema,
   briefContentAuthoritySchema,
@@ -9,6 +13,7 @@ import {
   briefTypologyProfileSchema,
   issuePurposeSchema,
 } from "@shared/brief-contract";
+import { requireEvidenceRecordForOrg } from "../_core/market-resource-access";
 import { evaluateBriefReadiness } from "../engines/brief-readiness";
 import {
   BriefWorkflowError,
@@ -16,6 +21,7 @@ import {
   executeBriefCommand,
   getBriefReadinessFacts,
   getBriefSection,
+  getBriefStudio,
   getBriefSummary,
   getBriefVersion,
   listBriefAssignments,
@@ -24,7 +30,9 @@ import {
   listBriefFindings,
   listBriefIssues,
   listBriefStreams,
+  hashBriefRequest,
 } from "../db/brief-workflow";
+import { listOrganizationEvidenceRecords, listPublicCorpusEvidence } from "../db";
 import {
   orgAdminProcedure as baseOrgAdminProcedure,
   orgMutationProcedure as baseOrgMutationProcedure,
@@ -85,6 +93,28 @@ const dependency = z.object({
   inputFingerprint: z.string().trim().min(1).max(128).optional(),
   outputFingerprint: z.string().trim().min(1).max(128).optional(),
 });
+const evidenceReference = z.object({
+  kind: z.literal("evidence_record"),
+  id: z.number().int().positive(),
+  ruleId: z.string().trim().min(1).max(128),
+  relevance: z.string().trim().min(1).max(2_000),
+}).strict();
+
+const reviseSectionInput = versionMutation.extend({
+  sectionId: briefSectionIdSchema,
+  contentSchemaVersion: z.literal(BRIEF_SECTION_CONTENT_SCHEMA_VERSION),
+  content: briefSectionContentV1InputSchema,
+  origin: z.enum(["user", "deterministic", "ai_proposal"]),
+  evidenceReferences: z.array(evidenceReference).max(100).default([]),
+}).strict().superRefine((value, issue) => {
+  if (value.content.sectionId !== value.sectionId) {
+    issue.addIssue({
+      code: "custom",
+      path: ["content", "sectionId"],
+      message: `Content is for ${value.content.sectionId}, not ${value.sectionId}`,
+    });
+  }
+});
 
 function context(ctx: { orgId: number; user: { id: number } }) {
   return { organizationId: ctx.orgId, userId: ctx.user.id, actorType: "human" as const };
@@ -106,6 +136,39 @@ async function command(name: string, input: unknown, ctx: Parameters<typeof cont
   catch (error) { translate(error); }
 }
 
+async function resolveRevisionDependencies(
+  input: z.infer<typeof reviseSectionInput>,
+  organizationId: number
+) {
+  const dependencies = [];
+  for (const reference of input.evidenceReferences) {
+    const { evidence } = await requireEvidenceRecordForOrg(reference.id, organizationId);
+    if (evidence.projectId !== null && evidence.projectId !== input.projectId) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    const observedAt = evidence.captureDate ?? evidence.createdAt;
+    const fingerprint = hashBriefRequest({
+      id: evidence.id,
+      recordId: evidence.recordId,
+      captureDate: observedAt,
+      corpusPolicyVersion: evidence.corpusPolicyVersion,
+      currentConfidenceAssessmentId: evidence.currentConfidenceAssessmentId,
+    });
+    dependencies.push({
+      type: "evidence",
+      recordId: String(evidence.id),
+      recordVersion: evidence.runId ?? new Date(observedAt).toISOString(),
+      fingerprint,
+      observedAt: new Date(observedAt).toISOString(),
+      authority: "governed_evidence",
+      ruleId: reference.ruleId,
+      relevance: reference.relevance,
+      serverResolved: true,
+    });
+  }
+  return dependencies;
+}
+
 export const briefRouter = router({
   createStream: orgAdminProcedure.input(z.object({
     projectId: z.number().int().positive(),
@@ -125,7 +188,10 @@ export const briefRouter = router({
   }),
 
   createVersion: orgMutationProcedure.input(versionMutation.extend({ predecessorVersionId: canonicalId, carryForwardSections: z.array(briefSectionIdSchema).max(10) })).mutation(({ ctx, input }) => command("createVersion", input, ctx)),
-  reviseSection: orgMutationProcedure.input(versionMutation.extend({ sectionId: briefSectionIdSchema, contentSchemaVersion: z.string().trim().min(1).max(64), content: jsonValue, origin: z.enum(["user", "deterministic", "ai_proposal", "legacy_import"]), dependencies: z.array(dependency).max(500) })).mutation(({ ctx, input }) => command("reviseSection", input, ctx)),
+  reviseSection: orgMutationProcedure.input(reviseSectionInput).mutation(async ({ ctx, input }) => command("reviseSection", {
+    ...input,
+    dependencies: await resolveRevisionDependencies(input, ctx.orgId),
+  }, ctx)),
   submitEvidence: orgMutationProcedure.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, dependencyIds: z.array(canonicalId).max(500), rationale: bounded })).mutation(({ ctx, input }) => command("submitEvidence", input, ctx)),
   assignRole: orgAdminProcedure.input(briefRef.merge(mutationMeta).extend({ userId: z.number().int().positive(), role: briefFunctionalRoleSchema, versionId: canonicalId.optional(), sectionId: briefSectionIdSchema.optional(), reason: bounded })).mutation(({ ctx, input }) => command("assignRole", input, ctx)),
   revokeRole: orgAdminProcedure.input(briefRef.merge(mutationMeta).extend({ grantEventId: canonicalId, reason: bounded })).mutation(({ ctx, input }) => command("revokeRole", input, ctx)),
@@ -145,8 +211,39 @@ export const briefRouter = router({
   approveIssueWithdrawal: orgMutationProcedure.input(briefRef.merge(mutationMeta).extend({ issueId: canonicalId, withdrawalRequestEventId: canonicalId, rationale: bounded })).mutation(({ ctx, input }) => command("approveIssueWithdrawal", input, ctx)),
 
   getStream: orgProcedure.input(briefRef).query(async ({ ctx, input }) => { try { return await getBriefSummary(input, context(ctx)); } catch (error) { translate(error); } }),
-  listStreams: orgProcedure.input(z.object({ projectId: z.number().int().positive(), scope: z.enum(["project", "scenario"]).optional(), purpose: issuePurposeSchema.optional() }).merge(page)).query(async ({ ctx, input }) => { try { const items = await listBriefStreams(input, context(ctx)); return { items, nextCursor: null }; } catch (error) { translate(error); } }),
+  listStreams: orgProcedure.input(z.object({ projectId: z.number().int().positive(), scope: z.enum(["project", "scenario"]).optional(), purpose: issuePurposeSchema.optional() }).merge(page)).query(async ({ ctx, input }) => { try { const items = await listBriefStreams(input, context(ctx)); return { items, nextCursor: null, canCreate: ctx.orgRole === "admin" }; } catch (error) { translate(error); } }),
   getVersion: orgProcedure.input(versionRef).query(async ({ ctx, input }) => { try { const [summary, version] = await Promise.all([getBriefSummary(input, context(ctx)), getBriefVersion(input, context(ctx))]); if (!version) throw new BriefWorkflowError("CONCEALED", "Brief resource not found"); const sections = await Promise.all((await import("@shared/brief-contract")).BRIEF_SECTION_IDS.map(sectionId => getBriefSection({ ...input, sectionId }, context(ctx)))); return { summary, version, sections: sections.filter(Boolean) }; } catch (error) { translate(error); } }),
+  getStudio: orgProcedure.input(versionRef).query(async ({ ctx, input }) => {
+    try {
+      const [studio, organizationEvidence, publicEvidence] = await Promise.all([
+        getBriefStudio(input, context(ctx)),
+        listOrganizationEvidenceRecords(ctx.orgId, { limit: 50 }),
+        listPublicCorpusEvidence({ limit: 50 }),
+      ]);
+      return {
+        ...studio,
+        choices: {
+          ...studio.choices,
+          evidence: [...organizationEvidence, ...publicEvidence]
+            .filter(item => item.orgId == null || item.orgId === ctx.orgId)
+            .filter(item => item.projectId == null || item.projectId === input.projectId)
+            .map(item => ({
+              id: item.id,
+              label: item.title?.trim() || item.itemName,
+              recordId: item.recordId,
+              category: item.category,
+              reliabilityGrade: item.reliabilityGrade,
+              observedAt: item.captureDate,
+              scope: item.orgId === ctx.orgId ? "organization" : "platform_public",
+            })),
+        },
+        permittedActions: {
+          ...studio.permittedActions,
+          administerRoles: ctx.orgRole === "admin",
+        },
+      };
+    } catch (error) { translate(error); }
+  }),
   getSectionHistory: orgProcedure.input(briefRef.extend({ sectionId: briefSectionIdSchema }).merge(page)).query(async ({ ctx, input }) => { try { const items = await listBriefEvents(input, context(ctx)); return { items: items.filter((item: any) => item.sectionId === input.sectionId && item.eventType === "section_revised"), nextCursor: null }; } catch (error) { translate(error); } }),
   getAssignments: orgProcedure.input(briefRef.merge(page)).query(async ({ ctx, input }) => { try { return { items: await listBriefAssignments(input, context(ctx)), nextCursor: null }; } catch (error) { translate(error); } }),
   getFindings: orgProcedure.input(versionRef.extend({ sectionId: briefSectionIdSchema.optional() }).merge(page)).query(async ({ ctx, input }) => { try { const items = await listBriefFindings(input, context(ctx)); return { items: input.sectionId ? items.filter((item: any) => item.sectionId === input.sectionId) : items, nextCursor: null }; } catch (error) { translate(error); } }),
