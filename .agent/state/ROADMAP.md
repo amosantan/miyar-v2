@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `BR-03` (`READY`)
+- Next executable step: `BR-03` (`ACTIVE`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -457,7 +457,7 @@ Rules:
 
 ### BR-02 — Design brief versioning and readiness architecture
 
-- Status: `NEEDS_HUMAN`
+- Status: `CLOSED`
 - Class / priority: Architecture/schema / P1
 - Dependencies: `BR-01`
 - Human gate: Schema and breaking-contract approval before implementation.
@@ -480,7 +480,7 @@ Rules:
 
 ### BR-03 — Implement deterministic brief readiness
 
-- Status: `READY`
+- Status: `ACTIVE`
 - Class / priority: Engine/API / P1
 - Dependencies: `BR-02`
 - Human gate: Approved schema/contract; shared application remains gated.

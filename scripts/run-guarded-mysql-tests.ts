@@ -5,6 +5,7 @@ import process from "node:process";
 import {
   MYSQL_EVIDENCE_FILE,
   MYSQL_INTEGRATION_TEST,
+  MYSQL_INTEGRATION_TESTS,
   REQUIRED_MYSQL_EVIDENCE_FILES,
 } from "./tr03h-mysql-evidence-contract";
 
@@ -104,7 +105,8 @@ if (exitCode === 0) {
         migrationMode:
           "checked-in migration chain on a freshly created database",
         testFile: MYSQL_INTEGRATION_TEST,
-        testCount: 25,
+        testFiles: MYSQL_INTEGRATION_TESTS,
+        testCount: 30,
         cleanupVerified: true,
         fileHashes: Object.fromEntries(
           REQUIRED_MYSQL_EVIDENCE_FILES.map(file => [file, fileHash(file)])
