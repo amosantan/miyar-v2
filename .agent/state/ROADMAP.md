@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `BR-04` (`NEEDS_HUMAN` — authorize canonical BR-03 integration first)
+- Next executable step: `BR-05` (`READY`)
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -500,10 +500,10 @@ Rules:
 
 ### BR-04 — Guided Studio Foundation
 
-- Status: `NEEDS_HUMAN`
+- Status: `CLOSED`
 - Class / priority: UI/workflow / P1
 - Dependencies: `BR-03`
-- Human gate: Canonical BR-03 Git integration, followed by a brand-new worktree from the exact refreshed `main`; shared migration, deployment, and numerical-policy changes remain separate gates.
+- Human gate: Satisfied prerequisite: PR #26 integrated BR-03 into canonical `main` at merge commit `4712e22`, and BR-04 began in a brand-new worktree from that exact commit. Shared migration, deployment, numerical-policy changes, push, and merge remain separate gates.
 - Evidence: BR-03's raw JSON workspace and raw record/user IDs cannot yet produce one defensible, budget-aware source of truth connecting project intent, evidence, space, materials, costs, boards, media, and approvals.
 - Change set:
   - Replace raw JSON with guided editors for all ten approved sections, showing owner, maturity, evidence, assumptions, findings, stale/blocked conditions, dependencies, and next permitted action.
@@ -515,6 +515,12 @@ Rules:
 - Done when: Every section is structurally authored and validated; a real ordered multi-user lifecycle, tenant/asset/evidence authorization, explicit-input preservation, state/conflict recovery, deterministic budget conversions, and responsive accessible EN/AR themed browser journeys pass without preview side effects.
 - Verification: Typed unit/router/UI tests; real ordered browser workflow; self-review/self-approval denial; cross-tenant concealment; CAS/idempotency/stale/blocked/conditional-N/A paths; conversion/round-trip/legacy fixtures; guarded MySQL; safe suite; audits; build/budgets; visual and independent review.
 - Expected artifacts: Guided studio, typed section contract, aggregate API, deterministic budget normalization, pickers/inbox/register/recovery UI, and BR-04 verification evidence.
+- Activated: 2026-07-21 in `/Users/amrosaleh/Maiyar/miyar-v2-br04-brief-studio` on `codex/br-04-brief-studio` from exact canonical `origin/main` commit `4712e220bccd39fcf5cf8472caf65730d78ff883`.
+- Closed: 2026-07-21
+- Terminal task state: `PASS`
+- Completion evidence: Guided editors and typed `BR-04-v1` content cover all ten sections; evidence/user references are server-authorized; `brief.getStudio` supplies tenant-scoped facts and state-valid actions; budget/area normalization is deterministic and legacy ambiguity fails closed. Final gates pass: focused 36/36, guarded MySQL 31/31, safe suite 1,424/22, TypeScript, authorization 376/0, database audit 117/2/0, production build/budgets, separate-role authenticated browser with responsive/theme/RTL/keyboard/no-preview-side-effect checks, and Claude Opus follow-up `APPROVED`.
+- Residual risk: This candidate is not yet integrated or deployed. Shared migration, deployment, numerical-policy expansion, AI composition, audience views, market/material intelligence, boards/images, issued snapshots, and legacy cutover remain separately gated until their authorized operations are evidenced.
+- Successor selected: `BR-05`; `BR-04B` remains planned until `BR-05`, `BR-06`, and `BR-08` also close.
 
 ### BR-04B — Governed Composition and Audience Views
 
@@ -558,7 +564,7 @@ Rules:
 
 ### BR-05 — Build the typology-pack framework
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: Product/engine / P1
 - Dependencies: `BR-01`, `BR-03`
 - Human gate: Domain approval for rule content, not framework mechanics.

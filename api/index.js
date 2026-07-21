@@ -8248,8 +8248,8 @@ function area2ToDecimal12(value) {
   const trillion = BigInt(1e12);
   const trillionths = (value + BigInt(1)) / BigInt(2);
   const whole = trillionths / trillion;
-  const fraction = (trillionths % trillion).toString().padStart(12, "0");
-  return `${whole.toString()}.${fraction}`;
+  const fraction2 = (trillionths % trillion).toString().padStart(12, "0");
+  return `${whole.toString()}.${fraction2}`;
 }
 async function getProjectGeometryAuthorityForOrg(projectId, organizationId) {
   const db = await getDb();
@@ -10009,9 +10009,9 @@ async function invokeLLM(params) {
       throw new AiOperationError(code, { operation: GEMINI_OPERATION }).report();
     }
     const parts = candidate.content?.parts ?? [];
-    const text4 = parts.flatMap((part) => typeof part.text === "string" ? [part.text] : []).join("");
+    const text5 = parts.flatMap((part) => typeof part.text === "string" ? [part.text] : []).join("");
     const functionCalls = parts.flatMap((part) => part.functionCall ? [part.functionCall] : []);
-    if (!text4 && functionCalls.length === 0) {
+    if (!text5 && functionCalls.length === 0) {
       throw new AiOperationError("PROVIDER_INVALID_RESPONSE", { operation: GEMINI_OPERATION }).report();
     }
     const toolCalls = functionCalls.length ? functionCalls.map((functionCall, index2) => ({
@@ -10025,7 +10025,7 @@ async function invokeLLM(params) {
       model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
       choices: [{
         index: 0,
-        message: { role: "assistant", content: text4, tool_calls: toolCalls },
+        message: { role: "assistant", content: text5, tool_calls: toolCalls },
         finish_reason: candidate.finishReason === "STOP" ? "stop" : functionCalls.length ? "tool_calls" : "length"
       }],
       usage: {
@@ -11746,12 +11746,12 @@ Project context: ${projectContext.typology || "Residential"} project, GFA: ${pro
     }
   });
   const content = result.choices[0]?.message?.content;
-  const text4 = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => c.text || "").join("") : "";
+  const text5 = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => c.text || "").join("") : "";
   let parsed;
   try {
-    parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(text4));
+    parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(text5));
   } catch (error) {
-    const jsonMatch = text4.match(/\{[\s\S]*\}/);
+    const jsonMatch = text5.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
         parsed = EXTRACTION_RESULT_SCHEMA.parse(JSON.parse(jsonMatch[0]));
@@ -12210,7 +12210,7 @@ function generateInvestorPdfHtml(input) {
     style,
     gfaSqm,
     execSummary,
-    designDirection,
+    designDirection: designDirection2,
     spaces,
     materials,
     materialConstants: materialConstants2,
@@ -12233,7 +12233,7 @@ function generateInvestorPdfHtml(input) {
     if (normalized.toLowerCase() === "content") return labels.content;
     return text2(normalized);
   };
-  const designDirectionRows = Object.entries(designDirection ?? {}).slice(0, 6).map(([key, value]) => `<div class="dd-row"><span class="dd-key">${designDirectionLabel(key)}</span><span class="dd-val">${text2(Array.isArray(value) ? value.join(", ") : String(value))}</span></div>`).join("");
+  const designDirectionRows = Object.entries(designDirection2 ?? {}).slice(0, 6).map(([key, value]) => `<div class="dd-row"><span class="dd-key">${designDirectionLabel(key)}</span><span class="dd-val">${text2(Array.isArray(value) ? value.join(", ") : String(value))}</span></div>`).join("");
   const trendRows = (designTrends2 ?? []).slice(0, 8).map((trend) => `<div class="trend-row"><span class="conf-badge" style="background:${confColor(trend.confidenceLevel)}">${text2(trend.confidenceLevel)}</span><span class="trend-name">${text2(trend.trendName)}</span><span class="trend-cat">${text2(trend.trendCategory)}</span></div>`).join("");
   const benchmarkSection = benchmark ? `<div class="panel"><div class="panel-title">${labels.marketBenchmark} \u2014 ${text2(benchmark.typology ?? typology)} \xB7 ${text2(benchmark.marketTier ?? tier)}${benchmark.dataYear ? ` \xB7 ${number(benchmark.dataYear, locale)}` : ""}</div><div class="kpi-grid">${benchmark.costPerSqmLow != null ? `<div class="kpi"><div class="kpi-label">${labels.low}</div><div class="kpi-value">${aed(benchmark.costPerSqmLow, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmMid != null ? `<div class="kpi"><div class="kpi-label">${labels.mid}</div><div class="kpi-value">${aed(benchmark.costPerSqmMid, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmHigh != null ? `<div class="kpi"><div class="kpi-label">${labels.high}</div><div class="kpi-value">${aed(benchmark.costPerSqmHigh, locale)}/m\xB2</div></div>` : ""}<div class="kpi"><div class="kpi-label">${labels.yourEstimate}</div><div class="kpi-value" style="color:${costPerSqm <= (benchmark.costPerSqmMid ?? Infinity) ? "#10b981" : "#f59e0b"}">${aed(costPerSqm, locale)}/m\xB2</div></div></div></div>` : "";
   const spaceEfficiencySection = spaceEfficiency ? `<div class="section"><h2>${labels.spacePlanning}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.efficiencyScore}</div><div class="kpi-value" style="color:${spaceEfficiency.efficiencyScore >= 75 ? "#10b981" : spaceEfficiency.efficiencyScore >= 50 ? "#f59e0b" : "#ef4444"}">${number(spaceEfficiency.efficiencyScore, locale)}/100</div></div><div class="kpi"><div class="kpi-label">${labels.criticalIssues}</div><div class="kpi-value">${number(spaceEfficiency.criticalCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.advisoryIssues}</div><div class="kpi-value">${number(spaceEfficiency.advisoryCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.circulation}</div><div class="kpi-value">${number(spaceEfficiency.circulationPct, locale)}%</div></div></div>${spaceEfficiency.rooms.length > 0 ? `<h3>${labels.roomAllocation}</h3><div class="panel">${spaceEfficiency.rooms.slice(0, 10).map((room) => `<div class="bar-row"><span class="bar-label">${text2(room.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(room.currentPct)}%;background:${room.severity === "critical" ? "#ef4444" : room.severity === "advisory" ? "#f59e0b" : "#10b981"}"></div></div><span class="bar-pct">${number(room.currentPct, locale)}%</span><span class="bar-amt">${labels.versus} ${number(room.benchmarkPct, locale)}%</span></div>`).join("")}</div>` : ""}</div>` : "";
@@ -12729,8 +12729,8 @@ async function checkRobotsTxt(targetUrl, userAgent) {
       const robotsUrl = `${origin}/robots.txt`;
       const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
       if (res.ok) {
-        const text4 = await res.text();
-        robots = robotsParser(robotsUrl, text4);
+        const text5 = await res.text();
+        robots = robotsParser(robotsUrl, text5);
       } else {
         robots = robotsParser(robotsUrl, "");
       }
@@ -13383,8 +13383,8 @@ function cleanHtmlForLLM(html) {
   cleaned = cleaned.replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "").replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "").replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "").replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "");
   const mainMatch = cleaned.match(/<main[^>]*>([\s\S]*?)<\/main>/i) || cleaned.match(/<article[^>]*>([\s\S]*?)<\/article>/i) || cleaned.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i) || cleaned.match(/<div[^>]*id="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i) || cleaned.match(/<div[^>]*role="main"[^>]*>([\s\S]*?)<\/div>/i);
   const contentArea = mainMatch ? mainMatch[1] : cleaned;
-  const text4 = contentArea.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&[a-z]+;/gi, " ");
-  return text4.replace(/\s+/g, " ").trim();
+  const text5 = contentArea.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&[a-z]+;/gi, " ");
+  return text5.replace(/\s+/g, " ").trim();
 }
 function buildMaterialPricingPrompt(sourceName, geography, contentSnippet, hints, pageUrl) {
   const hintsFilter = hints ? `
@@ -15643,9 +15643,9 @@ ${parsed.text}
        * Extract: send PDF text to Gemini for structured material price extraction.
        */
       async extract(raw) {
-        const text4 = raw.rawHtml || "";
-        if (!text4 || text4.length < 100) return [];
-        const truncated = text4.substring(0, 15e3);
+        const text5 = raw.rawHtml || "";
+        if (!text5 || text5.length < 100) return [];
+        const truncated = text5.substring(0, 15e3);
         try {
           const response = await invokeLLM({
             messages: [
@@ -15820,19 +15820,19 @@ async function extractViaLLM(sourceName, category, geography, html, lastFetch) {
     return [];
   }
 }
-function extractPricesFromText(text4) {
+function extractPricesFromText(text5) {
   const prices = [];
   const seen = /* @__PURE__ */ new Set();
   for (const regex of [AED_PRICE_REGEX, NUMERIC_PRICE_REGEX]) {
     regex.lastIndex = 0;
     let match;
-    while ((match = regex.exec(text4)) !== null) {
+    while ((match = regex.exec(text5)) !== null) {
       const val = parseFloat(match[1].replace(/,/g, ""));
       if (!isNaN(val) && val > 0 && val < 1e8 && !seen.has(val)) {
         seen.add(val);
-        const context2 = text4.substring(
+        const context2 = text5.substring(
           Math.max(0, match.index - 30),
-          Math.min(text4.length, match.index + match[0].length + 30)
+          Math.min(text5.length, match.index + match[0].length + 30)
         );
         let unit = "unit";
         if (SQM_REGEX.test(context2)) unit = "sqm";
@@ -15843,8 +15843,8 @@ function extractPricesFromText(text4) {
   }
   return prices;
 }
-function extractSnippet(text4, maxLen = 500) {
-  return text4.replace(/\s+/g, " ").trim().substring(0, maxLen);
+function extractSnippet(text5, maxLen = 500) {
+  return text5.replace(/\s+/g, " ").trim().substring(0, maxLen);
 }
 function getConnectorById(sourceId) {
   const factory = ALL_CONNECTORS[sourceId];
@@ -15946,14 +15946,14 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         const sections = html.match(
           /<(?:div|article|section|li)[^>]*class="[^"]*(?:product|item|card|project|property|report|service)[^"]*"[^>]*>[\s\S]*?<\/(?:div|article|section|li)>/gi
         ) || [];
-        for (const section of sections.slice(0, 15)) {
-          const titleMatch = section.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/i);
+        for (const section2 of sections.slice(0, 15)) {
+          const titleMatch = section2.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/i);
           const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
           if (!title) continue;
-          const text4 = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          const text5 = section2.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
           evidence.push({
             title: `${this.sourceName} - ${title}`,
-            rawText: text4,
+            rawText: text5,
             publishedDate: void 0,
             ...publicationDateFields(void 0, raw.fetchedAt),
             observedAt: raw.fetchedAt,
@@ -17152,8 +17152,8 @@ function validateSuggestedInputs(raw) {
   }
   return result;
 }
-async function suggestSectionFields(section, currentFormState) {
-  const fields = SECTION_FIELDS[section];
+async function suggestSectionFields(section2, currentFormState) {
+  const fields = SECTION_FIELDS[section2];
   if (!fields) {
     return { suggestions: [], sectionSummary: "Unknown section." };
   }
@@ -17163,7 +17163,7 @@ async function suggestSectionFields(section, currentFormState) {
       knownValues[key] = value;
     }
   }
-  const sectionLabel = section.charAt(0).toUpperCase() + section.slice(1);
+  const sectionLabel = section2.charAt(0).toUpperCase() + section2.slice(1);
   const prompt = `You are MIYAR's AI form assistant for UAE luxury real estate projects.
 
 The user is filling out the "${sectionLabel}" section of a project intake form.
@@ -19074,17 +19074,17 @@ function computeVariableContributions(n, varWeights) {
 function computeROI(inputs, compositeScore, fee) {
   const pricingArea = getPricingArea(inputs);
   const budgetCap = inputs.fin01BudgetCap ?? 400;
-  const totalBudget = pricingArea * budgetCap;
+  const totalBudget2 = pricingArea * budgetCap;
   const reworkRate = 0.08 + compositeScore / 100 * 0.07;
-  const reworkAvoided = totalBudget * reworkRate;
+  const reworkAvoided = totalBudget2 * reworkRate;
   const procRate = 0.03 + compositeScore / 100 * 0.05;
-  const procurementSavings = totalBudget * procRate;
+  const procurementSavings = totalBudget2 * procRate;
   const timeRate = 0.02 + compositeScore / 100 * 0.03;
-  const timeValueGain = totalBudget * timeRate;
+  const timeValueGain = totalBudget2 * timeRate;
   const specRate = 0.01 + compositeScore / 100 * 0.02;
-  const specEfficiency = totalBudget * specRate;
+  const specEfficiency = totalBudget2 * specRate;
   const posRate = compositeScore / 100 * 0.05;
-  const positioningPremium = totalBudget * posRate;
+  const positioningPremium = totalBudget2 * posRate;
   const totalValue = reworkAvoided + procurementSavings + timeValueGain + specEfficiency + positioningPremium;
   const netROI = fee > 0 ? (totalValue - fee) / fee : 0;
   const roiMultiple = fee > 0 ? totalValue / fee : 0;
@@ -21013,8 +21013,8 @@ RULES:
       outputSchema
     });
     const rawContent = response.choices[0]?.message?.content;
-    const text4 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
-    geminiResult = JSON.parse(text4);
+    const text5 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    geminiResult = JSON.parse(text5);
   }
   for (const room of geminiResult.rooms) {
     for (const element of ["floor", "walls", "ceiling", "joinery"]) {
@@ -22071,14 +22071,14 @@ function computeRoi(inputs, coefficients) {
   const tenderReduced = Math.max(1, Math.round(baseTenderIterations * scoreNorm * 0.6));
   const tenderHours = tenderReduced * 40;
   const tenderCost = tenderReduced * c.tenderIterationCost;
-  const totalBudget = inputs.budgetCap * inputs.gfa;
+  const totalBudget2 = inputs.budgetCap * inputs.gfa;
   const baseReworkPct = c.reworkCostPct * (1 + riskNorm);
   const reducedReworkPct = baseReworkPct * (1 - scoreNorm * 0.5);
-  const reworkSaving = totalBudget * (baseReworkPct - reducedReworkPct);
+  const reworkSaving = totalBudget2 * (baseReworkPct - reducedReworkPct);
   const reworkHours = reworkSaving / c.hourlyRate;
   const baseVariance = c.budgetVarianceMultiplier * (1 + complexityNorm * 0.5);
   const reducedVariance = baseVariance * (1 - confNorm * 0.4);
-  const varianceSaving = totalBudget * (baseVariance - reducedVariance);
+  const varianceSaving = totalBudget2 * (baseVariance - reducedVariance);
   const varianceHours = varianceSaving / c.hourlyRate;
   const baseWeeks = horizonWeeks(inputs.horizon);
   const accelerationWeeks = Math.round(c.timeAccelerationWeeks * scoreNorm * tm * 0.5);
@@ -22137,7 +22137,7 @@ function computeRoi(inputs, coefficients) {
         aggressive: Math.round(reworkSaving * c.aggressiveMultiplier)
       },
       assumptions: [
-        `Total fit-out budget: AED ${totalBudget.toLocaleString()} (${inputs.budgetCap} AED/sqm \xD7 ${inputs.gfa.toLocaleString()} sqm)`,
+        `Total fit-out budget: AED ${totalBudget2.toLocaleString()} (${inputs.budgetCap} AED/sqm \xD7 ${inputs.gfa.toLocaleString()} sqm)`,
         `Base rework rate: ${(baseReworkPct * 100).toFixed(1)}%`,
         `MIYAR-validated rate: ${(reducedReworkPct * 100).toFixed(1)}%`
       ]
@@ -22156,7 +22156,7 @@ function computeRoi(inputs, coefficients) {
         aggressive: Math.round(varianceSaving * c.aggressiveMultiplier)
       },
       assumptions: [
-        `Total fit-out budget: AED ${totalBudget.toLocaleString()}`,
+        `Total fit-out budget: AED ${totalBudget2.toLocaleString()}`,
         `Variance reduced by ${((baseVariance - reducedVariance) * 100).toFixed(1)} percentage points`
       ]
     },
@@ -22186,7 +22186,7 @@ function computeRoi(inputs, coefficients) {
     const spaceNorm = inputs.spaceEfficiencyScore / 100;
     const wastePct = Math.max(0, (1 - spaceNorm) * 0.08);
     const optimizedWastePct = wastePct * 0.4;
-    const spaceSaving = totalBudget * (wastePct - optimizedWastePct);
+    const spaceSaving = totalBudget2 * (wastePct - optimizedWastePct);
     const spaceHours = Math.round(spaceSaving / c.hourlyRate);
     drivers.push({
       name: "Space Efficiency Optimization",
@@ -25156,9 +25156,9 @@ function detectFailurePatterns(items) {
     });
   }
   const supplyRisk = items.filter((i) => {
-    const supply = i.project.exe01SupplyChain || 3;
+    const supply2 = i.project.exe01SupplyChain || 3;
     const material = i.project.des02MaterialLevel || 3;
-    return supply <= 2 && material >= 4;
+    return supply2 <= 2 && material >= 4;
   });
   if (supplyRisk.length > 0) {
     patterns.push({
@@ -27226,28 +27226,28 @@ var DOCX_AR_COPY = {
   "Phase 2 \u2014 Detailed Design": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 2 \u2014 \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062A\u0641\u0635\u064A\u0644\u064A",
   "Phase 3 \u2014 IFC & Tender": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 3 \u2014 \u0645\u062E\u0637\u0637\u0627\u062A \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0648\u0627\u0644\u0645\u0646\u0627\u0642\u0635\u0629"
 };
-function docxFixed(text4, rtl) {
-  if (!rtl) return text4;
-  const numbered = /^(\d+\.\s+)(.+)$/.exec(text4);
+function docxFixed(text5, rtl) {
+  if (!rtl) return text5;
+  const numbered = /^(\d+\.\s+)(.+)$/.exec(text5);
   if (numbered) return `${numbered[1]}${DOCX_AR_COPY[numbered[2]] ?? numbered[2]}`;
-  return DOCX_AR_COPY[text4] ?? text4;
+  return DOCX_AR_COPY[text5] ?? text5;
 }
-function heading(text4, level = HeadingLevel.HEADING_1, rtl = false) {
-  return new Paragraph({ heading: level, bidirectional: rtl, children: [new TextRun({ text: docxFixed(text4, rtl), bold: true, rightToLeft: rtl })] });
+function heading(text5, level = HeadingLevel.HEADING_1, rtl = false) {
+  return new Paragraph({ heading: level, bidirectional: rtl, children: [new TextRun({ text: docxFixed(text5, rtl), bold: true, rightToLeft: rtl })] });
 }
-function bodyText(text4, rtl = false) {
+function bodyText(text5, rtl = false) {
   return new Paragraph({
     bidirectional: rtl,
     spacing: { after: 120 },
-    children: [new TextRun({ text: docxFixed(text4, rtl), size: 22, rightToLeft: rtl })]
+    children: [new TextRun({ text: docxFixed(text5, rtl), size: 22, rightToLeft: rtl })]
   });
 }
-function bulletItem(text4, rtl = false) {
+function bulletItem(text5, rtl = false) {
   return new Paragraph({
     bidirectional: rtl,
     bullet: { level: 0 },
     spacing: { after: 60 },
-    children: [new TextRun({ text: text4, size: 22, rightToLeft: rtl })]
+    children: [new TextRun({ text: text5, size: 22, rightToLeft: rtl })]
   });
 }
 function labelValue(label, value, rtl = false) {
@@ -30320,8 +30320,8 @@ function twiceSquareMicrometresToSquareMetres(area2) {
   const remainder = area2 % SQUARE_METRE_AREA2;
   if (remainder === ZERO) return whole.toString();
   const scaledFraction = remainder * FIVE;
-  const fraction = scaledFraction.toString().padStart(13, "0").replace(/0+$/, "");
-  return `${whole}.${fraction}`;
+  const fraction2 = scaledFraction.toString().padStart(13, "0").replace(/0+$/, "");
+  return `${whole}.${fraction2}`;
 }
 function canonicalizeRoom(room, unit, snapTransform, deadlineAtMilliseconds) {
   if (!room || typeof room !== "object") fail("room must be an object");
@@ -30904,8 +30904,8 @@ function isUnknownUnitCode(insUnits) {
   return insUnits === null || insUnits === 0;
 }
 function coordinateLexemeToPlainDecimal(source) {
-  const text4 = source.trim();
-  const match = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/.exec(text4);
+  const text5 = source.trim();
+  const match = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/.exec(text5);
   if (!match)
     throw new TypeError(`coordinate '${source}' is not finite decimal text`);
   const [
@@ -30917,13 +30917,13 @@ function coordinateLexemeToPlainDecimal(source) {
     exponentText = "0"
   ] = match;
   const whole = wholeText ?? "0";
-  const fraction = wholeText === void 0 ? fractionOnly : fractionAfterWhole;
+  const fraction2 = wholeText === void 0 ? fractionOnly : fractionAfterWhole;
   const exponent = Number(exponentText);
   if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > 1e4) {
     throw new TypeError(`coordinate '${source}' has an unsupported exponent`);
   }
   const negative = signText === "-";
-  const digits = `${whole}${fraction}`;
+  const digits = `${whole}${fraction2}`;
   const decimalIndex = whole.length + exponent;
   const expanded = decimalIndex <= 0 ? `0.${"0".repeat(-decimalIndex)}${digits}` : decimalIndex >= digits.length ? `${digits}${"0".repeat(decimalIndex - digits.length)}` : `${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
   const normalized = expanded.replace(/^0+(?=\d)/, "").replace(/\.0*$/, "").replace(/(\.\d*?)0+$/, "$1") || "0";
@@ -30932,9 +30932,9 @@ function coordinateLexemeToPlainDecimal(source) {
 function coordinateLexemeExceedsLimit(source) {
   try {
     const plain = coordinateLexemeToPlainDecimal(source).replace(/^-/, "");
-    const [whole, fraction = ""] = plain.split(".");
+    const [whole, fraction2 = ""] = plain.split(".");
     const integer = BigInt(whole);
-    return integer > BigInt(DXF_BOUNDARY_LIMITS.absoluteSourceCoordinate) || integer === BigInt(DXF_BOUNDARY_LIMITS.absoluteSourceCoordinate) && /[1-9]/.test(fraction);
+    return integer > BigInt(DXF_BOUNDARY_LIMITS.absoluteSourceCoordinate) || integer === BigInt(DXF_BOUNDARY_LIMITS.absoluteSourceCoordinate) && /[1-9]/.test(fraction2);
   } catch {
     return true;
   }
@@ -30992,8 +30992,8 @@ function asciiDxfPreflight(bytes, fileName) {
       );
     }
   }
-  const text4 = Buffer.from(bytes).toString("ascii");
-  if (!/(?:^|\r?\n)\s*SECTION\s*(?:\r?\n|$)/.test(text4) || !/(?:^|\r?\n)\s*EOF\s*(?:\r?\n|$)/.test(text4)) {
+  const text5 = Buffer.from(bytes).toString("ascii");
+  if (!/(?:^|\r?\n)\s*SECTION\s*(?:\r?\n|$)/.test(text5) || !/(?:^|\r?\n)\s*EOF\s*(?:\r?\n|$)/.test(text5)) {
     return issue(
       "spoofed_file",
       "The source does not contain the required ASCII DXF structure."
@@ -31094,7 +31094,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
   const deadlineAtMilliseconds = Date.now() + deadlineMilliseconds;
   let inspected;
   try {
-    const inspector = runtime.inspect ?? ((text4) => inspectInWorker(text4, deadlineMilliseconds));
+    const inspector = runtime.inspect ?? ((text5) => inspectInWorker(text5, deadlineMilliseconds));
     inspected = await withDeadline(inspector(source), deadlineMilliseconds);
   } catch (error) {
     const problem = error instanceof DxfDeadlineError ? issue(
@@ -34629,9 +34629,9 @@ function computePercentiles(values) {
     const rank = p / 100 * (n - 1);
     const lower = Math.floor(rank);
     const upper = Math.ceil(rank);
-    const fraction = rank - lower;
+    const fraction2 = rank - lower;
     if (lower === upper) return sorted[lower];
-    return sorted[lower] + fraction * (sorted[upper] - sorted[lower]);
+    return sorted[lower] + fraction2 * (sorted[upper] - sorted[lower]);
   };
   const mean = sorted.reduce((sum, v) => sum + v, 0) / n;
   return {
@@ -37102,18 +37102,18 @@ var TIER_PRICE_MULTIPLIERS = {
 };
 async function generateDesignRecommendations(project, inputs, materialLibrary2, recentEvidence = [], designTrends2 = [], storedRooms) {
   let rooms;
-  let totalBudget;
+  let totalBudget2;
   if (storedRooms && storedRooms.length > 0) {
     rooms = storedRooms;
     const fitOutSqm = rooms.reduce((sum, r) => sum + r.sqm, 0);
     const budgetCap = Number(project.fin01BudgetCap || 0);
     const SQFT_TO_SQM = 10.764;
     const FINISH_BUDGET_RATIO = 0.35;
-    totalBudget = fitOutSqm * budgetCap * SQFT_TO_SQM * FINISH_BUDGET_RATIO;
+    totalBudget2 = fitOutSqm * budgetCap * SQFT_TO_SQM * FINISH_BUDGET_RATIO;
   } else {
     const spaceProgram = buildSpaceProgram(project);
     rooms = spaceProgram.rooms;
-    totalBudget = spaceProgram.totalFitoutBudgetAed;
+    totalBudget2 = spaceProgram.totalFitoutBudgetAed;
   }
   if (project.dldAreaId) {
     const { getDldAreaBenchmark: getDldAreaBenchmark2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -37122,8 +37122,8 @@ async function generateDesignRecommendations(project, inputs, materialLibrary2, 
     if (benchmark?.recommendedFitoutMid && area > 0) {
       const dldBudget = Number(benchmark.recommendedFitoutMid) * area;
       if (dldBudget > 0) {
-        console.log(`[SpaceRecs] DLD budget override: ${totalBudget.toLocaleString()} \u2192 ${dldBudget.toLocaleString()} AED (${benchmark.recommendedFitoutMid} AED/sqm \xD7 ${area} sqm)`);
-        totalBudget = dldBudget;
+        console.log(`[SpaceRecs] DLD budget override: ${totalBudget2.toLocaleString()} \u2192 ${dldBudget.toLocaleString()} AED (${benchmark.recommendedFitoutMid} AED/sqm \xD7 ${area} sqm)`);
+        totalBudget2 = dldBudget;
       }
     }
   }
@@ -37149,18 +37149,18 @@ async function generateDesignRecommendations(project, inputs, materialLibrary2, 
 - **Project Purpose**: ${purposeLabel[project.projectPurpose] || purposeLabel.sell_ready}`;
     }
   }
-  const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary, marketIntelSummary, trendContext, dldContext);
+  const prompt = buildDesignPrompt(project, inputs, rooms, totalBudget2, materialSummary, marketIntelSummary, trendContext, dldContext);
   const aiResponse = await callGeminiForDesign(prompt);
   const recommendations = mapAIResponseToRecommendations(
     aiResponse,
     rooms,
-    totalBudget,
+    totalBudget2,
     materialLibrary2,
     inputs
   );
   return recommendations;
 }
-function buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary, marketIntelSummary, trendContext = "", dldContext = "") {
+function buildDesignPrompt(project, inputs, rooms, totalBudget2, materialSummary, marketIntelSummary, trendContext = "", dldContext = "") {
   const roomList = rooms.map((r) => `- ${r.id} "${r.name}": ${r.sqm} sqm, Grade ${r.finishGrade}, Priority ${r.priority}, Budget ${(r.budgetPct * 100).toFixed(0)}%`).join("\n");
   return `You are an expert UAE interior design consultant. Generate detailed per-space design recommendations for this project.
 
@@ -37175,7 +37175,7 @@ function buildDesignPrompt(project, inputs, rooms, totalBudget, materialSummary,
 - **Design Style**: ${inputs.des01Style}
 - **Material Level**: ${inputs.des02MaterialLevel}/5
 - **Complexity**: ${inputs.des03Complexity}/5
-- **Total Fitout Budget**: ${totalBudget.toLocaleString()} AED
+- **Total Fitout Budget**: ${totalBudget2.toLocaleString()} AED
 
 ## Spaces to Design
 ${roomList}
@@ -37299,9 +37299,9 @@ async function callGeminiForDesign(prompt) {
     responseFormat: { type: "json_object" },
     maxTokens: 8e3
   });
-  const text4 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
+  const text5 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
   try {
-    return geminiDesignResponseSchema.parse(JSON.parse(text4));
+    return geminiDesignResponseSchema.parse(JSON.parse(text5));
   } catch (error) {
     throw new AiOperationError("PROVIDER_INVALID_RESPONSE", {
       operation: "design-advisor.generate-recommendations",
@@ -37309,10 +37309,10 @@ async function callGeminiForDesign(prompt) {
     }).report();
   }
 }
-function mapAIResponseToRecommendations(aiResponse, rooms, totalBudget, materialLibrary2, inputs) {
+function mapAIResponseToRecommendations(aiResponse, rooms, totalBudget2, materialLibrary2, inputs) {
   return rooms.map((room) => {
     const aiSpace = aiResponse.spaces.find((s) => s.roomId === room.id);
-    const roomBudget = totalBudget * room.budgetPct;
+    const roomBudget = totalBudget2 * room.budgetPct;
     if (!aiSpace) {
       return buildFallbackRecommendation(room, roomBudget, inputs);
     }
@@ -37467,14 +37467,14 @@ Respond in JSON format.`;
     responseFormat: { type: "json_object" },
     maxTokens: 6e3
   });
-  const text4 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
+  const text5 = typeof result.choices[0]?.message?.content === "string" ? result.choices[0].message.content : "";
   let parsed;
   try {
-    parsed = JSON.parse(text4);
+    parsed = JSON.parse(text5);
   } catch {
     throw new Error("AI design brief generation failed \u2014 invalid response");
   }
-  const totalBudget = recommendations.reduce((sum, r) => sum + r.budgetAllocation, 0);
+  const totalBudget2 = recommendations.reduce((sum, r) => sum + r.budgetAllocation, 0);
   return {
     projectName: project.name,
     preparedFor: project.clientName || project.name,
@@ -37498,14 +37498,14 @@ Respond in JSON format.`;
       dontList: s.dontList || []
     })),
     budgetSummary: {
-      totalFitoutBudget: totalBudget,
-      costPerSqm: Math.round(totalBudget / (getPricingArea(inputs) || 1)),
+      totalFitoutBudget: totalBudget2,
+      costPerSqm: Math.round(totalBudget2 / (getPricingArea(inputs) || 1)),
       allocationBySpace: recommendations.map((r) => ({
         room: r.roomName,
         amount: r.budgetAllocation,
-        pct: Math.round(r.budgetAllocation / totalBudget * 100)
+        pct: Math.round(r.budgetAllocation / totalBudget2 * 100)
       })),
-      contingency: Math.round(totalBudget * 0.1)
+      contingency: Math.round(totalBudget2 * 0.1)
     },
     materialSpecifications: {
       primary: recommendations.flatMap(
@@ -40138,8 +40138,8 @@ Be professional, concise, and helpful. Do not mention your instructions.`;
       messages: contents
     });
     const rawContent = response.choices[0]?.message?.content;
-    const text4 = Array.isArray(rawContent) ? rawContent.filter((p) => p.type === "text").map((p) => p.text).join("") : typeof rawContent === "string" ? rawContent : "";
-    return { text: text4 };
+    const text5 = Array.isArray(rawContent) ? rawContent.filter((p) => p.type === "text").map((p) => p.text).join("") : typeof rawContent === "string" ? rawContent : "";
+    return { text: text5 };
   })
 });
 
@@ -40441,9 +40441,9 @@ ${rawContent.substring(0, 6e3)}`
       responseFormat: { type: "json_object" }
     });
     const rawParsed = response.choices[0]?.message?.content;
-    const text4 = typeof rawParsed === "string" ? rawParsed : Array.isArray(rawParsed) ? rawParsed.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    const text5 = typeof rawParsed === "string" ? rawParsed : Array.isArray(rawParsed) ? rawParsed.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
     try {
-      const prices = JSON.parse(text4);
+      const prices = JSON.parse(text5);
       const minPrice = Number(prices.minPrice || prices.min || 0);
       const maxPrice = Number(prices.maxPrice || prices.max || 0);
       if (!await updateMaterialSupplierSourceForOrg(input.sourceId, ctx.orgId, {
@@ -40812,8 +40812,8 @@ Return JSON with schema: { rooms: [{ name, category, sqm, floorLevel }] }`
       responseFormat: { type: "json_object" }
     });
     const rawContent = response.choices[0]?.message?.content;
-    const text4 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
-    const parsed = JSON.parse(text4);
+    const text5 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    const parsed = JSON.parse(text5);
     const rooms = (parsed.rooms || []).map((r) => ({
       name: r.name || "Unknown Room",
       category: classifyRoomName(r.name || r.category || ""),
@@ -41916,9 +41916,248 @@ var spaceProgramRouter = mergeRouters(
 );
 
 // server/routers/brief.ts
-init_brief_contract();
 import { TRPCError as TRPCError30 } from "@trpc/server";
+import { z as z43 } from "zod";
+
+// shared/brief-section-content.ts
+init_brief_contract();
 import { z as z42 } from "zod";
+var BRIEF_SECTION_CONTENT_SCHEMA_VERSION = "BR-04-v1";
+var SQM_TO_SQFT = "10.7639";
+var AREA_BASES = ["gifa", "nia", "saleable", "fitout"];
+var AREA_UNITS = ["m2", "ft2"];
+var RATE_UNITS = ["aed_per_m2", "aed_per_ft2"];
+var text4 = z42.string().trim().min(1).max(4e3);
+var shortText = z42.string().trim().min(1).max(240);
+var decimal2 = z42.string().trim().regex(/^\d{1,15}(?:\.\d{1,8})?$/, "Enter a positive decimal value").refine((value) => /[1-9]/.test(value), "Value must be greater than zero");
+var optionalTextList = z42.array(shortText).max(100).default([]);
+var briefRequirementInputSchema = z42.object({
+  ruleId: z42.string().trim().min(1).max(128),
+  requirement: z42.enum(["required", "optional"]),
+  authority: briefContentAuthoritySchema,
+  impacts: z42.array(z42.enum(["coordination", "decision", "procurement", "professional"])).max(4).default([]),
+  componentId: z42.string().trim().min(1).max(96).optional(),
+  sourceId: z42.string().trim().min(1).max(128).optional(),
+  sourceVersion: z42.string().trim().min(1).max(128).optional(),
+  approvedBy: z42.number().int().positive().optional()
+}).strict();
+var briefAssumptionSchema = z42.object({
+  id: z42.string().trim().min(1).max(128),
+  statement: text4,
+  impact: z42.enum(["coordination", "decision", "procurement", "professional"]),
+  status: z42.enum(["open", "confirmed", "rejected"]).default("open")
+}).strict();
+var commonShape = {
+  schemaVersion: z42.literal(BRIEF_SECTION_CONTENT_SCHEMA_VERSION),
+  summary: text4,
+  requirements: z42.array(briefRequirementInputSchema).min(1).max(200),
+  assumptions: z42.array(briefAssumptionSchema).max(100).default([])
+};
+function section(sectionId, shape) {
+  return z42.object({ ...commonShape, sectionId: z42.literal(sectionId), ...shape }).strict();
+}
+var intent = section("intent", {
+  objectives: z42.array(text4).min(1).max(30),
+  successCriteria: optionalTextList,
+  targetUsers: optionalTextList
+});
+var assetContext = section("asset_context", {
+  location: shortText,
+  assetType: shortText,
+  developmentStage: shortText.optional(),
+  constraints: optionalTextList
+});
+var spaceProgramme = section("space_programme", {
+  spaces: z42.array(z42.object({
+    name: shortText,
+    quantity: z42.number().int().min(1).max(1e4),
+    targetArea: decimal2.optional(),
+    areaUnit: z42.enum(AREA_UNITS).optional(),
+    notes: z42.string().trim().max(1e3).optional()
+  }).strict()).min(1).max(500),
+  adjacencyNotes: z42.string().trim().max(4e3).optional()
+});
+var designDirection = section("design_direction", {
+  concept: text4,
+  styleKeywords: z42.array(shortText).min(1).max(30),
+  palette: optionalTextList,
+  avoid: optionalTextList
+});
+var specificationIntent = section("specification_intent", {
+  performanceGoals: z42.array(text4).min(1).max(100),
+  materialPriorities: optionalTextList,
+  maintenanceRequirements: optionalTextList
+});
+var supply = section("supply", {
+  procurementStrategy: text4,
+  availabilityRequirements: optionalTextList,
+  leadTimeConstraints: optionalTextList,
+  approvedAlternativesRequired: z42.boolean().default(true)
+});
+var riskCompliance = section("risk_compliance", {
+  risks: z42.array(z42.object({
+    title: shortText,
+    impact: z42.enum(["low", "medium", "high"]),
+    mitigation: text4
+  }).strict()).min(1).max(100),
+  preliminaryChecks: optionalTextList,
+  professionalReviewRequired: z42.boolean().default(true)
+});
+var conceptMedia = section("concept_media", {
+  moodKeywords: z42.array(shortText).min(1).max(30),
+  visualObjectives: z42.array(text4).min(1).max(30),
+  negativeConstraints: optionalTextList,
+  nonContractual: z42.literal(true)
+});
+var governance = section("governance", {
+  decisionOwners: z42.array(z42.object({ role: shortText, responsibility: text4 }).strict()).min(1).max(50),
+  reviewCadence: shortText,
+  approvalNotes: z42.string().trim().max(4e3).optional()
+});
+function powerOfTen(scale) {
+  let result = BigInt(1);
+  for (let index2 = 0; index2 < scale; index2 += 1) result *= BigInt(10);
+  return result;
+}
+function fraction(value) {
+  const [whole, decimalPart = ""] = value.split(".");
+  return {
+    numerator: BigInt(`${whole}${decimalPart}`),
+    denominator: powerOfTen(decimalPart.length)
+  };
+}
+function roundRatio(numerator, denominator) {
+  return (numerator * BigInt(2) + denominator) / (denominator * BigInt(2));
+}
+function fixed(value, scale) {
+  const digits = value.toString().padStart(scale + 1, "0");
+  return scale === 0 ? digits : `${digits.slice(0, -scale)}.${digits.slice(-scale)}`;
+}
+function scaled(value, scale) {
+  return roundRatio(value.numerator * powerOfTen(scale), value.denominator);
+}
+function multiply(left, right) {
+  return { numerator: left.numerator * right.numerator, denominator: left.denominator * right.denominator };
+}
+function divide(left, right) {
+  return { numerator: left.numerator * right.denominator, denominator: left.denominator * right.numerator };
+}
+var sqmToSqft = fraction(SQM_TO_SQFT);
+function normalizeArea(value, unit) {
+  const entered = fraction(decimal2.parse(value));
+  const squareMetres = unit === "m2" ? entered : divide(entered, sqmToSqft);
+  const squareFeet = unit === "ft2" ? entered : multiply(entered, sqmToSqft);
+  return {
+    squareMetres: fixed(scaled(squareMetres, 4), 4),
+    squareFeet: fixed(scaled(squareFeet, 4), 4)
+  };
+}
+function normalizeRate(value, unit) {
+  const entered = fraction(decimal2.parse(value));
+  const perSquareMetre = unit === "aed_per_m2" ? entered : multiply(entered, sqmToSqft);
+  const perSquareFoot = unit === "aed_per_ft2" ? entered : divide(entered, sqmToSqft);
+  return {
+    aedPerSquareMetre: fixed(scaled(perSquareMetre, 4), 4),
+    aedPerSquareFoot: fixed(scaled(perSquareFoot, 4), 4)
+  };
+}
+var costMetadata = z42.object({
+  areaSource: shortText,
+  areaSourceVersion: shortText,
+  costBaseDate: z42.string().date(),
+  inclusions: optionalTextList,
+  exclusions: optionalTextList,
+  feesIncluded: z42.boolean(),
+  vatIncluded: z42.boolean(),
+  contingencyIncluded: z42.boolean(),
+  escalationIncluded: z42.boolean()
+}).strict();
+var totalBudget = z42.object({
+  mode: z42.literal("total_aed"),
+  enteredTotalAed: decimal2,
+  metadata: costMetadata
+}).strict().transform((value) => ({
+  ...value,
+  normalizedTotalAed: fixed(scaled(fraction(value.enteredTotalAed), 2), 2)
+}));
+var unitRateBudget = z42.object({
+  mode: z42.literal("unit_rate"),
+  enteredRate: decimal2,
+  rateUnit: z42.enum(RATE_UNITS),
+  areaBasis: z42.enum(AREA_BASES),
+  enteredArea: decimal2,
+  areaUnit: z42.enum(AREA_UNITS),
+  metadata: costMetadata
+}).strict().transform((value) => {
+  const normalizedArea = normalizeArea(value.enteredArea, value.areaUnit);
+  const normalizedRate = normalizeRate(value.enteredRate, value.rateUnit);
+  const total = multiply(fraction(normalizedArea.squareMetres), fraction(normalizedRate.aedPerSquareMetre));
+  return {
+    ...value,
+    normalizedArea,
+    normalizedRate,
+    normalizedTotalAed: fixed(scaled(total, 2), 2)
+  };
+});
+var legacyBudget = z42.object({
+  mode: z42.literal("legacy_basis_unspecified"),
+  originalValue: z42.union([decimal2, text4]),
+  note: text4
+}).strict();
+var budgetContractInputSchema = z42.discriminatedUnion("mode", [
+  totalBudget,
+  unitRateBudget,
+  legacyBudget
+]);
+var costQuantities = section("cost_quantities", {
+  budget: budgetContractInputSchema,
+  costCategories: z42.array(z42.object({ category: shortText, allowanceAed: decimal2.optional(), note: z42.string().trim().max(1e3).optional() }).strict()).max(100).default([])
+});
+var briefSectionContentV1InputSchema = z42.discriminatedUnion("sectionId", [
+  intent,
+  assetContext,
+  spaceProgramme,
+  designDirection,
+  specificationIntent,
+  costQuantities,
+  supply,
+  riskCompliance,
+  conceptMedia,
+  governance
+]);
+function withoutSubmittedNormalization(value) {
+  if (!value || typeof value !== "object") return value;
+  const content = value;
+  if (content.sectionId !== "cost_quantities" || !content.budget || typeof content.budget !== "object") return value;
+  const budget = { ...content.budget };
+  delete budget.normalizedArea;
+  delete budget.normalizedRate;
+  delete budget.normalizedTotalAed;
+  return { ...content, budget };
+}
+function parseBriefSectionContentV1(sectionId, value) {
+  const content = briefSectionContentV1InputSchema.parse(withoutSubmittedNormalization(value));
+  if (content.sectionId !== sectionId) {
+    throw new z42.ZodError([{ code: "custom", path: ["sectionId"], message: `Content is for ${content.sectionId}, not ${sectionId}`, input: value }]);
+  }
+  return content;
+}
+function readBriefSectionContent(sectionId, schemaVersion, value) {
+  if (schemaVersion !== BRIEF_SECTION_CONTENT_SCHEMA_VERSION) {
+    return { kind: "legacy", schemaVersion, content: value };
+  }
+  const parsed = briefSectionContentV1InputSchema.safeParse(withoutSubmittedNormalization(value));
+  if (!parsed.success || parsed.data.sectionId !== sectionId) {
+    return { kind: "invalid", schemaVersion, content: value, issues: parsed.success ? ["Section mismatch"] : parsed.error.issues.map((issue2) => issue2.message) };
+  }
+  return { kind: "structured", schemaVersion, content: parsed.data };
+}
+var briefSectionContentInputBySection = Object.fromEntries(
+  BRIEF_SECTION_IDS.map((sectionId) => [sectionId, briefSectionContentV1InputSchema])
+);
+
+// server/routers/brief.ts
+init_brief_contract();
 
 // server/engines/brief-readiness.ts
 init_brief_contract();
@@ -41960,10 +42199,10 @@ function prohibitedAssumption(purpose, impacts) {
     return Boolean(impacts?.includes("decision"));
   return Boolean(impacts?.includes("procurement"));
 }
-function actorSeparationFailures(section, issuerUserId) {
+function actorSeparationFailures(section2, issuerUserId) {
   const result = [];
-  const extra = { sectionId: section.sectionId };
-  if (section.authorUserId && section.authorUserId === section.reviewerUserId)
+  const extra = { sectionId: section2.sectionId };
+  if (section2.authorUserId && section2.authorUserId === section2.reviewerUserId)
     result.push(
       reason(
         "role_separation_failure",
@@ -41972,7 +42211,7 @@ function actorSeparationFailures(section, issuerUserId) {
         extra
       )
     );
-  if (section.authorUserId && section.authorUserId === section.approverUserId)
+  if (section2.authorUserId && section2.authorUserId === section2.approverUserId)
     result.push(
       reason(
         "role_separation_failure",
@@ -41981,11 +42220,11 @@ function actorSeparationFailures(section, issuerUserId) {
         extra
       )
     );
-  if (section.applicability === "not_applicable") {
+  if (section2.applicability === "not_applicable") {
     const actors = [
-      section.applicabilityProposerUserId,
-      section.applicabilityReviewerUserId,
-      section.applicabilityApproverUserId
+      section2.applicabilityProposerUserId,
+      section2.applicabilityReviewerUserId,
+      section2.applicabilityApproverUserId
     ];
     if (actors.some((value) => value === void 0) || new Set(actors).size !== actors.length)
       result.push(
@@ -41997,7 +42236,7 @@ function actorSeparationFailures(section, issuerUserId) {
         )
       );
   }
-  if (issuerUserId && section.authorUserId === issuerUserId && section.approverUserId === issuerUserId)
+  if (issuerUserId && section2.authorUserId === issuerUserId && section2.approverUserId === issuerUserId)
     result.push(
       reason(
         "role_separation_failure",
@@ -42008,57 +42247,57 @@ function actorSeparationFailures(section, issuerUserId) {
     );
   return result;
 }
-function evaluateSection(section, purpose, componentIds, issuerUserId) {
+function evaluateSection(section2, purpose, componentIds, issuerUserId) {
   const reasons = [];
-  const baseline = PURPOSE_SECTION_APPLICABILITY[purpose][section.sectionId];
-  if (baseline === "required" && section.applicability !== "required")
+  const baseline = PURPOSE_SECTION_APPLICABILITY[purpose][section2.sectionId];
+  if (baseline === "required" && section2.applicability !== "required")
     reasons.push(
       reason(
         "invalid_section_structure",
-        `Section ${section.sectionId} is required for ${purpose}.`,
+        `Section ${section2.sectionId} is required for ${purpose}.`,
         "Restore the required applicability classification.",
-        { sectionId: section.sectionId }
+        { sectionId: section2.sectionId }
       )
     );
-  if (baseline === "conditional" && section.applicability === "conditional")
+  if (baseline === "conditional" && section2.applicability === "conditional")
     reasons.push(
       reason(
         "unclassified_requirement",
-        `Conditional section ${section.sectionId} has no approved required/N/A decision.`,
+        `Conditional section ${section2.sectionId} has no approved required/N/A decision.`,
         "Complete the applicability decision.",
-        { sectionId: section.sectionId }
+        { sectionId: section2.sectionId }
       )
     );
-  if (section.revisionId === null)
+  if (section2.revisionId === null)
     reasons.push(
       reason(
         "missing_content",
-        `Section ${section.sectionId} has no bound content revision.`,
+        `Section ${section2.sectionId} has no bound content revision.`,
         "Draft and bind section content.",
-        { sectionId: section.sectionId }
+        { sectionId: section2.sectionId }
       )
     );
-  if (section.applicability !== "not_applicable" && section.requirements.length === 0)
+  if (section2.applicability !== "not_applicable" && section2.requirements.length === 0)
     reasons.push(
       reason(
         "unclassified_requirement",
-        `Section ${section.sectionId} has no frozen requirement classifications.`,
+        `Section ${section2.sectionId} has no frozen requirement classifications.`,
         "Classify and freeze the applicable section rules.",
-        { sectionId: section.sectionId }
+        { sectionId: section2.sectionId }
       )
     );
-  if (section.applicability === "not_applicable" && STATE_SCORE[section.achievedState] < STATE_SCORE.approved)
+  if (section2.applicability === "not_applicable" && STATE_SCORE[section2.achievedState] < STATE_SCORE.approved)
     reasons.push(
       reason(
         "incomplete_na_approval",
-        `Section ${section.sectionId} has an incomplete N/A approval path.`,
+        `Section ${section2.sectionId} has an incomplete N/A approval path.`,
         "Review and independently approve the N/A decision.",
-        { sectionId: section.sectionId }
+        { sectionId: section2.sectionId }
       )
     );
-  for (const requirement of section.requirements) {
+  for (const requirement of section2.requirements) {
     const extra = {
-      sectionId: section.sectionId,
+      sectionId: section2.sectionId,
       componentId: requirement.componentId,
       ruleId: requirement.ruleId
     };
@@ -42126,7 +42365,7 @@ function evaluateSection(section, purpose, componentIds, issuerUserId) {
         )
       );
   }
-  for (const finding of section.findings)
+  for (const finding of section2.findings)
     if (finding.severity === "blocking" && !finding.resolved)
       reasons.push(
         reason(
@@ -42134,13 +42373,13 @@ function evaluateSection(section, purpose, componentIds, issuerUserId) {
           `Blocking finding ${finding.findingId} is unresolved.`,
           "Submit and obtain independent acceptance of a resolution.",
           {
-            sectionId: section.sectionId,
+            sectionId: section2.sectionId,
             componentId: finding.componentId,
             ruleId: finding.findingId
           }
         )
       );
-  for (const condition of section.conditions)
+  for (const condition of section2.conditions)
     if (condition.active)
       reasons.push(
         reason(
@@ -42148,13 +42387,13 @@ function evaluateSection(section, purpose, componentIds, issuerUserId) {
           `Condition ${condition.conditionId} is active.`,
           "Satisfy and independently accept the recorded resolution requirement.",
           {
-            sectionId: section.sectionId,
+            sectionId: section2.sectionId,
             componentId: condition.componentId,
             dependencyId: condition.dependencyId ?? condition.conditionId
           }
         )
       );
-  for (const reconciliation of section.reconciliations)
+  for (const reconciliation of section2.reconciliations)
     if (!reconciliation.passed)
       reasons.push(
         reason(
@@ -42162,35 +42401,35 @@ function evaluateSection(section, purpose, componentIds, issuerUserId) {
           `Reconciliation ${reconciliation.ruleId} failed.`,
           "Resolve the named version conflict and rerun reconciliation.",
           {
-            sectionId: section.sectionId,
+            sectionId: section2.sectionId,
             componentId: reconciliation.componentId,
             ruleId: reconciliation.ruleId,
             dependencyId: reconciliation.dependencyId
           }
         )
       );
-  if (componentIds.length > 1 && section.applicability !== "not_applicable") {
+  if (componentIds.length > 1 && section2.applicability !== "not_applicable") {
     for (const componentId of componentIds) {
-      const coverage = section.componentCoverage?.find(
+      const coverage = section2.componentCoverage?.find(
         (item) => item.componentId === componentId
       );
       if (!coverage?.complete)
         reasons.push(
           reason(
             "missing_content",
-            `Section ${section.sectionId} is incomplete for component ${componentId}.`,
+            `Section ${section2.sectionId} is incomplete for component ${componentId}.`,
             "Complete this section for the named component.",
-            { sectionId: section.sectionId, componentId }
+            { sectionId: section2.sectionId, componentId }
           )
         );
       if (!coverage?.reconciled)
         reasons.push(
           reason(
             "failed_reconciliation",
-            `Section ${section.sectionId} is not reconciled for component ${componentId}.`,
+            `Section ${section2.sectionId} is not reconciled for component ${componentId}.`,
             "Reconcile shared and component-specific decisions.",
             {
-              sectionId: section.sectionId,
+              sectionId: section2.sectionId,
               componentId,
               ruleId: "component_reconciliation"
             }
@@ -42198,16 +42437,16 @@ function evaluateSection(section, purpose, componentIds, issuerUserId) {
         );
     }
   }
-  if (section.applicability !== "conditional" && STATE_SCORE[section.achievedState] < STATE_SCORE.approved)
+  if (section2.applicability !== "conditional" && STATE_SCORE[section2.achievedState] < STATE_SCORE.approved)
     reasons.push(
       reason(
-        section.achievedState === "missing" ? "missing_content" : "missing_evidence",
-        `Section ${section.sectionId} has achieved ${section.achievedState}, below approved.`,
+        section2.achievedState === "missing" ? "missing_content" : "missing_evidence",
+        `Section ${section2.sectionId} has achieved ${section2.achievedState}, below approved.`,
         "Complete each remaining maturity gate in order.",
-        { sectionId: section.sectionId }
+        { sectionId: section2.sectionId }
       )
     );
-  reasons.push(...actorSeparationFailures(section, issuerUserId));
+  reasons.push(...actorSeparationFailures(section2, issuerUserId));
   reasons.sort(compareBriefInsufficiencyReasons);
   const components = componentIds.map((componentId) => {
     const componentReasons = reasons.filter(
@@ -42224,9 +42463,9 @@ function evaluateSection(section, purpose, componentIds, issuerUserId) {
     };
   });
   return {
-    sectionId: section.sectionId,
-    applicability: section.applicability,
-    achievedState: section.achievedState,
+    sectionId: section2.sectionId,
+    applicability: section2.applicability,
+    achievedState: section2.achievedState,
     isStale: reasons.some((item) => item.code === "active_stale_condition"),
     isBlocked: reasons.some((item) => item.code === "active_blocked_condition"),
     canIssue: reasons.length === 0,
@@ -42237,8 +42476,8 @@ function evaluateSection(section, purpose, componentIds, issuerUserId) {
 }
 function evaluateBriefReadiness(facts) {
   const counts = /* @__PURE__ */ new Map();
-  for (const section of facts.sections)
-    counts.set(section.sectionId, (counts.get(section.sectionId) ?? 0) + 1);
+  for (const section2 of facts.sections)
+    counts.set(section2.sectionId, (counts.get(section2.sectionId) ?? 0) + 1);
   const structuralReasons = BRIEF_SECTION_IDS.filter(
     (id) => counts.get(id) !== 1
   ).map(
@@ -42250,7 +42489,7 @@ function evaluateBriefReadiness(facts) {
     )
   );
   const byId = new Map(
-    facts.sections.map((section) => [section.sectionId, section])
+    facts.sections.map((section2) => [section2.sectionId, section2])
   );
   const sections = BRIEF_SECTION_IDS.map(
     (sectionId) => byId.has(sectionId) ? evaluateSection(
@@ -42313,7 +42552,7 @@ function evaluateBriefReadiness(facts) {
       );
   const reasons = [
     ...globalReasons,
-    ...sections.flatMap((section) => section.reasons)
+    ...sections.flatMap((section2) => section2.reasons)
   ].sort(compareBriefInsufficiencyReasons);
   const components = facts.componentIds.map(
     (componentId) => {
@@ -42334,7 +42573,7 @@ function evaluateBriefReadiness(facts) {
     }
   );
   const progress = sections.reduce(
-    (sum, section) => sum + STATE_SCORE[section.achievedState] / STATE_SCORE.approved,
+    (sum, section2) => sum + STATE_SCORE[section2.achievedState] / STATE_SCORE.approved,
     0
   );
   return {
@@ -42674,6 +42913,24 @@ async function createBriefStream(input, context2) {
 async function executeBriefCommand(operation, input, context2) {
   if (operation === "createStream" || operation === "brief.createStream")
     return createBriefStream(input, context2);
+  if (operation.endsWith("reviseSection")) {
+    if (input.contentSchemaVersion !== BRIEF_SECTION_CONTENT_SCHEMA_VERSION) {
+      throw new BriefWorkflowError("INVALID", "New section revisions require the BR-04-v1 structured content contract");
+    }
+    try {
+      input = {
+        ...input,
+        content: parseBriefSectionContentV1(input.sectionId, input.content)
+      };
+    } catch {
+      throw new BriefWorkflowError("INVALID", "Section content does not match the selected structured editor");
+    }
+    if ((input.dependencies ?? []).some(
+      (dependency2) => dependency2?.serverResolved !== true || dependency2?.authority !== "governed_evidence" || dependency2?.type !== "evidence"
+    )) {
+      throw new BriefWorkflowError("INVALID", "Section dependencies must be resolved by an authorized server picker");
+    }
+  }
   const projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId"), db = await database(), requestHash = hashBriefRequest(input);
   return withBriefTransaction(db, async (tx) => {
     const stream = await lockStream(tx, context2, projectId, streamId);
@@ -42820,11 +43077,11 @@ async function executeBriefCommand(operation, input, context2) {
           sectionRevisionId: entityId,
           dependencyType: type,
           dependencyRef: dependency2,
-          authority: dependency2.authority ?? (type === "generation" ? "ai_suggestion" : "governed_evidence"),
+          authority: dependency2.authority,
           recordVersion,
           fingerprint,
           observedAt: dependency2.observedAt ? new Date(dependency2.observedAt) : /* @__PURE__ */ new Date(),
-          relevance: dependency2.relevance ?? "Section content lineage"
+          relevance: dependency2.relevance
         });
       }
     } else if (operation.endsWith("submitEvidence") || operation.endsWith("acceptReview") || operation.endsWith("approveSection")) {
@@ -43713,10 +43970,10 @@ async function getBriefVersion(input, context2) {
     ...version,
     id: String(version.id),
     briefId: String(stream.id),
-    sections: sections.map((section) => ({
-      ...section,
-      id: String(section.id),
-      revisionId: section.sectionRevisionId ? String(section.sectionRevisionId) : null
+    sections: sections.map((section2) => ({
+      ...section2,
+      id: String(section2.id),
+      revisionId: section2.sectionRevisionId ? String(section2.sectionRevisionId) : null
     }))
   };
 }
@@ -43734,22 +43991,36 @@ async function getBriefSection(input, context2) {
     )
   ).limit(1))[0] ?? null;
   if (!binding) return null;
-  const section = {
+  const section2 = {
     ...binding,
     id: String(binding.id),
     briefId: String(stream.id),
     versionId: String(binding.versionId),
     revisionId: binding.sectionRevisionId ? String(binding.sectionRevisionId) : null
   };
-  if (!binding.sectionRevisionId) return { ...section, content: null };
-  const revision = (await db.select({ content: briefSectionRevisions.content }).from(briefSectionRevisions).where(
+  if (!binding.sectionRevisionId) return { ...section2, content: null };
+  const revision = (await db.select().from(briefSectionRevisions).where(
     and9(
       eq19(briefSectionRevisions.organizationId, context2.organizationId),
       eq19(briefSectionRevisions.projectId, stream.projectId),
       eq19(briefSectionRevisions.id, binding.sectionRevisionId)
     )
   ).limit(1))[0];
-  return { ...section, content: revision?.content ?? null };
+  if (!revision) return { ...section2, content: null };
+  return {
+    ...section2,
+    contentSchemaVersion: revision.contentSchemaVersion,
+    contentState: readBriefSectionContent(
+      binding.sectionId,
+      revision.contentSchemaVersion,
+      revision.content
+    ),
+    content: revision.content,
+    origin: revision.origin,
+    authorUserId: revision.authorUserId,
+    revisionFingerprint: revision.revisionFingerprint,
+    createdAt: revision.createdAt
+  };
 }
 async function listBriefAssignments(input, context2) {
   const { db, stream } = await scopedStream(input, context2);
@@ -43769,6 +44040,15 @@ async function listBriefFindings(input, context2) {
     )
   ).orderBy(asc2(briefFindings.id));
 }
+async function listBriefFindingResolutions(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  return db.select().from(briefFindingResolutions).where(
+    and9(
+      eq19(briefFindingResolutions.organizationId, context2.organizationId),
+      eq19(briefFindingResolutions.streamId, stream.id)
+    )
+  ).orderBy(asc2(briefFindingResolutions.id));
+}
 async function listBriefDependencies(input, context2) {
   const { db, stream } = await scopedStream(input, context2);
   return db.select().from(briefDependencies).where(
@@ -43777,6 +44057,154 @@ async function listBriefDependencies(input, context2) {
       eq19(briefDependencies.streamId, stream.id)
     )
   ).orderBy(asc2(briefDependencies.id));
+}
+async function listBriefConditions(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  return db.select().from(briefConditionEvents).where(
+    and9(
+      eq19(briefConditionEvents.organizationId, context2.organizationId),
+      eq19(briefConditionEvents.streamId, stream.id),
+      eq19(briefConditionEvents.versionId, positive(input.versionId, "versionId"))
+    )
+  ).orderBy(asc2(briefConditionEvents.streamSequence));
+}
+function derivePermittedBriefActions(input) {
+  const hasRole = (role) => input.activeAssignments.some(
+    (assignment) => assignment.subjectUserId === input.userId && assignment.role === role && (assignment.sectionId == null || assignment.sectionId === input.sectionId)
+  );
+  const actions = [];
+  if (hasRole("author") || hasRole("section_owner")) {
+    actions.push("revise", "propose_not_applicable");
+  }
+  if (hasRole("section_owner")) {
+    actions.push("record_finding", "raise_condition");
+    if (input.achievedState === "drafted") actions.push("submit_evidence");
+  }
+  if (hasRole("reviewer") && input.authorUserId !== input.userId) {
+    actions.push("record_finding", "review_not_applicable");
+    if (input.achievedState === "evidenced") actions.push("accept_review");
+  }
+  if (hasRole("approver") && input.authorUserId !== input.userId) {
+    actions.push("approve_not_applicable");
+    if (input.achievedState === "reviewed") actions.push("approve_section");
+  }
+  if (hasRole("author") || hasRole("section_owner")) {
+    if (input.hasOpenFindings) actions.push("submit_finding_resolution");
+    if (input.hasOpenConditions) actions.push("submit_condition_resolution");
+  }
+  return Array.from(new Set(actions));
+}
+async function getBriefStudio(input, context2) {
+  const [summary, version, readinessFacts, assignments, findings, findingResolutions, dependencies, conditions, events, issues] = await Promise.all([
+    getBriefSummary(input, context2),
+    getBriefVersion(input, context2),
+    getBriefReadinessFacts({ ...input, issuerUserId: context2.userId }, context2),
+    listBriefAssignments(input, context2),
+    listBriefFindings(input, context2),
+    listBriefFindingResolutions(input, context2),
+    listBriefDependencies(input, context2),
+    listBriefConditions(input, context2),
+    listBriefEvents(input, context2),
+    listBriefIssues(input, context2)
+  ]);
+  if (!version) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+  const activeAssignments = assignments.filter(
+    (assignment) => assignment.action === "granted" && !assignments.some((later) => later.action === "revoked" && later.targetGrantEventId === assignment.id)
+  );
+  const db = await database();
+  const memberChoices = await db.select({ id: users.id, name: users.name, organizationRole: organizationMembers.role }).from(organizationMembers).innerJoin(users, eq19(users.id, organizationMembers.userId)).where(eq19(organizationMembers.orgId, context2.organizationId)).orderBy(asc2(users.id));
+  const readiness = evaluateBriefReadiness(readinessFacts);
+  const sections = await Promise.all(BRIEF_SECTION_IDS2.map(
+    (sectionId) => getBriefSection({ ...input, sectionId }, context2)
+  ));
+  const studioSections = sections.filter(Boolean).map((section2) => {
+    const sectionReadiness = readiness.sections.find((item) => item.sectionId === section2.sectionId);
+    const sectionAssignments = activeAssignments.filter(
+      (assignment) => assignment.sectionId == null || assignment.sectionId === section2.sectionId
+    );
+    const sectionDependencies = dependencies.filter(
+      (dependency2) => dependency2.versionId === Number(input.versionId) && dependency2.bindingId === Number(section2.id)
+    );
+    const sectionFindings = findings.filter(
+      (finding) => finding.versionId === Number(input.versionId) && finding.bindingId === Number(section2.id)
+    );
+    const sectionConditions = conditions.filter((condition) => condition.bindingId === Number(section2.id));
+    const hasOpenFindings = sectionFindings.some(
+      (finding) => !findingResolutions.some(
+        (resolution) => resolution.findingId === finding.id && resolution.stage === "accepted"
+      )
+    );
+    const hasOpenConditions = sectionConditions.some(
+      (condition) => condition.stage === "raised" && !sectionConditions.some(
+        (accepted) => accepted.stage === "resolution_accepted" && (accepted.targetEventId === condition.id || sectionConditions.some(
+          (submitted) => submitted.id === accepted.targetEventId && submitted.targetEventId === condition.id
+        ))
+      )
+    );
+    const assumptions = section2.contentState?.kind === "structured" ? section2.contentState.content.assumptions : [];
+    return {
+      ...section2,
+      readiness: sectionReadiness,
+      owner: sectionAssignments.find((assignment) => assignment.role === "section_owner") ?? null,
+      assignments: sectionAssignments,
+      assumptions,
+      evidence: sectionDependencies.filter((dependency2) => dependency2.dependencyType === "evidence"),
+      dependencies: sectionDependencies,
+      findings: sectionFindings,
+      conditions: sectionConditions,
+      applicabilityChoices: events.filter((event) => event.versionId === Number(input.versionId) && event.sectionId === section2.sectionId && (event.eventType === "applicability_proposed" || event.eventType === "applicability_reviewed")).map((event) => ({
+        id: Number(event.payload?.entityId),
+        stage: event.eventType === "applicability_proposed" ? "proposed" : "reviewed",
+        actorUserId: event.actorUserId,
+        createdAt: event.createdAt
+      })).filter((choice) => Number.isSafeInteger(choice.id)),
+      permittedActions: derivePermittedBriefActions({
+        userId: context2.userId,
+        sectionId: section2.sectionId,
+        achievedState: section2.achievedState,
+        authorUserId: section2.authorUserId,
+        hasOpenFindings,
+        hasOpenConditions,
+        activeAssignments
+      }),
+      nextAction: sectionReadiness?.nextActions?.[0] ?? null
+    };
+  });
+  const currentUserRoles = activeAssignments.filter((assignment) => assignment.subjectUserId === context2.userId).map((assignment) => assignment.role);
+  return {
+    identity: {
+      projectId: Number(input.projectId),
+      briefId: String(summary.briefId),
+      versionId: String(version.id),
+      streamRevision: summary.revision,
+      versionRevision: version.revision
+    },
+    summary,
+    version: { ...version, sections: void 0 },
+    readiness,
+    sections: studioSections,
+    assignments: activeAssignments,
+    assumptions: studioSections.flatMap((section2) => section2.assumptions.map((assumption) => ({ ...assumption, sectionId: section2.sectionId }))),
+    findings: findings.filter((finding) => finding.versionId === Number(input.versionId)),
+    conditions,
+    dependencies: dependencies.filter((dependency2) => dependency2.versionId === Number(input.versionId)),
+    issues,
+    history: events,
+    inbox: studioSections.flatMap((section2) => section2.permittedActions.filter((action) => action !== "revise").map((action) => ({
+      id: `${section2.sectionId}:${action}`,
+      sectionId: section2.sectionId,
+      eventType: action,
+      nextAction: section2.nextAction
+    }))),
+    choices: {
+      members: memberChoices.map((member) => ({ id: member.id, label: member.name?.trim() || `Member ${member.id}`, organizationRole: member.organizationRole }))
+    },
+    permittedActions: {
+      createVersion: currentUserRoles.some((role) => role === "author" || role === "section_owner"),
+      issue: currentUserRoles.includes("issuer") && readiness.canIssue,
+      administerRoles: false
+    }
+  };
 }
 async function listBriefEvents(input, context2) {
   const { db, stream } = await scopedStream(input, context2);
@@ -44000,6 +44428,7 @@ async function getBriefReadinessFacts(input, context2, transaction, lockedStream
 }
 
 // server/routers/brief.ts
+init_db();
 function briefWorkflowEnabled(organizationId) {
   if (process.env.NODE_ENV !== "production") return true;
   const organizations2 = new Set(
@@ -44019,34 +44448,55 @@ var requireBriefWorkflow = async ({ ctx, next }) => {
 var orgProcedure3 = orgProcedure.use(requireBriefWorkflow);
 var orgMutationProcedure2 = orgMutationProcedure.use(requireBriefWorkflow);
 var orgAdminProcedure2 = orgAdminProcedure.use(requireBriefWorkflow);
-var canonicalId = z42.string().regex(/^\d+$/).max(32);
-var bounded = z42.string().trim().min(1).max(2e3);
-var idempotencyKey = z42.string().trim().min(8).max(128);
-var jsonValue = z42.lazy(
-  () => z42.union([
-    z42.null(),
-    z42.boolean(),
-    z42.number(),
-    z42.string().max(1e5),
-    z42.array(jsonValue).max(2e3),
-    z42.record(z42.string().max(256), jsonValue)
+var canonicalId = z43.string().regex(/^\d+$/).max(32);
+var bounded = z43.string().trim().min(1).max(2e3);
+var idempotencyKey = z43.string().trim().min(8).max(128);
+var jsonValue = z43.lazy(
+  () => z43.union([
+    z43.null(),
+    z43.boolean(),
+    z43.number(),
+    z43.string().max(1e5),
+    z43.array(jsonValue).max(2e3),
+    z43.record(z43.string().max(256), jsonValue)
   ])
 );
-var briefRef = z42.object({ projectId: z42.number().int().positive(), briefId: canonicalId });
+var briefRef = z43.object({ projectId: z43.number().int().positive(), briefId: canonicalId });
 var versionRef = briefRef.extend({ versionId: canonicalId });
-var mutationMeta = z42.object({ expectedRevision: z42.number().int().nonnegative(), idempotencyKey });
+var mutationMeta = z43.object({ expectedRevision: z43.number().int().nonnegative(), idempotencyKey });
 var versionMutation = versionRef.merge(mutationMeta);
-var page = z42.object({ cursor: canonicalId.optional(), limit: z42.number().int().min(1).max(100).default(50) });
-var dependency = z42.object({
-  type: z42.string().trim().min(1).max(64),
-  recordId: z42.string().trim().min(1).max(128).optional(),
-  recordVersion: z42.string().trim().min(1).max(128).optional(),
-  fingerprint: z42.string().trim().min(1).max(128).optional(),
-  engineVersion: z42.string().trim().min(1).max(128).optional(),
-  modelVersion: z42.string().trim().min(1).max(128).optional(),
-  promptVersion: z42.string().trim().min(1).max(128).optional(),
-  inputFingerprint: z42.string().trim().min(1).max(128).optional(),
-  outputFingerprint: z42.string().trim().min(1).max(128).optional()
+var page = z43.object({ cursor: canonicalId.optional(), limit: z43.number().int().min(1).max(100).default(50) });
+var dependency = z43.object({
+  type: z43.string().trim().min(1).max(64),
+  recordId: z43.string().trim().min(1).max(128).optional(),
+  recordVersion: z43.string().trim().min(1).max(128).optional(),
+  fingerprint: z43.string().trim().min(1).max(128).optional(),
+  engineVersion: z43.string().trim().min(1).max(128).optional(),
+  modelVersion: z43.string().trim().min(1).max(128).optional(),
+  promptVersion: z43.string().trim().min(1).max(128).optional(),
+  inputFingerprint: z43.string().trim().min(1).max(128).optional(),
+  outputFingerprint: z43.string().trim().min(1).max(128).optional()
+});
+var evidenceReference = z43.object({
+  kind: z43.literal("evidence_record"),
+  id: z43.number().int().positive(),
+  ruleId: z43.string().trim().min(1).max(128),
+  relevance: z43.string().trim().min(1).max(2e3)
+}).strict();
+var reviseSectionInput = versionMutation.extend({
+  sectionId: briefSectionIdSchema,
+  contentSchemaVersion: z43.literal(BRIEF_SECTION_CONTENT_SCHEMA_VERSION),
+  content: briefSectionContentV1InputSchema,
+  origin: z43.enum(["user", "deterministic", "ai_proposal"]),
+  evidenceReferences: z43.array(evidenceReference).max(100).default([])
+}).strict().superRefine((value, issue2) => {
+  if (value.content.sectionId !== value.sectionId) {
+    issue2.addIssue({
+      code: "custom",
+      path: ["content", "sectionId"],
+      message: `Content is for ${value.content.sectionId}, not ${value.sectionId}`
+    });
+  }
 });
 function context(ctx) {
   return { organizationId: ctx.orgId, userId: ctx.user.id, actorType: "human" };
@@ -44065,18 +44515,47 @@ async function command(name, input, ctx) {
     translate(error);
   }
 }
+async function resolveRevisionDependencies(input, organizationId) {
+  const dependencies = [];
+  for (const reference of input.evidenceReferences) {
+    const { evidence } = await requireEvidenceRecordForOrg(reference.id, organizationId);
+    if (evidence.projectId !== null && evidence.projectId !== input.projectId) {
+      throw new TRPCError30({ code: "NOT_FOUND", message: "Resource not found" });
+    }
+    const observedAt = evidence.captureDate ?? evidence.createdAt;
+    const fingerprint = hashBriefRequest({
+      id: evidence.id,
+      recordId: evidence.recordId,
+      captureDate: observedAt,
+      corpusPolicyVersion: evidence.corpusPolicyVersion,
+      currentConfidenceAssessmentId: evidence.currentConfidenceAssessmentId
+    });
+    dependencies.push({
+      type: "evidence",
+      recordId: String(evidence.id),
+      recordVersion: evidence.runId ?? new Date(observedAt).toISOString(),
+      fingerprint,
+      observedAt: new Date(observedAt).toISOString(),
+      authority: "governed_evidence",
+      ruleId: reference.ruleId,
+      relevance: reference.relevance,
+      serverResolved: true
+    });
+  }
+  return dependencies;
+}
 var briefRouter = router({
-  createStream: orgAdminProcedure2.input(z42.object({
-    projectId: z42.number().int().positive(),
-    scope: z42.discriminatedUnion("type", [
-      z42.object({ type: z42.literal("project") }),
-      z42.object({ type: z42.literal("scenario"), scenarioId: z42.number().int().positive() })
+  createStream: orgAdminProcedure2.input(z43.object({
+    projectId: z43.number().int().positive(),
+    scope: z43.discriminatedUnion("type", [
+      z43.object({ type: z43.literal("project") }),
+      z43.object({ type: z43.literal("scenario"), scenarioId: z43.number().int().positive() })
     ]),
     purpose: issuePurposeSchema,
-    typologyProfileVersion: z42.string().trim().min(1).max(96),
+    typologyProfileVersion: z43.string().trim().min(1).max(96),
     profile: briefTypologyProfileSchema.optional(),
-    componentIds: z42.array(z42.string().trim().min(1).max(96)).max(32),
-    initialAssignments: z42.array(z42.object({ userId: z42.number().int().positive(), role: briefFunctionalRoleSchema, sectionId: briefSectionIdSchema.optional() })).max(100),
+    componentIds: z43.array(z43.string().trim().min(1).max(96)).max(32),
+    initialAssignments: z43.array(z43.object({ userId: z43.number().int().positive(), role: briefFunctionalRoleSchema, sectionId: briefSectionIdSchema.optional() })).max(100),
     idempotencyKey
   })).mutation(async ({ ctx, input }) => {
     try {
@@ -44085,22 +44564,25 @@ var briefRouter = router({
       translate(error);
     }
   }),
-  createVersion: orgMutationProcedure2.input(versionMutation.extend({ predecessorVersionId: canonicalId, carryForwardSections: z42.array(briefSectionIdSchema).max(10) })).mutation(({ ctx, input }) => command("createVersion", input, ctx)),
-  reviseSection: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, contentSchemaVersion: z42.string().trim().min(1).max(64), content: jsonValue, origin: z42.enum(["user", "deterministic", "ai_proposal", "legacy_import"]), dependencies: z42.array(dependency).max(500) })).mutation(({ ctx, input }) => command("reviseSection", input, ctx)),
-  submitEvidence: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, dependencyIds: z42.array(canonicalId).max(500), rationale: bounded })).mutation(({ ctx, input }) => command("submitEvidence", input, ctx)),
-  assignRole: orgAdminProcedure2.input(briefRef.merge(mutationMeta).extend({ userId: z42.number().int().positive(), role: briefFunctionalRoleSchema, versionId: canonicalId.optional(), sectionId: briefSectionIdSchema.optional(), reason: bounded })).mutation(({ ctx, input }) => command("assignRole", input, ctx)),
+  createVersion: orgMutationProcedure2.input(versionMutation.extend({ predecessorVersionId: canonicalId, carryForwardSections: z43.array(briefSectionIdSchema).max(10) })).mutation(({ ctx, input }) => command("createVersion", input, ctx)),
+  reviseSection: orgMutationProcedure2.input(reviseSectionInput).mutation(async ({ ctx, input }) => command("reviseSection", {
+    ...input,
+    dependencies: await resolveRevisionDependencies(input, ctx.orgId)
+  }, ctx)),
+  submitEvidence: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, dependencyIds: z43.array(canonicalId).max(500), rationale: bounded })).mutation(({ ctx, input }) => command("submitEvidence", input, ctx)),
+  assignRole: orgAdminProcedure2.input(briefRef.merge(mutationMeta).extend({ userId: z43.number().int().positive(), role: briefFunctionalRoleSchema, versionId: canonicalId.optional(), sectionId: briefSectionIdSchema.optional(), reason: bounded })).mutation(({ ctx, input }) => command("assignRole", input, ctx)),
   revokeRole: orgAdminProcedure2.input(briefRef.merge(mutationMeta).extend({ grantEventId: canonicalId, reason: bounded })).mutation(({ ctx, input }) => command("revokeRole", input, ctx)),
-  recordFinding: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, severity: z42.enum(["blocking", "advisory"]), ownerUserId: z42.number().int().positive(), statement: bounded })).mutation(({ ctx, input }) => command("recordFinding", input, ctx)),
+  recordFinding: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, severity: z43.enum(["blocking", "advisory"]), ownerUserId: z43.number().int().positive(), statement: bounded })).mutation(({ ctx, input }) => command("recordFinding", input, ctx)),
   submitFindingResolution: orgMutationProcedure2.input(versionMutation.extend({ findingId: canonicalId, resolutionRevisionId: canonicalId, evidence: jsonValue })).mutation(({ ctx, input }) => command("submitFindingResolution", input, ctx)),
-  acceptFindingResolution: orgMutationProcedure2.input(versionMutation.extend({ findingId: canonicalId, resolutionSubmissionEventId: canonicalId, outcome: z42.enum(["accepted", "rejected"]), rationale: bounded })).mutation(({ ctx, input }) => command("acceptFindingResolution", input, ctx)),
-  decideApplicability: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, action: z42.enum(["propose", "accept_review", "approve", "withdraw"]), proposalEventId: canonicalId.optional(), rationale: bounded, evidence: jsonValue })).mutation(({ ctx, input }) => command("decideApplicability", input, ctx)),
-  raiseCondition: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, kind: briefConditionKindSchema, gate: briefConditionGateSchema, reasonCode: z42.string().trim().min(1).max(96), explanation: bounded, ownerUserId: z42.number().int().positive(), dependencyId: canonicalId.optional(), resolutionRequirement: bounded })).mutation(({ ctx, input }) => command("raiseCondition", input, ctx)),
+  acceptFindingResolution: orgMutationProcedure2.input(versionMutation.extend({ findingId: canonicalId, resolutionSubmissionEventId: canonicalId, outcome: z43.enum(["accepted", "rejected"]), rationale: bounded })).mutation(({ ctx, input }) => command("acceptFindingResolution", input, ctx)),
+  decideApplicability: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, action: z43.enum(["propose", "accept_review", "approve", "withdraw"]), proposalEventId: canonicalId.optional(), rationale: bounded, evidence: jsonValue })).mutation(({ ctx, input }) => command("decideApplicability", input, ctx)),
+  raiseCondition: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, kind: briefConditionKindSchema, gate: briefConditionGateSchema, reasonCode: z43.string().trim().min(1).max(96), explanation: bounded, ownerUserId: z43.number().int().positive(), dependencyId: canonicalId.optional(), resolutionRequirement: bounded })).mutation(({ ctx, input }) => command("raiseCondition", input, ctx)),
   submitConditionResolution: orgMutationProcedure2.input(versionMutation.extend({ conditionId: canonicalId, evidence: jsonValue })).mutation(({ ctx, input }) => command("submitConditionResolution", input, ctx)),
-  acceptConditionResolution: orgMutationProcedure2.input(versionMutation.extend({ conditionId: canonicalId, resolutionSubmissionEventId: canonicalId, outcome: z42.enum(["accepted", "rejected"]), rationale: bounded })).mutation(({ ctx, input }) => command("acceptConditionResolution", input, ctx)),
+  acceptConditionResolution: orgMutationProcedure2.input(versionMutation.extend({ conditionId: canonicalId, resolutionSubmissionEventId: canonicalId, outcome: z43.enum(["accepted", "rejected"]), rationale: bounded })).mutation(({ ctx, input }) => command("acceptConditionResolution", input, ctx)),
   acceptReview: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, rationale: bounded })).mutation(({ ctx, input }) => command("acceptReview", input, ctx)),
-  approveSection: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, limitations: z42.array(z42.string().max(1e3)).max(100), rationale: bounded })).mutation(({ ctx, input }) => command("approveSection", input, ctx)),
+  approveSection: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, limitations: z43.array(z43.string().max(1e3)).max(100), rationale: bounded })).mutation(({ ctx, input }) => command("approveSection", input, ctx)),
   withdrawApproval: orgMutationProcedure2.input(versionMutation.extend({ approvalEventId: canonicalId, reason: bounded })).mutation(({ ctx, input }) => command("withdrawApproval", input, ctx)),
-  issue: orgMutationProcedure2.input(versionMutation.extend({ disclaimerVersion: z42.string().trim().min(1).max(96), confidentiality: z42.enum(["organization", "named_recipients"]), distributionPolicyVersion: z42.string().trim().min(1).max(96), expiresAt: z42.string().datetime().optional() })).mutation(({ ctx, input }) => command("issue", input, ctx)),
+  issue: orgMutationProcedure2.input(versionMutation.extend({ disclaimerVersion: z43.string().trim().min(1).max(96), confidentiality: z43.enum(["organization", "named_recipients"]), distributionPolicyVersion: z43.string().trim().min(1).max(96), expiresAt: z43.string().datetime().optional() })).mutation(({ ctx, input }) => command("issue", input, ctx)),
   supersedeIssue: orgMutationProcedure2.input(briefRef.merge(mutationMeta).extend({ priorIssueId: canonicalId, successorIssueId: canonicalId, reason: bounded })).mutation(({ ctx, input }) => command("supersedeIssue", input, ctx)),
   requestIssueWithdrawal: orgMutationProcedure2.input(briefRef.merge(mutationMeta).extend({ issueId: canonicalId, reason: bounded, distributionImpact: bounded })).mutation(({ ctx, input }) => command("requestIssueWithdrawal", input, ctx)),
   approveIssueWithdrawal: orgMutationProcedure2.input(briefRef.merge(mutationMeta).extend({ issueId: canonicalId, withdrawalRequestEventId: canonicalId, rationale: bounded })).mutation(({ ctx, input }) => command("approveIssueWithdrawal", input, ctx)),
@@ -44111,10 +44593,10 @@ var briefRouter = router({
       translate(error);
     }
   }),
-  listStreams: orgProcedure3.input(z42.object({ projectId: z42.number().int().positive(), scope: z42.enum(["project", "scenario"]).optional(), purpose: issuePurposeSchema.optional() }).merge(page)).query(async ({ ctx, input }) => {
+  listStreams: orgProcedure3.input(z43.object({ projectId: z43.number().int().positive(), scope: z43.enum(["project", "scenario"]).optional(), purpose: issuePurposeSchema.optional() }).merge(page)).query(async ({ ctx, input }) => {
     try {
       const items = await listBriefStreams(input, context(ctx));
-      return { items, nextCursor: null };
+      return { items, nextCursor: null, canCreate: ctx.orgRole === "admin" };
     } catch (error) {
       translate(error);
     }
@@ -44125,6 +44607,36 @@ var briefRouter = router({
       if (!version) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const sections = await Promise.all((await Promise.resolve().then(() => (init_brief_contract(), brief_contract_exports))).BRIEF_SECTION_IDS.map((sectionId) => getBriefSection({ ...input, sectionId }, context(ctx))));
       return { summary, version, sections: sections.filter(Boolean) };
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  getStudio: orgProcedure3.input(versionRef).query(async ({ ctx, input }) => {
+    try {
+      const [studio, organizationEvidence, publicEvidence] = await Promise.all([
+        getBriefStudio(input, context(ctx)),
+        listOrganizationEvidenceRecords(ctx.orgId, { limit: 50 }),
+        listPublicCorpusEvidence({ limit: 50 })
+      ]);
+      return {
+        ...studio,
+        choices: {
+          ...studio.choices,
+          evidence: [...organizationEvidence, ...publicEvidence].filter((item) => item.orgId == null || item.orgId === ctx.orgId).filter((item) => item.projectId == null || item.projectId === input.projectId).map((item) => ({
+            id: item.id,
+            label: item.title?.trim() || item.itemName,
+            recordId: item.recordId,
+            category: item.category,
+            reliabilityGrade: item.reliabilityGrade,
+            observedAt: item.captureDate,
+            scope: item.orgId === ctx.orgId ? "organization" : "platform_public"
+          }))
+        },
+        permittedActions: {
+          ...studio.permittedActions,
+          administerRoles: ctx.orgRole === "admin"
+        }
+      };
     } catch (error) {
       translate(error);
     }

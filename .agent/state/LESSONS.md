@@ -454,3 +454,25 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The corrected DTO passes targeted 36/36, guarded MySQL 30/30, TypeScript/build/audits, and the authenticated ordered browser journey; Claude Opus independently approved the diff.
 - Reuse rule: When multiple queries feed one state machine UI, they must share one typed DTO or aggregate query, and acceptance must execute at least one real ordered transition using each returned identifier.
 - Supersedes / related: Extends `LES-038`; `BR-04` owns the typed `brief.getStudio` aggregate that removes this class of client-side joining.
+
+### LES-040 — Governed reference lineage must be resolved by the server
+
+- Date / roadmap step: 2026-07-21 / `BR-04`
+- Context: A structured brief revision may cite evidence whose version, observation date, authority, and fingerprint affect readiness and later issue claims.
+- Observed: Accepting caller-supplied dependency metadata would let a client forge lineage even if the referenced record ID were valid.
+- Cause: A convenient API shape treated evidence identity and authoritative evidence metadata as the same client-owned payload.
+- Fix or decision: The client submits only an opaque governed evidence ID, rule, and relevance. The router authorizes the record and derives its exact version, date, fingerprint, authority, and server-resolved marker; persistence rejects any dependency without that proof.
+- Proof: Router runtime/contract tests, cross-project and foreign-organization concealment, guarded MySQL, authorization audit, and Claude Opus review pass.
+- Reuse rule: Clients may select governed records but must never attest their authority, version, freshness, fingerprint, or tenant scope. Resolve and bind those facts at the final server boundary.
+- Supersedes / related: Extends `LES-001`, `LES-014`, and `LES-038`.
+
+### LES-041 — Expensive security tests need one bounded cryptographic behavior each
+
+- Date / roadmap step: 2026-07-21 / `BR-04`
+- Context: The safe aggregate suite runs cost-12 bcrypt behavior alongside more than one thousand other tests.
+- Observed: A combined registration-and-login test repeatedly crossed the five-second boundary under suite load; its uncancelled completion then polluted the following audit assertion, while the same file passed alone.
+- Cause: Two expensive bcrypt operations and two behavior contracts shared one test timeout and mock lifecycle.
+- Fix or decision: Keep registration, fixed-hash successful login, rejected login, and legacy hash upgrade as separate tests. Preserve cost and assertions; do not hide the defect by increasing the timeout.
+- Proof: The focused auth suite passes 4/4 and the final safe aggregate suite passes 1,424 with 22 skipped.
+- Reuse rule: Split expensive cryptographic workflows by behavior and use deterministic valid fixtures where the test is not specifically proving hash creation.
+- Supersedes / related: Reaffirms the earlier bcrypt timing lesson recorded for BR-03 certification.

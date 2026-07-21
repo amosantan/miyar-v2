@@ -2,8 +2,8 @@
 
 Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit-resource-authorization.ts`.
 
-- Procedures inventoried: **375**
-- Generated: 2026-07-21T11:22:43.717Z
+- Procedures inventoried: **376**
+- Generated: 2026-07-21T12:59:26.819Z
 - Canonical machine-readable source: `docs/security/resource-authorization-inventory.json`
 - Validation: `pnpm audit:authorization`
 
@@ -30,20 +30,20 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `admin_governed`       |    82 |
 | `global_governed`      |    54 |
 | `not_project_scoped`   |    23 |
-| `org_guarded`          |   215 |
+| `org_guarded`          |   216 |
 | `public_token_guarded` |     1 |
 
 ## Severity Summary
 
 | Severity | Count |
 | -------- | ----: |
-| `none`   |   375 |
+| `none`   |   376 |
 
 ## Remediation Summary
 
 | Target | Count |
 | ------ | ----: |
-| `none` |   375 |
+| `none` |   376 |
 
 ### Remediation ownership
 
@@ -187,6 +187,7 @@ Generated from `server/routers + server/_core/systemRouter.ts` by `scripts/audit
 | `brief.getReadiness`                                 | `org_guarded`          | authenticated organization + input projectId/briefId/versionId/child IDs -> canonical brief workflow lockTenant resolver -> organization/project/scenario-scoped records                                                                                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `brief.getSectionHistory`                            | `org_guarded`          | authenticated organization + input projectId/briefId/versionId/child IDs -> canonical brief workflow lockTenant resolver -> organization/project/scenario-scoped records                                                                                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `brief.getStream`                                    | `org_guarded`          | authenticated organization + input projectId/briefId/versionId/child IDs -> canonical brief workflow lockTenant resolver -> organization/project/scenario-scoped records                                                                                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
+| `brief.getStudio`                                    | `org_guarded`          | authenticated organization + input projectId/briefId/versionId/child IDs -> canonical brief workflow lockTenant resolver -> organization/project/scenario-scoped records                                                                                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `brief.getVersion`                                   | `org_guarded`          | authenticated organization + input projectId/briefId/versionId/child IDs -> canonical brief workflow lockTenant resolver -> organization/project/scenario-scoped records                                                                                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `brief.getWorkflowHistory`                           | `org_guarded`          | authenticated organization + input projectId/briefId/versionId/child IDs -> canonical brief workflow lockTenant resolver -> organization/project/scenario-scoped records                                                                                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |
 | `brief.issue`                                        | `org_guarded`          | authenticated organization + input projectId/briefId/versionId/child IDs -> canonical brief workflow lockTenant resolver -> organization/project/scenario-scoped records                                                                                                                                                                                                                                                                                | No remediation assigned; retain classification evidence. |

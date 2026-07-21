@@ -4,6 +4,13 @@ export const MYSQL_INTEGRATION_TEST =
 export const MYSQL_INTEGRATION_TESTS = [
   MYSQL_INTEGRATION_TEST,
   "tests/mysql/br03-brief-workflow.mysql.test.ts",
+  "shared/brief-section-content.ts",
+  "server/db/brief-workflow.ts",
+  "server/routers/brief.ts",
+  "server/routers/brief.runtime.test.ts",
+  "client/src/components/brief-workflow/BriefWorkspaceContainer.tsx",
+  "client/src/components/brief-workflow/BriefWorkspace.tsx",
+  "client/src/components/brief-workflow/BriefSectionEditor.tsx",
 ] as const;
 
 export const MYSQL_EVIDENCE_FILE = ".agent/state/TR03H_MYSQL_EVIDENCE.json";

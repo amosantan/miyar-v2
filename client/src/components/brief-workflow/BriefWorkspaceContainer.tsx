@@ -1,37 +1,47 @@
 import { useMemo, useState } from "react";
+import type { BriefSectionContentV1Input } from "@shared/brief-section-content";
+import { BRIEF_SECTION_CONTENT_SCHEMA_VERSION } from "@shared/brief-section-content";
+import { BRIEF_SECTION_IDS, type BriefSectionId } from "@shared/brief-contract";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { BriefWorkspace, type BriefWorkflowAction } from "./BriefWorkspace";
-import type { BriefReadinessView, BriefStreamView, BriefVersionView } from "./types";
+import type { BriefStreamView, BriefStudioSection, BriefStudioView } from "./types";
 
 const briefApi = (trpc as any).brief;
 const key = () => crypto.randomUUID();
 
-export function BriefWorkspaceContainer({ projectId, currentUserId, isAdmin }: { projectId: number; currentUserId?: number; isAdmin?: boolean }) {
+export function BriefWorkspaceContainer({ projectId, currentUserId }: { projectId: number; currentUserId?: number }) {
   const utils = trpc.useUtils() as any;
-  const [selectedBriefId, setSelectedBriefId] = useState<string>();
+  const query = new URLSearchParams(window.location.search);
+  const [selectedBriefId, setSelectedBriefId] = useState<string | undefined>(query.get("briefId") ?? undefined);
+  const requestedSection = query.get("sectionId") as BriefSectionId | null;
+  const [selectedSectionId, setSelectedSectionId] = useState<BriefSectionId>(BRIEF_SECTION_IDS.includes(requestedSection as BriefSectionId) ? requestedSection as BriefSectionId : "intent");
+  const [conflict, setConflict] = useState<string>();
   const streamsQuery = briefApi.listStreams.useQuery({ projectId, limit: 50 });
   const streams = useMemo<BriefStreamView[]>(() => (streamsQuery.data?.items ?? streamsQuery.data ?? []), [streamsQuery.data]);
   const activeBriefId = selectedBriefId ?? (streams[0]?.briefId ?? streams[0]?.id)?.toString();
-  const activeStream = streams.find(stream => String((stream as any).briefId ?? stream.id) === activeBriefId) as any;
+  const activeStream = streams.find(stream => String(stream.briefId ?? stream.id) === activeBriefId);
   const versionId = activeStream?.currentVersionId ?? activeStream?.latestVersionId;
-  const ref = { projectId, briefId: activeBriefId ?? "", versionId: versionId ?? "" };
-  const versionQuery = briefApi.getVersion.useQuery(ref, { enabled: Boolean(activeBriefId && versionId) });
-  const readinessQuery = briefApi.getReadiness.useQuery(ref, { enabled: Boolean(activeBriefId && versionId) });
-  const assignmentsQuery = briefApi.getAssignments.useQuery({ projectId, briefId: activeBriefId ?? "", limit: 100 }, { enabled: Boolean(activeBriefId) });
-  const issuesQuery = briefApi.getIssueLedger.useQuery({ projectId, briefId: activeBriefId ?? "", limit: 100 }, { enabled: Boolean(activeBriefId) });
-  const revision = Number(readinessQuery.data?.revision ?? readinessQuery.data?.streamRevision ?? activeStream?.revision ?? 0);
+  const ref = { projectId, briefId: activeBriefId ?? "", versionId: String(versionId ?? "") };
+  const studioQuery = briefApi.getStudio.useQuery(ref, { enabled: Boolean(activeBriefId && versionId) });
+  const studio = studioQuery.data as BriefStudioView | undefined;
+  const revision = studio?.identity.streamRevision ?? activeStream?.revision ?? 0;
 
   const invalidate = async () => {
     await Promise.all([
       utils.brief.listStreams.invalidate(),
-      activeBriefId && versionId ? utils.brief.getVersion.invalidate(ref) : Promise.resolve(),
-      activeBriefId && versionId ? utils.brief.getReadiness.invalidate(ref) : Promise.resolve(),
+      activeBriefId && versionId ? utils.brief.getStudio.invalidate(ref) : Promise.resolve(),
     ]);
   };
-  const mutationOptions = (success: string) => ({ onSuccess: async () => { toast.success(success); await invalidate(); }, onError: (error: Error) => toast.error(error.message) });
+  const mutationOptions = (success: string) => ({
+    onSuccess: async () => { setConflict(undefined); toast.success(success); await invalidate(); },
+    onError: (error: Error) => {
+      if (/stale|conflict/i.test(error.message)) setConflict("Another person saved a newer brief state. Reload the latest version, review the differences, then explicitly save your preserved local draft again.");
+      else toast.error(error.message);
+    },
+  });
   const createStream = briefApi.createStream.useMutation(mutationOptions("Governed brief created"));
-  const reviseSection = briefApi.reviseSection.useMutation(mutationOptions("Section revision created"));
+  const reviseSection = briefApi.reviseSection.useMutation(mutationOptions("Structured section revision saved"));
   const submitEvidence = briefApi.submitEvidence.useMutation(mutationOptions("Evidence submitted"));
   const acceptReview = briefApi.acceptReview.useMutation(mutationOptions("Review accepted"));
   const approveSection = briefApi.approveSection.useMutation(mutationOptions("Section approved"));
@@ -40,52 +50,65 @@ export function BriefWorkspaceContainer({ projectId, currentUserId, isAdmin }: {
   const revokeRole = briefApi.revokeRole.useMutation(mutationOptions("Role revoked"));
   const recordFinding = briefApi.recordFinding.useMutation(mutationOptions("Finding recorded"));
   const submitFindingResolution = briefApi.submitFindingResolution.useMutation(mutationOptions("Finding resolution submitted"));
-  const decideApplicability = briefApi.decideApplicability.useMutation(mutationOptions("Applicability decision recorded"));
+  const decideApplicability = briefApi.decideApplicability.useMutation(mutationOptions("Applicability action recorded"));
   const raiseCondition = briefApi.raiseCondition.useMutation(mutationOptions("Condition raised"));
   const submitConditionResolution = briefApi.submitConditionResolution.useMutation(mutationOptions("Condition resolution submitted"));
   const createVersion = briefApi.createVersion.useMutation(mutationOptions("Successor version created"));
 
-  const sectionAction = (action: BriefWorkflowAction, sectionId: string, detail: string, targetId?: string, dependencyIds: string[] = [], ownerUserId?: number) => {
-    if (!activeBriefId || !versionId) return;
-    const binding = (versionQuery.data?.sections ?? []).find((section: any) => section.sectionId === sectionId);
-    const meta = { ...ref, expectedRevision: revision, idempotencyKey: key() };
-    if (action === "revise") reviseSection.mutate({ ...meta, sectionId, contentSchemaVersion: "BR-03-v1", content: { narrative: detail }, origin: "user", dependencies: [] });
-    else if (!binding?.revisionId) toast.error("Draft this section before advancing its workflow.");
-    else if (action === "evidence") submitEvidence.mutate({ ...meta, sectionId, revisionId: binding.revisionId, dependencyIds, rationale: detail });
-    else if (action === "finding") ownerUserId ? recordFinding.mutate({ ...meta, sectionId, revisionId: binding.revisionId, severity: "blocking", ownerUserId, statement: detail }) : toast.error("Owner user ID is required.");
-    else if (action === "resolve_finding") targetId ? submitFindingResolution.mutate({ ...meta, findingId: targetId, resolutionRevisionId: binding.revisionId, evidence: { rationale: detail, dependencyIds } }) : toast.error("Finding ID is required.");
-    else if (action === "condition") ownerUserId ? raiseCondition.mutate({ ...meta, sectionId, kind: "blocked", gate: "approval_issue", reasonCode: "user_recorded", explanation: detail, ownerUserId, resolutionRequirement: detail }) : toast.error("Owner user ID is required.");
-    else if (action === "resolve_condition") targetId ? submitConditionResolution.mutate({ ...meta, conditionId: targetId, evidence: { rationale: detail, dependencyIds } }) : toast.error("Condition ID is required.");
-    else if (action === "propose_na") decideApplicability.mutate({ ...meta, sectionId, action: "propose", rationale: detail, evidence: { dependencyIds } });
-    else if (action === "review_na") targetId ? decideApplicability.mutate({ ...meta, sectionId, action: "accept_review", proposalEventId: targetId, rationale: detail, evidence: { dependencyIds } }) : toast.error("Proposal event ID is required.");
-    else if (action === "approve_na") targetId ? decideApplicability.mutate({ ...meta, sectionId, action: "approve", proposalEventId: targetId, rationale: detail, evidence: { dependencyIds } }) : toast.error("Reviewed event ID is required.");
-    else if (action === "review") acceptReview.mutate({ ...meta, sectionId, revisionId: binding.revisionId, rationale: detail });
-    else if (action === "approve") approveSection.mutate({ ...meta, sectionId, revisionId: binding.revisionId, limitations: [], rationale: detail });
+  const meta = () => ({ ...ref, expectedRevision: revision, idempotencyKey: key() });
+  const saveSection = (sectionId: BriefSectionId, content: BriefSectionContentV1Input, evidenceIds: number[]) => {
+    reviseSection.mutate({
+      ...meta(),
+      sectionId,
+      contentSchemaVersion: BRIEF_SECTION_CONTENT_SCHEMA_VERSION,
+      content,
+      origin: "user",
+      evidenceReferences: evidenceIds.map(id => ({ kind: "evidence_record", id, ruleId: `${sectionId}.summary`, relevance: `Evidence selected for ${sectionId}` })),
+    });
   };
-
-  const version: BriefVersionView | undefined = versionQuery.data ? { ...(versionQuery.data.summary ?? {}), ...(versionQuery.data.version ?? {}), sections: versionQuery.data.sections } : undefined;
-  const roleEvents = assignmentsQuery.data?.items ?? [];
-  const activeRoles = roleEvents.filter((event: any) => event.action === "granted" && !roleEvents.some((later: any) => later.action === "revoked" && String(later.targetGrantEventId) === String(event.id)) && Number(event.subjectUserId) === currentUserId).map((event: any) => event.role);
-  const canWrite = activeRoles.some((role: string) => ["author", "section_owner", "reviewer", "approver"].includes(role));
-  const nonPreflightReasons = (readinessQuery.data?.reasons ?? []).filter((reason: any) => reason.code !== "missing_issue_metadata" && reason.code !== "role_separation_failure");
+  const workflowAction = (action: BriefWorkflowAction, section: BriefStudioSection, detail: string, targetId?: number, ownerUserId?: number) => {
+    if (!section.revisionId) return toast.error("Save a structured revision before advancing its workflow.");
+    const input = { ...meta(), sectionId: section.sectionId, revisionId: section.revisionId };
+    if (action === "submit_evidence") submitEvidence.mutate({ ...input, dependencyIds: section.evidence.map(item => String(item.id)), rationale: detail });
+    else if (action === "record_finding") ownerUserId ? recordFinding.mutate({ ...input, severity: "blocking", ownerUserId, statement: detail }) : toast.error("Select a responsible member.");
+    else if (action === "submit_finding_resolution") targetId ? submitFindingResolution.mutate({ ...meta(), findingId: String(targetId), resolutionRevisionId: section.revisionId, evidence: { rationale: detail } }) : toast.error("Select an open finding.");
+    else if (action === "raise_condition") ownerUserId ? raiseCondition.mutate({ ...meta(), sectionId: section.sectionId, kind: "blocked", gate: "approval_issue", reasonCode: "studio_recorded", explanation: detail, ownerUserId, resolutionRequirement: detail }) : toast.error("Select a responsible member.");
+    else if (action === "submit_condition_resolution") targetId ? submitConditionResolution.mutate({ ...meta(), conditionId: String(targetId), evidence: { rationale: detail } }) : toast.error("Select an open condition.");
+    else if (action === "propose_not_applicable") decideApplicability.mutate({ ...meta(), sectionId: section.sectionId, action: "propose", rationale: detail, evidence: {} });
+    else if (action === "review_not_applicable") targetId ? decideApplicability.mutate({ ...meta(), sectionId: section.sectionId, action: "accept_review", proposalEventId: String(targetId), rationale: detail, evidence: {} }) : toast.error("Select the proposal to review.");
+    else if (action === "approve_not_applicable") targetId ? decideApplicability.mutate({ ...meta(), sectionId: section.sectionId, action: "approve", proposalEventId: String(targetId), rationale: detail, evidence: {} }) : toast.error("Select the reviewed decision to approve.");
+    else if (action === "accept_review") acceptReview.mutate({ ...input, rationale: detail });
+    else if (action === "approve_section") approveSection.mutate({ ...input, limitations: [], rationale: detail });
+  };
+  const selectSection = (sectionId: BriefSectionId) => {
+    setSelectedSectionId(sectionId);
+    const params = new URLSearchParams(window.location.search);
+    params.set("briefId", activeBriefId ?? "");
+    params.set("versionId", String(versionId ?? ""));
+    params.set("sectionId", sectionId);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
+  };
+  const retry = () => { setConflict(undefined); streamsQuery.refetch(); studioQuery.refetch(); };
   return <BriefWorkspace
-    streams={streams.map((stream: any) => ({ ...stream, id: stream.briefId ?? stream.id }))}
+    streams={streams.map(stream => ({ ...stream, id: stream.briefId ?? stream.id }))}
     selectedStreamId={activeBriefId}
-    version={version}
-    readiness={readinessQuery.data as BriefReadinessView | undefined}
-    issues={issuesQuery.data?.items ?? []}
-    isLoading={streamsQuery.isLoading || (Boolean(activeBriefId) && (versionQuery.isLoading || readinessQuery.isLoading))}
-    error={(streamsQuery.error ?? versionQuery.error ?? readinessQuery.error)?.message}
+    studio={studio}
+    selectedSectionId={selectedSectionId}
+    isLoading={streamsQuery.isLoading || (Boolean(activeBriefId) && studioQuery.isLoading)}
+    error={(streamsQuery.error ?? studioQuery.error)?.message}
+    conflict={conflict}
     isCreating={createStream.isPending}
+    isSaving={reviseSection.isPending}
     isIssuing={issue.isPending}
-    onSelectStream={id => setSelectedBriefId(String(id))}
-    onCreateStream={() => currentUserId ? createStream.mutate({ projectId, scope: { type: "project" }, purpose: "internal_coordination", typologyProfileVersion: "BR-01-v1", componentIds: [], initialAssignments: [{ userId: currentUserId, role: "author" }, { userId: currentUserId, role: "section_owner" }], idempotencyKey: key() }) : toast.error("A signed-in user is required.")}
-    onCreateVersion={activeRoles.some((role: string) => role === "author" || role === "section_owner") ? () => createVersion.mutate({ ...ref, expectedRevision: revision, idempotencyKey: key(), predecessorVersionId: versionId, carryForwardSections: (versionQuery.data?.sections ?? []).filter((section: any) => section.revisionId).map((section: any) => section.sectionId) }) : undefined}
-    onIssue={() => issue.mutate({ ...ref, expectedRevision: revision, idempotencyKey: key(), disclaimerVersion: "BR-01-v1", confidentiality: "organization", distributionPolicyVersion: "BR-01-v1" })}
-    onRetry={() => { streamsQuery.refetch(); versionQuery.refetch(); readinessQuery.refetch(); }}
-    canAttemptIssue={Boolean(readinessQuery.data && nonPreflightReasons.length === 0)}
-    onSectionAction={canWrite ? sectionAction : undefined}
-    onAssignRole={isAdmin ? (userId, role) => assignRole.mutate({ projectId, briefId: activeBriefId, expectedRevision: revision, idempotencyKey: key(), userId, role, reason: "Assigned from project brief workspace" }) : undefined}
-    onRevokeRole={isAdmin ? grantEventId => revokeRole.mutate({ projectId, briefId: activeBriefId, expectedRevision: revision, idempotencyKey: key(), grantEventId, reason: "Revoked from project brief workspace" }) : undefined}
+    onSelectStream={id => setSelectedBriefId(id)}
+    onSelectSection={selectSection}
+    onCreateStream={streamsQuery.data?.canCreate ? () => currentUserId ? createStream.mutate({ projectId, scope: { type: "project" }, purpose: "internal_coordination", typologyProfileVersion: "BR-01-v1", componentIds: [], initialAssignments: [{ userId: currentUserId, role: "author" }, { userId: currentUserId, role: "section_owner" }], idempotencyKey: key() }) : toast.error("A signed-in user is required.") : undefined}
+    onCreateVersion={studio?.permittedActions.createVersion ? () => createVersion.mutate({ ...meta(), predecessorVersionId: ref.versionId, carryForwardSections: studio.sections.filter(section => section.revisionId).map(section => section.sectionId) }) : undefined}
+    onIssue={() => issue.mutate({ ...meta(), disclaimerVersion: "BR-01-v1", confidentiality: "organization", distributionPolicyVersion: "BR-01-v1" })}
+    onRetry={retry}
+    onSaveSection={saveSection}
+    onWorkflowAction={workflowAction}
+    onAssignRole={studio?.permittedActions.administerRoles && activeBriefId ? (userId, role, sectionId) => assignRole.mutate({ projectId, briefId: activeBriefId, expectedRevision: revision, idempotencyKey: key(), userId, role, sectionId, reason: "Assigned from guided brief studio" }) : undefined}
+    onRevokeRole={studio?.permittedActions.administerRoles && activeBriefId ? grantEventId => revokeRole.mutate({ projectId, briefId: activeBriefId, expectedRevision: revision, idempotencyKey: key(), grantEventId: String(grantEventId), reason: "Revoked from guided brief studio" }) : undefined}
   />;
 }

@@ -3,6 +3,11 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "../db";
 import { evaluateBriefReadiness } from "../engines/brief-readiness";
 import {
+  BRIEF_SECTION_CONTENT_SCHEMA_VERSION,
+  parseBriefSectionContentV1,
+  readBriefSectionContent,
+} from "../../shared/brief-section-content";
+import {
   briefApplicabilityEvents,
   briefApprovals,
   briefConditionEvents,
@@ -24,6 +29,7 @@ import {
   organizationMembers,
   projects,
   scenarios,
+  users,
 } from "../../drizzle/schema";
 
 export const BRIEF_SECTION_IDS = [
@@ -44,6 +50,18 @@ export type BriefWorkflowContext = {
   userId: number;
   actorType?: "human" | "ai" | "system";
 };
+export type BriefStudioAction =
+  | "revise"
+  | "submit_evidence"
+  | "record_finding"
+  | "submit_finding_resolution"
+  | "raise_condition"
+  | "submit_condition_resolution"
+  | "propose_not_applicable"
+  | "review_not_applicable"
+  | "approve_not_applicable"
+  | "accept_review"
+  | "approve_section";
 export class BriefWorkflowError extends Error {
   constructor(
     public readonly code:
@@ -433,6 +451,26 @@ export async function executeBriefCommand(
 ): Promise<any> {
   if (operation === "createStream" || operation === "brief.createStream")
     return createBriefStream(input, context);
+  if (operation.endsWith("reviseSection")) {
+    if (input.contentSchemaVersion !== BRIEF_SECTION_CONTENT_SCHEMA_VERSION) {
+      throw new BriefWorkflowError("INVALID", "New section revisions require the BR-04-v1 structured content contract");
+    }
+    try {
+      input = {
+        ...input,
+        content: parseBriefSectionContentV1(input.sectionId, input.content),
+      };
+    } catch {
+      throw new BriefWorkflowError("INVALID", "Section content does not match the selected structured editor");
+    }
+    if ((input.dependencies ?? []).some((dependency: any) =>
+      dependency?.serverResolved !== true ||
+      dependency?.authority !== "governed_evidence" ||
+      dependency?.type !== "evidence"
+    )) {
+      throw new BriefWorkflowError("INVALID", "Section dependencies must be resolved by an authorized server picker");
+    }
+  }
   const projectId = positive(input.projectId, "projectId"),
     streamId = positive(input.briefId ?? input.streamId, "briefId"),
     db = await database(),
@@ -616,15 +654,13 @@ export async function executeBriefCommand(
           sectionRevisionId: entityId,
           dependencyType: type,
           dependencyRef: dependency,
-          authority:
-            dependency.authority ??
-            (type === "generation" ? "ai_suggestion" : "governed_evidence"),
+          authority: dependency.authority,
           recordVersion,
           fingerprint,
           observedAt: dependency.observedAt
             ? new Date(dependency.observedAt)
             : new Date(),
-          relevance: dependency.relevance ?? "Section content lineage",
+          relevance: dependency.relevance,
         });
       }
     } else if (
@@ -1861,7 +1897,7 @@ export async function getBriefSection(
   if (!binding.sectionRevisionId) return { ...section, content: null };
   const revision = (
     await db
-      .select({ content: briefSectionRevisions.content })
+      .select()
       .from(briefSectionRevisions)
       .where(
         and(
@@ -1872,7 +1908,21 @@ export async function getBriefSection(
       )
       .limit(1)
   )[0];
-  return { ...section, content: revision?.content ?? null };
+  if (!revision) return { ...section, content: null };
+  return {
+    ...section,
+    contentSchemaVersion: revision.contentSchemaVersion,
+    contentState: readBriefSectionContent(
+      binding.sectionId,
+      revision.contentSchemaVersion,
+      revision.content
+    ),
+    content: revision.content,
+    origin: revision.origin,
+    authorUserId: revision.authorUserId,
+    revisionFingerprint: revision.revisionFingerprint,
+    createdAt: revision.createdAt,
+  };
 }
 export async function listBriefAssignments(
   input: any,
@@ -1906,6 +1956,22 @@ export async function listBriefFindings(
     )
     .orderBy(asc(briefFindings.id));
 }
+export async function listBriefFindingResolutions(
+  input: any,
+  context: BriefWorkflowContext
+) {
+  const { db, stream } = await scopedStream(input, context);
+  return db
+    .select()
+    .from(briefFindingResolutions)
+    .where(
+      and(
+        eq(briefFindingResolutions.organizationId, context.organizationId),
+        eq(briefFindingResolutions.streamId, stream.id)
+      )
+    )
+    .orderBy(asc(briefFindingResolutions.id));
+}
 export async function listBriefDependencies(
   input: any,
   context: BriefWorkflowContext
@@ -1921,6 +1987,193 @@ export async function listBriefDependencies(
       )
     )
     .orderBy(asc(briefDependencies.id));
+}
+export async function listBriefConditions(
+  input: any,
+  context: BriefWorkflowContext
+) {
+  const { db, stream } = await scopedStream(input, context);
+  return db
+    .select()
+    .from(briefConditionEvents)
+    .where(
+      and(
+        eq(briefConditionEvents.organizationId, context.organizationId),
+        eq(briefConditionEvents.streamId, stream.id),
+        eq(briefConditionEvents.versionId, positive(input.versionId, "versionId"))
+      )
+    )
+    .orderBy(asc(briefConditionEvents.streamSequence));
+}
+
+export function derivePermittedBriefActions(input: {
+  userId: number;
+  sectionId: BriefSectionId;
+  achievedState: string;
+  authorUserId?: number | null;
+  hasOpenFindings?: boolean;
+  hasOpenConditions?: boolean;
+  activeAssignments: Array<{ subjectUserId: number; role: string; sectionId?: string | null }>;
+}) {
+  const hasRole = (role: string) => input.activeAssignments.some(assignment =>
+    assignment.subjectUserId === input.userId &&
+    assignment.role === role &&
+    (assignment.sectionId == null || assignment.sectionId === input.sectionId)
+  );
+  const actions: BriefStudioAction[] = [];
+  if (hasRole("author") || hasRole("section_owner")) {
+    actions.push("revise", "propose_not_applicable");
+  }
+  if (hasRole("section_owner")) {
+    actions.push("record_finding", "raise_condition");
+    if (input.achievedState === "drafted") actions.push("submit_evidence");
+  }
+  if (hasRole("reviewer") && input.authorUserId !== input.userId) {
+    actions.push("record_finding", "review_not_applicable");
+    if (input.achievedState === "evidenced") actions.push("accept_review");
+  }
+  if (hasRole("approver") && input.authorUserId !== input.userId) {
+    actions.push("approve_not_applicable");
+    if (input.achievedState === "reviewed") actions.push("approve_section");
+  }
+  if (hasRole("author") || hasRole("section_owner")) {
+    if (input.hasOpenFindings) actions.push("submit_finding_resolution");
+    if (input.hasOpenConditions) actions.push("submit_condition_resolution");
+  }
+  return Array.from(new Set(actions));
+}
+
+export async function getBriefStudio(
+  input: any,
+  context: BriefWorkflowContext
+) {
+  const [summary, version, readinessFacts, assignments, findings, findingResolutions, dependencies, conditions, events, issues] = await Promise.all([
+    getBriefSummary(input, context),
+    getBriefVersion(input, context),
+    getBriefReadinessFacts({ ...input, issuerUserId: context.userId }, context),
+    listBriefAssignments(input, context),
+    listBriefFindings(input, context),
+    listBriefFindingResolutions(input, context),
+    listBriefDependencies(input, context),
+    listBriefConditions(input, context),
+    listBriefEvents(input, context),
+    listBriefIssues(input, context),
+  ]);
+  if (!version) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+  const activeAssignments = assignments.filter((assignment: any) =>
+    assignment.action === "granted" &&
+    !assignments.some((later: any) => later.action === "revoked" && later.targetGrantEventId === assignment.id)
+  );
+  const db = await database();
+  const memberChoices = await db
+    .select({ id: users.id, name: users.name, organizationRole: organizationMembers.role })
+    .from(organizationMembers)
+    .innerJoin(users, eq(users.id, organizationMembers.userId))
+    .where(eq(organizationMembers.orgId, context.organizationId))
+    .orderBy(asc(users.id));
+  const readiness = evaluateBriefReadiness(readinessFacts as any);
+  const sections = await Promise.all(BRIEF_SECTION_IDS.map(sectionId =>
+    getBriefSection({ ...input, sectionId }, context)
+  ));
+  const studioSections = sections.filter(Boolean).map((section: any) => {
+    const sectionReadiness = readiness.sections.find(item => item.sectionId === section.sectionId);
+    const sectionAssignments = activeAssignments.filter((assignment: any) =>
+      assignment.sectionId == null || assignment.sectionId === section.sectionId
+    );
+    const sectionDependencies = dependencies.filter((dependency: any) =>
+      dependency.versionId === Number(input.versionId) && dependency.bindingId === Number(section.id)
+    );
+    const sectionFindings = findings.filter((finding: any) =>
+      finding.versionId === Number(input.versionId) && finding.bindingId === Number(section.id)
+    );
+    const sectionConditions = conditions.filter((condition: any) => condition.bindingId === Number(section.id));
+    const hasOpenFindings = sectionFindings.some((finding: any) =>
+      !findingResolutions.some((resolution: any) =>
+        resolution.findingId === finding.id && resolution.stage === "accepted"
+      )
+    );
+    const hasOpenConditions = sectionConditions.some((condition: any) =>
+      condition.stage === "raised" && !sectionConditions.some((accepted: any) =>
+        accepted.stage === "resolution_accepted" && (
+          accepted.targetEventId === condition.id || sectionConditions.some((submitted: any) =>
+            submitted.id === accepted.targetEventId && submitted.targetEventId === condition.id
+          )
+        )
+      )
+    );
+    const assumptions = section.contentState?.kind === "structured"
+      ? section.contentState.content.assumptions
+      : [];
+    return {
+      ...section,
+      readiness: sectionReadiness,
+      owner: sectionAssignments.find((assignment: any) => assignment.role === "section_owner") ?? null,
+      assignments: sectionAssignments,
+      assumptions,
+      evidence: sectionDependencies.filter((dependency: any) => dependency.dependencyType === "evidence"),
+      dependencies: sectionDependencies,
+      findings: sectionFindings,
+      conditions: sectionConditions,
+      applicabilityChoices: events
+        .filter((event: any) => event.versionId === Number(input.versionId) && event.sectionId === section.sectionId && (event.eventType === "applicability_proposed" || event.eventType === "applicability_reviewed"))
+        .map((event: any) => ({
+          id: Number((event.payload as any)?.entityId),
+          stage: event.eventType === "applicability_proposed" ? "proposed" : "reviewed",
+          actorUserId: event.actorUserId,
+          createdAt: event.createdAt,
+        }))
+        .filter((choice: any) => Number.isSafeInteger(choice.id)),
+      permittedActions: derivePermittedBriefActions({
+        userId: context.userId,
+        sectionId: section.sectionId,
+        achievedState: section.achievedState,
+        authorUserId: section.authorUserId,
+        hasOpenFindings,
+        hasOpenConditions,
+        activeAssignments,
+      }),
+      nextAction: sectionReadiness?.nextActions?.[0] ?? null,
+    };
+  });
+  const currentUserRoles = activeAssignments
+    .filter((assignment: any) => assignment.subjectUserId === context.userId)
+    .map((assignment: any) => assignment.role);
+  return {
+    identity: {
+      projectId: Number(input.projectId),
+      briefId: String(summary.briefId),
+      versionId: String(version.id),
+      streamRevision: summary.revision,
+      versionRevision: version.revision,
+    },
+    summary,
+    version: { ...version, sections: undefined },
+    readiness,
+    sections: studioSections,
+    assignments: activeAssignments,
+    assumptions: studioSections.flatMap(section => section.assumptions.map((assumption: any) => ({ ...assumption, sectionId: section.sectionId }))),
+    findings: findings.filter((finding: any) => finding.versionId === Number(input.versionId)),
+    conditions,
+    dependencies: dependencies.filter((dependency: any) => dependency.versionId === Number(input.versionId)),
+    issues,
+    history: events,
+    inbox: studioSections.flatMap(section => section.permittedActions
+      .filter((action: BriefStudioAction) => action !== "revise")
+      .map((action: BriefStudioAction) => ({
+        id: `${section.sectionId}:${action}`,
+        sectionId: section.sectionId,
+        eventType: action,
+        nextAction: section.nextAction,
+      }))),
+    choices: {
+      members: memberChoices.map(member => ({ id: member.id, label: member.name?.trim() || `Member ${member.id}`, organizationRole: member.organizationRole })),
+    },
+    permittedActions: {
+      createVersion: currentUserRoles.some((role: string) => role === "author" || role === "section_owner"),
+      issue: currentUserRoles.includes("issuer") && readiness.canIssue,
+      administerRoles: false,
+    },
+  };
 }
 export async function listBriefEvents(
   input: any,
@@ -2249,6 +2502,7 @@ export async function queryBriefWorkflow(
       getDependencyStatus: listBriefDependencies,
       getWorkflowHistory: listBriefEvents,
       getIssueLedger: listBriefIssues,
+      getStudio: getBriefStudio,
     };
   const fn = map[query.replace(/^brief\./, "")];
   if (!fn)

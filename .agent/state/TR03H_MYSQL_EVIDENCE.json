@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "observedAt": "2026-07-21T11:22:30.650Z",
+  "observedAt": "2026-07-21T13:01:21.760Z",
   "databaseEngine": "MySQL 8.0",
   "targetClass": "disposable localhost database",
   "command": "pnpm test:authorization:mysql",
@@ -8,13 +8,20 @@
   "testFile": "tests/mysql/design-authorization.mysql.test.ts",
   "testFiles": [
     "tests/mysql/design-authorization.mysql.test.ts",
-    "tests/mysql/br03-brief-workflow.mysql.test.ts"
+    "tests/mysql/br03-brief-workflow.mysql.test.ts",
+    "shared/brief-section-content.ts",
+    "server/db/brief-workflow.ts",
+    "server/routers/brief.ts",
+    "server/routers/brief.runtime.test.ts",
+    "client/src/components/brief-workflow/BriefWorkspaceContainer.tsx",
+    "client/src/components/brief-workflow/BriefWorkspace.tsx",
+    "client/src/components/brief-workflow/BriefSectionEditor.tsx"
   ],
-  "testCount": 30,
+  "testCount": 31,
   "cleanupVerified": true,
   "fileHashes": {
     "tests/mysql/design-authorization.mysql.test.ts": "8f6ab9b2fdceff1c7e554fa48b2914818edd80172b277e06becebffdf9994698",
-    "tests/mysql/br03-brief-workflow.mysql.test.ts": "6fb937a8621973904aa67eb0aecfb755c715c7d11eafe575976e6e8b481c6434",
+    "tests/mysql/br03-brief-workflow.mysql.test.ts": "cfaf210df8dacee7242e42451d8710ab0398e1507e98295d216f430bf42cd1dd",
     "server/db.ts": "92e318b435807faa74f5015883cae2bfe4a798db91769865130ac196a02f9610",
     "server/_core/trpc.ts": "2e477dae1baf779d3767642875bf85108036b7571577073ece1205a4dced889e",
     "server/_core/market-resource-access.ts": "f36c7ce048d61ed5fa43d24b0c870ed02ab83649b1bd25617cda130c97d31ab9",
@@ -68,9 +75,9 @@
     "server/routers/spaceProgram-geometry.authorization.test.ts": "ff03e761fc77d6a9795b86fcfe64037c2ab12c8c72e94951aa701a56abffde42",
     "client/src/components/RoomGeometryPanel.tsx": "a8e82ddb2104bc9324fc52d19fc8624706b3db26a716c63a62c8f7b514ffa56f",
     "scripts/recreate-mysql-auth-test.ts": "915b82a13e49d2daa88cf12901e7ce5e20b2c1f639487706d478530234680e74",
-    "scripts/run-guarded-mysql-tests.ts": "cc6558e9bd0d1cfd29823c7abc647dc5f42388b8d4332c4f17f96f55549e6fc0",
+    "scripts/run-guarded-mysql-tests.ts": "931f05851cf1e77bd016b2b149a3926f08ecbc1c30438a65e53ef88749c45900",
     "scripts/cleanup-mysql-auth-test.ts": "91e4d19106c4b8e02fccdf24268d433cead957152a99f8a4f9d8694241fcb3e8",
-    "scripts/tr03h-mysql-evidence-contract.ts": "7d9a707d317d70adbf76f2b1a73a1d66c4a3a90b3f53a4078ce3d5cf2d68d5b1",
+    "scripts/tr03h-mysql-evidence-contract.ts": "fdac59f66092bdb5d3a3e55ab029b41ea6defa8b513300d0d915c84e96783631",
     "drizzle.mysql-test.config.ts": "d4536835e57caa814b54fac6872760113b0726b9d9962c96aeb92bb3a9985b13",
     "vitest.mysql.config.ts": "ae526161cb7f38e71178580579b254b71d5b32e0e0a55750316770bcdbfbf953"
   }
