@@ -136,6 +136,19 @@ These facts describe SC-04 merged through PR #20 as exact canonical-main applica
 - The stored legacy report opened successfully but reproduced malformed 5-Lens labels from its February 2026 payload. `KF-018` records this pre-existing compatibility defect; it is not caused by SC-04's lazy import boundary and is not repaired by rollback.
 - No schema, migration, dependency, API, authorization, numerical formula, scoring/financial/compliance assumption, production configuration, or shared database migration occurred. The only production data mutation was one temporary project-9 share link immediately revoked during the authorized smoke.
 
+## BR-06 Local Regulatory and Typology-Pack Observation
+
+These facts describe the uncommitted BR-06 implementation in `/Users/amrosaleh/Maiyar/miyar-v2-br06-dubai-packs`, based on exact canonical `origin/main` commit `beaa90b87682e7d214cffe38739629b22308290c` with BR-05 commit `2052b17` in its ancestry.
+
+- A direct, fail-closed regulatory fetch path is separate from market/material evidence ingestion. It resolves immutable registered official sources, enforces robots/terms/retention, HTTPS host and redirect restrictions, SSRF defenses, MIME/size/rate/deadline limits, and immutable capture fingerprints without third-party scraping proxies.
+- Migration 0055 adds six regulatory provenance tables for source identity, versions, immutable captures, clause candidates, clause-scoped temporal relations, and platform source assertions. It was applied and verified only against a disposable local MySQL target.
+- The candidate catalogue covers 29 Dubai Municipality, Civil Defence, Dubai Legislation Portal/DET, accessibility, sustainability, food-safety, legislative-currency, and unsupported special-authority records. DDA, Trakhees/PCFC, DIFC, and Dubai South fail closed without approved overlays.
+- Typology-pack v2 defines eight families and nine immutable candidates, including distinct hotel and serviced-apartment variants. Every promotable datum must resolve an exact permitted source fingerprint and locator plus current temporal/source assertions; mixed use pins exact non-nested components; v1 remains compatible.
+- Production source-authority and pack-release registries are intentionally empty. Candidates, raw artifacts/clause text, licensing/storage details, and private review metadata are not exposed through tenant or public projections. Tenant administrators cannot perform platform releases.
+- Verification passes: focused 48/48, database-free 1,472 with 22 skipped, disposable MySQL 41/41 with cleanup, TypeScript, authorization 389/0, database safety 121/2/0, build/budgets, tracked serverless freshness, diff review, and final independent Sol and Claude Opus `PASS` reviews.
+- BR-06 remains `NEEDS_HUMAN` for source-use decisions, exact current artifacts and clauses, and separate named architecture/interiors, cost, compliance, and product approval. No shared migration, commit, push, merge, deployment, or production enablement occurred.
+- The source review packet at `docs/artifacts/BR-06_SOURCE_REVIEW_PACKET.md` records current official page/document evidence and keeps all licensing, retention, artifact-fingerprint, clause, and four-discipline approval fields explicitly pending.
+
 ## Production Database Observation
 
 - Migration 0044 was verified complete before TR-03H release.

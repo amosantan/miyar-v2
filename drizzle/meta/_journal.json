@@ -386,6 +386,13 @@
       "when": 1784648944658,
       "tag": "0054_br05_typology_pack_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "5",
+      "when": 1784656687668,
+      "tag": "0055_br06_regulatory_sources",
+      "breakpoints": true
     }
   ]
 }

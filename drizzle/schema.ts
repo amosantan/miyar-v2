@@ -3829,6 +3829,153 @@ export const typologyPackEvents = mysqlTable(
 );
 export type TypologyPackEvent = typeof typologyPackEvents.$inferSelect;
 
+// ─── Regulatory source governance (BR-06) ─────────────────────────────────
+// Platform-global source records are deliberately separate from market and
+// material evidence. A source assertion authenticates a document; it never
+// approves MIYAR's interpretation of a clause or a typology rule.
+export const regulatorySources = mysqlTable(
+  "regulatory_sources",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    sourceKey: varchar("sourceKey", { length: 128 }).notNull(),
+    issuingAuthority: varchar("issuingAuthority", { length: 160 }).notNull(),
+    documentIdentity: varchar("documentIdentity", { length: 255 }).notNull(),
+    jurisdiction: varchar("jurisdiction", { length: 128 }).notNull(),
+    languages: json("languages").notNull(),
+    canonicalUrl: text("canonicalUrl").notNull(),
+    approvedHosts: json("approvedHosts").notNull(),
+    retentionPolicy: mysqlEnum("retentionPolicy", ["metadata_only", "artifact_permitted", "prohibited", "pending_review"]).notNull(),
+    licensingStatus: mysqlEnum("licensingStatus", ["permitted", "restricted", "prohibited", "pending_review"]).notNull(),
+    coverageStatus: mysqlEnum("coverageStatus", ["supported", "candidate", "unsupported"]).notNull().default("candidate"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [uniqueIndex("regulatory_sources_source_key_unique").on(table.sourceKey)]
+);
+export type RegulatorySource = typeof regulatorySources.$inferSelect;
+
+export const regulatorySourceVersions = mysqlTable(
+  "regulatory_source_versions",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    sourceId: int("sourceId").notNull(),
+    versionKey: varchar("versionKey", { length: 128 }).notNull(),
+    edition: varchar("edition", { length: 128 }),
+    publicationDate: timestamp("publicationDate"),
+    effectiveFrom: timestamp("effectiveFrom"),
+    effectiveTo: timestamp("effectiveTo"),
+    contentFingerprint: varchar("contentFingerprint", { length: 64 }).notNull(),
+    parserVersion: varchar("parserVersion", { length: 64 }).notNull(),
+    status: mysqlEnum("status", ["candidate", "asserted", "stale", "withdrawn", "archived"]).notNull().default("candidate"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("regulatory_source_versions_source_version_unique").on(table.sourceId, table.versionKey),
+    uniqueIndex("regulatory_source_versions_source_fingerprint_unique").on(table.sourceId, table.contentFingerprint),
+    uniqueIndex("regulatory_source_versions_source_id_unique").on(table.sourceId, table.id),
+    index("regulatory_source_versions_temporal_idx").on(table.sourceId, table.effectiveFrom, table.effectiveTo),
+    foreignKey({ name: "reg_source_versions_source_fk", columns: [table.sourceId], foreignColumns: [regulatorySources.id] }),
+  ]
+);
+export type RegulatorySourceVersion = typeof regulatorySourceVersions.$inferSelect;
+
+export const regulatorySourceCaptures = mysqlTable(
+  "regulatory_source_captures",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    sourceId: int("sourceId").notNull(),
+    sourceVersionId: int("sourceVersionId"),
+    requestedUrl: text("requestedUrl").notNull(),
+    finalUrl: text("finalUrl"),
+    retrievedAt: timestamp("retrievedAt").defaultNow().notNull(),
+    httpStatus: int("httpStatus"),
+    mimeType: varchar("mimeType", { length: 128 }),
+    byteLength: int("byteLength"),
+    artifactFingerprint: varchar("artifactFingerprint", { length: 64 }),
+    etag: varchar("etag", { length: 255 }),
+    lastModified: varchar("lastModified", { length: 255 }),
+    parserVersion: varchar("parserVersion", { length: 64 }).notNull(),
+    storageReference: text("storageReference"),
+    fetchResult: mysqlEnum("fetchResult", ["captured", "unchanged", "changed_candidate", "disappeared_candidate", "denied", "failed"]).notNull(),
+    failureCode: varchar("failureCode", { length: 64 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("regulatory_source_captures_source_time_idx").on(table.sourceId, table.retrievedAt),
+    index("regulatory_source_captures_version_idx").on(table.sourceVersionId),
+    foreignKey({ name: "reg_source_captures_source_fk", columns: [table.sourceId], foreignColumns: [regulatorySources.id] }),
+    foreignKey({ name: "reg_source_captures_version_fk", columns: [table.sourceId, table.sourceVersionId], foreignColumns: [regulatorySourceVersions.sourceId, regulatorySourceVersions.id] }),
+  ]
+);
+export type RegulatorySourceCapture = typeof regulatorySourceCaptures.$inferSelect;
+
+export const regulatoryClauseCandidates = mysqlTable(
+  "regulatory_clause_candidates",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    sourceVersionId: int("sourceVersionId").notNull(),
+    clauseKey: varchar("clauseKey", { length: 160 }).notNull(),
+    locator: varchar("locator", { length: 255 }).notNull(),
+    pageLocator: varchar("pageLocator", { length: 64 }),
+    candidateSummary: text("candidateSummary").notNull(),
+    candidateFingerprint: varchar("candidateFingerprint", { length: 64 }).notNull(),
+    extractionMethod: mysqlEnum("extractionMethod", ["deterministic", "ai_extracted_candidate", "human_transcription"]).notNull(),
+    reviewStatus: mysqlEnum("reviewStatus", ["candidate", "accepted_for_review", "rejected"]).notNull().default("candidate"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("regulatory_clause_candidates_version_key_unique").on(table.sourceVersionId, table.clauseKey, table.candidateFingerprint),
+    index("regulatory_clause_candidates_version_status_idx").on(table.sourceVersionId, table.reviewStatus),
+    foreignKey({ name: "reg_clause_candidates_version_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
+  ]
+);
+export type RegulatoryClauseCandidate = typeof regulatoryClauseCandidates.$inferSelect;
+
+export const regulatorySourceRelations = mysqlTable(
+  "regulatory_source_relations",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    sourceVersionId: int("sourceVersionId").notNull(),
+    targetSourceVersionId: int("targetSourceVersionId").notNull(),
+    relationType: mysqlEnum("relationType", ["amends", "supersedes", "suspends", "revokes", "clarifies"]).notNull(),
+    relationFingerprint: varchar("relationFingerprint", { length: 64 }).notNull(),
+    clauseScope: json("clauseScope").notNull(),
+    effectiveFrom: timestamp("effectiveFrom"),
+    effectiveTo: timestamp("effectiveTo"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("regulatory_source_relations_fingerprint_unique").on(table.relationFingerprint),
+    index("regulatory_source_relations_temporal_idx").on(table.targetSourceVersionId, table.effectiveFrom, table.effectiveTo),
+    foreignKey({ name: "reg_source_relations_source_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
+    foreignKey({ name: "reg_source_relations_target_fk", columns: [table.targetSourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
+  ]
+);
+export type RegulatorySourceRelation = typeof regulatorySourceRelations.$inferSelect;
+
+export const regulatorySourceAssertions = mysqlTable(
+  "regulatory_source_assertions",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    sourceVersionId: int("sourceVersionId").notNull(),
+    assertionType: mysqlEnum("assertionType", ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"]).notNull(),
+    decision: mysqlEnum("decision", ["accepted", "rejected", "withdrawn"]).notNull(),
+    assertedByUserId: int("assertedByUserId").notNull(),
+    reason: text("reason").notNull(),
+    assertionFingerprint: varchar("assertionFingerprint", { length: 64 }).notNull(),
+    validFrom: timestamp("validFrom").defaultNow().notNull(),
+    validTo: timestamp("validTo"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("regulatory_source_assertions_fingerprint_unique").on(table.assertionFingerprint),
+    index("regulatory_source_assertions_version_type_idx").on(table.sourceVersionId, table.assertionType, table.decision),
+    foreignKey({ name: "reg_source_assertions_version_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
+    foreignKey({ name: "reg_source_assertions_user_fk", columns: [table.assertedByUserId], foreignColumns: [users.id] }),
+  ]
+);
+export type RegulatorySourceAssertion = typeof regulatorySourceAssertions.$inferSelect;
+
 // ─── Canonical issued-design-brief workflow (BR-02/BR-03) ──────────────────
 // These tables are deliberately additive. Historical design_briefs remain
 // compatibility inputs and never acquire canonical governance by inference.

@@ -772,6 +772,11 @@ function ownershipPath(
       "authenticated organization -> typology_pack_revisions.organizationId -> exact tenant-owned immutable revision",
     ];
   }
+  if (procedure.router === "regulatory-source") {
+    return [
+      "platform administrator -> platform-global regulatory source/version governance; no tenant-owned or public projection",
+    ];
+  }
   if (procedure.key === "design.linkAsset") {
     return [
       "input.assetId -> project_assets.id -> project_assets.projectId -> projects.orgId",
@@ -974,6 +979,8 @@ function defaultAnnotation(
     classification = "global_governed";
   } else if (globalGovernedKeys.has(procedure.key)) {
     classification = "global_governed";
+  } else if (procedure.router === "regulatory-source" && procedure.accessPrimitive === "adminProcedure") {
+    classification = "admin_governed";
   } else if (procedure.accessPrimitive === "adminProcedure") {
     classification = relevant ? "unsafe" : "admin_governed";
   } else if (

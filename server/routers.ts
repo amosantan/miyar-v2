@@ -28,6 +28,7 @@ import { materialQuantityRouter } from "./routers/materialQuantity";
 import { spaceProgramRouter } from "./routers/spaceProgram";
 import { briefRouter } from "./routers/brief";
 import { typologyPackRouter } from "./routers/typology-packs";
+import { regulatorySourceRouter } from "./routers/regulatory-sources";
 
 export const appRouter = router({
   system: systemRouter,
@@ -57,6 +58,7 @@ export const appRouter = router({
   spaceProgram: spaceProgramRouter,
   brief: briefRouter,
   typologyPack: typologyPackRouter,
+  regulatorySources: regulatorySourceRouter,
 });
 
 export type AppRouter = typeof appRouter;
