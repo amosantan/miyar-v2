@@ -54,6 +54,10 @@ let exitCode = 0;
 let testCount: number | undefined;
 const resultDirectory = mkdtempSync(join(tmpdir(), "miyar-mysql-results-"));
 const resultFile = join(resultDirectory, "vitest.json");
+// The disposable MySQL suite can exceed three minutes on shared CI runners
+// even after Vitest has completed successfully. Keep the guard bounded while
+// allowing the full authorization suite to finish and emit its evidence.
+const CHILD_PROCESS_TIMEOUT_MS = 600_000;
 try {
   for (const [command, args] of [
     ["pnpm", ["exec", "tsx", "scripts/recreate-mysql-auth-test.ts"]],
@@ -73,7 +77,7 @@ try {
       cwd: process.cwd(),
       env,
       stdio: "inherit",
-      timeout: 180_000,
+      timeout: CHILD_PROCESS_TIMEOUT_MS,
     });
     if (result.error) {
       console.error(`[mysql-authorization] ${result.error.message}`);
