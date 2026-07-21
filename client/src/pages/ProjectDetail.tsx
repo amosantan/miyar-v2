@@ -26,6 +26,7 @@ import { useState, useMemo, useCallback } from "react";
 import { EVALUATION_FIELD_LABELS, EVALUATION_REQUIRED_FIELDS, type EvaluationRequiredField, type InputProvenance } from "@shared/project-readiness";
 import { useTranslation } from "@/lib/i18n";
 import { ReportLocaleSelect } from "@/components/ReportLocaleSelect";
+import { BriefWorkspaceContainer } from "@/components/brief-workflow/BriefWorkspaceContainer";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis,
@@ -73,6 +74,8 @@ const DIMENSION_COLORS: Record<string, string> = {
 
 export type WorkspaceSection = "decision" | "design" | "evidence" | "deliverables";
 
+const BRIEF_WORKFLOW_ENABLED = import.meta.env.DEV || import.meta.env.MODE === "test" || import.meta.env.VITE_BRIEF_WORKFLOW_ENABLED === "true";
+
 const WORKSPACE_TABS: Record<WorkspaceSection, { value: string; label: string }[]> = {
   decision: [
     { value: "overview", label: "Overview" }, { value: "explainability", label: "Why this score" },
@@ -83,6 +86,7 @@ const WORKSPACE_TABS: Record<WorkspaceSection, { value: string; label: string }[
   design: [
     { value: "assets", label: "Assets" }, { value: "spaceProgram", label: "Space programme" },
     { value: "materials", label: "Material cost" },
+    ...(BRIEF_WORKFLOW_ENABLED ? [{ value: "governedBrief", label: "Governed brief" }] : []),
   ],
   evidence: [{ value: "evidence", label: "Evidence library" }],
   deliverables: [{ value: "reports", label: "Reports & exports" }],
@@ -1302,6 +1306,12 @@ function ProjectDetailContent() {
           <TabsContent value="materials" className="space-y-4">
             <MaterialAllocationPanel projectId={projectId} />
           </TabsContent>
+
+          {BRIEF_WORKFLOW_ENABLED && (
+            <TabsContent value="governedBrief" className="space-y-4">
+              <BriefWorkspaceContainer projectId={projectId} currentUserId={user?.id ? Number(user.id) : undefined} isAdmin={user?.role === "admin"} />
+            </TabsContent>
+          )}
 
           {/* ─── Predictive Tab ──────────────────────────────────────────── */}
           <TabsContent value="predictive" className="space-y-4">

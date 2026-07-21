@@ -52,15 +52,15 @@ function inspectDatabaseTarget(databaseUrl) {
     if (!host || isUnspecifiedHost(host)) throw new Error("Host is empty or unspecified");
     const port = parsed.port ? Number(parsed.port) : 3306;
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port is invalid");
-    const database = parseDatabaseName(parsed.pathname);
-    if (!database) throw new Error("Database name is missing or ambiguous");
-    const canonical = `${canonicalHost(host)}:${port}/${database}`;
+    const database2 = parseDatabaseName(parsed.pathname);
+    if (!database2) throw new Error("Database name is missing or ambiguous");
+    const canonical2 = `${canonicalHost(host)}:${port}/${database2}`;
     return {
       class: isLoopbackHost(host) ? "safe-loopback" : "remote-shared",
       host,
       port,
-      database,
-      canonical
+      database: database2,
+      canonical: canonical2
     };
   } catch (error) {
     return {
@@ -192,7 +192,7 @@ function restoreSpawnSafetyControls() {
 function buildRuntimeContext(operation, options) {
   if (options.loadDotenv !== false) loadDotenvFile({ override: false, quiet: true });
   restoreSpawnSafetyControls();
-  const context = {
+  const context2 = {
     activeOperation: operation,
     databaseUrl: options.databaseUrl ?? process.env.DATABASE_URL,
     runtimeProfile: options.runtimeProfile ?? spawnedSafetyEnvironment.MIYAR_RUNTIME_PROFILE,
@@ -204,7 +204,7 @@ function buildRuntimeContext(operation, options) {
     deploymentDatabaseTarget: options.deploymentDatabaseTarget ?? spawnedSafetyEnvironment.MIYAR_DEPLOYMENT_DATABASE_TARGET
   };
   delete process.env.MIYAR_DATABASE_APPROVAL;
-  return Object.freeze(context);
+  return Object.freeze(context2);
 }
 function initializeDatabaseSafety(operation, options = {}) {
   if (!runtimeContext) runtimeContext = buildRuntimeContext(operation, options);
@@ -298,6 +298,25 @@ __export(schema_exports, {
   benchmarkVersions: () => benchmarkVersions,
   biasAlerts: () => biasAlerts,
   biasProfiles: () => biasProfiles,
+  briefApplicabilityEvents: () => briefApplicabilityEvents,
+  briefApprovals: () => briefApprovals,
+  briefConditionEvents: () => briefConditionEvents,
+  briefDependencies: () => briefDependencies,
+  briefEvents: () => briefEvents,
+  briefFindingResolutions: () => briefFindingResolutions,
+  briefFindings: () => briefFindings,
+  briefIssueApplicability: () => briefIssueApplicability,
+  briefIssueApprovals: () => briefIssueApprovals,
+  briefIssueDependencies: () => briefIssueDependencies,
+  briefIssueSections: () => briefIssueSections,
+  briefIssues: () => briefIssues,
+  briefLegacyLinks: () => briefLegacyLinks,
+  briefOperations: () => briefOperations,
+  briefRoleEvents: () => briefRoleEvents,
+  briefSectionRevisions: () => briefSectionRevisions,
+  briefStreams: () => briefStreams,
+  briefVersionSections: () => briefVersionSections,
+  briefVersions: () => briefVersions,
   comments: () => comments,
   competitorEntities: () => competitorEntities,
   competitorProjects: () => competitorProjects,
@@ -399,7 +418,7 @@ import {
   uniqueIndex,
   foreignKey
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -2980,19 +2999,11 @@ var init_schema = __esm({
             table.projectId,
             table.parentGraphVersionId
           ],
-          foreignColumns: [
-            table.organizationId,
-            table.projectId,
-            table.id
-          ]
+          foreignColumns: [table.organizationId, table.projectId, table.id]
         }),
         foreignKey({
           name: "sgv_source_scope_fk",
-          columns: [
-            table.organizationId,
-            table.projectId,
-            table.geometrySourceId
-          ],
+          columns: [table.organizationId, table.projectId, table.geometrySourceId],
           foreignColumns: [
             geometrySources.organizationId,
             geometrySources.projectId,
@@ -3093,11 +3104,7 @@ var init_schema = __esm({
         ),
         foreignKey({
           name: "sv_identity_scope_fk",
-          columns: [
-            table.organizationId,
-            table.projectId,
-            table.spaceIdentityId
-          ],
+          columns: [table.organizationId, table.projectId, table.spaceIdentityId],
           foreignColumns: [
             spaceIdentities.organizationId,
             spaceIdentities.projectId,
@@ -3106,11 +3113,7 @@ var init_schema = __esm({
         }),
         foreignKey({
           name: "sv_graph_scope_fk",
-          columns: [
-            table.organizationId,
-            table.projectId,
-            table.geometryVersionId
-          ],
+          columns: [table.organizationId, table.projectId, table.geometryVersionId],
           foreignColumns: [
             spatialGraphVersions.organizationId,
             spatialGraphVersions.projectId,
@@ -3124,11 +3127,7 @@ var init_schema = __esm({
             table.projectId,
             table.supersedesSpaceVersionId
           ],
-          foreignColumns: [
-            table.organizationId,
-            table.projectId,
-            table.id
-          ]
+          foreignColumns: [table.organizationId, table.projectId, table.id]
         })
       ]
     );
@@ -3298,11 +3297,7 @@ var init_schema = __esm({
         ),
         foreignKey({
           name: "mr_identity_scope_fk",
-          columns: [
-            table.organizationId,
-            table.projectId,
-            table.spaceIdentityId
-          ],
+          columns: [table.organizationId, table.projectId, table.spaceIdentityId],
           foreignColumns: [
             spaceIdentities.organizationId,
             spaceIdentities.projectId,
@@ -3311,11 +3306,7 @@ var init_schema = __esm({
         }),
         foreignKey({
           name: "mr_space_version_scope_fk",
-          columns: [
-            table.organizationId,
-            table.projectId,
-            table.spaceVersionId
-          ],
+          columns: [table.organizationId, table.projectId, table.spaceVersionId],
           foreignColumns: [
             spaceVersions.organizationId,
             spaceVersions.projectId,
@@ -3324,11 +3315,7 @@ var init_schema = __esm({
         }),
         foreignKey({
           name: "mr_graph_scope_fk",
-          columns: [
-            table.organizationId,
-            table.projectId,
-            table.graphVersionId
-          ],
+          columns: [table.organizationId, table.projectId, table.graphVersionId],
           foreignColumns: [
             spatialGraphVersions.organizationId,
             spatialGraphVersions.projectId,
@@ -3337,11 +3324,7 @@ var init_schema = __esm({
         }),
         foreignKey({
           name: "mr_source_scope_fk",
-          columns: [
-            table.organizationId,
-            table.projectId,
-            table.geometrySourceId
-          ],
+          columns: [table.organizationId, table.projectId, table.geometrySourceId],
           foreignColumns: [
             geometrySources.organizationId,
             geometrySources.projectId,
@@ -3355,11 +3338,7 @@ var init_schema = __esm({
             table.projectId,
             table.supersedesMeasurementRecordId
           ],
-          foreignColumns: [
-            table.organizationId,
-            table.projectId,
-            table.id
-          ]
+          foreignColumns: [table.organizationId, table.projectId, table.id]
         })
       ]
     );
@@ -3592,11 +3571,7 @@ var init_schema = __esm({
         ),
         foreignKey({
           name: "lsl_identity_scope_fk",
-          columns: [
-            table.organizationId,
-            table.projectId,
-            table.spaceIdentityId
-          ],
+          columns: [table.organizationId, table.projectId, table.spaceIdentityId],
           foreignColumns: [
             spaceIdentities.organizationId,
             spaceIdentities.projectId,
@@ -3656,17 +3631,800 @@ var init_schema = __esm({
         ),
         foreignKey({
           name: "ais_graph_scope_fk",
-          columns: [
-            table.organizationId,
-            table.projectId,
-            table.graphVersionId
-          ],
+          columns: [table.organizationId, table.projectId, table.graphVersionId],
           foreignColumns: [
             spatialGraphVersions.organizationId,
             spatialGraphVersions.projectId,
             spatialGraphVersions.id
           ]
         })
+      ]
+    );
+    briefSectionValues = [
+      "intent",
+      "asset_context",
+      "space_programme",
+      "design_direction",
+      "specification_intent",
+      "cost_quantities",
+      "supply",
+      "risk_compliance",
+      "concept_media",
+      "governance"
+    ];
+    briefRoleValues = [
+      "author",
+      "section_owner",
+      "reviewer",
+      "approver",
+      "issuer",
+      "viewer"
+    ];
+    briefStreams = mysqlTable(
+      "brief_streams",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        scopeType: mysqlEnum("scopeType", ["project", "scenario"]).notNull(),
+        scenarioId: int("scenarioId"),
+        scopeKey: varchar("scopeKey", { length: 96 }).notNull(),
+        issuePurpose: mysqlEnum("issuePurpose", [
+          "internal_coordination",
+          "client_board_approval",
+          "tender_rfq"
+        ]).notNull(),
+        typologyProfileVersion: varchar("typologyProfileVersion", {
+          length: 96
+        }).notNull(),
+        revision: int("revision").default(0).notNull(),
+        nextEventSequence: bigint("nextEventSequence", { mode: "number" }).default(1).notNull(),
+        createdBy: int("createdBy").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_streams_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_streams_identity_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.scopeKey,
+          t2.issuePurpose
+        ),
+        index("brief_streams_scenario_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.scenarioId
+        )
+      ]
+    );
+    briefVersions = mysqlTable(
+      "brief_versions",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionNumber: int("versionNumber").notNull(),
+        predecessorVersionId: int("predecessorVersionId"),
+        origin: mysqlEnum("origin", [
+          "user",
+          "deterministic",
+          "ai_proposal",
+          "legacy_import"
+        ]).notNull(),
+        status: mysqlEnum("status", ["working", "locked"]).default("working").notNull(),
+        requirementProfileVersion: varchar("requirementProfileVersion", {
+          length: 96
+        }).notNull(),
+        componentScope: json("componentScope").notNull(),
+        revision: int("revision").default(0).notNull(),
+        createdBy: int("createdBy").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_versions_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_versions_number_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.versionNumber
+        ),
+        index("brief_versions_stream_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId
+        ),
+        foreignKey({
+          name: "brief_versions_stream_scope_fk",
+          columns: [t2.organizationId, t2.projectId, t2.streamId],
+          foreignColumns: [briefStreams.organizationId, briefStreams.projectId, briefStreams.id]
+        })
+      ]
+    );
+    briefSectionRevisions = mysqlTable(
+      "brief_section_revisions",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        scopeKey: varchar("scopeKey", { length: 96 }).notNull(),
+        sectionId: mysqlEnum("sectionId", briefSectionValues).notNull(),
+        content: json("content").notNull(),
+        origin: mysqlEnum("origin", [
+          "user",
+          "deterministic",
+          "ai_proposal",
+          "legacy_import"
+        ]).notNull(),
+        authorUserId: int("authorUserId"),
+        actorType: mysqlEnum("actorType", ["human", "ai", "system"]).notNull(),
+        contentSchemaVersion: varchar("contentSchemaVersion", {
+          length: 64
+        }).notNull(),
+        revisionFingerprint: varchar("revisionFingerprint", {
+          length: 64
+        }).notNull(),
+        lineageFingerprint: varchar("lineageFingerprint", { length: 64 }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_section_revisions_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_section_revisions_fingerprint_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.scopeKey,
+          t2.sectionId,
+          t2.revisionFingerprint
+        )
+      ]
+    );
+    briefVersionSections = mysqlTable(
+      "brief_version_sections",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionId: int("versionId").notNull(),
+        sectionRevisionId: int("sectionRevisionId"),
+        sectionId: mysqlEnum("sectionId", briefSectionValues).notNull(),
+        applicability: mysqlEnum("applicability", [
+          "required",
+          "conditional",
+          "not_applicable"
+        ]).default("required").notNull(),
+        achievedState: mysqlEnum("achievedState", [
+          "missing",
+          "drafted",
+          "evidenced",
+          "reviewed",
+          "approved",
+          "issued"
+        ]).default("missing").notNull(),
+        classifications: json("classifications").notNull(),
+        classificationFingerprint: varchar("classificationFingerprint", {
+          length: 64
+        }).notNull(),
+        componentScope: json("componentScope").notNull(),
+        revision: int("revision").default(0).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_version_sections_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_version_sections_section_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.versionId,
+          t2.sectionId
+        ),
+        index("brief_version_sections_stream_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.versionId
+        ),
+        foreignKey({
+          name: "brief_version_sections_version_scope_fk",
+          columns: [t2.organizationId, t2.projectId, t2.versionId],
+          foreignColumns: [briefVersions.organizationId, briefVersions.projectId, briefVersions.id]
+        }),
+        foreignKey({
+          name: "brief_version_sections_revision_scope_fk",
+          columns: [t2.organizationId, t2.projectId, t2.sectionRevisionId],
+          foreignColumns: [briefSectionRevisions.organizationId, briefSectionRevisions.projectId, briefSectionRevisions.id]
+        })
+      ]
+    );
+    briefRoleEvents = mysqlTable(
+      "brief_role_events",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionId: int("versionId"),
+        sectionId: mysqlEnum("sectionId", briefSectionValues),
+        subjectUserId: int("subjectUserId").notNull(),
+        role: mysqlEnum("role", briefRoleValues).notNull(),
+        action: mysqlEnum("action", ["granted", "revoked"]).notNull(),
+        targetGrantEventId: int("targetGrantEventId"),
+        actorUserId: int("actorUserId").notNull(),
+        reason: text("reason").notNull(),
+        streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_role_events_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        index("brief_role_events_stream_subject_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.subjectUserId,
+          t2.role
+        ),
+        uniqueIndex("brief_role_events_stream_sequence_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.streamSequence
+        )
+      ]
+    );
+    briefFindings = mysqlTable(
+      "brief_findings",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionId: int("versionId").notNull(),
+        bindingId: int("bindingId").notNull(),
+        sectionRevisionId: int("sectionRevisionId").notNull(),
+        reviewerUserId: int("reviewerUserId").notNull(),
+        severity: mysqlEnum("severity", ["blocking", "advisory"]).notNull(),
+        ownerUserId: int("ownerUserId").notNull(),
+        statement: text("statement").notNull(),
+        streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_findings_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        index("brief_findings_binding_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.bindingId
+        ),
+        uniqueIndex("brief_findings_stream_sequence_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.streamSequence
+        )
+      ]
+    );
+    briefFindingResolutions = mysqlTable(
+      "brief_finding_resolutions",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        findingId: int("findingId").notNull(),
+        sectionRevisionId: int("sectionRevisionId").notNull(),
+        stage: mysqlEnum("stage", ["submitted", "accepted", "rejected"]).notNull(),
+        submitterUserId: int("submitterUserId").notNull(),
+        actorUserId: int("actorUserId").notNull(),
+        targetSubmissionId: int("targetSubmissionId"),
+        evidence: json("evidence").notNull(),
+        streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_finding_resolutions_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        index("brief_finding_resolutions_finding_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.findingId,
+          t2.createdAt
+        ),
+        uniqueIndex("brief_finding_resolutions_stream_sequence_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.streamSequence
+        )
+      ]
+    );
+    briefApplicabilityEvents = mysqlTable(
+      "brief_applicability_events",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionId: int("versionId").notNull(),
+        bindingId: int("bindingId").notNull(),
+        classificationFingerprint: varchar("classificationFingerprint", {
+          length: 64
+        }).notNull(),
+        stage: mysqlEnum("stage", [
+          "proposed",
+          "reviewed",
+          "approved",
+          "withdrawn"
+        ]).notNull(),
+        targetEventId: int("targetEventId"),
+        actorUserId: int("actorUserId").notNull(),
+        rationale: text("rationale").notNull(),
+        inputs: json("inputs").notNull(),
+        streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_applicability_events_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        index("brief_applicability_events_binding_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.bindingId,
+          t2.createdAt
+        ),
+        uniqueIndex("brief_applicability_events_stream_sequence_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.streamSequence
+        )
+      ]
+    );
+    briefApprovals = mysqlTable(
+      "brief_approvals",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionId: int("versionId").notNull(),
+        bindingId: int("bindingId").notNull(),
+        sectionRevisionId: int("sectionRevisionId").notNull(),
+        approverUserId: int("approverUserId").notNull(),
+        decision: mysqlEnum("decision", ["approved", "withdrawn"]).notNull(),
+        targetApprovalId: int("targetApprovalId"),
+        issuePurpose: mysqlEnum("issuePurpose", [
+          "internal_coordination",
+          "client_board_approval",
+          "tender_rfq"
+        ]).notNull(),
+        rationale: text("rationale").notNull(),
+        limitations: json("limitations").notNull(),
+        streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_approvals_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        index("brief_approvals_binding_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.bindingId,
+          t2.createdAt
+        ),
+        uniqueIndex("brief_approvals_stream_sequence_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.streamSequence
+        )
+      ]
+    );
+    briefDependencies = mysqlTable(
+      "brief_dependencies",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionId: int("versionId").notNull(),
+        bindingId: int("bindingId").notNull(),
+        sectionRevisionId: int("sectionRevisionId").notNull(),
+        dependencyType: mysqlEnum("dependencyType", [
+          "project_input",
+          "scenario",
+          "geometry",
+          "space_programme",
+          "evidence",
+          "calculation",
+          "benchmark",
+          "material",
+          "supplier_offer",
+          "board",
+          "visual",
+          "generation"
+        ]).notNull(),
+        dependencyRef: json("dependencyRef").notNull(),
+        authority: varchar("authority", { length: 96 }).notNull(),
+        recordVersion: varchar("recordVersion", { length: 128 }).notNull(),
+        fingerprint: varchar("fingerprint", { length: 64 }).notNull(),
+        observedAt: timestamp("observedAt").notNull(),
+        relevance: text("relevance").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_dependencies_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_dependencies_identity_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.bindingId,
+          t2.dependencyType,
+          t2.fingerprint
+        )
+      ]
+    );
+    briefConditionEvents = mysqlTable(
+      "brief_condition_events",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionId: int("versionId").notNull(),
+        bindingId: int("bindingId").notNull(),
+        kind: mysqlEnum("kind", ["stale", "blocked"]).notNull(),
+        gate: mysqlEnum("gate", ["evidence_content", "approval_issue"]).notNull(),
+        stage: mysqlEnum("stage", [
+          "raised",
+          "resolution_submitted",
+          "resolution_accepted",
+          "resolution_rejected"
+        ]).notNull(),
+        reasonCode: varchar("reasonCode", { length: 96 }).notNull(),
+        explanation: text("explanation").notNull(),
+        targetEventId: int("targetEventId"),
+        dependencyId: int("dependencyId"),
+        ownerUserId: int("ownerUserId").notNull(),
+        actorUserId: int("actorUserId"),
+        evidence: json("evidence").notNull(),
+        streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_condition_events_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        index("brief_condition_events_binding_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.bindingId,
+          t2.kind,
+          t2.createdAt
+        ),
+        uniqueIndex("brief_condition_events_stream_sequence_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.streamSequence
+        )
+      ]
+    );
+    briefOperations = mysqlTable(
+      "brief_operations",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId"),
+        actorUserId: int("actorUserId").notNull(),
+        operation: varchar("operation", { length: 96 }).notNull(),
+        idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull(),
+        requestHash: varchar("requestHash", { length: 64 }).notNull(),
+        status: mysqlEnum("status", ["pending", "completed"]).default("pending").notNull(),
+        resultEntityType: varchar("resultEntityType", { length: 64 }),
+        resultEntityId: int("resultEntityId"),
+        resultRevision: int("resultRevision"),
+        result: json("result"),
+        createdAt: timestamp("createdAt").defaultNow().notNull(),
+        completedAt: timestamp("completedAt")
+      },
+      (t2) => [
+        uniqueIndex("brief_operations_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_operations_idempotency_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.actorUserId,
+          t2.operation,
+          t2.idempotencyKey
+        )
+      ]
+    );
+    briefEvents = mysqlTable(
+      "brief_events",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionId: int("versionId").notNull(),
+        sectionId: mysqlEnum("sectionId", briefSectionValues),
+        issueId: int("issueId"),
+        operationId: int("operationId").notNull(),
+        actorUserId: int("actorUserId"),
+        actorType: mysqlEnum("actorType", ["human", "ai", "system"]).notNull(),
+        eventType: varchar("eventType", { length: 64 }).notNull(),
+        payloadSchemaVersion: varchar("payloadSchemaVersion", {
+          length: 32
+        }).notNull(),
+        payload: json("payload").notNull(),
+        operationOrdinal: int("operationOrdinal").notNull(),
+        streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_events_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_events_stream_sequence_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.streamSequence
+        ),
+        uniqueIndex("brief_events_operation_ordinal_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.operationId,
+          t2.operationOrdinal
+        )
+      ]
+    );
+    briefIssues = mysqlTable(
+      "brief_issues",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        versionId: int("versionId").notNull(),
+        operationId: int("operationId").notNull(),
+        issueNumber: int("issueNumber").notNull(),
+        issuerUserId: int("issuerUserId").notNull(),
+        issuePurpose: mysqlEnum("issuePurpose", [
+          "internal_coordination",
+          "client_board_approval",
+          "tender_rfq"
+        ]).notNull(),
+        metadata: json("metadata").notNull(),
+        issuedAt: timestamp("issuedAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_issues_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_issues_number_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.streamId,
+          t2.issueNumber
+        )
+      ]
+    );
+    briefIssueSections = mysqlTable(
+      "brief_issue_sections",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        issueId: int("issueId").notNull(),
+        bindingId: int("bindingId").notNull(),
+        sectionRevisionId: int("sectionRevisionId").notNull(),
+        sectionId: mysqlEnum("sectionId", briefSectionValues).notNull(),
+        applicability: mysqlEnum("applicability", [
+          "required",
+          "conditional",
+          "not_applicable"
+        ]).notNull(),
+        achievedState: mysqlEnum("achievedState", ["approved", "issued"]).notNull(),
+        requirementProfileVersion: varchar("requirementProfileVersion", {
+          length: 96
+        }).notNull(),
+        classificationFingerprint: varchar("classificationFingerprint", {
+          length: 64
+        }).notNull(),
+        componentScope: json("componentScope").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_issue_sections_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_issue_sections_section_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.issueId,
+          t2.sectionId
+        ),
+        foreignKey({
+          name: "brief_issue_sections_issue_scope_fk",
+          columns: [t2.organizationId, t2.projectId, t2.issueId],
+          foreignColumns: [briefIssues.organizationId, briefIssues.projectId, briefIssues.id]
+        }),
+        foreignKey({
+          name: "brief_issue_sections_binding_scope_fk",
+          columns: [t2.organizationId, t2.projectId, t2.bindingId],
+          foreignColumns: [briefVersionSections.organizationId, briefVersionSections.projectId, briefVersionSections.id]
+        }),
+        foreignKey({
+          name: "brief_issue_sections_revision_scope_fk",
+          columns: [t2.organizationId, t2.projectId, t2.sectionRevisionId],
+          foreignColumns: [briefSectionRevisions.organizationId, briefSectionRevisions.projectId, briefSectionRevisions.id]
+        })
+      ]
+    );
+    briefIssueApprovals = mysqlTable(
+      "brief_issue_approvals",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        issueId: int("issueId").notNull(),
+        issueSectionId: int("issueSectionId").notNull(),
+        approvalId: int("approvalId").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_issue_approvals_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_issue_approvals_ref_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.issueId,
+          t2.issueSectionId,
+          t2.approvalId
+        )
+      ]
+    );
+    briefIssueApplicability = mysqlTable(
+      "brief_issue_applicability",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        issueId: int("issueId").notNull(),
+        issueSectionId: int("issueSectionId").notNull(),
+        applicabilityEventId: int("applicabilityEventId").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_issue_applicability_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_issue_applicability_ref_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.issueId,
+          t2.issueSectionId,
+          t2.applicabilityEventId
+        )
+      ]
+    );
+    briefIssueDependencies = mysqlTable(
+      "brief_issue_dependencies",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        issueId: int("issueId").notNull(),
+        issueSectionId: int("issueSectionId").notNull(),
+        dependencyId: int("dependencyId").notNull(),
+        recordVersion: varchar("recordVersion", { length: 128 }).notNull(),
+        fingerprint: varchar("fingerprint", { length: 64 }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_issue_dependencies_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_issue_dependencies_ref_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.issueId,
+          t2.issueSectionId,
+          t2.dependencyId
+        )
+      ]
+    );
+    briefLegacyLinks = mysqlTable(
+      "brief_legacy_links",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        projectId: int("projectId").notNull(),
+        streamId: int("streamId").notNull(),
+        sourceType: varchar("sourceType", { length: 64 }).notNull(),
+        sourceId: varchar("sourceId", { length: 128 }).notNull(),
+        importedVersionId: int("importedVersionId"),
+        importedRevisionId: int("importedRevisionId"),
+        disposition: mysqlEnum("disposition", [
+          "linked",
+          "imported",
+          "rejected",
+          "drifted"
+        ]).notNull(),
+        reason: text("reason").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("brief_legacy_links_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("brief_legacy_links_source_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.sourceType,
+          t2.sourceId
+        )
       ]
     );
   }
@@ -6878,8 +7636,8 @@ async function revokeAiDesignBriefSharesForProjectForOrg(projectId, orgId) {
   if (!db) throw new Error("DB not available");
   return revokeAiDesignBriefSharesForProjectForOrgInDatabase(db, projectId, orgId);
 }
-async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database, projectId, orgId) {
-  return database.transaction(async (tx) => {
+async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database2, projectId, orgId) {
+  return database2.transaction(async (tx) => {
     const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (owned.length !== 1) return null;
     await tx.update(aiDesignBriefs).set({ shareExpiresAt: null }).where(and(
@@ -8113,7 +8871,7 @@ async function getGeometryReviewStateForOrg(projectId, organizationId) {
     ).limit(1))[0];
   }
   const latest = await getScopedGraph(authority?.currentGraphVersionId);
-  const canonical = await getScopedGraph(authority?.selectedGeometryVersionId);
+  const canonical2 = await getScopedGraph(authority?.selectedGeometryVersionId);
   const latestReviews = latest ? await db.select().from(geometryReconciliationEvents).where(
     and(
       eq(geometryReconciliationEvents.organizationId, organizationId),
@@ -8133,8 +8891,8 @@ async function getGeometryReviewStateForOrg(projectId, organizationId) {
     latest,
     latestSource: await getScopedSource(latest),
     latestReview: latestReviews[0],
-    canonical,
-    canonicalSource: await getScopedSource(canonical),
+    canonical: canonical2,
+    canonicalSource: await getScopedSource(canonical2),
     acceptedMeasurements,
     legacyRooms
   };
@@ -8213,11 +8971,11 @@ var init_logger = __esm({
 });
 
 // server/_core/sentry.ts
-function captureException(err, context) {
+function captureException(err, context2) {
   if (!Sentry) return;
   Sentry.withScope((scope) => {
-    if (context) {
-      Object.entries(context).forEach(([key, val]) => {
+    if (context2) {
+      Object.entries(context2).forEach(([key, val]) => {
         scope.setExtra(key, val);
       });
     }
@@ -8297,7 +9055,7 @@ var init_ai_operation = __esm({
         return this.options.operation;
       }
       report(metadata = {}) {
-        const context = {
+        const context2 = {
           source: "ai-operation",
           operation: this.operation,
           aiCode: this.code,
@@ -8306,8 +9064,8 @@ var init_ai_operation = __esm({
           correlationId: this.correlationId,
           ...metadata
         };
-        logger.error("AI operation failed", context);
-        captureException(this.options.cause ?? this, context);
+        logger.error("AI operation failed", context2);
+        captureException(this.options.cause ?? this, context2);
         return this;
       }
     };
@@ -10902,10 +11660,10 @@ __export(dm_compliance_exports, {
 function buildDMComplianceChecklist(projectId, orgId, project) {
   const typology = (project.ctx01Typology || "Residential").toLowerCase();
   const items = [];
-  const pushItem = (code, desc11, status) => {
+  const pushItem = (code, desc12, status) => {
     items.push({
       code,
-      description: desc11,
+      description: desc12,
       status,
       verified: false
     });
@@ -11408,10 +12166,10 @@ function gradeColor(grade2) {
 function confColor(confidence) {
   return { established: "#10b981", emerging: "#8b5cf6", declining: "#ef4444" }[confidence] ?? "#94a3b8";
 }
-function renderMetadata(context, locale) {
+function renderMetadata(context2, locale) {
   const c = (key) => reportCopy(locale, key);
   const value = (entry) => text2(entry ?? c("notAvailable"));
-  return `<div class="render-meta"><div><b>${c("documentId")}:</b> ${text2(context.documentId)}</div><div><b>${c("generatedAt")}:</b> ${text2(formatReportDateTime(context.generatedAt, locale))}</div><div><b>${c("renderInputFingerprint")}:</b> ${text2(context.renderInputFingerprint)}</div><div><b>${c("artifactVersion")}:</b> ${value(context.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context.rendererVersion)}</div><div><b>${c("modelVersion")}:</b> ${value(context.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context.logicVersion)}</div></div>`;
+  return `<div class="render-meta"><div><b>${c("documentId")}:</b> ${text2(context2.documentId)}</div><div><b>${c("generatedAt")}:</b> ${text2(formatReportDateTime(context2.generatedAt, locale))}</div><div><b>${c("renderInputFingerprint")}:</b> ${text2(context2.renderInputFingerprint)}</div><div><b>${c("artifactVersion")}:</b> ${value(context2.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context2.rendererVersion)}</div><div><b>${c("modelVersion")}:</b> ${value(context2.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context2.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context2.logicVersion)}</div></div>`;
 }
 function createInvestorPdfRenderContext(input) {
   const locale = reportLocaleOrDefault(input.locale);
@@ -11465,7 +12223,7 @@ function generateInvestorPdfHtml(input) {
     designTrends: designTrends2,
     spaceEfficiency
   } = input;
-  const context = input.renderContext ?? createInvestorPdfRenderContext(input);
+  const context2 = input.renderContext ?? createInvestorPdfRenderContext(input);
   const spaceBars = spaces.slice(0, 12).map((space) => `<div class="bar-row"><span class="bar-label">${text2(space.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(space.pct)}%"></div></div><span class="bar-pct">${number(space.pct, locale)}%</span><span class="bar-amt">${aed(space.budgetAed, locale)}</span></div>`).join("");
   const materialRows = materials.slice(0, 16).map((material, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text2(material.name)}</td><td>${text2(material.brand)}</td><td>${text2(material.room)}</td><td>${text2(material.price ?? c("notAvailable"))}</td></tr>`).join("");
   const constantRows = materialConstants2.slice(0, 9).map((constant, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text2(constant.materialType)}</td><td>${aed(constant.costPerM2, locale)}</td><td>${number(constant.carbonIntensity, locale)} ${labels.kilogramsPerSquareMetre}</td><td><span class="grade-badge" style="background:${gradeColor(constant.sustainabilityGrade)}">${text2(constant.sustainabilityGrade)}</span></td></tr>`).join("");
@@ -11482,12 +12240,12 @@ function generateInvestorPdfHtml(input) {
   return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`MIYAR ${labels.investorBrief} \u2014 ${projectName}`)}</title><style>
     @page { size:A4 portrait; margin:15mm 14mm; } @media print { .no-print { display:none; } } * { box-sizing:border-box; margin:0; padding:0; } ${reportLocaleCss(locale)} body { color:#0f172a; font-size:10px; line-height:1.5; background:#fff; } .cover { break-after:page; padding-block:40mm 20mm; text-align:center; } .brand { font-size:30px; font-weight:800; letter-spacing:4px; color:#0f3460; } .subtitle { font-size:12px; color:#4ecdc4; margin:4px 0 20px; letter-spacing:2px; text-transform:uppercase; } .project-name { font-size:22px; font-weight:700; margin-block-end:8px; } .meta { font-size:10px; color:#64748b; margin-block-end:6px; } .divider { inline-size:60px; block-size:3px; background:#4ecdc4; margin:20px auto; } .cover .kpi-grid { max-inline-size:340px; margin:24px auto 0; } .cover .kpi-card { border:1px solid #e2e8f0; border-radius:8px; padding:10px 8px; background:#f8fafc; } .cv { font-size:16px; font-weight:800; color:#0f3460; } .cl,.kpi-label,.roi-label { font-size:7px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin-block-start:2px; }
     h2 { font-size:12px; font-weight:700; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:18px 0 10px; text-transform:uppercase; letter-spacing:1px; } h3 { font-size:10px; font-weight:700; color:#334155; margin:12px 0 6px; } .section { break-inside:avoid; margin-block-end:14px; } .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0; } .kpi { border:1px solid #e2e8f0; border-radius:6px; padding:8px; text-align:center; background:#f8fafc; } .kpi-value { font-size:14px; font-weight:800; color:#0f3460; margin:2px 0; } .panel { border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin:8px 0; background:#f8fafc; } .panel-title { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b; margin-block-end:8px; } .exec-body { color:#334155; line-height:1.65; padding-block:8px; } .dd-row { display:flex; gap:8px; padding-block:3px; border-block-end:1px dotted #e2e8f0; } .dd-key { inline-size:110px; color:#64748b; font-weight:600; flex-shrink:0; } .dd-val { flex:1; } .bar-row { display:flex; align-items:center; gap:6px; margin-block:4px; font-size:9px; } .bar-label { inline-size:90px; color:#475569; flex-shrink:0; } .bar-track { flex:1; block-size:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; } .bar-fill { block-size:100%; background:linear-gradient(90deg,#4ecdc4,#0f3460); border-radius:4px; } .bar-pct,.bar-amt { text-align:end; flex-shrink:0; } .bar-pct { inline-size:32px; } .bar-amt { inline-size:76px; color:#0f3460; font-weight:600; font-size:8px; } table { width:100%; border-collapse:collapse; margin:8px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:5px 8px; font-weight:600; font-size:8px; letter-spacing:.5px; } td { padding:4px 8px; border-block-end:1px solid #f1f5f9; } tr.even td { background:#f8fafc; } .roi-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .roi-card { border:1px solid #e2e8f0; border-radius:6px; padding:10px; } .roi-big { font-size:20px; font-weight:800; color:#10b981; } .roi-sub { font-size:8px; color:#64748b; margin-block-start:3px; } .grade-chip,.grade-badge,.conf-badge { color:#fff; font-weight:700; } .grade-chip { display:inline-flex; align-items:center; justify-content:center; inline-size:32px; block-size:32px; border-radius:50%; font-size:16px; } .grade-badge,.conf-badge { font-size:8px; padding:1px 5px; border-radius:3px; } .trend-row { display:flex; align-items:center; gap:6px; padding-block:3px; border-block-end:1px dotted #e2e8f0; font-size:9px; } .trend-name { flex:1; font-weight:600; } .trend-cat { font-size:7px; color:#94a3b8; text-transform:uppercase; } .render-meta { margin:12px auto; max-inline-size:520px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .fallback { border-inline-start:3px solid #f59e0b; background:#fffbeb; padding:8px; margin-block:10px; font-size:9px; } .footer { margin-block-start:20px; padding-block-start:8px; border-block-start:1px solid #e2e8f0; font-size:7px; color:#94a3b8; text-align:center; }
-  </style></head><body><div class="cover"><div class="brand">MIYAR</div><div class="subtitle">${labels.investorBrief}</div><div class="project-name">${text2(projectName)}</div><div class="meta">${text2(typology)} \xB7 ${text2(tier)} \xB7 ${text2(location)}</div><div class="meta">${number(gfaSqm, locale)} ${labels.squareMetres} ${labels.gfa} \xB7 ${text2(style)} ${labels.design}</div><div class="divider"></div><div class="kpi-grid"><div class="kpi-card"><div class="cv">${aed(totalFitoutBudget, locale)}</div><div class="cl">${c("totalFitout")}</div></div><div class="kpi-card"><div class="cv">${aed(costPerSqm, locale)}</div><div class="cl">${labels.costPerSquareMetre}</div></div><div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="cl">${labels.sustainabilityGrade}</div></div></div>${renderMetadata(context, locale)}</div>
+  </style></head><body><div class="cover"><div class="brand">MIYAR</div><div class="subtitle">${labels.investorBrief}</div><div class="project-name">${text2(projectName)}</div><div class="meta">${text2(typology)} \xB7 ${text2(tier)} \xB7 ${text2(location)}</div><div class="meta">${number(gfaSqm, locale)} ${labels.squareMetres} ${labels.gfa} \xB7 ${text2(style)} ${labels.design}</div><div class="divider"></div><div class="kpi-grid"><div class="kpi-card"><div class="cv">${aed(totalFitoutBudget, locale)}</div><div class="cl">${c("totalFitout")}</div></div><div class="kpi-card"><div class="cv">${aed(costPerSqm, locale)}</div><div class="cl">${labels.costPerSquareMetre}</div></div><div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="cl">${labels.sustainabilityGrade}</div></div></div>${renderMetadata(context2, locale)}</div>
     <div class="section"><h2>${labels.designIdentity}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.typology}</div><div class="kpi-value">${text2(typology)}</div></div><div class="kpi"><div class="kpi-label">${labels.style}</div><div class="kpi-value">${text2(style)}</div></div><div class="kpi"><div class="kpi-label">${labels.tier}</div><div class="kpi-value">${text2(tier)}</div></div><div class="kpi"><div class="kpi-label">${labels.location}</div><div class="kpi-value">${text2(location)}</div></div></div>${execSummary ? `<p class="exec-body">${text2(execSummary)}</p>` : ""}${designDirectionRows ? `<div class="panel">${designDirectionRows}</div>` : ""}</div>
     ${materials.length > 0 ? `<div class="section"><h2>${labels.materialSpecification}</h2><table><thead><tr><th>${labels.product}</th><th>${labels.brand}</th><th>${labels.space}</th><th>${labels.priceRange}</th></tr></thead><tbody>${materialRows}</tbody></table>${materialConstants2.length > 0 ? `<h3>${labels.marketConstants}</h3><table><thead><tr><th>${labels.material}</th><th>${labels.costPerSquareMetre}</th><th>${labels.carbon}</th><th>${labels.sustainabilityGrade}</th></tr></thead><tbody>${constantRows}</tbody></table>` : ""}</div>` : ""}
     <div class="section"><h2>${labels.budgetSynthesis}</h2><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="kpi-label">${c("totalFitout")}</div><div class="kpi-value">${aed(totalFitoutBudget, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.costPerSquareMetre}</div><div class="kpi-value">${aed(costPerSqm, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.gfa}</div><div class="kpi-value">${number(gfaSqm, locale)} ${labels.squareMetres}</div></div></div>${spaceBars ? `<h3>${labels.budgetBySpace}</h3><div class="panel">${spaceBars}</div>` : ""}${benchmarkSection}</div>${spaceEfficiencySection}
     <div class="section"><h2>${labels.roiBridge}</h2><div class="roi-grid"><div class="roi-card"><div class="roi-label">${labels.sustainabilityGrade}</div><div style="margin-block-start:6px;display:flex;align-items:center;gap:10px"><div class="grade-chip" style="background:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="roi-sub">${labels.basedOnMaterialSelectionAndTierFor} ${text2(location)}</div></div></div><div class="roi-card"><div class="roi-label">${labels.designPremiumPotential}</div><div class="roi-big">+${number(salePremiumPct, locale)}%</div><div class="roi-sub">\u2248 ${aed(estimatedSalesPremiumAed, locale)} ${labels.upliftVsStandardFitout}</div></div><div class="roi-card" style="grid-column:span 2"><div class="roi-label">${labels.roiSummary}</div><div style="display:flex;gap:30px;margin-block-start:6px;font-size:9px"><div><div>${labels.fitoutInvestment}</div><b>${aed(totalFitoutBudget, locale)}</b></div><div><div>${c("designPremium")}</div><b>+${aed(estimatedSalesPremiumAed, locale)}</b></div><div><div>${labels.netUplift}</div><b>${aed(estimatedSalesPremiumAed - totalFitoutBudget, locale)}</b></div></div></div></div><div class="fallback"><b>${c("investorFallbackAssumption")}:</b> ${c("investorFallbackAssumptionHelp")}</div></div>
-    ${(designTrends2 ?? []).length > 0 ? `<div class="section"><h2>${labels.marketIntelligence}</h2><h3>${labels.uaeDesignTrends} (${text2(style)} \xB7 ${labels.uae})</h3><div class="panel">${trendRows}</div></div>` : ""}<div class="footer">MIYAR \xB7 ${labels.investorBrief} \xB7 ${text2(formatReportDateTime(context.generatedAt, locale))}<br>${labels.generatedNotice}</div></body></html>`;
+    ${(designTrends2 ?? []).length > 0 ? `<div class="section"><h2>${labels.marketIntelligence}</h2><h3>${labels.uaeDesignTrends} (${text2(style)} \xB7 ${labels.uae})</h3><div class="panel">${trendRows}</div></div>` : ""}<div class="footer">MIYAR \xB7 ${labels.investorBrief} \xB7 ${text2(formatReportDateTime(context2.generatedAt, locale))}<br>${labels.generatedNotice}</div></body></html>`;
 }
 var INVESTOR_COPY;
 var init_investor_pdf = __esm({
@@ -11624,15 +12382,15 @@ function tierColor(tier) {
 function leadBadgeColor(band) {
   return { short: "#16a34a", medium: "#ca8a04", long: "#ea580c", critical: "#dc2626" }[band] ?? "#ca8a04";
 }
-function renderMetadata2(context, locale) {
+function renderMetadata2(context2, locale) {
   const c = (key) => reportCopy(locale, key);
   const value = (entry) => text3(entry ?? c("notAvailable"));
   return `<div class="render-meta">
-    <div><b>${c("documentId")}:</b> ${text3(context.documentId)}</div>
-    <div><b>${c("generatedAt")}:</b> ${text3(formatReportDateTime(context.generatedAt, locale))}</div>
-    <div><b>${c("renderInputFingerprint")}:</b> ${text3(context.renderInputFingerprint)}</div>
-    <div><b>${c("artifactVersion")}:</b> ${value(context.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context.rendererVersion)}</div>
-    <div><b>${c("modelVersion")}:</b> ${value(context.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context.logicVersion)}</div>
+    <div><b>${c("documentId")}:</b> ${text3(context2.documentId)}</div>
+    <div><b>${c("generatedAt")}:</b> ${text3(formatReportDateTime(context2.generatedAt, locale))}</div>
+    <div><b>${c("renderInputFingerprint")}:</b> ${text3(context2.renderInputFingerprint)}</div>
+    <div><b>${c("artifactVersion")}:</b> ${value(context2.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context2.rendererVersion)}</div>
+    <div><b>${c("modelVersion")}:</b> ${value(context2.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context2.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context2.logicVersion)}</div>
   </div>`;
 }
 function createBoardPdfRenderContext(input) {
@@ -11702,7 +12460,7 @@ function generateBoardPdfHtml(input) {
   const c = (key) => reportCopy(locale, key);
   const labels = BOARD_COPY[locale];
   const { boardName, projectName, items, summary, rfqLines } = input;
-  const context = input.renderContext ?? createBoardPdfRenderContext(input);
+  const context2 = input.renderContext ?? createBoardPdfRenderContext(input);
   const tileCards = items.map((item, index2) => `<div class="tile-card">
     <div class="tile-header"><span class="tile-num">${number2(index2 + 1, locale)}</span><span class="tile-name">${text3(item.name)}</span><span class="tier-badge" style="background:${tierColor(item.tier)}">${text3(item.tier.replace(/_/g, " "))}</span></div>
     <div class="tile-body">
@@ -11726,9 +12484,9 @@ function generateBoardPdfHtml(input) {
     h2 { font-size:14px; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:20px 0 10px; } h3 { font-size:12px; color:#0f3460; margin:14px 0 6px; } .section { break-inside:avoid; margin-block-end:16px; } .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0; } .summary-card { border:1px solid #e0e0e0; border-radius:6px; padding:10px; text-align:center; } .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:1px; } .value { font-size:20px; font-weight:700; color:#0f3460; margin:2px 0; } .sub { font-size:9px; color:#888; }
     .tile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; } .tile-card { border:1px solid #e0e0e0; border-radius:6px; overflow:hidden; break-inside:avoid; } .tile-header { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#f8f9fa; border-block-end:1px solid #e0e0e0; } .tile-num { font-weight:700; background:#e8f4fd; border-radius:50%; inline-size:20px; block-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; } .tile-name { font-weight:600; flex:1; } .tier-badge,.dist-badge { font-size:8px; color:#fff; padding:1px 6px; border-radius:3px; text-transform:uppercase; } .tile-body { padding:8px 10px; } .tile-row { display:flex; justify-content:space-between; gap:8px; padding-block:2px; border-block-end:1px dotted #f0f0f0; } .tile-label,.dist-label { color:#666; font-weight:500; } .tile-spec { color:#0f3460; background:#e8f4fd; padding:4px 6px; border-radius:3px; margin-block-start:4px; font-style:italic; } .tile-notes { color:#888; margin-block-start:3px; } .cost-band-badge { background:#fef3c7; color:#92400e; padding-inline:4px; border-radius:2px; font-weight:600; }
     table { width:100%; border-collapse:collapse; margin:10px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:6px 8px; font-weight:600; } td { padding:5px 8px; border-block-end:1px solid #e0e0e0; } tr:nth-child(even) td { background:#f8f9fa; } .text-end { text-align:end; } .font-medium { font-weight:600; } .dist-grid { display:flex; gap:16px; margin:8px 0; flex-wrap:wrap; } .dist-item { display:flex; align-items:center; gap:6px; } .dist-count { font-weight:700; color:#0f3460; } .critical-item { background:#fef2f2; border-inline-start:3px solid #dc2626; padding:4px 8px; margin-block:3px; color:#991b1b; } .render-meta { margin:10px auto; max-inline-size:620px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .closing { break-inside:avoid-page; page-break-inside:avoid; } .footer { margin-block-start:12px; padding-block-start:10px; border-block-start:1px solid #e0e0e0; font-size:8px; color:#999; text-align:center; break-before:avoid-page; page-break-before:avoid; }
-  </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text3(boardName)}</h2><div class="project">${text3(projectName)}</div><div class="date">${text3(formatReportDateTime(context.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata2(context, locale)}</div>
+  </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text3(boardName)}</h2><div class="project">${text3(projectName)}</div><div class="date">${text3(formatReportDateTime(context2.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata2(context2, locale)}</div>
   <div class="section"><h2>${labels.boardSummary}</h2><div class="summary-grid"><div class="summary-card"><div class="label">${labels.totalItems}</div><div class="value">${number2(summary.totalItems, locale)}</div></div><div class="summary-card"><div class="label">${labels.estimatedCostRange}</div><div class="value" style="font-size:14px">${number2(summary.estimatedCostLow, locale)} \u2013 ${number2(summary.estimatedCostHigh, locale)}</div><div class="sub">${text3(summary.currency)}</div></div><div class="summary-card"><div class="label">${labels.longestLeadTime}</div><div class="value">${number2(summary.longestLeadTimeDays, locale)}d</div></div><div class="summary-card"><div class="label">${labels.criticalPathItems}</div><div class="value">${number2(summary.criticalPathItems.length, locale)}</div></div></div><h3>${labels.tierDistribution}</h3><div class="dist-grid">${tierRows}</div><h3>${labels.categoryDistribution}</h3><div class="dist-grid">${categoryRows}</div>${summary.criticalPathItems.length > 0 ? `<h3>${labels.criticalPathItems}</h3><div>${criticalItems}</div>` : ""}</div>
-  <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR \xB7 ${c("materialBoard")} \xB7 ${text3(formatReportDateTime(context.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
+  <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR \xB7 ${c("materialBoard")} \xB7 ${text3(formatReportDateTime(context2.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
 }
 var BOARD_COPY;
 var init_board_pdf = __esm({
@@ -12035,8 +12793,8 @@ function publicationDateFields(raw, evaluatedAt) {
     publicationDate
   };
 }
-function evaluateEvidenceConfidence(evidence, grade2, context) {
-  const evaluatedAt = context?.evaluatedAt ?? evidence.observedAt ?? new Date(Number.NaN);
+function evaluateEvidenceConfidence(evidence, grade2, context2) {
+  const evaluatedAt = context2?.evaluatedAt ?? evidence.observedAt ?? new Date(Number.NaN);
   const publicationInput = evidence.publicationDate?.raw ?? evidence.publishedDateRaw ?? evidence.publishedDate;
   const result = evaluateConnectorConfidence({
     grade: grade2,
@@ -13044,10 +13802,10 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
           raw.fetchedAt
         );
       }
-      async normalize(evidence, context) {
+      async normalize(evidence, context2) {
         const gradePolicy = this.gradePolicy;
         const grade2 = gradePolicy.grade;
-        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context);
+        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context2);
         const confidence = confidencePolicy.initial.score;
         const llmEvidence = evidence;
         return {
@@ -14302,9 +15060,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             normalized = await connector.normalize(evidence, { evaluatedAt: raw.fetchedAt });
           } catch (err) {
             const confidenceRejection = err instanceof ConfidencePolicyError ? err.rejection : null;
-            const reason = confidenceRejection?.rejectionCode ?? "normalization_failed";
+            const reason2 = confidenceRejection?.rejectionCode ?? "normalization_failed";
             rejected2++;
-            rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+            rejectionReasons[reason2] = (rejectionReasons[reason2] || 0) + 1;
             await persistConnectorRejection({
               runId,
               sourceId: String(connector.sourceId),
@@ -14317,23 +15075,23 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
               ) : void 0,
               parsingStatus: confidenceRejection?.publicationDate.status,
               parsedPublicationDate: confidenceRejection?.publicationDate.parsedAt,
-              rejectionCode: reason,
+              rejectionCode: reason2,
               gradePolicy: confidenceRejection ? connector.gradePolicy ?? resolveGradePolicy(String(connector.sourceId)) : void 0
             });
             continue;
           }
           const validationResult = normalizedEvidenceInputSchema.safeParse(normalized);
           if (!validationResult.success) {
-            const reason = "invalid_normalization";
+            const reason2 = "invalid_normalization";
             rejected2++;
-            rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+            rejectionReasons[reason2] = (rejectionReasons[reason2] || 0) + 1;
             await persistConnectorRejection({
               runId,
               sourceId: String(connector.sourceId),
               actorId,
               evaluationClock: raw.fetchedAt,
               rawPublicationText: evidence.publishedDateRaw ?? evidence.publicationDate?.raw ?? null,
-              rejectionCode: reason
+              rejectionCode: reason2
             });
             continue;
           }
@@ -14345,9 +15103,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             evaluatedAt: raw.fetchedAt
           });
           if (!confidenceEvaluation.accepted) {
-            const reason = confidenceEvaluation.rejectionCode;
+            const reason2 = confidenceEvaluation.rejectionCode;
             rejected2++;
-            rejectionReasons[reason] = (rejectionReasons[reason] || 0) + 1;
+            rejectionReasons[reason2] = (rejectionReasons[reason2] || 0) + 1;
             await persistConnectorRejection({
               runId,
               sourceId: String(connector.sourceId),
@@ -14360,7 +15118,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
               ),
               parsingStatus: confidenceEvaluation.publicationDate.status,
               parsedPublicationDate: confidenceEvaluation.publicationDate.parsedAt,
-              rejectionCode: reason,
+              rejectionCode: reason2,
               gradePolicy
             });
             continue;
@@ -14532,10 +15290,10 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     error: r.error
   }));
   const rejectionErrors = connectorResults.flatMap(
-    (result) => Object.entries(result.rejectionReasons).map(([reason, count2]) => ({
+    (result) => Object.entries(result.rejectionReasons).map(([reason2, count2]) => ({
       sourceId: result.sourceId,
       sourceName: result.sourceName,
-      error: `record_rejected:${reason} (${count2})`
+      error: `record_rejected:${reason2} (${count2})`
     }))
   );
   const errors = [...sourceErrors, ...rejectionErrors];
@@ -14932,10 +15690,10 @@ ${parsed.text}
       /**
        * Normalize: convert extracted items into evidence record format.
        */
-      async normalize(evidence, context) {
+      async normalize(evidence, context2) {
         const gradePolicy = resolveGradePolicy(this.sourceId);
         const grade2 = gradePolicy.grade;
-        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context);
+        const confidencePolicy = evaluateEvidenceConfidence(evidence, grade2, context2);
         const confidence = confidencePolicy.initial.score;
         const scadItem = evidence._scadItem;
         const metric = scadItem ? `${scadItem.materialName} (${scadItem.category})` : evidence.title;
@@ -15072,13 +15830,13 @@ function extractPricesFromText(text4) {
       const val = parseFloat(match[1].replace(/,/g, ""));
       if (!isNaN(val) && val > 0 && val < 1e8 && !seen.has(val)) {
         seen.add(val);
-        const context = text4.substring(
+        const context2 = text4.substring(
           Math.max(0, match.index - 30),
           Math.min(text4.length, match.index + match[0].length + 30)
         );
         let unit = "unit";
-        if (SQM_REGEX.test(context)) unit = "sqm";
-        else if (SQFT_REGEX.test(context)) unit = "sqft";
+        if (SQM_REGEX.test(context2)) unit = "sqm";
+        else if (SQFT_REGEX.test(context2)) unit = "sqft";
         prices.push({ value: val, unit });
       }
     }
@@ -15140,12 +15898,12 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
     SQFT_REGEX = /(?:per\s+)?(?:sq\.?\s*ft\.?|sqft|square\s+foot|square\s+feet)/i;
     SQM_REGEX = /(?:per\s+)?(?:sq\.?\s*m\.?|sqm|m²|square\s+met(?:er|re))/i;
     HTMLSourceConnector = class extends BaseSourceConnector {
-      confidenceMetadata(evidence, context) {
+      confidenceMetadata(evidence, context2) {
         const gradePolicy = resolveGradePolicy(this.sourceId);
         const confidencePolicy = evaluateEvidenceConfidence(
           evidence,
           gradePolicy.grade,
-          context
+          context2
         );
         return {
           grade: gradePolicy.grade,
@@ -15219,8 +15977,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         }
         return evidence;
       }
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         if (llmEvidence._llmValue !== void 0) {
           return {
@@ -15320,8 +16078,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-survey", "construction", "industry-report", "rics"];
       defaultUnit = "sqm";
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -15344,8 +16102,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "mena", "jll"];
       defaultUnit = "sqm";
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -15368,8 +16126,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Dubai";
       defaultTags = ["government", "statistics", "dubai", "economic-indicators"];
       defaultUnit = "sqm";
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -15410,8 +16168,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Dubai";
       defaultTags = ["government", "material-prices", "construction", "dubai-pulse"];
       defaultUnit = "unit";
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -15434,8 +16192,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Abu Dhabi";
       defaultTags = ["government", "statistics", "abu-dhabi", "material-prices"];
       defaultUnit = "unit";
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -15458,8 +16216,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "Dubai";
       defaultTags = ["government", "transactions", "real-estate", "dld"];
       defaultUnit = "sqft";
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -15491,8 +16249,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "commercial", "cbre"];
       defaultUnit = "sqft";
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -15515,8 +16273,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "residential", "knight-frank"];
       defaultUnit = "sqft";
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -15539,8 +16297,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["market-research", "real-estate", "investment", "savills"];
       defaultUnit = "sqft";
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         return {
           metric: llmEvidence._llmMetric || evidence.title,
@@ -15584,8 +16342,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         }
         return this.fetchWithFirecrawl();
       }
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         let metric = llmEvidence._llmMetric || evidence.title;
         let value = llmEvidence._llmValue ?? null;
@@ -15633,8 +16391,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
         }
         return this.fetchWithFirecrawl();
       }
-      async normalize(evidence, context) {
-        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context);
+      async normalize(evidence, context2) {
+        const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context2);
         const llmEvidence = evidence;
         let metric = llmEvidence._llmMetric || evidence.title;
         let value = llmEvidence._llmValue ?? null;
@@ -16754,6 +17512,214 @@ Array of any issues or missing information noticed.
       })).default([]),
       sectionSummary: z36.string().default("")
     });
+  }
+});
+
+// shared/brief-contract.ts
+var brief_contract_exports = {};
+__export(brief_contract_exports, {
+  ACHIEVED_STATES: () => ACHIEVED_STATES,
+  APPLICABILITY_VALUES: () => APPLICABILITY_VALUES,
+  BRIEF_INSUFFICIENCY_CODES: () => BRIEF_INSUFFICIENCY_CODES,
+  BRIEF_POLICY_VERSION: () => BRIEF_POLICY_VERSION,
+  BRIEF_SECTION_IDS: () => BRIEF_SECTION_IDS,
+  BRIEF_TYPOLOGY_PROFILES: () => BRIEF_TYPOLOGY_PROFILES,
+  CONDITION_GATES: () => CONDITION_GATES,
+  CONDITION_KINDS: () => CONDITION_KINDS,
+  CONTENT_AUTHORITIES: () => CONTENT_AUTHORITIES,
+  DEPENDENCY_TYPES: () => DEPENDENCY_TYPES,
+  FUNCTIONAL_ROLES: () => FUNCTIONAL_ROLES,
+  ISSUE_PURPOSES: () => ISSUE_PURPOSES,
+  ISSUE_STATUSES: () => ISSUE_STATUSES,
+  PURPOSE_SECTION_APPLICABILITY: () => PURPOSE_SECTION_APPLICABILITY,
+  WORKFLOW_EVENT_TYPES: () => WORKFLOW_EVENT_TYPES,
+  briefAchievedStateSchema: () => briefAchievedStateSchema,
+  briefApplicabilitySchema: () => briefApplicabilitySchema,
+  briefConditionGateSchema: () => briefConditionGateSchema,
+  briefConditionKindSchema: () => briefConditionKindSchema,
+  briefContentAuthoritySchema: () => briefContentAuthoritySchema,
+  briefDependencyTypeSchema: () => briefDependencyTypeSchema,
+  briefFunctionalRoleSchema: () => briefFunctionalRoleSchema,
+  briefInsufficiencyCodeSchema: () => briefInsufficiencyCodeSchema,
+  briefIssueStatusSchema: () => briefIssueStatusSchema,
+  briefReadinessRefSchema: () => briefReadinessRefSchema,
+  briefSectionIdSchema: () => briefSectionIdSchema,
+  briefTypologyProfileSchema: () => briefTypologyProfileSchema,
+  briefWorkflowEventTypeSchema: () => briefWorkflowEventTypeSchema,
+  issuePurposeSchema: () => issuePurposeSchema
+});
+import { z as z41 } from "zod";
+var BRIEF_POLICY_VERSION, BRIEF_SECTION_IDS, ISSUE_PURPOSES, BRIEF_TYPOLOGY_PROFILES, APPLICABILITY_VALUES, ACHIEVED_STATES, CONTENT_AUTHORITIES, FUNCTIONAL_ROLES, CONDITION_KINDS, CONDITION_GATES, ISSUE_STATUSES, DEPENDENCY_TYPES, WORKFLOW_EVENT_TYPES, BRIEF_INSUFFICIENCY_CODES, briefSectionIdSchema, issuePurposeSchema, briefTypologyProfileSchema, briefApplicabilitySchema, briefAchievedStateSchema, briefContentAuthoritySchema, briefFunctionalRoleSchema, briefConditionKindSchema, briefConditionGateSchema, briefIssueStatusSchema, briefDependencyTypeSchema, briefWorkflowEventTypeSchema, briefInsufficiencyCodeSchema, briefReadinessRefSchema, PURPOSE_SECTION_APPLICABILITY;
+var init_brief_contract = __esm({
+  "shared/brief-contract.ts"() {
+    "use strict";
+    BRIEF_POLICY_VERSION = "BR-03-readiness-v1";
+    BRIEF_SECTION_IDS = [
+      "intent",
+      "asset_context",
+      "space_programme",
+      "design_direction",
+      "specification_intent",
+      "cost_quantities",
+      "supply",
+      "risk_compliance",
+      "concept_media",
+      "governance"
+    ];
+    ISSUE_PURPOSES = [
+      "internal_coordination",
+      "client_board_approval",
+      "tender_rfq"
+    ];
+    BRIEF_TYPOLOGY_PROFILES = [
+      "apartment",
+      "villa",
+      "office",
+      "hospitality",
+      "retail",
+      "mixed_use"
+    ];
+    APPLICABILITY_VALUES = [
+      "required",
+      "conditional",
+      "not_applicable"
+    ];
+    ACHIEVED_STATES = [
+      "missing",
+      "drafted",
+      "evidenced",
+      "reviewed",
+      "approved",
+      "issued"
+    ];
+    CONTENT_AUTHORITIES = [
+      "explicit_user_input",
+      "deterministic_calculation",
+      "governed_evidence",
+      "declared_assumption",
+      "professional_signoff",
+      "ai_suggestion"
+    ];
+    FUNCTIONAL_ROLES = [
+      "author",
+      "section_owner",
+      "reviewer",
+      "approver",
+      "issuer",
+      "viewer"
+    ];
+    CONDITION_KINDS = ["stale", "blocked"];
+    CONDITION_GATES = ["evidence_content", "approval_issue"];
+    ISSUE_STATUSES = ["active", "superseded", "withdrawn"];
+    DEPENDENCY_TYPES = [
+      "project_input",
+      "scenario",
+      "geometry",
+      "space_programme",
+      "evidence",
+      "calculation",
+      "benchmark",
+      "material",
+      "supplier_offer",
+      "board",
+      "visual",
+      "generation"
+    ];
+    WORKFLOW_EVENT_TYPES = [
+      "stream_created",
+      "version_created",
+      "section_revised",
+      "role_assigned",
+      "role_revoked",
+      "finding_opened",
+      "finding_resolution_submitted",
+      "finding_resolution_accepted",
+      "evidence_submitted",
+      "applicability_proposed",
+      "applicability_reviewed",
+      "applicability_approved",
+      "review_accepted",
+      "section_approved",
+      "approval_withdrawn",
+      "condition_raised",
+      "condition_resolution_submitted",
+      "condition_resolution_accepted",
+      "issue_created",
+      "issue_superseded",
+      "issue_withdrawal_requested",
+      "issue_withdrawal_approved"
+    ];
+    BRIEF_INSUFFICIENCY_CODES = [
+      "invalid_section_structure",
+      "unclassified_requirement",
+      "missing_content",
+      "missing_evidence",
+      "prohibited_assumption",
+      "incomplete_na_approval",
+      "unresolved_finding",
+      "active_stale_condition",
+      "active_blocked_condition",
+      "failed_reconciliation",
+      "missing_lineage",
+      "role_separation_failure",
+      "missing_issue_metadata"
+    ];
+    briefSectionIdSchema = z41.enum(BRIEF_SECTION_IDS);
+    issuePurposeSchema = z41.enum(ISSUE_PURPOSES);
+    briefTypologyProfileSchema = z41.enum(BRIEF_TYPOLOGY_PROFILES);
+    briefApplicabilitySchema = z41.enum(APPLICABILITY_VALUES);
+    briefAchievedStateSchema = z41.enum(ACHIEVED_STATES);
+    briefContentAuthoritySchema = z41.enum(CONTENT_AUTHORITIES);
+    briefFunctionalRoleSchema = z41.enum(FUNCTIONAL_ROLES);
+    briefConditionKindSchema = z41.enum(CONDITION_KINDS);
+    briefConditionGateSchema = z41.enum(CONDITION_GATES);
+    briefIssueStatusSchema = z41.enum(ISSUE_STATUSES);
+    briefDependencyTypeSchema = z41.enum(DEPENDENCY_TYPES);
+    briefWorkflowEventTypeSchema = z41.enum(WORKFLOW_EVENT_TYPES);
+    briefInsufficiencyCodeSchema = z41.enum(BRIEF_INSUFFICIENCY_CODES);
+    briefReadinessRefSchema = z41.object({
+      projectId: z41.number().int().positive(),
+      briefId: z41.string().trim().min(1).max(128),
+      versionId: z41.string().trim().min(1).max(128)
+    });
+    PURPOSE_SECTION_APPLICABILITY = {
+      internal_coordination: {
+        intent: "required",
+        asset_context: "required",
+        space_programme: "required",
+        design_direction: "required",
+        specification_intent: "conditional",
+        cost_quantities: "conditional",
+        supply: "conditional",
+        risk_compliance: "required",
+        concept_media: "conditional",
+        governance: "required"
+      },
+      client_board_approval: {
+        intent: "required",
+        asset_context: "required",
+        space_programme: "required",
+        design_direction: "required",
+        specification_intent: "required",
+        cost_quantities: "required",
+        supply: "conditional",
+        risk_compliance: "required",
+        concept_media: "conditional",
+        governance: "required"
+      },
+      tender_rfq: {
+        intent: "required",
+        asset_context: "required",
+        space_programme: "required",
+        design_direction: "required",
+        specification_intent: "required",
+        cost_quantities: "required",
+        supply: "required",
+        risk_compliance: "required",
+        concept_media: "conditional",
+        governance: "required"
+      }
+    };
   }
 });
 
@@ -18359,15 +19325,15 @@ var REPORT_RENDERER_VERSION = "pdf-report-html-v3";
 function dynamicText(value) {
   return `<bdi dir="auto" data-report-dynamic>${escapeReportText(value)}</bdi>`;
 }
-function htmlHeader(title, subtitle, projectName, context) {
-  const metadata = reportDocumentMetadata(context.locale);
+function htmlHeader(title, subtitle, projectName, context2) {
+  const metadata = reportDocumentMetadata(context2.locale);
   return `
 <!DOCTYPE html>
 <html lang="${metadata.lang}" dir="${metadata.dir}">
 <head>
 <meta charset="utf-8">
 <style>
-  ${reportLocaleCss(context.locale)}
+  ${reportLocaleCss(context2.locale)}
   @page { size: A4; margin: 20mm 15mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { color: #1a1a2e; line-height: 1.6; font-size: 11px; overflow-wrap: anywhere; }
@@ -18434,17 +19400,17 @@ function htmlHeader(title, subtitle, projectName, context) {
   <h1>${escapeReportText(title)}</h1>
   <h2>${escapeReportText(subtitle)}</h2>
   <div class="project">${dynamicText(projectName)}</div>
-  <div class="date">${formatReportDate(context.generatedAt, context.locale)}</div>
-  <div class="confidential">${reportCopy(context.locale, "confidentialInternalOnly")}</div>
-  <div class="watermark">${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}</div>
+  <div class="date">${formatReportDate(context2.generatedAt, context2.locale)}</div>
+  <div class="confidential">${reportCopy(context2.locale, "confidentialInternalOnly")}</div>
+  <div class="watermark">${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)}</div>
   <div class="repro-meta">
-    <div><span class="label">${reportCopy(context.locale, "modelVersion")}:</span> ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))}</div>
-    <div><span class="label">${reportCopy(context.locale, "benchmarkVersion")}:</span> ${escapeReportText(context.benchmarkVersion ?? reportCopy(context.locale, "notAvailable"))}</div>
-    <div><span class="label">${reportCopy(context.locale, "logicVersion")}:</span> ${escapeReportText(context.logicVersion ?? reportCopy(context.locale, "notAvailable"))}</div>
-    <div><span class="label">${reportCopy(context.locale, "generatedAt")}:</span> ${escapeReportText(context.generatedAt)}</div>
-    <div><span class="label">${reportCopy(context.locale, "documentId")}:</span> ${escapeReportText(context.documentId)}</div>
-    <div><span class="label">${reportCopy(context.locale, "renderInputFingerprint")}:</span> ${escapeReportText(context.renderInputFingerprint)}</div>
-    <div>${reportCopy(context.locale, "renderInputFingerprintHelp")}</div>
+    <div><span class="label">${reportCopy(context2.locale, "modelVersion")}:</span> ${escapeReportText(context2.modelVersion ?? reportCopy(context2.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context2.locale, "benchmarkVersion")}:</span> ${escapeReportText(context2.benchmarkVersion ?? reportCopy(context2.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context2.locale, "logicVersion")}:</span> ${escapeReportText(context2.logicVersion ?? reportCopy(context2.locale, "notAvailable"))}</div>
+    <div><span class="label">${reportCopy(context2.locale, "generatedAt")}:</span> ${escapeReportText(context2.generatedAt)}</div>
+    <div><span class="label">${reportCopy(context2.locale, "documentId")}:</span> ${escapeReportText(context2.documentId)}</div>
+    <div><span class="label">${reportCopy(context2.locale, "renderInputFingerprint")}:</span> ${escapeReportText(context2.renderInputFingerprint)}</div>
+    <div>${reportCopy(context2.locale, "renderInputFingerprintHelp")}</div>
   </div>
 </div>
 `;
@@ -18484,14 +19450,14 @@ function renderDisclaimer(locale) {
 </div>
 `;
 }
-function htmlFooter(context) {
+function htmlFooter(context2) {
   return `
 <div class="report-closing">
-${renderDisclaimer(context.locale)}
+${renderDisclaimer(context2.locale)}
 <div class="footer">
-  MIYAR Decision Intelligence Platform | ${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)} | ${reportCopy(context.locale, "generated")}: ${formatReportDate(context.generatedAt, context.locale)}<br>
-  ${reportCopy(context.locale, "modelVersion")}: ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))} | ${reportCopy(context.locale, "benchmarkVersion")}: ${escapeReportText(context.benchmarkVersion ?? reportCopy(context.locale, "notAvailable"))} | ${reportCopy(context.locale, "logicVersion")}: ${escapeReportText(context.logicVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
-  <span style="font-size:8px;">${reportCopy(context.locale, "scoresAdvisory")}</span>
+  MIYAR Decision Intelligence Platform | ${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)} | ${reportCopy(context2.locale, "generated")}: ${formatReportDate(context2.generatedAt, context2.locale)}<br>
+  ${reportCopy(context2.locale, "modelVersion")}: ${escapeReportText(context2.modelVersion ?? reportCopy(context2.locale, "notAvailable"))} | ${reportCopy(context2.locale, "benchmarkVersion")}: ${escapeReportText(context2.benchmarkVersion ?? reportCopy(context2.locale, "notAvailable"))} | ${reportCopy(context2.locale, "logicVersion")}: ${escapeReportText(context2.logicVersion ?? reportCopy(context2.locale, "notAvailable"))}<br>
+  <span style="font-size:8px;">${reportCopy(context2.locale, "scoresAdvisory")}</span>
 </div>
 </div>
 </body>
@@ -18807,22 +19773,22 @@ function renderFiveLens(fiveLens) {
 </div>
 `;
 }
-function renderEvidenceTrace(projectId, context) {
+function renderEvidenceTrace(projectId, context2) {
   return `
 <div class="section">
-  <h2>${reportCopy(context.locale, "evidenceTrace")}</h2>
+  <h2>${reportCopy(context2.locale, "evidenceTrace")}</h2>
   <div class="evidence-trace">
-    ${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}<br>
+    ${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)}<br>
     Project ID: ${projectId}<br>
-    ${reportCopy(context.locale, "benchmarkVersion")}: ${escapeReportText(context.benchmarkVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
-    ${reportCopy(context.locale, "logicVersion")}: ${escapeReportText(context.logicVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
-    ${reportCopy(context.locale, "modelVersion")}: ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))}<br>
-    ${reportCopy(context.locale, "generatedAt")}: ${escapeReportText(context.generatedAt)}<br>
-    ${reportCopy(context.locale, "artifactVersion")}: ${escapeReportText(context.artifactVersion)}<br>
-    ${reportCopy(context.locale, "rendererVersion")}: ${escapeReportText(context.rendererVersion)}<br>
-    ${reportCopy(context.locale, "renderInputFingerprint")}: ${escapeReportText(context.renderInputFingerprint)}
+    ${reportCopy(context2.locale, "benchmarkVersion")}: ${escapeReportText(context2.benchmarkVersion ?? reportCopy(context2.locale, "notAvailable"))}<br>
+    ${reportCopy(context2.locale, "logicVersion")}: ${escapeReportText(context2.logicVersion ?? reportCopy(context2.locale, "notAvailable"))}<br>
+    ${reportCopy(context2.locale, "modelVersion")}: ${escapeReportText(context2.modelVersion ?? reportCopy(context2.locale, "notAvailable"))}<br>
+    ${reportCopy(context2.locale, "generatedAt")}: ${escapeReportText(context2.generatedAt)}<br>
+    ${reportCopy(context2.locale, "artifactVersion")}: ${escapeReportText(context2.artifactVersion)}<br>
+    ${reportCopy(context2.locale, "rendererVersion")}: ${escapeReportText(context2.rendererVersion)}<br>
+    ${reportCopy(context2.locale, "renderInputFingerprint")}: ${escapeReportText(context2.renderInputFingerprint)}
   </div>
-  <p style="font-size:9px; color:#666; margin-top:8px;">${reportCopy(context.locale, "renderInputFingerprintHelp")}</p>
+  <p style="font-size:9px; color:#666; margin-top:8px;">${reportCopy(context2.locale, "renderInputFingerprintHelp")}</p>
 </div>
 `;
 }
@@ -19179,34 +20145,34 @@ function resolveReportContext(reportType, data) {
   if (data.renderContext) return data.renderContext;
   return createPdfReportRenderContext(reportType, data);
 }
-function finalizeReportHtml(html, context) {
-  return localizeGovernedReportCopy(html, context.locale);
+function finalizeReportHtml(html, context2) {
+  return localizeGovernedReportCopy(html, context2.locale);
 }
 function generateAutonomousBriefHTML(data) {
-  const context = resolveReportContext("autonomous_design_brief", data);
-  const contentHtml = `<div class="section markdown-body">${renderReportMarkdown(data.autonomousContent || reportCopy(context.locale, "noContentGenerated"))}</div>`;
+  const context2 = resolveReportContext("autonomous_design_brief", data);
+  const contentHtml = `<div class="section markdown-body">${renderReportMarkdown(data.autonomousContent || reportCopy(context2.locale, "noContentGenerated"))}</div>`;
   return finalizeReportHtml([
-    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, context),
+    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, context2),
     contentHtml,
-    renderEvidenceTrace(data.projectId, context),
-    htmlFooter(context)
-  ].join(""), context);
+    renderEvidenceTrace(data.projectId, context2),
+    htmlFooter(context2)
+  ].join(""), context2);
 }
 function generateValidationSummaryHTML(data) {
-  const context = resolveReportContext("validation_summary", data);
+  const context2 = resolveReportContext("validation_summary", data);
   return finalizeReportHtml([
-    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, context),
+    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, context2),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderRiskAssessment(data.scoreResult),
-    renderSensitivity(data.sensitivity, context.locale),
-    renderConditionalActions(data.scoreResult, context.locale),
+    renderSensitivity(data.sensitivity, context2.locale),
+    renderConditionalActions(data.scoreResult, context2.locale),
     data.fiveLens ? renderFiveLens(data.fiveLens) : "",
-    renderEvidenceReferences(data.evidenceRefs, context.locale),
-    renderEvidenceTrace(data.projectId, context),
+    renderEvidenceReferences(data.evidenceRefs, context2.locale),
+    renderEvidenceTrace(data.projectId, context2),
     renderInputSummary(data.inputs),
-    htmlFooter(context)
-  ].join("\n"), context);
+    htmlFooter(context2)
+  ].join("\n"), context2);
 }
 function renderDesignBrief(brief) {
   if (!brief) return "<div class='section'><p>No Design Brief data available.</p></div>";
@@ -19337,46 +20303,46 @@ ${toc}
 `;
 }
 function generateDesignBriefHTML(data) {
-  const context = resolveReportContext("design_brief", data);
+  const context2 = resolveReportContext("design_brief", data);
   return finalizeReportHtml([
-    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, context),
+    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, context2),
     `<div class="content-wrapper">`,
     renderDesignBrief(data.designBrief),
-    renderBoardAnnex(data.boardAnnex, context.locale),
-    renderEvidenceReferences(data.evidenceRefs, context.locale),
-    renderEvidenceTrace(data.projectId, context),
+    renderBoardAnnex(data.boardAnnex, context2.locale),
+    renderEvidenceReferences(data.evidenceRefs, context2.locale),
+    renderEvidenceTrace(data.projectId, context2),
     `</div>`,
-    htmlFooter(context)
-  ].join(""), context);
+    htmlFooter(context2)
+  ].join(""), context2);
 }
 function generateFullReportHTML(data) {
-  const context = resolveReportContext("full_report", data);
+  const context2 = resolveReportContext("full_report", data);
   const sections = [
-    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, context),
+    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, context2),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderVariableContributions(data.scoreResult.variableContributions),
-    renderSensitivity(data.sensitivity, context.locale),
+    renderSensitivity(data.sensitivity, context2.locale),
     renderRiskAssessment(data.scoreResult),
-    renderConditionalActions(data.scoreResult, context.locale)
+    renderConditionalActions(data.scoreResult, context2.locale)
   ];
   if (data.fiveLens) {
     sections.push(renderFiveLens(data.fiveLens));
   }
   if (data.roiNarrative) {
-    sections.push(renderROINarrative(data.roiNarrative, context.locale));
+    sections.push(renderROINarrative(data.roiNarrative, context2.locale));
   } else if (data.roi) {
-    sections.push(renderROI(data.roi, context.locale));
+    sections.push(renderROI(data.roi, context2.locale));
   }
   if (data.workflowReconciliation) {
-    sections.push(renderWorkflowReconciliation(data.workflowReconciliation, context.locale));
+    sections.push(renderWorkflowReconciliation(data.workflowReconciliation, context2.locale));
   }
-  sections.push(renderBoardAnnex(data.boardAnnex, context.locale));
-  sections.push(renderEvidenceReferences(data.evidenceRefs, context.locale));
-  sections.push(renderEvidenceTrace(data.projectId, context));
+  sections.push(renderBoardAnnex(data.boardAnnex, context2.locale));
+  sections.push(renderEvidenceReferences(data.evidenceRefs, context2.locale));
+  sections.push(renderEvidenceTrace(data.projectId, context2));
   sections.push(renderInputSummary(data.inputs));
-  sections.push(htmlFooter(context));
-  return finalizeReportHtml(sections.join("\n"), context);
+  sections.push(htmlFooter(context2));
+  return finalizeReportHtml(sections.join("\n"), context2);
 }
 function renderScenarioComparisonTable(data) {
   const dims = ["sa", "ff", "mp", "ds", "er"];
@@ -19486,15 +20452,15 @@ function renderTradeoffAnalysis(data, locale) {
 `;
 }
 function generateScenarioComparisonHTML(data) {
-  const context = resolveReportContext("scenario_comparison", data);
+  const context2 = resolveReportContext("scenario_comparison", data);
   return finalizeReportHtml([
-    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, context),
+    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, context2),
     renderScenarioComparisonTable(data),
     renderROIComparison(data),
-    renderTradeoffAnalysis(data, context.locale),
-    renderEvidenceTrace(data.projectId, context),
-    htmlFooter(context)
-  ].join("\n"), context);
+    renderTradeoffAnalysis(data, context2.locale),
+    renderEvidenceTrace(data.projectId, context2),
+    htmlFooter(context2)
+  ].join("\n"), context2);
 }
 function requireBoardAnnex(data) {
   if (!data.boardAnnex) {
@@ -19517,15 +20483,15 @@ function generateReportHTML(reportType, data) {
   }
 }
 function generatePortfolioReportHTML(data) {
-  const context = resolveReportContext("portfolio", data);
-  const metadata = reportDocumentMetadata(context.locale);
+  const context2 = resolveReportContext("portfolio", data);
+  const metadata = reportDocumentMetadata(context2.locale);
   const cover = `
 <!DOCTYPE html>
 <html lang="${metadata.lang}" dir="${metadata.dir}">
 <head>
 <meta charset="utf-8">
 <style>
-  ${reportLocaleCss(context.locale)}
+  ${reportLocaleCss(context2.locale)}
   @page { size: A4; margin: 20mm 15mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { color: #1a1a2e; line-height: 1.6; font-size: 11px; overflow-wrap: anywhere; }
@@ -19563,9 +20529,9 @@ function generatePortfolioReportHTML(data) {
   <h1>Portfolio Analysis Report</h1>
   <h2>Multi-Project Decision Intelligence Summary</h2>
   <div class="project">${dynamicText(data.portfolioName)}</div>
-  <div class="date">${formatReportDate(context.generatedAt, context.locale)}</div>
-  <div class="confidential">${reportCopy(context.locale, "confidentialInternalOnly")}</div>
-  <div class="watermark">${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}</div>
+  <div class="date">${formatReportDate(context2.generatedAt, context2.locale)}</div>
+  <div class="confidential">${reportCopy(context2.locale, "confidentialInternalOnly")}</div>
+  <div class="watermark">${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)}</div>
 </div>
 `;
   const summary = `
@@ -19574,19 +20540,19 @@ function generatePortfolioReportHTML(data) {
   ${data.description ? `<p>${dynamicText(data.description)}</p>` : ""}
   <div class="metric-grid">
     <div class="metric-card">
-      <div class="label">${reportCopy(context.locale, "portfolioTotalProjects")}</div>
+      <div class="label">${reportCopy(context2.locale, "portfolioTotalProjects")}</div>
       <div class="value">${data.totalProjects}</div>
     </div>
     <div class="metric-card">
-      <div class="label">${reportCopy(context.locale, "portfolioScored")}</div>
+      <div class="label">${reportCopy(context2.locale, "portfolioScored")}</div>
       <div class="value">${data.scoredCount}</div>
     </div>
     <div class="metric-card">
-      <div class="label">${reportCopy(context.locale, "portfolioAverageComposite")}</div>
+      <div class="label">${reportCopy(context2.locale, "portfolioAverageComposite")}</div>
       <div class="value" style="color: ${data.avgComposite >= 75 ? "#4ecdc4" : data.avgComposite >= 55 ? "#f0c674" : "#e07a5f"};">${data.avgComposite}</div>
     </div>
     <div class="metric-card">
-      <div class="label">${reportCopy(context.locale, "portfolioAverageRisk")}</div>
+      <div class="label">${reportCopy(context2.locale, "portfolioAverageRisk")}</div>
       <div class="value" style="color: ${data.avgRisk <= 45 ? "#4ecdc4" : data.avgRisk <= 60 ? "#f0c674" : "#e07a5f"};">${data.avgRisk}</div>
     </div>
   </div>
@@ -19600,7 +20566,7 @@ function generatePortfolioReportHTML(data) {
       <td>${p.style ? dynamicText(p.style) : "\u2014"}</td>
       <td style="text-align:center; font-weight:700; color: ${(p.compositeScore || 0) >= 75 ? "#4ecdc4" : (p.compositeScore || 0) >= 55 ? "#f0c674" : "#e07a5f"};">${p.compositeScore ?? "N/A"}</td>
       <td style="text-align:center;">${p.riskScore ?? "N/A"}</td>
-      <td style="text-align:center;" class="${statusClass}">${p.decisionStatus?.toLowerCase() === "conditional" ? reportCopy(context.locale, "portfolioConditional") : dynamicText((p.decisionStatus || "\u2014").replace(/_/g, " "))}</td>
+      <td style="text-align:center;" class="${statusClass}">${p.decisionStatus?.toLowerCase() === "conditional" ? reportCopy(context2.locale, "portfolioConditional") : dynamicText((p.decisionStatus || "\u2014").replace(/_/g, " "))}</td>
     </tr>`;
   }).join("");
   const projectTable = `
@@ -19654,9 +20620,9 @@ function generatePortfolioReportHTML(data) {
   }
   const footer = `
 <div class="footer">
-  <p>${reportCopy(context.locale, "portfolioGeneratedBy")} \u2022 ${formatReportDate(context.generatedAt, context.locale)} \u2022 ${reportCopy(context.locale, "documentId")}: ${escapeReportText(context.documentId)}</p>
-  <p>${reportCopy(context.locale, "portfolioId")}: ${data.portfolioId} \u2022 ${reportCopy(context.locale, "modelVersion")}: ${escapeReportText(context.modelVersion ?? reportCopy(context.locale, "notAvailable"))} \u2022 ${data.totalProjects} ${reportCopy(context.locale, "portfolioProjectsAnalyzed")}</p>
-  <p>${reportCopy(context.locale, "renderInputFingerprint")}: ${escapeReportText(context.renderInputFingerprint)}</p>
+  <p>${reportCopy(context2.locale, "portfolioGeneratedBy")} \u2022 ${formatReportDate(context2.generatedAt, context2.locale)} \u2022 ${reportCopy(context2.locale, "documentId")}: ${escapeReportText(context2.documentId)}</p>
+  <p>${reportCopy(context2.locale, "portfolioId")}: ${data.portfolioId} \u2022 ${reportCopy(context2.locale, "modelVersion")}: ${escapeReportText(context2.modelVersion ?? reportCopy(context2.locale, "notAvailable"))} \u2022 ${data.totalProjects} ${reportCopy(context2.locale, "portfolioProjectsAnalyzed")}</p>
+  <p>${reportCopy(context2.locale, "renderInputFingerprint")}: ${escapeReportText(context2.renderInputFingerprint)}</p>
 </div>
 </body>
 </html>
@@ -19669,9 +20635,9 @@ function generatePortfolioReportHTML(data) {
     heatmapSection,
     fpSection,
     leverSection,
-    renderDisclaimer(context.locale),
+    renderDisclaimer(context2.locale),
     footer
-  ].join("\n"), context);
+  ].join("\n"), context2);
 }
 
 // server/engines/board-composer.ts
@@ -20901,13 +21867,13 @@ async function storagePut(relKey, data, contentType = "application/octet-stream"
     const dataUrl = `data:${contentType};base64,${b64}`;
     return { key, url: dataUrl, persistent: false };
   }
-  const command = new PutObjectCommand({
+  const command2 = new PutObjectCommand({
     Bucket: bucketName,
     Key: key,
     Body: typeof data === "string" ? Buffer2.from(data, "utf-8") : data,
     ContentType: contentType
   });
-  await client.send(command);
+  await client.send(command2);
   const getCommand = new GetObjectCommand({
     Bucket: bucketName,
     Key: key
@@ -20921,12 +21887,12 @@ async function storageCreatePresignedPut(relKey, contentType, expiresIn = 15 * 6
   if (!bucketName) {
     throw new Error("Object storage is not configured for direct uploads");
   }
-  const command = new PutObjectCommand({
+  const command2 = new PutObjectCommand({
     Bucket: bucketName,
     Key: key,
     ContentType: contentType
   });
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  const uploadUrl = await getSignedUrl(client, command2, { expiresIn });
   return { key, uploadUrl };
 }
 async function storageRead(relKey, maxBytes) {
@@ -26441,8 +27407,8 @@ async function generateDesignBriefDocx(data) {
   const budget = data.detailedBudget ?? {};
   const instructions = data.designerInstructions ?? { phasedDeliverables: {}, authorityApprovals: [], coordinationRequirements: [], procurementAndLogistics: {} };
   const projectName = String(data.projectName ?? identity.projectName ?? "MIYAR Project");
-  const context = data.renderContext ?? createDesignBriefDocxRenderContext(data);
-  const watermark = context.documentId;
+  const context2 = data.renderContext ?? createDesignBriefDocxRenderContext(data);
+  const watermark = context2.documentId;
   const sections = [];
   sections.push(
     new Paragraph({
@@ -26461,7 +27427,7 @@ async function generateDesignBriefDocx(data) {
       alignment: AlignmentType.CENTER,
       bidirectional: rtl,
       spacing: { after: 200 },
-      children: [new TextRun({ text: `${docxFixed("Version", rtl)} ${data.version} \u2014 ${formatReportDate(context.generatedAt, locale)}`, size: 22, color: "666666", rightToLeft: rtl })]
+      children: [new TextRun({ text: `${docxFixed("Version", rtl)} ${data.version} \u2014 ${formatReportDate(context2.generatedAt, locale)}`, size: 22, color: "666666", rightToLeft: rtl })]
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -26486,14 +27452,14 @@ async function generateDesignBriefDocx(data) {
   );
   sections.push(spacer(rtl));
   sections.push(
-    labelValue(reportCopy(locale, "documentId"), context.documentId, rtl),
-    labelValue(reportCopy(locale, "generatedAt"), context.generatedAt, rtl),
-    labelValue(reportCopy(locale, "artifactVersion"), context.artifactVersion, rtl),
-    labelValue(reportCopy(locale, "rendererVersion"), context.rendererVersion, rtl),
-    labelValue(reportCopy(locale, "modelVersion"), context.modelVersion ?? reportCopy(locale, "notAvailable"), rtl),
-    labelValue(reportCopy(locale, "benchmarkVersion"), context.benchmarkVersion ?? reportCopy(locale, "notAvailable"), rtl),
-    labelValue(reportCopy(locale, "logicVersion"), context.logicVersion ?? reportCopy(locale, "notAvailable"), rtl),
-    labelValue(reportCopy(locale, "renderInputFingerprint"), context.renderInputFingerprint, rtl),
+    labelValue(reportCopy(locale, "documentId"), context2.documentId, rtl),
+    labelValue(reportCopy(locale, "generatedAt"), context2.generatedAt, rtl),
+    labelValue(reportCopy(locale, "artifactVersion"), context2.artifactVersion, rtl),
+    labelValue(reportCopy(locale, "rendererVersion"), context2.rendererVersion, rtl),
+    labelValue(reportCopy(locale, "modelVersion"), context2.modelVersion ?? reportCopy(locale, "notAvailable"), rtl),
+    labelValue(reportCopy(locale, "benchmarkVersion"), context2.benchmarkVersion ?? reportCopy(locale, "notAvailable"), rtl),
+    labelValue(reportCopy(locale, "logicVersion"), context2.logicVersion ?? reportCopy(locale, "notAvailable"), rtl),
+    labelValue(reportCopy(locale, "renderInputFingerprint"), context2.renderInputFingerprint, rtl),
     bodyText(reportCopy(locale, "renderInputFingerprintHelp"), rtl),
     spacer(rtl)
   );
@@ -28591,9 +29557,9 @@ function buildRoomPromptContext(inputs, roomName, roomType, roomSqm, boardMateri
     (m) => roomCategories.includes(m.category)
   );
   const materialsToUse = filteredMaterials.length > 0 ? filteredMaterials : boardMaterials;
-  const context = buildBoardAwarePromptContext(inputs, materialsToUse, brandStandardConstraints);
-  context.typology = `${roomSqm} sqm ${roomName} in a ${inputs.ctx01Typology} unit`;
-  return context;
+  const context2 = buildBoardAwarePromptContext(inputs, materialsToUse, brandStandardConstraints);
+  context2.typology = `${roomSqm} sqm ${roomName} in a ${inputs.ctx01Typology} unit`;
+  return context2;
 }
 function getRoomRelevantCategories(roomType) {
   switch (roomType) {
@@ -28614,38 +29580,38 @@ function getRoomRelevantCategories(roomType) {
       return ["tile", "stone", "wood", "paint", "lighting"];
   }
 }
-function interpolateTemplate(template, context) {
+function interpolateTemplate(template, context2) {
   let result = template;
-  for (const [key, value] of Object.entries(context)) {
+  for (const [key, value] of Object.entries(context2)) {
     if (typeof value === "string") {
       result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
     }
   }
   return result;
 }
-function generateDefaultPrompt(type, context) {
-  const materialClause = context.materialSpec ? `
+function generateDefaultPrompt(type, context2) {
+  const materialClause = context2.materialSpec ? `
 
 MATERIAL SPECIFICATION (use these EXACT materials in the render):
-${context.materialSpec}` : "";
-  const carbonClause = context.carbonGrade ? ` Sustainability grade: ${context.carbonGrade}.` : "";
-  const brandClause = context.brandStandard ? ` Brand standard: ${context.brandStandard}.` : "";
+${context2.materialSpec}` : "";
+  const carbonClause = context2.carbonGrade ? ` Sustainability grade: ${context2.carbonGrade}.` : "";
+  const brandClause = context2.brandStandard ? ` Brand standard: ${context2.brandStandard}.` : "";
   switch (type) {
     case "mood":
-      return `Create a sophisticated interior design mood board for a ${context.tier} ${context.typology} project in ${context.location}. Design style: ${context.style}. Material level: ${context.materialLevel}.${carbonClause}${brandClause} The mood board should convey the project's design direction through carefully curated images of materials, textures, colors, lighting, and spatial arrangements. Professional presentation with clean layout.${materialClause}`;
+      return `Create a sophisticated interior design mood board for a ${context2.tier} ${context2.typology} project in ${context2.location}. Design style: ${context2.style}. Material level: ${context2.materialLevel}.${carbonClause}${brandClause} The mood board should convey the project's design direction through carefully curated images of materials, textures, colors, lighting, and spatial arrangements. Professional presentation with clean layout.${materialClause}`;
     case "material_board":
-      return `Generate a detailed material and finish board for a ${context.tier} ${context.typology} interior. Style: ${context.style}.${carbonClause}${brandClause} Show ${context.materialCount || "8"} key material swatches arranged in a professional grid. Each swatch labeled with exact material name and supplier. Clean white background, architectural presentation style.${materialClause}`;
+      return `Generate a detailed material and finish board for a ${context2.tier} ${context2.typology} interior. Style: ${context2.style}.${carbonClause}${brandClause} Show ${context2.materialCount || "8"} key material swatches arranged in a professional grid. Each swatch labeled with exact material name and supplier. Clean white background, architectural presentation style.${materialClause}`;
     case "hero":
-      return `Create a photorealistic marketing hero image for a ${context.tier} ${context.typology} development in ${context.location}. Show a stunning interior living space with ${context.style} design aesthetic.${carbonClause}${brandClause} Natural light streaming through floor-to-ceiling windows. Aspirational lifestyle photography, warm color temperature, professional real estate marketing quality.${materialClause}`;
+      return `Create a photorealistic marketing hero image for a ${context2.tier} ${context2.typology} development in ${context2.location}. Show a stunning interior living space with ${context2.style} design aesthetic.${carbonClause}${brandClause} Natural light streaming through floor-to-ceiling windows. Aspirational lifestyle photography, warm color temperature, professional real estate marketing quality.${materialClause}`;
   }
 }
-function generateRoomRenderPrompt(context, roomName, roomSqm, finishGrade) {
+function generateRoomRenderPrompt(context2, roomName, roomSqm, finishGrade) {
   const gradeLabel = finishGrade === "A" ? "premium showcase-quality" : finishGrade === "B" ? "high-quality standard" : "functional utility-grade";
-  const materialClause = context.materialSpec ? `
+  const materialClause = context2.materialSpec ? `
 
 MATERIAL SPECIFICATION (use these EXACT materials in the render):
-${context.materialSpec}` : "";
-  return `Create a photorealistic interior render of a ${roomSqm} sqm ${roomName} in a ${context.tier} ${context.typology} in ${context.location}. Design style: ${context.style}. Finish grade: ${gradeLabel}. This is a ${context.tier} project \u2014 every detail must reflect the quality tier. Natural lighting, professional architectural photography quality, 8K resolution feel. Show furniture placement, material textures, and lighting design.${materialClause}`;
+${context2.materialSpec}` : "";
+  return `Create a photorealistic interior render of a ${roomSqm} sqm ${roomName} in a ${context2.tier} ${context2.typology} in ${context2.location}. Design style: ${context2.style}. Finish grade: ${gradeLabel}. This is a ${context2.tier} project \u2014 every detail must reflect the quality tier. Natural lighting, professional architectural photography quality, 8K resolution feel. Show furniture placement, material textures, and lighting design.${materialClause}`;
 }
 function validatePrompt(prompt) {
   if (prompt.length < 20) return { valid: false, reason: "Prompt too short \u2014 minimum 20 characters" };
@@ -28715,7 +29681,7 @@ var designVisualsRouter = router({
         inputs = { ...inputs, ...overrides };
       }
     }
-    let context;
+    let context2;
     const boards = await getMaterialBoardsByProject(input.projectId);
     if (boards && boards.length > 0) {
       const activeBoard = boards[0];
@@ -28738,7 +29704,7 @@ var designVisualsRouter = router({
           });
         }
       }
-      context = buildBoardAwarePromptContext(
+      context2 = buildBoardAwarePromptContext(
         inputs,
         enrichedMaterials,
         project.brandStandardConstraints
@@ -28747,7 +29713,7 @@ var designVisualsRouter = router({
         `[Visual] Using board-aware context with ${enrichedMaterials.length} materials for project ${input.projectId}`
       );
     } else {
-      context = buildPromptContext(inputs);
+      context2 = buildPromptContext(inputs);
     }
     try {
       const allocations = await getMaterialAllocations(
@@ -28764,7 +29730,7 @@ var designVisualsRouter = router({
         }));
         const clause = buildMaterialAllocationPromptClause(mqiAllocs);
         if (clause) {
-          context.materialSpec = (context.materialSpec || "") + clause;
+          context2.materialSpec = (context2.materialSpec || "") + clause;
           console.log(
             `[Visual] Injected MQI allocation clause with ${mqiAllocs.length} allocations`
           );
@@ -28780,10 +29746,10 @@ var designVisualsRouter = router({
     if (input.customPrompt) {
       prompt = input.customPrompt;
     } else if (selectedTemplate) {
-      prompt = interpolateTemplate(selectedTemplate.templateText, context);
+      prompt = interpolateTemplate(selectedTemplate.templateText, context2);
     } else {
       const tmpl = await getActivePromptTemplate(input.type, ctx.orgId);
-      prompt = tmpl ? interpolateTemplate(tmpl.templateText, context) : generateDefaultPrompt(input.type, context);
+      prompt = tmpl ? interpolateTemplate(tmpl.templateText, context2) : generateDefaultPrompt(input.type, context2);
     }
     const validation = validatePrompt(prompt);
     if (!validation.valid) {
@@ -28798,7 +29764,7 @@ var designVisualsRouter = router({
           projectId: input.projectId,
           scenarioId: input.scenarioId,
           type: input.type,
-          promptJson: { prompt, context, templateId: input.templateId },
+          promptJson: { prompt, context: context2, templateId: input.templateId },
           status: "generating",
           createdBy: ctx.user.id
         },
@@ -28964,7 +29930,7 @@ var designVisualsRouter = router({
         }
       }
     }
-    const context = buildRoomPromptContext(
+    const context2 = buildRoomPromptContext(
       inputs,
       input.roomName,
       input.roomType,
@@ -28973,7 +29939,7 @@ var designVisualsRouter = router({
       project.brandStandardConstraints
     );
     const prompt = generateRoomRenderPrompt(
-      context,
+      context2,
       input.roomName,
       input.roomSqm,
       input.finishGrade
@@ -28991,7 +29957,7 @@ var designVisualsRouter = router({
           type: "room_render",
           promptJson: {
             prompt,
-            context,
+            context: context2,
             roomName: input.roomName,
             roomType: input.roomType
           },
@@ -30267,7 +31233,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
     );
   }
   let rooms;
-  let canonical;
+  let canonical2;
   const stableHandles = /* @__PURE__ */ new Set();
   for (const boundary of inspected.boundaries) {
     const handle = boundary.handle?.trim().toUpperCase() ?? "";
@@ -30316,7 +31282,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
         }
       };
     });
-    canonical = canonicalizeGeometry(
+    canonical2 = canonicalizeGeometry(
       {
         schemaVersion: GEOMETRY_SCHEMA_VERSION,
         measurementBasis: ROOM_FLOOR_POLYGON_AREA,
@@ -30344,7 +31310,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
       )
     );
   }
-  if (Buffer.byteLength(canonical.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
+  if (Buffer.byteLength(canonical2.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
     return rejected(
       base,
       issue(
@@ -30357,7 +31323,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
   const sourceRoomsById = new Map(
     rooms.map((room) => [room.sourceRoomId, room])
   );
-  canonical.geometry.rooms.forEach((canonicalRoom) => {
+  canonical2.geometry.rooms.forEach((canonicalRoom) => {
     const sourceRoom = sourceRoomsById.get(canonicalRoom.spaceId);
     if (!sourceRoom) {
       throw new Error("Canonical DXF room lost its stable source identity");
@@ -30391,7 +31357,7 @@ async function inspectDxfGeometry(input, runtime = {}) {
     ...base,
     status: "imported",
     issue: null,
-    canonical,
+    canonical: canonical2,
     levelOverlays
   };
 }
@@ -30869,12 +31835,12 @@ function buildVariableExplanation(variable, displayValue, numVal, direction, isS
   }
   return `${label} is set to ${displayValue}.`;
 }
-function buildDimensionSummary(dim, score, positive, negative) {
+function buildDimensionSummary(dim, score, positive2, negative) {
   const label = DIMENSION_LABELS2[dim] ?? dim;
   const level = score >= 75 ? "strong" : score >= 55 ? "moderate" : "weak";
   let summary = `${label} shows ${level} performance at ${score.toFixed(1)}/100.`;
-  if (positive.length > 0) {
-    summary += ` Key strengths: ${positive.map((d) => d.label).join(", ")}.`;
+  if (positive2.length > 0) {
+    summary += ` Key strengths: ${positive2.map((d) => d.label).join(", ")}.`;
   }
   if (negative.length > 0) {
     summary += ` Areas for improvement: ${negative.map((d) => d.label).join(", ")}.`;
@@ -33965,9 +34931,9 @@ function mapTrendSnapshots(trendSnaps) {
   }));
 }
 async function loadCompetitorLandscape() {
-  const database = await getDb();
-  if (!database) throw new Error("Database not available");
-  const rows = await database.select({
+  const database2 = await getDb();
+  if (!database2) throw new Error("Database not available");
+  const rows = await database2.select({
     id: competitorProjects.id,
     competitorId: competitorProjects.competitorId,
     projectName: competitorProjects.projectName,
@@ -40084,8 +41050,8 @@ function sourcePointInMicrometres(point, unit) {
     y: decimalCoordinateToMicrometres(point.y, unit).toString()
   };
 }
-function totalArea2(canonical) {
-  return canonical.geometry.rooms.reduce(
+function totalArea2(canonical2) {
+  return canonical2.geometry.rooms.reduce(
     (sum, room) => sum + BigInt(room.areaSquareMicrometresTwice),
     BigInt(0)
   );
@@ -40101,9 +41067,9 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
       message: "Manual geometry exceeds the 10,000 vertex limit."
     });
   }
-  let canonical;
+  let canonical2;
   try {
-    canonical = canonicalizeGeometry(
+    canonical2 = canonicalizeGeometry(
       {
         schemaVersion: GEOMETRY_SCHEMA_VERSION,
         measurementBasis: ROOM_FLOOR_POLYGON_AREA,
@@ -40124,7 +41090,7 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
     }
     throw error;
   }
-  if (Buffer.byteLength(canonical.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
+  if (Buffer.byteLength(canonical2.canonicalJson, "utf8") > DXF_BOUNDARY_LIMITS.canonicalJsonBytes) {
     throw new TRPCError28({
       code: "BAD_REQUEST",
       message: "Canonical geometry exceeds the 8 MiB JSON limit."
@@ -40133,9 +41099,9 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
   const sourceById = new Map(rooms.map((room) => [room.spaceId, room]));
   return {
     status: "ready",
-    fingerprint: canonical.fingerprint,
-    totalAreaSqm: twiceSquareMicrometresToSquareMetres(totalArea2(canonical)),
-    rooms: canonical.geometry.rooms.map((room) => ({
+    fingerprint: canonical2.fingerprint,
+    totalAreaSqm: twiceSquareMicrometresToSquareMetres(totalArea2(canonical2)),
+    rooms: canonical2.geometry.rooms.map((room) => ({
       spaceId: room.spaceId,
       roomName: sourceById.get(room.spaceId)?.roomName,
       areaSqm: room.areaSquareMetres,
@@ -40145,7 +41111,7 @@ function manualPreview(rooms, sourceUnit, snapTransform, deadlineAtMilliseconds 
     })),
     warnings: [],
     insufficiencies: [],
-    canonical
+    canonical: canonical2
   };
 }
 async function readAuthorizedDxf(input) {
@@ -40298,7 +41264,7 @@ var spaceProgramGeometryRouter = router({
     })
   ).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
-    let canonical;
+    let canonical2;
     let rooms;
     let assetId = null;
     let assetChecksum;
@@ -40311,13 +41277,13 @@ var spaceProgramGeometryRouter = router({
         input.source.sourceUnit,
         input.source.snapTransform
       );
-      canonical = preview.canonical;
+      canonical2 = preview.canonical;
       rooms = input.source.rooms.map((room) => ({
         spaceId: room.spaceId,
         roomName: room.roomName,
         roomCode: room.roomCode,
         category: room.category,
-        levelId: `elevation:${canonical.geometry.rooms.find((draftRoom) => draftRoom.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`
+        levelId: `elevation:${canonical2.geometry.rooms.find((draftRoom) => draftRoom.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`
       }));
       sourceObservation = { rooms: input.source.rooms };
       sourceChecksum = createHash7("sha256").update(JSON.stringify(sourceObservation)).digest("hex");
@@ -40339,7 +41305,7 @@ var spaceProgramGeometryRouter = router({
           message: resolved.inspection.issue?.message ?? "DXF geometry is insufficient and cannot be committed."
         });
       }
-      canonical = resolved.inspection.canonical;
+      canonical2 = resolved.inspection.canonical;
       rooms = resolved.inspection.levelOverlays.flatMap(
         (level) => level.rooms.map((room) => ({
           spaceId: room.sourceRoomId,
@@ -40359,7 +41325,7 @@ var spaceProgramGeometryRouter = router({
       };
       adapterVersion = DXF_ADAPTER_VERSION;
     }
-    const idempotencyKey = importIdempotencyKey({
+    const idempotencyKey2 = importIdempotencyKey({
       organizationId: ctx.orgId,
       projectId: input.projectId,
       assetChecksum,
@@ -40375,7 +41341,7 @@ var spaceProgramGeometryRouter = router({
       projectId: input.projectId,
       userId: ctx.user.id,
       expectedCurrentVersionId: input.expectedCurrentVersionId,
-      canonical,
+      canonical: canonical2,
       rooms,
       source: {
         sourceType: input.source.kind === "manual" ? "manual" : "project_asset",
@@ -40388,7 +41354,7 @@ var spaceProgramGeometryRouter = router({
         adapterVersion,
         sourceObservation,
         sourceTransform: { snapTransform: input.source.snapTransform },
-        idempotencyKey
+        idempotencyKey: idempotencyKey2
       }
     });
     if (result.kind === "not_found") {
@@ -40945,6 +41911,2266 @@ var spaceProgramRouter = mergeRouters(
   spaceProgramGeometryRouter
 );
 
+// server/routers/brief.ts
+init_brief_contract();
+import { TRPCError as TRPCError30 } from "@trpc/server";
+import { z as z42 } from "zod";
+
+// server/engines/brief-readiness.ts
+init_brief_contract();
+var STATE_SCORE = {
+  missing: 0,
+  drafted: 1,
+  evidenced: 2,
+  reviewed: 3,
+  approved: 4,
+  issued: 4
+};
+var GATE = {
+  invalid_section_structure: 1,
+  unclassified_requirement: 2,
+  missing_content: 3,
+  missing_evidence: 4,
+  prohibited_assumption: 5,
+  incomplete_na_approval: 6,
+  unresolved_finding: 7,
+  active_stale_condition: 8,
+  active_blocked_condition: 9,
+  failed_reconciliation: 10,
+  missing_lineage: 11,
+  role_separation_failure: 12,
+  missing_issue_metadata: 13
+};
+function reason(code, message, nextAction, extra = {}) {
+  return { code, gate: GATE[code], message, nextAction, ...extra };
+}
+var sectionOrder = new Map(BRIEF_SECTION_IDS.map((id, index2) => [id, index2]));
+function compareBriefInsufficiencyReasons(a, b) {
+  return a.gate - b.gate || (sectionOrder.get(a.sectionId) ?? BRIEF_SECTION_IDS.length) - (sectionOrder.get(b.sectionId) ?? BRIEF_SECTION_IDS.length) || (a.componentId ?? "").localeCompare(b.componentId ?? "") || (a.ruleId ?? a.dependencyId ?? "").localeCompare(
+    b.ruleId ?? b.dependencyId ?? ""
+  ) || a.code.localeCompare(b.code);
+}
+function prohibitedAssumption(purpose, impacts) {
+  if (purpose === "internal_coordination") return false;
+  if (purpose === "client_board_approval")
+    return Boolean(impacts?.includes("decision"));
+  return Boolean(impacts?.includes("procurement"));
+}
+function actorSeparationFailures(section, issuerUserId) {
+  const result = [];
+  const extra = { sectionId: section.sectionId };
+  if (section.authorUserId && section.authorUserId === section.reviewerUserId)
+    result.push(
+      reason(
+        "role_separation_failure",
+        "The section author cannot review the same revision.",
+        "Assign an independent reviewer.",
+        extra
+      )
+    );
+  if (section.authorUserId && section.authorUserId === section.approverUserId)
+    result.push(
+      reason(
+        "role_separation_failure",
+        "The section author cannot approve the same revision.",
+        "Assign an independent approver.",
+        extra
+      )
+    );
+  if (section.applicability === "not_applicable") {
+    const actors = [
+      section.applicabilityProposerUserId,
+      section.applicabilityReviewerUserId,
+      section.applicabilityApproverUserId
+    ];
+    if (actors.some((value) => value === void 0) || new Set(actors).size !== actors.length)
+      result.push(
+        reason(
+          "role_separation_failure",
+          "The N/A proposal, review, and approval must have independent named actors.",
+          "Complete the N/A decision with three independent actors.",
+          extra
+        )
+      );
+  }
+  if (issuerUserId && section.authorUserId === issuerUserId && section.approverUserId === issuerUserId)
+    result.push(
+      reason(
+        "role_separation_failure",
+        "An issuer-authored section requires another independent approver.",
+        "Obtain approval from another assigned approver.",
+        extra
+      )
+    );
+  return result;
+}
+function evaluateSection(section, purpose, componentIds, issuerUserId) {
+  const reasons = [];
+  const baseline = PURPOSE_SECTION_APPLICABILITY[purpose][section.sectionId];
+  if (baseline === "required" && section.applicability !== "required")
+    reasons.push(
+      reason(
+        "invalid_section_structure",
+        `Section ${section.sectionId} is required for ${purpose}.`,
+        "Restore the required applicability classification.",
+        { sectionId: section.sectionId }
+      )
+    );
+  if (baseline === "conditional" && section.applicability === "conditional")
+    reasons.push(
+      reason(
+        "unclassified_requirement",
+        `Conditional section ${section.sectionId} has no approved required/N/A decision.`,
+        "Complete the applicability decision.",
+        { sectionId: section.sectionId }
+      )
+    );
+  if (section.revisionId === null)
+    reasons.push(
+      reason(
+        "missing_content",
+        `Section ${section.sectionId} has no bound content revision.`,
+        "Draft and bind section content.",
+        { sectionId: section.sectionId }
+      )
+    );
+  if (section.applicability !== "not_applicable" && section.requirements.length === 0)
+    reasons.push(
+      reason(
+        "unclassified_requirement",
+        `Section ${section.sectionId} has no frozen requirement classifications.`,
+        "Classify and freeze the applicable section rules.",
+        { sectionId: section.sectionId }
+      )
+    );
+  if (section.applicability === "not_applicable" && STATE_SCORE[section.achievedState] < STATE_SCORE.approved)
+    reasons.push(
+      reason(
+        "incomplete_na_approval",
+        `Section ${section.sectionId} has an incomplete N/A approval path.`,
+        "Review and independently approve the N/A decision.",
+        { sectionId: section.sectionId }
+      )
+    );
+  for (const requirement of section.requirements) {
+    const extra = {
+      sectionId: section.sectionId,
+      componentId: requirement.componentId,
+      ruleId: requirement.ruleId
+    };
+    if (!requirement.classified)
+      reasons.push(
+        reason(
+          "unclassified_requirement",
+          `Rule ${requirement.ruleId} has no frozen approved classification.`,
+          "Approve and freeze the rule classification.",
+          extra
+        )
+      );
+    if (requirement.required && !requirement.hasContent)
+      reasons.push(
+        reason(
+          "missing_content",
+          `Required rule ${requirement.ruleId} has no usable content.`,
+          "Supply the required content.",
+          extra
+        )
+      );
+    if (requirement.required && !requirement.hasEvidence)
+      reasons.push(
+        reason(
+          "missing_evidence",
+          `Required rule ${requirement.ruleId} lacks eligible evidence.`,
+          "Link current governed evidence.",
+          extra
+        )
+      );
+    if (requirement.authority === "ai_suggestion" && requirement.required)
+      reasons.push(
+        reason(
+          "missing_evidence",
+          `AI suggestion ${requirement.ruleId} is not authoritative evidence.`,
+          "Have a named human accept it under an eligible authority class.",
+          extra
+        )
+      );
+    if (requirement.authority === "declared_assumption" && prohibitedAssumption(purpose, requirement.assumptionImpacts))
+      reasons.push(
+        reason(
+          "prohibited_assumption",
+          `Assumption ${requirement.ruleId} is prohibited for ${purpose}.`,
+          "Resolve the assumption with eligible evidence.",
+          extra
+        )
+      );
+    if (requirement.required && requirement.lineageComplete === false)
+      reasons.push(
+        reason(
+          "missing_lineage",
+          `Rule ${requirement.ruleId} has incomplete source lineage.`,
+          "Bind the exact source and version lineage.",
+          extra
+        )
+      );
+    if (requirement.hasRequiredProfessionalReview === false)
+      reasons.push(
+        reason(
+          "missing_evidence",
+          `Rule ${requirement.ruleId} requires professional review.`,
+          "Obtain the scoped professional sign-off.",
+          extra
+        )
+      );
+  }
+  for (const finding of section.findings)
+    if (finding.severity === "blocking" && !finding.resolved)
+      reasons.push(
+        reason(
+          "unresolved_finding",
+          `Blocking finding ${finding.findingId} is unresolved.`,
+          "Submit and obtain independent acceptance of a resolution.",
+          {
+            sectionId: section.sectionId,
+            componentId: finding.componentId,
+            ruleId: finding.findingId
+          }
+        )
+      );
+  for (const condition of section.conditions)
+    if (condition.active)
+      reasons.push(
+        reason(
+          condition.kind === "stale" ? "active_stale_condition" : "active_blocked_condition",
+          `Condition ${condition.conditionId} is active.`,
+          "Satisfy and independently accept the recorded resolution requirement.",
+          {
+            sectionId: section.sectionId,
+            componentId: condition.componentId,
+            dependencyId: condition.dependencyId ?? condition.conditionId
+          }
+        )
+      );
+  for (const reconciliation of section.reconciliations)
+    if (!reconciliation.passed)
+      reasons.push(
+        reason(
+          "failed_reconciliation",
+          `Reconciliation ${reconciliation.ruleId} failed.`,
+          "Resolve the named version conflict and rerun reconciliation.",
+          {
+            sectionId: section.sectionId,
+            componentId: reconciliation.componentId,
+            ruleId: reconciliation.ruleId,
+            dependencyId: reconciliation.dependencyId
+          }
+        )
+      );
+  if (componentIds.length > 1 && section.applicability !== "not_applicable") {
+    for (const componentId of componentIds) {
+      const coverage = section.componentCoverage?.find(
+        (item) => item.componentId === componentId
+      );
+      if (!coverage?.complete)
+        reasons.push(
+          reason(
+            "missing_content",
+            `Section ${section.sectionId} is incomplete for component ${componentId}.`,
+            "Complete this section for the named component.",
+            { sectionId: section.sectionId, componentId }
+          )
+        );
+      if (!coverage?.reconciled)
+        reasons.push(
+          reason(
+            "failed_reconciliation",
+            `Section ${section.sectionId} is not reconciled for component ${componentId}.`,
+            "Reconcile shared and component-specific decisions.",
+            {
+              sectionId: section.sectionId,
+              componentId,
+              ruleId: "component_reconciliation"
+            }
+          )
+        );
+    }
+  }
+  if (section.applicability !== "conditional" && STATE_SCORE[section.achievedState] < STATE_SCORE.approved)
+    reasons.push(
+      reason(
+        section.achievedState === "missing" ? "missing_content" : "missing_evidence",
+        `Section ${section.sectionId} has achieved ${section.achievedState}, below approved.`,
+        "Complete each remaining maturity gate in order.",
+        { sectionId: section.sectionId }
+      )
+    );
+  reasons.push(...actorSeparationFailures(section, issuerUserId));
+  reasons.sort(compareBriefInsufficiencyReasons);
+  const components = componentIds.map((componentId) => {
+    const componentReasons = reasons.filter(
+      (item) => item.componentId === void 0 || item.componentId === componentId
+    );
+    return {
+      componentId,
+      isStale: componentReasons.some((r) => r.code === "active_stale_condition"),
+      isBlocked: componentReasons.some(
+        (r) => r.code === "active_blocked_condition"
+      ),
+      canIssue: componentReasons.length === 0,
+      reasons: componentReasons
+    };
+  });
+  return {
+    sectionId: section.sectionId,
+    applicability: section.applicability,
+    achievedState: section.achievedState,
+    isStale: reasons.some((item) => item.code === "active_stale_condition"),
+    isBlocked: reasons.some((item) => item.code === "active_blocked_condition"),
+    canIssue: reasons.length === 0,
+    components,
+    reasons,
+    nextActions: Array.from(new Set(reasons.map((item) => item.nextAction)))
+  };
+}
+function evaluateBriefReadiness(facts) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const section of facts.sections)
+    counts.set(section.sectionId, (counts.get(section.sectionId) ?? 0) + 1);
+  const structuralReasons = BRIEF_SECTION_IDS.filter(
+    (id) => counts.get(id) !== 1
+  ).map(
+    (id) => reason(
+      "invalid_section_structure",
+      `Expected exactly one ${id} section; found ${counts.get(id) ?? 0}.`,
+      "Restore exactly one binding for every canonical section.",
+      { sectionId: id }
+    )
+  );
+  const byId = new Map(
+    facts.sections.map((section) => [section.sectionId, section])
+  );
+  const sections = BRIEF_SECTION_IDS.map(
+    (sectionId) => byId.has(sectionId) ? evaluateSection(
+      byId.get(sectionId),
+      facts.purpose,
+      facts.componentIds,
+      facts.issuerUserId
+    ) : {
+      sectionId,
+      applicability: PURPOSE_SECTION_APPLICABILITY[facts.purpose][sectionId],
+      achievedState: "missing",
+      isStale: false,
+      isBlocked: false,
+      canIssue: false,
+      components: [],
+      reasons: structuralReasons.filter((r) => r.sectionId === sectionId),
+      nextActions: structuralReasons.filter((r) => r.sectionId === sectionId).map((r) => r.nextAction)
+    }
+  );
+  const globalReasons = structuralReasons.filter(
+    (item) => (counts.get(item.sectionId) ?? 0) > 1
+  );
+  if (facts.profile === "mixed_use" && facts.componentIds.length < 2)
+    globalReasons.push(
+      reason(
+        "invalid_section_structure",
+        "Mixed-use briefs require at least two explicit components.",
+        "Define every included mixed-use component."
+      )
+    );
+  if (new Set(facts.componentIds).size !== facts.componentIds.length || facts.componentIds.some((id) => !id.trim()))
+    globalReasons.push(
+      reason(
+        "invalid_section_structure",
+        "Component identifiers must be non-empty and unique.",
+        "Correct the component register."
+      )
+    );
+  if (facts.issuerUserId === void 0 || !facts.activeRoles.some(
+    (role) => role.userId === facts.issuerUserId && role.role === "issuer"
+  ) || !facts.activeRoles.some(
+    (role) => role.userId === facts.issuerUserId && role.role === "approver"
+  ))
+    globalReasons.push(
+      reason(
+        "role_separation_failure",
+        "The issuer must hold active Issuer and Approver assignments.",
+        "Assign an eligible named issuer as both Issuer and Approver."
+      )
+    );
+  for (const [key, present] of Object.entries(facts.issueMetadata))
+    if (!present)
+      globalReasons.push(
+        reason(
+          "missing_issue_metadata",
+          `Issue metadata ${key} is missing.`,
+          `Provide ${key} before issue.`,
+          { ruleId: key }
+        )
+      );
+  const reasons = [
+    ...globalReasons,
+    ...sections.flatMap((section) => section.reasons)
+  ].sort(compareBriefInsufficiencyReasons);
+  const components = facts.componentIds.map(
+    (componentId) => {
+      const componentReasons = reasons.filter(
+        (item) => item.componentId === void 0 || item.componentId === componentId
+      );
+      return {
+        componentId,
+        isStale: componentReasons.some(
+          (r) => r.code === "active_stale_condition"
+        ),
+        isBlocked: componentReasons.some(
+          (r) => r.code === "active_blocked_condition"
+        ),
+        canIssue: componentReasons.length === 0,
+        reasons: componentReasons
+      };
+    }
+  );
+  const progress = sections.reduce(
+    (sum, section) => sum + STATE_SCORE[section.achievedState] / STATE_SCORE.approved,
+    0
+  );
+  return {
+    policyVersion: BRIEF_POLICY_VERSION,
+    briefId: facts.briefId,
+    versionId: facts.versionId,
+    streamRevision: facts.streamRevision,
+    versionRevision: facts.versionRevision,
+    purpose: facts.purpose,
+    profile: facts.profile,
+    componentIds: [...facts.componentIds],
+    canIssue: reasons.length === 0,
+    isStale: reasons.some((item) => item.code === "active_stale_condition"),
+    isBlocked: reasons.some((item) => item.code === "active_blocked_condition"),
+    displayProgress: Math.round(progress / BRIEF_SECTION_IDS.length * 100),
+    sections,
+    components,
+    reasons,
+    nextActions: Array.from(new Set(reasons.map((item) => item.nextAction)))
+  };
+}
+
+// server/db/brief-workflow.ts
+init_db();
+import { createHash as createHash9 } from "node:crypto";
+import { and as and9, asc as asc2, desc as desc11, eq as eq19, inArray as inArray4, sql as sql9 } from "drizzle-orm";
+init_schema();
+var BRIEF_SECTION_IDS2 = [
+  "intent",
+  "asset_context",
+  "space_programme",
+  "design_direction",
+  "specification_intent",
+  "cost_quantities",
+  "supply",
+  "risk_compliance",
+  "concept_media",
+  "governance"
+];
+var BriefWorkflowError = class extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+};
+function canonical(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(",")}}`;
+}
+function hashBriefRequest(value) {
+  return createHash9("sha256").update(canonical(value)).digest("hex");
+}
+function normalizeApplicabilityStage(action) {
+  return action === "propose" ? "proposed" : action === "accept_review" ? "reviewed" : action === "approve" ? "approved" : action === "withdraw" ? "withdrawn" : null;
+}
+function decisionStage(outcome) {
+  return outcome === "rejected" ? "rejected" : "accepted";
+}
+function assertWorkingBriefVersion(status) {
+  if (status !== "working")
+    throw new BriefWorkflowError("CONFLICT", "Locked brief versions are immutable");
+}
+function positive(value, label) {
+  const n = Number(value);
+  if (!Number.isSafeInteger(n) || n <= 0)
+    throw new BriefWorkflowError(
+      "INVALID",
+      `${label} must be a positive integer`
+    );
+  return n;
+}
+async function database() {
+  const db = await getDb();
+  if (!db) throw new BriefWorkflowError("UNAVAILABLE", "Database unavailable");
+  return db;
+}
+function retryableTransactionError(error) {
+  const value = error;
+  return value?.code === "ER_LOCK_DEADLOCK" || value?.code === "ER_LOCK_WAIT_TIMEOUT" || value?.errno === 1213 || value?.errno === 1205;
+}
+async function withBriefTransaction(db, work) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await db.transaction(work);
+    } catch (error) {
+      if (!retryableTransactionError(error) || attempt === 3) throw error;
+    }
+  }
+  throw new BriefWorkflowError("UNAVAILABLE", "Brief transaction retry budget exhausted");
+}
+async function lockTenant(tx, context2, projectId, requireAdmin = false) {
+  const rows = await tx.select({
+    projectId: projects.id,
+    orgId: projects.orgId,
+    typology: projects.ctx01Typology,
+    memberRole: organizationMembers.role
+  }).from(projects).innerJoin(
+    organizationMembers,
+    and9(
+      eq19(organizationMembers.orgId, context2.organizationId),
+      eq19(organizationMembers.userId, context2.userId)
+    )
+  ).where(
+    and9(
+      eq19(projects.id, projectId),
+      eq19(projects.orgId, context2.organizationId)
+    )
+  ).limit(1).for("update");
+  if (!rows[0])
+    throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+  if (requireAdmin && rows[0].memberRole !== "admin")
+    throw new BriefWorkflowError(
+      "FORBIDDEN",
+      "Organization administrator required"
+    );
+  return rows[0];
+}
+function normalizeBriefProfile(value) {
+  const normalized = String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  if (normalized.includes("mixed")) return "mixed_use";
+  if (normalized.includes("villa")) return "villa";
+  if (normalized.includes("office")) return "office";
+  if (normalized.includes("hotel") || normalized.includes("hospital")) return "hospitality";
+  if (normalized.includes("retail")) return "retail";
+  return "apartment";
+}
+async function lockStream(tx, context2, projectId, streamId) {
+  await lockTenant(tx, context2, projectId);
+  const rows = await tx.select().from(briefStreams).where(
+    and9(
+      eq19(briefStreams.organizationId, context2.organizationId),
+      eq19(briefStreams.projectId, projectId),
+      eq19(briefStreams.id, streamId)
+    )
+  ).limit(1).for("update");
+  if (!rows[0])
+    throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+  return rows[0];
+}
+async function activeRole(tx, context2, streamId, role, sectionId) {
+  const rows = await tx.select().from(briefRoleEvents).where(
+    and9(
+      eq19(briefRoleEvents.organizationId, context2.organizationId),
+      eq19(briefRoleEvents.streamId, streamId),
+      eq19(briefRoleEvents.subjectUserId, context2.userId),
+      sql9`${briefRoleEvents.role}=${role}`,
+      sectionId ? sql9`(${briefRoleEvents.sectionId} is null or ${briefRoleEvents.sectionId}=${sectionId})` : sql9`1=1`
+    )
+  ).orderBy(desc11(briefRoleEvents.streamSequence));
+  const latest = rows.find(
+    (r) => r.action === "granted" && !rows.some(
+      (x) => x.action === "revoked" && x.targetGrantEventId === r.id
+    )
+  );
+  if (!latest)
+    throw new BriefWorkflowError(
+      "FORBIDDEN",
+      `Active ${role} assignment required`
+    );
+  return latest;
+}
+async function allocateEvents(tx, stream, operationId, actor, versionId, events) {
+  const first = Number(stream.nextEventSequence);
+  const next = first + events.length;
+  const allocation = await tx.update(briefStreams).set({ nextEventSequence: next }).where(
+    and9(
+      eq19(briefStreams.organizationId, actor.organizationId),
+      eq19(briefStreams.projectId, stream.projectId),
+      eq19(briefStreams.id, stream.id),
+      eq19(briefStreams.nextEventSequence, first)
+    )
+  );
+  if (Number(allocation[0]?.affectedRows) !== 1)
+    throw new BriefWorkflowError("CONFLICT", "Event sequence allocation conflict");
+  if (events.length)
+    await tx.insert(briefEvents).values(
+      events.map((event, i) => ({
+        organizationId: actor.organizationId,
+        projectId: stream.projectId,
+        streamId: stream.id,
+        versionId,
+        sectionId: event.sectionId,
+        issueId: event.issueId,
+        operationId,
+        actorUserId: actor.actorType === "human" || !actor.actorType ? actor.userId : null,
+        actorType: actor.actorType ?? "human",
+        eventType: event.type,
+        payloadSchemaVersion: "br-03-v1",
+        payload: event.payload ?? {},
+        operationOrdinal: i + 1,
+        streamSequence: first + i
+      }))
+    );
+}
+async function createBriefStream(input, context2) {
+  if (context2.actorType && context2.actorType !== "human")
+    throw new BriefWorkflowError("FORBIDDEN", "A human organization administrator is required");
+  const projectId = positive(input.projectId, "projectId");
+  const requestHash = hashBriefRequest(input);
+  const db = await database();
+  return withBriefTransaction(db, async (tx) => {
+    const tenant = await lockTenant(tx, context2, projectId, true);
+    if (input.scope?.type === "scenario") {
+      const scenarioId = positive(input.scope.scenarioId, "scenarioId");
+      const found = await tx.select({ id: scenarios.id }).from(scenarios).where(
+        and9(eq19(scenarios.id, scenarioId), eq19(scenarios.projectId, projectId))
+      ).limit(1).for("update");
+      if (!found[0])
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+    }
+    const existing = await tx.select().from(briefOperations).where(
+      and9(
+        eq19(briefOperations.organizationId, context2.organizationId),
+        eq19(briefOperations.projectId, projectId),
+        eq19(briefOperations.actorUserId, context2.userId),
+        eq19(briefOperations.operation, "createStream"),
+        eq19(briefOperations.idempotencyKey, input.idempotencyKey)
+      )
+    ).limit(1).for("update");
+    if (existing[0]) {
+      if (existing[0].requestHash !== requestHash)
+        throw new BriefWorkflowError(
+          "CONFLICT",
+          "Idempotency key reused with different input"
+        );
+      if (existing[0].status === "completed") return existing[0].result;
+      throw new BriefWorkflowError("CONFLICT", "Operation already in progress");
+    }
+    const opInsert = await tx.insert(briefOperations).values({
+      organizationId: context2.organizationId,
+      projectId,
+      actorUserId: context2.userId,
+      operation: "createStream",
+      idempotencyKey: input.idempotencyKey,
+      requestHash
+    });
+    const operationId = Number(opInsert[0].insertId);
+    const scopeKey = input.scope?.type === "scenario" ? `scenario:${positive(input.scope.scenarioId, "scenarioId")}` : "project";
+    const streamInsert = await tx.insert(briefStreams).values({
+      organizationId: context2.organizationId,
+      projectId,
+      scopeType: input.scope?.type ?? "project",
+      scenarioId: input.scope?.type === "scenario" ? input.scope.scenarioId : null,
+      scopeKey,
+      issuePurpose: input.purpose,
+      typologyProfileVersion: `${input.profile ?? normalizeBriefProfile(tenant.typology)}:${input.typologyProfileVersion}`,
+      revision: 1,
+      nextEventSequence: 1,
+      createdBy: context2.userId
+    });
+    const streamId = Number(streamInsert[0].insertId);
+    const versionInsert = await tx.insert(briefVersions).values({
+      organizationId: context2.organizationId,
+      projectId,
+      streamId,
+      versionNumber: 1,
+      origin: "user",
+      requirementProfileVersion: input.typologyProfileVersion,
+      componentScope: input.componentIds ?? [],
+      revision: 0,
+      createdBy: context2.userId
+    });
+    const versionId = Number(versionInsert[0].insertId);
+    await tx.insert(briefVersionSections).values(
+      BRIEF_SECTION_IDS2.map((sectionId) => ({
+        organizationId: context2.organizationId,
+        projectId,
+        streamId,
+        versionId,
+        sectionId,
+        applicability: "required",
+        achievedState: "missing",
+        classifications: [],
+        classificationFingerprint: hashBriefRequest([]),
+        componentScope: input.componentIds ?? [],
+        revision: 0
+      }))
+    );
+    if (input.initialAssignments?.length) {
+      const assigneeIds = Array.from(new Set(input.initialAssignments.map((a) => positive(a.userId, "assignment userId"))));
+      const members = await tx.select({ userId: organizationMembers.userId }).from(organizationMembers).where(and9(eq19(organizationMembers.orgId, context2.organizationId), inArray4(organizationMembers.userId, assigneeIds))).for("update");
+      if (members.length !== assigneeIds.length)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      await tx.insert(briefRoleEvents).values(
+        input.initialAssignments.map((a, index2) => ({
+          organizationId: context2.organizationId,
+          projectId,
+          streamId,
+          versionId: null,
+          sectionId: a.sectionId ?? null,
+          subjectUserId: positive(a.userId, "assignment userId"),
+          role: a.role,
+          action: "granted",
+          actorUserId: context2.userId,
+          reason: "Initial stream assignment",
+          streamSequence: 3 + index2
+        }))
+      );
+    }
+    const stream = { id: streamId, projectId, nextEventSequence: 1 };
+    await allocateEvents(tx, stream, operationId, context2, versionId, [
+      { type: "stream_created", payload: { scopeKey } },
+      { type: "version_created", payload: { versionNumber: 1 } },
+      ...(input.initialAssignments ?? []).map((a) => ({
+        type: "role_assigned",
+        sectionId: a.sectionId,
+        payload: { userId: a.userId, role: a.role }
+      }))
+    ]);
+    const value = {
+      operationId: String(operationId),
+      revision: 1,
+      value: {
+        briefId: String(streamId),
+        projectId,
+        scope: input.scope ?? { type: "project" },
+        purpose: input.purpose,
+        typologyProfileVersion: `${input.profile ?? normalizeBriefProfile(tenant.typology)}:${input.typologyProfileVersion}`,
+        currentVersionId: String(versionId),
+        latestIssueId: null,
+        revision: 1
+      }
+    };
+    await tx.update(briefOperations).set({
+      streamId,
+      status: "completed",
+      resultEntityType: "stream",
+      resultEntityId: streamId,
+      resultRevision: 1,
+      result: value,
+      completedAt: /* @__PURE__ */ new Date()
+    }).where(eq19(briefOperations.id, operationId));
+    return value;
+  });
+}
+async function executeBriefCommand(operation, input, context2) {
+  if (operation === "createStream" || operation === "brief.createStream")
+    return createBriefStream(input, context2);
+  const projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId"), db = await database(), requestHash = hashBriefRequest(input);
+  return withBriefTransaction(db, async (tx) => {
+    const stream = await lockStream(tx, context2, projectId, streamId);
+    const previous = await tx.select().from(briefOperations).where(
+      and9(
+        eq19(briefOperations.organizationId, context2.organizationId),
+        eq19(briefOperations.projectId, projectId),
+        eq19(briefOperations.actorUserId, context2.userId),
+        eq19(briefOperations.operation, operation),
+        eq19(briefOperations.idempotencyKey, input.idempotencyKey)
+      )
+    ).limit(1).for("update");
+    if (previous[0]) {
+      if (previous[0].requestHash !== requestHash)
+        throw new BriefWorkflowError(
+          "CONFLICT",
+          "Idempotency key reused with different input"
+        );
+      if (previous[0].status === "completed") return previous[0].result;
+      throw new BriefWorkflowError("CONFLICT", "Operation already in progress");
+    }
+    if (Number(input.expectedRevision) !== stream.revision)
+      throw new BriefWorkflowError("CONFLICT", "Stale stream revision");
+    if ((context2.actorType === "ai" || context2.actorType === "system") && !["reviseSection", "markDependencyChanged"].some(
+      (x) => operation.endsWith(x)
+    ))
+      throw new BriefWorkflowError(
+        "FORBIDDEN",
+        "Non-human principals cannot perform governance actions"
+      );
+    const op = await tx.insert(briefOperations).values({
+      organizationId: context2.organizationId,
+      projectId,
+      streamId,
+      actorUserId: context2.userId,
+      operation,
+      idempotencyKey: input.idempotencyKey,
+      requestHash
+    });
+    const operationId = Number(op[0].insertId);
+    const versionId = input.versionId ? positive(input.versionId, "versionId") : Number(
+      (await tx.select({ id: briefVersions.id }).from(briefVersions).where(
+        and9(
+          eq19(briefVersions.organizationId, context2.organizationId),
+          eq19(briefVersions.streamId, streamId)
+        )
+      ).orderBy(desc11(briefVersions.versionNumber)).limit(1).for("update"))[0]?.id
+    );
+    if (!versionId)
+      throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+    const versionRows = await tx.select().from(briefVersions).where(
+      and9(
+        eq19(briefVersions.organizationId, context2.organizationId),
+        eq19(briefVersions.projectId, projectId),
+        eq19(briefVersions.streamId, streamId),
+        eq19(briefVersions.id, versionId)
+      )
+    ).limit(1).for("update");
+    if (!versionRows[0])
+      throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+    const mutatesWorkingVersion = [
+      "reviseSection",
+      "submitEvidence",
+      "recordFinding",
+      "submitFindingResolution",
+      "acceptFindingResolution",
+      "decideApplicability",
+      "raiseCondition",
+      "submitConditionResolution",
+      "acceptConditionResolution",
+      "markDependencyChanged",
+      "acceptReview",
+      "approveSection",
+      "withdrawApproval",
+      "issue"
+    ].some((name) => operation.endsWith(name));
+    if (mutatesWorkingVersion) assertWorkingBriefVersion(versionRows[0].status);
+    const sectionId = input.sectionId;
+    let entityId;
+    let eventType = operation.replace(/^brief\./, "").replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+    if (operation.endsWith("reviseSection")) {
+      await activeRole(tx, context2, streamId, "author", sectionId).catch(
+        () => activeRole(tx, context2, streamId, "section_owner", sectionId)
+      );
+      const fp = hashBriefRequest({
+        content: input.content,
+        origin: input.origin,
+        dependencies: input.dependencies ?? []
+      });
+      const inserted = await tx.insert(briefSectionRevisions).values({
+        organizationId: context2.organizationId,
+        projectId,
+        scopeKey: stream.scopeKey,
+        sectionId,
+        content: input.content,
+        origin: input.origin,
+        authorUserId: context2.actorType === "ai" ? null : context2.userId,
+        actorType: context2.actorType ?? "human",
+        contentSchemaVersion: input.contentSchemaVersion,
+        revisionFingerprint: fp,
+        lineageFingerprint: hashBriefRequest(input.dependencies ?? [])
+      });
+      entityId = Number(inserted[0].insertId);
+      const currentBinding = (await tx.select().from(briefVersionSections).where(
+        and9(
+          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.projectId, projectId),
+          eq19(briefVersionSections.versionId, versionId),
+          eq19(briefVersionSections.sectionId, sectionId)
+        )
+      ).limit(1).for("update"))[0];
+      if (!currentBinding)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      const suppliedClassifications = Array.isArray(input.content?.requirements) ? input.content.requirements : currentBinding.classifications;
+      await tx.update(briefVersionSections).set({
+        sectionRevisionId: entityId,
+        achievedState: "drafted",
+        classifications: suppliedClassifications,
+        classificationFingerprint: hashBriefRequest(suppliedClassifications),
+        revision: sql9`${briefVersionSections.revision}+1`
+      }).where(
+        and9(
+          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.projectId, projectId),
+          eq19(briefVersionSections.versionId, versionId),
+          eq19(briefVersionSections.sectionId, sectionId)
+        )
+      );
+      for (const dependency2 of input.dependencies ?? []) {
+        const type = dependency2.type;
+        const recordVersion = dependency2.recordVersion ?? dependency2.engineVersion ?? dependency2.modelVersion;
+        const fingerprint = dependency2.fingerprint ?? dependency2.resultFingerprint ?? dependency2.outputFingerprint;
+        if (!recordVersion || !fingerprint)
+          throw new BriefWorkflowError(
+            "INVALID",
+            "Dependencies require an exact version and fingerprint"
+          );
+        await tx.insert(briefDependencies).values({
+          organizationId: context2.organizationId,
+          projectId,
+          streamId,
+          versionId,
+          bindingId: currentBinding.id,
+          sectionRevisionId: entityId,
+          dependencyType: type,
+          dependencyRef: dependency2,
+          authority: dependency2.authority ?? (type === "generation" ? "ai_suggestion" : "governed_evidence"),
+          recordVersion,
+          fingerprint,
+          observedAt: dependency2.observedAt ? new Date(dependency2.observedAt) : /* @__PURE__ */ new Date(),
+          relevance: dependency2.relevance ?? "Section content lineage"
+        });
+      }
+    } else if (operation.endsWith("submitEvidence") || operation.endsWith("acceptReview") || operation.endsWith("approveSection")) {
+      const role = operation.endsWith("submitEvidence") ? "section_owner" : operation.endsWith("acceptReview") ? "reviewer" : "approver";
+      await activeRole(tx, context2, streamId, role, sectionId);
+      const binding = (await tx.select().from(briefVersionSections).where(
+        and9(
+          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.versionId, versionId),
+          eq19(briefVersionSections.sectionId, sectionId)
+        )
+      ).limit(1).for("update"))[0];
+      if (!binding?.sectionRevisionId)
+        throw new BriefWorkflowError("INVALID", "Section has no revision");
+      if (positive(input.revisionId, "revisionId") !== binding.sectionRevisionId)
+        throw new BriefWorkflowError("CONFLICT", "Command targets a stale section revision");
+      const revision = (await tx.select().from(briefSectionRevisions).where(eq19(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
+      if (revision?.authorUserId === context2.userId && role !== "section_owner")
+        throw new BriefWorkflowError(
+          "FORBIDDEN",
+          "Authors cannot review or approve their revision"
+        );
+      const expected = role === "section_owner" ? "drafted" : role === "reviewer" ? "evidenced" : "reviewed", next = role === "section_owner" ? "evidenced" : role === "reviewer" ? "reviewed" : "approved";
+      if (binding.achievedState !== expected)
+        throw new BriefWorkflowError("INVALID", `Section must be ${expected}`);
+      if (role === "reviewer") {
+        const blocking = await tx.select({ id: briefFindings.id }).from(briefFindings).where(and9(
+          eq19(briefFindings.organizationId, context2.organizationId),
+          eq19(briefFindings.projectId, projectId),
+          eq19(briefFindings.streamId, streamId),
+          eq19(briefFindings.versionId, versionId),
+          eq19(briefFindings.bindingId, binding.id),
+          eq19(briefFindings.sectionRevisionId, binding.sectionRevisionId),
+          eq19(briefFindings.severity, "blocking")
+        )).for("update");
+        const resolutionRows = blocking.length ? await tx.select().from(briefFindingResolutions).where(and9(
+          eq19(briefFindingResolutions.organizationId, context2.organizationId),
+          eq19(briefFindingResolutions.projectId, projectId),
+          eq19(briefFindingResolutions.streamId, streamId),
+          inArray4(briefFindingResolutions.findingId, blocking.map((f) => f.id))
+        )).for("update") : [];
+        if (blocking.some((f) => !resolutionRows.some((r) => r.findingId === f.id && r.stage === "accepted")))
+          throw new BriefWorkflowError("INVALID", "Blocking findings must be resolved before review acceptance");
+      }
+      if (role === "approver") {
+        const conditionRows = await tx.select().from(briefConditionEvents).where(and9(
+          eq19(briefConditionEvents.organizationId, context2.organizationId),
+          eq19(briefConditionEvents.projectId, projectId),
+          eq19(briefConditionEvents.streamId, streamId),
+          eq19(briefConditionEvents.versionId, versionId),
+          eq19(briefConditionEvents.bindingId, binding.id)
+        )).for("update");
+        const active = conditionRows.filter((c) => c.stage === "raised" && !conditionRows.some((accepted) => accepted.stage === "resolution_accepted" && conditionRows.some((submitted) => submitted.id === accepted.targetEventId && submitted.stage === "resolution_submitted" && submitted.targetEventId === c.id)));
+        if (active.length) throw new BriefWorkflowError("INVALID", "Active conditions must be resolved before approval");
+      }
+      if (role === "section_owner") {
+        const dependencyIds = (input.dependencyIds ?? []).map(
+          (id) => positive(id, "dependencyId")
+        );
+        if (!dependencyIds.length)
+          throw new BriefWorkflowError(
+            "INVALID",
+            "Evidence requires at least one governed dependency"
+          );
+        const available = await tx.select({ id: briefDependencies.id }).from(briefDependencies).where(
+          and9(
+            eq19(briefDependencies.organizationId, context2.organizationId),
+            eq19(briefDependencies.projectId, projectId),
+            eq19(briefDependencies.bindingId, binding.id),
+            eq19(briefDependencies.sectionRevisionId, binding.sectionRevisionId)
+          )
+        );
+        if (dependencyIds.some(
+          (id) => !available.some((d) => d.id === id)
+        ))
+          throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      }
+      if (role === "approver") {
+        const a = await tx.insert(briefApprovals).values({
+          organizationId: context2.organizationId,
+          projectId,
+          streamId,
+          versionId,
+          bindingId: binding.id,
+          sectionRevisionId: binding.sectionRevisionId,
+          approverUserId: context2.userId,
+          decision: "approved",
+          issuePurpose: stream.issuePurpose,
+          rationale: input.rationale ?? "",
+          limitations: input.limitations ?? [],
+          streamSequence: Number(stream.nextEventSequence)
+        });
+        entityId = Number(a[0].insertId);
+      }
+      await tx.update(briefVersionSections).set({
+        achievedState: next,
+        revision: sql9`${briefVersionSections.revision}+1`
+      }).where(eq19(briefVersionSections.id, binding.id));
+    } else if (operation.endsWith("createVersion")) {
+      await activeRole(tx, context2, streamId, "author").catch(
+        () => activeRole(tx, context2, streamId, "section_owner")
+      );
+      const predecessorId = positive(
+        input.predecessorVersionId,
+        "predecessorVersionId"
+      );
+      const predecessor = (await tx.select().from(briefVersions).where(
+        and9(
+          eq19(briefVersions.organizationId, context2.organizationId),
+          eq19(briefVersions.streamId, streamId),
+          eq19(briefVersions.id, predecessorId)
+        )
+      ).limit(1).for("update"))[0];
+      if (!predecessor)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      const latest = (await tx.select({ n: sql9`max(${briefVersions.versionNumber})` }).from(briefVersions).where(
+        and9(
+          eq19(briefVersions.organizationId, context2.organizationId),
+          eq19(briefVersions.streamId, streamId)
+        )
+      ))[0];
+      const n = Number(latest?.n ?? 0) + 1;
+      const ins = await tx.insert(briefVersions).values({
+        organizationId: context2.organizationId,
+        projectId,
+        streamId,
+        versionNumber: n,
+        predecessorVersionId: predecessorId,
+        origin: "user",
+        requirementProfileVersion: predecessor.requirementProfileVersion,
+        componentScope: predecessor.componentScope,
+        revision: 0,
+        createdBy: context2.userId
+      });
+      entityId = Number(ins[0].insertId);
+      const old = await tx.select().from(briefVersionSections).where(
+        and9(
+          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.versionId, predecessorId)
+        )
+      ).orderBy(asc2(briefVersionSections.id));
+      const carry = new Set(input.carryForwardSections ?? []);
+      await tx.insert(briefVersionSections).values(
+        old.map((b) => ({
+          organizationId: context2.organizationId,
+          projectId,
+          streamId,
+          versionId: entityId,
+          sectionRevisionId: carry.has(b.sectionId) ? b.sectionRevisionId : null,
+          sectionId: b.sectionId,
+          applicability: b.applicability,
+          achievedState: carry.has(b.sectionId) && b.sectionRevisionId ? "drafted" : "missing",
+          classifications: b.classifications,
+          classificationFingerprint: b.classificationFingerprint,
+          componentScope: b.componentScope,
+          revision: 0
+        }))
+      );
+      eventType = "version_created";
+    } else if (operation.endsWith("assignRole") || operation.endsWith("revokeRole")) {
+      await lockTenant(tx, context2, projectId, true);
+      const revoke = operation.endsWith("revokeRole");
+      const requestedSubject = input.userId ?? input.subjectUserId;
+      const subject = revoke ? null : positive(requestedSubject, "subjectUserId");
+      const targetGrant = revoke ? (await tx.select().from(briefRoleEvents).where(and9(
+        eq19(briefRoleEvents.organizationId, context2.organizationId),
+        eq19(briefRoleEvents.projectId, projectId),
+        eq19(briefRoleEvents.streamId, streamId),
+        eq19(briefRoleEvents.id, positive(input.grantEventId ?? input.targetGrantEventId, "grantEventId")),
+        eq19(briefRoleEvents.action, "granted")
+      )).limit(1).for("update"))[0] : null;
+      if (revoke && !targetGrant) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      const member = (await tx.select().from(organizationMembers).where(
+        and9(
+          eq19(organizationMembers.orgId, context2.organizationId),
+          eq19(organizationMembers.userId, revoke ? targetGrant.subjectUserId : subject)
+        )
+      ).limit(1).for("update"))[0];
+      if (!member)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      const ins = await tx.insert(briefRoleEvents).values({
+        organizationId: context2.organizationId,
+        projectId,
+        streamId,
+        versionId: input.assignmentVersionId ? positive(input.assignmentVersionId, "assignmentVersionId") : null,
+        sectionId: revoke ? targetGrant.sectionId : input.sectionId ?? null,
+        subjectUserId: revoke ? targetGrant.subjectUserId : subject,
+        role: revoke ? targetGrant.role : input.role,
+        action: revoke ? "revoked" : "granted",
+        targetGrantEventId: revoke ? positive(
+          input.grantEventId ?? input.targetGrantEventId,
+          "grantEventId"
+        ) : null,
+        actorUserId: context2.userId,
+        reason: input.reason ?? input.rationale ?? "",
+        streamSequence: Number(stream.nextEventSequence)
+      });
+      entityId = Number(ins[0].insertId);
+      eventType = revoke ? "role_revoked" : "role_assigned";
+    } else if (operation.endsWith("recordFinding")) {
+      await activeRole(tx, context2, streamId, "reviewer", sectionId);
+      const binding = (await tx.select().from(briefVersionSections).where(
+        and9(
+          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.versionId, versionId),
+          eq19(briefVersionSections.sectionId, sectionId)
+        )
+      ).limit(1).for("update"))[0];
+      if (!binding?.sectionRevisionId)
+        throw new BriefWorkflowError(
+          "INVALID",
+          "Finding requires an exact section revision"
+        );
+      if (positive(input.revisionId, "revisionId") !== binding.sectionRevisionId)
+        throw new BriefWorkflowError("CONFLICT", "Finding targets a stale section revision");
+      const rev = (await tx.select().from(briefSectionRevisions).where(eq19(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
+      if (rev?.authorUserId === context2.userId)
+        throw new BriefWorkflowError(
+          "FORBIDDEN",
+          "Authors cannot review their revision"
+        );
+      const ins = await tx.insert(briefFindings).values({
+        organizationId: context2.organizationId,
+        projectId,
+        streamId,
+        versionId,
+        bindingId: binding.id,
+        sectionRevisionId: binding.sectionRevisionId,
+        reviewerUserId: context2.userId,
+        severity: input.severity,
+        ownerUserId: positive(input.ownerUserId, "ownerUserId"),
+        statement: input.statement,
+        streamSequence: Number(stream.nextEventSequence)
+      });
+      entityId = Number(ins[0].insertId);
+      eventType = "finding_opened";
+    } else if (operation.endsWith("submitFindingResolution") || operation.endsWith("acceptFindingResolution")) {
+      const findingId = positive(input.findingId, "findingId");
+      const finding = (await tx.select().from(briefFindings).where(
+        and9(
+          eq19(briefFindings.organizationId, context2.organizationId),
+          eq19(briefFindings.projectId, projectId),
+          eq19(briefFindings.streamId, streamId),
+          eq19(briefFindings.versionId, versionId),
+          eq19(briefFindings.id, findingId)
+        )
+      ).limit(1).for("update"))[0];
+      if (!finding)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      const accept = operation.endsWith("acceptFindingResolution");
+      if (accept)
+        await activeRole(tx, context2, streamId, "reviewer", sectionId);
+      else if (finding.ownerUserId !== context2.userId)
+        throw new BriefWorkflowError("FORBIDDEN", "Finding owner required");
+      const target = accept ? positive(
+        input.resolutionSubmissionEventId ?? input.resolutionId ?? input.targetSubmissionId,
+        "resolutionSubmissionEventId"
+      ) : null;
+      let resolutionRevisionId = finding.sectionRevisionId;
+      if (!accept) {
+        resolutionRevisionId = positive(input.resolutionRevisionId, "resolutionRevisionId");
+        const resolutionRevision = (await tx.select({ id: briefSectionRevisions.id }).from(briefSectionRevisions).where(and9(
+          eq19(briefSectionRevisions.organizationId, context2.organizationId),
+          eq19(briefSectionRevisions.projectId, projectId),
+          eq19(briefSectionRevisions.id, resolutionRevisionId),
+          eq19(briefSectionRevisions.sectionId, sectionId ?? (await tx.select({ sectionId: briefVersionSections.sectionId }).from(briefVersionSections).where(eq19(briefVersionSections.id, finding.bindingId)).limit(1))[0]?.sectionId)
+        )).limit(1).for("update"))[0];
+        if (!resolutionRevision) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      }
+      if (accept) {
+        const submission = (await tx.select().from(briefFindingResolutions).where(
+          and9(
+            eq19(
+              briefFindingResolutions.organizationId,
+              context2.organizationId
+            ),
+            eq19(briefFindingResolutions.projectId, projectId),
+            eq19(briefFindingResolutions.streamId, streamId),
+            eq19(briefFindingResolutions.id, target)
+          )
+        ).limit(1).for("update"))[0];
+        if (!submission || submission.findingId !== findingId)
+          throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+        if (submission.submitterUserId === context2.userId)
+          throw new BriefWorkflowError(
+            "FORBIDDEN",
+            "Reviewers cannot accept their own resolution"
+          );
+        resolutionRevisionId = submission.sectionRevisionId;
+      }
+      const ins = await tx.insert(briefFindingResolutions).values({
+        organizationId: context2.organizationId,
+        projectId,
+        streamId,
+        findingId,
+        sectionRevisionId: resolutionRevisionId,
+        stage: accept ? decisionStage(input.outcome) : "submitted",
+        submitterUserId: accept ? positive(
+          input.submitterUserId ?? finding.ownerUserId,
+          "submitterUserId"
+        ) : context2.userId,
+        actorUserId: context2.userId,
+        targetSubmissionId: target,
+        evidence: input.evidence ?? {},
+        streamSequence: Number(stream.nextEventSequence)
+      });
+      entityId = Number(ins[0].insertId);
+      eventType = accept ? "finding_resolution_accepted" : "finding_resolution_submitted";
+    } else if (operation.endsWith("decideApplicability")) {
+      const rawAction = input.action ?? input.stage ?? input.decision;
+      const stage = normalizeApplicabilityStage(rawAction);
+      if (!stage) throw new BriefWorkflowError("INVALID", "Invalid applicability action");
+      const role = stage === "reviewed" ? "reviewer" : stage === "approved" || stage === "withdrawn" ? "approver" : "section_owner";
+      await activeRole(tx, context2, streamId, role, sectionId);
+      const binding = (await tx.select().from(briefVersionSections).where(
+        and9(
+          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.versionId, versionId),
+          eq19(briefVersionSections.sectionId, sectionId)
+        )
+      ).limit(1).for("update"))[0];
+      if (!binding)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      const target = input.proposalEventId ?? input.targetEventId ? positive(
+        input.proposalEventId ?? input.targetEventId,
+        "proposalEventId"
+      ) : null;
+      if (stage !== "proposed" && !target)
+        throw new BriefWorkflowError(
+          "INVALID",
+          "Review and approval require a target event"
+        );
+      const prior = target ? (await tx.select().from(briefApplicabilityEvents).where(
+        and9(
+          eq19(
+            briefApplicabilityEvents.organizationId,
+            context2.organizationId
+          ),
+          eq19(briefApplicabilityEvents.projectId, projectId),
+          eq19(briefApplicabilityEvents.streamId, streamId),
+          eq19(briefApplicabilityEvents.versionId, versionId),
+          eq19(briefApplicabilityEvents.bindingId, binding.id),
+          eq19(briefApplicabilityEvents.classificationFingerprint, binding.classificationFingerprint),
+          eq19(briefApplicabilityEvents.id, target)
+        )
+      ).limit(1).for("update"))[0] : null;
+      if (stage !== "proposed" && (!prior || prior.actorUserId === context2.userId))
+        throw new BriefWorkflowError(
+          "FORBIDDEN",
+          "Applicability stages require independent actors"
+        );
+      if (stage === "reviewed" && prior?.stage !== "proposed")
+        throw new BriefWorkflowError("INVALID", "Applicability review must target the proposal");
+      if (stage === "withdrawn" && prior?.stage !== "approved")
+        throw new BriefWorkflowError("INVALID", "Applicability withdrawal must target the approval");
+      if (stage === "approved") {
+        if (prior?.stage !== "reviewed")
+          throw new BriefWorkflowError("INVALID", "Applicability approval must target the review");
+        if (!prior.targetEventId) throw new BriefWorkflowError("INVALID", "Applicability review lacks its proposal target");
+        const proposal = (await tx.select().from(briefApplicabilityEvents).where(and9(
+          eq19(briefApplicabilityEvents.organizationId, context2.organizationId),
+          eq19(briefApplicabilityEvents.projectId, projectId),
+          eq19(briefApplicabilityEvents.streamId, streamId),
+          eq19(briefApplicabilityEvents.versionId, versionId),
+          eq19(briefApplicabilityEvents.bindingId, binding.id),
+          eq19(briefApplicabilityEvents.id, prior.targetEventId)
+        )).limit(1).for("update"))[0];
+        if (!proposal || proposal.stage !== "proposed" || proposal.actorUserId === context2.userId || proposal.actorUserId === prior.actorUserId)
+          throw new BriefWorkflowError("FORBIDDEN", "Applicability requires three independent actors");
+      }
+      const ins = await tx.insert(briefApplicabilityEvents).values({
+        organizationId: context2.organizationId,
+        projectId,
+        streamId,
+        versionId,
+        bindingId: binding.id,
+        classificationFingerprint: binding.classificationFingerprint,
+        stage,
+        targetEventId: target,
+        actorUserId: context2.userId,
+        rationale: input.rationale,
+        inputs: input.evidence ?? input.inputs ?? {},
+        streamSequence: Number(stream.nextEventSequence)
+      });
+      entityId = Number(ins[0].insertId);
+      if (stage === "approved")
+        await tx.update(briefVersionSections).set({ applicability: "not_applicable" }).where(eq19(briefVersionSections.id, binding.id));
+      if (stage === "withdrawn")
+        await tx.update(briefVersionSections).set({
+          applicability: "conditional",
+          achievedState: binding.sectionRevisionId ? "drafted" : "missing",
+          revision: sql9`${briefVersionSections.revision}+1`
+        }).where(eq19(briefVersionSections.id, binding.id));
+      eventType = `applicability_${stage}`;
+    } else if (operation.endsWith("raiseCondition") || operation.endsWith("submitConditionResolution") || operation.endsWith("acceptConditionResolution") || operation.endsWith("markDependencyChanged")) {
+      const resolving = !operation.endsWith("raiseCondition") && !operation.endsWith("markDependencyChanged");
+      const accepting = operation.endsWith("acceptConditionResolution");
+      if (operation.endsWith("markDependencyChanged")) {
+        if (context2.actorType !== "system" || !input.sourceAuthority)
+          throw new BriefWorkflowError("FORBIDDEN", "Typed system source authority required");
+      } else if (operation.endsWith("raiseCondition")) {
+        await activeRole(tx, context2, streamId, "section_owner", sectionId).catch(() => activeRole(tx, context2, streamId, "reviewer", sectionId)).catch(() => activeRole(tx, context2, streamId, "approver", sectionId));
+      }
+      const conditionId = resolving ? positive(input.conditionId, "conditionId") : null;
+      const submissionId = accepting ? positive(input.resolutionSubmissionEventId, "resolutionSubmissionEventId") : null;
+      const target = accepting ? submissionId : conditionId;
+      let original = null;
+      if (conditionId)
+        original = (await tx.select().from(briefConditionEvents).where(
+          and9(
+            eq19(briefConditionEvents.organizationId, context2.organizationId),
+            eq19(briefConditionEvents.projectId, projectId),
+            eq19(briefConditionEvents.streamId, streamId),
+            eq19(briefConditionEvents.versionId, versionId),
+            eq19(briefConditionEvents.id, conditionId)
+          )
+        ).limit(1).for("update"))[0];
+      if (resolving && !original)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      if (resolving && original.stage !== "raised")
+        throw new BriefWorkflowError("INVALID", "Condition resolution must target a raised condition");
+      if (accepting) {
+        const submission = (await tx.select().from(briefConditionEvents).where(and9(
+          eq19(briefConditionEvents.organizationId, context2.organizationId),
+          eq19(briefConditionEvents.projectId, projectId),
+          eq19(briefConditionEvents.streamId, streamId),
+          eq19(briefConditionEvents.versionId, versionId),
+          eq19(briefConditionEvents.bindingId, original.bindingId),
+          eq19(briefConditionEvents.id, submissionId)
+        )).limit(1).for("update"))[0];
+        if (!submission || submission.stage !== "resolution_submitted" || submission.targetEventId !== original.id)
+          throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+        await activeRole(
+          tx,
+          context2,
+          streamId,
+          original.gate === "approval_issue" ? "approver" : "reviewer",
+          sectionId
+        );
+        if (submission.actorUserId === context2.userId || original.ownerUserId === context2.userId)
+          throw new BriefWorkflowError(
+            "FORBIDDEN",
+            "Condition acceptance must be independent"
+          );
+      } else if (resolving && original.ownerUserId !== context2.userId)
+        throw new BriefWorkflowError("FORBIDDEN", "Condition owner required");
+      const bindingId = original?.bindingId ?? Number(
+        (await tx.select({ id: briefVersionSections.id }).from(briefVersionSections).where(
+          and9(
+            eq19(
+              briefVersionSections.organizationId,
+              context2.organizationId
+            ),
+            eq19(briefVersionSections.versionId, versionId),
+            eq19(briefVersionSections.sectionId, sectionId)
+          )
+        ).limit(1).for("update"))[0]?.id
+      );
+      if (!bindingId)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      const ins = await tx.insert(briefConditionEvents).values({
+        organizationId: context2.organizationId,
+        projectId,
+        streamId,
+        versionId,
+        bindingId,
+        kind: original?.kind ?? input.kind ?? "stale",
+        gate: original?.gate ?? input.gate ?? "evidence_content",
+        stage: accepting ? decisionStage(input.outcome) === "rejected" ? "resolution_rejected" : "resolution_accepted" : resolving ? "resolution_submitted" : "raised",
+        reasonCode: original?.reasonCode ?? input.reasonCode ?? "dependency_changed",
+        explanation: input.explanation ?? input.reason ?? "",
+        targetEventId: target,
+        dependencyId: input.dependencyId ?? original?.dependencyId ?? null,
+        ownerUserId: original?.ownerUserId ?? positive(input.ownerUserId, "ownerUserId"),
+        actorUserId: context2.userId,
+        evidence: input.evidence ?? {},
+        streamSequence: Number(stream.nextEventSequence)
+      });
+      entityId = Number(ins[0].insertId);
+      eventType = accepting ? "condition_resolution_accepted" : resolving ? "condition_resolution_submitted" : "condition_raised";
+    } else if (operation.endsWith("withdrawApproval")) {
+      await activeRole(tx, context2, streamId, "approver", sectionId);
+      const approvalId = positive(
+        input.approvalEventId ?? input.approvalId,
+        "approvalEventId"
+      );
+      const approval = (await tx.select().from(briefApprovals).where(
+        and9(
+          eq19(briefApprovals.organizationId, context2.organizationId),
+          eq19(briefApprovals.streamId, streamId),
+          eq19(briefApprovals.id, approvalId)
+        )
+      ).limit(1).for("update"))[0];
+      if (!approval)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      const priorWithdrawal = (await tx.select({ id: briefApprovals.id }).from(briefApprovals).where(and9(
+        eq19(briefApprovals.organizationId, context2.organizationId),
+        eq19(briefApprovals.projectId, projectId),
+        eq19(briefApprovals.streamId, streamId),
+        eq19(briefApprovals.versionId, versionId),
+        eq19(briefApprovals.targetApprovalId, approvalId),
+        eq19(briefApprovals.decision, "withdrawn")
+      )).limit(1).for("update"))[0];
+      if (approval.decision !== "approved" || priorWithdrawal)
+        throw new BriefWorkflowError("CONFLICT", "Approval is already withdrawn");
+      const ins = await tx.insert(briefApprovals).values({
+        ...approval,
+        id: void 0,
+        decision: "withdrawn",
+        targetApprovalId: approvalId,
+        approverUserId: context2.userId,
+        rationale: input.rationale ?? "",
+        limitations: input.limitations ?? [],
+        streamSequence: Number(stream.nextEventSequence)
+      });
+      entityId = Number(ins[0].insertId);
+      await tx.update(briefVersionSections).set({ achievedState: "reviewed" }).where(eq19(briefVersionSections.id, approval.bindingId));
+      eventType = "approval_withdrawn";
+    } else if (operation.endsWith("issue")) {
+      await activeRole(tx, context2, streamId, "issuer");
+      await activeRole(tx, context2, streamId, "approver");
+      const bindings = await tx.select().from(briefVersionSections).where(
+        and9(
+          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.streamId, streamId),
+          eq19(briefVersionSections.versionId, versionId)
+        )
+      ).orderBy(asc2(briefVersionSections.id)).for("update");
+      if (bindings.length !== 10 || new Set(bindings.map((b) => b.sectionId)).size !== 10)
+        throw new BriefWorkflowError(
+          "INVALID",
+          "Issue requires exactly ten unique sections"
+        );
+      if (bindings.some((b) => b.achievedState !== "approved"))
+        throw new BriefWorkflowError(
+          "INVALID",
+          "Every section must be approved before issue"
+        );
+      for (const binding of bindings) {
+        const revision = (await tx.select().from(briefSectionRevisions).where(and9(
+          eq19(briefSectionRevisions.organizationId, context2.organizationId),
+          eq19(briefSectionRevisions.projectId, projectId),
+          eq19(briefSectionRevisions.id, binding.sectionRevisionId)
+        )).limit(1).for("update"))[0];
+        const approvalRows = await tx.select().from(briefApprovals).where(and9(
+          eq19(briefApprovals.organizationId, context2.organizationId),
+          eq19(briefApprovals.projectId, projectId),
+          eq19(briefApprovals.streamId, streamId),
+          eq19(briefApprovals.versionId, versionId),
+          eq19(briefApprovals.bindingId, binding.id),
+          eq19(briefApprovals.sectionRevisionId, binding.sectionRevisionId)
+        )).for("update");
+        const activeApprovals = approvalRows.filter((a) => a.decision === "approved" && !approvalRows.some((w) => w.decision === "withdrawn" && w.targetApprovalId === a.id));
+        if (!revision || !activeApprovals.length || revision.authorUserId === context2.userId && !activeApprovals.some((a) => a.approverUserId !== context2.userId))
+          throw new BriefWorkflowError("INVALID", "Each exact revision requires an independent active approval");
+      }
+      const issueMetadata = {
+        documentIdentity: true,
+        disclaimerVersion: Boolean(input.disclaimerVersion),
+        confidentiality: Boolean(input.confidentiality),
+        distributionPolicyVersion: Boolean(input.distributionPolicyVersion),
+        reproducibilityIdentity: true
+      };
+      const readiness = evaluateBriefReadiness(
+        await getBriefReadinessFacts(
+          { ...input, issuerUserId: context2.userId, issueMetadata },
+          context2,
+          tx,
+          stream,
+          versionRows[0]
+        )
+      );
+      if (!readiness.canIssue)
+        throw new BriefWorkflowError(
+          "INVALID",
+          `Brief is not ready to issue: ${readiness.reasons.map((reason2) => reason2.code).join(", ")}`
+        );
+      const conditions = await tx.select().from(briefConditionEvents).where(
+        and9(
+          eq19(briefConditionEvents.organizationId, context2.organizationId),
+          eq19(briefConditionEvents.streamId, streamId),
+          eq19(briefConditionEvents.versionId, versionId)
+        )
+      ).orderBy(asc2(briefConditionEvents.id));
+      const active = conditions.filter(
+        (c) => c.stage === "raised" && !conditions.some(
+          (r) => r.stage === "resolution_accepted" && conditions.some((submitted) => submitted.id === r.targetEventId && submitted.stage === "resolution_submitted" && submitted.targetEventId === c.id)
+        )
+      );
+      if (active.length)
+        throw new BriefWorkflowError(
+          "INVALID",
+          "Active stale or blocked conditions prevent issue"
+        );
+      const maxIssue = (await tx.select({ n: sql9`max(${briefIssues.issueNumber})` }).from(briefIssues).where(
+        and9(
+          eq19(briefIssues.organizationId, context2.organizationId),
+          eq19(briefIssues.streamId, streamId)
+        )
+      ))[0];
+      const issueNumber = Number(maxIssue?.n ?? 0) + 1;
+      const ins = await tx.insert(briefIssues).values({
+        organizationId: context2.organizationId,
+        projectId,
+        streamId,
+        versionId,
+        operationId,
+        issueNumber,
+        issuerUserId: context2.userId,
+        issuePurpose: stream.issuePurpose,
+        metadata: input.metadata ?? {
+          documentIdentity: `brief:${streamId}:version:${versionId}:issue:${issueNumber}`,
+          disclaimerVersion: input.disclaimerVersion,
+          confidentiality: input.confidentiality,
+          distributionPolicyVersion: input.distributionPolicyVersion,
+          expiresAt: input.expiresAt ?? null,
+          reproducibilityIdentity: hashBriefRequest(
+            bindings.map((binding) => ({
+              sectionId: binding.sectionId,
+              sectionRevisionId: binding.sectionRevisionId,
+              classificationFingerprint: binding.classificationFingerprint,
+              applicability: binding.applicability
+            }))
+          )
+        }
+      });
+      entityId = Number(ins[0].insertId);
+      for (const b of bindings) {
+        const is = await tx.insert(briefIssueSections).values({
+          organizationId: context2.organizationId,
+          projectId,
+          streamId,
+          issueId: entityId,
+          bindingId: b.id,
+          sectionRevisionId: b.sectionRevisionId,
+          sectionId: b.sectionId,
+          applicability: b.applicability,
+          achievedState: "issued",
+          requirementProfileVersion: versionRows[0].requirementProfileVersion,
+          classificationFingerprint: b.classificationFingerprint,
+          componentScope: b.componentScope
+        });
+        const issueSectionId = Number(is[0].insertId);
+        const approvals = await tx.select().from(briefApprovals).where(
+          and9(
+            eq19(briefApprovals.organizationId, context2.organizationId),
+            eq19(briefApprovals.projectId, projectId),
+            eq19(briefApprovals.streamId, streamId),
+            eq19(briefApprovals.versionId, versionId),
+            eq19(briefApprovals.bindingId, b.id),
+            eq19(briefApprovals.sectionRevisionId, b.sectionRevisionId)
+          )
+        );
+        for (const a of approvals.filter((a2) => a2.decision === "approved" && !approvals.some((w) => w.decision === "withdrawn" && w.targetApprovalId === a2.id)))
+          await tx.insert(briefIssueApprovals).values({
+            organizationId: context2.organizationId,
+            projectId,
+            streamId,
+            issueId: entityId,
+            issueSectionId,
+            approvalId: a.id
+          });
+        const deps = await tx.select().from(briefDependencies).where(
+          and9(
+            eq19(briefDependencies.organizationId, context2.organizationId),
+            eq19(briefDependencies.bindingId, b.id)
+          )
+        );
+        for (const d of deps)
+          await tx.insert(briefIssueDependencies).values({
+            organizationId: context2.organizationId,
+            projectId,
+            streamId,
+            issueId: entityId,
+            issueSectionId,
+            dependencyId: d.id,
+            recordVersion: d.recordVersion,
+            fingerprint: d.fingerprint
+          });
+        if (b.applicability === "not_applicable") {
+          const apps = await tx.select().from(briefApplicabilityEvents).where(
+            and9(
+              eq19(
+                briefApplicabilityEvents.organizationId,
+                context2.organizationId
+              ),
+              eq19(briefApplicabilityEvents.bindingId, b.id),
+              eq19(briefApplicabilityEvents.stage, "approved")
+            )
+          ).orderBy(desc11(briefApplicabilityEvents.id)).limit(1);
+          if (!apps[0])
+            throw new BriefWorkflowError(
+              "INVALID",
+              "N/A section lacks approved applicability"
+            );
+          await tx.insert(briefIssueApplicability).values({
+            organizationId: context2.organizationId,
+            projectId,
+            streamId,
+            issueId: entityId,
+            issueSectionId,
+            applicabilityEventId: apps[0].id
+          });
+        }
+      }
+      await tx.update(briefVersions).set({ status: "locked" }).where(eq19(briefVersions.id, versionId));
+      await tx.update(briefVersionSections).set({ achievedState: "issued" }).where(
+        and9(
+          eq19(briefVersionSections.organizationId, context2.organizationId),
+          eq19(briefVersionSections.versionId, versionId)
+        )
+      );
+      eventType = "issue_created";
+    } else if (operation.endsWith("supersedeIssue") || operation.endsWith("requestIssueWithdrawal") || operation.endsWith("approveIssueWithdrawal")) {
+      const issueId = positive(
+        operation.endsWith("supersedeIssue") ? input.priorIssueId : input.issueId,
+        operation.endsWith("supersedeIssue") ? "priorIssueId" : "issueId"
+      );
+      const issue2 = (await tx.select().from(briefIssues).where(
+        and9(
+          eq19(briefIssues.organizationId, context2.organizationId),
+          eq19(briefIssues.streamId, streamId),
+          eq19(briefIssues.id, issueId)
+        )
+      ).limit(1).for("update"))[0];
+      if (!issue2)
+        throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      if (operation.endsWith("supersedeIssue")) {
+        const successorId = positive(
+          input.successorIssueId,
+          "successorIssueId"
+        );
+        const successor = (await tx.select().from(briefIssues).where(
+          and9(
+            eq19(briefIssues.organizationId, context2.organizationId),
+            eq19(briefIssues.projectId, projectId),
+            eq19(briefIssues.streamId, streamId),
+            eq19(briefIssues.id, successorId)
+          )
+        ).limit(1).for("update"))[0];
+        if (!successor || successor.issueNumber <= issue2.issueNumber)
+          throw new BriefWorkflowError(
+            "INVALID",
+            "Successor issue must be a later issue in the same stream"
+          );
+      }
+      if (operation.endsWith("approveIssueWithdrawal")) {
+        await activeRole(tx, context2, streamId, "approver");
+        const requestEvent = (await tx.select().from(briefEvents).where(and9(
+          eq19(briefEvents.organizationId, context2.organizationId),
+          eq19(briefEvents.projectId, projectId),
+          eq19(briefEvents.streamId, streamId),
+          eq19(briefEvents.id, positive(input.withdrawalRequestEventId, "withdrawalRequestEventId")),
+          eq19(briefEvents.eventType, "issue_withdrawal_requested"),
+          eq19(briefEvents.issueId, issueId)
+        )).limit(1).for("update"))[0];
+        if (!requestEvent) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+        if (requestEvent.actorUserId === context2.userId)
+          throw new BriefWorkflowError(
+            "FORBIDDEN",
+            "Withdrawal approval must be independent"
+          );
+        eventType = "issue_withdrawal_approved";
+      } else {
+        await activeRole(tx, context2, streamId, "issuer");
+        eventType = operation.endsWith("supersedeIssue") ? "issue_superseded" : "issue_withdrawal_requested";
+      }
+      entityId = issueId;
+    } else
+      throw new BriefWorkflowError(
+        "INVALID",
+        `Unsupported command: ${operation}`
+      );
+    const nextRevision = stream.revision + 1;
+    const revisionUpdate = await tx.update(briefStreams).set({ revision: nextRevision }).where(
+      and9(
+        eq19(briefStreams.id, streamId),
+        eq19(briefStreams.revision, stream.revision)
+      )
+    );
+    if (Number(revisionUpdate[0]?.affectedRows) !== 1)
+      throw new BriefWorkflowError("CONFLICT", "Stale stream revision");
+    await allocateEvents(tx, stream, operationId, context2, versionId, [
+      { type: eventType, sectionId, issueId: eventType.startsWith("issue_") ? entityId : void 0, payload: { entityId, priorIssueId: input.priorIssueId, successorIssueId: input.successorIssueId, withdrawalRequestEventId: input.withdrawalRequestEventId, reason: input.reason, distributionImpact: input.distributionImpact } }
+    ]);
+    const result = {
+      operationId: String(operationId),
+      revision: nextRevision,
+      value: { id: entityId ? String(entityId) : void 0 }
+    };
+    await tx.update(briefOperations).set({
+      status: "completed",
+      resultEntityType: eventType,
+      resultEntityId: entityId,
+      resultRevision: nextRevision,
+      result,
+      completedAt: /* @__PURE__ */ new Date()
+    }).where(eq19(briefOperations.id, operationId));
+    return result;
+  });
+}
+async function scopedStream(input, context2) {
+  const db = await database(), projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId");
+  const rows = await db.select().from(briefStreams).innerJoin(
+    organizationMembers,
+    and9(
+      eq19(organizationMembers.orgId, context2.organizationId),
+      eq19(organizationMembers.userId, context2.userId)
+    )
+  ).where(
+    and9(
+      eq19(briefStreams.organizationId, context2.organizationId),
+      eq19(briefStreams.projectId, projectId),
+      eq19(briefStreams.id, streamId)
+    )
+  ).limit(1);
+  if (!rows[0])
+    throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+  return { db, stream: rows[0].brief_streams };
+}
+async function getBriefSummary(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  return briefSummaryDto(db, stream);
+}
+async function briefSummaryDto(db, stream) {
+  const current = (await db.select({ id: briefVersions.id }).from(briefVersions).where(
+    and9(
+      eq19(briefVersions.organizationId, stream.organizationId),
+      eq19(briefVersions.projectId, stream.projectId),
+      eq19(briefVersions.streamId, stream.id)
+    )
+  ).orderBy(desc11(briefVersions.versionNumber)).limit(1))[0];
+  const issue2 = (await db.select({ id: briefIssues.id }).from(briefIssues).where(
+    and9(
+      eq19(briefIssues.organizationId, stream.organizationId),
+      eq19(briefIssues.projectId, stream.projectId),
+      eq19(briefIssues.streamId, stream.id)
+    )
+  ).orderBy(desc11(briefIssues.issueNumber)).limit(1))[0];
+  return {
+    briefId: String(stream.id),
+    projectId: stream.projectId,
+    scope: stream.scopeType === "scenario" ? { type: "scenario", scenarioId: stream.scenarioId } : { type: "project" },
+    purpose: stream.issuePurpose,
+    typologyProfileVersion: stream.typologyProfileVersion,
+    currentVersionId: current ? String(current.id) : null,
+    latestIssueId: issue2 ? String(issue2.id) : null,
+    revision: stream.revision
+  };
+}
+async function listBriefStreams(input, context2) {
+  const db = await database();
+  const streams = await db.select().from(briefStreams).where(
+    and9(
+      eq19(briefStreams.organizationId, context2.organizationId),
+      eq19(briefStreams.projectId, positive(input.projectId, "projectId"))
+    )
+  ).orderBy(desc11(briefStreams.id));
+  const membership = (await db.select({ id: organizationMembers.id }).from(organizationMembers).where(
+    and9(
+      eq19(organizationMembers.orgId, context2.organizationId),
+      eq19(organizationMembers.userId, context2.userId)
+    )
+  ).limit(1))[0];
+  if (!membership)
+    throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+  return Promise.all(streams.map((stream) => briefSummaryDto(db, stream)));
+}
+async function getBriefVersion(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  const version = (await db.select().from(briefVersions).where(
+    and9(
+      eq19(briefVersions.organizationId, context2.organizationId),
+      eq19(briefVersions.streamId, stream.id),
+      eq19(briefVersions.id, positive(input.versionId, "versionId"))
+    )
+  ).limit(1))[0] ?? null;
+  if (!version) return null;
+  const sections = await db.select().from(briefVersionSections).where(
+    and9(
+      eq19(briefVersionSections.organizationId, context2.organizationId),
+      eq19(briefVersionSections.versionId, version.id)
+    )
+  ).orderBy(asc2(briefVersionSections.id));
+  return {
+    ...version,
+    id: String(version.id),
+    briefId: String(stream.id),
+    sections: sections.map((section) => ({
+      ...section,
+      id: String(section.id),
+      revisionId: section.sectionRevisionId ? String(section.sectionRevisionId) : null
+    }))
+  };
+}
+async function getBriefSection(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  const binding = (await db.select().from(briefVersionSections).where(
+    and9(
+      eq19(briefVersionSections.organizationId, context2.organizationId),
+      eq19(briefVersionSections.streamId, stream.id),
+      eq19(
+        briefVersionSections.versionId,
+        positive(input.versionId, "versionId")
+      ),
+      eq19(briefVersionSections.sectionId, input.sectionId)
+    )
+  ).limit(1))[0] ?? null;
+  if (!binding) return null;
+  if (!binding.sectionRevisionId) return { ...binding, content: null };
+  const revision = (await db.select({ content: briefSectionRevisions.content }).from(briefSectionRevisions).where(
+    and9(
+      eq19(briefSectionRevisions.organizationId, context2.organizationId),
+      eq19(briefSectionRevisions.projectId, stream.projectId),
+      eq19(briefSectionRevisions.id, binding.sectionRevisionId)
+    )
+  ).limit(1))[0];
+  return { ...binding, content: revision?.content ?? null };
+}
+async function listBriefAssignments(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  return db.select().from(briefRoleEvents).where(
+    and9(
+      eq19(briefRoleEvents.organizationId, context2.organizationId),
+      eq19(briefRoleEvents.streamId, stream.id)
+    )
+  ).orderBy(asc2(briefRoleEvents.id));
+}
+async function listBriefFindings(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  return db.select().from(briefFindings).where(
+    and9(
+      eq19(briefFindings.organizationId, context2.organizationId),
+      eq19(briefFindings.streamId, stream.id)
+    )
+  ).orderBy(asc2(briefFindings.id));
+}
+async function listBriefDependencies(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  return db.select().from(briefDependencies).where(
+    and9(
+      eq19(briefDependencies.organizationId, context2.organizationId),
+      eq19(briefDependencies.streamId, stream.id)
+    )
+  ).orderBy(asc2(briefDependencies.id));
+}
+async function listBriefEvents(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  return db.select().from(briefEvents).where(
+    and9(
+      eq19(briefEvents.organizationId, context2.organizationId),
+      eq19(briefEvents.streamId, stream.id)
+    )
+  ).orderBy(asc2(briefEvents.streamSequence));
+}
+async function listBriefIssues(input, context2) {
+  const { db, stream } = await scopedStream(input, context2);
+  const issues = await db.select().from(briefIssues).where(
+    and9(
+      eq19(briefIssues.organizationId, context2.organizationId),
+      eq19(briefIssues.streamId, stream.id)
+    )
+  ).orderBy(desc11(briefIssues.issueNumber));
+  const events = await db.select().from(briefEvents).where(and9(eq19(briefEvents.organizationId, context2.organizationId), eq19(briefEvents.streamId, stream.id))).orderBy(asc2(briefEvents.streamSequence));
+  return issues.map((issue2) => {
+    const statusEvent = events.filter((event) => event.issueId === issue2.id && (event.eventType === "issue_superseded" || event.eventType === "issue_withdrawal_approved")).at(-1);
+    return { ...issue2, issueId: String(issue2.id), briefId: String(stream.id), versionId: String(issue2.versionId), purpose: issue2.issuePurpose, status: statusEvent?.eventType === "issue_withdrawal_approved" ? "withdrawn" : statusEvent?.eventType === "issue_superseded" ? "superseded" : "active" };
+  });
+}
+async function getBriefReadinessFacts(input, context2, transaction, lockedStream, lockedVersion) {
+  const scoped = transaction && lockedStream ? { db: transaction, stream: lockedStream } : await scopedStream(input, context2);
+  const { db, stream } = scoped;
+  const versionId = positive(input.versionId, "versionId");
+  const [queriedVersion] = lockedVersion ? [lockedVersion] : await db.select().from(briefVersions).where(
+    and9(
+      eq19(briefVersions.organizationId, context2.organizationId),
+      eq19(briefVersions.streamId, stream.id),
+      eq19(briefVersions.id, versionId)
+    )
+  ).limit(1);
+  const version = lockedVersion ?? queriedVersion;
+  if (!version)
+    throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+  const [
+    bindings,
+    roles,
+    conditions,
+    findings,
+    resolutions,
+    approvals,
+    apps,
+    deps,
+    revisions
+  ] = await Promise.all([
+    db.select().from(briefVersionSections).where(
+      and9(
+        eq19(briefVersionSections.organizationId, context2.organizationId),
+        eq19(briefVersionSections.streamId, stream.id),
+        eq19(briefVersionSections.versionId, versionId)
+      )
+    ).orderBy(asc2(briefVersionSections.id)),
+    db.select().from(briefRoleEvents).where(
+      and9(
+        eq19(briefRoleEvents.organizationId, context2.organizationId),
+        eq19(briefRoleEvents.streamId, stream.id)
+      )
+    ).orderBy(asc2(briefRoleEvents.id)),
+    db.select().from(briefConditionEvents).where(
+      and9(
+        eq19(briefConditionEvents.organizationId, context2.organizationId),
+        eq19(briefConditionEvents.streamId, stream.id),
+        eq19(briefConditionEvents.versionId, versionId)
+      )
+    ).orderBy(asc2(briefConditionEvents.id)),
+    db.select().from(briefFindings).where(
+      and9(
+        eq19(briefFindings.organizationId, context2.organizationId),
+        eq19(briefFindings.streamId, stream.id),
+        eq19(briefFindings.versionId, versionId)
+      )
+    ),
+    db.select().from(briefFindingResolutions).where(
+      and9(
+        eq19(briefFindingResolutions.organizationId, context2.organizationId),
+        eq19(briefFindingResolutions.streamId, stream.id)
+      )
+    ),
+    db.select().from(briefApprovals).where(
+      and9(
+        eq19(briefApprovals.organizationId, context2.organizationId),
+        eq19(briefApprovals.streamId, stream.id),
+        eq19(briefApprovals.versionId, versionId)
+      )
+    ).orderBy(asc2(briefApprovals.streamSequence)),
+    db.select().from(briefApplicabilityEvents).where(
+      and9(
+        eq19(briefApplicabilityEvents.organizationId, context2.organizationId),
+        eq19(briefApplicabilityEvents.streamId, stream.id),
+        eq19(briefApplicabilityEvents.versionId, versionId)
+      )
+    ).orderBy(asc2(briefApplicabilityEvents.streamSequence)),
+    db.select().from(briefDependencies).where(
+      and9(
+        eq19(briefDependencies.organizationId, context2.organizationId),
+        eq19(briefDependencies.streamId, stream.id),
+        eq19(briefDependencies.versionId, versionId)
+      )
+    ),
+    db.select().from(briefSectionRevisions).where(
+      and9(
+        eq19(briefSectionRevisions.organizationId, context2.organizationId),
+        eq19(briefSectionRevisions.projectId, stream.projectId)
+      )
+    )
+  ]);
+  const activeGrants = roles.filter(
+    (r) => r.action === "granted" && !roles.some(
+      (x) => x.action === "revoked" && x.targetGrantEventId === r.id
+    )
+  );
+  const sectionFacts = bindings.map((b) => {
+    const rev = revisions.find((r) => r.id === b.sectionRevisionId);
+    const bd = deps.filter((d) => d.bindingId === b.id);
+    const bf = findings.filter((f) => f.bindingId === b.id);
+    const ba = approvals.filter(
+      (a) => a.bindingId === b.id && a.decision === "approved" && !approvals.some(
+        (w) => w.decision === "withdrawn" && w.targetApprovalId === a.id
+      )
+    );
+    const ev = apps.filter((a) => a.bindingId === b.id && a.classificationFingerprint === b.classificationFingerprint);
+    const approved = ev.filter((a) => a.stage === "approved").at(-1);
+    const reviewed = approved ? ev.find((a) => a.id === approved.targetEventId && a.stage === "reviewed") : void 0;
+    const proposed = reviewed ? ev.find((a) => a.id === reviewed.targetEventId && a.stage === "proposed") : void 0;
+    const cs = conditions.filter((c) => c.bindingId === b.id);
+    const raised = cs.filter((c) => c.stage === "raised");
+    const active = raised.filter(
+      (c) => !cs.some(
+        (accepted) => accepted.stage === "resolution_accepted" && (accepted.targetEventId === c.id || cs.some(
+          (submitted) => submitted.id === accepted.targetEventId && submitted.targetEventId === c.id
+        ))
+      )
+    );
+    const classifications = Array.isArray(b.classifications) ? b.classifications : [];
+    const requirements = classifications.map((c) => {
+      const ruleDependencies = bd.filter((d) => {
+        const ref = d.dependencyRef;
+        return ref?.ruleId === c.ruleId || c.sourceId && ref?.recordId === c.sourceId && (!c.sourceVersion || d.recordVersion === c.sourceVersion);
+      });
+      return {
+        ruleId: String(c.ruleId ?? "unclassified"),
+        classified: Boolean(c.ruleId && c.requirement),
+        required: c.requirement === "required",
+        componentId: c.componentId,
+        hasContent: Boolean(rev),
+        hasEvidence: ruleDependencies.some((d) => d.authority !== "ai_suggestion"),
+        authority: c.authority ?? (rev?.origin === "ai_proposal" ? "ai_suggestion" : rev ? "explicit_user_input" : void 0),
+        assumptionImpacts: c.impacts ?? [],
+        hasRequiredProfessionalReview: c.impacts?.includes?.("professional") ? Boolean(c.approvedBy) : true,
+        lineageComplete: ruleDependencies.length > 0 && ruleDependencies.every(
+          (d) => Boolean(d.recordVersion && d.fingerprint)
+        )
+      };
+    });
+    const componentCoverage = version.componentScope.map((componentId) => {
+      const componentRules = requirements.filter((r) => r.componentId === String(componentId));
+      const reconciliation = bd.some((d) => {
+        const ref = d.dependencyRef;
+        return ref?.componentId === String(componentId) && ref?.reconciliationPassed === true;
+      });
+      return { componentId: String(componentId), complete: componentRules.length > 0 && componentRules.every((r) => !r.required || r.hasContent && r.hasEvidence && r.lineageComplete), reconciled: reconciliation };
+    });
+    return {
+      sectionId: b.sectionId,
+      applicability: b.applicability,
+      achievedState: b.achievedState,
+      revisionId: b.sectionRevisionId ? String(b.sectionRevisionId) : null,
+      authorUserId: rev?.authorUserId,
+      reviewerUserId: activeGrants.find(
+        (r) => r.role === "reviewer" && (r.sectionId == null || r.sectionId === b.sectionId)
+      )?.subjectUserId,
+      approverUserId: ba.at(-1)?.approverUserId,
+      applicabilityProposerUserId: proposed?.actorUserId,
+      applicabilityReviewerUserId: reviewed?.actorUserId,
+      applicabilityApproverUserId: approved?.actorUserId,
+      requirements,
+      conditions: raised.map((c) => ({
+        conditionId: String(c.id),
+        kind: c.kind,
+        active: active.some((x) => x.id === c.id),
+        dependencyId: c.dependencyId ? String(c.dependencyId) : void 0
+      })),
+      findings: bf.map((f) => ({
+        findingId: String(f.id),
+        severity: f.severity,
+        resolved: resolutions.some(
+          (r) => r.findingId === f.id && r.stage === "accepted"
+        ),
+        componentId: void 0
+      })),
+      reconciliations: [],
+      componentCoverage
+    };
+  });
+  return {
+    briefId: String(stream.id),
+    versionId: String(version.id),
+    streamRevision: stream.revision,
+    versionRevision: version.revision,
+    purpose: stream.issuePurpose,
+    profile: String(stream.typologyProfileVersion).split(":")[0],
+    componentIds: version.componentScope.map(String),
+    sections: sectionFacts,
+    issuerUserId: input.issuerUserId,
+    activeRoles: activeGrants.map((r) => ({
+      userId: r.subjectUserId,
+      role: r.role
+    })),
+    issueMetadata: input.issueMetadata ?? {
+      documentIdentity: false,
+      disclaimerVersion: false,
+      confidentiality: false,
+      distributionPolicyVersion: false,
+      reproducibilityIdentity: false
+    }
+  };
+}
+
+// server/routers/brief.ts
+function briefWorkflowEnabled(organizationId) {
+  if (process.env.NODE_ENV !== "production") return true;
+  const organizations2 = new Set(
+    (process.env.BRIEF_WORKFLOW_ORG_IDS ?? "").split(",").map((value) => Number(value.trim())).filter(Number.isSafeInteger)
+  );
+  const consumers = new Set(
+    (process.env.BRIEF_WORKFLOW_CONSUMERS ?? "").split(",").map((value) => value.trim()).filter(Boolean)
+  );
+  return organizations2.has(organizationId) && consumers.has("project_workspace");
+}
+var requireBriefWorkflow = async ({ ctx, next }) => {
+  if (!briefWorkflowEnabled(ctx.orgId)) {
+    throw new TRPCError30({ code: "NOT_FOUND", message: "Brief resource not found" });
+  }
+  return next({ ctx });
+};
+var orgProcedure3 = orgProcedure.use(requireBriefWorkflow);
+var orgMutationProcedure2 = orgMutationProcedure.use(requireBriefWorkflow);
+var orgAdminProcedure2 = orgAdminProcedure.use(requireBriefWorkflow);
+var canonicalId = z42.string().regex(/^\d+$/).max(32);
+var bounded = z42.string().trim().min(1).max(2e3);
+var idempotencyKey = z42.string().trim().min(8).max(128);
+var jsonValue = z42.lazy(
+  () => z42.union([
+    z42.null(),
+    z42.boolean(),
+    z42.number(),
+    z42.string().max(1e5),
+    z42.array(jsonValue).max(2e3),
+    z42.record(z42.string().max(256), jsonValue)
+  ])
+);
+var briefRef = z42.object({ projectId: z42.number().int().positive(), briefId: canonicalId });
+var versionRef = briefRef.extend({ versionId: canonicalId });
+var mutationMeta = z42.object({ expectedRevision: z42.number().int().nonnegative(), idempotencyKey });
+var versionMutation = versionRef.merge(mutationMeta);
+var page = z42.object({ cursor: canonicalId.optional(), limit: z42.number().int().min(1).max(100).default(50) });
+var dependency = z42.object({
+  type: z42.string().trim().min(1).max(64),
+  recordId: z42.string().trim().min(1).max(128).optional(),
+  recordVersion: z42.string().trim().min(1).max(128).optional(),
+  fingerprint: z42.string().trim().min(1).max(128).optional(),
+  engineVersion: z42.string().trim().min(1).max(128).optional(),
+  modelVersion: z42.string().trim().min(1).max(128).optional(),
+  promptVersion: z42.string().trim().min(1).max(128).optional(),
+  inputFingerprint: z42.string().trim().min(1).max(128).optional(),
+  outputFingerprint: z42.string().trim().min(1).max(128).optional()
+});
+function context(ctx) {
+  return { organizationId: ctx.orgId, userId: ctx.user.id, actorType: "human" };
+}
+function translate(error) {
+  if (error instanceof BriefWorkflowError) {
+    const code = error.code === "CONCEALED" ? "NOT_FOUND" : error.code === "FORBIDDEN" ? "FORBIDDEN" : error.code === "CONFLICT" ? "CONFLICT" : error.code === "UNAVAILABLE" ? "SERVICE_UNAVAILABLE" : "BAD_REQUEST";
+    throw new TRPCError30({ code, message: error.message });
+  }
+  throw error;
+}
+async function command(name, input, ctx) {
+  try {
+    return await executeBriefCommand(name, input, context(ctx));
+  } catch (error) {
+    translate(error);
+  }
+}
+var briefRouter = router({
+  createStream: orgAdminProcedure2.input(z42.object({
+    projectId: z42.number().int().positive(),
+    scope: z42.discriminatedUnion("type", [
+      z42.object({ type: z42.literal("project") }),
+      z42.object({ type: z42.literal("scenario"), scenarioId: z42.number().int().positive() })
+    ]),
+    purpose: issuePurposeSchema,
+    typologyProfileVersion: z42.string().trim().min(1).max(96),
+    profile: briefTypologyProfileSchema.optional(),
+    componentIds: z42.array(z42.string().trim().min(1).max(96)).max(32),
+    initialAssignments: z42.array(z42.object({ userId: z42.number().int().positive(), role: briefFunctionalRoleSchema, sectionId: briefSectionIdSchema.optional() })).max(100),
+    idempotencyKey
+  })).mutation(async ({ ctx, input }) => {
+    try {
+      return await createBriefStream(input, context(ctx));
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  createVersion: orgMutationProcedure2.input(versionMutation.extend({ predecessorVersionId: canonicalId, carryForwardSections: z42.array(briefSectionIdSchema).max(10) })).mutation(({ ctx, input }) => command("createVersion", input, ctx)),
+  reviseSection: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, contentSchemaVersion: z42.string().trim().min(1).max(64), content: jsonValue, origin: z42.enum(["user", "deterministic", "ai_proposal", "legacy_import"]), dependencies: z42.array(dependency).max(500) })).mutation(({ ctx, input }) => command("reviseSection", input, ctx)),
+  submitEvidence: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, dependencyIds: z42.array(canonicalId).max(500), rationale: bounded })).mutation(({ ctx, input }) => command("submitEvidence", input, ctx)),
+  assignRole: orgAdminProcedure2.input(briefRef.merge(mutationMeta).extend({ userId: z42.number().int().positive(), role: briefFunctionalRoleSchema, versionId: canonicalId.optional(), sectionId: briefSectionIdSchema.optional(), reason: bounded })).mutation(({ ctx, input }) => command("assignRole", input, ctx)),
+  revokeRole: orgAdminProcedure2.input(briefRef.merge(mutationMeta).extend({ grantEventId: canonicalId, reason: bounded })).mutation(({ ctx, input }) => command("revokeRole", input, ctx)),
+  recordFinding: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, severity: z42.enum(["blocking", "advisory"]), ownerUserId: z42.number().int().positive(), statement: bounded })).mutation(({ ctx, input }) => command("recordFinding", input, ctx)),
+  submitFindingResolution: orgMutationProcedure2.input(versionMutation.extend({ findingId: canonicalId, resolutionRevisionId: canonicalId, evidence: jsonValue })).mutation(({ ctx, input }) => command("submitFindingResolution", input, ctx)),
+  acceptFindingResolution: orgMutationProcedure2.input(versionMutation.extend({ findingId: canonicalId, resolutionSubmissionEventId: canonicalId, outcome: z42.enum(["accepted", "rejected"]), rationale: bounded })).mutation(({ ctx, input }) => command("acceptFindingResolution", input, ctx)),
+  decideApplicability: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, action: z42.enum(["propose", "accept_review", "approve", "withdraw"]), proposalEventId: canonicalId.optional(), rationale: bounded, evidence: jsonValue })).mutation(({ ctx, input }) => command("decideApplicability", input, ctx)),
+  raiseCondition: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, kind: briefConditionKindSchema, gate: briefConditionGateSchema, reasonCode: z42.string().trim().min(1).max(96), explanation: bounded, ownerUserId: z42.number().int().positive(), dependencyId: canonicalId.optional(), resolutionRequirement: bounded })).mutation(({ ctx, input }) => command("raiseCondition", input, ctx)),
+  submitConditionResolution: orgMutationProcedure2.input(versionMutation.extend({ conditionId: canonicalId, evidence: jsonValue })).mutation(({ ctx, input }) => command("submitConditionResolution", input, ctx)),
+  acceptConditionResolution: orgMutationProcedure2.input(versionMutation.extend({ conditionId: canonicalId, resolutionSubmissionEventId: canonicalId, outcome: z42.enum(["accepted", "rejected"]), rationale: bounded })).mutation(({ ctx, input }) => command("acceptConditionResolution", input, ctx)),
+  acceptReview: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, rationale: bounded })).mutation(({ ctx, input }) => command("acceptReview", input, ctx)),
+  approveSection: orgMutationProcedure2.input(versionMutation.extend({ sectionId: briefSectionIdSchema, revisionId: canonicalId, limitations: z42.array(z42.string().max(1e3)).max(100), rationale: bounded })).mutation(({ ctx, input }) => command("approveSection", input, ctx)),
+  withdrawApproval: orgMutationProcedure2.input(versionMutation.extend({ approvalEventId: canonicalId, reason: bounded })).mutation(({ ctx, input }) => command("withdrawApproval", input, ctx)),
+  issue: orgMutationProcedure2.input(versionMutation.extend({ disclaimerVersion: z42.string().trim().min(1).max(96), confidentiality: z42.enum(["organization", "named_recipients"]), distributionPolicyVersion: z42.string().trim().min(1).max(96), expiresAt: z42.string().datetime().optional() })).mutation(({ ctx, input }) => command("issue", input, ctx)),
+  supersedeIssue: orgMutationProcedure2.input(briefRef.merge(mutationMeta).extend({ priorIssueId: canonicalId, successorIssueId: canonicalId, reason: bounded })).mutation(({ ctx, input }) => command("supersedeIssue", input, ctx)),
+  requestIssueWithdrawal: orgMutationProcedure2.input(briefRef.merge(mutationMeta).extend({ issueId: canonicalId, reason: bounded, distributionImpact: bounded })).mutation(({ ctx, input }) => command("requestIssueWithdrawal", input, ctx)),
+  approveIssueWithdrawal: orgMutationProcedure2.input(briefRef.merge(mutationMeta).extend({ issueId: canonicalId, withdrawalRequestEventId: canonicalId, rationale: bounded })).mutation(({ ctx, input }) => command("approveIssueWithdrawal", input, ctx)),
+  getStream: orgProcedure3.input(briefRef).query(async ({ ctx, input }) => {
+    try {
+      return await getBriefSummary(input, context(ctx));
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  listStreams: orgProcedure3.input(z42.object({ projectId: z42.number().int().positive(), scope: z42.enum(["project", "scenario"]).optional(), purpose: issuePurposeSchema.optional() }).merge(page)).query(async ({ ctx, input }) => {
+    try {
+      const items = await listBriefStreams(input, context(ctx));
+      return { items, nextCursor: null };
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  getVersion: orgProcedure3.input(versionRef).query(async ({ ctx, input }) => {
+    try {
+      const [summary, version] = await Promise.all([getBriefSummary(input, context(ctx)), getBriefVersion(input, context(ctx))]);
+      if (!version) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
+      const sections = await Promise.all((await Promise.resolve().then(() => (init_brief_contract(), brief_contract_exports))).BRIEF_SECTION_IDS.map((sectionId) => getBriefSection({ ...input, sectionId }, context(ctx))));
+      return { summary, version, sections: sections.filter(Boolean) };
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  getSectionHistory: orgProcedure3.input(briefRef.extend({ sectionId: briefSectionIdSchema }).merge(page)).query(async ({ ctx, input }) => {
+    try {
+      const items = await listBriefEvents(input, context(ctx));
+      return { items: items.filter((item) => item.sectionId === input.sectionId && item.eventType === "section_revised"), nextCursor: null };
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  getAssignments: orgProcedure3.input(briefRef.merge(page)).query(async ({ ctx, input }) => {
+    try {
+      return { items: await listBriefAssignments(input, context(ctx)), nextCursor: null };
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  getFindings: orgProcedure3.input(versionRef.extend({ sectionId: briefSectionIdSchema.optional() }).merge(page)).query(async ({ ctx, input }) => {
+    try {
+      const items = await listBriefFindings(input, context(ctx));
+      return { items: input.sectionId ? items.filter((item) => item.sectionId === input.sectionId) : items, nextCursor: null };
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  getDependencyStatus: orgProcedure3.input(versionRef.extend({ sectionId: briefSectionIdSchema.optional() })).query(async ({ ctx, input }) => {
+    try {
+      return await listBriefDependencies(input, context(ctx));
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  getWorkflowHistory: orgProcedure3.input(briefRef.merge(page)).query(async ({ ctx, input }) => {
+    try {
+      return { items: await listBriefEvents(input, context(ctx)), nextCursor: null };
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  getIssueLedger: orgProcedure3.input(briefRef.merge(page)).query(async ({ ctx, input }) => {
+    try {
+      return { items: await listBriefIssues(input, context(ctx)), nextCursor: null };
+    } catch (error) {
+      translate(error);
+    }
+  }),
+  getReadiness: orgProcedure3.input(versionRef).query(async ({ ctx, input }) => {
+    try {
+      return evaluateBriefReadiness(await getBriefReadinessFacts(input, context(ctx)));
+    } catch (error) {
+      translate(error);
+    }
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -40971,7 +44197,8 @@ var appRouter = router({
   salesPremium: salesPremiumRouter,
   intake: intakeRouter,
   materialQuantity: materialQuantityRouter,
-  spaceProgram: spaceProgramRouter
+  spaceProgram: spaceProgramRouter,
+  brief: briefRouter
 });
 
 // server/_core/context.ts

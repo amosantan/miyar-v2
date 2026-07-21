@@ -1,10 +1,16 @@
 export const MYSQL_INTEGRATION_TEST =
   "tests/mysql/design-authorization.mysql.test.ts";
 
+export const MYSQL_INTEGRATION_TESTS = [
+  MYSQL_INTEGRATION_TEST,
+  "tests/mysql/br03-brief-workflow.mysql.test.ts",
+] as const;
+
 export const MYSQL_EVIDENCE_FILE = ".agent/state/TR03H_MYSQL_EVIDENCE.json";
 
 export const REQUIRED_MYSQL_EVIDENCE_FILES = [
   MYSQL_INTEGRATION_TEST,
+  "tests/mysql/br03-brief-workflow.mysql.test.ts",
   "server/db.ts",
   "server/_core/trpc.ts",
   "server/_core/market-resource-access.ts",
@@ -42,6 +48,8 @@ export const REQUIRED_MYSQL_EVIDENCE_FILES = [
   "drizzle/0048_youthful_morlocks.sql",
   "drizzle/0051_brief_radioactive_man.sql",
   "drizzle/meta/0051_snapshot.json",
+  "drizzle/0052_br03_brief_workflow.sql",
+  "drizzle/meta/0052_snapshot.json",
   "tests/mysql/di01-geometry.mysql.test.ts",
   "shared/geometry/index.ts",
   "shared/geometry/types.ts",

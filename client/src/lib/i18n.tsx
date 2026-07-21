@@ -39,6 +39,9 @@ const translations: Record<string, TranslationMap> = {
         "workspace.evidence": "Evidence",
         "workspace.deliverables": "Deliverables",
         "workspace.settings": "Settings",
+        "brief.title": "Governed design brief",
+        "brief.sections": "Ten sections",
+        "brief.preview": "Working preview",
         // Common actions
         "action.save": "Save",
         "action.cancel": "Cancel",
@@ -107,6 +110,9 @@ const translations: Record<string, TranslationMap> = {
         "workspace.evidence": "الأدلة",
         "workspace.deliverables": "المخرجات",
         "workspace.settings": "الإعدادات",
+        "brief.title": "موجز التصميم المحكوم",
+        "brief.sections": "الأقسام العشرة",
+        "brief.preview": "معاينة المسودة",
         // Common actions
         "action.save": "حفظ",
         "action.cancel": "إلغاء",

@@ -3086,19 +3086,11 @@ export const spatialGraphVersions = mysqlTable(
         table.projectId,
         table.parentGraphVersionId,
       ],
-      foreignColumns: [
-        table.organizationId,
-        table.projectId,
-        table.id,
-      ],
+      foreignColumns: [table.organizationId, table.projectId, table.id],
     }),
     foreignKey({
       name: "sgv_source_scope_fk",
-      columns: [
-        table.organizationId,
-        table.projectId,
-        table.geometrySourceId,
-      ],
+      columns: [table.organizationId, table.projectId, table.geometrySourceId],
       foreignColumns: [
         geometrySources.organizationId,
         geometrySources.projectId,
@@ -3210,11 +3202,7 @@ export const spaceVersions = mysqlTable(
     ),
     foreignKey({
       name: "sv_identity_scope_fk",
-      columns: [
-        table.organizationId,
-        table.projectId,
-        table.spaceIdentityId,
-      ],
+      columns: [table.organizationId, table.projectId, table.spaceIdentityId],
       foreignColumns: [
         spaceIdentities.organizationId,
         spaceIdentities.projectId,
@@ -3223,11 +3211,7 @@ export const spaceVersions = mysqlTable(
     }),
     foreignKey({
       name: "sv_graph_scope_fk",
-      columns: [
-        table.organizationId,
-        table.projectId,
-        table.geometryVersionId,
-      ],
+      columns: [table.organizationId, table.projectId, table.geometryVersionId],
       foreignColumns: [
         spatialGraphVersions.organizationId,
         spatialGraphVersions.projectId,
@@ -3241,11 +3225,7 @@ export const spaceVersions = mysqlTable(
         table.projectId,
         table.supersedesSpaceVersionId,
       ],
-      foreignColumns: [
-        table.organizationId,
-        table.projectId,
-        table.id,
-      ],
+      foreignColumns: [table.organizationId, table.projectId, table.id],
     }),
   ]
 );
@@ -3425,11 +3405,7 @@ export const measurementRecords = mysqlTable(
     ),
     foreignKey({
       name: "mr_identity_scope_fk",
-      columns: [
-        table.organizationId,
-        table.projectId,
-        table.spaceIdentityId,
-      ],
+      columns: [table.organizationId, table.projectId, table.spaceIdentityId],
       foreignColumns: [
         spaceIdentities.organizationId,
         spaceIdentities.projectId,
@@ -3438,11 +3414,7 @@ export const measurementRecords = mysqlTable(
     }),
     foreignKey({
       name: "mr_space_version_scope_fk",
-      columns: [
-        table.organizationId,
-        table.projectId,
-        table.spaceVersionId,
-      ],
+      columns: [table.organizationId, table.projectId, table.spaceVersionId],
       foreignColumns: [
         spaceVersions.organizationId,
         spaceVersions.projectId,
@@ -3451,11 +3423,7 @@ export const measurementRecords = mysqlTable(
     }),
     foreignKey({
       name: "mr_graph_scope_fk",
-      columns: [
-        table.organizationId,
-        table.projectId,
-        table.graphVersionId,
-      ],
+      columns: [table.organizationId, table.projectId, table.graphVersionId],
       foreignColumns: [
         spatialGraphVersions.organizationId,
         spatialGraphVersions.projectId,
@@ -3464,11 +3432,7 @@ export const measurementRecords = mysqlTable(
     }),
     foreignKey({
       name: "mr_source_scope_fk",
-      columns: [
-        table.organizationId,
-        table.projectId,
-        table.geometrySourceId,
-      ],
+      columns: [table.organizationId, table.projectId, table.geometrySourceId],
       foreignColumns: [
         geometrySources.organizationId,
         geometrySources.projectId,
@@ -3482,11 +3446,7 @@ export const measurementRecords = mysqlTable(
         table.projectId,
         table.supersedesMeasurementRecordId,
       ],
-      foreignColumns: [
-        table.organizationId,
-        table.projectId,
-        table.id,
-      ],
+      foreignColumns: [table.organizationId, table.projectId, table.id],
     }),
   ]
 );
@@ -3734,11 +3694,7 @@ export const legacySpaceLinks = mysqlTable(
     ),
     foreignKey({
       name: "lsl_identity_scope_fk",
-      columns: [
-        table.organizationId,
-        table.projectId,
-        table.spaceIdentityId,
-      ],
+      columns: [table.organizationId, table.projectId, table.spaceIdentityId],
       foreignColumns: [
         spaceIdentities.organizationId,
         spaceIdentities.projectId,
@@ -3802,11 +3758,7 @@ export const artifactInputSnapshots = mysqlTable(
     ),
     foreignKey({
       name: "ais_graph_scope_fk",
-      columns: [
-        table.organizationId,
-        table.projectId,
-        table.graphVersionId,
-      ],
+      columns: [table.organizationId, table.projectId, table.graphVersionId],
       foreignColumns: [
         spatialGraphVersions.organizationId,
         spatialGraphVersions.projectId,
@@ -3819,3 +3771,800 @@ export const artifactInputSnapshots = mysqlTable(
 export type ArtifactInputSnapshot = typeof artifactInputSnapshots.$inferSelect;
 export type InsertArtifactInputSnapshot =
   typeof artifactInputSnapshots.$inferInsert;
+
+// ─── Canonical issued-design-brief workflow (BR-02/BR-03) ──────────────────
+// These tables are deliberately additive. Historical design_briefs remain
+// compatibility inputs and never acquire canonical governance by inference.
+const briefSectionValues = [
+  "intent",
+  "asset_context",
+  "space_programme",
+  "design_direction",
+  "specification_intent",
+  "cost_quantities",
+  "supply",
+  "risk_compliance",
+  "concept_media",
+  "governance",
+] as const;
+const briefRoleValues = [
+  "author",
+  "section_owner",
+  "reviewer",
+  "approver",
+  "issuer",
+  "viewer",
+] as const;
+
+export const briefStreams = mysqlTable(
+  "brief_streams",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    scopeType: mysqlEnum("scopeType", ["project", "scenario"]).notNull(),
+    scenarioId: int("scenarioId"),
+    scopeKey: varchar("scopeKey", { length: 96 }).notNull(),
+    issuePurpose: mysqlEnum("issuePurpose", [
+      "internal_coordination",
+      "client_board_approval",
+      "tender_rfq",
+    ]).notNull(),
+    typologyProfileVersion: varchar("typologyProfileVersion", {
+      length: 96,
+    }).notNull(),
+    revision: int("revision").default(0).notNull(),
+    nextEventSequence: bigint("nextEventSequence", { mode: "number" })
+      .default(1)
+      .notNull(),
+    createdBy: int("createdBy").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_streams_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_streams_identity_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.scopeKey,
+      t.issuePurpose
+    ),
+    index("brief_streams_scenario_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.scenarioId
+    ),
+  ]
+);
+
+export const briefVersions = mysqlTable(
+  "brief_versions",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionNumber: int("versionNumber").notNull(),
+    predecessorVersionId: int("predecessorVersionId"),
+    origin: mysqlEnum("origin", [
+      "user",
+      "deterministic",
+      "ai_proposal",
+      "legacy_import",
+    ]).notNull(),
+    status: mysqlEnum("status", ["working", "locked"])
+      .default("working")
+      .notNull(),
+    requirementProfileVersion: varchar("requirementProfileVersion", {
+      length: 96,
+    }).notNull(),
+    componentScope: json("componentScope").notNull(),
+    revision: int("revision").default(0).notNull(),
+    createdBy: int("createdBy").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_versions_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_versions_number_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.versionNumber
+    ),
+    index("brief_versions_stream_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.streamId
+    ),
+    foreignKey({
+      name: "brief_versions_stream_scope_fk",
+      columns: [t.organizationId, t.projectId, t.streamId],
+      foreignColumns: [briefStreams.organizationId, briefStreams.projectId, briefStreams.id],
+    }),
+  ]
+);
+
+export const briefSectionRevisions = mysqlTable(
+  "brief_section_revisions",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    scopeKey: varchar("scopeKey", { length: 96 }).notNull(),
+    sectionId: mysqlEnum("sectionId", briefSectionValues).notNull(),
+    content: json("content").notNull(),
+    origin: mysqlEnum("origin", [
+      "user",
+      "deterministic",
+      "ai_proposal",
+      "legacy_import",
+    ]).notNull(),
+    authorUserId: int("authorUserId"),
+    actorType: mysqlEnum("actorType", ["human", "ai", "system"]).notNull(),
+    contentSchemaVersion: varchar("contentSchemaVersion", {
+      length: 64,
+    }).notNull(),
+    revisionFingerprint: varchar("revisionFingerprint", {
+      length: 64,
+    }).notNull(),
+    lineageFingerprint: varchar("lineageFingerprint", { length: 64 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_section_revisions_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_section_revisions_fingerprint_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.scopeKey,
+      t.sectionId,
+      t.revisionFingerprint
+    ),
+  ]
+);
+
+export const briefVersionSections = mysqlTable(
+  "brief_version_sections",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionId: int("versionId").notNull(),
+    sectionRevisionId: int("sectionRevisionId"),
+    sectionId: mysqlEnum("sectionId", briefSectionValues).notNull(),
+    applicability: mysqlEnum("applicability", [
+      "required",
+      "conditional",
+      "not_applicable",
+    ])
+      .default("required")
+      .notNull(),
+    achievedState: mysqlEnum("achievedState", [
+      "missing",
+      "drafted",
+      "evidenced",
+      "reviewed",
+      "approved",
+      "issued",
+    ])
+      .default("missing")
+      .notNull(),
+    classifications: json("classifications").notNull(),
+    classificationFingerprint: varchar("classificationFingerprint", {
+      length: 64,
+    }).notNull(),
+    componentScope: json("componentScope").notNull(),
+    revision: int("revision").default(0).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_version_sections_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_version_sections_section_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.versionId,
+      t.sectionId
+    ),
+    index("brief_version_sections_stream_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.versionId
+    ),
+    foreignKey({
+      name: "brief_version_sections_version_scope_fk",
+      columns: [t.organizationId, t.projectId, t.versionId],
+      foreignColumns: [briefVersions.organizationId, briefVersions.projectId, briefVersions.id],
+    }),
+    foreignKey({
+      name: "brief_version_sections_revision_scope_fk",
+      columns: [t.organizationId, t.projectId, t.sectionRevisionId],
+      foreignColumns: [briefSectionRevisions.organizationId, briefSectionRevisions.projectId, briefSectionRevisions.id],
+    }),
+  ]
+);
+
+export const briefRoleEvents = mysqlTable(
+  "brief_role_events",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionId: int("versionId"),
+    sectionId: mysqlEnum("sectionId", briefSectionValues),
+    subjectUserId: int("subjectUserId").notNull(),
+    role: mysqlEnum("role", briefRoleValues).notNull(),
+    action: mysqlEnum("action", ["granted", "revoked"]).notNull(),
+    targetGrantEventId: int("targetGrantEventId"),
+    actorUserId: int("actorUserId").notNull(),
+    reason: text("reason").notNull(),
+    streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_role_events_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    index("brief_role_events_stream_subject_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.subjectUserId,
+      t.role
+    ),
+    uniqueIndex("brief_role_events_stream_sequence_unique").on(
+      t.organizationId, t.projectId, t.streamId, t.streamSequence
+    ),
+  ]
+);
+
+export const briefFindings = mysqlTable(
+  "brief_findings",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionId: int("versionId").notNull(),
+    bindingId: int("bindingId").notNull(),
+    sectionRevisionId: int("sectionRevisionId").notNull(),
+    reviewerUserId: int("reviewerUserId").notNull(),
+    severity: mysqlEnum("severity", ["blocking", "advisory"]).notNull(),
+    ownerUserId: int("ownerUserId").notNull(),
+    statement: text("statement").notNull(),
+    streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_findings_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    index("brief_findings_binding_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.bindingId
+    ),
+    uniqueIndex("brief_findings_stream_sequence_unique").on(
+      t.organizationId, t.projectId, t.streamId, t.streamSequence
+    ),
+  ]
+);
+export const briefFindingResolutions = mysqlTable(
+  "brief_finding_resolutions",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    findingId: int("findingId").notNull(),
+    sectionRevisionId: int("sectionRevisionId").notNull(),
+    stage: mysqlEnum("stage", ["submitted", "accepted", "rejected"]).notNull(),
+    submitterUserId: int("submitterUserId").notNull(),
+    actorUserId: int("actorUserId").notNull(),
+    targetSubmissionId: int("targetSubmissionId"),
+    evidence: json("evidence").notNull(),
+    streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_finding_resolutions_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    index("brief_finding_resolutions_finding_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.findingId,
+      t.createdAt
+    ),
+    uniqueIndex("brief_finding_resolutions_stream_sequence_unique").on(
+      t.organizationId, t.projectId, t.streamId, t.streamSequence
+    ),
+  ]
+);
+
+export const briefApplicabilityEvents = mysqlTable(
+  "brief_applicability_events",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionId: int("versionId").notNull(),
+    bindingId: int("bindingId").notNull(),
+    classificationFingerprint: varchar("classificationFingerprint", {
+      length: 64,
+    }).notNull(),
+    stage: mysqlEnum("stage", [
+      "proposed",
+      "reviewed",
+      "approved",
+      "withdrawn",
+    ]).notNull(),
+    targetEventId: int("targetEventId"),
+    actorUserId: int("actorUserId").notNull(),
+    rationale: text("rationale").notNull(),
+    inputs: json("inputs").notNull(),
+    streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_applicability_events_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    index("brief_applicability_events_binding_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.bindingId,
+      t.createdAt
+    ),
+    uniqueIndex("brief_applicability_events_stream_sequence_unique").on(
+      t.organizationId, t.projectId, t.streamId, t.streamSequence
+    ),
+  ]
+);
+export const briefApprovals = mysqlTable(
+  "brief_approvals",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionId: int("versionId").notNull(),
+    bindingId: int("bindingId").notNull(),
+    sectionRevisionId: int("sectionRevisionId").notNull(),
+    approverUserId: int("approverUserId").notNull(),
+    decision: mysqlEnum("decision", ["approved", "withdrawn"]).notNull(),
+    targetApprovalId: int("targetApprovalId"),
+    issuePurpose: mysqlEnum("issuePurpose", [
+      "internal_coordination",
+      "client_board_approval",
+      "tender_rfq",
+    ]).notNull(),
+    rationale: text("rationale").notNull(),
+    limitations: json("limitations").notNull(),
+    streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_approvals_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    index("brief_approvals_binding_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.bindingId,
+      t.createdAt
+    ),
+    uniqueIndex("brief_approvals_stream_sequence_unique").on(
+      t.organizationId, t.projectId, t.streamId, t.streamSequence
+    ),
+  ]
+);
+export const briefDependencies = mysqlTable(
+  "brief_dependencies",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionId: int("versionId").notNull(),
+    bindingId: int("bindingId").notNull(),
+    sectionRevisionId: int("sectionRevisionId").notNull(),
+    dependencyType: mysqlEnum("dependencyType", [
+      "project_input",
+      "scenario",
+      "geometry",
+      "space_programme",
+      "evidence",
+      "calculation",
+      "benchmark",
+      "material",
+      "supplier_offer",
+      "board",
+      "visual",
+      "generation",
+    ]).notNull(),
+    dependencyRef: json("dependencyRef").notNull(),
+    authority: varchar("authority", { length: 96 }).notNull(),
+    recordVersion: varchar("recordVersion", { length: 128 }).notNull(),
+    fingerprint: varchar("fingerprint", { length: 64 }).notNull(),
+    observedAt: timestamp("observedAt").notNull(),
+    relevance: text("relevance").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_dependencies_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_dependencies_identity_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.bindingId,
+      t.dependencyType,
+      t.fingerprint
+    ),
+  ]
+);
+export const briefConditionEvents = mysqlTable(
+  "brief_condition_events",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionId: int("versionId").notNull(),
+    bindingId: int("bindingId").notNull(),
+    kind: mysqlEnum("kind", ["stale", "blocked"]).notNull(),
+    gate: mysqlEnum("gate", ["evidence_content", "approval_issue"]).notNull(),
+    stage: mysqlEnum("stage", [
+      "raised",
+      "resolution_submitted",
+      "resolution_accepted",
+      "resolution_rejected",
+    ]).notNull(),
+    reasonCode: varchar("reasonCode", { length: 96 }).notNull(),
+    explanation: text("explanation").notNull(),
+    targetEventId: int("targetEventId"),
+    dependencyId: int("dependencyId"),
+    ownerUserId: int("ownerUserId").notNull(),
+    actorUserId: int("actorUserId"),
+    evidence: json("evidence").notNull(),
+    streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_condition_events_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    index("brief_condition_events_binding_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.bindingId,
+      t.kind,
+      t.createdAt
+    ),
+    uniqueIndex("brief_condition_events_stream_sequence_unique").on(
+      t.organizationId, t.projectId, t.streamId, t.streamSequence
+    ),
+  ]
+);
+
+export const briefOperations = mysqlTable(
+  "brief_operations",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId"),
+    actorUserId: int("actorUserId").notNull(),
+    operation: varchar("operation", { length: 96 }).notNull(),
+    idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull(),
+    requestHash: varchar("requestHash", { length: 64 }).notNull(),
+    status: mysqlEnum("status", ["pending", "completed"])
+      .default("pending")
+      .notNull(),
+    resultEntityType: varchar("resultEntityType", { length: 64 }),
+    resultEntityId: int("resultEntityId"),
+    resultRevision: int("resultRevision"),
+    result: json("result"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    completedAt: timestamp("completedAt"),
+  },
+  t => [
+    uniqueIndex("brief_operations_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_operations_idempotency_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.actorUserId,
+      t.operation,
+      t.idempotencyKey
+    ),
+  ]
+);
+export const briefEvents = mysqlTable(
+  "brief_events",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionId: int("versionId").notNull(),
+    sectionId: mysqlEnum("sectionId", briefSectionValues),
+    issueId: int("issueId"),
+    operationId: int("operationId").notNull(),
+    actorUserId: int("actorUserId"),
+    actorType: mysqlEnum("actorType", ["human", "ai", "system"]).notNull(),
+    eventType: varchar("eventType", { length: 64 }).notNull(),
+    payloadSchemaVersion: varchar("payloadSchemaVersion", {
+      length: 32,
+    }).notNull(),
+    payload: json("payload").notNull(),
+    operationOrdinal: int("operationOrdinal").notNull(),
+    streamSequence: bigint("streamSequence", { mode: "number" }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_events_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_events_stream_sequence_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.streamSequence
+    ),
+    uniqueIndex("brief_events_operation_ordinal_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.operationId,
+      t.operationOrdinal
+    ),
+  ]
+);
+
+export const briefIssues = mysqlTable(
+  "brief_issues",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    versionId: int("versionId").notNull(),
+    operationId: int("operationId").notNull(),
+    issueNumber: int("issueNumber").notNull(),
+    issuerUserId: int("issuerUserId").notNull(),
+    issuePurpose: mysqlEnum("issuePurpose", [
+      "internal_coordination",
+      "client_board_approval",
+      "tender_rfq",
+    ]).notNull(),
+    metadata: json("metadata").notNull(),
+    issuedAt: timestamp("issuedAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_issues_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_issues_number_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.issueNumber
+    ),
+  ]
+);
+export const briefIssueSections = mysqlTable(
+  "brief_issue_sections",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    issueId: int("issueId").notNull(),
+    bindingId: int("bindingId").notNull(),
+    sectionRevisionId: int("sectionRevisionId").notNull(),
+    sectionId: mysqlEnum("sectionId", briefSectionValues).notNull(),
+    applicability: mysqlEnum("applicability", [
+      "required",
+      "conditional",
+      "not_applicable",
+    ]).notNull(),
+    achievedState: mysqlEnum("achievedState", ["approved", "issued"]).notNull(),
+    requirementProfileVersion: varchar("requirementProfileVersion", {
+      length: 96,
+    }).notNull(),
+    classificationFingerprint: varchar("classificationFingerprint", {
+      length: 64,
+    }).notNull(),
+    componentScope: json("componentScope").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_issue_sections_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_issue_sections_section_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.issueId,
+      t.sectionId
+    ),
+    foreignKey({
+      name: "brief_issue_sections_issue_scope_fk",
+      columns: [t.organizationId, t.projectId, t.issueId],
+      foreignColumns: [briefIssues.organizationId, briefIssues.projectId, briefIssues.id],
+    }),
+    foreignKey({
+      name: "brief_issue_sections_binding_scope_fk",
+      columns: [t.organizationId, t.projectId, t.bindingId],
+      foreignColumns: [briefVersionSections.organizationId, briefVersionSections.projectId, briefVersionSections.id],
+    }),
+    foreignKey({
+      name: "brief_issue_sections_revision_scope_fk",
+      columns: [t.organizationId, t.projectId, t.sectionRevisionId],
+      foreignColumns: [briefSectionRevisions.organizationId, briefSectionRevisions.projectId, briefSectionRevisions.id],
+    }),
+  ]
+);
+export const briefIssueApprovals = mysqlTable(
+  "brief_issue_approvals",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    issueId: int("issueId").notNull(),
+    issueSectionId: int("issueSectionId").notNull(),
+    approvalId: int("approvalId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_issue_approvals_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_issue_approvals_ref_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.issueId,
+      t.issueSectionId,
+      t.approvalId
+    ),
+  ]
+);
+export const briefIssueApplicability = mysqlTable(
+  "brief_issue_applicability",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    issueId: int("issueId").notNull(),
+    issueSectionId: int("issueSectionId").notNull(),
+    applicabilityEventId: int("applicabilityEventId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_issue_applicability_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_issue_applicability_ref_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.issueId,
+      t.issueSectionId,
+      t.applicabilityEventId
+    ),
+  ]
+);
+export const briefIssueDependencies = mysqlTable(
+  "brief_issue_dependencies",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    issueId: int("issueId").notNull(),
+    issueSectionId: int("issueSectionId").notNull(),
+    dependencyId: int("dependencyId").notNull(),
+    recordVersion: varchar("recordVersion", { length: 128 }).notNull(),
+    fingerprint: varchar("fingerprint", { length: 64 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_issue_dependencies_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_issue_dependencies_ref_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.issueId,
+      t.issueSectionId,
+      t.dependencyId
+    ),
+  ]
+);
+export const briefLegacyLinks = mysqlTable(
+  "brief_legacy_links",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    projectId: int("projectId").notNull(),
+    streamId: int("streamId").notNull(),
+    sourceType: varchar("sourceType", { length: 64 }).notNull(),
+    sourceId: varchar("sourceId", { length: 128 }).notNull(),
+    importedVersionId: int("importedVersionId"),
+    importedRevisionId: int("importedRevisionId"),
+    disposition: mysqlEnum("disposition", [
+      "linked",
+      "imported",
+      "rejected",
+      "drifted",
+    ]).notNull(),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("brief_legacy_links_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("brief_legacy_links_source_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.sourceType,
+      t.sourceId
+    ),
+  ]
+);
+
+export type BriefStream = typeof briefStreams.$inferSelect;
+export type BriefVersion = typeof briefVersions.$inferSelect;
+export type BriefVersionSection = typeof briefVersionSections.$inferSelect;
+export type BriefEvent = typeof briefEvents.$inferSelect;

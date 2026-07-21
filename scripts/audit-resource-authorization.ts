@@ -762,6 +762,11 @@ function ownershipPath(
   procedure: ExtractedProcedure,
   classification: Classification
 ): string[] {
+  if (procedure.router === "brief") {
+    return [
+      "authenticated organization + input projectId/briefId/versionId/child IDs -> canonical brief workflow lockTenant resolver -> organization/project/scenario-scoped records",
+    ];
+  }
   if (procedure.key === "design.linkAsset") {
     return [
       "input.assetId -> project_assets.id -> project_assets.projectId -> projects.orgId",
@@ -908,6 +913,9 @@ function defaultAnnotation(
     );
   const hasOrgScopedInsert =
     /\b(orgId|organizationId)\s*:\s*ctx\.(orgId|user\.orgId)\b/.test(text);
+  const hasBriefWorkflowGuard =
+    procedure.router === "brief" &&
+    /\b(?:command|createBriefStream|getBriefSummary|getBriefVersion|getBriefSection|listBriefAssignments|listBriefDependencies|listBriefEvents|listBriefFindings|listBriefIssues|listBriefStreams|getBriefReadinessFacts)\s*\(/.test(text);
 
   const globalGovernedKeys = new Set([
     "admin.portfolio.overview",
@@ -976,6 +984,7 @@ function defaultAnnotation(
     classification = "legacy_user_guard";
   } else if (
     hasCanonicalGuard ||
+    hasBriefWorkflowGuard ||
     hasOrgCheck ||
     hasOrgScopedPredicate ||
     hasOrgScopedHelper ||
@@ -1051,10 +1060,12 @@ function defaultAnnotation(
 
   const guardEvidence =
     classification === "org_guarded"
-      ? hasCanonicalGuard
+      ? hasCanonicalGuard || hasBriefWorkflowGuard
         ? scopedWriteEvidence
           ? "Calls a canonical project/resource authorization resolver before access and uses an organization-scoped final-write helper; named real-SQL coverage is maintained in tests/mysql/design-authorization.mysql.test.ts."
-          : "Calls a canonical project/resource authorization resolver before project-scoped child access."
+          : hasBriefWorkflowGuard
+            ? "Delegates to the canonical brief workflow boundary, which resolves organization, project, stream, version, and child scope from the authenticated organization before access."
+            : "Calls a canonical project/resource authorization resolver before project-scoped child access."
         : procedure.key === "organization.acceptInvite"
           ? "Resolves an organization invite token, verifies its expiry, and adds the authenticated user to the invite's organization."
           : procedure.key === "organization.myOrgs"
